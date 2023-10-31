@@ -16,6 +16,8 @@
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
+    <link rel="stylesheet" href="./css/lib/jquery.tagsinput.min.css" />
     <link rel="stylesheet" href="./css/siglens.css" />
 
     <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
@@ -38,36 +40,18 @@
 
         <div id="dashboard">
             <div id="filter-container">
-                <div class="position-relative search-bar-container">
-                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-sql"
-                        style="display: none;" title=' SELECT MAX(latency), COUNT(city) FROM `*` GROUP BY country, gender LIMIT 10
-                        SELECT * FROM `ind-0`
-                        SELECT * FROM `ind-0` ORDER BY latency ASC
-                        SELECT first_name AS firstnames, country AS origincountry FROM `ind-0`
-                        SELECT MAX(latency), COUNT(city) FROM `*` WHERE gender = male GROUP BY country LIMIT 10
-                        SELECT * FROM `*` WHERE app_name = Wheataccount AND gender = male LIMIT 10'>
-
-                    </i>
-                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-logQL"
-                        style="display: none;" title=' {app="mysql",name="mysql-backup"}
-                        {job="mysql"} |= "error"
-                        {name="cassandra"} |~ error=\w+
-                        {job="mysql"} |= "error" != "timeout"
-                        {job="mysql"} |= "error" | json | line_format "&lbrace;{.err}&rbrace;"
-                        '>
-                    </i>
-                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-spl"
-                        style="display: block;" title=' app_version!=2.14.2 AND weekday=T*day
-                        city=Boston | stats count, avg(latency) BY weekday, http_method
-                        city=Boston | stats avg(latency) AS Avg BY weekday | eval Millis=Avg / 1000, Millis=Millis . " ms"
-                        city=Boston | ```This is a comment``` fields http*
-                        http_method=POST | regex city="^[a-zA-Z]+\s[a-zA-Z]+$" | fields city
-                        city=Boston | stats count AS Count BY weekday | where Count / 2 > 6 OR weekday = "Saturday"
-                        '>
-                    </i>
-                    <input class="form-control" id="filter-input"
-                        placeholder="Enter your SPL query here, or click the 'i' icon for examples" type="text">
-                    <span class="clear-icon" id="clearInput" title="Clear"></span>
+                <div class="filter-con">
+                    <div class="filter-box">
+                        <ul id="tags" class="tags-list"></ul>
+                        <button id="add-con" class="add-con btn">+</button>
+                    </div>
+                    <div class="add-filter" id="add-filter">
+                        <input id="column-first" class="column-first" type="hidden" />
+                        <input id="symbol" class="symbol" type="hidden" />
+                        <input id="value-first" class="value-first" type="hidden" />
+                        <button id="completed" class="completed btn">√</button>
+                        <button id="cancel-enter" class="cancel-enter btn">x</button>
+                    </div>
                 </div>
                 <div class="dropdown">
                     <button class="btn dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
@@ -148,6 +132,31 @@
                     <button class="btn" id="run-filter-btn" title="Run your search">Search </button>
                 </div>
 
+            </div>
+            <div class="display-rule">
+                <div class="filter-con second-enter">
+                    <div class="filter-box">
+                        <ul id="tags-second" class="tags-list"></ul>
+                        <button id="add-con-second" class="add-con btn">+</button>
+                    </div>
+                    <div class="add-filter add-filters" id="add-filter-second">
+                        <input id="column-second" class="column-first" type="hidden" />
+                        <input id="value-second" class="value-first" type="hidden" />
+                        <button id="completed-second" class="completed btn">√</button>
+                        <button id="cancel-enter-second" class="cancel-enter btn">x</button>
+                    </div>
+                </div>
+                <div class="filter-con third-enter">
+                    <div class="filter-box third-box">
+                        <button id="add-con-third" class="add-con btn">+</button>
+                        <ul id="tags-third" class="tags-list"></ul>
+                    </div>
+                    <div class="group-by-reminder">Group by</div>
+                    <div class="add-filter add-third" id="add-filter-third">
+                        <input id="column-third" class="column-third" type="hidden" placeholder="Enter sort order" />
+                        <button id="cancel-enter-third" class="cancel-enter btn">x</button>
+                    </div>
+                </div>
             </div>
             <div id="hits-summary"></div>
             <div id="progress-div"></div>
@@ -280,6 +289,7 @@
     <script src="./js/pointClickSearch.js?cb=1_1_10"></script>
     <script src="./js/logSearch.js?cb=1_1_10"></script>
     <script src="./js/dashboard-from-logs.js?cb=1_1_10"></script>
+    <script src="./js/query-builder.js"></script>
 </body>
 
 </html>

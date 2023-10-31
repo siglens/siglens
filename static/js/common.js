@@ -54,6 +54,9 @@ let metricsDatasets;
 let liveTailState = false;
 let tt;
 let lockReconnect = false;
+let firstBoxSet = new Set();
+let secondBoxSet = new Set();
+let thirdBoxSet = new Set();
 
 
 let aggGridOptions = {

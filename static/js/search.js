@@ -52,6 +52,37 @@ limitations under the License.
      }
  }
  
+function getColumns() {
+  if (availColNames.length == 0) {
+    data = {
+      state: "query",
+      searchText: "*",
+      startEpoch: "now-24h",
+      endEpoch: "now",
+      indexName: "*",
+      from: 0,
+      size: 1,
+      queryLanguage: "Splunk QL",
+    };
+    $.ajax({
+      method: "post",
+      url: "api/search/",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "*/*",
+      },
+      crossDomain: true,
+      dataType: "json",
+      data: JSON.stringify(data),
+      success: function (res) {
+        if (res) {
+          availColNames = res.allColumns;
+        }
+      },
+    });
+  }
+}
+
  function doSearch(data) {
      startQueryTime = (new Date()).getTime();
      newUri = wsURL("/api/search/ws");
@@ -113,12 +144,14 @@ limitations under the License.
                  console.log(`[message] Timeout state received from server: ${jsonEvent}`);
                  processTimeoutUpdate(jsonEvent);
                  console.timeEnd("TIMEOUT");
+                 if (availColNames.length == 0) getColumns();
                  break;
              case "ERROR":
                  console.time("ERROR");
                  console.log(`[message] Error state received from server: ${jsonEvent}`);
                  processErrorUpdate(jsonEvent);
                  console.timeEnd("ERROR");
+                 if (availColNames.length == 0) getColumns();
                  break;
              default:
                  console.log(`[message] Unknown state received from server: `+ JSON.stringify(jsonEvent));
@@ -127,6 +160,7 @@ limitations under the License.
                  } else if (jsonEvent.message.includes("not present")){
                     jsonEvent['no_data_err'] = "No data found for the query"
                  }
+                 if (availColNames.length == 0) getColumns();
                  processSearchErrorLog(jsonEvent);
          }
      };
@@ -138,6 +172,7 @@ limitations under the License.
              console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
          }
          console.timeEnd("socket timing");
+         if (availColNames.length == 0) getColumns();
      };
  
      socket.addEventListener('error', (event) => {
@@ -406,13 +441,13 @@ limitations under the License.
       queryLanguage: queryLanguage,
     };
   }
+  let filterTextQB = "";
  function getSearchFilter(skipPushState, scrollingTrigger) {
-     let filterValue = $('#filter-input').val().trim() || '*';
      let endDate = filterEndDate || "now";
      let stDate = filterStartDate || "now-15m";
      let selIndexName = selectedSearchIndex;
      let sFrom = 0;
-     let queryLanguage = $('#query-language-btn span').html();
+     let queryLanguage = "Splunk QL";
  
      selIndexName.split(',').forEach(function(searchVal){
          $(`.index-dropdown-item[data-index="${searchVal}"]`).toggleClass('active');
@@ -428,7 +463,37 @@ limitations under the License.
      } else {
          datePickerHandler(stDate, endDate, "");
      }
- 
+     let filterValue = "";
+   //concat the first input box
+   let index = 0;
+   if (firstBoxSet && firstBoxSet.size > 0) {
+     firstBoxSet.forEach((value, i) => {
+       if (index != firstBoxSet.size - 1) filterValue += value + " ";
+       else filterValue += value;
+       index++;
+     });
+    }
+    index = 0;
+    //concat the second input box
+    if (secondBoxSet && secondBoxSet.size > 0) {
+      filterValue += " | stats";
+      secondBoxSet.forEach((value, i) => {
+        if (index != secondBoxSet.size - 1) filterValue += " " + value + ",";
+        else filterValue += " " + value;
+        index++;
+      });
+    }
+    index = 0;
+    if (thirdBoxSet && thirdBoxSet.size > 0) {
+      //concat the third input box
+      filterValue += " BY";
+      thirdBoxSet.forEach((value, i) => {
+        if (index != thirdBoxSet.size - 1) filterValue += " " + value + ",";
+        else filterValue += " " + value;
+        index++;
+      });
+    }
+    if (filterValue == "") filterValue = "*";
      addQSParm("searchText", filterValue);
      addQSParm("startEpoch", stDate);
      addQSParm("endEpoch", endDate);
@@ -440,7 +505,8 @@ limitations under the License.
      if (scrollingTrigger){
          sFrom = scrollFrom;
      }
- 
+
+     filterTextQB = filterValue;
      return {
          'state': wsState,
          'searchText': filterValue,
@@ -453,7 +519,7 @@ limitations under the License.
  }
  
  function getSearchFilterForSave(qname, qdesc) {
-     let filterValue = $('#filter-input').val().trim() || '*';
+     let filterValue = filterTextQB.trim() || "*";
  
      return {
          'queryName': qname,
