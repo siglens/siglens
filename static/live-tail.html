@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>SigLens</title>
+
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+    <link rel="manifest" href="assets/site.webmanifest">
+    <link rel="mask-icon" href="assets/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+
+    <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="./css/lib/all.min.css" />
+    <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/siglens.css" />
+
+    <script src="./js/lib/lodash.min.js"></script>
+    <script src="./js/lib/jquery-3.6.0.min.js"></script>
+    <script src="./js/lib/jquery-ui.min.js"></script>
+    <script src="./js/lib/js.cookie.min.js"></script>
+    <script src="./js/lib/moment.min.js"></script>
+    <script src="./js/lib/date_fns.min.js"></script>
+    <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/bootstrap.bundle.min.js"></script>
+    <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+</head>
+
+<body data-theme="light">
+    <div id="app-container">
+        <div id="app-side-nav" class="active">
+        </div>
+
+        <div id="dashboard">
+            <div id="filter-container">
+                <div class="position-relative search-bar-container search-enter">
+                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-sql"
+                        style="display: none;"
+                        title=' SELECT MAX(latency), COUNT(city) FROM `*` GROUP BY country, gender LIMIT 10
+                                            SELECT * FROM `ind-0`
+                                            SELECT * FROM `ind-0` ORDER BY latency ASC
+                                            SELECT first_name AS firstnames, country AS origincountry FROM `ind-0`
+                                            SELECT MAX(latency), COUNT(city) FROM `*` WHERE gender = male GROUP BY country LIMIT 10
+                                            SELECT * FROM `*` WHERE app_name = Wheataccount AND gender = male LIMIT 10'>
+
+                    </i>
+                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-logQL"
+                        style="display: none;" title=' {app="mysql",name="mysql-backup"}
+                                            {job="mysql"} |= "error"
+                                            {name="cassandra"} |~ error=\w+
+                                            {job="mysql"} |= "error" != "timeout"
+                                            {job="mysql"} |= "error" | json | line_format "&lbrace;{.err}&rbrace;"
+                                            '>
+                    </i>
+                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-spl"
+                        style="display: block;" title=' app_version!=2.14.2 AND weekday=T*day
+                                            city=Boston | stats count, avg(latency) BY weekday, http_method
+                                            city=Boston | stats avg(latency) AS Avg BY weekday | eval Millis=Avg / 1000, Millis=Millis . " ms"
+                                            city=Boston | ```This is a comment``` fields http*
+                                            http_method=POST | regex city="^[a-zA-Z]+\s[a-zA-Z]+$" | fields city
+                                            city=Boston | stats count AS Count BY weekday | where Count / 2 > 6 OR weekday = "Saturday"
+                                            '>
+                    </i>
+                    <input class="form-control" id="filter-input"
+                        placeholder="Enter your SPL query here, or click the 'i' icon for examples" type="text">
+                    <span class="clear-icon" id="clearInput" title="Clear"></span>
+                </div>
+                <div class="dropdown">
+                    <button class="btn dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
+                        <span>Splunk QL</span>
+                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                    </button>
+                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
+                        <li id="option-1" class="query-language-option">SQL</li>
+                        <li id="option-2" class="query-language-option">Log QL</li>
+                        <li id="option-3" class="query-language-option active">Splunk QL</li>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <button class="btn dropdown-toggle" type="button" id="index-btn" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
+                        title="Index Name to search on">
+                        <span>Index</span>
+                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                    </button>
+                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="available-indexes">
+                        <div id="index-listing"></div>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <button class="btn" id="live-tail-btn" title="Live Tail">Live Tail</button>
+                </div>
+            </div>
+
+            <div id="logs-view-controls" class="my-3 d-flex justify-content-end">
+                <div id="views-container">
+                    <div class="d-flex justify-content-end">
+                        <div class="btn-group mx-3" role="group" id="log-view">
+                            <button class="btn" id="log-opt-single-btn">
+                                <span class="single-line-icon" title="Single Line Display View"></span>
+                            </button>
+                            <button class="btn" id="log-opt-multi-btn">
+                                <span class="multi-line-icon" title="Wrap Line Display View"></span>
+                            </button>
+                            <button class="btn" id="log-opt-table-btn">
+                                <span class="table-view-icon" title="Table Display View"></span>
+                            </button>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn dropdown-toggle" title="Select field names to display" type="button"
+                                id="avail-fields-btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bs-toggle="dropdown">
+                                <i class="fa-solid fa-list-check" title="Select field names to display"></i>&nbsp;
+                                Available Fields
+                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                            </button>
+                            <div class="dropdown-menu box-shadow" aria-labelledby="avail-fields-btn"
+                                id="available-fields">
+                                <div class="select-unselect-header" id="select-unselect-header">
+                                    Select/Unselect All
+                                    <img class="select-unselect-checkbox" src="assets/available-field-checkbox.svg">
+                                </div>
+                                <div class="fields"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="empty-response"></div>
+
+            <div id="logs-result-container">
+                <div id="LogResultsGrid" class="LogResultsGrid ag-theme-mycustomtheme"></div>
+            </div>
+            <div id="agg-result-container">
+                <div id="measureAggGrid" class="measureAggGrid ag-theme-mycustomtheme"></div>
+            </div>
+
+            <div id="corner-popup">
+                <div class="corner-container">
+                    <div class="corner-text" id="corner-text"></div>
+                </div>
+                <button class="btn corner-btn-close" id="close-btn">OK</button>
+            </div>
+
+        </div>
+
+        <div id="save-queries" title="Save Query">
+            <p class="validateTips"></p>
+            <form>
+                <fieldset>
+                    <input type="text" name="qname" id="qname" placeholder="Name"
+                        class="text ui-widget-content ui-corner-all">
+                    <input type="text" name="description" id="description" placeholder="Description (Optional)"
+                        class="text ui-widget-content ui-corner-all">
+                    <!-- Allow form submission with keyboard without duplicating the dialog button -->
+                    <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+                </fieldset>
+            </form>
+        </div>
+
+        <div id="app-footer">
+            2023 &copy; SigLens
+        </div>
+
+    </div>
+
+    <script src="./js/navbar.js?cb=1_1_10"></script>
+    <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/eventHandlers.js?cb=1_1_10"></script>
+    <script src="./js/availableFields.js?cb=1_1_10"></script>
+    <script src="./js/logResultsGrid.js?cb=1_1_10"></script>
+    <script src="./js/agGridSegstats.js?cb=1_1_10"></script>
+    <script src="./js/datePicker.js?cb=1_1_10"></script>
+    <script src="./js/search.js?cb=1_1_10"></script>
+    <script src="./js/savedQuery.js?cb=1_1_10"></script>
+    <script src="./js/index.js?cb=1_1_10"></script>
+    <script src="./js/pointClickSearch.js?cb=1_1_10"></script>
+    <script src="./js/logSearch.js?cb=1_1_10"></script>
+</body>
+
+</html>
