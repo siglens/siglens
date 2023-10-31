@@ -907,7 +907,7 @@ NumericExprLevel1 <- "(" expr:NumericExprLevel3 ")" {
 }
 
 //Currently involves abs, ceil, round, sqrt
-NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt") "(" expr:(NumericExprLevel3) ")") {
+NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") "(" expr:(NumericExprLevel3) ")") {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
