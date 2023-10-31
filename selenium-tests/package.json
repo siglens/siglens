@@ -1,0 +1,17 @@
+{
+  "name": "selenium-tests",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "test": "mocha --recursive tests"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chromedriver": "^118.0.1",
+    "geckodriver": "^3.2.0",
+    "mocha": "^10.2.0",
+    "selenium-webdriver": "^4.9.0"
+  }
+}
