@@ -187,11 +187,6 @@ function filterComplete(evt) {
     return;
   }
   let tagContent = $("#column-first").val().trim() + $("#symbol").val().trim();
-  //   if(val.indexOf(" ") != -1){
-  //     tagContent += "\"" + val + "\"";
-  //   }else{
-  //     tagContent += val;
-  //   }
   tagContent += '"' + val + '"';
   $("#column-first").val("");
   $("#symbol").val("");
