@@ -1,0 +1,405 @@
+{
+package logql
+import (
+	"strconv"
+	"strings"
+	structs "github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/ast"
+	"github.com/siglens/siglens/pkg/segment/utils"
+    "fmt"
+)
+
+func getParseError(err error) error {
+	switch ev := err.(type) {
+	case errList:
+		if pe, ok := ev[0].(*parserError); ok {
+			return &ast.ParseError{
+				Inner:    pe.Inner,
+				Line:     pe.pos.line,
+				Column:   pe.pos.col,
+				Offset:   pe.pos.offset,
+				Prefix:   pe.prefix,
+				Expected: pe.expected,
+			}
+		}
+	}
+	return err
+}
+
+}
+
+// LogQL is a Log Query Language parser
+
+// Grammar rules and functions for LogQL
+
+Start <- query:Stream? jf:JSONFilter? fs:FilterStream? EOF {
+    var q ast.QueryStruct
+    if jf != nil {
+        q.PipeCommands = jf.(*structs.QueryAggregators)
+        q.PipeCommands.PipeCommandType = structs.OutputTransformType
+    }
+    if query != nil && fs != nil{
+        finalNode := &ast.Node {
+        NodeType: ast.NodeAnd,
+        Left: query.(*ast.Node),
+        Right: fs.(*ast.Node),
+        }
+        q.SearchFilter = finalNode
+        return q, nil
+
+    }
+    if fs != nil && query == nil {
+        q.SearchFilter = fs.(*ast.Node)
+        return q, nil
+    }
+
+    if query != nil && fs == nil {
+        q.SearchFilter = query.(*ast.Node)
+        return q, nil
+    }
+
+    return q, nil 
+} / COUNT_OVER_TIME "(" query:Stream duration:Duration ")" {
+    var q ast.QueryStruct
+    q.SearchFilter = query.(*ast.Node)
+    aggs := &structs.QueryAggregators{}
+	countCols := []*structs.MeasureAggregator{{MeasureCol: "*", MeasureFunc: utils.Count}}
+	aggs.GroupByRequest = &structs.GroupByRequest{MeasureOperations: countCols, GroupByColumns: []string{"*"}}
+	timeNow := utils.GetCurrentTimeMillis()
+	aggs.TimeHistogram = &structs.TimeBucket{StartTime: timeNow - duration.(uint64), EndTime: timeNow}
+    q.PipeCommands = aggs
+    q.PipeCommands.PipeCommandType = structs.GroupByType
+    return q, nil
+}
+
+Stream <- Delimiter q1:Query rest:(Query)* Delimiter space?{
+    startNode, ok := q1.(*ast.Node)
+    if !ok {
+        return nil, nil
+    }
+    if len(rest.([]interface{})) == 0 {
+        return startNode, nil
+    }
+    finalNode := &ast.Node {
+        NodeType: ast.NodeAnd,
+        Left: startNode,
+        Right: &ast.Node{},
+    }
+    ptr := finalNode
+    for index, query := range rest.([]interface{}) {
+        if index == len(rest.([]interface{}))-1 {
+            ptr.Right = query.(*ast.Node)
+        } else {
+            ptr.Right = &ast.Node {
+            NodeType: ast.NodeAnd,
+            Left: query.(*ast.Node),
+            Right: &ast.Node{},
+            }
+            ptr = ptr.Right
+        }
+    }
+    return finalNode, nil
+}
+
+FilterStream <- rest:(LogFilter / LabelFilter)* space?{
+    if rest == nil || len(rest.([]interface{})) == 0 {
+        return nil, nil
+    }
+    list := rest.([]interface{})
+    if len(list) == 1 {
+        return list[0].(*ast.Node), nil 
+    }
+    finalNode := &ast.Node {
+        NodeType: ast.NodeAnd,
+        Left: list[0].(*ast.Node),
+        Right: &ast.Node{},
+    }
+    ptr := finalNode
+    list = list[1:]
+    for index, filter := range list {
+        if index == len(list)-1 {
+            ptr.Right = filter.(*ast.Node)
+        } else {
+            ptr.Right = &ast.Node {
+            NodeType: ast.NodeAnd,
+            Left: filter.(*ast.Node),
+            Right: &ast.Node{},
+            }
+            ptr = ptr.Right
+        }
+    }
+    return finalNode, nil
+}
+
+Query <-  field:Field space? "=" space? field1:Field ','? space? {
+    return &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Op: "=",
+            Field: field.(string),
+            Values: field1,
+        },
+    }, nil
+}
+
+SingleField <-  ','? space? field:Field ','?{
+    return &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Field: field.(string), 
+            Values: field,
+        },
+    }, nil
+}
+
+LogFilter <- space? grep:GrepFilter space? field:Field space? {
+    return &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Op: grep.(string),
+            Values: ast.GrepValue{Field: field.(string)},
+        },
+    }, nil
+
+}
+
+LabelFilter <- space? '|' space? field:Field space? op:opCOMP space? field1:Field ','? space?{
+    return &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Op: op.(string),
+            Field: field.(string),
+            Values: field1,
+        },
+    }, nil
+}
+
+JSONFilter <- space? '|' space "json" space? rest:(Query)* {
+    if len(rest.([]interface{})) == 0 {
+        return nil, nil
+    }
+    rawIncludeValues := make([]*structs.IncludeValue, 0)
+    mapLabels := make(map[string]string, 0)
+    aggNode := &structs.QueryAggregators{OutputTransforms: &structs.OutputTransforms{}}
+    columsArray := make([]string, 0)
+	for _, query := range rest.([]interface{}) {
+        label := query.(*ast.Node).Comparison.Field
+		expression := strings.Trim(query.(*ast.Node).Comparison.Values.(string), "\"")
+		r := regexp.MustCompile(`^(\w+)\[(\d+)\]$`)
+		isIndexed := r.MatchString(expression)
+		if isIndexed {
+			match := r.FindStringSubmatch(expression)
+			cname := match[1]
+			index, err := strconv.Atoi(match[2])
+			if err != nil {
+				return nil, fmt.Errorf("ParseJSONRequest: error parsing json array expression")
+			}
+            rawIncludeValues = append(rawIncludeValues, &structs.IncludeValue{Index: index, ColName: cname, Label: label})
+            columsArray = append(columsArray, cname)
+		} else {
+            mapLabels[expression] = label
+            columsArray = append(columsArray, expression)
+		}
+	}
+    aggNode.OutputTransforms = &structs.OutputTransforms{OutputColumns: &structs.ColumnsRequest{IncludeColumns: columsArray}}
+	aggNode.OutputTransforms.OutputColumns.RenameColumns = mapLabels
+    aggNode.OutputTransforms.OutputColumns.IncludeValues = rawIncludeValues
+	return aggNode, nil
+} / space? '|' space "logfmt" space? rest:(Query / SingleField)* {
+    aggNode := &structs.QueryAggregators{OutputTransforms: &structs.OutputTransforms{OutputColumns: &structs.ColumnsRequest{}}}
+    rawIncludeValues := make([]*structs.IncludeValue, 0)
+	for _, query := range rest.([]interface{}) {
+        expression := strings.Trim(query.(*ast.Node).Comparison.Values.(string), "\"")
+        newValue := &structs.IncludeValue{ColName: expression, Label: query.(*ast.Node).Comparison.Field}
+        rawIncludeValues = append(rawIncludeValues, newValue)
+    }
+	aggNode.OutputTransforms.OutputColumns.IncludeValues = rawIncludeValues
+    aggNode.OutputTransforms.OutputColumns.Logfmt = true
+	return aggNode, nil
+}
+
+Duration <- "[" val:Integer timeUnit:TIME_UNIT "]" {
+    switch rawVal := val.(type) {
+	case json.Number:
+		interval, err := rawVal.Int64()
+        if err != nil {
+            return nil, fmt.Errorf("input is not an integer number")
+        }
+        return uint64(interval) * timeUnit.(uint64), nil 
+	default:
+		return nil, fmt.Errorf("input is not a JSON number")
+	}
+}
+
+TIME_UNIT <- "ms" {
+    return uint64(1), nil
+} / "s" {
+    return uint64(1000), nil
+} / "m" {
+    return uint64(60000), nil
+} / "h" {
+    return uint64(60 * 60000), nil
+} / "d" {
+    return uint64(24 * 60 * 60000), nil
+} / "w" {
+    return uint64(7 * 24 * 60 * 60000), nil
+} / "y" {
+    return uint64(365 * 24 * 60 * 60000), nil
+}
+
+opCOMP <- opCustom
+/ "==" {
+    return "=", nil
+} / "=~" {
+    return "=", nil
+} / "<=" {
+    return string(c.text), nil
+} / ">=" {
+    return string(c.text), nil
+} / "=" {
+    return string(c.text), nil
+} / "<" {
+    return string(c.text), nil
+} / ">" {
+    return string(c.text), nil
+} / "!=" {
+    return string(c.text), nil
+} / "!~" {
+    return "!=", nil 
+}
+
+GrepFilter <- "|=" {
+    return "=", nil
+} / "!=" {
+    return string(c.text), nil
+} / "|~" {
+    return "=", nil 
+} / "!~" {
+    return "!=", nil 
+}
+
+
+opCustom <- '=' opname:[a-z]i+ '='{
+    return ast.OpNameToString(c.text)
+}
+
+
+LetOpr <- [>] '=' {
+    return utils.LetGreaterThanOrEqualTo, nil
+} / '>' {
+    return utils.LetGreaterThan, nil
+} / [<] '=' {
+    return utils.LetLessThanOrEqualTo, nil
+} / '<' {
+    return utils.LetLessThan, nil
+} / [=] '=' {
+    return utils.LetEquals, nil
+} / [!] '=' {
+    return utils.LetNotEquals, nil
+} / '+' {
+    return utils.LetAdd, nil
+} / '-' {
+    return utils.LetSubtract, nil
+} / '/' {
+    return utils.LetDivide, nil
+} / '*' {
+    return utils.LetMultiply, nil
+} / '%' {
+    return utils.LetModulo, nil
+}
+
+LetIdentifier <- '-'? Float {
+    var dte utils.DtypeEnclosure
+    dte.Dtype = utils.SS_DT_FLOAT
+    dte.FloatVal,_ = strconv.ParseFloat(string(c.text), 64)
+    dte.StringVal = string(c.text)
+    return &dte, nil
+} / '-'+ Integer {
+    var dte utils.DtypeEnclosure
+    dte.Dtype = utils.SS_DT_SIGNED_NUM
+    dte.SignedVal,_ = strconv.ParseInt(string(c.text),10, 64)
+    dte.StringVal = string(c.text)
+    return &dte, nil
+} /  Integer {
+    var dte utils.DtypeEnclosure
+    dte.Dtype = utils.SS_DT_UNSIGNED_NUM
+    dte.UnsignedVal,_ = strconv.ParseUint(string(c.text),10, 64)
+    dte.StringVal = string(c.text)
+    return &dte, nil
+} / QuotedValue {
+    var dte utils.DtypeEnclosure
+    dte.Dtype = utils.SS_DT_STRING
+    dte.BoolVal = 1
+    dte.StringVal = string(c.text)
+    return &dte, nil
+}
+
+BoolValue <- "false" / "true"
+
+COUNT_OVER_TIME <- "count_over_time" 
+
+Field <- Value / pieces:FieldPiece {
+    if pieces == nil {
+		return "*", nil
+	}
+
+    return string(c.text), nil
+}
+
+Identifier <-
+   [a-zA-Z0-9_@./*]i+ { 
+      return string(c.text), nil
+}
+
+Value <- val:(
+    Float
+    / Integer
+    
+    ){
+    return ast.MakeValue(val)
+  }
+
+Integer <- [+-]? [0-9]+ {
+    return json.Number(string(c.text)), nil
+  }
+
+Float <- [+-]? ([0-9]* "." [0-9]+ ) {
+      return json.Number(string(c.text)), nil
+    }
+
+FieldPiece <- QuotedFieldPiece / UnquotedFieldPiece / Star
+
+UnquotedFieldPiece <- [-a-zA-Z0-9$&,?#%_@;[\]{}+-./*:]i+ {
+    return string(c.text), nil
+}
+
+QuotedFieldPiece <- QuotedValue
+
+Star <- '*' {
+    return "*", nil
+}
+QuotedValue <- '"' ( !EscapedChar . / '\\' EscapeSequence )* '"' {
+    c.text = bytes.Replace(c.text, []byte(`\/`), []byte(`/`), -1)
+    return strconv.Unquote(string(c.text))
+}
+EscapedChar <- [\x00-\x1f"\\]
+
+EscapeSequence <- SingleCharEscape / UnicodeEscape
+
+SingleCharEscape <- ["\\/bfnrt]
+
+UnicodeEscape <- 'u' HexDigit HexDigit HexDigit HexDigit
+
+HexDigit <- [0-9a-f]i
+
+/**********************
+WHITESPACE AND TERMINAL
+***********************/
+EOF = !.
+
+_ "whitespace" <- [ \n\t\r]*
+
+space <- [ \n\t\r]+
+
+Delimiter <- "{" / "}"
+

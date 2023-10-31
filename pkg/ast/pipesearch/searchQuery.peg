@@ -1,0 +1,438 @@
+{
+package pipesearch
+import (
+    "strconv"
+	"github.com/siglens/siglens/pkg/segment/structs"
+    "github.com/siglens/siglens/pkg/segment/utils"
+    "github.com/siglens/siglens/pkg/ast"
+    "fmt"
+)
+	// helper method to exfiltrate pigeon's generated error type
+func getParseError(err error) error {
+	switch ev := err.(type) {
+	case errList:
+		if pe, ok := ev[0].(*parserError); ok {
+			return &ast.ParseError{
+				Inner:    pe.Inner,
+				Line:     pe.pos.line,
+				Column:   pe.pos.col,
+				Offset:   pe.pos.offset,
+				Prefix:   pe.prefix,
+				Expected: pe.expected,
+			}
+		}
+	}
+	return err
+}
+
+}
+
+Start <- maggs:measureAggsList? EOF {
+        var q ast.QueryStruct
+        if maggs !=nil {
+            q.PipeCommands = maggs.(*structs.QueryAggregators)
+        }
+        return q, nil
+} / groupBy:groupByList? space? lim:Limit? EOF {
+    var q ast.QueryStruct
+    if groupBy != nil {
+        q.PipeCommands = groupBy.(*structs.QueryAggregators)
+        q.PipeCommands.BucketLimit = groupBy.(*structs.QueryAggregators).BucketLimit
+    }
+    return q, nil
+
+} / query:Query? aggs:AggClause? EOF {
+    var q ast.QueryStruct
+    if query !=nil{
+        q.SearchFilter = query.(*ast.Node)
+    }
+    if aggs !=nil {
+        q.PipeCommands = aggs.(*structs.QueryAggregators)
+    }
+    return q, nil
+} / query:Query? EOF {
+    var q ast.QueryStruct
+    if query !=nil{
+        q.SearchFilter = query.(*ast.Node)
+    }
+    return q, nil
+} / aggs:AggClause? EOF {
+    var q ast.QueryStruct
+    if aggs !=nil {
+        q.PipeCommands = aggs.(*structs.QueryAggregators)
+    }
+    return q, nil
+}
+
+Query <- _ clause:OrClause _ {
+    return clause, nil
+}
+
+/****
+NODES
+*****/
+
+OrClause <- lhs:AndClause space logicalOR space rhs:OrClause {
+    return & ast.Node {
+        NodeType:  ast.NodeOr,
+        Left: lhs.(*ast.Node),
+        Right: rhs.(*ast.Node),
+    }, nil
+} / AndClause
+
+
+measureAggsList <- space? first:MeasureAggClause rest:( space? ',' space? MeasureAggClause )* space? {
+    return ast.GetMeasureAggsTokens(first, rest, 3), nil
+}
+
+groupByList <- space? first:MeasureAggClause rest:( space? ',' space? MeasureAggClause )* space? GroupBy cols:(ColList)? space? lim:Limit? {
+    limit := int(3000)
+    if lim != nil {
+        limit = int(lim.(int64))
+    }
+    return ast.GetGroupByTokens(cols, first, rest, 3, limit), nil
+}
+
+Limit <- "limit" space first:Identifier{
+    limit, err := strconv.ParseInt(first.(string), 10, 64)
+    if err != nil {
+        return nil, err
+    }
+    return limit, err
+}
+
+
+MeasureAggClause <- space? funcs:MeasureAggsFunc '(' cols:Identifier ')' {
+    
+	tempMeasureAgg := &structs.MeasureAggregator{}
+	tempMeasureAgg.MeasureCol = cols.(string)
+	tempMeasureAgg.MeasureFunc = funcs.(utils.AggregateFunctions)
+    return tempMeasureAgg, nil
+}
+
+
+AggClause <- opPipe space? Column space  newCol:Identifier space? '=' space? oldCol:Identifier {
+    aggNode := &structs.QueryAggregators{}
+	aggNode.PipeCommandType = structs.OutputTransformType
+	aggNode.OutputTransforms = &structs.OutputTransforms{}
+	aggNode.OutputTransforms.OutputColumns = &structs.ColumnsRequest{}
+    aggNode.OutputTransforms.OutputColumns.RenameColumns = make(map[string]string)
+    aggNode.OutputTransforms.OutputColumns.RenameColumns[oldCol.(string)]= newCol.(string)
+    return aggNode, nil
+}
+/ opPipe space? Column space cols:ColList {
+    aggNode := &structs.QueryAggregators{}
+	aggNode.PipeCommandType = structs.OutputTransformType
+	aggNode.OutputTransforms = &structs.OutputTransforms{}
+	aggNode.OutputTransforms.OutputColumns = &structs.ColumnsRequest{}
+    aggNode.OutputTransforms.OutputColumns.IncludeColumns = cols.([]string)
+    return aggNode, nil
+}
+/ opPipe space? Column space '-' space cols:ColList {
+    aggNode := &structs.QueryAggregators{}
+	aggNode.PipeCommandType = structs.OutputTransformType
+	aggNode.OutputTransforms = &structs.OutputTransforms{}
+	aggNode.OutputTransforms.OutputColumns = &structs.ColumnsRequest{}
+    aggNode.OutputTransforms.OutputColumns.ExcludeColumns = cols.([]string)
+    return aggNode, nil
+}
+/ opPipe space? maggs:measureAggsList EOF{
+    aggNode := &structs.QueryAggregators{}
+    aggNode = maggs.(*structs.QueryAggregators)
+    return aggNode, nil
+}
+/ opPipe space? groupBy:groupByList space? lim:Limit? EOF{
+    aggNode := &structs.QueryAggregators{}
+    aggNode = groupBy.(*structs.QueryAggregators)
+    return aggNode, nil
+}
+/ opPipe space? Let space newCol:Identifier space? '=' space? '('? space? lhs:Identifier space? operation:LetOpr 
+space? rhs:LetIdentifier space? ')'? {
+    aggNode := &structs.QueryAggregators{}
+	aggNode.PipeCommandType = structs.OutputTransformType
+	aggNode.OutputTransforms = &structs.OutputTransforms{}
+	aggNode.OutputTransforms.LetColumns = &structs.LetColumnsRequest{}
+    aggNode.OutputTransforms.LetColumns.NewColName = newCol.(string)
+    aggNode.OutputTransforms.LetColumns.SingleColRequest = &structs.SingleColLetRequest{}
+    aggNode.OutputTransforms.LetColumns.SingleColRequest.CName = lhs.(string)
+    aggNode.OutputTransforms.LetColumns.SingleColRequest.Oper = operation.(utils.LogicalAndArithmeticOperator)
+    aggNode.OutputTransforms.LetColumns.SingleColRequest.Value = rhs.(*utils.DtypeEnclosure)
+    return aggNode, nil
+}
+/ opPipe space? Let space newCol:Identifier space? '=' space? '('? space? lhs:Identifier space? operation:LetOpr 
+space? rhs:Identifier space? ')'? {
+    aggNode := &structs.QueryAggregators{}
+	aggNode.PipeCommandType = structs.OutputTransformType
+	aggNode.OutputTransforms = &structs.OutputTransforms{}
+	aggNode.OutputTransforms.LetColumns = &structs.LetColumnsRequest{}
+    aggNode.OutputTransforms.LetColumns.NewColName = newCol.(string)
+    aggNode.OutputTransforms.LetColumns.MultiColsRequest = &structs.MultiColLetRequest{}
+    aggNode.OutputTransforms.LetColumns.MultiColsRequest.LeftCName = lhs.(string)
+    aggNode.OutputTransforms.LetColumns.MultiColsRequest.Oper = operation.(utils.LogicalAndArithmeticOperator)
+    aggNode.OutputTransforms.LetColumns.MultiColsRequest.RightCName = rhs.(string)
+    return aggNode, nil
+}
+
+MeasureAggsFunc <- mfunc: ("avg" / "min" / "max" / "sum" / "cardinality" / "count" ){
+    aggFunc, _ := ast.AggTypeToAggregateFunction(string(c.text))
+    return aggFunc, nil
+}
+
+
+Column <- "columns"
+
+GroupBy <- "groupby"
+
+Let <- "let"
+
+LetOpr <- [>] '=' {
+    return utils.LetGreaterThanOrEqualTo, nil
+} / '>' {
+    return utils.LetGreaterThan, nil
+} / [<] '=' {
+    return utils.LetLessThanOrEqualTo, nil
+} / '<' {
+    return utils.LetLessThan, nil
+} / [=] '=' {
+    return utils.LetEquals, nil
+} / [!] '=' {
+    return utils.LetNotEquals, nil
+} / '+' {
+    return utils.LetAdd, nil
+} / '-' {
+    return utils.LetSubtract, nil
+} / '/' {
+    return utils.LetDivide, nil
+} / '*' {
+    return utils.LetMultiply, nil
+} / '%' {
+    return utils.LetModulo, nil
+}
+
+LetIdentifier <- '-'? Float {
+    var dte utils.DtypeEnclosure
+    dte.Dtype = utils.SS_DT_FLOAT
+    dte.FloatVal,_ = strconv.ParseFloat(string(c.text), 64)
+    dte.StringVal = string(c.text)
+    return &dte, nil
+} / '-'+ Integer {
+    var dte utils.DtypeEnclosure
+    dte.Dtype = utils.SS_DT_SIGNED_NUM
+    dte.SignedVal,_ = strconv.ParseInt(string(c.text),10, 64)
+    dte.StringVal = string(c.text)
+    return &dte, nil
+} /  Integer {
+    var dte utils.DtypeEnclosure
+    dte.Dtype = utils.SS_DT_UNSIGNED_NUM
+    dte.UnsignedVal,_ = strconv.ParseUint(string(c.text),10, 64)
+    dte.StringVal = string(c.text)
+    return &dte, nil
+} / BoolValue {
+    var dte utils.DtypeEnclosure
+    dte.Dtype = utils.SS_DT_BOOL
+    bVal ,_ := strconv.ParseBool(string(c.text))
+    if bVal == true {
+			dte.BoolVal = 1
+		} else {
+			dte.BoolVal = 0
+		}
+    dte.StringVal = string(c.text)
+    return &dte, nil
+} 
+
+BoolValue <- "false" / "true"
+
+Float <- [0-9]+ '.' [0-9]+
+
+Integer <- [0-9]+
+
+ColList <-  space? first:Identifier rest:( space? ',' space? Identifier )* space? {
+    return ast.GetTokens(first, rest, 3), nil
+}
+
+AndClause <- lhs:NotClause space logicalAND space rhs:AndClause {
+    return &ast.Node {
+        NodeType: ast.NodeAnd,
+        Left: lhs.(*ast.Node),
+        Right: rhs.(*ast.Node),
+    }, nil
+} / NotClause
+
+NotClause <- logicalNOT cmp:Comparison {
+    return &ast.Node {
+        NodeType: ast.NodeNot,
+        Left: cmp.(*ast.Node),
+        Right: nil,
+    }, nil
+} / Comparison
+
+Comparison <- '(' space? query:OrClause space? ')'{
+    return query, nil
+} /  field:Field space?  operation:opCOMP space? field1:Field  {
+    var opOut string
+    if operation == nil && field!=nil {
+        opOut = "="
+    } else {
+        opOut = operation.(string)
+    }
+    return &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Op: opOut,
+            Field: field.(string),
+            Values: field1,
+        },
+    }, nil
+} / values:ValueList {
+    return &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Op: "=",
+            Field: "*",
+            Values: values,
+        },
+    }, nil
+} / field:Field {
+    return &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Op: "=",
+            Field: "*",
+            Values: field,
+        },
+    }, nil
+}
+
+/*****
+FIELDS
+******/
+
+Field <- Value / pieces:(FieldPiece ('.' FieldPiece)*) {
+    if pieces == nil {
+		return "*", nil
+	}
+
+    return string(c.text), nil
+}
+
+FieldPiece <- QuotedFieldPiece / UnquotedFieldPiece / Star
+
+UnquotedFieldPiece <- [-a-zA-Z0-9$&,?#%_@;[\]{}+-./*:]i+ {
+    return string(c.text), nil
+}
+
+
+QuotedFieldPiece <- QuotedValue
+
+Star <- '*' {
+    return "*", nil
+}
+QuotedValue <- '"' ( !EscapedChar . / '\\' EscapeSequence )* '"' {
+    c.text = bytes.Replace(c.text, []byte(`\/`), []byte(`/`), -1)
+    return strconv.Unquote(string(c.text))
+}
+EscapedChar <- [\x00-\x1f"\\]
+
+EscapeSequence <- SingleCharEscape / UnicodeEscape
+
+SingleCharEscape <- ["\\/bfnrt]
+
+UnicodeEscape <- 'u' HexDigit HexDigit HexDigit HexDigit
+
+HexDigit <- [0-9a-f]i
+
+/*****
+VALUES
+******/
+
+ValueList <- '[' space? first:Value rest:( space? ',' space? Value )* space? ']' {
+    return ast.GetTokens(first, rest, 3), nil
+} / value:Value 
+
+Value <- val:(
+    Float
+    / Integer
+    
+    ){
+    return ast.MakeValue(val)
+  }
+
+String
+  = '"' chars:[^"]* '"' {
+    return ast.StringFromChars(chars), nil
+  } 
+
+Integer <- [+-]? [0-9]+ {
+    return json.Number(string(c.text)), nil
+  }
+
+Float <- [+-]? ([0-9]* "." [0-9]+ ) {
+      return json.Number(string(c.text)), nil
+    }
+
+
+Identifier <-
+   [a-zA-Z0-9_@./*]i+ { 
+      return string(c.text), nil
+}
+
+
+opPipe <- "|" 
+
+/****************
+LOGICAL OPERATORS
+*****************/
+
+logicalOR <- "OR"
+
+logicalAND <- "AND"
+
+logicalNOT <- "NOT" space / '!' space?
+
+/*******************
+COMPARISON OPERATORS
+********************/
+
+
+
+opCOMP <- opCustom
+/ "<=" {
+    return string(c.text), nil
+} / ">=" {
+    return string(c.text), nil
+} / "=" {
+    return string(c.text), nil
+} / "<" {
+    return string(c.text), nil
+} / ">" {
+    return string(c.text), nil
+} / "!=" {
+    return string(c.text), nil
+  }
+
+
+opCustom <- '=' opname:[a-z]i+ '='{
+    return ast.OpNameToString(opname)
+}
+
+/**********************
+WHITESPACE AND TERMINAL
+***********************/
+
+_ "whitespace" <- [ \n\t\r]*
+
+space <- [ \n\t\r]+
+
+EOL <- '\n'
+
+EOF = !.
+
+/*****************************
+TERMINAL ERROR HANDLING STATES
+******************************/
+
+/*
+ErrOp <- #{
+    return fmt.Errorf("invalid operator")
+}
+*/

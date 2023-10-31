@@ -1,0 +1,27 @@
+syntax = "proto3";
+package loki;
+
+option go_package = "/log";
+
+message Line {
+  bytes content = 1;
+}
+
+message Timestamp {
+    bytes content = 1;
+}
+
+message Filename {
+    bytes content = 1;
+}
+
+message Extracted {
+    bytes content = 1;
+}
+
+message Log {
+  Line line = 1;
+  Timestamp timestamp = 2;
+  Filename filename = 3;
+  Extracted extracted = 4;
+}
