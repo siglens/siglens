@@ -1,0 +1,91 @@
+*,now-90d,now,*,total,eq,10000,Pipe QL
+app_name=Oxam,now-90d,now,*,total,gt,0,Pipe QL
+batch=batch-*,now-90d,now,*,total,eq,10000,Pipe QL
+min(zip) groupby batch,now-90d,now,*,total,,100,Pipe QL
+Sunday,now-90d,now,*,total,gt,1,Pipe QL
+hortensebaumbach@emard.io,now-1d,now,*,total,gt,0,Pipe QL
+http_status>400,now-1d,now,*,total,gt,0,Pipe QL
+cardinality(user_email),now-1d,now,*,total,,1,Pipe QL
+"""https://picsum.photos/127/459""",now-1d,now,*,total,eq,2,Pipe QL
+latency<18580 AND app_name=Stresscrawl,now-1d,now,*,total,eq,1,Pipe QL
+"""MintCream""",now-1d,now,*,total,eq,750,Pipe QL
+"(MintCream AND (""Thursday"" OR ""Monday""))",now-1d,now,*,total,eq,212,Pipe QL
+"(MintCream AND (""Thursday"" OR ""Monday"")) | min(latency) groupby state",now-1d,now,*,total,eq,212,Pipe QL
+latency<10000 AND latitude>0 AND longitude > 0,now-1d,now,*,total,eq,27,Pipe QL
+404,now-1d,now,*,total,gt,100,Pipe QL
+404 OR 500,now-1d,now,*,total,gt,100,Pipe QL
+min(latency),now-1d,now,*,group:min(latency):*,eq,110,Pipe QL
+"min(latency) groupby city, http_method",now-1d,now,*,group:min(latency):Boston:POST,eq,5479,Pipe QL
+"select batch as bt",now-1d,now,*,total,gt,100,SQL
+"select weekday",now-1d,now,*,total,gt,1,SQL
+"select gender as bt, city as `ct` from ind-0",now-1d,now,*,total,gt,0,SQL
+"select batch as bt order by batch",now-1d,now,*,total,gt,100,SQL
+"select batch as bt order by batch desc",now-1d,now,*,total,gt,100,SQL
+"select batch as bt order by batch asc",now-1d,now,*,total,gt,100,SQL
+"{app_name=""Oxam""}",now-1d,now,*,total,gt,0,Log QL
+"{batch=""batch-*""}",now-1d,now,*,total,gt,100,Log QL
+"{weekday=""Sunday""} |= ""Sunday""",now-1d,now,*,total,gt,1,Log QL
+"{batch=""batch-*""} | json",now-1d,now,*,total,gt,100,Log QL
+"{gender=""female""} | http_status>400",now-1d,now,*,total,gt,0,Log QL
+"{gender=""female"",city=""Fresno""} != ""batch-212""",now-1d,now,*,total,gt,100,Log QL
+"{weekday=""Sunday""} | json",now-1d,now,*,total,gt,1,Log QL
+"{gender=""female"",city=""Fresno""} | json city_life=""city"", single_gender=""gender""",now-1d,now,*,total,gt,100,Log QL
+"{gender=""female"",city=""Fresno""} | logfmt city_life=""city"", single_gender=""gender""",now-1d,now,*,total,gt,100,Log QL
+"{weekday=""Sunday""} | logfmt",now-1d,now,*,total,gt,1,Log QL
+"count_over_time({batch=""batch-*""}[1d])", now-1d,now,*,total,gt,100,Log QL
+app_name=Oxam,now-90d,now,*,total,gt,0,Splunk QL
+search app_name=Oxam,now-90d,now,*,total,gt,0,Splunk QL
+search Sunday,now-90d,now,*,total,gt,1,Splunk QL
+search http_status>400,now-1d,now,*,total,gt,0,Splunk QL
+search 404,now-1d,now,*,total,gt,100,Splunk QL
+search 404 OR 500,now-1d,now,*,total,gt,100,Splunk QL
+search latency<18580 AND app_name=Stresscrawl,now-1d,now,*,total,eq,1,Splunk QL
+search MintCream AND Thursday OR Monday,now-1d,now,*,total,eq,212,Splunk QL
+search (MintCream AND Thursday) OR Monday,now-1d,now,*,total,gt,212,Splunk QL
+search MintCream Thursday OR Monday,now-1d,now,*,total,eq,212,Splunk QL
+search NOT (city!=Boston OR NOT weekday=Friday),now-1d,now,*,total,eq,135,Splunk QL
+search batch=batch-*,now-90d,now,*,total,eq,10000,Splunk QL
+latency<10000 | search latitude>0 | search longitude>0,now-1d,now,*,total,eq,27,Splunk QL
+"search batch=batch-5 | regex city=""^[A-L][a-z]+\s[a-zA-Z]+$""",now-1d,now,*,total,eq,15,Splunk QL
+"search batch=batch-5 | regex city!=""^[A-L][a-z]+\s[a-zA-Z]+$""",now-1d,now,*,total,eq,77,Splunk QL
+batch=batch-10 | stats count,now-1d,now,*,group:count(*):*,eq,114,Splunk QL
+batch=batch-10 | stats count(http_method),now-1d,now,*,group:count(http_method):*,eq,114,Splunk QL
+batch=batch-10 | stats distinct_count(http_method),now-1d,now,*,group:cardinality(http_method):*,eq,6,Splunk QL
+city=Boston | stats min(latitude),now-1d,now,*,group:min(latitude):*,eq,-89.901,Splunk QL
+city=Boston | stats max(latitude),now-1d,now,*,group:max(latitude):*,eq,89.982,Splunk QL
+city=Boston | stats avg(latitude),now-1d,now,*,group:avg(latitude):*,eq,0.403,Splunk QL
+city=Boston | stats sum(latitude),now-1d,now,*,group:sum(latitude):*,eq,416.553,Splunk QL
+"batch=batch-10 | stats count, min(latitude), max(latitude)",now-1d,now,*,group:max(latitude):*,eq,89.228,Splunk QL
+batch=batch-10 | stats count BY city,now-1d,now,*,group:count(*):St. Louis,eq,2,Splunk QL
+"batch=batch-10 | stats count BY city, http_status",now-1d,now,*,group:count(*):St. Louis:200,eq,1,Splunk QL
+"404 | fields city, weekday",now-1d,now,*,total,gt,100,Splunk QL
+"404 | ```Only keep city and weekday columns``` fields city, weekday",now-1d,now,*,total,gt,100,Splunk QL
+404 | fields http*,now-1d,now,*,total,gt,100,Splunk QL
+city=Boston | stats count AS Count BY weekday,now-1d,now,*,group:Count:Monday,eq,145,Splunk QL
+city=Boston | stats count AS Count BY weekday | eval Append123=Count . 123, now-1d,now,*,group:Append123:Monday,eq,145123,Splunk QL
+city=Boston | stats count AS Count BY zip | eval Summary=Count . zip, now-1d,now,*,group:Summary:85833,eq,285833,Splunk QL
+city=Boston | stats count AS Count BY zip | eval Average=(Count + zip) / 2,now-1d,now,*,group:Average:31414,eq,15707.5,Splunk QL
+city=Boston | stats count AS Count BY http_status | eval abs=abs(http_status - 1000),now-1d,now,*,group:abs:400,eq,600,Splunk QL
+city=Boston | stats count AS Count BY weekday | eval ceil=ceil(Count + 0.1),now-1d,now,*,group:ceil:Thursday,eq,157,Splunk QL
+city=Detroit | stats count AS Count BY latitude | where latitude > 89.6 | eval round=round(latitude),now-1d,now,*,group:round:89.982058,eq,90,Splunk QL
+"city=Detroit | stats count AS Count BY latitude | where latitude > 89.6 | eval round=round(latitude, 3)",now-1d,now,*,group:round:89.982058,eq,89.982,Splunk QL
+city=Columbus | stats count AS Count BY http_status | eval sqrt=sqrt(http_status + 200),now-1d,now,*,group:sqrt:200,eq,20,Splunk QL
+city=Boston | stats count AS Count BY app_name | eval len=len(app_name) | where len > 22,now-1d,now,*,group:len:MediumSeaGreenstupidity,eq,23,Splunk QL
+"city=Boston | stats count AS Count BY state | eval myField=""Test concat:"" . lower(state) . "" end""",now-1d,now,*,group:myField:New Hampshire,eq,Test concat:new hampshire end,Splunk QL
+"city=Boston | stats count AS Count BY state | eval myField=ltrim(state, ""Ma"") . "" test end""",now-1d,now,*,group:myField:Massachusetts,eq,ssachusetts test end,Splunk QL
+"city=Boston | stats count AS Count BY state | eval myField=""test "" . "" start:"" . rtrim(state, ""nd"")",now-1d,now,*,group:myField:Maryland,eq,test  start:Maryla,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval myField=if(http_status > 400, http_status + 10, ""Error"")",now-1d,now,*,group:myField:500,eq,510,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval myField=if(http_status > 400, http_status, ""Error"")",now-1d,now,*,group:myField:400,eq,Error,Splunk QL
+"city=Boston | stats count AS Count BY http_status | where http_status in(404, 301, ""abc"")",now-1d,now,*,total,eq,1032,Splunk QL
+"city=Boston | stats count AS Count BY state | eval myField=if(in(state, ""Mary"" . ""land"", ""Hawaii"", 99 + 1), state . "" Success"", ""Error"")",now-1d,now,*,group:myField:Maryland,eq,Maryland Success,Splunk QL
+"city=Boston | stats count AS Count BY state | eval myField=if(in(state, ""Mary"" . ""land"", ""Hawaii"", 99 + 1), state . "" Success"", ""Error"")",now-1d,now,*,group:myField:Washington,eq,Error,Splunk QL
+"city=Boston | stats count AS Count BY country | eval result=if(isstr(country), ""This is a string"", ""This is not a string"")",now-1d,now,*,group:result:Iraq,eq,This is a string,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval result=if(isint(http_status), ""This is an integer"", ""This is not an integer"")",now-1d,now,*,group:result:500,eq,This is an integer,Splunk QL
+"city=Boston | stats count AS Count BY city | eval result=if(isbool(city), ""This is a boolean value"", ""This is not a boolean value"")",now-1d,now,*,group:result:Boston,eq,This is not a boolean value,Splunk QL
+"city=Boston | stats count AS Count BY state | eval result=if(isnull(state), ""This is a null value"", ""This is not a null value"")",now-1d,now,*,group:result:Maine,eq,This is not a null value,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval result=urldecode(""http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader"")",now-1d,now,*,group:result:500,eq,"http://www.splunk.com/download?r=header",Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval result=city=Boston | stats count AS Count BY http_status | eval result=max(1, 3, 450, http_status)",now-1d,now,*,group:result:200,eq,450,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval result=city=Boston | stats count AS Count BY http_status | eval result=min(1, 3, 450, http_status)",now-1d,now,*,group:result:200,eq,1,Splunk QL
+"city=Boston | stats count AS Count BY ident | eval result=split(ident,""-"")",now-1d,now,*,group:result:ae0f4f93-5789-43c9-92a2-e7d7b4cbc31e,eq,ae0f4f93&nbsp5789&nbsp43c9&nbsp92a2&nbspe7d7b4cbc31e,Splunk QL
+"city=Boston | stats count AS Count BY weekday | rex field=weekday ""(?<first>.{3})(?<second>.*)""",now-1d,now,*,group:first:Friday,eq,Fri,Splunk QL
+"city=Boston | stats count AS Count BY http_status | rex field=http_status ""(?<first>\d)(?<second>\d)(?<third>\d)""",now-1d,now,*,group:third:404,eq,4,Splunk QL
