@@ -1,0 +1,406 @@
+syntax = "proto3";
+
+package loki;
+
+import "pkg/loki/foreign/gogo.proto";
+import "pkg/loki/foreign/timestamp.proto";
+import "pkg/loki/stats.proto";
+import "pkg/loki/push.proto";
+
+option go_package = "/log";
+
+service LogQuerier {
+  rpc Query(QueryRequest) returns (stream QueryResponse) {}
+
+  rpc QuerySample(SampleQueryRequest) returns (stream SampleQueryResponse) {}
+
+  rpc Label(LabelRequest) returns (LabelResponse) {}
+
+  rpc Tail(TailRequest) returns (stream TailResponse) {}
+
+  rpc Series(SeriesRequest) returns (SeriesResponse) {}
+
+  rpc TailersCount(TailersCountRequest) returns (TailersCountResponse) {}
+
+  rpc GetChunkIDs(GetChunkIDsRequest) returns (GetChunkIDsResponse) {}
+
+  // Note: this MUST be the same as the variant defined in
+  // indexgateway.proto on the IndexGateway service.
+  rpc GetStats(IndexStatsRequest) returns (IndexStatsResponse) {}
+  // Note: this MUST be the same as the variant defined in
+  // indexgateway.proto on the IndexGateway service.
+  rpc GetSeriesVolume(VolumeRequest) returns (VolumeResponse) {}
+}
+
+service LogIngester {
+  rpc TransferChunks(stream TimeSeriesChunk) returns (TransferChunksResponse) {}
+}
+
+service StreamData {
+  rpc GetStreamRates(StreamRatesRequest) returns (StreamRatesResponse) {}
+}
+
+message StreamRatesRequest {}
+
+message StreamRatesResponse {
+  repeated StreamRate streamRates = 1;
+}
+
+message StreamRate {
+  uint64 streamHash = 1;
+  uint64 streamHashNoShard = 2;
+  int64 rate = 3; // rate in plain bytes.
+  string tenant = 4;
+  uint32 pushes = 5;
+}
+
+message QueryRequest {
+  string selector = 1;
+  uint32 limit = 2;
+  Timestamp start = 3 [
+    (stdtime) = true,
+    (nullable) = false
+  ];
+  Timestamp end = 4 [
+    (stdtime) = true,
+    (nullable) = false
+  ];
+  Direction direction = 5;
+  reserved 6;
+  repeated string shards = 7 [(jsontag) = "shards,omitempty"];
+  repeated Delete deletes = 8;
+}
+
+message SampleQueryRequest {
+  string selector = 1;
+  Timestamp start = 2 [
+    (stdtime) = true,
+    (nullable) = false
+  ];
+  Timestamp end = 3 [
+    (stdtime) = true,
+    (nullable) = false
+  ];
+  repeated string shards = 4 [(jsontag) = "shards,omitempty"];
+  repeated Delete deletes = 5;
+}
+
+message Delete {
+  string selector = 1;
+  int64 start = 2;
+  int64 end = 3;
+}
+
+message QueryResponse {
+  repeated StreamAdapter streams = 1 [
+    (customtype) = "github.com/grafana/loki/pkg/push.Stream",
+    (nullable) = true
+  ];
+  Ingester stats = 2 [(nullable) = false];
+}
+
+message SampleQueryResponse {
+  repeated Series series = 1 [
+    (customtype) = "Series",
+    (nullable) = true
+  ];
+  Ingester stats = 2 [(nullable) = false];
+}
+
+enum Direction {
+  FORWARD = 0;
+  BACKWARD = 1;
+}
+
+message LabelRequest {
+  string name = 1;
+  bool values = 2; // True to fetch label values, false for fetch labels names.
+  Timestamp start = 3 [
+    (stdtime) = true,
+    (nullable) = true
+  ];
+  Timestamp end = 4 [
+    (stdtime) = true,
+    (nullable) = true
+  ];
+  string query = 5; // Naming this query instead of match because this should be with queryrangebase.Request interface
+}
+
+message LabelResponse {
+  repeated string values = 1;
+}
+
+message Sample {
+  int64 timestamp = 1 [(jsontag) = "ts"];
+  double value = 2 [(jsontag) = "value"];
+  uint64 hash = 3 [(jsontag) = "hash"];
+}
+
+// LegacySample exists for backwards compatibility reasons and is deprecated. Do not use.
+message LegacySample {
+  double value = 1;
+  int64 timestamp_ms = 2;
+}
+
+message Series {
+  string labels = 1 [(jsontag) = "labels"];
+  repeated Sample samples = 2 [
+    (nullable) = false,
+    (jsontag) = "samples"
+  ];
+  uint64 streamHash = 3 [(jsontag) = "streamHash"];
+}
+
+message TailRequest {
+  string query = 1;
+  reserved 2;
+  uint32 delayFor = 3;
+  uint32 limit = 4;
+  Timestamp start = 5 [
+    (stdtime) = true,
+    (nullable) = false
+  ];
+}
+
+message TailResponse {
+  StreamAdapter stream = 1 [(customtype) = "github.com/grafana/loki/pkg/push.Stream"];
+  repeated DroppedStream droppedStreams = 2;
+}
+
+message SeriesRequest {
+  Timestamp start = 1 [
+    (stdtime) = true,
+    (nullable) = false
+  ];
+  Timestamp end = 2 [
+    (stdtime) = true,
+    (nullable) = false
+  ];
+  repeated string groups = 3;
+  repeated string shards = 4 [(jsontag) = "shards,omitempty"];
+}
+
+message SeriesResponse {
+  repeated SeriesIdentifier series = 1 [(nullable) = false];
+}
+
+message SeriesIdentifier {
+  map<string, string> labels = 1;
+}
+
+message DroppedStream {
+  Timestamp from = 1 [
+    (stdtime) = true,
+    (nullable) = false
+  ];
+  Timestamp to = 2 [
+    (stdtime) = true,
+    (nullable) = false
+  ];
+  string labels = 3;
+}
+
+message TimeSeriesChunk {
+  string from_ingester_id = 1;
+  string user_id = 2;
+  repeated LabelPair labels = 3;
+  repeated LogChunk chunks = 4;
+}
+
+message LabelPair {
+  string name = 1;
+  string value = 2;
+}
+
+// LegacyLabelPair exists for backwards compatibility reasons and is deprecated. Do not use.
+message LegacyLabelPair {
+  bytes name = 1;
+  bytes value = 2;
+}
+
+message LogChunk {
+  bytes data = 1;
+}
+
+message TransferChunksResponse {}
+
+message TailersCountRequest {}
+
+message TailersCountResponse {
+  uint32 count = 1;
+}
+
+message GetChunkIDsRequest {
+  string matchers = 1;
+  Timestamp start = 2 [
+    (stdtime) = true,
+    (nullable) = false
+  ];
+  Timestamp end = 3 [
+    (stdtime) = true,
+    (nullable) = false
+  ];
+}
+
+message GetChunkIDsResponse {
+  repeated string chunkIDs = 1;
+}
+
+// ChunkRef contains the metadata to reference a LogChunk.
+// It is embedded by the LogChunk type itself and used to generate the LogChunk
+// checksum. So it is imported to take care of the JSON representation of the
+// resulting Go struct.
+message ChunkRef {
+  uint64 fingerprint = 1 [(jsontag) = "fingerprint"];
+  string user_id = 2 [
+    (customname) = "UserID",
+    (jsontag) = "userID"
+  ];
+  int64 from = 3 [
+    (jsontag) = "from",
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+  int64 through = 4 [
+    (jsontag) = "through",
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+
+  // The checksum is not written to the external storage. We use crc32,
+  // Castagnoli table. See http://www.evanjones.ca/crc32c.html.
+  uint32 checksum = 5 [(jsontag) = "-"];
+}
+
+message LabelValuesForMetricNameRequest {
+  string metric_name = 1;
+  string label_name = 2;
+  int64 from = 3 [
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+  int64 through = 4 [
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+  string matchers = 5;
+}
+
+message LabelNamesForMetricNameRequest {
+  string metric_name = 1;
+  int64 from = 2 [
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+  int64 through = 3 [
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+}
+
+message GetChunkRefRequest {
+  int64 from = 1 [
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+  int64 through = 2 [
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+  string matchers = 3;
+}
+
+message GetChunkRefResponse {
+  repeated ChunkRef refs = 1;
+}
+
+message GetSeriesRequest {
+  int64 from = 1 [
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+  int64 through = 2 [
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+  string matchers = 3;
+}
+
+message GetSeriesResponse {
+  repeated IndexSeries series = 1 [(nullable) = false];
+}
+
+// Series calls to the TSDB Index
+message IndexSeries {
+  repeated LabelPair labels = 1 [
+    (nullable) = false,
+    (customtype) = "LabelAdapter"
+  ];
+}
+
+message QueryIndexResponse {
+  string QueryKey = 1;
+  repeated Row rows = 2;
+}
+
+message Row {
+  bytes rangeValue = 1;
+  bytes value = 2;
+}
+
+message QueryIndexRequest {
+  repeated IndexQuery Queries = 1;
+}
+
+message IndexQuery {
+  string tableName = 1;
+  string hashValue = 2;
+  bytes rangeValuePrefix = 3;
+  bytes rangeValueStart = 4;
+  bytes valueEqual = 5;
+}
+
+message IndexStatsRequest {
+  int64 from = 1 [
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+  int64 through = 2 [
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+  string matchers = 3;
+  // TODO(owen-d): add shards to grpc calls so we don't have
+  // to extract via labels
+}
+
+message IndexStatsResponse {
+  uint64 streams = 1 [(jsontag) = "streams"];
+  uint64 chunks = 2 [(jsontag) = "chunks"];
+  uint64 bytes = 3 [(jsontag) = "bytes"];
+  uint64 entries = 4 [(jsontag) = "entries"];
+}
+
+message VolumeRequest {
+  int64 from = 1 [
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+  int64 through = 2 [
+    (customtype) = "github.com/prometheus/common/model.Time",
+    (nullable) = false
+  ];
+  string matchers = 3;
+  int32 limit = 4;
+}
+
+message VolumeResponse {
+  repeated Volume volumes = 1 [(nullable) = false];
+  int32 limit = 2;
+}
+
+message Volume {
+  string name = 1 [(jsontag) = "name"];
+  string value = 2 [(jsontag) = "value"];
+  uint64 volume = 3 [(jsontag) = "volume"];
+}
