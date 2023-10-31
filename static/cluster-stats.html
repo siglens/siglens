@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Cluster Stats</title>
+
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+    <link rel="manifest" href="assets/site.webmanifest">
+    <link rel="mask-icon" href="assets/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+
+    <link rel="stylesheet" href="./css/lib/all.min.css" />
+    <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="./css/lib/jquery.dataTables.min.css" />
+    <link rel="stylesheet" href="./css/lib/scroller.dataTables.min.css" />
+    <link rel="stylesheet" href="./css/siglens.css" />
+
+    <script src="./js/lib/lodash.min.js"></script>
+    <script src="./js/lib/jquery-3.6.0.min.js"></script>
+    <script src="./js/lib/jquery-ui.min.js"></script>
+    <script src="./js/lib/js.cookie.min.js"></script>
+    <script src="./js/lib/moment.min.js"></script>
+    <script src="./js/lib/date_fns.min.js"></script>
+    <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/bootstrap.bundle.min.js"></script>
+    <script src="./js/lib/jquery.dataTables.min.js"></script>
+    <script src="./js/lib/dataTables.scroller.min.js"></script>
+</head>
+
+<body data-theme="light">
+    <div id="cstats-app-container">
+        <div id="app-side-nav" class="active">
+        </div>
+        <div id="empty-response"></div>
+        <div id="app-content-area">
+            <div class="cstats-data-container myOrg-container">
+                <div class="org-nav-tab">
+                    <div>
+                        <h1 class="myOrg-heading">My Org</h1>
+                        <div class="section-buttons">
+                            <div class="section-button active"><a href="./cluster-stats.html">Cluster Stats</a></div>
+                            <div class="section-button"><a href="./orgSettings.html">Settings</a></div>
+                            <div class="section-button"><a href="./testData.html">Test Data</a></div>
+                        </div>
+                    </div>
+                    <div>
+                        <button type="button" id="logout-btn" class="btn">Logout</button>
+                    </div>
+                </div>
+                <div class="myOrg-inner-container">
+                    <div class="usage-stats-header">
+                        <p class="caption">Track progress and performance </p>
+                        <div id="filter-container">
+                            <div class="dropdown" id="cstats-time-picker">
+                                <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
+                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                    data-bs-toggle="dropdown" title="Pick the time window">
+                                    <span>Time Picker</span>
+                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                    <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                </button>
+                                <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
+                                    id="daterangepicker ">
+                                    <p class="dt-header">Ingestion Stats for the last</p>
+                                    <div class="ranges">
+                                        <div class="inner-range">
+                                            <div id="now-24h" class="range-item">24 Hrs</div>
+                                            <div id="now-90d" class="range-item">90 Days</div>
+                                        </div>
+                                        <div class="inner-range">
+                                            <div id="now-7d" class="range-item">7 Days</div>
+                                            <div id="now-180d" class="range-item">180 Days</div>
+                                        </div>
+                                        <div class="inner-range">
+                                            <div id="now-30d" class="range-item">30 Days</div>
+                                            <div id="now-365d" class="range-item">1 Year</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="graph-container mt-4">
+                        <div class="chart_container">
+                            <div class="ingestion-stats-header">Incoming Event Count</div>
+                            <canvas id="EventCountChart"></canvas>
+                        </div>
+                        <div class="chart_container">
+                            <div class="ingestion-stats-header">Incoming Volume</div>
+                            <canvas id="GBCountChart"></canvas>
+                        </div>
+                    </div>
+                    <hr class="line-breaker">
+                    <div class="query-index-container">
+                        <div class="index-stats">
+                            <p class="index-stats-header">Logs Stats</p>
+                            <table id="index-data-table" class="index-data-table"></table>
+                        </div>
+                    </div>
+                    <div class="query-index-container">
+                        <div class="index-stats">
+                            <p class="index-stats-header">Metrics Stats</p>
+                            <table id="metrics-data-table" class="index-data-table"></table>
+                        </div>
+                    </div>
+                    <div class="graph-container mt-5">
+                        <div class="query-stats">
+                            <p class="query-stats-header">Query Stats</p>
+                            <table class="query-table" id="query-table">
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="bar_chart_container">
+                            <canvas id="TotalVolumeChart"></canvas>
+                        </div>
+                        <div class="storage-savings-container">
+                            <div class="fw-bold storage-savings-title">
+                                Storage Savings
+                            </div>
+                        </div>
+                    </div>
+                    <div id="cstats-app-footer">
+                        2023 &copy; SigLens
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="./js/navbar.js?cb=1_1_10"></script>
+    <script src="./js/cluster-stats.js"></script>
+    <script src="./js/eventHandlers.js?cb=1_1_10"></script>
+    <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/availableFields.js?cb=1_1_10"></script>
+    <script src="./js/datePicker.js?cb=1_1_10"></script>
+    <script src="./js/search.js?cb=1_1_10"></script>
+    <script src="./js/savedQuery.js?cb=1_1_10"></script>
+    <script src="./js/index.js?cb=1_1_10"></script>
+    <script src="./js/pointClickSearch.js?cb=1_1_10"></script>
+    <script src="./js/lib/chart.umd.min.js"></script>
+</body>
+
+</html>

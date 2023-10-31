@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>SigLens</title>
+
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+    <link rel="manifest" href="assets/site.webmanifest">
+    <link rel="mask-icon" href="assets/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+
+    <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="./css/lib/all.min.css" />
+    <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/siglens.css" />
+
+    <script src="./js/lib/lodash.min.js"></script>
+    <script src="./js/lib/jquery-3.6.0.min.js"></script>
+    <script src="./js/lib/jquery-ui.min.js"></script>
+    <script src="./js/lib/js.cookie.min.js"></script>
+    <script src="./js/lib/moment.min.js"></script>
+    <script src="./js/lib/date_fns.min.js"></script>
+    <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/bootstrap.bundle.min.js"></script>
+    <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+    <script src="https://unpkg.com/ag-grid-community@26.2.1/dist/ag-grid-community.min.js"></script>
+</head>
+
+<body data-theme="light">
+    <div id="app-container">
+
+        <div id="app-side-nav" class="active">
+        </div>
+
+        <div id="dashboard">
+            <div class="logminion-container">
+                <div class="pane-1">
+                    <h1 class="main-heading">Minion Searches</h1>
+                    <div class="log-pane">
+                        <button id="error">
+                            <h3>Error</h3>
+                            <h4>0</h4>
+                        </button>
+                        <button id="warning">
+                            <h3>Warning</h3>
+                            <h4>0</h4>
+                        </button>
+                        <button id="debug">
+                            <h3>Debug</h3>
+                            <h4>0</h4>
+                        </button>
+                        <button id="info">
+                            <h3>Info</h3>
+                            <h4>0</h4>
+                        </button>
+                    </div>
+                </div>
+                <div class="minion-searches-pane">
+                    <div id="ag-grid" class="ag-theme-mycustomtheme">
+                    </div>
+                </div>
+                <div class="result-pane">
+                    <div class="header">
+                        <p>Result</p>
+                    </div>
+                    <div class="result-body"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="app-footer">
+        2023 &copy; SigLens
+    </div>
+
+    </div>
+
+    <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/navbar.js?cb=1_1_10"></script>
+    <script src="./js/eventHandlers.js?cb=1_1_10"></script>
+    <script src="./js/minion-searches.js?cb=1_1_10"></script>
+
+</body>
+
+</html>

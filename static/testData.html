@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>SigLens</title>
+
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon-16x16.png">
+    <link rel="manifest" href="./assets/site.webmanifest">
+    <link rel="mask-icon" href="./assets/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+
+    <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="./css/lib/all.min.css" />
+    <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/siglens.css" />
+
+    <script src="./js/lib/lodash.min.js"></script>
+    <script src="./js/lib/jquery-3.6.0.min.js"></script>
+    <script src="./js/lib/jquery-ui.min.js"></script>
+    <script src="./js/lib/js.cookie.min.js"></script>
+    <script src="./js/lib/moment.min.js"></script>
+    <script src="./js/lib/date_fns.min.js"></script>
+    <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/bootstrap.bundle.min.js"></script>
+    <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+</head>
+
+<body data-theme="light">
+    <div id="app-container">
+        <div id="app-side-nav" class="active">
+        </div>
+
+        <div class="myOrg">
+            <div class="myOrg-container">
+                <div class="org-nav-tab">
+                    <div>
+                        <h1 class="myOrg-heading">My Org</h1>
+                        <div class="section-buttons">
+                            <div class="section-button"><a href="./cluster-stats.html">Cluster Stats</a></div>
+                            <div class="section-button"><a href="./orgSettings.html">Settings</a></div>
+                            <div class="section-button active"><a href="./testData.html">Test Data</a></div>
+                        </div>
+                    </div>
+                    <div>
+                        <button type="button" id="logout-btn" class="btn">Logout</button>
+                    </div>
+                </div>
+
+                <div class="myOrg-inner-container">
+                    <div>
+                        <div>
+                            <p class="caption">Experiment with a test data set</p>
+                        </div>
+                        <div id="test-data-container">
+                            <div class="main-dropdown">
+                                <div class="role-inner-dropdown">
+                                    <div class="select">Select Test Data
+                                        <span class="arrow-btn"><img src="./assets/arrow-btn.svg" alt="" /></span>
+                                    </div>
+                                </div>
+                                <ul class="list-unstyled dropdown-option">
+                                    <!-- <li class=" roles">Apache access logs</li> -->
+                                    <li class="roles" id="test-dataset-1">Person Profile </li>
+                                </ul>
+                            </div>
+                            <div><button type="button" class="btn" id="test-data-btn">Send Test Data</button></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-footer">
+        2023 &copy; SigLens
+    </div>
+    </div>
+    <script src="./js/navbar.js?cb=1_1_10"></script>
+    <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/eventHandlers.js?cb=1_1_10"></script>
+    <script src="./js/availableFields.js?cb=1_1_10"></script>
+    <script src="./js/logResultsGrid.js?cb=1_1_10"></script>
+    <script src="./js/agGridSegstats.js?cb=1_1_10"></script>
+    <script src="./js/datePicker.js?cb=1_1_10"></script>
+    <script src="./js/search.js?cb=1_1_10"></script>
+    <script src="./js/savedQuery.js?cb=1_1_10"></script>
+    <script src="./js/index.js?cb=1_1_10"></script>
+    <script src="./js/pointClickSearch.js?cb=1_1_10"></script>
+    <script src="./js/myOrgTestData.js"></script>
+</body>
+
+</html>
