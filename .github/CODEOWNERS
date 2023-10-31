@@ -1,0 +1,8 @@
+# Default owners for everything, unless a later match takes precedence.
+* @nkunal @sunitakawane @sonamgupta21 @AndrewHess
+
+*.go @sunitakawane @AndrewHess
+*.js @sunitakawane @sonamgupta21
+*.css @sonamgupta21
+*.html @sonamgupta21
+
