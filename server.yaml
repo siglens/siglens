@@ -1,0 +1,34 @@
+---
+## Address port for SigLens ingestion server
+ingestPort: 8081
+
+## Address port for SigLens query server, including UI
+queryPort: 80
+
+## Location for storing local node data
+dataPath : data/
+
+## field name to use as a timestamp key
+timestampKey : timestamp
+
+
+## Elasticsearch Version for kibana integration
+esVersion: "7.9.3"
+
+## Number of hours data will be stored/retained on persistent storage.
+# retentionHours: 2160
+
+## Percent of available RAM that siglens will occupy
+# memoryThresholdPercent: 80
+
+## For ephemeral servers (docker, k8s) set this variable to unique container name to persist data across restarts:
+# ssInstanceName: ""
+
+log:
+  logPrefix : ./
+
+  ## Maximum size of siglens.log file in megabytes
+  # logFileRotationSizeMB: 100
+
+  ## Compress log file
+  # compressLogFile: false

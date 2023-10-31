@@ -1,0 +1,3874 @@
+package log
+
+import (
+	reflect "reflect"
+	sync "sync"
+
+	_ "github.com/gogo/protobuf/gogoproto"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+)
+
+const (
+	// Verify that this generated code is sufficiently up-to-date.
+	_ = protoimpl.EnforceVersion(20 - protoimpl.MinVersion)
+	// Verify that runtime/protoimpl is sufficiently up-to-date.
+	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
+)
+
+type Direction int32
+
+const (
+	Direction_FORWARD  Direction = 0
+	Direction_BACKWARD Direction = 1
+)
+
+// Enum value maps for Direction.
+var (
+	Direction_name = map[int32]string{
+		0: "FORWARD",
+		1: "BACKWARD",
+	}
+	Direction_value = map[string]int32{
+		"FORWARD":  0,
+		"BACKWARD": 1,
+	}
+)
+
+func (x Direction) Enum() *Direction {
+	p := new(Direction)
+	*p = x
+	return p
+}
+
+func (x Direction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Direction) Descriptor() protoreflect.EnumDescriptor {
+	return file_pkg_loki_logproto_proto_enumTypes[0].Descriptor()
+}
+
+func (Direction) Type() protoreflect.EnumType {
+	return &file_pkg_loki_logproto_proto_enumTypes[0]
+}
+
+func (x Direction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Direction.Descriptor instead.
+func (Direction) EnumDescriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{0}
+}
+
+type StreamRatesRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *StreamRatesRequest) Reset() {
+	*x = StreamRatesRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[0]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *StreamRatesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamRatesRequest) ProtoMessage() {}
+
+func (x *StreamRatesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[0]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamRatesRequest.ProtoReflect.Descriptor instead.
+func (*StreamRatesRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{0}
+}
+
+type StreamRatesResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	StreamRates []*StreamRate `protobuf:"bytes,1,rep,name=streamRates,proto3" json:"streamRates,omitempty"`
+}
+
+func (x *StreamRatesResponse) Reset() {
+	*x = StreamRatesResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *StreamRatesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamRatesResponse) ProtoMessage() {}
+
+func (x *StreamRatesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamRatesResponse.ProtoReflect.Descriptor instead.
+func (*StreamRatesResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *StreamRatesResponse) GetStreamRates() []*StreamRate {
+	if x != nil {
+		return x.StreamRates
+	}
+	return nil
+}
+
+type StreamRate struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	StreamHash        uint64 `protobuf:"varint,1,opt,name=streamHash,proto3" json:"streamHash,omitempty"`
+	StreamHashNoShard uint64 `protobuf:"varint,2,opt,name=streamHashNoShard,proto3" json:"streamHashNoShard,omitempty"`
+	Rate              int64  `protobuf:"varint,3,opt,name=rate,proto3" json:"rate,omitempty"` // rate in plain bytes.
+	Tenant            string `protobuf:"bytes,4,opt,name=tenant,proto3" json:"tenant,omitempty"`
+	Pushes            uint32 `protobuf:"varint,5,opt,name=pushes,proto3" json:"pushes,omitempty"`
+}
+
+func (x *StreamRate) Reset() {
+	*x = StreamRate{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *StreamRate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamRate) ProtoMessage() {}
+
+func (x *StreamRate) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamRate.ProtoReflect.Descriptor instead.
+func (*StreamRate) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *StreamRate) GetStreamHash() uint64 {
+	if x != nil {
+		return x.StreamHash
+	}
+	return 0
+}
+
+func (x *StreamRate) GetStreamHashNoShard() uint64 {
+	if x != nil {
+		return x.StreamHashNoShard
+	}
+	return 0
+}
+
+func (x *StreamRate) GetRate() int64 {
+	if x != nil {
+		return x.Rate
+	}
+	return 0
+}
+
+func (x *StreamRate) GetTenant() string {
+	if x != nil {
+		return x.Tenant
+	}
+	return ""
+}
+
+func (x *StreamRate) GetPushes() uint32 {
+	if x != nil {
+		return x.Pushes
+	}
+	return 0
+}
+
+type QueryRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Selector  string                 `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
+	Limit     uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Start     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=start,proto3" json:"start,omitempty"`
+	End       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=end,proto3" json:"end,omitempty"`
+	Direction Direction              `protobuf:"varint,5,opt,name=direction,proto3,enum=loki.Direction" json:"direction,omitempty"`
+	Shards    []string               `protobuf:"bytes,7,rep,name=shards,proto3" json:"shards,omitempty"`
+	Deletes   []*Delete              `protobuf:"bytes,8,rep,name=deletes,proto3" json:"deletes,omitempty"`
+}
+
+func (x *QueryRequest) Reset() {
+	*x = QueryRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[3]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *QueryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryRequest) ProtoMessage() {}
+
+func (x *QueryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[3]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryRequest.ProtoReflect.Descriptor instead.
+func (*QueryRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *QueryRequest) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *QueryRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *QueryRequest) GetStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Start
+	}
+	return nil
+}
+
+func (x *QueryRequest) GetEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.End
+	}
+	return nil
+}
+
+func (x *QueryRequest) GetDirection() Direction {
+	if x != nil {
+		return x.Direction
+	}
+	return Direction_FORWARD
+}
+
+func (x *QueryRequest) GetShards() []string {
+	if x != nil {
+		return x.Shards
+	}
+	return nil
+}
+
+func (x *QueryRequest) GetDeletes() []*Delete {
+	if x != nil {
+		return x.Deletes
+	}
+	return nil
+}
+
+type SampleQueryRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Selector string                 `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
+	Start    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=start,proto3" json:"start,omitempty"`
+	End      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=end,proto3" json:"end,omitempty"`
+	Shards   []string               `protobuf:"bytes,4,rep,name=shards,proto3" json:"shards,omitempty"`
+	Deletes  []*Delete              `protobuf:"bytes,5,rep,name=deletes,proto3" json:"deletes,omitempty"`
+}
+
+func (x *SampleQueryRequest) Reset() {
+	*x = SampleQueryRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[4]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SampleQueryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SampleQueryRequest) ProtoMessage() {}
+
+func (x *SampleQueryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[4]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SampleQueryRequest.ProtoReflect.Descriptor instead.
+func (*SampleQueryRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SampleQueryRequest) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *SampleQueryRequest) GetStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Start
+	}
+	return nil
+}
+
+func (x *SampleQueryRequest) GetEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.End
+	}
+	return nil
+}
+
+func (x *SampleQueryRequest) GetShards() []string {
+	if x != nil {
+		return x.Shards
+	}
+	return nil
+}
+
+func (x *SampleQueryRequest) GetDeletes() []*Delete {
+	if x != nil {
+		return x.Deletes
+	}
+	return nil
+}
+
+type Delete struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Selector string `protobuf:"bytes,1,opt,name=selector,proto3" json:"selector,omitempty"`
+	Start    int64  `protobuf:"varint,2,opt,name=start,proto3" json:"start,omitempty"`
+	End      int64  `protobuf:"varint,3,opt,name=end,proto3" json:"end,omitempty"`
+}
+
+func (x *Delete) Reset() {
+	*x = Delete{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Delete) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Delete) ProtoMessage() {}
+
+func (x *Delete) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Delete.ProtoReflect.Descriptor instead.
+func (*Delete) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Delete) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
+func (x *Delete) GetStart() int64 {
+	if x != nil {
+		return x.Start
+	}
+	return 0
+}
+
+func (x *Delete) GetEnd() int64 {
+	if x != nil {
+		return x.End
+	}
+	return 0
+}
+
+type QueryResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Streams []*StreamAdapter `protobuf:"bytes,1,rep,name=streams,proto3" json:"streams,omitempty"`
+	Stats   *Ingester        `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
+}
+
+func (x *QueryResponse) Reset() {
+	*x = QueryResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *QueryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryResponse) ProtoMessage() {}
+
+func (x *QueryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryResponse.ProtoReflect.Descriptor instead.
+func (*QueryResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *QueryResponse) GetStreams() []*StreamAdapter {
+	if x != nil {
+		return x.Streams
+	}
+	return nil
+}
+
+func (x *QueryResponse) GetStats() *Ingester {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+type SampleQueryResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Series []*Series `protobuf:"bytes,1,rep,name=series,proto3" json:"series,omitempty"`
+	Stats  *Ingester `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
+}
+
+func (x *SampleQueryResponse) Reset() {
+	*x = SampleQueryResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[7]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SampleQueryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SampleQueryResponse) ProtoMessage() {}
+
+func (x *SampleQueryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[7]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SampleQueryResponse.ProtoReflect.Descriptor instead.
+func (*SampleQueryResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SampleQueryResponse) GetSeries() []*Series {
+	if x != nil {
+		return x.Series
+	}
+	return nil
+}
+
+func (x *SampleQueryResponse) GetStats() *Ingester {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+type LabelRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Name   string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Values bool                   `protobuf:"varint,2,opt,name=values,proto3" json:"values,omitempty"` // True to fetch label values, false for fetch labels names.
+	Start  *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=start,proto3" json:"start,omitempty"`
+	End    *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=end,proto3" json:"end,omitempty"`
+	Query  string                 `protobuf:"bytes,5,opt,name=query,proto3" json:"query,omitempty"` // Naming this query instead of match because this should be with queryrangebase.Request interface
+}
+
+func (x *LabelRequest) Reset() {
+	*x = LabelRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[8]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *LabelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LabelRequest) ProtoMessage() {}
+
+func (x *LabelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[8]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LabelRequest.ProtoReflect.Descriptor instead.
+func (*LabelRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *LabelRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *LabelRequest) GetValues() bool {
+	if x != nil {
+		return x.Values
+	}
+	return false
+}
+
+func (x *LabelRequest) GetStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Start
+	}
+	return nil
+}
+
+func (x *LabelRequest) GetEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.End
+	}
+	return nil
+}
+
+func (x *LabelRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+type LabelResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Values []string `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
+}
+
+func (x *LabelResponse) Reset() {
+	*x = LabelResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[9]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *LabelResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LabelResponse) ProtoMessage() {}
+
+func (x *LabelResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[9]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LabelResponse.ProtoReflect.Descriptor instead.
+func (*LabelResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *LabelResponse) GetValues() []string {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
+type Sample struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Timestamp int64   `protobuf:"varint,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Value     float64 `protobuf:"fixed64,2,opt,name=value,proto3" json:"value,omitempty"`
+	Hash      uint64  `protobuf:"varint,3,opt,name=hash,proto3" json:"hash,omitempty"`
+}
+
+func (x *Sample) Reset() {
+	*x = Sample{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[10]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Sample) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Sample) ProtoMessage() {}
+
+func (x *Sample) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[10]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Sample.ProtoReflect.Descriptor instead.
+func (*Sample) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *Sample) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+func (x *Sample) GetValue() float64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+func (x *Sample) GetHash() uint64 {
+	if x != nil {
+		return x.Hash
+	}
+	return 0
+}
+
+// LegacySample exists for backwards compatibility reasons and is deprecated. Do not use.
+type LegacySample struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Value       float64 `protobuf:"fixed64,1,opt,name=value,proto3" json:"value,omitempty"`
+	TimestampMs int64   `protobuf:"varint,2,opt,name=timestamp_ms,json=timestampMs,proto3" json:"timestamp_ms,omitempty"`
+}
+
+func (x *LegacySample) Reset() {
+	*x = LegacySample{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[11]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *LegacySample) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LegacySample) ProtoMessage() {}
+
+func (x *LegacySample) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[11]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LegacySample.ProtoReflect.Descriptor instead.
+func (*LegacySample) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *LegacySample) GetValue() float64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+func (x *LegacySample) GetTimestampMs() int64 {
+	if x != nil {
+		return x.TimestampMs
+	}
+	return 0
+}
+
+type Series struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Labels     string    `protobuf:"bytes,1,opt,name=labels,proto3" json:"labels,omitempty"`
+	Samples    []*Sample `protobuf:"bytes,2,rep,name=samples,proto3" json:"samples,omitempty"`
+	StreamHash uint64    `protobuf:"varint,3,opt,name=streamHash,proto3" json:"streamHash,omitempty"`
+}
+
+func (x *Series) Reset() {
+	*x = Series{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[12]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Series) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Series) ProtoMessage() {}
+
+func (x *Series) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[12]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Series.ProtoReflect.Descriptor instead.
+func (*Series) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *Series) GetLabels() string {
+	if x != nil {
+		return x.Labels
+	}
+	return ""
+}
+
+func (x *Series) GetSamples() []*Sample {
+	if x != nil {
+		return x.Samples
+	}
+	return nil
+}
+
+func (x *Series) GetStreamHash() uint64 {
+	if x != nil {
+		return x.StreamHash
+	}
+	return 0
+}
+
+type TailRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Query    string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	DelayFor uint32                 `protobuf:"varint,3,opt,name=delayFor,proto3" json:"delayFor,omitempty"`
+	Limit    uint32                 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	Start    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=start,proto3" json:"start,omitempty"`
+}
+
+func (x *TailRequest) Reset() {
+	*x = TailRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[13]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TailRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailRequest) ProtoMessage() {}
+
+func (x *TailRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[13]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailRequest.ProtoReflect.Descriptor instead.
+func (*TailRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *TailRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *TailRequest) GetDelayFor() uint32 {
+	if x != nil {
+		return x.DelayFor
+	}
+	return 0
+}
+
+func (x *TailRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *TailRequest) GetStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Start
+	}
+	return nil
+}
+
+type TailResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Stream         *StreamAdapter   `protobuf:"bytes,1,opt,name=stream,proto3" json:"stream,omitempty"`
+	DroppedStreams []*DroppedStream `protobuf:"bytes,2,rep,name=droppedStreams,proto3" json:"droppedStreams,omitempty"`
+}
+
+func (x *TailResponse) Reset() {
+	*x = TailResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[14]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TailResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailResponse) ProtoMessage() {}
+
+func (x *TailResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[14]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailResponse.ProtoReflect.Descriptor instead.
+func (*TailResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *TailResponse) GetStream() *StreamAdapter {
+	if x != nil {
+		return x.Stream
+	}
+	return nil
+}
+
+func (x *TailResponse) GetDroppedStreams() []*DroppedStream {
+	if x != nil {
+		return x.DroppedStreams
+	}
+	return nil
+}
+
+type SeriesRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Start  *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=start,proto3" json:"start,omitempty"`
+	End    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=end,proto3" json:"end,omitempty"`
+	Groups []string               `protobuf:"bytes,3,rep,name=groups,proto3" json:"groups,omitempty"`
+	Shards []string               `protobuf:"bytes,4,rep,name=shards,proto3" json:"shards,omitempty"`
+}
+
+func (x *SeriesRequest) Reset() {
+	*x = SeriesRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[15]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SeriesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeriesRequest) ProtoMessage() {}
+
+func (x *SeriesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[15]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeriesRequest.ProtoReflect.Descriptor instead.
+func (*SeriesRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SeriesRequest) GetStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Start
+	}
+	return nil
+}
+
+func (x *SeriesRequest) GetEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.End
+	}
+	return nil
+}
+
+func (x *SeriesRequest) GetGroups() []string {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+func (x *SeriesRequest) GetShards() []string {
+	if x != nil {
+		return x.Shards
+	}
+	return nil
+}
+
+type SeriesResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Series []*SeriesIdentifier `protobuf:"bytes,1,rep,name=series,proto3" json:"series,omitempty"`
+}
+
+func (x *SeriesResponse) Reset() {
+	*x = SeriesResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[16]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SeriesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeriesResponse) ProtoMessage() {}
+
+func (x *SeriesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[16]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeriesResponse.ProtoReflect.Descriptor instead.
+func (*SeriesResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *SeriesResponse) GetSeries() []*SeriesIdentifier {
+	if x != nil {
+		return x.Series
+	}
+	return nil
+}
+
+type SeriesIdentifier struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Labels map[string]string `protobuf:"bytes,1,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+}
+
+func (x *SeriesIdentifier) Reset() {
+	*x = SeriesIdentifier{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[17]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SeriesIdentifier) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeriesIdentifier) ProtoMessage() {}
+
+func (x *SeriesIdentifier) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[17]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeriesIdentifier.ProtoReflect.Descriptor instead.
+func (*SeriesIdentifier) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *SeriesIdentifier) GetLabels() map[string]string {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+type DroppedStream struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	From   *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	To     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	Labels string                 `protobuf:"bytes,3,opt,name=labels,proto3" json:"labels,omitempty"`
+}
+
+func (x *DroppedStream) Reset() {
+	*x = DroppedStream{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[18]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DroppedStream) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DroppedStream) ProtoMessage() {}
+
+func (x *DroppedStream) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[18]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DroppedStream.ProtoReflect.Descriptor instead.
+func (*DroppedStream) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *DroppedStream) GetFrom() *timestamppb.Timestamp {
+	if x != nil {
+		return x.From
+	}
+	return nil
+}
+
+func (x *DroppedStream) GetTo() *timestamppb.Timestamp {
+	if x != nil {
+		return x.To
+	}
+	return nil
+}
+
+func (x *DroppedStream) GetLabels() string {
+	if x != nil {
+		return x.Labels
+	}
+	return ""
+}
+
+type TimeSeriesChunk struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	FromIngesterId string       `protobuf:"bytes,1,opt,name=from_ingester_id,json=fromIngesterId,proto3" json:"from_ingester_id,omitempty"`
+	UserId         string       `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Labels         []*LabelPair `protobuf:"bytes,3,rep,name=labels,proto3" json:"labels,omitempty"`
+	Chunks         []*LogChunk  `protobuf:"bytes,4,rep,name=chunks,proto3" json:"chunks,omitempty"`
+}
+
+func (x *TimeSeriesChunk) Reset() {
+	*x = TimeSeriesChunk{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[19]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TimeSeriesChunk) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimeSeriesChunk) ProtoMessage() {}
+
+func (x *TimeSeriesChunk) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[19]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimeSeriesChunk.ProtoReflect.Descriptor instead.
+func (*TimeSeriesChunk) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *TimeSeriesChunk) GetFromIngesterId() string {
+	if x != nil {
+		return x.FromIngesterId
+	}
+	return ""
+}
+
+func (x *TimeSeriesChunk) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *TimeSeriesChunk) GetLabels() []*LabelPair {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+func (x *TimeSeriesChunk) GetChunks() []*LogChunk {
+	if x != nil {
+		return x.Chunks
+	}
+	return nil
+}
+
+type LabelPair struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Name  string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+}
+
+func (x *LabelPair) Reset() {
+	*x = LabelPair{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[20]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *LabelPair) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LabelPair) ProtoMessage() {}
+
+func (x *LabelPair) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[20]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LabelPair.ProtoReflect.Descriptor instead.
+func (*LabelPair) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *LabelPair) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *LabelPair) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+// LegacyLabelPair exists for backwards compatibility reasons and is deprecated. Do not use.
+type LegacyLabelPair struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Name  []byte `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value []byte `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+}
+
+func (x *LegacyLabelPair) Reset() {
+	*x = LegacyLabelPair{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[21]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *LegacyLabelPair) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LegacyLabelPair) ProtoMessage() {}
+
+func (x *LegacyLabelPair) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[21]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LegacyLabelPair.ProtoReflect.Descriptor instead.
+func (*LegacyLabelPair) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *LegacyLabelPair) GetName() []byte {
+	if x != nil {
+		return x.Name
+	}
+	return nil
+}
+
+func (x *LegacyLabelPair) GetValue() []byte {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+type LogChunk struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+}
+
+func (x *LogChunk) Reset() {
+	*x = LogChunk{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[22]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *LogChunk) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogChunk) ProtoMessage() {}
+
+func (x *LogChunk) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[22]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogChunk.ProtoReflect.Descriptor instead.
+func (*LogChunk) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *LogChunk) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type TransferChunksResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *TransferChunksResponse) Reset() {
+	*x = TransferChunksResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[23]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TransferChunksResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransferChunksResponse) ProtoMessage() {}
+
+func (x *TransferChunksResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[23]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransferChunksResponse.ProtoReflect.Descriptor instead.
+func (*TransferChunksResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{23}
+}
+
+type TailersCountRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+}
+
+func (x *TailersCountRequest) Reset() {
+	*x = TailersCountRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[24]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TailersCountRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailersCountRequest) ProtoMessage() {}
+
+func (x *TailersCountRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[24]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailersCountRequest.ProtoReflect.Descriptor instead.
+func (*TailersCountRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{24}
+}
+
+type TailersCountResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Count uint32 `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+}
+
+func (x *TailersCountResponse) Reset() {
+	*x = TailersCountResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[25]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *TailersCountResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailersCountResponse) ProtoMessage() {}
+
+func (x *TailersCountResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[25]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailersCountResponse.ProtoReflect.Descriptor instead.
+func (*TailersCountResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *TailersCountResponse) GetCount() uint32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+type GetChunkIDsRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Matchers string                 `protobuf:"bytes,1,opt,name=matchers,proto3" json:"matchers,omitempty"`
+	Start    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=start,proto3" json:"start,omitempty"`
+	End      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=end,proto3" json:"end,omitempty"`
+}
+
+func (x *GetChunkIDsRequest) Reset() {
+	*x = GetChunkIDsRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[26]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetChunkIDsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChunkIDsRequest) ProtoMessage() {}
+
+func (x *GetChunkIDsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[26]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChunkIDsRequest.ProtoReflect.Descriptor instead.
+func (*GetChunkIDsRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *GetChunkIDsRequest) GetMatchers() string {
+	if x != nil {
+		return x.Matchers
+	}
+	return ""
+}
+
+func (x *GetChunkIDsRequest) GetStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Start
+	}
+	return nil
+}
+
+func (x *GetChunkIDsRequest) GetEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.End
+	}
+	return nil
+}
+
+type GetChunkIDsResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ChunkIDs []string `protobuf:"bytes,1,rep,name=chunkIDs,proto3" json:"chunkIDs,omitempty"`
+}
+
+func (x *GetChunkIDsResponse) Reset() {
+	*x = GetChunkIDsResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[27]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetChunkIDsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChunkIDsResponse) ProtoMessage() {}
+
+func (x *GetChunkIDsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[27]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChunkIDsResponse.ProtoReflect.Descriptor instead.
+func (*GetChunkIDsResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GetChunkIDsResponse) GetChunkIDs() []string {
+	if x != nil {
+		return x.ChunkIDs
+	}
+	return nil
+}
+
+// ChunkRef contains the metadata to reference a LogChunk.
+// It is embedded by the LogChunk type itself and used to generate the LogChunk
+// checksum. So it is imported to take care of the JSON representation of the
+// resulting Go struct.
+type ChunkRef struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Fingerprint uint64 `protobuf:"varint,1,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	UserId      string `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	From        int64  `protobuf:"varint,3,opt,name=from,proto3" json:"from,omitempty"`
+	Through     int64  `protobuf:"varint,4,opt,name=through,proto3" json:"through,omitempty"`
+	// The checksum is not written to the external storage. We use crc32,
+	// Castagnoli table. See http://www.evanjones.ca/crc32c.html.
+	Checksum uint32 `protobuf:"varint,5,opt,name=checksum,proto3" json:"checksum,omitempty"`
+}
+
+func (x *ChunkRef) Reset() {
+	*x = ChunkRef{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[28]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ChunkRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChunkRef) ProtoMessage() {}
+
+func (x *ChunkRef) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[28]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChunkRef.ProtoReflect.Descriptor instead.
+func (*ChunkRef) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ChunkRef) GetFingerprint() uint64 {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return 0
+}
+
+func (x *ChunkRef) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *ChunkRef) GetFrom() int64 {
+	if x != nil {
+		return x.From
+	}
+	return 0
+}
+
+func (x *ChunkRef) GetThrough() int64 {
+	if x != nil {
+		return x.Through
+	}
+	return 0
+}
+
+func (x *ChunkRef) GetChecksum() uint32 {
+	if x != nil {
+		return x.Checksum
+	}
+	return 0
+}
+
+type LabelValuesForMetricNameRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	MetricName string `protobuf:"bytes,1,opt,name=metric_name,json=metricName,proto3" json:"metric_name,omitempty"`
+	LabelName  string `protobuf:"bytes,2,opt,name=label_name,json=labelName,proto3" json:"label_name,omitempty"`
+	From       int64  `protobuf:"varint,3,opt,name=from,proto3" json:"from,omitempty"`
+	Through    int64  `protobuf:"varint,4,opt,name=through,proto3" json:"through,omitempty"`
+	Matchers   string `protobuf:"bytes,5,opt,name=matchers,proto3" json:"matchers,omitempty"`
+}
+
+func (x *LabelValuesForMetricNameRequest) Reset() {
+	*x = LabelValuesForMetricNameRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[29]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *LabelValuesForMetricNameRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LabelValuesForMetricNameRequest) ProtoMessage() {}
+
+func (x *LabelValuesForMetricNameRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[29]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LabelValuesForMetricNameRequest.ProtoReflect.Descriptor instead.
+func (*LabelValuesForMetricNameRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *LabelValuesForMetricNameRequest) GetMetricName() string {
+	if x != nil {
+		return x.MetricName
+	}
+	return ""
+}
+
+func (x *LabelValuesForMetricNameRequest) GetLabelName() string {
+	if x != nil {
+		return x.LabelName
+	}
+	return ""
+}
+
+func (x *LabelValuesForMetricNameRequest) GetFrom() int64 {
+	if x != nil {
+		return x.From
+	}
+	return 0
+}
+
+func (x *LabelValuesForMetricNameRequest) GetThrough() int64 {
+	if x != nil {
+		return x.Through
+	}
+	return 0
+}
+
+func (x *LabelValuesForMetricNameRequest) GetMatchers() string {
+	if x != nil {
+		return x.Matchers
+	}
+	return ""
+}
+
+type LabelNamesForMetricNameRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	MetricName string `protobuf:"bytes,1,opt,name=metric_name,json=metricName,proto3" json:"metric_name,omitempty"`
+	From       int64  `protobuf:"varint,2,opt,name=from,proto3" json:"from,omitempty"`
+	Through    int64  `protobuf:"varint,3,opt,name=through,proto3" json:"through,omitempty"`
+}
+
+func (x *LabelNamesForMetricNameRequest) Reset() {
+	*x = LabelNamesForMetricNameRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[30]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *LabelNamesForMetricNameRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LabelNamesForMetricNameRequest) ProtoMessage() {}
+
+func (x *LabelNamesForMetricNameRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[30]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LabelNamesForMetricNameRequest.ProtoReflect.Descriptor instead.
+func (*LabelNamesForMetricNameRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *LabelNamesForMetricNameRequest) GetMetricName() string {
+	if x != nil {
+		return x.MetricName
+	}
+	return ""
+}
+
+func (x *LabelNamesForMetricNameRequest) GetFrom() int64 {
+	if x != nil {
+		return x.From
+	}
+	return 0
+}
+
+func (x *LabelNamesForMetricNameRequest) GetThrough() int64 {
+	if x != nil {
+		return x.Through
+	}
+	return 0
+}
+
+type GetChunkRefRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	From     int64  `protobuf:"varint,1,opt,name=from,proto3" json:"from,omitempty"`
+	Through  int64  `protobuf:"varint,2,opt,name=through,proto3" json:"through,omitempty"`
+	Matchers string `protobuf:"bytes,3,opt,name=matchers,proto3" json:"matchers,omitempty"`
+}
+
+func (x *GetChunkRefRequest) Reset() {
+	*x = GetChunkRefRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[31]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetChunkRefRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChunkRefRequest) ProtoMessage() {}
+
+func (x *GetChunkRefRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[31]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChunkRefRequest.ProtoReflect.Descriptor instead.
+func (*GetChunkRefRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *GetChunkRefRequest) GetFrom() int64 {
+	if x != nil {
+		return x.From
+	}
+	return 0
+}
+
+func (x *GetChunkRefRequest) GetThrough() int64 {
+	if x != nil {
+		return x.Through
+	}
+	return 0
+}
+
+func (x *GetChunkRefRequest) GetMatchers() string {
+	if x != nil {
+		return x.Matchers
+	}
+	return ""
+}
+
+type GetChunkRefResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Refs []*ChunkRef `protobuf:"bytes,1,rep,name=refs,proto3" json:"refs,omitempty"`
+}
+
+func (x *GetChunkRefResponse) Reset() {
+	*x = GetChunkRefResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[32]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetChunkRefResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChunkRefResponse) ProtoMessage() {}
+
+func (x *GetChunkRefResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[32]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChunkRefResponse.ProtoReflect.Descriptor instead.
+func (*GetChunkRefResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GetChunkRefResponse) GetRefs() []*ChunkRef {
+	if x != nil {
+		return x.Refs
+	}
+	return nil
+}
+
+type GetSeriesRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	From     int64  `protobuf:"varint,1,opt,name=from,proto3" json:"from,omitempty"`
+	Through  int64  `protobuf:"varint,2,opt,name=through,proto3" json:"through,omitempty"`
+	Matchers string `protobuf:"bytes,3,opt,name=matchers,proto3" json:"matchers,omitempty"`
+}
+
+func (x *GetSeriesRequest) Reset() {
+	*x = GetSeriesRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[33]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetSeriesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSeriesRequest) ProtoMessage() {}
+
+func (x *GetSeriesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[33]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSeriesRequest.ProtoReflect.Descriptor instead.
+func (*GetSeriesRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *GetSeriesRequest) GetFrom() int64 {
+	if x != nil {
+		return x.From
+	}
+	return 0
+}
+
+func (x *GetSeriesRequest) GetThrough() int64 {
+	if x != nil {
+		return x.Through
+	}
+	return 0
+}
+
+func (x *GetSeriesRequest) GetMatchers() string {
+	if x != nil {
+		return x.Matchers
+	}
+	return ""
+}
+
+type GetSeriesResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Series []*IndexSeries `protobuf:"bytes,1,rep,name=series,proto3" json:"series,omitempty"`
+}
+
+func (x *GetSeriesResponse) Reset() {
+	*x = GetSeriesResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[34]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetSeriesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSeriesResponse) ProtoMessage() {}
+
+func (x *GetSeriesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[34]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSeriesResponse.ProtoReflect.Descriptor instead.
+func (*GetSeriesResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *GetSeriesResponse) GetSeries() []*IndexSeries {
+	if x != nil {
+		return x.Series
+	}
+	return nil
+}
+
+// Series calls to the TSDB Index
+type IndexSeries struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Labels []*LabelPair `protobuf:"bytes,1,rep,name=labels,proto3" json:"labels,omitempty"`
+}
+
+func (x *IndexSeries) Reset() {
+	*x = IndexSeries{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[35]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *IndexSeries) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IndexSeries) ProtoMessage() {}
+
+func (x *IndexSeries) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[35]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IndexSeries.ProtoReflect.Descriptor instead.
+func (*IndexSeries) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *IndexSeries) GetLabels() []*LabelPair {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+type QueryIndexResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	QueryKey string `protobuf:"bytes,1,opt,name=QueryKey,proto3" json:"QueryKey,omitempty"`
+	Rows     []*Row `protobuf:"bytes,2,rep,name=rows,proto3" json:"rows,omitempty"`
+}
+
+func (x *QueryIndexResponse) Reset() {
+	*x = QueryIndexResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[36]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *QueryIndexResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryIndexResponse) ProtoMessage() {}
+
+func (x *QueryIndexResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[36]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryIndexResponse.ProtoReflect.Descriptor instead.
+func (*QueryIndexResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *QueryIndexResponse) GetQueryKey() string {
+	if x != nil {
+		return x.QueryKey
+	}
+	return ""
+}
+
+func (x *QueryIndexResponse) GetRows() []*Row {
+	if x != nil {
+		return x.Rows
+	}
+	return nil
+}
+
+type Row struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	RangeValue []byte `protobuf:"bytes,1,opt,name=rangeValue,proto3" json:"rangeValue,omitempty"`
+	Value      []byte `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+}
+
+func (x *Row) Reset() {
+	*x = Row{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[37]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Row) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Row) ProtoMessage() {}
+
+func (x *Row) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[37]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Row.ProtoReflect.Descriptor instead.
+func (*Row) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *Row) GetRangeValue() []byte {
+	if x != nil {
+		return x.RangeValue
+	}
+	return nil
+}
+
+func (x *Row) GetValue() []byte {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+type QueryIndexRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Queries []*IndexQuery `protobuf:"bytes,1,rep,name=Queries,proto3" json:"Queries,omitempty"`
+}
+
+func (x *QueryIndexRequest) Reset() {
+	*x = QueryIndexRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[38]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *QueryIndexRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueryIndexRequest) ProtoMessage() {}
+
+func (x *QueryIndexRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[38]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueryIndexRequest.ProtoReflect.Descriptor instead.
+func (*QueryIndexRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *QueryIndexRequest) GetQueries() []*IndexQuery {
+	if x != nil {
+		return x.Queries
+	}
+	return nil
+}
+
+type IndexQuery struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	TableName        string `protobuf:"bytes,1,opt,name=tableName,proto3" json:"tableName,omitempty"`
+	HashValue        string `protobuf:"bytes,2,opt,name=hashValue,proto3" json:"hashValue,omitempty"`
+	RangeValuePrefix []byte `protobuf:"bytes,3,opt,name=rangeValuePrefix,proto3" json:"rangeValuePrefix,omitempty"`
+	RangeValueStart  []byte `protobuf:"bytes,4,opt,name=rangeValueStart,proto3" json:"rangeValueStart,omitempty"`
+	ValueEqual       []byte `protobuf:"bytes,5,opt,name=valueEqual,proto3" json:"valueEqual,omitempty"`
+}
+
+func (x *IndexQuery) Reset() {
+	*x = IndexQuery{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[39]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *IndexQuery) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IndexQuery) ProtoMessage() {}
+
+func (x *IndexQuery) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[39]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IndexQuery.ProtoReflect.Descriptor instead.
+func (*IndexQuery) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *IndexQuery) GetTableName() string {
+	if x != nil {
+		return x.TableName
+	}
+	return ""
+}
+
+func (x *IndexQuery) GetHashValue() string {
+	if x != nil {
+		return x.HashValue
+	}
+	return ""
+}
+
+func (x *IndexQuery) GetRangeValuePrefix() []byte {
+	if x != nil {
+		return x.RangeValuePrefix
+	}
+	return nil
+}
+
+func (x *IndexQuery) GetRangeValueStart() []byte {
+	if x != nil {
+		return x.RangeValueStart
+	}
+	return nil
+}
+
+func (x *IndexQuery) GetValueEqual() []byte {
+	if x != nil {
+		return x.ValueEqual
+	}
+	return nil
+}
+
+type IndexStatsRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	From     int64  `protobuf:"varint,1,opt,name=from,proto3" json:"from,omitempty"`
+	Through  int64  `protobuf:"varint,2,opt,name=through,proto3" json:"through,omitempty"`
+	Matchers string `protobuf:"bytes,3,opt,name=matchers,proto3" json:"matchers,omitempty"`
+}
+
+func (x *IndexStatsRequest) Reset() {
+	*x = IndexStatsRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[40]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *IndexStatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IndexStatsRequest) ProtoMessage() {}
+
+func (x *IndexStatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[40]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IndexStatsRequest.ProtoReflect.Descriptor instead.
+func (*IndexStatsRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *IndexStatsRequest) GetFrom() int64 {
+	if x != nil {
+		return x.From
+	}
+	return 0
+}
+
+func (x *IndexStatsRequest) GetThrough() int64 {
+	if x != nil {
+		return x.Through
+	}
+	return 0
+}
+
+func (x *IndexStatsRequest) GetMatchers() string {
+	if x != nil {
+		return x.Matchers
+	}
+	return ""
+}
+
+type IndexStatsResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Streams uint64 `protobuf:"varint,1,opt,name=streams,proto3" json:"streams,omitempty"`
+	Chunks  uint64 `protobuf:"varint,2,opt,name=chunks,proto3" json:"chunks,omitempty"`
+	Bytes   uint64 `protobuf:"varint,3,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Entries uint64 `protobuf:"varint,4,opt,name=entries,proto3" json:"entries,omitempty"`
+}
+
+func (x *IndexStatsResponse) Reset() {
+	*x = IndexStatsResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[41]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *IndexStatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IndexStatsResponse) ProtoMessage() {}
+
+func (x *IndexStatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[41]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IndexStatsResponse.ProtoReflect.Descriptor instead.
+func (*IndexStatsResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *IndexStatsResponse) GetStreams() uint64 {
+	if x != nil {
+		return x.Streams
+	}
+	return 0
+}
+
+func (x *IndexStatsResponse) GetChunks() uint64 {
+	if x != nil {
+		return x.Chunks
+	}
+	return 0
+}
+
+func (x *IndexStatsResponse) GetBytes() uint64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+func (x *IndexStatsResponse) GetEntries() uint64 {
+	if x != nil {
+		return x.Entries
+	}
+	return 0
+}
+
+type VolumeRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	From     int64  `protobuf:"varint,1,opt,name=from,proto3" json:"from,omitempty"`
+	Through  int64  `protobuf:"varint,2,opt,name=through,proto3" json:"through,omitempty"`
+	Matchers string `protobuf:"bytes,3,opt,name=matchers,proto3" json:"matchers,omitempty"`
+	Limit    int32  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+}
+
+func (x *VolumeRequest) Reset() {
+	*x = VolumeRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[42]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *VolumeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VolumeRequest) ProtoMessage() {}
+
+func (x *VolumeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[42]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VolumeRequest.ProtoReflect.Descriptor instead.
+func (*VolumeRequest) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *VolumeRequest) GetFrom() int64 {
+	if x != nil {
+		return x.From
+	}
+	return 0
+}
+
+func (x *VolumeRequest) GetThrough() int64 {
+	if x != nil {
+		return x.Through
+	}
+	return 0
+}
+
+func (x *VolumeRequest) GetMatchers() string {
+	if x != nil {
+		return x.Matchers
+	}
+	return ""
+}
+
+func (x *VolumeRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type VolumeResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Volumes []*Volume `protobuf:"bytes,1,rep,name=volumes,proto3" json:"volumes,omitempty"`
+	Limit   int32     `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+}
+
+func (x *VolumeResponse) Reset() {
+	*x = VolumeResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[43]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *VolumeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VolumeResponse) ProtoMessage() {}
+
+func (x *VolumeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[43]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VolumeResponse.ProtoReflect.Descriptor instead.
+func (*VolumeResponse) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *VolumeResponse) GetVolumes() []*Volume {
+	if x != nil {
+		return x.Volumes
+	}
+	return nil
+}
+
+func (x *VolumeResponse) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type Volume struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Name   string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value  string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	Volume uint64 `protobuf:"varint,3,opt,name=volume,proto3" json:"volume,omitempty"`
+}
+
+func (x *Volume) Reset() {
+	*x = Volume{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pkg_loki_logproto_proto_msgTypes[44]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Volume) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Volume) ProtoMessage() {}
+
+func (x *Volume) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_loki_logproto_proto_msgTypes[44]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Volume.ProtoReflect.Descriptor instead.
+func (*Volume) Descriptor() ([]byte, []int) {
+	return file_pkg_loki_logproto_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *Volume) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Volume) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *Volume) GetVolume() uint64 {
+	if x != nil {
+		return x.Volume
+	}
+	return 0
+}
+
+var File_pkg_loki_logproto_proto protoreflect.FileDescriptor
+
+var file_pkg_loki_logproto_proto_rawDesc = []byte{
+	0x0a, 0x17, 0x70, 0x6b, 0x67, 0x2f, 0x6c, 0x6f, 0x6b, 0x69, 0x2f, 0x6c, 0x6f, 0x67, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x04, 0x6c, 0x6f, 0x6b, 0x69, 0x1a,
+	0x1b, 0x70, 0x6b, 0x67, 0x2f, 0x6c, 0x6f, 0x6b, 0x69, 0x2f, 0x66, 0x6f, 0x72, 0x65, 0x69, 0x67,
+	0x6e, 0x2f, 0x67, 0x6f, 0x67, 0x6f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x20, 0x70, 0x6b,
+	0x67, 0x2f, 0x6c, 0x6f, 0x6b, 0x69, 0x2f, 0x66, 0x6f, 0x72, 0x65, 0x69, 0x67, 0x6e, 0x2f, 0x74,
+	0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x14,
+	0x70, 0x6b, 0x67, 0x2f, 0x6c, 0x6f, 0x6b, 0x69, 0x2f, 0x73, 0x74, 0x61, 0x74, 0x73, 0x2e, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x13, 0x70, 0x6b, 0x67, 0x2f, 0x6c, 0x6f, 0x6b, 0x69, 0x2f, 0x70,
+	0x75, 0x73, 0x68, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x14, 0x0a, 0x12, 0x53, 0x74, 0x72,
+	0x65, 0x61, 0x6d, 0x52, 0x61, 0x74, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22,
+	0x49, 0x0a, 0x13, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x52, 0x61, 0x74, 0x65, 0x73, 0x52, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x32, 0x0a, 0x0b, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d,
+	0x52, 0x61, 0x74, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x10, 0x2e, 0x6c, 0x6f,
+	0x6b, 0x69, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x52, 0x61, 0x74, 0x65, 0x52, 0x0b, 0x73,
+	0x74, 0x72, 0x65, 0x61, 0x6d, 0x52, 0x61, 0x74, 0x65, 0x73, 0x22, 0x9e, 0x01, 0x0a, 0x0a, 0x53,
+	0x74, 0x72, 0x65, 0x61, 0x6d, 0x52, 0x61, 0x74, 0x65, 0x12, 0x1e, 0x0a, 0x0a, 0x73, 0x74, 0x72,
+	0x65, 0x61, 0x6d, 0x48, 0x61, 0x73, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0a, 0x73,
+	0x74, 0x72, 0x65, 0x61, 0x6d, 0x48, 0x61, 0x73, 0x68, 0x12, 0x2c, 0x0a, 0x11, 0x73, 0x74, 0x72,
+	0x65, 0x61, 0x6d, 0x48, 0x61, 0x73, 0x68, 0x4e, 0x6f, 0x53, 0x68, 0x61, 0x72, 0x64, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x04, 0x52, 0x11, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x48, 0x61, 0x73, 0x68,
+	0x4e, 0x6f, 0x53, 0x68, 0x61, 0x72, 0x64, 0x12, 0x12, 0x0a, 0x04, 0x72, 0x61, 0x74, 0x65, 0x18,
+	0x03, 0x20, 0x01, 0x28, 0x03, 0x52, 0x04, 0x72, 0x61, 0x74, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x74,
+	0x65, 0x6e, 0x61, 0x6e, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x74, 0x65, 0x6e,
+	0x61, 0x6e, 0x74, 0x12, 0x16, 0x0a, 0x06, 0x70, 0x75, 0x73, 0x68, 0x65, 0x73, 0x18, 0x05, 0x20,
+	0x01, 0x28, 0x0d, 0x52, 0x06, 0x70, 0x75, 0x73, 0x68, 0x65, 0x73, 0x22, 0xa9, 0x02, 0x0a, 0x0c,
+	0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08,
+	0x73, 0x65, 0x6c, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08,
+	0x73, 0x65, 0x6c, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x12, 0x14, 0x0a, 0x05, 0x6c, 0x69, 0x6d, 0x69,
+	0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x12, 0x2f,
+	0x0a, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f, 0x2e,
+	0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x42, 0x08,
+	0xc8, 0xde, 0x1f, 0x00, 0x90, 0xdf, 0x1f, 0x01, 0x52, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x12,
+	0x2b, 0x0a, 0x03, 0x65, 0x6e, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x6c,
+	0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x42, 0x08, 0xc8,
+	0xde, 0x1f, 0x00, 0x90, 0xdf, 0x1f, 0x01, 0x52, 0x03, 0x65, 0x6e, 0x64, 0x12, 0x2d, 0x0a, 0x09,
+	0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0e, 0x32,
+	0x0f, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x44, 0x69, 0x72, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e,
+	0x52, 0x09, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x2c, 0x0a, 0x06, 0x73,
+	0x68, 0x61, 0x72, 0x64, 0x73, 0x18, 0x07, 0x20, 0x03, 0x28, 0x09, 0x42, 0x14, 0xea, 0xde, 0x1f,
+	0x10, 0x73, 0x68, 0x61, 0x72, 0x64, 0x73, 0x2c, 0x6f, 0x6d, 0x69, 0x74, 0x65, 0x6d, 0x70, 0x74,
+	0x79, 0x52, 0x06, 0x73, 0x68, 0x61, 0x72, 0x64, 0x73, 0x12, 0x26, 0x0a, 0x07, 0x64, 0x65, 0x6c,
+	0x65, 0x74, 0x65, 0x73, 0x18, 0x08, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x6c, 0x6f, 0x6b,
+	0x69, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x52, 0x07, 0x64, 0x65, 0x6c, 0x65, 0x74, 0x65,
+	0x73, 0x4a, 0x04, 0x08, 0x06, 0x10, 0x07, 0x22, 0xe4, 0x01, 0x0a, 0x12, 0x53, 0x61, 0x6d, 0x70,
+	0x6c, 0x65, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1a,
+	0x0a, 0x08, 0x73, 0x65, 0x6c, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x08, 0x73, 0x65, 0x6c, 0x65, 0x63, 0x74, 0x6f, 0x72, 0x12, 0x2f, 0x0a, 0x05, 0x73, 0x74,
+	0x61, 0x72, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x6c, 0x6f, 0x6b, 0x69,
+	0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x42, 0x08, 0xc8, 0xde, 0x1f, 0x00,
+	0x90, 0xdf, 0x1f, 0x01, 0x52, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x12, 0x2b, 0x0a, 0x03, 0x65,
+	0x6e, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e,
+	0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x42, 0x08, 0xc8, 0xde, 0x1f, 0x00, 0x90,
+	0xdf, 0x1f, 0x01, 0x52, 0x03, 0x65, 0x6e, 0x64, 0x12, 0x2c, 0x0a, 0x06, 0x73, 0x68, 0x61, 0x72,
+	0x64, 0x73, 0x18, 0x04, 0x20, 0x03, 0x28, 0x09, 0x42, 0x14, 0xea, 0xde, 0x1f, 0x10, 0x73, 0x68,
+	0x61, 0x72, 0x64, 0x73, 0x2c, 0x6f, 0x6d, 0x69, 0x74, 0x65, 0x6d, 0x70, 0x74, 0x79, 0x52, 0x06,
+	0x73, 0x68, 0x61, 0x72, 0x64, 0x73, 0x12, 0x26, 0x0a, 0x07, 0x64, 0x65, 0x6c, 0x65, 0x74, 0x65,
+	0x73, 0x18, 0x05, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x44,
+	0x65, 0x6c, 0x65, 0x74, 0x65, 0x52, 0x07, 0x64, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x73, 0x22, 0x4c,
+	0x0a, 0x06, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x73, 0x65, 0x6c, 0x65,
+	0x63, 0x74, 0x6f, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x73, 0x65, 0x6c, 0x65,
+	0x63, 0x74, 0x6f, 0x72, 0x12, 0x14, 0x0a, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x03, 0x52, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x65, 0x6e,
+	0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x03, 0x52, 0x03, 0x65, 0x6e, 0x64, 0x22, 0x9b, 0x01, 0x0a,
+	0x0d, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x5e,
+	0x0a, 0x07, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32,
+	0x13, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x41, 0x64, 0x61,
+	0x70, 0x74, 0x65, 0x72, 0x42, 0x2f, 0xc8, 0xde, 0x1f, 0x01, 0xda, 0xde, 0x1f, 0x27, 0x67, 0x69,
+	0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x67, 0x72, 0x61, 0x66, 0x61, 0x6e, 0x61,
+	0x2f, 0x6c, 0x6f, 0x6b, 0x69, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x75, 0x73, 0x68, 0x2e, 0x53,
+	0x74, 0x72, 0x65, 0x61, 0x6d, 0x52, 0x07, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x12, 0x2a,
+	0x0a, 0x05, 0x73, 0x74, 0x61, 0x74, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e,
+	0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x49, 0x6e, 0x67, 0x65, 0x73, 0x74, 0x65, 0x72, 0x42, 0x04, 0xc8,
+	0xde, 0x1f, 0x00, 0x52, 0x05, 0x73, 0x74, 0x61, 0x74, 0x73, 0x22, 0x77, 0x0a, 0x13, 0x53, 0x61,
+	0x6d, 0x70, 0x6c, 0x65, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x12, 0x34, 0x0a, 0x06, 0x73, 0x65, 0x72, 0x69, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28,
+	0x0b, 0x32, 0x0c, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x42,
+	0x0e, 0xc8, 0xde, 0x1f, 0x01, 0xda, 0xde, 0x1f, 0x06, 0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x52,
+	0x06, 0x73, 0x65, 0x72, 0x69, 0x65, 0x73, 0x12, 0x2a, 0x0a, 0x05, 0x73, 0x74, 0x61, 0x74, 0x73,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x49, 0x6e,
+	0x67, 0x65, 0x73, 0x74, 0x65, 0x72, 0x42, 0x04, 0xc8, 0xde, 0x1f, 0x00, 0x52, 0x05, 0x73, 0x74,
+	0x61, 0x74, 0x73, 0x22, 0xae, 0x01, 0x0a, 0x0c, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x76, 0x61, 0x6c, 0x75,
+	0x65, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x06, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x73,
+	0x12, 0x2f, 0x0a, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x0f, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70,
+	0x42, 0x08, 0xc8, 0xde, 0x1f, 0x01, 0x90, 0xdf, 0x1f, 0x01, 0x52, 0x05, 0x73, 0x74, 0x61, 0x72,
+	0x74, 0x12, 0x2b, 0x0a, 0x03, 0x65, 0x6e, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f,
+	0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x42,
+	0x08, 0xc8, 0xde, 0x1f, 0x01, 0x90, 0xdf, 0x1f, 0x01, 0x52, 0x03, 0x65, 0x6e, 0x64, 0x12, 0x14,
+	0x0a, 0x05, 0x71, 0x75, 0x65, 0x72, 0x79, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x71,
+	0x75, 0x65, 0x72, 0x79, 0x22, 0x27, 0x0a, 0x0d, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x18,
+	0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x06, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x22, 0x6d, 0x0a,
+	0x06, 0x53, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x12, 0x24, 0x0a, 0x09, 0x74, 0x69, 0x6d, 0x65, 0x73,
+	0x74, 0x61, 0x6d, 0x70, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x42, 0x06, 0xea, 0xde, 0x1f, 0x02,
+	0x74, 0x73, 0x52, 0x09, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x12, 0x1f, 0x0a,
+	0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x01, 0x42, 0x09, 0xea, 0xde,
+	0x1f, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x12, 0x1c,
+	0x0a, 0x04, 0x68, 0x61, 0x73, 0x68, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04, 0x42, 0x08, 0xea, 0xde,
+	0x1f, 0x04, 0x68, 0x61, 0x73, 0x68, 0x52, 0x04, 0x68, 0x61, 0x73, 0x68, 0x22, 0x47, 0x0a, 0x0c,
+	0x4c, 0x65, 0x67, 0x61, 0x63, 0x79, 0x53, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x12, 0x14, 0x0a, 0x05,
+	0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x01, 0x52, 0x05, 0x76, 0x61, 0x6c,
+	0x75, 0x65, 0x12, 0x21, 0x0a, 0x0c, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x5f,
+	0x6d, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03, 0x52, 0x0b, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74,
+	0x61, 0x6d, 0x70, 0x4d, 0x73, 0x22, 0x95, 0x01, 0x0a, 0x06, 0x53, 0x65, 0x72, 0x69, 0x65, 0x73,
+	0x12, 0x22, 0x0a, 0x06, 0x6c, 0x61, 0x62, 0x65, 0x6c, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x42, 0x0a, 0xea, 0xde, 0x1f, 0x06, 0x6c, 0x61, 0x62, 0x65, 0x6c, 0x73, 0x52, 0x06, 0x6c, 0x61,
+	0x62, 0x65, 0x6c, 0x73, 0x12, 0x37, 0x0a, 0x07, 0x73, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x73, 0x18,
+	0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x53, 0x61, 0x6d,
+	0x70, 0x6c, 0x65, 0x42, 0x0f, 0xc8, 0xde, 0x1f, 0x00, 0xea, 0xde, 0x1f, 0x07, 0x73, 0x61, 0x6d,
+	0x70, 0x6c, 0x65, 0x73, 0x52, 0x07, 0x73, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x73, 0x12, 0x2e, 0x0a,
+	0x0a, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x48, 0x61, 0x73, 0x68, 0x18, 0x03, 0x20, 0x01, 0x28,
+	0x04, 0x42, 0x0e, 0xea, 0xde, 0x1f, 0x0a, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x48, 0x61, 0x73,
+	0x68, 0x52, 0x0a, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x48, 0x61, 0x73, 0x68, 0x22, 0x8c, 0x01,
+	0x0a, 0x0b, 0x54, 0x61, 0x69, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x14, 0x0a,
+	0x05, 0x71, 0x75, 0x65, 0x72, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x71, 0x75,
+	0x65, 0x72, 0x79, 0x12, 0x1a, 0x0a, 0x08, 0x64, 0x65, 0x6c, 0x61, 0x79, 0x46, 0x6f, 0x72, 0x18,
+	0x03, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x08, 0x64, 0x65, 0x6c, 0x61, 0x79, 0x46, 0x6f, 0x72, 0x12,
+	0x14, 0x0a, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05,
+	0x6c, 0x69, 0x6d, 0x69, 0x74, 0x12, 0x2f, 0x0a, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x18, 0x05,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x69, 0x6d, 0x65,
+	0x73, 0x74, 0x61, 0x6d, 0x70, 0x42, 0x08, 0xc8, 0xde, 0x1f, 0x00, 0x90, 0xdf, 0x1f, 0x01, 0x52,
+	0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x4a, 0x04, 0x08, 0x02, 0x10, 0x03, 0x22, 0xa5, 0x01, 0x0a,
+	0x0c, 0x54, 0x61, 0x69, 0x6c, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x58, 0x0a,
+	0x06, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x13, 0x2e,
+	0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x41, 0x64, 0x61, 0x70, 0x74,
+	0x65, 0x72, 0x42, 0x2b, 0xda, 0xde, 0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63,
+	0x6f, 0x6d, 0x2f, 0x67, 0x72, 0x61, 0x66, 0x61, 0x6e, 0x61, 0x2f, 0x6c, 0x6f, 0x6b, 0x69, 0x2f,
+	0x70, 0x6b, 0x67, 0x2f, 0x70, 0x75, 0x73, 0x68, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x52,
+	0x06, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x12, 0x3b, 0x0a, 0x0e, 0x64, 0x72, 0x6f, 0x70, 0x70,
+	0x65, 0x64, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32,
+	0x13, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x44, 0x72, 0x6f, 0x70, 0x70, 0x65, 0x64, 0x53, 0x74,
+	0x72, 0x65, 0x61, 0x6d, 0x52, 0x0e, 0x64, 0x72, 0x6f, 0x70, 0x70, 0x65, 0x64, 0x53, 0x74, 0x72,
+	0x65, 0x61, 0x6d, 0x73, 0x22, 0xb3, 0x01, 0x0a, 0x0d, 0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x2f, 0x0a, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x69, 0x6d,
+	0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x42, 0x08, 0xc8, 0xde, 0x1f, 0x00, 0x90, 0xdf, 0x1f, 0x01,
+	0x52, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x12, 0x2b, 0x0a, 0x03, 0x65, 0x6e, 0x64, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x69, 0x6d, 0x65,
+	0x73, 0x74, 0x61, 0x6d, 0x70, 0x42, 0x08, 0xc8, 0xde, 0x1f, 0x00, 0x90, 0xdf, 0x1f, 0x01, 0x52,
+	0x03, 0x65, 0x6e, 0x64, 0x12, 0x16, 0x0a, 0x06, 0x67, 0x72, 0x6f, 0x75, 0x70, 0x73, 0x18, 0x03,
+	0x20, 0x03, 0x28, 0x09, 0x52, 0x06, 0x67, 0x72, 0x6f, 0x75, 0x70, 0x73, 0x12, 0x2c, 0x0a, 0x06,
+	0x73, 0x68, 0x61, 0x72, 0x64, 0x73, 0x18, 0x04, 0x20, 0x03, 0x28, 0x09, 0x42, 0x14, 0xea, 0xde,
+	0x1f, 0x10, 0x73, 0x68, 0x61, 0x72, 0x64, 0x73, 0x2c, 0x6f, 0x6d, 0x69, 0x74, 0x65, 0x6d, 0x70,
+	0x74, 0x79, 0x52, 0x06, 0x73, 0x68, 0x61, 0x72, 0x64, 0x73, 0x22, 0x46, 0x0a, 0x0e, 0x53, 0x65,
+	0x72, 0x69, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x34, 0x0a, 0x06,
+	0x73, 0x65, 0x72, 0x69, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x6c,
+	0x6f, 0x6b, 0x69, 0x2e, 0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x49, 0x64, 0x65, 0x6e, 0x74, 0x69,
+	0x66, 0x69, 0x65, 0x72, 0x42, 0x04, 0xc8, 0xde, 0x1f, 0x00, 0x52, 0x06, 0x73, 0x65, 0x72, 0x69,
+	0x65, 0x73, 0x22, 0x89, 0x01, 0x0a, 0x10, 0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x49, 0x64, 0x65,
+	0x6e, 0x74, 0x69, 0x66, 0x69, 0x65, 0x72, 0x12, 0x3a, 0x0a, 0x06, 0x6c, 0x61, 0x62, 0x65, 0x6c,
+	0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x22, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x53,
+	0x65, 0x72, 0x69, 0x65, 0x73, 0x49, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x66, 0x69, 0x65, 0x72, 0x2e,
+	0x4c, 0x61, 0x62, 0x65, 0x6c, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x06, 0x6c, 0x61, 0x62,
+	0x65, 0x6c, 0x73, 0x1a, 0x39, 0x0a, 0x0b, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x73, 0x45, 0x6e, 0x74,
+	0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0x81,
+	0x01, 0x0a, 0x0d, 0x44, 0x72, 0x6f, 0x70, 0x70, 0x65, 0x64, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d,
+	0x12, 0x2d, 0x0a, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f,
+	0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x42,
+	0x08, 0xc8, 0xde, 0x1f, 0x00, 0x90, 0xdf, 0x1f, 0x01, 0x52, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x12,
+	0x29, 0x0a, 0x02, 0x74, 0x6f, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x6c, 0x6f,
+	0x6b, 0x69, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x42, 0x08, 0xc8, 0xde,
+	0x1f, 0x00, 0x90, 0xdf, 0x1f, 0x01, 0x52, 0x02, 0x74, 0x6f, 0x12, 0x16, 0x0a, 0x06, 0x6c, 0x61,
+	0x62, 0x65, 0x6c, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x6c, 0x61, 0x62, 0x65,
+	0x6c, 0x73, 0x22, 0xa5, 0x01, 0x0a, 0x0f, 0x54, 0x69, 0x6d, 0x65, 0x53, 0x65, 0x72, 0x69, 0x65,
+	0x73, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x12, 0x28, 0x0a, 0x10, 0x66, 0x72, 0x6f, 0x6d, 0x5f, 0x69,
+	0x6e, 0x67, 0x65, 0x73, 0x74, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x0e, 0x66, 0x72, 0x6f, 0x6d, 0x49, 0x6e, 0x67, 0x65, 0x73, 0x74, 0x65, 0x72, 0x49, 0x64,
+	0x12, 0x17, 0x0a, 0x07, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x06, 0x75, 0x73, 0x65, 0x72, 0x49, 0x64, 0x12, 0x27, 0x0a, 0x06, 0x6c, 0x61, 0x62,
+	0x65, 0x6c, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x6c, 0x6f, 0x6b, 0x69,
+	0x2e, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x50, 0x61, 0x69, 0x72, 0x52, 0x06, 0x6c, 0x61, 0x62, 0x65,
+	0x6c, 0x73, 0x12, 0x26, 0x0a, 0x06, 0x63, 0x68, 0x75, 0x6e, 0x6b, 0x73, 0x18, 0x04, 0x20, 0x03,
+	0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x4c, 0x6f, 0x67, 0x43, 0x68, 0x75,
+	0x6e, 0x6b, 0x52, 0x06, 0x63, 0x68, 0x75, 0x6e, 0x6b, 0x73, 0x22, 0x35, 0x0a, 0x09, 0x4c, 0x61,
+	0x62, 0x65, 0x6c, 0x50, 0x61, 0x69, 0x72, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x76,
+	0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75,
+	0x65, 0x22, 0x3b, 0x0a, 0x0f, 0x4c, 0x65, 0x67, 0x61, 0x63, 0x79, 0x4c, 0x61, 0x62, 0x65, 0x6c,
+	0x50, 0x61, 0x69, 0x72, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x0c, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75,
+	0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x22, 0x1e,
+	0x0a, 0x08, 0x4c, 0x6f, 0x67, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x12, 0x12, 0x0a, 0x04, 0x64, 0x61,
+	0x74, 0x61, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x22, 0x18,
+	0x0a, 0x16, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x73,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x15, 0x0a, 0x13, 0x54, 0x61, 0x69, 0x6c,
+	0x65, 0x72, 0x73, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22,
+	0x2c, 0x0a, 0x14, 0x54, 0x61, 0x69, 0x6c, 0x65, 0x72, 0x73, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x63, 0x6f, 0x75, 0x6e, 0x74,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x22, 0x8e, 0x01,
+	0x0a, 0x12, 0x47, 0x65, 0x74, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x49, 0x44, 0x73, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x65, 0x72, 0x73,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x65, 0x72, 0x73,
+	0x12, 0x2f, 0x0a, 0x05, 0x73, 0x74, 0x61, 0x72, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32,
+	0x0f, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70,
+	0x42, 0x08, 0xc8, 0xde, 0x1f, 0x00, 0x90, 0xdf, 0x1f, 0x01, 0x52, 0x05, 0x73, 0x74, 0x61, 0x72,
+	0x74, 0x12, 0x2b, 0x0a, 0x03, 0x65, 0x6e, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f,
+	0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x42,
+	0x08, 0xc8, 0xde, 0x1f, 0x00, 0x90, 0xdf, 0x1f, 0x01, 0x52, 0x03, 0x65, 0x6e, 0x64, 0x22, 0x31,
+	0x0a, 0x13, 0x47, 0x65, 0x74, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x49, 0x44, 0x73, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x63, 0x68, 0x75, 0x6e, 0x6b, 0x49, 0x44,
+	0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52, 0x08, 0x63, 0x68, 0x75, 0x6e, 0x6b, 0x49, 0x44,
+	0x73, 0x22, 0xb2, 0x02, 0x0a, 0x08, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x52, 0x65, 0x66, 0x12, 0x31,
+	0x0a, 0x0b, 0x66, 0x69, 0x6e, 0x67, 0x65, 0x72, 0x70, 0x72, 0x69, 0x6e, 0x74, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x04, 0x42, 0x0f, 0xea, 0xde, 0x1f, 0x0b, 0x66, 0x69, 0x6e, 0x67, 0x65, 0x72, 0x70,
+	0x72, 0x69, 0x6e, 0x74, 0x52, 0x0b, 0x66, 0x69, 0x6e, 0x67, 0x65, 0x72, 0x70, 0x72, 0x69, 0x6e,
+	0x74, 0x12, 0x2d, 0x0a, 0x07, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x09, 0x42, 0x14, 0xe2, 0xde, 0x1f, 0x06, 0x55, 0x73, 0x65, 0x72, 0x49, 0x44, 0xea, 0xde,
+	0x1f, 0x06, 0x75, 0x73, 0x65, 0x72, 0x49, 0x44, 0x52, 0x06, 0x75, 0x73, 0x65, 0x72, 0x49, 0x64,
+	0x12, 0x4b, 0x0a, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x18, 0x03, 0x20, 0x01, 0x28, 0x03, 0x42, 0x37,
+	0xc8, 0xde, 0x1f, 0x00, 0xda, 0xde, 0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63,
+	0x6f, 0x6d, 0x2f, 0x70, 0x72, 0x6f, 0x6d, 0x65, 0x74, 0x68, 0x65, 0x75, 0x73, 0x2f, 0x63, 0x6f,
+	0x6d, 0x6d, 0x6f, 0x6e, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0xea,
+	0xde, 0x1f, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x52, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x12, 0x54, 0x0a,
+	0x07, 0x74, 0x68, 0x72, 0x6f, 0x75, 0x67, 0x68, 0x18, 0x04, 0x20, 0x01, 0x28, 0x03, 0x42, 0x3a,
+	0xc8, 0xde, 0x1f, 0x00, 0xda, 0xde, 0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63,
+	0x6f, 0x6d, 0x2f, 0x70, 0x72, 0x6f, 0x6d, 0x65, 0x74, 0x68, 0x65, 0x75, 0x73, 0x2f, 0x63, 0x6f,
+	0x6d, 0x6d, 0x6f, 0x6e, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0xea,
+	0xde, 0x1f, 0x07, 0x74, 0x68, 0x72, 0x6f, 0x75, 0x67, 0x68, 0x52, 0x07, 0x74, 0x68, 0x72, 0x6f,
+	0x75, 0x67, 0x68, 0x12, 0x21, 0x0a, 0x08, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x73, 0x75, 0x6d, 0x18,
+	0x05, 0x20, 0x01, 0x28, 0x0d, 0x42, 0x05, 0xea, 0xde, 0x1f, 0x01, 0x2d, 0x52, 0x08, 0x63, 0x68,
+	0x65, 0x63, 0x6b, 0x73, 0x75, 0x6d, 0x22, 0x8d, 0x02, 0x0a, 0x1f, 0x4c, 0x61, 0x62, 0x65, 0x6c,
+	0x56, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x46, 0x6f, 0x72, 0x4d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x4e,
+	0x61, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1f, 0x0a, 0x0b, 0x6d, 0x65,
+	0x74, 0x72, 0x69, 0x63, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x0a, 0x6d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x1d, 0x0a, 0x0a, 0x6c,
+	0x61, 0x62, 0x65, 0x6c, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x09, 0x6c, 0x61, 0x62, 0x65, 0x6c, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x43, 0x0a, 0x04, 0x66, 0x72,
+	0x6f, 0x6d, 0x18, 0x03, 0x20, 0x01, 0x28, 0x03, 0x42, 0x2f, 0xc8, 0xde, 0x1f, 0x00, 0xda, 0xde,
+	0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x72, 0x6f,
+	0x6d, 0x65, 0x74, 0x68, 0x65, 0x75, 0x73, 0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2f, 0x6d,
+	0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x52, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x12,
+	0x49, 0x0a, 0x07, 0x74, 0x68, 0x72, 0x6f, 0x75, 0x67, 0x68, 0x18, 0x04, 0x20, 0x01, 0x28, 0x03,
+	0x42, 0x2f, 0xc8, 0xde, 0x1f, 0x00, 0xda, 0xde, 0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
+	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x72, 0x6f, 0x6d, 0x65, 0x74, 0x68, 0x65, 0x75, 0x73, 0x2f,
+	0x63, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69, 0x6d,
+	0x65, 0x52, 0x07, 0x74, 0x68, 0x72, 0x6f, 0x75, 0x67, 0x68, 0x12, 0x1a, 0x0a, 0x08, 0x6d, 0x61,
+	0x74, 0x63, 0x68, 0x65, 0x72, 0x73, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x6d, 0x61,
+	0x74, 0x63, 0x68, 0x65, 0x72, 0x73, 0x22, 0xd1, 0x01, 0x0a, 0x1e, 0x4c, 0x61, 0x62, 0x65, 0x6c,
+	0x4e, 0x61, 0x6d, 0x65, 0x73, 0x46, 0x6f, 0x72, 0x4d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x4e, 0x61,
+	0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1f, 0x0a, 0x0b, 0x6d, 0x65, 0x74,
+	0x72, 0x69, 0x63, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a,
+	0x6d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x43, 0x0a, 0x04, 0x66, 0x72,
+	0x6f, 0x6d, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03, 0x42, 0x2f, 0xc8, 0xde, 0x1f, 0x00, 0xda, 0xde,
+	0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x72, 0x6f,
+	0x6d, 0x65, 0x74, 0x68, 0x65, 0x75, 0x73, 0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2f, 0x6d,
+	0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x52, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x12,
+	0x49, 0x0a, 0x07, 0x74, 0x68, 0x72, 0x6f, 0x75, 0x67, 0x68, 0x18, 0x03, 0x20, 0x01, 0x28, 0x03,
+	0x42, 0x2f, 0xc8, 0xde, 0x1f, 0x00, 0xda, 0xde, 0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
+	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x72, 0x6f, 0x6d, 0x65, 0x74, 0x68, 0x65, 0x75, 0x73, 0x2f,
+	0x63, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69, 0x6d,
+	0x65, 0x52, 0x07, 0x74, 0x68, 0x72, 0x6f, 0x75, 0x67, 0x68, 0x22, 0xc0, 0x01, 0x0a, 0x12, 0x47,
+	0x65, 0x74, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x52, 0x65, 0x66, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x12, 0x43, 0x0a, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x42,
+	0x2f, 0xc8, 0xde, 0x1f, 0x00, 0xda, 0xde, 0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e,
+	0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x72, 0x6f, 0x6d, 0x65, 0x74, 0x68, 0x65, 0x75, 0x73, 0x2f, 0x63,
+	0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69, 0x6d, 0x65,
+	0x52, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x12, 0x49, 0x0a, 0x07, 0x74, 0x68, 0x72, 0x6f, 0x75, 0x67,
+	0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03, 0x42, 0x2f, 0xc8, 0xde, 0x1f, 0x00, 0xda, 0xde, 0x1f,
+	0x27, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x72, 0x6f, 0x6d,
+	0x65, 0x74, 0x68, 0x65, 0x75, 0x73, 0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2f, 0x6d, 0x6f,
+	0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x52, 0x07, 0x74, 0x68, 0x72, 0x6f, 0x75, 0x67,
+	0x68, 0x12, 0x1a, 0x0a, 0x08, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x65, 0x72, 0x73, 0x18, 0x03, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x08, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x65, 0x72, 0x73, 0x22, 0x39, 0x0a,
+	0x13, 0x47, 0x65, 0x74, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x52, 0x65, 0x66, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x22, 0x0a, 0x04, 0x72, 0x65, 0x66, 0x73, 0x18, 0x01, 0x20, 0x03,
+	0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x52,
+	0x65, 0x66, 0x52, 0x04, 0x72, 0x65, 0x66, 0x73, 0x22, 0xbe, 0x01, 0x0a, 0x10, 0x47, 0x65, 0x74,
+	0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x43, 0x0a,
+	0x04, 0x66, 0x72, 0x6f, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x42, 0x2f, 0xc8, 0xde, 0x1f,
+	0x00, 0xda, 0xde, 0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f,
+	0x70, 0x72, 0x6f, 0x6d, 0x65, 0x74, 0x68, 0x65, 0x75, 0x73, 0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0x6f,
+	0x6e, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x52, 0x04, 0x66, 0x72,
+	0x6f, 0x6d, 0x12, 0x49, 0x0a, 0x07, 0x74, 0x68, 0x72, 0x6f, 0x75, 0x67, 0x68, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x03, 0x42, 0x2f, 0xc8, 0xde, 0x1f, 0x00, 0xda, 0xde, 0x1f, 0x27, 0x67, 0x69, 0x74,
+	0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x72, 0x6f, 0x6d, 0x65, 0x74, 0x68, 0x65,
+	0x75, 0x73, 0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e,
+	0x54, 0x69, 0x6d, 0x65, 0x52, 0x07, 0x74, 0x68, 0x72, 0x6f, 0x75, 0x67, 0x68, 0x12, 0x1a, 0x0a,
+	0x08, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x65, 0x72, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x08, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x65, 0x72, 0x73, 0x22, 0x44, 0x0a, 0x11, 0x47, 0x65, 0x74,
+	0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x2f,
+	0x0a, 0x06, 0x73, 0x65, 0x72, 0x69, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x11,
+	0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x53, 0x65, 0x72, 0x69, 0x65,
+	0x73, 0x42, 0x04, 0xc8, 0xde, 0x1f, 0x00, 0x52, 0x06, 0x73, 0x65, 0x72, 0x69, 0x65, 0x73, 0x22,
+	0x4c, 0x0a, 0x0b, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x12, 0x3d,
+	0x0a, 0x06, 0x6c, 0x61, 0x62, 0x65, 0x6c, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0f,
+	0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x50, 0x61, 0x69, 0x72, 0x42,
+	0x14, 0xc8, 0xde, 0x1f, 0x00, 0xda, 0xde, 0x1f, 0x0c, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x41, 0x64,
+	0x61, 0x70, 0x74, 0x65, 0x72, 0x52, 0x06, 0x6c, 0x61, 0x62, 0x65, 0x6c, 0x73, 0x22, 0x4f, 0x0a,
+	0x12, 0x51, 0x75, 0x65, 0x72, 0x79, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x51, 0x75, 0x65, 0x72, 0x79, 0x4b, 0x65, 0x79, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x51, 0x75, 0x65, 0x72, 0x79, 0x4b, 0x65, 0x79, 0x12,
+	0x1d, 0x0a, 0x04, 0x72, 0x6f, 0x77, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x09, 0x2e,
+	0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x52, 0x6f, 0x77, 0x52, 0x04, 0x72, 0x6f, 0x77, 0x73, 0x22, 0x3b,
+	0x0a, 0x03, 0x52, 0x6f, 0x77, 0x12, 0x1e, 0x0a, 0x0a, 0x72, 0x61, 0x6e, 0x67, 0x65, 0x56, 0x61,
+	0x6c, 0x75, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0a, 0x72, 0x61, 0x6e, 0x67, 0x65,
+	0x56, 0x61, 0x6c, 0x75, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x0c, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x22, 0x3f, 0x0a, 0x11, 0x51,
+	0x75, 0x65, 0x72, 0x79, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x12, 0x2a, 0x0a, 0x07, 0x51, 0x75, 0x65, 0x72, 0x69, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28,
+	0x0b, 0x32, 0x10, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x51, 0x75,
+	0x65, 0x72, 0x79, 0x52, 0x07, 0x51, 0x75, 0x65, 0x72, 0x69, 0x65, 0x73, 0x22, 0xbe, 0x01, 0x0a,
+	0x0a, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x1c, 0x0a, 0x09, 0x74,
+	0x61, 0x62, 0x6c, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09,
+	0x74, 0x61, 0x62, 0x6c, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x1c, 0x0a, 0x09, 0x68, 0x61, 0x73,
+	0x68, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x68, 0x61,
+	0x73, 0x68, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x12, 0x2a, 0x0a, 0x10, 0x72, 0x61, 0x6e, 0x67, 0x65,
+	0x56, 0x61, 0x6c, 0x75, 0x65, 0x50, 0x72, 0x65, 0x66, 0x69, 0x78, 0x18, 0x03, 0x20, 0x01, 0x28,
+	0x0c, 0x52, 0x10, 0x72, 0x61, 0x6e, 0x67, 0x65, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x50, 0x72, 0x65,
+	0x66, 0x69, 0x78, 0x12, 0x28, 0x0a, 0x0f, 0x72, 0x61, 0x6e, 0x67, 0x65, 0x56, 0x61, 0x6c, 0x75,
+	0x65, 0x53, 0x74, 0x61, 0x72, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0f, 0x72, 0x61,
+	0x6e, 0x67, 0x65, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x53, 0x74, 0x61, 0x72, 0x74, 0x12, 0x1e, 0x0a,
+	0x0a, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x45, 0x71, 0x75, 0x61, 0x6c, 0x18, 0x05, 0x20, 0x01, 0x28,
+	0x0c, 0x52, 0x0a, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x45, 0x71, 0x75, 0x61, 0x6c, 0x22, 0xbf, 0x01,
+	0x0a, 0x11, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x53, 0x74, 0x61, 0x74, 0x73, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x12, 0x43, 0x0a, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x03, 0x42, 0x2f, 0xc8, 0xde, 0x1f, 0x00, 0xda, 0xde, 0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75,
+	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x72, 0x6f, 0x6d, 0x65, 0x74, 0x68, 0x65, 0x75, 0x73,
+	0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69,
+	0x6d, 0x65, 0x52, 0x04, 0x66, 0x72, 0x6f, 0x6d, 0x12, 0x49, 0x0a, 0x07, 0x74, 0x68, 0x72, 0x6f,
+	0x75, 0x67, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03, 0x42, 0x2f, 0xc8, 0xde, 0x1f, 0x00, 0xda,
+	0xde, 0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x72,
+	0x6f, 0x6d, 0x65, 0x74, 0x68, 0x65, 0x75, 0x73, 0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2f,
+	0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x52, 0x07, 0x74, 0x68, 0x72, 0x6f,
+	0x75, 0x67, 0x68, 0x12, 0x1a, 0x0a, 0x08, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x65, 0x72, 0x73, 0x18,
+	0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x65, 0x72, 0x73, 0x22,
+	0xa7, 0x01, 0x0a, 0x12, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x53, 0x74, 0x61, 0x74, 0x73, 0x52, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x25, 0x0a, 0x07, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d,
+	0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x42, 0x0b, 0xea, 0xde, 0x1f, 0x07, 0x73, 0x74, 0x72,
+	0x65, 0x61, 0x6d, 0x73, 0x52, 0x07, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x73, 0x12, 0x22, 0x0a,
+	0x06, 0x63, 0x68, 0x75, 0x6e, 0x6b, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x42, 0x0a, 0xea,
+	0xde, 0x1f, 0x06, 0x63, 0x68, 0x75, 0x6e, 0x6b, 0x73, 0x52, 0x06, 0x63, 0x68, 0x75, 0x6e, 0x6b,
+	0x73, 0x12, 0x1f, 0x0a, 0x05, 0x62, 0x79, 0x74, 0x65, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04,
+	0x42, 0x09, 0xea, 0xde, 0x1f, 0x05, 0x62, 0x79, 0x74, 0x65, 0x73, 0x52, 0x05, 0x62, 0x79, 0x74,
+	0x65, 0x73, 0x12, 0x25, 0x0a, 0x07, 0x65, 0x6e, 0x74, 0x72, 0x69, 0x65, 0x73, 0x18, 0x04, 0x20,
+	0x01, 0x28, 0x04, 0x42, 0x0b, 0xea, 0xde, 0x1f, 0x07, 0x65, 0x6e, 0x74, 0x72, 0x69, 0x65, 0x73,
+	0x52, 0x07, 0x65, 0x6e, 0x74, 0x72, 0x69, 0x65, 0x73, 0x22, 0xd1, 0x01, 0x0a, 0x0d, 0x56, 0x6f,
+	0x6c, 0x75, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x43, 0x0a, 0x04, 0x66,
+	0x72, 0x6f, 0x6d, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x42, 0x2f, 0xc8, 0xde, 0x1f, 0x00, 0xda,
+	0xde, 0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x72,
+	0x6f, 0x6d, 0x65, 0x74, 0x68, 0x65, 0x75, 0x73, 0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2f,
+	0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x52, 0x04, 0x66, 0x72, 0x6f, 0x6d,
+	0x12, 0x49, 0x0a, 0x07, 0x74, 0x68, 0x72, 0x6f, 0x75, 0x67, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x03, 0x42, 0x2f, 0xc8, 0xde, 0x1f, 0x00, 0xda, 0xde, 0x1f, 0x27, 0x67, 0x69, 0x74, 0x68, 0x75,
+	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x72, 0x6f, 0x6d, 0x65, 0x74, 0x68, 0x65, 0x75, 0x73,
+	0x2f, 0x63, 0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x54, 0x69,
+	0x6d, 0x65, 0x52, 0x07, 0x74, 0x68, 0x72, 0x6f, 0x75, 0x67, 0x68, 0x12, 0x1a, 0x0a, 0x08, 0x6d,
+	0x61, 0x74, 0x63, 0x68, 0x65, 0x72, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x6d,
+	0x61, 0x74, 0x63, 0x68, 0x65, 0x72, 0x73, 0x12, 0x14, 0x0a, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74,
+	0x18, 0x04, 0x20, 0x01, 0x28, 0x05, 0x52, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x22, 0x54, 0x0a,
+	0x0e, 0x56, 0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
+	0x2c, 0x0a, 0x07, 0x76, 0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b,
+	0x32, 0x0c, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x56, 0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x42, 0x04,
+	0xc8, 0xde, 0x1f, 0x00, 0x52, 0x07, 0x76, 0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x73, 0x12, 0x14, 0x0a,
+	0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05, 0x52, 0x05, 0x6c, 0x69,
+	0x6d, 0x69, 0x74, 0x22, 0x6b, 0x0a, 0x06, 0x56, 0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x12, 0x1c, 0x0a,
+	0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x42, 0x08, 0xea, 0xde, 0x1f,
+	0x04, 0x6e, 0x61, 0x6d, 0x65, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1f, 0x0a, 0x05, 0x76,
+	0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x42, 0x09, 0xea, 0xde, 0x1f, 0x05,
+	0x76, 0x61, 0x6c, 0x75, 0x65, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x12, 0x22, 0x0a, 0x06,
+	0x76, 0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04, 0x42, 0x0a, 0xea, 0xde,
+	0x1f, 0x06, 0x76, 0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x52, 0x06, 0x76, 0x6f, 0x6c, 0x75, 0x6d, 0x65,
+	0x2a, 0x26, 0x0a, 0x09, 0x44, 0x69, 0x72, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x0b, 0x0a,
+	0x07, 0x46, 0x4f, 0x52, 0x57, 0x41, 0x52, 0x44, 0x10, 0x00, 0x12, 0x0c, 0x0a, 0x08, 0x42, 0x41,
+	0x43, 0x4b, 0x57, 0x41, 0x52, 0x44, 0x10, 0x01, 0x32, 0xb8, 0x04, 0x0a, 0x0a, 0x4c, 0x6f, 0x67,
+	0x51, 0x75, 0x65, 0x72, 0x69, 0x65, 0x72, 0x12, 0x34, 0x0a, 0x05, 0x51, 0x75, 0x65, 0x72, 0x79,
+	0x12, 0x12, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x13, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x51, 0x75, 0x65, 0x72,
+	0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x30, 0x01, 0x12, 0x46, 0x0a,
+	0x0b, 0x51, 0x75, 0x65, 0x72, 0x79, 0x53, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x12, 0x18, 0x2e, 0x6c,
+	0x6f, 0x6b, 0x69, 0x2e, 0x53, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x53, 0x61,
+	0x6d, 0x70, 0x6c, 0x65, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x22, 0x00, 0x30, 0x01, 0x12, 0x32, 0x0a, 0x05, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x12, 0x12,
+	0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x13, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x31, 0x0a, 0x04, 0x54, 0x61, 0x69,
+	0x6c, 0x12, 0x11, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x61, 0x69, 0x6c, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x12, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x61, 0x69, 0x6c,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x30, 0x01, 0x12, 0x35, 0x0a, 0x06,
+	0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x12, 0x13, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x53, 0x65,
+	0x72, 0x69, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x14, 0x2e, 0x6c, 0x6f,
+	0x6b, 0x69, 0x2e, 0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x22, 0x00, 0x12, 0x47, 0x0a, 0x0c, 0x54, 0x61, 0x69, 0x6c, 0x65, 0x72, 0x73, 0x43, 0x6f,
+	0x75, 0x6e, 0x74, 0x12, 0x19, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x61, 0x69, 0x6c, 0x65,
+	0x72, 0x73, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a,
+	0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x61, 0x69, 0x6c, 0x65, 0x72, 0x73, 0x43, 0x6f, 0x75,
+	0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x44, 0x0a, 0x0b,
+	0x47, 0x65, 0x74, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x49, 0x44, 0x73, 0x12, 0x18, 0x2e, 0x6c, 0x6f,
+	0x6b, 0x69, 0x2e, 0x47, 0x65, 0x74, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x49, 0x44, 0x73, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x47, 0x65, 0x74,
+	0x43, 0x68, 0x75, 0x6e, 0x6b, 0x49, 0x44, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x22, 0x00, 0x12, 0x3f, 0x0a, 0x08, 0x47, 0x65, 0x74, 0x53, 0x74, 0x61, 0x74, 0x73, 0x12, 0x17,
+	0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x53, 0x74, 0x61, 0x74, 0x73,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x49,
+	0x6e, 0x64, 0x65, 0x78, 0x53, 0x74, 0x61, 0x74, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x22, 0x00, 0x12, 0x3e, 0x0a, 0x0f, 0x47, 0x65, 0x74, 0x53, 0x65, 0x72, 0x69, 0x65, 0x73,
+	0x56, 0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x12, 0x13, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x56, 0x6f,
+	0x6c, 0x75, 0x6d, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x14, 0x2e, 0x6c, 0x6f,
+	0x6b, 0x69, 0x2e, 0x56, 0x6f, 0x6c, 0x75, 0x6d, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x22, 0x00, 0x32, 0x58, 0x0a, 0x0b, 0x4c, 0x6f, 0x67, 0x49, 0x6e, 0x67, 0x65, 0x73, 0x74,
+	0x65, 0x72, 0x12, 0x49, 0x0a, 0x0e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x43, 0x68,
+	0x75, 0x6e, 0x6b, 0x73, 0x12, 0x15, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x54, 0x69, 0x6d, 0x65,
+	0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0x43, 0x68, 0x75, 0x6e, 0x6b, 0x1a, 0x1c, 0x2e, 0x6c, 0x6f,
+	0x6b, 0x69, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x43, 0x68, 0x75, 0x6e, 0x6b,
+	0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x28, 0x01, 0x32, 0x55, 0x0a,
+	0x0a, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x44, 0x61, 0x74, 0x61, 0x12, 0x47, 0x0a, 0x0e, 0x47,
+	0x65, 0x74, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x52, 0x61, 0x74, 0x65, 0x73, 0x12, 0x18, 0x2e,
+	0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x52, 0x61, 0x74, 0x65, 0x73,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x6c, 0x6f, 0x6b, 0x69, 0x2e, 0x53,
+	0x74, 0x72, 0x65, 0x61, 0x6d, 0x52, 0x61, 0x74, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x22, 0x00, 0x42, 0x06, 0x5a, 0x04, 0x2f, 0x6c, 0x6f, 0x67, 0x62, 0x06, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x33,
+}
+
+var (
+	file_pkg_loki_logproto_proto_rawDescOnce sync.Once
+	file_pkg_loki_logproto_proto_rawDescData = file_pkg_loki_logproto_proto_rawDesc
+)
+
+func file_pkg_loki_logproto_proto_rawDescGZIP() []byte {
+	file_pkg_loki_logproto_proto_rawDescOnce.Do(func() {
+		file_pkg_loki_logproto_proto_rawDescData = protoimpl.X.CompressGZIP(file_pkg_loki_logproto_proto_rawDescData)
+	})
+	return file_pkg_loki_logproto_proto_rawDescData
+}
+
+var file_pkg_loki_logproto_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_pkg_loki_logproto_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
+var file_pkg_loki_logproto_proto_goTypes = []interface{}{
+	(Direction)(0),                          // 0: loki.Direction
+	(*StreamRatesRequest)(nil),              // 1: loki.StreamRatesRequest
+	(*StreamRatesResponse)(nil),             // 2: loki.StreamRatesResponse
+	(*StreamRate)(nil),                      // 3: loki.StreamRate
+	(*QueryRequest)(nil),                    // 4: loki.QueryRequest
+	(*SampleQueryRequest)(nil),              // 5: loki.SampleQueryRequest
+	(*Delete)(nil),                          // 6: loki.Delete
+	(*QueryResponse)(nil),                   // 7: loki.QueryResponse
+	(*SampleQueryResponse)(nil),             // 8: loki.SampleQueryResponse
+	(*LabelRequest)(nil),                    // 9: loki.LabelRequest
+	(*LabelResponse)(nil),                   // 10: loki.LabelResponse
+	(*Sample)(nil),                          // 11: loki.Sample
+	(*LegacySample)(nil),                    // 12: loki.LegacySample
+	(*Series)(nil),                          // 13: loki.Series
+	(*TailRequest)(nil),                     // 14: loki.TailRequest
+	(*TailResponse)(nil),                    // 15: loki.TailResponse
+	(*SeriesRequest)(nil),                   // 16: loki.SeriesRequest
+	(*SeriesResponse)(nil),                  // 17: loki.SeriesResponse
+	(*SeriesIdentifier)(nil),                // 18: loki.SeriesIdentifier
+	(*DroppedStream)(nil),                   // 19: loki.DroppedStream
+	(*TimeSeriesChunk)(nil),                 // 20: loki.TimeSeriesChunk
+	(*LabelPair)(nil),                       // 21: loki.LabelPair
+	(*LegacyLabelPair)(nil),                 // 22: loki.LegacyLabelPair
+	(*LogChunk)(nil),                        // 23: loki.LogChunk
+	(*TransferChunksResponse)(nil),          // 24: loki.TransferChunksResponse
+	(*TailersCountRequest)(nil),             // 25: loki.TailersCountRequest
+	(*TailersCountResponse)(nil),            // 26: loki.TailersCountResponse
+	(*GetChunkIDsRequest)(nil),              // 27: loki.GetChunkIDsRequest
+	(*GetChunkIDsResponse)(nil),             // 28: loki.GetChunkIDsResponse
+	(*ChunkRef)(nil),                        // 29: loki.ChunkRef
+	(*LabelValuesForMetricNameRequest)(nil), // 30: loki.LabelValuesForMetricNameRequest
+	(*LabelNamesForMetricNameRequest)(nil),  // 31: loki.LabelNamesForMetricNameRequest
+	(*GetChunkRefRequest)(nil),              // 32: loki.GetChunkRefRequest
+	(*GetChunkRefResponse)(nil),             // 33: loki.GetChunkRefResponse
+	(*GetSeriesRequest)(nil),                // 34: loki.GetSeriesRequest
+	(*GetSeriesResponse)(nil),               // 35: loki.GetSeriesResponse
+	(*IndexSeries)(nil),                     // 36: loki.IndexSeries
+	(*QueryIndexResponse)(nil),              // 37: loki.QueryIndexResponse
+	(*Row)(nil),                             // 38: loki.Row
+	(*QueryIndexRequest)(nil),               // 39: loki.QueryIndexRequest
+	(*IndexQuery)(nil),                      // 40: loki.IndexQuery
+	(*IndexStatsRequest)(nil),               // 41: loki.IndexStatsRequest
+	(*IndexStatsResponse)(nil),              // 42: loki.IndexStatsResponse
+	(*VolumeRequest)(nil),                   // 43: loki.VolumeRequest
+	(*VolumeResponse)(nil),                  // 44: loki.VolumeResponse
+	(*Volume)(nil),                          // 45: loki.Volume
+	nil,                                     // 46: loki.SeriesIdentifier.LabelsEntry
+	(*timestamppb.Timestamp)(nil),           // 47: loki.Timestamp
+	(*StreamAdapter)(nil),                   // 48: loki.StreamAdapter
+	(*Ingester)(nil),                        // 49: loki.Ingester
+}
+var file_pkg_loki_logproto_proto_depIdxs = []int32{
+	3,  // 0: loki.StreamRatesResponse.streamRates:type_name -> loki.StreamRate
+	47, // 1: loki.QueryRequest.start:type_name -> loki.Timestamp
+	47, // 2: loki.QueryRequest.end:type_name -> loki.Timestamp
+	0,  // 3: loki.QueryRequest.direction:type_name -> loki.Direction
+	6,  // 4: loki.QueryRequest.deletes:type_name -> loki.Delete
+	47, // 5: loki.SampleQueryRequest.start:type_name -> loki.Timestamp
+	47, // 6: loki.SampleQueryRequest.end:type_name -> loki.Timestamp
+	6,  // 7: loki.SampleQueryRequest.deletes:type_name -> loki.Delete
+	48, // 8: loki.QueryResponse.streams:type_name -> loki.StreamAdapter
+	49, // 9: loki.QueryResponse.stats:type_name -> loki.Ingester
+	13, // 10: loki.SampleQueryResponse.series:type_name -> loki.Series
+	49, // 11: loki.SampleQueryResponse.stats:type_name -> loki.Ingester
+	47, // 12: loki.LabelRequest.start:type_name -> loki.Timestamp
+	47, // 13: loki.LabelRequest.end:type_name -> loki.Timestamp
+	11, // 14: loki.Series.samples:type_name -> loki.Sample
+	47, // 15: loki.TailRequest.start:type_name -> loki.Timestamp
+	48, // 16: loki.TailResponse.stream:type_name -> loki.StreamAdapter
+	19, // 17: loki.TailResponse.droppedStreams:type_name -> loki.DroppedStream
+	47, // 18: loki.SeriesRequest.start:type_name -> loki.Timestamp
+	47, // 19: loki.SeriesRequest.end:type_name -> loki.Timestamp
+	18, // 20: loki.SeriesResponse.series:type_name -> loki.SeriesIdentifier
+	46, // 21: loki.SeriesIdentifier.labels:type_name -> loki.SeriesIdentifier.LabelsEntry
+	47, // 22: loki.DroppedStream.from:type_name -> loki.Timestamp
+	47, // 23: loki.DroppedStream.to:type_name -> loki.Timestamp
+	21, // 24: loki.TimeSeriesChunk.labels:type_name -> loki.LabelPair
+	23, // 25: loki.TimeSeriesChunk.chunks:type_name -> loki.LogChunk
+	47, // 26: loki.GetChunkIDsRequest.start:type_name -> loki.Timestamp
+	47, // 27: loki.GetChunkIDsRequest.end:type_name -> loki.Timestamp
+	29, // 28: loki.GetChunkRefResponse.refs:type_name -> loki.ChunkRef
+	36, // 29: loki.GetSeriesResponse.series:type_name -> loki.IndexSeries
+	21, // 30: loki.IndexSeries.labels:type_name -> loki.LabelPair
+	38, // 31: loki.QueryIndexResponse.rows:type_name -> loki.Row
+	40, // 32: loki.QueryIndexRequest.Queries:type_name -> loki.IndexQuery
+	45, // 33: loki.VolumeResponse.volumes:type_name -> loki.Volume
+	4,  // 34: loki.LogQuerier.Query:input_type -> loki.QueryRequest
+	5,  // 35: loki.LogQuerier.QuerySample:input_type -> loki.SampleQueryRequest
+	9,  // 36: loki.LogQuerier.Label:input_type -> loki.LabelRequest
+	14, // 37: loki.LogQuerier.Tail:input_type -> loki.TailRequest
+	16, // 38: loki.LogQuerier.Series:input_type -> loki.SeriesRequest
+	25, // 39: loki.LogQuerier.TailersCount:input_type -> loki.TailersCountRequest
+	27, // 40: loki.LogQuerier.GetChunkIDs:input_type -> loki.GetChunkIDsRequest
+	41, // 41: loki.LogQuerier.GetStats:input_type -> loki.IndexStatsRequest
+	43, // 42: loki.LogQuerier.GetSeriesVolume:input_type -> loki.VolumeRequest
+	20, // 43: loki.LogIngester.TransferChunks:input_type -> loki.TimeSeriesChunk
+	1,  // 44: loki.StreamData.GetStreamRates:input_type -> loki.StreamRatesRequest
+	7,  // 45: loki.LogQuerier.Query:output_type -> loki.QueryResponse
+	8,  // 46: loki.LogQuerier.QuerySample:output_type -> loki.SampleQueryResponse
+	10, // 47: loki.LogQuerier.Label:output_type -> loki.LabelResponse
+	15, // 48: loki.LogQuerier.Tail:output_type -> loki.TailResponse
+	17, // 49: loki.LogQuerier.Series:output_type -> loki.SeriesResponse
+	26, // 50: loki.LogQuerier.TailersCount:output_type -> loki.TailersCountResponse
+	28, // 51: loki.LogQuerier.GetChunkIDs:output_type -> loki.GetChunkIDsResponse
+	42, // 52: loki.LogQuerier.GetStats:output_type -> loki.IndexStatsResponse
+	44, // 53: loki.LogQuerier.GetSeriesVolume:output_type -> loki.VolumeResponse
+	24, // 54: loki.LogIngester.TransferChunks:output_type -> loki.TransferChunksResponse
+	2,  // 55: loki.StreamData.GetStreamRates:output_type -> loki.StreamRatesResponse
+	45, // [45:56] is the sub-list for method output_type
+	34, // [34:45] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
+}
+
+func init() { file_pkg_loki_logproto_proto_init() }
+func file_pkg_loki_logproto_proto_init() {
+	if File_pkg_loki_logproto_proto != nil {
+		return
+	}
+	file_pkg_loki_stats_proto_init()
+	file_pkg_loki_push_proto_init()
+	if !protoimpl.UnsafeEnabled {
+		file_pkg_loki_logproto_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*StreamRatesRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*StreamRatesResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*StreamRate); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*QueryRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SampleQueryRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Delete); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*QueryResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SampleQueryResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*LabelRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*LabelResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Sample); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*LegacySample); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Series); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TailRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TailResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SeriesRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SeriesResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SeriesIdentifier); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DroppedStream); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TimeSeriesChunk); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*LabelPair); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*LegacyLabelPair); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*LogChunk); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TransferChunksResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TailersCountRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*TailersCountResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetChunkIDsRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetChunkIDsResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[28].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChunkRef); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*LabelValuesForMetricNameRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*LabelNamesForMetricNameRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[31].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetChunkRefRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[32].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetChunkRefResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[33].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetSeriesRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[34].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetSeriesResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[35].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*IndexSeries); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[36].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*QueryIndexResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[37].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Row); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[38].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*QueryIndexRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[39].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*IndexQuery); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[40].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*IndexStatsRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[41].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*IndexStatsResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[42].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*VolumeRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[43].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*VolumeResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pkg_loki_logproto_proto_msgTypes[44].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Volume); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+	}
+	type x struct{}
+	out := protoimpl.TypeBuilder{
+		File: protoimpl.DescBuilder{
+			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
+			RawDescriptor: file_pkg_loki_logproto_proto_rawDesc,
+			NumEnums:      1,
+			NumMessages:   46,
+			NumExtensions: 0,
+			NumServices:   3,
+		},
+		GoTypes:           file_pkg_loki_logproto_proto_goTypes,
+		DependencyIndexes: file_pkg_loki_logproto_proto_depIdxs,
+		EnumInfos:         file_pkg_loki_logproto_proto_enumTypes,
+		MessageInfos:      file_pkg_loki_logproto_proto_msgTypes,
+	}.Build()
+	File_pkg_loki_logproto_proto = out.File
+	file_pkg_loki_logproto_proto_rawDesc = nil
+	file_pkg_loki_logproto_proto_goTypes = nil
+	file_pkg_loki_logproto_proto_depIdxs = nil
+}
