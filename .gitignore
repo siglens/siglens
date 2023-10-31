@@ -1,0 +1,81 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.idea
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.data
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# vs code
+.vscode/*
+
+# log files
+server.log*
+
+# segfiles/metafiles/blooms/range/suffix files
+*segmeta.json
+*metricmeta.json
+*.bsg
+*.sbi
+*license.csv
+*.sri
+*.bri
+*.suffix
+*.bsu
+*.bbi
+*.cm
+*.cfi
+*.csg
+*.cmi
+*.pqmr
+*.crup
+*.sid
+*id.info
+*virtualtablenames.txt
+*ssd.json
+# misc seginfo/pqs/etc.
+*.bin
+
+#Mac
+*.DS_Store
+
+# perf testing results
+rawsearch_cpu
+rawsearch_mem
+*.out
+
+# licensing file
+abc.txt
+
+# data directories
+data*/*
+
+# test mappings
+pkg/server/data/ingestnodes/*
+pkg/virtualtable/data/ingestnodes/*
+
+# profile results
+*.pprof
+
+# test outputs
+pkg/es/reader/data/*
+test_*
+
+*.log
+dist/
+node_modules
+
+# SigLens executable file
+siglens
+
+# multinode testing
+ingest*/
