@@ -472,6 +472,34 @@ func (sr *SearchResults) GetGroupyByBuckets(limit int) ([]*structs.BucketHolder,
 	}
 }
 
+// If agg.GroupByRequest.GroupByColumns == StatisticExpr.GroupByCols, which means there is only one groupby block in query
+func (sr *SearchResults) IsOnlyStatisticGroupBy() bool {
+	for agg := sr.sAggs; agg != nil; agg = agg.Next {
+		if agg.GroupByRequest != nil && agg.GroupByRequest.GroupByColumns != nil {
+			for _, groupByCol1 := range agg.GroupByRequest.GroupByColumns {
+				for _, groupByCol2 := range sr.GetStatisticGroupByCols() {
+					if groupByCol1 != groupByCol2 {
+						return false
+					}
+				}
+			}
+			return true
+		}
+	}
+	return false
+}
+
+func (sr *SearchResults) GetStatisticGroupByCols() []string {
+	groupByCols := make([]string, 0)
+	for agg := sr.sAggs; agg != nil; agg = agg.Next {
+		if agg.OutputTransforms != nil && agg.OutputTransforms.LetColumns != nil && agg.OutputTransforms.LetColumns.StatisticColRequest != nil {
+			groupByCols = append(agg.OutputTransforms.LetColumns.StatisticColRequest.FieldList, agg.OutputTransforms.LetColumns.StatisticColRequest.ByClause...)
+			return groupByCols
+		}
+	}
+	return groupByCols
+}
+
 // Subsequent calls may not return the same result as the previous may clean up the underlying heap used. Use GetResultsCopy to prevent this
 func (sr *SearchResults) GetResults() []*utils.RecordResultContainer {
 	sr.updateLock.Lock()

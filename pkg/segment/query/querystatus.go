@@ -314,11 +314,21 @@ func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit 
 		return rQuery.searchRes.GetSegmentStatsResults(skenc)
 	case structs.GroupByCmd:
 		if pullGrpBucks {
+			rowCnt := MAX_GRP_BUCKS
 			if limit != -1 {
-				return rQuery.searchRes.GetGroupyByBuckets(limit)
-			} else {
-				return rQuery.searchRes.GetGroupyByBuckets(MAX_GRP_BUCKS)
+				rowCnt = limit
 			}
+
+			//If after stats block's group by there is a statistic block's group by, we should only keep the groupby cols of the statistic block
+			bucketHolderArr, retMFuns, aggGroupByCols, added := rQuery.searchRes.GetGroupyByBuckets(rowCnt)
+
+			statisticGroupByCols := rQuery.searchRes.GetStatisticGroupByCols()
+			//If there is only one group by in the agg, we do not need to change groupbycols
+			if len(statisticGroupByCols) > 0 && !rQuery.searchRes.IsOnlyStatisticGroupBy() {
+				aggGroupByCols = statisticGroupByCols
+			}
+
+			return bucketHolderArr, retMFuns, aggGroupByCols, added
 		} else {
 			return nil, nil, nil, 0
 		}
