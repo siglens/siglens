@@ -183,6 +183,7 @@ type LetColumnsRequest struct {
 	SingleColRequest *SingleColLetRequest
 	ValueColRequest  *ValueExpr
 	RexColRequest    *RexExpr
+	RenameColRequest *RenameExpr
 	NewColName       string
 }
 
@@ -409,16 +410,17 @@ func (qa *QueryAggregators) IsAggsEmpty() bool {
 	return true
 }
 
-func (qa *QueryAggregators) HasRexBlock() bool {
-	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil && qa.OutputTransforms.LetColumns.RexColRequest != nil
+func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
+	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
+		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil)
 }
 
-func (qa *QueryAggregators) HasRexBlockInChain() bool {
-	if qa.HasRexBlock() {
+func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
+	if qa.HasQueryAggergatorBlock() {
 		return true
 	}
 	if qa.Next != nil {
-		return qa.Next.HasRexBlockInChain()
+		return qa.Next.HasQueryAggergatorBlockInChain()
 	}
 	return false
 }
