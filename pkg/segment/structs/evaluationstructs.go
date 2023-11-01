@@ -47,6 +47,12 @@ type BoolExpr struct {
 	BoolOp    BoolOperator
 }
 
+type RenameExpr struct {
+	RenameExprMode  RenameExprMode
+	OriginalPattern string
+	NewPattern      string
+}
+
 type RexExpr struct {
 	Pattern     string
 	FieldName   string
@@ -118,6 +124,14 @@ const (
 	BoolOpNot BoolOperator = iota
 	BoolOpAnd
 	BoolOpOr
+)
+
+type RenameExprMode uint8
+
+const (
+	REMPhrase   = iota //Rename with a phrase
+	REMRegex           //Rename fields with similar names using a wildcard
+	REMOverride        //Rename to a existing field
 )
 
 type ValueExprMode uint8
@@ -499,6 +513,67 @@ func MatchAndExtractGroups(str string, rexExp *regexp.Regexp) (map[string]string
 	}
 
 	return result, nil
+}
+
+// Check if colName matches the specified pattern and replace wildcards to generate a new colName.
+func (self *RenameExpr) ProcessRenameRegexExpression(colName string) (string, error) {
+
+	originalPattern := self.OriginalPattern
+	newPattern := self.NewPattern
+
+	strs1 := strings.Split(originalPattern, "*")
+	strs2 := strings.Split(newPattern, "*")
+	//Remove last empty string
+	if len(strs1) > 0 && strs1[len(strs1)-1] == "" {
+		strs1 = strs1[:len(strs1)-1]
+	}
+	if len(strs2) > 0 && strs2[len(strs2)-1] == "" {
+		strs2 = strs2[:len(strs2)-1]
+	}
+
+	len1 := len(strs1)
+	len2 := len(strs2)
+	length := len1
+	if len1 > len2 {
+		length = len2
+	}
+
+	originalPattern = strings.ReplaceAll(originalPattern, "*", ".*")
+	regexPattern := `\b` + originalPattern + `\b`
+	regex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return "", fmt.Errorf("ProcessRenameRegexExpression: There are some errors in the pattern: %v", err)
+	}
+
+	matches := regex.FindAllString(colName, -1)
+	//Not matches fount
+	if len(matches) != 1 {
+		return "", nil
+	}
+
+	//Replace all wildcards and generate a new col
+	//Replace the string previously separated by '*' in OriginalPattern with the corresponding NewPattern string
+	var builder strings.Builder
+	i := 0
+	for i < length {
+		index := strings.Index(matches[0], strs1[i])
+		builder.WriteString(matches[0][:index])
+		if i < len2 {
+			builder.WriteString(strs2[i])
+		}
+		matches[0] = matches[0][index+len(strs1[i]):]
+		i++
+	}
+	if len(matches[0]) > 0 {
+		builder.WriteString(matches[0])
+	}
+	//If len1 > len2, we do not need to do anything. E.g.: Abcert -> (Abc*, *) -> cert
+	//Else if len2 > len1, we need to append last str in strs2. E.g.: Abqw -> (Ab*, ABC*kk) -> ABCqwkk
+	if len2 > len1 {
+		builder.WriteString(strs2[len2-1])
+	}
+
+	return builder.String(), nil
 }
 
 // Evaluate this NumericExpr to a float, replacing each field in the expression

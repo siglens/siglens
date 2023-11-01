@@ -72,19 +72,19 @@ func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *str
 
 // Function to clean up results based on input query aggregations.
 // This will make sure all buckets respect the minCount & is returned in a sorted order
-func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{}) *structs.NodeResult {
+func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool) *structs.NodeResult {
 	if post.TimeHistogram != nil {
 		applyTimeRangeHistogram(nodeResult, post.TimeHistogram, post.TimeHistogram.AggName)
 	}
 
-	// For the query without groupby, skip the first aggregator without a rex block
+	// For the query without groupby, skip the first aggregator without a QueryAggergatorBlock
 	// For the query that has a groupby, groupby block's aggregation is in the post.Next. Therefore, we should start from the groupby's aggregation.
-	if !(post.HasRexBlock()) {
+	if !(post.HasQueryAggergatorBlock()) {
 		post = post.Next
 	}
 
 	for agg := post; agg != nil; agg = agg.Next {
-		err := performAggOnResult(nodeResult, agg, recs)
+		err := performAggOnResult(nodeResult, agg, recs, finalCols)
 
 		if err != nil {
 			log.Errorf("PostQueryBucketCleaning: %v", err)
@@ -95,7 +95,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	return nodeResult
 }
 
-func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}) error {
+func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -112,7 +112,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		}
 
 		if agg.OutputTransforms.LetColumns != nil {
-			err := performLetColumnsRequest(nodeResult, agg, agg.OutputTransforms.LetColumns, recs)
+			err := performLetColumnsRequest(nodeResult, agg, agg.OutputTransforms.LetColumns, recs, finalCols)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -184,13 +184,13 @@ RenamingLoop:
 	return nil
 }
 
-func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
+func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 
-	if letColReq.NewColName == "" && letColReq.RexColRequest == nil {
+	if letColReq.NewColName == "" && !aggs.HasQueryAggergatorBlock() {
 		return errors.New("performLetColumnsRequest: expected non-empty NewColName")
 	}
 
-	// Exactly one of MultiColsRequest, SingleColRequest, ConcatColRequest, NumericColRequestNode should contain data.
+	// Exactly one of MultiColsRequest, SingleColRequest, ValueColRequest, RexColRequest, RenameColRequest should contain data.
 	if letColReq.MultiColsRequest != nil {
 		return errors.New("performLetColumnsRequest: processing LetColumnsRequest.MultiColsRequest is not implemented")
 	} else if letColReq.SingleColRequest != nil {
@@ -200,7 +200,11 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else if letColReq.RexColRequest != nil {
-		if err := performRexColRequest(nodeResult, aggs, letColReq, recs); err != nil {
+		if err := performRexColRequest(nodeResult, aggs, letColReq, recs, finalCols); err != nil {
+			return fmt.Errorf("performLetColumnsRequest: %v", err)
+		}
+	} else if letColReq.RenameColRequest != nil {
+		if err := performRenameColRequest(nodeResult, aggs, letColReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else {
@@ -210,11 +214,149 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 	return nil
 }
 
-func performRexColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
+func performRenameColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+	//Without following group by
+	if recs != nil {
+		if err := performRenameColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols); err != nil {
+			return fmt.Errorf("performRenameColRequest: %v", err)
+		}
+		return nil
+	}
+
+	//Follow group by
+	if err := performRenameColRequestOnHistogram(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performRenameColRequest: %v", err)
+	}
+	if err := performRenameColRequestOnMeasureResults(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performRenameColRequest: %v", err)
+	}
+
+	return nil
+}
+
+func performRenameColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+
+	fieldsToAdd := make([]string, 0)
+	fieldsToRemove := make([]string, 0)
+
+	switch letColReq.RenameColRequest.RenameExprMode {
+	case structs.REMPhrase:
+		fallthrough
+	case structs.REMOverride:
+
+		// Suppose you rename fieldA to fieldB, but fieldA does not exist.
+		// If fieldB does not exist, nothing happens.
+		// If fieldB does exist, the result of the rename is that the data in fieldB is removed. The data in fieldB will contain null values.
+		if _, exist := finalCols[letColReq.RenameColRequest.OriginalPattern]; !exist {
+			if _, exist := finalCols[letColReq.RenameColRequest.NewPattern]; !exist {
+				return nil
+			}
+		}
+
+		fieldsToAdd = append(fieldsToAdd, letColReq.RenameColRequest.NewPattern)
+		fieldsToRemove = append(fieldsToRemove, letColReq.RenameColRequest.OriginalPattern)
+	case structs.REMRegex:
+		for colName := range finalCols {
+			newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(colName)
+			if err != nil {
+				return fmt.Errorf("performRenameColRequestWithoutGroupby: %v", err)
+			}
+			if len(newColName) == 0 {
+				continue
+			}
+			fieldsToAdd = append(fieldsToAdd, newColName)
+			fieldsToRemove = append(fieldsToRemove, colName)
+		}
+	default:
+		return fmt.Errorf("performRenameColRequestWithoutGroupby: RenameColRequest has an unexpected type")
+	}
+
+	for _, record := range recs {
+		for index, newColName := range fieldsToAdd {
+			record[newColName] = record[fieldsToRemove[index]]
+		}
+	}
+	for index, newColName := range fieldsToAdd {
+		finalCols[newColName] = true
+		delete(finalCols, fieldsToRemove[index])
+	}
+
+	return nil
+}
+
+func performRenameColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+
+	for _, aggregationResult := range nodeResult.Histogram {
+		for _, bucketResult := range aggregationResult.Results {
+
+			//Rename statistic functions name
+			for statColName, val := range bucketResult.StatRes {
+				newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(statColName)
+				if err != nil {
+					return fmt.Errorf("performRenameColRequestOnHistogram: %v", err)
+				}
+				if len(newColName) == 0 {
+					continue
+				}
+				bucketResult.StatRes[newColName] = val
+				delete(bucketResult.StatRes, statColName)
+			}
+
+			//Rename Group by column name
+			for index, groupByColName := range bucketResult.GroupByKeys {
+				newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(groupByColName)
+				if err != nil {
+					return fmt.Errorf("performRenameColRequestOnHistogram: %v", err)
+				}
+				if len(newColName) == 0 {
+					continue
+				}
+				bucketResult.GroupByKeys[index] = newColName
+			}
+		}
+	}
+
+	return nil
+}
+
+func performRenameColRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+
+	// Compute the value for each row.
+	for _, bucketHolder := range nodeResult.MeasureResults {
+
+		//Rename MeasurVal name
+		for measureName, val := range bucketHolder.MeasureVal {
+			newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(measureName)
+			if err != nil {
+				return fmt.Errorf("performRenameColRequestOnMeasureResults: %v", err)
+			}
+			if len(newColName) == 0 {
+				continue
+			}
+			bucketHolder.MeasureVal[newColName] = val
+			delete(bucketHolder.MeasureVal, measureName)
+		}
+
+		//Rename Group by column name
+		for index, groupByColName := range bucketHolder.GroupByValues {
+			newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(groupByColName)
+			if err != nil {
+				return fmt.Errorf("performRenameColRequestOnMeasureResults: %v", err)
+			}
+			if len(newColName) == 0 {
+				continue
+			}
+			bucketHolder.GroupByValues[index] = newColName
+		}
+	}
+	return nil
+}
+
+func performRexColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 
 	//Without following group by
 	if recs != nil {
-		if err := performRexColRequestWithoutGroupby(nodeResult, letColReq, recs); err != nil {
+		if err := performRexColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performRexColRequest: %v", err)
 		}
 		return nil
@@ -231,7 +373,7 @@ func performRexColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAgg
 	return nil
 }
 
-func performRexColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
+func performRexColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 
 	rexExp, err := regexp.Compile(letColReq.RexColRequest.Pattern)
 	if err != nil {
@@ -256,6 +398,11 @@ func performRexColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColRe
 			record[rexColName] = Value
 		}
 	}
+
+	for _, rexColName := range letColReq.RexColRequest.RexColNames {
+		finalCols[rexColName] = true
+	}
+
 	return nil
 }
 
