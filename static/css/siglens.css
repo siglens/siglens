@@ -4492,10 +4492,12 @@ color: #C8C7CC;
 .progress-download {
     width: 450px !important;
     height: 10px !important;
-    position: absolute;
-    left: 30%;
-    top: 38%;
     z-index: 10;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    -webkit-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
 }
 
 .pop-layer {
@@ -4511,15 +4513,17 @@ color: #C8C7CC;
 }
 
 .pop-download {
-    position: absolute;
     display: none;
-    left: 28%;
-    top: 30%;
     z-index: 10;
     background: white;
     width: 500px;
     height: 140px;
     border-radius: 10px;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    -webkit-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
 }
 
 .pop-text {
