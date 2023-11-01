@@ -11,7 +11,7 @@ pkg/* @sunitakawane @AndrewHess
 
 # Frontend
 static/* @sunitakawane @sonamgupta21
-static/assets @sonamgupta21
+static/assets/* @sonamgupta21
 *.js @sunitakawane @sonamgupta21
 *.css @sonamgupta21
 *.html @sonamgupta21
