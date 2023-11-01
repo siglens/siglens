@@ -284,6 +284,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 		}
 	}
 }
+
 func isIPInCIDR(cidrStr, ipStr string) (bool, error) {
 	_, cidrNet, err := net.ParseCIDR(cidrStr)
 	if err != nil {
