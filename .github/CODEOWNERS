@@ -1,7 +1,17 @@
 # Default owners for everything, unless a later match takes precedence.
 * @nkunal @sunitakawane @sonamgupta21 @AndrewHess
 
+# Backend
+pkg/* @sunitakawane @AndrewHess
 *.go @sunitakawane @AndrewHess
+*.mod @sunitakawane @AndrewHess
+*.sum @sunitakawane @AndrewHess
+*.proto @sunitakawane @AndrewHess
+*.peg @AndrewHess
+
+# Frontend
+static/* @sunitakawane @sonamgupta21
+static/assets @sonamgupta21
 *.js @sunitakawane @sonamgupta21
 *.css @sonamgupta21
 *.html @sonamgupta21
