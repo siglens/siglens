@@ -573,6 +573,18 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 			return math.Sqrt(left), nil
 		case "len":
 			return left, nil
+		case "exact":
+			result, err := self.Left.Evaluate(fieldToValue)
+			if err != nil {
+				return 0, err
+			}
+			return result, nil
+		case "exp":
+			exp, err := self.Left.Evaluate(fieldToValue)
+			if err != nil {
+				return 0, err
+			}
+			return math.Exp(exp), nil
 		default:
 			return 0, fmt.Errorf("NumericExpr.Evaluate: unexpected operation: %v", self.Op)
 		}
