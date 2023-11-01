@@ -137,6 +137,56 @@ func Test_NumericExpr(t *testing.T) {
 	delete(fieldToValue, "Max")
 	_, err = exprE.Evaluate(fieldToValue)
 	assert.NotNil(t, err)
+
+	multiplierExpr := &NumericExpr{
+		IsTerminal:   true,
+		ValueIsField: false,
+		Value:        "3.14",
+	}
+	httpStatusExpr := &NumericExpr{
+		IsTerminal:      true,
+		ValueIsField:    true,
+		Value:           "http_status",
+		NumericExprMode: NEMNumberField,
+	}
+	productExpr := &NumericExpr{
+		IsTerminal: false,
+		Op:         "*",
+		Left:       multiplierExpr,
+		Right:      httpStatusExpr,
+	}
+	exactExpr := &NumericExpr{
+		IsTerminal: false,
+		Op:         "exact",
+		Left:       productExpr,
+	}
+	assert.Equal(t, exactExpr.GetFields(), []string{"http_status"})
+
+	fieldToValue["http_status"] = segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_SIGNED_NUM,
+		CVal:  int64(200),
+	}
+
+	value, err = exactExpr.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, float64(628))
+
+	expExpr := &NumericExpr{
+		IsTerminal: false,
+		Op:         "exp",
+		Left: &NumericExpr{
+			IsTerminal:   true,
+			ValueIsField: false,
+			Value:        "3",
+		},
+	}
+
+	assert.Equal(t, expExpr.GetFields(), []string{})
+
+	value, err = expExpr.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, 20.085536923187668)
+
 }
 
 func Test_ValueExpr(t *testing.T) {
