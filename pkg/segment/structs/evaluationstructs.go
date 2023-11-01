@@ -21,6 +21,7 @@ import (
 	"math"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -51,6 +52,23 @@ type RexExpr struct {
 	Pattern     string
 	FieldName   string
 	RexColNames []string
+}
+
+type StatisticExpr struct {
+	StatisticExprMode StatisticExprMode
+	Limit             string
+	Options           *Options
+	FieldList         []string //Must have FieldList
+	ByClause          []string
+}
+
+type Options struct {
+	CountField   string
+	OtherStr     string
+	PercentField string
+	ShowCount    bool
+	ShowPerc     bool
+	UseOther     bool
 }
 
 // See ValueExprMode type definition for which fields are valid for each mode.
@@ -118,6 +136,13 @@ const (
 	BoolOpNot BoolOperator = iota
 	BoolOpAnd
 	BoolOpOr
+)
+
+type StatisticExprMode uint8
+
+const (
+	SEMTop = iota
+	SEMRare
 )
 
 type ValueExprMode uint8
@@ -470,6 +495,243 @@ func (self *ConcatExpr) GetFields() []string {
 	}
 
 	return fields
+}
+
+func GetBucketKey(BucketKey interface{}, keyIndex int) string {
+	switch bucketKey := BucketKey.(type) {
+	case []string:
+		return bucketKey[keyIndex]
+	case string:
+		return bucketKey
+	default:
+		return ""
+	}
+}
+
+func (self *StatisticExpr) OverrideGroupByCol(bucketResult *BucketResult, RenameColumns map[string]string, resTotal uint64) error {
+
+	cellValueStr := ""
+	for keyIndex, groupByCol := range bucketResult.GroupByKeys {
+		if self.Options.CountField != groupByCol && self.Options.PercentField != groupByCol {
+			continue
+		}
+
+		if self.Options.ShowCount && self.Options.CountField == groupByCol {
+			cellValueStr = strconv.FormatUint(bucketResult.ElemCount, 10)
+		}
+
+		if self.Options.ShowPerc && self.Options.PercentField == groupByCol {
+			percent := float64(bucketResult.ElemCount) / float64(resTotal) * 100
+			cellValueStr = fmt.Sprintf("%.6f", percent)
+		}
+
+		// Set the appropriate element of BucketKey to cellValueStr.
+		switch bucketKey := bucketResult.BucketKey.(type) {
+		case []string:
+			bucketKey[keyIndex] = cellValueStr
+			bucketResult.BucketKey = bucketKey
+		case string:
+			if keyIndex != 0 {
+				return fmt.Errorf("OverrideGroupByCol: expected keyIndex to be 0, not %v", keyIndex)
+			}
+			bucketResult.BucketKey = cellValueStr
+		default:
+			return fmt.Errorf("OverrideGroupByCol: bucket key has unexpected type: %T", bucketKey)
+		}
+	}
+	return nil
+}
+
+func (self *StatisticExpr) SetCountToStatRes(statRes map[string]utils.CValueEnclosure, elemCount uint64) {
+	statRes[self.Options.CountField] = utils.CValueEnclosure{
+		Dtype: utils.SS_DT_UNSIGNED_NUM,
+		CVal:  elemCount,
+	}
+}
+
+func (self *StatisticExpr) SetPercToStatRes(statRes map[string]utils.CValueEnclosure, elemCount uint64, resTotal uint64) {
+	percent := float64(elemCount) / float64(resTotal) * 100
+	statRes[self.Options.PercentField] = utils.CValueEnclosure{
+		Dtype: utils.SS_DT_STRING,
+		CVal:  fmt.Sprintf("%.6f", percent),
+	}
+}
+
+func (self *StatisticExpr) sortByBucketKey(a, b *BucketResult, fieldList []string, fieldToGroupByKeyIndex map[string]int) bool {
+
+	for _, field := range fieldList {
+		keyIndex := fieldToGroupByKeyIndex[field]
+		if GetBucketKey(a.BucketKey, keyIndex) < GetBucketKey(b.BucketKey, keyIndex) {
+			return false
+		}
+	}
+	return true
+}
+
+func (self *StatisticExpr) SortBucketResult(results *[]*BucketResult) error {
+
+	//GroupByKeys -> BucketKey
+	fieldToGroupByKeyIndex := make(map[string]int, len(self.FieldList))
+
+	//If use the limit option, only the last limit lexicographical of the <field-list> is returned in the search results
+	//Therefore, we should sort the bucket by lexicographical value and retain a limited number of values
+	if len(self.Limit) > 0 {
+
+		for index, groupByKey := range (*results)[0].GroupByKeys {
+			for _, field := range self.FieldList {
+				if field == groupByKey {
+					fieldToGroupByKeyIndex[field] = index
+				}
+			}
+		}
+
+		//Moving the if statement outside of the sorting process can reduce the number of conditional checks
+		//Sort results based on the lexicographical value of their field list
+		switch self.StatisticExprMode {
+		case SEMTop:
+			sort.Slice(*results, func(index1, index2 int) bool {
+				return self.sortByBucketKey((*results)[index1], (*results)[index2], self.FieldList, fieldToGroupByKeyIndex)
+			})
+		case SEMRare:
+			sort.Slice(*results, func(index1, index2 int) bool {
+				return !self.sortByBucketKey((*results)[index1], (*results)[index2], self.FieldList, fieldToGroupByKeyIndex)
+			})
+		}
+
+		limit, err := strconv.Atoi(self.Limit)
+		if err != nil {
+			return fmt.Errorf("SortBucketResult: cannot convert %v to int", self.Limit)
+		}
+
+		// Only return unique limit field combinations
+		// Since the results are already in order, and there is no Set in Go, we can use a string arr to record the previous field combinations
+		// If the current field combination is different from the previous one, it means we have finished processing data for one field combination (we need to process limit combinations in total, limit is a number)
+		uniqueFieldsCombination := make([]string, len(self.FieldList))
+		combinationCount := 0
+		newResults := make([]*BucketResult, 0)
+		// log.Error("fjl sort Results:", len(*results))
+		for _, bucketResult := range *results {
+			// log.Error("fjl sort bucket:", bucketResult)
+			// log.Error("fjl sort rowINdex:", rowIndex, " newRes:", newResults)
+			combinationExist := true
+			for index, fieldName := range self.FieldList {
+				keyIndex := fieldToGroupByKeyIndex[fieldName]
+				val := GetBucketKey(bucketResult.BucketKey, keyIndex)
+				if uniqueFieldsCombination[index] != val {
+					uniqueFieldsCombination[index] = val
+					combinationExist = false
+				}
+
+				statEnclosure, exists := bucketResult.StatRes[fieldName]
+				statVal, err := statEnclosure.GetString()
+				if exists && err == nil && uniqueFieldsCombination[index] != statVal {
+					uniqueFieldsCombination[index] = val
+					combinationExist = false
+				}
+			}
+
+			// If there is a stats groupby block before statistic groupby block. E.g. ... | stats count BY http_status, gender | rare 1 http_status,
+			// In this case, each http_status will be divided by two genders, so we should merge them into one row here
+			//Fields combination does not exist
+			if !combinationExist {
+				combinationCount++
+				if combinationCount > limit {
+					// *Results = (*Results)[:rowIndex]
+					*results = newResults
+					return nil
+				}
+				newResults = append(newResults, bucketResult)
+			} else {
+				newResults[combinationCount-1].ElemCount += bucketResult.ElemCount
+			}
+		}
+
+	} else { //No limit option, sort results by its values frequency
+		switch self.StatisticExprMode {
+		case SEMTop:
+			sort.Slice(*results, func(index1, index2 int) bool {
+				return (*results)[index1].ElemCount > (*results)[index2].ElemCount
+			})
+		case SEMRare:
+			sort.Slice(*results, func(index1, index2 int) bool {
+				return (*results)[index1].ElemCount < (*results)[index2].ElemCount
+			})
+		}
+	}
+
+	return nil
+}
+
+// Only display fields which in StatisticExpr
+func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *BucketResult) error {
+	groupByCols := self.GetGroupByCols()
+	groupByKeys := make([]string, 0)
+	bucketKey := make([]string, 0)
+	switch bucketResult.BucketKey.(type) {
+	case []string:
+		bucketKeyStrs := bucketResult.BucketKey.([]string)
+
+		for _, field := range groupByCols {
+			for rowIndex, groupByCol := range bucketResult.GroupByKeys {
+				if field == groupByCol {
+					groupByKeys = append(groupByKeys, field)
+					// bucketKeyIndex = append(bucketKeyIndex, rowIndex)
+					bucketKey = append(bucketKey, bucketKeyStrs[rowIndex])
+					break
+				}
+				//Can not find field in GroupByCol, so it may in the StatRes
+				val, exists := bucketResult.StatRes[field]
+				if exists {
+					valStr, _ := val.GetString()
+					groupByKeys = append(groupByKeys, field)
+					bucketKey = append(bucketKey, valStr)
+					delete(bucketResult.StatRes, field)
+				}
+			}
+		}
+		bucketResult.BucketKey = bucketKey
+	case string:
+		if len(groupByCols) == 0 {
+			bucketResult.BucketKey = nil
+		}
+	default:
+		return fmt.Errorf("RemoveFieldsNotInExpr: bucket key has unexpected type: %T", bucketKey)
+	}
+
+	// Remove unused func in stats res
+	for statColName := range bucketResult.StatRes {
+		statColInGroupByCols := false
+		for _, groupByCol := range groupByCols {
+			if groupByCol == statColName {
+				statColInGroupByCols = true
+				break
+			}
+		}
+		if !statColInGroupByCols {
+			delete(bucketResult.StatRes, statColName)
+		}
+	}
+
+	bucketResult.GroupByKeys = groupByKeys
+	return nil
+}
+
+func (self *StatisticExpr) RemoveFieldsNotInExprForBucketHolder(groupByCols []string, fieldsInExpr []string, bucketHolder *BucketHolder) {
+
+	groupByVals := make([]string, len(self.GetGroupByCols()))
+	for index, groupByCol := range groupByCols {
+		for _, field := range fieldsInExpr {
+			if groupByCol == field {
+				groupByVals = append(groupByVals, bucketHolder.GroupByValues[index])
+			}
+		}
+	}
+
+	bucketHolder.GroupByValues = groupByVals
+}
+
+func (self *StatisticExpr) GetGroupByCols() []string {
+	return append(self.FieldList, self.ByClause...)
 }
 
 func (self *RexExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure, rexExp *regexp.Regexp) (map[string]string, error) {
