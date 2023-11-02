@@ -59,12 +59,12 @@ The best way to reach us with a question when contributing is to ask on:
 Once you have found the issue to be fixed or feature to be added, you can comment on the issue and put the approach you want to follow to solve the issue. Once we agree upon the approach, you can open a PR.
 
 1. Fork Siglens repo and clone it on your local machine.
-2. Make sure local tests work.
-3. Commit your changes to your fork.
-4. Verify that all automated CI tests pass for this PR.
-5. Send us a pull request you just created.
-6. Once the change has been approved and merged, we will inform you in a comment.
-7. Merged pull request changes will be deployed with the next release.
+2. Make your desired code changes
+3. Make sure local tests work. (`TBD add make all cmd`)
+4. Commit your changes to your fork.
+5. Verify that all automated CI tests pass for this PR.
+6. Send us a pull request you just created.
+7. Once the change has been approved and merged, we will inform you in a comment.
 
 
 ## Development Environment Setup
