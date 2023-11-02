@@ -158,16 +158,17 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 		}
 	}
 
-	var err error
-	result["events"], err = json.Marshal(span.Events)
+	eventsJson, err := json.Marshal(span.Events)
 	if err != nil {
 		return nil, err
 	}
+	result["events"] = string(eventsJson)
 
-	result["links"], err = json.Marshal(span.Links)
+	linksJson, err := json.Marshal(span.Links)
 	if err != nil {
 		return nil, err
 	}
+	result["links"] = string(linksJson)
 
 	bytes, err := json.Marshal(result)
 	return bytes, err
