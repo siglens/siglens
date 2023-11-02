@@ -16,7 +16,7 @@ Armed with decades of experience in monitoring domain, we set out to build a obs
 
 ## Join our Slack community
 
-Come say Hi to us on [Slack](https://www.siglens.com/slack) 👋
+Come say Hi to us on <a href="https://www.siglens.com/slack" target="_blank">Slack</a> 👋
 
 <br /><br />
 
@@ -44,13 +44,13 @@ go run cmd/siglens/main.go --config server.yaml
 # Differentiators
 
 ### SigLens v/s Elasticsearch 
-Check out this [blog](https://www.sigscalr.io/blog/sigscalr-vs-elasticsearch.html) where SigLens is ` 8x ` Faster than Elasticsearch
+Check out this <a href="https://www.sigscalr.io/blog/sigscalr-vs-elasticsearch.html" target="_blank">blog</a> where SigLens is ` 8x ` Faster than Elasticsearch
 
 ### SigLens v/s ClickHouse 
-Check out this [blog](https://www.sigscalr.io/blog/sigscalr-vs-clickhouse.html) where SigLens is `4x-37x` Faster than ClickHouse
+Check out this <a href="https://www.sigscalr.io/blog/sigscalr-vs-clickhouse.html" target="_blank">blog</a> where SigLens is `4x-37x` Faster than ClickHouse
 
 ### SigLens v/s Splunk,Elastic,Loki  
-Check out this [blog](https://www.sigscalr.io/blog/petabyte-of-observability-data.html) where SigLens ingested data at 1 PB/day rate for 24 hours on a mere `32 EC2 instances` compared to `3000 EC2 instances` required for Splunk, Elastic, Grafana Loki
+Check out this <a href="https://www.sigscalr.io/blog/petabyte-of-observability-data.html" target="_blank">blog</a> where SigLens ingested data at 1 PB/day rate for 24 hours on a mere `32 EC2 instances` compared to `3000 EC2 instances` required for Splunk, Elastic, Grafana Loki
 
 # Contributing
 
