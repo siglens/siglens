@@ -1,9 +1,12 @@
 package otlp
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 
 	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/utils"
@@ -17,31 +20,38 @@ import (
 )
 
 func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
-	request, err := unpackTrace(ctx.PostBody())
-	if err != nil {
-		log.Errorf("ProcessTraceIngest: failed to unpack: %v", err)
-		failureStatus := status.Status{
-			Code:    fasthttp.StatusBadRequest,
-			Message: "Unable to decode traces",
+	// Get the data from the request.
+	data := ctx.PostBody()
+	if requiresGzipDecompression(ctx) {
+		reader, err := gzip.NewReader(bytes.NewReader(data))
+		if err != nil {
+			setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to gzip decompress the data")
+			return
 		}
 
-		bytes, err := proto.Marshal(&failureStatus)
+		data, err = ioutil.ReadAll(reader)
 		if err != nil {
-			log.Errorf("ProcessTraceIngest: failed to marshal failure status: %v", err)
+			setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to gzip decompress the data")
+			return
 		}
-		_, err = ctx.Write(bytes)
-		if err != nil {
-			log.Errorf("ProcessTraceIngest: failed to write failure status: %v", err)
-		}
+	}
+
+	// Unmarshal the data.
+	request, err := unpackTrace(data)
+	if err != nil {
+		log.Errorf("ProcessTraceIngest: failed to unpack: %v", err)
+		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to unmarshal traces")
 		return
 	}
 
+	// Setup ingestion parameters.
 	now := utils.GetCurrentTimeInMs()
 	indexName := "traces"
 	shouldFlush := false
 	localIndexMap := make(map[string]string)
 	orgId := uint64(0)
 
+	// Go through the request data and ingest each of the spans.
 	numSpans := 0       // The total number of spans sent in this request.
 	numFailedSpans := 0 // The number of spans that we could not ingest.
 	for _, resourceSpans := range request.ResourceSpans {
@@ -79,6 +89,19 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 
 	// Send the appropriate response.
 	handleTraceIngestionResponse(ctx, numSpans, numFailedSpans)
+}
+
+func requiresGzipDecompression(ctx *fasthttp.RequestCtx) bool {
+	encoding := string(ctx.Request.Header.Peek("Content-Encoding"))
+	if encoding == "gzip" {
+		return true
+	}
+
+	if encoding != "" && encoding != "none" {
+		log.Errorf("requiresGzipDecompression: invalid content encoding: %s", encoding)
+	}
+
+	return false
 }
 
 func unpackTrace(data []byte) (*coltracepb.ExportTraceServiceRequest, error) {
@@ -143,6 +166,24 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 	return bytes, err
 }
 
+func setFailureResponse(ctx *fasthttp.RequestCtx, statusCode int, message string) {
+	ctx.SetStatusCode(statusCode)
+
+	failureStatus := status.Status{
+		Code:    int32(statusCode),
+		Message: message,
+	}
+
+	bytes, err := proto.Marshal(&failureStatus)
+	if err != nil {
+		log.Errorf("sendFailureResponse: failed to marshal failure status: %v", err)
+	}
+	_, err = ctx.Write(bytes)
+	if err != nil {
+		log.Errorf("sendFailureResponse: failed to write failure status: %v", err)
+	}
+}
+
 func handleTraceIngestionResponse(ctx *fasthttp.RequestCtx, numSpans int, numFailedSpans int) {
 	if numFailedSpans == 0 {
 		// This request was successful.
@@ -190,21 +231,7 @@ func handleTraceIngestionResponse(ctx *fasthttp.RequestCtx, numSpans int, numFai
 			log.Errorf("ProcessTraceIngest: error in counting number of total and failed spans")
 		}
 
-		failureStatus := status.Status{
-			Code:    fasthttp.StatusInternalServerError,
-			Message: "Every span failed ingestion",
-		}
-
-		bytes, err := proto.Marshal(&failureStatus)
-		if err != nil {
-			log.Errorf("ProcessTraceIngest: failed to marshal failure status: %v", err)
-		}
-		_, err = ctx.Write(bytes)
-		if err != nil {
-			log.Errorf("ProcessTraceIngest: failed to write failure status: %v", err)
-		}
-
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		setFailureResponse(ctx, fasthttp.StatusInternalServerError, "Every span failed ingestion")
 		return
 	}
 }
