@@ -4498,6 +4498,7 @@ color: #C8C7CC;
     top: 50%;
     -webkit-transform: translate(-50%, -50%);
     transform: translate(-50%, -50%);
+    margin-top: -7px;
 }
 
 .pop-layer {
@@ -4533,14 +4534,17 @@ color: #C8C7CC;
 }
 
 .cancel-loading {
-    width: 450px;
-    height: 30px !important;
-    margin: 50px 23px !important;
+    margin-top: 50px !important;
+    margin-left: 358px !important;
     text-align: center;
     display: flex;
     justify-content: center;
     flex-direction: row;
     align-items: center;
+    background: var(--component-bg-color) !important;
+    color: var(--component-text-color) !important;
+    width: 117px;
+    height: 44px !important;
 }
 .ui-dialog{
     position: fixed;
