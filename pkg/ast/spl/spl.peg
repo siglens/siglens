@@ -650,6 +650,15 @@ BoolExprLevel1 <- "(" first:BoolExprLevel4 ")" {
     }
     return expr, nil
 }
+/ "cidrmatch(" cidr:ValueExpr ", " ip:ValueExpr ")" {
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: cidr.(*structs.ValueExpr),
+        RightValue: ip.(*structs.ValueExpr),
+        ValueOp: "cidrmatch",
+    }
+    return expr, nil
+}
 / inExpr: InExpr {
     return inExpr, nil
 }
