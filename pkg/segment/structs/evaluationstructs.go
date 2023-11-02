@@ -19,6 +19,7 @@ package structs
 import (
 	"fmt"
 	"math"
+	"net"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -200,6 +201,18 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 				return true, nil
 			}
 			return false, nil
+		} else if self.ValueOp == "cidrmatch" {
+			cidrStr, errCidr := self.LeftValue.EvaluateToString(fieldToValue)
+			ipStr, errIp := self.RightValue.EvaluateToString(fieldToValue)
+			if errCidr != nil || errIp != nil {
+				return false, fmt.Errorf("cidrmatch: error evaluating arguments: %v, %v", errCidr, errIp)
+			}
+
+			match, err := isIPInCIDR(cidrStr, ipStr)
+			if err != nil {
+				return false, fmt.Errorf("cidrmatch: error in matching CIDR: %v", err)
+			}
+			return match, nil
 		}
 
 		leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
@@ -270,6 +283,19 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			return false, fmt.Errorf("invalid BoolOp: %v", self.BoolOp)
 		}
 	}
+}
+
+func isIPInCIDR(cidrStr, ipStr string) (bool, error) {
+	_, cidrNet, err := net.ParseCIDR(cidrStr)
+	if err != nil {
+		return false, err
+	}
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false, fmt.Errorf("invalid IP address")
+	}
+
+	return cidrNet.Contains(ip), nil
 }
 
 func isInValueList(fieldToValue map[string]utils.CValueEnclosure, value *ValueExpr, valueList []*ValueExpr) (bool, error) {
