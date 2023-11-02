@@ -671,10 +671,10 @@ LikeExpr <- left:ValueExpr SPACE "LIKE" SPACE right:ValueExpr {
      }
      return expr, nil
  }
-/ "match(" stringr:ValueExpr ", " pattern:ValueExpr ")" {
+/ "match(" stringVal:ValueExpr ", " pattern:ValueExpr ")" {
      expr := &structs.BoolExpr {
          IsTerminal: true,
-         LeftValue: stringr.(*structs.ValueExpr),
+         LeftValue: stringVal.(*structs.ValueExpr),
          RightValue: pattern.(*structs.ValueExpr),
          ValueOp: "match",
      }

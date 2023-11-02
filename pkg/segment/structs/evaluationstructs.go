@@ -306,13 +306,6 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 	}
 }
 
-func likePatternToRegex(pattern string) string {
-	pattern = regexp.QuoteMeta(pattern)
-	pattern = strings.Replace(pattern, "%", ".*", -1)
-	pattern = strings.Replace(pattern, "_", ".", -1)
-	return "^" + pattern + "$"
-}
-
 func isInValueList(fieldToValue map[string]utils.CValueEnclosure, value *ValueExpr, valueList []*ValueExpr) (bool, error) {
 	valueStr, err := value.EvaluateToString(fieldToValue)
 	if err != nil {
