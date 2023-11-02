@@ -12,6 +12,7 @@ import (
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
+	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -71,7 +72,6 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 }
 
 func unpackTrace(data []byte) (*coltracepb.ExportTraceServiceRequest, error) {
-	log.Errorf("deletme: unpackTrace: size of data: %v", len(data))
 	var trace coltracepb.ExportTraceServiceRequest
 	err := proto.Unmarshal(data, &trace)
 	if err != nil {
@@ -81,26 +81,43 @@ func unpackTrace(data []byte) (*coltracepb.ExportTraceServiceRequest, error) {
 }
 
 func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
-	log.Errorf("processTraceIngest: got headers:")
-	ctx.Request.Header.VisitAll(func(key, value []byte) {
-		log.Errorf("%s: %s", key, value)
-	})
+	// log.Errorf("ProcessTraceIngest: got headers:")
+	// ctx.Request.Header.VisitAll(func(key, value []byte) {
+	// 	log.Errorf("%s: %s", key, value)
+	// })
 
 	request, err := unpackTrace(ctx.PostBody())
 	if err != nil {
-		log.Errorf("processTraceIngest: failed to unpack: %v", err)
+		log.Errorf("ProcessTraceIngest: failed to unpack: %v", err)
+		failureStatus := status.Status{
+			Code:    fasthttp.StatusBadRequest,
+			Message: "Unable to decode traces",
+		}
+
+		bytes, err := proto.Marshal(&failureStatus)
+		if err != nil {
+			log.Errorf("ProcessTraceIngest: failed to marshal failure status: %v", err)
+		}
+		_, err = ctx.Write(bytes)
+		if err != nil {
+			log.Errorf("ProcessTraceIngest: failed to write failure status: %v", err)
+		}
 		return
 	}
-	log.Errorf("processTraceIngest: got trace: %s", request)
-	jsonMarshalled, _ := json.Marshal(request)
-	log.Errorf("processTraceIngest: json: %s", jsonMarshalled)
-	log.Errorf("processTraceIngest: size of json: %v", len(string(jsonMarshalled)))
 
+	// log.Errorf("ProcessTraceIngest: got trace: %s", request)
+	// jsonMarshalled, _ := json.Marshal(request)
+	// log.Errorf("ProcessTraceIngest: json: %s", jsonMarshalled)
+	// log.Errorf("ProcessTraceIngest: size of json: %v", len(string(jsonMarshalled)))
+
+	now := utils.GetCurrentTimeInMs()
 	indexName := "traces"
 	shouldFlush := false
 	localIndexMap := make(map[string]string)
 	orgId := uint64(0)
 
+	numSpans := 0       // The total number of spans sent in this request.
+	numFailedSpans := 0 // The number of spans that we could not ingest.
 	for _, resourceSpans := range request.ResourceSpans {
 		// Find the service name.
 		var service string
@@ -114,36 +131,87 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 
 		// Ingest each of these spans.
 		for _, scopeSpans := range resourceSpans.ScopeSpans {
+			numSpans += len(scopeSpans.Spans)
 			for _, span := range scopeSpans.Spans {
-				// log.Errorf("got span: %s", span)
-				// spans.Spans = append(spans.Spans, span.String())
-
 				jsonData, err := spanToJson(span, service)
 				if err != nil {
-					log.Errorf("processTraceIngest: failed to marshal spans: %v", err)
-					// TODO: return error
+					log.Errorf("ProcessTraceIngest: failed to marshal span %s: %v", span, err)
+					numFailedSpans++
+					continue
 				}
 
-				now := utils.GetCurrentTimeInMs()
 				lenJsonData := uint64(len(jsonData))
 				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
 				if err != nil {
-					fmt.Errorf("processTraceIngest: failed to process ingest request: %v", err)
-					// TODO: return error
+					fmt.Errorf("ProcessTraceIngest: failed to process ingest request: %v", err)
+					numFailedSpans++
+					continue
 				}
 			}
 		}
 	}
 
-	response, err := proto.Marshal(&coltracepb.ExportTraceServiceResponse{})
-	if err != nil {
-		log.Errorf("processTraceIngest failed to marshal response: %v", err)
-		// TODO: return error
+	if numFailedSpans == 0 {
+		// This request was successful.
+		response, err := proto.Marshal(&coltracepb.ExportTraceServiceResponse{})
+		if err != nil {
+			log.Errorf("ProcessTraceIngest: failed to marshal successful response: %v", err)
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			return
+		}
+		_, err = ctx.Write(response)
+		if err != nil {
+			log.Errorf("ProcessTraceIngest: failed to write successful response: %v", err)
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			return
+		}
+
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		return
+	} else if numFailedSpans < numSpans {
+		// This request was partially successful.
+		traceResponse := coltracepb.ExportTraceServiceResponse{
+			PartialSuccess: &coltracepb.ExportTracePartialSuccess{
+				RejectedSpans: int64(numFailedSpans),
+			},
+		}
+
+		response, err := proto.Marshal(&traceResponse)
+		if err != nil {
+			log.Errorf("ProcessTraceIngest: failed to marshal partially successful response: %v", err)
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			return
+		}
+		_, err = ctx.Write(response)
+		if err != nil {
+			log.Errorf("ProcessTraceIngest: failed to write partially successful response: %v", err)
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			return
+		}
+
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		return
+	} else {
+		// Every span failed to be ingested.
+		if numFailedSpans > numSpans {
+			log.Errorf("ProcessTraceIngest: error in counting number of total and failed spans")
+		}
+
+		failureStatus := status.Status{
+			Code:    fasthttp.StatusInternalServerError,
+			Message: "Every span failed ingestion",
+		}
+
+		bytes, err := proto.Marshal(&failureStatus)
+		if err != nil {
+			log.Errorf("ProcessTraceIngest: failed to marshal failure status: %v", err)
+		}
+		_, err = ctx.Write(bytes)
+		if err != nil {
+			log.Errorf("ProcessTraceIngest: failed to write failure status: %v", err)
+		}
+
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		return
 	}
-	_, err = ctx.Write(response)
-	if err != nil {
-		log.Errorf("processTraceIngest failed to write response: %v", err)
-		// TODO: return error
-	}
-	ctx.SetStatusCode(fasthttp.StatusOK)
 }
