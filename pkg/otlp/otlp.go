@@ -16,76 +16,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
-	result := make(map[string]interface{})
-	result["trace_id"] = hex.EncodeToString(span.TraceId)
-	result["span_id"] = hex.EncodeToString(span.SpanId)
-	result["parent_span_id"] = hex.EncodeToString(span.ParentSpanId)
-	result["service"] = service
-	result["trace_state"] = span.TraceState
-	result["name"] = span.Name
-	result["kind"] = span.Kind.String()
-	result["start_time"] = span.StartTimeUnixNano
-	result["end_time"] = span.EndTimeUnixNano
-	result["duration"] = span.EndTimeUnixNano - span.StartTimeUnixNano
-	result["dropped_attributes_count"] = uint64(span.DroppedAttributesCount)
-	result["dropped_events_count"] = uint64(span.DroppedEventsCount)
-	result["dropped_links_count"] = uint64(span.DroppedLinksCount)
-	result["status"] = span.Status.String()
-
-	// Make a column for each attribute key.
-	for _, keyvalue := range span.Attributes {
-		key := keyvalue.Key
-
-		switch keyvalue.Value.Value.(type) {
-		case *commonpb.AnyValue_StringValue:
-			result[key] = keyvalue.Value.GetStringValue()
-		case *commonpb.AnyValue_IntValue:
-			result[key] = keyvalue.Value.GetIntValue()
-		case *commonpb.AnyValue_DoubleValue:
-			result[key] = keyvalue.Value.GetDoubleValue()
-		case *commonpb.AnyValue_BoolValue:
-			result[key] = keyvalue.Value.GetBoolValue()
-		default:
-			return nil, fmt.Errorf("spanToJson: unsupported value type in attribuates: %T", keyvalue.Value.Value)
-		}
-	}
-
-	var err error
-	result["events_original"] = span.Events // deleteme
-	result["events"], err = json.Marshal(span.Events)
-	if err != nil {
-		return nil, err
-	}
-
-	result["links_original"] = span.Links // deleteme
-	result["links"], err = json.Marshal(span.Links)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Errorf("result before marshal: %v", result)
-
-	bytes, err := json.Marshal(result)
-	log.Errorf("result after marshal: %s", bytes)
-	return bytes, err
-}
-
-func unpackTrace(data []byte) (*coltracepb.ExportTraceServiceRequest, error) {
-	var trace coltracepb.ExportTraceServiceRequest
-	err := proto.Unmarshal(data, &trace)
-	if err != nil {
-		return nil, err
-	}
-	return &trace, nil
-}
-
 func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
-	// log.Errorf("ProcessTraceIngest: got headers:")
-	// ctx.Request.Header.VisitAll(func(key, value []byte) {
-	// 	log.Errorf("%s: %s", key, value)
-	// })
-
 	request, err := unpackTrace(ctx.PostBody())
 	if err != nil {
 		log.Errorf("ProcessTraceIngest: failed to unpack: %v", err)
@@ -104,11 +35,6 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 		}
 		return
 	}
-
-	// log.Errorf("ProcessTraceIngest: got trace: %s", request)
-	// jsonMarshalled, _ := json.Marshal(request)
-	// log.Errorf("ProcessTraceIngest: json: %s", jsonMarshalled)
-	// log.Errorf("ProcessTraceIngest: size of json: %v", len(string(jsonMarshalled)))
 
 	now := utils.GetCurrentTimeInMs()
 	indexName := "traces"
@@ -151,6 +77,73 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
+	// Send the appropriate response.
+	handleTraceIngestionResponse(ctx, numSpans, numFailedSpans)
+}
+
+func unpackTrace(data []byte) (*coltracepb.ExportTraceServiceRequest, error) {
+	var trace coltracepb.ExportTraceServiceRequest
+	err := proto.Unmarshal(data, &trace)
+	if err != nil {
+		return nil, err
+	}
+	return &trace, nil
+}
+
+func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
+	result := make(map[string]interface{})
+	result["trace_id"] = hex.EncodeToString(span.TraceId)
+	result["span_id"] = hex.EncodeToString(span.SpanId)
+	result["parent_span_id"] = hex.EncodeToString(span.ParentSpanId)
+	result["service"] = service
+	result["trace_state"] = span.TraceState
+	result["name"] = span.Name
+	result["kind"] = span.Kind.String()
+	result["start_time"] = span.StartTimeUnixNano
+	result["end_time"] = span.EndTimeUnixNano
+	result["duration"] = span.EndTimeUnixNano - span.StartTimeUnixNano
+	result["dropped_attributes_count"] = uint64(span.DroppedAttributesCount)
+	result["dropped_events_count"] = uint64(span.DroppedEventsCount)
+	result["dropped_links_count"] = uint64(span.DroppedLinksCount)
+	result["status"] = span.Status.String()
+
+	// Make a column for each attribute key.
+	for _, keyvalue := range span.Attributes {
+		key := keyvalue.Key
+
+		switch keyvalue.Value.Value.(type) {
+		case *commonpb.AnyValue_StringValue:
+			result[key] = keyvalue.Value.GetStringValue()
+		case *commonpb.AnyValue_IntValue:
+			result[key] = keyvalue.Value.GetIntValue()
+		case *commonpb.AnyValue_DoubleValue:
+			result[key] = keyvalue.Value.GetDoubleValue()
+		case *commonpb.AnyValue_BoolValue:
+			result[key] = keyvalue.Value.GetBoolValue()
+		default:
+			return nil, fmt.Errorf("spanToJson: unsupported value type in attribuates: %T", keyvalue.Value.Value)
+		}
+	}
+
+	var err error
+	result["events"], err = json.Marshal(span.Events)
+	if err != nil {
+		return nil, err
+	}
+
+	result["links"], err = json.Marshal(span.Links)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Errorf("result before marshal: %v", result)
+
+	bytes, err := json.Marshal(result)
+	log.Errorf("result after marshal: %s", bytes)
+	return bytes, err
+}
+
+func handleTraceIngestionResponse(ctx *fasthttp.RequestCtx, numSpans int, numFailedSpans int) {
 	if numFailedSpans == 0 {
 		// This request was successful.
 		response, err := proto.Marshal(&coltracepb.ExportTraceServiceResponse{})
