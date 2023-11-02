@@ -20,6 +20,14 @@ import (
 )
 
 func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
+	// All requests and responses should be protobufs.
+	ctx.Response.Header.Set("Content-Type", "application/x-protobuf")
+	if string(ctx.Request.Header.Peek("Content-Type")) != "application/x-protobuf" {
+		log.Infof("ProcessTraceIngest: got a non-protobuf request")
+		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Expected a protobuf request")
+		return
+	}
+
 	// Get the data from the request.
 	data := ctx.PostBody()
 	if requiresGzipDecompression(ctx) {
@@ -37,7 +45,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	}
 
 	// Unmarshal the data.
-	request, err := unpackTrace(data)
+	request, err := unmarshalTraceRequest(data)
 	if err != nil {
 		log.Errorf("ProcessTraceIngest: failed to unpack: %v", err)
 		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to unmarshal traces")
@@ -87,6 +95,8 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
+	log.Debugf("ProcessTraceIngest: %v spans in the request and failed to ingest %v of them", numSpans, numFailedSpans)
+
 	// Send the appropriate response.
 	handleTraceIngestionResponse(ctx, numSpans, numFailedSpans)
 }
@@ -104,7 +114,7 @@ func requiresGzipDecompression(ctx *fasthttp.RequestCtx) bool {
 	return false
 }
 
-func unpackTrace(data []byte) (*coltracepb.ExportTraceServiceRequest, error) {
+func unmarshalTraceRequest(data []byte) (*coltracepb.ExportTraceServiceRequest, error) {
 	var trace coltracepb.ExportTraceServiceRequest
 	err := proto.Unmarshal(data, &trace)
 	if err != nil {
@@ -159,10 +169,7 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 		return nil, err
 	}
 
-	log.Errorf("result before marshal: %v", result)
-
 	bytes, err := json.Marshal(result)
-	log.Errorf("result after marshal: %s", bytes)
 	return bytes, err
 }
 
