@@ -34,7 +34,7 @@ let navbarComponent = `
                 <span class="icon-launchdb"></span><span class="nav-link-text">Dashboards</span></a>
         </div>
         <div class="menu nav-usq" title="Saved Queries">
-            <a href="./savedqueries.html" class="nav-links"><span class="icon-usq"></span><span
+            <a href="./saved-queries.html" class="nav-links"><span class="icon-usq"></span><span
                     class="nav-link-text">Saved Queries</span></a>
         </div>
         <div class="menu nav-alerts" title="Alerting">
@@ -95,11 +95,11 @@ $(document).ready(function () {
         $(".nav-metrics").addClass("active");
     } else if (currentUrl.includes("dashboards-home.html") || currentUrl.includes("dashboard.html")) {
         $(".nav-ldb").addClass("active");
-    } else if (currentUrl.includes("savedqueries.html")) {
+    } else if (currentUrl.includes("saved-queries.html")) {
         $(".nav-usq").addClass("active");
     } else if (currentUrl.includes("alerts.html") || currentUrl.includes("alert.html") || currentUrl.includes("alert-details.html")   || currentUrl.includes("contacts.html")){
         $(".nav-alerts").addClass("active");
-    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("orgSettings.html") || currentUrl.includes("testData.html")) {
+    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("test-data.html")) {
         $(".nav-myorg").addClass("active");
     } else if (currentUrl.includes("minion-searches.html")) {
         $(".nav-minion").addClass("active");

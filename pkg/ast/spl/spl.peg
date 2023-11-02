@@ -680,6 +680,15 @@ LikeExpr <- left:ValueExpr SPACE "LIKE" SPACE right:ValueExpr {
      }
      return expr, nil
  }
+/ "cidrmatch(" cidr:ValueExpr ", " ip:ValueExpr ")" {
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: cidr.(*structs.ValueExpr),
+        RightValue: ip.(*structs.ValueExpr),
+        ValueOp: "cidrmatch",
+    }
+    return expr, nil
+}
 / inExpr: InExpr {
     return inExpr, nil
 }
