@@ -975,93 +975,93 @@ func Test_ConditionExpr(t *testing.T) {
 	assert.Equal(t, str, "This is not a null value")
 
 	cidrBoolExpr :=
- 		&BoolExpr{
- 			IsTerminal: true,
- 			LeftValue: &ValueExpr{
- 				ValueExprMode: VEMStringExpr,
- 				StringExpr: &StringExpr{
- 					StringExprMode: SEMRawString,
- 					RawString:      "192.0.2.0/24",
- 				},
- 			},
- 			RightValue: &ValueExpr{
- 				ValueExprMode: VEMStringExpr,
- 				StringExpr: &StringExpr{
- 					StringExprMode: SEMRawString,
- 					RawString:      "192.0.2.5",
- 				},
- 			},
- 			ValueOp: "cidrmatch",
- 		}
- 	cidrConditionExpr :=
- 		&ConditionExpr{
- 			Op:       "if",
- 			BoolExpr: cidrBoolExpr,
- 			TrueValue: &ValueExpr{
- 				ValueExprMode: VEMStringExpr,
- 				StringExpr: &StringExpr{
- 					StringExprMode: SEMRawString,
- 					RawString:      "local",
- 				},
- 			},
- 			FalseValue: &ValueExpr{
- 				ValueExprMode: VEMStringExpr,
- 				StringExpr: &StringExpr{
- 					StringExprMode: SEMRawString,
- 					RawString:      "not local",
- 				},
- 			},
- 		}
+		&BoolExpr{
+			IsTerminal: true,
+			LeftValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "192.0.2.0/24",
+				},
+			},
+			RightValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "192.0.2.5",
+				},
+			},
+			ValueOp: "cidrmatch",
+		}
+	cidrConditionExpr :=
+		&ConditionExpr{
+			Op:       "if",
+			BoolExpr: cidrBoolExpr,
+			TrueValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "local",
+				},
+			},
+			FalseValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "not local",
+				},
+			},
+		}
 
- 	assert.Equal(t, cidrBoolExpr.GetFields(), []string{})
+	assert.Equal(t, cidrBoolExpr.GetFields(), []string{})
 
- 	str, err = cidrConditionExpr.EvaluateCondition(fieldToValue)
- 	assert.Nil(t, err)
- 	assert.Equal(t, str, "local")
+	str, err = cidrConditionExpr.EvaluateCondition(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, str, "local")
 
- 	notCidrMatchBoolExpr :=
- 		&BoolExpr{
- 			IsTerminal: true,
- 			LeftValue: &ValueExpr{
- 				ValueExprMode: VEMStringExpr,
- 				StringExpr: &StringExpr{
- 					StringExprMode: SEMRawString,
- 					RawString:      "192.0.2.0/24",
- 				},
- 			},
- 			RightValue: &ValueExpr{
- 				ValueExprMode: VEMStringExpr,
- 				StringExpr: &StringExpr{
- 					StringExprMode: SEMRawString,
- 					RawString:      "192.0.3.1",
- 				},
- 			},
- 			ValueOp: "cidrmatch",
- 		}
- 	notCidrMatchConditionExpr :=
- 		&ConditionExpr{
- 			Op:       "if",
- 			BoolExpr: notCidrMatchBoolExpr,
- 			TrueValue: &ValueExpr{
- 				ValueExprMode: VEMStringExpr,
- 				StringExpr: &StringExpr{
- 					StringExprMode: SEMRawString,
- 					RawString:      "local",
- 				},
- 			},
- 			FalseValue: &ValueExpr{
- 				ValueExprMode: VEMStringExpr,
- 				StringExpr: &StringExpr{
- 					StringExprMode: SEMRawString,
- 					RawString:      "not local",
- 				},
- 			},
- 		}
- 	assert.Equal(t, notCidrMatchBoolExpr.GetFields(), []string{})
+	notCidrMatchBoolExpr :=
+		&BoolExpr{
+			IsTerminal: true,
+			LeftValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "192.0.2.0/24",
+				},
+			},
+			RightValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "192.0.3.1",
+				},
+			},
+			ValueOp: "cidrmatch",
+		}
+	notCidrMatchConditionExpr :=
+		&ConditionExpr{
+			Op:       "if",
+			BoolExpr: notCidrMatchBoolExpr,
+			TrueValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "local",
+				},
+			},
+			FalseValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "not local",
+				},
+			},
+		}
+	assert.Equal(t, notCidrMatchBoolExpr.GetFields(), []string{})
 
- 	str, err = notCidrMatchConditionExpr.EvaluateCondition(fieldToValue)
- 	assert.Nil(t, err)
- 	assert.Equal(t, str, "not local")
+	str, err = notCidrMatchConditionExpr.EvaluateCondition(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, str, "not local")
 
 	likeBoolExpr :=
 		&BoolExpr{
