@@ -523,6 +523,81 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
     }
     return node, nil
 }
+/ (opName:("substr") "(" stringExpr:StringExpr "," startIndex:NumericExpr lengthParam:(", " NumericExpr)? ")") {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr")
+    }
+    startIndexConverted, ok := startIndex.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert startIndex as *structs.NumericExpr")
+    }
+  var lengthConverted *structs.NumericExpr
+    if lengthParam != nil {
+        lengthSlice, ok := lengthParam.([]interface{})
+        if ok && len(lengthSlice) > 1 {
+            length, ok := lengthSlice[1].(*structs.NumericExpr)
+            if ok {
+                lengthConverted = length
+            } else {
+                return nil, fmt.Errorf("Spl peg: TextExpr: Unable to assert length as *structs.NumericExpr")
+            }
+        }
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Value: stringExprConverted,
+        StartIndex: startIndexConverted,
+        LengthExpr: lengthConverted,
+        
+    }
+    return node, nil
+}
+/ (opName:("tonumber") "(" stringExpr:StringExpr baseExpr:("," NumericExpr)? ")") {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr")
+    }
+    var baseExprConverted *structs.NumericExpr
+    if baseExpr != nil {
+        baseSlice, ok := baseExpr.([]interface{})
+        if ok && len(baseSlice) > 1 {
+            base, ok := baseSlice[1].(*structs.NumericExpr)
+            if ok {
+                baseExprConverted = base
+            } else {
+                return nil, fmt.Errorf("Spl peg: TextExpr: Unable to assert base as *structs.NumericExpr")
+            }
+        }
+    } 
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Value: stringExprConverted,
+        BaseExpr: baseExprConverted,
+    }
+    return node, nil
+}
+/ "tostring" "(" value:ValueExpr format:("," StringExpr )? ")" {
+    var formatExpr *structs.StringExpr
+    if format != nil {
+        formatSlice := format.([]interface{})
+        formatExpr, _ = formatSlice[1].(*structs.StringExpr) 
+    }
+    return &structs.TextExpr{
+        IsTerminal: false,
+        Op:         "tostring",
+        Val:      value.(*structs.ValueExpr),
+        Format:     formatExpr,
+    }, nil
+}
 / (opName:("ltrim" / "rtrim") "(" expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? ")") {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {

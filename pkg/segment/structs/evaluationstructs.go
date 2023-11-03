@@ -17,6 +17,7 @@ limitations under the License.
 package structs
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -104,6 +105,11 @@ type TextExpr struct {
 	StrToRemove  string
 	Delimiter    *StringExpr
 	MaxMinValues []*StringExpr
+	StartIndex   *NumericExpr
+	LengthExpr   *NumericExpr
+	BaseExpr     *NumericExpr
+	Val          *ValueExpr
+	Format       *StringExpr
 }
 
 type ConditionExpr struct {
@@ -649,8 +655,50 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			}
 		}
 		return minString, nil
-	}
 
+	} else if self.Op == "tostring" {
+		valueStr, err := self.Val.EvaluateToString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.Evaluate: failed to evaluate value for 'tostring' operation: %v", err)
+		}
+		boolExpr, err := ParseAndEvalBooleanExpression(valueStr)
+		if err == nil {
+			return strconv.FormatBool(boolExpr), nil
+		}
+		if self.Format != nil {
+			formatStr, err := self.Format.Evaluate(fieldToValue)
+			if err != nil {
+				return "", fmt.Errorf("TextExpr.Evaluate: failed to evaluate format for 'tostring' operation: %v", err)
+			}
+			switch formatStr {
+			case "hex":
+				num, convErr := strconv.Atoi(valueStr)
+				if convErr != nil {
+					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to integer for hex formatting: %v", valueStr, convErr)
+				}
+				return fmt.Sprintf("%#x", num), nil
+			case "commas":
+				num, convErr := strconv.ParseFloat(valueStr, 64)
+				if convErr != nil {
+					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to float for comma formatting: %v", valueStr, convErr)
+				}
+				return fmt.Sprintf("%0.2f", num), nil
+			case "duration":
+				num, convErr := strconv.Atoi(valueStr)
+				if convErr != nil {
+					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to seconds for duration formatting: %v", valueStr, convErr)
+				}
+				hours := num / 3600
+				minutes := (num % 3600) / 60
+				seconds := num % 60
+				return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds), nil
+			default:
+				return "", fmt.Errorf("TextExpr.Evaluate: unsupported format '%s' for tostring operation", formatStr)
+			}
+		} else {
+			return valueStr, nil
+		}
+	}
 	cellValueStr, err := self.Value.Evaluate(fieldToValue)
 	if err != nil {
 		return "", fmt.Errorf("TextExpr.Evaluate: can not evaluate text as a str: %v", err)
@@ -678,9 +726,98 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 
 		return strings.Join(strings.Split(cellValueStr, delimiterStr), "&nbsp"), nil
 
+	case "substr":
+		baseString, err := self.Value.Evaluate(fieldToValue)
+		if err != nil {
+			return "", err
+		}
+		startIndexFloat, err := self.StartIndex.Evaluate(fieldToValue)
+		if err != nil {
+			return "", err
+		}
+		startIndex := int(startIndexFloat)
+		if startIndex < 0 {
+			startIndex = len(baseString) + startIndex
+			if startIndex < 0 {
+				return "", fmt.Errorf("substr: start index is out of range after adjustment")
+			}
+		} else if startIndex >= len(baseString) {
+			return "", fmt.Errorf("substr: start index out of range")
+		}
+		substrLength := len(baseString) - startIndex
+		if self.LengthExpr != nil {
+			lengthFloat, err := self.LengthExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return "", err
+			}
+			substrLength = int(lengthFloat)
+
+			if substrLength < 0 || startIndex+substrLength > len(baseString) {
+				return "", fmt.Errorf("substr: length leads to out of range substring")
+			}
+		}
+		return baseString[startIndex : startIndex+substrLength], nil
+
+	case "tonumber":
+		baseValue := 10
+		if self.BaseExpr != nil {
+			baseFloat, err := self.BaseExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return "", fmt.Errorf("TextExpr.Evaluate: can not evaluate base as an int: %v", err)
+			}
+			baseValue = int(baseFloat)
+			if baseValue < 2 || baseValue > 36 {
+				return "", fmt.Errorf("TextExpr.Evaluate: base value out of range (should be between 2 and 36)")
+
+			}
+		}
+		number, err := strconv.ParseInt(cellValueStr, baseValue, 64)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.Evaluate: failed to convert string '%s' to number with base %d: %v", cellValueStr, baseValue, err)
+		}
+		return strconv.FormatInt(number, 10), nil
+
 	default:
 		return "", fmt.Errorf("TextExpr.Evaluate: unexpected operation: %v", self.Op)
 	}
+}
+func ParseAndEvalBooleanExpression(expr string) (bool, error) {
+	var parts []string
+	var result bool
+	switch {
+	case strings.Contains(expr, "=="):
+		parts = strings.Split(expr, "==")
+		result = parts[0] == parts[1]
+	case strings.Contains(expr, "!="):
+		parts = strings.Split(expr, "!=")
+		result = parts[0] != parts[1]
+	case strings.Contains(expr, "<="):
+		parts = strings.Split(expr, "<=")
+		result = parseToFloat(parts[0]) <= parseToFloat(parts[1])
+	case strings.Contains(expr, ">="):
+		parts = strings.Split(expr, ">=")
+		result = parseToFloat(parts[0]) >= parseToFloat(parts[1])
+	case strings.Contains(expr, "<"):
+		parts = strings.Split(expr, "<")
+		result = parseToFloat(parts[0]) < parseToFloat(parts[1])
+	case strings.Contains(expr, ">"):
+		parts = strings.Split(expr, ">")
+		result = parseToFloat(parts[0]) > parseToFloat(parts[1])
+	default:
+		return false, errors.New("not a boolean expression")
+	}
+	if len(parts) != 2 {
+		return false, fmt.Errorf("invalid expression: %s", expr)
+	}
+
+	return result, nil
+}
+func parseToFloat(s string) float64 {
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0.0
+	}
+	return f
 }
 
 // In this case, if we can not evaluate numeric expr to a float, we should evaluate it as a str
@@ -737,10 +874,16 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 }
 
 func (self *TextExpr) GetFields() []string {
-	if self.IsTerminal || (self.Op != "max" && self.Op != "min") {
-		return self.Value.GetFields()
-	}
 	var fields []string
+	if self.IsTerminal || (self.Op != "max" && self.Op != "min") {
+		if self.Value != nil {
+			fields = append(fields, self.Value.GetFields()...)
+		}
+		if self.Val != nil {
+			fields = append(fields, self.Val.GetFields()...)
+		}
+		return fields
+	}
 	for _, expr := range self.MaxMinValues {
 		fields = append(fields, expr.GetFields()...)
 	}
