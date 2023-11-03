@@ -430,6 +430,20 @@ func (self *RexExpr) GetFields() []string {
 	return fields
 }
 
+func (self *RenameExpr) GetFields() []string {
+	fields := make([]string, 0)
+
+	switch self.RenameExprMode {
+	case REMPhrase:
+		fallthrough
+	case REMOverride:
+		fields = append(fields, self.OriginalPattern)
+		return fields
+	default:
+		return []string{}
+	}
+}
+
 func (self *StringExpr) GetFields() []string {
 	switch self.StringExprMode {
 	case SEMConcatExpr:
@@ -486,6 +500,10 @@ func (self *ConcatExpr) GetFields() []string {
 	return fields
 }
 
+func (self *RenameExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure, fieldName string) (string, error) {
+	return getValueAsString(fieldToValue, fieldName)
+}
+
 func (self *RexExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure, rexExp *regexp.Regexp) (map[string]string, error) {
 
 	fieldValue, err := getValueAsString(fieldToValue, self.FieldName)
@@ -515,65 +533,115 @@ func MatchAndExtractGroups(str string, rexExp *regexp.Regexp) (map[string]string
 	return result, nil
 }
 
+// Check if colName match the OriginalPattern
+func (self *RenameExpr) CheckIfMatch(colName string) bool {
+	regexPattern := `\b` + strings.ReplaceAll(self.OriginalPattern, "*", "(.*)") + `\b`
+	regex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return false
+	}
+
+	matchingParts := regex.FindStringSubmatch(colName)
+	return len(matchingParts) != 0
+}
+
 // Check if colName matches the specified pattern and replace wildcards to generate a new colName.
 func (self *RenameExpr) ProcessRenameRegexExpression(colName string) (string, error) {
 
 	originalPattern := self.OriginalPattern
 	newPattern := self.NewPattern
 
-	strs1 := strings.Split(originalPattern, "*")
-	strs2 := strings.Split(newPattern, "*")
-	//Remove last empty string
-	if len(strs1) > 0 && strs1[len(strs1)-1] == "" {
-		strs1 = strs1[:len(strs1)-1]
-	}
-	if len(strs2) > 0 && strs2[len(strs2)-1] == "" {
-		strs2 = strs2[:len(strs2)-1]
-	}
-
-	len1 := len(strs1)
-	len2 := len(strs2)
-	length := len1
-	if len1 > len2 {
-		length = len2
-	}
-
-	originalPattern = strings.ReplaceAll(originalPattern, "*", ".*")
-	regexPattern := `\b` + originalPattern + `\b`
+	regexPattern := `\b` + strings.ReplaceAll(originalPattern, "*", "(.*)") + `\b`
 	regex, err := regexp.Compile(regexPattern)
 	if err != nil {
 		return "", fmt.Errorf("ProcessRenameRegexExpression: There are some errors in the pattern: %v", err)
 	}
 
-	matches := regex.FindAllString(colName, -1)
-	//Not matches fount
-	if len(matches) != 1 {
+	matchingParts := regex.FindStringSubmatch(colName)
+	if len(matchingParts) == 0 {
 		return "", nil
 	}
 
-	//Replace all wildcards and generate a new col
-	//Replace the string previously separated by '*' in OriginalPattern with the corresponding NewPattern string
-	var builder strings.Builder
-	i := 0
-	for i < length {
-		index := strings.Index(matches[0], strs1[i])
-		builder.WriteString(matches[0][:index])
-		if i < len2 {
-			builder.WriteString(strs2[i])
-		}
-		matches[0] = matches[0][index+len(strs1[i]):]
-		i++
-	}
-	if len(matches[0]) > 0 {
-		builder.WriteString(matches[0])
-	}
-	//If len1 > len2, we do not need to do anything. E.g.: Abcert -> (Abc*, *) -> cert
-	//Else if len2 > len1, we need to append last str in strs2. E.g.: Abqw -> (Ab*, ABC*kk) -> ABCqwkk
-	if len2 > len1 {
-		builder.WriteString(strs2[len2-1])
+	result := newPattern
+	for _, match := range matchingParts[1:] {
+		result = strings.Replace(result, "*", match, 1)
 	}
 
-	return builder.String(), nil
+	return result, nil
+}
+
+func (self *RenameExpr) RemoveColsByIndex(strs []string, indexToRemove []int) []string {
+	results := make([]string, 0)
+
+	for index, val := range strs {
+		shouldRemove := false
+		for _, delIndex := range indexToRemove {
+			if delIndex == index {
+				shouldRemove = true
+				break
+			}
+		}
+		if shouldRemove {
+			continue
+		}
+		results = append(results, val)
+	}
+	return results
+}
+
+func (self *RenameExpr) RemoveBucketResGroupByColumnsByIndex(bucketResult *BucketResult, indexToRemove []int) {
+
+	if len(indexToRemove) == 0 {
+		return
+	}
+
+	bucketResult.GroupByKeys = self.RemoveColsByIndex(bucketResult.GroupByKeys, indexToRemove)
+
+	switch bucketKey := bucketResult.BucketKey.(type) {
+	case []string:
+		bucketResult.BucketKey = self.RemoveColsByIndex(bucketKey, indexToRemove)
+	case string:
+		bucketResult.BucketKey = nil
+	}
+
+}
+
+// Remove unused GroupByCols in Bucket Result
+func (self *RenameExpr) RemoveBucketHolderGroupByColumnsByIndex(bucketHolder *BucketHolder, nodeResult *NodeResult, indexToRemove []int) {
+
+	if len(indexToRemove) == 0 {
+		return
+	}
+
+	groupByVals := make([]string, 0)
+	for index := range nodeResult.GroupByCols {
+		shouldRemove := false
+		for _, delIndex := range indexToRemove {
+			if delIndex == index {
+				shouldRemove = true
+				break
+			}
+		}
+		if shouldRemove {
+			continue
+		}
+		groupByVals = append(groupByVals, bucketHolder.GroupByValues[index])
+	}
+
+	bucketHolder.GroupByValues = groupByVals
+
+}
+
+// Remove unused GroupByCols in Bucket Holder
+func (self *RenameExpr) RemoveBucketHolderGroupByCols(bucketHolder *BucketHolder, nodeResult *NodeResult) {
+	groupByValues := make([]string, 0)
+
+	for index, groupByCol := range nodeResult.GroupByCols {
+		if !self.CheckIfMatch(groupByCol) {
+			groupByValues = append(groupByValues, bucketHolder.GroupByValues[index])
+		}
+	}
+	bucketHolder.GroupByValues = groupByValues
 }
 
 // Evaluate this NumericExpr to a float, replacing each field in the expression

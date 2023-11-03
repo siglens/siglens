@@ -288,30 +288,93 @@ func performRenameColRequestOnHistogram(nodeResult *structs.NodeResult, letColRe
 
 	for _, aggregationResult := range nodeResult.Histogram {
 		for _, bucketResult := range aggregationResult.Results {
+			switch letColReq.RenameColRequest.RenameExprMode {
+			case structs.REMPhrase:
+				fallthrough
+			case structs.REMOverride:
 
-			//Rename statistic functions name
-			for statColName, val := range bucketResult.StatRes {
-				newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(statColName)
-				if err != nil {
-					return fmt.Errorf("performRenameColRequestOnHistogram: %v", err)
+				// The original pattern should be a field, and the field may come from GroupByCol or the Stat Res. The same rule applies to the new pattern
+				// We should delete new pattern key-val pair, and override the original field to new col name
+
+				// If new pattern comes from GroupByCols, we should delete it in the GroupByCols
+				for index, groupByCol := range bucketResult.GroupByKeys {
+					if groupByCol == letColReq.RenameColRequest.NewPattern {
+						letColReq.RenameColRequest.RemoveBucketResGroupByColumnsByIndex(bucketResult, []int{index})
+						break
+					}
 				}
-				if len(newColName) == 0 {
+
+				// If new pattern comes from Stat Res, its key-value pair will be deleted
+				delete(bucketResult.StatRes, letColReq.RenameColRequest.NewPattern)
+
+				// After delete new pattern in GroupByCols or Stat Res, we should override the name of original field to new field
+
+				// If original pattern comes from Stat Res
+				val, exists := bucketResult.StatRes[letColReq.RenameColRequest.OriginalPattern]
+				if exists {
+					bucketResult.StatRes[letColReq.RenameColRequest.NewPattern] = val
+					delete(bucketResult.StatRes, letColReq.RenameColRequest.OriginalPattern)
 					continue
 				}
-				bucketResult.StatRes[newColName] = val
-				delete(bucketResult.StatRes, statColName)
-			}
 
-			//Rename Group by column name
-			for index, groupByColName := range bucketResult.GroupByKeys {
-				newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(groupByColName)
-				if err != nil {
-					return fmt.Errorf("performRenameColRequestOnHistogram: %v", err)
+				// If original pattern comes from GroupByCol, just override its name
+				for index, groupByCol := range bucketResult.GroupByKeys {
+					if letColReq.RenameColRequest.OriginalPattern == groupByCol {
+						// The GroupByKeys in the aggregationResult.Results array is a reference slice.
+						// If we just modify GroupByKeys in one bucket, the GroupByKeys in other buckets will also be updated
+						groupByKeys := make([]string, len(bucketResult.GroupByKeys))
+						copy(groupByKeys, bucketResult.GroupByKeys)
+						groupByKeys[index] = letColReq.RenameColRequest.NewPattern
+						bucketResult.GroupByKeys = groupByKeys
+						break
+					}
 				}
-				if len(newColName) == 0 {
-					continue
+
+			case structs.REMRegex:
+
+				// If we override orginal field to a new field, we should remove new field key-val pair and just modify the key name of original field to new field
+				//Rename statistic functions name
+				for statColName, val := range bucketResult.StatRes {
+					newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(statColName)
+
+					if err != nil {
+						return fmt.Errorf("performRenameColRequestOnHistogram: %v", err)
+					}
+					if len(newColName) == 0 {
+						continue
+					}
+					bucketResult.StatRes[newColName] = val
+					delete(bucketResult.StatRes, statColName)
 				}
-				bucketResult.GroupByKeys[index] = newColName
+
+				indexToRemove := make([]int, 0)
+				//Rename Group by column name
+				for index, groupByColName := range bucketResult.GroupByKeys {
+					newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(groupByColName)
+					if err != nil {
+						return fmt.Errorf("performRenameColRequestOnHistogram: %v", err)
+					}
+					if len(newColName) == 0 {
+						continue
+					}
+
+					for i, groupByCol := range bucketResult.GroupByKeys {
+						if groupByCol == newColName {
+							indexToRemove = append(indexToRemove, i)
+							break
+						}
+					}
+
+					groupByKeys := make([]string, len(bucketResult.GroupByKeys))
+					copy(groupByKeys, bucketResult.GroupByKeys)
+					groupByKeys[index] = newColName
+					bucketResult.GroupByKeys = groupByKeys
+				}
+
+				letColReq.RenameColRequest.RemoveBucketResGroupByColumnsByIndex(bucketResult, indexToRemove)
+
+			default:
+				return fmt.Errorf("performRenameColRequestOnHistogram: RenameColRequest has an unexpected type")
 			}
 		}
 	}
@@ -324,29 +387,63 @@ func performRenameColRequestOnMeasureResults(nodeResult *structs.NodeResult, let
 	// Compute the value for each row.
 	for _, bucketHolder := range nodeResult.MeasureResults {
 
-		//Rename MeasurVal name
-		for measureName, val := range bucketHolder.MeasureVal {
-			newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(measureName)
-			if err != nil {
-				return fmt.Errorf("performRenameColRequestOnMeasureResults: %v", err)
-			}
-			if len(newColName) == 0 {
-				continue
-			}
-			bucketHolder.MeasureVal[newColName] = val
-			delete(bucketHolder.MeasureVal, measureName)
-		}
+		switch letColReq.RenameColRequest.RenameExprMode {
+		case structs.REMPhrase:
+			fallthrough
+		case structs.REMOverride:
 
-		//Rename Group by column name
-		for index, groupByColName := range bucketHolder.GroupByValues {
-			newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(groupByColName)
-			if err != nil {
-				return fmt.Errorf("performRenameColRequestOnMeasureResults: %v", err)
+			// If new pattern comes from GroupByCols, we should delete it in the GroupByCols
+			for index, groupByCol := range nodeResult.GroupByCols {
+				if groupByCol == letColReq.RenameColRequest.NewPattern {
+					letColReq.RenameColRequest.RemoveBucketHolderGroupByColumnsByIndex(bucketHolder, nodeResult, []int{index})
+					break
+				}
 			}
-			if len(newColName) == 0 {
+
+			// If new pattern comes from Stat Res, its key-value pair will be deleted
+			delete(bucketHolder.MeasureVal, letColReq.RenameColRequest.NewPattern)
+
+			// After delete new pattern in GroupByCols or MeasureVal, we should override the name of original field to new field
+
+			// If original pattern comes from MeasureVal
+			val, exists := bucketHolder.MeasureVal[letColReq.RenameColRequest.OriginalPattern]
+			if exists {
+				bucketHolder.MeasureVal[letColReq.RenameColRequest.NewPattern] = val
+				delete(bucketHolder.MeasureVal, letColReq.RenameColRequest.OriginalPattern)
 				continue
 			}
-			bucketHolder.GroupByValues[index] = newColName
+
+			// If original pattern comes from GroupByCol, just override its name
+			// There is no GroupByKeys in bucketHolder, so we can skip this step
+		case structs.REMRegex:
+
+			//Rename MeasurVal name
+			for measureName, val := range bucketHolder.MeasureVal {
+				newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(measureName)
+				if err != nil {
+					return fmt.Errorf("performRenameColRequestOnMeasureResults: %v", err)
+				}
+				if len(newColName) == 0 {
+					continue
+				}
+				// Being able to match indicates that the original field comes from MeasureVal
+				bucketHolder.MeasureVal[newColName] = val
+				delete(bucketHolder.MeasureVal, measureName)
+			}
+
+			//Rename Group by column name
+			for index, groupByColName := range nodeResult.GroupByCols {
+				newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(groupByColName)
+				if err != nil {
+					return fmt.Errorf("performRenameColRequestOnMeasureResults: %v", err)
+				}
+				if len(newColName) == 0 {
+					continue
+				}
+				bucketHolder.GroupByValues[index] = newColName
+			}
+			// If original pattern comes from GroupByCols, we should delete it in the GroupByCols
+			letColReq.RenameColRequest.RemoveBucketHolderGroupByCols(bucketHolder, nodeResult)
 		}
 	}
 	return nil
