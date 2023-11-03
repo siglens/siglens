@@ -201,6 +201,40 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 				return true, nil
 			}
 			return false, nil
+		} else if self.ValueOp == "like" {
+			leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
+			if errLeftStr != nil {
+				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating left side of LIKE to string: %v", errLeftStr)
+			}
+
+			rightStr, errRightStr := self.RightValue.EvaluateToString(fieldToValue)
+			if errRightStr != nil {
+				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating right side of LIKE to string: %v", errRightStr)
+			}
+
+			regexPattern := strings.Replace(strings.Replace(regexp.QuoteMeta(rightStr), "%", ".*", -1), "_", ".", -1)
+			matched, err := regexp.MatchString("^"+regexPattern+"$", leftStr)
+			if err != nil {
+				return false, fmt.Errorf("BoolExpr.Evaluate: regex error in LIKE operation: %v", err)
+			}
+			return matched, nil
+		} else if self.ValueOp == "match" {
+			leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
+			if errLeftStr != nil {
+				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating left side of MATCH to string: %v", errLeftStr)
+			}
+
+			rightStr, errRightStr := self.RightValue.EvaluateToString(fieldToValue)
+			if errRightStr != nil {
+				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating right side of MATCH to string: %v", errRightStr)
+			}
+
+			matched, err := regexp.MatchString(rightStr, leftStr)
+			if err != nil {
+				return false, fmt.Errorf("BoolExpr.Evaluate: regex error in MATCH operation: %v", err)
+			}
+			return matched, nil
+
 		} else if self.ValueOp == "cidrmatch" {
 			cidrStr, errCidr := self.LeftValue.EvaluateToString(fieldToValue)
 			ipStr, errIp := self.RightValue.EvaluateToString(fieldToValue)
