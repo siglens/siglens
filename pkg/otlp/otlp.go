@@ -154,7 +154,7 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 		case *commonpb.AnyValue_BoolValue:
 			result[key] = keyvalue.Value.GetBoolValue()
 		default:
-			return nil, fmt.Errorf("spanToJson: unsupported value type in attribuates: %T", keyvalue.Value.Value)
+			return nil, fmt.Errorf("spanToJson: unsupported value type in attributes: %T", keyvalue.Value.Value)
 		}
 	}
 
@@ -164,7 +164,7 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 	}
 	result["events"] = string(eventsJson)
 
-	linksJson, err := json.Marshal(span.Links)
+	linksJson, err := linksToJson(span.Links)
 	if err != nil {
 		return nil, err
 	}
@@ -172,6 +172,58 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 
 	bytes, err := json.Marshal(result)
 	return bytes, err
+}
+
+func linksToJson(spanLinks []*tracepb.Span_Link) ([]byte, error) {
+	// Links have SpanId and TraceId fields that we want to display has hex, so
+	// we need custom JSON marshalling.
+	type Link struct {
+		TraceId    string                 `json:"trace_id,omitempty"`
+		SpanId     string                 `json:"trace_id,omitempty"`
+		TraceState string                 `json:"trace_state,omitempty"`
+		Attributes map[string]interface{} `json:"attributes,omitempty"`
+	}
+	links := make([]Link, len(spanLinks))
+
+	for i, link := range spanLinks {
+		attributes := make(map[string]interface{})
+		for _, keyvalue := range link.Attributes {
+			key, value, err := extractKeyValue(keyvalue)
+			if err != nil {
+				log.Errorf("spanToJson: failed to extract link attribute: %v", err)
+				return nil, err
+			}
+
+			attributes[key] = value
+		}
+
+		links[i] = Link{
+			TraceId:    string(link.TraceId),
+			SpanId:     string(link.SpanId),
+			TraceState: link.TraceState,
+			Attributes: attributes,
+		}
+	}
+
+	return json.Marshal(links)
+}
+
+func extractKeyValue(keyvalue *commonpb.KeyValue) (string, interface{}, error) {
+	var value interface{}
+	switch keyvalue.Value.Value.(type) {
+	case *commonpb.AnyValue_StringValue:
+		value = keyvalue.Value.GetStringValue()
+	case *commonpb.AnyValue_IntValue:
+		value = keyvalue.Value.GetIntValue()
+	case *commonpb.AnyValue_DoubleValue:
+		value = keyvalue.Value.GetDoubleValue()
+	case *commonpb.AnyValue_BoolValue:
+		value = keyvalue.Value.GetBoolValue()
+	default:
+		return "", nil, fmt.Errorf("extractKeyValue: unsupported value type: %T", keyvalue.Value.Value)
+	}
+
+	return keyvalue.Key, value, nil
 }
 
 func setFailureResponse(ctx *fasthttp.RequestCtx, statusCode int, message string) {
