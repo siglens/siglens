@@ -258,19 +258,7 @@ func GetIngestPort() uint64 {
 // returns the configured query port
 // if the node is not a query node, this will not be set
 func GetQueryPort() uint64 {
-	var port uint64
-	value := os.Getenv("PORT")
-	if value != "" {
-		n, err := strconv.Atoi(value)
-		if err != nil {
-			log.Error("Error while converting port to int")
-			n = 80
-		}
-		port = uint64(n)
-	} else {
-		port = runningConfig.QueryPort
-	}
-	return port
+	return runningConfig.QueryPort
 }
 
 // returns the psql port
@@ -476,6 +464,10 @@ func SetMaxParallelS3IngestBuffers(maxBuf uint64) {
 func SetPQSEnabled(enabled bool) {
 	runningConfig.pqsEnabledConverted = enabled
 	runningConfig.PQSEnabled = strconv.FormatBool(enabled)
+}
+
+func SetQueryPort(value uint64) {
+	runningConfig.QueryPort = value
 }
 
 func IsMultinodeEnabled() bool {
