@@ -1,4 +1,7 @@
 "use strict";
+$(function () {
+  $("#custom-code-tab").tabs();
+});
 $(document).ready(function () {
   $("#add-con").on("click", filterStart);
   $("#add-con-second").on("click", secondFilterStart);
