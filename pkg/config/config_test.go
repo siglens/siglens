@@ -19,6 +19,7 @@ package config
 import (
 	"flag"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -238,12 +239,53 @@ a: b
 				Log:                        LogConfig{"", 100, false},
 			},
 		},
+		{ // case 5 - Test for environment variables
+			[]byte(`
+a: b
+`),
+			Configuration{
+				IngestPort:                 8081,
+				QueryPort:                  80,
+				IngestUrl:                  "http://localhost:8081",
+				EventTypeKeywords:          []string{"eventType"},
+				QueryNode:                  "true",
+				IngestNode:                 "true",
+				SegFlushIntervalSecs:       5,
+				DataPath:                   "data/",
+				S3:                         S3Config{false, "", "", ""},
+				RetentionHours:             90 * 24,
+				TimeStampKey:               "timestamp",
+				MaxSegFileSize:             1_073_741_824,
+				LicenseKeyPath:             "./",
+				ESVersion:                  "6.8.20",
+				DataDiskThresholdPercent:   85,
+				MemoryThresholdPercent:     80,
+				GRPCPort:                   50051,
+				S3IngestQueueName:          "",
+				S3IngestQueueRegion:        "",
+				S3IngestBufferSize:         1000,
+				MaxParallelS3IngestBuffers: 10,
+				QueryHostname:              "",
+				PQSEnabled:                 "true",
+				pqsEnabledConverted:        true,
+				SafeServerStart:            false,
+				AnalyticsEnabled:           "true",
+				analyticsEnabledConverted:  true,
+				Log:                        LogConfig{"", 100, false},
+			},
+		},
 	}
 	for i, test := range cases {
 		actualConfig, err := ExtractConfigData(test.input)
 		if i == 2 {
 			assert.Error(t, err)
 			continue
+		}
+
+		if i == 4 {
+			os.Setenv("PORT", "8000")
+			assert.Equal(t, uint64(8000), GetQueryPort())
+			os.Unsetenv("PORT")
 		}
 
 		assert.NoError(t, err, fmt.Sprintf("Comparison failed, test=%v", i+1))

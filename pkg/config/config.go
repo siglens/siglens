@@ -258,7 +258,19 @@ func GetIngestPort() uint64 {
 // returns the configured query port
 // if the node is not a query node, this will not be set
 func GetQueryPort() uint64 {
-	return runningConfig.QueryPort
+	var port uint64
+	value := os.Getenv("PORT")
+	if value != "" {
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			log.Error("Error while converting port to int")
+			n = 80
+		}
+		port = uint64(n)
+	} else {
+		port = runningConfig.QueryPort
+	}
+	return port
 }
 
 // returns the psql port
@@ -500,7 +512,7 @@ func WriteToYamlConfig() {
 
 // InitConfigurationData is in charge to init the various Configuration data.
 // It runs only once to instantiate Configuration options.
-// If an error is encountered, the configuration was was unable to be read, so siglens should properly exit to avoid startup with wrong configurations
+// If an error is encountered, the configuration was unable to be read, so siglens should properly exit to avoid startup with wrong configurations
 func InitConfigurationData() error {
 	log.Trace("Initdatastructure.ConfigurationData | START")
 	configFilePath = ExtractCmdLineInput() // Function for validate command line INPUT
