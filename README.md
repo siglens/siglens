@@ -59,20 +59,19 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contri
 # Usability
 
 #### Searching Logs
-`TBD`
+![Searching Logs](./static/assets/readme-assets/log-searching.png)
 
 #### Creating Dashboards
-`TBD`
+![Creating Dashboards](./static/assets/readme-assets/dashboards.png)
 
 #### Creating Alerts
-`TBD`
+![Creating Alerts](./static/assets/readme-assets/alerting.png)
 
 #### Live Tail
-`TBD`
+![Live Tail](./static/assets/readme-assets/live-tail.png)
 
 #### Minion Searches
-`TBD`
-
+![Minion Searches](./static/assets/readme-assets/minion-searches.png)
 
 
 ## Code of Conduct
