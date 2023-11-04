@@ -395,7 +395,7 @@ func performRenameColRequestOnMeasureResults(nodeResult *structs.NodeResult, let
 			// If new pattern comes from GroupByCols, we should delete it in the GroupByCols
 			for index, groupByCol := range nodeResult.GroupByCols {
 				if groupByCol == letColReq.RenameColRequest.NewPattern {
-					letColReq.RenameColRequest.RemoveBucketHolderGroupByColumnsByIndex(bucketHolder, nodeResult, []int{index})
+					letColReq.RenameColRequest.RemoveBucketHolderGroupByColumnsByIndex(bucketHolder, nodeResult.GroupByCols, []int{index})
 					break
 				}
 			}
@@ -431,8 +431,9 @@ func performRenameColRequestOnMeasureResults(nodeResult *structs.NodeResult, let
 				delete(bucketHolder.MeasureVal, measureName)
 			}
 
+			indexToRemove := make([]int, 0)
 			//Rename Group by column name
-			for index, groupByColName := range nodeResult.GroupByCols {
+			for _, groupByColName := range nodeResult.GroupByCols {
 				newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(groupByColName)
 				if err != nil {
 					return fmt.Errorf("performRenameColRequestOnMeasureResults: %v", err)
@@ -440,10 +441,15 @@ func performRenameColRequestOnMeasureResults(nodeResult *structs.NodeResult, let
 				if len(newColName) == 0 {
 					continue
 				}
-				bucketHolder.GroupByValues[index] = newColName
+
+				for i, groupByCol := range nodeResult.GroupByCols {
+					if groupByCol == newColName {
+						indexToRemove = append(indexToRemove, i)
+						break
+					}
+				}
 			}
-			// If original pattern comes from GroupByCols, we should delete it in the GroupByCols
-			letColReq.RenameColRequest.RemoveBucketHolderGroupByCols(bucketHolder, nodeResult)
+			letColReq.RenameColRequest.RemoveBucketHolderGroupByColumnsByIndex(bucketHolder, nodeResult.GroupByCols, indexToRemove)
 		}
 	}
 	return nil

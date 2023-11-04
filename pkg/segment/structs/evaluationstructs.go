@@ -606,15 +606,15 @@ func (self *RenameExpr) RemoveBucketResGroupByColumnsByIndex(bucketResult *Bucke
 
 }
 
-// Remove unused GroupByCols in Bucket Result
-func (self *RenameExpr) RemoveBucketHolderGroupByColumnsByIndex(bucketHolder *BucketHolder, nodeResult *NodeResult, indexToRemove []int) {
+// Remove unused GroupByVals in Bucket Holder
+func (self *RenameExpr) RemoveBucketHolderGroupByColumnsByIndex(bucketHolder *BucketHolder, groupByCols []string, indexToRemove []int) {
 
 	if len(indexToRemove) == 0 {
 		return
 	}
 
 	groupByVals := make([]string, 0)
-	for index := range nodeResult.GroupByCols {
+	for index := range groupByCols {
 		shouldRemove := false
 		for _, delIndex := range indexToRemove {
 			if delIndex == index {
@@ -630,18 +630,6 @@ func (self *RenameExpr) RemoveBucketHolderGroupByColumnsByIndex(bucketHolder *Bu
 
 	bucketHolder.GroupByValues = groupByVals
 
-}
-
-// Remove unused GroupByCols in Bucket Holder
-func (self *RenameExpr) RemoveBucketHolderGroupByCols(bucketHolder *BucketHolder, nodeResult *NodeResult) {
-	groupByValues := make([]string, 0)
-
-	for index, groupByCol := range nodeResult.GroupByCols {
-		if !self.CheckIfMatch(groupByCol) {
-			groupByValues = append(groupByValues, bucketHolder.GroupByValues[index])
-		}
-	}
-	bucketHolder.GroupByValues = groupByValues
 }
 
 // Evaluate this NumericExpr to a float, replacing each field in the expression
