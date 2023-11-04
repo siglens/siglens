@@ -485,22 +485,43 @@ func (sr *SearchResults) RemoveUnusedGroupByCols(aggGroupByCols []string) []stri
 // Rename field A to field B. If A and B are groupby columns, field B should be removed from groupby columns, and rename A to B
 func (sr *SearchResults) GetRenameGroupByCols(aggGroupByCols []string, agg *structs.QueryAggregators) []string {
 	if agg.OutputTransforms != nil && agg.OutputTransforms.LetColumns != nil && agg.OutputTransforms.LetColumns.RenameColRequest != nil {
+
+		// Except for regex, other RenameExprModes will only rename one column
+		renameIndex := -1
 		indexToRemove := make([]int, 0)
+
 		for index, groupByCol := range aggGroupByCols {
-			newColName, err := agg.OutputTransforms.LetColumns.RenameColRequest.ProcessRenameRegexExpression(groupByCol)
-			if err != nil {
-				return []string{}
-			}
-			if len(newColName) == 0 {
-				continue
-			}
-			for i, colName := range aggGroupByCols {
-				if colName == newColName {
-					indexToRemove = append(indexToRemove, i)
-					break
+			switch agg.OutputTransforms.LetColumns.RenameColRequest.RenameExprMode {
+			case structs.REMPhrase:
+				fallthrough
+			case structs.REMOverride:
+
+				if groupByCol == agg.OutputTransforms.LetColumns.RenameColRequest.OriginalPattern {
+					renameIndex = index
 				}
+				if groupByCol == agg.OutputTransforms.LetColumns.RenameColRequest.NewPattern {
+					indexToRemove = append(indexToRemove, index)
+				}
+
+			case structs.REMRegex:
+				newColName, err := agg.OutputTransforms.LetColumns.RenameColRequest.ProcessRenameRegexExpression(groupByCol)
+				if err != nil {
+					return []string{}
+				}
+				if len(newColName) == 0 {
+					continue
+				}
+				for i, colName := range aggGroupByCols {
+					if colName == newColName {
+						indexToRemove = append(indexToRemove, i)
+						break
+					}
+				}
+				aggGroupByCols[index] = newColName
 			}
-			aggGroupByCols[index] = newColName
+		}
+		if renameIndex != -1 {
+			aggGroupByCols[renameIndex] = agg.OutputTransforms.LetColumns.RenameColRequest.NewPattern
 		}
 		aggGroupByCols = agg.OutputTransforms.LetColumns.RenameColRequest.RemoveColsByIndex(aggGroupByCols, indexToRemove)
 	}
