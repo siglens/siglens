@@ -421,9 +421,9 @@ StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(Fie
     }
 
     if(statisticCmd == "top"){
-        statisticExpr.StatisticExprMode = structs.SEMTop
+        statisticExpr.StatisticFunctionMode = structs.SFMTop
     } else {
-        statisticExpr.StatisticExprMode = structs.SEMRare
+        statisticExpr.StatisticFunctionMode = structs.SFMRare
     }
 
     if limit != nil {
@@ -450,15 +450,15 @@ StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(Fie
     return statisticExpr, nil
 }
 
-//Top limit=<int> is the same as specifying top N.
+// Top limit=<int> is the same as specifying top N.
 StatisticLimit <- SPACE number:IntegerAsString {
     return number.(string), nil
 }
-/ limit:(SPACE "limit=" IntegerAsString) {
-    return limit.([]interface{})[2].(string), nil
+/ SPACE "limit=" limit:(IntegerAsString) {
+    return limit.(string), nil
 }
 
-//Optional arguments for top/rare functions
+// Optional arguments for top/rare functions
 Options <- option:(Option)*
 {
     //Default value
@@ -474,7 +474,7 @@ Options <- option:(Option)*
     optionSlice := option.([]any)
     for _, opt := range optionSlice {
         optArr :=  opt.([]string)
-        // 使用类型断言检查匹配的选项类型
+        // Check for matching option types
         switch optArr[0] {
         case "showcount":
             showCountBool, err := strconv.ParseBool(optArr[1])

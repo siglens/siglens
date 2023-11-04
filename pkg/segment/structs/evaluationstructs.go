@@ -55,11 +55,11 @@ type RexExpr struct {
 }
 
 type StatisticExpr struct {
-	StatisticExprMode StatisticExprMode
-	Limit             string
-	Options           *Options
-	FieldList         []string //Must have FieldList
-	ByClause          []string
+	StatisticFunctionMode StatisticFunctionMode
+	Limit                 string
+	Options               *Options
+	FieldList             []string //Must have FieldList
+	ByClause              []string
 }
 
 type Options struct {
@@ -138,11 +138,11 @@ const (
 	BoolOpOr
 )
 
-type StatisticExprMode uint8
+type StatisticFunctionMode uint8
 
 const (
-	SEMTop = iota
-	SEMRare
+	SFMTop = iota
+	SFMRare
 )
 
 type ValueExprMode uint8
@@ -587,12 +587,12 @@ func (self *StatisticExpr) SortBucketResult(results *[]*BucketResult) error {
 
 		//Moving the if statement outside of the sorting process can reduce the number of conditional checks
 		//Sort results based on the lexicographical value of their field list
-		switch self.StatisticExprMode {
-		case SEMTop:
+		switch self.StatisticFunctionMode {
+		case SFMTop:
 			sort.Slice(*results, func(index1, index2 int) bool {
 				return self.sortByBucketKey((*results)[index1], (*results)[index2], self.FieldList, fieldToGroupByKeyIndex)
 			})
-		case SEMRare:
+		case SFMRare:
 			sort.Slice(*results, func(index1, index2 int) bool {
 				return !self.sortByBucketKey((*results)[index1], (*results)[index2], self.FieldList, fieldToGroupByKeyIndex)
 			})
@@ -609,10 +609,7 @@ func (self *StatisticExpr) SortBucketResult(results *[]*BucketResult) error {
 		uniqueFieldsCombination := make([]string, len(self.FieldList))
 		combinationCount := 0
 		newResults := make([]*BucketResult, 0)
-		// log.Error("fjl sort Results:", len(*results))
 		for _, bucketResult := range *results {
-			// log.Error("fjl sort bucket:", bucketResult)
-			// log.Error("fjl sort rowINdex:", rowIndex, " newRes:", newResults)
 			combinationExist := true
 			for index, fieldName := range self.FieldList {
 				keyIndex := fieldToGroupByKeyIndex[fieldName]
@@ -636,7 +633,6 @@ func (self *StatisticExpr) SortBucketResult(results *[]*BucketResult) error {
 			if !combinationExist {
 				combinationCount++
 				if combinationCount > limit {
-					// *Results = (*Results)[:rowIndex]
 					*results = newResults
 					return nil
 				}
@@ -647,12 +643,12 @@ func (self *StatisticExpr) SortBucketResult(results *[]*BucketResult) error {
 		}
 
 	} else { //No limit option, sort results by its values frequency
-		switch self.StatisticExprMode {
-		case SEMTop:
+		switch self.StatisticFunctionMode {
+		case SFMTop:
 			sort.Slice(*results, func(index1, index2 int) bool {
 				return (*results)[index1].ElemCount > (*results)[index2].ElemCount
 			})
-		case SEMRare:
+		case SFMRare:
 			sort.Slice(*results, func(index1, index2 int) bool {
 				return (*results)[index1].ElemCount < (*results)[index2].ElemCount
 			})
@@ -675,7 +671,6 @@ func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *Bucke
 			for rowIndex, groupByCol := range bucketResult.GroupByKeys {
 				if field == groupByCol {
 					groupByKeys = append(groupByKeys, field)
-					// bucketKeyIndex = append(bucketKeyIndex, rowIndex)
 					bucketKey = append(bucketKey, bucketKeyStrs[rowIndex])
 					break
 				}
