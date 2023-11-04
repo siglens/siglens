@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+    
+        gtag('config', 'G-5SBJC04YFB');
+    </script>
+    
 <head>
     <meta charset="UTF-8">
     <title>SigLens</title>
@@ -41,8 +49,8 @@
                         <h1 class="myOrg-heading">My Org</h1>
                         <div class="section-buttons">
                             <div class="section-button"><a href="./cluster-stats.html">Cluster Stats</a></div>
-                            <div class="section-button"><a href="./orgSettings.html">Settings</a></div>
-                            <div class="section-button active"><a href="./testData.html">Test Data</a></div>
+                            <div class="section-button active"><a href="./org-settings.html">Settings</a></div>
+                            <div class="section-button"><a href="./test-data.html">Test Data</a></div>
                         </div>
                     </div>
                     <div>
@@ -51,24 +59,20 @@
                 </div>
 
                 <div class="myOrg-inner-container">
-                    <div>
-                        <div>
-                            <p class="caption">Experiment with a test data set</p>
+                    <div class="org-settings">
+                        <div id="api-keys-headings">
+                            <p class="caption">Personalize your organization's settings</p>
                         </div>
-                        <div id="test-data-container">
-                            <div class="main-dropdown">
-                                <div class="role-inner-dropdown">
-                                    <div class="select">Select Test Data
-                                        <span class="arrow-btn"><img src="./assets/arrow-btn.svg" alt="" /></span>
-                                    </div>
-                                </div>
-                                <ul class="list-unstyled dropdown-option">
-                                    <!-- <li class=" roles">Apache access logs</li> -->
-                                    <li class="roles" id="test-dataset-1">Person Profile </li>
-                                </ul>
-                            </div>
-                            <div><button type="button" class="btn" id="test-data-btn">Send Test Data</button></div>
-                        </div>
+                        <table id="org-settings-table">
+                            <tr>
+                                <th>Organization Name</th>
+                                <td id="orgName">SigLens</td>
+                            </tr>
+                            <tr>
+                                <th>Retention</th>
+                                <td id="retention-days-value">4 days</td>
+                            </tr>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -81,16 +85,16 @@
     </div>
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/common.js?cb=1_1_10"></script>
-    <script src="./js/eventHandlers.js?cb=1_1_10"></script>
-    <script src="./js/availableFields.js?cb=1_1_10"></script>
-    <script src="./js/logResultsGrid.js?cb=1_1_10"></script>
-    <script src="./js/agGridSegstats.js?cb=1_1_10"></script>
-    <script src="./js/datePicker.js?cb=1_1_10"></script>
+    <script src="./js/event-handlers.js?cb=1_1_10"></script>
+    <script src="./js/available-fields.js?cb=1_1_10"></script>
+    <script src="./js/log-results-grid.js?cb=1_1_10"></script>
+    <script src="./js/ag-grid-seg-stats.js?cb=1_1_10"></script>
+    <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/search.js?cb=1_1_10"></script>
-    <script src="./js/savedQuery.js?cb=1_1_10"></script>
+    <script src="./js/saved-query.js?cb=1_1_10"></script>
     <script src="./js/index.js?cb=1_1_10"></script>
-    <script src="./js/pointClickSearch.js?cb=1_1_10"></script>
-    <script src="./js/myOrgTestData.js"></script>
+    <script src="./js/point-click-search.js?cb=1_1_10"></script>
+    <script src="./js/settings.js"></script>
 </body>
 
 </html>
