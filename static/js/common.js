@@ -734,7 +734,7 @@ function getIngestionToken(org_name) {
     }).then((res) => {
         if(window.location.pathname === "/apiKeys.html")
             populateIngestionToken(res);
-        if(window.location.pathname === "/testData.html")
+        if(window.location.pathname === "/test-data.html")
             myOrgSendTestData(res.token);
     }).catch((err) => console.log(err));
 }
