@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Function to display step messages
+display_step() {
+    echo "Step $1: $2"
+}
+
+# Step 1: Check if Git is installed
+display_step 1 "Checking if Git is installed"
+if ! command -v git &> /dev/null; then
+    echo "Git is not installed. Please install Git locally and create a GitHub account before proceeding."
+    echo "You can get started with your GitHub account here: https://docs.github.com/en/get-started/onboarding/getting-started-with-your-github-account"
+    exit 1
+fi
+
+# Step 2: Create directories and clone the repository
+display_step 2 "Creating local directories and cloning Git repository"
+mkdir -p siglens-contrib
+cd siglens-contrib
+git clone git@github.com:siglens/siglens.git
+
+# Step 3: Change directory and download Go dependencies
+display_step 3 "Changing directory and downloading Go dependencies"
+cd siglens
+go mod tidy
+
+# Step 4: Check if the user is allowed to open port 80
+if [ "$(id -u)" = "0" ]; then
+    # User has root privileges, can use port 80
+    PORT=80
+    display_step 4 "User is allowed to open. Running the server on http://localhost:80"
+    go run cmd/siglens/main.go -config server.yaml
+else
+    # User doesn't have root privileges, use an alternative port
+    PORT=8090
+    display_step 4 "User isn't allowed to open. Running the server on http://localhost:8090"
+    PORT=$PORT go run cmd/siglens/main.go -config server.yaml
+fi
+
