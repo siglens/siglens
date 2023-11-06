@@ -17,7 +17,6 @@ limitations under the License.
 package structs
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -63,6 +62,7 @@ type ValueExpr struct {
 	NumericExpr   *NumericExpr
 	StringExpr    *StringExpr
 	ConditionExpr *ConditionExpr
+	BooleanExpr   *BoolExpr
 }
 
 type ConcatExpr struct {
@@ -133,6 +133,7 @@ const (
 	VEMNumericExpr   = iota // Only NumricExpr is valid
 	VEMStringExpr           // Only StringExpr is valid
 	VEMConditionExpr        // Only ConditionExpr is valud
+	VEMBooleanExpr          // Only BooleanExpr is valid
 )
 
 type StringExprMode uint8
@@ -420,6 +421,12 @@ func (self *ValueExpr) EvaluateToString(fieldToValue map[string]utils.CValueEncl
 			return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string %v", err)
 		}
 		return str, nil
+	case VEMBooleanExpr:
+		boolResult, err := self.BooleanExpr.Evaluate(fieldToValue)
+		if err != nil {
+			return "", err
+		}
+		return strconv.FormatBool(boolResult), nil
 	default:
 		return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string")
 	}
@@ -471,6 +478,8 @@ func (self *ValueExpr) GetFields() []string {
 		return self.StringExpr.GetFields()
 	case VEMConditionExpr:
 		return self.ConditionExpr.GetFields()
+	case VEMBooleanExpr:
+		return self.BooleanExpr.GetFields()
 	default:
 		return []string{}
 	}
@@ -695,10 +704,6 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		if err != nil {
 			return "", fmt.Errorf("TextExpr.Evaluate: failed to evaluate value for 'tostring' operation: %v", err)
 		}
-		boolExpr, err := ParseAndEvalBooleanExpression(valueStr)
-		if err == nil {
-			return strconv.FormatBool(boolExpr), nil
-		}
 		if self.Format != nil {
 			formatStr, err := self.Format.Evaluate(fieldToValue)
 			if err != nil {
@@ -815,44 +820,6 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		return "", fmt.Errorf("TextExpr.Evaluate: unexpected operation: %v", self.Op)
 	}
 }
-func ParseAndEvalBooleanExpression(expr string) (bool, error) {
-	var parts []string
-	var result bool
-	switch {
-	case strings.Contains(expr, "=="):
-		parts = strings.Split(expr, "==")
-		result = parts[0] == parts[1]
-	case strings.Contains(expr, "!="):
-		parts = strings.Split(expr, "!=")
-		result = parts[0] != parts[1]
-	case strings.Contains(expr, "<="):
-		parts = strings.Split(expr, "<=")
-		result = parseToFloat(parts[0]) <= parseToFloat(parts[1])
-	case strings.Contains(expr, ">="):
-		parts = strings.Split(expr, ">=")
-		result = parseToFloat(parts[0]) >= parseToFloat(parts[1])
-	case strings.Contains(expr, "<"):
-		parts = strings.Split(expr, "<")
-		result = parseToFloat(parts[0]) < parseToFloat(parts[1])
-	case strings.Contains(expr, ">"):
-		parts = strings.Split(expr, ">")
-		result = parseToFloat(parts[0]) > parseToFloat(parts[1])
-	default:
-		return false, errors.New("not a boolean expression")
-	}
-	if len(parts) != 2 {
-		return false, fmt.Errorf("invalid expression: %s", expr)
-	}
-
-	return result, nil
-}
-func parseToFloat(s string) float64 {
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0.0
-	}
-	return f
-}
 
 // In this case, if we can not evaluate numeric expr to a float, we should evaluate it as a str
 func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
@@ -879,7 +846,6 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 
 // Field may come from BoolExpr or ValueExpr
 func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
-
 	predicateFlag, err := self.BoolExpr.Evaluate(fieldToValue)
 	if err != nil {
 		return "", fmt.Errorf("ConditionExpr.Evaluate: %v", err)
@@ -915,6 +881,21 @@ func (self *TextExpr) GetFields() []string {
 		}
 		if self.Val != nil {
 			fields = append(fields, self.Val.GetFields()...)
+		}
+		if self.Delimiter != nil {
+			fields = append(fields, self.Delimiter.GetFields()...)
+		}
+		if self.StartIndex != nil {
+			fields = append(fields, self.StartIndex.GetFields()...)
+		}
+		if self.LengthExpr != nil {
+			fields = append(fields, self.LengthExpr.GetFields()...)
+		}
+		if self.BaseExpr != nil {
+			fields = append(fields, self.BaseExpr.GetFields()...)
+		}
+		if self.Format != nil {
+			fields = append(fields, self.Format.GetFields()...)
 		}
 		return fields
 	}

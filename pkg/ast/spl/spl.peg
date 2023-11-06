@@ -523,7 +523,7 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
     }
     return node, nil
 }
-/ (opName:("substr") "(" stringExpr:StringExpr "," startIndex:NumericExpr lengthParam:(", " NumericExpr)? ")") {
+/ (opName:("substr") "(" stringExpr:StringExpr ", " startIndex:NumericExpr lengthParam:(", " NumericExpr)? ")") {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -594,7 +594,7 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
     return &structs.TextExpr{
         IsTerminal: false,
         Op:         "tostring",
-        Val:      value.(*structs.ValueExpr),
+        Val:        value.(*structs.ValueExpr),
         Format:     formatExpr,
     }, nil
 }
@@ -850,7 +850,13 @@ ValueExpr <- condition:ConditionExpr {
 
     return expr, nil
 }
-
+/ '('boolean:BoolExpr')' {
+          expr := &structs.ValueExpr{
+              ValueExprMode: structs.VEMBooleanExpr,
+              BooleanExpr: boolean.(*structs.BoolExpr),
+          }
+          return expr, nil
+      }
 StringExpr <- text:TextExpr !(EVAL_CONCAT) {
     expr := &structs.StringExpr {
         StringExprMode: structs.SEMTextExpr,

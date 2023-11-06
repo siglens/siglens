@@ -435,6 +435,11 @@ func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 				if err != nil {
 					return fmt.Errorf("performValueColRequestOnHistogram: %v", err)
 				}
+			case structs.VEMBooleanExpr:
+				cellValueStr, err = letColReq.ValueColRequest.EvaluateToString(fieldToValue)
+				if err != nil {
+					return fmt.Errorf("performValueColRequestOnHistogram: %v", err)
+				}
 			}
 
 			if err != nil {
