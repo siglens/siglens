@@ -1307,7 +1307,7 @@ func Test_StringExpr(t *testing.T) {
 				},
 			},
 		}
-	assert.Equal(t, strExpr.GetFields(), []string{})
+	assert.Equal(t, strExpr1.GetFields(), []string{"ident"})
 
 	// Test Evaluate()
 	fieldToValue["ident"] = segutils.CValueEnclosure{
@@ -1424,4 +1424,202 @@ func Test_StringExpr(t *testing.T) {
 	value, err = strMin.Evaluate(fieldToValue)
 	assert.Nil(t, err)
 	assert.Equal(t, value, "1")
+
+	strSubStr := &StringExpr{
+		StringExprMode: SEMConcatExpr,
+		ConcatExpr: &ConcatExpr{
+			Atoms: []*ConcatAtom{
+				{
+					IsField: false,
+					TextExpr: &TextExpr{
+						IsTerminal: false,
+						Op:         "substr",
+						Value: &StringExpr{
+							StringExprMode: SEMRawString,
+							RawString:      "splendid",
+						},
+						StartIndex: &NumericExpr{
+							NumericExprMode: NEMNumber,
+							IsTerminal:      true,
+							ValueIsField:    false,
+							Value:           "1",
+						},
+						LengthExpr: &NumericExpr{
+							NumericExprMode: NEMNumber,
+							IsTerminal:      true,
+							ValueIsField:    false,
+							Value:           "3",
+						},
+					},
+				},
+				{
+					IsField: false,
+					TextExpr: &TextExpr{
+						IsTerminal: false,
+						Op:         "substr",
+						Value: &StringExpr{
+							StringExprMode: SEMRawString,
+							RawString:      "chunk",
+						},
+						StartIndex: &NumericExpr{
+							NumericExprMode: NEMNumber,
+							IsTerminal:      true,
+							ValueIsField:    false,
+							Value:           "-3",
+						},
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, strSubStr.GetFields(), []string{})
+
+	value, err = strSubStr.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, "splunk")
+
+	strToNumber :=
+		&StringExpr{
+			StringExprMode: SEMTextExpr,
+			TextExpr: &TextExpr{
+				IsTerminal: false,
+				Op:         "tonumber",
+				Value: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "0A4",
+				},
+				BaseExpr: &NumericExpr{
+					NumericExprMode: NEMNumber,
+					IsTerminal:      true,
+					ValueIsField:    false,
+					Value:           "16",
+				},
+			},
+		}
+	assert.Equal(t, strToNumber.GetFields(), []string{})
+
+	value, err = strToNumber.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, "164")
+
+	strToStringBool :=
+		&StringExpr{
+			StringExprMode: SEMTextExpr,
+			TextExpr: &TextExpr{
+				IsTerminal: false,
+				Op:         "tostring",
+				Val: &ValueExpr{
+					ValueExprMode: VEMBooleanExpr,
+					BooleanExpr: &BoolExpr{
+						IsTerminal: true,
+						LeftValue: &ValueExpr{
+							ValueExprMode: VEMNumericExpr,
+							NumericExpr: &NumericExpr{
+								NumericExprMode: NEMNumber,
+								IsTerminal:      true,
+								ValueIsField:    false,
+								Value:           "2",
+							},
+						},
+						RightValue: &ValueExpr{
+							ValueExprMode: VEMNumericExpr,
+							NumericExpr: &NumericExpr{
+								NumericExprMode: NEMNumber,
+								IsTerminal:      true,
+								ValueIsField:    false,
+								Value:           "1",
+							},
+						},
+						ValueOp: ">",
+					},
+				},
+			},
+		}
+	assert.Equal(t, strToStringBool.GetFields(), []string{})
+
+	value, err = strToStringBool.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, "true")
+
+	strToStringHex :=
+		&StringExpr{
+			StringExprMode: SEMTextExpr,
+			TextExpr: &TextExpr{
+				IsTerminal: false,
+				Op:         "tostring",
+				Val: &ValueExpr{
+					ValueExprMode: VEMNumericExpr,
+					NumericExpr: &NumericExpr{
+						NumericExprMode: NEMNumber,
+						IsTerminal:      true,
+						ValueIsField:    false,
+						Value:           "15",
+					},
+				},
+				Format: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "hex",
+				},
+			},
+		}
+	assert.Equal(t, strToStringHex.GetFields(), []string{})
+
+	value, err = strToStringHex.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, "0xf")
+
+	strToStringCommas :=
+		&StringExpr{
+			StringExprMode: SEMTextExpr,
+			TextExpr: &TextExpr{
+				IsTerminal: false,
+				Op:         "tostring",
+				Val: &ValueExpr{
+					ValueExprMode: VEMNumericExpr,
+					NumericExpr: &NumericExpr{
+						NumericExprMode: NEMNumber,
+						IsTerminal:      true,
+						ValueIsField:    false,
+						Value:           "12345.6789",
+					},
+				},
+				Format: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "commas",
+				},
+			},
+		}
+	assert.Equal(t, strToStringCommas.GetFields(), []string{})
+
+	value, err = strToStringCommas.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, "12,345.68")
+
+	strToStringDuration :=
+		&StringExpr{
+			StringExprMode: SEMTextExpr,
+			TextExpr: &TextExpr{
+				IsTerminal: false,
+				Op:         "tostring",
+				Val: &ValueExpr{
+					ValueExprMode: VEMNumericExpr,
+					NumericExpr: &NumericExpr{
+						NumericExprMode: NEMNumber,
+						IsTerminal:      true,
+						ValueIsField:    false,
+						Value:           "615",
+					},
+				},
+				Format: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "duration",
+				},
+			},
+		}
+	assert.Equal(t, strToStringDuration.GetFields(), []string{})
+
+	value, err = strToStringDuration.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, "00:10:15")
+
 }

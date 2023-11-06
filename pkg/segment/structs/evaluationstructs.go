@@ -25,6 +25,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dustin/go-humanize"
+
 	"github.com/siglens/siglens/pkg/segment/utils"
 )
 
@@ -721,7 +723,9 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 				if convErr != nil {
 					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to float for comma formatting: %v", valueStr, convErr)
 				}
-				return fmt.Sprintf("%0.2f", num), nil
+				roundedNum := math.Round(num*100) / 100
+				formattedNum := humanize.CommafWithDigits(roundedNum, 2)
+				return formattedNum, nil
 			case "duration":
 				num, convErr := strconv.Atoi(valueStr)
 				if convErr != nil {
@@ -775,13 +779,14 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			return "", err
 		}
 		startIndex := int(startIndexFloat)
+		if startIndex > 0 {
+			startIndex = startIndex - 1
+		}
 		if startIndex < 0 {
 			startIndex = len(baseString) + startIndex
-			if startIndex < 0 {
-				return "", fmt.Errorf("substr: start index is out of range after adjustment")
-			}
-		} else if startIndex >= len(baseString) {
-			return "", fmt.Errorf("substr: start index out of range")
+		}
+		if startIndex < 0 || startIndex >= len(baseString) {
+			return "", fmt.Errorf("substr: start index is out of range")
 		}
 		substrLength := len(baseString) - startIndex
 		if self.LengthExpr != nil {
@@ -790,12 +795,15 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 				return "", err
 			}
 			substrLength = int(lengthFloat)
-
 			if substrLength < 0 || startIndex+substrLength > len(baseString) {
 				return "", fmt.Errorf("substr: length leads to out of range substring")
 			}
 		}
-		return baseString[startIndex : startIndex+substrLength], nil
+		endIndex := startIndex + substrLength
+		if endIndex > len(baseString) {
+			endIndex = len(baseString)
+		}
+		return baseString[startIndex:endIndex], nil
 
 	case "tonumber":
 		baseValue := 10
@@ -874,7 +882,7 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 }
 
 func (self *TextExpr) GetFields() []string {
-	var fields []string
+	fields := make([]string, 0)
 	if self.IsTerminal || (self.Op != "max" && self.Op != "min") {
 		if self.Value != nil {
 			fields = append(fields, self.Value.GetFields()...)
