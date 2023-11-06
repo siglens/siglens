@@ -650,6 +650,45 @@ BoolExprLevel1 <- "(" first:BoolExprLevel4 ")" {
     }
     return expr, nil
 }
+/ likeExpr: LikeExpr {
+    return likeExpr, nil
+}
+LikeExpr <- left:ValueExpr SPACE "LIKE" SPACE right:ValueExpr {
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: left.(*structs.ValueExpr),
+        RightValue: right.(*structs.ValueExpr),
+        ValueOp: "like",
+    }
+    return expr, nil
+}
+/ "like(" stringr:ValueExpr ", " pattern:ValueExpr ")" {
+     expr := &structs.BoolExpr {
+         IsTerminal: true,
+         LeftValue: stringr.(*structs.ValueExpr),
+         RightValue: pattern.(*structs.ValueExpr),
+         ValueOp: "like",
+     }
+     return expr, nil
+ }
+/ "match(" stringVal:ValueExpr ", " pattern:ValueExpr ")" {
+     expr := &structs.BoolExpr {
+         IsTerminal: true,
+         LeftValue: stringVal.(*structs.ValueExpr),
+         RightValue: pattern.(*structs.ValueExpr),
+         ValueOp: "match",
+     }
+     return expr, nil
+ }
+/ "cidrmatch(" cidr:ValueExpr ", " ip:ValueExpr ")" {
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: cidr.(*structs.ValueExpr),
+        RightValue: ip.(*structs.ValueExpr),
+        ValueOp: "cidrmatch",
+    }
+    return expr, nil
+}
 / inExpr: InExpr {
     return inExpr, nil
 }
@@ -663,6 +702,7 @@ BoolExprLevel1 <- "(" first:BoolExprLevel4 ")" {
 
     return expr, nil
 }
+
 
 InExpr <- left:ValueExpr SPACE "in(" valueToJudge:ValueExpr rest:(", " ValueExpr)* ")" {
     restSlice := rest.([]any)
@@ -907,7 +947,7 @@ NumericExprLevel1 <- "(" expr:NumericExprLevel3 ")" {
 }
 
 //Currently involves abs, ceil, round, sqrt
-NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt") "(" expr:(NumericExprLevel3) ")") {
+NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") "(" expr:(NumericExprLevel3) ")") {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")

@@ -2939,6 +2939,36 @@ func Test_evalFunctionsIfAndIn(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.NumericExpr.Value, "state")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.FalseValue.StringExpr.RawString, "Error")
 }
+
+func Test_evalFunctionsCidrmatch(t *testing.T) {
+	query := []byte(`city=Boston | stats count AS Count BY http_status | eval result=if(cidrmatch("192.0.2.0/24", "192.0.2.5"), "local", "not local")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.NotNil(t, aggregator.Next.Next)
+	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "result")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMConditionExpr)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.Op, "if")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.ValueOp, "cidrmatch")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.RawString, "192.0.2.0/24")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.RightValue.StringExpr.RawString, "192.0.2.5")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.StringExpr.RawString, "local")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.FalseValue.StringExpr.RawString, "not local")
+
+}
 func Test_evalFunctionsIfAndIsString(t *testing.T) {
 	query := []byte(`city=Boston | stats count AS Count BY country | eval result=if(isstr(country), "This is a string", "This is not a string")`)
 	res, err := spl.Parse("", query)
@@ -3070,6 +3100,68 @@ func Test_evalFunctionsIfAndIsNull(t *testing.T) {
 
 }
 
+func Test_evalFunctionsLike(t *testing.T) {
+	query := []byte(`city=Boston | stats count AS Count BY http_status | eval result=if(like(http_status, "4%"), "True", "False")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.NotNil(t, aggregator.Next.Next)
+	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "result")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMConditionExpr)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.Op, "if")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.ValueOp, "like")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.NumericExpr.ValueIsField, true)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.NumericExpr.Value, "http_status")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.RightValue.StringExpr.RawString, "4%")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.StringExpr.RawString, "True")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.FalseValue.StringExpr.RawString, "False")
+
+}
+
+func Test_evalFunctionsMatch(t *testing.T) {
+	query := []byte(`city=Boston | stats count AS Count BY country | eval result=if(match(country, "^Sa"), "yes", "no")`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.NotNil(t, aggregator.Next.Next)
+	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "result")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMConditionExpr)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.Op, "if")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.ValueOp, "match")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.NumericExpr.ValueIsField, true)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.NumericExpr.Value, "country")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.RightValue.StringExpr.RawString, "^Sa")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.StringExpr.RawString, "yes")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.FalseValue.StringExpr.RawString, "no")
+
+}
+
 func Test_evalFunctionsUrldecode(t *testing.T) {
 	query := []byte(`city=Boston | stats count AS Count BY http_status | eval result=urldecode("http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader")`)
 	res, err := spl.Parse("", query)
@@ -3178,6 +3270,56 @@ func Test_evalFunctionsMin(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MaxMinValues[2].ConcatExpr.Atoms[0].IsField, false)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MaxMinValues[2].ConcatExpr.Atoms[0].Value, "450")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.MaxMinValues[3].FieldName, "http_status")
+}
+func Test_evalFunctionsExact(t *testing.T) {
+	query := []byte(`city=Boston | stats count AS Count BY http_status | eval result=exact(3.14 * http_status)`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.NotNil(t, aggregator.Next.Next)
+	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "result")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "exact")
+	assert.Nil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right, err)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Op, "*")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Left.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Left.ValueIsField, false)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Left.Value, "3.14")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Right.ValueIsField, true)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Right.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Right.Value, "http_status")
+}
+
+func Test_evalFunctionsExp(t *testing.T) {
+	query := []byte(`city=Boston | stats count AS Count BY http_status | eval result=exp(3)`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.NotNil(t, aggregator.Next.Next)
+	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "result")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "exp")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.ValueIsField, false)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Value, "3")
 }
 
 func Test_ChainedEval(t *testing.T) {

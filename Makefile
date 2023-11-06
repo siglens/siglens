@@ -1,18 +1,20 @@
-GO := /usr/local/go/bin/go
-
 lint:
 	golangci-lint run --timeout=3m
 
-ut:
-	$(GO) test ./... -count 1
+test:
+	go test ./... -count 1
 
 build:
-	$(GO) mod download
-	$(GO) build -o siglens cmd/siglens/main.go
+	go mod tidy
+	go build -o siglens cmd/siglens/main.go
 
 run:
-	$(GO) version
-	$(GO) build -o siglens cmd/siglens/main.go
-	./siglens --config server.yaml
+	go run cmd/siglens/main.go --config server.yaml
 
-all: lint build run
+gofmt :
+	go install golang.org/x/tools/cmd/goimports@latest
+	goimports -w .
+
+all: lint test build
+
+pr: all gofmt

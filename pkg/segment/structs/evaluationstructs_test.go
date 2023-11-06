@@ -137,6 +137,56 @@ func Test_NumericExpr(t *testing.T) {
 	delete(fieldToValue, "Max")
 	_, err = exprE.Evaluate(fieldToValue)
 	assert.NotNil(t, err)
+
+	multiplierExpr := &NumericExpr{
+		IsTerminal:   true,
+		ValueIsField: false,
+		Value:        "3.14",
+	}
+	httpStatusExpr := &NumericExpr{
+		IsTerminal:      true,
+		ValueIsField:    true,
+		Value:           "http_status",
+		NumericExprMode: NEMNumberField,
+	}
+	productExpr := &NumericExpr{
+		IsTerminal: false,
+		Op:         "*",
+		Left:       multiplierExpr,
+		Right:      httpStatusExpr,
+	}
+	exactExpr := &NumericExpr{
+		IsTerminal: false,
+		Op:         "exact",
+		Left:       productExpr,
+	}
+	assert.Equal(t, exactExpr.GetFields(), []string{"http_status"})
+
+	fieldToValue["http_status"] = segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_SIGNED_NUM,
+		CVal:  int64(200),
+	}
+
+	value, err = exactExpr.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, float64(628))
+
+	expExpr := &NumericExpr{
+		IsTerminal: false,
+		Op:         "exp",
+		Left: &NumericExpr{
+			IsTerminal:   true,
+			ValueIsField: false,
+			Value:        "3",
+		},
+	}
+
+	assert.Equal(t, expExpr.GetFields(), []string{})
+
+	value, err = expExpr.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, 20.085536923187668)
+
 }
 
 func Test_ValueExpr(t *testing.T) {
@@ -924,7 +974,301 @@ func Test_ConditionExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, str, "This is not a null value")
 
+	cidrBoolExpr :=
+		&BoolExpr{
+			IsTerminal: true,
+			LeftValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "192.0.2.0/24",
+				},
+			},
+			RightValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "192.0.2.5",
+				},
+			},
+			ValueOp: "cidrmatch",
+		}
+	cidrConditionExpr :=
+		&ConditionExpr{
+			Op:       "if",
+			BoolExpr: cidrBoolExpr,
+			TrueValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "local",
+				},
+			},
+			FalseValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "not local",
+				},
+			},
+		}
+
+	assert.Equal(t, cidrBoolExpr.GetFields(), []string{})
+
+	str, err = cidrConditionExpr.EvaluateCondition(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, str, "local")
+
+	notCidrMatchBoolExpr :=
+		&BoolExpr{
+			IsTerminal: true,
+			LeftValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "192.0.2.0/24",
+				},
+			},
+			RightValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "192.0.3.1",
+				},
+			},
+			ValueOp: "cidrmatch",
+		}
+	notCidrMatchConditionExpr :=
+		&ConditionExpr{
+			Op:       "if",
+			BoolExpr: notCidrMatchBoolExpr,
+			TrueValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "local",
+				},
+			},
+			FalseValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "not local",
+				},
+			},
+		}
+	assert.Equal(t, notCidrMatchBoolExpr.GetFields(), []string{})
+
+	str, err = notCidrMatchConditionExpr.EvaluateCondition(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, str, "not local")
+
+	likeBoolExpr :=
+		&BoolExpr{
+			IsTerminal: true,
+			LeftValue: &ValueExpr{
+				ValueExprMode: VEMNumericExpr,
+				NumericExpr: &NumericExpr{
+					NumericExprMode: NEMNumberField,
+					IsTerminal:      true,
+					ValueIsField:    true,
+					Value:           "http_status",
+				},
+			},
+			RightValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "4%",
+				},
+			},
+			ValueOp: "like",
+		}
+	likeConditionExpr :=
+		&ConditionExpr{
+			Op:       "if",
+			BoolExpr: likeBoolExpr,
+			TrueValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "True",
+				},
+			},
+			FalseValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "False",
+				},
+			},
+		}
+
+	assert.Equal(t, likeBoolExpr.GetFields(), []string{"http_status"})
+	fieldToValue["http_status"] = segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_SIGNED_NUM,
+		CVal:  int64(400),
+	}
+
+	str, err = likeConditionExpr.EvaluateCondition(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, str, "True")
+
+	notLikeBoolExpr :=
+		&BoolExpr{
+			IsTerminal: true,
+			LeftValue: &ValueExpr{
+				ValueExprMode: VEMNumericExpr,
+				NumericExpr: &NumericExpr{
+					NumericExprMode: NEMNumberField,
+					IsTerminal:      true,
+					ValueIsField:    true,
+					Value:           "http_status",
+				},
+			},
+			RightValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "4%",
+				},
+			},
+			ValueOp: "like",
+		}
+	notLikeConditionExpr :=
+		&ConditionExpr{
+			Op:       "if",
+			BoolExpr: likeBoolExpr,
+			TrueValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "True",
+				},
+			},
+			FalseValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "False",
+				},
+			},
+		}
+
+	assert.Equal(t, notLikeBoolExpr.GetFields(), []string{"http_status"})
+	fieldToValue["http_status"] = segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_SIGNED_NUM,
+		CVal:  int64(200),
+	}
+
+	str, err = notLikeConditionExpr.EvaluateCondition(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, str, "False")
+
+	matchBoolExpr :=
+		&BoolExpr{
+			IsTerminal: true,
+			LeftValue: &ValueExpr{
+				ValueExprMode: VEMNumericExpr,
+				NumericExpr: &NumericExpr{
+					NumericExprMode: NEMNumberField,
+					IsTerminal:      true,
+					ValueIsField:    true,
+					Value:           "country",
+				},
+			},
+			RightValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "^Sa",
+				},
+			},
+			ValueOp: "match",
+		}
+	matchConditionExpr :=
+		&ConditionExpr{
+			Op:       "if",
+			BoolExpr: matchBoolExpr,
+			TrueValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "yes",
+				},
+			},
+			FalseValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "no",
+				},
+			},
+		}
+
+	assert.Equal(t, matchBoolExpr.GetFields(), []string{"country"})
+	fieldToValue["country"] = segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_STRING,
+		CVal:  "Saudi Arabia",
+	}
+
+	str, err = matchConditionExpr.EvaluateCondition(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, str, "yes")
+
+	notMatchBoolExpr :=
+		&BoolExpr{
+			IsTerminal: true,
+			LeftValue: &ValueExpr{
+				ValueExprMode: VEMNumericExpr,
+				NumericExpr: &NumericExpr{
+					NumericExprMode: NEMNumberField,
+					IsTerminal:      true,
+					ValueIsField:    true,
+					Value:           "country",
+				},
+			},
+			RightValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "^Sa",
+				},
+			},
+			ValueOp: "match",
+		}
+	notMatchConditionExpr :=
+		&ConditionExpr{
+			Op:       "if",
+			BoolExpr: notMatchBoolExpr,
+			TrueValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "yes",
+				},
+			},
+			FalseValue: &ValueExpr{
+				ValueExprMode: VEMStringExpr,
+				StringExpr: &StringExpr{
+					StringExprMode: SEMRawString,
+					RawString:      "no",
+				},
+			},
+		}
+
+	assert.Equal(t, notMatchBoolExpr.GetFields(), []string{"country"})
+	fieldToValue["country"] = segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_STRING,
+		CVal:  "Jersey",
+	}
+
+	str, err = notMatchConditionExpr.EvaluateCondition(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, str, "no")
+
 }
+
 func Test_StringExpr(t *testing.T) {
 	strExpr :=
 		&StringExpr{
@@ -1080,5 +1424,4 @@ func Test_StringExpr(t *testing.T) {
 	value, err = strMin.Evaluate(fieldToValue)
 	assert.Nil(t, err)
 	assert.Equal(t, value, "1")
-
 }
