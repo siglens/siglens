@@ -25,15 +25,15 @@ cd siglens
 go mod tidy
 
 # Step 4: Check if the user is allowed to open port 80
-if [ "$(id -u)" = "0" ]; then
-    # User has root privileges, can use port 80
-    PORT=80
-    display_step 4 "User is allowed to open. Running the server on http://localhost:80"
-    go run cmd/siglens/main.go -config server.yaml
-else
-    # User doesn't have root privileges, use an alternative port
-    PORT=8090
-    display_step 4 "User isn't allowed to open. Running the server on http://localhost:8090"
-    PORT=$PORT go run cmd/siglens/main.go -config server.yaml
+
+PORT=80 #Changing to PORT=8090 if able access to localhost:80
+
+display_step 4 "Running the Server on http://localhost:$PORT"
+if [ $PORT == 80 ]; then 
+	echo "If you are not able to access localhost:80 to changing the PORT=8090"
 fi
+PORT=$PORT go run cmd/siglens/main.go -config server.yaml
+
+
+
 
