@@ -690,6 +690,25 @@ func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *Bucke
 	case string:
 		if len(groupByCols) == 0 {
 			bucketResult.BucketKey = nil
+		} else {
+			groupByKeys = groupByCols
+			// The GroupByCols of the Statistic block increase, so the new columns must come from the Stats function
+			if len(groupByCols) > 1 {
+				newBucketKey := make([]string, 0)
+				for i := 0; i < len(groupByCols); i++ {
+					val, exists := bucketResult.StatRes[groupByCols[i]]
+					if exists {
+						str, err := val.GetString()
+						if err != nil {
+							return fmt.Errorf("RemoveFieldsNotInExpr: %v", err)
+						}
+						newBucketKey = append(newBucketKey, str)
+					} else {
+						newBucketKey = append(newBucketKey, bucketResult.BucketKey.(string))
+					}
+				}
+				bucketResult.BucketKey = newBucketKey
+			}
 		}
 	default:
 		return fmt.Errorf("RemoveFieldsNotInExpr: bucket key has unexpected type: %T", bucketKey)
