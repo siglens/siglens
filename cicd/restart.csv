@@ -89,6 +89,8 @@ city=Boston | stats count AS Count BY app_name | eval len=len(app_name) | where 
 "city=Boston | stats count AS Count BY ident | eval result=split(ident,""-"")",now-1d,now,*,group:result:ae0f4f93-5789-43c9-92a2-e7d7b4cbc31e,eq,ae0f4f93&nbsp5789&nbsp43c9&nbsp92a2&nbspe7d7b4cbc31e,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval result=exact(3.14 * http_status)",now-1d,now,*,group:result:200,eq,628,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval result=exp(3)",now-1d,now,*,group:result:200,eq,20.085536923187668,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval result=if(like(http_status, "4%"), "True", "False")",now-1d,now,*,group:result:400,eq,True,Splunk QL
+"city=Boston | stats count AS Count BY country | eval result=if(match(country, "^Sa"), "yes", "no")",,now-1d,now,*,group:result:Saudi Arabia,eq,yes,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval result=if(cidrmatch("192.0.2.0/24", "192.0.2.5"), "local", "not local")",now-1d,now,*,group:result:200,eq,local,Splunk QL
 "city=Boston | stats count AS Count BY weekday | rex field=weekday ""(?<first>.{3})(?<second>.*)""",now-1d,now,*,group:first:Friday,eq,Fri,Splunk QL
 "city=Boston | stats count AS Count BY http_status | rex field=http_status ""(?<first>\d)(?<second>\d)(?<third>\d)""",now-1d,now,*,group:third:404,eq,4,Splunk QL
