@@ -54,6 +54,7 @@ let metricsDatasets;
 let liveTailState = false;
 let tt;
 let lockReconnect = false;
+let totalMatchLogs = 0;
 
 
 let aggGridOptions = {
@@ -734,7 +735,7 @@ function getIngestionToken(org_name) {
     }).then((res) => {
         if(window.location.pathname === "/apiKeys.html")
             populateIngestionToken(res);
-        if(window.location.pathname === "/testData.html")
+        if(window.location.pathname === "/test-data.html")
             myOrgSendTestData(res.token);
     }).catch((err) => console.log(err));
 }

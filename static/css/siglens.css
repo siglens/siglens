@@ -409,6 +409,7 @@ body {
 #app-container {
     display: flex;
     min-height: 100vh;
+    position: relative;
 }
 
 #cstats-app-container {
@@ -626,6 +627,7 @@ body {
     background-color: var(--top-bar-bg-color-regular);
 
 }
+#cancel-loading,
 #live-tail-btn,
 #run-filter-btn,
 #saveq-btn ,
@@ -642,6 +644,7 @@ body {
     border-radius: 5px;
 }
 #live-tail-btn:hover,
+#cancel-loading:hover,
 #run-filter-btn:hover,
 #saveq-btn:hover,
 #search-query-btn:hover,
@@ -649,6 +652,7 @@ body {
     background: var(--btn-hover-or-click-bg-color);
 }
 #live-tail-btn.active,
+#cancel-loading.active,
 #run-filter-btn.active {
     background: var(--btn-hover-or-click-bg-color);
 }
@@ -657,6 +661,7 @@ body {
 #query-language-btn,
 #filter-input,
 #date-picker-btn,
+#cancel-loading,
 #run-filter-btn,
 #live-tail-btn,
 #saveq-btn,
@@ -771,6 +776,7 @@ body {
 }
 #live-tail-btn,
 #run-filter-btn,
+#cancel-loading,
 #saveq-btn,
 #create-db-btn,
 #run-metrics-query-btn,
@@ -908,6 +914,7 @@ progress.hidden {
     display: flex;
     justify-content: flex-start;
     margin-top: 5px;
+    position: relative;
 }
 
 #log-view {
@@ -1521,7 +1528,7 @@ progress.hidden {
     overflow: scroll;
     border: 1px solid var(--timepicker-border-color);
 }
-
+#save-query-options,
 #query-language-options {
     width: 130px;
     background: var(--index-drop-down-box-bg-color);
@@ -1977,10 +1984,14 @@ progress.hidden {
     display: none;
 }
 
+#download-info {
+    display: none;
+}
+
 .ui-widget {
     font-size: 1em;
-    height: 327px !important;
-    width: 464px !important;
+    height: 327px;
+    width: 464px;
 }
 
 .ui-dialog-titlebar-close {
@@ -2046,6 +2057,12 @@ div#save-queries {
     margin: 30px !important;
     padding: 0 !important;
 }
+div#download-info {
+    width: 404px !important;
+    height: 70px !important;
+    margin: 30px !important;
+    padding: 0 !important;
+}
 
 .ui-widget input {
     font-size: 1em;
@@ -2085,6 +2102,7 @@ input[type="text"].active {
 }
 
 #qname,
+#qnameDL,
 #description {
     width: 404px;
     height: 50px;
@@ -2112,6 +2130,10 @@ input[type="text"].active {
 
 .ui-dialog .ui-dialog-buttonpane .ui-dialog-buttonset {
     float: left;
+}
+
+.ui-dialog-buttonset {
+    margin-bottom: 20px;
 }
 
 .saveqButton,
@@ -4434,4 +4456,100 @@ color: #C8C7CC;
 .add-label-container{
     margin-bottom: 20px;
     margin-left: 10px;
+}
+.save-options {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    width: 200px;
+    height: 100px;
+}
+
+.download-options {
+    width: 200px !important;
+}
+
+.ui-progressbar {
+    height: 1em;
+    text-align: left;
+    overflow: hidden;
+}
+
+.ui-progressbar .ui-progressbar-value {
+    margin: -1px;
+    height: 100%;
+    background-color: #ccc;
+}
+
+.progress-label {
+    position: absolute;
+    left: 43%;
+    top: 4px;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 #fff;
+}
+
+.progress-download {
+    width: 450px !important;
+    height: 10px !important;
+    z-index: 10;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    -webkit-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+    margin-top: -7px;
+}
+
+.pop-layer {
+    position: absolute;
+    display: none;
+    left: 0;
+    top: 0;
+    z-index: 10;
+    background: var(--ui-widget-overlay-bg-color);
+    ;
+    -moz-opacity: 0.8;
+    opacity: .80;
+}
+
+.pop-download {
+    display: none;
+    z-index: 10;
+    background: white;
+    width: 500px;
+    height: 140px;
+    border-radius: 10px;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    -webkit-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+}
+
+.pop-text {
+    margin-left: 23px;
+    font-weight: bold;
+    margin: 10px 22px;
+}
+
+.cancel-loading {
+    margin-top: 50px !important;
+    margin-left: 358px !important;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    flex-direction: row;
+    align-items: center;
+    background: var(--component-bg-color) !important;
+    color: var(--component-text-color) !important;
+    width: 117px;
+    height: 44px !important;
+}
+.ui-dialog{
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    -webkit-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
 }
