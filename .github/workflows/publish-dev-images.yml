@@ -1,0 +1,57 @@
+name: siglensdev-docker-release
+on:
+  push:
+    branches:
+      - 'develop'
+jobs:
+  siglensdev-docker:
+    runs-on: ubuntu-latest
+    environment: build-environment
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      - 
+        uses: satackey/action-docker-layer-caching@v0.0.11
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - 
+        name: Get Version number
+        id: get-version
+        run: |
+          TAG=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          cat $GITHUB_ENV
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+            images: siglens/siglens
+            tags: |
+               type=raw,value=${{ env.TAG }}
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - 
+       name: Set up Docker Buildx
+       uses: docker/setup-buildx-action@v2
+      
+      -
+        name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+            context: .
+            file: Dockerfile
+            push: true
+            platforms: linux/amd64,linux/arm64
+            tags: ${{ steps.meta.outputs.tags }}
+    #Add step to Upload server.yaml to github  when github releases is setup
+          

@@ -38,6 +38,20 @@ func removeQuotes(s any) string {
     return str[1:len(str)-1]
 }
 
+// Check if it rename fields with similar names using a wildcard
+func isRegexRename(originalPattern, newPattern string) (bool, error) {
+    oldWildcards := strings.Count(originalPattern, "*")
+    newWildcards := strings.Count(newPattern, "*")
+
+    if oldWildcards == 0 && newWildcards == 0 {
+        return false, nil
+    } else if oldWildcards > 0 && oldWildcards == newWildcards {
+        return true, nil
+    } else {
+        return false, errors.New("Patterns do not match")
+    }
+}
+
 func deMorgansLaw(node *ast.Node) {
     switch node.NodeType {
     case ast.NodeTerminal:
@@ -206,7 +220,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / RenameBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -374,6 +388,55 @@ ClauseLevel1 <- "(" clause:ClauseLevel4 ")" {
 // parsing as a FieldWithNumberValue first.
 SearchTerm <- term:(FieldWithNumberValue / FieldWithStringValue) {
     return term, nil
+}
+
+RenameBlock <- PIPE CMD_RENAME renameExpr:RenameExpr {
+    letColReq := &structs.LetColumnsRequest {
+        RenameColRequest: renameExpr.(*structs.RenameExpr),
+    }
+
+    root := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    return root, nil
+}
+
+// Rename with a phrase
+RenameExpr <- originalPattern:RenamePattern AS newPattern:QuotedString {
+    renameExpr := &structs.RenameExpr {
+        RenameExprMode: structs.REMPhrase,
+        OriginalPattern: originalPattern.(string),
+        NewPattern: removeQuotes(newPattern),
+    }
+
+    return renameExpr, nil
+}
+// Rename fields with similar names using a wildcard
+// Or Rename to a existing field
+/ originalPattern:RenamePattern AS newPattern:RenamePattern {
+    isRegex, err := isRegexRename(originalPattern.(string), newPattern.(string))
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: RenameExpr: %v", err)
+    }
+
+    var renameExprMode structs.RenameExprMode
+    if isRegex {
+        renameExprMode = structs.REMRegex
+    } else {
+        renameExprMode = structs.REMOverride
+    }
+
+    renameExpr := &structs.RenameExpr {
+        RenameExprMode: renameExprMode,
+        OriginalPattern: originalPattern.(string),
+        NewPattern: newPattern.(string),
+    }
+
+    return renameExpr, nil
 }
 
 RexBlock <- PIPE CMD_REX "field=" field:EvalFieldToRead SPACE str:QuotedString {
@@ -1259,6 +1322,11 @@ UnquotedString <- ("*" / (!(MAJOR_BREAK / EOF) .))+ {
     return str, nil
 }
 
+//Can recognize fieldName or Regex Pattern for Rename Block
+RenamePattern <- [a-zA-Z0-9_*]+ {
+    return string(c.text), nil
+}
+
 Number <- number:NumberAsString {
     return json.Number(number.(string)), nil
 }
@@ -1320,6 +1388,7 @@ CMD_HEAD_NO_SPACE <- "head"
 CMD_HEAD <- CMD_HEAD_NO_SPACE SPACE
 CMD_EVAL <- "eval" SPACE
 CMD_REX <- "rex" SPACE
+CMD_RENAME <- "rename" SPACE
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

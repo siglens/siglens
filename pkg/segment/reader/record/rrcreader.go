@@ -89,8 +89,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	}
 	allRecords := make([]map[string]interface{}, len(allrrc))
 	finalCols := make(map[string]bool)
-	hasRexBlock := aggs.HasRexBlockInChain()
-	if tableColumnsExist || aggs.OutputTransforms == nil || hasRexBlock {
+	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
+	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock {
 		for currSeg, blkIds := range segmap {
 			recs, cols, err := GetRecordsFromSegment(currSeg, blkIds.VirtualTableName, blkIds.BlkRecIndexes,
 				config.GetTimeStampKey(), esResponse, qid, aggs)
@@ -108,12 +108,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 			for recInden, record := range recs {
 
-				if hasRexBlock {
-					nodeRes := new(structs.NodeResult)
-					agg.PostQueryBucketCleaning(nodeRes, aggs, recs)
-					for _, rexColName := range nodeRes.MeasureFunctions {
-						finalCols[rexColName] = true
-					}
+				if hasQueryAggergatorBlock {
+					agg.PostQueryBucketCleaning(nil, aggs, recs, finalCols)
 				}
 
 				for key, val := range renameHardcodedColumns {

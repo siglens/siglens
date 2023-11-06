@@ -1425,3 +1425,87 @@ func Test_StringExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, "1")
 }
+
+func Test_RenameExpr(t *testing.T) {
+	renameToPhrase := &RenameExpr{
+		RenameExprMode:  REMPhrase,
+		OriginalPattern: "city",
+		NewPattern:      "test",
+	}
+
+	renameRegex := &RenameExpr{
+		RenameExprMode:  REMRegex,
+		OriginalPattern: "app*",
+		NewPattern:      "start*end",
+	}
+
+	renameToExistingField := &RenameExpr{
+		RenameExprMode:  REMOverride,
+		OriginalPattern: "http_status",
+		NewPattern:      "",
+	}
+
+	assert.Equal(t, []string{"city"}, renameToPhrase.GetFields())
+	assert.Equal(t, []string{}, renameRegex.GetFields())
+	assert.Equal(t, []string{"http_status"}, renameToExistingField.GetFields())
+
+	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	fieldToValue["city"] = segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_STRING,
+		CVal:  "Boston",
+	}
+	fieldToValue["http_status"] = segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_STRING,
+		CVal:  "200",
+	}
+
+	val, err := renameToPhrase.Evaluate(fieldToValue, renameToPhrase.GetFields()[0])
+	assert.Nil(t, err)
+	assert.Equal(t, "Boston", val)
+
+	val, err = renameToExistingField.Evaluate(fieldToValue, renameToExistingField.GetFields()[0])
+	assert.Nil(t, err)
+	assert.Equal(t, "200", val)
+
+	// Test Process Rename Regex logic
+	// No match column
+	newCol, err := renameRegex.ProcessRenameRegexExpression("http_status")
+	assert.Nil(t, err)
+	assert.Equal(t, "", newCol)
+
+	newCol, err = renameRegex.ProcessRenameRegexExpression("app_name")
+	assert.Nil(t, err)
+	assert.Equal(t, "start_nameend", newCol)
+
+	// Multiple wildcards
+	renameRegex.OriginalPattern = "ht*_*ta*"
+	renameRegex.NewPattern = "first*second*third*end"
+	newCol, err = renameRegex.ProcessRenameRegexExpression("http_status")
+
+	assert.Nil(t, err)
+	assert.Equal(t, newCol, "firsttpsecondsthirdtusend")
+
+	// Wrong Pattern
+	renameRegex.OriginalPattern = "[abc"
+	renameRegex.NewPattern = "first*second*third*end"
+	_, err = renameRegex.ProcessRenameRegexExpression("ddd")
+
+	assert.NotNil(t, err)
+
+	// Test Remove unused GroupByCols by index
+	bucketResult := &BucketResult{
+		GroupByKeys: []string{"http_status", "http_method", "city", "state", "gender", "app_name"},
+		BucketKey:   []string{"200", "POST", "Boston", "MA", "Male", "sig"},
+	}
+
+	renameRegex.RemoveBucketResGroupByColumnsByIndex(bucketResult, []int{3, 1, 4})
+	assert.Equal(t, []string{"http_status", "city", "app_name"}, bucketResult.GroupByKeys)
+	assert.Equal(t, []string{"200", "Boston", "sig"}, bucketResult.BucketKey.([]string))
+
+	bucketHolder := &BucketHolder{
+		GroupByValues: []string{"200", "POST", "Boston", "MA", "Male", "sig"},
+	}
+
+	renameRegex.RemoveBucketHolderGroupByColumnsByIndex(bucketHolder, []string{"http_status", "http_method", "city", "state", "gender", "app_name"}, []int{5, 2})
+	assert.Equal(t, []string{"200", "POST", "MA", "Male"}, bucketHolder.GroupByValues)
+}

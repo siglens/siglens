@@ -48,6 +48,12 @@ type BoolExpr struct {
 	BoolOp    BoolOperator
 }
 
+type RenameExpr struct {
+	RenameExprMode  RenameExprMode
+	OriginalPattern string
+	NewPattern      string
+}
+
 type RexExpr struct {
 	Pattern     string
 	FieldName   string
@@ -119,6 +125,14 @@ const (
 	BoolOpNot BoolOperator = iota
 	BoolOpAnd
 	BoolOpOr
+)
+
+type RenameExprMode uint8
+
+const (
+	REMPhrase   = iota //Rename with a phrase
+	REMRegex           //Rename fields with similar names using a wildcard
+	REMOverride        //Rename to a existing field
 )
 
 type ValueExprMode uint8
@@ -476,6 +490,20 @@ func (self *RexExpr) GetFields() []string {
 	return fields
 }
 
+func (self *RenameExpr) GetFields() []string {
+	fields := make([]string, 0)
+
+	switch self.RenameExprMode {
+	case REMPhrase:
+		fallthrough
+	case REMOverride:
+		fields = append(fields, self.OriginalPattern)
+		return fields
+	default:
+		return []string{}
+	}
+}
+
 func (self *StringExpr) GetFields() []string {
 	switch self.StringExprMode {
 	case SEMConcatExpr:
@@ -532,6 +560,10 @@ func (self *ConcatExpr) GetFields() []string {
 	return fields
 }
 
+func (self *RenameExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure, fieldName string) (string, error) {
+	return getValueAsString(fieldToValue, fieldName)
+}
+
 func (self *RexExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure, rexExp *regexp.Regexp) (map[string]string, error) {
 
 	fieldValue, err := getValueAsString(fieldToValue, self.FieldName)
@@ -559,6 +591,105 @@ func MatchAndExtractGroups(str string, rexExp *regexp.Regexp) (map[string]string
 	}
 
 	return result, nil
+}
+
+// Check if colName match the OriginalPattern
+func (self *RenameExpr) CheckIfMatch(colName string) bool {
+	regexPattern := `\b` + strings.ReplaceAll(self.OriginalPattern, "*", "(.*)") + `\b`
+	regex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return false
+	}
+
+	matchingParts := regex.FindStringSubmatch(colName)
+	return len(matchingParts) != 0
+}
+
+// Check if colName matches the specified pattern and replace wildcards to generate a new colName.
+func (self *RenameExpr) ProcessRenameRegexExpression(colName string) (string, error) {
+
+	originalPattern := self.OriginalPattern
+	newPattern := self.NewPattern
+
+	regexPattern := `\b` + strings.ReplaceAll(originalPattern, "*", "(.*)") + `\b`
+	regex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return "", fmt.Errorf("ProcessRenameRegexExpression: There are some errors in the pattern: %v", err)
+	}
+
+	matchingParts := regex.FindStringSubmatch(colName)
+	if len(matchingParts) == 0 {
+		return "", nil
+	}
+
+	result := newPattern
+	for _, match := range matchingParts[1:] {
+		result = strings.Replace(result, "*", match, 1)
+	}
+
+	return result, nil
+}
+
+func (self *RenameExpr) RemoveColsByIndex(strs []string, indexToRemove []int) []string {
+	results := make([]string, 0)
+
+	for index, val := range strs {
+		shouldRemove := false
+		for _, delIndex := range indexToRemove {
+			if delIndex == index {
+				shouldRemove = true
+				break
+			}
+		}
+		if shouldRemove {
+			continue
+		}
+		results = append(results, val)
+	}
+	return results
+}
+
+func (self *RenameExpr) RemoveBucketResGroupByColumnsByIndex(bucketResult *BucketResult, indexToRemove []int) {
+
+	if len(indexToRemove) == 0 {
+		return
+	}
+
+	bucketResult.GroupByKeys = self.RemoveColsByIndex(bucketResult.GroupByKeys, indexToRemove)
+
+	switch bucketKey := bucketResult.BucketKey.(type) {
+	case []string:
+		bucketResult.BucketKey = self.RemoveColsByIndex(bucketKey, indexToRemove)
+	case string:
+		bucketResult.BucketKey = nil
+	}
+
+}
+
+// Remove unused GroupByVals in Bucket Holder
+func (self *RenameExpr) RemoveBucketHolderGroupByColumnsByIndex(bucketHolder *BucketHolder, groupByCols []string, indexToRemove []int) {
+
+	if len(indexToRemove) == 0 {
+		return
+	}
+
+	groupByVals := make([]string, 0)
+	for index := range groupByCols {
+		shouldRemove := false
+		for _, delIndex := range indexToRemove {
+			if delIndex == index {
+				shouldRemove = true
+				break
+			}
+		}
+		if shouldRemove {
+			continue
+		}
+		groupByVals = append(groupByVals, bucketHolder.GroupByValues[index])
+	}
+
+	bucketHolder.GroupByValues = groupByVals
+
 }
 
 // Evaluate this NumericExpr to a float, replacing each field in the expression

@@ -472,6 +472,62 @@ func (sr *SearchResults) GetGroupyByBuckets(limit int) ([]*structs.BucketHolder,
 	}
 }
 
+// For Rename or top/rare block, we may need to delete some groupby columns while processing them
+func (sr *SearchResults) RemoveUnusedGroupByCols(aggGroupByCols []string) []string {
+	for agg := sr.sAggs; agg != nil; agg = agg.Next {
+		// Rename block
+		aggGroupByCols = sr.GetRenameGroupByCols(aggGroupByCols, agg)
+		// Statistic block: to be finished
+	}
+	return aggGroupByCols
+}
+
+// Rename field A to field B. If A and B are groupby columns, field B should be removed from groupby columns, and rename A to B
+func (sr *SearchResults) GetRenameGroupByCols(aggGroupByCols []string, agg *structs.QueryAggregators) []string {
+	if agg.OutputTransforms != nil && agg.OutputTransforms.LetColumns != nil && agg.OutputTransforms.LetColumns.RenameColRequest != nil {
+
+		// Except for regex, other RenameExprModes will only rename one column
+		renameIndex := -1
+		indexToRemove := make([]int, 0)
+
+		for index, groupByCol := range aggGroupByCols {
+			switch agg.OutputTransforms.LetColumns.RenameColRequest.RenameExprMode {
+			case structs.REMPhrase:
+				fallthrough
+			case structs.REMOverride:
+
+				if groupByCol == agg.OutputTransforms.LetColumns.RenameColRequest.OriginalPattern {
+					renameIndex = index
+				}
+				if groupByCol == agg.OutputTransforms.LetColumns.RenameColRequest.NewPattern {
+					indexToRemove = append(indexToRemove, index)
+				}
+
+			case structs.REMRegex:
+				newColName, err := agg.OutputTransforms.LetColumns.RenameColRequest.ProcessRenameRegexExpression(groupByCol)
+				if err != nil {
+					return []string{}
+				}
+				if len(newColName) == 0 {
+					continue
+				}
+				for i, colName := range aggGroupByCols {
+					if colName == newColName {
+						indexToRemove = append(indexToRemove, i)
+						break
+					}
+				}
+				aggGroupByCols[index] = newColName
+			}
+		}
+		if renameIndex != -1 {
+			aggGroupByCols[renameIndex] = agg.OutputTransforms.LetColumns.RenameColRequest.NewPattern
+		}
+		aggGroupByCols = agg.OutputTransforms.LetColumns.RenameColRequest.RemoveColsByIndex(aggGroupByCols, indexToRemove)
+	}
+	return aggGroupByCols
+}
+
 // Subsequent calls may not return the same result as the previous may clean up the underlying heap used. Use GetResultsCopy to prevent this
 func (sr *SearchResults) GetResults() []*utils.RecordResultContainer {
 	sr.updateLock.Lock()
