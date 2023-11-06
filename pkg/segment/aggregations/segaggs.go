@@ -274,7 +274,7 @@ func performStatisticColRequestOnHistogram(nodeResult *structs.NodeResult, letCo
 
 			// Set the appropriate column to the computed value
 			if countIsGroupByCol || percentIsGroupByCol {
-				err := letColReq.StatisticColRequest.OverrideGroupByCol(bucketResult, nodeResult.RenameColumns, resTotal)
+				err := letColReq.StatisticColRequest.OverrideGroupByCol(bucketResult, resTotal)
 				if err != nil {
 					return fmt.Errorf("performStatisticColRequestOnHistogram: %v", err)
 				}
@@ -322,7 +322,7 @@ func performStatisticColRequestOnHistogram(nodeResult *structs.NodeResult, letCo
 			}
 
 			if countIsGroupByCol || percentIsGroupByCol {
-				err := letColReq.StatisticColRequest.OverrideGroupByCol(otherBucketRes, nodeResult.RenameColumns, resTotal)
+				err := letColReq.StatisticColRequest.OverrideGroupByCol(otherBucketRes, resTotal)
 				if err != nil {
 					return fmt.Errorf("performStatisticColRequestOnHistogram: %v", err)
 				}

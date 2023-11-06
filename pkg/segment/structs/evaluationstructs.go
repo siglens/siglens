@@ -508,11 +508,11 @@ func GetBucketKey(BucketKey interface{}, keyIndex int) string {
 	}
 }
 
-func (self *StatisticExpr) OverrideGroupByCol(bucketResult *BucketResult, RenameColumns map[string]string, resTotal uint64) error {
+func (self *StatisticExpr) OverrideGroupByCol(bucketResult *BucketResult, resTotal uint64) error {
 
 	cellValueStr := ""
 	for keyIndex, groupByCol := range bucketResult.GroupByKeys {
-		if self.Options.CountField != groupByCol && self.Options.PercentField != groupByCol {
+		if !self.Options.ShowCount || !self.Options.ShowPerc || (self.Options.CountField != groupByCol && self.Options.PercentField != groupByCol) {
 			continue
 		}
 
@@ -709,20 +709,6 @@ func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *Bucke
 
 	bucketResult.GroupByKeys = groupByKeys
 	return nil
-}
-
-func (self *StatisticExpr) RemoveFieldsNotInExprForBucketHolder(groupByCols []string, fieldsInExpr []string, bucketHolder *BucketHolder) {
-
-	groupByVals := make([]string, len(self.GetGroupByCols()))
-	for index, groupByCol := range groupByCols {
-		for _, field := range fieldsInExpr {
-			if groupByCol == field {
-				groupByVals = append(groupByVals, bucketHolder.GroupByValues[index])
-			}
-		}
-	}
-
-	bucketHolder.GroupByValues = groupByVals
 }
 
 func (self *StatisticExpr) GetGroupByCols() []string {
