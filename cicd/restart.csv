@@ -94,3 +94,6 @@ city=Boston | stats count AS Count BY app_name | eval len=len(app_name) | where 
 "city=Boston | stats count AS Count BY http_status | eval result=if(cidrmatch("192.0.2.0/24", "192.0.2.5"), "local", "not local")",now-1d,now,*,group:result:200,eq,local,Splunk QL
 "city=Boston | stats count AS Count BY weekday | rex field=weekday ""(?<first>.{3})(?<second>.*)""",now-1d,now,*,group:first:Friday,eq,Fri,Splunk QL
 "city=Boston | stats count AS Count BY http_status | rex field=http_status ""(?<first>\d)(?<second>\d)(?<third>\d)""",now-1d,now,*,group:third:404,eq,4,Splunk QL
+"city=Boston | stats count AS Count BY http_method| rename http_method AS ""test""",now-1d,now,*,group:test:POST,eq,POST,Splunk QL
+"city=Boston | stats count AS Count BY http_status, http_method | eval newField=(http_status - 1000) | rename newField AS http_method",now-1d,now,*,group:http_method:400,eq,-600,Splunk QL
+city=Boston | stats count AS Count BY http_method | eval newField=lower(http_method) | rename new* AS start*end,now-1d,now,*,group:startFieldend:PATCH,eq,patch,Splunk QL
