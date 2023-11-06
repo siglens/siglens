@@ -2461,6 +2461,68 @@ func Test_rexBlockOverideExistingFieldWithGroupBy(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.RexColRequest.RexColNames, []string{"http_status", "weekday", "third"})
 }
 
+func Test_renameBlockPhrase(t *testing.T) {
+	query := []byte(`city=Boston | fields city, country | rename city AS "test"`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.Equal(t, aggregator.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.RenameColRequest)
+	assert.Equal(t, structs.REMPhrase, int(aggregator.Next.OutputTransforms.LetColumns.RenameColRequest.RenameExprMode))
+	assert.Equal(t, "city", aggregator.Next.OutputTransforms.LetColumns.RenameColRequest.OriginalPattern)
+	assert.Equal(t, "test", aggregator.Next.OutputTransforms.LetColumns.RenameColRequest.NewPattern)
+}
+
+func Test_renameBlockRegex(t *testing.T) {
+	query := []byte(`city=Boston | stats count AS Count BY http_status, http_method | rename ht*_* AS start*mid*end`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.NotNil(t, aggregator.Next.Next)
+	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.RenameColRequest)
+	assert.Equal(t, structs.REMRegex, int(aggregator.Next.Next.OutputTransforms.LetColumns.RenameColRequest.RenameExprMode))
+	assert.Equal(t, "ht*_*", aggregator.Next.Next.OutputTransforms.LetColumns.RenameColRequest.OriginalPattern)
+	assert.Equal(t, "start*mid*end", aggregator.Next.Next.OutputTransforms.LetColumns.RenameColRequest.NewPattern)
+}
+
+func Test_renameOverrideExistingField(t *testing.T) {
+	query := []byte(`city=Boston | stats count AS Count BY http_status, http_method | rename http_status AS Count`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.NotNil(t, aggregator.Next.Next)
+	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.RenameColRequest)
+	assert.Equal(t, structs.REMOverride, int(aggregator.Next.Next.OutputTransforms.LetColumns.RenameColRequest.RenameExprMode))
+	assert.Equal(t, "http_status", aggregator.Next.Next.OutputTransforms.LetColumns.RenameColRequest.OriginalPattern)
+	assert.Equal(t, "Count", aggregator.Next.Next.OutputTransforms.LetColumns.RenameColRequest.NewPattern)
+}
+
 func Test_evalNewField(t *testing.T) {
 	query := []byte(`search A=1 | stats max(latency) AS Max | eval MaxSeconds=Max . " seconds"`)
 	res, err := spl.Parse("", query)
