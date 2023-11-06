@@ -73,12 +73,6 @@ func StartSiglensServer(nodeType config.DeploymentType, nodeID string) error {
 		return fmt.Errorf("nodeID cannot be empty")
 	}
 
-	err = config.InitDerivedConfig(nodeID)
-	if err != nil {
-		log.Errorf("Error initializing derived configurations! %v", err)
-		return err
-	}
-
 	usageStats.StartUsageStats()
 	ingestNode := config.IsIngestNode()
 	queryNode := config.IsQueryNode()
