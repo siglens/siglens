@@ -142,20 +142,12 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 
 	// Make a column for each attribute key.
 	for _, keyvalue := range span.Attributes {
-		key := keyvalue.Key
-
-		switch keyvalue.Value.Value.(type) {
-		case *commonpb.AnyValue_StringValue:
-			result[key] = keyvalue.Value.GetStringValue()
-		case *commonpb.AnyValue_IntValue:
-			result[key] = keyvalue.Value.GetIntValue()
-		case *commonpb.AnyValue_DoubleValue:
-			result[key] = keyvalue.Value.GetDoubleValue()
-		case *commonpb.AnyValue_BoolValue:
-			result[key] = keyvalue.Value.GetBoolValue()
-		default:
-			return nil, fmt.Errorf("spanToJson: unsupported value type in attributes: %T", keyvalue.Value.Value)
+		key, value, err := extractKeyValue(keyvalue)
+		if err != nil {
+			return nil, fmt.Errorf("spanToJson: failed to extract KeyValue: %v", err)
 		}
+
+		result[key] = value
 	}
 
 	eventsJson, err := json.Marshal(span.Events)
@@ -172,6 +164,42 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 
 	bytes, err := json.Marshal(result)
 	return bytes, err
+}
+
+func extractKeyValue(keyvalue *commonpb.KeyValue) (string, interface{}, error) {
+	value, err := extractAnyValue(keyvalue.Value)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return keyvalue.Key, value, nil
+}
+
+func extractAnyValue(anyValue *commonpb.AnyValue) (interface{}, error) {
+	switch anyValue.Value.(type) {
+	case *commonpb.AnyValue_StringValue:
+		return anyValue.GetStringValue(), nil
+	case *commonpb.AnyValue_IntValue:
+		return anyValue.GetIntValue(), nil
+	case *commonpb.AnyValue_DoubleValue:
+		return anyValue.GetDoubleValue(), nil
+	case *commonpb.AnyValue_BoolValue:
+		return anyValue.GetBoolValue(), nil
+	case *commonpb.AnyValue_ArrayValue:
+		arrayValue := anyValue.GetArrayValue().Values
+		value := make([]interface{}, len(arrayValue))
+		for i := range arrayValue {
+			var err error
+			value[i], err = extractAnyValue(arrayValue[i])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return value, nil
+	default:
+		return nil, fmt.Errorf("extractAnyValue: unsupported value type: %T", anyValue)
+	}
 }
 
 func linksToJson(spanLinks []*tracepb.Span_Link) ([]byte, error) {
@@ -206,24 +234,6 @@ func linksToJson(spanLinks []*tracepb.Span_Link) ([]byte, error) {
 	}
 
 	return json.Marshal(links)
-}
-
-func extractKeyValue(keyvalue *commonpb.KeyValue) (string, interface{}, error) {
-	var value interface{}
-	switch keyvalue.Value.Value.(type) {
-	case *commonpb.AnyValue_StringValue:
-		value = keyvalue.Value.GetStringValue()
-	case *commonpb.AnyValue_IntValue:
-		value = keyvalue.Value.GetIntValue()
-	case *commonpb.AnyValue_DoubleValue:
-		value = keyvalue.Value.GetDoubleValue()
-	case *commonpb.AnyValue_BoolValue:
-		value = keyvalue.Value.GetBoolValue()
-	default:
-		return "", nil, fmt.Errorf("extractKeyValue: unsupported value type: %T", keyvalue.Value.Value)
-	}
-
-	return keyvalue.Key, value, nil
 }
 
 func setFailureResponse(ctx *fasthttp.RequestCtx, statusCode int, message string) {
