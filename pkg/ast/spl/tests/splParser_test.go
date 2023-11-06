@@ -2459,6 +2459,76 @@ func Test_rexBlockOverideExistingFieldWithGroupBy(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.RexColRequest.RexColNames, []string{"http_status", "weekday", "third"})
 }
 
+func Test_statisticBlockWithoutStatsGroupBy(t *testing.T) {
+	query := []byte(`city=Boston | rare 3 http_method, gender by country, http_status useother=true otherstr=testOther percentfield=http_method countfield=gender showperc=false`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.GroupByRequest)
+	assert.Equal(t, []string{"http_method", "gender", "country", "http_status"}, aggregator.GroupByRequest.GroupByColumns)
+	assert.NotNil(t, aggregator.Next)
+	assert.Equal(t, structs.OutputTransformType, aggregator.Next.PipeCommandType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest)
+	assert.Equal(t, structs.SFMRare, int(aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticFunctionMode))
+
+	assert.Equal(t, "3", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Limit)
+	assert.Equal(t, "gender", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.CountField)
+	assert.Equal(t, "testOther", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.OtherStr)
+	assert.Equal(t, "http_method", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.PercentField)
+	assert.Equal(t, true, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.ShowCount)
+	assert.Equal(t, false, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.ShowPerc)
+	assert.Equal(t, true, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.UseOther)
+
+	assert.Equal(t, []string{"http_method", "gender"}, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.FieldList)
+	assert.Equal(t, []string{"country", "http_status"}, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.ByClause)
+}
+
+func Test_statisticBlockWithStatsGroupBy(t *testing.T) {
+	query := []byte(`city=Boston | stats count AS gg BY http_status, weekday, gender, state | top 2 gg, state, http_status useother=true countfield=true percentfield=weekday`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.GroupByType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.GroupByRequest)
+	assert.Equal(t, []string{"http_status", "weekday", "gender", "state"}, aggregator.GroupByRequest.GroupByColumns)
+	assert.NotNil(t, aggregator.Next)
+	assert.NotNil(t, aggregator.Next.Next)
+	assert.NotNil(t, aggregator.Next.Next.Next)
+	assert.NotNil(t, aggregator.Next.Next.GroupByRequest)
+	assert.Equal(t, structs.GroupByType, aggregator.Next.Next.PipeCommandType)
+	assert.Equal(t, []string{"gg", "state", "http_status"}, aggregator.Next.Next.GroupByRequest.GroupByColumns)
+	assert.Equal(t, structs.OutputTransformType, aggregator.Next.Next.Next.PipeCommandType)
+	assert.NotNil(t, aggregator.Next.Next.Next.OutputTransforms)
+	assert.NotNil(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns)
+
+	assert.NotNil(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest)
+	assert.Equal(t, structs.SFMTop, int(aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticFunctionMode))
+	assert.Equal(t, "2", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Limit)
+	assert.Equal(t, "true", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.CountField)
+	assert.Equal(t, "other", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.OtherStr)
+	assert.Equal(t, "weekday", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.PercentField)
+	assert.Equal(t, true, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.ShowCount)
+	assert.Equal(t, true, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.ShowPerc)
+	assert.Equal(t, true, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.UseOther)
+
+	assert.Equal(t, []string{"gg", "state", "http_status"}, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.FieldList)
+	assert.Equal(t, []string(nil), aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.ByClause)
+}
+
 func Test_evalNewField(t *testing.T) {
 	query := []byte(`search A=1 | stats max(latency) AS Max | eval MaxSeconds=Max . " seconds"`)
 	res, err := spl.Parse("", query)
