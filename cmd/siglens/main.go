@@ -58,6 +58,14 @@ func main() {
 		log.Errorf("Invalid deployment type! Error=[%+v]", err)
 		os.Exit(1)
 	}
+
+	nodeID := localnodeid.GetRunningNodeID()
+	err = config.InitDerivedConfig(nodeID)
+	if err != nil {
+		log.Errorf("Error initializing derived configurations! %v", err)
+		os.Exit(1)
+	}
+
 	serverCfg := *config.GetRunningConfig() // Init the Configuration
 	var logOut string
 	if config.GetLogPrefix() == "" {
@@ -95,7 +103,6 @@ func main() {
 	}
 	log.Infof("Running config %s", string(configJSON))
 
-	nodeID := localnodeid.GetRunningNodeID()
 	err = startup.StartSiglensServer(nodeType, nodeID)
 	if err != nil {
 		startup.ShutdownSiglensServer()
