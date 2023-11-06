@@ -409,10 +409,10 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
     return aggNode, nil
 }
 
-StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(FieldList) byClause:(ByClause)? options:(Options)? {
+StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(SPACE FieldNameList) byClause:(ByClause)? options:(Options)? {
 
     statisticExpr := &structs.StatisticExpr {
-        FieldList: fieldList.([]string),
+        FieldList: fieldList.([]interface{})[1].([]string),
     }
 
     statisticCmd, err := transferUint8ToString(cmd)
@@ -521,21 +521,11 @@ OptionCMD <- option:("countfield" / "showcount" / "otherstr" / "useother"/ "perc
     return optionStr, nil
 }
 
-FieldList <- SPACE field:EvalFieldToRead rest:("," SPACE EvalFieldToRead)* {
-    restSlice := rest.([]any)
-    slice := make([]string, 1 + len(restSlice))
-    slice[0] = field.(string)
-
-    for i := range restSlice {
-        fieldAtom := restSlice[i].([]any)
-        slice[i + 1] = fieldAtom[2].(string)
-    }
-
-    return slice, nil
-}
-
-ByClause <- SPACE "by" fieldList:FieldList {
+ByClause <- by fieldList:FieldNameList {
     return fieldList.([]string), nil
+}
+/ groupByBlock:GroupbyBlock {
+    return groupByBlock.([]string), nil
 }
 
 RexBlock <- PIPE CMD_REX "field=" field:EvalFieldToRead SPACE str:QuotedString {
@@ -1458,6 +1448,7 @@ AND <- SPACE "AND" SPACE
 PIPE <- SPACE "|" SPACE
 AS <- SPACE "AS" SPACE
 BY <- SPACE "BY" SPACE
+by <- SPACE "by" SPACE
 
 EOF <- !.
 SPACE <- (" "? COMMENT " "?) / " "

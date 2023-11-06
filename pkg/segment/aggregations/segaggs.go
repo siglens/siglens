@@ -80,7 +80,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 
 	// For the query without groupby, skip the first aggregator without a QueryAggergatorBlock
 	// For the query that has a groupby, groupby block's aggregation is in the post.Next. Therefore, we should start from the groupby's aggregation.
-	if !post.HasQueryAggergatorBlock() || post.IsStatisticBlockEmpty() {
+	if !post.HasQueryAggergatorBlock() {
 		post = post.Next
 	}
 
@@ -97,8 +97,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 }
 
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}) error {
-	log.Error("fjl nodeResult:", nodeResult)
-	log.Error("fjl agg:", agg)
+
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
