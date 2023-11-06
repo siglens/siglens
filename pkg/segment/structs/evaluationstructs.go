@@ -563,6 +563,8 @@ func (self *StatisticExpr) sortByBucketKey(a, b *BucketResult, fieldList []strin
 		keyIndex := fieldToGroupByKeyIndex[field]
 		if GetBucketKey(a.BucketKey, keyIndex) < GetBucketKey(b.BucketKey, keyIndex) {
 			return false
+		} else if GetBucketKey(a.BucketKey, keyIndex) > GetBucketKey(b.BucketKey, keyIndex) {
+			return true
 		}
 	}
 	return true
