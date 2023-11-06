@@ -616,25 +616,26 @@ body {
 }
 .filter-container{
     display: grid !important;
-    grid-template-columns: 2fr auto auto auto auto;
+    grid-template-columns: 2fr auto auto;
     column-gap: 15px;
     margin-top: 16px;
-    margin-left: 23px;
-    margin-right: 10px;
+    margin-left: 20px;
+    margin-right: 24px;
     height: 44px;
     background-color: var(--top-bar-bg-color-regular);
 }
 #filter-container {
     display: grid;
-    grid-template-columns: 2fr auto auto auto auto;
+    grid-template-columns: 2fr auto;
     column-gap: 15px;
     margin-top: 16px;
     margin-left: 23px;
-    margin-right: 10px;
+    margin-right: 24px;
     height: 44px;
     background-color: var(--top-bar-bg-color-regular);
 
 }
+#query-builder-btn,
 #live-tail-btn,
 #run-filter-btn,
 #add-icon,
@@ -667,6 +668,7 @@ body {
 #cancel-enter-third:hover,
 #live-tail-btn:hover,
 #run-filter-btn:hover,
+#query-builder-btn:hover,
 #saveq-btn:hover,
 #search-query-btn:hover,
 #run-metrics-query-btn:hover{
@@ -681,6 +683,7 @@ body {
 #cancel-enter-second:active,
 #cancel-enter-third:active,
 #live-tail-btn.active,
+#query-builder-btn.active,
 #run-filter-btn.active {
     background: var(--btn-hover-or-click-bg-color);
 }
@@ -690,6 +693,7 @@ body {
 #filter-input,
 #date-picker-btn,
 #run-filter-btn,
+#query-builder-btn,
 #live-tail-btn,
 #saveq-btn,
 #create-db-btn,
@@ -811,6 +815,7 @@ body {
 #cancel-enter-third,
 #live-tail-btn,
 #run-filter-btn,
+#query-builder-btn,
 #saveq-btn,
 #create-db-btn,
 #run-metrics-query-btn,
@@ -2019,8 +2024,6 @@ progress.hidden {
 
 .ui-widget {
     font-size: 1em;
-    height: 327px !important;
-    width: 464px !important;
 }
 
 .ui-dialog-titlebar-close {
@@ -4554,7 +4557,7 @@ color: #C8C7CC;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    padding: 0 26px 0 22px;
+    padding: 0 24px 0 22px;
     margin-top: 15px;
 }
 
@@ -4703,10 +4706,6 @@ li.ui-tabs-active{
 .ui-state-active{
     border: none;
 }
-.ui-tabs{
-    width: 100% !important;
-    height: 200px !important;
-}
 .custom-code-tab{
     border: 0 !important;
     font-size: 15px;
@@ -4720,4 +4719,25 @@ li.ui-tabs-active{
     display: flex;
     flex-direction: row;
     justify-content: center;
+}
+.query-text{
+    height: 44px;
+}
+.query-box{
+    padding: 10px 24px 0 24px;
+}
+.tab-list{
+    padding: 10px 24px 0 23px !important;
+}
+.dropdown-box{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    position: absolute;
+    right: 24px;
+    top: 10px;
+    width: 230px;
+}
+.tab-li{
+    height: 44px;
 }

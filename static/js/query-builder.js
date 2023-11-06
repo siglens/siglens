@@ -1,6 +1,12 @@
 "use strict";
 $(function () {
   $("#custom-code-tab").tabs();
+  // let currentTab = $("#custom-code-tab").tabs("option", "active");
+  // console.log("Current tab = " + currentTab);
+});
+$("#custom-code-tab").tabs({
+  activate: function (event, ui) {
+  },
 });
 $(document).ready(function () {
   $("#add-con").on("click", filterStart);

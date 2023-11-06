@@ -20,6 +20,7 @@ function setupEventHandlers() {
     $('#filter-input').on('keyup', filterInputHandler);
 
     $('#run-filter-btn').on('click', runFilterBtnHandler);
+    $("#query-builder-btn").on("click", runFilterBtnHandler);
     $("#live-tail-btn").on("click", runLiveTailBtnHandler);
 
     $('#available-fields').on('click', availableFieldsClickHandler);
@@ -370,29 +371,36 @@ function runLiveTailBtnHandler(evt) {
 function runFilterBtnHandler(evt) {
     $('.popover').hide();
     evt.preventDefault();
-    if ($('#run-filter-btn').text() === "Search") {
-        resetDashboard();
-        logsRowData = [];
-        wsState = 'query';
-        data = getSearchFilter(false,false);
-        availColNames = [];
-        doSearch(data);
+    if (
+      $("#run-filter-btn").text() === "Search" ||
+      $("#query-builder-btn").text() === "Search"
+    ) {
+      resetDashboard();
+      logsRowData = [];
+      wsState = "query";
+      data = getSearchFilter(false, false);
+      availColNames = [];
+      doSearch(data);
     } else {
-        wsState = 'cancel';
-        data = getSearchFilter(false,false);
-        doCancel(data);
+      wsState = "cancel";
+      data = getSearchFilter(false, false);
+      doCancel(data);
     }
     $('#daterangepicker').hide();
 }
 
 function filterInputHandler(evt) {
     evt.preventDefault();
-    if (evt.keyCode === 13 && $('#run-filter-btn').text() === "Search") {
-        resetDashboard();
-        logsRowData = [];
-        data = getSearchFilter(false,false);
-        availColNames = [];
-        doSearch(data);
+    if (
+      evt.keyCode === 13 &&
+      ($("#run-filter-btn").text() === "Search" ||
+        $("#query-builder-btn").text() === "Search")
+    ) {
+      resetDashboard();
+      logsRowData = [];
+      data = getSearchFilter(false, false);
+      availColNames = [];
+      doSearch(data);
     }
 }
 
