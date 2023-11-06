@@ -53,10 +53,5 @@ jobs:
             push: true
             platforms: linux/amd64,linux/arm64
             tags: ${{ steps.meta.outputs.tags }}
-      -
-        name: Upload server.yaml to S3
-        run: |
-          TAG=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
-          aws s3 cp server.yaml s3://sigscalr-configs/$TAG/server.yaml
-          
+    #Add step to Upload server.yaml to github  when github releases is setup
           
