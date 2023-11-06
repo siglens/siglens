@@ -314,11 +314,14 @@ func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit 
 		return rQuery.searchRes.GetSegmentStatsResults(skenc)
 	case structs.GroupByCmd:
 		if pullGrpBucks {
+			rowCnt := MAX_GRP_BUCKS
 			if limit != -1 {
-				return rQuery.searchRes.GetGroupyByBuckets(limit)
-			} else {
-				return rQuery.searchRes.GetGroupyByBuckets(MAX_GRP_BUCKS)
+				rowCnt = limit
 			}
+
+			bucketHolderArr, retMFuns, aggGroupByCols, added := rQuery.searchRes.GetGroupyByBuckets(rowCnt)
+			aggGroupByCols = rQuery.searchRes.RemoveUnusedGroupByCols(aggGroupByCols)
+			return bucketHolderArr, retMFuns, aggGroupByCols, added
 		} else {
 			return nil, nil, nil, 0
 		}

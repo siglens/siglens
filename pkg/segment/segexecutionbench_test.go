@@ -132,7 +132,7 @@ func Benchmark_ApplyFilterOpAndAggs(b *testing.B) {
 	for i := 0; i < count; i++ {
 		qItTime := time.Now()
 		nodeRes := query.ApplyFilterOperator(simpleNode, fullTimeRange, agg, 0, &qc)
-		nodeRes = aggregations.PostQueryBucketCleaning(nodeRes, agg, nil)
+		nodeRes = aggregations.PostQueryBucketCleaning(nodeRes, agg, nil, nil)
 		if doRespGen {
 			esquery.GetQueryResponseJson(nodeRes, "test", qItTime, sizeLimit, 0, agg)
 		}
