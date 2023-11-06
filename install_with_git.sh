@@ -24,10 +24,7 @@ display_step 3 "Changing directory and downloading Go dependencies"
 cd siglens
 go mod tidy
 
-# Step 4: Check if the user is allowed to open port 80
-
-PORT=80 #Changing to PORT=8090 if able access to localhost:80
-
+PORT=80 
 display_step 4 "Running the Server on http://localhost:$PORT"
 if [ $PORT == 80 ]; then 
 	echo "If you are not able to access localhost:80 to changing the PORT=8090"
