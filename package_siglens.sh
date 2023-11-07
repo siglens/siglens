@@ -75,7 +75,7 @@ for platform in "${platforms[@]}"; do
         cp server.yaml ${dirname}
     fi
 
-    cp GETTING_STARTED.md ${dirname}
+    cp README.md ${dirname}
 
     outputname="siglens-${SIGLENS_VERSION}-${GOOS}-${GOARCH}.tar.gz"
     echo "Building tar archive at ${outputname}..."

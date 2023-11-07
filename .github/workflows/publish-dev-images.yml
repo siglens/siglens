@@ -55,3 +55,89 @@ jobs:
             tags: ${{ steps.meta.outputs.tags }}
     #Add step to Upload server.yaml to github  when github releases is setup
           
+  sigscalr-binaries:
+      runs-on: ubuntu-latest
+      environment: build-environment
+      permissions:
+        id-token: write
+        contents: read
+      steps:
+        -
+          name: Checkout
+          uses: actions/checkout@v3
+        - 
+          name: Setup go
+          uses: actions/setup-go@v3
+          with:
+            go-version: '>=1.18.0'
+        -
+          name: Setup zig
+          uses: goto-bus-stop/setup-zig@v2
+        - 
+          name: install cross compiler for linux/amd64
+          run: sudo apt-get -y install build-essential
+        - name: version
+          run: TAG=$(sed -n 's/const SigScalrVersion = "\(.*\)"/\1/p' pkg/config/version.go)
+          id: version
+        -
+          name: Package SigScalr
+          run: |
+            ./package_siglens.sh -p linux/amd64,linux/arm64,darwin/amd64,darwin/arm64
+        - name: release
+          uses: actions/create-release@v1
+          id: create_release
+          with:
+              draft: false
+              prerelease: false
+              release_name: ${{ steps.version.outputs.version }}
+              tag_name: ${{ github.ref }}
+              body_path: CHANGELOG.md
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+        - name: upload linux amd artifact
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: "siglens-${{ steps.version.outputs.version }}-linux-amd64.tar.gz"
+            asset_name: "siglens-${{ steps.version.outputs.version }}-linux-amd64.tar.gz"
+            asset_content_type: application/gzip
+        - name: upload linux arm artifact
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: "siglens-${{ steps.version.outputs.version }}-linux-arm64.tar.gz"
+            asset_name: "siglens-${{ steps.version.outputs.version }}-linux-arm64.tar.gz"
+            asset_content_type: application/gzip
+   
+        - name: upload darwin amd artifact
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: "siglens-${{ steps.version.outputs.version }}-darwin-amd64.tar.gz"
+            asset_name: "siglens-${{ steps.version.outputs.version }}-darwin-amd64.tar.gz"
+            asset_content_type: application/gzip
+        - name: upload darwin arm artifact
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: "siglens-${{ steps.version.outputs.version }}-darwin-arm64.tar.gz"
+            asset_name: "siglens-${{ steps.version.outputs.version }}-darwin-arm64.tar.gz"
+            asset_content_type: application/gzip
+        - name: Upload Release Asset - server.yaml
+          id: upload-release-asset-serverConfig
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: server.yaml
+            asset_name: server.yaml
+            asset_content_type: application/octet-stream
