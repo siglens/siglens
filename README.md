@@ -89,10 +89,3 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contri
 ## Code of Conduct
 `TBD`
 
-
-Lorem ipsum dolor sit amet.
-
-
-<a href="https://github.com/siglens/siglens/blob/develop/install_with_git.sh"  target="_blank" rel="noopener noreferrer" Download="install_with_docker.sh">Download</a>
-
-<a href="https://software.spectrocloud.com/palette-cli/v4.1.0/linux/cli/palette" target="_blank" rel="noopener noreferrer">Linux-amd64</a>
