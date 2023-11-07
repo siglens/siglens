@@ -22,26 +22,39 @@ Come say Hi to us on <a href="https://www.siglens.com/slack" target="_blank">Sla
 
 ## Getting Started
 
-### Using Git Repo
+### Install Using Git Repo
 ```
 git clone git@github.com:siglens/siglens
 cd siglens
 go run cmd/siglens/main.go --config server.yaml
 ```
 
-### Using SigLens Binary
+### Install Using SigLens Binary
 `TBD`
 
-### Using SigLens Docker
+### Install Using SigLens Docker
+
+- SigLens can be installed on Linux or macOS machine. 
+- On macOS, Docker Engine should be installed before you run the install script. 
+- Git clone the SigLens repository and cd into the siglens directory 
+```
+    git@github.com:siglens/siglens.git
+    cd siglens
+```
+- Run the install.sh script:
+```
+    ./install_with_docker.sh
+```
+
 The SigLens backend is deployed independently of the UI. 
 To allow the UI to connect to the backend a docker network can be used.
-```bash
-wget https://sigscalr-configs.s3.amazonaws.com/0.1.0 /server.yaml
-docker pull siglens/siglens:0.1.0 
-mkdir data
-docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
-    --mount type=bind,source="$(pwd)"/server.yaml,target=/siglens/server.yaml \
-    -p 8081:8081 -p 80:80 siglens/siglens:0.1.0 
+```
+    wget https://sigscalr-configs.s3.amazonaws.com/1.1.31/server.yaml
+    docker pull siglens/siglens:0.1.0 
+    mkdir data
+    docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
+        --mount type=bind,source="$(pwd)"/server.yaml,target=/siglens/server.yaml \
+        -p 8081:8081 -p 80:80 siglens/siglens:0.1.0 
 ```
 To be able to query data across restarts, set `ssInstanceName` in server.yaml.
 
