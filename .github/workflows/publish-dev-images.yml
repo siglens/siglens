@@ -91,8 +91,8 @@ jobs:
               draft: false
               prerelease: false
               release_name: ${{ steps.version.outputs.version }}
-              tag_name: ${{ github.ref }}
-              body_path: CHANGELOG.md
+              # tag_name: ${{ github.ref }}
+              # body_path: CHANGELOG.md
           env:
             GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
         - name: upload linux amd artifact
