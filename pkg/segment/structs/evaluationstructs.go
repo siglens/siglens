@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/siglens/siglens/pkg/segment/utils"
 )
@@ -814,6 +815,10 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			}
 		}
 		return minString, nil
+	} else if self.Op == "now" {
+
+		timestamp := time.Now().Unix()
+		return strconv.FormatInt(timestamp, 10), nil
 	}
 
 	cellValueStr, err := self.Value.Evaluate(fieldToValue)
@@ -902,10 +907,15 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 }
 
 func (self *TextExpr) GetFields() []string {
+	fields := make([]string, 0)
 	if self.IsTerminal || (self.Op != "max" && self.Op != "min") {
-		return self.Value.GetFields()
+		if self.Op == "now" {
+			return fields
+		}
+		if self.Value != nil {
+			fields = append(fields, self.Value.GetFields()...)
+		}
 	}
-	var fields []string
 	for _, expr := range self.MaxMinValues {
 		fields = append(fields, expr.GetFields()...)
 	}
