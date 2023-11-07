@@ -16,15 +16,15 @@ case "$(uname -sr)" in
    Darwin*)
      os="darwin" 
      package_manager="brew" ;;
-   Linux*)
-     os="linux" 
-     package_manager="apt-get" ;;
    Ubuntu*|Pop!_OS)
      os="linux"
      package_manager="apt-get" ;;
-   Amazon\ Linux*)
+   Linux*amzn2*)
      os="amazon linux"
      package_manager="yum" ;;
+   Linux*)
+     os="linux"
+     package_manager="apt-get" ;;
    Debian*)
      os="linux"
      package_manager="apt-get" ;;
@@ -47,7 +47,7 @@ esac
 arch=$(uname -m)
 if [[ $arch == x86_64* ]]; then
     arch="amd64"
-elif  [[ $arch == arm* ]]; then
+elif  [[ $arch == arm* || $arch == "aarch64" ]]; then
     arch="arm64"
 else
     echo 'Not Supported Architecture'
