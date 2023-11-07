@@ -76,9 +76,12 @@ jobs:
         - 
           name: install cross compiler for linux/amd64
           run: sudo apt-get -y install build-essential
-        - name: version
-          run: TAG=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
-          id: version
+        - 
+          name: version
+          run: |
+            TAG=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
+            echo "TAG=$TAG" >> $GITHUB_ENV
+            cat $GITHUB_ENV
         -
           name: Package SigScalr
           run: |
@@ -90,8 +93,8 @@ jobs:
           with:
               draft: false
               prerelease: false
-              release_name: ${{ steps.version.outputs.version }}
-              tag_name: ${{ steps.version.outputs.version }}
+              release_name: ${{ env.TAG }}
+              tag_name: ${{ env.TAG }}
               # body_path: CHANGELOG.md
           env:
             GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
@@ -101,8 +104,8 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }}
-            asset_path: "siglens-${{ steps.version.outputs.version }}-linux-amd64.tar.gz"
-            asset_name: "siglens-${{ steps.version.outputs.version }}-linux-amd64.tar.gz"
+            asset_path: "siglens-${{ env.TAG }}-linux-amd64.tar.gz"
+            asset_name: "siglens-${{ env.TAG }}-linux-amd64.tar.gz"
             asset_content_type: application/gzip
         
         - name: Upload Release Asset - server.yaml
