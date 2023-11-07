@@ -77,7 +77,7 @@ jobs:
           name: install cross compiler for linux/amd64
           run: sudo apt-get -y install build-essential
         - name: version
-          run: TAG=$(sed -n 's/const SigScalrVersion = "\(.*\)"/\1/p' pkg/config/version.go)
+          run: TAG=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
           id: version
         -
           name: Package SigScalr
@@ -91,7 +91,8 @@ jobs:
               draft: false
               prerelease: false
               release_name: ${{ steps.version.outputs.version }}
-              tag_name: ${{ steps.version.outputs.version }}
+              tag_name: ${{ github.ref }}
+              # body_path: CHANGELOG.md
           env:
             GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
         - name: upload linux amd artifact
