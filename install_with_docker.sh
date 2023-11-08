@@ -1,4 +1,9 @@
-#!/usr/bin/env bash
+#! /bin/bash
+
+# Extract the version number from pkg/config/version.go by getting everything
+# inside the quotes. Use -n to supress printing each line, and p to print the
+# modified line.
+SIGLENS_VERSION=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
 
 sudo_cmd=""
 
@@ -142,17 +147,24 @@ start_docker
 
 echo -e "\n===>     Pulling the latest docker image for SigLens"
 
-wget https://sigscalr-configs.s3.amazonaws.com/1.1.31/server.yaml
+wget "https://github.com/sunitakawane/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
 $sudo_cmd docker pull siglens/siglens:0.1.0 
 $sudo_cmd mkdir data
 echo ""
 echo -e "\n===> SigLens installation complete"
 echo ""
 echo -e "\n===> Run the following command to start the siglens server"
-echo -e "\n docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
+echo "================================================"
+echo -e "docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
     --mount type=bind,source="$(pwd)"/server.yaml,target=/siglens/server.yaml \
     -p 8081:8081 -p 80:80 siglens/siglens:0.1.0"
 echo ""
+echo -e "ingestPort(8081) and queryPort(80) can be changed using in server.yaml."
+echo ""
+echo -e "To be able to query data across restarts, set ssInstanceName in server.yaml."
+echo ""
+echo -e "The target for the data directory mounting should be the same as the data directory (dataPath configuration) in server.yaml"
+echo "================================================"
 echo -e "\n===> Frontend can be accessed on http://localhost:80"
 echo ""
 echo -e "\n*** Thank you! ***\n"
