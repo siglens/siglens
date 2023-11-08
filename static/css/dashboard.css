@@ -45,6 +45,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
+  padding-right: 2%;
 }
 
 /* PANEL-OPTIONS */
@@ -64,8 +65,9 @@
   flex-direction: column;
   align-items: center;
   height: 100%;
-  background-color: var(--db-options-bg-color);
   border-radius: 5px 0 0 0;
+  border: 1px solid #DCDBDF;
+  box-shadow: 0px 2px 8px 0px #00000029;
 }
 
 .submitBtn-container {
@@ -83,11 +85,12 @@
 
 .title1 {
   width: 85%;
-  min-height: 65px;
+  margin-top: 16px;
   display: flex;
   flex-direction: row;
   align-items: center;
   font-size: 22px;
+  margin-bottom: 15px;
 }
 
 .panEdit-nameChange,
@@ -103,13 +106,13 @@
 }
 
 #panEdit-nameChangeInput {
-  border: 1px solid transparent;
+  border: 1px solid #DCDBDF;
   outline: none;
   padding: 0.25rem 0.5rem;
   width: 100%;
   border-radius: 5px;
   font-size: 18px;
-  height: 44px;
+  height: 40px;
 }
 
 .panEdit-descrChange {
@@ -127,9 +130,10 @@
   width: 100%;
   border-radius: 5px;
   font-size: 18px;
-  height: 100%;
+  height: 100px;
   resize: none;
   margin-top: 15px;
+  border: 1px solid #DCDBDF;
 }
 
 #panEdit-descrChangeInput,
@@ -151,12 +155,13 @@
   cursor: pointer;
   transition: all 0.3s;
   border-radius: 5px;
-  height: 44px;
+  height: 40px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
   font-size: 16px;
+  border: 1px solid #DCDBDF;
 }
 
 .dropDown-data-options.active  .dropDown-data-options.selected{
@@ -214,7 +219,7 @@
   list-style: none;
   width: 85%;
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: 16px;
   background-color: var(--edit-panel-bg-color);
   display: flex;
   flex-direction: column;
@@ -227,8 +232,10 @@
 
 .editPanelMenu-options, .editPanelMenu-unit-options {
   width: 92%;
-  height: 25px;
   border-radius: 4px;
+  display: flex;
+  flex-direction: row;
+  padding: 10px 0 10px 12px;
 }
 
 .editPanelMenu-unit-options {
@@ -260,7 +267,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  height: 100%;
+  height: 35px;
   margin-left: 11px;
 }
 
@@ -392,12 +399,11 @@
 
 /* QUERY INPUT SECTION - BOTTOM LEFT */
 .queryInputs {
-  min-height: 15%;
-  width: 95%;
+  width: 100%;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  margin-top: 46px;
+  margin-top: 26px;
   align-items: flex-start;
 }
 
@@ -431,20 +437,20 @@
 
 .dropDown-dataSource {
   width: 100%;
-  height: 44px;
+  height: 40px;
 }
 
 .queryInput {
-  height: 44px;
+  height: 40px;
   font-size: 1rem;
   width: 100%;
   color: var(--search-bar-text-color-regular-or-hover);
   background: var(--search-bar-bg);
   outline: none;
-  border: none;
   border-radius: 5px;
   padding-left: 10px;
   padding-right: 40px;
+  border: 1px solid #DCDBDF;
 }
 
 .edit-panel-corner-popup {
@@ -458,8 +464,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 95%;
-  min-height: 55%;
+  width: 100%;
+  min-height: 35%;
   height: max-content;
   justify-content: center;
   border-radius: 5px;
@@ -510,13 +516,14 @@
   padding: 15px 12px;
   text-decoration: none;
   border: none;
-  height: 44px;
+  height: 40px;
   line-height: 14px;
   margin-top: 10px;
   align-self: flex-end;
   border-radius: 5px;
   box-shadow: none !important;
   font-size: 1rem;
+  color: white !important;
 }
 
 .btn-runQuery:hover {
@@ -527,8 +534,8 @@
   background: var(--btn-hover-or-click-bg-color) !important;
 }
 
-#run-query-btn,.panEdit-btn {
-  color: var(--white-0) !important;
+.panEdit-btn {
+  color: black !important;
 }
 
 .panelEditor-container {
@@ -537,22 +544,20 @@
   width: 100%;
   min-height: 100vh;
   background-color: var(--db-bg-color);
+  padding: 1.5%;
 }
 
 /* PANEL EDIT NAV BAR */
 .panEdit-navBar {
   display: flex;
-  height: 50px;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding-left: 2.5%;
-  padding-right: 2.5%;
   background-color: var(--db-bg-color);
   color: var(--text-color);
   font-size: 20px;
-  margin: 5px 0;
+  margin-bottom: 20px;
 }
 
 .panEdit-navBar .dropdown{
@@ -582,27 +587,22 @@
   align-items: center;
   width: 100%;
   justify-content: flex-end;
-  padding-left: 7.5%;
-  padding-right: 7.5%;
-  margin: 8px 0;
+  margin-bottom: 20px;
 }
 
 .panEdit-btn {
-  padding: 15px 12px;
-  background-color: var(--purple-1) !important;
+  /* background-color: var(--purple-1) !important; */
+  height: 40px;
   outline: none;
   border: 0px;
-  margin-right: 15px;
-  height: 44px;
+  margin-right: 10px;
   line-height: 14px;
   border-radius: 5px;
   box-shadow: none !important;
   font-size: 1rem;
+  border: 1px solid #DCDBDF !important;
 }
 
-.panEdit-btn:hover {
-  background: var(--btn-hover-or-click-bg-color) !important;
-}
 
 .panEdit-btn:last-child {
   margin-right: 0;
@@ -1046,7 +1046,6 @@
 .queryInput-InnerContainer .info-icon{
   right: 5px;
 }
-
 #panel-loading {
   border: 4px solid var(--purple-1);
   border-radius: 50%;
@@ -1123,9 +1122,11 @@ input:checked + .slider:before {
 }
 
 .table-view-toggle-container{
-  height: 44px;
+  height: 40px;
+  width: 147px;
   display: flex;
   align-items: center;
+  border: 1px solid #DCDBDF;
 }
 
 .label-table-view{
@@ -1169,7 +1170,7 @@ input:checked + .slider:before {
   padding: 15px 12px;
   text-decoration: none;
   border: none;
-  height: 44px;
+  height: 40px;
   line-height: 14px;
   cursor: pointer;
   border-radius: 0 5px 5px 0 !important;
@@ -1187,6 +1188,8 @@ input:checked + .slider:before {
 
 .refresh-btn{
   border-radius: 5px 0 0 5px !important;
+  background-color: buttonface !important;
+  width: 40px;
 }
 
 .refresh-picker.show{
@@ -1219,4 +1222,90 @@ input:checked + .slider:before {
 
 .panEdit-navBtns .refresh-btn{
   border-radius: 5px !important;
+}
+.btn-top{
+  width: 137px;
+  height: 40px !important;
+  border: 1px solid #DCDBDF;
+}
+.settings-btn{
+  width: 40px;
+  height: 40px !important;
+  background-color: buttonface !important;
+  border: 1px solid #DCDBDF !important;
+}
+.refresh-btn{
+  height: 40px !important;
+}
+.chart-display{
+  width: 30px;
+  height: 30px;
+}
+.panEdit-discard{
+  width: 80px;
+}
+.panEdit-save{
+  width: 60px;
+}
+.panEdit-apply{
+  width: 68px;
+  background-color: var(--purple-1) !important;
+  color: white !important;
+}
+
+.panEdit-apply:hover{
+  background: var(--btn-hover-or-click-bg-color) !important;
+}
+.settings-btn:hover,
+.refresh-btn:hover{
+    background: #DCDBDF !important;
+  }
+#save-db-btn:hover{
+  background: #DCDBDF !important;
+}
+.panel-header:hover{
+  background-color: #DCDBDF !important;
+}
+.panEdit-btn:hover {
+  background: #DCDBDF !important;
+}
+.panEdit-panel,
+.dropdown-dash,
+.dropdown-toggle{
+  border: 1px solid #DCDBDF !important;
+}
+.dropdown-dash{
+  width: 40px;
+}
+#query-language-btn,
+#date-picker-btn,
+#index-btn{
+  line-height: 6px !important;
+}
+.logs-options{
+  padding: 0;
+}
+#save-db-btn{
+  background-color: buttonface !important;
+}
+#add-panel-btn,
+#save-db-btn,
+#query-language-btn{
+  height: 40px !important;
+}
+.info-icon{
+  line-height: 20px !important;
+}
+.panel div.panel-header{
+  background-color: var(--white-1) !important;
+}
+.panel div.panel-header p{
+  color: black !important;
+}
+#new-dashboard{
+  padding-left: 20px !important;
+  padding-right: 20px;
+}
+.panel{
+  border: 1px solid #DCDBDF !important;
 }
