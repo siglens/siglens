@@ -1357,15 +1357,6 @@ input:checked + .slider:before {
 .panel div.panel-header .dropdown-btn{
   background-image: var(--arrow-dashboard-img) !important;
 }
-/* .ag-row-position-absolute::before {
-  content: '';
-  position: absolute;
-  left: -20px;
-  width: 100%;
-  height: 1px;
-  background-color: var(--panel-table-line-color);
-  bottom: 0;
-} */
 .ag-row-position-absolute::after{
   content: '';
   position: absolute;
