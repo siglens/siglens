@@ -52,9 +52,7 @@ jobs:
             file: Dockerfile
             push: true
             platforms: linux/amd64,linux/arm64
-            tags: ${{ steps.meta.outputs.tags }}
-    #Add step to Upload server.yaml to github  when github releases is setup
-          
+            tags: ${{ steps.meta.outputs.tags }}          
   sigscalr-binaries:
       runs-on: ubuntu-latest
       environment: build-environment
