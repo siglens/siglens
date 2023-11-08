@@ -31,10 +31,3 @@ siglens-{VERSION}-{GOOS}-{GOARCH}/
 `./package_siglens.sh` has following argument:
 - `-p platform1,platform2,platform3` will generate the corresponding tar file for each platform. A platfrom is of the format `{OS}/{ARCH}` (ex. `linux/amd64`, `darwin/arm64`). This defaults to the current `{go env GOOS}/{go env GOARCH}`
 
-## Post-release
-
-TBD
-
-## Deploy to Playgroung and Demo server
-
-TBD

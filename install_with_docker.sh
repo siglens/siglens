@@ -160,6 +160,7 @@ echo -e "docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/d
     -p 8081:8081 -p 80:80 siglens/siglens:0.1.0"
 echo ""
 echo -e "ingestPort(8081) and queryPort(80) can be changed using in server.yaml."
+echo -e "queryPort(80) can also be changed by setting the environment variable $PORT."
 echo ""
 echo -e "To be able to query data across restarts, set ssInstanceName in server.yaml."
 echo ""
