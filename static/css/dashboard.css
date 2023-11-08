@@ -6,6 +6,8 @@
   --db-bg-color: var(--black-2);
   --db-options-bg-color:var(--black-3);
   --edit-panel-bg-color:var(--black-1);
+  --panel-table-bg-color:var(--black-2);
+  --panel-table-line-color:var(--white-4);
   --edit-panel-border-color:var(--black-5);
   --edit-panel-option-bg-color:var(--black-2);
   --edit-panel-dropdown-bg-color-hover:var(--black-2);
@@ -17,12 +19,18 @@
   --db-setting-placeholder:var(--black-5);
   --db-setting-text:var(--white-2);
   --legend-element-hover: var(--white-1);
+  --top-setting-btn-bg-img: url("../assets/settings-icon.svg");
+  --top-save-btn-bg-img: url("../assets/save-icon.svg");
+  --top-refresh-btn-bg-img: url("../assets/refresh-icon.svg");
+  --arrow-dashboard-img: url("../assets/arrow-dashboard-right.svg");
 }
 
 [data-theme='light']{
   --db-bg-color: var(--white-0);
   --db-options-bg-color:var(--white-3);
   --edit-panel-bg-color:var(--white-0);
+  --panel-table-bg-color:var(--white);
+  --panel-table-line-color: var(--white-3);
   --edit-panel-border-color:var(--white-3);
   --edit-panel-option-bg-color:var(--white-2);
   --edit-panel-dropdown-bg-color-hover:var(--white-2);
@@ -34,6 +42,10 @@
   --db-setting-placeholder:var(--black-6);
   --db-setting-text:var(--black-4);
   --legend-element-hover: var(--black-1);
+  --top-setting-btn-bg-img: url("../assets/setting-icon.svg");
+  --top-save-btn-bg-img: url("../assets/save-btn.svg");
+  --top-refresh-btn-bg-img: url("../assets/refreshy-icon.svg");
+  --arrow-dashboard-img: url("../assets/arrow-dashboard-black.svg");
 }
 
 
@@ -66,7 +78,7 @@
   align-items: center;
   height: 100%;
   border-radius: 5px 0 0 0;
-  border: 1px solid #DCDBDF;
+  border: 1px solid var(--border-color-regular);
   box-shadow: 0px 2px 8px 0px #00000029;
 }
 
@@ -106,7 +118,7 @@
 }
 
 #panEdit-nameChangeInput {
-  border: 1px solid #DCDBDF;
+  border: 1px solid var(--border-color-regular);
   outline: none;
   padding: 0.25rem 0.5rem;
   width: 100%;
@@ -133,7 +145,7 @@
   height: 100px;
   resize: none;
   margin-top: 15px;
-  border: 1px solid #DCDBDF;
+  border: 1px solid var(--border-color-regular);
 }
 
 #panEdit-descrChangeInput,
@@ -161,7 +173,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 16px;
-  border: 1px solid #DCDBDF;
+  border: 1px solid var(--border-color-regular);
 }
 
 .dropDown-data-options.active  .dropDown-data-options.selected{
@@ -190,6 +202,9 @@
 
 .dropDown-color, .dropDown-unit , .dropDown-logLinesView{
   margin-top: 15px;
+}
+.dropDown-color{
+  margin-bottom: 15px;
 }
 .dropDown-unit,.dropDown-logLinesView{
   display: none;
@@ -227,6 +242,7 @@
   border: 1px solid var(--edit-panel-border-color);
   border-radius: 5px;
   margin-top: 8px;
+  margin-bottom: 0;
   padding: 10px 0;
 }
 
@@ -292,9 +308,9 @@
   cursor: pointer;
 }
 
-.editPanelMenu-chart {
+/* .editPanelMenu-chart {
   margin-bottom: 1rem;
-}
+} */
 
 .dropDownTitle {
   background-color: var(--drop-down-btn-bg-regular);
@@ -450,7 +466,7 @@
   border-radius: 5px;
   padding-left: 10px;
   padding-right: 40px;
-  border: 1px solid #DCDBDF;
+  border: 1px solid var(--border-color-regular);
 }
 
 .edit-panel-corner-popup {
@@ -465,7 +481,7 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  min-height: 35%;
+  min-height: 35vh;
   height: max-content;
   justify-content: center;
   border-radius: 5px;
@@ -517,7 +533,7 @@
   text-decoration: none;
   border: none;
   height: 40px;
-  line-height: 14px;
+  line-height: 7px;
   margin-top: 10px;
   align-self: flex-end;
   border-radius: 5px;
@@ -600,7 +616,7 @@
   border-radius: 5px;
   box-shadow: none !important;
   font-size: 1rem;
-  border: 1px solid #DCDBDF !important;
+  border: 1px solid var(--border-color-regular) !important;
 }
 
 
@@ -1126,7 +1142,7 @@ input:checked + .slider:before {
   width: 147px;
   display: flex;
   align-items: center;
-  border: 1px solid #DCDBDF;
+  border: 1px solid var(--border-color-regular);
 }
 
 .label-table-view{
@@ -1188,7 +1204,7 @@ input:checked + .slider:before {
 
 .refresh-btn{
   border-radius: 5px 0 0 5px !important;
-  background-color: buttonface !important;
+  background-color: var(--drop-down-btn-bg-regular) !important;
   width: 40px;
 }
 
@@ -1226,16 +1242,22 @@ input:checked + .slider:before {
 .btn-top{
   width: 137px;
   height: 40px !important;
-  border: 1px solid #DCDBDF;
+  border: 1px solid var(--border-color-regular);
+}
+.btn-top:hover{
+  color: var(--drop-down-text-color) !important;
 }
 .settings-btn{
   width: 40px;
   height: 40px !important;
-  background-color: buttonface !important;
-  border: 1px solid #DCDBDF !important;
+  border: 1px solid var(--border-color-regular) !important;
+  background: var(--top-setting-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
+  background-size: 50% !important;
 }
 .refresh-btn{
   height: 40px !important;
+  background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
+  background-size: 50% !important;
 }
 .chart-display{
   width: 30px;
@@ -1243,36 +1265,46 @@ input:checked + .slider:before {
 }
 .panEdit-discard{
   width: 80px;
+  background-color: var(--drop-down-btn-bg-regular);
+  color: var(--text-color-regular) !important;
 }
 .panEdit-save{
   width: 60px;
+  color: var(--text-color-regular) !important;
+}
+#save-btn:hover{
+  background-color: var(--drop-down-btn-bg-hover) !important;
+}
+.panEdit-discard:hover{
+  background-color: var(--drop-down-btn-bg-hover) !important;
 }
 .panEdit-apply{
   width: 68px;
   background-color: var(--purple-1) !important;
   color: white !important;
+  border: 0 !important;
 }
-
 .panEdit-apply:hover{
   background: var(--btn-hover-or-click-bg-color) !important;
 }
-.settings-btn:hover,
+.settings-btn:hover{
+    background: var(--top-setting-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
+}
 .refresh-btn:hover{
-    background: #DCDBDF !important;
+    background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
   }
 #save-db-btn:hover{
-  background: #DCDBDF !important;
+  background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
 }
 .panel-header:hover{
-  background-color: #DCDBDF !important;
+  background-color: var(--edit-panel-border-color) !important;
 }
-.panEdit-btn:hover {
-  background: #DCDBDF !important;
-}
+
+.refresh-btn,
 .panEdit-panel,
 .dropdown-dash,
 .dropdown-toggle{
-  border: 1px solid #DCDBDF !important;
+  border: 1px solid var(--border-color-regular) !important;
 }
 .dropdown-dash{
   width: 40px;
@@ -1285,27 +1317,61 @@ input:checked + .slider:before {
 .logs-options{
   padding: 0;
 }
+#save-btn{
+  background-color: var(--drop-down-btn-bg-regular) !important;
+}
 #save-db-btn{
-  background-color: buttonface !important;
+  background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
+  background-size: 50% !important;
 }
 #add-panel-btn,
 #save-db-btn,
 #query-language-btn{
   height: 40px !important;
 }
+#add-panel-btn:hover {
+  background: var(--btn-hover-or-click-bg-color) !important;
+}
 .info-icon{
   line-height: 20px !important;
 }
-.panel div.panel-header{
-  background-color: var(--white-1) !important;
-}
+
 .panel div.panel-header p{
-  color: black !important;
+  color: var(--datatable-header-text-color) !important;
 }
 #new-dashboard{
   padding-left: 20px !important;
   padding-right: 20px;
 }
 .panel{
-  border: 1px solid #DCDBDF !important;
+  border: 1px solid var(--border-color-regular) !important;
+}
+.logs-options{
+  background-color: var(--dropdown-bg-color-new);
+  color: var(--drop-down-text-color-new);
+}
+.ag-header-viewport,
+.ag-header-cell{
+  background-color: var(--panel-table-bg-color);
+}
+.panel div.panel-header .dropdown-btn{
+  background-image: var(--arrow-dashboard-img) !important;
+}
+/* .ag-row-position-absolute::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  width: 100%;
+  height: 1px;
+  background-color: var(--panel-table-line-color);
+  bottom: 0;
+} */
+.ag-row-position-absolute::after{
+  content: '';
+  position: absolute;
+  left: 10px;
+  width: 7000px;
+  height: 1px;
+  background-color: var(--panel-table-line-color);
+  bottom: 0;
 }
