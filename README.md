@@ -49,7 +49,7 @@ go run cmd/siglens/main.go --config server.yaml
 The SigLens backend is deployed independently of the UI. 
 To allow the UI to connect to the backend a docker network can be used.
 ```
-    wget "https://github.com/sunitakawane/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
+    wget "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
     docker pull siglens/siglens:${SIGLENS_VERSION} 
     mkdir data
     docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \

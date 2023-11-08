@@ -45,7 +45,7 @@ for platform in "${platforms[@]}"; do
     fi
     if [ ${GOOS} = "darwin" ]; then
         echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}."
-        export CGO_ENABLED=0
+        export CGO_ENABLED=1
         go build -o siglens cmd/siglens/main.go
     fi
 

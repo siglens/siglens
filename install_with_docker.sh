@@ -147,7 +147,7 @@ start_docker
 
 echo -e "\n===>     Pulling the latest docker image for SigLens"
 
-wget "https://github.com/sunitakawane/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
+wget "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
 $sudo_cmd docker pull siglens/siglens:0.1.0 
 $sudo_cmd mkdir data
 echo ""
