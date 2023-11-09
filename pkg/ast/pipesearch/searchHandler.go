@@ -53,7 +53,7 @@ Example incomingBody
 
 finalSize = size + from
 */
-func parseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int) {
+func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int) {
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
 	var scrollFrom int
@@ -241,7 +241,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := parseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
 	if err != nil {
 		log.Errorf("qid=%d, ALERTSERVICE: ProcessAlertsPipeSearchRequest: failed to parse search body  err=%v", qid, err)
 		return -1
@@ -324,7 +324,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf(" ProcessPipeSearchRequest: received empty search request body ")
-		setBadMsg(ctx)
+		SetBadMsg(ctx)
 		return
 	}
 	qid := rutils.GetNextQid()
@@ -344,7 +344,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := parseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
 	if err != nil {
 		log.Errorf("qid=%d, ProcessPipeSearchRequest: failed to parse search body  err=%v", qid, err)
 
@@ -506,7 +506,7 @@ func convertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
 	return utils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
 }
 
-func setBadMsg(ctx *fasthttp.RequestCtx) {
+func SetBadMsg(ctx *fasthttp.RequestCtx) {
 	var httpResp utils.HttpServerResponse
 	ctx.SetStatusCode(fasthttp.StatusBadRequest)
 	httpResp.Message = "Bad Request"
