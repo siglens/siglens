@@ -35,6 +35,7 @@ import (
 	prom "github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/sampledataset"
+	tracing "github.com/siglens/siglens/pkg/segment/tracing"
 	usq "github.com/siglens/siglens/pkg/usersavedqueries"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -468,5 +469,12 @@ func liveTailHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
 			log.Errorf("liveTailHandler: Error upgrading websocket connection %+v", err)
 			return
 		}
+	}
+}
+
+// Tracing apis
+func searchTracesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		tracing.ProcessSearchTracesRequest(ctx, 0)
 	}
 }
