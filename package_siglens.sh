@@ -5,7 +5,8 @@
 # modified line.
 SIGLENS_VERSION=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
 
-platforms=("$(go env GOOS)/$(go env GOARCH)")
+# platforms=("$(go env GOOS)/$(go env GOARCH)")
+platforms=("darwin/arm64")
 add_playground=""
 
 while getopts p:b:g: flag
@@ -44,9 +45,27 @@ for platform in "${platforms[@]}"; do
         fi
     fi
     if [ ${GOOS} = "darwin" ]; then
-        echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}."
-        export CGO_ENABLED=0
-        go build -o siglens cmd/siglens/main.go
+        # echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}."
+        if [ ${GOARCH} = "amd64" ]; then
+            CC="zig cc -target x86_64-macos-none"
+            CXX="zig cc -target x86_64-macos-none"
+            export CC=$CC
+            export CXX=$CXX
+            export CGO_ENABLED=1
+            echo "Compiling SigLens for CGO_ENABLED=1, GOOS=${GOOS} and GOARCH=${GOARCH}."
+            go build -o siglens cmd/siglens/main.go
+        fi
+        if [ ${GOARCH} = "arm64" ]; then
+            CC="zig cc -target aarch64-macos-none"
+            CXX="zig cc -target aarch64-macos-none"
+            CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
+            export CC=$CC
+            export CXX=$CXX
+            export CGO_ENABLED=1
+            export CGO_CFLAGS=$CGO_CFLAGS
+            echo "Compiling SigLens for CGO_ENABLED=1, GOOS=${GOOS} and GOARCH=${GOARCH}."
+            go build -o siglens cmd/siglens/main.go
+        fi
     fi
 
     if [ $? -eq 0 ]
