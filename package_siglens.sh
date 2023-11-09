@@ -45,27 +45,9 @@ for platform in "${platforms[@]}"; do
         fi
     fi
     if [ ${GOOS} = "darwin" ]; then
-        # echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}."
-        if [ ${GOARCH} = "amd64" ]; then
-            CC="zig cc -target x86_64-macos-none"
-            CXX="zig cc -target x86_64-macos-none"
-            export CC=$CC
-            export CXX=$CXX
-            export CGO_ENABLED=1
-            echo "Compiling SigLens for CGO_ENABLED=1, GOOS=${GOOS} and GOARCH=${GOARCH}."
-            go build -o siglens cmd/siglens/main.go
-        fi
-        if [ ${GOARCH} = "arm64" ]; then
-            CC="zig cc -target aarch64-macos-none"
-            CXX="zig cc -target aarch64-macos-none"
-            CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
-            export CC=$CC
-            export CXX=$CXX
-            export CGO_ENABLED=1
-            export CGO_CFLAGS=$CGO_CFLAGS
-            echo "Compiling SigLens for CGO_ENABLED=1, GOOS=${GOOS} and GOARCH=${GOARCH}."
-            go build -o siglens cmd/siglens/main.go
-        fi
+        echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}."
+        export CGO_ENABLED=1
+        go build -o siglens cmd/siglens/main.go
     fi
 
     if [ $? -eq 0 ]
