@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+    
+        gtag('config', 'G-5SBJC04YFB');
+    </script>
+    
+<head>
+    <meta charset="UTF-8">
+    <title>SigLens</title>
+
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+    <link rel="manifest" href="assets/site.webmanifest">
+    <link rel="mask-icon" href="assets/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+
+    <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="./css/lib/all.min.css" />
+    <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/siglens.css" />
+
+    <script src="./js/lib/lodash.min.js"></script>
+    <script src="./js/lib/jquery-3.6.0.min.js"></script>
+    <script src="./js/lib/jquery-ui.min.js"></script>
+    <script src="./js/lib/js.cookie.min.js"></script>
+    <script src="./js/lib/moment.min.js"></script>
+    <script src="./js/lib/date_fns.min.js"></script>
+    <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/bootstrap.bundle.min.js"></script>
+    <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+</head>
+
+<body data-theme="light">
+    <div id="app-container">
+
+        <div id="app-side-nav" class="active">
+        </div>
+
+        <div id="alerting">
+            <div class="alerts-nav-tab">
+                <div>
+                    <h1 class="myOrg-heading">Alerting</h1>
+                    <div class="section-buttons">
+                        <div class="section-button active"><a href="./all-alerts.html">Alert rules</a></div>
+                        <div class="section-button"><a href="./contacts.html">Contact points</a></div>
+                    </div>
+                </div>
+            </div>
+            <div class="upper-header">
+                <p class="caption">Rules that determine whether an alert will fire
+                </p>
+            </div>
+            <!-- create alert form -->
+            <div class="form-container">
+                <form id="alert-form">
+                    <div class="add-alert-form">
+                        <div>
+                            <label for="rule-name">Rule name</label>
+                            <input type="text" class="form-control" placeholder="Enter rule name" id="alert-rule-name"
+                                required>
+                        </div>
+
+                        <div>
+                            <label for="query">Query</label>
+                            <div class="query-lang-container">
+                                <div>
+                                    <button class="btn dropdown-toggle" type="button" id="alert-data-source"
+                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                        data-bs-toggle="dropdown" title="Select Query Type">
+                                        <span>Logs</span>
+                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                    </button>
+                                    <div class="dropdown-menu box-shadow" id="data-source-options">
+                                        <li id="option-1" class="data-source-option active">Logs</li>
+                                    </div>
+                                </div>
+                                <div>
+                                    <button class="btn dropdown-toggle" type="button" id="logs-language-btn"
+                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                        data-bs-toggle="dropdown" title="Select Query Type" style="display: none;">
+                                        <span>Splunk QL</span>
+                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                    </button>
+                                    <div class="dropdown-menu box-shadow" id="logs-language-options">
+                                        <li id="option-1" class="logs-language-option active">Splunk QL</li>
+                                    </div>
+                                </div>
+                                <div class="dropdown timepicker">
+                                    <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
+                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                        data-bs-toggle="dropdown" title="Pick the time window">
+                                        <span>Time Picker</span>
+                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                    </button>
+                                    <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
+                                        id="daterangepicker ">
+                                        <p class="dt-header">Search the last</p>
+                                        <div class="ranges">
+                                            <div class="inner-range">
+                                                <div id="now-5m" class="range-item ">5 Mins</div>
+                                                <div id="now-3h" class="range-item">3 Hrs</div>
+                                                <div id="now-2d" class="range-item">2 Days</div>
+                                            </div>
+                                            <div class="inner-range">
+                                                <div id="now-15m" class="range-item">15 Mins</div>
+                                                <div id="now-6h" class="range-item">6 Hrs</div>
+                                                <div id="now-7d" class="range-item">7 Days</div>
+                                            </div>
+                                            <div class="inner-range">
+                                                <div id="now-30m" class="range-item">30 Mins</div>
+                                                <div id="now-12h" class="range-item">12 Hrs</div>
+                                                <div id="now-30d" class="range-item">30 Days</div>
+                                            </div>
+                                            <div class="inner-range">
+                                                <div id="now-1h" class="range-item">1 Hr</div>
+                                                <div id="now-24h" class="range-item">24 Hrs</div>
+                                                <div id="now-90d" class="range-item">90 Days</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="query-container position-relative">
+                                <input type="text" class="form-control" placeholder="Enter a query" id="query" required>
+
+                                <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
+                                    id="info-icon-spl" style="display: block;" title='city=Boston | stats count
+                                city=* | stats avg(latency)
+                                '></i>
+                            </div>
+                        </div>
+                        <label for="expression">Set the condition</label>
+                        <div class="condition-container">
+                            <div class="dropdown">
+                                <button class="btn dropdown-toggle" type="button" id="alert-condition"
+                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                    data-bs-toggle="dropdown">
+                                    <span>Is above</span>
+                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                </button>
+                                <div class="dropdown-menu box-shadow alert-condition-options"
+                                    aria-labelledby="index-btn">
+                                    <li id="option-0" class="alert-condition-option active">Is above</li>
+                                    <li id="option-1" class="alert-condition-option">Is below</li>
+                                    <li id="option-2" class="alert-condition-option">Equal to</li>
+                                    <li id="option-3" class="alert-condition-option">Not equal to</li>
+                                </div>
+                            </div>
+                            <div class="condition-value">
+                                <input type="number" name="condition-value" min="0" step="1" id="threshold-value"
+                                    value="0" class="form-control">
+                            </div>
+                        </div>
+                        <div class="evaluation-container">
+                            <div>
+                                <label for="evaluation-interval">Evaluate every</label>
+                                <input type="number" name="evaluate-every" min="0" id="evaluate-every" value="1"
+                                    class="form-control" step="any"></input>min<span
+                                    style="margin-left: 10px;">for</span>
+                                <input type="number" name="evaluate-every" id="evaluate-for" value="1" min="0"
+                                    class="form-control"></input>min
+                            </div>
+                        </div>
+                        <label for="custom-label">Custom Label</label>
+                        <div class="d-flex align-items-end mb-0">
+                            <div class="label-main-container mb-0">
+                                <div class="label-container d-flex align-items-center">
+                                    <input type="text" id="label-key" class="form-control" placeholder="Label name"
+                                        value="alerting"><span class="label-equal"> = </span> <input type="text"
+                                        id="label-value" class="form-control" placeholder="Value" value="true">
+                                </div>
+                            </div>
+                            <button class="add-label-container btn" type="button">Add Label</button>
+                        </div>
+                        <label for="contact-point">Notifications</label>
+                        <div class="notification-container">
+                            <div>
+                                Send to
+                            </div>
+
+                            <div class="dropdown">
+                                <button class="btn dropdown-toggle" type="button" id="contact-points-dropdown"
+                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                    data-bs-toggle="dropdown">
+                                    <span>Choose</span>
+                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                </button>
+                                <div class="dropdown-menu box-shadow contact-points-options"
+                                    aria-labelledby="index-btn">
+                                    <li id="option-0" class="contact-points-option">Add New</li>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="message-info" id="message-info">
+                            Message<textarea name="message" id="notification-msg" rows="4" class="message form-control"
+                                required></textarea>
+                        </div>
+                        <div class="btn-container">
+                            <button class="btn" id="cancel-alert-btn" type="button">Cancel</button>
+                            <button class="btn" id="save-alert-btn" type="submit">Save</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <!-- Overlay -->
+            <div class="popupOverlay">
+            </div>
+            <!-- Add contact point popup -->
+            <div class="popupContent" id="add-new-contact-popup">
+                <h3 class="header">Create Contact Point</h3>
+                <div class="form-container" id="contact-form-container">
+                </div>
+            </div>
+        </div>
+
+        <div id="app-footer">
+            2023 &copy; SigLens
+        </div>
+
+    </div>
+
+    <script src="./js/navbar.js?cb=1_1_10"></script>
+    <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/event-handlers.js?cb=1_1_10"></script>
+    <script src="./js/date-picker.js?cb=1_1_10"></script>
+    <script src="./js/point-click-search.js?cb=1_1_10"></script>
+    <script src="./js/contacts.js?cb=1_1_10"></script>
+    <script src="./js/alert.js?cb=1_1_10"></script>
+</body>
+
+</html>

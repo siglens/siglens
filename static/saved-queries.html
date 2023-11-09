@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+    
+        gtag('config', 'G-5SBJC04YFB');
+    </script>
+    
+<head>
+    <title>Saved Queries</title>
+
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+    <link rel="manifest" href="assets/site.webmanifest">
+    <link rel="mask-icon" href="assets/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+
+    <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="./css/lib/all.min.css" />
+    <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/siglens.css" />
+
+    <script src="./js/lib/lodash.min.js"></script>
+    <script src="./js/lib/jquery-3.6.0.min.js"></script>
+    <script src="./js/lib/jquery-ui.min.js"></script>
+    <script src="./js/lib/js.cookie.min.js"></script>
+    <script src="./js/lib/moment.min.js"></script>
+    <script src="./js/lib/date_fns.min.js"></script>
+    <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/bootstrap.bundle.min.js"></script>
+    <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+</head>
+
+<body data-theme="light">
+    <div id="app-container">
+        <div id="app-side-nav" class="active">
+        </div>
+        <div id="dashboard">
+            <div id="sq-search-container">
+                <div>
+                    <input type="text" class="form-control" id="sq-filter-input" placeholder="Search for saved queries"
+                        title="Search your saved queries">
+                </div>
+                <div class="text-end">
+                    <button class="btn" id="search-query-btn" title="Run your search">Search </button>
+                </div>
+
+            </div>
+            <div id="queries-grid-container">
+                <div id="queries-grid" class="Queries-Grid ag-theme-mycustomtheme"></div>
+            </div>
+            <div id="empty-qsearch-response"></div>
+            <div class="popupOverlay">
+            </div>
+            <div class="popupContent">
+                <h3 class="header">Confirmation</h3>
+                <p>Are you sure you want to delete this dashboard?</p>
+                <button type="button" id="cancel-btn">Cancel</button>
+                <button type="button" id="delete-btn">Delete</button>
+            </div>
+        </div>
+        <div id="app-footer">
+            2023 &copy; SigLens
+        </div>
+    </div>
+
+    <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/event-handlers.js?cb=1_1_10"></script>
+    <script src="./js/available-fields.js?cb=1_1_10"></script>
+    <script src="./js/date-picker.js?cb=1_1_10"></script>
+    <script src="./js/search.js?cb=1_1_10"></script>
+    <script src="./js/saved-query.js?cb=1_1_10"></script>
+    <script src="./js/saved-queries.js?cb=1_1_10"></script>
+    <script src="./js/point-click-search.js?cb=1_1_10"></script>
+    <script src="./js/index.js?cb=1_1_10"></script>
+    <script src="./js/navbar.js?cb=1_1_10"></script>
+</body>
+
+</html>

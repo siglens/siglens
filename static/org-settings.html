@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+    
+        gtag('config', 'G-5SBJC04YFB');
+    </script>
+    
+<head>
+    <meta charset="UTF-8">
+    <title>SigLens</title>
+
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon-16x16.png">
+    <link rel="manifest" href="./assets/site.webmanifest">
+    <link rel="mask-icon" href="./assets/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+
+    <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="./css/lib/all.min.css" />
+    <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/siglens.css" />
+
+    <script src="./js/lib/lodash.min.js"></script>
+    <script src="./js/lib/jquery-3.6.0.min.js"></script>
+    <script src="./js/lib/jquery-ui.min.js"></script>
+    <script src="./js/lib/js.cookie.min.js"></script>
+    <script src="./js/lib/moment.min.js"></script>
+    <script src="./js/lib/date_fns.min.js"></script>
+    <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/bootstrap.bundle.min.js"></script>
+    <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+</head>
+
+<body data-theme="light">
+    <div id="app-container">
+        <div id="app-side-nav" class="active">
+        </div>
+
+        <div class="myOrg">
+            <div class="myOrg-container">
+                <div class="org-nav-tab">
+                    <div>
+                        <h1 class="myOrg-heading">My Org</h1>
+                        <div class="section-buttons">
+                            <div class="section-button"><a href="./cluster-stats.html">Cluster Stats</a></div>
+                            <div class="section-button active"><a href="./org-settings.html">Settings</a></div>
+                            <div class="section-button"><a href="./test-data.html">Test Data</a></div>
+                        </div>
+                    </div>
+                    <div>
+                        <button type="button" id="logout-btn" class="btn">Logout</button>
+                    </div>
+                </div>
+
+                <div class="myOrg-inner-container">
+                    <div class="org-settings">
+                        <div id="api-keys-headings">
+                            <p class="caption">Personalize your organization's settings</p>
+                        </div>
+                        <table id="org-settings-table">
+                            <tr>
+                                <th>Organization Name</th>
+                                <td id="orgName">SigLens</td>
+                            </tr>
+                            <tr>
+                                <th>Retention</th>
+                                <td id="retention-days-value">4 days</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-footer">
+        2023 &copy; SigLens
+    </div>
+    </div>
+    <script src="./js/navbar.js?cb=1_1_10"></script>
+    <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/event-handlers.js?cb=1_1_10"></script>
+    <script src="./js/available-fields.js?cb=1_1_10"></script>
+    <script src="./js/log-results-grid.js?cb=1_1_10"></script>
+    <script src="./js/ag-grid-seg-stats.js?cb=1_1_10"></script>
+    <script src="./js/date-picker.js?cb=1_1_10"></script>
+    <script src="./js/search.js?cb=1_1_10"></script>
+    <script src="./js/saved-query.js?cb=1_1_10"></script>
+    <script src="./js/index.js?cb=1_1_10"></script>
+    <script src="./js/point-click-search.js?cb=1_1_10"></script>
+    <script src="./js/settings.js"></script>
+</body>
+
+</html>

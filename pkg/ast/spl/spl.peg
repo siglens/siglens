@@ -1,0 +1,1409 @@
+{
+package spl
+
+import (
+    "regexp"
+
+    "github.com/siglens/siglens/pkg/ast"
+    "github.com/siglens/siglens/pkg/segment/query"
+    "github.com/siglens/siglens/pkg/segment/structs"
+    "github.com/siglens/siglens/pkg/segment/utils"
+    log "github.com/sirupsen/logrus"
+)
+
+func getParseError(err error) error {
+    switch ev := err.(type) {
+    case errList:
+        if pe, ok := ev[0].(*parserError); ok {
+            return &ast.ParseError{
+                Inner:    pe.Inner,
+                Line:     pe.pos.line,
+                Column:   pe.pos.col,
+                Offset:   pe.pos.offset,
+                Prefix:   pe.prefix,
+                Expected: pe.expected,
+            }
+        }
+    }
+    return err
+}
+
+// Remove the first and last character of the string
+func removeQuotes(s any) string {
+    str := s.(string)
+    if len(str) < 3 {
+        return ""
+    }
+
+    return str[1:len(str)-1]
+}
+
+// Check if it rename fields with similar names using a wildcard
+func isRegexRename(originalPattern, newPattern string) (bool, error) {
+    oldWildcards := strings.Count(originalPattern, "*")
+    newWildcards := strings.Count(newPattern, "*")
+
+    if oldWildcards == 0 && newWildcards == 0 {
+        return false, nil
+    } else if oldWildcards > 0 && oldWildcards == newWildcards {
+        return true, nil
+    } else {
+        return false, errors.New("Patterns do not match")
+    }
+}
+
+func deMorgansLaw(node *ast.Node) {
+    switch node.NodeType {
+    case ast.NodeTerminal:
+        switch node.Comparison.Op {
+        case "=":
+            node.Comparison.Op = "!="
+        case "!=":
+            node.Comparison.Op = "="
+        case ">":
+            node.Comparison.Op = "<="
+        case "<":
+            node.Comparison.Op = ">="
+        case ">=":
+            node.Comparison.Op = "<"
+        case "<=":
+            node.Comparison.Op = ">"
+        default:
+            log.Errorf("deMorgansLaw: unexpected node comparison op: %v", node.Comparison.Op)
+        }
+    case ast.NodeAnd:
+        node.NodeType = ast.NodeOr
+        deMorgansLaw(node.Left)
+        deMorgansLaw(node.Right)
+    case ast.NodeOr:
+        node.NodeType = ast.NodeAnd
+        deMorgansLaw(node.Left)
+        deMorgansLaw(node.Right)
+    default:
+        log.Errorf("deMorgansLaw: unexpected NodeType: %v", node.NodeType)
+    }
+}
+
+//Generate NumericExpr struct for eval functions
+func createNumericExpr(op string, leftNumericExpr *structs.NumericExpr, rightNumericExpr *structs.NumericExpr, numericExprMode structs.NumericExprMode) (*structs.NumericExpr, error) {
+    if leftNumericExpr == nil {
+        return nil, fmt.Errorf("expr cannot be nil")
+    }
+
+    return &structs.NumericExpr{
+        IsTerminal: false,
+        Op: op,
+        Left: leftNumericExpr,
+        Right: rightNumericExpr,
+        NumericExprMode: numericExprMode,
+    }, nil
+}
+
+func transferUint8ToString(opName interface{}) (string, error){
+    strData, ok := opName.([]byte)
+    if !ok {
+        return "", fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
+    return opNameStr, nil
+}
+
+func transferPCREToRE2(pattern string) string {
+    pattern = strings.Replace(pattern, "(?<", "(?P<", -1)
+    return pattern
+}
+
+func getRexColNames(pattern string) ([]string, error) {
+    re, err := regexp.Compile(`\?<(?P<GroupName>[a-zA-Z0-9_]+)>`)
+    if err != nil {
+        return nil, fmt.Errorf("getRxcolNames: There are some errors in the pattern: %v", err)
+    }
+    matches := re.FindAllStringSubmatch(pattern, -1)
+
+    var rexColNames []string
+    for _, match := range matches {
+        rexColNames = append(rexColNames, match[1])
+    }
+
+    return rexColNames, nil
+}
+
+type aggregator struct {
+    aggregator          *structs.MeasureAggregator
+    renameOutputField   bool
+    outputFieldNewName  string
+}
+}
+
+Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
+    var q ast.QueryStruct
+    q.SearchFilter = initialSearch.(*ast.Node)
+
+    // Join the InitialSearchBlock with the FilterBlocks with AND nodes. For a
+    // search like "A | B | C | D" we should generate the node structure below
+    // so that when we run the search it evaluates A first.
+    //
+    //      AND
+    //     /   \
+    //    A     AND
+    //         /   \
+    //        B     AND
+    //             /   \
+    //            C     D
+
+    filterBlocksSlice := filterBlocks.([]any)
+    switch len(filterBlocksSlice) {
+    case 0:
+        q.SearchFilter = initialSearch.(*ast.Node)
+    case 1:
+        q.SearchFilter = &ast.Node {
+            NodeType: ast.NodeAnd,
+            Left: initialSearch.(*ast.Node),
+            Right: filterBlocksSlice[0].(*ast.Node),
+        }
+    default: // len > 1
+        // Iterate backwards so we build the node structure mentioned above.
+        root := filterBlocksSlice[len(filterBlocksSlice) - 1].(*ast.Node)
+        for i := len(filterBlocksSlice) - 2; i > -1; i-- {
+            newRoot := &ast.Node {
+                NodeType: ast.NodeAnd,
+                Left: filterBlocksSlice[i].(*ast.Node),
+                Right: root,
+            }
+
+            root = newRoot
+        }
+
+        q.SearchFilter = &ast.Node {
+            NodeType: ast.NodeAnd,
+            Left: initialSearch.(*ast.Node),
+            Right: root,
+        }
+    }
+
+    if queryAggBlocks != nil {
+        queryAggSlice := queryAggBlocks.([]any)
+
+        if len(queryAggSlice) > 0 {
+            // Chain together all QueryAggergators.
+            q.PipeCommands = queryAggSlice[0].(*structs.QueryAggregators)
+    
+            // Go to the end of the first chain.
+            curQueryAgg := q.PipeCommands
+            for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
+    
+            // Link the remaining chains.
+            for i := range queryAggSlice[1:] {
+                queryAgg := queryAggSlice[i + 1].(*structs.QueryAggregators)
+                curQueryAgg.Next = queryAgg
+
+                // Go to the end of this chain.
+                for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
+            }
+        }
+    }
+
+    return q, nil
+}
+
+InitialSearchBlock <- CMD_SEARCH? clause:ClauseLevel4 {
+    return clause, nil
+}
+
+SearchBlock <- CMD_SEARCH clause:ClauseLevel4 {
+    return clause, nil
+}
+
+FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
+    return block, nil
+}
+
+// Returns *structs.QueryAggregators
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / RenameBlock) {
+    queryAgg := block.(*structs.QueryAggregators)
+    return queryAgg, nil
+}
+
+FieldSelectBlock <- PIPE CMD_FIELDS op:("- " / "+ ")? fields:FieldNameList {
+    columnsRequest := &structs.ColumnsRequest{}
+    if op == nil || string(op.([]byte)) == "+ " {
+        columnsRequest.IncludeColumns = fields.([]string)
+    } else {
+        columnsRequest.ExcludeColumns = fields.([]string)
+    }
+
+    queryAggregator := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            OutputColumns: columnsRequest,
+        },
+    }
+
+    return queryAggregator, nil
+}
+
+AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? {
+    aggNode := &structs.QueryAggregators{}
+
+    // Extract the MeasureAggregators and check if any of the aggregation fields
+    // need to be renamed.
+    aggsSlice := aggs.([]*aggregator)
+    measureAggs := make([]*structs.MeasureAggregator, len(aggsSlice))
+    columnsRequest := &structs.ColumnsRequest{}
+    columnsRequest.RenameAggregationColumns = make(map[string]string, 0)
+
+    for i, agg := range aggsSlice {
+        measureAggs[i] = agg.aggregator
+
+        if agg.renameOutputField {
+            columnsRequest.RenameAggregationColumns[measureAggs[i].String()] = agg.outputFieldNewName
+        }
+    }
+
+    // If any agg field was renamed, make a QueryAggregators for all the renames.
+    if len(columnsRequest.RenameAggregationColumns) > 0 {
+        renameNode := &structs.QueryAggregators {
+            PipeCommandType: structs.OutputTransformType,
+            OutputTransforms: &structs.OutputTransforms {
+                OutputColumns: columnsRequest,
+            },
+        }
+
+        aggNode.Next = renameNode
+    }
+
+    if byFields == nil {
+        aggNode.PipeCommandType = structs.MeasureAggsType
+        aggNode.MeasureOperations = measureAggs
+    } else {
+        aggNode.PipeCommandType = structs.GroupByType
+        aggNode.GroupByRequest = &structs.GroupByRequest {
+            MeasureOperations: measureAggs,
+            GroupByColumns: byFields.([]string),
+        }
+        aggNode.BucketLimit = query.MAX_GRP_BUCKS
+    }
+
+    return aggNode, nil
+}
+
+GroupbyBlock <- BY fields:FieldNameList {
+    // Wildcard fields are not allowed. See https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Stats
+    for _, field := range fields.([]string) {
+        if strings.Contains(field, "*") {
+            return nil, errors.New("BY clause cannot contain fields with wildcards")
+        }
+    }
+
+    return fields, nil
+}
+
+RegexBlock <- CMD_REGEX keyAndOp:(FieldName EqualityOperator)? str:QuotedString {
+    var key, op string
+    if keyAndOp == nil {
+        key = "*"
+        op = "="
+    } else {
+        keyAndOpSlice := keyAndOp.([]any)
+        key = keyAndOpSlice[0].(string)
+        op = keyAndOpSlice[1].(string)
+    }
+
+    // Remove the quotation marks.
+    regex := str.(string)
+    regex = regex[1:len(regex) - 1]
+
+    node := &ast.Node {
+        NodeType: ast.NodeTerminal,
+        Comparison: ast.Comparison {
+            Op: op,
+            Field: key,
+            Values: regex,
+            ValueIsRegex: true,
+        },
+    }
+
+    return node, nil
+}
+
+ClauseLevel4 <- first:ClauseLevel3 rest:((AND / SPACE) ClauseLevel3)* {
+    if rest == nil {
+        return first, nil
+    }
+
+    cur := first.(*ast.Node)
+    for _, v := range rest.([]any) {
+        parts := v.([]any)  // This will be [(AND / SPACE), ClauseLevel3].
+        cur = &ast.Node {
+            NodeType: ast.NodeAnd,
+            Left: cur,
+            Right: parts[1].(*ast.Node),
+        }
+    }
+
+    return cur, nil
+}
+
+ClauseLevel3 <- first:ClauseLevel2 rest:(OR ClauseLevel2)* {
+    if rest == nil {
+        return first, nil
+    }
+
+    cur := first.(*ast.Node)
+    for _, v := range rest.([]any) {
+        parts := v.([]any)  // This will be [OR, ClauseLevel2].
+        cur = &ast.Node {
+            NodeType: ast.NodeOr,
+            Left: cur,
+            Right: parts[1].(*ast.Node),
+        }
+    }
+
+    return cur, nil
+}
+
+ClauseLevel2 <- notList:NOT+ first:ClauseLevel1 {
+    // There's an issue with how queries with AST Not nodes are run, so use
+    // De Morgan's law to manipulate the expression.
+    node := first.(*ast.Node)
+    numNots := len(notList.([]any))
+
+    if numNots % 2 == 1 {
+        deMorgansLaw(node)
+    }
+
+    return node, nil
+} / clause:ClauseLevel1 {
+    return clause, nil
+}
+
+ClauseLevel1 <- "(" clause:ClauseLevel4 ")" {
+    return clause, nil
+} / term:SearchTerm {
+    return term, nil
+}
+
+// Parsing the text of a Number as a String would succeed, so we need to try
+// parsing as a FieldWithNumberValue first.
+SearchTerm <- term:(FieldWithNumberValue / FieldWithStringValue) {
+    return term, nil
+}
+
+RenameBlock <- PIPE CMD_RENAME renameExpr:RenameExpr {
+    letColReq := &structs.LetColumnsRequest {
+        RenameColRequest: renameExpr.(*structs.RenameExpr),
+    }
+
+    root := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    return root, nil
+}
+
+// Rename with a phrase
+RenameExpr <- originalPattern:RenamePattern AS newPattern:QuotedString {
+    renameExpr := &structs.RenameExpr {
+        RenameExprMode: structs.REMPhrase,
+        OriginalPattern: originalPattern.(string),
+        NewPattern: removeQuotes(newPattern),
+    }
+
+    return renameExpr, nil
+}
+// Rename fields with similar names using a wildcard
+// Or Rename to a existing field
+/ originalPattern:RenamePattern AS newPattern:RenamePattern {
+    isRegex, err := isRegexRename(originalPattern.(string), newPattern.(string))
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: RenameExpr: %v", err)
+    }
+
+    var renameExprMode structs.RenameExprMode
+    if isRegex {
+        renameExprMode = structs.REMRegex
+    } else {
+        renameExprMode = structs.REMOverride
+    }
+
+    renameExpr := &structs.RenameExpr {
+        RenameExprMode: renameExprMode,
+        OriginalPattern: originalPattern.(string),
+        NewPattern: newPattern.(string),
+    }
+
+    return renameExpr, nil
+}
+
+RexBlock <- PIPE CMD_REX "field=" field:EvalFieldToRead SPACE str:QuotedString {
+    pattern := removeQuotes(str)
+    rexColNames, err := getRexColNames(pattern)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: RexBlock: %v", err)
+    }
+    rexExpr := &structs.RexExpr {
+        FieldName: field.(string),
+        Pattern: transferPCREToRE2(pattern),
+        RexColNames: rexColNames,
+    }
+
+    letColReq := &structs.LetColumnsRequest {
+        RexColRequest: rexExpr,
+    }
+
+    root := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    return root, nil
+}
+
+// Returns *structs.QueryAggregators
+EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:("," SPACE SingleEval)* {
+    root := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: first.(*structs.LetColumnsRequest),
+        },
+    }
+
+    leafQueryAgg := root
+    restSlice := rest.([]any)
+    for i := range restSlice {
+        CommaSpaceAndEval := restSlice[i].([]any)
+        nextQueryAgg := &structs.QueryAggregators {
+            PipeCommandType: structs.OutputTransformType,
+            OutputTransforms: &structs.OutputTransforms {
+                LetColumns: CommaSpaceAndEval[2].(*structs.LetColumnsRequest),
+            },
+        }
+
+        leafQueryAgg.Next = nextQueryAgg
+        leafQueryAgg = leafQueryAgg.Next
+    }
+
+    return root, nil
+}
+
+// Returns *structs.LetColumnsRequest
+SingleEval <- field:FieldName "=" expr:EvalExpression {
+    fieldStr := field.(string)
+    if strings.Contains(fieldStr, "*") {
+        return nil, fmt.Errorf("New fields must not contain wildcards; invalid field: %v", field)
+    }
+
+    letColumnsRequest := expr.(*structs.LetColumnsRequest)
+    letColumnsRequest.NewColName = fieldStr
+
+    return letColumnsRequest, nil
+}
+
+// Returns *structs.LetColumnsRequest without the NewColName set.
+EvalExpression <- value:ValueExpr {
+    letColReq := &structs.LetColumnsRequest {
+        ValueColRequest: value.(*structs.ValueExpr),
+    }
+
+    return letColReq, nil
+}
+
+ConditionExpr <- "if(" condition:BoolExpr ", " trueValue:ValueExpr ", " falseValue:ValueExpr  ")" {
+
+    node := &structs.ConditionExpr {
+        Op: "if",
+        BoolExpr: condition.(*structs.BoolExpr),
+        TrueValue: trueValue.(*structs.ValueExpr),
+        FalseValue: falseValue.(*structs.ValueExpr),
+    }
+
+    return node, nil
+}
+
+TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Value: stringExpr.(*structs.StringExpr),
+        StrToRemove: "",
+    }
+
+    return node, nil
+}
+/ (opName:("max" / "min") "(" firstVal:StringExpr rest:(", " StringExpr)* ")" )
+      {
+        opNameStr, err := transferUint8ToString(opName)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        }
+        if rest == nil {
+            return firstVal, nil
+        }
+        restSlice := rest.([]any)
+        values := make([]*structs.StringExpr, 1 + len(restSlice))
+        values[0] = firstVal.(*structs.StringExpr)
+
+        for i := range restSlice {
+            stringAtom := restSlice[i].([]any)
+            values[i + 1] = stringAtom[1].(*structs.StringExpr)
+        }
+        node := &structs.TextExpr {
+            Op: opNameStr,
+            MaxMinValues: values,
+        }
+        return node, nil   
+      }
+/ (opName:("urldecode") "(" url:StringExpr ")" ){
+        opNameStr, err := transferUint8ToString(opName)
+        if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+        node := &structs.TextExpr {
+            Op: opNameStr,
+            Value: url.(*structs.StringExpr),
+            StrToRemove: "",
+        }
+        return node, nil
+    }
+/(opName:("split") "(" stringExpr:StringExpr "," delim:StringExpr ")") {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Value: stringExpr.(*structs.StringExpr),
+        Delimiter: delim.(*structs.StringExpr),
+    }
+    return node, nil
+}
+/ (opName:("ltrim" / "rtrim") "(" expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? ")") {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+
+    stringExpr, ok := expr.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert expr as *structs.StringExpr: %v", err)
+    }
+    
+    strToRemove := " \t"
+    if strToRemoveExpr != nil {
+        strToRemove = strToRemoveExpr.(string)
+    }
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Value: stringExpr,
+        StrToRemove: removeQuotes(strToRemove),
+    }
+
+    return node, nil
+}
+
+StrToRemoveExpr <- ", " strToRemove:String {
+    return strToRemove, nil
+}
+
+// From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Eval#Syntax
+// Returns the field as a string with no quotation marks.
+EvalFieldToRead <- [a-zA-Z_]+ !("(") {
+    return string(c.text), nil
+}
+/ "'" field:FieldName "'" {
+    return field, nil
+}
+
+// Returns *structs.QueryAggregators
+WhereBlock <- PIPE CMD_WHERE condition:BoolExpr {
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            FilterRows: condition.(*structs.BoolExpr),
+        },
+    }
+
+    return queryAgg, nil
+}
+
+// Returns *structs.BoolExpr
+BoolExpr <- expr:BoolExprLevel4 {
+    return expr, nil
+}
+
+// Returns *structs.BoolExpr
+BoolExprLevel4 <- first:BoolExprLevel3 rest:(OR BoolExprLevel3)* {
+    if rest == nil {
+        return first, nil
+    }
+
+    cur := first.(*structs.BoolExpr)
+    for _, v := range rest.([]any) {
+        opAndClause := v.([]any)
+        cur = &structs.BoolExpr {
+            IsTerminal: false,
+            BoolOp: structs.BoolOpOr,
+            LeftBool: cur,
+            RightBool: opAndClause[1].(*structs.BoolExpr),
+        }
+    }
+
+    return cur, nil
+}
+
+// Returns *structs.BoolExpr
+BoolExprLevel3 <- first:BoolExprLevel2 rest:(AND BoolExprLevel2)* {
+    if rest == nil {
+        return first, nil
+    }
+
+    cur := first.(*structs.BoolExpr)
+    for _, v := range rest.([]any) {
+        opAndClause := v.([]any)
+        cur = &structs.BoolExpr {
+            IsTerminal: false,
+            BoolOp: structs.BoolOpAnd,
+            LeftBool: cur,
+            RightBool: opAndClause[1].(*structs.BoolExpr),
+        }
+    }
+
+    return cur, nil
+}
+
+// Returns *structs.BoolExpr
+BoolExprLevel2 <- NOT "(" first:BoolExprLevel1 ")" {
+    cur := &structs.BoolExpr {
+        IsTerminal: false,
+        BoolOp: structs.BoolOpNot,
+        LeftBool: first.(*structs.BoolExpr),
+        RightBool: nil,
+    }
+
+    return cur, nil
+}
+/ first:BoolExprLevel1 {
+    return first, nil
+}
+
+// Returns *structs.BoolExpr
+BoolExprLevel1 <- "(" first:BoolExprLevel4 ")" {
+    return first, nil
+}
+/ (op:("isbool" / "isint" / "isstr" / "isnull") "(" value:ValueExpr ")" ) {
+    opNameStr, err := transferUint8ToString(op)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
+    }
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: value.(*structs.ValueExpr),
+        RightValue: nil,
+        ValueOp: opNameStr,
+    }
+    return expr, nil
+}
+/ likeExpr: LikeExpr {
+    return likeExpr, nil
+}
+LikeExpr <- left:ValueExpr SPACE "LIKE" SPACE right:ValueExpr {
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: left.(*structs.ValueExpr),
+        RightValue: right.(*structs.ValueExpr),
+        ValueOp: "like",
+    }
+    return expr, nil
+}
+/ "like(" stringr:ValueExpr ", " pattern:ValueExpr ")" {
+     expr := &structs.BoolExpr {
+         IsTerminal: true,
+         LeftValue: stringr.(*structs.ValueExpr),
+         RightValue: pattern.(*structs.ValueExpr),
+         ValueOp: "like",
+     }
+     return expr, nil
+ }
+/ "match(" stringVal:ValueExpr ", " pattern:ValueExpr ")" {
+     expr := &structs.BoolExpr {
+         IsTerminal: true,
+         LeftValue: stringVal.(*structs.ValueExpr),
+         RightValue: pattern.(*structs.ValueExpr),
+         ValueOp: "match",
+     }
+     return expr, nil
+ }
+/ "cidrmatch(" cidr:ValueExpr ", " ip:ValueExpr ")" {
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: cidr.(*structs.ValueExpr),
+        RightValue: ip.(*structs.ValueExpr),
+        ValueOp: "cidrmatch",
+    }
+    return expr, nil
+}
+/ inExpr: InExpr {
+    return inExpr, nil
+}
+/ left:ValueExpr SPACE op:EqualityOrInequality SPACE right:ValueExpr {
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: left.(*structs.ValueExpr),
+        RightValue: right.(*structs.ValueExpr),
+        ValueOp: op.(string),
+    }
+
+    return expr, nil
+}
+
+
+InExpr <- left:ValueExpr SPACE "in(" valueToJudge:ValueExpr rest:(", " ValueExpr)* ")" {
+    restSlice := rest.([]any)
+    slice := make([]*structs.ValueExpr, 1 + len(restSlice))
+    slice[0] = valueToJudge.(*structs.ValueExpr)
+
+    for i := range restSlice {
+        valueAtom := restSlice[i].([]any)
+        slice[i + 1] = valueAtom[1].(*structs.ValueExpr)
+    }
+
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: left.(*structs.ValueExpr),
+        ValueList: slice,
+        ValueOp: "in",
+    }
+    return expr, nil
+}
+// For this in use case: if(in(<value>, [<list>]), "true_value", "false_value")
+/ "in(" valueToJudge:ValueExpr rest:(", " ValueExpr)* ")" {
+    restSlice := rest.([]any)
+    slice := make([]*structs.ValueExpr, len(restSlice))
+
+    for i := range restSlice {
+        valueAtom := restSlice[i].([]any)
+        slice[i] = valueAtom[1].(*structs.ValueExpr)
+    }
+
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: valueToJudge.(*structs.ValueExpr),
+        ValueList: slice,
+        ValueOp: "in",
+    }
+    return expr, nil
+}
+
+// Returns *structs.ValueExpr
+//
+// The order of the choices is important. In particular, we want to parse a
+// single field as a VEMField type ValueExpr so that it can be evaluated to
+// either a string or float as needed (if the field has float values), rather
+// than parsing it as a NumericExpr or ConcatExpr and forcing it to be a float
+// or string respectively.
+ValueExpr <- condition:ConditionExpr {
+
+    expr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMConditionExpr,
+        ConditionExpr: condition.(*structs.ConditionExpr),
+    }
+
+    return expr, nil
+}
+/numeric:NumericExpr {
+
+    expr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMNumericExpr,
+        NumericExpr: numeric.(*structs.NumericExpr),
+    }
+
+    return expr, nil
+}
+/str:StringExpr {
+
+    expr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMStringExpr,
+        StringExpr: str.(*structs.StringExpr),
+    }
+
+    return expr, nil
+}
+
+StringExpr <- text:TextExpr !(EVAL_CONCAT) {
+    expr := &structs.StringExpr {
+        StringExprMode: structs.SEMTextExpr,
+        TextExpr: text.(*structs.TextExpr),
+    }
+
+    return expr, nil
+}
+/ str:QuotedString !(EVAL_CONCAT) {
+    expr := &structs.StringExpr {
+        StringExprMode: structs.SEMRawString,
+        RawString: removeQuotes(str),
+    }
+
+    return expr, nil
+}
+/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / EVAL_CONCAT / "(") {
+    expr := &structs.StringExpr {
+        StringExprMode: structs.SEMField,
+        FieldName: field.(string),
+    }
+
+    return expr, nil
+}
+/ concat:ConcatExpr {
+    expr := &structs.StringExpr {
+        StringExprMode: structs.SEMConcatExpr,
+        ConcatExpr: concat.(*structs.ConcatExpr),
+    }
+
+    return expr, nil
+}
+
+// Returns *structs.ConcatExpr
+ConcatExpr <- first:ConcatAtom rest:(EVAL_CONCAT ConcatAtom)* !(OpPlus / OpMinus / OpMul / OpDiv / "(") {
+    restSlice := rest.([]any)
+    slice := make([]*structs.ConcatAtom, 1 + len(restSlice))
+    slice[0] = first.(*structs.ConcatAtom)
+
+    for i := range restSlice {
+        concatAndAtom := restSlice[i].([]any)
+        slice[i + 1] = concatAndAtom[1].(*structs.ConcatAtom)
+    }
+
+    expr := &structs.ConcatExpr {
+        Atoms: slice,
+    }
+
+    return expr, nil
+}
+
+// Returns *structs.ConcatAtom
+ConcatAtom <- text:TextExpr {
+    atom := &structs.ConcatAtom {
+        IsField: false,
+        Value: "",
+        TextExpr: text.(*structs.TextExpr),
+    }
+
+    return atom, nil
+}
+/ str:QuotedString {
+    atom := &structs.ConcatAtom {
+        IsField: false,
+        Value: removeQuotes(str),
+    }
+
+    return atom, nil
+}
+/ number:NumberAsString {
+    atom := &structs.ConcatAtom {
+        IsField: false,
+        Value: number.(string),
+    }
+
+    return atom, nil
+}
+/ field:EvalFieldToRead {
+    atom := &structs.ConcatAtom {
+        IsField: true,
+        Value: field.(string),
+    }
+
+    return atom, nil
+}
+
+// Returns *structs.NumericExpr
+NumericExpr <- expr:NumericExprLevel3 !(EVAL_CONCAT / "\"" ) {
+    return expr, nil
+}
+
+// Returns *structs.NumericExpr
+NumericExprLevel3 <- first:NumericExprLevel2 rest:((OpPlus / OpMinus) NumericExprLevel2)* {
+    if rest == nil {
+        return first, nil
+    }
+
+    cur := first.(*structs.NumericExpr)
+    for _, v := range rest.([]any) {
+        opAndClause := v.([]any)
+        cur = &structs.NumericExpr {
+            IsTerminal: false,
+            Op: opAndClause[0].(string),
+            Left: cur,
+            Right: opAndClause[1].(*structs.NumericExpr),
+            NumericExprMode: structs.NEMNumericExpr,
+        }
+    }
+
+    return cur, nil
+}
+
+// Returns *structs.NumericExpr
+NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv) NumericExprLevel1)* {
+    if rest == nil {
+        return first, nil
+    }
+
+    cur := first.(*structs.NumericExpr)
+    for _, v := range rest.([]any) {
+        opAndClause := v.([]any)
+        cur = &structs.NumericExpr {
+            IsTerminal: false,
+            Op: opAndClause[0].(string),
+            Left: cur,
+            Right: opAndClause[1].(*structs.NumericExpr),
+            NumericExprMode: structs.NEMNumericExpr,
+        }
+    }
+
+    return cur, nil
+}
+
+RoundPrecisionExpr <- ", " expr:NumericExprLevel3 {
+    rightNumericExpr, ok := expr.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
+    }
+    
+    return rightNumericExpr, nil
+}
+
+// Returns *structs.NumericExpr
+NumericExprLevel1 <- "(" expr:NumericExprLevel3 ")" {
+    return expr, nil
+}
+/ numericEvalExpr: NumericEvalExpr {
+    return numericEvalExpr, nil
+}
+/ field:EvalFieldToRead {
+    expr := &structs.NumericExpr {
+        IsTerminal: true,
+        ValueIsField: true,
+        Value: field.(string),
+        NumericExprMode: structs.NEMNumberField,
+    }
+
+    return expr, nil
+}
+/ number:NumberAsString {
+    expr := &structs.NumericExpr {
+        IsTerminal: true,
+        ValueIsField: false,
+        Value: number.(string),
+        NumericExprMode: structs.NEMNumber,
+    }
+
+    return expr, nil
+}
+
+//Currently involves abs, ceil, round, sqrt
+NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") "(" expr:(NumericExprLevel3) ")") {
+    leftNumericExpr, ok := expr.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
+    }
+    
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
+    node, err := createNumericExpr(opNameStr, leftNumericExpr, nil, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+
+    return node, nil
+}
+/ roundExpr:"round(" expr:(NumericExprLevel3) roundPrecision:(RoundPrecisionExpr)? ")" {
+    leftNumericExpr, ok := expr.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
+    }
+    
+    var rightNumericExpr *structs.NumericExpr 
+    if roundPrecision != nil { 
+        rightNumericExpr, ok = roundPrecision.(*structs.NumericExpr)
+        if !ok {
+            return nil, fmt.Errorf("Failed to assert roundPrecision as *structs.NumericExpr")
+        }
+    }
+
+    node, err := createNumericExpr("round", leftNumericExpr, rightNumericExpr, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+
+    return node, nil
+}
+/ lenExpr: "len(" expr:LenExpr ")" {
+    return expr, nil
+}
+
+LenExpr <- str:QuotedString !(EVAL_CONCAT) {
+
+    leftNumericExpr := &structs.NumericExpr{
+        IsTerminal: true,
+        ValueIsField: false,
+        Value: str.(string),
+        NumericExprMode: structs.NEMLenString,
+    }
+    
+    node, err := createNumericExpr("len", leftNumericExpr, nil, structs.NEMLenString)
+    if err != nil {
+        return nil, err
+    }
+
+    return node, nil
+}
+/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / EVAL_CONCAT / "(") {
+
+    leftNumericExpr := &structs.NumericExpr{
+        IsTerminal: true,
+        ValueIsField: true,
+        Value: field.(string),
+        NumericExprMode: structs.NEMLenField,
+    }
+    
+    node, err := createNumericExpr("len", leftNumericExpr, nil, structs.NEMLenField)
+    if err != nil {
+        return nil, err
+    }
+
+    return node, nil
+}
+
+// Returns *structs.QueryAggregators
+HeadBlock <- PIPE CMD_HEAD "limit="? intAsStr:IntegerAsString {
+    limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
+    }
+
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            MaxRows: limit,
+        },
+    }
+
+    return queryAgg, nil
+}
+/ PIPE CMD_HEAD_NO_SPACE {
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            MaxRows: uint64(10), // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Head
+        },
+    }
+
+    return queryAgg, nil
+}
+
+// Parses one or more AggFunctions separated by a comma and space.
+// Returns a slice containing all the AggFunctions.
+AggregationList <- first:Aggregator rest:(", " Aggregator)* {
+    // Convert `rest` to a slice. Each element of the slice will be a 2-element
+    // slice where the first element is ", " and the second is an Aggregator.
+    restSlice := rest.([]any)
+
+    numAggs := 1 + len(restSlice)
+    aggsSlice := make([]*aggregator, numAggs)
+    aggsSlice[0] = first.(*aggregator)
+
+    for i := 1; i < numAggs; i++ {
+        separatorAndAgg := restSlice[i - 1].([]any)
+        aggsSlice[i] = separatorAndAgg[1].(*aggregator)
+    }
+
+    return aggsSlice, nil
+}
+
+Aggregator <- aggFunc:AggFunction asField:AsField? {
+    agg := &aggregator{}
+    agg.aggregator = aggFunc.(*structs.MeasureAggregator)
+
+    if asField != nil {
+        agg.renameOutputField = true
+        agg.outputFieldNewName = asField.(string)
+    }
+
+    return agg, nil
+}
+
+AggFunction <- agg:(AggCount / AggDistinctCount / AggAvg / AggMin / AggMax / AggSum) {
+    return agg, nil
+}
+
+AsField <- AS field:FieldName {
+    fieldStr := field.(string)
+
+    if strings.Contains(fieldStr, "*") {
+        return nil, errors.New("The field specified in `AS` cannot contain wildcards")
+    }
+
+    return fieldStr, nil
+}
+
+AggCount <- ("count" / "c") "(" field:FieldName ")" {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Count,
+    }
+
+    return agg, nil
+} / ("count" / "c") {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "*",
+        MeasureFunc: utils.Count,
+    }
+
+    return agg, nil
+}
+
+AggDistinctCount <- ("distinct_count" / "dc") "(" field:FieldName ")" {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Cardinality,
+    }
+
+    return agg, nil
+}
+
+AggAvg <- "avg(" field:FieldName ")" {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Avg,
+    }
+
+    return agg, nil
+}
+
+AggMin <- "min(" field:FieldName ")" {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Min,
+    }
+
+    return agg, nil
+}
+
+AggMax <- "max(" field:FieldName ")" {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Max,
+    }
+
+    return agg, nil
+}
+
+AggSum <- "sum(" field:FieldName ")" {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Sum,
+    }
+
+    return agg, nil
+}
+
+FieldWithNumberValue <- keyValuePair:(NamedFieldWithNumberValue / UnnamedFieldWithNumberValue) {
+    return keyValuePair, nil
+}
+
+NamedFieldWithNumberValue <- key:FieldName op:(EqualityOperator / InequalityOperator) value:Number {
+    node := &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Op: op.(string),
+            Field: key.(string),
+            Values: value,
+        },
+    }
+
+    return node, nil
+}
+
+UnnamedFieldWithNumberValue <- value:Number {
+    node := &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Op: "=",
+            Field: "*",
+            Values: value,
+        },
+    }
+
+    return node, nil
+}
+
+FieldWithStringValue <- keyValuePair:(NamedFieldWithStringValue / UnnamedFieldWithStringValue) {
+    return keyValuePair, nil
+}
+
+NamedFieldWithStringValue <- key:FieldName op:EqualityOperator value:String {
+    node := &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Op: op.(string),
+            Field: key.(string),
+            Values: value,
+        },
+    }
+
+    return node, nil
+}
+
+UnnamedFieldWithStringValue <- value:String {
+    node := &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Op: "=",
+            Field: "*",
+            Values: value,
+        },
+    }
+
+    return node, nil
+}
+
+// Parses one or more FieldNames separated by a comma and space.
+// Returns a slice containing all the FieldNames.
+FieldNameList <- first:FieldName rest:(", " FieldName)* {
+    // Convert `rest` to a slice. Each element of the slice will be a 2-element
+    // slice where the first element is ", " and the second is a FieldName.
+    restSlice := rest.([]any)
+
+    numFieldNames := 1 + len(restSlice)
+    fields := make([]string, numFieldNames)
+    fields[0] = first.(string)
+
+    for i := 1; i < numFieldNames; i++ {
+        separatorAndField := restSlice[i - 1].([]any)
+        fields[i] = separatorAndField[1].(string)
+    }
+
+    return fields, nil
+}
+
+// From https://docs.splunk.com/Documentation/Splunk/7.3.1/Knowledge/Aboutregularexpressionswithfieldextractions
+// This allows wildcards in a FieldName, but wildcard fields are not allowed in
+// some places; those rules should check whether the field has a wildcard.
+FieldName <- [a-zA-Z0-9:*][a-zA-Z0-9:_.*]* {
+    return string(c.text), nil
+}
+
+String <- str:(QuotedString / UnquotedString) {
+    return str, nil
+}
+
+QuotedString <- '"' [^"]* '"' {
+    // The returned string has quotes as the first and last character.
+    return string(c.text), nil
+}
+
+UnquotedString <- ("*" / (!(MAJOR_BREAK / EOF) .))+ {
+    // Return the string wrapped in quotes.
+    str := "\"" + string(c.text) + "\""
+    return str, nil
+}
+
+//Can recognize fieldName or Regex Pattern for Rename Block
+RenamePattern <- [a-zA-Z0-9_*]+ {
+    return string(c.text), nil
+}
+
+Number <- number:NumberAsString {
+    return json.Number(number.(string)), nil
+}
+
+// If a number isn't followed by a space, ")", comma, or EOF, we probably want
+// to fail and parse it as a string instead.
+NumberAsString <- number:(FloatAsString / IntegerAsString) &(SPACE / ")" / "," / EOF) {
+    return number, nil
+}
+
+// Allow leading zeros, a "+" before the number, and a decimal point before
+// the first digit.
+FloatAsString <- [-+]? [0-9]* "." [0-9]+ {
+    return string(c.text), nil
+}
+
+// Allow leading zeros and a "+" before the number.
+IntegerAsString <- [-+]? [0-9]+ {
+    return string(c.text), nil
+}
+
+EqualityOperator <- ("=" / "!=") {
+    return string(c.text), nil
+}
+
+InequalityOperator <- ("<=" / "<" / ">=" / ">") {
+    return string(c.text), nil
+}
+
+EqualityOrInequality <- op:EqualityOperator {
+    return op, nil
+}
+/ op:InequalityOperator {
+    return op, nil
+}
+
+OpPlus <- SPACE "+" SPACE {
+    return "+", nil
+}
+
+OpMinus <- SPACE "-" SPACE {
+    return "-", nil
+}
+
+OpMul <- SPACE "*" SPACE {
+    return "*", nil
+}
+
+OpDiv <- SPACE "/" SPACE {
+    return "/", nil
+}
+
+CMD_SEARCH <- "search" SPACE
+CMD_REGEX <- "regex" SPACE
+CMD_STATS <- "stats" SPACE
+CMD_FIELDS <- "fields" SPACE
+CMD_WHERE <- "where" SPACE
+CMD_HEAD_NO_SPACE <- "head"
+CMD_HEAD <- CMD_HEAD_NO_SPACE SPACE
+CMD_EVAL <- "eval" SPACE
+CMD_REX <- "rex" SPACE
+CMD_RENAME <- "rename" SPACE
+EVAL_CONCAT <- SPACE? "." SPACE?
+
+// Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
+MAJOR_BREAK <- [[\]<>(){}|!;,'"*\n\r \t&?+] / "%21" / "%26" /
+               "%2526" / "%3B" / "%7C" / "%20" / "%2B" / "%3D" / "--" /
+               "%2520" / "%5D" / "%5B" / "%3A" / "%0A" / "%2C" / "%28" / "%29"
+MINOR_BREAK <- [/:=@.$#%_] / "-" / "\\"
+
+NOT <- "NOT" SPACE
+OR <- SPACE "OR" SPACE
+AND <- SPACE "AND" SPACE
+PIPE <- SPACE "|" SPACE
+AS <- SPACE "AS" SPACE
+BY <- SPACE "BY" SPACE
+
+EOF <- !.
+SPACE <- (" "? COMMENT " "?) / " "
+COMMENT <- "```" (!("```") .)* "```"

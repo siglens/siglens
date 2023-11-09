@@ -1,0 +1,12 @@
+{
+  "name": "siglens-ui-test",
+  "version": "1.0.0",
+  "dependencies": {
+    "mocha": "^10.0.0",
+    "chai": "^4.3.6",
+    "lodash": "^4.17.21"
+  },
+  "scripts": {
+    "test": "mocha specs/common.js --recursive specs"
+  }
+}

@@ -1,0 +1,61 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.data
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# vs code
+.vscode/*
+
+# log files
+*.log
+
+# default data dir
+data/*
+
+# segfiles/metafiles/blooms/range/suffix files
+*segmeta.json
+*.bsg
+*.sbi
+*.csv
+*.sri
+*.bri
+*.suffix
+*.bsu
+*.bbi
+*.cm
+*.cfi
+*.csg
+*.cmi
+
+#Mac
+*.DS_Store
+
+# perf testing results
+rawsearch_cpu
+rawsearch_mem
+*.out
+
+# licensing file
+abc.txt
+
+# mappings
+data/*
+
+# test mappings
+pkg/server/data/common/vtabledata/virtualtablenames.txt
+
+# profile results
+*.pprof
+
+.git/*
