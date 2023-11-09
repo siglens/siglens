@@ -3450,6 +3450,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 .myOrg-heading {
+    font-weight: bold;
     font-size: 22px;
     color: var(--datatable-header-text-color);
 }
@@ -4159,7 +4160,7 @@ color: #C8C7CC;
 }
 
 .add-contact-form div{
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .message{
@@ -4202,8 +4203,9 @@ color: #C8C7CC;
 }
 
 .contact-container{
-    padding: 10px;
-    border: 1px solid var(--purple-15p);
+    padding: 20px;
+    padding-bottom: 0px;
+    border: 1px solid var(--search-input-border);
     border-radius: 5px;
 }
 
@@ -4521,7 +4523,7 @@ color: #C8C7CC;
     margin-bottom: 20px;
     margin-left: 10px;
 }
-#alert-form .btn-container {
+#alert-form .btn-container,#contact-form .btn-container {
     margin-top: -90px;
     position: absolute;
     right: 20px;

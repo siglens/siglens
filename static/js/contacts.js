@@ -25,10 +25,14 @@ let contactEditFlag = 0;
 /* Contact Form Component - This component is used on both the "contacts.html" and "alert.html" pages. */
 const contactFormHTML = `
 <form id="contact-form">
+<div class="d-flex btn-container">
+    <button class="btn" id="cancel-contact-btn" type="button">Cancel</button>
+    <button class="btn" id="save-contact-btn" type="submit">Save</button>
+</div>
 <div class="add-contact-form">
     <div>
-        <label for="contact-name">Name</label>
-        <input type="text" class="form-control" placeholder="Name" id="contact-name" required >
+        <label for="contact-name">Contact point name</label>
+        <input type="text" class="form-control" placeholder="Enter a contact point name" id="contact-name" required >
     </div>
     <div id="main-container">
         <div class="contact-container">
@@ -49,8 +53,10 @@ const contactFormHTML = `
                 </div>
             </div>
             <div class="slack-container">
-                <label for="slack">Channel ID</label>
-                <input type="text" class="form-control" id="slack-channel-id">
+                <div>
+                    <label for="slack">Channel ID</label>
+                    <input type="text" class="form-control" id="slack-channel-id">
+                </div>
                 <label for="slack">Slack Token</label>
                 <input type="text" class="form-control" id="slack-token">
 
@@ -66,10 +72,6 @@ const contactFormHTML = `
             <img src="./assets/add-icon.svg" class="add-icon">Add new contact type
         </span>
     </button>
-    <div>
-        <button class="btn" id="cancel-contact-btn" type="button">Cancel</button>
-        <button class="btn" id="save-contact-btn" type="submit">Save</button>
-    </div>
 </div>
 </form>
 `;
@@ -394,6 +396,7 @@ const contactGridOptions = {
 			sortAscending: '<i class="fa fa-sort-alpha-up"/>',
 			sortDescending: '<i class="fa fa-sort-alpha-down"/>',
 		},
+        cellClass: 'align-center-grid',
         resizable: true,
         sortable: true,
 	},
