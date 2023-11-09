@@ -138,7 +138,8 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 	result["dropped_attributes_count"] = uint64(span.DroppedAttributesCount)
 	result["dropped_events_count"] = uint64(span.DroppedEventsCount)
 	result["dropped_links_count"] = uint64(span.DroppedLinksCount)
-	result["status"] = span.Status.String()
+	result["status_code"] = span.Status.Code
+	result["status_message"] = span.Status.Message
 
 	// Make a column for each attribute key.
 	for _, keyvalue := range span.Attributes {
