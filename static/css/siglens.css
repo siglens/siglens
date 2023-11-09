@@ -200,6 +200,15 @@
     --myOrg-dropdown-border-color:var(--white-4);
 
     --delete-btn: var(--color-danger);
+    --subsection-border: var(--white-3);
+    --search-input-border: var(--white-4);
+    --caption-color: var(--white-1);
+    --box-shadow : 0px 2px 8px 0px rgba(111, 107, 123, 0.16);
+    --alert-background : var(--black-2);
+    --black1-to-white0: var(--black-1);
+    --alerting-table-bg-color:var(--black-2);
+    --alerting-table-line-color:var(--white-4);
+
 }
 
 /* end aliases */
@@ -316,6 +325,13 @@
     --myOrg-dropdown-options-bg:var(--white-0);
     --myOrg-dropdown-color:var(--white-5);
     --myOrg-dropdown-border-color:var(--white-3);
+    --subsection-border: var(--white-4);
+    --search-input-border: var(--white-3);
+    --box-shadow : 0px 2px 8px 0px rgba(0, 0, 0, 0.16);
+    --alert-background : var(--white-1);
+    --black1-to-white0 : var(--white-0);
+    --alerting-table-bg-color:var(--white-2);
+    --alerting-table-line-color: var(--white-3);
 }
 
 
@@ -2547,6 +2563,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 
 .ag-theme-mycustomtheme .ag-header-cell-resize {
     background-color: var(--bg-color)!important;
+    width: 6px;
 }
  .ag-cell {
     padding: 3px 15px !important;
@@ -3314,28 +3331,31 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 
 .section-buttons {
     display: flex;
-    height: 54px;
-    margin-top: 24px;
+    height: 40px;
     border-radius: 5px;
     width: fit-content;
     align-items: center;
     background: var(--myOrg-input);
+    border: 1px solid var(--subsection-border);
+    padding: 4px;
+    margin-top: 22px;
 }
 
 .section-button {
-    width: 115px;
-    margin: 4px;
+    padding: 4px 10px 5px 10px;
+    height: 32px;
+    width: fit-content;
     border-radius: 5px;
-    border: none;
     background: var(--myOrg-input);
     display: flex;
     align-items: center;
     justify-content: center;
+    margin: 0px;
 }
 
 .section-button a{
     text-decoration: none;
-    color: var(--timepicker-text-color);
+    color: var(--subsection-border);
 }
 
 .section-button.active a{
@@ -3343,7 +3363,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 .section-button.active {
-    height: 44px;
+    height: 32px;
     border: 1px solid #6347D9;
     background: rgba(99, 71, 217, 0.15);
 }
@@ -3356,7 +3376,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 .caption {
     margin-bottom: 20px;
     font-size: 18px;
-    color: #8A8794;
+    color: var(--text-color);
 }
 
 .inviteBtn {
@@ -3960,7 +3980,7 @@ color: #C8C7CC;
 #alerting{
     padding: 20px;
     width: 100%;
-    background-color: var(--bg-color);
+    background-color: var(--alert-background);
     display: flex;
     flex-direction: column;
     max-height: 100vh;
@@ -3968,8 +3988,53 @@ color: #C8C7CC;
     font-size: 18px;
 }
 
-#alerting .section-button {
-    width: 130px;
+#alerting input , #alerting .dropdown-toggle , #alerting textarea ,.add-label-container{
+    border: 1px solid var(--search-input-border);
+    background: var(--alert-background);
+}
+
+#alerting .form-container {
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: var(--box-shadow);
+    overflow-y: scroll;
+}
+
+.subsection-heading{
+    display: flex;
+    align-items: center;
+}
+
+.subsection-heading div:nth-child(2){
+    color: var(--drop-down-text-color);
+    font-size: 20px;
+    font-weight: 600;
+    margin-left: 20px;
+}
+
+#alerting .circle{
+    height: 42px;
+    width: 42px;
+    border-radius: 50%;
+    background-color: var(--purple-1);
+    color: var(--white-0);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 700;
+
+}
+
+.alert-form-subsection{
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    padding: 30px;
+    border-radius: 10px;
+    margin-bottom: 40px;
+    margin-top: 20px;
+    margin-left: 62px
 }
 
 .alerts-nav-tab{
@@ -3977,25 +4042,26 @@ color: #C8C7CC;
 }
 
 #alerting .caption{
-    margin-top: 40px;
-    margin-bottom: 20px;
+    margin-top: 30px;
+    margin-bottom: 30px;
 }
 
 #save-alert-btn,#save-contact-btn,#new-alert-rule, #new-contact-point,.add-cp-btn,.add-new-contact-type{
     margin: 0;
-    padding: 15px 12px;
     text-decoration: none;
     border: none;
-    height: 44px;
-    line-height: 14px;
+    height: 40px;
     color: var(--button-text-color) !important;
     background: var(--btn-regular-bg-color);
     width: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #new-contact-point,#new-alert-rule{
     white-space: nowrap;
-    width: 170px; 
+    width: fit-content; 
 }
 
 .add-new-contact-type{
@@ -4004,17 +4070,14 @@ color: #C8C7CC;
 }
 
 #cancel-alert-btn,#cancel-contact-btn{
-    height: 44px;
+    height: 40px;
     width: 100px;
     margin-right: 10px;
     color: var(--button-text-color) !important;
     background: var(--component-bg-color);
 }
 .add-alert-form,.add-contact-form{
-    width: 50%;
-}
-.add-alert-form div{
-    margin-bottom: 20px;
+    width: 70%;
 }
 
 .evaluation-container,.condition-container,.notification-container,.query-container,.query-lang-container{
@@ -4031,13 +4094,17 @@ color: #C8C7CC;
     align-items: center;
 }
 
+.query-container, .evaluation-container, .message-info{
+    margin-top: 20px;
+}
+
 .min-span{
     color: var(--search-bar-text-color-regular-or-hover);
     margin-left:-50px
 }
 
 .label-container input, .condition-container input{
-    width: 150px;
+    width: 210px;
 }
 
 .evaluation-container input{
@@ -4045,11 +4112,14 @@ color: #C8C7CC;
     width: 70px;
     margin-right: 10px;
 }
+.label-container{
+    margin-bottom: 20px;
+}
 
 #alert-condition,#contact-types,#contact-points-dropdown,#alert-data-source,
 #logs-language-btn{
-    height: 44px;
-    width: 160px;
+    height: 40px;
+    width: 210px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -4057,22 +4127,18 @@ color: #C8C7CC;
 
 .alert-condition-options,.contact-options,.contact-points-options, #data-source-options,
 #logs-language-options {
-    width: 150px;
+    width: 210px;
     background: var(--index-drop-down-box-bg-color);
     overflow: hidden;
-    padding: 0px 10px 0px 0px;
     border: 1px solid var(--timepicker-border-color);
+    padding: 0;
 }
 
 .alert-condition-options li,.contact-options li,.contact-points-options li , .query-lang-container li{
-    width: 136px;
     background: var(--index-drop-down-item-inactive-bg-color);
     color: var(--index-drop-down-item-inactive-text-color);
-    margin-bottom: 10px;
-    margin-top: 10px;
+    margin: 6px;
     cursor: pointer;
-    margin-left: 12px;
-    margin-right: 12px;
     padding: 6px 0;
     padding-left: 12px;
     font-weight: var(--fw-400);
@@ -4132,12 +4198,7 @@ color: #C8C7CC;
 }
 
 .contact-points-options{
-    max-height: 194px;
     overflow-y: scroll;
-}
-
-.contact-points-options li,.contact-options li {
-    width: 276px;
 }
 
 .contact-container{
@@ -4161,13 +4222,16 @@ color: #C8C7CC;
 }
 
 #alerting input,.add-label-container{
-    height: 44px;
+    height: 40px;
 }
-.timepicker{
-    margin-left: 20px;
-}
-.query-container div,.query-lang-container div{
-    margin-bottom: 0;
+
+#alerting .timepicker .dropdown-toggle{
+    margin-left: 20px !important;
+    height: 40px !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 210px !important;
 }
 
 #alerting .dropdown-menu.daterangepicker.show {
@@ -4457,6 +4521,34 @@ color: #C8C7CC;
     margin-bottom: 20px;
     margin-left: 10px;
 }
+#alert-form .btn-container {
+    margin-top: -90px;
+    position: absolute;
+    right: 20px;
+} 
+
+#alerting #ag-grid{
+    border: 1px solid var(--search-input-border);
+    box-shadow: var(--box-shadow);
+    border-radius: 5px;
+}
+
+#alerting .ag-header-viewport,
+#alerting .ag-header-cell{
+  background-color: var(--alerting-table-bg-color);
+}
+
+#alerting .ag-row-position-absolute::after{
+  content: '';
+  position: absolute;
+  left: 10px;
+  width: 98%;
+  height: 1px;
+  background-color: var(--alerting-table-line-color);
+  bottom: 0;
+}
+
+/* Log Screen */
 .save-options {
     position: absolute;
     display: flex;

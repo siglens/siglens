@@ -75,6 +75,7 @@ $(document).ready(function () {
     });
     
     alertForm.on('submit',(e)=>submitAddAlertForm(e));
+  
     $("#info-icon-spl").tooltip({
         delay: { show: 0, hide: 300 },
         trigger: 'click'

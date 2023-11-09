@@ -60,15 +60,24 @@
             <!-- create alert form -->
             <div class="form-container">
                 <form id="alert-form">
+                    <div class="d-flex btn-container">
+                        <button class="btn" id="cancel-alert-btn" type="button">Cancel</button>
+                        <button class="btn" id="save-alert-btn" type="submit">Save</button>
+                    </div>
                     <div class="add-alert-form">
-                        <div>
-                            <label for="rule-name">Rule name</label>
-                            <input type="text" class="form-control" placeholder="Enter rule name" id="alert-rule-name"
-                                required>
+                        <div class="subsection-heading">
+                            <div class="circle">1</div>
+                            <div>Alert Rule</div>
                         </div>
-
-                        <div>
-                            <label for="query">Query</label>
+                        <div class="alert-form-subsection">
+                            <label for="alert-rule-name">Rule name</label>
+                            <input type="text" class="form-control" placeholder="Enter rule name" id="alert-rule-name" required >
+                        </div>
+                        <div class="subsection-heading">
+                            <div class="circle">2</div>
+                            <div>Query</div>
+                        </div>
+                        <div class="alert-form-subsection">
                             <div class="query-lang-container">
                                 <div>
                                     <button class="btn dropdown-toggle" type="button" id="alert-data-source"
@@ -139,36 +148,68 @@
                                 '></i>
                             </div>
                         </div>
-                        <label for="expression">Set the condition</label>
-                        <div class="condition-container">
-                            <div class="dropdown">
-                                <button class="btn dropdown-toggle" type="button" id="alert-condition"
-                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                                    data-bs-toggle="dropdown">
-                                    <span>Is above</span>
-                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                </button>
-                                <div class="dropdown-menu box-shadow alert-condition-options"
-                                    aria-labelledby="index-btn">
-                                    <li id="option-0" class="alert-condition-option active">Is above</li>
-                                    <li id="option-1" class="alert-condition-option">Is below</li>
-                                    <li id="option-2" class="alert-condition-option">Equal to</li>
-                                    <li id="option-3" class="alert-condition-option">Not equal to</li>
+                        <div class="subsection-heading">
+                            <div class="circle">3</div>
+                            <div>Set Condition</div>
+                        </div>
+                        <div class="alert-form-subsection">
+                            <div class="condition-container">
+                                <div class="dropdown">
+                                    <button class="btn dropdown-toggle" type="button" id="alert-condition"
+                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                        data-bs-toggle="dropdown">
+                                        <span>Is above</span>
+                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                    </button>
+                                    <div class="dropdown-menu box-shadow alert-condition-options"
+                                        aria-labelledby="index-btn">
+                                        <li id="option-0" class="alert-condition-option active">Is above</li>
+                                        <li id="option-1" class="alert-condition-option">Is below</li>
+                                        <li id="option-2" class="alert-condition-option">Equal to</li>
+                                        <li id="option-3" class="alert-condition-option">Not equal to</li>
+                                    </div>
+                                </div>
+                                <div class="condition-value">
+                                    <input type="number" name="condition-value" min="0" step="1" id="threshold-value"
+                                        value="0" class="form-control">
                                 </div>
                             </div>
-                            <div class="condition-value">
-                                <input type="number" name="condition-value" min="0" step="1" id="threshold-value"
-                                    value="0" class="form-control">
+                            <div class="evaluation-container">
+                                <div>
+                                    <label for="evaluation-interval">Evaluate every</label>
+                                    <input type="number" name="evaluate-every" min="0" id="evaluate-every" value="1"
+                                        class="form-control" step="any"></input>min<span
+                                        style="margin-left: 10px;">for</span>
+                                    <input type="number" name="evaluate-every" id="evaluate-for" value="1" min="0"
+                                        class="form-control"></input>min
+                                </div>
                             </div>
                         </div>
-                        <div class="evaluation-container">
-                            <div>
-                                <label for="evaluation-interval">Evaluate every</label>
-                                <input type="number" name="evaluate-every" min="0" id="evaluate-every" value="1"
-                                    class="form-control" step="any"></input>min<span
-                                    style="margin-left: 10px;">for</span>
-                                <input type="number" name="evaluate-every" id="evaluate-for" value="1" min="0"
-                                    class="form-control"></input>min
+                        <div class="subsection-heading">
+                            <div class="circle">4</div>
+                            <div>Notification</div>
+                        </div>
+                        <div class="alert-form-subsection">
+                            <div class="notification-container">
+                                <div>
+                                    Send to
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn dropdown-toggle" type="button" id="contact-points-dropdown"
+                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                        data-bs-toggle="dropdown">
+                                        <span>Choose</span>
+                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                    </button>
+                                    <div class="dropdown-menu box-shadow contact-points-options"
+                                        aria-labelledby="index-btn">
+                                        <li id="option-0" class="contact-points-option">Add New</li>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="message-info" id="message-info">
+                                Message<textarea name="message" id="notification-msg" rows="4" class="message form-control"
+                                    required></textarea>
                             </div>
                         </div>
                         <label for="custom-label">Custom Label</label>
@@ -181,33 +222,6 @@
                                 </div>
                             </div>
                             <button class="add-label-container btn" type="button">Add Label</button>
-                        </div>
-                        <label for="contact-point">Notifications</label>
-                        <div class="notification-container">
-                            <div>
-                                Send to
-                            </div>
-
-                            <div class="dropdown">
-                                <button class="btn dropdown-toggle" type="button" id="contact-points-dropdown"
-                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                                    data-bs-toggle="dropdown">
-                                    <span>Choose</span>
-                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                </button>
-                                <div class="dropdown-menu box-shadow contact-points-options"
-                                    aria-labelledby="index-btn">
-                                    <li id="option-0" class="contact-points-option">Add New</li>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="message-info" id="message-info">
-                            Message<textarea name="message" id="notification-msg" rows="4" class="message form-control"
-                                required></textarea>
-                        </div>
-                        <div class="btn-container">
-                            <button class="btn" id="cancel-alert-btn" type="button">Cancel</button>
-                            <button class="btn" id="save-alert-btn" type="submit">Save</button>
                         </div>
                     </div>
                 </form>
