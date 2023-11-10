@@ -188,7 +188,6 @@ $('.contact-points-options').on('click', 'li', function () {
 
 $(document).keyup(function(e) {
     if (e.key === "Escape" || e.key === "Esc") {
-        console.log("escape")
         $('.popupOverlay, .popupContent').removeClass('active');
     }
 });
@@ -256,7 +255,6 @@ function createNewAlertRule(alertData){
 
 // update alert rule
 function updateAlertRule(alertData){
-    console.log("in updateAlertRule",alertData);
         $.ajax({
         method: "post",
         url: "api/alerts/update",
@@ -363,8 +361,6 @@ function displayQueryToolTip(selectedQueryLang) {
 function displayAlertProperties(res) {
     const alertInfo = res.alertInfo;
     const queryParams = res.queryParams;
-    console.log(res)
-    console.log(alertInfo.contact_name)
     $('.alert-name').text(alertInfo.alert_name);
     $('.alert-status').text(mapIndexToAlertState.get(alertInfo.state));
     $('.alert-query').val(queryParams.queryText);
@@ -377,9 +373,7 @@ function displayAlertProperties(res) {
     $('.alert-contact-point').text(alertInfo.contact_name);
     const labelContainer = $('.alert-labels-container');
     const labels = res.alertInfo.labels;
-    console.log(labels)
     labels.forEach(label => {
-        console.log(label)
         const labelElement = $('<div>').addClass('label-element').text(`${label.label_name}=${label.label_value}`);
         labelContainer.append(labelElement);
     })
