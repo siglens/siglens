@@ -87,7 +87,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 				lenJsonData := uint64(len(jsonData))
 				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
 				if err != nil {
-					fmt.Errorf("ProcessTraceIngest: failed to process ingest request: %v", err)
+					log.Errorf("ProcessTraceIngest: failed to process ingest request: %v", err)
 					numFailedSpans++
 					continue
 				}
@@ -207,7 +207,7 @@ func linksToJson(spanLinks []*tracepb.Span_Link) ([]byte, error) {
 	// we need custom JSON marshalling.
 	type Link struct {
 		TraceId    string                 `json:"trace_id,omitempty"`
-		SpanId     string                 `json:"trace_id,omitempty"`
+		SpanId     string                 `json:"span_id,omitempty"`
 		TraceState string                 `json:"trace_state,omitempty"`
 		Attributes map[string]interface{} `json:"attributes,omitempty"`
 	}
