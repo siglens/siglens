@@ -4015,6 +4015,9 @@ color: #C8C7CC;
     margin-left: 20px;
 }
 
+.label-subsection{
+    margin-left: 62px
+}
 #alerting .circle{
     height: 42px;
     width: 42px;
