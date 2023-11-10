@@ -454,7 +454,7 @@ body {
 .icon-alerts,
 .icon-minion,
 .icon-live{
-    min-height: 46px;
+    min-height: 42px;
     min-width: 63px;
     background-origin: content-box;
     background-repeat: no-repeat;
@@ -477,11 +477,11 @@ body {
 }
 
 #app-side-nav .menu {
-    min-height: 46px;
+    min-height: 42px;
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
     border-radius: 0 5px 5px 0;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     margin-right: 12px;
 }
 
@@ -493,10 +493,10 @@ body {
 }
 
 #app-side-nav .menu.logo {
-    padding: 20px 0 31px 15px;
+    padding: 20px 0 20px 15px;
 }
 #app-side-nav.active .menu.logo {
-    padding: 20px 0 31px 0px;
+    padding: 20px 0 20px 0px;
 }
 
 #app-side-nav .menu.logo .sslogo {
