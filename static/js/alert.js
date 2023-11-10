@@ -363,11 +363,11 @@ function displayQueryToolTip(selectedQueryLang) {
 function displayAlertProperties(res) {
     const alertInfo = res.alertInfo;
     const queryParams = res.queryParams;
-
+    console.log(res)
     console.log(alertInfo.contact_name)
     $('.alert-name').text(alertInfo.alert_name);
     $('.alert-status').text(mapIndexToAlertState.get(alertInfo.state));
-    $('.alert-query').text(queryParams.queryText);
+    $('.alert-query').val(queryParams.queryText);
     $('.alert-type').text(queryParams.data_source);
     $('.alert-query-language').text(queryParams.queryLanguage);
     $('.alert-condition').text(mapIndexToConditionType.get(res.condition));
@@ -375,6 +375,14 @@ function displayAlertProperties(res) {
     $('.alert-every').text(res.eval_interval);
     $('.alert-for').text(res.eval_for);
     $('.alert-contact-point').text(alertInfo.contact_name);
+    const labelContainer = $('.alert-labels-container');
+    const labels = res.alertInfo.labels;
+    console.log(labels)
+    labels.forEach(label => {
+        console.log(label)
+        const labelElement = $('<div>').addClass('label-element').text(`${label.label_name}=${label.label_value}`);
+        labelContainer.append(labelElement);
+    })
 }
 
 // Add Label

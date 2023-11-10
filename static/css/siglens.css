@@ -4495,7 +4495,7 @@ color: #C8C7CC;
 .alert-properties > div {
     display: flex;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 20px;
 }
 
 .alert-properties h4 {
@@ -4506,9 +4506,49 @@ color: #C8C7CC;
 }
 
 .alert-properties{
-    padding: 10px;
-    border: 3px solid var(--purple-15p);
+    padding: 30px;
+    border: 1px solid var(--search-input-border);
+    box-shadow: var(--box-shadow);
     border-radius: 5px;
+    background-color: var(--black1-to-white0);
+    margin-top: 30px;
+}
+
+.alert-properties .label-element{
+    display: inline-block;
+    border: 1px solid #ccc;
+    padding: 5px;
+    margin: 5px;
+    border-radius: 5px;
+    height: 40px;
+}
+
+#edit-alert-btn ,#delete-alert, #cancel-alert-details{
+    height: 40px;
+    border: 1px solid var(--search-input-border);
+    border-radius: 5px;
+    background-color: var(--black1-to-white0);
+    width: 100px;
+    margin-right: 10px;
+}
+
+#edit-alert-btn:hover ,#delete-alert:hover, #cancel-alert-details:hover{
+    background-color: var(--alert-background);
+}
+
+#alert-details{
+    margin-top: 30px;
+    margin-bottom: 30px;
+}
+.alert-query{
+    color: var(--text-color) !important;
+    outline: none !important;
+}
+
+.alert-rule-ctn{
+    font-weight: 600;
+    font-size: 22px;
+    margin-bottom: 0px;
 }
 
 .label-equal{
