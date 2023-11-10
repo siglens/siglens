@@ -19,6 +19,9 @@ package structs
 import (
 	"testing"
 
+	"strconv"
+	"time"
+
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -1424,6 +1427,27 @@ func Test_StringExpr(t *testing.T) {
 	value, err = strMin.Evaluate(fieldToValue)
 	assert.Nil(t, err)
 	assert.Equal(t, value, "1")
+
+	nowExpr :=
+		&StringExpr{
+			StringExprMode: SEMTextExpr,
+			TextExpr: &TextExpr{
+				IsTerminal: true,
+				Op:         "now",
+			},
+		}
+	assert.Equal(t, nowExpr.GetFields(), []string{})
+
+	// Test Evaluate()
+	fieldToValue = make(map[string]segutils.CValueEnclosure)
+
+	value, err = nowExpr.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	currentTimestamp := time.Now().Unix()
+
+	evaluatedTimestamp, err := strconv.ParseInt(value, 10, 64)
+	assert.Nil(t, err)
+	assert.InDelta(t, currentTimestamp, evaluatedTimestamp, 1, "The evaluated timestamp is not within the expected range")
 }
 
 func Test_RenameExpr(t *testing.T) {
