@@ -96,6 +96,7 @@ type NumericExpr struct {
 	Op    string // Either +, -, /, *, abs, ceil, round, sqrt, len
 	Left  *NumericExpr
 	Right *NumericExpr
+	Val   *StringExpr
 }
 
 type StringExpr struct {
@@ -115,7 +116,6 @@ type TextExpr struct {
 	MaxMinValues []*StringExpr
 	StartIndex   *NumericExpr
 	LengthExpr   *NumericExpr
-	BaseExpr     *NumericExpr
 	Val          *ValueExpr
 	Format       *StringExpr
 }
@@ -793,6 +793,31 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 				return 0, err
 			}
 			return math.Exp(exp), nil
+		case "tonumber":
+			if self.Val == nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: tonumber operation requires a string expression")
+			}
+			strValue, err := self.Val.Evaluate(fieldToValue)
+			if err != nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: Error in tonumber operation: %v", err)
+			}
+			base := 10
+			if self.Right != nil {
+				baseValue, err := self.Right.Evaluate(fieldToValue)
+				if err != nil {
+					return 0, err
+				}
+				base = int(baseValue)
+				if base < 2 || base > 36 {
+					return 0, fmt.Errorf("NumericExpr.Evaluate: Invalid base for tonumber: %v", base)
+				}
+			}
+			number, err := strconv.ParseInt(strValue, base, 64)
+			if err != nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert '%v' to number with base %d", strValue, base)
+			}
+			return float64(number), nil
+
 		default:
 			return 0, fmt.Errorf("NumericExpr.Evaluate: unexpected operation: %v", self.Op)
 		}
@@ -936,25 +961,6 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		}
 		return baseString[startIndex:endIndex], nil
 
-	case "tonumber":
-		baseValue := 10
-		if self.BaseExpr != nil {
-			baseFloat, err := self.BaseExpr.Evaluate(fieldToValue)
-			if err != nil {
-				return "", fmt.Errorf("TextExpr.Evaluate: can not evaluate base as an int: %v", err)
-			}
-			baseValue = int(baseFloat)
-			if baseValue < 2 || baseValue > 36 {
-				return "", fmt.Errorf("TextExpr.Evaluate: base value out of range (should be between 2 and 36)")
-
-			}
-		}
-		number, err := strconv.ParseInt(cellValueStr, baseValue, 64)
-		if err != nil {
-			return "", fmt.Errorf("TextExpr.Evaluate: failed to convert string '%s' to number with base %d: %v", cellValueStr, baseValue, err)
-		}
-		return strconv.FormatInt(number, 10), nil
-
 	default:
 		return "", fmt.Errorf("TextExpr.Evaluate: unexpected operation: %v", self.Op)
 	}
@@ -1030,9 +1036,6 @@ func (self *TextExpr) GetFields() []string {
 		if self.LengthExpr != nil {
 			fields = append(fields, self.LengthExpr.GetFields()...)
 		}
-		if self.BaseExpr != nil {
-			fields = append(fields, self.BaseExpr.GetFields()...)
-		}
 		if self.Format != nil {
 			fields = append(fields, self.Format.GetFields()...)
 		}
@@ -1061,6 +1064,10 @@ func round(number float64, precision int) float64 {
 }
 
 func (self *NumericExpr) GetFields() []string {
+	fields := make([]string, 0)
+	if self.Val != nil {
+		return append(fields, self.Val.GetFields()...)
+	}
 	if self.IsTerminal {
 		if self.ValueIsField {
 			return []string{self.Value}
@@ -1072,7 +1079,6 @@ func (self *NumericExpr) GetFields() []string {
 	} else {
 		return self.Left.GetFields()
 	}
-
 }
 
 func getValueAsString(fieldToValue map[string]utils.CValueEnclosure, field string) (string, error) {

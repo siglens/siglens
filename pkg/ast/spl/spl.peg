@@ -620,34 +620,6 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
     }
     return node, nil
 }
-/ (opName:("tonumber") "(" stringExpr:StringExpr baseExpr:("," NumericExpr)? ")") {
-    opNameStr, err := transferUint8ToString(opName)
-    if err != nil {
-        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-    }
-    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr")
-    }
-    var baseExprConverted *structs.NumericExpr
-    if baseExpr != nil {
-        baseSlice, ok := baseExpr.([]interface{})
-        if ok && len(baseSlice) > 1 {
-            base, ok := baseSlice[1].(*structs.NumericExpr)
-            if ok {
-                baseExprConverted = base
-            } else {
-                return nil, fmt.Errorf("Spl peg: TextExpr: Unable to assert base as *structs.NumericExpr")
-            }
-        }
-    } 
-    node := &structs.TextExpr {
-        Op: opNameStr,
-        Value: stringExprConverted,
-        BaseExpr: baseExprConverted,
-    }
-    return node, nil
-}
 / "tostring" "(" value:ValueExpr format:("," StringExpr )? ")" {
     var formatExpr *structs.StringExpr
     if format != nil {
@@ -1130,6 +1102,34 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") "(" expr:(N
         return nil, err
     }
 
+    return node, nil
+}
+/ "tonumber(" stringExpr:StringExpr baseExpr:("," NumericExprLevel3)? ")" {
+    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert stringExpr as *structs.StringExpr")
+    }
+
+    var baseExprConverted *structs.NumericExpr
+    if baseExpr != nil {
+        baseSlice, ok := baseExpr.([]interface{})
+        if ok && len(baseSlice) > 1 {
+            if base, ok := baseSlice[1].(*structs.NumericExpr); ok {
+                baseExprConverted = base
+            } else {
+                return nil, fmt.Errorf("Failed to assert base as *structs.NumericExpr")
+            }
+        }
+    }
+    
+    node := &structs.NumericExpr {
+        IsTerminal: false,
+        Op: "tonumber",
+        Left: nil, 
+        Right: baseExprConverted,
+        Val: stringExprConverted,
+        NumericExprMode: structs.NEMNumericExpr,
+    }
     return node, nil
 }
 / lenExpr: "len(" expr:LenExpr ")" {

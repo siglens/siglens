@@ -187,6 +187,28 @@ func Test_NumericExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, 20.085536923187668)
 
+	strToNumber :=
+		&NumericExpr{
+			NumericExprMode: NEMNumericExpr,
+			IsTerminal:      false,
+			Op:              "tonumber",
+			Right: &NumericExpr{
+				NumericExprMode: NEMNumber,
+				IsTerminal:      true,
+				ValueIsField:    false,
+				Value:           "16",
+			},
+			Val: &StringExpr{
+				StringExprMode: SEMRawString,
+				RawString:      "0A4",
+			},
+		}
+	assert.Equal(t, strToNumber.GetFields(), []string{})
+
+	value, err = strToNumber.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, float64(164))
+
 }
 
 func Test_ValueExpr(t *testing.T) {
@@ -1477,30 +1499,6 @@ func Test_StringExpr(t *testing.T) {
 	value, err = strSubStr.Evaluate(fieldToValue)
 	assert.Nil(t, err)
 	assert.Equal(t, value, "splunk")
-
-	strToNumber :=
-		&StringExpr{
-			StringExprMode: SEMTextExpr,
-			TextExpr: &TextExpr{
-				IsTerminal: false,
-				Op:         "tonumber",
-				Value: &StringExpr{
-					StringExprMode: SEMRawString,
-					RawString:      "0A4",
-				},
-				BaseExpr: &NumericExpr{
-					NumericExprMode: NEMNumber,
-					IsTerminal:      true,
-					ValueIsField:    false,
-					Value:           "16",
-				},
-			},
-		}
-	assert.Equal(t, strToNumber.GetFields(), []string{})
-
-	value, err = strToNumber.Evaluate(fieldToValue)
-	assert.Nil(t, err)
-	assert.Equal(t, value, "164")
 
 	strToStringBool :=
 		&StringExpr{
