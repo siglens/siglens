@@ -539,12 +539,7 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
 
     return node, nil
 }
-/"now" "()" {
-    return &structs.TextExpr{
-        IsTerminal: true,
-        Op:         "now",
-    }, nil
-}
+
 / (opName:("max" / "min") "(" firstVal:StringExpr rest:(", " StringExpr)* ")" )
       {
         opNameStr, err := transferUint8ToString(opName)
@@ -1057,7 +1052,12 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") "(" expr:(N
 
     return node, nil
 }
-
+/"now" "()" {
+    return &structs.NumericExpr{
+        IsTerminal: true,
+        Op:         "now",
+    }, nil
+}
 / lenExpr: "len(" expr:LenExpr ")" {
     return expr, nil
 }

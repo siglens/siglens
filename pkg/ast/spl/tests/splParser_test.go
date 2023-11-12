@@ -3294,10 +3294,11 @@ func Test_evalFunctionsNow(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "result")
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMStringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "now")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMNumericExpr)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.NumericExprMode), structs.NEMNumber)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, true)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "now")
 
 }
 

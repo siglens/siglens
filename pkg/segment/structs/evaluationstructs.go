@@ -446,7 +446,6 @@ func (self *StringExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) 
 		if str, err := getValueAsString(fieldToValue, self.FieldName); err == nil {
 			return str, nil
 		}
-
 		return "", fmt.Errorf("StringExpr.Evaluate: cannot evaluate to field")
 	case SEMConcatExpr:
 		return self.ConcatExpr.Evaluate(fieldToValue)
@@ -697,6 +696,10 @@ func (self *RenameExpr) RemoveBucketHolderGroupByColumnsByIndex(bucketHolder *Bu
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
 func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (float64, error) {
+	if self.Op == "now" {
+		timestamp := time.Now().Unix()
+		return float64(timestamp), nil
+	}
 	if self.IsTerminal {
 		if self.ValueIsField {
 			switch self.NumericExprMode {
@@ -777,6 +780,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 				return 0, err
 			}
 			return math.Exp(exp), nil
+
 		default:
 			return 0, fmt.Errorf("NumericExpr.Evaluate: unexpected operation: %v", self.Op)
 		}
@@ -815,10 +819,6 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			}
 		}
 		return minString, nil
-	} else if self.Op == "now" {
-
-		timestamp := time.Now().Unix()
-		return strconv.FormatInt(timestamp, 10), nil
 	}
 
 	cellValueStr, err := self.Value.Evaluate(fieldToValue)
@@ -909,9 +909,6 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 func (self *TextExpr) GetFields() []string {
 	fields := make([]string, 0)
 	if self.IsTerminal || (self.Op != "max" && self.Op != "min") {
-		if self.Op == "now" {
-			return fields
-		}
 		if self.Value != nil {
 			fields = append(fields, self.Value.GetFields()...)
 		}
@@ -939,7 +936,11 @@ func round(number float64, precision int) float64 {
 }
 
 func (self *NumericExpr) GetFields() []string {
+	fields := make([]string, 0)
 	if self.IsTerminal {
+		if self.Op == "now" {
+			return fields
+		}
 		if self.ValueIsField {
 			return []string{self.Value}
 		} else {

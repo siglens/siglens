@@ -18,8 +18,6 @@ package structs
 
 import (
 	"testing"
-
-	"strconv"
 	"time"
 
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -190,6 +188,21 @@ func Test_NumericExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, 20.085536923187668)
 
+	nowExpr := &NumericExpr{
+		NumericExprMode: NEMNumber,
+		IsTerminal:      true,
+		Op:              "now",
+	}
+	assert.Equal(t, nowExpr.GetFields(), []string{})
+
+	// Test Evaluate()
+	fieldToValue = make(map[string]segutils.CValueEnclosure)
+
+	value, err = nowExpr.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	currentTimestamp := time.Now().Unix()
+
+	assert.InDelta(t, currentTimestamp, value, 1, "The evaluated timestamp is not within the expected range")
 }
 
 func Test_ValueExpr(t *testing.T) {
@@ -1428,28 +1441,7 @@ func Test_StringExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, "1")
 
-	nowExpr :=
-		&StringExpr{
-			StringExprMode: SEMTextExpr,
-			TextExpr: &TextExpr{
-				IsTerminal: true,
-				Op:         "now",
-			},
-		}
-	assert.Equal(t, nowExpr.GetFields(), []string{})
-
-	// Test Evaluate()
-	fieldToValue = make(map[string]segutils.CValueEnclosure)
-
-	value, err = nowExpr.Evaluate(fieldToValue)
-	assert.Nil(t, err)
-	currentTimestamp := time.Now().Unix()
-
-	evaluatedTimestamp, err := strconv.ParseInt(value, 10, 64)
-	assert.Nil(t, err)
-	assert.InDelta(t, currentTimestamp, evaluatedTimestamp, 1, "The evaluated timestamp is not within the expected range")
 }
-
 func Test_RenameExpr(t *testing.T) {
 	renameToPhrase := &RenameExpr{
 		RenameExprMode:  REMPhrase,
