@@ -197,7 +197,7 @@ func MonitorSpansHealth() {
 	time.Sleep(1 * time.Minute) // Wait for initial traces ingest first
 	for {
 		ProcessRedTracesIngest()
-		time.Sleep(1 * time.Minute)
+		time.Sleep(5 * time.Minute)
 	}
 }
 
