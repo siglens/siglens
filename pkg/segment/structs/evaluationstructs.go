@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dustin/go-humanize"
 
@@ -460,7 +461,6 @@ func (self *StringExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) 
 		if str, err := getValueAsString(fieldToValue, self.FieldName); err == nil {
 			return str, nil
 		}
-
 		return "", fmt.Errorf("StringExpr.Evaluate: cannot evaluate to field")
 	case SEMConcatExpr:
 		return self.ConcatExpr.Evaluate(fieldToValue)
@@ -713,6 +713,10 @@ func (self *RenameExpr) RemoveBucketHolderGroupByColumnsByIndex(bucketHolder *Bu
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
 func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (float64, error) {
+	if self.Op == "now" {
+		timestamp := time.Now().Unix()
+		return float64(timestamp), nil
+	}
 	if self.IsTerminal {
 		if self.ValueIsField {
 			switch self.NumericExprMode {
@@ -1069,6 +1073,9 @@ func (self *NumericExpr) GetFields() []string {
 		return append(fields, self.Val.GetFields()...)
 	}
 	if self.IsTerminal {
+		if self.Op == "now" {
+			return fields
+		}
 		if self.ValueIsField {
 			return []string{self.Value}
 		} else {

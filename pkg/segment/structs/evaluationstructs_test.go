@@ -18,6 +18,7 @@ package structs
 
 import (
 	"testing"
+	"time"
 
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -186,6 +187,22 @@ func Test_NumericExpr(t *testing.T) {
 	value, err = expExpr.Evaluate(fieldToValue)
 	assert.Nil(t, err)
 	assert.Equal(t, value, 20.085536923187668)
+
+	nowExpr := &NumericExpr{
+		NumericExprMode: NEMNumber,
+		IsTerminal:      true,
+		Op:              "now",
+	}
+	assert.Equal(t, nowExpr.GetFields(), []string{})
+
+	// Test Evaluate()
+	fieldToValue = make(map[string]segutils.CValueEnclosure)
+
+	value, err = nowExpr.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	currentTimestamp := time.Now().Unix()
+
+	assert.InDelta(t, currentTimestamp, value, 1, "The evaluated timestamp is not within the expected range")
 
 	strToNumber :=
 		&NumericExpr{
