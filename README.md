@@ -7,7 +7,7 @@ Our experience servicing 10,000+ engineers with Observability tools taught us a 
 
 - Developers have to jump through different tools for logs, metrics, traces
 - Splunk, DataDog, NewRelic are very expensive
-- ElasticSearch takes too many machines, cluster maintainence is hard
+- ElasticSearch takes too many machines, cluster maintenance is hard
 - Grafana Loki has slow query performance
 
 Armed with decades of experience in monitoring domain, we set out to build a observability DB from the ground up, uniquely suited for logs, metrics and traces with **`zero`** external dependencies. A **`single binary`** that you can run on your laptop and process `8 TB/day` on it.  
@@ -41,7 +41,7 @@ go run cmd/siglens/main.go --config server.yaml
     git@github.com:siglens/siglens.git
     cd siglens
 ```
-- Run the install.sh script:
+- Run the install_with_docker.sh script:
 ```
     ./install_with_docker.sh
 ```
@@ -49,12 +49,12 @@ go run cmd/siglens/main.go --config server.yaml
 The SigLens backend is deployed independently of the UI. 
 To allow the UI to connect to the backend a docker network can be used.
 ```
-    wget https://sigscalr-configs.s3.amazonaws.com/1.1.31/server.yaml
-    docker pull siglens/siglens:0.1.0 
+    wget "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
+    docker pull siglens/siglens:${SIGLENS_VERSION} 
     mkdir data
     docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
         --mount type=bind,source="$(pwd)"/server.yaml,target=/siglens/server.yaml \
-        -p 8081:8081 -p 80:80 siglens/siglens:0.1.0 
+        -p 8081:8081 -p 80:80 siglens/siglens:${SIGLENS_VERSION}
 ```
 To be able to query data across restarts, set `ssInstanceName` in server.yaml.
 
