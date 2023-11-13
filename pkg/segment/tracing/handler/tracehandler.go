@@ -98,7 +98,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	traces := make([]*structs.Trace, 0)
 	// Get status code count for each trace
 	for _, traceId := range traceIds {
-		requestData["searchText"] = "trace_id=" + traceId + " | stats count BY status_code"
+		requestData["searchText"] = "trace_id=" + traceId + " | stats count BY status"
 		rawTraceCtx := &fasthttp.RequestCtx{}
 		modifiedData, err := json.Marshal(requestData)
 		if err != nil {
