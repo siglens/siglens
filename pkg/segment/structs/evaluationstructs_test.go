@@ -1722,3 +1722,59 @@ func Test_RenameExpr(t *testing.T) {
 	renameRegex.RemoveBucketHolderGroupByColumnsByIndex(bucketHolder, []string{"http_status", "http_method", "city", "state", "gender", "app_name"}, []int{5, 2})
 	assert.Equal(t, []string{"200", "POST", "MA", "Male"}, bucketHolder.GroupByValues)
 }
+
+func Test_StatisticExpr(t *testing.T) {
+
+	statisticExpr := &StatisticExpr{
+		StatisticFunctionMode: SFMRare,
+		Limit:                 "2",
+		Options: &Options{
+			CountField:   "app_name",
+			OtherStr:     "other",
+			PercentField: "http_method",
+			ShowCount:    true,
+			ShowPerc:     true,
+			UseOther:     true,
+		},
+		FieldList: []string{"http_method", "weekday"},
+		ByClause:  []string{"app_name"},
+	}
+
+	assert.Equal(t, []string{"http_method", "weekday", "app_name"}, statisticExpr.GetGroupByCols())
+
+	bucketResult := &BucketResult{
+		ElemCount:   333,
+		GroupByKeys: []string{"http_method", "weekday", "app_name"},
+		BucketKey:   []string{"PUT", "Sunday", "sig"},
+	}
+
+	err := statisticExpr.OverrideGroupByCol(bucketResult, 666)
+	assert.Nil(t, err)
+	assert.Equal(t, []string{"50.000000", "Sunday", "333"}, bucketResult.BucketKey.([]string))
+
+	bucketResult1 := &BucketResult{
+		ElemCount:   333,
+		GroupByKeys: []string{"http_method", "http_status", "weekday", "state", "gender", "app_name"},
+		BucketKey:   []string{"POST", "404", "Sunday", "MA", "Male", "sig"},
+	}
+
+	bucketResult2 := &BucketResult{
+		ElemCount:   111,
+		GroupByKeys: []string{"http_method", "http_status", "weekday", "state", "gender", "app_name"},
+		BucketKey:   []string{"Get", "200", "Tuesday", "LA", "Male", "test"},
+	}
+
+	bucketResult3 := &BucketResult{
+		ElemCount:   222,
+		GroupByKeys: []string{"http_method", "http_status", "weekday", "state", "gender", "app_name"},
+		BucketKey:   []string{"PUT", "501", "Monday", "NH", "Femali", "sig_test"},
+	}
+
+	// Test Sorting func. If use the limit option, only the last limit lexicographical of the <field-list> is returned in the search results
+	results := append(make([]*BucketResult, 0), bucketResult1, bucketResult2, bucketResult3)
+	err = statisticExpr.SortBucketResult(&results)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(results))
+	assert.Equal(t, bucketResult2, results[0])
+	assert.Equal(t, bucketResult1, results[1])
+}
