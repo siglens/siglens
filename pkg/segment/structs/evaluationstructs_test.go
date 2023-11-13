@@ -1461,10 +1461,6 @@ func Test_StatisticExpr(t *testing.T) {
 		BucketKey:   []string{"POST", "404", "Sunday", "MA", "Male", "sig"},
 	}
 
-	// err = statisticExpr.RemoveFieldsNotInExprForBucketRes(bucketResult1)
-	// assert.Nil(t, err)
-	// assert.Equal(t, []string{"http_status", "weekday", "app_name"}, bucketResult1.GroupByKeys)
-
 	bucketResult2 := &BucketResult{
 		ElemCount:   111,
 		GroupByKeys: []string{"http_method", "http_status", "weekday", "state", "gender", "app_name"},
