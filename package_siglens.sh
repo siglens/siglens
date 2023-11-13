@@ -6,14 +6,12 @@
 SIGLENS_VERSION=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
 
 platforms=("$(go env GOOS)/$(go env GOARCH)")
-upload_bucket=""
 add_playground=""
 
 while getopts p:b:g: flag
 do
     case "${flag}" in
         p) IFS=',' read -r -a platforms <<< "${OPTARG}";;
-        b) upload_bucket="${OPTARG}";;
         g) add_playground="${OPTARG}";;
     esac
 done
@@ -75,22 +73,10 @@ for platform in "${platforms[@]}"; do
         cp server.yaml ${dirname}
     fi
 
-    cp GETTING_STARTED.md ${dirname}
+    cp README.md ${dirname}
 
     outputname="siglens-${SIGLENS_VERSION}-${GOOS}-${GOARCH}.tar.gz"
     echo "Building tar archive at ${outputname}..."
     tar -czf ${outputname} ${dirname}
     rm -rf ${dirname}
-    if [ "$upload_bucket" == "" ]; then
-        echo "-----------------------------------------------------"
-        echo "To upload tar file to S3, run package_siglens.sh -b s3://bucket_name"
-        echo "Packaged SigLens to ${outputname}"
-        echo "-----------------------------------------------------"
-    else
-        echo "Uploading file to S3 bucket ${upload_bucket}"
-        aws s3 cp ${outputname} ${upload_bucket}
-        echo "-----------------------------------------------------"
-        echo "Uploaded ${outputname} to ${upload_bucket}"
-        echo "-----------------------------------------------------"
-    fi
 done

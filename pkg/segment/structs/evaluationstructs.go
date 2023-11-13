@@ -26,6 +26,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
+
 	"github.com/siglens/siglens/pkg/segment/utils"
 )
 
@@ -69,6 +71,7 @@ type ValueExpr struct {
 	NumericExpr   *NumericExpr
 	StringExpr    *StringExpr
 	ConditionExpr *ConditionExpr
+	BooleanExpr   *BoolExpr
 }
 
 type ConcatExpr struct {
@@ -94,6 +97,7 @@ type NumericExpr struct {
 	Op    string // Either +, -, /, *, abs, ceil, round, sqrt, len
 	Left  *NumericExpr
 	Right *NumericExpr
+	Val   *StringExpr
 }
 
 type StringExpr struct {
@@ -111,6 +115,10 @@ type TextExpr struct {
 	StrToRemove  string
 	Delimiter    *StringExpr
 	MaxMinValues []*StringExpr
+	StartIndex   *NumericExpr
+	LengthExpr   *NumericExpr
+	Val          *ValueExpr
+	Format       *StringExpr
 }
 
 type ConditionExpr struct {
@@ -142,6 +150,7 @@ const (
 	VEMNumericExpr   = iota // Only NumricExpr is valid
 	VEMStringExpr           // Only StringExpr is valid
 	VEMConditionExpr        // Only ConditionExpr is valud
+	VEMBooleanExpr          // Only BooleanExpr is valid
 )
 
 type StringExprMode uint8
@@ -429,6 +438,12 @@ func (self *ValueExpr) EvaluateToString(fieldToValue map[string]utils.CValueEncl
 			return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string %v", err)
 		}
 		return str, nil
+	case VEMBooleanExpr:
+		boolResult, err := self.BooleanExpr.Evaluate(fieldToValue)
+		if err != nil {
+			return "", err
+		}
+		return strconv.FormatBool(boolResult), nil
 	default:
 		return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string")
 	}
@@ -479,6 +494,8 @@ func (self *ValueExpr) GetFields() []string {
 		return self.StringExpr.GetFields()
 	case VEMConditionExpr:
 		return self.ConditionExpr.GetFields()
+	case VEMBooleanExpr:
+		return self.BooleanExpr.GetFields()
 	default:
 		return []string{}
 	}
@@ -780,6 +797,30 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 				return 0, err
 			}
 			return math.Exp(exp), nil
+		case "tonumber":
+			if self.Val == nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: tonumber operation requires a string expression")
+			}
+			strValue, err := self.Val.Evaluate(fieldToValue)
+			if err != nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: Error in tonumber operation: %v", err)
+			}
+			base := 10
+			if self.Right != nil {
+				baseValue, err := self.Right.Evaluate(fieldToValue)
+				if err != nil {
+					return 0, err
+				}
+				base = int(baseValue)
+				if base < 2 || base > 36 {
+					return 0, fmt.Errorf("NumericExpr.Evaluate: Invalid base for tonumber: %v", base)
+				}
+			}
+			number, err := strconv.ParseInt(strValue, base, 64)
+			if err != nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert '%v' to number with base %d", strValue, base)
+			}
+			return float64(number), nil
 
 		default:
 			return 0, fmt.Errorf("NumericExpr.Evaluate: unexpected operation: %v", self.Op)
@@ -819,8 +860,48 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			}
 		}
 		return minString, nil
-	}
 
+	} else if self.Op == "tostring" {
+		valueStr, err := self.Val.EvaluateToString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.Evaluate: failed to evaluate value for 'tostring' operation: %v", err)
+		}
+		if self.Format != nil {
+			formatStr, err := self.Format.Evaluate(fieldToValue)
+			if err != nil {
+				return "", fmt.Errorf("TextExpr.Evaluate: failed to evaluate format for 'tostring' operation: %v", err)
+			}
+			switch formatStr {
+			case "hex":
+				num, convErr := strconv.Atoi(valueStr)
+				if convErr != nil {
+					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to integer for hex formatting: %v", valueStr, convErr)
+				}
+				return fmt.Sprintf("%#x", num), nil
+			case "commas":
+				num, convErr := strconv.ParseFloat(valueStr, 64)
+				if convErr != nil {
+					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to float for comma formatting: %v", valueStr, convErr)
+				}
+				roundedNum := math.Round(num*100) / 100
+				formattedNum := humanize.CommafWithDigits(roundedNum, 2)
+				return formattedNum, nil
+			case "duration":
+				num, convErr := strconv.Atoi(valueStr)
+				if convErr != nil {
+					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to seconds for duration formatting: %v", valueStr, convErr)
+				}
+				hours := num / 3600
+				minutes := (num % 3600) / 60
+				seconds := num % 60
+				return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds), nil
+			default:
+				return "", fmt.Errorf("TextExpr.Evaluate: unsupported format '%s' for tostring operation", formatStr)
+			}
+		} else {
+			return valueStr, nil
+		}
+	}
 	cellValueStr, err := self.Value.Evaluate(fieldToValue)
 	if err != nil {
 		return "", fmt.Errorf("TextExpr.Evaluate: can not evaluate text as a str: %v", err)
@@ -847,6 +928,42 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		}
 
 		return strings.Join(strings.Split(cellValueStr, delimiterStr), "&nbsp"), nil
+
+	case "substr":
+		baseString, err := self.Value.Evaluate(fieldToValue)
+		if err != nil {
+			return "", err
+		}
+		startIndexFloat, err := self.StartIndex.Evaluate(fieldToValue)
+		if err != nil {
+			return "", err
+		}
+		startIndex := int(startIndexFloat)
+		if startIndex > 0 {
+			startIndex = startIndex - 1
+		}
+		if startIndex < 0 {
+			startIndex = len(baseString) + startIndex
+		}
+		if startIndex < 0 || startIndex >= len(baseString) {
+			return "", fmt.Errorf("substr: start index is out of range")
+		}
+		substrLength := len(baseString) - startIndex
+		if self.LengthExpr != nil {
+			lengthFloat, err := self.LengthExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return "", err
+			}
+			substrLength = int(lengthFloat)
+			if substrLength < 0 || startIndex+substrLength > len(baseString) {
+				return "", fmt.Errorf("substr: length leads to out of range substring")
+			}
+		}
+		endIndex := startIndex + substrLength
+		if endIndex > len(baseString) {
+			endIndex = len(baseString)
+		}
+		return baseString[startIndex:endIndex], nil
 
 	default:
 		return "", fmt.Errorf("TextExpr.Evaluate: unexpected operation: %v", self.Op)
@@ -878,7 +995,6 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 
 // Field may come from BoolExpr or ValueExpr
 func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
-
 	predicateFlag, err := self.BoolExpr.Evaluate(fieldToValue)
 	if err != nil {
 		return "", fmt.Errorf("ConditionExpr.Evaluate: %v", err)
@@ -912,6 +1028,22 @@ func (self *TextExpr) GetFields() []string {
 		if self.Value != nil {
 			fields = append(fields, self.Value.GetFields()...)
 		}
+		if self.Val != nil {
+			fields = append(fields, self.Val.GetFields()...)
+		}
+		if self.Delimiter != nil {
+			fields = append(fields, self.Delimiter.GetFields()...)
+		}
+		if self.StartIndex != nil {
+			fields = append(fields, self.StartIndex.GetFields()...)
+		}
+		if self.LengthExpr != nil {
+			fields = append(fields, self.LengthExpr.GetFields()...)
+		}
+		if self.Format != nil {
+			fields = append(fields, self.Format.GetFields()...)
+		}
+		return fields
 	}
 	for _, expr := range self.MaxMinValues {
 		fields = append(fields, expr.GetFields()...)
@@ -937,6 +1069,9 @@ func round(number float64, precision int) float64 {
 
 func (self *NumericExpr) GetFields() []string {
 	fields := make([]string, 0)
+	if self.Val != nil {
+		return append(fields, self.Val.GetFields()...)
+	}
 	if self.IsTerminal {
 		if self.Op == "now" {
 			return fields
@@ -951,7 +1086,6 @@ func (self *NumericExpr) GetFields() []string {
 	} else {
 		return self.Left.GetFields()
 	}
-
 }
 
 func getValueAsString(fieldToValue map[string]utils.CValueEnclosure, field string) (string, error) {
