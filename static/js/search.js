@@ -826,20 +826,6 @@ function getColumns() {
      let totalHitsFormatted = Number(totalHits).toLocaleString();
  
      if (eventType === "QUERY_UPDATE") {
-         if (totalHits > 0){
-             $('#hits-summary').html(`
-             <div><span class="total-hits">${totalHitsFormatted} </span><span>of ${totalEventsSearched} Records Matched</span> </div>
- 
-             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-             <div class="text-end">Response: ${timeToFirstByte} ms</div>
-         `);
-         } else{
-             $('#hits-summary').html(`<div><span> ${totalEventsSearched} Records Searched</span> </div>
- 
-             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-             <div class="text-end">Response: ${timeToFirstByte} ms</div>
-         `);
-         }
          $('#progress-div').html(`
              <progress id="percent-complete" value=${percentComplete} max="100">${percentComplete}</progress>
              <div id="percent-value">${parseInt(percentComplete)}%</div>
@@ -849,27 +835,6 @@ function getColumns() {
          let operatorSign = '';
          if (eqRel === "gte") {
              operatorSign = '>=';
-         }
-         if (qtype == "aggs-query" || qtype === "segstats-query"){
-             let bucketGrammer = totalHits == 1 ? "bucket was" : "buckets were"; 
-             $('#hits-summary').html(`
-             <div><span class="total-hits">${operatorSign} ${totalHitsFormatted}</span><span> ${bucketGrammer} created from ${totalEventsSearched} records.</span></div>
-             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-             <div class="text-end">Response: ${timeToFirstByte} ms</div>
-         `);
-         }
-         else if (totalHits > 0){
-         $('#hits-summary').html(`
-             <div><span class="total-hits">${operatorSign} ${totalHitsFormatted}</span><span> of ${totalEventsSearched} Records Matched</span></div>
-             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-             <div class="text-end">Response: ${timeToFirstByte} ms</div>
-         `);
-         } else{
-             $('#hits-summary').html(`
-             <div><span> ${totalEventsSearched} Records Searched</span></div>
-             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-             <div class="text-end">Response: ${timeToFirstByte} ms</div>
-         `);
          }
          $('#progress-div').html(``)
      }

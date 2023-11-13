@@ -12,6 +12,7 @@
     --orange-1: #F2A52B;
     --purple-1: #6347D9;
     --purple-2: #6449D6;
+    --purple-3: #8270DC;
 
     --purple-15p: rgba(99, 71, 217, 0.15);
 
@@ -62,6 +63,13 @@
     --text-color: var(--white-0);
     --hits-summary-text-color: var(--black-6);
     --table-or-regular-text-color: var(--black-6);
+
+    --border-switch: var(--white-3);
+    --border-btn-color: var(--black-5);
+    --border-shadow: var(--black-5);
+    --filter-color: var(--black-2);
+    
+    --default-tab: var(--black-1);
 
     --input-color: var(--white-0);
     --input-bg-color: var(--black-1);
@@ -212,6 +220,11 @@
     --hits-summary-text-color: var(--white-5);
     --table-or-regular-text-color: var(--white-4);
 
+    --border-switch: var(--black-5);
+    --border-btn-color: var(--white-3);
+    --border-shadow: var(--black);
+    --default-tab: var(--white-0);
+    --filter-color: var(--white-2);
 
     --input-color: var(--white-2);
     --input-bg-color: var(--white-6);
@@ -621,30 +634,17 @@ body {
     margin-top: 16px;
     margin-left: 20px;
     margin-right: 24px;
-    height: 44px;
     background-color: var(--top-bar-bg-color-regular);
 }
 #filter-container {
-    display: grid;
-    grid-template-columns: 2fr auto;
-    column-gap: 15px;
-    margin-top: 16px;
-    margin-left: 23px;
-    margin-right: 24px;
-    height: 44px;
+    margin-top: 10px;
     background-color: var(--top-bar-bg-color-regular);
 
 }
-#query-builder-btn,
 #live-tail-btn,
 #run-filter-btn,
 #add-icon,
-#completed,
-#cancel-enter,
 #add-icon-second,
-#completed-second,
-#cancel-enter-second,
-#cancel-enter-third,
 #saveq-btn ,
 #create-db-btn,
 #run-metrics-query-btn,
@@ -661,11 +661,7 @@ body {
 
 #add-icon:hover,
 #completed:hover,
-#cancel-enter:hover,
 #add-icon-second:hover,
-#completed-second:hover,
-#cancel-enter-second:hover,
-#cancel-enter-third:hover,
 #live-tail-btn:hover,
 #run-filter-btn:hover,
 #query-builder-btn:hover,
@@ -676,12 +672,7 @@ body {
 }
 
 #add-icon.active,
-#completed.active,
-#cancel-enter.active,
 #add-icon-second:active,
-#completed-second:active,
-#cancel-enter-second:active,
-#cancel-enter-third:active,
 #live-tail-btn.active,
 #query-builder-btn.active,
 #run-filter-btn.active {
@@ -693,7 +684,6 @@ body {
 #filter-input,
 #date-picker-btn,
 #run-filter-btn,
-#query-builder-btn,
 #live-tail-btn,
 #saveq-btn,
 #create-db-btn,
@@ -705,7 +695,7 @@ body {
     padding: 15px 12px;
     text-decoration: none;
     border: none;
-    height: 44px;
+    height: 40px;
     line-height: 14px;
 }
 
@@ -807,15 +797,9 @@ body {
 }
 
 #add-icon,
-#completed,
-#cancel-enter,
 #add-icon-second,
-#completed-second,
-#cancel-enter-second,
-#cancel-enter-third,
 #live-tail-btn,
 #run-filter-btn,
-#query-builder-btn,
 #saveq-btn,
 #create-db-btn,
 #run-metrics-query-btn,
@@ -4485,17 +4469,17 @@ color: #C8C7CC;
 }
 
 .group-by-reminder {
-    background-color: #6347D9;
-    color: white;
-    border-radius: 4px;
-    width: 100px;
+    background-color: var(--border-btn-color);
+    color: var(--text-color);
+    border-radius: 5px;
+    width: 200px;
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    margin: -1px;
-    height: 42px;
-    font-size: 16px;
+    height: 40px;
+    font-size: 1em;
+    margin: 0 10px 0 50px;
 }
 
 .group-by-box {
@@ -4515,24 +4499,29 @@ color: #C8C7CC;
 
 .filter-box ul {
     list-style: none;
-    padding: 0;
     margin: 5px 0 0 0;
     width: 0;
     flex: 1;
-    overflow-x: scroll;
+    overflow-x: auto;
+    padding-left: 5px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
-
+.filter-box ul::-webkit-scrollbar{
+    height: 0;
+}
 .filter-box li {
     display: flex;
     flex-direction: row;
-    background-color: #f2f2f2;
-    color: #333;
-    border-radius: 10px;
+    background-color: var(--filter-color);
+    color: var(--text-color);
+    border-radius: 5px;
     padding: 2px 7px;
     margin-right: 5px;
     margin-bottom: 5px;
     white-space: nowrap;
     font-size: 15px;
+    border: 1px solid var(--border-switch);
 }
 
 .tags-input input[type="text"] {
@@ -4545,20 +4534,17 @@ color: #C8C7CC;
     outline: none;
 }
 
-.filter-box .delete-button {
-    background-color: transparent;
+.delete-button {
     border: none;
-    color: #999;
-    cursor: pointer;
-    margin-left: 5px;
+    color: var(--purple-3);
+    background: none;
 }
 
 .display-rule {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    padding: 0 24px 0 22px;
-    margin-top: 15px;
+    margin-top: 20px;
 }
 
 .func-input {
@@ -4576,36 +4562,43 @@ color: #C8C7CC;
 
 .filter-box {
     border-style: solid;
-    border-color: #dcdbdf;
+    border-color: var(--border-btn-color);
+    background: var(--hits-summary-bg-regular) !important;
     border-radius: 4px;
-    height: 43px;
+    height: 40px;
     display: flex;
     flex-direction: row;
-    justify-content: left;
+    justify-content: space-between;
     align-items: center;
-    padding: 0 10px;
+    overflow: hidden;
 }
 
 .completed,
 .cancel-enter,
 .add-con {
-    margin-right: 6px;
-    height: 30px;
-    width: 30px;
+    margin: 0 4px;
+    height: 32px;
+    width: 32px;
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
+    background-color: var(--default-tab);
+    color: var(--text-color);
 }
 
 .symbol,
 .value-first,
 .column-first {
     width: 120px;
-    height: 30px;
-    margin-right: 10px;
+    height: 32px;
+    color: var(--text-color);
 }
-
+.symbol,
+.value-first,
+.column-first{
+    border: 1px solid var(--border-switch);
+}
 .add-third {
     margin: -1px;
 }
@@ -4617,9 +4610,6 @@ color: #C8C7CC;
 
 .third-enter {
     display: flex;
-    border-style: solid;
-    border-color: #dcdbdf;
-    border-radius: 4px;
     height: 43px;
     flex-direction: row;
     justify-content: space-between;
@@ -4633,7 +4623,6 @@ color: #C8C7CC;
 
 .third-box {
     width: 100%;
-    border: none;
     margin: -1px;
 }
 
@@ -4645,14 +4634,14 @@ color: #C8C7CC;
     position: absolute;
     top: 42px;
     border-style: solid;
-    border-color: #dcdbdf;
+    border-color: var(--border-switch);
     border-radius: 4px;
-    height: 50px;
+    height: 40px;
     display: flex;
     flex-direction: row;
     align-items: center;
-    padding: 0 10px;
-    background-color: white;
+    padding: 0 5px;
+    background-color: var(--border-btn-color);
     width: 100%;
     visibility: hidden;
     z-index: 100;
@@ -4665,6 +4654,8 @@ color: #C8C7CC;
     overflow-x: hidden;
     border-radius: 3px !important;
     font-size: 14px !important;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 .ui-menu {
@@ -4685,27 +4676,14 @@ color: #C8C7CC;
     border: none !important;
 }
 
-.ui-state-hover {
-    background: #6347D9 !important;
-    border: none !important;
-}
-
-.ui-menu-item .ui-menu-item-wrapper.ui-state-active {
-    background: #6347D9 !important;
-    font-weight: bold !important;
-    color: #ffffff !important;
-    border: none !important;
+.ui-menu-item .ui-menu-item-wrapper {
+    background: var(--ui-widget-bg-color);
+    color: var(--text-color);
 }
 .ui-tabs-tab{
-        border-radius: 10px;
-        border: none !important;
+    border-radius: 10px;
 }
-li.ui-tabs-active{
-    background-color: #6347D9 !important;
-}
-.ui-state-active{
-    border: none;
-}
+
 .custom-code-tab{
     border: 0 !important;
     font-size: 15px;
@@ -4721,23 +4699,122 @@ li.ui-tabs-active{
     justify-content: center;
 }
 .query-text{
-    height: 44px;
+    height: 40px;
+    width: 100%;
+}
+.search-img{
+    height: 40px;
+    width: 40px;
+    background-image: url("assets/search-img.svg");
+    background-color: var(--border-btn-color);
+    background-size: 50%;
 }
 .query-box{
-    padding: 10px 24px 0 24px;
+    padding: 15px 24px 0 24px;
+    display: flex;
+    flex-direction: row;
 }
 .tab-list{
-    padding: 10px 24px 0 23px !important;
+    margin: 18px 24px 0 23px !important;
+    width: 190px;
+    height: 40px;
+    border-radius: 5px;
+    border: 1px solid var(--border-switch);
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
 }
 .dropdown-box{
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     position: absolute;
-    right: 24px;
-    top: 10px;
-    width: 230px;
+    right: 28px;
+    top: 18px;
+    width: 358px;
 }
 .tab-li{
-    height: 44px;
+    height: 32px;
+    border-radius: 5px;
+}
+.tab-li-query{
+    width: 125px;
+}
+.tab-li-code{
+    width: 61px;
+}
+
+.ui-state-default{
+    background-color: var(--default-tab) !important;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    border: none !important;
+}
+.ui-state-default a,
+.ui-state-default a:link,
+.ui-state-default a:visited,
+a.ui-button,
+a:link.ui-button,
+a:visited.ui-button,
+.ui-button{
+    color: var(--border-switch) !important;
+}
+.ui-state-active {
+    background-color: rgba(99, 71, 217, 0.15) !important;
+    border: 1px solid var(--purple-1) !important;
+}
+.ui-state-active a,
+.ui-state-active a:link,
+.ui-state-active a:visited{
+    color: var(--text-color) !important;
+}
+.ui-state-hover{
+    background-color: rgba(99, 71, 217, 0.15);
+    border: 1px solid var(--purple-1);
+}
+.ui-tabs .ui-tabs-nav li{
+    margin: 0;
+}
+#index-btn,
+#date-picker-btn{
+    padding: 0;
+    font-size: 15px;
+}
+#index-btn{
+    width: 89px;
+}
+.completed,
+.cancel-enter{
+    border: 1px solid var(--border-switch);
+}
+.add-con{
+    border: 1px solid var(--border-btn-color);
+}
+.form-control,
+.dropdown-toggle{
+    border: 1px solid var(--border-btn-color) !important;
+    font-size: 15px;
+}
+.form-control{
+    border-radius: 5px 0 0 5px !important;
+    border-right: 0;
+}
+.filter-info{
+    box-shadow: 0px 2px 8px 0px var(--border-shadow) 29%;
+    border: 1px solid var(--border-btn-color);
+    height: 173px;
+    border-radius: 10px;
+    margin: 22px 24px 0 24px;
+    padding: 20px;
+}
+.query-builder-text{
+    color: var(--text-color);
+}
+.ui-widget-content{
+    background-color: var(--bg-color);
+}
+.ui-autocomplete::-webkit-scrollbar{
+    width: 0;
 }

@@ -41,68 +41,72 @@
         <div id="dashboard">
             <div id = "custom-code-tab" class="custom-code-tab">
                 <ul class="tab-list">
-                    <li class="tab-li" id = "tab-title1"><a href="#tabs-1" class="custom-query-builder">Query Builder</a></li>
-                    <li class="tab-li" id = "tab-title2"><a href="#tabs-2">Code</a></li>
+                    <li class="tab-li tab-li-query" id = "tab-title1"><a href="#tabs-1" class="custom-query-builder">Query Builder</a></li>
+                    <li class="tab-li tab-li-code" id = "tab-title2"><a href="#tabs-2"  class="custom-query-builder">Code</a></li>
                 </ul>
                 <div id = "tabs-1">
                     <div class="query-box">
                         <input class="form-control query-text" id="query-input" type="text" disabled="disabled">
+                        <div class="search-img" src="assets/search-img.svg" id="query-builder-btn"> </div>
                     </div>
-                    <div id="filter-container">
-                        <div class="filter-con">
-                            <div class="filter-box">
-                                <ul id="tags" class="tags-list"></ul>
-                                <button id="add-con" class="add-con btn">+</button>
+                    <div class="filter-info">
+                        <div class="query-builder-text">Query Builder</div>
+                        <div id="filter-container">
+                            <div class="filter-con">
+                                <div class="filter-box">
+                                    <ul id="tags" class="tags-list"></ul>
+                                    <button id="add-con" class="add-con btn">+</button>
+                                </div>
+                                <div class="add-filter" id="add-filter">
+                                    <input id="column-first" class="column-first" type="hidden" />
+                                    <input id="symbol" class="symbol" type="hidden" />
+                                    <input id="value-first" class="value-first" type="hidden" />
+                                    <button id="completed" class="completed btn">√</button>
+                                    <button id="cancel-enter" class="cancel-enter btn">x</button>
+                                </div>
                             </div>
-                            <div class="add-filter" id="add-filter">
-                                <input id="column-first" class="column-first" type="hidden" />
-                                <input id="symbol" class="symbol" type="hidden" />
-                                <input id="value-first" class="value-first" type="hidden" />
-                                <button id="completed" class="completed btn">√</button>
-                                <button id="cancel-enter" class="cancel-enter btn">x</button>
-                            </div>
-                        </div>
-                        <!-- <div class="dropdown">
-                            <button class="btn dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
-                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
-                                <span>Splunk QL</span>
-                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                            </button>
-                            <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
-                                <li id="option-1" class="query-language-option">SQL</li>
-                                <li id="option-2" class="query-language-option">Log QL</li>
-                                <li id="option-3" class="query-language-option active">Splunk QL</li>
-                            </div>
-                        </div> -->
+                            <!-- <div class="dropdown">
+                                                    <button class="btn dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
+                                                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
+                                                        <span>Splunk QL</span>
+                                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                                    </button>
+                                                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
+                                                        <li id="option-1" class="query-language-option">SQL</li>
+                                                        <li id="option-2" class="query-language-option">Log QL</li>
+                                                        <li id="option-3" class="query-language-option active">Splunk QL</li>
+                                                    </div>
+                                                </div> -->
                         
-                        <div class="text-end">
-                            <button class="btn" id="run-filter-btn" title="Run your search">Search </button>
+                            <!-- <div class="text-end">
+                                <button class="btn" id="run-filter-btn" title="Run your search">Search </button>
+                            </div> -->
+                        
                         </div>
-                    
-                    </div>
-                    <div class="display-rule">
-                        <div class="filter-con second-enter">
-                            <div class="filter-box">
-                                <ul id="tags-second" class="tags-list"></ul>
-                                <button id="add-con-second" class="add-con btn">+</button>
-                            </div>
-                            <div class="add-filter add-filters" id="add-filter-second">
-                                <input id="column-second" class="column-first" type="hidden" />
-                                <input id="value-second" class="value-first" type="hidden" />
-                                <button id="completed-second" class="completed btn">√</button>
-                                <button id="cancel-enter-second" class="cancel-enter btn">x</button>
-                            </div>
-                        </div>
-                        <div class="filter-con third-enter">
-                            <div class="filter-box third-box">
-                                <button id="add-con-third" class="add-con btn">+</button>
-                                <ul id="tags-third" class="tags-list"></ul>
+                        <div class="display-rule">
+                            <div class="filter-con second-enter">
+                                <div class="filter-box">
+                                    <ul id="tags-second" class="tags-list"></ul>
+                                    <button id="add-con-second" class="add-con btn">+</button>
+                                </div>
+                                <div class="add-filter add-filters" id="add-filter-second">
+                                    <input id="column-second" class="column-first" type="hidden" />
+                                    <input id="value-second" class="value-first" type="hidden" />
+                                    <button id="completed-second" class="completed btn">√</button>
+                                    <button id="cancel-enter-second" class="cancel-enter btn">x</button>
+                                </div>
                             </div>
                             <div class="group-by-reminder">Group by</div>
-                            <div class="add-filter add-third" id="add-filter-third">
-                                <input id="column-third" class="column-third" type="hidden" placeholder="Enter sort order" />
-                                <button id="cancel-enter-third" class="cancel-enter btn">x</button>
+                            <div class="filter-con third-enter">
+                                <div class="filter-box third-box">
+                                    <ul id="tags-third" class="tags-list"></ul>
+                                    <button id="add-con-third" class="add-con btn">+</button>
+                                </div>
+                                <div class="add-filter add-third" id="add-filter-third">
+                                    <input id="column-third" class="column-third" type="hidden" placeholder="Enter sort order" />
+                                    <button id="cancel-enter-third" class="cancel-enter btn">x</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -140,19 +144,7 @@
                                 placeholder="Enter your SPL query here, or click the 'i' icon for examples" type="text">
                             <span class="clear-icon" id="clearInput" title="Clear"></span>
                         </div>
-                        <div class="dropdown">
-                            <button class="btn dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
-                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
-                                <span>Splunk QL</span>
-                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                            </button>
-                            <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
-                                <li id="option-1" class="query-language-option">SQL</li>
-                                <li id="option-2" class="query-language-option">Log QL</li>
-                                <li id="option-3" class="query-language-option active">Splunk QL</li>
-                            </div>
-                        </div>
+                        
                         <!-- <div class="dropdown">
                             <button class="btn dropdown-toggle" type="button" id="index-btn" data-toggle="dropdown" aria-haspopup="true"
                                 aria-expanded="false" data-bs-toggle="dropdown" title="Index Name to search on">
@@ -212,12 +204,25 @@
                             </div>
                         </div> -->
                         <div class="text-end">
-                            <button class="btn" id="query-builder-btn" title="Run your search">Search </button>
+                            <button class="btn" id="run-filter-btn" title="Run your search">Search </button>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="dropdown-box">
+                <div class="dropdown">
+                    <button class="btn dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
+                        <span>Splunk QL</span>
+                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                    </button>
+                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
+                        <li id="option-1" class="query-language-option">SQL</li>
+                        <li id="option-2" class="query-language-option">Log QL</li>
+                        <li id="option-3" class="query-language-option active">Splunk QL</li>
+                    </div>
+                </div>
                 <div class="dropdown">
                     <button class="btn dropdown-toggle" type="button" id="index-btn" data-toggle="dropdown" aria-haspopup="true"
                         aria-expanded="false" data-bs-toggle="dropdown" title="Index Name to search on">
@@ -278,7 +283,6 @@
                     </div>
                 </div>
             </div>
-            <div id="hits-summary"></div>
             <div id="progress-div"></div>
 
             <div id="logs-view-controls">
