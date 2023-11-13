@@ -194,7 +194,7 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 	// if query aggregations exist, get all results then truncate after
 	nodeRes := query.ApplyFilterOperator(root, root.TimeRange, aggs, qid, qc)
 	if aggs != nil {
-		nodeRes = agg.PostQueryBucketCleaning(nodeRes, aggs, nil)
+		nodeRes = agg.PostQueryBucketCleaning(nodeRes, aggs, nil, nil)
 	}
 	// truncate final results after running post aggregations
 	if uint64(len(nodeRes.AllRecords)) > qc.SizeLimit {

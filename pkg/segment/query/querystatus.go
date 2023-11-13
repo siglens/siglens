@@ -319,15 +319,17 @@ func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit 
 				rowCnt = limit
 			}
 
-			//If after stats block's group by there is a statistic block's group by, we should only keep the groupby cols of the statistic block
+			// If after stats block's group by there is a statistic block's group by, we should only keep the groupby cols of the statistic block
 			bucketHolderArr, retMFuns, aggGroupByCols, added := rQuery.searchRes.GetGroupyByBuckets(rowCnt)
 
 			statisticGroupByCols := rQuery.searchRes.GetStatisticGroupByCols()
-			//If there is only one group by in the agg, we do not need to change groupbycols
+			// If there is only one group by in the agg, we do not need to change groupbycols
 			if len(statisticGroupByCols) > 0 && !rQuery.searchRes.IsOnlyStatisticGroupBy() {
 				aggGroupByCols = statisticGroupByCols
 			}
 
+			// Remove unused columns for Rename block
+			aggGroupByCols = rQuery.searchRes.RemoveUnusedGroupByCols(aggGroupByCols)
 			return bucketHolderArr, retMFuns, aggGroupByCols, added
 		} else {
 			return nil, nil, nil, 0
