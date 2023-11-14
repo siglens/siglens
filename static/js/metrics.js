@@ -140,7 +140,7 @@ function doMetricsSearch() {
     let data = getMetricsSearchFilter();
     $('body').css('cursor', 'progress');
     $("#run-filter-btn").html("Running").attr("disabled", true);
-    $("#query-builder-btn").html("Running").attr("disabled", true);
+    $("#query-builder-btn").html("    ").attr("disabled", true);
 
     $.ajax({
         method: 'post',
@@ -179,7 +179,7 @@ function processSearchResult(res, startTime) {
 
         $('body').css('cursor', 'default');
         $("#run-filter-btn").html("Run").attr("disabled", false);
-        $("#query-builder-btn").html("Run").attr("disabled", false);
+        $("#query-builder-btn").html("  ").attr("disabled", false);
         if (lineChart !== undefined) {
             lineChart.destroy();
             $('#metrics-legends').empty();

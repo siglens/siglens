@@ -27,7 +27,7 @@ limitations under the License.
      $('body').css('cursor', 'default');
      $('#run-filter-btn').html('Search');
      $('#run-filter-btn').removeClass('active');
-     $("#query-builder-btn").html("Search");
+     $("#query-builder-btn").html(" ");
      $("#query-builder-btn").removeClass("active");
      $('#progress-div').html(``);
  }
@@ -97,7 +97,7 @@ function getColumns() {
          $('body').css('cursor', 'progress');
          $('#run-filter-btn').html('Cancel');
          $('#run-filter-btn').addClass('active');
-         $("#query-builder-btn").html("Cancel");
+         $("#query-builder-btn").html("   ");
          $("#query-builder-btn").addClass("active");
          socket.send(JSON.stringify(data));
      };
@@ -502,10 +502,10 @@ function getColumns() {
        });
      }
      if (filterValue == "") filterValue = "*";
+     $("#query-input").val(filterValue);
    }else{
     filterValue = $("#filter-input").val().trim() || "*";
    }
-   $("#query-input").val(filterValue);
   //  console.log("filterValue = " + filterValue);
    addQSParm("searchText", filterValue);
    addQSParm("startEpoch", stDate);
@@ -714,7 +714,7 @@ function getColumns() {
       eqRel,
       res.qtype
     );
-    $("#run-filter-btn").html(" ");
+    $("#run-filter-btn").html("Search");
     $("#run-filter-btn").removeClass("active");
     $("#query-builder-btn").html(" ");
     $("#query-builder-btn").removeClass("active");
@@ -758,7 +758,7 @@ function getColumns() {
          timeToFirstByte, eqRel, res.qtype);
      $('#run-filter-btn').html('Search');
      $('#run-filter-btn').removeClass('active');
-     $("#query-builder-btn").html("Search");
+     $("#query-builder-btn").html(" ");
      $("#query-builder-btn").removeClass("active");
      wsState = 'query'
      if (canScrollMore === false){
@@ -809,7 +809,7 @@ function getColumns() {
     $('body').css('cursor', 'default');
     $('#run-filter-btn').html('Search');
     $('#run-filter-btn').removeClass('active');
-    $("#query-builder-btn").html("Search");
+    $("#query-builder-btn").html(" ");
     $("#query-builder-btn").removeClass("active");
     $('#run-metrics-query-btn').removeClass('active');
 

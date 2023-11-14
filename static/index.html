@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery.tagsinput.min.css" />
     <link rel="stylesheet" href="./css/siglens.css" />
+    <link rel="stylesheet" href="./css/query-builder.css" />
 
     <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
@@ -47,13 +48,13 @@
                 <div id = "tabs-1">
                     <div class="query-box">
                         <input class="form-control query-text" id="query-input" type="text" disabled="disabled">
-                        <div class="search-img" src="assets/search-img.svg" id="query-builder-btn"> </div>
+                        <div class="search-img" id="query-builder-btn"> </div>
                     </div>
                     <div class="filter-info">
                         <div class="query-builder-text">Query Builder</div>
                         <div id="filter-container">
                             <div class="filter-con">
-                                <div class="filter-box">
+                                <div class="filter-box" id="filter-box-1">
                                     <ul id="tags" class="tags-list"></ul>
                                     <button id="add-con" class="add-con btn">+</button>
                                 </div>
@@ -61,45 +62,27 @@
                                     <input id="column-first" class="column-first" type="hidden" />
                                     <input id="symbol" class="symbol" type="hidden" />
                                     <input id="value-first" class="value-first" type="hidden" />
-                                    <button id="completed" class="completed btn">√</button>
+                                    <button id="completed" class="completed btn"></button>
                                     <button id="cancel-enter" class="cancel-enter btn">x</button>
                                 </div>
                             </div>
-                            <!-- <div class="dropdown">
-                                                    <button class="btn dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
-                                                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
-                                                        <span>Splunk QL</span>
-                                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                                                    </button>
-                                                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
-                                                        <li id="option-1" class="query-language-option">SQL</li>
-                                                        <li id="option-2" class="query-language-option">Log QL</li>
-                                                        <li id="option-3" class="query-language-option active">Splunk QL</li>
-                                                    </div>
-                                                </div> -->
-                        
-                            <!-- <div class="text-end">
-                                <button class="btn" id="run-filter-btn" title="Run your search">Search </button>
-                            </div> -->
-                        
                         </div>
                         <div class="display-rule">
                             <div class="filter-con second-enter">
-                                <div class="filter-box">
+                                <div class="filter-box" id="filter-box-2">
                                     <ul id="tags-second" class="tags-list"></ul>
                                     <button id="add-con-second" class="add-con btn">+</button>
                                 </div>
                                 <div class="add-filter add-filters" id="add-filter-second">
                                     <input id="column-second" class="column-first" type="hidden" />
                                     <input id="value-second" class="value-first" type="hidden" />
-                                    <button id="completed-second" class="completed btn">√</button>
+                                    <button id="completed-second" class="completed btn"></button>
                                     <button id="cancel-enter-second" class="cancel-enter btn">x</button>
                                 </div>
                             </div>
                             <div class="group-by-reminder">Group by</div>
                             <div class="filter-con third-enter">
-                                <div class="filter-box third-box">
+                                <div class="filter-box third-box"  id="filter-box-3">
                                     <ul id="tags-third" class="tags-list"></ul>
                                     <button id="add-con-third" class="add-con btn">+</button>
                                 </div>
@@ -144,65 +127,6 @@
                                 placeholder="Enter your SPL query here, or click the 'i' icon for examples" type="text">
                             <span class="clear-icon" id="clearInput" title="Clear"></span>
                         </div>
-                        
-                        <!-- <div class="dropdown">
-                            <button class="btn dropdown-toggle" type="button" id="index-btn" data-toggle="dropdown" aria-haspopup="true"
-                                aria-expanded="false" data-bs-toggle="dropdown" title="Index Name to search on">
-                                <span>Index</span>
-                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                            </button>
-                            <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="available-indexes">
-                                <div id="index-listing"></div>
-                            </div>
-                        </div>
-                        <div class="dropdown">
-                            <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown" aria-haspopup="true"
-                                aria-expanded="false" data-bs-toggle="dropdown" title="Pick the time window">
-                                <span>Time Picker</span>
-                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                            </button>
-                            <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
-                                <p class="dt-header">Search the last</p>
-                                <div class="ranges">
-                                    <div class="inner-range">
-                                        <div id="now-5m" class="range-item ">5 Mins</div>
-                                        <div id="now-3h" class="range-item">3 Hrs</div>
-                                        <div id="now-2d" class="range-item">2 Days</div>
-                                    </div>
-                                    <div class="inner-range">
-                                        <div id="now-15m" class="range-item">15 Mins</div>
-                                        <div id="now-6h" class="range-item">6 Hrs</div>
-                                        <div id="now-7d" class="range-item">7 Days</div>
-                                    </div>
-                                    <div class="inner-range">
-                                        <div id="now-30m" class="range-item">30 Mins</div>
-                                        <div id="now-12h" class="range-item">12 Hrs</div>
-                                        <div id="now-30d" class="range-item">30 Days</div>
-                                    </div>
-                                    <div class="inner-range">
-                                        <div id="now-1h" class="range-item">1 Hr</div>
-                                        <div id="now-24h" class="range-item">24 Hrs</div>
-                                        <div id="now-90d" class="range-item">90 Days</div>
-                                    </div>
-                                    <hr>
-                                    </hr>
-                                    <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span></div>
-                                    <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
-                                        <input type="date" id="date-start" />
-                                        <input type="time" id="time-start" value="00:00" />
-                                    </div>
-                                    <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
-                                        <input type="date" id="date-end">
-                                        <input type="time" id="time-end" value="00:00">
-                                    </div>
-                                    <div class="drp-buttons">
-                                        <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn" type="button">Apply</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div> -->
                         <div class="text-end">
                             <button class="btn" id="run-filter-btn" title="Run your search">Search </button>
                         </div>
@@ -287,11 +211,9 @@
 
             <div id="logs-view-controls">
                 <div id="save-query-div">
-                    <button class="btn" id="saveq-btn">Save Query</button>
-                    <button class="btn" id="add-logs-to-db-btn" class="mx-3"><span><img
-                                src="./assets/dashbaord-white-icon.svg" alt=""></span></button>
-                    <button class="btn mx-2" id="alert-from-logs-btn"><span><img src="./assets/alerting-white-icon.svg"
-                                alt=""></span></button>
+                    <button class="btn saveq-btn below-btn-img" id="saveq-btn"></button>
+                    <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3"></button>
+                    <button class="btn mx-2 alert-from-logs-btn below-btn-img" id="alert-from-logs-btn"></button>
                 </div>
                 <div id="views-container">
                     <div class="btn-group" role="group" id="log-view">

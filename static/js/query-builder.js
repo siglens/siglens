@@ -1,13 +1,23 @@
 "use strict";
 $(function () {
   $("#custom-code-tab").tabs();
-  // let currentTab = $("#custom-code-tab").tabs("option", "active");
-  // console.log("Current tab = " + currentTab);
 });
 $("#custom-code-tab").tabs({
   activate: function (event, ui) {
+    let currentTab = $("#custom-code-tab").tabs("option", "active");
+    if (currentTab == 0) {
+      $(".query-language-option").removeClass("active");
+      $("#query-language-options #option-3").addClass("active");
+      $("#query-language-btn span").html("Splunk QL");
+      displayQueryLangToolTip("3");
+    }
   },
 });
+//querybuilder text: 
+//search -> " "
+//run -> "  "
+//cancel -> "   "
+//running -> "    "
 $(document).ready(function () {
   $("#add-con").on("click", filterStart);
   $("#add-con-second").on("click", secondFilterStart);
@@ -89,6 +99,7 @@ function filterStart(evt) {
   $("#cancel-enter").show();
   $("#add-filter").show();
   $("#add-filter").css({ visibility: "visible" });
+  $("#filter-box-1").addClass("select-box");
   if (availColNames.length == 0) getColumns();
   $("#column-first")
     .autocomplete({
@@ -132,6 +143,7 @@ function filterStart(evt) {
 }
 function secondFilterStart(evt) {
   evt.preventDefault();
+  $("#filter-box-2").addClass("select-box");
   $("#column-second").attr("type", "text");
   $("#add-con-second").hide();
   $("#cancel-enter-second").show();
@@ -140,6 +152,7 @@ function secondFilterStart(evt) {
 }
 function ThirdFilterStart(evt) {
   evt.preventDefault();
+  $("#filter-box-3").addClass("select-box");
   $("#column-third").attr("type", "text");
   $("#add-con-third").hide();
   $("#add-filter-third").show();
@@ -195,6 +208,7 @@ function filterComplete(evt) {
     alert("Please select one of the values below");
     return;
   }
+  $("#filter-box-1").removeClass("select-box");
   let tagContent = $("#column-first").val().trim() + $("#symbol").val().trim();
   tagContent += '"' + val + '"';
   $("#column-first").val("");
@@ -236,6 +250,7 @@ function secondFilterComplete(evt) {
     alert("Please select one of the values below");
     return;
   }
+  $("#filter-box-2").removeClass("select-box");
   let tagContent =
     $("#column-second").val().trim() +
     "(" +
@@ -269,6 +284,7 @@ function secondFilterComplete(evt) {
 }
 function cancelInfo(evt) {
   evt.preventDefault();
+  $("#filter-box-1").removeClass("select-box");
   $("#column-first").val("");
   $("#symbol").val("");
   $("#value-first").val("");
@@ -282,6 +298,7 @@ function cancelInfo(evt) {
 }
 function secondCancelInfo(evt) {
   evt.preventDefault();
+  $("#filter-box-2").removeClass("select-box");
   $("#column-second").val("");
   $("#value-second").val("");
   $("#column-second").attr("type", "hidden");
@@ -293,6 +310,7 @@ function secondCancelInfo(evt) {
 }
 function ThirdCancelInfo(event) {
   event.preventDefault();
+  $("#filter-box-3").removeClass("select-box");
   $("#column-third").val("");
   $("#add-filter-third").hide();
   $("#column-third").attr("type", "hidden");

@@ -91,7 +91,7 @@ function showError(errorMsg) {
     $('body').css('cursor', 'default');
     $('#run-filter-btn').html('Search');
     $('#run-filter-btn').removeClass('active');
-     $("#query-builder-btn").html("Search");
+     $("#query-builder-btn").html(" ");
      $("#query-builder-btn").removeClass("active");
     $("#live-tail-btn").html("Live Tail");
     $("#live-tail-btn").removeClass("active");
@@ -108,7 +108,7 @@ function showInfo(infoMsg) {
     $('body').css('cursor', 'default');
     $('#run-filter-btn').html('Search');
     $('#run-filter-btn').removeClass('active');
-    $("#query-builder-btn").html("Search");
+    $("#query-builder-btn").html(" ");
     $("#query-builder-btn").removeClass("active");
     $("#live-tail-btn").html("Live Tail");
     $("#live-tail-btn").removeClass("active");

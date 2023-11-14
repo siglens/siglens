@@ -296,7 +296,9 @@ function setQueryLangHandler(e) {
 }
 
 function qLangOnShowHandler() {
-    $('#query-language-btn').addClass('active');
+    let currentTab = $("#custom-code-tab").tabs("option", "active");
+    if (currentTab == 1) $("#query-language-btn").addClass("active");
+    else $("#custom-code-tab").tabs("option", "active", 1);
 }
 
 function qLangOnHideHandler() {
@@ -373,7 +375,7 @@ function runFilterBtnHandler(evt) {
     evt.preventDefault();
     if (
       $("#run-filter-btn").text() === "Search" ||
-      $("#query-builder-btn").text() === "Search"
+      $("#query-builder-btn").text() === " "
     ) {
       resetDashboard();
       logsRowData = [];
@@ -394,7 +396,7 @@ function filterInputHandler(evt) {
     if (
       evt.keyCode === 13 &&
       ($("#run-filter-btn").text() === "Search" ||
-        $("#query-builder-btn").text() === "Search")
+        $("#query-builder-btn").text() === " ")
     ) {
       resetDashboard();
       logsRowData = [];
