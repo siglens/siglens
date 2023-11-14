@@ -640,9 +640,14 @@ body {
     background-color: var(--top-bar-bg-color-regular);
 }
 #filter-container {
-    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 2fr auto auto auto auto;
+    column-gap: 15px;
+    margin-top: 16px;
+    margin-left: 23px;
+    margin-right: 10px;
+    height: 44px;
     background-color: var(--top-bar-bg-color-regular);
-
 }
 #live-tail-btn,
 #run-filter-btn,

@@ -15,6 +15,10 @@
     --dashboard-btn-img: url(../assets/dashboard-btn-light.svg);
     --alerting-btn-img: url(../assets/alerting-btn-light.svg);
 }
+#filter-container {
+    margin-top: 10px;
+    background-color: var(--top-bar-bg-color-regular);
+}
 #add-logs-to-db-btn,
 #alert-from-logs-btn{
     height: 40px;
