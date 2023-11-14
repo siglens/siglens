@@ -179,12 +179,13 @@ type IncludeValue struct {
 
 // Only NewColName and one of the other fields should have a value
 type LetColumnsRequest struct {
-	MultiColsRequest *MultiColLetRequest
-	SingleColRequest *SingleColLetRequest
-	ValueColRequest  *ValueExpr
-	RexColRequest    *RexExpr
-	RenameColRequest *RenameExpr
-	NewColName       string
+	MultiColsRequest    *MultiColLetRequest
+	SingleColRequest    *SingleColLetRequest
+	ValueColRequest     *ValueExpr
+	RexColRequest       *RexExpr
+	StatisticColRequest *StatisticExpr
+	RenameColRequest    *RenameExpr
+	NewColName          string
 }
 
 type MultiColLetRequest struct {
@@ -229,6 +230,7 @@ type NodeResult struct {
 	ErrList          []error
 	Histogram        map[string]*AggregationResult
 	TotalResults     *QueryCount
+	RenameColumns    map[string]string
 	SegEncToKey      map[uint16]string
 	TotalRRCCount    uint64
 	MeasureFunctions []string        `json:"measureFunctions,omitempty"`
@@ -410,6 +412,12 @@ func (qa *QueryAggregators) IsAggsEmpty() bool {
 	return true
 }
 
+func (qa *QueryAggregators) IsStatisticBlockEmpty() bool {
+	return (qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
+		qa.OutputTransforms.LetColumns.StatisticColRequest == nil)
+}
+
+// To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil)

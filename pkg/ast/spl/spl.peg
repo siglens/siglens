@@ -220,7 +220,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / RenameBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -388,6 +388,158 @@ ClauseLevel1 <- "(" clause:ClauseLevel4 ")" {
 // parsing as a FieldWithNumberValue first.
 SearchTerm <- term:(FieldWithNumberValue / FieldWithStringValue) {
     return term, nil
+}
+
+StatisticBlock <- PIPE statisticExpr:StatisticExpr {
+    letColReq := &structs.LetColumnsRequest {
+        StatisticColRequest: statisticExpr.(*structs.StatisticExpr),
+    }
+
+    root := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    measureAgg := &structs.MeasureAggregator {
+        MeasureCol: "*",
+        MeasureFunc: utils.Count,
+    }
+
+    measureOperations := make([]*structs.MeasureAggregator, 1)
+    measureOperations[0] = measureAgg
+
+    groupByColumns := append(statisticExpr.(*structs.StatisticExpr).FieldList, statisticExpr.(*structs.StatisticExpr).ByClause...)
+
+    aggNode := &structs.QueryAggregators{}
+    aggNode.Next = root
+    aggNode.PipeCommandType = structs.GroupByType
+    aggNode.GroupByRequest = &structs.GroupByRequest {
+        MeasureOperations: measureOperations,
+        GroupByColumns: groupByColumns,
+    }
+
+    return aggNode, nil
+}
+
+StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(SPACE FieldNameList) byClause:(ByClause)? options:(Options)? {
+
+    statisticExpr := &structs.StatisticExpr {
+        FieldList: fieldList.([]interface{})[1].([]string),
+    }
+
+    statisticCmd, err := transferUint8ToString(cmd)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: StatisticExpr: %v", err)
+    }
+
+    if(statisticCmd == "top"){
+        statisticExpr.StatisticFunctionMode = structs.SFMTop
+    } else {
+        statisticExpr.StatisticFunctionMode = structs.SFMRare
+    }
+
+    if limit != nil {
+        statisticExpr.Limit = limit.(string)
+    }
+
+    if options != nil {
+        statisticExpr.Options = options.(*structs.Options)
+    } else {
+        statisticExpr.Options = &structs.Options {
+            ShowCount: true,
+            CountField: "count",
+            ShowPerc: true,
+            PercentField: "percent",
+            UseOther: false,
+            OtherStr: "Other",
+        }
+    }
+
+    if byClause != nil {
+        statisticExpr.ByClause = byClause.([]string)
+    }
+
+    return statisticExpr, nil
+}
+
+// Top limit=<int> is the same as specifying top N.
+StatisticLimit <- SPACE number:IntegerAsString {
+    return number.(string), nil
+}
+/ SPACE "limit=" limit:(IntegerAsString) {
+    return limit.(string), nil
+}
+
+// Optional arguments for top/rare functions
+Options <- option:(Option)*
+{
+    //Default value
+    options := &structs.Options {
+        ShowCount: true,
+        CountField: "count",
+        ShowPerc: true,
+        PercentField: "percent",
+        UseOther: false,
+        OtherStr: "other",
+    }
+
+    optionSlice := option.([]any)
+    for _, opt := range optionSlice {
+        optArr :=  opt.([]string)
+        // Check for matching option types
+        switch optArr[0] {
+        case "showcount":
+            showCountBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: %v", err)
+            } 
+            options.ShowCount = showCountBool
+        case "countfield":
+            options.CountField = optArr[1]
+        case "showperc":
+            showPercBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: %v", err)
+            } 
+            options.ShowPerc = showPercBool
+        case "percentfield":
+            options.PercentField = optArr[1]
+        case "useother":
+            useOtherBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: %v", err)
+            } 
+            options.UseOther = useOtherBool
+        case "otherstr":
+            options.OtherStr = optArr[1]
+        default:
+            return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: invalid option")
+        }
+    }
+
+    return options, nil
+}
+
+Option <- SPACE optionCMD:OptionCMD "=" field:EvalFieldToRead {
+    optionArr := []string{optionCMD.(string), field.(string)}
+    return optionArr, nil
+}
+
+OptionCMD <- option:("countfield" / "showcount" / "otherstr" / "useother"/ "percentfield" / "showperc") {
+    optionStr, err := transferUint8ToString(option)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: StatisticExpr: %v", err)
+    }
+    return optionStr, nil
+}
+
+ByClause <- by fieldList:FieldNameList {
+    return fieldList.([]string), nil
+}
+/ groupByBlock:GroupbyBlock {
+    return groupByBlock.([]string), nil
 }
 
 RenameBlock <- PIPE CMD_RENAME renameExpr:RenameExpr {
@@ -1476,6 +1628,8 @@ CMD_HEAD_NO_SPACE <- "head"
 CMD_HEAD <- CMD_HEAD_NO_SPACE SPACE
 CMD_EVAL <- "eval" SPACE
 CMD_REX <- "rex" SPACE
+CMD_TOP <- "top"
+CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
 EVAL_CONCAT <- SPACE? "." SPACE?
 
@@ -1491,6 +1645,7 @@ AND <- SPACE "AND" SPACE
 PIPE <- SPACE "|" SPACE
 AS <- SPACE "AS" SPACE
 BY <- SPACE "BY" SPACE
+by <- SPACE "by" SPACE
 
 EOF <- !.
 SPACE <- (" "? COMMENT " "?) / " "
