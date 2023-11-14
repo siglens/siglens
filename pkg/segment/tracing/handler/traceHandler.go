@@ -17,7 +17,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf(" ProcessPipeSearchRequest: received empty search request body ")
+		log.Errorf("ProcessSearchTracesRequest: received empty search request body ")
 		pipesearch.SetBadMsg(ctx)
 		return
 	}
@@ -31,9 +31,9 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf("ProcessPipeSearchRequest: could not write error message err=%v", err)
+			log.Errorf("ProcessSearchTracesRequest: could not write error message err=%v", err)
 		}
-		log.Errorf("ProcessPipeSearchRequest: failed to decode search request body! Err=%v", err)
+		log.Errorf("ProcessSearchTracesRequest: failed to decode search request body! Err=%v", err)
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
