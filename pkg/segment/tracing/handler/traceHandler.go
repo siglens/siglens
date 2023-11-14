@@ -1,4 +1,4 @@
-package pipesearch
+package handler
 
 import (
 	"bytes"
