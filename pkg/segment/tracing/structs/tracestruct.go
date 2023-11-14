@@ -58,3 +58,11 @@ type Status struct {
 	Message string `json:"message"`
 	Code    int    `json:"code"`
 }
+
+// Accept the request body of search traces and act as the request body of the /api/search
+type SearchRequestBody struct {
+	SearchText    string `json:"searchText"`
+	StartEpoch    string `json:"startEpoch"`
+	EndEpoch      string `json:"endEpoch"`
+	QueryLanguage string `json:"queryLanguage"`
+}

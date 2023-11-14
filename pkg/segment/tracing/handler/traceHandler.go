@@ -3,7 +3,9 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"reflect"
 	"regexp"
+	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	pipesearch "github.com/siglens/siglens/pkg/ast/pipesearch"
@@ -49,14 +51,13 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	// Parse the JSON data from ctx.PostBody
-	var requestData map[string]interface{}
-	if err := json.Unmarshal(ctx.PostBody(), &requestData); err != nil {
+	searchRequestBody := &structs.SearchRequestBody{}
+	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
 		log.Errorf("ProcessSearchTracesRequest: could not unmarshal json body, err=%v", err)
 		return
 	}
 
-	requestData["queryLanguage"] = "Splunk QL"
-
+	searchRequestBody.QueryLanguage = "Splunk QL"
 	isOnlyTraceID, traceId := ExtractTraceID(searchText)
 	traceIds := make([]string, 0)
 	pipeSearchResponseOuter := pipesearch.PipeSearchResponseOuter{}
@@ -65,14 +66,20 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		traceIds = append(traceIds, traceId)
 	} else {
 		// In order to get unique trace_id,  append group by block to the "searchText" field
-		if searchText, exists := requestData["searchText"]; exists {
-			if str, ok := searchText.(string); ok {
-				requestData["searchText"] = str + " | stats count BY trace_id"
-			}
+		if len(searchRequestBody.SearchText) > 0 {
+			searchRequestBody.SearchText = searchRequestBody.SearchText + " | stats count BY trace_id"
 		} else {
 			log.Errorf("ProcessSearchTracesRequest: request does not contain required parameter: searchText")
 			return
 		}
+
+		// Because ProcessPipeSearchRequest() will parse request body into a map, so we parse searchRequestBody into a map
+		requestData, err := structToMap(searchRequestBody)
+		if err != nil {
+			log.Errorf("ProcessSearchTracesRequest: err=%v", err)
+			return
+		}
+
 		modifiedData, err := json.Marshal(requestData)
 		if err != nil {
 			log.Errorf("ProcessSearchTracesRequest: could not marshal to json body, err=%v", err)
@@ -95,8 +102,13 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	traces := make([]*structs.Trace, 0)
 	// Get status code count for each trace
 	for _, traceId := range traceIds {
-		requestData["searchText"] = "trace_id=" + traceId + " | stats count BY status_code"
+		searchRequestBody.SearchText = "trace_id=" + traceId + " | stats count BY status_code"
 		rawTraceCtx := &fasthttp.RequestCtx{}
+		requestData, err := structToMap(searchRequestBody)
+		if err != nil {
+			log.Errorf("ProcessSearchTracesRequest: err=%v", err)
+			return
+		}
 		modifiedData, err := json.Marshal(requestData)
 		if err != nil {
 			log.Errorf("ProcessSearchTracesRequest: could not marshal to json body for trace=%v, err=%v", traceId, err)
@@ -127,8 +139,12 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 func GetUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64) []string {
 	traceIds := make([]string, 0)
-	for _, bucketHolder := range pipeSearchResponseOuter.MeasureResults {
-		traceIds = append(traceIds, bucketHolder.GroupByValues[0])
+	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
+		traceId, exists := bucket["key"]
+		if !exists {
+			continue
+		}
+		traceIds = append(traceIds, traceId.(string))
 	}
 	return traceIds
 }
@@ -187,4 +203,29 @@ func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, trace
 
 	*traces = append(*traces, trace)
 
+}
+
+// structToMap converts a struct to a map, using lowercase field names as keys.
+func structToMap(obj interface{}) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+
+	val := reflect.Indirect(reflect.ValueOf(obj))
+	typ := val.Type()
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		fieldName := typ.Field(i).Name
+
+		// If a JSON tag exists, use it as the key
+		if tag := typ.Field(i).Tag.Get("json"); tag != "" {
+			result[tag] = field.Interface()
+		} else {
+			// Otherwise, use the modified field name as the key
+			// Change the first letter of the field name to lowercase
+			lowercaseFieldName := strings.ToLower(fieldName[:1]) + fieldName[1:]
+			result[lowercaseFieldName] = field.Interface()
+		}
+	}
+
+	return result, nil
 }
