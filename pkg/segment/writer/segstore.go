@@ -270,6 +270,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string) bool {
 				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_INT64[:])
 				copy(newColWip.cbuf[newColWip.cbufidx+1:], toputils.Int64ToBytesLittleEndian(intVal))
 				newColWip.cbufidx += 1 + 8
+				addIntToRangeIndex(colName, intVal, wipBlock.columnRangeIndexes[colName].Ranges)
 				continue
 			}
 
@@ -280,6 +281,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string) bool {
 				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_FLOAT64[:])
 				copy(newColWip.cbuf[newColWip.cbufidx+1:], toputils.Float64ToBytesLittleEndian(floatVal))
 				newColWip.cbufidx += 1 + 8
+				addFloatToRangeIndex(colName, floatVal, wipBlock.columnRangeIndexes[colName].Ranges)
 				continue
 			}
 
@@ -287,6 +289,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string) bool {
 			return false
 		case utils.VALTYPE_ENC_INT64[0], utils.VALTYPE_ENC_FLOAT64[0]:
 			// Already a number, so just copy it.
+			// It's alrady in the range index, so we don't need to add it again.
 			copy(newColWip.cbuf[newColWip.cbufidx:], oldColWip.cbuf[i-1:i+8])
 			newColWip.cbufidx += 9
 			i += 8
@@ -314,13 +317,16 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string) {
 		deCount:  oldColWip.deCount,
 	}
 
+	bloom := wipBlock.columnBlooms[colName]
+
 	for i := uint32(0); i < oldColWip.cbufidx; {
 		valType := oldColWip.cbuf[i]
 		i++
 
 		switch valType {
 		case utils.VALTYPE_ENC_SMALL_STRING[0]:
-			// Already a small string, so just copy it over.
+			// Already a string, so just copy it.
+			// This is already in the bloom, so we don't need to add it again.
 			numBytes := uint32(toputils.BytesToUint16LittleEndian(oldColWip.cbuf[i : i+2]))
 			i += 2
 			copy(newColWip.cbuf[newColWip.cbufidx:], oldColWip.cbuf[i-3:i+numBytes])
@@ -334,6 +340,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string) {
 
 			stringVal := strconv.FormatInt(intVal, 10)
 			newColWip.WriteSingleString(stringVal)
+			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
 
 		case utils.VALTYPE_ENC_FLOAT64[0]:
 			// Parse the float.
@@ -342,17 +349,22 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string) {
 
 			stringVal := strconv.FormatFloat(floatVal, 'f', -1, 64)
 			newColWip.WriteSingleString(stringVal)
+			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
 
 		case utils.VALTYPE_ENC_BOOL[0]:
 			// Parse the bool.
 			boolVal := oldColWip.cbuf[i]
 			i++
 
+			var stringVal string
 			if boolVal == 0 {
-				newColWip.WriteSingleString("false")
+				stringVal = "false"
 			} else {
-				newColWip.WriteSingleString("true")
+				stringVal = "true"
 			}
+
+			newColWip.WriteSingleString(stringVal)
+			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
 
 		default:
 			// Unknown type.
