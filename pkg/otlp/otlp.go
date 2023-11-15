@@ -1,120 +1,64 @@
 package otlp
 
 import (
-	"bytes"
-	"compress/gzip"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 
 	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
-	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
-	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
-func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
-	// All requests and responses should be protobufs.
-	ctx.Response.Header.Set("Content-Type", "application/x-protobuf")
-	if string(ctx.Request.Header.Peek("Content-Type")) != "application/x-protobuf" {
-		log.Infof("ProcessTraceIngest: got a non-protobuf request")
-		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Expected a protobuf request")
-		return
-	}
-
-	// Get the data from the request.
-	data := ctx.PostBody()
-	if requiresGzipDecompression(ctx) {
-		reader, err := gzip.NewReader(bytes.NewReader(data))
-		if err != nil {
-			setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to gzip decompress the data")
-			return
-		}
-
-		data, err = ioutil.ReadAll(reader)
-		if err != nil {
-			setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to gzip decompress the data")
-			return
-		}
-	}
-
-	// Unmarshal the data.
-	request, err := unmarshalTraceRequest(data)
-	if err != nil {
-		log.Errorf("ProcessTraceIngest: failed to unpack: %v", err)
-		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to unmarshal traces")
-		return
-	}
-
-	// Setup ingestion parameters.
-	now := utils.GetCurrentTimeInMs()
-	indexName := "traces"
-	shouldFlush := false
-	localIndexMap := make(map[string]string)
-	orgId := uint64(0)
-
-	// Go through the request data and ingest each of the spans.
-	numSpans := 0       // The total number of spans sent in this request.
-	numFailedSpans := 0 // The number of spans that we could not ingest.
-	for _, resourceSpans := range request.ResourceSpans {
-		// Find the service name.
-		var service string
-		if resourceSpans.Resource != nil {
-			for _, keyvalue := range resourceSpans.Resource.Attributes {
-				if keyvalue.Key == "service.name" {
-					service = keyvalue.Value.GetStringValue()
-				}
-			}
-		}
-
-		// Ingest each of these spans.
-		for _, scopeSpans := range resourceSpans.ScopeSpans {
-			numSpans += len(scopeSpans.Spans)
-			for _, span := range scopeSpans.Spans {
-				jsonData, err := spanToJson(span, service)
-				if err != nil {
-					log.Errorf("ProcessTraceIngest: failed to marshal span %s: %v", span, err)
-					numFailedSpans++
-					continue
-				}
-
-				lenJsonData := uint64(len(jsonData))
-				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
-				if err != nil {
-					log.Errorf("ProcessTraceIngest: failed to process ingest request: %v", err)
-					numFailedSpans++
-					continue
-				}
-			}
-		}
-	}
-
-	log.Debugf("ProcessTraceIngest: %v spans in the request and failed to ingest %v of them", numSpans, numFailedSpans)
-
-	// Send the appropriate response.
-	handleTraceIngestionResponse(ctx, numSpans, numFailedSpans)
+type Span struct {
+	TraceId                []byte `json:"trace_id,omitempty"`
+	SpanId                 []byte `json:"span_id,omitempty"`
+	ParentSpanId           []byte `json:"parent_span_id,omitempty"`
+	TraceState             string `json:"trace_state,omitempty"`
+	Name                   string `json:"name,omitempty"`
+	Kind                   string `json:"kind,omitempty"`
+	StartTime              uint64 `json:"start_time,omitempty"`
+	EndTime                uint64 `json:"end_time,omitempty"`
+	Duration               uint64 `json:"duration,omitempty"`
+	Attributes             string `json:"attributes,omitempty"`
+	DroppedAttributesCount uint64 `json:"dropped_attributes_count,omitempty"`
+	Events                 string `json:"events,omitempty"`
+	DroppedEventsCount     uint64 `json:"dropped_events_count,omitempty"`
+	Links                  string `json:"links,omitempty"`
+	DroppedLinksCount      uint64 `json:"dropped_links_count,omitempty"`
+	Status                 string `json:"status,omitempty"`
+	Service                string `json:"service,omitempty"`
 }
 
-func requiresGzipDecompression(ctx *fasthttp.RequestCtx) bool {
-	encoding := string(ctx.Request.Header.Peek("Content-Encoding"))
-	if encoding == "gzip" {
-		return true
+func toSpan(otlpSpan *tracepb.Span) *Span {
+	span := &Span{
+		TraceId:                otlpSpan.TraceId,
+		SpanId:                 otlpSpan.SpanId,
+		ParentSpanId:           otlpSpan.ParentSpanId,
+		TraceState:             otlpSpan.TraceState,
+		Name:                   otlpSpan.Name,
+		Kind:                   otlpSpan.Kind.String(),
+		StartTime:              otlpSpan.StartTimeUnixNano,
+		EndTime:                otlpSpan.EndTimeUnixNano,
+		Duration:               otlpSpan.EndTimeUnixNano - otlpSpan.StartTimeUnixNano,
+		Attributes:             "TODO", // otlpSpan.Attributes,
+		DroppedAttributesCount: uint64(otlpSpan.DroppedAttributesCount),
+		Events:                 "TODO", // otlpSpan.Events,
+		DroppedEventsCount:     uint64(otlpSpan.DroppedEventsCount),
+		Links:                  "TODO", // otlpSpan.Links,
+		DroppedLinksCount:      uint64(otlpSpan.DroppedLinksCount),
+		Status:                 "TODO", // otlpSpan.Status,
+		Service:                "TODO",
 	}
 
-	if encoding != "" && encoding != "none" {
-		log.Errorf("requiresGzipDecompression: invalid content encoding: %s", encoding)
-	}
-
-	return false
+	return span
 }
 
-func unmarshalTraceRequest(data []byte) (*coltracepb.ExportTraceServiceRequest, error) {
+func unpackTrace(data []byte) (*coltracepb.ExportTraceServiceRequest, error) {
+	log.Errorf("deletme: unpackTrace: size of data: %v", len(data))
 	var trace coltracepb.ExportTraceServiceRequest
 	err := proto.Unmarshal(data, &trace)
 	if err != nil {
@@ -123,185 +67,55 @@ func unmarshalTraceRequest(data []byte) (*coltracepb.ExportTraceServiceRequest, 
 	return &trace, nil
 }
 
-func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
-	result := make(map[string]interface{})
-	result["trace_id"] = hex.EncodeToString(span.TraceId)
-	result["span_id"] = hex.EncodeToString(span.SpanId)
-	result["parent_span_id"] = hex.EncodeToString(span.ParentSpanId)
-	result["service"] = service
-	result["trace_state"] = span.TraceState
-	result["name"] = span.Name
-	result["kind"] = span.Kind.String()
-	result["start_time"] = span.StartTimeUnixNano
-	result["end_time"] = span.EndTimeUnixNano
-	result["duration"] = span.EndTimeUnixNano - span.StartTimeUnixNano
-	result["dropped_attributes_count"] = uint64(span.DroppedAttributesCount)
-	result["dropped_events_count"] = uint64(span.DroppedEventsCount)
-	result["dropped_links_count"] = uint64(span.DroppedLinksCount)
-	result["status"] = span.Status.Code.String()
+func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
+	log.Errorf("processTraceIngest: got headers:")
+	ctx.Request.Header.VisitAll(func(key, value []byte) {
+		log.Errorf("%s: %s", key, value)
+	})
 
-	// Make a column for each attribute key.
-	for _, keyvalue := range span.Attributes {
-		key, value, err := extractKeyValue(keyvalue)
-		if err != nil {
-			return nil, fmt.Errorf("spanToJson: failed to extract KeyValue: %v", err)
-		}
-
-		result[key] = value
-	}
-
-	eventsJson, err := json.Marshal(span.Events)
+	request, err := unpackTrace(ctx.PostBody())
 	if err != nil {
-		return nil, err
+		log.Errorf("processTraceIngest: failed to unpack: %v", err)
+		return
 	}
-	result["events"] = string(eventsJson)
+	log.Errorf("processTraceIngest: got trace: %s", request)
+	jsonMarshalled, _ := json.Marshal(request)
+	log.Errorf("processTraceIngest: json: %s", jsonMarshalled)
+	log.Errorf("processTraceIngest: size of json: %v", len(string(jsonMarshalled)))
 
-	linksJson, err := linksToJson(span.Links)
-	if err != nil {
-		return nil, err
-	}
-	result["links"] = string(linksJson)
+	indexName := "traces"
+	shouldFlush := false
+	localIndexMap := make(map[string]string)
+	orgId := uint64(0)
 
-	bytes, err := json.Marshal(result)
-	return bytes, err
-}
+	for _, resourceSpans := range request.ResourceSpans {
+		for _, scopeSpans := range resourceSpans.ScopeSpans {
+			for _, span := range scopeSpans.Spans {
+				// log.Errorf("got span: %s", span)
+				// spans.Spans = append(spans.Spans, span.String())
 
-func extractKeyValue(keyvalue *commonpb.KeyValue) (string, interface{}, error) {
-	value, err := extractAnyValue(keyvalue.Value)
-	if err != nil {
-		return "", nil, err
-	}
+				jsonData, err := json.Marshal(span)
+				if err != nil {
+					log.Errorf("processTraceIngest: failed to marshal spans: %v", err)
+					// TODO: return error
+				}
 
-	return keyvalue.Key, value, nil
-}
-
-func extractAnyValue(anyValue *commonpb.AnyValue) (interface{}, error) {
-	switch anyValue.Value.(type) {
-	case *commonpb.AnyValue_StringValue:
-		return anyValue.GetStringValue(), nil
-	case *commonpb.AnyValue_IntValue:
-		return anyValue.GetIntValue(), nil
-	case *commonpb.AnyValue_DoubleValue:
-		return anyValue.GetDoubleValue(), nil
-	case *commonpb.AnyValue_BoolValue:
-		return anyValue.GetBoolValue(), nil
-	case *commonpb.AnyValue_ArrayValue:
-		arrayValue := anyValue.GetArrayValue().Values
-		value := make([]interface{}, len(arrayValue))
-		for i := range arrayValue {
-			var err error
-			value[i], err = extractAnyValue(arrayValue[i])
-			if err != nil {
-				return nil, err
+				now := utils.GetCurrentTimeInMs()
+				lenJsonData := uint64(len(jsonData))
+				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
+				if err != nil {
+					fmt.Errorf("processTraceIngest: failed to process ingest request: %v", err)
+					// TODO: return error
+				}
 			}
 		}
-
-		return value, nil
-	default:
-		return nil, fmt.Errorf("extractAnyValue: unsupported value type: %T", anyValue)
-	}
-}
-
-func linksToJson(spanLinks []*tracepb.Span_Link) ([]byte, error) {
-	// Links have SpanId and TraceId fields that we want to display has hex, so
-	// we need custom JSON marshalling.
-	type Link struct {
-		TraceId    string                 `json:"trace_id,omitempty"`
-		SpanId     string                 `json:"span_id,omitempty"`
-		TraceState string                 `json:"trace_state,omitempty"`
-		Attributes map[string]interface{} `json:"attributes,omitempty"`
-	}
-	links := make([]Link, len(spanLinks))
-
-	for i, link := range spanLinks {
-		attributes := make(map[string]interface{})
-		for _, keyvalue := range link.Attributes {
-			key, value, err := extractKeyValue(keyvalue)
-			if err != nil {
-				log.Errorf("spanToJson: failed to extract link attribute: %v", err)
-				return nil, err
-			}
-
-			attributes[key] = value
-		}
-
-		links[i] = Link{
-			TraceId:    string(link.TraceId),
-			SpanId:     string(link.SpanId),
-			TraceState: link.TraceState,
-			Attributes: attributes,
-		}
 	}
 
-	return json.Marshal(links)
-}
-
-func setFailureResponse(ctx *fasthttp.RequestCtx, statusCode int, message string) {
-	ctx.SetStatusCode(statusCode)
-
-	failureStatus := status.Status{
-		Code:    int32(statusCode),
-		Message: message,
-	}
-
-	bytes, err := proto.Marshal(&failureStatus)
+	response, err := proto.Marshal(&coltracepb.ExportTraceServiceResponse{})
+	_, err = ctx.Write(response)
 	if err != nil {
-		log.Errorf("sendFailureResponse: failed to marshal failure status: %v", err)
+		log.Errorf("processTraceIngest failed to write response: %v", err)
+		// TODO: return error
 	}
-	_, err = ctx.Write(bytes)
-	if err != nil {
-		log.Errorf("sendFailureResponse: failed to write failure status: %v", err)
-	}
-}
-
-func handleTraceIngestionResponse(ctx *fasthttp.RequestCtx, numSpans int, numFailedSpans int) {
-	if numFailedSpans == 0 {
-		// This request was successful.
-		response, err := proto.Marshal(&coltracepb.ExportTraceServiceResponse{})
-		if err != nil {
-			log.Errorf("ProcessTraceIngest: failed to marshal successful response: %v", err)
-			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-			return
-		}
-		_, err = ctx.Write(response)
-		if err != nil {
-			log.Errorf("ProcessTraceIngest: failed to write successful response: %v", err)
-			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-			return
-		}
-
-		ctx.SetStatusCode(fasthttp.StatusOK)
-		return
-	} else if numFailedSpans < numSpans {
-		// This request was partially successful.
-		traceResponse := coltracepb.ExportTraceServiceResponse{
-			PartialSuccess: &coltracepb.ExportTracePartialSuccess{
-				RejectedSpans: int64(numFailedSpans),
-			},
-		}
-
-		response, err := proto.Marshal(&traceResponse)
-		if err != nil {
-			log.Errorf("ProcessTraceIngest: failed to marshal partially successful response: %v", err)
-			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-			return
-		}
-		_, err = ctx.Write(response)
-		if err != nil {
-			log.Errorf("ProcessTraceIngest: failed to write partially successful response: %v", err)
-			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-			return
-		}
-
-		ctx.SetStatusCode(fasthttp.StatusOK)
-		return
-	} else {
-		// Every span failed to be ingested.
-		if numFailedSpans > numSpans {
-			log.Errorf("ProcessTraceIngest: error in counting number of total and failed spans")
-		}
-
-		setFailureResponse(ctx, fasthttp.StatusInternalServerError, "Every span failed ingestion")
-		return
-	}
+	ctx.SetStatusCode(fasthttp.StatusOK)
 }
