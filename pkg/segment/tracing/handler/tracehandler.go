@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"time"
 
@@ -20,7 +21,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf(" ProcessPipeSearchRequest: received empty search request body ")
+		log.Errorf("ProcessSearchTracesRequest: received empty search request body ")
 		pipesearch.SetBadMsg(ctx)
 		return
 	}
@@ -34,90 +35,84 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf("ProcessPipeSearchRequest: could not write error message err=%v", err)
+			log.Errorf("ProcessSearchTracesRequest: could not write error message err=%v", err)
 		}
-		log.Errorf("ProcessPipeSearchRequest: failed to decode search request body! Err=%v", err)
+		log.Errorf("ProcessSearchTracesRequest: failed to decode search request body! Err=%v", err)
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
-	if err != nil {
-		log.Errorf("ProcessSearchTracesRequest: failed to parse search body  err=%v", err)
-
-		_, wErr := ctx.WriteString(err.Error())
-		if wErr != nil {
-			log.Errorf("ProcessSearchTracesRequest: could not write error message! %v", wErr)
-		}
-		return
-	}
 
 	// Parse the JSON data from ctx.PostBody
-	var requestData map[string]interface{}
-	if err := json.Unmarshal(ctx.PostBody(), &requestData); err != nil {
+	searchRequestBody := &structs.SearchRequestBody{}
+	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
 		log.Errorf("ProcessSearchTracesRequest: could not unmarshal json body, err=%v", err)
 		return
 	}
 
-	requestData["queryLanguage"] = "Splunk QL"
-
+	searchRequestBody.QueryLanguage = "Splunk QL"
 	isOnlyTraceID, traceId := ExtractTraceID(searchText)
 	traceIds := make([]string, 0)
-	pipeSearchResponseOuter := pipesearch.PipeSearchResponseOuter{}
 
 	if isOnlyTraceID {
 		traceIds = append(traceIds, traceId)
 	} else {
 		// In order to get unique trace_id,  append group by block to the "searchText" field
-		if searchText, exists := requestData["searchText"]; exists {
-			if str, ok := searchText.(string); ok {
-				requestData["searchText"] = str + " | stats count BY trace_id"
-			}
+		if len(searchRequestBody.SearchText) > 0 {
+			searchRequestBody.SearchText = searchRequestBody.SearchText + " | stats count BY trace_id"
 		} else {
 			log.Errorf("ProcessSearchTracesRequest: request does not contain required parameter: searchText")
 			return
 		}
-		modifiedData, err := json.Marshal(requestData)
+
+		pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: could not marshal to json body, err=%v", err)
+			log.Errorf("ProcessSearchTracesRequest: %v", err)
 			return
 		}
-
-		// Get initial data
-		rawTraceCtx := &fasthttp.RequestCtx{}
-		rawTraceCtx.Request.SetBody(modifiedData)
-		pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
-
-		// Parse initial data
-		if err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter); err != nil {
-			log.Errorf("ProcessSearchTracesRequest: could not unmarshal json body, err=%v", err)
-			return
-		}
-		traceIds = GetUniqueTraceIds(&pipeSearchResponseOuter, startEpoch, endEpoch)
+		traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch)
 	}
 
 	traces := make([]*structs.Trace, 0)
 	// Get status code count for each trace
 	for _, traceId := range traceIds {
-		requestData["searchText"] = "trace_id=" + traceId + " | stats count BY status"
-		rawTraceCtx := &fasthttp.RequestCtx{}
-		modifiedData, err := json.Marshal(requestData)
+		// Get the start time and end time for this trace
+		searchRequestBody.SearchText = "trace_id=" + traceId + " AND parent_span_id=\"\" | fields start_time, end_time"
+		pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: could not marshal to json body for trace=%v, err=%v", traceId, err)
+			log.Errorf("ProcessSearchTracesRequest: traceId:%v, %v", traceId, err)
 			continue
 		}
-		rawTraceCtx.Request.SetBody(modifiedData)
-		pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
-		pipeSearchResponseOuter := pipesearch.PipeSearchResponseOuter{}
-		if err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter); err != nil {
-			log.Errorf("ProcessSearchTracesRequest: could not unmarshal json body for trace=%v, err=%v", traceId, err)
+
+		if pipeSearchResponseOuter.Hits.Hits == nil || len(pipeSearchResponseOuter.Hits.Hits) == 0 {
 			continue
 		}
-		// To be modified
+
+		startTime, exists := pipeSearchResponseOuter.Hits.Hits[0]["start_time"]
+		if !exists {
+			continue
+		}
+		endTime, exists := pipeSearchResponseOuter.Hits.Hits[0]["end_time"]
+		if !exists {
+			continue
+		}
+
+		traceStartTime := uint64(startTime.(float64))
+		traceEndTime := uint64(endTime.(float64))
+
 		// Only process traces which start and end in this period [startEpoch, endEpoch]
-		// if (startEpoch*1e6 > uint64(startTime)) || (endEpoch*1e6 < uint64(endTime)) {
-		// 	continue
-		// }
-		AddTrace(&pipeSearchResponseOuter, &traces, traceId)
+		if (startEpoch*1e6 > traceStartTime) || (endEpoch*1e6 < traceEndTime) {
+			continue
+		}
+
+		searchRequestBody.SearchText = "trace_id=" + traceId + " | stats count BY status_code"
+		pipeSearchResponseOuter, err = processSearchRequest(searchRequestBody, myid)
+		if err != nil {
+			log.Errorf("ProcessSearchTracesRequest: traceId:%v, %v", traceId, err)
+			continue
+		}
+
+		AddTrace(pipeSearchResponseOuter, &traces, traceId, traceStartTime, traceEndTime)
 	}
 
 	traceResult := &structs.TraceResult{
@@ -130,8 +125,12 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 func GetUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64) []string {
 	traceIds := make([]string, 0)
-	for _, bucketHolder := range pipeSearchResponseOuter.MeasureResults {
-		traceIds = append(traceIds, bucketHolder.GroupByValues[0])
+	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
+		traceId, exists := bucket["key"]
+		if !exists {
+			continue
+		}
+		traceIds = append(traceIds, traceId.(string))
 	}
 	return traceIds
 }
@@ -153,7 +152,7 @@ func ExtractTraceID(searchText string) (bool, string) {
 	return true, matches[1]
 }
 
-func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string) {
+func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64, traceEndTime uint64) {
 	spanCnt := 0
 	errorCnt := 0
 	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
@@ -181,15 +180,36 @@ func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, trace
 	}
 
 	trace := &structs.Trace{
-		TraceId: traceId,
-		// StartTime: , // to be finished
-		// EndTime: , // to be finished
+		TraceId:         traceId,
+		StartTime:       traceStartTime,
+		EndTime:         traceEndTime,
 		SpanCount:       spanCnt,
 		SpanErrorsCount: errorCnt,
 	}
 
 	*traces = append(*traces, trace)
 
+}
+
+// Call /api/search endpoint
+func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uint64) (*pipesearch.PipeSearchResponseOuter, error) {
+
+	modifiedData, err := json.Marshal(searchRequestBody)
+	if err != nil {
+		return nil, fmt.Errorf("processSearchRequest: could not marshal to json body, err=%v", err)
+	}
+
+	// Get initial data
+	rawTraceCtx := &fasthttp.RequestCtx{}
+	rawTraceCtx.Request.SetBody(modifiedData)
+	pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
+	pipeSearchResponseOuter := pipesearch.PipeSearchResponseOuter{}
+
+	// Parse initial data
+	if err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter); err != nil {
+		return nil, fmt.Errorf("processSearchRequest: could not unmarshal json body, err=%v", err)
+	}
+	return &pipeSearchResponseOuter, nil
 }
 
 // Monitor spans health in the last 5 mins
