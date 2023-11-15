@@ -223,7 +223,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 
 // For some types we use a bloom index and for others we use range indices. If
 // a column has both, we should convert all the values to one type.
-func consolidateColumnTypes(wipBlock *WipBlock) {
+func consolidateColumnTypes(wipBlock *WipBlock, segmentKey string) {
 	for colName := range wipBlock.columnsInBlock {
 		// Check if this column has both a bloom and a range index.
 		_, ok1 := wipBlock.columnBlooms[colName]
@@ -234,22 +234,19 @@ func consolidateColumnTypes(wipBlock *WipBlock) {
 
 		// Try converting this column to numbers, but if that fails convert it to
 		// strings.
-		ok := convertColumnToNumbers(wipBlock, colName)
+		ok := convertColumnToNumbers(wipBlock, colName, segmentKey)
 		if !ok {
-			convertColumnToStrings(wipBlock, colName)
+			convertColumnToStrings(wipBlock, colName, segmentKey)
 		}
 	}
 }
 
 // Returns true if the conversion succeeds.
-func convertColumnToNumbers(wipBlock *WipBlock, colName string) bool {
+func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey string) bool {
 	// Try converting all values to numbers.
 	oldColWip := wipBlock.colWips[colName]
-	newColWip := ColWip{
-		csgFname: wipBlock.colWips[colName].csgFname,
-		deMap:    wipBlock.colWips[colName].deMap,
-		deCount:  wipBlock.colWips[colName].deCount,
-	}
+	newColWip := InitColWip(segmentKey, colName)
+	rangeIndex := wipBlock.columnRangeIndexes[colName].Ranges
 
 	for i := uint32(0); i < oldColWip.cbufidx; {
 		valType := oldColWip.cbuf[i]
@@ -270,7 +267,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string) bool {
 				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_INT64[:])
 				copy(newColWip.cbuf[newColWip.cbufidx+1:], toputils.Int64ToBytesLittleEndian(intVal))
 				newColWip.cbufidx += 1 + 8
-				addIntToRangeIndex(colName, intVal, wipBlock.columnRangeIndexes[colName].Ranges)
+				addIntToRangeIndex(colName, intVal, rangeIndex)
 				continue
 			}
 
@@ -281,7 +278,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string) bool {
 				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_FLOAT64[:])
 				copy(newColWip.cbuf[newColWip.cbufidx+1:], toputils.Float64ToBytesLittleEndian(floatVal))
 				newColWip.cbufidx += 1 + 8
-				addFloatToRangeIndex(colName, floatVal, wipBlock.columnRangeIndexes[colName].Ranges)
+				addFloatToRangeIndex(colName, floatVal, rangeIndex)
 				continue
 			}
 
@@ -304,19 +301,14 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string) bool {
 	}
 
 	// Conversion succeeded, so replace the column with the new one.
-	wipBlock.colWips[colName] = &newColWip
+	wipBlock.colWips[colName] = newColWip
 	delete(wipBlock.columnBlooms, colName)
 	return true
 }
 
-func convertColumnToStrings(wipBlock *WipBlock, colName string) {
+func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey string) {
 	oldColWip := wipBlock.colWips[colName]
-	newColWip := ColWip{
-		csgFname: oldColWip.csgFname,
-		deMap:    oldColWip.deMap,
-		deCount:  oldColWip.deCount,
-	}
-
+	newColWip := InitColWip(segmentKey, colName)
 	bloom := wipBlock.columnBlooms[colName]
 
 	for i := uint32(0); i < oldColWip.cbufidx; {
@@ -373,7 +365,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string) {
 	}
 
 	// Replace the old column.
-	wipBlock.colWips[colName] = &newColWip
+	wipBlock.colWips[colName] = newColWip
 	delete(wipBlock.columnRangeIndexes, colName)
 }
 
@@ -381,7 +373,7 @@ func (segstore *SegStore) appendWipToSegfile(streamid string, forceRotate bool, 
 	// If there's columns that had both strings and numbers in them, we need to
 	// try converting them all to numbers, but if that doesn't work we'll
 	// convert them all to strings.
-	consolidateColumnTypes(&segstore.wipBlock)
+	consolidateColumnTypes(&segstore.wipBlock, segstore.SegmentKey)
 
 	if segstore.wipBlock.maxIdx > 0 {
 		var totalBytesWritten uint64 = 0
