@@ -1,15 +1,15 @@
 package structs
 
 type TraceResult struct {
-	Traces []*Trace // Results of Search Traces
+	Traces []*Trace `json:"traces"` // Results of Search Traces
 }
 
 type Trace struct {
-	TraceId         string
-	StartTime       uint64
-	EndTime         uint64
-	SpanCount       int
-	SpanErrorsCount int
+	TraceId         string `json:"trace_id"`
+	StartTime       uint64 `json:"start_time"`
+	EndTime         uint64 `json:"end_time"`
+	SpanCount       int    `json:"span_count"`
+	SpanErrorsCount int    `json:"span_errors_count"`
 }
 
 type Status_StatusCode string
