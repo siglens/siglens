@@ -250,18 +250,17 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string) bool {
 		deMap:    wipBlock.colWips[colName].deMap,
 		deCount:  wipBlock.colWips[colName].deCount,
 	}
-	cbuf := oldColWip.cbuf
 
 	for i := uint32(0); i < oldColWip.cbufidx; {
-		valType := cbuf[i]
+		valType := oldColWip.cbuf[i]
 		i++
 
 		switch valType {
 		case utils.VALTYPE_ENC_SMALL_STRING[0]:
 			// Parse the string.
-			numBytes := uint32(toputils.BytesToUint16LittleEndian(cbuf[i : i+2]))
+			numBytes := uint32(toputils.BytesToUint16LittleEndian(oldColWip.cbuf[i : i+2]))
 			i += 2
-			numberAsString := string(cbuf[i : i+numBytes])
+			numberAsString := string(oldColWip.cbuf[i : i+numBytes])
 			i += numBytes
 
 			// Try converting to an integer.
@@ -288,7 +287,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string) bool {
 			return false
 		case utils.VALTYPE_ENC_INT64[0], utils.VALTYPE_ENC_FLOAT64[0]:
 			// Already a number, so just copy it.
-			copy(newColWip.cbuf[newColWip.cbufidx:], cbuf[i-1:i+8])
+			copy(newColWip.cbuf[newColWip.cbufidx:], oldColWip.cbuf[i-1:i+8])
 			newColWip.cbufidx += 9
 			i += 8
 		case utils.VALTYPE_ENC_BOOL[0]:
@@ -314,24 +313,23 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string) {
 		deMap:    oldColWip.deMap,
 		deCount:  oldColWip.deCount,
 	}
-	cbuf := oldColWip.cbuf
 
 	for i := uint32(0); i < oldColWip.cbufidx; {
-		valType := cbuf[i]
+		valType := oldColWip.cbuf[i]
 		i++
 
 		switch valType {
 		case utils.VALTYPE_ENC_SMALL_STRING[0]:
 			// Already a small string, so just copy it over.
-			numBytes := uint32(toputils.BytesToUint16LittleEndian(cbuf[i : i+2]))
+			numBytes := uint32(toputils.BytesToUint16LittleEndian(oldColWip.cbuf[i : i+2]))
 			i += 2
-			copy(newColWip.cbuf[newColWip.cbufidx:], cbuf[i-3:i+numBytes])
+			copy(newColWip.cbuf[newColWip.cbufidx:], oldColWip.cbuf[i-3:i+numBytes])
 			newColWip.cbufidx += 3 + numBytes
 			i += numBytes
 
 		case utils.VALTYPE_ENC_INT64[0]:
 			// Parse the integer.
-			intVal := toputils.BytesToInt64LittleEndian(cbuf[i : i+8])
+			intVal := toputils.BytesToInt64LittleEndian(oldColWip.cbuf[i : i+8])
 			i += 8
 
 			stringVal := strconv.FormatInt(intVal, 10)
@@ -339,7 +337,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string) {
 
 		case utils.VALTYPE_ENC_FLOAT64[0]:
 			// Parse the float.
-			floatVal := toputils.BytesToFloat64LittleEndian(cbuf[i : i+8])
+			floatVal := toputils.BytesToFloat64LittleEndian(oldColWip.cbuf[i : i+8])
 			i += 8
 
 			stringVal := strconv.FormatFloat(floatVal, 'f', -1, 64)
@@ -347,7 +345,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string) {
 
 		case utils.VALTYPE_ENC_BOOL[0]:
 			// Parse the bool.
-			boolVal := cbuf[i]
+			boolVal := oldColWip.cbuf[i]
 			i++
 
 			if boolVal == 0 {

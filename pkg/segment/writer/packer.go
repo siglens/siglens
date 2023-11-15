@@ -454,13 +454,8 @@ func (ss *SegStore) encodeSingleString(key string, value string, maxIdx uint32,
 		}
 	}
 	s := colWip.cbufidx
-	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_SMALL_STRING[:])
-	colWip.cbufidx += 1
-	n := uint16(len(value))
-	copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(n))
-	colWip.cbufidx += 2
-	copy(colWip.cbuf[colWip.cbufidx:], value)
-	colWip.cbufidx += uint32(n)
+	colWip.WriteSingleString(value)
+
 	if bi != nil {
 		bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(value))
 	}
