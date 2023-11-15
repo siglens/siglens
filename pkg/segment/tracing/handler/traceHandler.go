@@ -3,9 +3,8 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
-	"reflect"
+	"fmt"
 	"regexp"
-	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	pipesearch "github.com/siglens/siglens/pkg/ast/pipesearch"
@@ -60,7 +59,6 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	searchRequestBody.QueryLanguage = "Splunk QL"
 	isOnlyTraceID, traceId := ExtractTraceID(searchText)
 	traceIds := make([]string, 0)
-	pipeSearchResponseOuter := pipesearch.PipeSearchResponseOuter{}
 
 	if isOnlyTraceID {
 		traceIds = append(traceIds, traceId)
@@ -73,60 +71,54 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			return
 		}
 
-		// Because ProcessPipeSearchRequest() will parse request body into a map, so we parse searchRequestBody into a map
-		requestData, err := structToMap(searchRequestBody)
+		pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: err=%v", err)
+			log.Errorf("ProcessSearchTracesRequest: %v", err)
 			return
 		}
-
-		modifiedData, err := json.Marshal(requestData)
-		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: could not marshal to json body, err=%v", err)
-			return
-		}
-
-		// Get initial data
-		rawTraceCtx := &fasthttp.RequestCtx{}
-		rawTraceCtx.Request.SetBody(modifiedData)
-		pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
-
-		// Parse initial data
-		if err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter); err != nil {
-			log.Errorf("ProcessSearchTracesRequest: could not unmarshal json body, err=%v", err)
-			return
-		}
-		traceIds = GetUniqueTraceIds(&pipeSearchResponseOuter, startEpoch, endEpoch)
+		traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch)
 	}
 
 	traces := make([]*structs.Trace, 0)
 	// Get status code count for each trace
 	for _, traceId := range traceIds {
-		searchRequestBody.SearchText = "trace_id=" + traceId + " | stats count BY status_code"
-		rawTraceCtx := &fasthttp.RequestCtx{}
-		requestData, err := structToMap(searchRequestBody)
+		// Get the start time and end time for this trace
+		searchRequestBody.SearchText = "trace_id=" + traceId + " AND parent_span_id=\"\" | fields start_time, end_time"
+		pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: err=%v", err)
-			return
-		}
-		modifiedData, err := json.Marshal(requestData)
-		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: could not marshal to json body for trace=%v, err=%v", traceId, err)
+			log.Errorf("ProcessSearchTracesRequest: traceId:%v, %v", traceId, err)
 			continue
 		}
-		rawTraceCtx.Request.SetBody(modifiedData)
-		pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
-		pipeSearchResponseOuter := pipesearch.PipeSearchResponseOuter{}
-		if err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter); err != nil {
-			log.Errorf("ProcessSearchTracesRequest: could not unmarshal json body for trace=%v, err=%v", traceId, err)
+
+		if pipeSearchResponseOuter.Hits.Hits == nil || len(pipeSearchResponseOuter.Hits.Hits) == 0 {
 			continue
 		}
-		// To be modified
+
+		startTime, exists := pipeSearchResponseOuter.Hits.Hits[0]["start_time"]
+		if !exists {
+			continue
+		}
+		endTime, exists := pipeSearchResponseOuter.Hits.Hits[0]["end_time"]
+		if !exists {
+			continue
+		}
+
+		traceStartTime := uint64(startTime.(float64))
+		traceEndTime := uint64(endTime.(float64))
+
 		// Only process traces which start and end in this period [startEpoch, endEpoch]
-		// if (startEpoch*1e6 > uint64(startTime)) || (endEpoch*1e6 < uint64(endTime)) {
-		// 	continue
-		// }
-		AddTrace(&pipeSearchResponseOuter, &traces, traceId)
+		if (startEpoch*1e6 > traceStartTime) || (endEpoch*1e6 < traceEndTime) {
+			continue
+		}
+
+		searchRequestBody.SearchText = "trace_id=" + traceId + " | stats count BY status_code"
+		pipeSearchResponseOuter, err = processSearchRequest(searchRequestBody, myid)
+		if err != nil {
+			log.Errorf("ProcessSearchTracesRequest: traceId:%v, %v", traceId, err)
+			continue
+		}
+
+		AddTrace(pipeSearchResponseOuter, &traces, traceId, traceStartTime, traceEndTime)
 	}
 
 	traceResult := &structs.TraceResult{
@@ -166,7 +158,7 @@ func ExtractTraceID(searchText string) (bool, string) {
 	return true, matches[1]
 }
 
-func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string) {
+func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64, traceEndTime uint64) {
 	spanCnt := 0
 	errorCnt := 0
 	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
@@ -194,9 +186,9 @@ func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, trace
 	}
 
 	trace := &structs.Trace{
-		TraceId: traceId,
-		// StartTime: , // to be finished
-		// EndTime: , // to be finished
+		TraceId:         traceId,
+		StartTime:       traceStartTime,
+		EndTime:         traceEndTime,
 		SpanCount:       spanCnt,
 		SpanErrorsCount: errorCnt,
 	}
@@ -205,27 +197,23 @@ func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, trace
 
 }
 
-// structToMap converts a struct to a map, using lowercase field names as keys.
-func structToMap(obj interface{}) (map[string]interface{}, error) {
-	result := make(map[string]interface{})
+// Call /api/search endpoint
+func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uint64) (*pipesearch.PipeSearchResponseOuter, error) {
 
-	val := reflect.Indirect(reflect.ValueOf(obj))
-	typ := val.Type()
-
-	for i := 0; i < val.NumField(); i++ {
-		field := val.Field(i)
-		fieldName := typ.Field(i).Name
-
-		// If a JSON tag exists, use it as the key
-		if tag := typ.Field(i).Tag.Get("json"); tag != "" {
-			result[tag] = field.Interface()
-		} else {
-			// Otherwise, use the modified field name as the key
-			// Change the first letter of the field name to lowercase
-			lowercaseFieldName := strings.ToLower(fieldName[:1]) + fieldName[1:]
-			result[lowercaseFieldName] = field.Interface()
-		}
+	modifiedData, err := json.Marshal(searchRequestBody)
+	if err != nil {
+		return nil, fmt.Errorf("processSearchRequest: could not marshal to json body, err=%v", err)
 	}
 
-	return result, nil
+	// Get initial data
+	rawTraceCtx := &fasthttp.RequestCtx{}
+	rawTraceCtx.Request.SetBody(modifiedData)
+	pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
+	pipeSearchResponseOuter := pipesearch.PipeSearchResponseOuter{}
+
+	// Parse initial data
+	if err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter); err != nil {
+		return nil, fmt.Errorf("processSearchRequest: could not unmarshal json body, err=%v", err)
+	}
+	return &pipeSearchResponseOuter, nil
 }
