@@ -39,15 +39,6 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
-	if err != nil {
-		log.Errorf("ProcessSearchTracesRequest: failed to parse search body  err=%v", err)
-
-		_, wErr := ctx.WriteString(err.Error())
-		if wErr != nil {
-			log.Errorf("ProcessSearchTracesRequest: could not write error message! %v", wErr)
-		}
-		return
-	}
 
 	// Parse the JSON data from ctx.PostBody
 	searchRequestBody := &structs.SearchRequestBody{}
