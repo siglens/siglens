@@ -60,7 +60,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64) {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := parseSearchBody(event, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(event, nowTs)
 	if err != nil {
 		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to parse search body  err=%v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
