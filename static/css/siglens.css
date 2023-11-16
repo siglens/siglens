@@ -1251,7 +1251,7 @@ progress.hidden {
     justify-content: flex-end;
     margin: 0;
     height: 44px;
-    background-color: var(--top-bar-bg-color-regular);
+    background: var( --black1-to-white0);
 }
 
 #app-content-area .graph-container {
@@ -1518,6 +1518,7 @@ progress.hidden {
     border-radius: 10px;
     padding: 10px;
     margin-top: 30px;
+    background: var( --black1-to-white0);
 }
 
 .chart-container #date-picker-btn {
