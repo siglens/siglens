@@ -294,10 +294,8 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
-			copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_INT64[:])
-			copy(newColWip.cbuf[newColWip.cbufidx+1:], toputils.Int64ToBytesLittleEndian(0))
-			newColWip.cbufidx += 1 + 8
-			addIntToRangeIndex(colName, 0, rangeIndex)
+			copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_BACKFILL[:])
+			newColWip.cbufidx += 1
 
 		case utils.VALTYPE_ENC_BOOL[0]:
 			// Cannot convert bool to number.
@@ -355,8 +353,8 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
-			newColWip.WriteSingleString("")
-			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(""))
+			copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_BACKFILL[:])
+			newColWip.cbufidx += 1
 
 		case utils.VALTYPE_ENC_BOOL[0]:
 			// Parse the bool.
