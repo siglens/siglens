@@ -208,7 +208,7 @@
     --black1-to-white0: var(--black-1);
     --alerting-table-bg-color:var(--black-2);
     --alerting-table-line-color:var(--white-4);
-
+    --alerting-table-hover: var(--black-2);
 }
 
 /* end aliases */
@@ -332,6 +332,7 @@
     --black1-to-white0 : var(--white-0);
     --alerting-table-bg-color:var(--white-2);
     --alerting-table-line-color: var(--white-3);
+    --alerting-table-hover: var(--white-1);
 }
 
 
@@ -4611,6 +4612,10 @@ color: #C8C7CC;
     background-color: var(--black1-to-white0) !important;
 }
 
+#alerting #ag-grid .ag-row:hover {
+    background: var(--alerting-table-hover);
+    cursor: pointer;
+}
 /* Log Screen */
 .save-options {
     position: absolute;
