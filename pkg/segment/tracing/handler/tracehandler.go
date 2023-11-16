@@ -51,6 +51,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	searchRequestBody.QueryLanguage = "Splunk QL"
+	searchRequestBody.IndexName = "traces"
 	isOnlyTraceID, traceId := ExtractTraceID(searchText)
 	traceIds := make([]string, 0)
 
@@ -105,7 +106,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			continue
 		}
 
-		searchRequestBody.SearchText = "trace_id=" + traceId + " | stats count BY status_code"
+		searchRequestBody.SearchText = "trace_id=" + traceId + " | stats count BY status"
 		pipeSearchResponseOuter, err = processSearchRequest(searchRequestBody, myid)
 		if err != nil {
 			log.Errorf("ProcessSearchTracesRequest: traceId:%v, %v", traceId, err)
@@ -223,14 +224,16 @@ func MonitorSpansHealth() {
 
 func ProcessRedTracesIngest() {
 	// Initial request
-	ctx := &fasthttp.RequestCtx{}
-	requestDataMap := make(map[string]interface{})
-	requestDataMap["queryLanguage"] = "Splunk QL"
-	requestDataMap["searchText"] = ""
-	requestDataMap["startEpoch"] = "now-5m"
-	requestDataMap["endEpoch"] = "now"
+	searchRequestBody := structs.SearchRequestBody{
+		IndexName:     "traces",
+		SearchText:    "",
+		QueryLanguage: "Splunk QL",
+		StartEpoch:    "now-5m",
+		EndEpoch:      "now",
+	}
 
-	requestData, err := json.Marshal(requestDataMap)
+	ctx := &fasthttp.RequestCtx{}
+	requestData, err := json.Marshal(searchRequestBody)
 	if err != nil {
 		log.Errorf("ProcessRedTracesIngest: could not marshal to json body, err=%v", err)
 		return

@@ -51,6 +51,7 @@ type RedMetrics struct {
 
 // Accept the request body of search traces and act as the request body of the /api/search
 type SearchRequestBody struct {
+	IndexName     string `json:"indexName"`
 	SearchText    string `json:"searchText"`
 	StartEpoch    string `json:"startEpoch"`
 	EndEpoch      string `json:"endEpoch"`
