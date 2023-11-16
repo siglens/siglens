@@ -100,7 +100,8 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 
 	flush := func() {
 		jsonBytes := []byte(`{"hello": "world"}`)
-		ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), true, localIndexMap, orgId)
+		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), true, localIndexMap, orgId)
+		assert.Nil(t, err)
 	}
 
 	config.InitializeTestingConfig()
@@ -117,7 +118,8 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	}
 
 	for _, jsonBytes := range jsons {
-		ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId)
+		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId)
+		assert.Nil(t, err)
 	}
 	flush()
 
@@ -135,7 +137,8 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	}
 
 	for _, jsonBytes := range jsons {
-		ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId)
+		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId)
+		assert.Nil(t, err)
 	}
 	flush()
 
