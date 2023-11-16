@@ -426,7 +426,7 @@ func MakeTracesDependancyGraph() {
 	}
 	dependencyMatrixJSON, err := json.Marshal(dependencyMatrix)
 	if err != nil {
-		log.Errorf("Error marshaling dependency matrix:", err)
+		log.Errorf("Error marshaling dependency matrix:err=%v", err)
 		return
 	}
 
