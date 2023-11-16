@@ -7,7 +7,7 @@ Our experience servicing 10,000+ engineers with Observability tools taught us a 
 
 - Developers have to jump through different tools for logs, metrics, traces
 - Splunk, DataDog, NewRelic are very expensive
-- ElasticSearch takes too many machines, cluster maintainence is hard
+- ElasticSearch takes too many machines, cluster maintenance is hard
 - Grafana Loki has slow query performance
 
 Armed with decades of experience in monitoring domain, we set out to build a observability DB from the ground up, uniquely suited for logs, metrics and traces with **`zero`** external dependencies. A **`single binary`** that you can run on your laptop and process `8 TB/day` on it.  
