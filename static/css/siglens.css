@@ -1517,7 +1517,6 @@ progress.hidden {
     box-shadow: var(--box-shadow);
     border-radius: 10px;
     padding: 10px;
-    margin-top: 30px;
     background: var( --black1-to-white0);
 }
 
@@ -3397,7 +3396,6 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 .caption {
-    margin-bottom: 20px;
     font-size: 18px;
     color: var(--text-color);
 }
@@ -3959,13 +3957,14 @@ color: #C8C7CC;
 }
 
 #app-content-area .caption{
-   margin-bottom: 0;
+   margin-bottom: 30px;
 }
 
 .org-nav-tab{
     display: flex;
     justify-content: space-between;
     margin: 20px;
+    margin-bottom: 30px;
 }
 .api-keys-submit-btn{
     font-size: 1rem !important;
