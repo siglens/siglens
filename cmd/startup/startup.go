@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/retention"
 	"github.com/siglens/siglens/pkg/scroll"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
+	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	ingestserver "github.com/siglens/siglens/pkg/server/ingest"
@@ -146,6 +147,7 @@ func StartSiglensServer(nodeType config.DeploymentType, nodeID string) error {
 
 	alertsHandler.InitAlertingService()
 	alertsHandler.InitMinionSearchService()
+	go tracinghandler.MonitorSpansHealth()
 
 	return nil
 }
