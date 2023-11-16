@@ -17,15 +17,12 @@ limitations under the License.
 package startup
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
 	"os"
-	"time"
 
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
-	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/blob"
 	local "github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/config"
@@ -43,10 +40,9 @@ import (
 	"github.com/siglens/siglens/pkg/ssa"
 	"github.com/siglens/siglens/pkg/usageStats"
 	usq "github.com/siglens/siglens/pkg/usersavedqueries"
-	"github.com/siglens/siglens/pkg/utils"
+
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
 )
 
 var StdOutLogger *log.Logger
@@ -145,8 +141,6 @@ func StartSiglensServer(nodeType config.DeploymentType, nodeID string) error {
 	if queryNode {
 		startQueryServer(queryServer)
 	}
-	go makeTracesDependancyGraph()
-	go mock()
 
 	instrumentation.InitMetrics()
 	querytracker.InitQT()
@@ -154,6 +148,7 @@ func StartSiglensServer(nodeType config.DeploymentType, nodeID string) error {
 	alertsHandler.InitAlertingService()
 	alertsHandler.InitMinionSearchService()
 	go tracinghandler.MonitorSpansHealth()
+	go tracinghandler.DependencyGraphThread()
 
 	return nil
 }
@@ -171,118 +166,6 @@ func ShutdownSiglensServer() {
 	ssa.StopSsa()
 	usageStats.ForceFlushStatstoFile()
 	alertsHandler.Disconnect()
-}
-
-type RawSpanData struct {
-	Hits RawSpanResponse `json:"hits"`
-}
-
-type RawSpanResponse struct {
-	Spans []*Span `json:"records"`
-}
-
-type Span struct {
-	TraceID      string `json:"trace_id"`
-	SpanID       string `json:"span_id"`
-	ParentSpanID string `json:"parent_span_id"`
-	StartTime    uint64 `json:"start_time"`
-	EndTime      uint64 `json:"end_time"`
-	Duration     uint64 `json:"duration"`
-	Status       string `json:"status"`
-	Service      string `json:"service"`
-}
-
-func FetchSpanData(indexName string, startEpoch, endEpoch uint64, searchText string, myid uint64) ([]*Span, error) {
-	requestBody := map[string]interface{}{
-		"indexName":  indexName,
-		"startEpoch": startEpoch,
-		"endEpoch":   endEpoch,
-		"searchText": searchText,
-	}
-	requestBodyJSON, err := json.Marshal(requestBody)
-	if err != nil {
-		return nil, fmt.Errorf("Error marshaling request body: %v", err)
-	}
-
-	ctx := &fasthttp.RequestCtx{}
-	ctx.Request.SetBody(requestBodyJSON)
-	ctx.Request.Header.SetMethod("POST")
-
-	pipesearch.ProcessPipeSearchRequest(ctx, myid)
-
-	var rawSpanData RawSpanData
-	if err := json.Unmarshal(ctx.Response.Body(), &rawSpanData); err != nil {
-		return nil, fmt.Errorf("could not unmarshal json body: %v", err)
-	}
-	return rawSpanData.Hits.Spans, nil
-}
-
-func CalculateDependencyMatrix(spans []*Span) map[string]map[string]int {
-	spanIdToServiceName := make(map[string]string)
-	dependencyMatrix := make(map[string]map[string]int)
-
-	for _, span := range spans {
-		spanIdToServiceName[span.SpanID] = span.Service
-	}
-	for _, span := range spans {
-		if span.ParentSpanID == "" {
-			continue
-		}
-
-		parentService, parentExists := spanIdToServiceName[span.ParentSpanID]
-		if !parentExists || parentService == span.Service {
-			continue
-		}
-
-		if dependencyMatrix[parentService] == nil {
-			dependencyMatrix[parentService] = make(map[string]int)
-		}
-		dependencyMatrix[parentService][span.Service]++
-	}
-
-	return dependencyMatrix
-}
-func makeTracesDependancyGraph() {
-	time.Sleep(10 * time.Second)
-	indexName := "traces"
-	nowTs := utils.GetCurrentTimeInMs()
-	startEpoch := nowTs - (60 * 60 * 1000)
-	endEpoch := nowTs
-	searchText := "*"
-	var myid uint64
-
-	spans, err := FetchSpanData(indexName, startEpoch, endEpoch, searchText, myid)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	dependencyMatrix := CalculateDependencyMatrix(spans)
-	dependencyMatrixJSON, err := json.Marshal(dependencyMatrix)
-	if err != nil {
-		fmt.Println("Error marshaling dependency matrix:", err)
-		return
-	}
-	fmt.Println("Dependency Matrix:", string(dependencyMatrixJSON))
-}
-
-func mock() {
-	time.Sleep(10 * time.Second)
-	services := []string{"ServiceA", "ServiceB", "ServiceC"}
-	spans := []*Span{
-		{SpanID: "1", ParentSpanID: "", Service: services[0]},
-		{SpanID: "2", ParentSpanID: "1", Service: services[1]},
-		{SpanID: "3", ParentSpanID: "2", Service: services[2]},
-		{SpanID: "4", ParentSpanID: "1", Service: services[2]},
-	}
-
-	dependencyMatrix := CalculateDependencyMatrix(spans)
-	dependencyMatrixJSON, err := json.Marshal(dependencyMatrix)
-	if err != nil {
-		fmt.Println("Error marshaling dependency matrix:", err)
-		return
-	}
-	fmt.Println("Dependency Matrix:", string(dependencyMatrixJSON))
 }
 
 func startIngestServer(serverAddr string) {
