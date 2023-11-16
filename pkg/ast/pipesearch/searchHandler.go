@@ -242,10 +242,6 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 
 	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
-	if err != nil {
-		log.Errorf("qid=%d, ALERTSERVICE: ProcessAlertsPipeSearchRequest: failed to parse search body  err=%v", qid, err)
-		return -1
-	}
 
 	if scrollFrom > 10_000 {
 		return -1
@@ -345,15 +341,6 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
-	if err != nil {
-		log.Errorf("qid=%d, ProcessPipeSearchRequest: failed to parse search body  err=%v", qid, err)
-
-		_, wErr := ctx.WriteString(err.Error())
-		if wErr != nil {
-			log.Errorf("qid=%d,ProcessPipeSearchRequest: could not write error message! %+v", qid, wErr)
-		}
-		return
-	}
 
 	if scrollFrom > 10_000 {
 		processMaxScrollCount(ctx, qid)
