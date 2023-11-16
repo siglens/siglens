@@ -1245,6 +1245,7 @@ progress.hidden {
 }
 
 #app-content-area #filter-container{
+    padding: 10px;
     display: flex;
     justify-content: flex-end;
     margin: 0;
@@ -1508,6 +1509,26 @@ progress.hidden {
     width: 100%;
     margin-top: 40px;
 }
+
+.chart-container{
+    flex-direction: column;
+    border: 1px solid var(--search-input-border);
+    box-shadow: var(--box-shadow);
+    border-radius: 10px;
+    padding: 10px;
+    margin-top: 30px;
+}
+
+.chart-container #date-picker-btn {
+    width: 140px !important;
+    margin-left: 20px !important;
+    height: 40px !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid var(--search-input-border);
+}
+
 
 /* cluster stats end */
 
@@ -3335,10 +3356,10 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     border-radius: 5px;
     width: fit-content;
     align-items: center;
-    background: var(--myOrg-input);
     border: 1px solid var(--subsection-border);
     padding: 4px;
     margin-top: 22px;
+    background-color: var(--black1-to-white0);
 }
 
 .section-button {
@@ -3346,7 +3367,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     height: 32px;
     width: fit-content;
     border-radius: 5px;
-    background: var(--myOrg-input);
+    background-color: var(--black1-to-white0);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4272,12 +4293,6 @@ color: #C8C7CC;
     border: none !important;
 }
 
-.line-breaker{
-    border: 0;
-    height: 4px !important;
-    background: #160F29;
-    border-radius: 4px;
-}
 /*Minion Searches*/
 
 .logminion-container{
@@ -4590,6 +4605,10 @@ color: #C8C7CC;
   height: 1px;
   background-color: var(--alerting-table-line-color);
   bottom: 0;
+}
+
+#alerting .ag-theme-mycustomtheme .ag-root-wrapper-body, #alerting .ag-theme-mycustomtheme .ag-center-cols-container  {
+    background-color: var(--black1-to-white0) !important;
 }
 
 /* Log Screen */

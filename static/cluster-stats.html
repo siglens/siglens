@@ -59,6 +59,8 @@
                 <div class="myOrg-inner-container">
                     <div class="usage-stats-header">
                         <p class="caption">Track progress and performance </p>
+                    </div>
+                    <div class="chart-container">
                         <div id="filter-container">
                             <div class="dropdown" id="cstats-time-picker">
                                 <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
@@ -88,19 +90,17 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="graph-container mt-4">
-                        <div class="chart_container">
-                            <div class="ingestion-stats-header">Incoming Event Count</div>
-                            <canvas id="EventCountChart"></canvas>
+                        <div class="graph-container mt-2">
+                            <div class="chart_container">
+                                <div class="ingestion-stats-header">Incoming Event Count</div>
+                                <canvas id="EventCountChart"></canvas>
+                            </div>
+                            <div class="chart_container">
+                                <div class="ingestion-stats-header">Incoming Volume</div>
+                                <canvas id="GBCountChart"></canvas>
+                            </div>
                         </div>
-                        <div class="chart_container">
-                            <div class="ingestion-stats-header">Incoming Volume</div>
-                            <canvas id="GBCountChart"></canvas>
-                        </div>
                     </div>
-                    <hr class="line-breaker">
                     <div class="query-index-container">
                         <div class="index-stats">
                             <p class="index-stats-header">Logs Stats</p>
