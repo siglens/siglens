@@ -324,7 +324,6 @@ func ProcessRedTracesIngest() {
 		if exists {
 			redMetrics.P50 = utils.FindPercentileData(durations, 50)
 			redMetrics.P90 = utils.FindPercentileData(durations, 90)
-			redMetrics.P95 = utils.FindPercentileData(durations, 95)
 			redMetrics.P99 = utils.FindPercentileData(durations, 99)
 		}
 
@@ -361,7 +360,6 @@ func redMetricsToJson(redMetrics structs.RedMetrics, service string) ([]byte, er
 	result["error_rate"] = redMetrics.ErrorRate
 	result["p50"] = redMetrics.P50
 	result["p90"] = redMetrics.P90
-	result["p95"] = redMetrics.P95
 	result["p99"] = redMetrics.P99
 	return json.Marshal(result)
 }

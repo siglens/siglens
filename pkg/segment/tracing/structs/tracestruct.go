@@ -43,9 +43,8 @@ type Span struct {
 type RedMetrics struct {
 	Rate      float64 // Number of entry spans divided by 60 seconds
 	ErrorRate float64 // Percentage of entry spans that errored
-	P50       uint64  // p50, p90, p95, p99 latencies are calculated by the list of durations.
+	P50       uint64  // p50, p90, p99 latencies are calculated by the list of durations.
 	P90       uint64
-	P95       uint64
 	P99       uint64
 }
 
