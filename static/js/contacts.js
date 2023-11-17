@@ -54,11 +54,11 @@ const contactFormHTML = `
             </div>
             <div class="slack-container">
                 <div>
-                    <label for="slack">Channel ID</label>
-                    <input type="text" class="form-control" id="slack-channel-id">
+                    <label for="slack-channel-id">Channel ID</label>
+                    <input type="text" class="form-control" id="slack-channel-id" required>
                 </div>
-                <label for="slack">Slack Token</label>
-                <input type="text" class="form-control" id="slack-token">
+                <label for="slack-token">Slack Token</label>
+                <input type="text" class="form-control" id="slack-token" required>
 
             </div>
             <div class="webhook-container">
@@ -143,17 +143,19 @@ function initializeContactForm(contactId) {
 }
 
 function setContactTypes() {
-    $('#main-container input').val('');
     const selectedOption = $(this).html();
     const container = $(this).closest('.contact-container');
     container.find('.contact-option').removeClass('active');
     container.find('#contact-types span').html(selectedOption);
     $(this).addClass('active');
+    container.find('.slack-container input, .webhook-container input').removeAttr('required').val();
     container.find('.slack-container, .webhook-container').css('display', 'none');
     if (selectedOption === 'Slack') {
+        container.find('.slack-container input').attr('required', 'true');
         container.find('.slack-container').css('display', 'block');
     } else if (selectedOption === 'Webhook') {
         container.find('.webhook-container').css('display', 'block');
+        container.find('.webhook-container input').attr('required', 'true');
     } 
 }
 
