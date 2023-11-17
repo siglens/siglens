@@ -17,6 +17,8 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const OneHourInMs = 60 * 60 * 1000
+
 func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	rawJSON := ctx.PostBody()
@@ -367,16 +369,22 @@ func redMetricsToJson(redMetrics structs.RedMetrics, service string) ([]byte, er
 }
 
 func DependencyGraphThread() {
-	time.Sleep(1 * time.Minute) // Wait for initial traces ingest first
+	time.Sleep(1 * time.Minute) // Initial one-minute wait
+	MakeTracesDependancyGraph()
+
 	for {
+		now := time.Now()
+		nextHour := now.Truncate(time.Hour).Add(time.Hour)
+		sleepDuration := time.Until(nextHour)
+
+		time.Sleep(sleepDuration)
 		MakeTracesDependancyGraph()
-		time.Sleep(1 * time.Hour)
 	}
 }
 
 func MakeTracesDependancyGraph() {
 	nowTs := putils.GetCurrentTimeInMs()
-	startEpoch := nowTs - (60 * 60 * 1000)
+	startEpoch := nowTs - OneHourInMs
 	endEpoch := nowTs
 
 	requestBody := map[string]interface{}{
@@ -441,7 +449,7 @@ func MakeTracesDependancyGraph() {
 	// Ingest
 	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
 	if err != nil {
-		log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
+		log.Errorf("MakeTracesDependancyGraph: failed to process ingest request: %v", err)
 
 	}
 }

@@ -40,7 +40,6 @@ import (
 	"github.com/siglens/siglens/pkg/ssa"
 	"github.com/siglens/siglens/pkg/usageStats"
 	usq "github.com/siglens/siglens/pkg/usersavedqueries"
-
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 )
