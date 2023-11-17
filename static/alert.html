@@ -61,8 +61,8 @@
             <div class="form-container">
                 <form id="alert-form">
                     <div class="d-flex btn-container">
-                        <button class="btn" id="cancel-alert-btn" type="button">Cancel</button>
-                        <button class="btn" id="save-alert-btn" type="submit">Save</button>
+                        <button class="btn" id="cancel-alert-btn" type="button" tabindex="9">Cancel</button>
+                        <button class="btn" id="save-alert-btn" type="submit" tabindex="10">Save</button>
                     </div>
                     <div class="add-alert-form">
                         <div class="subsection-heading">
@@ -71,7 +71,7 @@
                         </div>
                         <div class="alert-form-subsection">
                             <label for="alert-rule-name">Rule name</label>
-                            <input type="text" class="form-control" placeholder="Enter rule name" id="alert-rule-name" required >
+                            <input type="text" class="form-control" placeholder="Enter rule name" id="alert-rule-name" required tabindex="1">
                         </div>
                         <div class="subsection-heading">
                             <div class="circle">2</div>
@@ -140,7 +140,7 @@
                                 </div>
                             </div>
                             <div class="query-container position-relative">
-                                <input type="text" class="form-control" placeholder="Enter a query" id="query" required>
+                                <input type="text" class="form-control" placeholder="Enter a query" id="query" required tabindex="2">
 
                                 <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
                                     id="info-icon-spl" style="display: block;" title='city=Boston | stats count
@@ -171,7 +171,7 @@
                                 </div>
                                 <div class="condition-value">
                                     <input type="number" name="condition-value" min="0" step="1" id="threshold-value"
-                                        value="0" class="form-control">
+                                        value="0" class="form-control" tabindex="3">
                                 </div>
                             </div>
                             <div class="evaluation-container position-relative">
@@ -182,7 +182,7 @@
                                         </i>
                                     </label>
 
-                                    <input type="number" name="evaluate-every" min="0" id="evaluate-every" value="1"
+                                    <input type="number" name="evaluate-every" min="0" id="evaluate-every" value="1" tabindex="4"
                                         class="form-control" step="any"></input>min<span
                                         style="margin-left: 10px;">for
                                         <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
@@ -190,7 +190,7 @@
                                         If it is pending for longer than the "for" value, it will become a firing alert.'>
                                         </i>
                                     </span>
-                                    <input type="number" name="evaluate-every" id="evaluate-for" value="1" min="0"
+                                    <input type="number" name="evaluate-every" id="evaluate-for" value="1" min="0" tabindex="5"
                                         class="form-control"></input>min
                                 </div>
                             </div>
@@ -218,7 +218,7 @@
                                 </div>
                             </div>
                             <div class="message-info" id="message-info">
-                                Message<textarea name="message" id="notification-msg" rows="4" class="message form-control"
+                                Message<textarea name="message" id="notification-msg" rows="4" class="message form-control" tabindex="6"
                                     required></textarea>
                             </div>
                         </div>
@@ -227,9 +227,9 @@
                             <div class="d-flex align-items-end mb-0">
                                 <div class="label-main-container mb-0">
                                     <div class="label-container d-flex align-items-center">
-                                        <input type="text" id="label-key" class="form-control" placeholder="Label name"
+                                        <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7"
                                             value="alerting"><span class="label-equal"> = </span> <input type="text"
-                                            id="label-value" class="form-control" placeholder="Value" value="true">
+                                            id="label-value" class="form-control" placeholder="Value" value="true" tabindex="8">
                                     </div>
                                 </div>
                                 <button class="add-label-container btn" type="button">Add Label</button>
