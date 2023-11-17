@@ -4134,12 +4134,22 @@ color: #C8C7CC;
 }
 
 .evaluation-container input{
-    margin-left: 20px;
+    margin-left: 40px;
     width: 70px;
     margin-right: 10px;
 }
 .label-container{
     margin-bottom: 20px;
+}
+
+#info-evaluate-for{
+    top: 10px;
+    right: 425px;
+}
+
+#info-evaluate-every{
+    top: 10px;
+    right: 610px;
 }
 
 #alert-condition,#contact-types,#contact-points-dropdown,#alert-data-source,

@@ -76,28 +76,20 @@ $(document).ready(function () {
     
     alertForm.on('submit',(e)=>submitAddAlertForm(e));
   
-    $("#info-icon-spl").tooltip({
-        delay: { show: 0, hide: 300 },
-        trigger: 'click'
-    });
+    const tooltipIds = ["info-icon-spl", "info-icon-msg", "info-evaluate-every", "info-evaluate-for"];
 
-    $("#info-icon-msg").tooltip({
-      delay: { show: 0, hide: 300 },
-      trigger: "click",
-    });
-
-    $('#info-icon-spl').on('click', function (e) {
-        $('#info-icon-spl').tooltip('show');
-    });
-    
-    $('#info-icon-msg').on('click', function (e) {
-        $("#info-icon-msg").tooltip("show");
+    tooltipIds.forEach(id => {
+        $(`#${id}`).tooltip({
+            delay: { show: 0, hide: 300 },
+            trigger: "click"
+        }).on("click", function () {
+            $(`#${id}`).tooltip("show");
+        });
     });
 
     $(document).mouseup(function (e) {
         if ($(e.target).closest(".tooltip-inner").length === 0) {
-            $('#info-icon-spl').tooltip('hide');
-            $("#info-icon-msg").tooltip("hide");
+            tooltipIds.forEach(id => $(`#${id}`).tooltip("hide"));
         }
     });
     getAlertId();
