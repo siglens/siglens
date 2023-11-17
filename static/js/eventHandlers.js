@@ -290,15 +290,18 @@ function hideColumnHandler(evt) {
 
 function setQueryLangHandler(e) {
     $('.query-language-option').removeClass('active');
+    let currentTab = $("#custom-code-tab").tabs("option", "active");
+    if ($(this).attr("id").split("-")[1] != "3" && currentTab == 0) {
+        $("#custom-code-tab").tabs("option", "active", 1);
+    }
     $('#query-language-btn span').html($(this).html());
     displayQueryLangToolTip($(this).attr('id').split('-')[1]);
     $(this).addClass('active');
 }
 
 function qLangOnShowHandler() {
-    let currentTab = $("#custom-code-tab").tabs("option", "active");
-    if (currentTab == 1) $("#query-language-btn").addClass("active");
-    else $("#custom-code-tab").tabs("option", "active", 1);
+    $("#query-language-btn").addClass("active");
+    
 }
 
 function qLangOnHideHandler() {

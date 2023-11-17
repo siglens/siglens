@@ -16,6 +16,9 @@
 
     --purple-15p: rgba(99, 71, 217, 0.15);
 
+    --shadow-1: #6F6B7B29;
+    --shadow-2: #00000029;
+
     /* Dark Theme - default */
     --black-1: #160F29;
     --black-2: #262038;
@@ -66,7 +69,6 @@
 
     --border-switch: var(--white-3);
     --border-btn-color: var(--black-5);
-    --border-shadow: var(--black-5);
     --filter-color: var(--black-2);
     --table-head-bg-color: var(--black-2);
     --panel-table-line-color: var(--white-4);
@@ -224,7 +226,6 @@
 
     --border-switch: var(--black-5);
     --border-btn-color: var(--white-3);
-    --border-shadow: var(--black);
     --default-tab: var(--white-0);
     --filter-color: var(--white-2);
     --table-head-bg-color: var(--white-1);
@@ -3093,6 +3094,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     background-image: url("../assets/expand-sidebar-icon.svg");
     left: 73px;
     top: 28px; 
+    z-index: 1;
 }
 
 .nav-links{
