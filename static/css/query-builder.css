@@ -445,7 +445,10 @@ a:visited.ui-button,
 .ui-widget{
     font-family: "DINpro", Arial, sans-serif !important;
 }
-
+.ui-widget{
+    height: auto;
+    width: auto;
+}
 .ui-widget-content {
     background-color: var(--bg-color);
 }

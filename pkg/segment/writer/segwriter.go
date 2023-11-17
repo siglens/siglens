@@ -898,6 +898,16 @@ func (cw *ColWip) SetDeMap(val map[string][]uint16) {
 	cw.deMap = val
 }
 
+func (cw *ColWip) WriteSingleString(value string) {
+	copy(cw.cbuf[cw.cbufidx:], VALTYPE_ENC_SMALL_STRING[:])
+	cw.cbufidx += 1
+	n := uint16(len(value))
+	copy(cw.cbuf[cw.cbufidx:], utils.Uint16ToBytesLittleEndian(n))
+	cw.cbufidx += 2
+	copy(cw.cbuf[cw.cbufidx:], value)
+	cw.cbufidx += uint32(n)
+}
+
 func AddNewRotatedSegment(segmeta structs.SegMeta) {
 
 	smrLock.Lock()

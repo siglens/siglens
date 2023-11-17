@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+    
+        gtag('config', 'G-5SBJC04YFB');
+    </script>
+    
 <head>
     <meta charset="UTF-8">
     <title>SigLens</title>
@@ -18,6 +26,7 @@
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery.tagsinput.min.css" />
+    <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/siglens.css" />
     <link rel="stylesheet" href="./css/query-builder.css" />
 
@@ -34,6 +43,8 @@
 </head>
 
 <body data-theme="light">
+    <div class="pop-layer" id="pop-layer">
+    </div>
     <div id="app-container">
 
         <div id="app-side-nav" class="active">
@@ -212,6 +223,18 @@
             <div id="logs-view-controls">
                 <div id="save-query-div">
                     <button class="btn saveq-btn below-btn-img" id="saveq-btn"></button>
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle" type="button" id="saveq-btn" data-toggle="dropdown" aria-haspopup="true"
+                            aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
+                            <span>Download</span>
+                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                        </button>
+                        <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn" id="save-query-options">
+                            <li id="cvs-block" class="query-language-option">Download as CVS</li>
+                            <li id="json-block" class="query-language-option">Download as JSON</li>
+                        </div>
+                    </div>
                     <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3"></button>
                     <button class="btn mx-2 alert-from-logs-btn below-btn-img" id="alert-from-logs-btn"></button>
                 </div>
@@ -279,7 +302,22 @@
                 </fieldset>
             </form>
         </div>
-
+        <div id="download-info" title="Download" class="save-query">
+            <p class="validateTips" id="validateTips"></p>
+            <form>
+                <fieldset>
+                    <input type="text" name="qnameDL" id="qnameDL" placeholder="Name"
+                        class="text ui-widget-content ui-corner-all">
+                    <!-- Allow form submission with keyboard without duplicating the dialog button -->
+                    <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+                </fieldset>
+            </form>
+        </div>
+        <div class="pop-download" id="pop-box">
+            <div class="pop-text">Downloading Logs</div>
+            <button class="btn cancel-loading" id="cancel-loading">Cancel</button>
+        </div>
+        <div id="progressbar" class="progress-download"></div>
         <!-- Dashboard Popup-->
         <div class="popupOverlay"></div>
         <div class="popupContent" id="create-db-popup">
@@ -324,16 +362,17 @@
 
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/common.js?cb=1_1_10"></script>
-    <script src="./js/eventHandlers.js?cb=1_1_10"></script>
-    <script src="./js/availableFields.js?cb=1_1_10"></script>
-    <script src="./js/logResultsGrid.js?cb=1_1_10"></script>
-    <script src="./js/agGridSegstats.js?cb=1_1_10"></script>
-    <script src="./js/datePicker.js?cb=1_1_10"></script>
+    <script src="./js/event-handlers.js?cb=1_1_10"></script>
+    <script src="./js/available-fields.js?cb=1_1_10"></script>
+    <script src="./js/log-results-grid.js?cb=1_1_10"></script>
+    <script src="./js/ag-grid-seg-stats.js?cb=1_1_10"></script>
+    <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/search.js?cb=1_1_10"></script>
-    <script src="./js/savedQuery.js?cb=1_1_10"></script>
+    <script src="./js/saved-query.js?cb=1_1_10"></script>
+    <script src="./js/download-logs.js?cb=1_1_10"></script>
     <script src="./js/index.js?cb=1_1_10"></script>
-    <script src="./js/pointClickSearch.js?cb=1_1_10"></script>
-    <script src="./js/logSearch.js?cb=1_1_10"></script>
+    <script src="./js/point-click-search.js?cb=1_1_10"></script>
+    <script src="./js/log-search.js?cb=1_1_10"></script>
     <script src="./js/dashboard-from-logs.js?cb=1_1_10"></script>
     <script src="./js/query-builder.js"></script>
 </body>

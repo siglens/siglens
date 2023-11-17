@@ -121,6 +121,7 @@ function getColumns() {
  
                  if (jsonEvent && jsonEvent.hits && jsonEvent.hits.totalMatched) {
                      totalHits = jsonEvent.hits.totalMatched
+                     totalMatchLogs = totalHits;
                      lastKnownHits = totalHits;
                  } else {
                      // we enter here only because backend sent null hits/totalmatched
