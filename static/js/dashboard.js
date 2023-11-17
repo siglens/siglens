@@ -21,6 +21,7 @@ let timeRange = "Last 1 Hr";
 let dbRefresh ="";
 let panelContainer;
 let panelContainerWidthGlobal;
+let curFocus;
 
 $(document).ready(function () {
     getListIndices();
@@ -62,7 +63,23 @@ $(document).ready(function () {
 
     setTimePicker();
 })
-
+$(document).mouseup(function (e) {
+  var popWindows = $("#panel-dropdown-modal");
+  let panelHead = $(".panel-header");
+  let j1 = !popWindows.is(e.target);
+  let j2 = !panelHead.is(e.target);
+  let j3 = !$(curFocus + " .dropdown-style").hasClass("hidden");
+  if (
+    !popWindows.is(e.target) &&
+    popWindows.has(e.target).length === 0 &&
+    !panelHead.is(e.target) &&
+    panelHead.has(e.target).length === 0 &&
+    !$(curFocus + " .dropdown-style").hasClass("hidden")
+  ) {
+    $(curFocus + " .dropdown-btn").toggleClass("active");
+    $(curFocus + " .dropdown-style").toggleClass("hidden");
+  }
+});
 window.addEventListener('resize', function (event) {
     let isActive = $('#app-side-nav').hasClass('active');
     panelContainerWidthGlobal = isActive? panelContainer.offsetWidth-97: panelContainer.offsetWidth-215;
@@ -457,12 +474,14 @@ function displayPanels() {
         handleDrag(idpanel);
         handleResize(idpanel);
         $("#panel" + idpanel + " .panel-header").click(function () {
+            curFocus = "#panel" + idpanel;
             $("#panel" + idpanel + " .dropdown-btn").toggleClass("active")
             $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
         })
         $("#panel" + idpanel + " .dropdown-btn").click(function (e) {
             e.stopPropagation();
-            $("#panel" + idpanel + " .dropdown-btn").toggleClass("active")
+            curFocus = "#panel" + idpanel;
+            $("#panel" + idpanel + " .dropdown-btn").toggleClass("active");
             $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
         });
         $(`#panel${idpanel} .panel-header p`).html(localPanel.name);
