@@ -7,6 +7,7 @@
     --save-btn-img: url(../assets/save-icon.svg);
     --dashboard-btn-img: url(../assets/dashbaord-white-icon.svg);
     --alerting-btn-img: url(../assets/alerting-white-icon.svg);
+    --download-btn-img: url(../assets/download-icon-dark.svg);
     --border-shadow: var(--shadow-1);
     --code-input-box-color: var(--black-1);
     --qb-input-box-color: var(--black-2);
@@ -18,6 +19,7 @@
     --save-btn-img: url(../assets/save-icon-light.svg);
     --dashboard-btn-img: url(../assets/dashboard-btn-light.svg);
     --alerting-btn-img: url(../assets/alerting-btn-light.svg);
+    --download-btn-img: url(../assets/download-icon-light.svg);
     --border-shadow: var(--shadow-2);
     --code-input-box-color: var(--white-1);
     --qb-input-box-color: var(--white-1);
@@ -40,6 +42,9 @@
 #avail-fields-btn {
     height: 40px;
 }
+#progress-div{
+    margin-top: 0;
+}
 #log-view {
     width: 120px;
     height: 40px;
@@ -52,6 +57,15 @@
 #log-opt-table-btn{
     width: 32px;
     height: 32px;
+}
+#logs-view-controls{
+    padding-left: 27px;
+}
+.dashboard-box{
+    height: 100vh;
+}
+.save-query-div{
+    margin-bottom: 10px;
 }
 input.form-control {
     background: var(--code-input-box-color) !important;
@@ -271,6 +285,7 @@ input.form-control {
     background-color: #6347D9 !important;
     transition-delay: 0S !important;
     border: none !important;
+    color: var(--white-0) !important;
 }
 
 .ui-menu-item .ui-menu-item-wrapper {
@@ -305,18 +320,34 @@ input.form-control {
 }
 
 .search-img {
+    background-image: url("../assets/search-img.svg");
     height: 40px;
     width: 40px;
-    background-image: url("../assets/search-img.svg");
     background-color: var(--border-btn-color);
     background-repeat: no-repeat;
     background-size: 50%;
     background-position: center;
     border-radius: 0 5px 5px 0;
 }
+.run-filter-btn {
+    background-image: url("../assets/search-img.svg");
+    height: 40px;
+    width: 40px;
+    background-color: var(--border-btn-color);
+    background-repeat: no-repeat;
+    background-size: 50%;
+    background-position: center;
+    border-radius: 0 5px 5px 0;
+}
+
+.cancel-search {
+    background-image: url("../assets/close_white.svg") !important;
+}
+.run-filter-btn:hover,
+#run-filter-btn.active,
 .search-img:hover,
 .search-img.active{
-    background-color: var(--drop-down-btn-bg-hover);
+    background-color: var(--btn-hover-or-click-bg-color);
 }
 .query-box {
     padding: 10px 24px 0 24px;
@@ -456,6 +487,9 @@ a:visited.ui-button,
 .ui-autocomplete::-webkit-scrollbar {
     width: 0;
 }
+.ui-dialog-title{
+    font-size: 22px;
+}
 .completed{
     background-image: var(--complete-bg-img);
     background-repeat: no-repeat;
@@ -466,7 +500,7 @@ a:visited.ui-button,
     border-color: var(--purple-1);
 }
 #available-indexes{
-    width: 120px;
+    width: 180px;
     overflow: hidden;
     transform: translate3d(0px, 42px, 0px);
 }
@@ -475,7 +509,7 @@ a:visited.ui-button,
     padding: 0;
 }
 .index-dropdown-item{
-    width: 89px;
+    width: 152px;
 }
 .saveq-btn{
     background-image: var(--save-btn-img);
@@ -486,12 +520,17 @@ a:visited.ui-button,
 .alert-from-logs-btn{
     background-image: var(--alerting-btn-img);
 }
+.download-all-logs-btn{
+    background-image: var(--download-btn-img);
+}
+
 .below-btn-img{
     background-size: 50%;
     background-repeat: no-repeat;
     background-position: center;
     height: 40px;
     width: 40px;
+    border: 1px solid var(--border-btn-color);
 }
 .available-fields-dropdown-item{
     width: 165px !important;
@@ -506,4 +545,19 @@ a:visited.ui-button,
 .cancel-enter:hover,
 .completed:hover{
     background-color: var(--drop-down-btn-bg-hover);
+}
+.run-filter-btn{
+    height: 40px;
+    border-radius: 0 5px 5px 0;
+    border: none;
+}
+.filter-container {
+    display: flex;
+    margin-top: 16px;
+    margin-left: 20px;
+    margin-right: 24px;
+    background-color: var(--top-bar-bg-color-regular);
+}
+.search-bar-container{
+    width: 100%;
 }

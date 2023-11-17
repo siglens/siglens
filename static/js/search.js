@@ -25,9 +25,11 @@ limitations under the License.
  function doCancel(data) {
      socket.send(JSON.stringify(data));
      $('body').css('cursor', 'default');
-     $('#run-filter-btn').html('Search');
+     $('#run-filter-btn').html(' ');
+     $("#run-filter-btn").removeClass("cancel-search");
      $('#run-filter-btn').removeClass('active');
      $("#query-builder-btn").html(" ");
+     $("#query-builder-btn").removeClass("cancel-search");
      $("#query-builder-btn").removeClass("active");
      $('#progress-div').html(``);
  }
@@ -95,9 +97,10 @@ function getColumns() {
      socket.onopen = function (e) {
          console.time("socket timing");
          $('body').css('cursor', 'progress');
-         $('#run-filter-btn').html('Cancel');
+         $("#run-filter-btn").addClass("cancel-search");
          $('#run-filter-btn').addClass('active');
          $("#query-builder-btn").html("   ");
+         $("#query-builder-btn").addClass("cancel-search");
          $("#query-builder-btn").addClass("active");
          socket.send(JSON.stringify(data));
      };
@@ -447,32 +450,12 @@ function getColumns() {
     };
   }
   let filterTextQB = "";
- function getSearchFilter(skipPushState, scrollingTrigger) {
-   let currentTab = $("#custom-code-tab").tabs("option", "active");
-   let endDate = filterEndDate || "now";
-   let stDate = filterStartDate || "now-15m";
-   let selIndexName = selectedSearchIndex;
-   let sFrom = 0;
-   let queryLanguage = $("#query-language-btn span").html();
-   
-
-   selIndexName.split(",").forEach(function (searchVal) {
-     $(`.index-dropdown-item[data-index="${searchVal}"]`).toggleClass("active");
-   });
-
-   selectedSearchIndex = selIndexName.split(",").join(",");
-   Cookies.set("IndexList", selIndexName.split(",").join(","));
-
-   if (!isNaN(stDate)) {
-     datePickerHandler(Number(stDate), Number(endDate), "custom");
-   } else if (stDate !== "now-15m") {
-     datePickerHandler(stDate, endDate, stDate);
-   } else {
-     datePickerHandler(stDate, endDate, "");
-   }
+  /**
+   * get real time search text
+   * @returns real time search text
+   */
+  function getQueryBuilderCode() {
    let filterValue = "";
-   if(currentTab == 0){
-    queryLanguage = "Splunk QL";
      //concat the first input box
      let index = 0;
      if (firstBoxSet && firstBoxSet.size > 0) {
@@ -504,10 +487,38 @@ function getColumns() {
      }
      if (filterValue == "") filterValue = "*";
      $("#query-input").val(filterValue);
+   return filterValue;
+  }
+ function getSearchFilter(skipPushState, scrollingTrigger) {
+   let currentTab = $("#custom-code-tab").tabs("option", "active");
+   let endDate = filterEndDate || "now";
+   let stDate = filterStartDate || "now-15m";
+   let selIndexName = selectedSearchIndex;
+   let sFrom = 0;
+   let queryLanguage = $("#query-language-btn span").html();
+  
+   selIndexName.split(",").forEach(function (searchVal) {
+     $(`.index-dropdown-item[data-index="${searchVal}"]`).toggleClass("active");
+   });
+
+   selectedSearchIndex = selIndexName.split(",").join(",");
+   Cookies.set("IndexList", selIndexName.split(",").join(","));
+
+   if (!isNaN(stDate)) {
+     datePickerHandler(Number(stDate), Number(endDate), "custom");
+   } else if (stDate !== "now-15m") {
+     datePickerHandler(stDate, endDate, stDate);
+   } else {
+     datePickerHandler(stDate, endDate, "");
+   }
+   let filterValue = "";
+   if(currentTab == 0){
+    queryLanguage = "Splunk QL";
+     //concat the 3 input boxes
+     filterValue = getQueryBuilderCode();
    }else{
     filterValue = $("#filter-input").val().trim() || "*";
    }
-  //  console.log("filterValue = " + filterValue);
    addQSParm("searchText", filterValue);
    addQSParm("startEpoch", stDate);
    addQSParm("endEpoch", endDate);
@@ -715,9 +726,11 @@ function getColumns() {
       eqRel,
       res.qtype
     );
-    $("#run-filter-btn").html("Search");
+    $("#run-filter-btn").html(" ");
+    $("#run-filter-btn").removeClass("cancel-search");
     $("#run-filter-btn").removeClass("active");
     $("#query-builder-btn").html(" ");
+    $("#query-builder-btn").removeClass("cancel-search");
     $("#query-builder-btn").removeClass("active");
     wsState = "query";
     if (canScrollMore === false) {
@@ -757,9 +770,11 @@ function getColumns() {
      }
      renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched,
          timeToFirstByte, eqRel, res.qtype);
-     $('#run-filter-btn').html('Search');
+     $('#run-filter-btn').html(' ');
+     $("#run-filter-btn").removeClass("cancel-search");
      $('#run-filter-btn').removeClass('active');
      $("#query-builder-btn").html(" ");
+     $("#query-builder-btn").removeClass("cancel-search");
      $("#query-builder-btn").removeClass("active");
      wsState = 'query'
      if (canScrollMore === false){
@@ -808,9 +823,11 @@ function getColumns() {
         el.html(errorMsg);
     }
     $('body').css('cursor', 'default');
-    $('#run-filter-btn').html('Search');
+    $('#run-filter-btn').html(' ');
+    $("#run-filter-btn").removeClass("cancel-search");
     $('#run-filter-btn').removeClass('active');
     $("#query-builder-btn").html(" ");
+    $("#query-builder-btn").removeClass("cancel-search");
     $("#query-builder-btn").removeClass("active");
     $('#run-metrics-query-btn').removeClass('active');
 

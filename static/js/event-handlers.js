@@ -377,7 +377,7 @@ function runFilterBtnHandler(evt) {
     $('.popover').hide();
     evt.preventDefault();
     if (
-      $("#run-filter-btn").text() === "Search" ||
+      $("#run-filter-btn").text() === " " ||
       $("#query-builder-btn").text() === " "
     ) {
       resetDashboard();
@@ -398,7 +398,7 @@ function filterInputHandler(evt) {
     evt.preventDefault();
     if (
       evt.keyCode === 13 &&
-      ($("#run-filter-btn").text() === "Search" ||
+      ($("#run-filter-btn").text() === " " ||
         $("#query-builder-btn").text() === " ")
     ) {
       resetDashboard();

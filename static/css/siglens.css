@@ -632,15 +632,6 @@ body {
     height: 24px;
     width: 24px;
 }
-.filter-container{
-    display: grid !important;
-    grid-template-columns: 2fr auto auto;
-    column-gap: 15px;
-    margin-top: 16px;
-    margin-left: 20px;
-    margin-right: 24px;
-    background-color: var(--top-bar-bg-color-regular);
-}
 #filter-container {
     display: grid;
     grid-template-columns: 2fr auto auto auto auto;
@@ -653,7 +644,6 @@ body {
 }
 #cancel-loading,
 #live-tail-btn,
-#run-filter-btn,
 #add-icon,
 #add-icon-second,
 #create-db-btn,
@@ -673,7 +663,6 @@ body {
 #add-icon-second:hover,
 #live-tail-btn:hover,
 #cancel-loading:hover,
-#run-filter-btn:hover,
 #search-query-btn:hover,
 #run-metrics-query-btn:hover{
     background: var(--btn-hover-or-click-bg-color);
@@ -682,8 +671,7 @@ body {
 #add-icon.active,
 #add-icon-second:active,
 #live-tail-btn.active,
-#cancel-loading.active,
-#run-filter-btn.active {
+#cancel-loading.active {
     background: var(--btn-hover-or-click-bg-color);
 }
 
@@ -692,9 +680,7 @@ body {
 #filter-input,
 #date-picker-btn,
 #cancel-loading,
-#run-filter-btn,
 #live-tail-btn,
-#saveq-btn,
 #create-db-btn,
 #run-metrics-query-btn,
 #logout-btn,
@@ -707,7 +693,6 @@ body {
     height: 40px;
     line-height: 14px;
 }
-
 #query-language-btn {
     width: 108px;
     display: flex;
@@ -716,11 +701,6 @@ body {
     margin-left: 16px;
 }
 
-#saveq-btn {
-    margin-left: 23px;
-    margin-bottom: 15px;
-    font-size: 18px;
-}
 
 #avail-fields-btn {
     height: 44px;
@@ -767,7 +747,7 @@ body {
 
 #app-footer {
     position: fixed;
-    bottom: 1.59%;
+    bottom: 0;
     right: 40px;
     font-size: 0.7rem;
     z-index: -100;
@@ -1531,7 +1511,7 @@ progress.hidden {
     margin-left: 23px;
     margin-bottom: 2%;
     margin-right: 25px;
-    height: 500px !important;
+    height: 100% !important;
 }
 
 #queries-grid-container {

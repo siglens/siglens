@@ -10,10 +10,13 @@ $("#custom-code-tab").tabs({
       $("#query-language-options #option-3").addClass("active");
       $("#query-language-btn span").html("Splunk QL");
       displayQueryLangToolTip("3");
+    }else{
+      let filterValue = $("#query-input").val();
+     if (filterValue != "") $("#filter-input").val(filterValue);
     }
   },
 });
-//querybuilder text: 
+//querybuilder and run-filter-btn text: 
 //search -> " "
 //run -> "  "
 //cancel -> "   "
@@ -47,6 +50,7 @@ tags.addEventListener("click", function (event) {
     let str = event.target.parentNode.textContent;
     firstBoxSet.delete(str.substring(0, str.length - 1));
     event.target.parentNode.remove();
+    getSearchText();
   }
 });
 tagSecond.addEventListener("click", function (event) {
@@ -56,6 +60,7 @@ tagSecond.addEventListener("click", function (event) {
     let str = event.target.parentNode.textContent;
     secondBoxSet.delete(str.substring(0, str.length - 1));
     event.target.parentNode.remove();
+    getSearchText();
   }
 });
 tagThird.addEventListener("click", function (event) {
@@ -65,6 +70,7 @@ tagThird.addEventListener("click", function (event) {
     let str = event.target.parentNode.textContent;
     thirdBoxSet.delete(str.substring(0, str.length - 1));
     event.target.parentNode.remove();
+    getSearchText();
   }
 });
 $(document).mouseup(function (e) {
@@ -182,6 +188,7 @@ function ThirdFilterStart(evt) {
           dom[0].scrollLeft = x;
           $("#column-third").val("");
           $(this).blur();
+          getSearchText();
         }
         return false;
       },
@@ -237,6 +244,7 @@ function filterComplete(evt) {
     var dom = $("#tags");
     var x = dom[0].scrollWidth;
     dom[0].scrollLeft = x;
+    getSearchText();
   }
 }
 function secondFilterComplete(evt) {
@@ -280,7 +288,12 @@ function secondFilterComplete(evt) {
     var dom = $("#tags-second");
     var x = dom[0].scrollWidth;
     dom[0].scrollLeft = x;
+    getSearchText();
   }
+}
+function getSearchText() {
+  let filterValue = getQueryBuilderCode();
+  if (filterValue != "") $("#query-input").val(filterValue);
 }
 function cancelInfo(evt) {
   evt.preventDefault();

@@ -50,7 +50,7 @@
         <div id="app-side-nav" class="active">
         </div>
 
-        <div id="dashboard">
+        <div id="dashboard" class="dashboard-box">
             <div id = "custom-code-tab" class="custom-code-tab">
                 <ul class="tab-list">
                     <li class="tab-li tab-li-query" id = "tab-title1"><a href="#tabs-1" class="custom-query-builder">Query Builder</a></li>
@@ -139,7 +139,7 @@
                             <span class="clear-icon" id="clearInput" title="Clear"></span>
                         </div>
                         <div class="text-end">
-                            <button class="btn" id="run-filter-btn" title="Run your search">Search </button>
+                            <button class="btn run-filter-btn" id="run-filter-btn" title="Run your search"></button>
                         </div>
                     </div>
                 </div>
@@ -221,22 +221,19 @@
             <div id="progress-div"></div>
 
             <div id="logs-view-controls">
-                <div id="save-query-div">
+                <div id="save-query-div" class="save-query-div">
                     <button class="btn saveq-btn below-btn-img" id="saveq-btn"></button>
-                    <div class="dropdown">
-                        <button class="btn dropdown-toggle" type="button" id="saveq-btn" data-toggle="dropdown" aria-haspopup="true"
+                    <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3"></button>
+                    <button class="btn mx-2 alert-from-logs-btn below-btn-img" id="alert-from-logs-btn"></button>
+                    <div class="dropdown download-btn">
+                        <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button" id="saveq-btn" data-toggle="dropdown" aria-haspopup="true"
                             aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
-                            <span>Download</span>
-                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
                         </button>
                         <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn" id="save-query-options">
                             <li id="cvs-block" class="query-language-option">Download as CVS</li>
                             <li id="json-block" class="query-language-option">Download as JSON</li>
                         </div>
                     </div>
-                    <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3"></button>
-                    <button class="btn mx-2 alert-from-logs-btn below-btn-img" id="alert-from-logs-btn"></button>
                 </div>
                 <div id="views-container">
                     <div class="btn-group" role="group" id="log-view">
