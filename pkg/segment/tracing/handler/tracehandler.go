@@ -154,6 +154,11 @@ func ExtractTraceID(searchText string) (bool, string) {
 }
 
 func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64, traceEndTime uint64) {
+
+	if len(pipeSearchResponseOuter.Aggs) == 0 {
+		return
+	}
+
 	spanCnt := 0
 	errorCnt := 0
 	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
