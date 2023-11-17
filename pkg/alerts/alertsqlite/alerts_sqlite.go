@@ -537,7 +537,7 @@ func (p Sqlite) CreateContact(newContact *alertutils.Contact) error {
 		}
 		if len(newContact.Email) == 0 && len(newContact.Slack) == 0 && len(newContact.Webhook) == 0 {
 			log.Errorf("createContact: Please set contact email / Slack channel")
-			return errors.New("please set contact email / Slack channel")
+			return errors.New("Please set contact email / Slack channel")
 		}
 		slackJSON, err := json.Marshal(newContact.Slack)
 		if err != nil {
