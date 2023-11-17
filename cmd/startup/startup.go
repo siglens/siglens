@@ -61,7 +61,6 @@ func init() {
 
 // Licenses should be checked outside of this function
 func StartSiglensServer(nodeType config.DeploymentType, nodeID string) error {
-
 	err := alertsHandler.ConnectSiglensDB()
 	if err != nil {
 		log.Errorf("Failed to connect to siglens database, err: %v", err)
@@ -148,6 +147,7 @@ func StartSiglensServer(nodeType config.DeploymentType, nodeID string) error {
 	alertsHandler.InitAlertingService()
 	alertsHandler.InitMinionSearchService()
 	go tracinghandler.MonitorSpansHealth()
+	go tracinghandler.DependencyGraphThread()
 
 	return nil
 }

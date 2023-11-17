@@ -17,6 +17,8 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const OneHourInMs = 60 * 60 * 1000
+
 func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	rawJSON := ctx.PostBody()
@@ -364,4 +366,90 @@ func redMetricsToJson(redMetrics structs.RedMetrics, service string) ([]byte, er
 	result["p95"] = redMetrics.P95
 	result["p99"] = redMetrics.P99
 	return json.Marshal(result)
+}
+
+func DependencyGraphThread() {
+	time.Sleep(1 * time.Minute) // Initial one-minute wait
+	MakeTracesDependancyGraph()
+
+	for {
+		now := time.Now()
+		nextHour := now.Truncate(time.Hour).Add(time.Hour)
+		sleepDuration := time.Until(nextHour)
+
+		time.Sleep(sleepDuration)
+		MakeTracesDependancyGraph()
+	}
+}
+
+func MakeTracesDependancyGraph() {
+	nowTs := putils.GetCurrentTimeInMs()
+	startEpoch := nowTs - OneHourInMs
+	endEpoch := nowTs
+
+	requestBody := map[string]interface{}{
+		"indexName":  "traces",
+		"startEpoch": startEpoch,
+		"endEpoch":   endEpoch,
+		"searchText": "*",
+	}
+	requestBodyJSON, err := json.Marshal(requestBody)
+	if err != nil {
+		fmt.Println("Error marshaling request body:", err)
+		return
+	}
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.SetBody(requestBodyJSON)
+
+	ctx.Request.Header.SetMethod("POST")
+	pipesearch.ProcessPipeSearchRequest(ctx, 0)
+
+	rawSpanData := structs.RawSpanData{}
+	if err := json.Unmarshal(ctx.Response.Body(), &rawSpanData); err != nil {
+		log.Errorf("MakeTracesDependancyGraph: could not unmarshal json body, err=%v", err)
+		return
+	}
+	spanIdToServiceName := make(map[string]string)
+	dependencyMatrix := make(map[string]map[string]int)
+
+	for _, span := range rawSpanData.Hits.Spans {
+		spanIdToServiceName[span.SpanID] = span.Service
+	}
+	for _, span := range rawSpanData.Hits.Spans {
+		if span.ParentSpanID == "" {
+			continue
+		}
+		parentService, parentExists := spanIdToServiceName[span.ParentSpanID]
+		if !parentExists {
+			continue
+		}
+		if parentService == span.Service {
+			continue
+		}
+		if dependencyMatrix[parentService] == nil {
+			dependencyMatrix[parentService] = make(map[string]int)
+		}
+		dependencyMatrix[parentService][span.Service]++
+
+	}
+	dependencyMatrixJSON, err := json.Marshal(dependencyMatrix)
+	if err != nil {
+		log.Errorf("Error marshaling dependency matrix:err=%v", err)
+		return
+	}
+
+	// Setup ingestion parameters
+	now := putils.GetCurrentTimeInMs()
+	indexName := "service-dependency"
+	shouldFlush := false
+	lenJsonData := uint64(len((dependencyMatrixJSON)))
+	localIndexMap := make(map[string]string)
+	orgId := uint64(0)
+
+	// Ingest
+	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
+	if err != nil {
+		log.Errorf("MakeTracesDependancyGraph: failed to process ingest request: %v", err)
+
+	}
 }
