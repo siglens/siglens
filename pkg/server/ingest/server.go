@@ -112,6 +112,9 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	// Prometheus Handlers
 	hs.router.POST(server_utils.PROMQL_PREFIX+"/api/v1/write", hs.Recovery(prometheusPutMetricsHandler()))
 
+	// OTLP Handlers
+	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/traces", hs.Recovery(otlpIngestTracesHandler()))
+
 	if config.IsDebugMode() {
 		hs.router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}

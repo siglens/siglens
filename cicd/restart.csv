@@ -84,13 +84,24 @@ city=Boston | stats count AS Count BY app_name | eval len=len(app_name) | where 
 "city=Boston | stats count AS Count BY city | eval result=if(isbool(city), ""This is a boolean value"", ""This is not a boolean value"")",now-1d,now,*,group:result:Boston,eq,This is not a boolean value,Splunk QL
 "city=Boston | stats count AS Count BY state | eval result=if(isnull(state), ""This is a null value"", ""This is not a null value"")",now-1d,now,*,group:result:Maine,eq,This is not a null value,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval result=urldecode(""http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader"")",now-1d,now,*,group:result:500,eq,"http://www.splunk.com/download?r=header",Splunk QL
-"city=Boston | stats count AS Count BY http_status | eval result=city=Boston | stats count AS Count BY http_status | eval result=max(1, 3, 450, http_status)",now-1d,now,*,group:result:200,eq,450,Splunk QL
-"city=Boston | stats count AS Count BY http_status | eval result=city=Boston | stats count AS Count BY http_status | eval result=min(1, 3, 450, http_status)",now-1d,now,*,group:result:200,eq,1,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval result=max(1, 3, 450, http_status)",now-1d,now,*,group:result:200,eq,450,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval result=min(1, 3, 450, http_status)",now-1d,now,*,group:result:200,eq,1,Splunk QL
 "city=Boston | stats count AS Count BY ident | eval result=split(ident,""-"")",now-1d,now,*,group:result:ae0f4f93-5789-43c9-92a2-e7d7b4cbc31e,eq,ae0f4f93&nbsp5789&nbsp43c9&nbsp92a2&nbspe7d7b4cbc31e,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval result=exact(3.14 * http_status)",now-1d,now,*,group:result:200,eq,628,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval result=exp(3)",now-1d,now,*,group:result:200,eq,20.085536923187668,Splunk QL
-"city=Boston | stats count AS Count BY http_status | eval result=if(like(http_status, "4%"), "True", "False")",now-1d,now,*,group:result:400,eq,True,Splunk QL
-"city=Boston | stats count AS Count BY country | eval result=if(match(country, "^Sa"), "yes", "no")",,now-1d,now,*,group:result:Saudi Arabia,eq,yes,Splunk QL
-"city=Boston | stats count AS Count BY http_status | eval result=if(cidrmatch("192.0.2.0/24", "192.0.2.5"), "local", "not local")",now-1d,now,*,group:result:200,eq,local,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval result=if(like(http_status, ""4%""), ""True"", ""False"")",now-1d,now,*,group:result:400,eq,True,Splunk QL
+"city=Boston | stats count AS Count BY country | eval result=if(match(country, ""^Sa""), ""yes"", ""no"")",now-1d,now,*,group:result:Saudi Arabia,eq,yes,Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval result=if(cidrmatch(""192.0.2.0/24"", ""192.0.2.5""), ""local"", ""not local"")",now-1d,now,*,group:result:200,eq,local,Splunk QL
+"city=Boston | stats count AS Count BY state | eval result=substr(""splendid"", 1, 3) . substr(""chunk"", -3)",now-1d,now,*,group:result:Maine,eq,splunk,Splunk QL
+"city=Boston | stats count AS Count BY state | eval result=tonumber(""0A4"",16)",now-1d,now,*,group:result:Maine,eq,164,Splunk QL
+"city=Boston | stats count AS Count BY state | eval result=tostring((2 > 1))",now-1d,now,*,group:result:Maine,eq,true,Splunk QL
+"city=Boston | stats count AS Count BY state | eval result=tostring(15,""hex"")",now-1d,now,*,group:result:Maine,eq,0xf,Splunk QL
+"city=Boston | stats count AS Count BY state | eval result=tostring(12345.6789,""commas"")",now-1d,now,*,group:result:Maine,eq,"12,345.68",Splunk QL
+"city=Boston | stats count AS Count BY state | eval result=tostring(615,""duration"")",now-1d,now,*,group:result:Maine,eq,00:10:15,Splunk QL
 "city=Boston | stats count AS Count BY weekday | rex field=weekday ""(?<first>.{3})(?<second>.*)""",now-1d,now,*,group:first:Friday,eq,Fri,Splunk QL
 "city=Boston | stats count AS Count BY http_status | rex field=http_status ""(?<first>\d)(?<second>\d)(?<third>\d)""",now-1d,now,*,group:third:404,eq,4,Splunk QL
+"city=Boston | rare country useother=true otherstr=testOther percentfield=pc countfield=ct showperc=false",now-1d,now,*,group:ct:United States of America,eq,4,Splunk QL
+"city=Boston | stats count AS gg BY state | top 10 state useother=true countfield=true percentfield=percent",now-1d,now,*,group:percent:Wyoming,eq,1.841085,Splunk QL
+"city=Boston | stats count AS Count BY http_method | rename http_method AS ""test""",now-1d,now,*,group:Count:POST,eq,184,Splunk QL
+"city=Boston | stats count AS Count BY http_status, http_method | eval newField=(http_status - 1000) | rename newField AS http_method",now-1d,now,*,group:http_method:400,eq,-600,Splunk QL
+city=Boston | stats count AS Count BY http_method | eval newField=lower(http_method) | rename new* AS start*end,now-1d,now,*,group:startFieldend:PATCH,eq,patch,Splunk QL

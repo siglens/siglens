@@ -54,6 +54,7 @@ let metricsDatasets;
 let liveTailState = false;
 let tt;
 let lockReconnect = false;
+let totalMatchLogs = 0;
 
 
 let aggGridOptions = {
