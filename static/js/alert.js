@@ -192,9 +192,7 @@ $(document).keyup(function(e) {
     }
 });
 
-$('.popupOverlay').on("click", function() {
-    $('.popupOverlay, .popupContent').removeClass('active');
-});
+
 
 //create new alert rule
 function submitAddAlertForm(e){
