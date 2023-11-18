@@ -406,3 +406,33 @@ function getValuesofColumn(chooseColumn) {
       });
   });
 }
+function setShowColumnInfoDialog(){
+  $("#show-record-popup").dialog({
+    autoOpen: false,
+    resizable: false,
+    title: false,
+    maxHeight: 307,
+    height: 307,
+    width: 464,
+    modal: true,
+    position: {
+      my: "center",
+      at: "center",
+      of: window,
+    },
+    buttons: {
+      Cancel: {
+        class: "cancelqButton cancel-record-btn",
+        text: "Cancel",
+        click: function () {
+          $("#show-record-popup").dialog("close");
+        },
+      },
+    }
+  });
+  $("#show-record-intro-btn").on("click", function () {
+    $("#show-record-popup").dialog("open");
+    $(".ui-widget-overlay").addClass("opacity-75");
+    // return false;
+  });
+}

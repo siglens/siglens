@@ -876,23 +876,12 @@ progress.hidden {
     transition-delay: .4s;
 }
 
-#hits-summary {
-    display: grid;
-    grid-template-columns: repeat(3, auto);
-    margin-top: 15px;
-    margin-left: 23px;
-    margin-right: 25px;
-    border-radius: 5px;
-    min-height: 50px;
-    background: var(--hits-summary-bg-regular);
-    padding-top: 10px;
-    padding-left: 9px;
-    padding-right: 14px;
-
+.hits-summary {
     font-size: 16px;
-    font-weight: var(--fw-500);
-    color: var(--hits-summary-text-color);
-
+    display: flex;
+    flex-direction: column;
+    height: 80px;
+    justify-content: space-between;
 }
 
 #hits-summary progress {
@@ -2520,7 +2509,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     border-radius: 5px;
     padding-left: 0px !important;
     padding-top: 0 !important;
-    border: 1px solid var(--border-btn-color);
+    border-bottom: none !important;
     color: var(--table-or-regular-text-color);
 }
 .ag-theme-mycustomtheme .ag-root-wrapper-body {
@@ -2535,7 +2524,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 .ag-theme-mycustomtheme .ag-header {
     border-top-left-radius: 5px;
     border-top-right-radius: 5px;
-    background: var(--table-head-bg-color) !important;
+    background: var(--datatable-header-bg-color) !important;
     border-bottom: 0 !important;
     font-weight: var(--fw-500);
     color: var(--text-color) !important;
@@ -2561,6 +2550,9 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     font-weight: bold;
 }
 
+.ag-theme-mycustomtheme .ag-header-cell-resize {
+    background-color: var(--bg-color) !important;
+}
  .ag-cell {
     padding: 3px 15px !important;
     font-size: 16px;
@@ -2585,23 +2577,12 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     display: flex;
     align-items: center;
 }
-
+.measureAggGrid .ag-row-even,
+.LogResultsGrid .ag-row-even,
+.Queries-Grid .ag-row-even,
+.panelLogResultsGrid,
 .Queries-Grid .ag-row-even, .panelLogResultsGrid {
     background: var(--datatable-even-row-bg-color) !important;
-}
-.ag-row,
-.LogResultsGrid .ag-row-even{
-    background-color: var(--default-tab);
-}
-.ag-row::after,
-.LogResultsGrid .ag-row-even::after{
-    content: '';
-    position: absolute;
-    left: 10px;
-    width: calc(100% - 20px);
-    height: 1px;
-    background-color: var(--panel-table-line-color);
-    bottom: 0;
 }
 .panelLogResultsGrid {
     height: 100%;

@@ -98,7 +98,7 @@
                                     <button id="add-con-third" class="add-con btn">+</button>
                                 </div>
                                 <div class="add-filter add-third" id="add-filter-third">
-                                    <input id="column-third" class="column-third" type="hidden" placeholder="Enter sort order" />
+                                    <input id="column-third" class="column-third" type="hidden" placeholder="Group by columns" />
                                     <button id="cancel-enter-third" class="cancel-enter btn">x</button>
                                 </div>
                             </div>
@@ -226,7 +226,7 @@
                     <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3"></button>
                     <button class="btn mx-2 alert-from-logs-btn below-btn-img" id="alert-from-logs-btn"></button>
                     <div class="dropdown download-btn">
-                        <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button" id="saveq-btn" data-toggle="dropdown" aria-haspopup="true"
+                        <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button" data-toggle="dropdown" aria-haspopup="true"
                             aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
                         </button>
                         <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn" id="save-query-options">
@@ -234,6 +234,7 @@
                             <li id="json-block" class="query-language-option">Download as JSON</li>
                         </div>
                     </div>
+                    <button class="btn show-record-intro-btn below-btn-img" id="show-record-intro-btn"></button>
                 </div>
                 <div id="views-container">
                     <div class="btn-group" role="group" id="log-view">
@@ -296,6 +297,13 @@
                         class="text ui-widget-content ui-corner-all">
                     <!-- Allow form submission with keyboard without duplicating the dialog button -->
                     <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+                </fieldset>
+            </form>
+        </div>
+        <div class="show-record-popup" id="show-record-popup" title="record">
+            <form>
+                <fieldset>
+                    <div id="hits-summary" class="hits-summary"></div>
                 </fieldset>
             </form>
         </div>

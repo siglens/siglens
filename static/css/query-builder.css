@@ -8,6 +8,7 @@
     --dashboard-btn-img: url(../assets/dashbaord-white-icon.svg);
     --alerting-btn-img: url(../assets/alerting-white-icon.svg);
     --download-btn-img: url(../assets/download-icon-dark.svg);
+    --show-record-btn-img: url(../assets/show-record-btn-dark.svg);
     --border-shadow: var(--shadow-1);
     --code-input-box-color: var(--black-1);
     --qb-input-box-color: var(--black-2);
@@ -20,6 +21,7 @@
     --dashboard-btn-img: url(../assets/dashboard-btn-light.svg);
     --alerting-btn-img: url(../assets/alerting-btn-light.svg);
     --download-btn-img: url(../assets/download-icon-light.svg);
+    --show-record-btn-img: url(../assets/show-record-btn-light.svg);
     --border-shadow: var(--shadow-2);
     --code-input-box-color: var(--white-1);
     --qb-input-box-color: var(--white-1);
@@ -60,6 +62,9 @@
 }
 #logs-view-controls{
     padding-left: 27px;
+}
+.sidebar-icon{
+    z-index: 1;
 }
 .dashboard-box{
     height: 100vh;
@@ -323,7 +328,7 @@ input.form-control {
     background-image: url("../assets/search-img.svg");
     height: 40px;
     width: 40px;
-    background-color: var(--border-btn-color);
+    background-color: var(--purple-2);
     background-repeat: no-repeat;
     background-size: 50%;
     background-position: center;
@@ -333,7 +338,7 @@ input.form-control {
     background-image: url("../assets/search-img.svg");
     height: 40px;
     width: 40px;
-    background-color: var(--border-btn-color);
+    background-color: var(--purple-2);
     background-repeat: no-repeat;
     background-size: 50%;
     background-position: center;
@@ -471,6 +476,7 @@ a:visited.ui-button,
 .query-builder-text {
     color: var(--text-color);
 }
+.query-text,
 .group-by-reminder,
 .query-builder-text,
 .ui-widget{
@@ -523,7 +529,13 @@ a:visited.ui-button,
 .download-all-logs-btn{
     background-image: var(--download-btn-img);
 }
-
+.show-record-intro-btn{
+    background-image: var(--show-record-btn-img);
+    margin-left: 10px;
+    position: relative;
+    border-radius: 5px;
+    height: 40px;
+}
 .below-btn-img{
     background-size: 50%;
     background-repeat: no-repeat;
@@ -560,4 +572,48 @@ a:visited.ui-button,
 }
 .search-bar-container{
     width: 100%;
+}
+.show-record-popup{
+    display: none;
+}
+div.show-record-popup {
+    width: 404px;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 0 20px 30px !important;
+}
+.ui-dialog-buttonpane{
+    position: relative;
+    height: 65px;
+}
+.cancel-record-btn{
+    position: absolute;
+    right: 0;
+    background: var(--component-bg-color) !important;
+}
+.cancel-record-btn:hover{
+    background: var(--component-bg-color-hover) !important;
+}
+.ag-theme-mycustomtheme .ag-root-wrapper{
+    border: 1px solid var(--border-btn-color);
+}
+.ag-row,
+.LogResultsGrid .ag-row-even{
+    background-color: var(--default-tab) !important;
+}
+.ag-row::after,
+.LogResultsGrid .ag-row-even::after{
+    content: '';
+    position: absolute;
+    left: 10px;
+    width: calc(100% - 20px);
+    height: 1px;
+    background-color: var(--panel-table-line-color);
+    bottom: 0;
+}
+
+.ag-theme-mycustomtheme .ag-header,
+.ag-theme-mycustomtheme .ag-header-cell-resize,
+.ag-theme-mycustomtheme .ag-header {
+            background: var(--table-head-bg-color) !important;
 }
