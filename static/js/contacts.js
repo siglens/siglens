@@ -264,7 +264,7 @@ function getAllContactPoints(contactName){
         if(window.location.href.includes("alert.html")){
             const contact = allContactsArray.find(contact => contact.contact_name === contactName);
             $('#contact-points-dropdown span').html(contact.contact_name);
-            $('#contact-points-dropdown span').attr('id', contact.id);
+            $('#contact-points-dropdown span').attr('id', contact.contact_id);
         }else
             displayAllContacts(res.contacts);
     })

@@ -50,7 +50,6 @@ function renderAvailableFields(columnOrder) {
     let afieldDropDownItem = $(".fields .available-fields-dropdown-item");
     afieldDropDownItem.each(function(idx, li){
         li.style.width = maxWidth + "px";
-        li.style.minWidth = minWidth + "px";
     });
 
     let afieldDropDown = document.getElementById("available-fields");
