@@ -362,7 +362,7 @@ input.form-control {
 
 .tab-list {
     margin: 10px 24px 0 23px !important;
-    width: 190px;
+    width: 220px;
     height: 40px;
     border-radius: 5px;
     border: 1px solid var(--border-switch);
@@ -391,7 +391,7 @@ input.form-control {
 }
 
 .tab-li-code {
-    width: 51px;
+    width: 80px;
 }
 
 .ui-state-default {
