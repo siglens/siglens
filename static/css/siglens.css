@@ -111,14 +111,20 @@
     --btn-regular-bg-color: var(--purple-1);
     --btn-hover-or-click-bg-color: var(--lavender-2);
 
+    --border-color-regular: var(--black-5);
+
     --log-views-btn-click-bg-color: var(--purple-2);
+
+    --text-color-regular: var(--white-0);
 
     --drop-down-btn-bg-regular: var(--black-1);
     --drop-down-btn-bg-hover: var(--black-7);
     --drop-down-btn-bg-active: var(--purple-15p);
     --drop-down-btn-border-active: var(--purple-1);
+    --dropdown-bg-color-new: var(--black-5);
 
     --drop-down-text-color: var(--white-1);
+    --drop-down-text-color-new: var(--white-3);
 
     --hits-summary-bg-regular: var(--black-1);
     --hits-summary-small-text-color: var(--black-5);
@@ -248,12 +254,17 @@
     --ui-widget-input-default-color: var(--black-6);
     --component-text-color: var(--white-0);
 
+    --border-color-regular: var(--white-3);
+
+    --text-color-regular: var(--black-1);
 
     --drop-down-btn-bg-regular: var(--white-1);
+    --dropdown-bg-color-new: var(--white-2);
     --drop-down-btn-bg-hover: var(--white-2);
     --drop-down-btn-bg-active: var(--purple-15p);
 
     --drop-down-text-color: var(--white-6);
+    --drop-down-text-color-new: var(--black-5);
 
     --hits-summary-bg-regular: var(--white-2);
     --hits-summary-small-text-color: var(--white-6);
@@ -2841,7 +2852,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 
 .panel div.panel-header {
     cursor: move;
-    background: var(--purple-1);
+    background: var(--datatable-bg-color);
     display: flex;
     align-items: center;
     padding: 3px;
