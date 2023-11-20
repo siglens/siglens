@@ -265,6 +265,70 @@ func GetSegMax(runningSegStat *structs.SegStats,
 	return &rSst, nil
 }
 
+func GetSegRange(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
+
+	// start with lower resolution and upgrade as necessary
+	rSst := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_SIGNED_NUM,
+		IntgrVal: 0,
+	}
+	if currSegStat == nil {
+		log.Errorf("GetSegRange: currSegStat was of nil")
+		return &rSst, errors.New("GetSegRange: currSegStat was of nil")
+	}
+
+	if !currSegStat.IsNumeric {
+		log.Errorf("GetSegRange: current segStats is non-numeric")
+		return &rSst, errors.New("GetSegRange: current segStat is non-numeric")
+	}
+
+	if currSegStat.NumStats.Max.Ntype != currSegStat.NumStats.Min.Ntype {
+		return &rSst, nil
+	}
+
+	// if this is the first segment, then running will be nil, and we return the first seg's stats
+	if runningSegStat == nil {
+		switch currSegStat.NumStats.Max.Ntype {
+		case utils.SS_DT_FLOAT:
+			rSst.FloatVal = currSegStat.NumStats.Max.FloatVal - currSegStat.NumStats.Min.FloatVal
+			rSst.Ntype = utils.SS_DT_FLOAT
+		default:
+			rSst.FloatVal = float64(currSegStat.NumStats.Max.IntgrVal) / float64(currSegStat.NumStats.Min.IntgrVal)
+			rSst.Ntype = utils.SS_DT_FLOAT
+		}
+		return &rSst, nil
+	}
+
+	switch currSegStat.NumStats.Max.Ntype {
+	case utils.SS_DT_FLOAT:
+		if runningSegStat.NumStats.Max.Ntype == utils.SS_DT_FLOAT && runningSegStat.NumStats.Min.Ntype == utils.SS_DT_FLOAT {
+			runningSegStat.NumStats.Max.FloatVal = math.Max(runningSegStat.NumStats.Max.FloatVal, currSegStat.NumStats.Max.FloatVal)
+			runningSegStat.NumStats.Min.FloatVal = math.Min(runningSegStat.NumStats.Min.FloatVal, currSegStat.NumStats.Min.FloatVal)
+			rSst.FloatVal = runningSegStat.NumStats.Max.FloatVal - runningSegStat.NumStats.Min.FloatVal
+			rSst.Ntype = utils.SS_DT_FLOAT
+		} else {
+			runningSegStat.NumStats.Max.FloatVal = math.Max(float64(runningSegStat.NumStats.Max.IntgrVal), currSegStat.NumStats.Max.FloatVal)
+			runningSegStat.NumStats.Min.FloatVal = math.Min(float64(runningSegStat.NumStats.Min.IntgrVal), currSegStat.NumStats.Min.FloatVal)
+			rSst.FloatVal = runningSegStat.NumStats.Max.FloatVal / runningSegStat.NumStats.Min.FloatVal
+			rSst.Ntype = utils.SS_DT_FLOAT
+		}
+	default:
+		if runningSegStat.NumStats.Max.Ntype == utils.SS_DT_FLOAT && runningSegStat.NumStats.Min.Ntype == utils.SS_DT_FLOAT {
+			runningSegStat.NumStats.Max.FloatVal = runningSegStat.NumStats.Max.FloatVal + float64(currSegStat.NumStats.Max.IntgrVal)
+			runningSegStat.NumStats.Min.FloatVal = runningSegStat.NumStats.Min.FloatVal + float64(currSegStat.NumStats.Min.IntgrVal)
+			rSst.FloatVal = runningSegStat.NumStats.Max.FloatVal - runningSegStat.NumStats.Min.FloatVal
+			rSst.Ntype = utils.SS_DT_FLOAT
+		} else {
+			runningSegStat.NumStats.Max.IntgrVal = toputils.MaxInt64(runningSegStat.NumStats.Max.IntgrVal, currSegStat.NumStats.Max.IntgrVal)
+			runningSegStat.NumStats.Min.IntgrVal = toputils.MinInt64(runningSegStat.NumStats.Min.IntgrVal, currSegStat.NumStats.Min.IntgrVal)
+			rSst.IntgrVal = runningSegStat.NumStats.Max.IntgrVal - runningSegStat.NumStats.Min.IntgrVal
+		}
+	}
+
+	return &rSst, nil
+}
+
 func GetSegSum(runningSegStat *structs.SegStats,
 	currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
 
