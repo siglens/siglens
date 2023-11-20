@@ -1386,7 +1386,7 @@ Aggregator <- aggFunc:AggFunction asField:AsField? {
     return agg, nil
 }
 
-AggFunction <- agg:(AggCount / AggDistinctCount / AggAvg / AggMin / AggMax / AggSum) {
+AggFunction <- agg:(AggCount / AggDistinctCount / AggAvg / AggMin / AggMax / AggRange / AggSum) {
     return agg, nil
 }
 
@@ -1447,6 +1447,15 @@ AggMax <- "max(" field:FieldName ")" {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Max,
+    }
+
+    return agg, nil
+}
+
+AggRange <- "range(" field:FieldName ")" {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Range,
     }
 
     return agg, nil
