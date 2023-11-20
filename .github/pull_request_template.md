@@ -12,4 +12,4 @@ Before marking your pull request as ready for review, complete the following.
 - [ ] I have self-reviewed this PR.
 - [ ] I have removed all print-debugging and commented-out code that should not be merged.
 - [ ] I have added sufficient comments in my code, particularly in hard-to-understand areas.
-- [ ] I have formatted the code with `goimports -w .`.
+- [ ] I have formatted the code, if applicable. For Go, I have run `goimports -w .`.
