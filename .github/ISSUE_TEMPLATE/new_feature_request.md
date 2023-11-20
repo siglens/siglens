@@ -7,14 +7,14 @@ assignees: ''
 
 ---
 
-**Description**
+# Description
 Clearly describe the feature you want in as much detail as you can give. Include screenshots if appropriate.
 
-**Benefits**
+# Benefits
 Describe why you want this feature.
 
-**(Optional) Possible Implementation**
+# (Optional) Possible Implementation
 If you have any ideas on how this should be implemented, let us know here.
 
-**(Optional) Additional Context**
+# (Optional) Additional Context
 Add anything else we should know about this.
