@@ -611,7 +611,7 @@ div.show-record-popup {
     background-color: var(--panel-table-line-color);
     bottom: 0;
 }
-
+.measureAggGrid .ag-row-even,
 .ag-theme-mycustomtheme .ag-header,
 .ag-theme-mycustomtheme .ag-header-cell-resize,
 .ag-theme-mycustomtheme .ag-header {
