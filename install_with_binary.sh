@@ -7,7 +7,7 @@ display_step() {
 
 # Step 1: Detect the current OS and Architecture type
 display_step 1 "Detecting current OS and Arch "
-os=""
+os_name=$(uname -sr)
 case "$(uname -sr)" in
    Darwin*)
      os="darwin" ;;
@@ -26,9 +26,8 @@ case "$(uname -sr)" in
    CentOS*)
      os="linux" ;;
    *)
-     os="Not Found: $os_name"
-     echo 'Not Supported OS'
-    exit 1
+     echo "OS ${os_name} Not Supported "
+     exit 1
      ;;
 esac
 
@@ -38,7 +37,8 @@ if [[ $arch == x86_64* ]]; then
 elif  [[ $arch == arm* || $arch == "aarch64" ]]; then
     arch="arm64"
 else
-    echo 'Not Supported Architecture'
+    echo "Architecture ${arch} Not Supported "
+    exit 1
 fi
 
 # Step 2: Detect the latest version from siglens release
@@ -50,9 +50,14 @@ latest_version=`\
     sed -E 's/.*"([^"]+)".*/\1/'`
 
 # Step 3: Fetching latest binary based on OS and Arch
-display_step 3 "fetching latest binary for $os-$arch and version $latest_version"
+display_step 3 "Fetching latest binary for $os-$arch and version $latest_version"
 
-wget "https://github.com/siglens/siglens/releases/download/$latest_version/siglens-$latest_version-$os-$arch.tar.gz"
+url="https://github.com/siglens/siglens/releases/download/$latest_version/siglens-$latest_version-$os-$arch.tar.gz"
+wget $url
+if [[ $? -ne 0 ]]; then
+    echo "wget failed to get latest binary from $url"
+    exit 1; 
+fi
 tar -xvf "siglens-$latest_version-$os-$arch.tar.gz"
 PORT=80 
 display_step 4 "Running the Server on http://localhost:$PORT"
