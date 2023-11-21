@@ -300,7 +300,7 @@ class btnRenderer {
 }
 
 function deleteContactPrompt(data) {
-    $('#contact-name-placeholder').text(data.contactName);
+    $('#contact-name-placeholder').html('<strong>' + data.contactName + '</strong>');
     $('.popupOverlay, .popupContent').addClass('active');
     $('#cancel-btn, .popupOverlay').click(function () {
         $('.popupOverlay, .popupContent').removeClass('active');
@@ -331,7 +331,7 @@ function deleteContactPrompt(data) {
 }
 
 function showDeleteContactDialog(data){
-    $('#contact-name-placeholder-delete-dialog').text(data.contactName);
+    $('#contact-name-placeholder-delete-dialog').html('<strong>' + data.contactName + '</strong>');
     $('.popupOverlay, .delete-dialog').addClass('active');
     $('#cancel-btn, .popupOverlay').click(function () {
         $('.popupOverlay, .delete-dialog').removeClass('active');
