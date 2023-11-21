@@ -1565,7 +1565,11 @@ QuotedString <- '"' [^"]* '"' {
     return string(c.text), nil
 }
 
-UnquotedString <- ("*" / (!(MAJOR_BREAK / EOF) .))+ {
+UnquotedString <- ("true" / "false") {
+    boolValue, _ := strconv.ParseBool(string(c.text))
+    return boolValue, nil
+}
+/ ("*" / (!(MAJOR_BREAK / EOF) .))+ {
     // Return the string wrapped in quotes.
     str := "\"" + string(c.text) + "\""
     return str, nil
