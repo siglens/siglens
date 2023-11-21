@@ -15,7 +15,13 @@ limitations under the License.
 */
 
 'use strict';
-
+const tenMinutesAgo = new Date(Date.now() - 10 * 60000).toISOString();
+let redMetricsData ={
+    "indexName":  "red-traces",
+    "startEpoch": tenMinutesAgo,
+    "endEpoch": new Date().toISOString()
+   
+}
 $(document).ready(() => {
     displayNavbar();
     if (Cookies.get("theme")) {
@@ -23,19 +29,26 @@ $(document).ready(() => {
         $("body").attr("data-theme", theme);
     }
     $(".theme-btn").on("click", themePickerHandler);
-    displayServiceHealthTable();
+    getAllServices()
+    $('#run-search').on('click', function() {
+        filterServicesBySearch();
+    });
 });
 
 let gridDiv = null;
-
+let serviceRowData = [];
 const columnDefs=[
     { headerName: "Service", field: "service"},
     { headerName: "Rate", field: "rate"},
     { headerName: "Error", field: "error"},
-    { headerName: "Duration", field: "duration" },
+    { headerName: 'P50', field: 'p50' },
+    { headerName: 'P90', field: 'p90' },
+    { headerName: 'P95', field: 'p95' },
+    { headerName: 'P99', field: 'p99' },
 ];
 
 const gridOptions = {
+    rowData: serviceRowData ,
     defaultColDef: {
       cellStyle: { 'text-align': "left" },
       resizable: true,
@@ -47,10 +60,70 @@ const gridOptions = {
     columnDefs:columnDefs,
 };
 
+let originalServiceData = [];
+function filterServicesBySearch() {
+    const searchValue = $('.search-input').val().toLowerCase();
+    const filteredData = originalServiceData.filter(service => 
+        service.service.toLowerCase() === searchValue
+    );
+    gridOptions.api.setRowData([])
+    displayServiceHealthTable(filteredData);
+}
+
+function processRedMetricsData(metricsData) {
+    let latestMetrics = {};
+    metricsData.forEach(metric => {
+        const serviceName = metric.service;
+        const metricTimestamp = metric.timestamp;
+
+        if (!latestMetrics[serviceName] || latestMetrics[serviceName].timestamp < metricTimestamp) {
+            latestMetrics[serviceName] = metric;
+        }
+    });
+
+    return Object.values(latestMetrics);
+}
+
+function getAllServices(){
+    $.ajax({
+        method: "POST",
+        url: "api/search",
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': '*/*'
+        },
+        data: JSON.stringify(redMetricsData),
+        dataType: 'json',
+        crossDomain: true,
+    }).then(function (res) {
+        const processedData = processRedMetricsData(res.hits.records);
+        originalServiceData = processedData;
+        displayServiceHealthTable(processedData);
+    })
+}
+
 function displayServiceHealthTable(res){
     if (gridDiv === null) {
         gridDiv = document.querySelector('#ag-grid');
         new agGrid.Grid(gridDiv, gridOptions);
     }
+    gridOptions.api.setColumnDefs(columnDefs);
+    let newRow = new Map()
+    serviceRowData=[]
+    $.each(res, function (key, value) {
+        newRow.set("rowId", key);
+        newRow.set("service", value.service);
+        newRow.set("rate", value.rate);
+        newRow.set("error", value.error_rate);
+        newRow.set("p50", value.p50);
+        newRow.set("p90", value.p90);
+        newRow.set("p95", value.p95);
+        newRow.set("p99", value.p99);
+
+        serviceRowData = _.concat(serviceRowData, Object.fromEntries(newRow));
+    })
+    gridOptions.api.setRowData(serviceRowData);
     gridOptions.api.sizeColumnsToFit();
 }
+
+
