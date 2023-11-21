@@ -12,8 +12,12 @@
     --orange-1: #F2A52B;
     --purple-1: #6347D9;
     --purple-2: #6449D6;
+    --purple-3: #8270DC;
 
     --purple-15p: rgba(99, 71, 217, 0.15);
+
+    --shadow-1: #6F6B7B29;
+    --shadow-2: #00000029;
 
     /* Dark Theme - default */
     --black-1: #160F29;
@@ -63,6 +67,14 @@
     --hits-summary-text-color: var(--black-6);
     --table-or-regular-text-color: var(--black-6);
 
+    --border-switch: var(--white-3);
+    --border-btn-color: var(--black-5);
+    --filter-color: var(--black-2);
+    --table-head-bg-color: var(--black-2);
+    --panel-table-line-color: var(--white-4);
+    
+    --default-tab: var(--black-1);
+
     --input-color: var(--white-0);
     --input-bg-color: var(--black-1);
     --input-border-color: transparent;
@@ -99,14 +111,20 @@
     --btn-regular-bg-color: var(--purple-1);
     --btn-hover-or-click-bg-color: var(--lavender-2);
 
+    --border-color-regular: var(--black-5);
+
     --log-views-btn-click-bg-color: var(--purple-2);
+
+    --text-color-regular: var(--white-0);
 
     --drop-down-btn-bg-regular: var(--black-1);
     --drop-down-btn-bg-hover: var(--black-7);
     --drop-down-btn-bg-active: var(--purple-15p);
     --drop-down-btn-border-active: var(--purple-1);
+    --dropdown-bg-color-new: var(--black-5);
 
     --drop-down-text-color: var(--white-1);
+    --drop-down-text-color-new: var(--white-3);
 
     --hits-summary-bg-regular: var(--black-1);
     --hits-summary-small-text-color: var(--black-5);
@@ -221,6 +239,12 @@
     --hits-summary-text-color: var(--white-5);
     --table-or-regular-text-color: var(--white-4);
 
+    --border-switch: var(--black-5);
+    --border-btn-color: var(--white-3);
+    --default-tab: var(--white-0);
+    --filter-color: var(--white-2);
+    --table-head-bg-color: var(--white-1);
+    --panel-table-line-color: var(--white-3);
 
     --input-color: var(--white-2);
     --input-bg-color: var(--white-6);
@@ -239,12 +263,17 @@
     --ui-widget-input-default-color: var(--black-6);
     --component-text-color: var(--white-0);
 
+    --border-color-regular: var(--white-3);
+
+    --text-color-regular: var(--black-1);
 
     --drop-down-btn-bg-regular: var(--white-1);
+    --dropdown-bg-color-new: var(--white-2);
     --drop-down-btn-bg-hover: var(--white-2);
     --drop-down-btn-bg-active: var(--purple-15p);
 
     --drop-down-text-color: var(--white-6);
+    --drop-down-text-color-new: var(--black-5);
 
     --hits-summary-bg-regular: var(--white-2);
     --hits-summary-small-text-color: var(--white-6);
@@ -439,7 +468,6 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    max-height: 100vh;
 }
 
 /* Navigation */
@@ -632,7 +660,6 @@ body {
     height: 24px;
     width: 24px;
 }
-
 #filter-container {
     display: grid;
     grid-template-columns: 2fr auto auto auto auto;
@@ -642,12 +669,11 @@ body {
     margin-right: 10px;
     height: 44px;
     background-color: var(--top-bar-bg-color-regular);
-
 }
 #cancel-loading,
 #live-tail-btn,
-#run-filter-btn,
-#saveq-btn ,
+#add-icon,
+#add-icon-second,
 #create-db-btn,
 #run-metrics-query-btn,
 #logout-btn,
@@ -660,17 +686,20 @@ body {
     position: relative;
     border-radius: 5px;
 }
+
+#add-icon:hover,
+#add-icon-second:hover,
 #live-tail-btn:hover,
 #cancel-loading:hover,
-#run-filter-btn:hover,
-#saveq-btn:hover,
 #search-query-btn:hover,
 #run-metrics-query-btn:hover{
     background: var(--btn-hover-or-click-bg-color);
 }
+
+#add-icon.active,
+#add-icon-second:active,
 #live-tail-btn.active,
-#cancel-loading.active,
-#run-filter-btn.active {
+#cancel-loading.active {
     background: var(--btn-hover-or-click-bg-color);
 }
 
@@ -679,9 +708,7 @@ body {
 #filter-input,
 #date-picker-btn,
 #cancel-loading,
-#run-filter-btn,
 #live-tail-btn,
-#saveq-btn,
 #create-db-btn,
 #run-metrics-query-btn,
 #logout-btn,
@@ -691,10 +718,9 @@ body {
     padding: 15px 12px;
     text-decoration: none;
     border: none;
-    height: 44px;
+    height: 40px;
     line-height: 14px;
 }
-
 #query-language-btn {
     width: 108px;
     display: flex;
@@ -703,11 +729,6 @@ body {
     margin-left: 16px;
 }
 
-#saveq-btn {
-    margin-left: 23px;
-    margin-bottom: 15px;
-    font-size: 18px;
-}
 
 #avail-fields-btn {
     height: 44px;
@@ -754,7 +775,7 @@ body {
 
 #app-footer {
     position: fixed;
-    bottom: 1.59%;
+    bottom: 0;
     right: 40px;
     font-size: 0.7rem;
     z-index: -100;
@@ -791,10 +812,12 @@ body {
     border-radius: 5px;
     box-shadow: none !important;
 }
+
+#add-icon,
+#add-icon-second,
 #live-tail-btn,
 #run-filter-btn,
 #cancel-loading,
-#saveq-btn,
 #create-db-btn,
 #run-metrics-query-btn,
 #logout-btn,
@@ -810,7 +833,7 @@ body {
 }
 
 input.form-control {
-    background: var(--search-bar-bg);
+    background: var(--hits-summary-bg-regular) !important;
     border: none;
     color: var(--search-bar-text-color-regular-or-hover);
     font-size: 1rem;
@@ -881,23 +904,12 @@ progress.hidden {
     transition-delay: .4s;
 }
 
-#hits-summary {
-    display: grid;
-    grid-template-columns: repeat(3, auto);
-    margin-top: 15px;
-    margin-left: 23px;
-    margin-right: 25px;
-    border-radius: 5px;
-    min-height: 50px;
-    background: var(--hits-summary-bg-regular);
-    padding-top: 10px;
-    padding-left: 9px;
-    padding-right: 14px;
-
+.hits-summary {
     font-size: 16px;
-    font-weight: var(--fw-500);
-    color: var(--hits-summary-text-color);
-
+    display: flex;
+    flex-direction: column;
+    height: 80px;
+    justify-content: space-between;
 }
 
 #hits-summary progress {
@@ -1923,12 +1935,15 @@ progress.hidden {
 
 /*  start available fields dropdown overrides */
 #available-fields {
-    width: 214px !important;
     max-height: 224px;
     background: var(--index-drop-down-box-bg-color);
-    overflow: scroll;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
-
+#available-fields::-webkit-scrollbar {
+    width: 0;
+}
 .available-fields-dropdown-item {
     width: 321px;
     height: 35px;
@@ -1971,11 +1986,12 @@ progress.hidden {
 
 #select-unselect-header {
     color: var(--select-unselect-header-text-color);
-    font-size: 18px;
+    font-size: 16px;
     font-weight: var(--fw-500);
     font-family: "DINpro", Arial, sans-serif;
     left: 11px !important;
     position: relative;
+    margin-top: 5px 0 0 10px;
 }
 
 .select-unselect-checkbox {
@@ -2584,8 +2600,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 .ag-theme-mycustomtheme .ag-header-cell-resize {
-    background-color: var(--bg-color)!important;
-    width: 6px;
+    background-color: var(--bg-color) !important;
 }
  .ag-cell {
     padding: 3px 15px !important;
@@ -2611,17 +2626,13 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     display: flex;
     align-items: center;
 }
-
-
-.ag-theme-mycustomtheme .ag-header-cell-resize {
-    background-color: var(--bg-color)!important;
-    display: block;
-}
-
-.measureAggGrid .ag-row-even,.LogResultsGrid .ag-row-even, .Queries-Grid .ag-row-even, .panelLogResultsGrid {
+.measureAggGrid .ag-row-even,
+.LogResultsGrid .ag-row-even,
+.Queries-Grid .ag-row-even,
+.panelLogResultsGrid,
+.Queries-Grid .ag-row-even, .panelLogResultsGrid {
     background: var(--datatable-even-row-bg-color) !important;
 }
-
 .panelLogResultsGrid {
     height: 100%;
 }
@@ -2879,7 +2890,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 
 .panel div.panel-header {
     cursor: move;
-    background: var(--purple-1);
+    background: var(--datatable-bg-color);
     display: flex;
     align-items: center;
     padding: 3px;
@@ -3117,6 +3128,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     background-image: url("../assets/expand-sidebar-icon.svg");
     left: 73px;
     top: 28px; 
+    z-index: 1;
 }
 
 .nav-links{
@@ -4415,7 +4427,6 @@ color: #C8C7CC;
 #add-logs-to-db-btn,#alert-from-logs-btn{
     height: 44px;
     margin-left: 10px;
-    background: var(--btn-regular-bg-color);
 }
 
 #add-logs-to-db-btn img{
@@ -4723,3 +4734,4 @@ color: #C8C7CC;
     -webkit-transform: translate(-50%, -50%);
     transform: translate(-50%, -50%);
 }
+

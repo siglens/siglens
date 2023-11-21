@@ -277,23 +277,17 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 	}
 	var finalErr error
 	var colWip *ColWip
-	var recNum uint16
-	colWip, recNum, matchedCol = ss.initAndBackFillColumn(arraykey, data, matchedCol)
+	colWip, _, matchedCol = ss.initAndBackFillColumn(arraykey, data, matchedCol)
 	colBlooms := ss.wipBlock.columnBlooms
 	var bi *BloomIndex
 	var ok bool
 	bi, ok = colBlooms[arraykey]
 	if !ok {
-		// init bloom since this is the first record in this WIP
-		if recNum == 0 {
-			bi = &BloomIndex{}
-			bi.uniqueWordCount = 0
-			bCount := getBlockBloomSize(bi)
-			bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
-			colBlooms[arraykey] = bi
-		} else {
-			log.Errorf("encodeSingleDictArray: key=%v did not have bi initialized", arraykey)
-		}
+		bi = &BloomIndex{}
+		bi.uniqueWordCount = 0
+		bCount := getBlockBloomSize(bi)
+		bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+		colBlooms[arraykey] = bi
 	}
 	s := colWip.cbufidx
 	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_DICT_ARRAY[:])
@@ -409,24 +403,18 @@ func (ss *SegStore) encodeSingleRawBuffer(key string, value []byte, maxIdx uint3
 		return maxIdx, matchedCol, nil
 	}
 	var colWip *ColWip
-	var recNum uint16
-	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, value, matchedCol)
+	colWip, _, matchedCol = ss.initAndBackFillColumn(key, value, matchedCol)
 	colBlooms := ss.wipBlock.columnBlooms
 	var bi *BloomIndex
 	var ok bool
 	if key != "_type" && key != "_index" && key != "tags" {
 		_, ok = colBlooms[key]
 		if !ok {
-			// init bloom since this is the first record in this WIP
-			if recNum == 0 {
-				bi = &BloomIndex{}
-				bi.uniqueWordCount = 0
-				bCount := getBlockBloomSize(bi)
-				bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
-				colBlooms[key] = bi
-			} else {
-				log.Errorf("EncodeColumns: key=%v did not have bi initialized", key)
-			}
+			bi = &BloomIndex{}
+			bi.uniqueWordCount = 0
+			bCount := getBlockBloomSize(bi)
+			bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+			colBlooms[key] = bi
 		}
 	}
 	//[utils.VALTYPE_RAW_JSON][raw-byte-len][raw-byte]
@@ -458,26 +446,16 @@ func (ss *SegStore) encodeSingleString(key string, value string, maxIdx uint32,
 	if key != "_type" && key != "_index" {
 		bi, ok = colBlooms[key]
 		if !ok {
-			// init bloom since this is the first record in this WIP
-			if recNum == 0 {
-				bi = &BloomIndex{}
-				bi.uniqueWordCount = 0
-				bCount := getBlockBloomSize(bi)
-				bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
-				colBlooms[key] = bi
-			} else {
-				log.Errorf("EncodeColumns: key=%v did not have bi initialized", key)
-			}
+			bi = &BloomIndex{}
+			bi.uniqueWordCount = 0
+			bCount := getBlockBloomSize(bi)
+			bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+			colBlooms[key] = bi
 		}
 	}
 	s := colWip.cbufidx
-	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_SMALL_STRING[:])
-	colWip.cbufidx += 1
-	n := uint16(len(value))
-	copy(colWip.cbuf[colWip.cbufidx:], utils.Uint16ToBytesLittleEndian(n))
-	colWip.cbufidx += 2
-	copy(colWip.cbuf[colWip.cbufidx:], value)
-	colWip.cbufidx += uint32(n)
+	colWip.WriteSingleString(value)
+
 	if bi != nil {
 		bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(value))
 	}
@@ -497,23 +475,18 @@ func (ss *SegStore) encodeSingleBool(key string, val bool, maxIdx uint32,
 		return maxIdx, matchedCol, nil
 	}
 	var colWip *ColWip
-	var recNum uint16
 	colBlooms := ss.wipBlock.columnBlooms
-	colWip, recNum, matchedCol = ss.initAndBackFillColumn(key, val, matchedCol)
+	colWip, _, matchedCol = ss.initAndBackFillColumn(key, val, matchedCol)
 	var bi *BloomIndex
 	var ok bool
 
 	bi, ok = colBlooms[key]
 	if !ok {
-		if recNum == 0 {
-			bi = &BloomIndex{}
-			bi.uniqueWordCount = 0
-			bCount := 10
-			bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
-			colBlooms[key] = bi
-		} else {
-			log.Errorf("EncodeColumns: key=%v did not have bi initialized", key)
-		}
+		bi = &BloomIndex{}
+		bi.uniqueWordCount = 0
+		bCount := 10
+		bi.Bf = bloom.NewWithEstimates(uint(bCount), BLOOM_COLL_PROBABILITY)
+		colBlooms[key] = bi
 	}
 	copy(colWip.cbuf[colWip.cbufidx:], VALTYPE_ENC_BOOL[:])
 	colWip.cbufidx += 1
@@ -640,13 +613,9 @@ func encSingleNumber(key string, val interface{}, wipbuf []byte, idx uint32,
 
 	ri, ok := colRis[key]
 	if !ok {
-		if wRecNum == 0 {
-			ri = &RangeIndex{}
-			ri.Ranges = make(map[string]*Numbers, BLOCK_RI_MAP_SIZE)
-			colRis[key] = ri
-		} else {
-			log.Errorf("EncodeColumns: key=%v did not have ri initialized", key)
-		}
+		ri = &RangeIndex{}
+		ri.Ranges = make(map[string]*Numbers, BLOCK_RI_MAP_SIZE)
+		colRis[key] = ri
 	}
 
 	switch cval := val.(type) {

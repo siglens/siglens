@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -220,7 +221,172 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	return nil
 }
 
+// For some types we use a bloom index and for others we use range indices. If
+// a column has both, we should convert all the values to one type.
+func consolidateColumnTypes(wipBlock *WipBlock, segmentKey string) {
+	for colName := range wipBlock.columnsInBlock {
+		// Check if this column has both a bloom and a range index.
+		_, ok1 := wipBlock.columnBlooms[colName]
+		_, ok2 := wipBlock.columnRangeIndexes[colName]
+		if !(ok1 && ok2) {
+			continue
+		}
+
+		// Try converting this column to numbers, but if that fails convert it to
+		// strings.
+		ok := convertColumnToNumbers(wipBlock, colName, segmentKey)
+		if !ok {
+			convertColumnToStrings(wipBlock, colName, segmentKey)
+		}
+	}
+}
+
+// Returns true if the conversion succeeds.
+func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey string) bool {
+	// Try converting all values to numbers.
+	oldColWip := wipBlock.colWips[colName]
+	newColWip := InitColWip(segmentKey, colName)
+	rangeIndex := wipBlock.columnRangeIndexes[colName].Ranges
+
+	for i := uint32(0); i < oldColWip.cbufidx; {
+		valType := oldColWip.cbuf[i]
+		i++
+
+		switch valType {
+		case utils.VALTYPE_ENC_SMALL_STRING[0]:
+			// Parse the string.
+			numBytes := uint32(toputils.BytesToUint16LittleEndian(oldColWip.cbuf[i : i+2]))
+			i += 2
+			numberAsString := string(oldColWip.cbuf[i : i+numBytes])
+			i += numBytes
+
+			// Try converting to an integer.
+			intVal, err := strconv.ParseInt(numberAsString, 10, 64)
+			if err == nil {
+				// Conversion succeeded.
+				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_INT64[:])
+				copy(newColWip.cbuf[newColWip.cbufidx+1:], toputils.Int64ToBytesLittleEndian(intVal))
+				newColWip.cbufidx += 1 + 8
+				addIntToRangeIndex(colName, intVal, rangeIndex)
+				continue
+			}
+
+			// Try converting to a float.
+			floatVal, err := strconv.ParseFloat(numberAsString, 64)
+			if err == nil {
+				// Conversion succeeded.
+				copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_FLOAT64[:])
+				copy(newColWip.cbuf[newColWip.cbufidx+1:], toputils.Float64ToBytesLittleEndian(floatVal))
+				newColWip.cbufidx += 1 + 8
+				addFloatToRangeIndex(colName, floatVal, rangeIndex)
+				continue
+			}
+
+			// Conversion failed.
+			return false
+
+		case utils.VALTYPE_ENC_INT64[0], utils.VALTYPE_ENC_FLOAT64[0]:
+			// Already a number, so just copy it.
+			// It's alrady in the range index, so we don't need to add it again.
+			copy(newColWip.cbuf[newColWip.cbufidx:], oldColWip.cbuf[i-1:i+8])
+			newColWip.cbufidx += 9
+			i += 8
+
+		case utils.VALTYPE_ENC_BACKFILL[0]:
+			// This is a null value.
+			copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_BACKFILL[:])
+			newColWip.cbufidx += 1
+
+		case utils.VALTYPE_ENC_BOOL[0]:
+			// Cannot convert bool to number.
+			return false
+
+		default:
+			// Unknown type.
+			log.Errorf("convertColumnToNumbers: unknown type %v", valType)
+			return false
+		}
+	}
+
+	// Conversion succeeded, so replace the column with the new one.
+	wipBlock.colWips[colName] = newColWip
+	delete(wipBlock.columnBlooms, colName)
+	return true
+}
+
+func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey string) {
+	oldColWip := wipBlock.colWips[colName]
+	newColWip := InitColWip(segmentKey, colName)
+	bloom := wipBlock.columnBlooms[colName]
+
+	for i := uint32(0); i < oldColWip.cbufidx; {
+		valType := oldColWip.cbuf[i]
+		i++
+
+		switch valType {
+		case utils.VALTYPE_ENC_SMALL_STRING[0]:
+			// Already a string, so just copy it.
+			// This is already in the bloom, so we don't need to add it again.
+			numBytes := uint32(toputils.BytesToUint16LittleEndian(oldColWip.cbuf[i : i+2]))
+			i += 2
+			copy(newColWip.cbuf[newColWip.cbufidx:], oldColWip.cbuf[i-3:i+numBytes])
+			newColWip.cbufidx += 3 + numBytes
+			i += numBytes
+
+		case utils.VALTYPE_ENC_INT64[0]:
+			// Parse the integer.
+			intVal := toputils.BytesToInt64LittleEndian(oldColWip.cbuf[i : i+8])
+			i += 8
+
+			stringVal := strconv.FormatInt(intVal, 10)
+			newColWip.WriteSingleString(stringVal)
+			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+
+		case utils.VALTYPE_ENC_FLOAT64[0]:
+			// Parse the float.
+			floatVal := toputils.BytesToFloat64LittleEndian(oldColWip.cbuf[i : i+8])
+			i += 8
+
+			stringVal := strconv.FormatFloat(floatVal, 'f', -1, 64)
+			newColWip.WriteSingleString(stringVal)
+			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+
+		case utils.VALTYPE_ENC_BACKFILL[0]:
+			// This is a null value.
+			copy(newColWip.cbuf[newColWip.cbufidx:], utils.VALTYPE_ENC_BACKFILL[:])
+			newColWip.cbufidx += 1
+
+		case utils.VALTYPE_ENC_BOOL[0]:
+			// Parse the bool.
+			boolVal := oldColWip.cbuf[i]
+			i++
+
+			var stringVal string
+			if boolVal == 0 {
+				stringVal = "false"
+			} else {
+				stringVal = "true"
+			}
+
+			newColWip.WriteSingleString(stringVal)
+			bloom.uniqueWordCount += addToBlockBloom(bloom.Bf, []byte(stringVal))
+
+		default:
+			// Unknown type.
+			log.Errorf("convertColumnsToStrings: unknown type %v when converting column %v", valType, colName)
+		}
+	}
+
+	// Replace the old column.
+	wipBlock.colWips[colName] = newColWip
+	delete(wipBlock.columnRangeIndexes, colName)
+}
+
 func (segstore *SegStore) appendWipToSegfile(streamid string, forceRotate bool, isKibana bool, onTimeRotate bool) error {
+	// If there's columns that had both strings and numbers in them, we need to
+	// try converting them all to numbers, but if that doesn't work we'll
+	// convert them all to strings.
+	consolidateColumnTypes(&segstore.wipBlock, segstore.SegmentKey)
 
 	if segstore.wipBlock.maxIdx > 0 {
 		var totalBytesWritten uint64 = 0
