@@ -1,0 +1,65 @@
+
+:root{
+    --subsection-border: var(--white-3);
+    --search-input-border: var(--white-4);
+}
+
+[data-theme='light']{
+    --subsection-border: var(--white-4);
+    --search-input-border: var(--white-3);
+}
+
+.subsection-navbar {
+    display: flex;
+}
+
+.subsection-buttons {
+    margin-top: 30px;
+    display: flex;
+    height: 40px;
+    border-radius: 5px;
+    width: fit-content;
+    align-items: center;
+    background: var(--myOrg-input);
+    border: 1px solid var(--subsection-border);
+    padding: 4px;
+}
+
+.section-button {
+    padding: 4px 10px 5px 10px;
+    height: 32px;
+    width: fit-content;
+    border-radius: 5px;
+    background: var(--myOrg-input);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0px;
+}
+
+.section-button a{
+    text-decoration: none;
+    color: var(--subsection-border);
+}
+
+.section-button.active a{
+    color:  var(--datatable-header-text-color);
+    font-weight: 400;
+}
+
+.section-button.active {
+    height: 32px;
+    border: 1px solid #6347D9;
+    background: rgba(99, 71, 217, 0.15);
+}
+
+.search-input{
+    border-radius: 5px;
+    border: 1px solid var(--search-input-border);
+    background: var(--search-bar-bg);
+    height: 40px;
+}
+
+.p-20{
+    padding: 20px;
+}

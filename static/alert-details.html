@@ -53,16 +53,12 @@
                     </div>
                 </div>
             </div>
-            <div class="upper-header">
-                <p class="caption">Rules that determine whether an alert will fire
-                </p>
-            </div>
-            <div id="alert-details" class="w-50">
-                <div class="d-flex align-items-center justify-content-between mb-4">
+            <div id="alert-details">
+                <div class="d-flex align-items-end justify-content-between">
                     <div>
-                        <h4 class="fw-bold px-3">
-                            Alert Rule : <span class="alert-name fw-bold"><span />
-                        </h4>
+                        <div class="alert-rule-ctn">
+                            Alert Rule : <span class="alert-name fw-bold"></span>
+                        </div>
                     </div>
                     <div class="btn-container">
                         <button class="btn" type="button" id="cancel-alert-details">Cancel</button>
@@ -72,13 +68,13 @@
                 </div>
                 <div class="alert-properties">
                     <div>
-                        <h3 class="fw-bold">Properties</h3>
+                        <h3 class="alert-rule-ctn mb-2">Properties</h3>
+                    </div>
+                    <div>
+                        <h4>Query: </h4><input class="alert-query" readonly/>
                     </div>
                     <div>
                         <h4>Status: </h4><span class="alert-status"></span>
-                    </div>
-                    <div>
-                        <h4>Query: </h4><span class="alert-query"></span>
                     </div>
                     <div>
                         <h4>Type: </h4><span class="alert-type"></span>
@@ -90,11 +86,14 @@
                         <h4>Condition: </h4><span class="alert-condition"></span><span class="alert-value mx-2"></span>
                     </div>
                     <div>
-                        <h4>Evaluate: </h4> every <h4 class="alert-every mx-1"></h4>minutes for <h4
-                            class="alert-for mx-1"></h4>minutes
+                        <h4>Evaluate: </h4> every <h4 class="alert-every mx-1"></h4><span class="fw-bold mx-1">minutes </span> for <h4
+                            class="alert-for mx-1"></h4><div class="fw-bold">minutes</div>
                     </div>
                     <div>
                         <h4>Contact Point: </h4><span class="alert-contact-point"></span>
+                    </div>
+                    <div>
+                        <h4>Labels: </h4><span class="alert-labels-container"></span>
                     </div>
                 </div>
             </div>
