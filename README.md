@@ -1,6 +1,13 @@
 # SigLens
 
 SigLens is an Open Source Observability solution that is **100x** more efficient than Splunk, Elastic. 
+<p align="center">
+    <img alt="GitHub all releases" src="https://img.shields.io/github/downloads/siglens/siglens/total">
+    <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/siglens/siglens">
+    <img alt="GitHub forks" src="https://img.shields.io/github/forks/siglens/siglens">
+<img alt="GitHub contributors" src="https://img.shields.io/github/contributors/siglens/siglens">
+
+</p>
 
 # Why SigLens:
 Our experience servicing 10,000+ engineers with Observability tools taught us a few things:
