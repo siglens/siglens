@@ -30,9 +30,8 @@ $(document).ready(() => {
     }
     $(".theme-btn").on("click", themePickerHandler);
     getAllServices()
-    $('#run-search').on('click', function() {
-        filterServicesBySearch();
-    });
+    
+    $('.search-input').on('input', filterServicesBySearch);
 });
 
 let gridDiv = null;
@@ -60,14 +59,12 @@ const gridOptions = {
     columnDefs:columnDefs,
 };
 
-let originalServiceData = [];
 function filterServicesBySearch() {
     const searchValue = $('.search-input').val().toLowerCase();
-    const filteredData = originalServiceData.filter(service => 
-        service.service.toLowerCase() === searchValue
+    const filteredData = serviceRowData.filter(service => 
+        service.service.toLowerCase().startsWith(searchValue)
     );
-    gridOptions.api.setRowData([])
-    displayServiceHealthTable(filteredData);
+    gridOptions.api.setRowData(filteredData);
 }
 
 function processRedMetricsData(metricsData) {
@@ -97,7 +94,6 @@ function getAllServices(){
         crossDomain: true,
     }).then(function (res) {
         const processedData = processRedMetricsData(res.hits.records);
-        originalServiceData = processedData;
         displayServiceHealthTable(processedData);
     })
 }
