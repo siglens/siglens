@@ -1,5 +1,7 @@
 # SigLens
 
+English | [简体中文](README_ZH_CN.md)
+
 SigLens is an Open Source Observability solution that is **100x** more efficient than Splunk, Elastic. 
 
 # Why SigLens:
