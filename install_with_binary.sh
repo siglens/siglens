@@ -62,7 +62,7 @@ tar -xvf "siglens-$latest_version-$os-$arch.tar.gz"
 PORT=80 
 display_step 4 "Running the Server on http://localhost:$PORT"
 if [ $PORT == 80 ]; then 
-   echo "If you are not able to access localhost:80 to changing the PORT=8090"
+   echo "If you are not able to access localhost:80, try running '"export PORT=8090"' and rerunning this script"
 fi
 
 PORT=$PORT "siglens-$latest_version-$os-$arch/siglens" --config "siglens-$latest_version-$os-$arch/server.yaml"
