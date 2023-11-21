@@ -23,8 +23,11 @@ $("#custom-code-tab").tabs({
 //running -> "    "
 $(document).ready(function () {
   $("#add-con").on("click", filterStart);
+  $("#filter-box-1").on("click", filterStart);
   $("#add-con-second").on("click", secondFilterStart);
+  $("#filter-box-2").on("click", secondFilterStart);
   $("#add-con-third").on("click", ThirdFilterStart);
+  $("#filter-box-3").on("click", ThirdFilterStart);
   $("#completed").on("click", filterComplete);
   $("#completed-second").on("click", secondFilterComplete);
   $("#cancel-enter").on("click", cancelInfo);
@@ -39,6 +42,12 @@ $(document).ready(function () {
   $("#cancel-enter-second").hide();
   $("#add-filter").hide();
   $("#add-filter-second").hide();
+  if (thirdBoxSet.size > 0) $("#aggregations").hide();
+  else $("#aggregations").show();
+  if (secondBoxSet.size > 0) $("#aggregate-attribute-text").hide();
+  else $("#aggregate-attribute-text").show();
+  if (firstBoxSet.size > 0) $("#search-filter-text").hide();
+  else $("#search-filter-text").show();
 });
 const tags = document.getElementById("tags");
 const tagSecond = document.getElementById("tags-second");
@@ -51,6 +60,9 @@ tags.addEventListener("click", function (event) {
     firstBoxSet.delete(str.substring(0, str.length - 1));
     event.target.parentNode.remove();
     getSearchText();
+    if (firstBoxSet.size > 0) $("#search-filter-text").hide();
+    else $("#search-filter-text").show();
+    cancelInfo(event);
   }
 });
 tagSecond.addEventListener("click", function (event) {
@@ -61,6 +73,9 @@ tagSecond.addEventListener("click", function (event) {
     secondBoxSet.delete(str.substring(0, str.length - 1));
     event.target.parentNode.remove();
     getSearchText();
+    if (secondBoxSet.size > 0) $("#aggregate-attribute-text").hide();
+    else $("#aggregate-attribute-text").show();
+    secondCancelInfo(event);
   }
 });
 tagThird.addEventListener("click", function (event) {
@@ -71,6 +86,9 @@ tagThird.addEventListener("click", function (event) {
     thirdBoxSet.delete(str.substring(0, str.length - 1));
     event.target.parentNode.remove();
     getSearchText();
+    if (thirdBoxSet.size > 0) $("#aggregations").hide();
+    else $("#aggregations").show();
+    ThirdCancelInfo(event);
   }
 });
 $(document).mouseup(function (e) {
@@ -95,6 +113,7 @@ $(document).mouseup(function (e) {
 });
 var calculations = ["min", "max", "count", "avg", "sum"];
 var ColumnsIsNum = ["http_status", "longitude", "latitude", "latency"];
+var ifCurIsNum = false;
 var availSymbol = [];
 let valuesOfColumn = new Set();
 let paramFirst;
@@ -119,12 +138,15 @@ function filterStart(evt) {
         valuesOfColumn.clear();
         for (let i = 0; i < availColNames.length; i++) {
           if (ui.item.value == ColumnsIsNum[i]) {
+            ifCurIsNum = true;
             availSymbol = ["=", "!=", "<=", ">=", ">", "<"];
             break;
           }
         }
         $("#symbol").val("");
         $("#value-first").val("");
+        //check if complete btn can click
+        checkFirstBox(0);
         let chooseColumn = ui.item.value.trim();
         getValuesofColumn(chooseColumn);
 
@@ -133,6 +155,8 @@ function filterStart(evt) {
             source: availSymbol,
             minLength: 0,
             select: function (event, ui) {
+              //check if complete btn can click
+              checkFirstBox(1);
               $("#value-first").attr("type", "text");
               $("#completed").show();
               valuesOfColumn.clear();
@@ -146,6 +170,7 @@ function filterStart(evt) {
     .on("focus", function () {
       if (!$(this).val().trim()) $(this).keydown();
     });
+    $("#column-first").focus();
 }
 function secondFilterStart(evt) {
   evt.preventDefault();
@@ -155,6 +180,7 @@ function secondFilterStart(evt) {
   $("#cancel-enter-second").show();
   $("#add-filter-second").show();
   $("#add-filter-second").css({ visibility: "visible" });
+  $("#column-second").focus();
 }
 function ThirdFilterStart(evt) {
   evt.preventDefault();
@@ -190,12 +216,48 @@ function ThirdFilterStart(evt) {
           $(this).blur();
           getSearchText();
         }
+        if(thirdBoxSet.size > 0) $("#aggregations").hide();
+        else $("#aggregations").show();
+        $("#column-third").focus();
         return false;
       },
     })
     .on("focus", function () {
       if (!$(this).val().trim()) $(this).keydown();
     });
+    $("#column-third").focus();
+}
+/**
+ * check first box
+ * @param {*} obj 
+ */
+function checkContent(obj){
+  if($(obj).val() === '' || $(obj).val() === null){
+    $("#completed").attr('disabled', true);
+  }else{
+    $("#completed").attr("disabled", false);
+  }
+}
+function checkFirstBox(curSelect){
+  let num = 0;
+  if (
+    ($("#column-first").val() == null ||
+    $("#column-first").val().trim() == "") && curSelect != 0
+  ) num++;
+  if (($("#symbol").val() == null || $("#symbol").val().trim() == "") && curSelect != 1) num++;
+  if (($("#value-first").val() == null || $("#value-first").val().trim() == "") && curSelect != 2) num++;
+  if(num != 0){
+      $("#completed").attr("disabled", true);
+  } else {
+      $("#completed").attr("disabled", false);
+  }
+}
+function checkSecondContent(obj) {
+  if ($(obj).val() === "" || $(obj).val() === null) {
+    $("#completed-second").attr("disabled", true);
+  } else {
+    $("#completed-second").attr("disabled", false);
+  }
 }
 /**
  * first box complete one filter info
@@ -217,7 +279,8 @@ function filterComplete(evt) {
   }
   $("#filter-box-1").removeClass("select-box");
   let tagContent = $("#column-first").val().trim() + $("#symbol").val().trim();
-  tagContent += '"' + val + '"';
+  if (ifCurIsNum) tagContent += val;
+  else tagContent += '"' + val + '"';
   $("#column-first").val("");
   $("#symbol").val("");
   $("#value-first").val("");
@@ -245,6 +308,8 @@ function filterComplete(evt) {
     var x = dom[0].scrollWidth;
     dom[0].scrollLeft = x;
     getSearchText();
+    if (firstBoxSet.size > 0) $("#search-filter-text").hide();
+    else $("#search-filter-text").show();
   }
 }
 function secondFilterComplete(evt) {
@@ -289,14 +354,19 @@ function secondFilterComplete(evt) {
     var x = dom[0].scrollWidth;
     dom[0].scrollLeft = x;
     getSearchText();
+    if (secondBoxSet.size > 0) $("#aggregate-attribute-text").hide();
+    else $("#aggregate-attribute-text").show();
   }
 }
 function getSearchText() {
   let filterValue = getQueryBuilderCode();
   if (filterValue != "") $("#query-input").val(filterValue);
+  if (filterValue == "Syntax Error") $("#query-builder-btn").addClass("stop-search");
+  else $("#query-builder-btn").removeClass("stop-search");
 }
 function cancelInfo(evt) {
   evt.preventDefault();
+  evt.stopPropagation();
   $("#filter-box-1").removeClass("select-box");
   $("#column-first").val("");
   $("#symbol").val("");
@@ -311,6 +381,7 @@ function cancelInfo(evt) {
 }
 function secondCancelInfo(evt) {
   evt.preventDefault();
+  evt.stopPropagation();
   $("#filter-box-2").removeClass("select-box");
   $("#column-second").val("");
   $("#value-second").val("");
@@ -323,6 +394,7 @@ function secondCancelInfo(evt) {
 }
 function ThirdCancelInfo(event) {
   event.preventDefault();
+  event.stopPropagation();
   $("#filter-box-3").removeClass("select-box");
   $("#column-third").val("");
   $("#add-filter-third").hide();
@@ -344,10 +416,16 @@ $("#column-second")
       $("#value-second").val("");
       let columnInfo = availColNames;
       if (ui.item.value != "count") columnInfo = ColumnsIsNum;
+      $("#completed-second").attr("disabled", true);
       $("#value-second")
         .autocomplete({
           source: columnInfo,
           minLength: 0,
+          select: function (event, ui) {
+            let secVal = $("#column-second").val();
+            if (secVal == null || secVal.trim() == "") $("#completed-second").attr("disabled", true);
+            else $("#completed-second").attr("disabled", false);
+          }
         })
         .on("focus", function () {
           if (!$(this).val().trim()) $(this).keydown();
@@ -398,6 +476,8 @@ function getValuesofColumn(chooseColumn) {
         source: arr,
         minLength: 0,
         select: function (event, ui) {
+          //check if complete btn can click
+          checkFirstBox(2);
           valuesOfColumn.clear();
         },
       })

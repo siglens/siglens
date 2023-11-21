@@ -66,13 +66,14 @@
                         <div id="filter-container">
                             <div class="filter-con">
                                 <div class="filter-box" id="filter-box-1">
+                                    <span class = "aggregations" id="search-filter-text">Search Filter</span>
                                     <ul id="tags" class="tags-list"></ul>
                                     <button id="add-con" class="add-con btn">+</button>
                                 </div>
                                 <div class="add-filter" id="add-filter">
-                                    <input id="column-first" class="column-first" type="hidden" />
-                                    <input id="symbol" class="symbol" type="hidden" />
-                                    <input id="value-first" class="value-first" type="hidden" />
+                                    <input id="column-first" class="column-first" type="hidden" onkeyup="checkContent(this)"/>
+                                    <input id="symbol" class="symbol" type="hidden" onkeyup="checkContent(this)"/>
+                                    <input id="value-first" class="value-first" type="hidden" onkeyup="checkContent(this)"/>
                                     <button id="completed" class="completed btn"></button>
                                     <button id="cancel-enter" class="cancel-enter btn">x</button>
                                 </div>
@@ -81,24 +82,26 @@
                         <div class="display-rule">
                             <div class="filter-con second-enter">
                                 <div class="filter-box" id="filter-box-2">
+                                    <span class = "aggregations" id="aggregate-attribute-text">Aggregate Attribute</span>
                                     <ul id="tags-second" class="tags-list"></ul>
                                     <button id="add-con-second" class="add-con btn">+</button>
                                 </div>
                                 <div class="add-filter add-filters" id="add-filter-second">
-                                    <input id="column-second" class="column-first" type="hidden" />
-                                    <input id="value-second" class="value-first" type="hidden" />
-                                    <button id="completed-second" class="completed btn"></button>
+                                    <input id="column-second" class="column-first" type="hidden" onkeyup="checkSecondContent(this)"/>
+                                    <input id="value-second" class="value-first" type="hidden" onkeyup="checkSecondContent(this)"/>
+                                    <button id="completed-second" class="completed btn" ></button>
                                     <button id="cancel-enter-second" class="cancel-enter btn">x</button>
                                 </div>
                             </div>
-                            <div class="group-by-reminder">Group by</div>
+                            <!-- <div class="group-by-reminder">Group by</div> -->
                             <div class="filter-con third-enter">
                                 <div class="filter-box third-box"  id="filter-box-3">
+                                    <span class = "aggregations" id="aggregations">Search Criteria</span>
                                     <ul id="tags-third" class="tags-list"></ul>
                                     <button id="add-con-third" class="add-con btn">+</button>
                                 </div>
                                 <div class="add-filter add-third" id="add-filter-third">
-                                    <input id="column-third" class="column-third" type="hidden" placeholder="Group by columns" />
+                                    <input id="column-third" class="column-third" type="hidden" />
                                     <button id="cancel-enter-third" class="cancel-enter btn">x</button>
                                 </div>
                             </div>

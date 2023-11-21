@@ -598,6 +598,7 @@ div.show-record-popup {
     border: 1px solid var(--border-btn-color);
 }
 .ag-row,
+.measureAggGrid .ag-row-even,
 .LogResultsGrid .ag-row-even{
     background-color: var(--default-tab) !important;
 }
@@ -611,9 +612,21 @@ div.show-record-popup {
     background-color: var(--panel-table-line-color);
     bottom: 0;
 }
-.measureAggGrid .ag-row-even,
 .ag-theme-mycustomtheme .ag-header,
 .ag-theme-mycustomtheme .ag-header-cell-resize,
 .ag-theme-mycustomtheme .ag-header {
             background: var(--table-head-bg-color) !important;
+}
+.aggregations{
+    color: var(--black-5) !important;
+    margin-left: 10px;
+}
+.ag-header-viewport{
+    border-bottom: 1px solid var(--panel-table-line-color);
+}
+.stop-search{
+    background-color: var(--border-btn-color);
+}
+.stop-search:hover{
+    background-color: var(--border-btn-color);
 }

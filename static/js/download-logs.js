@@ -109,7 +109,8 @@ function setDownloadLogsDialog() {
       .map((item) => {
         return headers
           .map((header) => {
-            return item[header];
+            let col = item[header];
+            return typeof col !== "string" ? col : `"${col.replace(/"/g, '""')}"`;
           })
           .join(",");
       })
