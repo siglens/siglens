@@ -48,17 +48,16 @@ async function testAlertPagesButtons() {
         let saveBtn = driver.findElement(By.id("save-alert-btn"));
         let saveTxt = await saveBtn.getText();
     
+        // Checks for cancel and save button existance 
         assert.equal(cancelTxt, "Cancel", 'button text is not "Cancel"');
         assert.equal(saveTxt, "Save", 'button text is not "Save"');
     
-    
+        // checks if Alert Rule Text is editable
         let alertRuleInputTextBox = await driver.findElement(By.id("alert-rule-name"));
-        // alertRuleInputTextBox.sendKeys("test");
         const checkAlertRuleEditable = await alertRuleInputTextBox.isEnabled();
         assert.strictEqual(checkAlertRuleEditable, true, 'alert rule input text box is not editable');
     
         let logsBtn = await driver.findElement(By.id("alert-data-source"));
-        // assert.equal(await logsBtn.getText(), "Logs", 'button text is not "Logs"');
         await logsBtn.click();
         let logsDrpDownPresent= await driver.findElement(By.id("data-source-options")).isDisplayed();
         assert.strictEqual(logsDrpDownPresent, true, 'logs dropdown is not displayed');
@@ -107,9 +106,8 @@ async function testAlertPagesButtons() {
         await contactsPtsBtn.click();
         let contactPtsDrpDownPresent= await driver.findElement(By.className("dropdown-menu box-shadow contact-points-options show")).isDisplayed();
         assert.strictEqual(contactPtsDrpDownPresent, true, 'contact points dropdown is not displayed');
-        contactPtsDrpDown=await driver.findElement(By.className("dropdown-menu box-shadow contact-points-options show"))
+        let  contactPtsDrpDown=await driver.findElement(By.className("dropdown-menu box-shadow contact-points-options show"))
         let addNewBtnForContact = await contactPtsDrpDown.findElement(By.id('option-0'));
-        // console.log(addNewBtnForContact.getText());
         assert.strictEqual(await addNewBtnForContact.getText(), 'Add New', 'Add new button is not present');
         await addNewBtnForContact.click();
 
@@ -174,14 +172,6 @@ async function testAlertPagesButtons() {
 
         let addNewLabelButton = await driver.findElement(By.className('add-label-container btn'));
         assert.strictEqual(await addNewLabelButton.getText(), 'Add Label', 'Add new label button is not present');
-
-
-        // let  
-        // contactTypeDrpDown=await driver.findElement(By.className("dropdown-menu box-shadow contact-type-options show"))
-
-
-
-        // await contactsPtsBtn.click();
 
     }
     catch (err) {
