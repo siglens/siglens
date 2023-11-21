@@ -2,12 +2,13 @@ package utils
 
 import (
 	"fmt"
-	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 )
 
 func TestAddAccessLogEntry(t *testing.T) {

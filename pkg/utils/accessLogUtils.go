@@ -2,9 +2,10 @@ package utils
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	log "github.com/sirupsen/logrus"
-	"os"
 )
 
 func AddAccessLogEntry(data dtypeutils.AccessLogData, fileName string) {

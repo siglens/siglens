@@ -17,9 +17,10 @@ limitations under the License.
 package queryserver
 
 import (
+	"time"
+
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/utils"
-	"time"
 
 	"github.com/fasthttp/websocket"
 

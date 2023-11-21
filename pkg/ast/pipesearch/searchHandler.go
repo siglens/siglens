@@ -20,11 +20,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
