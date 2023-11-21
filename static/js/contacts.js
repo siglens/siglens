@@ -300,6 +300,7 @@ class btnRenderer {
 }
 
 function deleteContactPrompt(data) {
+    $('#contact-name-placeholder').text(data.contactName);
     $('.popupOverlay, .popupContent').addClass('active');
     $('#cancel-btn, .popupOverlay').click(function () {
         $('.popupOverlay, .popupContent').removeClass('active');
@@ -322,13 +323,15 @@ function deleteContactPrompt(data) {
             contactGridOptions.api.applyTransaction({
                 remove: [{ rowId: deletedRowID }],
             });
+
             showToast(res.message);
             $('.popupOverlay, .popupContent').removeClass('active');
         });
     });
 }
 
-function showDeleteContactDialog(){
+function showDeleteContactDialog(data){
+    $('#contact-name-placeholder-delete-dialog').text(data.contactName);
     $('.popupOverlay, .delete-dialog').addClass('active');
     $('#cancel-btn, .popupOverlay').click(function () {
         $('.popupOverlay, .delete-dialog').removeClass('active');
@@ -354,7 +357,7 @@ function getAllAlertsWithSameContactPoint(data){
                 matchingAlertNames.push(alert.alert_name);
         }}}
           if(matchingAlertNames.length > 0){
-            showDeleteContactDialog();
+            showDeleteContactDialog(data);
           }else{
             deleteContactPrompt(data);
           }
