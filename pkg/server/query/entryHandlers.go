@@ -231,7 +231,7 @@ func pipeSearchWebsocketHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
 		duration := time.Since(startTime).Milliseconds()
 		utils.AddAccessLogEntry(dtypeutils.AccessLogData{
 			TimeStamp:   time.Now().Format("2006-01-02 15:04:05"),
-			UserName:    "No logged in User", // TODO : Add logged in user when user auth is implemented
+			UserName:    "No-User", // TODO : Add logged in user when user auth is implemented
 			URI:         ctx.Request.URI().String(),
 			RequestBody: string(ctx.PostBody()),
 			StatusCode:  ctx.Response.StatusCode(),

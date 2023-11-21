@@ -12,6 +12,11 @@ func AddAccessLogEntry(data dtypeutils.AccessLogData, fileName string) {
 	if err != nil {
 		log.Errorf("Unable to write to access.log file, err=%v", err)
 	}
+	defer logFile.Close()
+	// Do not log websocket connections
+	if data.StatusCode == 101 {
+		return
+	}
 	logFile.WriteString(fmt.Sprintf("%s %s %s %s %d %d\n",
 		data.TimeStamp,
 		data.UserName, // TODO : Add logged in user when user auth is implemented
