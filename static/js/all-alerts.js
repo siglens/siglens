@@ -51,7 +51,6 @@ function getAllAlerts(){
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        console.log(res.alerts);
         displayAllAlerts(res.alerts);
     })
 }
