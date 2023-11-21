@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
@@ -85,6 +86,64 @@ func Test_ProcessDeleteIndex(t *testing.T) {
 	}
 
 	os.RemoveAll(dataPath)
+}
+
+// Test ingesting multiple types of values into one column.
+// Currently the only test is that it doesn't crash.
+func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
+	// Setup ingestion parameters.
+	now := utils.GetCurrentTimeInMs()
+	indexName := "traces"
+	shouldFlush := false
+	localIndexMap := make(map[string]string)
+	orgId := uint64(0)
+
+	flush := func() {
+		jsonBytes := []byte(`{"hello": "world"}`)
+		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), true, localIndexMap, orgId)
+		assert.Nil(t, err)
+	}
+
+	config.InitializeTestingConfig()
+	_ = vtable.InitVTable()
+
+	// Ingest some data that can all be converted to numbers.
+	jsons := [][]byte{
+		[]byte(`{"age": "171"}`),
+		[]byte(`{"age": 103}`),
+		[]byte(`{"age": 5.123}`),
+		[]byte(`{"age": "181"}`),
+		[]byte(`{"age": 30}`),
+		[]byte(`{"age": 6.321}`),
+	}
+
+	for _, jsonBytes := range jsons {
+		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId)
+		assert.Nil(t, err)
+	}
+	flush()
+
+	// Ingest some data that will need to be converted to strings.
+	jsons = [][]byte{
+		[]byte(`{"age": "171"}`),
+		[]byte(`{"age": 103}`),
+		[]byte(`{"age": 5.123}`),
+		[]byte(`{"age": true}`),
+		[]byte(`{"age": "181"}`),
+		[]byte(`{"age": 30}`),
+		[]byte(`{"age": 6.321}`),
+		[]byte(`{"age": false}`),
+		[]byte(`{"age": "hello"}`),
+	}
+
+	for _, jsonBytes := range jsons {
+		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId)
+		assert.Nil(t, err)
+	}
+	flush()
+
+	// Cleanup
+	os.RemoveAll(config.GetDataPath())
 }
 
 func setupData(t *testing.T, numberOfSegments int, indexName string) {

@@ -54,6 +54,10 @@ let metricsDatasets;
 let liveTailState = false;
 let tt;
 let lockReconnect = false;
+let totalMatchLogs = 0;
+let firstBoxSet = new Set();
+let secondBoxSet = new Set();
+let thirdBoxSet = new Set();
 
 
 let aggGridOptions = {
@@ -86,8 +90,12 @@ function showError(errorMsg) {
     $('#corner-popup .corner-text').html(errorMsg);
     $('#corner-popup').show();
     $('body').css('cursor', 'default');
-    $('#run-filter-btn').html('Search');
+    $('#run-filter-btn').html(' ');
+    $("#run-filter-btn").removeClass("cancel-search");
     $('#run-filter-btn').removeClass('active');
+     $("#query-builder-btn").html(" ");
+     $("#query-builder-btn").removeClass("cancel-search");
+     $("#query-builder-btn").removeClass("active");
     $("#live-tail-btn").html("Live Tail");
     $("#live-tail-btn").removeClass("active");
     $('#run-metrics-query-btn').removeClass('active');
@@ -101,8 +109,12 @@ function showInfo(infoMsg) {
     $('#corner-popup').css('position', 'absolute');
     $('#corner-popup').css('bottom', '3rem');
     $('body').css('cursor', 'default');
-    $('#run-filter-btn').html('Search');
+    $('#run-filter-btn').html(' ');
+    $("#run-filter-btn").removeClass("cancel-search");
     $('#run-filter-btn').removeClass('active');
+    $("#query-builder-btn").html(" ");
+    $("#query-builder-btn").removeClass("cancel-search");
+    $("#query-builder-btn").removeClass("active");
     $("#live-tail-btn").html("Live Tail");
     $("#live-tail-btn").removeClass("active");
     wsState = 'query';

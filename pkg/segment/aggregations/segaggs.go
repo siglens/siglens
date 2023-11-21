@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -72,19 +73,19 @@ func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *str
 
 // Function to clean up results based on input query aggregations.
 // This will make sure all buckets respect the minCount & is returned in a sorted order
-func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{}) *structs.NodeResult {
+func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool) *structs.NodeResult {
 	if post.TimeHistogram != nil {
 		applyTimeRangeHistogram(nodeResult, post.TimeHistogram, post.TimeHistogram.AggName)
 	}
 
-	// For the query without groupby, skip the first aggregator without a rex block
+	// For the query without groupby, skip the first aggregator without a QueryAggergatorBlock
 	// For the query that has a groupby, groupby block's aggregation is in the post.Next. Therefore, we should start from the groupby's aggregation.
-	if !(post.HasRexBlock()) {
+	if !post.HasQueryAggergatorBlock() {
 		post = post.Next
 	}
 
 	for agg := post; agg != nil; agg = agg.Next {
-		err := performAggOnResult(nodeResult, agg, recs)
+		err := performAggOnResult(nodeResult, agg, recs, finalCols)
 
 		if err != nil {
 			log.Errorf("PostQueryBucketCleaning: %v", err)
@@ -95,7 +96,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	return nodeResult
 }
 
-func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}) error {
+func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -112,7 +113,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		}
 
 		if agg.OutputTransforms.LetColumns != nil {
-			err := performLetColumnsRequest(nodeResult, agg, agg.OutputTransforms.LetColumns, recs)
+			err := performLetColumnsRequest(nodeResult, agg, agg.OutputTransforms.LetColumns, recs, finalCols)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -134,6 +135,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 }
 
 func performColumnsRequest(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest) error {
+	nodeResult.RenameColumns = colReq.RenameAggregationColumns
 RenamingLoop:
 	for oldCName, newCName := range colReq.RenameAggregationColumns {
 		for i, cName := range nodeResult.MeasureFunctions {
@@ -184,13 +186,13 @@ RenamingLoop:
 	return nil
 }
 
-func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
+func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 
-	if letColReq.NewColName == "" && letColReq.RexColRequest == nil {
+	if letColReq.NewColName == "" && !aggs.HasQueryAggergatorBlock() && letColReq.StatisticColRequest == nil {
 		return errors.New("performLetColumnsRequest: expected non-empty NewColName")
 	}
 
-	// Exactly one of MultiColsRequest, SingleColRequest, ConcatColRequest, NumericColRequestNode should contain data.
+	// Exactly one of MultiColsRequest, SingleColRequest, ValueColRequest, RexColRequest, RenameColRequest should contain data.
 	if letColReq.MultiColsRequest != nil {
 		return errors.New("performLetColumnsRequest: processing LetColumnsRequest.MultiColsRequest is not implemented")
 	} else if letColReq.SingleColRequest != nil {
@@ -200,7 +202,15 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else if letColReq.RexColRequest != nil {
-		if err := performRexColRequest(nodeResult, aggs, letColReq, recs); err != nil {
+		if err := performRexColRequest(nodeResult, aggs, letColReq, recs, finalCols); err != nil {
+			return fmt.Errorf("performLetColumnsRequest: %v", err)
+		}
+	} else if letColReq.RenameColRequest != nil {
+		if err := performRenameColRequest(nodeResult, aggs, letColReq, recs, finalCols); err != nil {
+			return fmt.Errorf("performLetColumnsRequest: %v", err)
+		}
+	} else if letColReq.StatisticColRequest != nil {
+		if err := performStatisticColRequest(nodeResult, aggs, letColReq, recs); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else {
@@ -210,11 +220,502 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 	return nil
 }
 
-func performRexColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
+func performRenameColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+	//Without following group by
+	if recs != nil {
+		if err := performRenameColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols); err != nil {
+			return fmt.Errorf("performRenameColRequest: %v", err)
+		}
+		return nil
+	}
+
+	//Follow group by
+	if err := performRenameColRequestOnHistogram(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performRenameColRequest: %v", err)
+	}
+	if err := performRenameColRequestOnMeasureResults(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performRenameColRequest: %v", err)
+	}
+
+	return nil
+}
+
+func performRenameColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+
+	fieldsToAdd := make([]string, 0)
+	fieldsToRemove := make([]string, 0)
+
+	switch letColReq.RenameColRequest.RenameExprMode {
+	case structs.REMPhrase:
+		fallthrough
+	case structs.REMOverride:
+
+		// Suppose you rename fieldA to fieldB, but fieldA does not exist.
+		// If fieldB does not exist, nothing happens.
+		// If fieldB does exist, the result of the rename is that the data in fieldB is removed. The data in fieldB will contain null values.
+		if _, exist := finalCols[letColReq.RenameColRequest.OriginalPattern]; !exist {
+			if _, exist := finalCols[letColReq.RenameColRequest.NewPattern]; !exist {
+				return nil
+			}
+		}
+
+		fieldsToAdd = append(fieldsToAdd, letColReq.RenameColRequest.NewPattern)
+		fieldsToRemove = append(fieldsToRemove, letColReq.RenameColRequest.OriginalPattern)
+	case structs.REMRegex:
+		for colName := range finalCols {
+			newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(colName)
+			if err != nil {
+				return fmt.Errorf("performRenameColRequestWithoutGroupby: %v", err)
+			}
+			if len(newColName) == 0 {
+				continue
+			}
+			fieldsToAdd = append(fieldsToAdd, newColName)
+			fieldsToRemove = append(fieldsToRemove, colName)
+		}
+	default:
+		return fmt.Errorf("performRenameColRequestWithoutGroupby: RenameColRequest has an unexpected type")
+	}
+
+	for _, record := range recs {
+		for index, newColName := range fieldsToAdd {
+			record[newColName] = record[fieldsToRemove[index]]
+		}
+	}
+	for index, newColName := range fieldsToAdd {
+		finalCols[newColName] = true
+		delete(finalCols, fieldsToRemove[index])
+	}
+
+	return nil
+}
+
+func performRenameColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+
+	for _, aggregationResult := range nodeResult.Histogram {
+		for _, bucketResult := range aggregationResult.Results {
+			switch letColReq.RenameColRequest.RenameExprMode {
+			case structs.REMPhrase:
+				fallthrough
+			case structs.REMOverride:
+
+				// The original pattern should be a field, and the field may come from GroupByCol or the Stat Res. The same rule applies to the new pattern
+				// We should delete new pattern key-val pair, and override the original field to new col name
+
+				// If new pattern comes from GroupByCols, we should delete it in the GroupByCols
+				for index, groupByCol := range bucketResult.GroupByKeys {
+					if groupByCol == letColReq.RenameColRequest.NewPattern {
+						letColReq.RenameColRequest.RemoveBucketResGroupByColumnsByIndex(bucketResult, []int{index})
+						break
+					}
+				}
+
+				// If new pattern comes from Stat Res, its key-value pair will be deleted
+				delete(bucketResult.StatRes, letColReq.RenameColRequest.NewPattern)
+
+				// After delete new pattern in GroupByCols or Stat Res, we should override the name of original field to new field
+
+				// If original pattern comes from Stat Res
+				val, exists := bucketResult.StatRes[letColReq.RenameColRequest.OriginalPattern]
+				if exists {
+					bucketResult.StatRes[letColReq.RenameColRequest.NewPattern] = val
+					delete(bucketResult.StatRes, letColReq.RenameColRequest.OriginalPattern)
+					continue
+				}
+
+				// If original pattern comes from GroupByCol, just override its name
+				for index, groupByCol := range bucketResult.GroupByKeys {
+					if letColReq.RenameColRequest.OriginalPattern == groupByCol {
+						// The GroupByKeys in the aggregationResult.Results array is a reference slice.
+						// If we just modify GroupByKeys in one bucket, the GroupByKeys in other buckets will also be updated
+						groupByKeys := make([]string, len(bucketResult.GroupByKeys))
+						copy(groupByKeys, bucketResult.GroupByKeys)
+						groupByKeys[index] = letColReq.RenameColRequest.NewPattern
+						bucketResult.GroupByKeys = groupByKeys
+						break
+					}
+				}
+
+			case structs.REMRegex:
+
+				// If we override orginal field to a new field, we should remove new field key-val pair and just modify the key name of original field to new field
+				//Rename statistic functions name
+				for statColName, val := range bucketResult.StatRes {
+					newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(statColName)
+
+					if err != nil {
+						return fmt.Errorf("performRenameColRequestOnHistogram: %v", err)
+					}
+					if len(newColName) == 0 {
+						continue
+					}
+					bucketResult.StatRes[newColName] = val
+					delete(bucketResult.StatRes, statColName)
+				}
+
+				indexToRemove := make([]int, 0)
+				//Rename Group by column name
+				for index, groupByColName := range bucketResult.GroupByKeys {
+					newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(groupByColName)
+					if err != nil {
+						return fmt.Errorf("performRenameColRequestOnHistogram: %v", err)
+					}
+					if len(newColName) == 0 {
+						continue
+					}
+
+					for i, groupByCol := range bucketResult.GroupByKeys {
+						if groupByCol == newColName {
+							indexToRemove = append(indexToRemove, i)
+							break
+						}
+					}
+
+					groupByKeys := make([]string, len(bucketResult.GroupByKeys))
+					copy(groupByKeys, bucketResult.GroupByKeys)
+					groupByKeys[index] = newColName
+					bucketResult.GroupByKeys = groupByKeys
+				}
+
+				letColReq.RenameColRequest.RemoveBucketResGroupByColumnsByIndex(bucketResult, indexToRemove)
+
+			default:
+				return fmt.Errorf("performRenameColRequestOnHistogram: RenameColRequest has an unexpected type")
+			}
+		}
+	}
+
+	return nil
+}
+
+func performRenameColRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+
+	// Compute the value for each row.
+	for _, bucketHolder := range nodeResult.MeasureResults {
+
+		switch letColReq.RenameColRequest.RenameExprMode {
+		case structs.REMPhrase:
+			fallthrough
+		case structs.REMOverride:
+
+			// If new pattern comes from GroupByCols, we should delete it in the GroupByCols
+			for index, groupByCol := range nodeResult.GroupByCols {
+				if groupByCol == letColReq.RenameColRequest.NewPattern {
+					letColReq.RenameColRequest.RemoveBucketHolderGroupByColumnsByIndex(bucketHolder, nodeResult.GroupByCols, []int{index})
+					break
+				}
+			}
+
+			// If new pattern comes from Stat Res, its key-value pair will be deleted
+			delete(bucketHolder.MeasureVal, letColReq.RenameColRequest.NewPattern)
+
+			// After delete new pattern in GroupByCols or MeasureVal, we should override the name of original field to new field
+
+			// If original pattern comes from MeasureVal
+			val, exists := bucketHolder.MeasureVal[letColReq.RenameColRequest.OriginalPattern]
+			if exists {
+				bucketHolder.MeasureVal[letColReq.RenameColRequest.NewPattern] = val
+				delete(bucketHolder.MeasureVal, letColReq.RenameColRequest.OriginalPattern)
+				continue
+			}
+
+			// If original pattern comes from GroupByCol, just override its name
+			// There is no GroupByKeys in bucketHolder, so we can skip this step
+		case structs.REMRegex:
+
+			//Rename MeasurVal name
+			for measureName, val := range bucketHolder.MeasureVal {
+				newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(measureName)
+				if err != nil {
+					return fmt.Errorf("performRenameColRequestOnMeasureResults: %v", err)
+				}
+				if len(newColName) == 0 {
+					continue
+				}
+				// Being able to match indicates that the original field comes from MeasureVal
+				bucketHolder.MeasureVal[newColName] = val
+				delete(bucketHolder.MeasureVal, measureName)
+			}
+
+			indexToRemove := make([]int, 0)
+			//Rename Group by column name
+			for _, groupByColName := range nodeResult.GroupByCols {
+				newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(groupByColName)
+				if err != nil {
+					return fmt.Errorf("performRenameColRequestOnMeasureResults: %v", err)
+				}
+				if len(newColName) == 0 {
+					continue
+				}
+
+				for i, groupByCol := range nodeResult.GroupByCols {
+					if groupByCol == newColName {
+						indexToRemove = append(indexToRemove, i)
+						break
+					}
+				}
+			}
+			letColReq.RenameColRequest.RemoveBucketHolderGroupByColumnsByIndex(bucketHolder, nodeResult.GroupByCols, indexToRemove)
+		}
+	}
+	return nil
+}
+
+func performStatisticColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
+
+	if err := performStatisticColRequestOnHistogram(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performStatisticColRequest: %v", err)
+	}
+	if err := performStatisticColRequestOnMeasureResults(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performStatisticColRequest: %v", err)
+	}
+
+	return nil
+}
+
+func performStatisticColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+
+	countIsGroupByCol := utils.SliceContainsString(letColReq.StatisticColRequest.GetGroupByCols(), letColReq.StatisticColRequest.Options.CountField)
+	percentIsGroupByCol := utils.SliceContainsString(letColReq.StatisticColRequest.GetGroupByCols(), letColReq.StatisticColRequest.Options.PercentField)
+
+	for _, aggregationResult := range nodeResult.Histogram {
+
+		if len(aggregationResult.Results) == 0 {
+			continue
+		}
+		resTotal := uint64(0)
+		for _, bucketResult := range aggregationResult.Results {
+			resTotal += (bucketResult.ElemCount)
+		}
+		//Sort results according to requirements
+		err := letColReq.StatisticColRequest.SortBucketResult(&aggregationResult.Results)
+		if err != nil {
+			return fmt.Errorf("performStatisticColRequestOnHistogram: %v", err)
+		}
+		//Process bucket result
+		otherCnt := resTotal
+		for _, bucketResult := range aggregationResult.Results {
+
+			countName := "count(*)"
+			newCountName, exists := nodeResult.RenameColumns["count(*)"]
+			if exists {
+				countName = newCountName
+			}
+			countIsStatisticGroupByCol := utils.SliceContainsString(letColReq.StatisticColRequest.GetGroupByCols(), countName)
+			//Delete count generated by the stats groupby block
+			if !countIsStatisticGroupByCol {
+				delete(bucketResult.StatRes, countName)
+			}
+
+			//Delete fields not in statistic expr
+			err := letColReq.StatisticColRequest.RemoveFieldsNotInExprForBucketRes(bucketResult)
+			if err != nil {
+				return fmt.Errorf("performStatisticColRequestOnHistogram: %v", err)
+			}
+
+			otherCnt -= (bucketResult.ElemCount)
+
+			// Set the appropriate column to the computed value
+			if countIsGroupByCol || percentIsGroupByCol {
+				err := letColReq.StatisticColRequest.OverrideGroupByCol(bucketResult, resTotal)
+				if err != nil {
+					return fmt.Errorf("performStatisticColRequestOnHistogram: %v", err)
+				}
+			}
+
+			if letColReq.StatisticColRequest.Options.ShowCount && !countIsGroupByCol {
+				//Set Count to StatResult
+				letColReq.StatisticColRequest.SetCountToStatRes(bucketResult.StatRes, bucketResult.ElemCount)
+			}
+
+			if letColReq.StatisticColRequest.Options.ShowPerc && !percentIsGroupByCol {
+				//Set Percent to StatResult
+				letColReq.StatisticColRequest.SetPercToStatRes(bucketResult.StatRes, bucketResult.ElemCount, resTotal)
+			}
+		}
+
+		//If useother=true, a row representing all other values is added to the results.
+		if letColReq.StatisticColRequest.Options.UseOther {
+			statRes := make(map[string]segutils.CValueEnclosure)
+			groupByKeys := aggregationResult.Results[0].GroupByKeys
+			bucketKey := make([]string, len(groupByKeys))
+			otherEnclosure := segutils.CValueEnclosure{
+				Dtype: segutils.SS_DT_STRING,
+				CVal:  letColReq.StatisticColRequest.Options.OtherStr,
+			}
+			for i := 0; i < len(groupByKeys); i++ {
+				if groupByKeys[i] == letColReq.StatisticColRequest.Options.CountField || groupByKeys[i] == letColReq.StatisticColRequest.Options.PercentField {
+					continue
+				}
+				bucketKey[i] = letColReq.StatisticColRequest.Options.OtherStr
+			}
+
+			for key := range aggregationResult.Results[0].StatRes {
+				if key == letColReq.StatisticColRequest.Options.CountField || key == letColReq.StatisticColRequest.Options.PercentField {
+					continue
+				}
+				statRes[key] = otherEnclosure
+			}
+
+			otherBucketRes := &structs.BucketResult{
+				ElemCount:   otherCnt,
+				StatRes:     statRes,
+				BucketKey:   bucketKey,
+				GroupByKeys: groupByKeys,
+			}
+
+			if countIsGroupByCol || percentIsGroupByCol {
+				err := letColReq.StatisticColRequest.OverrideGroupByCol(otherBucketRes, resTotal)
+				if err != nil {
+					return fmt.Errorf("performStatisticColRequestOnHistogram: %v", err)
+				}
+			}
+
+			if letColReq.StatisticColRequest.Options.ShowCount && !countIsGroupByCol {
+				letColReq.StatisticColRequest.SetCountToStatRes(statRes, otherCnt)
+			}
+
+			if letColReq.StatisticColRequest.Options.ShowPerc && !percentIsGroupByCol {
+				letColReq.StatisticColRequest.SetPercToStatRes(statRes, otherCnt, resTotal)
+			}
+
+			aggregationResult.Results = append(aggregationResult.Results, otherBucketRes)
+		}
+	}
+
+	return nil
+}
+
+func performStatisticColRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+
+	// Because the position of GroupByVals inside the bucketholder is related to nodeResult.GroupByCols
+	// If there is a stats groupby block before the statistic block, that mapping relationship is based on the stats groupby cols
+	// So we should update it
+	preGroupByColToIndex := make(map[string]int, len(nodeResult.GroupByCols))
+	for index, groupByCol := range nodeResult.GroupByCols {
+		preGroupByColToIndex[groupByCol] = index
+	}
+
+	var countIsGroupByCol, percentIsGroupByCol bool
+	countColIndex := -1
+	percentColIndex := -1
+	for i, measureCol := range nodeResult.MeasureFunctions {
+		if letColReq.StatisticColRequest.Options.ShowCount && letColReq.StatisticColRequest.Options.CountField == measureCol {
+			// We'll write over this existing column.
+			countIsGroupByCol = false
+			countColIndex = i
+		}
+
+		if letColReq.StatisticColRequest.Options.ShowPerc && letColReq.StatisticColRequest.Options.PercentField == measureCol {
+			// We'll write over this existing column.
+			percentIsGroupByCol = false
+			percentColIndex = i
+		}
+	}
+
+	for i, groupByCol := range nodeResult.GroupByCols {
+		if letColReq.StatisticColRequest.Options.ShowCount && letColReq.StatisticColRequest.Options.CountField == groupByCol {
+			// We'll write over this existing column.
+			countIsGroupByCol = true
+			countColIndex = i
+		}
+		if letColReq.StatisticColRequest.Options.ShowPerc && letColReq.StatisticColRequest.Options.PercentField == groupByCol {
+			// We'll write over this existing column.
+			percentIsGroupByCol = true
+			percentColIndex = i
+		}
+	}
+
+	if letColReq.StatisticColRequest.Options.ShowCount && countColIndex == -1 {
+		nodeResult.MeasureFunctions = append(nodeResult.MeasureFunctions, letColReq.StatisticColRequest.Options.CountField)
+	}
+
+	if letColReq.StatisticColRequest.Options.ShowPerc && percentColIndex == -1 {
+		nodeResult.MeasureFunctions = append(nodeResult.MeasureFunctions, letColReq.StatisticColRequest.Options.PercentField)
+	}
+
+	countName := "count(*)"
+	newCountName, exists := nodeResult.RenameColumns["count(*)"]
+	if exists {
+		countName = newCountName
+	}
+
+	resTotal := uint64(0)
+	if letColReq.StatisticColRequest.Options.ShowPerc {
+		for _, bucketHolder := range nodeResult.MeasureResults {
+			resTotal += bucketHolder.MeasureVal[countName].(uint64)
+		}
+	}
+
+	statisticGroupByCols := letColReq.StatisticColRequest.GetGroupByCols()
+	// Compute the value for each row.
+	for _, bucketHolder := range nodeResult.MeasureResults {
+
+		countVal := bucketHolder.MeasureVal[countName]
+
+		if letColReq.StatisticColRequest.Options.ShowCount {
+			// Set the appropriate column to the computed value.
+			if countIsGroupByCol {
+				count, ok := countVal.(uint64)
+				if !ok {
+					return fmt.Errorf("performStatisticColRequestOnMeasureResults: Can not convert count to uint64")
+				}
+				bucketHolder.GroupByValues[countColIndex] = strconv.FormatUint(count, 10)
+			} else {
+				bucketHolder.MeasureVal[letColReq.StatisticColRequest.Options.CountField] = countVal
+			}
+		}
+
+		//Delete count generated by the stats groupby block
+		countIsStatisticGroupByCol := utils.SliceContainsString(letColReq.StatisticColRequest.GetGroupByCols(), countName)
+		if !countIsStatisticGroupByCol {
+			delete(bucketHolder.MeasureVal, countName)
+		}
+
+		if letColReq.StatisticColRequest.Options.ShowPerc {
+			count, ok := countVal.(uint64)
+			if !ok {
+				return fmt.Errorf("performStatisticColRequestOnMeasureResults: Can not convert count to uint64")
+			}
+			percent := float64(count) / float64(resTotal) * 100
+			if percentIsGroupByCol {
+				bucketHolder.GroupByValues[percentColIndex] = fmt.Sprintf("%.6f", percent)
+			} else {
+				bucketHolder.MeasureVal[letColReq.StatisticColRequest.Options.PercentField] = fmt.Sprintf("%.6f", percent)
+			}
+		}
+
+		//Put groupByVals to the correct position
+		groupByVals := make([]string, 0)
+		for i := 0; i < len(statisticGroupByCols); i++ {
+			colName := statisticGroupByCols[i]
+			val, exists := bucketHolder.MeasureVal[colName]
+			if exists {
+				str := ""
+				switch v := val.(type) {
+				case string:
+					str = v
+				case []byte:
+					str = string(v)
+				}
+				groupByVals = append(groupByVals, str)
+				continue
+			}
+			index, exists := preGroupByColToIndex[colName]
+			if exists {
+				groupByVals = append(groupByVals, bucketHolder.GroupByValues[index])
+			}
+		}
+		bucketHolder.GroupByValues = groupByVals
+	}
+	return nil
+}
+
+func performRexColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 
 	//Without following group by
 	if recs != nil {
-		if err := performRexColRequestWithoutGroupby(nodeResult, letColReq, recs); err != nil {
+		if err := performRexColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performRexColRequest: %v", err)
 		}
 		return nil
@@ -231,7 +732,7 @@ func performRexColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAgg
 	return nil
 }
 
-func performRexColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
+func performRexColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 
 	rexExp, err := regexp.Compile(letColReq.RexColRequest.Pattern)
 	if err != nil {
@@ -256,6 +757,11 @@ func performRexColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColRe
 			record[rexColName] = Value
 		}
 	}
+
+	for _, rexColName := range letColReq.RexColRequest.RexColNames {
+		finalCols[rexColName] = true
+	}
+
 	return nil
 }
 
@@ -432,6 +938,11 @@ func performValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 				}
 			case structs.VEMNumericExpr:
 				cellValueFloat, err = letColReq.ValueColRequest.EvaluateToFloat(fieldToValue)
+				if err != nil {
+					return fmt.Errorf("performValueColRequestOnHistogram: %v", err)
+				}
+			case structs.VEMBooleanExpr:
+				cellValueStr, err = letColReq.ValueColRequest.EvaluateToString(fieldToValue)
 				if err != nil {
 					return fmt.Errorf("performValueColRequestOnHistogram: %v", err)
 				}
