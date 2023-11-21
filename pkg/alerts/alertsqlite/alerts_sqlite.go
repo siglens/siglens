@@ -467,7 +467,7 @@ func (p Sqlite) UpdateAlert(editedAlert *alertutils.AlertDetails) error {
 		return err
 	}
 	sqlStatement := "UPDATE all_alerts SET alert_name=$1, query_params=$2, condition=$3, value=$4, eval_for=$5, eval_interval=$6, message=$7, contact_id=$8, contact_name=$9, labels=$10 WHERE alert_id=$11;"
-	_, err = tx.ExecContext(p.ctx, sqlStatement, editedAlert.AlertInfo.AlertName, queryParamsJSON, editedAlert.Condition, editedAlert.Value, editedAlert.EvalFor, editedAlert.EvalInterval, editedAlert.Message, editedAlert.AlertInfo.ContactId,editedAlert.AlertInfo.ContactName, labelJson, editedAlert.AlertInfo.AlertId)
+	_, err = tx.ExecContext(p.ctx, sqlStatement, editedAlert.AlertInfo.AlertName, queryParamsJSON, editedAlert.Condition, editedAlert.Value, editedAlert.EvalFor, editedAlert.EvalInterval, editedAlert.Message, editedAlert.AlertInfo.ContactId, editedAlert.AlertInfo.ContactName, labelJson, editedAlert.AlertInfo.AlertId)
 	if err != nil {
 		log.Errorf("updateAlert: unable to execute query: %v, with alert name: %v, err: %+v", sqlStatement, editedAlert.AlertInfo.AlertName, err)
 		_ = tx.Rollback()
