@@ -27,7 +27,7 @@ go mod tidy
 PORT=80 
 display_step 4 "Running the Server on http://localhost:$PORT"
 if [ $PORT == 80 ]; then 
-	echo "If you are not able to access localhost:80 to changing the PORT=8090"
+    echo "If you are not able to access localhost:80, try running '"export PORT=8090"' and rerunning this script"
 fi
 PORT=$PORT go run cmd/siglens/main.go -config server.yaml
 
