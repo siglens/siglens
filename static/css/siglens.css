@@ -4435,3 +4435,35 @@ color: #C8C7CC;
     margin-bottom: 20px;
     margin-left: 10px;
 }
+
+
+/*minion-searches.html*/
+#button-list {
+    list-style: none; 
+    padding: 0; 
+}
+
+
+#button-list li {
+    display: inline-block; 
+    margin-bottom: -4px; 
+}
+
+#button-list button {
+    display: inline-block; 
+    padding: 8px 12px;
+    border:1px solid black;
+   background-color:aliceblue;
+    text-align: left; 
+    margin-right: 5px; 
+    margin-bottom: 5px; 
+
+}
+
+#button-list button h3, #button-list button h4 {
+    margin: 0; 
+    display: inline; 
+}
+
+
+
