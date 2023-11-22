@@ -506,16 +506,23 @@ a:visited.ui-button,
     border-color: var(--purple-1);
 }
 #available-indexes{
-    width: 180px;
-    overflow: hidden;
+    width: 210px;
+    overflow-x: hidden;
+    overflow-y: auto;
     transform: translate3d(0px, 42px, 0px);
+    scrollbar-width: none; /* firefox */
+    -ms-overflow-style: none;/* IE 10+ */
+}
+#available-indexes::-webkit-scrollbar {
+    display: none;
+    /* Chrome Safari */
 }
 .dropdown-menu{
     min-width: 0;
     padding: 0;
 }
 .index-dropdown-item{
-    width: 152px;
+    width: 182px;
 }
 .saveq-btn{
     background-image: var(--save-btn-img);
