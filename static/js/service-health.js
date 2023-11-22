@@ -42,7 +42,6 @@ const columnDefs=[
     { headerName: "Error", field: "error"},
     { headerName: 'P50', field: 'p50' },
     { headerName: 'P90', field: 'p90' },
-    { headerName: 'P95', field: 'p95' },
     { headerName: 'P99', field: 'p99' },
 ];
 
@@ -113,7 +112,6 @@ function displayServiceHealthTable(res){
         newRow.set("error", value.error_rate);
         newRow.set("p50", value.p50);
         newRow.set("p90", value.p90);
-        newRow.set("p95", value.p95);
         newRow.set("p99", value.p99);
 
         serviceRowData = _.concat(serviceRowData, Object.fromEntries(newRow));
