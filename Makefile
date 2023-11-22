@@ -13,7 +13,7 @@ run:
 
 gofmt :
 	go install golang.org/x/tools/cmd/goimports@latest
-	goimports -w .
+	~/go/bin/goimports -w .
 
 all: lint test build
 
