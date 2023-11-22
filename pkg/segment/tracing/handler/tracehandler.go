@@ -392,6 +392,7 @@ func MakeTracesDependancyGraph() {
 		"startEpoch": startEpoch,
 		"endEpoch":   endEpoch,
 		"searchText": "*",
+		"queryLanguage": "Splunk QL",
 	}
 	requestBodyJSON, err := json.Marshal(requestBody)
 	if err != nil {
