@@ -1,24 +1,10 @@
-// const {Builder, By, Key, until} = require('selenium-webdriver');
-
-// (async function example() {
-//   let driver = await new Builder().forBrowser('chrome').build();
-//   try {
-//     await driver.get('http://www.google.com/ncr');
-//     // await driver.findElement(By.name('q'));.sendKeys('webdriver', Key.RETURN);
-//     // await driver.wait(until.titleIs('webdriver - Google Search'), 1000);
-//   } finally {
-//     // await driver.quit();
-//     console.log("done")
-//   }
-// })();
-
 const { By, Key, Builder, WebElement } = require("selenium-webdriver");
 const assert = require("assert");
 const chrome = require('selenium-webdriver/chrome');
 let driver;
 const chromeOptions = new chrome.Options()
+chromeOptions.addArguments('--headless');
 
-// chromeOptions.addArguments('--headless');
 async function checkIncrementor(Component){
     const initialValue = await Component.getAttribute('value');
     // Attempt to increment the value
@@ -40,7 +26,7 @@ async function testAlertPagesButtons() {
             .setChromeOptions(chromeOptions)
             .build();
     
-        //To fetch http://localhost/index.html from the browser with our code.
+        //To fetch http://localhost/alert.html from the browser with our code.
     
         await driver.get("http://localhost/alert.html");
         let cancelBtn = driver.findElement(By.id("cancel-alert-btn"));
@@ -68,7 +54,7 @@ async function testAlertPagesButtons() {
         let logsLanguageDrpDownPresent= await driver.findElement(By.id("logs-language-options")).isDisplayed();
         assert.strictEqual(logsLanguageDrpDownPresent, true, 'logs language dropdown is not displayed');
         await logsLanguageBtn.click();
-
+        
         let datePickerBtn = await driver.findElement(By.id('date-picker-btn'));
         await datePickerBtn.click();
         let datePickerDrpDownPresent= await driver.findElement(By.id("daterangepicker ")).isDisplayed();
