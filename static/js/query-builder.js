@@ -48,6 +48,7 @@ $(document).ready(function () {
   else $("#aggregate-attribute-text").show();
   if (firstBoxSet.size > 0) $("#search-filter-text").hide();
   else $("#search-filter-text").show();
+  setShowColumnInfoDialog();
 });
 const tags = document.getElementById("tags");
 const tagSecond = document.getElementById("tags-second");
