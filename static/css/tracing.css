@@ -21,7 +21,6 @@
     width: fit-content;
     align-items: center;
     background: var(--myOrg-input);
-    border: 1px solid var(--subsection-border);
     padding: 4px;
 }
 
@@ -50,7 +49,7 @@
 .section-button.active {
     height: 32px;
     border: 1px solid #6347D9;
-    background: rgba(99, 71, 217, 0.15);
+    background: var(--tab-active-background);
 }
 
 .search-input{
