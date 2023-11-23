@@ -52,3 +52,60 @@ func TestAddAccessLogEntry(t *testing.T) {
 		t.Errorf("Expected log entry not found in the file. Expected:\n%s\nGot:\n%s", expectedLogEntry, string(content))
 	}
 }
+
+func Test_AddLogEntryValidations(t *testing.T) {
+	cases := []struct {
+		input dtypeutils.AccessLogData
+	}{
+		{ // case#1
+			dtypeutils.AccessLogData{
+				TimeStamp:   "",
+				UserName:    "",
+				URI:         "http:///",
+				RequestBody: "",
+				StatusCode:  0,
+				Duration:    0,
+			},
+		},
+		{ //case 2
+			dtypeutils.AccessLogData{
+				StatusCode: 101,
+			},
+		},
+		{ // case 3
+			dtypeutils.AccessLogData{
+				TimeStamp:   "",
+				UserName:    "",
+				URI:         "",
+				RequestBody: "{\n  \"indexName\":\"traces\"\n}",
+				StatusCode:  0,
+				Duration:    0,
+			},
+		},
+	}
+
+	for _, test := range cases {
+		// Create a temporary test access.log file
+		tempLogFile, err := ioutil.TempFile("", "test_access.log")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(tempLogFile.Name())
+
+		// Call the function with the temporary logFile
+		fileName := tempLogFile.Name()
+		AddAccessLogEntry(test.input, fileName)
+
+		// Read the content of the temporary file
+		content, err := ioutil.ReadFile(fileName)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(content) != 0 {
+			t.Errorf("Expected log entry not found in the file. Expected:\n%s\nGot:\n%s", "", string(content))
+		}
+
+	}
+
+}
