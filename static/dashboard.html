@@ -3,11 +3,15 @@
 
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
 <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
+    // window.dataLayer = window.dataLayer || [];
+    // function gtag(){dataLayer.push(arguments);}
+    // gtag('js', new Date());
 
-    gtag('config', 'G-5SBJC04YFB');
+    // gtag('config', 'G-5SBJC04YFB');
+    document.getElementById('customrange-btn').addEventListener('click', function() {
+   console.log(`Selected start time: ${startTime}`);
+    console.log(`Selected end time: ${endTime}`);
+
 </script>
 
 <head>
@@ -125,20 +129,22 @@
                                 </div>
                                 <hr>
                                 </hr>
-                                <div class="dt-header">Custom Search <span id="reset-timepicker"
-                                        type="reset">Reset</span></div>
-                                <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
-                                    <input type="date" id="date-start" />
-                                    <input type="time" id="time-start" value="00:00" />
-                                </div>
-                                <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
-                                    <input type="date" id="date-end">
-                                    <input type="time" id="time-end" value="00:00">
-                                </div>
-                                <div class="drp-buttons">
-                                    <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn"
-                                        type="button">Apply</button>
-                                </div>
+        <div class="dt-header">Custom Search <span id="reset-timepicker"
+                 type="reset">Reset</span>
+        </div>
+        <div id="daterange-from">
+            <span id="dt-from-text"> From</span> <br />
+            <input type="date" id="date-start" />
+            <input type="time" id="time-start" value="00:00" />
+        </div>
+<div id="daterange-to">
+    <span id="dt-to-text"> To </span> <br />
+    <input type="date" id="date-end">
+    <input type="time" id="time-end" value="00:00">
+</div>
+<div class="drp-buttons">
+    <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn" type="button">Apply</button>
+</div>
                             </div>
                         </div>
                     </div>
