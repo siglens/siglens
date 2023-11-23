@@ -19,8 +19,6 @@ limitations under the License.
 $(document).ready(() => {
     displayNavbar();
     setSaveQueriesDialog();
-    setShowColumnInfoDialog();
-    setDownloadLogsDialog();
     getListIndices();
     const currentUrl = window.location.href;
     if (currentUrl.includes("live-tail.html")) {
