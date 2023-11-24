@@ -75,28 +75,21 @@ $(document).ready(function () {
     });
     
     alertForm.on('submit',(e)=>submitAddAlertForm(e));
-    $("#info-icon-spl").tooltip({
-        delay: { show: 0, hide: 300 },
-        trigger: 'click'
-    });
+  
+    const tooltipIds = ["info-icon-spl", "info-icon-msg", "info-evaluate-every", "info-evaluate-for"];
 
-    $("#info-icon-msg").tooltip({
-      delay: { show: 0, hide: 300 },
-      trigger: "click",
-    });
-
-    $('#info-icon-spl').on('click', function (e) {
-        $('#info-icon-spl').tooltip('show');
-    });
-    
-    $('#info-icon-msg').on('click', function (e) {
-        $("#info-icon-msg").tooltip("show");
+    tooltipIds.forEach(id => {
+        $(`#${id}`).tooltip({
+            delay: { show: 0, hide: 300 },
+            trigger: "click"
+        }).on("click", function () {
+            $(`#${id}`).tooltip("show");
+        });
     });
 
     $(document).mouseup(function (e) {
         if ($(e.target).closest(".tooltip-inner").length === 0) {
-            $('#info-icon-spl').tooltip('hide');
-            $("#info-icon-msg").tooltip("hide");
+            tooltipIds.forEach(id => $(`#${id}`).tooltip("hide"));
         }
     });
     getAlertId();
@@ -187,14 +180,11 @@ $('.contact-points-options').on('click', 'li', function () {
 
 $(document).keyup(function(e) {
     if (e.key === "Escape" || e.key === "Esc") {
-        console.log("escape")
         $('.popupOverlay, .popupContent').removeClass('active');
     }
 });
 
-$('.popupOverlay').on("click", function() {
-    $('.popupOverlay, .popupContent').removeClass('active');
-});
+
 
 //create new alert rule
 function submitAddAlertForm(e){
@@ -255,7 +245,6 @@ function createNewAlertRule(alertData){
 
 // update alert rule
 function updateAlertRule(alertData){
-    console.log("in updateAlertRule",alertData);
         $.ajax({
         method: "post",
         url: "api/alerts/update",
@@ -362,11 +351,9 @@ function displayQueryToolTip(selectedQueryLang) {
 function displayAlertProperties(res) {
     const alertInfo = res.alertInfo;
     const queryParams = res.queryParams;
-
-    console.log(alertInfo.contact_name)
     $('.alert-name').text(alertInfo.alert_name);
     $('.alert-status').text(mapIndexToAlertState.get(alertInfo.state));
-    $('.alert-query').text(queryParams.queryText);
+    $('.alert-query').val(queryParams.queryText);
     $('.alert-type').text(queryParams.data_source);
     $('.alert-query-language').text(queryParams.queryLanguage);
     $('.alert-condition').text(mapIndexToConditionType.get(res.condition));
@@ -374,6 +361,12 @@ function displayAlertProperties(res) {
     $('.alert-every').text(res.eval_interval);
     $('.alert-for').text(res.eval_for);
     $('.alert-contact-point').text(alertInfo.contact_name);
+    const labelContainer = $('.alert-labels-container');
+    const labels = res.alertInfo.labels;
+    labels.forEach(label => {
+        const labelElement = $('<div>').addClass('label-element').text(`${label.label_name}=${label.label_value}`);
+        labelContainer.append(labelElement);
+    })
 }
 
 // Add Label

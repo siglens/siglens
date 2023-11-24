@@ -25,8 +25,12 @@ limitations under the License.
  function doCancel(data) {
      socket.send(JSON.stringify(data));
      $('body').css('cursor', 'default');
-     $('#run-filter-btn').html('Search');
+     $('#run-filter-btn').html(' ');
+     $("#run-filter-btn").removeClass("cancel-search");
      $('#run-filter-btn').removeClass('active');
+     $("#query-builder-btn").html(" ");
+     $("#query-builder-btn").removeClass("cancel-search");
+     $("#query-builder-btn").removeClass("active");
      $('#progress-div').html(``);
  }
   function doLiveTailCancel(data) {
@@ -52,6 +56,37 @@ limitations under the License.
      }
  }
  
+function getColumns() {
+  if (availColNames.length == 0) {
+    data = {
+      state: "query",
+      searchText: "*",
+      startEpoch: "now-24h",
+      endEpoch: "now",
+      indexName: "*",
+      from: 0,
+      size: 1,
+      queryLanguage: "Splunk QL",
+    };
+    $.ajax({
+      method: "post",
+      url: "api/search/",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "*/*",
+      },
+      crossDomain: true,
+      dataType: "json",
+      data: JSON.stringify(data),
+      success: function (res) {
+        if (res) {
+          availColNames = res.allColumns;
+        }
+      },
+    });
+  }
+}
+
  function doSearch(data) {
      startQueryTime = (new Date()).getTime();
      newUri = wsURL("/api/search/ws");
@@ -62,8 +97,11 @@ limitations under the License.
      socket.onopen = function (e) {
          console.time("socket timing");
          $('body').css('cursor', 'progress');
-         $('#run-filter-btn').html('Cancel');
+         $("#run-filter-btn").addClass("cancel-search");
          $('#run-filter-btn').addClass('active');
+         $("#query-builder-btn").html("   ");
+         $("#query-builder-btn").addClass("cancel-search");
+         $("#query-builder-btn").addClass("active");
          socket.send(JSON.stringify(data));
      };
  
@@ -114,12 +152,14 @@ limitations under the License.
                  console.log(`[message] Timeout state received from server: ${jsonEvent}`);
                  processTimeoutUpdate(jsonEvent);
                  console.timeEnd("TIMEOUT");
+                 if (availColNames.length == 0) getColumns();
                  break;
              case "ERROR":
                  console.time("ERROR");
                  console.log(`[message] Error state received from server: ${jsonEvent}`);
                  processErrorUpdate(jsonEvent);
                  console.timeEnd("ERROR");
+                 if (availColNames.length == 0) getColumns();
                  break;
              default:
                  console.log(`[message] Unknown state received from server: `+ JSON.stringify(jsonEvent));
@@ -128,6 +168,7 @@ limitations under the License.
                  } else if (jsonEvent.message.includes("not present")){
                     jsonEvent['no_data_err'] = "No data found for the query"
                  }
+                 if (availColNames.length == 0) getColumns();
                  processSearchErrorLog(jsonEvent);
          }
      };
@@ -139,6 +180,7 @@ limitations under the License.
              console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
          }
          console.timeEnd("socket timing");
+         if (availColNames.length == 0) getColumns();
      };
  
      socket.addEventListener('error', (event) => {
@@ -407,54 +449,107 @@ limitations under the License.
       queryLanguage: queryLanguage,
     };
   }
+  let filterTextQB = "";
+  /**
+   * get real time search text
+   * @returns real time search text
+   */
+  function getQueryBuilderCode() {
+   let filterValue = "";
+     //concat the first input box
+     let index = 0;
+     if (firstBoxSet && firstBoxSet.size > 0) {
+       firstBoxSet.forEach((value, i) => {
+         if (index != firstBoxSet.size - 1) filterValue += value + " ";
+         else filterValue += value;
+         index++;
+       });
+     }
+     index = 0;
+     let bothRight = 0;
+     //concat the second input box
+     if (secondBoxSet && secondBoxSet.size > 0) {
+       bothRight++;
+       filterValue += " | stats";
+       secondBoxSet.forEach((value, i) => {
+         if (index != secondBoxSet.size - 1) filterValue += " " + value + ",";
+         else filterValue += " " + value;
+         index++;
+       });
+     }
+     index = 0;
+     if (thirdBoxSet && thirdBoxSet.size > 0) {
+       bothRight++;
+       //concat the third input box
+       filterValue += " BY";
+       thirdBoxSet.forEach((value, i) => {
+         if (index != thirdBoxSet.size - 1) filterValue += " " + value + ",";
+         else filterValue += " " + value;
+         index++;
+       });
+     }
+     if (filterValue == "") filterValue = "*";
+     $("#query-input").val(filterValue);
+     if(bothRight == 1) $("#query-builder-btn").addClass("stop-search");
+     else $("#query-builder-btn").removeClass("stop-search");
+   return bothRight == 1 ? "Syntax Error" : filterValue;
+  }
  function getSearchFilter(skipPushState, scrollingTrigger) {
-     let filterValue = $('#filter-input').val().trim() || '*';
-     let endDate = filterEndDate || "now";
-     let stDate = filterStartDate || "now-15m";
-     let selIndexName = selectedSearchIndex;
-     let sFrom = 0;
-     let queryLanguage = $('#query-language-btn span').html();
- 
-     selIndexName.split(',').forEach(function(searchVal){
-         $(`.index-dropdown-item[data-index="${searchVal}"]`).toggleClass('active');
-     });
- 
-     selectedSearchIndex = selIndexName.split(",").join(",");
-     Cookies.set('IndexList', selIndexName.split(",").join(","));
- 
-     if (!isNaN(stDate)) {
-         datePickerHandler(Number(stDate), Number(endDate), "custom");
-     } else if (stDate !== "now-15m") {
-         datePickerHandler(stDate, endDate, stDate);
-     } else {
-         datePickerHandler(stDate, endDate, "");
-     }
- 
-     addQSParm("searchText", filterValue);
-     addQSParm("startEpoch", stDate);
-     addQSParm("endEpoch", endDate);
-     addQSParm("indexName", selIndexName);
-     addQSParm("queryLanguage", queryLanguage);
- 
-     window.history.pushState({ path: myUrl }, '', myUrl);
- 
-     if (scrollingTrigger){
-         sFrom = scrollFrom;
-     }
- 
-     return {
-         'state': wsState,
-         'searchText': filterValue,
-         'startEpoch': stDate,
-         'endEpoch': endDate,
-         'indexName': selIndexName,
-         'from' : sFrom,
-         'queryLanguage' : queryLanguage,
-     };
+   let currentTab = $("#custom-code-tab").tabs("option", "active");
+   let endDate = filterEndDate || "now";
+   let stDate = filterStartDate || "now-15m";
+   let selIndexName = selectedSearchIndex;
+   let sFrom = 0;
+   let queryLanguage = $("#query-language-btn span").html();
+  
+   selIndexName.split(",").forEach(function (searchVal) {
+     $(`.index-dropdown-item[data-index="${searchVal}"]`).toggleClass("active");
+   });
+
+   selectedSearchIndex = selIndexName.split(",").join(",");
+   Cookies.set("IndexList", selIndexName.split(",").join(","));
+
+   if (!isNaN(stDate)) {
+     datePickerHandler(Number(stDate), Number(endDate), "custom");
+   } else if (stDate !== "now-15m") {
+     datePickerHandler(stDate, endDate, stDate);
+   } else {
+     datePickerHandler(stDate, endDate, "");
+   }
+   let filterValue = "";
+   if(currentTab == 0){
+    queryLanguage = "Splunk QL";
+     //concat the 3 input boxes
+     filterValue = getQueryBuilderCode();
+   }else{
+    filterValue = $("#filter-input").val().trim() || "*";
+   }
+   addQSParm("searchText", filterValue);
+   addQSParm("startEpoch", stDate);
+   addQSParm("endEpoch", endDate);
+   addQSParm("indexName", selIndexName);
+   addQSParm("queryLanguage", queryLanguage);
+
+   window.history.pushState({ path: myUrl }, "", myUrl);
+
+   if (scrollingTrigger) {
+     sFrom = scrollFrom;
+   }
+
+   filterTextQB = filterValue;
+   return {
+     state: wsState,
+     searchText: filterValue,
+     startEpoch: stDate,
+     endEpoch: endDate,
+     indexName: selIndexName,
+     from: sFrom,
+     queryLanguage: queryLanguage,
+   };
  }
  
  function getSearchFilterForSave(qname, qdesc) {
-     let filterValue = $('#filter-input').val().trim() || '*';
+     let filterValue = filterTextQB.trim() || "*";
  
      return {
          'queryName': qname,
@@ -637,7 +732,11 @@ limitations under the License.
       res.qtype
     );
     $("#run-filter-btn").html(" ");
+    $("#run-filter-btn").removeClass("cancel-search");
     $("#run-filter-btn").removeClass("active");
+    $("#query-builder-btn").html(" ");
+    $("#query-builder-btn").removeClass("cancel-search");
+    $("#query-builder-btn").removeClass("active");
     wsState = "query";
     if (canScrollMore === false) {
       scrollFrom = 0;
@@ -676,8 +775,12 @@ limitations under the License.
      }
      renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched,
          timeToFirstByte, eqRel, res.qtype);
-     $('#run-filter-btn').html('Search');
+     $('#run-filter-btn').html(' ');
+     $("#run-filter-btn").removeClass("cancel-search");
      $('#run-filter-btn').removeClass('active');
+     $("#query-builder-btn").html(" ");
+     $("#query-builder-btn").removeClass("cancel-search");
+     $("#query-builder-btn").removeClass("active");
      wsState = 'query'
      if (canScrollMore === false){
          scrollFrom = 0;
@@ -725,8 +828,12 @@ limitations under the License.
         el.html(errorMsg);
     }
     $('body').css('cursor', 'default');
-    $('#run-filter-btn').html('Search');
+    $('#run-filter-btn').html(' ');
+    $("#run-filter-btn").removeClass("cancel-search");
     $('#run-filter-btn').removeClass('active');
+    $("#query-builder-btn").html(" ");
+    $("#query-builder-btn").removeClass("cancel-search");
+    $("#query-builder-btn").removeClass("active");
     $('#run-metrics-query-btn').removeClass('active');
 
     wsState = 'query';
@@ -742,7 +849,7 @@ limitations under the License.
      let totalHitsFormatted = Number(totalHits).toLocaleString();
  
      if (eventType === "QUERY_UPDATE") {
-         if (totalHits > 0){
+      if (totalHits > 0){
              $('#hits-summary').html(`
              <div><span class="total-hits">${totalHitsFormatted} </span><span>of ${totalEventsSearched} Records Matched</span> </div>
  
@@ -766,25 +873,33 @@ limitations under the License.
          if (eqRel === "gte") {
              operatorSign = '>=';
          }
-         if (qtype == "aggs-query" || qtype === "segstats-query"){
-             let bucketGrammer = totalHits == 1 ? "bucket was" : "buckets were"; 
-             $('#hits-summary').html(`
+         if (qtype == "aggs-query" || qtype === "segstats-query") {
+           let bucketGrammer = totalHits == 1 ? "bucket was" : "buckets were";
+           $("#hits-summary").html(`
+             <div>Response: ${timeToFirstByte} ms</div>
              <div><span class="total-hits">${operatorSign} ${totalHitsFormatted}</span><span> ${bucketGrammer} created from ${totalEventsSearched} records.</span></div>
-             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-             <div class="text-end">Response: ${timeToFirstByte} ms</div>
+             <div>${dateFns.format(
+               startDate,
+               timestampDateFmt
+             )} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
          `);
-         }
-         else if (totalHits > 0){
-         $('#hits-summary').html(`
+         } else if (totalHits > 0) {
+           $("#hits-summary").html(`
+             <div>Response: ${timeToFirstByte} ms</div>
              <div><span class="total-hits">${operatorSign} ${totalHitsFormatted}</span><span> of ${totalEventsSearched} Records Matched</span></div>
-             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-             <div class="text-end">Response: ${timeToFirstByte} ms</div>
+             <div>${dateFns.format(
+               startDate,
+               timestampDateFmt
+             )} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
          `);
-         } else{
-             $('#hits-summary').html(`
+         } else {
+           $("#hits-summary").html(`
+             <div>Response: ${timeToFirstByte} ms</div>
              <div><span> ${totalEventsSearched} Records Searched</span></div>
-             <div class="text-center">${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-             <div class="text-end">Response: ${timeToFirstByte} ms</div>
+             <div>${dateFns.format(
+               startDate,
+               timestampDateFmt
+             )} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
          `);
          }
          $('#progress-div').html(``)

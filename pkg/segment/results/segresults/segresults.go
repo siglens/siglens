@@ -256,6 +256,8 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			sstResult, err = segread.GetSegMin(sr.runningSegStat[idx], currSst)
 		case utils.Max:
 			sstResult, err = segread.GetSegMax(sr.runningSegStat[idx], currSst)
+		case utils.Range:
+			sstResult, err = segread.GetSegRange(sr.runningSegStat[idx], currSst)
 		case utils.Cardinality:
 			sstResult, err = segread.GetSegCardinality(sr.runningSegStat[idx], currSst)
 		case utils.Count:
