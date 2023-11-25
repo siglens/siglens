@@ -20,11 +20,7 @@ func AddAccessLogEntry(data dtypeutils.AccessLogData, fileName string) {
 		return
 	}
 	// Do not log internal search requests for trace data
-	if strings.TrimSpace(data.URI) == "http:///" || strings.TrimSpace(data.URI) == "https:///" {
-		return
-	}
-	// If the request body has a Json key called indexName and it's value is trace, do not log the request
-	if strings.Contains(data.RequestBody, "\"indexName\":\"traces\"") {
+	if (strings.TrimSpace(data.URI) == "http:///" || strings.TrimSpace(data.URI) == "https:///") && strings.Contains(data.RequestBody, "\"indexName\":\"traces\"") {
 		return
 	}
 

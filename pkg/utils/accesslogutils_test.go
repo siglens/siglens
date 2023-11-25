@@ -62,7 +62,7 @@ func Test_AddLogEntryValidations(t *testing.T) {
 				TimeStamp:   "",
 				UserName:    "",
 				URI:         "http:///",
-				RequestBody: "",
+				RequestBody: "{\n  \"indexName\":\"traces\"\n}",
 				StatusCode:  0,
 				Duration:    0,
 			},
@@ -70,16 +70,6 @@ func Test_AddLogEntryValidations(t *testing.T) {
 		{ //case 2
 			dtypeutils.AccessLogData{
 				StatusCode: 101,
-			},
-		},
-		{ // case 3
-			dtypeutils.AccessLogData{
-				TimeStamp:   "",
-				UserName:    "",
-				URI:         "",
-				RequestBody: "{\n  \"indexName\":\"traces\"\n}",
-				StatusCode:  0,
-				Duration:    0,
 			},
 		},
 	}
