@@ -75,9 +75,6 @@ func ExpandAndReturnIndexNames(indexPattern string, allVirtualTableNames map[str
 		}
 
 	} else {
-		if isIndexExcluded(indexPattern) {
-			return indicesEntries, aliasesEntries, nil
-		}
 		_, exists := allVirtualTableNames[indexPattern]
 		if exists {
 			newEntry := IndicesBody(indexPattern)

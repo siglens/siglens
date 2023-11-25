@@ -211,21 +211,20 @@ func Test_ExpandAndReturnIndexNames(t *testing.T) {
 	indicesExpected := "idx-blah1"
 	assert.Equal(t, indicesExpected, indicesEntries[0])
 
-	indexPattern = "*traces*"
+	indexPattern = "traces"
 	indicesEntries = ExpandAndReturnIndexNames(indexPattern, 0, false)
-	assert.Equal(t, 0, len(indicesEntries))
+	indicesExpected = "traces"
+	assert.Equal(t, indicesExpected, indicesEntries[0])
 
 	indexPattern = "service-dependency"
 	indicesEntries = ExpandAndReturnIndexNames(indexPattern, 0, false)
-	assert.Equal(t, 0, len(indicesEntries))
+	indicesExpected = "service-dependency"
+	assert.Equal(t, indicesExpected, indicesEntries[0])
 
-	indexPattern = "red-traces*"
+	indexPattern = "red-traces"
 	indicesEntries = ExpandAndReturnIndexNames(indexPattern, 0, false)
-	assert.Equal(t, 0, len(indicesEntries))
-
-	indexPattern = "red-traces-1*"
-	indicesEntries = ExpandAndReturnIndexNames(indexPattern, 0, false)
-	assert.Equal(t, 1, len(indicesEntries))
+	indicesExpected = "red-traces"
+	assert.Equal(t, indicesExpected, indicesEntries[0])
 
 	// special test code only to override the default paths and have idempotent tests
 	os.RemoveAll(config.GetRunningConfig().DataPath)

@@ -603,10 +603,10 @@ func ExpandAndReturnIndexNames(indexNameIn string, orgid uint64, isElastic bool)
 	} else {
 		indexNames := strings.Split(indexNameIn, ",")
 		for _, indexName := range indexNames {
-			if isIndexExcluded(indexName) {
-				continue
-			}
 			if strings.Contains(indexName, "*") {
+				if isIndexExcluded(indexName) {
+					continue
+				}
 				regexStr := "^" + strings.ReplaceAll(indexName, "*", `.*`) + "$"
 				indexRegExp, err := regexp.Compile(regexStr)
 				if err != nil {

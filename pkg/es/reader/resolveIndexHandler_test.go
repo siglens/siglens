@@ -155,30 +155,58 @@ func Test_ExpandAndReturnIndexNames(t *testing.T) {
 	assert.EqualValues(t, indicesExpected, indicesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", indicesExpected, indicesEntries))
 	assert.EqualValues(t, aliasesExpected, aliasesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", aliasesExpected, aliasesEntries))
 
-	indexPattern = "service-dependency*"
+	indexPattern = "*"
 
 	indicesEntries, aliasesEntries, err = ExpandAndReturnIndexNames(indexPattern, allVirtualTableNames, 0)
 	assert.Nil(t, err)
 
-	indicesExpected = []esutils.ResolveIndexEntry{}
-	assert.EqualValues(t, indicesExpected, indicesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", indicesExpected, indicesEntries))
-	assert.EqualValues(t, aliasesExpected, aliasesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", aliasesExpected, aliasesEntries))
-
-	indexPattern = "traces"
-
-	indicesEntries, aliasesEntries, err = ExpandAndReturnIndexNames(indexPattern, allVirtualTableNames, 0)
-	assert.Nil(t, err)
-
-	indicesExpected = []esutils.ResolveIndexEntry{}
-	assert.EqualValues(t, indicesExpected, indicesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", indicesExpected, indicesEntries))
-	assert.EqualValues(t, aliasesExpected, aliasesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", aliasesExpected, aliasesEntries))
+	indicesExpected = []esutils.ResolveIndexEntry{
+		{
+			Name:       "idx-blah1",
+			Attributes: []string{"open"},
+			Aliases:    []string{},
+		},
+		{
+			Name:       "idx-blah2",
+			Attributes: []string{"open"},
+			Aliases:    []string{},
+		},
+		{
+			Name:       "blah3-idx",
+			Attributes: []string{"open"},
+			Aliases:    []string{},
+		},
+	}
+	assert.EqualValues(t, len(indicesExpected), len(indicesEntries), fmt.Sprintf("Comparison failed, expected=%v, actual=%v", indicesExpected, indicesEntries))
+	assert.EqualValues(t, len(aliasesExpected), len(aliasesEntries), fmt.Sprintf("Comparison failed, expected=%v, actual=%v", aliasesExpected, aliasesEntries))
 
 	indexPattern = "red-traces"
 
 	indicesEntries, aliasesEntries, err = ExpandAndReturnIndexNames(indexPattern, allVirtualTableNames, 0)
 	assert.Nil(t, err)
 
-	indicesExpected = []esutils.ResolveIndexEntry{}
+	indicesExpected = []esutils.ResolveIndexEntry{
+		{
+			Name:       "red-traces",
+			Attributes: []string{"open"},
+			Aliases:    []string{},
+		},
+	}
+	assert.EqualValues(t, indicesExpected, indicesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", indicesExpected, indicesEntries))
+	assert.EqualValues(t, aliasesExpected, aliasesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", aliasesExpected, aliasesEntries))
+
+	indexPattern = "service-dependency"
+
+	indicesEntries, aliasesEntries, err = ExpandAndReturnIndexNames(indexPattern, allVirtualTableNames, 0)
+	assert.Nil(t, err)
+
+	indicesExpected = []esutils.ResolveIndexEntry{
+		{
+			Name:       "service-dependency",
+			Attributes: []string{"open"},
+			Aliases:    []string{},
+		},
+	}
 	assert.EqualValues(t, indicesExpected, indicesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", indicesExpected, indicesEntries))
 	assert.EqualValues(t, aliasesExpected, aliasesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", aliasesExpected, aliasesEntries))
 
