@@ -4464,6 +4464,14 @@ color: #C8C7CC;
     margin: 0; 
     display: inline; 
 }
+/*metric.html*/
+.search{
+    font-style: italic;
+    font-family: Helvetica;
+    font-weight: bold;
+    color:black;
+}
 
-
-
+.search:hover{
+    color:deepskyblue;
+}
