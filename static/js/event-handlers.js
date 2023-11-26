@@ -373,6 +373,16 @@ function runLiveTailBtnHandler(evt) {
   }
   $("#daterangepicker").hide();
 }
+/**
+ * 
+ * @returns true if the 2nd and 3rd box are all selected or all unselected
+ */
+function SecondOrThirdBox(){
+    let num = 0;
+    if(secondBoxSet && secondBoxSet.size > 0) num++;
+    if (thirdBoxSet && thirdBoxSet.size > 0) num++;
+    return num != 1;
+}
 function runFilterBtnHandler(evt) {
     $('.popover').hide();
     evt.preventDefault();
@@ -380,10 +390,15 @@ function runFilterBtnHandler(evt) {
       $("#run-filter-btn").text() === " " ||
       $("#query-builder-btn").text() === " "
     ) {
+
       resetDashboard();
       logsRowData = [];
       wsState = "query";
       data = getSearchFilter(false, false);
+      if (!SecondOrThirdBox()) {
+        alert("Error");
+        return;
+      }
       availColNames = [];
       doSearch(data);
     } else {
@@ -404,6 +419,10 @@ function filterInputHandler(evt) {
       resetDashboard();
       logsRowData = [];
       data = getSearchFilter(false, false);
+      if (!SecondOrThirdBox()) {
+        alert("Error");
+        return;
+      }
       availColNames = [];
       doSearch(data);
     }

@@ -227,6 +227,7 @@
     --alerting-table-bg-color:var(--black-2);
     --alerting-table-line-color:var(--white-4);
     --alerting-table-hover: var(--black-2);
+    --tab-active-background:var(--purple-1);
 }
 
 /* end aliases */
@@ -362,6 +363,7 @@
     --alerting-table-bg-color:var(--white-2);
     --alerting-table-line-color: var(--white-3);
     --alerting-table-hover: var(--white-1);
+    --tab-active-background: #E8E3F9;
 }
 
 
@@ -3365,22 +3367,22 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 
 .section-buttons {
     display: flex;
-    height: 40px;
+    height: 44px;
     border-radius: 5px;
     width: fit-content;
     align-items: center;
-    border: 1px solid var(--subsection-border);
     padding: 4px;
     margin-top: 22px;
-    background-color: var(--black1-to-white0);
+    background: var(--myOrg-input);
+
 }
 
 .section-button {
     padding: 4px 10px 5px 10px;
-    height: 32px;
+    height: 36px;
     width: fit-content;
     border-radius: 5px;
-    background-color: var(--black1-to-white0);
+    background: var(--myOrg-input);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3397,9 +3399,9 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 .section-button.active {
-    height: 32px;
+    height: 34px;
     border: 1px solid #6347D9;
-    background: rgba(99, 71, 217, 0.15);
+    background: var(--tab-active-background);
 }
 
 .api-keys-inner-info {
@@ -4035,6 +4037,18 @@ color: #C8C7CC;
     padding: 30px;
     box-shadow: var(--box-shadow);
     overflow-y: scroll;
+}
+
+#alerting .section-buttons{
+    box-shadow: var(--box-shadow);
+}
+
+#alerting .section-buttons,#alerting .section-button{
+    background-color: var(--black1-to-white0);
+}
+
+#alerting .section-button.active{
+    background: var(--tab-active-background);
 }
 
 .subsection-heading{
