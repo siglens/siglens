@@ -7,6 +7,9 @@ let interval = null;
 var progressBar = $("#progressbar");
 var progressLabel = $(".progress-label");
 let confirmDownload = true;
+$(document).ready(() => {
+    setDownloadLogsDialog();
+})
 $(function () {
   if (typeof interval != "undefined") {
     doClearInterval();
@@ -109,7 +112,8 @@ function setDownloadLogsDialog() {
       .map((item) => {
         return headers
           .map((header) => {
-            return item[header];
+            let col = item[header];
+            return typeof col !== "string" ? col : `"${col.replace(/"/g, '""')}"`;
           })
           .join(",");
       })
@@ -158,6 +162,17 @@ function setDownloadLogsDialog() {
 
       let params = getSearchFilter(false, false);
       params.size = totalMatchLogs;
+      let searchText = params.searchText;
+      let n = searchText.indexOf("BY");
+      let arrNew = [], textArr = [];
+      if(n != -1){
+        let textCut = searchText.substring(n + 2, searchText.length);
+        let arrNew = textCut.split(",");
+        for (let i = 0; i < arrNew.length; i++) {
+          arrNew[i] = arrNew[i].trim();
+        }
+        textArr = arrNew.sort();
+      }
       $.ajax({
         method: "post",
         url: "api/search",
@@ -182,13 +197,37 @@ function setDownloadLogsDialog() {
           $("#progressbar").hide();
           setProgress(progressBar, 100);
           if (!confirmDownload) return;
-          if (res && res.hits && res.hits.records) {
+          if (res && res.hits && res.hits.records && res.hits.records.length > 0) {
             let json = JSON.stringify(res.hits.records);
             if (curChoose == ".json") downloadJson(name, json);
             else {
               const csvData = convertToCSV(json);
               downloadCsv(csvData, name);
             }
+          }else if (res && res.aggregations && res.aggregations[""].buckets.length > 0) {
+            let arr = res.aggregations[""].buckets;
+            let createNewRecords = [];
+            for(let i = 0; i < arr.length; i++){
+              let perInfo = arr[i];
+              let newPerInfo = {};
+              for(let key in perInfo){
+                if(key != "key" && key != "doc_count") newPerInfo[key] = perInfo[key].value;
+                else if(key == "key") {
+                  for(let j = 0; j < textArr.length; j++){
+                    newPerInfo[textArr[j]] = perInfo.key[j];
+                  }
+                }
+              }
+              createNewRecords.push(newPerInfo);
+            }
+            let json = JSON.stringify(createNewRecords);
+            if (curChoose == ".json") downloadJson(name, json);
+            else {
+              const csvData = convertToCSV(json);
+              downloadCsv(csvData, name);
+            }
+          }else{
+            alert("no data available");
           }
         },
         error: function () {

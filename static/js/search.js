@@ -466,8 +466,10 @@ function getColumns() {
        });
      }
      index = 0;
+     let bothRight = 0;
      //concat the second input box
      if (secondBoxSet && secondBoxSet.size > 0) {
+       bothRight++;
        filterValue += " | stats";
        secondBoxSet.forEach((value, i) => {
          if (index != secondBoxSet.size - 1) filterValue += " " + value + ",";
@@ -477,6 +479,7 @@ function getColumns() {
      }
      index = 0;
      if (thirdBoxSet && thirdBoxSet.size > 0) {
+       bothRight++;
        //concat the third input box
        filterValue += " BY";
        thirdBoxSet.forEach((value, i) => {
@@ -487,7 +490,9 @@ function getColumns() {
      }
      if (filterValue == "") filterValue = "*";
      $("#query-input").val(filterValue);
-   return filterValue;
+     if(bothRight == 1) $("#query-builder-btn").addClass("stop-search");
+     else $("#query-builder-btn").removeClass("stop-search");
+   return bothRight == 1 ? "Syntax Error" : filterValue;
   }
  function getSearchFilter(skipPushState, scrollingTrigger) {
    let currentTab = $("#custom-code-tab").tabs("option", "active");
