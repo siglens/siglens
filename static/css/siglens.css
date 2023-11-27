@@ -4469,7 +4469,7 @@ color: #C8C7CC;
     font-style: italic;
     font-family: Helvetica;
     font-weight: bold;
-    color:black;
+    color:light-black;
 }
 
 .search:hover{
@@ -4479,7 +4479,7 @@ color: #C8C7CC;
     font-style: italic;
     font-family: Helvetica;
     font-weight: bold;
-    color:black;
+    color:light-black;
 }
 .custom-search:hover{
     color:deepskyblue;
