@@ -267,6 +267,12 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 		case utils.Avg:
 			sstResult, err = segread.GetSegAvg(sr.runningSegStat[idx], currSst)
 		case utils.Values:
+
+			if currSst == nil || currSst.StringStats == nil || currSst.StringStats.StrSet == nil {
+				log.Errorf("UpdateSegmentStats: current column does not contain any value")
+				return fmt.Errorf("UpdateSegmentStats: current column does not contain any value")
+			}
+
 			uniqueStrings := make([]string, 0)
 			for str := range currSst.StringStats.StrSet {
 				uniqueStrings = append(uniqueStrings, str)
@@ -283,7 +289,7 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			return nil
 		}
 		if err != nil {
-			log.Errorf("UpdateSegmentStats, error getting segment level stats %+v", err)
+			log.Errorf("UpdateSegmentStats: error getting segment level stats %+v", err)
 			return err
 		}
 
