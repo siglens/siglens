@@ -20,6 +20,7 @@ function setupEventHandlers() {
     $('#filter-input').on('keyup', filterInputHandler);
 
     $('#run-filter-btn').on('click', runFilterBtnHandler);
+    $("#query-builder-btn").on("click", runFilterBtnHandler);
     $("#live-tail-btn").on("click", runLiveTailBtnHandler);
 
     $('#available-fields').on('click', availableFieldsClickHandler);
@@ -289,13 +290,18 @@ function hideColumnHandler(evt) {
 
 function setQueryLangHandler(e) {
     $('.query-language-option').removeClass('active');
+    let currentTab = $("#custom-code-tab").tabs("option", "active");
+    if ($(this).attr("id").split("-")[1] != "3" && currentTab == 0) {
+        $("#custom-code-tab").tabs("option", "active", 1);
+    }
     $('#query-language-btn span').html($(this).html());
     displayQueryLangToolTip($(this).attr('id').split('-')[1]);
     $(this).addClass('active');
 }
 
 function qLangOnShowHandler() {
-    $('#query-language-btn').addClass('active');
+    $("#query-language-btn").addClass("active");
+    
 }
 
 function qLangOnHideHandler() {
@@ -367,32 +373,58 @@ function runLiveTailBtnHandler(evt) {
   }
   $("#daterangepicker").hide();
 }
+/**
+ * 
+ * @returns true if the 2nd and 3rd box are all selected or all unselected
+ */
+function SecondOrThirdBox(){
+    let num = 0;
+    if(secondBoxSet && secondBoxSet.size > 0) num++;
+    if (thirdBoxSet && thirdBoxSet.size > 0) num++;
+    return num != 1;
+}
 function runFilterBtnHandler(evt) {
     $('.popover').hide();
     evt.preventDefault();
-    if ($('#run-filter-btn').text() === "Search") {
-        resetDashboard();
-        logsRowData = [];
-        wsState = 'query';
-        data = getSearchFilter(false,false);
-        availColNames = [];
-        doSearch(data);
+    if (
+      $("#run-filter-btn").text() === " " ||
+      $("#query-builder-btn").text() === " "
+    ) {
+
+      resetDashboard();
+      logsRowData = [];
+      wsState = "query";
+      data = getSearchFilter(false, false);
+      if (!SecondOrThirdBox()) {
+        alert("Error");
+        return;
+      }
+      availColNames = [];
+      doSearch(data);
     } else {
-        wsState = 'cancel';
-        data = getSearchFilter(false,false);
-        doCancel(data);
+      wsState = "cancel";
+      data = getSearchFilter(false, false);
+      doCancel(data);
     }
     $('#daterangepicker').hide();
 }
 
 function filterInputHandler(evt) {
     evt.preventDefault();
-    if (evt.keyCode === 13 && $('#run-filter-btn').text() === "Search") {
-        resetDashboard();
-        logsRowData = [];
-        data = getSearchFilter(false,false);
-        availColNames = [];
-        doSearch(data);
+    if (
+      evt.keyCode === 13 &&
+      ($("#run-filter-btn").text() === " " ||
+        $("#query-builder-btn").text() === " ")
+    ) {
+      resetDashboard();
+      logsRowData = [];
+      data = getSearchFilter(false, false);
+      if (!SecondOrThirdBox()) {
+        alert("Error");
+        return;
+      }
+      availColNames = [];
+      doSearch(data);
     }
 }
 

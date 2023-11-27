@@ -211,6 +211,9 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 	hs.Router.POST(server_utils.API_PREFIX+"/minionsearch/createMinionSearches", hs.Recovery(createMinionSearchHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/minionsearch/{alertID}", hs.Recovery(getMinionSearchHandler()))
 
+	// tracing api endpoints
+	hs.Router.POST(server_utils.API_PREFIX+"/traces/search", hs.Recovery(searchTracesHandler()))
+
 	// query server should still setup ES APIs for Kibana integration
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
 	hs.Router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(esPutIndexHandler()))

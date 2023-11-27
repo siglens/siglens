@@ -179,11 +179,13 @@ type IncludeValue struct {
 
 // Only NewColName and one of the other fields should have a value
 type LetColumnsRequest struct {
-	MultiColsRequest *MultiColLetRequest
-	SingleColRequest *SingleColLetRequest
-	ValueColRequest  *ValueExpr
-	RexColRequest    *RexExpr
-	NewColName       string
+	MultiColsRequest    *MultiColLetRequest
+	SingleColRequest    *SingleColLetRequest
+	ValueColRequest     *ValueExpr
+	RexColRequest       *RexExpr
+	StatisticColRequest *StatisticExpr
+	RenameColRequest    *RenameExpr
+	NewColName          string
 }
 
 type MultiColLetRequest struct {
@@ -228,6 +230,7 @@ type NodeResult struct {
 	ErrList          []error
 	Histogram        map[string]*AggregationResult
 	TotalResults     *QueryCount
+	RenameColumns    map[string]string
 	SegEncToKey      map[uint16]string
 	TotalRRCCount    uint64
 	MeasureFunctions []string        `json:"measureFunctions,omitempty"`
@@ -409,16 +412,23 @@ func (qa *QueryAggregators) IsAggsEmpty() bool {
 	return true
 }
 
-func (qa *QueryAggregators) HasRexBlock() bool {
-	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil && qa.OutputTransforms.LetColumns.RexColRequest != nil
+func (qa *QueryAggregators) IsStatisticBlockEmpty() bool {
+	return (qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
+		qa.OutputTransforms.LetColumns.StatisticColRequest == nil)
 }
 
-func (qa *QueryAggregators) HasRexBlockInChain() bool {
-	if qa.HasRexBlock() {
+// To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block...
+func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
+	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
+		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil)
+}
+
+func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
+	if qa.HasQueryAggergatorBlock() {
 		return true
 	}
 	if qa.Next != nil {
-		return qa.Next.HasRexBlockInChain()
+		return qa.Next.HasQueryAggergatorBlockInChain()
 	}
 	return false
 }

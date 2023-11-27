@@ -466,6 +466,10 @@ func SetPQSEnabled(enabled bool) {
 	runningConfig.PQSEnabled = strconv.FormatBool(enabled)
 }
 
+func SetQueryPort(value uint64) {
+	runningConfig.QueryPort = value
+}
+
 func IsMultinodeEnabled() bool {
 	return runningConfig.Etcd.Enabled
 }
@@ -500,7 +504,7 @@ func WriteToYamlConfig() {
 
 // InitConfigurationData is in charge to init the various Configuration data.
 // It runs only once to instantiate Configuration options.
-// If an error is encountered, the configuration was was unable to be read, so siglens should properly exit to avoid startup with wrong configurations
+// If an error is encountered, the configuration was unable to be read, so siglens should properly exit to avoid startup with wrong configurations
 func InitConfigurationData() error {
 	log.Trace("Initdatastructure.ConfigurationData | START")
 	configFilePath = ExtractCmdLineInput() // Function for validate command line INPUT

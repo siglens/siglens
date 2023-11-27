@@ -29,18 +29,18 @@ We welcome many different types of contributions including:
 * Documentation
 * Issue Triage
 
-Not everything happens through a GitHub pull request. Please join our Slack: [SigLens Community](https://www.siglens.com/slack) and let's discuss how we can work together. 
+Not everything happens through a GitHub pull request. Please join our Slack: [SigLens Community](https://www.siglens.com/slack) and let's discuss how we can work together.
 
 
 ## Find an Issue
 
 We have good first issues for new contributors and help wanted issues suitable
-for any contributor. [good first issue](https://github.com/siglens/siglens/labels/good%20first%20issue) has extra information to help you make your first contribution. 
+for any contributor. [good first issue](https://github.com/siglens/siglens/labels/good%20first%20issue) has extra information to help you make your first contribution.
 [help wanted](https://github.com/siglens/siglens/labels/help%20wanted) are issues suitable for someone who isn't a core maintainer and is good to move onto after your first pull request.
 
 Sometimes there won’t be any issues with these labels. That’s ok! There is
 likely still something for you to work on. If you want to contribute but you
-don’t know where to start or can't find a suitable issue, you can 
+don’t know where to start or can't find a suitable issue, you can
 join our slack [SigLens Community](https://www.siglens.com/slack)
 
 Once you see an issue that you'd like to work on, please post a comment saying
@@ -60,10 +60,10 @@ Once you have found the issue to be fixed or feature to be added, you can commen
 
 1. Fork Siglens repo and clone it on your local machine.
 2. Make your desired code changes
-3. Make sure local tests work. (`TBD add make all cmd`)
-4. Commit your changes to your fork.
-5. Verify that all automated CI tests pass for this PR.
-6. Send us a pull request you just created.
+3. Make sure local tests work. (`make all`)
+4. Make sure go code is formatted correctly. (`make pr`)
+5. Commit your changes to your fork.
+6. Create a pull request. (Automated CI tests will run)
 7. Once the change has been approved and merged, we will inform you in a comment.
 
 
@@ -95,7 +95,7 @@ In another terminal, start the ingestion via `sigscalr-client` by running:
 go run main.go ingest esbulk -t 10_000 -d http://localhost:8081/elastic --processCount 1 -n 1 -b 500 -g dynamic-user
 ```
 
-Look through the [sigscalr-client ReadMe](https://github.com/sigscalr/sigscalr-client/README.md) to see all command arguments.
+Look through the [sigscalr-client ReadMe](https://github.com/sigscalr/sigscalr-client/blob/main/README.md) to see all command arguments.
 
 
 ### Send Queries on Siglens
@@ -116,28 +116,7 @@ passes these checks, but we also have more criteria than just that before we can
 accept and merge it. We recommend that you check the following things locally
 before you submit your code:
 
-Check goimports:
+lint, UTs, gofmt :
 ```
-    go install golang.org/x/tools/cmd/goimports@latest
-    export PATH=$PATH:$(go env GOPATH)/bin
-    goimports -w .
-```
-lint:
-```
-    golangci-lint run --timeout=3m
-```
-
-ut:
-```
-    go test ./... -count 1
-```
-build:
-```
-    go mod download
-    go build -o siglens cmd/siglens/main.go
-```
-
-run:
-```
-    go run cmd/siglens/main.go --config server.yaml
+    make pr
 ```

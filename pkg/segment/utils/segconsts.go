@@ -276,6 +276,7 @@ const (
 	Avg
 	Min
 	Max
+	Range
 	Sum
 	Cardinality
 	Quantile
@@ -298,6 +299,8 @@ func (e AggregateFunctions) String() string {
 		return "min"
 	case Max:
 		return "max"
+	case Range:
+		return "range"
 	case Sum:
 		return "sum"
 	case Cardinality:

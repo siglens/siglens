@@ -27,6 +27,7 @@ import (
 	otsdbwriter "github.com/siglens/siglens/pkg/integrations/otsdb/writer"
 	prometheuswriter "github.com/siglens/siglens/pkg/integrations/prometheus/ingest"
 	"github.com/siglens/siglens/pkg/integrations/splunk"
+	"github.com/siglens/siglens/pkg/otlp"
 	"github.com/siglens/siglens/pkg/sampledataset"
 	"github.com/valyala/fasthttp"
 )
@@ -90,6 +91,12 @@ func esGreetHandler() func(ctx *fasthttp.RequestCtx) {
 func prometheusPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		prometheuswriter.PutMetrics(ctx)
+	}
+}
+
+func otlpIngestTracesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		otlp.ProcessTraceIngest(ctx)
 	}
 }
 

@@ -61,45 +61,9 @@
                     <h3 class="name-dashboard"></h3>
                 </div>
                 <div class="btn-container">
-                    <button class="btn" id="add-panel-btn" title="Add panel">
-                        <span>
-                            <img src="./assets/add-icon.svg" class="add-icon" /> </span>Add Panel
-                    </button>
-                    <button class="btn" id="save-db-btn" title="Save dashboard">
-                        <span><img src="./assets/save-icon.svg" alt="" /></span>
-                    </button>
-                    <button class="btn settings-btn" title="Dashboard settings">
-                        <span><img src="./assets/settings-icon.svg" alt="" /></span>
-                    </button>
-                    <div class="refresh-container">
-                        <button class="btn refresh-btn" title="Refresh dashboard">
-                            <span><img src="./assets/refresh-icon.svg" alt="" /></span>
-                        </button>
-                        <div class="dropdown">
-                            <button class="btn dropdown-toggle" type="button" id="refresh-picker-btn"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                                data-bs-toggle="dropdown">
-                                <span></span>
-                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                            </button>
-                            <div class="dropdown-menu refresh-picker" aria-labelledby="index-btn" id="refresh-picker ">
-                                <div class="ranges">
-                                    <div id="0" class="refresh-range-item">Off</div>
-                                    <div id="5m" class="refresh-range-item">5m</div>
-                                    <div id="30m" class="refresh-range-item">30m</div>
-                                    <div id="1h" class="refresh-range-item">1h</div>
-                                    <div id="5h" class="refresh-range-item">5h</div>
-                                    <div id="1d" class="refresh-range-item">1d</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="dropdown">
-                        <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown"
-                            aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
-                            title="Pick the time window">
+                        <button class="btn dropdown-toggle btn-top index-btn-show" type="button" id="date-picker-btn" data-toggle="dropdown"
+                            aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Pick the time window">
                             <span>Time Picker</span>
                             <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
                             <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
@@ -129,6 +93,7 @@
                                 </div>
                                 <hr>
                                 </hr>
+
         <div class="dt-header">Custom Search <span id="reset-timepicker"
                  type="reset">Reset</span>
         </div>
@@ -145,9 +110,54 @@
 <div class="drp-buttons">
     <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn" type="button">Apply</button>
 </div>
+
+                                <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span></div>
+                                <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
+                                    <input type="date" id="date-start" />
+                                    <input type="time" id="time-start" value="00:00" />
+                                </div>
+                                <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
+                                    <input type="date" id="date-end">
+                                    <input type="time" id="time-end" value="00:00">
+                                </div>
+                                <div class="drp-buttons">
+                                    <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn" type="button">Apply</button>
+                                </div>
+
                             </div>
                         </div>
                     </div>
+                    <button class="btn dropdown-dash" id="save-db-btn" title="Save dashboard">
+                    </button>
+                    <button class="btn settings-btn" title="Dashboard settings">
+                    </button>
+                    <div class="refresh-container">
+                        <button class="btn refresh-btn" title="Refresh dashboard">
+                        </button>
+                        <div class="dropdown">
+                            <button class="btn dropdown-toggle" type="button" id="refresh-picker-btn"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bs-toggle="dropdown">
+                                <span></span>
+                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                            </button>
+                            <div class="dropdown-menu refresh-picker" aria-labelledby="index-btn" id="refresh-picker ">
+                                <div class="ranges">
+                                    <div id="0" class="refresh-range-item">Off</div>
+                                    <div id="5m" class="refresh-range-item">5m</div>
+                                    <div id="30m" class="refresh-range-item">30m</div>
+                                    <div id="1h" class="refresh-range-item">1h</div>
+                                    <div id="5h" class="refresh-range-item">5h</div>
+                                    <div id="1d" class="refresh-range-item">1d</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn" id="add-panel-btn" title="Add panel">
+                        <span>
+                            <img src="./assets/add-icon.svg" class="add-icon" /> </span>Add Panel
+                    </button>
                 </div>
             </div>
 
@@ -176,14 +186,14 @@
             <div class="panEdit-navBar">
                 <div>
                     <span class="panEdit-goToDB" title="Go back">&#8592</span>
-                    <span class="panEdit-dbName">DBName</span>
-                    <span> / </span>
-                    <span class="panelTitle">Panel 1</span>
+                    <span class="panEdit-dbName over-title">DBName</span>
+                    <span class="over-title"> / </span>
+                    <span class="panelTitle over-title">Panel 1</span>
                 </div>
 
                 <div class="navbar-options">
                     <div class="dropdown">
-                        <button class="btn dropdown-toggle" type="button" id="index-btn" data-toggle="dropdown"
+                        <button class="btn dropdown-toggle btn-top" type="button" id="index-btn" data-toggle="dropdown"
                             aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
                             title="Index Name to search on" style="display: none;">
                             <span>Index</span>
@@ -193,7 +203,7 @@
                         <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="available-indexes">
                             <div id="index-listing"></div>
                         </div>
-                        <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown"
+                        <button class="btn dropdown-toggle btn-top" type="button" id="date-picker-btn" data-toggle="dropdown"
                             aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
                             title="Pick the time window">
                             <span>Time Picker</span>
@@ -271,13 +281,13 @@
                         <div class="caret"></div>
                     </div>
                     <ul class="editPanelMenu editPanelMenu-dataSource">
-                        <div class="editPanelMenu-options" id="datasource-options" data-index="0">
+                        <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="0">
                             <li data-value="Metrics">Metrics</li>
                         </div>
-                        <div class="editPanelMenu-options" id="datasource-options" data-index="1">
+                        <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="1">
                             <li data-value="Logs">Logs</li>
                         </div>
-                        <div class="editPanelMenu-options" id="datasource-options" data-index="2">
+                        <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="2">
                             <li data-value="Traces">Traces</li>
                         </div>
                     </ul>
@@ -356,10 +366,8 @@
         <div class="panelEditorRight">
             <div class="panEdit-navBtns">
                 <button class="btn settings-btn panEdit-btn" title="Open dashboard settings">
-                    <span><img src="./assets/settings-icon.svg" alt=""></span>
                 </button>
                 <button class="btn refresh-btn panEdit-btn" title="Refresh dashboard">
-                    <span><img src="./assets/refresh-icon.svg" alt="" /></span>
                 </button>
                 <button class="panEdit-btn panEdit-discard" id="discard-btn" title="Undo all changes">Discard</button>
                 <button class="panEdit-btn panEdit-save" id="save-btn"
@@ -380,22 +388,28 @@
                     <div class="caret"></div>
                 </div>
                 <ul class="editPanelMenu editPanelMenu-chart">
-                    <div class="editPanelMenu-options" id="chart-type-options" data-index="0">
+                    <div class="editPanelMenu-options chart-options" id="chart-type-options" data-index="0">
+                        <img src="./assets/line-chart.svg" alt="" class="chart-display"/>
                         <li>Line Chart</li>
                     </div>
-                    <div class="editPanelMenu-options" id="chart-type-options" data-index="1">
+                    <div class="editPanelMenu-options chart-options" id="chart-type-options" data-index="1">
+                        <img src="./assets/bar-chart.svg" alt="" class="chart-display"/>
                         <li>Bar Chart</li>
                     </div>
-                    <div class="editPanelMenu-options" id="chart-type-options" data-index="2">
+                    <div class="editPanelMenu-options chart-options" id="chart-type-options" data-index="2">
+                        <img src="./assets/pie-chart.svg" alt="" class="chart-display"/>
                         <li>Pie Chart</li>
                     </div>
-                    <div class="editPanelMenu-options" id="chart-type-options" data-index="3">
+                    <div class="editPanelMenu-options chart-options" id="chart-type-options" data-index="3">
+                        <img src="./assets/data-table.svg" alt="" class="chart-display"/>
                         <li>Data Table</li>
                     </div>
                     <div class="editPanelMenu-options" id="chart-type-options" data-index="4">
+                        <img src="./assets/number-chart.svg" alt="" class="chart-display" />
                         <li>Number</li>
                     </div>
                     <div class="editPanelMenu-options" id="chart-type-options" data-index="5">
+                        <img src="./assets/log-lines.svg" alt="" class="chart-display" />
                         <li>Log Lines</li>
                     </div>
                 </ul>
