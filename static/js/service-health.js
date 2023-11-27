@@ -47,6 +47,7 @@ const columnDefs=[
 
 const gridOptions = {
     rowData: serviceRowData ,
+    onCellClicked: onCellClicked,
     defaultColDef: {
       cellStyle: { 'text-align': "left" },
       resizable: true,
@@ -119,5 +120,13 @@ function displayServiceHealthTable(res){
     gridOptions.api.setRowData(serviceRowData);
     gridOptions.api.sizeColumnsToFit();
 }
+
+function onCellClicked(event) {
+    if (event.colDef.field === 'service') {
+        const serviceName = event.value;
+        window.open('service-health-graphs.html?service=' + encodeURIComponent(serviceName), '_blank');
+    }
+}
+
 
 
