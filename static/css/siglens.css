@@ -4616,6 +4616,56 @@ color: #C8C7CC;
     margin-bottom: 20px;
     margin-left: 10px;
 }
+
+
+/*minion-searches.html*/
+#button-list {
+    list-style: none; 
+    padding: 0; 
+}
+
+
+#button-list li {
+    display: inline-block; 
+    margin-bottom: -4px; 
+}
+
+#button-list button {
+    display: inline-block; 
+    padding: 8px 12px;
+    border:1px solid black;
+   background-color:aliceblue;
+    text-align: left; 
+    margin-right: 5px; 
+    margin-bottom: 5px; 
+
+}
+
+#button-list button h3, #button-list button h4 {
+    margin: 0; 
+    display: inline; 
+}
+/*metric.html*/
+.search{
+    font-style: italic;
+    font-family: Helvetica;
+    font-weight: bold;
+    color:black;
+}
+
+.search:hover{
+    color:deepskyblue;
+}
+.custom-search{
+    font-style: italic;
+    font-family: Helvetica;
+    font-weight: bold;
+    color:black;
+}
+.custom-search:hover{
+    color:deepskyblue;
+}
+=======
 #alert-form .btn-container,#contact-form .btn-container {
     margin-top: -90px;
     position: absolute;
@@ -4748,4 +4798,5 @@ color: #C8C7CC;
     -webkit-transform: translate(-50%, -50%);
     transform: translate(-50%, -50%);
 }
+
 
