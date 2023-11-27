@@ -7,7 +7,6 @@ SIGLENS_VERSION=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/ver
 
 platforms=("$(go env GOOS)/$(go env GOARCH)")
 add_playground=""
-
 while getopts p:b:g: flag
 do
     case "${flag}" in
@@ -44,13 +43,8 @@ for platform in "${platforms[@]}"; do
         fi
     fi
     if [ ${GOOS} = "darwin" ]; then
-        export CC=clang 
+        export CC="clang -arch ${GOARCH}"
         export CGO_ENABLED=1
-        CFLAGS += [
-          "-arch",
-          ${GOARCH},
-        ]
-        export CFLAGS=$CFLAGS
         echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}."
         go build -o siglens cmd/siglens/main.go
     fi
