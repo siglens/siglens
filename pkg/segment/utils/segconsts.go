@@ -141,6 +141,7 @@ const (
 	SS_DT_UNSIGNED_NUM
 	SS_DT_FLOAT
 	SS_DT_STRING
+	SS_DT_STRING_LIST
 	SS_DT_BACKFILL
 	SS_DT_SIGNED_32_NUM
 	SS_DT_USIGNED_32_NUM
@@ -280,6 +281,7 @@ const (
 	Sum
 	Cardinality
 	Quantile
+	Values
 )
 
 type RangeFunctions int
@@ -305,6 +307,8 @@ func (e AggregateFunctions) String() string {
 		return "sum"
 	case Cardinality:
 		return "cardinality"
+	case Values:
+		return "values"
 	default:
 		return fmt.Sprintf("%d", int(e))
 	}
@@ -481,6 +485,8 @@ func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 
 func (e *CValueEnclosure) GetValue() (interface{}, error) {
 	switch e.Dtype {
+	case SS_DT_STRING_LIST:
+		return e.CVal.([]string), nil
 	case SS_DT_STRING:
 		return e.CVal.(string), nil
 	case SS_DT_BOOL:
