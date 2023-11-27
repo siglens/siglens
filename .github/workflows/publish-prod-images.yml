@@ -1,0 +1,174 @@
+name: siglens-docker-release
+on:
+  push:
+    branches:
+      - 'main'
+jobs:
+  siglens-docker:
+    runs-on: ubuntu-latest
+    environment: build-environment
+    permissions:
+        id-token: write
+        contents: read
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      - 
+        uses: satackey/action-docker-layer-caching@v0.0.11
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - 
+        name: Get Version number
+        id: get-version
+        run: |
+            TAG=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
+            echo "TAG=$TAG" >> $GITHUB_ENV
+            cat $GITHUB_ENV
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+            images: siglens/siglens
+            tags: |
+              type=raw,value=${{ env.TAG }}
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - 
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      -
+        name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+            context: .
+            file: Dockerfile
+            push: true
+            platforms: linux/amd64,linux/arm64
+            tags: ${{ steps.meta.outputs.tags }}          
+  sigscalr-binaries:
+      runs-on: ubuntu-latest
+      environment: build-environment
+      permissions:
+        id-token: write
+        contents: read
+      steps:
+        -
+          name: Checkout
+          uses: actions/checkout@v3
+        - 
+          name: Setup go
+          uses: actions/setup-go@v3
+          with:
+            go-version: '>=1.18.0'
+        -
+          name: Setup zig
+          uses: goto-bus-stop/setup-zig@v2
+        - 
+          name: install cross compiler for linux/amd64
+          run: sudo apt-get -y install build-essential
+        - 
+          name: version
+          run: |
+            RELEASE_TAG=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
+            echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+            cat $GITHUB_ENV
+        -
+          name: Package SigLens
+          run: |
+            chmod +x package_siglens.sh
+            ./package_siglens.sh -p linux/amd64,linux/arm64,darwin/amd64,darwin/arm64
+        - name: release
+          uses: actions/create-release@v1
+          id: create_release
+          with:
+              draft: false
+              prerelease: false
+              release_name: ${{ env.RELEASE_TAG }}
+              tag_name: ${{ env.RELEASE_TAG }}
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+        - name: upload linux amd artifact
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: "siglens-${{ env.RELEASE_TAG }}-linux-amd64.tar.gz"
+            asset_name: "siglens-${{ env.RELEASE_TAG }}-linux-amd64.tar.gz"
+            asset_content_type: application/gzip
+        - name: upload linux arm artifact
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: "siglens-${{ env.RELEASE_TAG }}-linux-arm64.tar.gz"
+            asset_name: "siglens-${{ env.RELEASE_TAG }}-linux-arm64.tar.gz"
+            asset_content_type: application/gzip
+    
+        - name: upload darwin amd artifact
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: "siglens-${{ env.RELEASE_TAG }}-darwin-amd64.tar.gz"
+            asset_name: "siglens-${{ env.RELEASE_TAG }}-darwin-amd64.tar.gz"
+            asset_content_type: application/gzip
+        - name: upload darwin arm artifact
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: "siglens-${{ env.RELEASE_TAG }}-darwin-arm64.tar.gz"
+            asset_name: "siglens-${{ env.RELEASE_TAG }}-darwin-arm64.tar.gz"
+            asset_content_type: application/gzip
+        - name: Upload Release Asset - server.yaml
+          id: upload-release-asset-serverConfig
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: server.yaml
+            asset_name: server.yaml
+            asset_content_type: application/octet-stream
+        - name: Upload Release Asset - Install using binary script
+          id: upload-release-asset-InstallBinaryScripts
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: install_with_binary.sh
+            asset_name: install_with_binary.sh
+            asset_content_type: application/octet-stream
+        - name: Upload Release Asset - Install using git script
+          id: upload-release-asset-InstallGitScripts
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: install_with_git.sh
+            asset_name: install_with_git.sh
+            asset_content_type: application/octet-stream
+        - name: Upload Release Asset - Install using docker script
+          id: upload-release-asset-InstallDockerScripts
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: install_with_docker.sh
+            asset_name: install_with_docker.sh
+            asset_content_type: application/octet-stream
+    

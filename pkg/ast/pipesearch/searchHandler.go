@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
+
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
@@ -53,7 +55,7 @@ Example incomingBody
 
 finalSize = size + from
 */
-func parseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int) {
+func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int) {
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
 	var scrollFrom int
@@ -241,11 +243,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := parseSearchBody(readJSON, nowTs)
-	if err != nil {
-		log.Errorf("qid=%d, ALERTSERVICE: ProcessAlertsPipeSearchRequest: failed to parse search body  err=%v", qid, err)
-		return -1
-	}
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
 
 	if scrollFrom > 10_000 {
 		return -1
@@ -324,7 +322,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf(" ProcessPipeSearchRequest: received empty search request body ")
-		setBadMsg(ctx)
+		SetBadMsg(ctx)
 		return
 	}
 	qid := rutils.GetNextQid()
@@ -344,16 +342,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := parseSearchBody(readJSON, nowTs)
-	if err != nil {
-		log.Errorf("qid=%d, ProcessPipeSearchRequest: failed to parse search body  err=%v", qid, err)
-
-		_, wErr := ctx.WriteString(err.Error())
-		if wErr != nil {
-			log.Errorf("qid=%d,ProcessPipeSearchRequest: could not write error message! %+v", qid, wErr)
-		}
-		return
-	}
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
 
 	if scrollFrom > 10_000 {
 		processMaxScrollCount(ctx, qid)
@@ -406,6 +395,17 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	utils.WriteJsonResponse(ctx, httpRespOuter)
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
+
+	// Writing to access.log in the following format
+	// timeStamp <logged-in user> <request URI> <request body> <response status code> <elapsed time in ms>
+	utils.AddAccessLogEntry(dtypeutils.AccessLogData{
+		TimeStamp:   time.Now().Format("2006-01-02 15:04:05"),
+		UserName:    "No-user", // TODO : Add logged in user when user auth is implemented
+		URI:         ctx.Request.URI().String(),
+		RequestBody: string(ctx.PostBody()),
+		StatusCode:  ctx.Response.StatusCode(),
+		Duration:    httpRespOuter.ElapedTimeMS,
+	}, "access.log")
 }
 
 func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string) PipeSearchResponseOuter {
@@ -506,7 +506,7 @@ func convertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
 	return utils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
 }
 
-func setBadMsg(ctx *fasthttp.RequestCtx) {
+func SetBadMsg(ctx *fasthttp.RequestCtx) {
 	var httpResp utils.HttpServerResponse
 	ctx.SetStatusCode(fasthttp.StatusBadRequest)
 	httpResp.Message = "Bad Request"

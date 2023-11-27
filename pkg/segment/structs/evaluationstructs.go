@@ -22,8 +22,12 @@ import (
 	"net"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/dustin/go-humanize"
 
 	"github.com/siglens/siglens/pkg/segment/utils"
 )
@@ -48,10 +52,33 @@ type BoolExpr struct {
 	BoolOp    BoolOperator
 }
 
+type RenameExpr struct {
+	RenameExprMode  RenameExprMode
+	OriginalPattern string
+	NewPattern      string
+}
+
 type RexExpr struct {
 	Pattern     string
 	FieldName   string
 	RexColNames []string
+}
+
+type StatisticExpr struct {
+	StatisticFunctionMode StatisticFunctionMode
+	Limit                 string
+	Options               *Options
+	FieldList             []string //Must have FieldList
+	ByClause              []string
+}
+
+type Options struct {
+	CountField   string
+	OtherStr     string
+	PercentField string
+	ShowCount    bool
+	ShowPerc     bool
+	UseOther     bool
 }
 
 // See ValueExprMode type definition for which fields are valid for each mode.
@@ -62,6 +89,7 @@ type ValueExpr struct {
 	NumericExpr   *NumericExpr
 	StringExpr    *StringExpr
 	ConditionExpr *ConditionExpr
+	BooleanExpr   *BoolExpr
 }
 
 type ConcatExpr struct {
@@ -87,6 +115,7 @@ type NumericExpr struct {
 	Op    string // Either +, -, /, *, abs, ceil, round, sqrt, len
 	Left  *NumericExpr
 	Right *NumericExpr
+	Val   *StringExpr
 }
 
 type StringExpr struct {
@@ -104,6 +133,10 @@ type TextExpr struct {
 	StrToRemove  string
 	Delimiter    *StringExpr
 	MaxMinValues []*StringExpr
+	StartIndex   *NumericExpr
+	LengthExpr   *NumericExpr
+	Val          *ValueExpr
+	Format       *StringExpr
 }
 
 type ConditionExpr struct {
@@ -121,12 +154,28 @@ const (
 	BoolOpOr
 )
 
+type StatisticFunctionMode uint8
+
+const (
+	SFMTop = iota
+	SFMRare
+)
+
+type RenameExprMode uint8
+
+const (
+	REMPhrase   = iota //Rename with a phrase
+	REMRegex           //Rename fields with similar names using a wildcard
+	REMOverride        //Rename to a existing field
+)
+
 type ValueExprMode uint8
 
 const (
 	VEMNumericExpr   = iota // Only NumricExpr is valid
 	VEMStringExpr           // Only StringExpr is valid
 	VEMConditionExpr        // Only ConditionExpr is valud
+	VEMBooleanExpr          // Only BooleanExpr is valid
 )
 
 type StringExprMode uint8
@@ -414,6 +463,12 @@ func (self *ValueExpr) EvaluateToString(fieldToValue map[string]utils.CValueEncl
 			return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string %v", err)
 		}
 		return str, nil
+	case VEMBooleanExpr:
+		boolResult, err := self.BooleanExpr.Evaluate(fieldToValue)
+		if err != nil {
+			return "", err
+		}
+		return strconv.FormatBool(boolResult), nil
 	default:
 		return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string")
 	}
@@ -431,7 +486,6 @@ func (self *StringExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) 
 		if str, err := getValueAsString(fieldToValue, self.FieldName); err == nil {
 			return str, nil
 		}
-
 		return "", fmt.Errorf("StringExpr.Evaluate: cannot evaluate to field")
 	case SEMConcatExpr:
 		return self.ConcatExpr.Evaluate(fieldToValue)
@@ -465,6 +519,8 @@ func (self *ValueExpr) GetFields() []string {
 		return self.StringExpr.GetFields()
 	case VEMConditionExpr:
 		return self.ConditionExpr.GetFields()
+	case VEMBooleanExpr:
+		return self.BooleanExpr.GetFields()
 	default:
 		return []string{}
 	}
@@ -474,6 +530,20 @@ func (self *RexExpr) GetFields() []string {
 	var fields []string
 	fields = append(fields, self.FieldName)
 	return fields
+}
+
+func (self *RenameExpr) GetFields() []string {
+	fields := make([]string, 0)
+
+	switch self.RenameExprMode {
+	case REMPhrase:
+		fallthrough
+	case REMOverride:
+		fields = append(fields, self.OriginalPattern)
+		return fields
+	default:
+		return []string{}
+	}
 }
 
 func (self *StringExpr) GetFields() []string {
@@ -532,6 +602,249 @@ func (self *ConcatExpr) GetFields() []string {
 	return fields
 }
 
+func GetBucketKey(BucketKey interface{}, keyIndex int) string {
+	switch bucketKey := BucketKey.(type) {
+	case []string:
+		return bucketKey[keyIndex]
+	case string:
+		return bucketKey
+	default:
+		return ""
+	}
+}
+
+func (self *StatisticExpr) OverrideGroupByCol(bucketResult *BucketResult, resTotal uint64) error {
+
+	cellValueStr := ""
+	for keyIndex, groupByCol := range bucketResult.GroupByKeys {
+		if !self.Options.ShowCount || !self.Options.ShowPerc || (self.Options.CountField != groupByCol && self.Options.PercentField != groupByCol) {
+			continue
+		}
+
+		if self.Options.ShowCount && self.Options.CountField == groupByCol {
+			cellValueStr = strconv.FormatUint(bucketResult.ElemCount, 10)
+		}
+
+		if self.Options.ShowPerc && self.Options.PercentField == groupByCol {
+			percent := float64(bucketResult.ElemCount) / float64(resTotal) * 100
+			cellValueStr = fmt.Sprintf("%.6f", percent)
+		}
+
+		// Set the appropriate element of BucketKey to cellValueStr.
+		switch bucketKey := bucketResult.BucketKey.(type) {
+		case []string:
+			bucketKey[keyIndex] = cellValueStr
+			bucketResult.BucketKey = bucketKey
+		case string:
+			if keyIndex != 0 {
+				return fmt.Errorf("OverrideGroupByCol: expected keyIndex to be 0, not %v", keyIndex)
+			}
+			bucketResult.BucketKey = cellValueStr
+		default:
+			return fmt.Errorf("OverrideGroupByCol: bucket key has unexpected type: %T", bucketKey)
+		}
+	}
+	return nil
+}
+
+func (self *StatisticExpr) SetCountToStatRes(statRes map[string]utils.CValueEnclosure, elemCount uint64) {
+	statRes[self.Options.CountField] = utils.CValueEnclosure{
+		Dtype: utils.SS_DT_UNSIGNED_NUM,
+		CVal:  elemCount,
+	}
+}
+
+func (self *StatisticExpr) SetPercToStatRes(statRes map[string]utils.CValueEnclosure, elemCount uint64, resTotal uint64) {
+	percent := float64(elemCount) / float64(resTotal) * 100
+	statRes[self.Options.PercentField] = utils.CValueEnclosure{
+		Dtype: utils.SS_DT_STRING,
+		CVal:  fmt.Sprintf("%.6f", percent),
+	}
+}
+
+func (self *StatisticExpr) sortByBucketKey(a, b *BucketResult, fieldList []string, fieldToGroupByKeyIndex map[string]int) bool {
+
+	for _, field := range fieldList {
+		keyIndex := fieldToGroupByKeyIndex[field]
+		if GetBucketKey(a.BucketKey, keyIndex) < GetBucketKey(b.BucketKey, keyIndex) {
+			return false
+		} else if GetBucketKey(a.BucketKey, keyIndex) > GetBucketKey(b.BucketKey, keyIndex) {
+			return true
+		}
+	}
+	return true
+}
+
+func (self *StatisticExpr) SortBucketResult(results *[]*BucketResult) error {
+
+	//GroupByKeys -> BucketKey
+	fieldToGroupByKeyIndex := make(map[string]int, len(self.FieldList))
+
+	//If use the limit option, only the last limit lexicographical of the <field-list> is returned in the search results
+	//Therefore, we should sort the bucket by lexicographical value and retain a limited number of values
+	if len(self.Limit) > 0 {
+
+		for index, groupByKey := range (*results)[0].GroupByKeys {
+			for _, field := range self.FieldList {
+				if field == groupByKey {
+					fieldToGroupByKeyIndex[field] = index
+				}
+			}
+		}
+
+		//Moving the if statement outside of the sorting process can reduce the number of conditional checks
+		//Sort results based on the lexicographical value of their field list
+		switch self.StatisticFunctionMode {
+		case SFMTop:
+			sort.Slice(*results, func(index1, index2 int) bool {
+				return self.sortByBucketKey((*results)[index1], (*results)[index2], self.FieldList, fieldToGroupByKeyIndex)
+			})
+		case SFMRare:
+			sort.Slice(*results, func(index1, index2 int) bool {
+				return !self.sortByBucketKey((*results)[index1], (*results)[index2], self.FieldList, fieldToGroupByKeyIndex)
+			})
+		}
+
+		limit, err := strconv.Atoi(self.Limit)
+		if err != nil {
+			return fmt.Errorf("SortBucketResult: cannot convert %v to int", self.Limit)
+		}
+
+		// Only return unique limit field combinations
+		// Since the results are already in order, and there is no Set in Go, we can use a string arr to record the previous field combinations
+		// If the current field combination is different from the previous one, it means we have finished processing data for one field combination (we need to process limit combinations in total, limit is a number)
+		uniqueFieldsCombination := make([]string, len(self.FieldList))
+		combinationCount := 0
+		newResults := make([]*BucketResult, 0)
+		for _, bucketResult := range *results {
+			combinationExist := true
+			for index, fieldName := range self.FieldList {
+				keyIndex := fieldToGroupByKeyIndex[fieldName]
+				val := GetBucketKey(bucketResult.BucketKey, keyIndex)
+				if uniqueFieldsCombination[index] != val {
+					uniqueFieldsCombination[index] = val
+					combinationExist = false
+				}
+
+				statEnclosure, exists := bucketResult.StatRes[fieldName]
+				statVal, err := statEnclosure.GetString()
+				if exists && err == nil && uniqueFieldsCombination[index] != statVal {
+					uniqueFieldsCombination[index] = val
+					combinationExist = false
+				}
+			}
+
+			// If there is a stats groupby block before statistic groupby block. E.g. ... | stats count BY http_status, gender | rare 1 http_status,
+			// In this case, each http_status will be divided by two genders, so we should merge them into one row here
+			//Fields combination does not exist
+			if !combinationExist {
+				combinationCount++
+				if combinationCount > limit {
+					*results = newResults
+					return nil
+				}
+				newResults = append(newResults, bucketResult)
+			} else {
+				newResults[combinationCount-1].ElemCount += bucketResult.ElemCount
+			}
+		}
+
+	} else { //No limit option, sort results by its values frequency
+		switch self.StatisticFunctionMode {
+		case SFMTop:
+			sort.Slice(*results, func(index1, index2 int) bool {
+				return (*results)[index1].ElemCount > (*results)[index2].ElemCount
+			})
+		case SFMRare:
+			sort.Slice(*results, func(index1, index2 int) bool {
+				return (*results)[index1].ElemCount < (*results)[index2].ElemCount
+			})
+		}
+	}
+
+	return nil
+}
+
+// Only display fields which in StatisticExpr
+func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *BucketResult) error {
+	groupByCols := self.GetGroupByCols()
+	groupByKeys := make([]string, 0)
+	bucketKey := make([]string, 0)
+	switch bucketResult.BucketKey.(type) {
+	case []string:
+		bucketKeyStrs := bucketResult.BucketKey.([]string)
+
+		for _, field := range groupByCols {
+			for rowIndex, groupByCol := range bucketResult.GroupByKeys {
+				if field == groupByCol {
+					groupByKeys = append(groupByKeys, field)
+					bucketKey = append(bucketKey, bucketKeyStrs[rowIndex])
+					break
+				}
+				//Can not find field in GroupByCol, so it may in the StatRes
+				val, exists := bucketResult.StatRes[field]
+				if exists {
+					valStr, _ := val.GetString()
+					groupByKeys = append(groupByKeys, field)
+					bucketKey = append(bucketKey, valStr)
+					delete(bucketResult.StatRes, field)
+				}
+			}
+		}
+		bucketResult.BucketKey = bucketKey
+	case string:
+		if len(groupByCols) == 0 {
+			bucketResult.BucketKey = nil
+		} else {
+			groupByKeys = groupByCols
+			// The GroupByCols of the Statistic block increase, so the new columns must come from the Stats function
+			if len(groupByCols) > 1 {
+				newBucketKey := make([]string, 0)
+				for i := 0; i < len(groupByCols); i++ {
+					val, exists := bucketResult.StatRes[groupByCols[i]]
+					if exists {
+						str, err := val.GetString()
+						if err != nil {
+							return fmt.Errorf("RemoveFieldsNotInExpr: %v", err)
+						}
+						newBucketKey = append(newBucketKey, str)
+					} else {
+						newBucketKey = append(newBucketKey, bucketResult.BucketKey.(string))
+					}
+				}
+				bucketResult.BucketKey = newBucketKey
+			}
+		}
+	default:
+		return fmt.Errorf("RemoveFieldsNotInExpr: bucket key has unexpected type: %T", bucketKey)
+	}
+
+	// Remove unused func in stats res
+	for statColName := range bucketResult.StatRes {
+		statColInGroupByCols := false
+		for _, groupByCol := range groupByCols {
+			if groupByCol == statColName {
+				statColInGroupByCols = true
+				break
+			}
+		}
+		if !statColInGroupByCols {
+			delete(bucketResult.StatRes, statColName)
+		}
+	}
+
+	bucketResult.GroupByKeys = groupByKeys
+	return nil
+}
+
+func (self *StatisticExpr) GetGroupByCols() []string {
+	return append(self.FieldList, self.ByClause...)
+}
+
+func (self *RenameExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure, fieldName string) (string, error) {
+	return getValueAsString(fieldToValue, fieldName)
+}
+
 func (self *RexExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure, rexExp *regexp.Regexp) (map[string]string, error) {
 
 	fieldValue, err := getValueAsString(fieldToValue, self.FieldName)
@@ -561,10 +874,113 @@ func MatchAndExtractGroups(str string, rexExp *regexp.Regexp) (map[string]string
 	return result, nil
 }
 
+// Check if colName match the OriginalPattern
+func (self *RenameExpr) CheckIfMatch(colName string) bool {
+	regexPattern := `\b` + strings.ReplaceAll(self.OriginalPattern, "*", "(.*)") + `\b`
+	regex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return false
+	}
+
+	matchingParts := regex.FindStringSubmatch(colName)
+	return len(matchingParts) != 0
+}
+
+// Check if colName matches the specified pattern and replace wildcards to generate a new colName.
+func (self *RenameExpr) ProcessRenameRegexExpression(colName string) (string, error) {
+
+	originalPattern := self.OriginalPattern
+	newPattern := self.NewPattern
+
+	regexPattern := `\b` + strings.ReplaceAll(originalPattern, "*", "(.*)") + `\b`
+	regex, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return "", fmt.Errorf("ProcessRenameRegexExpression: There are some errors in the pattern: %v", err)
+	}
+
+	matchingParts := regex.FindStringSubmatch(colName)
+	if len(matchingParts) == 0 {
+		return "", nil
+	}
+
+	result := newPattern
+	for _, match := range matchingParts[1:] {
+		result = strings.Replace(result, "*", match, 1)
+	}
+
+	return result, nil
+}
+
+func (self *RenameExpr) RemoveColsByIndex(strs []string, indexToRemove []int) []string {
+	results := make([]string, 0)
+
+	for index, val := range strs {
+		shouldRemove := false
+		for _, delIndex := range indexToRemove {
+			if delIndex == index {
+				shouldRemove = true
+				break
+			}
+		}
+		if shouldRemove {
+			continue
+		}
+		results = append(results, val)
+	}
+	return results
+}
+
+func (self *RenameExpr) RemoveBucketResGroupByColumnsByIndex(bucketResult *BucketResult, indexToRemove []int) {
+
+	if len(indexToRemove) == 0 {
+		return
+	}
+
+	bucketResult.GroupByKeys = self.RemoveColsByIndex(bucketResult.GroupByKeys, indexToRemove)
+
+	switch bucketKey := bucketResult.BucketKey.(type) {
+	case []string:
+		bucketResult.BucketKey = self.RemoveColsByIndex(bucketKey, indexToRemove)
+	case string:
+		bucketResult.BucketKey = nil
+	}
+
+}
+
+// Remove unused GroupByVals in Bucket Holder
+func (self *RenameExpr) RemoveBucketHolderGroupByColumnsByIndex(bucketHolder *BucketHolder, groupByCols []string, indexToRemove []int) {
+
+	if len(indexToRemove) == 0 {
+		return
+	}
+
+	groupByVals := make([]string, 0)
+	for index := range groupByCols {
+		shouldRemove := false
+		for _, delIndex := range indexToRemove {
+			if delIndex == index {
+				shouldRemove = true
+				break
+			}
+		}
+		if shouldRemove {
+			continue
+		}
+		groupByVals = append(groupByVals, bucketHolder.GroupByValues[index])
+	}
+
+	bucketHolder.GroupByValues = groupByVals
+
+}
+
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
 func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (float64, error) {
+	if self.Op == "now" {
+		timestamp := time.Now().Unix()
+		return float64(timestamp), nil
+	}
 	if self.IsTerminal {
 		if self.ValueIsField {
 			switch self.NumericExprMode {
@@ -645,6 +1061,31 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 				return 0, err
 			}
 			return math.Exp(exp), nil
+		case "tonumber":
+			if self.Val == nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: tonumber operation requires a string expression")
+			}
+			strValue, err := self.Val.Evaluate(fieldToValue)
+			if err != nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: Error in tonumber operation: %v", err)
+			}
+			base := 10
+			if self.Right != nil {
+				baseValue, err := self.Right.Evaluate(fieldToValue)
+				if err != nil {
+					return 0, err
+				}
+				base = int(baseValue)
+				if base < 2 || base > 36 {
+					return 0, fmt.Errorf("NumericExpr.Evaluate: Invalid base for tonumber: %v", base)
+				}
+			}
+			number, err := strconv.ParseInt(strValue, base, 64)
+			if err != nil {
+				return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert '%v' to number with base %d", strValue, base)
+			}
+			return float64(number), nil
+
 		default:
 			return 0, fmt.Errorf("NumericExpr.Evaluate: unexpected operation: %v", self.Op)
 		}
@@ -683,8 +1124,48 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			}
 		}
 		return minString, nil
-	}
 
+	} else if self.Op == "tostring" {
+		valueStr, err := self.Val.EvaluateToString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.Evaluate: failed to evaluate value for 'tostring' operation: %v", err)
+		}
+		if self.Format != nil {
+			formatStr, err := self.Format.Evaluate(fieldToValue)
+			if err != nil {
+				return "", fmt.Errorf("TextExpr.Evaluate: failed to evaluate format for 'tostring' operation: %v", err)
+			}
+			switch formatStr {
+			case "hex":
+				num, convErr := strconv.Atoi(valueStr)
+				if convErr != nil {
+					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to integer for hex formatting: %v", valueStr, convErr)
+				}
+				return fmt.Sprintf("%#x", num), nil
+			case "commas":
+				num, convErr := strconv.ParseFloat(valueStr, 64)
+				if convErr != nil {
+					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to float for comma formatting: %v", valueStr, convErr)
+				}
+				roundedNum := math.Round(num*100) / 100
+				formattedNum := humanize.CommafWithDigits(roundedNum, 2)
+				return formattedNum, nil
+			case "duration":
+				num, convErr := strconv.Atoi(valueStr)
+				if convErr != nil {
+					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to seconds for duration formatting: %v", valueStr, convErr)
+				}
+				hours := num / 3600
+				minutes := (num % 3600) / 60
+				seconds := num % 60
+				return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds), nil
+			default:
+				return "", fmt.Errorf("TextExpr.Evaluate: unsupported format '%s' for tostring operation", formatStr)
+			}
+		} else {
+			return valueStr, nil
+		}
+	}
 	cellValueStr, err := self.Value.Evaluate(fieldToValue)
 	if err != nil {
 		return "", fmt.Errorf("TextExpr.Evaluate: can not evaluate text as a str: %v", err)
@@ -711,6 +1192,42 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		}
 
 		return strings.Join(strings.Split(cellValueStr, delimiterStr), "&nbsp"), nil
+
+	case "substr":
+		baseString, err := self.Value.Evaluate(fieldToValue)
+		if err != nil {
+			return "", err
+		}
+		startIndexFloat, err := self.StartIndex.Evaluate(fieldToValue)
+		if err != nil {
+			return "", err
+		}
+		startIndex := int(startIndexFloat)
+		if startIndex > 0 {
+			startIndex = startIndex - 1
+		}
+		if startIndex < 0 {
+			startIndex = len(baseString) + startIndex
+		}
+		if startIndex < 0 || startIndex >= len(baseString) {
+			return "", fmt.Errorf("substr: start index is out of range")
+		}
+		substrLength := len(baseString) - startIndex
+		if self.LengthExpr != nil {
+			lengthFloat, err := self.LengthExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return "", err
+			}
+			substrLength = int(lengthFloat)
+			if substrLength < 0 || startIndex+substrLength > len(baseString) {
+				return "", fmt.Errorf("substr: length leads to out of range substring")
+			}
+		}
+		endIndex := startIndex + substrLength
+		if endIndex > len(baseString) {
+			endIndex = len(baseString)
+		}
+		return baseString[startIndex:endIndex], nil
 
 	default:
 		return "", fmt.Errorf("TextExpr.Evaluate: unexpected operation: %v", self.Op)
@@ -742,7 +1259,6 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 
 // Field may come from BoolExpr or ValueExpr
 func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
-
 	predicateFlag, err := self.BoolExpr.Evaluate(fieldToValue)
 	if err != nil {
 		return "", fmt.Errorf("ConditionExpr.Evaluate: %v", err)
@@ -771,10 +1287,28 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 }
 
 func (self *TextExpr) GetFields() []string {
+	fields := make([]string, 0)
 	if self.IsTerminal || (self.Op != "max" && self.Op != "min") {
-		return self.Value.GetFields()
+		if self.Value != nil {
+			fields = append(fields, self.Value.GetFields()...)
+		}
+		if self.Val != nil {
+			fields = append(fields, self.Val.GetFields()...)
+		}
+		if self.Delimiter != nil {
+			fields = append(fields, self.Delimiter.GetFields()...)
+		}
+		if self.StartIndex != nil {
+			fields = append(fields, self.StartIndex.GetFields()...)
+		}
+		if self.LengthExpr != nil {
+			fields = append(fields, self.LengthExpr.GetFields()...)
+		}
+		if self.Format != nil {
+			fields = append(fields, self.Format.GetFields()...)
+		}
+		return fields
 	}
-	var fields []string
 	for _, expr := range self.MaxMinValues {
 		fields = append(fields, expr.GetFields()...)
 	}
@@ -798,7 +1332,14 @@ func round(number float64, precision int) float64 {
 }
 
 func (self *NumericExpr) GetFields() []string {
+	fields := make([]string, 0)
+	if self.Val != nil {
+		return append(fields, self.Val.GetFields()...)
+	}
 	if self.IsTerminal {
+		if self.Op == "now" {
+			return fields
+		}
 		if self.ValueIsField {
 			return []string{self.Value}
 		} else {
@@ -809,7 +1350,6 @@ func (self *NumericExpr) GetFields() []string {
 	} else {
 		return self.Left.GetFields()
 	}
-
 }
 
 func getValueAsString(fieldToValue map[string]utils.CValueEnclosure, field string) (string, error) {
