@@ -107,6 +107,11 @@ function rateChart(rateData) {
                 intersect: false,
                 mode: 'index',
               },
+            scales: {
+            y: {
+                beginAtZero: true, 
+            }
+        }
         }
     });
     return RateCountChart;
@@ -145,6 +150,11 @@ function errorChart(errorData) {
                 intersect: false,
                 mode: 'index',
               },
+              scales: {
+                y: {
+                    beginAtZero: true, 
+                }
+            }
         }
     });
     return ErrCountChart;
@@ -206,6 +216,11 @@ function latenciesChart(latenciesData) {
                 intersect: false,
                 mode: 'index',
             },
+            scales: {
+                y: {
+                    beginAtZero: true, 
+                }
+            }
            
         }
     });
