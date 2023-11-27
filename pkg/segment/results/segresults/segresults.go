@@ -266,6 +266,21 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			sstResult, err = segread.GetSegSum(sr.runningSegStat[idx], currSst)
 		case utils.Avg:
 			sstResult, err = segread.GetSegAvg(sr.runningSegStat[idx], currSst)
+		case utils.Values:
+			uniqueStrings := make([]string, 0)
+			for str := range currSst.StringStats.StrSet {
+				uniqueStrings = append(uniqueStrings, str)
+			}
+			sort.Strings(uniqueStrings)
+			strVal := ""
+			for _, str := range uniqueStrings {
+				strVal += (str + "&nbsp")
+			}
+			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
+				Dtype: utils.SS_DT_STRING,
+				CVal:  strVal,
+			}
+			return nil
 		}
 		if err != nil {
 			log.Errorf("UpdateSegmentStats, error getting segment level stats %+v", err)
