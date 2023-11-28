@@ -141,3 +141,34 @@ jobs:
             asset_path: server.yaml
             asset_name: server.yaml
             asset_content_type: application/octet-stream
+        - name: Upload Release Asset - Install using binary script
+          id: upload-release-asset-InstallBinaryScripts
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: install_with_binary.sh
+            asset_name: install_with_binary.sh
+            asset_content_type: application/octet-stream
+        - name: Upload Release Asset - Install using git script
+          id: upload-release-asset-InstallGitScripts
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: install_with_git.sh
+            asset_name: install_with_git.sh
+            asset_content_type: application/octet-stream
+        - name: Upload Release Asset - Install using docker script
+          id: upload-release-asset-InstallDockerScripts
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: install_with_docker.sh
+            asset_name: install_with_docker.sh
+            asset_content_type: application/octet-stream
+    
