@@ -19,6 +19,7 @@ limitations under the License.
 $(document).ready(function () {
     $(`#alert-from-logs-btn`).tooltip({
         delay: { show: 0, hide: 300 },
+        trigger: 'hover'
     });
 });
 
