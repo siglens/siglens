@@ -155,6 +155,10 @@ const gridOptions = {
             if(diff <= 5) {
                 let scrollingTrigger = true;
                 data = getSearchFilter(false, scrollingTrigger);
+                if (data && data.searchText == "error") {
+                  alert("Error");
+                  return;
+                }
                 doSearch(data);
             }
         }

@@ -388,10 +388,11 @@ func MakeTracesDependancyGraph() {
 	endEpoch := nowTs
 
 	requestBody := map[string]interface{}{
-		"indexName":  "traces",
-		"startEpoch": startEpoch,
-		"endEpoch":   endEpoch,
-		"searchText": "*",
+		"indexName":     "traces",
+		"startEpoch":    startEpoch,
+		"endEpoch":      endEpoch,
+		"searchText":    "*",
+		"queryLanguage": "Splunk QL",
 	}
 	requestBodyJSON, err := json.Marshal(requestBody)
 	if err != nil {

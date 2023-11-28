@@ -53,7 +53,7 @@ let navbarComponent = `
                     class="nav-link-text">Live Tail</span></a>
         </div>
         <div class="menu nav-live" title="Tracing">
-            <a href="./search-traces.html" class="nav-links"><span class="icon-live"></span><span
+            <a href="./service-health.html" class="nav-links"><span class="icon-live"></span><span
                     class="nav-link-text">Tracing</span></a>
         </div>
     </div>

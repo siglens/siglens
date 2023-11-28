@@ -61,11 +61,10 @@ Once you have found the issue to be fixed or feature to be added, you can commen
 1. Fork Siglens repo and clone it on your local machine.
 2. Make your desired code changes
 3. Make sure local tests work. (`make all`)
-4. Make sure go code is formatted correctly (`make pr`)
+4. Make sure go code is formatted correctly. (`make pr`)
 5. Commit your changes to your fork.
-6. Verify that all automated CI tests pass for this PR.
-7. Send us a pull request you just created.
-8. Once the change has been approved and merged, we will inform you in a comment.
+6. Create a pull request. (Automated CI tests will run)
+7. Once the change has been approved and merged, we will inform you in a comment.
 
 
 ## Development Environment Setup
@@ -96,7 +95,7 @@ In another terminal, start the ingestion via `sigscalr-client` by running:
 go run main.go ingest esbulk -t 10_000 -d http://localhost:8081/elastic --processCount 1 -n 1 -b 500 -g dynamic-user
 ```
 
-Look through the [sigscalr-client ReadMe](https://github.com/sigscalr/sigscalr-client/README.md) to see all command arguments.
+Look through the [sigscalr-client ReadMe](https://github.com/sigscalr/sigscalr-client/blob/main/README.md) to see all command arguments.
 
 
 ### Send Queries on Siglens
