@@ -3,6 +3,7 @@
 
 # Backend
 pkg/* @sunitakawane @AndrewHess
+cicd/* @sunitakawane @AndrewHess
 *.go @sunitakawane @AndrewHess
 *.mod @sunitakawane @AndrewHess
 *.sum @sunitakawane @AndrewHess
