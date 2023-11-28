@@ -155,6 +155,17 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		segstats[cname] = stats
 	}
 	stats.Count++
+	if stats.StringStats == nil {
+		stats.StringStats = &StringStats{
+			StrSet: make(map[string]struct{}, 0),
+		}
+	}
+
+	_, exists := stats.StringStats.StrSet[strVal]
+	if !exists {
+		stats.StringStats.StrSet[strVal] = struct{}{}
+	}
+
 	bb.Reset()
 	_, _ = bb.WriteString(strVal)
 	stats.Hll.Insert(bb.B)
