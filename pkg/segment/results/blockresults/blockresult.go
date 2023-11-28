@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -490,11 +491,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 
 				sort.Strings(uniqueStrings)
 
-				strVal := ""
-				for _, str := range uniqueStrings {
-					strVal += (str + "&nbsp")
-				}
-
+				strVal := strings.Join(uniqueStrings, "&nbsp")
 				currRes[mInfoStr] = utils.CValueEnclosure{
 					Dtype: utils.SS_DT_STRING,
 					CVal:  strVal,

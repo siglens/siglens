@@ -230,7 +230,7 @@ func (sr *SearchResults) AddError(err error) {
 	sr.updateLock.Unlock()
 }
 
-func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats, measureOps []*structs.MeasureAggregator) error {
+func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats, measureOps []*structs.MeasureAggregator, strSet map[string]struct{}) error {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 	for idx, measureAgg := range measureOps {
@@ -270,18 +270,34 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 
 			if currSst == nil || currSst.StringStats == nil || currSst.StringStats.StrSet == nil {
 				log.Errorf("UpdateSegmentStats: current column does not contain any value")
-				return fmt.Errorf("UpdateSegmentStats: current column does not contain any value")
+				continue
+			}
+
+			// Merge two SegStat
+			for str := range currSst.StringStats.StrSet {
+				_, exists := strSet[str]
+				if !exists {
+					strSet[str] = struct{}{}
+				}
+			}
+			if sr.runningSegStat[idx] != nil {
+
+				for str := range sr.runningSegStat[idx].StringStats.StrSet {
+					_, exists := strSet[str]
+					if !exists {
+						strSet[str] = struct{}{}
+					}
+				}
+
+				sr.runningSegStat[idx].StringStats.StrSet = strSet
 			}
 
 			uniqueStrings := make([]string, 0)
-			for str := range currSst.StringStats.StrSet {
+			for str := range strSet {
 				uniqueStrings = append(uniqueStrings, str)
 			}
 			sort.Strings(uniqueStrings)
-			strVal := ""
-			for _, str := range uniqueStrings {
-				strVal += (str + "&nbsp")
-			}
+			strVal := strings.Join(uniqueStrings, "&nbsp")
 			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
 				Dtype: utils.SS_DT_STRING,
 				CVal:  strVal,
@@ -364,6 +380,7 @@ func (sr *SearchResults) MergeRemoteRRCResults(rrcs []*utils.RecordResultContain
 
 func (sr *SearchResults) AddSegmentStats(allJSON *structs.AllSegStatsJSON) error {
 	sstMap := make(map[string]*structs.SegStats, len(allJSON.AllSegStats))
+	strSet := make(map[string]struct{}, 0)
 	for k, v := range allJSON.AllSegStats {
 		rawStats, err := v.ToStats()
 		if err != nil {
@@ -371,7 +388,7 @@ func (sr *SearchResults) AddSegmentStats(allJSON *structs.AllSegStatsJSON) error
 		}
 		sstMap[k] = rawStats
 	}
-	return sr.UpdateSegmentStats(sstMap, sr.sAggs.MeasureOperations)
+	return sr.UpdateSegmentStats(sstMap, sr.sAggs.MeasureOperations, strSet)
 }
 
 // Get remote raw logs and columns based on the remoteID and all RRCs
