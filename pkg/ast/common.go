@@ -103,6 +103,9 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 		} else {
 			return nil, errors.New("processPipeSearchMap: colValue/ search Text can not be empty ")
 		}
+	case bool:
+		criteria := CreateTermFilterCriteria(colName, colValue, opr, qid)
+		andFilterCondition = append(andFilterCondition, criteria)
 	case json.Number:
 		if colValue.(json.Number) != "" {
 			if colName == "" {
