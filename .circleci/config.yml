@@ -1,42 +1,116 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine.
-# See: https://circleci.com/docs/configuration-reference
 version: 2.1
+orbs:
+  browser-tools: circleci/browser-tools@1.4.4
 
-# Define a job to be invoked later in a workflow.
-# See: https://circleci.com/docs/configuration-reference/#jobs
 jobs:
-  build:
+  e2e-server:
     working_directory: ~/repo
     # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/configuration-reference/#docker-machine-macos-windows-executor
+    # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
     docker:
-      - image: circleci/golang:1.15.8
+      - image: cimg/go:1.18
     # Add steps to the job
-    # See: https://circleci.com/docs/configuration-reference/#steps
+    # See: https://circleci.com/docs/2.0/configuration-reference/#steps
     steps:
       - checkout
-      - restore_cache:
-          keys:
-            - go-mod-v4-{{ checksum "go.sum" }}
+      - setup_remote_docker:
+          version: 20.10.6
       - run:
-          name: Install Dependencies
-          command: go mod download
-      - save_cache:
-          key: go-mod-v4-{{ checksum "go.sum" }}
-          paths:
-            - "/go/pkg/mod"
+          name: Build Siglens
+          command: make build
       - run:
-          name: Run tests
+          name: Run Siglens
+          command: ./siglens --config server.yaml
+          background: true
+      - run:
+          name: Clone tools repo
+          command: git clone git@github.com:sigscalr/tools.git
+      - run:
+          name: Clone sigscalr-client repo
+          command: git clone git@github.com:sigscalr/sigscalr-client.git
+      - run:
+          name: Install python and dependencies
           command: |
-            mkdir -p /tmp/test-reports
-            gotestsum --junitfile /tmp/test-reports/unit-tests.xml
-      - store_test_results:
-          path: /tmp/test-reports
+            sudo apt-get update --fix-missing
+            sudo apt-get -y install python3
+            sudo apt-get -y install python3-setuptools
+            sudo apt-get -y install python3-pip
+            pip install -r tools/requirements.txt
+      - run:
+          name: Tail logs file
+          command: |
+            sleep 10
+            ls -l
+            tail -f siglens.log
+          background: true
+      - run:
+          name: Run E2E Test test
+          command: |
+            cd sigscalr-client
+            go run main.go ingest esbulk -n 10 -g benchmark -d http://localhost:8081/elastic -t 100_000
+            go run main.go ingest metrics -d http://localhost:8081/otsdb -t 1_000 -m 5 -p 10 -b 10_000
+            sleep 20
+            go run main.go query esbulk -d http://localhost:80 -f ../cicd/ingest.csv
+            go run main.go query otsdb -d http://localhost:80/otsdb -n 5 -y
+      - run:
+          name: Kill Siglens
+          command: |
+            pkill siglens
+            sleep 2
+      - run:
+          name: Restart Siglens
+          command: make run
+          background: true
 
+      - run:
+          name: Run Restart CI/CD tests
+          command: |
+            cd sigscalr-client
+            sleep 5
+            go run main.go query esbulk -d http://localhost:80 -f ../cicd/restart.csv
+            go run main.go query otsdb -d http://localhost:80/otsdb -n 5 -y
+  selenium-ui-tests:
+    working_directory: ~/repo
+    docker:
+      - image: cimg/node:16.13.1-browsers
+    steps:
+      - checkout
+      - browser-tools/install-browser-tools:
+          chrome-version: 116.0.5845.110
+      - run:
+          name: Install latest Go
+          command: |
+            rm -rf /usr/local/go
+            curl -O https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
+            sudo tar -C /usr/local -xzf go1.18.2.linux-amd64.tar.gz
+            export GOPATH=$HOME/go
+            export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin:$(go env GOPATH)/bin
+            go version
+      - run:
+          name: Build Siglens
+          command: make build
+      - run:
+          name: Run Siglens
+          command: make run
+          background: true
+      - run:
+          name: Start Xvfb
+          command: Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+      - run:
+          name: Install Dependencies &  Run tests
+          command: |
+            cd selenium-tests
+            npm install
+            export DISPLAY=:99
+            npm install mocha
+            npm run test
+    environment:
+      - CHROME_BIN=/usr/bin/google-chrome
+      - CHROME_PATH=/usr/bin/google-chrome
 # Invoke jobs via workflows
-# See: https://circleci.com/docs/configuration-reference/#workflows
+# See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
-  sample: # This is the name of the workflow, feel free to change it to better match your workflow.
-    # Inside the workflow, you define the jobs you want to run.
+  test_and_lint:
     jobs:
-      - build
+      - e2e-server
+      - selenium-ui-tests
