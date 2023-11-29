@@ -58,7 +58,10 @@ The best way to reach us with a question when contributing is to ask on:
 
 Once you have found the issue to be fixed or feature to be added, you can comment on the issue and put the approach you want to follow to solve the issue. Once we agree upon the approach, you can open a PR.
 
-1. Fork Siglens repo and clone it on your local machine.
+1. Fork Siglens repo and clone it on your local machine.  
+
+If its your first time on github, please read [FIRST_TIME_GIT_USERS_GUIDE.md](FIRST_TIME_GIT_USERS_GUIDE.md) to fork, clone, create a repo.
+
 2. Make your desired code changes
 3. Make sure local tests work. (`make all`)
 4. Make sure go code is formatted correctly. (`make pr`)
