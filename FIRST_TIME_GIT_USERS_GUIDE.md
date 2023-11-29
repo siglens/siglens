@@ -1,9 +1,9 @@
-*[First Time Github Users Guide](#first-time-github-users-guide)
- *[Fork the repository](#fork-the-repository)
- *[Clone the repository](#clone-the-repository)
- *[Make changes and commit them](#make-changes-and-commit-them)
- *[Push changes to your forked repository](#push-changes-to-your-forked-repository)
- *[Create a pull request](#create-a-pull-request)
+* [First Time Github Users Guide](#first-time-github-users-guide)
+ * [Fork the repository](#fork-the-repository)
+ * [Clone the repository](#clone-the-repository)
+ * [Make changes and commit them](#make-changes-and-commit-them)
+ * [Push changes to your forked repository](#push-changes-to-your-forked-repository)
+ * [Create a pull request](#create-a-pull-request)
 
 
 
