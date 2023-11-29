@@ -6,6 +6,10 @@
  * [Push changes to your forked repository](#push-changes-to-your-forked-repository)
  * [Create a pull request](#create-a-pull-request)
 
+ # [Github Docs]
+
+ * [Get Started](https://docs.github.com/en/get-started)
+ * [Quick Start](https://docs.github.com/en/get-started/quickstart/fork-a-repo)
 
 
 Steps to create a fork, clone and create a PR in Github:
