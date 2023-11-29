@@ -38,7 +38,7 @@ jobs:
             cd sigscalr-client
             go run main.go ingest esbulk -n 10 -g benchmark -d http://localhost:8081/elastic -t 100_000
             go run main.go ingest metrics -d http://localhost:8081/otsdb -t 1_000 -m 5 -p 10 -b 10_000
-            sleep 20
+            sleep 40
             go run main.go query esbulk -d http://localhost:80 -f ../cicd/ingest.csv
             go run main.go query otsdb -d http://localhost:80/otsdb -n 5 -y
       - run:
