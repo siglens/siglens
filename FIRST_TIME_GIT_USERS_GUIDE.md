@@ -1,4 +1,5 @@
-* [First Time Github Users Guide](#first-time-github-users-guide)
+# First Time Github Users Guide
+
  * [Fork the repository](#fork-the-repository)
  * [Clone the repository](#clone-the-repository)
  * [Make changes and commit them](#make-changes-and-commit-them)
