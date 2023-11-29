@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -469,6 +471,31 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 				valIdx := gb.reverseMeasureIndex[idx]
 				finalVal := bucket.runningStats[valIdx].hll.Estimate()
 				currRes[mInfoStr] = utils.CValueEnclosure{CVal: finalVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
+			case utils.Values:
+				valIdx := gb.reverseMeasureIndex[idx]
+				rawValStrArr, ok := bucket.runningStats[valIdx].rawVal.CVal.([]string)
+				if !ok {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					continue
+				}
+
+				uniqueSet := make(map[string]struct{})
+				uniqueStrings := make([]string, 0)
+
+				for _, str := range rawValStrArr {
+					if _, exists := uniqueSet[str]; !exists {
+						uniqueSet[str] = struct{}{}
+						uniqueStrings = append(uniqueStrings, str)
+					}
+				}
+
+				sort.Strings(uniqueStrings)
+
+				strVal := strings.Join(uniqueStrings, "&nbsp")
+				currRes[mInfoStr] = utils.CValueEnclosure{
+					Dtype: utils.SS_DT_STRING,
+					CVal:  strVal,
+				}
 			default:
 				valIdx := gb.reverseMeasureIndex[idx]
 				currRes[mInfoStr] = bucket.runningStats[valIdx].rawVal
