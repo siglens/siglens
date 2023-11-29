@@ -1,0 +1,6 @@
+.dropdown-plugin{
+    height: 200px;
+    overflow-y: scroll;
+    width: 100%;
+    overflow-x: hidden;
+}

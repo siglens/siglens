@@ -27,6 +27,8 @@
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/siglens.css" />
     <link rel="stylesheet" href="./css/tracing.css" />
+    <link rel="stylesheet" href="./css/search-traces.css" />
+    <link rel="stylesheet" href="./css/plug-in.css" />
 
     <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
@@ -59,6 +61,133 @@
                     </div>
                 </div>
             </div>
+            <div class="page-block">
+                <div class="search">
+                    <span>Search</span>
+                    <div class="dropdown-box">
+                        <span>Service</span>
+                        <div class="dropdown" id = "service-dropdown">
+                        </div>
+                    </div>
+                    <div class="dropdown-box">
+                        <span>Operation</span>
+                        <div class="dropdown" id = "operation-dropdown">
+                        </div>
+                    </div>
+                    <div class="input-box">
+                        <span>Tags</span>
+                        <input class="form-control" id="tags-input" placeholder="" type="text">
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown" aria-haspopup="true"
+                            aria-expanded="false" data-bs-toggle="dropdown" title="Pick the time window">
+                            <span>Time Picker</span>
+                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                        </button>
+                        <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker">
+                            <p class="dt-header">Search the last</p>
+                            <div class="ranges">
+                                <div class="inner-range">
+                                    <div id="now-5m" class="range-item ">5 Mins</div>
+                                    <div id="now-3h" class="range-item">3 Hrs</div>
+                                    <div id="now-2d" class="range-item">2 Days</div>
+                                </div>
+                                <div class="inner-range">
+                                    <div id="now-15m" class="range-item">15 Mins</div>
+                                    <div id="now-6h" class="range-item">6 Hrs</div>
+                                    <div id="now-7d" class="range-item">7 Days</div>
+                                </div>
+                                <div class="inner-range">
+                                    <div id="now-30m" class="range-item">30 Mins</div>
+                                    <div id="now-12h" class="range-item">12 Hrs</div>
+                                    <div id="now-30d" class="range-item">30 Days</div>
+                                </div>
+                                <div class="inner-range">
+                                    <div id="now-1h" class="range-item">1 Hr</div>
+                                    <div id="now-24h" class="range-item">24 Hrs</div>
+                                    <div id="now-90d" class="range-item">90 Days</div>
+                                </div>
+                                <hr>
+                                </hr>
+                                <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span>
+                                </div>
+                                <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
+                                    <input type="date" id="date-start" />
+                                    <input type="time" id="time-start" value="00:00" />
+                                </div>
+                                <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
+                                    <input type="date" id="date-end">
+                                    <input type="time" id="time-end" value="00:00">
+                                </div>
+                                <div class="drp-buttons">
+                                    <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn" type="button">Apply</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="duration">
+                        <div class="input-box">
+                            <span>Max Duration</span>
+                            <input class="form-control" id="max-duration-input" placeholder="" type="text">
+                        </div>
+                        <div class="input-box tags-second">
+                            <span>Min Duration</span>
+                            <input class="form-control" id="min-duration-input" placeholder="" type="text">
+                        </div>
+                    </div>
+                    <div class="input-box">
+                        <span>Limit Result</span>
+                        <input class="form-control" id="limit-result-input" placeholder="" type="text">
+                    </div>
+                    <button class="btn btn-primary search-trace-btn" id="search-trace-btn">Find Traces</button>
+                </div>
+                <div class="right-section">
+                    <div class="section-top">
+                        <div class="graph-show"></div>
+                        <div class="graph-info">
+                            <span class="traces-number">16 Traces</span>
+                            <div class="sorts-method">
+                                <span>Sorts: </span>
+                                <div class="dropdown sort-dropdown">
+                                    <button class="btn dropdown-toggle" type="button" id="recent-btn" data-toggle="dropdown" aria-haspopup="true"
+                                        aria-expanded="false" data-bs-toggle="dropdown" title="Index Name to search on">
+                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                    </button>
+                                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="recent-options">
+                                        <div id="index-listing"></div>
+                                    </div>
+                                </div>
+                                <div class="dropdown sort-dropdown">
+                                    <button class="btn dropdown-toggle" type="button" id="download-btn" data-toggle="dropdown" aria-haspopup="true"
+                                        aria-expanded="false" data-bs-toggle="dropdown" title="Index Name to search on">
+                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                    </button>
+                                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="download-options">
+                                        <div id="index-listing"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="warn-bottom">
+                        <div class="warm-head">
+                            <span>Frontend: </span>
+                            <span>732.1ms</span>
+                        </div>
+                        <div class="warm-content">
+                            <div>25 Span</div>
+                            <div>details of message</div>
+                            <div class="warm-content-right">
+                                <span>Today | 2:45:15pm</span>
+                                <span>an hour ago</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div id="app-footer">
@@ -69,8 +198,10 @@
 
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/search-traces.js?cb=1_1_10"></script>
+    <script src="./js/plug-in/single-box.js"></script>
 </body>
 
 </html>
