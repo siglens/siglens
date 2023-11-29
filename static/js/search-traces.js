@@ -18,6 +18,7 @@ limitations under the License.
 
 $(document).ready(() => {
   displayNavbar();
+  showScatterPlot();
   if (Cookies.get("theme")) {
     theme = Cookies.get("theme");
     $("body").attr("data-theme", theme);
@@ -56,6 +57,7 @@ $(document).ready(() => {
 });
 
 let currList = [];
+let curTraceArray = [];
 function getValuesOfColumn(chooseColumn, spanName) {
   let param = {
     state: "query",
@@ -105,11 +107,14 @@ function searchTraceHandler(e){
     let maxDurationValue = $("#max-duration-input").val();
     let minDurationValue = $("#min-duration-input").val();
     let limitResValue = $("#limit-result-input").val();
-    let searchText = "service=" + serviceValue 
-                        + " name=" + operationValue 
-                        + " EndTimeUnixNano<=" + maxDurationValue 
-                        + " StartTimeUnixNano>=" + minDurationValue;
-    if(tagValue) searchText += " " + tagValue;
+    let searchText = "";
+    if(serviceValue != "Service") searchText = "service=" + serviceValue + " "; 
+    if (operationValue != "Operation") searchText += "name=" + operationValue + " ";
+    if (maxDurationValue) searchText += "EndTimeUnixNano=" + maxDurationValue + " ";
+    if (minDurationValue) searchText += "StartTimeUnixNano=" + minDurationValue + " ";
+    if (tagValue) searchText += tagValue;
+    if (searchText == "") searchText = "*";
+    else searchText = searchText.trim();
     let queryParams = new URLSearchParams(window.location.search);
      let stDate = queryParams.get("startEpoch") || Cookies.get('startEpoch') || "now-15m";
      let endDate = queryParams.get("endEpoch") || Cookies.get('endEpoch') || "now";
@@ -118,10 +123,26 @@ function searchTraceHandler(e){
          'startEpoch': stDate,
          'endEpoch': endDate,
          'queryLanguage': "Splunk QL",
-         'size':limitResValue
+         'size': 20
     }
     console.log(JSON.stringify(params));
-    $.ajax({
+    searchTrace(params);
+}
+function initChart(){
+  let queryParams = new URLSearchParams(window.location.search);
+  let stDate =queryParams.get("startEpoch") || Cookies.get("startEpoch") || "now-15m";
+  let endDate = queryParams.get("endEpoch") || Cookies.get("endEpoch") || "now";
+  let params = {
+        'searchText': '*',
+         'startEpoch': stDate,
+         'endEpoch': endDate,
+         'queryLanguage': "Splunk QL",
+         'size': 20
+    }
+    searchTrace(params);
+}
+function searchTrace(params){
+  $.ajax({
     method: "post",
     url: "api/traces/search",
     headers: {
@@ -132,12 +153,37 @@ function searchTraceHandler(e){
     dataType: "json",
     data: JSON.stringify(params),
   }).then((res) => {
-    if (res) {
-      console.log(JSON.stringify(res));
+    if (res && res.traces) {
+      for(let i = 0; i < res.traces.length; i++){
+        let json = res.traces[i];
+        let dateStr = new Date(json.start_time).toLocaleString();
+        let duration = json.end_time - json.start_time + "";
+        let newArr = [dateStr, duration];
+        curTraceArray.add(newArr);
+      }
     }
   });
 }
-
+	function showScatterPlot() {
+    let chartId = document.getElementById("graph-show");
+    var chart = echarts.init(chartId);
+    chart.setOption({
+      xAxis: {
+        type: "value",
+        name: "Time",
+      },
+      yAxis: {
+        type: "value",
+        name: "Duration",
+      },
+      series: [
+        {
+          type: "scatter",
+          data: curTraceArray,
+        },
+      ],
+    });
+  }
 
 
 
