@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
+
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
@@ -393,6 +395,17 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	utils.WriteJsonResponse(ctx, httpRespOuter)
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
+
+	// Writing to access.log in the following format
+	// timeStamp <logged-in user> <request URI> <request body> <response status code> <elapsed time in ms>
+	utils.AddAccessLogEntry(dtypeutils.AccessLogData{
+		TimeStamp:   time.Now().Format("2006-01-02 15:04:05"),
+		UserName:    "No-user", // TODO : Add logged in user when user auth is implemented
+		URI:         ctx.Request.URI().String(),
+		RequestBody: string(ctx.PostBody()),
+		StatusCode:  ctx.Response.StatusCode(),
+		Duration:    httpRespOuter.ElapedTimeMS,
+	}, "access.log")
 }
 
 func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string) PipeSearchResponseOuter {

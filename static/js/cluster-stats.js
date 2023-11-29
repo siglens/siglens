@@ -23,6 +23,7 @@ $(document).ready(() => {
     displayNavbar();
     setupEventHandlers();
     $('.theme-btn').on('click', themePickerHandler);
+    $('.theme-btn').on('click', renderChart);
     $('#empty-response').empty();
     $('#empty-response').hide();
 
@@ -80,6 +81,16 @@ function renderChart() {
 }
 
 function drawStatsChart(res,data) {
+    let gridLineColor;
+    let tickColor;
+    if ($('body').attr('data-theme') == "light") {
+        gridLineColor = "#DCDBDF";
+        tickColor = "#160F29";
+    }
+    else {
+        gridLineColor = "#383148";
+        tickColor = "#FFFFFF"
+    }
     var GBCountData = [];
     var EventCountData = [];
     _.forEach(res, (mvalue, key) => {
@@ -109,13 +120,13 @@ function drawStatsChart(res,data) {
             if (EventCountChart !== undefined) {
                 EventCountChart.destroy();
             }
-            GBCountChart = renderGBCountChart(GBCountData);
-            EventCountChart=renderEventCountChart(EventCountData);
+            GBCountChart = renderGBCountChart(GBCountData,gridLineColor,tickColor);
+            EventCountChart=renderEventCountChart(EventCountData,gridLineColor,tickColor);
         }
     })
 }
 
-function renderGBCountChart(GBCountData) {
+function renderGBCountChart(GBCountData,gridLineColor,tickColor) {
     var GBCountChartCanvas = $("#GBCountChart").get(0).getContext("2d");
    
     GBCountChart = new Chart(GBCountChartCanvas, {
@@ -170,7 +181,8 @@ function renderGBCountChart(GBCountData) {
                     ticks: {
                         callback: function (value, index, ticks) {
                             return (value).toFixed(3) + ' GB';
-                        }
+                        },
+                        color: tickColor,
                     },
                     beginAtZero: true,
                     type: 'linear',
@@ -179,7 +191,10 @@ function renderGBCountChart(GBCountData) {
                     title: {
                         display: true,
                         text: 'Ingestion Volume'
-                      }
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
                 },
                 x: {
                     ticks: {
@@ -196,13 +211,17 @@ function renderGBCountChart(GBCountData) {
                                     return xVal;
                                 }
                             }
-                        }
+                        },
+                        color: tickColor,
                     },
                     beginAtZero: true,
                     title: {
                         display: true,
                         text: 'Time Period'
-                      }
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
                 }
             }
         }
@@ -210,7 +229,7 @@ function renderGBCountChart(GBCountData) {
     return GBCountChart;
 }
 
-function renderEventCountChart(EventCountData){
+function renderEventCountChart(EventCountData,gridLineColor,tickColor){
     var EventCountCanvas = $("#EventCountChart").get(0).getContext("2d");
 
     EventCountChart = new Chart(EventCountCanvas, {
@@ -257,7 +276,8 @@ function renderEventCountChart(EventCountData){
                     ticks: {
                         callback: function (value, index, ticks) {
                             return parseInt(value).toLocaleString();
-                        }
+                        },
+                        color: tickColor,
                     },
                     beginAtZero: true,
                     type: 'linear',
@@ -266,7 +286,10 @@ function renderEventCountChart(EventCountData){
                     title: {
                         display: true,
                         text: 'Event Count'
-                      }
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
                 },
                 x: {
                     ticks: {
@@ -283,13 +306,17 @@ function renderEventCountChart(EventCountData){
                                     return xVal;
                                 }
                             }
-                        }
+                        },
+                        color: tickColor,
                     },
                     beginAtZero: true,
                     title: {
                         display: true,
                         text: 'Time Period'
-                      }
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
                 }
             }
         }
