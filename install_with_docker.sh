@@ -155,6 +155,30 @@ $sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION}
 $sudo_cmd mkdir data
 echo ""
 echo -e "\n===> SigLens installation complete"
+
+computer_specific_identifier=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
+# If it can not get the mac address, use hostname as computer-specific identifier 
+if [ -z "$computer_specific_identifier" ]; then
+  computer_specific_identifier=$(hostname)
+fi
+
+# Get OS information
+runtime_os=$(uname)
+runtime_arch=$(uname -m)
+
+curl -X POST \
+https://api.segment.io/v1/track \
+-H 'Content-Type: application/json' \
+-H 'Authorization: Basic QlBEam5lZlBWMEpjMkJSR2RHaDdDUVRueWtZS2JEOGM6' \
+-d '{
+  "userId": "'"$computer_specific_identifier"'",
+  "event": "install (not running)",
+  "properties": {
+    "runtime_arch": "'"$runtime_os"'",
+    "runtime_os": "'"$runtime_arch"'"
+  }
+}'
+
 echo ""
 tput bold
 echo -e "\n===> ${bold}Run the following command to start the siglens server"
