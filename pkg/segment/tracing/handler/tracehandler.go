@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -482,4 +483,55 @@ func MakeTracesDependancyGraph() {
 		log.Errorf("MakeTracesDependancyGraph: failed to process ingest request: %v", err)
 
 	}
+}
+
+func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	searchRequestBody := &structs.SearchRequestBody{}
+	searchRequestBody.QueryLanguage = "Splunk QL"
+	searchRequestBody.IndexName = "service-dependency"
+	searchRequestBody.SearchText = "*"
+
+	pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
+	if err != nil {
+		log.Errorf("ProcessSearchRequest: %v", err)
+		return
+	}
+	processedData := make(map[string]interface{})
+	if pipeSearchResponseOuter.Hits.Hits == nil || len(pipeSearchResponseOuter.Hits.Hits) == 0 {
+		log.Errorf("pipeSearchResponseOuter: received empty response")
+		pipesearch.SetBadMsg(ctx)
+		return
+
+	}
+	for key, value := range pipeSearchResponseOuter.Hits.Hits[0] {
+		if key == "_index" || key == "timestamp" {
+			processedData[key] = value
+			continue
+		}
+		keys := strings.Split(key, ".")
+		if len(keys) != 2 {
+			fmt.Printf("Unexpected key format: %s\n", key)
+			continue
+		}
+		service, dependentService := keys[0], keys[1]
+		if processedData[service] == nil {
+			processedData[service] = make(map[string]int)
+		}
+
+		serviceMap := processedData[service].(map[string]int)
+		serviceMap[dependentService] = int(value.(float64))
+	}
+
+	ctx.SetContentType("application/json; charset=utf-8")
+	err = json.NewEncoder(ctx).Encode(processedData)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
+		_, writeErr := ctx.WriteString(fmt.Sprintf("Error encoding JSON: %s", err.Error()))
+		if writeErr != nil {
+			log.Errorf("Error writing to context: %v", writeErr)
+		}
+		return
+	}
+	ctx.SetStatusCode(fasthttp.StatusOK)
+
 }
