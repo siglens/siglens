@@ -149,26 +149,11 @@
                             <span class="traces-number">16 Traces</span>
                             <div class="sorts-method">
                                 <span>Sorts: </span>
-                                <div class="dropdown sort-dropdown">
-                                    <button class="btn dropdown-toggle" type="button" id="recent-btn" data-toggle="dropdown" aria-haspopup="true"
-                                        aria-expanded="false" data-bs-toggle="dropdown" title="Index Name to search on">
-                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                                    </button>
-                                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="recent-options">
-                                        <div id="index-listing"></div>
+                                <div class="dropdown-box">
+                                    <div class="dropdown" id="sort-dropdown">
                                     </div>
                                 </div>
-                                <div class="dropdown sort-dropdown">
-                                    <button class="btn dropdown-toggle" type="button" id="download-btn" data-toggle="dropdown" aria-haspopup="true"
-                                        aria-expanded="false" data-bs-toggle="dropdown" title="Index Name to search on">
-                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                                    </button>
-                                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="download-options">
-                                        <div id="index-listing"></div>
-                                    </div>
-                                </div>
+                                <button class="download-trace" id="download-trace">Download Result</button>
                             </div>
                         </div>
                     </div>
@@ -202,7 +187,7 @@
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/search-traces.js?cb=1_1_10"></script>
     <script src="./js/plug-in/single-box.js"></script>
-    <script src="./js/lib/echarts.min.js"></script>
+    <script src="./js/lib/echarts.js"></script>
 </body>
 
 </html>

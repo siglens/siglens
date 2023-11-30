@@ -66,6 +66,8 @@
 }
 .graph-info{
     height: 20%;
+    align-items: center;
+    padding: 0 20px;
 }
 .graph-show{
     height: 80%;
@@ -83,4 +85,7 @@
 }
 .tags-second{
     margin-left: 10px;
+}
+.traces-number{
+    font-weight: 600;
 }

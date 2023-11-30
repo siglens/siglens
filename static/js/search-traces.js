@@ -18,7 +18,7 @@ limitations under the License.
 
 $(document).ready(() => {
   displayNavbar();
-  showScatterPlot();
+  initChart();
   if (Cookies.get("theme")) {
     theme = Cookies.get("theme");
     $("body").attr("data-theme", theme);
@@ -29,6 +29,9 @@ $(document).ready(() => {
   });
   $("#operation-dropdown").singleBox({
     spanName: "Operation",
+  });
+  $("#sort-dropdown").singleBox({
+    spanName: "MostRecent",
   });
   $("#service-btn").on("click", getServiceListHandler);
   $("#operation-btn").on("click", getOperationListHandler);
@@ -57,7 +60,7 @@ $(document).ready(() => {
 });
 
 let currList = [];
-let curTraceArray = [];
+let curTraceArray = [], timeList = [];
 function getValuesOfColumn(chooseColumn, spanName) {
   let param = {
     state: "query",
@@ -142,49 +145,79 @@ function initChart(){
     searchTrace(params);
 }
 function searchTrace(params){
-  $.ajax({
-    method: "post",
-    url: "api/traces/search",
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      Accept: "*/*",
+  showScatterPlot();
+  //fake data
+  timeList = [
+    "11/29/2023, 5:44:09 PM",
+    "11/29/2023, 5:48:41 PM",
+    "11/29/2023, 5:39:59 PM",
+    "11/29/2023, 5:41:27 PM",
+    "11/29/2023, 5:39:00 PM",
+  ];
+  curTraceArray = [
+    [0, 6.804224],
+    [1, 8.663552],
+    [2, 6.668032],
+    [3, 5.275392],
+    [4, 4.791552],
+  ];
+  //This is useful code. The API is still being modified, so comment out the code that calls the API.
+  // $.ajax({
+  //   method: "post",
+  //   url: "api/traces/search",
+  //   headers: {
+  //     "Content-Type": "application/json; charset=utf-8",
+  //     Accept: "*/*",
+  //   },
+  //   crossDomain: true,
+  //   dataType: "json",
+  //   data: JSON.stringify(params),
+  // }).then((res) => {
+  //   if (res && res.traces) {
+  //   $("#traces-number").text(res.traces.length + "Traces");
+  //     for(let i = 0; i < 5; i++){
+  //       let json = res.traces[i];
+  //       let milliseconds = Number(json.start_time / 1000000);
+  //       let dataStr = new Date(milliseconds).toLocaleString();
+  //       let duration = Number((json.end_time - json.start_time) / 1000000);
+  //       let newArr = [i, duration];
+  //       timeList.push(dataStr);
+  //       curTraceArray.push(newArr);
+  //     }
+  //     showScatterPlot();
+  //   }
+  // });
+}
+function showScatterPlot() {
+  
+  let chartId = document.getElementById("graph-show");
+  var chart = echarts.init(chartId);
+
+  let transformedTimeList = timeList.map((time) => {
+    // replace AM/PM with a space
+    let date = new Date(time.replace(/(AM|PM)/gi, " "));
+    // convert to timestamp
+    return date.getTime();
+  });
+
+  chart.setOption({
+    xAxis: {
+      type: "time",
+      name: "Time",
+      data: transformedTimeList,
     },
-    crossDomain: true,
-    dataType: "json",
-    data: JSON.stringify(params),
-  }).then((res) => {
-    if (res && res.traces) {
-      for(let i = 0; i < res.traces.length; i++){
-        let json = res.traces[i];
-        let dateStr = new Date(json.start_time).toLocaleString();
-        let duration = json.end_time - json.start_time + "";
-        let newArr = [dateStr, duration];
-        curTraceArray.add(newArr);
-      }
-    }
+    yAxis: {
+      type: "value",
+      name: "Duration",
+    },
+    series: [
+      {
+        type: "scatter",
+        data: curTraceArray,
+      },
+    ],
   });
 }
-	function showScatterPlot() {
-    let chartId = document.getElementById("graph-show");
-    var chart = echarts.init(chartId);
-    chart.setOption({
-      xAxis: {
-        type: "value",
-        name: "Time",
-      },
-      yAxis: {
-        type: "value",
-        name: "Duration",
-      },
-      series: [
-        {
-          type: "scatter",
-          data: curTraceArray,
-        },
-      ],
-    });
-  }
-
 
 
 function showDatePickerHandler(evt) {
