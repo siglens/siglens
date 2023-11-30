@@ -497,7 +497,10 @@ func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	err = json.NewEncoder(ctx).Encode(processedData)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
-		ctx.WriteString(fmt.Sprintf("Error encoding JSON: %s", err.Error()))
+		_, writeErr := ctx.WriteString(fmt.Sprintf("Error encoding JSON: %s", err.Error()))
+		if writeErr != nil {
+			log.Errorf("Error writing to context: %v", writeErr)
+		}
 		return
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
