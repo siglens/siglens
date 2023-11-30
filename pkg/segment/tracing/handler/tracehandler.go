@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -45,6 +46,23 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	nowTs := putils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
+	page := 1
+	pageVal, ok := readJSON["page"]
+	if !ok || pageVal == 0 {
+		page = 1
+	} else {
+		switch val := pageVal.(type) {
+		case json.Number:
+			pageInt, err := val.Int64()
+			if err != nil {
+				log.Errorf("ProcessSearchTracesRequest: error converting page to int: %v", err)
+			}
+			page = int(pageInt)
+		default:
+			log.Errorf("ProcessSearchTracesRequest: page is not a int Val %+v", val)
+		}
+	}
+
 	// Parse the JSON data from ctx.PostBody
 	searchRequestBody := &structs.SearchRequestBody{}
 	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
@@ -73,7 +91,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			log.Errorf("ProcessSearchTracesRequest: %v", err)
 			return
 		}
-		traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch)
+		traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch, page)
 	}
 
 	traces := make([]*structs.Trace, 0)
@@ -126,9 +144,19 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func GetUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64) []string {
+func GetUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
+	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*50 {
+		return []string{}
+	}
+
+	endIndex := page * 50
+	if endIndex > len(pipeSearchResponseOuter.Aggs[""].Buckets) {
+		endIndex = len(pipeSearchResponseOuter.Aggs[""].Buckets)
+	}
+
 	traceIds := make([]string, 0)
-	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
+	// Only Process up to 50 traces per page
+	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets[(page-1)*50 : endIndex] {
 		traceId, exists := bucket["key"]
 		if !exists {
 			continue
@@ -204,6 +232,7 @@ func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uin
 
 	// Get initial data
 	rawTraceCtx := &fasthttp.RequestCtx{}
+	rawTraceCtx.Request.Header.SetMethod("POST")
 	rawTraceCtx.Request.SetBody(modifiedData)
 	pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
 	pipeSearchResponseOuter := pipesearch.PipeSearchResponseOuter{}
@@ -241,6 +270,7 @@ func ProcessRedTracesIngest() {
 		return
 	}
 
+	ctx.Request.Header.SetMethod("POST")
 	ctx.Request.SetBody(requestData)
 
 	// Get initial data
@@ -453,4 +483,55 @@ func MakeTracesDependancyGraph() {
 		log.Errorf("MakeTracesDependancyGraph: failed to process ingest request: %v", err)
 
 	}
+}
+
+func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	searchRequestBody := &structs.SearchRequestBody{}
+	searchRequestBody.QueryLanguage = "Splunk QL"
+	searchRequestBody.IndexName = "service-dependency"
+	searchRequestBody.SearchText = "*"
+
+	pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
+	if err != nil {
+		log.Errorf("ProcessSearchRequest: %v", err)
+		return
+	}
+	processedData := make(map[string]interface{})
+	if pipeSearchResponseOuter.Hits.Hits == nil || len(pipeSearchResponseOuter.Hits.Hits) == 0 {
+		log.Errorf("pipeSearchResponseOuter: received empty response")
+		pipesearch.SetBadMsg(ctx)
+		return
+
+	}
+	for key, value := range pipeSearchResponseOuter.Hits.Hits[0] {
+		if key == "_index" || key == "timestamp" {
+			processedData[key] = value
+			continue
+		}
+		keys := strings.Split(key, ".")
+		if len(keys) != 2 {
+			fmt.Printf("Unexpected key format: %s\n", key)
+			continue
+		}
+		service, dependentService := keys[0], keys[1]
+		if processedData[service] == nil {
+			processedData[service] = make(map[string]int)
+		}
+
+		serviceMap := processedData[service].(map[string]int)
+		serviceMap[dependentService] = int(value.(float64))
+	}
+
+	ctx.SetContentType("application/json; charset=utf-8")
+	err = json.NewEncoder(ctx).Encode(processedData)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
+		_, writeErr := ctx.WriteString(fmt.Sprintf("Error encoding JSON: %s", err.Error()))
+		if writeErr != nil {
+			log.Errorf("Error writing to context: %v", writeErr)
+		}
+		return
+	}
+	ctx.SetStatusCode(fasthttp.StatusOK)
+
 }
