@@ -634,3 +634,12 @@ func ConvertToSameType(leftType, rightType interface{}) (interface{}, interface{
 		return rightType, leftType, err
 	}
 }
+
+type AccessLogData struct {
+	TimeStamp   string
+	UserName    string
+	URI         string
+	RequestBody string
+	StatusCode  int
+	Duration    int64
+}
