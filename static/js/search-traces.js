@@ -145,7 +145,6 @@ function initChart(){
     searchTrace(params);
 }
 function searchTrace(params){
-  showScatterPlot();
   //fake data
   timeList = [
     "11/29/2023, 5:44:09 PM",
@@ -161,6 +160,8 @@ function searchTrace(params){
     [3, 5.275392],
     [4, 4.791552],
   ];
+  showScatterPlot();
+
   //This is useful code. The API is still being modified, so comment out the code that calls the API.
   // $.ajax({
   //   method: "post",
