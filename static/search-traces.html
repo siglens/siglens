@@ -27,8 +27,8 @@
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/siglens.css" />
     <link rel="stylesheet" href="./css/tracing.css" />
-    <link rel="stylesheet" href="./css/search-traces.css" />
     <link rel="stylesheet" href="./css/plug-in.css" />
+    <link rel="stylesheet" href="./css/search-traces.css" />
 
     <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
@@ -85,7 +85,7 @@
                             <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
                             <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
                         </button>
-                        <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker">
+                        <div class="dropdown-menu daterangepicker dropdown-time-picker" aria-labelledby="index-btn" id="daterangepicker">
                             <p class="dt-header">Search the last</p>
                             <div class="ranges">
                                 <div class="inner-range">
@@ -149,7 +149,7 @@
                             <span class="traces-number">16 Traces</span>
                             <div class="sorts-method">
                                 <span>Sorts: </span>
-                                <div class="dropdown-box">
+                                <div class="dropdown-sort-box">
                                     <div class="dropdown" id="sort-dropdown">
                                     </div>
                                 </div>

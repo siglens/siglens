@@ -36,6 +36,8 @@ $(document).ready(() => {
   $("#service-btn").on("click", getServiceListHandler);
   $("#operation-btn").on("click", getOperationListHandler);
   $("#search-trace-btn").on("click", searchTraceHandler);
+  $("#download-trace").on("click", downloadTrace);
+  
 
 
     $('#date-picker-btn').on('show.bs.dropdown', showDatePickerHandler);
@@ -60,7 +62,7 @@ $(document).ready(() => {
 });
 
 let currList = [];
-let curTraceArray = [], timeList = [];
+let curTraceArray = [], timeList = [], returnRes = [];
 function getValuesOfColumn(chooseColumn, spanName) {
   let param = {
     state: "query",
@@ -175,6 +177,7 @@ function searchTrace(params){
   //   data: JSON.stringify(params),
   // }).then((res) => {
   //   if (res && res.traces) {
+    // returnRes = res.traces;
   //   $("#traces-number").text(res.traces.length + "Traces");
   //     for(let i = 0; i < 5; i++){
   //       let json = res.traces[i];
@@ -186,6 +189,7 @@ function searchTrace(params){
   //       curTraceArray.push(newArr);
   //     }
   //     showScatterPlot();
+          // showSpanRes();
   //   }
   // });
 }
@@ -220,6 +224,44 @@ function showScatterPlot() {
   });
 }
 
+function downloadTrace(e){
+}
+
+function showSpanRes(){
+  for (let i = 0; i < returnRes.length; i++) {
+    $("#warn-bottom").append(`<div class="warm-head">
+                            <span>Frontend: /dispatch <span class = "span-id" id = "span-id"></span></span>
+                            <span class = "duration-time" id  = "duration-time"></span>
+                        </div>
+                        <div class="warm-content">
+                            <div>
+                            <div class = "total-span" id = "total-span"></div>
+                            <div class = "error-span" id = "error-span"></div>
+                            </div>
+                            <div>details of message</div>
+                            <div class="warm-content-right">
+                                <span class = "start-time" id = "start-time"></span>
+                                <span class = "how-long-time" id = "how-long-time"></span>
+                            </div>
+                        </div>`);
+    $("#span-id").text(returnRes[i].trace_id);
+    $("#total-span").text(returnRes[i].span_count + " Spans");
+    $("#error-span").text(returnRes[i].span_errors_count + " Errors");
+    $("#duration-time").text(curTraceArray[i][1] + "ms");
+    $("#start-time").text(timeList[i]);
+    $("#how-long-time").text(calculateTimeToNow(returnRes[i].start_time) + "hours ago");
+  }
+
+}
+
+function calculateTimeToNow(startTime){
+  const nanosecondsTimestamp = startTime;
+  const millisecondsTimestamp = nanosecondsTimestamp / 1000000;
+  const now = new Date();
+  const timeDifference = now.getTime() - millisecondsTimestamp;
+  const hours = Math.floor(timeDifference / 3600000);
+  return hours;
+}
 
 function showDatePickerHandler(evt) {
   evt.stopPropagation();

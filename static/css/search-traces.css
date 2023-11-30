@@ -28,6 +28,7 @@
     margin-top: 20px;
 }
 .dropdown-box,
+.dropdown-sort-box,
 .input-box,
 .warm-content-right,
 .right-section{
@@ -88,4 +89,15 @@
 }
 .traces-number{
     font-weight: 600;
+}
+.sorts-method{
+    align-items: center;
+}
+.dropdown-sort-box{
+    margin-top: 0;
+    width: 150px;
+}
+.dropdown-menu.daterangepicker.show{
+    top: -300px !important;
+    left: 140px !important;
 }
