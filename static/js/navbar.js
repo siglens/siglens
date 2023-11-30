@@ -29,6 +29,10 @@ let navbarComponent = `
             <a href="./metrics.html" class="nav-links"><span class="icon-metrics"></span><span
                     class="nav-link-text">Metrics</span></a>
         </div>
+        <div class="menu nav-traces" title="Tracing">
+            <a href="./service-health.html" class="nav-links"><span class="icon-traces"></span><span
+                    class="nav-link-text">Tracing</span></a>
+         </div>
         <div class="menu nav-ldb" title="Dashboards-home">
             <a href="../dashboards-home.html" class="nav-links">
                 <span class="icon-launchdb"></span><span class="nav-link-text">Dashboards</span></a>
@@ -51,10 +55,6 @@ let navbarComponent = `
         <div class="menu nav-live" title="Live Tail">
             <a href="./live-tail.html" class="nav-links"><span class="icon-live"></span><span
                     class="nav-link-text">Live Tail</span></a>
-        </div>
-        <div class="menu nav-live" title="Tracing">
-            <a href="./service-health.html" class="nav-links"><span class="icon-live"></span><span
-                    class="nav-link-text">Tracing</span></a>
         </div>
     </div>
     <div>
@@ -90,6 +90,7 @@ $(document).ready(function () {
         ".nav-myorg",
         ".nav-minion",
         ".nav-live",
+        ".nav-traces"
     ];
     navItems.forEach((item) => $(item).removeClass("active"));
 
@@ -109,6 +110,8 @@ $(document).ready(function () {
         $(".nav-minion").addClass("active");
     } else if (currentUrl.includes("live-tail.html")) {
         $(".nav-live").addClass("active");
+    } else if (currentUrl.includes("service-health.html")|| currentUrl.includes("service-health-graphs.htm") || currentUrl.includes("dependency-graph.html")|| currentUrl.includes("search-traces.html")) {
+        $(".nav-traces").addClass("active");
     }
 });
 
