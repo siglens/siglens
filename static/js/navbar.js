@@ -25,36 +25,36 @@ let navbarComponent = `
             <a href="./index.html" class="nav-links"><span class="icon-search"></span><span
                     class="nav-link-text">Logs</span></a>
         </div>
+        <div class="menu nav-traces" title="Tracing">
+            <a href="./service-health.html" class="nav-links"><span class="icon-traces"></span><span
+                    class="nav-link-text">Tracing</span></a>
+         </div>
         <div class="menu nav-metrics" title="Metrics">
             <a href="./metrics.html" class="nav-links"><span class="icon-metrics"></span><span
                     class="nav-link-text">Metrics</span></a>
-        </div>
-        <div class="menu nav-ldb" title="Dashboards-home">
-            <a href="../dashboards-home.html" class="nav-links">
-                <span class="icon-launchdb"></span><span class="nav-link-text">Dashboards</span></a>
-        </div>
-        <div class="menu nav-usq" title="Saved Queries">
-            <a href="./saved-queries.html" class="nav-links"><span class="icon-usq"></span><span
-                    class="nav-link-text">Saved Queries</span></a>
-        </div>
-        <div class="menu nav-alerts" title="Alerting">
-            <a href="./all-alerts.html" class="nav-links"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
-        </div>
-        <div class="menu nav-myorg" title="My Org">
-            <a href="./cluster-stats.html" class="nav-links"><span class="icon-myorg"></span><span
-                    class="nav-link-text">My Org</span></a>
-        </div>
-        <div class="menu nav-minion" title="Minion Searches">
-            <a href="./minion-searches.html" class="nav-links"><span class="icon-minion"></span><span
-                    class="nav-link-text">Minion Searches</span></a>
         </div>
         <div class="menu nav-live" title="Live Tail">
             <a href="./live-tail.html" class="nav-links"><span class="icon-live"></span><span
                     class="nav-link-text">Live Tail</span></a>
         </div>
-        <div class="menu nav-live" title="Tracing">
-            <a href="./service-health.html" class="nav-links"><span class="icon-live"></span><span
-                    class="nav-link-text">Tracing</span></a>
+        <div class="menu nav-alerts" title="Alerting">
+            <a href="./all-alerts.html" class="nav-links"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
+        </div>
+        <div class="menu nav-ldb" title="Dashboards-home">
+            <a href="../dashboards-home.html" class="nav-links">
+                <span class="icon-launchdb"></span><span class="nav-link-text">Dashboards</span></a>
+        </div>
+        <div class="menu nav-minion" title="Minion Searches">
+            <a href="./minion-searches.html" class="nav-links"><span class="icon-minion"></span><span
+                    class="nav-link-text">Minion Searches</span></a>
+        </div>
+        <div class="menu nav-usq" title="Saved Queries">
+            <a href="./saved-queries.html" class="nav-links"><span class="icon-usq"></span><span
+                    class="nav-link-text">Saved Queries</span></a>
+        </div>
+        <div class="menu nav-myorg" title="My Org">
+            <a href="./cluster-stats.html" class="nav-links"><span class="icon-myorg"></span><span
+                    class="nav-link-text">My Org</span></a>
         </div>
     </div>
     <div>
@@ -90,6 +90,7 @@ $(document).ready(function () {
         ".nav-myorg",
         ".nav-minion",
         ".nav-live",
+        ".nav-traces"
     ];
     navItems.forEach((item) => $(item).removeClass("active"));
 
@@ -109,6 +110,8 @@ $(document).ready(function () {
         $(".nav-minion").addClass("active");
     } else if (currentUrl.includes("live-tail.html")) {
         $(".nav-live").addClass("active");
+    } else if (currentUrl.includes("service-health.html")|| currentUrl.includes("service-health-graphs.htm") || currentUrl.includes("dependency-graph.html")|| currentUrl.includes("search-traces.html")) {
+        $(".nav-traces").addClass("active");
     }
 });
 
