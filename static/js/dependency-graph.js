@@ -45,9 +45,9 @@ $(document).ready(() => {
     }
     $(".theme-btn").on("click", themePickerHandler);
 
-    console.log("Dependency Graph");
     svgWidth = $("#dependency-graph-container").width();
     svgHeight = $("#dependency-graph-container").height();
+
     $("#error-msg-container").hide();
     getServiceDependencyData();
 });
@@ -103,8 +103,6 @@ function createDependencyMatrix(res) {
         });
     });
 
-    console.log("Nodes:", nodes);
-    console.log("Links:", links);
     displayDependencyGraph(nodes, links);
 }
 
@@ -114,22 +112,12 @@ function displayDependencyGraph(nodes, links) {
         .select("#dependency-graph-container")
         .append("svg")
         .append("g")
-        .attr(
-            "transform",
-            "translate(" + svgWidth / 4 + "," + svgHeight / 4 + ")",
-        );
+        .attr("transform","translate(" + svgWidth / 4 + "," + svgHeight / 4 + ")");
 
     // Create force simulation
     const simulation = d3
         .forceSimulation(nodes)
-        .force(
-            "link",
-            d3
-                .forceLink(links)
-                .id((d) => d.id)
-                .distance(200)
-                .strength(0.5),
-        )
+        .force("link",d3.forceLink(links).id((d) => d.id).distance(200).strength(0.5))
         .force("charge", d3.forceManyBody().strength(-300))
         .force("center", d3.forceCenter(250, 250))
         .force("radial", d3.forceRadial(250, 250, 250).strength(0.1));
@@ -154,7 +142,7 @@ function displayDependencyGraph(nodes, links) {
         .data(links)
         .enter()
         .append("line")
-        .attr("class", "links line") // Add the 'line' class
+        .attr("class", "links line")
         .attr("marker-end", "url(#arrowhead)");
 
     // Create nodes
