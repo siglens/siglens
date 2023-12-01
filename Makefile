@@ -1,4 +1,4 @@
-GO := /usr/local/go/bin/go
+GO := go
 
 lint:
 	golangci-lint run --timeout=3m
