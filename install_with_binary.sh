@@ -61,6 +61,7 @@ fi
 
 # Step 4: Install statistics
 display_step 4 "Install statistics"
+# Extract the first occurrence of a valid MAC address
 computer_specific_identifier=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
 
 # If it can not get the mac address, use hostname as computer-specific identifier 
