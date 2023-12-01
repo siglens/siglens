@@ -2,11 +2,15 @@
 :root{
     --subsection-border: var(--white-3);
     --search-input-border: var(--white-4);
+    --graph-link: var(--white-3);
+    --link-label: var(--white-0);
 }
 
 [data-theme='light']{
     --subsection-border: var(--white-4);
     --search-input-border: var(--white-3);
+    --graph-link: var(--white-4);
+    --link-label: var(--black-2);
 }
 
 .subsection-navbar {
@@ -61,4 +65,53 @@
 
 .p-20{
     padding: 20px;
+}
+
+/* Dependency Graph */
+#dependency-graph-container,#error-msg-container {
+    margin-top: 30px;
+    height: 100%; 
+    width: 100%;
+}
+
+#dependency-graph-container svg ,#error-msg-container{
+    width: 100%;
+    height: 100%;
+    box-shadow: var(--box-shadow);
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 10px;
+}
+
+#error-msg-container p{
+    text-align: center;
+    font-size: 24px;
+    line-height: 31px;
+    font-weight: var(--fw-500);
+    color: var(--empty-response-text-color);
+    margin: auto ;
+    margin-top: 50px;
+}
+
+#arrowhead path {
+    fill: var(--graph-link);
+    stroke: none;
+}
+
+.line {
+    stroke: var(--graph-link);
+    stroke-width: 1.2;
+}
+
+.label {
+    text-anchor: end;
+    fill: var(--graph-link);
+    font-size: 20px;
+}
+
+.link-label {
+    text-anchor: middle;
+    fill: var(--link-label);
+    font-weight: bold;
+    font-size: 20px;
 }
