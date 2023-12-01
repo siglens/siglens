@@ -78,7 +78,8 @@
                         <span>Tags</span>
                         <input class="form-control" id="tags-input" placeholder="" type="text">
                     </div>
-                    <div class="dropdown">
+                    <div class="dropdown lookback">
+                        <span>Lookback</span>
                         <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown" aria-haspopup="true"
                             aria-expanded="false" data-bs-toggle="dropdown" title="Pick the time window">
                             <span>Time Picker</span>
@@ -143,19 +144,19 @@
                     <button class="btn btn-primary search-trace-btn" id="search-trace-btn">Find Traces</button>
                 </div>
                 <div class="right-section">
-                    <div class="section-top">
-                        <div class="graph-show" id="graph-show"></div>
-                        <div class="graph-info">
-                            <span class="traces-number">16 Traces</span>
-                            <div class="sorts-method">
-                                <span>Sorts: </span>
-                                <div class="dropdown-sort-box">
-                                    <div class="dropdown" id="sort-dropdown">
-                                    </div>
+                    <div class="graph-info">
+                        <span class="traces-number">16 Traces</span>
+                        <div class="sorts-method">
+                            <span>Sorts: </span>
+                            <div class="dropdown-sort-box">
+                                <div class="dropdown" id="sort-dropdown">
                                 </div>
-                                <button class="download-trace" id="download-trace">Download Result</button>
                             </div>
+                            <button class="download-trace" id="download-trace">Download Result</button>
                         </div>
+                    </div>
+                    <div class="section-center">
+                        <div class="graph-show" id="graph-show"></div>
                     </div>
                     <div class="warn-bottom">
                         <div class="warm-head">

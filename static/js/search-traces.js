@@ -67,9 +67,9 @@ function getValuesOfColumn(chooseColumn, spanName) {
   let param = {
     state: "query",
     searchText: "SELECT DISTINCT " + chooseColumn + " FROM `ind-0`",
-    startEpoch: filterStartDate,
+    startEpoch: "now-24h",
     endEpoch: filterEndDate,
-    indexName: "*",
+    indexName: "traces",
     queryLanguage: "SQL",
     from: 0,
   };
