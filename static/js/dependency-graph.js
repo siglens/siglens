@@ -36,14 +36,6 @@ const colorArray = [
 
 let svgWidth;
 let svgHeight;
-// const tenMinutesAgo = new Date(Date.now() - 10 * 60000).toISOString();
-// let redMetricsData = {
-//     indexName: "service-dependency",
-//     startEpoch: "now-1h",
-//     endEpoch: "now",
-//     searchText: "*",
-//     queryLanguage: "Splunk QL",
-// };
 
 $(document).ready(() => {
     displayNavbar();
@@ -116,22 +108,6 @@ function createDependencyMatrix(res) {
     console.log("Links:", links);
     displayDependencyGraph(nodes, links);
 }
-
-// function getServiceDependencyMatrix1() {
-//     $.ajax({
-//         method: "POST",
-//         url: "api/search",
-//         headers: {
-//             "Content-Type": "application/json; charset=utf-8",
-//             Accept: "*/*",
-//         },
-//         data: JSON.stringify(redMetricsData),
-//         dataType: "json",
-//         crossDomain: true,
-//     }).then(function (res) {
-//         console.log(res);
-//     });
-// }
 
 function displayDependencyGraph(nodes, links) {
     // Create SVG container
