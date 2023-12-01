@@ -61,6 +61,7 @@
     border: 1px solid var(--search-input-border);
     background: var(--search-bar-bg);
     height: 40px;
+    font-size: 16px;
 }
 
 .p-20{
@@ -114,4 +115,35 @@
     fill: var(--link-label);
     font-weight: bold;
     font-size: 20px;
+}
+
+/* Service Health  */
+#tracing-container #ag-grid{
+    border: 1px solid var(--search-input-border);
+    box-shadow: var(--box-shadow);
+    border-radius: 5px;
+}
+
+#tracing-container .ag-header-viewport,
+#tracing-container .ag-header-cell{
+  background-color: var(--alerting-table-bg-color);
+}
+
+#tracing-container .ag-row-position-absolute::after{
+  content: '';
+  position: absolute;
+  left: 10px;
+  width: 98%;
+  height: 1px;
+  background-color: var(--alerting-table-line-color);
+  bottom: 0;
+}
+
+#tracing-container .ag-theme-mycustomtheme .ag-root-wrapper-body, #tracing-container .ag-theme-mycustomtheme .ag-center-cols-container  {
+    background-color: var(--black1-to-white0) !important;
+}
+
+#tracing-container #ag-grid .ag-row:hover {
+    background: var(--alerting-table-hover);
+    cursor: pointer;
 }

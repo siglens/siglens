@@ -47,8 +47,9 @@ const columnDefs=[
 
 const gridOptions = {
     rowData: serviceRowData ,
+    rowHeight: 50,
     defaultColDef: {
-      cellStyle: { 'text-align': "left" },
+    cellClass: 'align-center-grid',
       resizable: true,
       sortable: true,
       animateRows: true,
