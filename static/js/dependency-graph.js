@@ -50,7 +50,6 @@ $(document).ready(() => {
     svgHeight = $("#dependency-graph-container").height();
     $("#error-msg-container").hide();
     getServiceDependencyData();
-    //  getServiceDependencyMatrix1()`
 });
 
 function getServiceDependencyData() {
@@ -133,7 +132,7 @@ function displayDependencyGraph(nodes, links) {
         )
         .force("charge", d3.forceManyBody().strength(-300))
         .force("center", d3.forceCenter(250, 250))
-        .force("radial", d3.forceRadial(200, 250, 250).strength(0.1));
+        .force("radial", d3.forceRadial(250, 250, 250).strength(0.1));
 
     // Arrow Head
     svg.append("defs")
