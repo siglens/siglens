@@ -16,13 +16,6 @@ limitations under the License.
 
 'use strict';
 
-$(document).ready(function () {
-    $(`#alert-from-logs-btn`).tooltip({
-        delay: { show: 0, hide: 300 },
-        trigger: 'hover'
-    });
-});
-
 function getListIndices() {
     $('body').css('cursor', 'progress');
     $.ajax({
