@@ -62,6 +62,11 @@ $(document).ready(function () {
     getDashboardData();
 
     setTimePicker();
+
+    $(`.dbSet-textareaContainer .copy`).tooltip({
+        delay: { show: 0, hide: 300 },
+        trigger: 'hover'
+    });
 })
 $(document).mouseup(function (e) {
   var popWindows = $("#panel-dropdown-modal");
@@ -86,6 +91,11 @@ window.addEventListener('resize', function (event) {
     recalculatePanelWidths();
     displayPanels();
     resetPanelLocationsHorizontally();
+});
+$(`.dbSet-textareaContainer .copy`).click(function() {
+    navigator.clipboard.writeText($(`.dbSet-jsonModelData`).val());
+    $(this).tooltip('dispose');
+    $(this).attr('title', 'Copied!').tooltip('show');
 });
 
 function recalculatePanelWidths(){
