@@ -1,0 +1,12 @@
+div#download-info {
+    display: none;
+    width: 404px;
+    height: 70px;
+    margin: 30px;
+    padding: 0;
+}
+.name-info{
+    width: 404px;
+    height: 50px;
+    border-radius: 5px;
+}

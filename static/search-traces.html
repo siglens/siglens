@@ -27,7 +27,8 @@
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/siglens.css" />
     <link rel="stylesheet" href="./css/tracing.css" />
-    <link rel="stylesheet" href="./css/plug-in.css" />
+    <link rel="stylesheet" href="./componant/single-box/single-box.css" />
+    <link rel="stylesheet" href="./componant/download/download.css" />
     <link rel="stylesheet" href="./css/search-traces.css" />
 
     <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
@@ -49,7 +50,7 @@
 
         <div id="app-side-nav" class="active">
         </div>
-
+        <div id="download-trace"></div>
         <div id="dashboard" class="p-20">
             <div class="subsection-navbar">
                 <div>
@@ -63,7 +64,7 @@
             </div>
             <div class="page-block">
                 <div class="search">
-                    <span>Search</span>
+                    <span class="search-text">Search</span>
                     <div class="dropdown-box">
                         <span>Service</span>
                         <div class="dropdown" id = "service-dropdown">
@@ -71,7 +72,7 @@
                     </div>
                     <div class="dropdown-box">
                         <span>Operation</span>
-                        <div class="dropdown" id = "operation-dropdown">
+                        <div class="dropdown" id = "name-dropdown">
                         </div>
                     </div>
                     <div class="input-box">
@@ -141,36 +142,30 @@
                         <span>Limit Result</span>
                         <input class="form-control" id="limit-result-input" placeholder="" type="text">
                     </div>
-                    <button class="btn btn-primary search-trace-btn" id="search-trace-btn">Find Traces</button>
+                    <div class="search-trace-btn-box">
+                        <button class="btn btn-primary search-trace-btn" id="search-trace-btn">Find Traces</button>
+                    </div>
                 </div>
                 <div class="right-section">
                     <div class="graph-info">
-                        <span class="traces-number">16 Traces</span>
+                        <span class="traces-number" id = "traces-number"></span>
                         <div class="sorts-method">
                             <span>Sorts: </span>
                             <div class="dropdown-sort-box">
                                 <div class="dropdown" id="sort-dropdown">
                                 </div>
                             </div>
-                            <button class="download-trace" id="download-trace">Download Result</button>
+                            <div class="dropdown-download-box">
+                                <div class="dropdown" id="download-dropdown">
+                                </div>
+                            </div>
+                            <!-- <button class="download-trace" id="download-trace">Download Results</button> -->
                         </div>
                     </div>
                     <div class="section-center">
                         <div class="graph-show" id="graph-show"></div>
                     </div>
-                    <div class="warn-bottom">
-                        <div class="warm-head">
-                            <span>Frontend: </span>
-                            <span>732.1ms</span>
-                        </div>
-                        <div class="warm-content">
-                            <div>25 Span</div>
-                            <div>details of message</div>
-                            <div class="warm-content-right">
-                                <span>Today | 2:45:15pm</span>
-                                <span>an hour ago</span>
-                            </div>
-                        </div>
+                    <div class="warn-bottom" id = "warn-bottom">
                     </div>
                 </div>
             </div>
@@ -187,7 +182,8 @@
     <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/search-traces.js?cb=1_1_10"></script>
-    <script src="./js/plug-in/single-box.js"></script>
+    <script src="./componant/single-box/single-box.js"></script>
+    <script src="./componant/download/download.js"></script>
     <script src="./js/lib/echarts.js"></script>
 </body>
 

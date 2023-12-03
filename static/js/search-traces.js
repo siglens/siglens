@@ -24,19 +24,11 @@ $(document).ready(() => {
     $("body").attr("data-theme", theme);
   }
   $(".theme-btn").on("click", themePickerHandler);
-  $("#service-dropdown").singleBox({
-    spanName: "Service",
-  });
-  $("#operation-dropdown").singleBox({
-    spanName: "Operation",
-  });
-  $("#sort-dropdown").singleBox({
-    spanName: "MostRecent",
-  });
-  $("#service-btn").on("click", getServiceListHandler);
-  $("#operation-btn").on("click", getOperationListHandler);
+  getValuesOfColumn("service", "Service");
+  getValuesOfColumn("name", "Operation");
+  handleSort();
+  handleDownload();
   $("#search-trace-btn").on("click", searchTraceHandler);
-  $("#download-trace").on("click", downloadTrace);
   
 
 
@@ -60,9 +52,14 @@ $(document).ready(() => {
     $('.range-item').on('click', rangeItemHandler)
     $('.db-range-item').on('click', dashboardRangeItemHandler)
 });
-
+var chart;
 let currList = [];
-let curTraceArray = [], timeList = [], returnRes = [];
+let curSpanTraceArray = [],
+  curErrorTraceArray = [],
+  timeList = [],
+  returnResAdd = [],
+  returnResTotal = [];
+let pageNumber = 1, traceSize = 0, params = {};
 function getValuesOfColumn(chooseColumn, spanName) {
   let param = {
     state: "query",
@@ -99,13 +96,61 @@ function getValuesOfColumn(chooseColumn, spanName) {
     });
   });
 }
-function getServiceListHandler(e){
-    getValuesOfColumn("service", "Service");
+function handleSort(){
+  let currList = ["Most Recent", "Span Number", "Errors Number"];
+  $("#sort-dropdown").singleBox({
+    spanName: "Most Recent",
+    dataList: currList,
+    clicked: function (e) {
+      if (e.target.innerText == "Most Recent") {
+        returnResTotal = returnResTotal.sort(compare("start_time"));
+      } else if (e.target.innerText == "Span Number") {
+        returnResTotal = returnResTotal.sort(compare("span_count"));
+      } else if (e.target.innerText == "Errors Number") {
+        returnResTotal = returnResTotal.sort(compare("span_errors_count"));
+      }
+      reSort();
+    },
+  });
 }
-function getOperationListHandler(e){
-    getValuesOfColumn("name", "Operation");
+function compare(property) {
+  return function (object1, object2) {
+    let value1 = object1[property];
+    let value2 = object2[property];
+    return value2 - value1;
+  };
+}
+function handleDownload(){
+  let currList = ["Download as CSV", "Download as JSON"];
+  $("#download-dropdown").singleBox({
+    fillIn: false,
+    spanName: "Download Result",
+    dataList: currList,
+    clicked: function (e) {
+      if (e.target.innerText == "Download as CSV") {
+        $("#download-trace").download({
+          data: returnResTotal,
+          downloadMethod: ".csv",
+        });
+      } else if (e.target.innerText == "Download as JSON") {
+        $("#download-trace").download({
+          data: returnResTotal,
+          downloadMethod: ".json",
+        });
+      }
+    },
+  });
 }
 function searchTraceHandler(e){
+  returnResTotal = [];
+  curSpanTraceArray = [];
+  curErrorTraceArray = [];
+  timeList = [];
+  returnResAdd = [];
+  pageNumber = 1;
+   traceSize = 0;
+    params = {};
+    $(".warn-box").remove();
     let serviceValue = $("#service-span-name").text();
     let operationValue = $("#operation-span-name").text();
     let tagValue = $("#tags-input").val();
@@ -123,136 +168,278 @@ function searchTraceHandler(e){
     let queryParams = new URLSearchParams(window.location.search);
      let stDate = queryParams.get("startEpoch") || Cookies.get('startEpoch') || "now-15m";
      let endDate = queryParams.get("endEpoch") || Cookies.get('endEpoch') || "now";
-    let params = {
-        'searchText': searchText,
-         'startEpoch': stDate,
-         'endEpoch': endDate,
-         'queryLanguage': "Splunk QL",
-         'size': 20
-    }
+     pageNumber = 1;
+    params = {
+      searchText: searchText,
+      startEpoch: stDate,
+      endEpoch: endDate,
+      queryLanguage: "Splunk QL",
+      page: pageNumber,
+    };
     console.log(JSON.stringify(params));
     searchTrace(params);
 }
 function initChart(){
+  $("#graph-show").removeClass("empty-result-show");
+  pageNumber = 1; traceSize = 0;
+  returnResAdd = [];
+  returnResTotal = [];
   let queryParams = new URLSearchParams(window.location.search);
   let stDate =queryParams.get("startEpoch") || Cookies.get("startEpoch") || "now-15m";
   let endDate = queryParams.get("endEpoch") || Cookies.get("endEpoch") || "now";
-  let params = {
-        'searchText': '*',
-         'startEpoch': stDate,
-         'endEpoch': endDate,
-         'queryLanguage': "Splunk QL",
-         'size': 20
-    }
+  params = {
+    searchText: "*",
+    startEpoch: "now-24h",
+    endEpoch: endDate,
+    queryLanguage: "Splunk QL",
+    page: pageNumber,
+  };
     searchTrace(params);
 }
 function searchTrace(params){
-  //fake data
-  timeList = [
-    "11/29/2023, 5:44:09 PM",
-    "11/29/2023, 5:48:41 PM",
-    "11/29/2023, 5:39:59 PM",
-    "11/29/2023, 5:41:27 PM",
-    "11/29/2023, 5:39:00 PM",
-  ];
-  curTraceArray = [
-    [0, 6.804224],
-    [1, 8.663552],
-    [2, 6.668032],
-    [3, 5.275392],
-    [4, 4.791552],
-  ];
-  showScatterPlot();
-
-  //This is useful code. The API is still being modified, so comment out the code that calls the API.
-  // $.ajax({
-  //   method: "post",
-  //   url: "api/traces/search",
-  //   headers: {
-  //     "Content-Type": "application/json; charset=utf-8",
-  //     Accept: "*/*",
-  //   },
-  //   crossDomain: true,
-  //   dataType: "json",
-  //   data: JSON.stringify(params),
-  // }).then((res) => {
-  //   if (res && res.traces) {
-    // returnRes = res.traces;
-  //   $("#traces-number").text(res.traces.length + "Traces");
-  //     for(let i = 0; i < 5; i++){
-  //       let json = res.traces[i];
-  //       let milliseconds = Number(json.start_time / 1000000);
-  //       let dataStr = new Date(milliseconds).toLocaleString();
-  //       let duration = Number((json.end_time - json.start_time) / 1000000);
-  //       let newArr = [i, duration];
-  //       timeList.push(dataStr);
-  //       curTraceArray.push(newArr);
-  //     }
-  //     showScatterPlot();
-          // showSpanRes();
-  //   }
-  // });
+  $.ajax({
+    method: "post",
+    url: "api/traces/search",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Accept: "*/*",
+    },
+    crossDomain: true,
+    dataType: "json",
+    data: JSON.stringify(params),
+  }).then((res) => {
+    if (res && res.traces && res.traces.length > 0) {
+      //concat new traces results
+      returnResTotal = returnResTotal.concat(res.traces);
+      returnResTotal = returnResTotal.sort(compare("start_time"));
+      returnResAdd = res.traces;
+      //reset total size
+      traceSize = returnResTotal.length;
+      $("#traces-number").text(traceSize + " Traces");
+      for (let i = 0; i < traceSize; i++) {
+        let json = returnResTotal[i];
+        let milliseconds = Number(json.start_time / 1000000);
+        let dataInfo = new Date(milliseconds);
+        let dataStr = dataInfo.toLocaleString().toLowerCase();
+        let duration = Number((json.end_time - json.start_time) / 1000000);
+        let newArr = [i, duration, json.span_count, json.span_errors_count];
+        timeList.push(dataStr);
+        if(json.span_errors_count == 0 && i != 1) curSpanTraceArray.push(newArr);
+        else curErrorTraceArray.push([i, duration, json.span_count, 10]);
+      }
+      showScatterPlot();
+      reSort();
+    }else{
+      returnResAdd = [];
+      if (returnResTotal.length == 0) {
+        $("#traces-number").text("0 Traces");
+        let queryText = "Your query returned no data, adjust your query.";
+        $("#graph-show").html(queryText);
+        $("#graph-show").addClass("empty-result-show");
+        chart.dispose();
+      }
+    }
+  });
 }
 function showScatterPlot() {
-  
+  $("#graph-show").removeClass("empty-result-show");
   let chartId = document.getElementById("graph-show");
-  var chart = echarts.init(chartId);
-
-  let transformedTimeList = timeList.map((time) => {
-    // replace AM/PM with a space
-    let date = new Date(time.replace(/(AM|PM)/gi, " "));
-    // convert to timestamp
-    return date.getTime();
-  });
-
+  if (chart != null && chart != "" && chart != undefined) {
+    echarts.dispose(chart);
+  }
+  // else if ($("#graph-show").hasClass("empty-result-show")) $("#graph-show").removeClass("empty-result-show");
+  chart = echarts.init(chartId);
   chart.setOption({
     xAxis: {
-      type: "time",
+      type: "category",
       name: "Time",
-      data: transformedTimeList,
+      data: timeList,
+      scale: true,
+      axisLine: {
+        show: true,
+      },
     },
     yAxis: {
       type: "value",
       name: "Duration",
+      scale: true,
+      axisLine: {
+        show: true,
+      },
+    },
+    tooltip: {
+      show: true,
+      formatter: function(param){
+        var green = param.value[2];
+        var red = param.value[3];
+        return(
+          "<div>" + green + " Spans</div>"
+          +
+          "<div>" + red + " Errors</div>");
+      }
     },
     series: [
       {
-        type: "scatter",
-        data: curTraceArray,
+        type: "effectScatter",
+        showEffectOn: "emphasis",
+        rippleEffect: {
+          scale: 1,
+        },
+        data: curSpanTraceArray,
+        symbolSize: function (val) {
+          return val[2];
+        },
+        itemStyle: {
+          color: "rgba(1, 191, 179, 0.5)",
+        },
+      },
+      {
+        type: "effectScatter",
+        showEffectOn: "emphasis",
+        rippleEffect: {
+          scale: 1,
+        },
+        data: curErrorTraceArray,
+        symbolSize: function (val) {
+          return val[3];
+        },
+        itemStyle: {
+          color: "rgba(233, 49, 37, 0.5)",
+        },
       },
     ],
   });
 }
-
-function downloadTrace(e){
-}
-
-function showSpanRes(){
-  for (let i = 0; i < returnRes.length; i++) {
-    $("#warn-bottom").append(`<div class="warm-head">
-                            <span>Frontend: /dispatch <span class = "span-id" id = "span-id"></span></span>
-                            <span class = "duration-time" id  = "duration-time"></span>
+function reSort(){
+  let curSize = returnResTotal.length;
+  $(".warn-box").remove();
+  for (let i = 0; i < returnResTotal.length; i++) {
+    $("#warn-bottom").append(`<div class="warn-box"><div class="warn-head">
+                            <span  class = "span-id">Frontend: /dispatch <span id = "span-id-${
+                              traceSize - curSize + i
+                            }"></span></span>
+                            <span class = "duration-time" id  = "duration-time-${
+                              traceSize - curSize + i
+                            }"></span>
                         </div>
-                        <div class="warm-content">
-                            <div>
-                            <div class = "total-span" id = "total-span"></div>
-                            <div class = "error-span" id = "error-span"></div>
+                        <div class="warn-content">
+                            <div class="spans-box">
+                            <div class = "total-span" id = "total-span-${
+                              traceSize - curSize + i
+                            }"></div>
+                            <div class = "error-span" id = "error-span-${
+                              traceSize - curSize + i
+                            }"></div>
                             </div>
-                            <div>details of message</div>
-                            <div class="warm-content-right">
-                                <span class = "start-time" id = "start-time"></span>
-                                <span class = "how-long-time" id = "how-long-time"></span>
+                            <div> </div>
+                            <div class="warn-content-right">
+                                <span class = "start-time" id = "start-time-${
+                                  traceSize - curSize + i
+                                }"></span>
+                                <span class = "how-long-time" id = "how-long-time-${
+                                  traceSize - curSize + i
+                                }"></span>
                             </div>
-                        </div>`);
-    $("#span-id").text(returnRes[i].trace_id);
-    $("#total-span").text(returnRes[i].span_count + " Spans");
-    $("#error-span").text(returnRes[i].span_errors_count + " Errors");
-    $("#duration-time").text(curTraceArray[i][1] + "ms");
-    $("#start-time").text(timeList[i]);
-    $("#how-long-time").text(calculateTimeToNow(returnRes[i].start_time) + "hours ago");
+                        </div></div>`);
+    let json = returnResTotal[i];
+    $(`#span-id-${traceSize - curSize + i}`).text(json.trace_id);
+    $(`#total-span-${traceSize - curSize + i}`).text(
+      json.span_count + " Spans"
+    );
+    $(`#error-span-${traceSize - curSize + i}`).text(
+      json.span_errors_count + " Errors"
+    );
+    let duration = Number((json.end_time - json.start_time) / 1000000);
+    $(`#duration-time-${traceSize - curSize + i}`).text(
+      Math.round(duration * 100) / 100 + "ms"
+    );
+    let milliseconds = Number(json.start_time / 1000000);
+    let dataStr = new Date(milliseconds).toLocaleString();
+    let dateText = "";
+    let date = dataStr.split(",");
+    let dateTime = date[0].split("/");
+    //current date
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+    const currentDay = currentDate.getDate();
+    if (
+      currentYear === dateTime[2] &&
+      currentMonth === dateTime[0] &&
+      currentDay === dateTime[1]
+    ) {
+      dateText = "Today | ";
+    } else {
+      dateText = date[0] + " | ";
+    }
+    dateText += date[1].toLowerCase();
+    $(`#start-time-${traceSize - curSize + i}`).text(dateText);
+    $(`#how-long-time-${traceSize - curSize + i}`).text(
+      calculateTimeToNow(json.start_time) + " hours ago"
+    );
   }
-
 }
+function showSpanRes(){
+  let curSize = returnResAdd.length;
+  for (let i = 0; i < returnResAdd.length; i++) {
+    $("#warn-bottom").append(`<div class="warn-box"><div class="warn-head">
+                            <span  class = "span-id">Frontend: /dispatch <span id = "span-id-${traceSize - curSize + i}"></span></span>
+                            <span class = "duration-time" id  = "duration-time-${traceSize - curSize + i}"></span>
+                        </div>
+                        <div class="warn-content">
+                            <div class="spans-box">
+                            <div class = "total-span" id = "total-span-${traceSize - curSize + i}"></div>
+                            <div class = "error-span" id = "error-span-${traceSize - curSize + i}"></div>
+                            </div>
+                            <div> </div>
+                            <div class="warn-content-right">
+                                <span class = "start-time" id = "start-time-${traceSize - curSize + i}"></span>
+                                <span class = "how-long-time" id = "how-long-time-${traceSize - curSize + i}"></span>
+                            </div>
+                        </div></div>`);
+    let json = returnResAdd[i];
+    $(`#span-id-${traceSize - curSize + i}`).text(json.trace_id);
+    $(`#total-span-${traceSize - curSize + i}`).text(json.span_count + " Spans");
+    $(`#error-span-${traceSize - curSize + i}`).text(json.span_errors_count + " Errors");
+    let duration = Number((json.end_time - json.start_time) / 1000000);
+    $(`#duration-time-${traceSize - curSize + i}`).text(Math.round(duration * 100) / 100 + "ms");
+    let milliseconds = Number(json.start_time / 1000000);
+    let dataStr = new Date(milliseconds).toLocaleString();
+    let dateText = "";
+    let date = dataStr.split(",");
+    let dateTime = date[0].split("/");
+    //current date
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1; 
+    const currentDay = currentDate.getDate();
+    if (
+      currentYear === dateTime[2] &&
+      currentMonth === dateTime[0] &&
+      currentDay === dateTime[1]
+    ) {
+      dateText = "Today | "
+    }else{
+      dateText = date[0] + " | "
+    }
+    dateText += date[1].toLowerCase();
+    $(`#start-time-${traceSize - curSize + i}`).text(dateText);
+    $(`#how-long-time-${traceSize - curSize + i}`).text(
+      calculateTimeToNow(json.start_time) + " hours ago"
+    );
+  }
+}
+
+$('#warn-bottom').unbind("scroll").on("scroll", function (e) {
+    var sum = this.scrollHeight;
+    var $obj = $(this);
+    if (sum <= $obj.scrollTop() + $obj.height()) {
+      params.page = params.page + 1;
+      searchTrace(params);
+    }
+})
+
+
 
 function calculateTimeToNow(startTime){
   const nanosecondsTimestamp = startTime;

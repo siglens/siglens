@@ -1,16 +1,19 @@
 (function ($) {
   $.fn.singleBox = function (options) {
     var defaults = {
+      fillIn: true,
       spanName: "",
-      dataList: []
+      dataList: [],
+      clicked:function(){}
     };
     let setting = $.extend(defaults, options || {});
+    let curCLick = setting.spanName;
       this.html(``);
-      let name = setting.spanName.toLowerCase();
+      let name = setting.spanName.toLowerCase().replace(" ", "");
       this
         .append(`<button class="btn dropdown-toggle" type="button" id="${name}-btn" data-toggle="dropdown" aria-haspopup="true"
                                 aria-expanded="false" data-bs-toggle="dropdown" title="Index Name to search on">
-                                <span id="${name}-span-name"></span>
+                                <span class = "span-name-index" id="${name}-span-name"></span>
                                 <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
                                 <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
                             </button>
@@ -20,15 +23,22 @@
       $(`#${name}-span-name`).text(setting.spanName);
       if (setting.dataList.length > 0) {
         setting.dataList.forEach((value, index) => {
-          $(`#${name}-listing`)
-            .append(`<div class="index-dropdown-item" data-index="${index}">${value}</div>`);
+          let valId = value.replace(" ", "").toLowerCase();
+          $(`#${name}-listing`).append(
+            `<div class="single-dropdown-item" id="single-dropdown-${name}-${valId}" data-index="${index}">${value}</div>`
+          );
         });
       }
-      $(`#${name}-listing`).on("click", ".index-dropdown-item", function () {
-        let curCLick = $(this).text();
-        $(`#${name}-span-name`).text(curCLick);
+      $(`#${name}-listing`).on("click", ".single-dropdown-item", function () {
+        curCLick = $(this).text();
+        if (setting.fillIn) $(`#${name}-span-name`).text(curCLick);
       });
-    return this;
+      const data = {
+        index: curCLick
+      };
+      //callback function
+      $(`#${name}-listing`).on("click", ".single-dropdown-item", data, setting.clicked);
+      return this;
   };
 })(jQuery);
 
