@@ -4,11 +4,17 @@
 
 :root {
     --choose-item-background: var(--black-5);
+    --search-box-input: var(--black-2);
 }
 
 [data-theme='light'] {
     --choose-item-background: var(--white-2);
+    --search-box-input: var(--white-1);
 }
+* {
+    box-sizing: border-box;
+}
+
 .dropdown-plugin{
     position: absolute;
     inset: 0px auto auto 0px;
@@ -25,7 +31,7 @@
     border: 1px solid rgba(0,0,0,.15);
     border-radius: 0.25rem;
     background-color: var(--default-tab);
-    height: 200px;
+    max-height: 200px;
     overflow-y: scroll;
     width: 100%;
     overflow-x: hidden;
@@ -65,4 +71,6 @@
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
+    background: var(--search-box-input);
+    border: 1px solid var(--border-btn-color) !important;
 }

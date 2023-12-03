@@ -4,6 +4,7 @@
       fillIn: true,
       spanName: "",
       dataList: [],
+      // backgroundColor: "",
       clicked:function(){}
     };
     let setting = $.extend(defaults, options || {});
@@ -11,7 +12,7 @@
       this.html(``);
       let name = setting.spanName.toLowerCase().replace(" ", "");
       this
-        .append(`<button class="btn dropdown-toggle" type="button" id="${name}-btn" data-toggle="dropdown" aria-haspopup="true"
+        .append(`<button class="btn dropdown-toggle ${name}-btn" type="button" id="${name}-btn" data-toggle="dropdown" aria-haspopup="true"
                                 aria-expanded="false" data-bs-toggle="dropdown" title="Index Name to search on">
                                 <span class = "span-name-index" id="${name}-span-name"></span>
                                 <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
