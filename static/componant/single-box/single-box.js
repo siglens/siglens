@@ -4,7 +4,6 @@
       fillIn: true,
       spanName: "",
       dataList: [],
-      // backgroundColor: "",
       clicked:function(){}
     };
     let setting = $.extend(defaults, options || {});
