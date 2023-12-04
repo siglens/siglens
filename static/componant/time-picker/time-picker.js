@@ -4,7 +4,6 @@
       spanName: "Time Picker"
     };
     let setting = $.extend(defaults, options || {});
-    let name = setting.spanName.toLowerCase().replace(" ", "");
     this
       .append(`<button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown" aria-haspopup="true"
                             aria-expanded="false" data-bs-toggle="dropdown" title="Pick the time window">

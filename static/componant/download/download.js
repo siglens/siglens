@@ -2,7 +2,7 @@
   $.fn.download = function (options) {
     var defaults = {
       data: [],
-      downloadMethod: ".33"
+      downloadMethod: ".cvs"
     };
     let setting = $.extend(defaults, options || {});
     this.html(``);

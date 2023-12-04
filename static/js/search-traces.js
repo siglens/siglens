@@ -76,7 +76,7 @@ function getValuesOfColumn(chooseColumn, spanName) {
 }
 function handleTimePicker(){
   $("#lookback").timeTicker({
-    spanName: "time Picker",
+    spanName: "Time Picker",
   });
 }
 function handleSort(){

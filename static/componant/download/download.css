@@ -10,3 +10,9 @@ div#download-info {
     height: 50px;
     border-radius: 5px;
 }
+.ui-dialog .ui-dialog-buttonpane{
+    margin: 20px 30px 0 20px !important;
+}
+.ui-draggable .ui-dialog-titlebar{
+    padding: 22px 0 10px 20px !important;
+}
