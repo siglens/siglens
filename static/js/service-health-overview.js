@@ -11,7 +11,6 @@ $(document).ready(() => {
     displayNavbar();
     setupEventHandlers();
     $(".theme-btn").on("click", themePickerHandler);
-    $('.theme-btn').on('click',getAllService() );
     const serviceName = getParameterFromUrl('service');
     redMetrics['searchText']="service="  + serviceName + "";
     let stDate = "now-1h";
@@ -20,7 +19,7 @@ $(document).ready(() => {
     $('.range-item').on('click', isGraphsDatePickerHandler);
     let data = getTimeRange();
     redMetrics = {... redMetrics, ... data}
-    getAllService()
+    getOneServiceOverview()
     if (Cookies.get("theme")) {
         theme = Cookies.get("theme");
         $("body").attr("data-theme", theme);
@@ -29,7 +28,7 @@ $(document).ready(() => {
 
 function isGraphsDatePickerHandler(evt) {
     evt.preventDefault();
-    getAllService()
+    getOneServiceOverview()
     $('#daterangepicker').hide();
 }
 
@@ -43,7 +42,7 @@ function getParameterFromUrl(param) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(param);
 }
-function getAllService(){
+function getOneServiceOverview(){
     let endDate = filterEndDate || "now";
     let stDate = filterStartDate || "now-1h";
     let data = getTimeRange();

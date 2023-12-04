@@ -123,7 +123,7 @@ function displayServiceHealthTable(res){
 
 function onRowClicked(event) {
     const serviceName = event.data.service; 
-    window.location.href = 'service-health-graphs.html?service=' + encodeURIComponent(serviceName);
+    window.location.href = 'service-health-overview.html?service=' + encodeURIComponent(serviceName);
 }
 
 
