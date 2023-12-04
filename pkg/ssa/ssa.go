@@ -41,6 +41,7 @@ const binary = "binary"
 var client analytics.Client = nil
 var ssaStarted = false
 var segmentKey string = "BPDjnefPV0Jc2BRGdGh7CQTnykYKbD8c"
+var userId = ""
 
 type silentLogger struct {
 }
@@ -75,25 +76,33 @@ func waitForInitialEvent() {
 	traits := analytics.NewTraits()
 	props := analytics.NewProperties()
 
+	// Initialize computer-specific identifier
+	computerID, err := utils.GetSpecificIdentifier()
+	if err != nil {
+		log.Errorf("waitForInitialEvent: %v", err)
+	}
+
+	userId = computerID
+
 	baseInfo := getBaseInfo()
 	for k, v := range baseInfo {
 		traits.Set(k, v)
 		props.Set(k, v)
 	}
 	_ = client.Enqueue(analytics.Identify{
-		UserId: "Public OSS",
+		UserId: userId,
 		Traits: traits,
 	})
 	if localnodeid.IsInitServer() {
 		_ = client.Enqueue(analytics.Track{
 			Event:      "server startup",
-			UserId:     "Public OSS",
+			UserId:     userId,
 			Properties: props,
 		})
 	} else {
 		_ = client.Enqueue(analytics.Track{
 			Event:      "server restart",
-			UserId:     "Public OSS",
+			UserId:     userId,
 			Properties: props,
 		})
 	}
@@ -111,7 +120,7 @@ func StopSsa() {
 	populateQuerySsa(props)
 	_ = client.Enqueue(analytics.Track{
 		Event:      "server shutdown",
-		UserId:     "Public OSS",
+		UserId:     userId,
 		Properties: props,
 	})
 	err := client.Close()
@@ -137,7 +146,7 @@ func flushSsa() {
 	}
 	_ = client.Enqueue(analytics.Track{
 		Event:      "server status",
-		UserId:     "Public OSS",
+		UserId:     userId,
 		Properties: props,
 	})
 }
