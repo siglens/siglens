@@ -56,4 +56,6 @@ type SearchRequestBody struct {
 	StartEpoch    string `json:"startEpoch"`
 	EndEpoch      string `json:"endEpoch"`
 	QueryLanguage string `json:"queryLanguage"`
+	From          int    `json:"from,omitempty"`
+	Size          int    `json:"size,omitempty"`
 }
