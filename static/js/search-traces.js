@@ -80,27 +80,40 @@ function handleTimePicker(){
   });
 }
 function handleSort(){
-  let currList = ["Most Recent", "Span Number", "Errors Number"];
+  let currList = ["Most Recent", "Longest First", "Shortest First", "Most Spans", "Least Spans"];
   $("#sort-dropdown").singleBox({
     spanName: "Most Recent",
     dataList: currList,
     clicked: function (e) {
       if (e.target.innerText == "Most Recent") {
-        returnResTotal = returnResTotal.sort(compare("start_time"));
-      } else if (e.target.innerText == "Span Number") {
-        returnResTotal = returnResTotal.sort(compare("span_count"));
-      } else if (e.target.innerText == "Errors Number") {
-        returnResTotal = returnResTotal.sort(compare("span_errors_count"));
+        returnResTotal = returnResTotal.sort(compare("start_time", "most"));
+      } else if (e.target.innerText == "Longest First") {
+        returnResTotal = returnResTotal.sort(compareDuration("most"));
+      } else if (e.target.innerText == "Shortest First") {
+        returnResTotal = returnResTotal.sort(compareDuration("least"));
+      } else if (e.target.innerText == "Most Spans") {
+        returnResTotal = returnResTotal.sort(compare("span_count", "most"));
+      } else if (e.target.innerText == "Least Spans") {
+        returnResTotal = returnResTotal.sort(compare("span_count", "least"));
       }
       reSort();
     },
   });
 }
-function compare(property) {
+function compareDuration(method) {
+  return function (object1, object2) {
+    let value1 = object1["end_time"] - object1["start_time"];
+    let value2 = object2["end_time"] - object2["start_time"];
+    if (method == "most") return value2 - value1;
+    else return value1 - value2;
+  };
+}
+function compare(property, method) {
   return function (object1, object2) {
     let value1 = object1[property];
     let value2 = object2[property];
-    return value2 - value1;
+    if(method == "most") return value2 - value1;
+    else return value1 - value2;
   };
 }
 function handleDownload(){
@@ -191,7 +204,7 @@ function searchTrace(params){
     if (res && res.traces && res.traces.length > 0) {
       //concat new traces results
       returnResTotal = returnResTotal.concat(res.traces);
-      returnResTotal = returnResTotal.sort(compare("start_time"));
+      returnResTotal = returnResTotal.sort(compare("start_time", "most"));
       //reset total size
       traceSize = returnResTotal.length;
       $("#traces-number").text(traceSize + " Traces");
