@@ -1,4 +1,11 @@
-GO := /usr/local/go/bin/go
+
+
+GO := $(shell which go)
+ifeq ($(GO), )
+	GO := /usr/local/go/bin/go
+endif
+export GO 
+
 
 lint:
 	golangci-lint run --timeout=3m
