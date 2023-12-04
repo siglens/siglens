@@ -213,6 +213,7 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 
 	// tracing api endpoints
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/search", hs.Recovery(searchTracesHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/traces/dependencies", hs.Recovery(getDependencyGraphHandler()))
 
 	// query server should still setup ES APIs for Kibana integration
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))

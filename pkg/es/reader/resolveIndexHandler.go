@@ -28,6 +28,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
+
 func IndicesBody(indexName string) esutils.ResolveIndexEntry {
 	return esutils.ResolveIndexEntry{Name: indexName, Attributes: []string{"open"}}
 }
@@ -48,6 +50,9 @@ func ExpandAndReturnIndexNames(indexPattern string, allVirtualTableNames map[str
 
 		for indexName := range allVirtualTableNames {
 			if indexRegExp.MatchString(indexName) {
+				if isIndexExcluded(indexName) {
+					continue
+				}
 				newEntry := IndicesBody(indexName)
 				currentAliases, err := virtualtable.GetAliasesAsArray(indexName, myid)
 				if err != nil {
@@ -92,6 +97,15 @@ func ExpandAndReturnIndexNames(indexPattern string, allVirtualTableNames map[str
 		}
 	}
 	return indicesEntries, aliasesEntries, nil
+}
+
+func isIndexExcluded(indexName string) bool {
+	for _, value := range excludedInternalIndices {
+		if strings.ReplaceAll(indexName, "*", "") == value {
+			return true
+		}
+	}
+	return false
 }
 
 func SendResolveIndexResponse(ctx *fasthttp.RequestCtx, myid uint64) {
