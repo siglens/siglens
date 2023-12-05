@@ -110,7 +110,7 @@ $(document).ready(function () {
         $(".nav-minion").addClass("active");
     } else if (currentUrl.includes("live-tail.html")) {
         $(".nav-live").addClass("active");
-    } else if (currentUrl.includes("service-health.html")|| currentUrl.includes("service-health-graphs.htm") || currentUrl.includes("dependency-graph.html")|| currentUrl.includes("search-traces.html")) {
+    } else if (currentUrl.includes("service-health.html")|| currentUrl.includes("service-health-overview.html") || currentUrl.includes("dependency-graph.html")|| currentUrl.includes("search-traces.html")) {
         $(".nav-traces").addClass("active");
     }
 });

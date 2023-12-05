@@ -47,6 +47,7 @@ const columnDefs=[
 
 const gridOptions = {
     rowData: serviceRowData ,
+    onRowClicked: onRowClicked,
     rowHeight: 50,
     defaultColDef: {
     cellClass: 'align-center-grid',
@@ -120,5 +121,11 @@ function displayServiceHealthTable(res){
     gridOptions.api.setRowData(serviceRowData);
     gridOptions.api.sizeColumnsToFit();
 }
+
+function onRowClicked(event) {
+    const serviceName = event.data.service; 
+    window.location.href = 'service-health-overview.html?service=' + encodeURIComponent(serviceName);
+}
+
 
 
