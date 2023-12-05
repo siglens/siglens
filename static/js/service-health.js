@@ -110,7 +110,7 @@ function displayServiceHealthTable(res){
     $.each(res, function (key, value) {
         newRow.set("rowId", key);
         newRow.set("service", value.service);
-        newRow.set("rate", value.rate);
+        newRow.set("rate", Number(value.rate).toFixed(2));
         newRow.set("error", value.error_rate);
         newRow.set("p50", value.p50);
         newRow.set("p90", value.p90);
