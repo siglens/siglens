@@ -48,8 +48,8 @@
     flex-direction: column;
     padding: 20px;
     height: 620px;
-    width: 25%;
-    min-width: 320px;
+    width: 32%;
+    min-width: 270px;
 }
 .warn-box,
 .section-center,
@@ -68,7 +68,7 @@
     display: flex;
     justify-content: flex-start;
     flex-direction: column;
-    width: 75%;
+    width: 68%;
 }
 .section-center{
     width: 100%;

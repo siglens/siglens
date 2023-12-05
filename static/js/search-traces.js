@@ -15,30 +15,36 @@ limitations under the License.
 */
 
 'use strict';
-
-$(document).ready(() => {
-  displayNavbar();
-  initChart();
-  if (Cookies.get("theme")) {
-    theme = Cookies.get("theme");
-    $("body").attr("data-theme", theme);
-  }
-  $(".theme-btn").on("click", themePickerHandler);
-  getValuesOfColumn("service", "Service");
-  getValuesOfColumn("name", "Operation");
-  handleSort();
-  handleDownload();
-  handleTimePicker();
-  $("#search-trace-btn").on("click", searchTraceHandler);
-});
 var chart;
 let currList = [];
 let curSpanTraceArray = [],
   curErrorTraceArray = [],
   timeList = [],
   returnResTotal = [];
-let pageNumber = 1, traceSize = 0, params = {};
+let pageNumber = 1,
+  traceSize = 0,
+  params = {};
 let limitation = -1;
+$(document).ready(() => {
+  displayNavbar();
+  if (Cookies.get("theme")) {
+    theme = Cookies.get("theme");
+    $("body").attr("data-theme", theme);
+  }
+  $(".theme-btn").on("click", themePickerHandler);
+  initPage();
+});
+
+function initPage(){
+  initChart();
+  getValuesOfColumn("service", "Service");
+  getValuesOfColumn("name", "Operation");
+  handleSort();
+  handleDownload();
+  handleTimePicker();
+  $("#search-trace-btn").on("click", searchTraceHandler);
+}
+
 function getValuesOfColumn(chooseColumn, spanName) {
   let param = {
     state: "query",
@@ -252,6 +258,11 @@ function searchTrace(params){
     }
   });
 }
+const resizeObserver = new ResizeObserver((entries) => {
+  if (chart != null && chart != "" && chart != undefined) chart.resize();
+});
+resizeObserver.observe(document.getElementById("graph-show"));
+
 function showScatterPlot() {
   $("#graph-show").removeClass("empty-result-show");
   let chartId = document.getElementById("graph-show");
