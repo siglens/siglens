@@ -56,6 +56,10 @@ const gridOptions = {
       animateRows: true,
       readOnlyEdit: true,
       autoHeight: true,
+      icons: {
+          sortAscending: '<i class="fa fa-sort-alpha-down"/>',
+          sortDescending: '<i class="fa fa-sort-alpha-up"/>',
+        },
     },
     columnDefs:columnDefs,
 };
