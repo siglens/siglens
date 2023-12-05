@@ -98,7 +98,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	// Get status code count for each trace
 	for _, traceId := range traceIds {
 		// Get the start time and end time for this trace
-		searchRequestBody.SearchText = "trace_id=" + traceId + " AND parent_span_id=\"\" | fields start_time, end_time"
+		searchRequestBody.SearchText = "trace_id=" + traceId + " AND parent_span_id=\"\" | fields start_time, end_time, name, service"
 		pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 		if err != nil {
 			log.Errorf("ProcessSearchTracesRequest: traceId:%v, %v", traceId, err)
@@ -118,6 +118,16 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			continue
 		}
 
+		serviceName, exists := pipeSearchResponseOuter.Hits.Hits[0]["service"]
+		if !exists {
+			continue
+		}
+
+		operationName, exists := pipeSearchResponseOuter.Hits.Hits[0]["name"]
+		if !exists {
+			continue
+		}
+
 		traceStartTime := uint64(startTime.(float64))
 		traceEndTime := uint64(endTime.(float64))
 
@@ -133,7 +143,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			continue
 		}
 
-		AddTrace(pipeSearchResponseOuter, &traces, traceId, traceStartTime, traceEndTime)
+		AddTrace(pipeSearchResponseOuter, &traces, traceId, traceStartTime, traceEndTime, serviceName.(string), operationName.(string))
 	}
 
 	traceResult := &structs.TraceResult{
@@ -183,7 +193,8 @@ func ExtractTraceID(searchText string) (bool, string) {
 	return true, matches[1]
 }
 
-func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64, traceEndTime uint64) {
+func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64,
+	traceEndTime uint64, serviceName string, operationName string) {
 	spanCnt := 0
 	errorCnt := 0
 	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
@@ -216,6 +227,8 @@ func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, trace
 		EndTime:         traceEndTime,
 		SpanCount:       spanCnt,
 		SpanErrorsCount: errorCnt,
+		ServiceName:     serviceName,
+		OperationName:   operationName,
 	}
 
 	*traces = append(*traces, trace)
@@ -257,30 +270,46 @@ func ProcessRedTracesIngest() {
 	// Initial request
 	searchRequestBody := structs.SearchRequestBody{
 		IndexName:     "traces",
-		SearchText:    "",
+		SearchText:    "*",
 		QueryLanguage: "Splunk QL",
 		StartEpoch:    "now-5m",
 		EndEpoch:      "now",
+		From:          0,
+		Size:          1000,
 	}
 
-	ctx := &fasthttp.RequestCtx{}
-	requestData, err := json.Marshal(searchRequestBody)
-	if err != nil {
-		log.Errorf("ProcessRedTracesIngest: could not marshal to json body, err=%v", err)
-		return
-	}
+	// We can only determine whether a span is an entry span or not after retrieving all the spans,
+	// E.g.: Perhaps there is no parent span for span:12345 in this request, and its parent span exists in the next request. Therefore, we cannot determine if one span has a parent span in a single request.
+	// We should use this array to record all the spans
+	spans := make([]*structs.Span, 0)
 
-	ctx.Request.Header.SetMethod("POST")
-	ctx.Request.SetBody(requestData)
+	for {
+		ctx := &fasthttp.RequestCtx{}
+		requestData, err := json.Marshal(searchRequestBody)
+		if err != nil {
+			log.Errorf("ProcessRedTracesIngest: could not marshal to json body, err=%v", err)
+			return
+		}
 
-	// Get initial data
-	pipesearch.ProcessPipeSearchRequest(ctx, 0)
+		ctx.Request.Header.SetMethod("POST")
+		ctx.Request.SetBody(requestData)
 
-	// Parse initial data
-	rawSpanData := structs.RawSpanData{}
-	if err := json.Unmarshal(ctx.Response.Body(), &rawSpanData); err != nil {
-		log.Errorf("ProcessRedTracesIngest: could not unmarshal json body, err=%v", err)
-		return
+		// Get initial data
+		pipesearch.ProcessPipeSearchRequest(ctx, 0)
+
+		// Parse initial data
+		rawSpanData := structs.RawSpanData{}
+		if err := json.Unmarshal(ctx.Response.Body(), &rawSpanData); err != nil {
+			log.Errorf("ProcessRedTracesIngest: could not unmarshal json body, err=%v", err)
+			return
+		}
+
+		if rawSpanData.Hits.Spans == nil || len(rawSpanData.Hits.Spans) == 0 {
+			break
+		}
+
+		spans = append(spans, rawSpanData.Hits.Spans...)
+		searchRequestBody.From += 1000
 	}
 
 	spanIDtoService := make(map[string]string)
@@ -292,12 +321,12 @@ func ProcessRedTracesIngest() {
 	// Map from the service name to the RED metrics
 	serviceToMetrics := make(map[string]structs.RedMetrics)
 
-	for _, span := range rawSpanData.Hits.Spans {
+	for _, span := range spans {
 		spanIDtoService[span.SpanID] = span.Service
 	}
 
 	// Get entry spans
-	for _, span := range rawSpanData.Hits.Spans {
+	for _, span := range spans {
 
 		// A span is an entry point if it has no parent or its parent is a different service
 		if len(span.ParentSpanID) != 0 {
@@ -349,7 +378,7 @@ func ProcessRedTracesIngest() {
 
 		redMetrics := structs.RedMetrics{
 			Rate:      float64(spanCnt) / float64(60),
-			ErrorRate: float64(errSpanCnt) / float64(spanCnt),
+			ErrorRate: (float64(errSpanCnt) / float64(spanCnt)) * 100,
 		}
 
 		durations, exists := serviceToSpanDuration[service]
