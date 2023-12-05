@@ -38,11 +38,11 @@ let gridDiv = null;
 let serviceRowData = [];
 const columnDefs=[
     { headerName: "Service", field: "service"},
-    { headerName: "Rate", field: "rate"},
-    { headerName: "Error", field: "error"},
-    { headerName: 'P50', field: 'p50' },
-    { headerName: 'P90', field: 'p90' },
-    { headerName: 'P99', field: 'p99' },
+    { headerName: "Rate (Request per Second)", field: "rate"},
+    { headerName: "Error (% of Rate)", field: "error"},
+    { headerName: 'P50 (in ms)', field: 'p50' },
+    { headerName: 'P90 (in ms)', field: 'p90' },
+    { headerName: 'P99 (in ms)', field: 'p99' },
 ];
 
 const gridOptions = {
