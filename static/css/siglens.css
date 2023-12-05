@@ -255,7 +255,7 @@
 
     --top-bar-bg-color-regular: var(--white-0);
 
-    --search-bar-bg: var(--white-2);
+    --search-bar-bg: var(--white-1);
     --search-bar-text-color-regular-or-hover: var(--white-8);
     --search-bar-text-color-active: var(--white-5);
 
@@ -2250,6 +2250,10 @@ input[type="submit" i] {
 
 #date-picker-btn {
     cursor: pointer;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border: 1px solid var(--border-btn-color);
 }
  
 .dropdown-menu.daterangepicker.show{
