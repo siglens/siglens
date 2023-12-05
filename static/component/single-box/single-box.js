@@ -20,16 +20,26 @@
                             <div class="dropdown-menu box-shadow dropdown-plugin" aria-labelledby="index-btn" id="${name}-options">
                                 <div id="${name}-listing"></div>
                             </div>`);
-      $(`#${name}-span-name`).text(setting.defaultValue ? setting.defaultValue : setting.spanName);
-      if (setting.dataList.length > 0) {
-        setting.dataList.forEach((value, index) => {
-          let valId = value.replace(" ", "").toLowerCase();
-          $(`#${name}-listing`).append(
-            `<div class="single-dropdown-item" id="single-dropdown-${name}-${valId}" data-index="${index}">${value}</div>`
-          );
-        });
+      $(`#${name}-span-name`).text(setting.defaultValue != "" ? setting.defaultValue : setting.spanName);
+        if (setting.dataList.length > 0) {
+          setting.dataList.forEach((value, index) => {
+            let valId = value.replace(" ", "").toLowerCase();
+            $(`#${name}-listing`).append(
+              `<div class="single-dropdown-item single-item-${name}" id="single-dropdown-${name}-${valId}" data-index="${index}">${value}</div>`
+            );
+          });
+        }
+      if (setting.defaultValue!="") {
+        $(
+          `#single-dropdown-${name}-${setting.defaultValue
+            .replace(" ", "")
+            .toLowerCase()}`
+        ).addClass("active");
       }
+
       $(`#${name}-listing`).on("click", ".single-dropdown-item", function () {
+        $(`.single-item-${name}`).removeClass("active");
+        $(this).addClass("active");
         curCLick = $(this).text();
         if (setting.fillIn) $(`#${name}-span-name`).text(curCLick);
       });

@@ -94,6 +94,7 @@ function handleSort(){
   let currList = ["Most Recent", "Longest First", "Shortest First", "Most Spans", "Least Spans"];
   $("#sort-dropdown").singleBox({
     spanName: "Most Recent",
+    defaultValue: "Most Recent",
     dataList: currList,
     clicked: function (e) {
       if (e.target.innerText == "Most Recent") {
@@ -238,7 +239,7 @@ function searchTrace(params){
         let dataInfo = new Date(milliseconds);
         let dataStr = dataInfo.toLocaleString().toLowerCase();
         let duration = Number((json.end_time - json.start_time) / 1000000);
-        let newArr = [i, duration, json.span_count, json.span_errors_count];
+        let newArr = [i, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name];
         timeList.push(dataStr);
         if(json.span_errors_count == 0) curSpanTraceArray.push(newArr);
         else curErrorTraceArray.push(newArr);
@@ -293,10 +294,10 @@ function showScatterPlot() {
     tooltip: {
       show: true,
       formatter: function (param) {
-        var green = param.value[2];
-        var red = param.value[3];
+        var green = param.value[4];
+        var red = param.value[5];
         return (
-          "<div>" + green + " Spans</div>" + "<div>" + red + " Errors</div>"
+          "<div>" + green + ": " + red + "</div>"
         );
       },
     },
@@ -336,7 +337,7 @@ function reSort(){
   $(".warn-box").remove();
   for (let i = 0; i < returnResTotal.length; i++) {
     $("#warn-bottom").append(`<div class="warn-box"><div class="warn-head">
-                            <span  class = "span-id">Frontend: /dispatch <span id = "span-id-${i}"></span></span>
+                            <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
                             <span class = "duration-time" id  = "duration-time-${i}"></span>
                         </div>
                         <div class="warn-content">
@@ -351,6 +352,7 @@ function reSort(){
                             </div>
                         </div></div>`);
     let json = returnResTotal[i];
+    $(`#span-id-head-${i}`).text(json.service_name + ": " + json.operation_name + "  ");
     $(`#span-id-${i}`).text(json.trace_id.substring(0, 7));
     $(`#total-span-${i}`).text(
       json.span_count + " Spans"
@@ -381,12 +383,18 @@ function reSort(){
     } else {
       dateText = date[0] + " | ";
     }
+    dateText = date[0] + " | ";
     dateText += date[1].toLowerCase();
     $(`#start-time-${i}`).text(dateText);
     let timePass = calculateTimeToNow(json.start_time);
     let timePassText = "";
-    if(timePass == 0) timePassText = "Current Time - Start Time";
-    else if (timePass == 1) timePassText = timePass + " hour ago";
+    if (timePass.days > 2) timePassText = "a few days ago";
+    else if (timePass.days > 1) timePassText = "yesterday";
+    else if (timePass.hours == 1) timePassText = timePass.hours + " hour ago";
+    else if (timePass.hours >= 1) timePassText = timePass.hours + " hours ago";
+    else if (timePass.minutes == 1) timePassText = timePass.minutes + " minute ago";
+    else if (timePass.minutes > 1) timePassText = timePass.minutes + " minutes ago";
+    else if (timePass.minutes < 1) timePassText = "a few seconds ago";
     else timePassText = timePass + " hours ago";
     $(`#how-long-time-${i}`).text(timePassText);
   }
@@ -414,13 +422,19 @@ $('#warn-bottom').unbind("scroll").on("scroll", function (e) {
     }
 })
 
-
-
-function calculateTimeToNow(startTime){
+function calculateTimeToNow(startTime) {
   const nanosecondsTimestamp = startTime;
   const millisecondsTimestamp = nanosecondsTimestamp / 1000000;
   const now = new Date();
   const timeDifference = now.getTime() - millisecondsTimestamp;
+
   const hours = Math.floor(timeDifference / 3600000);
-  return hours;
+  const minutes = Math.floor((timeDifference % 3600000) / 60000);
+  const days = Math.floor((timeDifference % 3600000) / 86400000);
+
+  return {
+    hours: hours,
+    minutes: minutes,
+    days: days,
+  };
 }
