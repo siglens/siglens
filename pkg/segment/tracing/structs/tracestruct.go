@@ -10,6 +10,8 @@ type Trace struct {
 	EndTime         uint64 `json:"end_time"`
 	SpanCount       int    `json:"span_count"`
 	SpanErrorsCount int    `json:"span_errors_count"`
+	ServiceName     string `json:"service_name"`
+	OperationName   string `json:"operation_name"`
 }
 
 type Status_StatusCode string

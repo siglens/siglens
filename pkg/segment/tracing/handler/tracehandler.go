@@ -98,7 +98,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	// Get status code count for each trace
 	for _, traceId := range traceIds {
 		// Get the start time and end time for this trace
-		searchRequestBody.SearchText = "trace_id=" + traceId + " AND parent_span_id=\"\" | fields start_time, end_time"
+		searchRequestBody.SearchText = "trace_id=" + traceId + " AND parent_span_id=\"\" | fields start_time, end_time, name, service"
 		pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 		if err != nil {
 			log.Errorf("ProcessSearchTracesRequest: traceId:%v, %v", traceId, err)
@@ -118,6 +118,16 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			continue
 		}
 
+		serviceName, exists := pipeSearchResponseOuter.Hits.Hits[0]["service"]
+		if !exists {
+			continue
+		}
+
+		operationName, exists := pipeSearchResponseOuter.Hits.Hits[0]["name"]
+		if !exists {
+			continue
+		}
+
 		traceStartTime := uint64(startTime.(float64))
 		traceEndTime := uint64(endTime.(float64))
 
@@ -133,7 +143,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			continue
 		}
 
-		AddTrace(pipeSearchResponseOuter, &traces, traceId, traceStartTime, traceEndTime)
+		AddTrace(pipeSearchResponseOuter, &traces, traceId, traceStartTime, traceEndTime, serviceName.(string), operationName.(string))
 	}
 
 	traceResult := &structs.TraceResult{
@@ -183,7 +193,8 @@ func ExtractTraceID(searchText string) (bool, string) {
 	return true, matches[1]
 }
 
-func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64, traceEndTime uint64) {
+func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64,
+	traceEndTime uint64, serviceName string, operationName string) {
 	spanCnt := 0
 	errorCnt := 0
 	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
@@ -216,6 +227,8 @@ func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, trace
 		EndTime:         traceEndTime,
 		SpanCount:       spanCnt,
 		SpanErrorsCount: errorCnt,
+		ServiceName:     serviceName,
+		OperationName:   operationName,
 	}
 
 	*traces = append(*traces, trace)
