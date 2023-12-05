@@ -124,6 +124,10 @@ function displayServiceHealthTable(res){
     })
     gridOptions.api.setRowData(serviceRowData);
     gridOptions.api.sizeColumnsToFit();
+    gridOptions.columnApi.applyColumnState({
+        state: [{ colId: 'error', sort: 'desc' }],
+        defaultState: { sort: null },
+    });
 }
 
 function onRowClicked(event) {
