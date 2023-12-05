@@ -38,11 +38,12 @@ let curSpanTraceArray = [],
   timeList = [],
   returnResTotal = [];
 let pageNumber = 1, traceSize = 0, params = {};
+let limitation = -1;
 function getValuesOfColumn(chooseColumn, spanName) {
   let param = {
     state: "query",
     searchText: "SELECT DISTINCT " + chooseColumn + " FROM `ind-0`",
-    startEpoch: "now-24h",
+    startEpoch: "now-3h",
     endEpoch: filterEndDate,
     indexName: "traces",
     queryLanguage: "SQL",
@@ -60,6 +61,7 @@ function getValuesOfColumn(chooseColumn, spanName) {
     data: JSON.stringify(param),
   }).then((res) => {
     let valuesOfColumn = new Set();
+    valuesOfColumn.add("All");
     if (res && res.hits && res.hits.records) {
       for (let i = 0; i < res.hits.records.length; i++) {
         let cur = res.hits.records[i][chooseColumn];
@@ -71,12 +73,15 @@ function getValuesOfColumn(chooseColumn, spanName) {
     $(`#${chooseColumn}-dropdown`).singleBox({
       spanName: spanName,
       dataList: currList,
+      defaultValue: "All"
     });
   });
 }
 function handleTimePicker(){
+  Cookies.set("startEpoch", "now-3h");
+  Cookies.set("endEpoch", "now");
   $("#lookback").timeTicker({
-    spanName: "Time Picker",
+    spanName: "Last 3 Hrs",
   });
 }
 function handleSort(){
@@ -138,6 +143,8 @@ function handleDownload(){
   });
 }
 function searchTraceHandler(e){
+  e.stopPropagation(); 
+  e.preventDefault();
   returnResTotal = [];
   curSpanTraceArray = [];
   curErrorTraceArray = [];
@@ -152,16 +159,18 @@ function searchTraceHandler(e){
     let maxDurationValue = $("#max-duration-input").val();
     let minDurationValue = $("#min-duration-input").val();
     let limitResValue = $("#limit-result-input").val();
+    if (limitResValue) limitation = limitResValue;
+    else limitation = -1;
     let searchText = "";
-    if(serviceValue != "Service") searchText = "service=" + serviceValue + " "; 
-    if (operationValue != "Operation") searchText += "name=" + operationValue + " ";
+    if(serviceValue != "All") searchText = "service=" + serviceValue + " "; 
+    if (operationValue != "All") searchText += "name=" + operationValue + " ";
     if (maxDurationValue) searchText += "EndTimeUnixNano<=" + maxDurationValue + " ";
     if (minDurationValue) searchText += "StartTimeUnixNano>=" + minDurationValue + " ";
     if (tagValue) searchText += tagValue;
     if (searchText == "") searchText = "*";
     else searchText = searchText.trim();
     let queryParams = new URLSearchParams(window.location.search);
-     let stDate = queryParams.get("startEpoch") || Cookies.get('startEpoch') || "now-15m";
+     let stDate = queryParams.get("startEpoch") || Cookies.get('startEpoch') || "now-3h";
      let endDate = queryParams.get("endEpoch") || Cookies.get('endEpoch') || "now";
      pageNumber = 1;
     params = {
@@ -172,14 +181,15 @@ function searchTraceHandler(e){
       page: pageNumber,
     };
     searchTrace(params);
+    handleSort();
+    return false;
 }
 function initChart(){
   $("#graph-show").removeClass("empty-result-show");
   pageNumber = 1; traceSize = 0;
   returnResTotal = [];
-  let queryParams = new URLSearchParams(window.location.search);
-  let stDate =queryParams.get("startEpoch") || Cookies.get("startEpoch") || "now-15m";
-  let endDate = queryParams.get("endEpoch") || Cookies.get("endEpoch") || "now";
+  let stDate = "now-3h";
+  let endDate = "now";
   params = {
     searchText: "*",
     startEpoch: stDate,
@@ -202,8 +212,15 @@ function searchTrace(params){
     data: JSON.stringify(params),
   }).then((res) => {
     if (res && res.traces && res.traces.length > 0) {
-      //concat new traces results
-      returnResTotal = returnResTotal.concat(res.traces);
+        if(limitation < 50 && limitation > 0){
+          let newArr = res.traces.sort(compare("start_time", "most"));
+          newArr.splice(limitation);
+          limitation = 0;
+          returnResTotal = returnResTotal.concat(newArr);
+        }else{
+          returnResTotal = returnResTotal.concat(res.traces);
+        }
+        //concat new traces results
       returnResTotal = returnResTotal.sort(compare("start_time", "most"));
       //reset total size
       traceSize = returnResTotal.length;
@@ -305,46 +322,33 @@ function showScatterPlot() {
   });
 }
 function reSort(){
-  let curSize = returnResTotal.length;
   $(".warn-box").remove();
   for (let i = 0; i < returnResTotal.length; i++) {
     $("#warn-bottom").append(`<div class="warn-box"><div class="warn-head">
-                            <span  class = "span-id">Frontend: /dispatch <span id = "span-id-${
-                              traceSize - curSize + i
-                            }"></span></span>
-                            <span class = "duration-time" id  = "duration-time-${
-                              traceSize - curSize + i
-                            }"></span>
+                            <span  class = "span-id">Frontend: /dispatch <span id = "span-id-${i}"></span></span>
+                            <span class = "duration-time" id  = "duration-time-${i}"></span>
                         </div>
                         <div class="warn-content">
                             <div class="spans-box">
-                            <div class = "total-span" id = "total-span-${
-                              traceSize - curSize + i
-                            }"></div>
-                            <div class = "error-span" id = "error-span-${
-                              traceSize - curSize + i
-                            }"></div>
+                            <div class = "total-span" id = "total-span-${i}"></div>
+                            <div class = "error-span" id = "error-span-${i}"></div>
                             </div>
                             <div> </div>
                             <div class="warn-content-right">
-                                <span class = "start-time" id = "start-time-${
-                                  traceSize - curSize + i
-                                }"></span>
-                                <span class = "how-long-time" id = "how-long-time-${
-                                  traceSize - curSize + i
-                                }"></span>
+                                <span class = "start-time" id = "start-time-${i}"></span>
+                                <span class = "how-long-time" id = "how-long-time-${i}"></span>
                             </div>
                         </div></div>`);
     let json = returnResTotal[i];
-    $(`#span-id-${traceSize - curSize + i}`).text(json.trace_id);
-    $(`#total-span-${traceSize - curSize + i}`).text(
+    $(`#span-id-${i}`).text(json.trace_id.substring(0, 7));
+    $(`#total-span-${i}`).text(
       json.span_count + " Spans"
     );
-    $(`#error-span-${traceSize - curSize + i}`).text(
+    $(`#error-span-${i}`).text(
       json.span_errors_count + " Errors"
     );
     let duration = Number((json.end_time - json.start_time) / 1000000);
-    $(`#duration-time-${traceSize - curSize + i}`).text(
+    $(`#duration-time-${i}`).text(
       Math.round(duration * 100) / 100 + "ms"
     );
     let milliseconds = Number(json.start_time / 1000000);
@@ -354,9 +358,9 @@ function reSort(){
     let dateTime = date[0].split("/");
     //current date
     const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth() + 1;
-    const currentDay = currentDate.getDate();
+    const currentYear = currentDate.getFullYear() + "";
+    const currentMonth = currentDate.getMonth() + 1 + "";
+    const currentDay = currentDate.getDate() + "";
     if (
       currentYear === dateTime[2] &&
       currentMonth === dateTime[0] &&
@@ -367,10 +371,13 @@ function reSort(){
       dateText = date[0] + " | ";
     }
     dateText += date[1].toLowerCase();
-    $(`#start-time-${traceSize - curSize + i}`).text(dateText);
-    $(`#how-long-time-${traceSize - curSize + i}`).text(
-      calculateTimeToNow(json.start_time) + " hours ago"
-    );
+    $(`#start-time-${i}`).text(dateText);
+    let timePass = calculateTimeToNow(json.start_time);
+    let timePassText = "";
+    if(timePass == 0) timePassText = "Current Time - Start Time";
+    else if (timePass == 1) timePassText = timePass + " hour ago";
+    else timePassText = timePass + " hours ago";
+    $(`#how-long-time-${i}`).text(timePassText);
   }
 }
 
@@ -378,9 +385,21 @@ function reSort(){
 $('#warn-bottom').unbind("scroll").on("scroll", function (e) {
     var sum = this.scrollHeight;
     var $obj = $(this);
-    if (sum <= $obj.scrollTop() + $obj.height()) {
-      params.page = params.page + 1;
-      searchTrace(params);
+    if (sum <= $obj.scrollTop() + $obj.height() && sum != 240) {
+      //users did not set limitation
+      if(limitation == -1){
+        params.page = params.page + 1;
+        searchTrace(params);
+      }else if(limitation > 0){
+        if(limitation >= 50){
+          limitation = limitation - 50;
+          params.page = params.page + 1;
+          searchTrace(params);
+        }else{
+          params.page = params.page + 1;
+          searchTrace(params);
+        }
+      }
     }
 })
 

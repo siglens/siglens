@@ -7,7 +7,7 @@
     this
       .append(`<button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown" aria-haspopup="true"
                             aria-expanded="false" data-bs-toggle="dropdown" title="Pick the time window">
-                            <span>${setting.spanName}</span>
+                            <span id="span-time-value">${setting.spanName}</span>
                             <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
                             <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
                         </button>

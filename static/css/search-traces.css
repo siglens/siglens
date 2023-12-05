@@ -7,6 +7,7 @@
    --search-box-input: var(--black-2);
    --search-box-input-trace: var(--black-2);
    --sort-box: var(--black-2);
+   --head-trace: var(--black-2);
 }
 
 [data-theme='light'] {
@@ -14,6 +15,7 @@
     --search-box-input: var(--white-1);
     --search-box-input-trace: var(--white-0);
     --sort-box: var(--white-0);
+    --head-trace: var(--white-1);
 }
 #date-picker-btn{
     width: 100% !important;
@@ -41,11 +43,13 @@
     justify-content: space-between;
 }
 .search{
-    width: 30%;
+    margin-right: 25px;
     display: flex;
     flex-direction: column;
     padding: 20px;
     height: 620px;
+    width: 25%;
+    min-width: 320px;
 }
 .warn-box,
 .section-center,
@@ -61,10 +65,10 @@
     flex-direction: row;
 }
 .right-section{
-    width: 65%;
     display: flex;
     justify-content: flex-start;
     flex-direction: column;
+    width: 75%;
 }
 .section-center{
     width: 100%;
@@ -73,7 +77,7 @@
 }
 .warn-bottom{
     margin-top: 5px;
-    height: 500px;
+    height: 240px;
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: none; /* firefox */
@@ -84,12 +88,13 @@
     /* Chrome Safari */
 }
 .warn-head{
-    background-color: var(--drop-down-btn-bg-regular);
+    background-color: var(--head-trace);
     height: 30%;
     align-items: center;
     font-size: 1rem;
     padding: 0 15px;
     font-weight: 600;
+    border-radius: 10px 10px 0 0;
 }
 .graph-info{
     height: 66px;
@@ -126,8 +131,10 @@ input.form-control{
 .tags-second{
     margin-left: 10px;
 }
+.search-text,
 .traces-number{
     font-weight: 600;
+    font-size: 20px;
 }
 .sorts-method{
     align-items: center;
@@ -159,10 +166,7 @@ input.form-control{
     border: none;
     color: var(--white) !important;
     width: 48%;
-}
-.search-text{
-    margin-bottom: 6px;
-    font-size: 20px;
+    height: 40px;
 }
 .empty-result-show{
     display: flex;
@@ -177,12 +181,7 @@ input.form-control{
     height: 150px;
     margin-top: 20px;
 }
-.span-id {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    width: 200px;
-}
+
 .error-span,
 .total-span{
     width: 100px;

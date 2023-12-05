@@ -3,6 +3,7 @@
     var defaults = {
       fillIn: true,
       spanName: "",
+      defaultValue: "",
       dataList: [],
       clicked:function(){}
     };
@@ -14,13 +15,12 @@
         .append(`<button class="btn dropdown-toggle ${name}-btn" type="button" id="${name}-btn" data-toggle="dropdown" aria-haspopup="true"
                                 aria-expanded="false" data-bs-toggle="dropdown" title="Index Name to search on">
                                 <span class = "span-name-index" id="${name}-span-name"></span>
-                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                <div class="dropdown-arrow-show"></div>
                             </button>
                             <div class="dropdown-menu box-shadow dropdown-plugin" aria-labelledby="index-btn" id="${name}-options">
                                 <div id="${name}-listing"></div>
                             </div>`);
-      $(`#${name}-span-name`).text(setting.spanName);
+      $(`#${name}-span-name`).text(setting.defaultValue ? setting.defaultValue : setting.spanName);
       if (setting.dataList.length > 0) {
         setting.dataList.forEach((value, index) => {
           let valId = value.replace(" ", "").toLowerCase();

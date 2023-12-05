@@ -3,7 +3,7 @@
 }
 
 :root {
-    --choose-item-background: var(--black-5);
+    --choose-item-background: var(--black-2);
     --search-box-input: var(--black-2);
 }
 
@@ -73,4 +73,21 @@
     align-items: center;
     background: var(--search-box-input);
     border: 1px solid var(--border-btn-color) !important;
+}
+.dropdown-toggle.show{
+    background: var(--drop-down-btn-bg-active) !important;
+    outline: 1px solid var(--drop-down-btn-border-active) !important;
+    outline-offset: -1pt;
+}
+.dropdown-toggle.show>.dropdown-arrow-show{
+    background-image: url("../../assets/up-arrow-btn-light-theme.svg") !important;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+.dropdown-arrow-show{
+    background-image: url("../../assets/arrow-btn.svg");;
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 10px;
+    height: 10px;
 }
