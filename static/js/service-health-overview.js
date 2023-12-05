@@ -15,6 +15,8 @@ $(document).ready(() => {
         theme = Cookies.get("theme");
         $("body").attr("data-theme", theme);
     }
+    $('.theme-btn').on('click', getOneServiceOverview);
+
    
     const serviceName = getParameterFromUrl('service');
     redMetrics['searchText']="service="  + serviceName + "";
@@ -50,6 +52,9 @@ function getParameterFromUrl(param) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(param);
 }
+let gridLineColor;
+let tickColor;
+
 function getOneServiceOverview(){
     let endDate = filterEndDate || "now";
     let stDate = filterStartDate || "now-1h";
@@ -66,6 +71,14 @@ function getOneServiceOverview(){
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
+        if ($('body').attr('data-theme') == "light") {
+            gridLineColor = "#DCDBDF";
+            tickColor = "#160F29";
+        }
+        else {
+            gridLineColor = "#383148";
+            tickColor = "#FFFFFF"
+        }
         if (RateCountChart !== undefined) {
             RateCountChart.destroy();
         }
@@ -75,14 +88,13 @@ function getOneServiceOverview(){
         if (LatenciesChart!==undefined){
             LatenciesChart.destroy();
         }
-        rateChart(res.hits.records)
-        errorChart(res.hits.records)
-        latenciesChart(res.hits.records)
-
+        rateChart(res.hits.records,gridLineColor,tickColor);
+        errorChart(res.hits.records,gridLineColor,tickColor);
+        latenciesChart(res.hits.records,gridLineColor,tickColor);
     })
 }
 
-function rateChart(rateData) {
+function rateChart(rateData,gridLineColor,tickColor) {
     let graph_data = []
     for(let data of rateData){
         graph_data.push({
@@ -113,23 +125,37 @@ function rateChart(rateData) {
             interaction: {
                 intersect: false,
                 mode: 'index',
-              },
-            scales: {
-            y: {
-                beginAtZero: true, 
-            }
-        },
-        plugins:{
-            legend: {
-                display: false
             },
-        }
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
+                },
+                x: {
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+            }
         }
     });
     return RateCountChart;
 }
 
-function errorChart(errorData) {
+function errorChart(errorData,gridLineColor,tickColor) {
     let graph_data_err = []
     for(let data of errorData){
             let formatted_date = new Date(data.timestamp).toISOString().split('T').join(" ")
@@ -161,13 +187,27 @@ function errorChart(errorData) {
             interaction: {
                 intersect: false,
                 mode: 'index',
-              },
-              scales: {
+            },
+            scales: {
                 y: {
-                    beginAtZero: true, 
+                    beginAtZero: true,
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
+                },
+                x: {
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
                 }
             },
-            plugins:{
+            plugins: {
                 legend: {
                     display: false
                 },
@@ -177,7 +217,8 @@ function errorChart(errorData) {
     return ErrCountChart;
 }
 
-function latenciesChart(latenciesData) {
+
+function latenciesChart(latenciesData,gridLineColor,tickColor) {
     let graph_data_latencies = {
         p50: [],
         p90: [],
@@ -235,7 +276,21 @@ function latenciesChart(latenciesData) {
             },
             scales: {
                 y: {
-                    beginAtZero: true, 
+                    beginAtZero: true,
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
+                },
+                x: {
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
                 }
             },
             plugins:{
