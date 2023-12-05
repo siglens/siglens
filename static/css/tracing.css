@@ -18,7 +18,7 @@
 }
 
 .subsection-buttons {
-    margin-top: 30px;
+    margin-top: 22px;
     display: flex;
     height: 40px;
     border-radius: 5px;
@@ -146,4 +146,25 @@
 #tracing-container #ag-grid .ag-row:hover {
     background: var(--alerting-table-hover);
     cursor: pointer;
+}
+
+.service-name{
+    font-size: 22px;
+    cursor: pointer;
+    margin-bottom: 0;
+}
+
+.service-health-text{
+    font-size: 22px;
+    color: #6F6B7B;
+    cursor: pointer;
+    margin-bottom: 0;
+}
+
+#one-service-overview .chart-container{
+    width: 49%;
+}
+
+#one-service-overview .chart_container{
+    width: 100%;
 }

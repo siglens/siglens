@@ -11,19 +11,29 @@ $(document).ready(() => {
     displayNavbar();
     setupEventHandlers();
     $(".theme-btn").on("click", themePickerHandler);
+    if (Cookies.get("theme")) {
+        theme = Cookies.get("theme");
+        $("body").attr("data-theme", theme);
+    }
+    $('.theme-btn').on('click', getOneServiceOverview);
+
+   
     const serviceName = getParameterFromUrl('service');
     redMetrics['searchText']="service="  + serviceName + "";
+    $('.service-name').text(serviceName);
+    
     let stDate = "now-1h";
     let endDate = "now";
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', isGraphsDatePickerHandler);
     let data = getTimeRange();
+    
     redMetrics = {... redMetrics, ... data}
     getOneServiceOverview()
-    if (Cookies.get("theme")) {
-        theme = Cookies.get("theme");
-        $("body").attr("data-theme", theme);
-    }
+   
+    $(".service-health-text").click(function () {
+        window.location.href = "../service-health.html";
+    })
 });
 
 function isGraphsDatePickerHandler(evt) {
@@ -42,6 +52,9 @@ function getParameterFromUrl(param) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(param);
 }
+let gridLineColor;
+let tickColor;
+
 function getOneServiceOverview(){
     let endDate = filterEndDate || "now";
     let stDate = filterStartDate || "now-1h";
@@ -58,6 +71,14 @@ function getOneServiceOverview(){
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
+        if ($('body').attr('data-theme') == "light") {
+            gridLineColor = "#DCDBDF";
+            tickColor = "#160F29";
+        }
+        else {
+            gridLineColor = "#383148";
+            tickColor = "#FFFFFF"
+        }
         if (RateCountChart !== undefined) {
             RateCountChart.destroy();
         }
@@ -67,14 +88,13 @@ function getOneServiceOverview(){
         if (LatenciesChart!==undefined){
             LatenciesChart.destroy();
         }
-        rateChart(res.hits.records)
-        errorChart(res.hits.records)
-        latenciesChart(res.hits.records)
-
+        rateChart(res.hits.records,gridLineColor,tickColor);
+        errorChart(res.hits.records,gridLineColor,tickColor);
+        latenciesChart(res.hits.records,gridLineColor,tickColor);
     })
 }
 
-function rateChart(rateData) {
+function rateChart(rateData,gridLineColor,tickColor) {
     let graph_data = []
     for(let data of rateData){
         graph_data.push({
@@ -93,7 +113,7 @@ function rateChart(rateData) {
                     borderColor: ['rgb(99,71,217)'],
                     yAxisID: 'y',
                     pointStyle: 'circle',
-                    pointRadius: 10,
+                    pointRadius: 5,
                     pointBorderColor: ['rgb(99,71,217)'],
                     fill: false,
                 },
@@ -105,18 +125,37 @@ function rateChart(rateData) {
             interaction: {
                 intersect: false,
                 mode: 'index',
-              },
+            },
             scales: {
-            y: {
-                beginAtZero: true, 
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
+                },
+                x: {
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
             }
-        }
         }
     });
     return RateCountChart;
 }
 
-function errorChart(errorData) {
+function errorChart(errorData,gridLineColor,tickColor) {
     let graph_data_err = []
     for(let data of errorData){
             let formatted_date = new Date(data.timestamp).toISOString().split('T').join(" ")
@@ -136,7 +175,7 @@ function errorChart(errorData) {
                     borderColor: ['rgb(99,71,217)'],
                     yAxisID: 'y',
                     pointStyle: 'circle',
-                    pointRadius: 10,
+                    pointRadius: 5,
                     pointBorderColor: ['rgb(99,71,217)'],
                     fill: false,
                 },
@@ -148,18 +187,38 @@ function errorChart(errorData) {
             interaction: {
                 intersect: false,
                 mode: 'index',
-              },
-              scales: {
+            },
+            scales: {
                 y: {
-                    beginAtZero: true, 
+                    beginAtZero: true,
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
+                },
+                x: {
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
                 }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
             }
         }
     });
     return ErrCountChart;
 }
 
-function latenciesChart(latenciesData) {
+
+function latenciesChart(latenciesData,gridLineColor,tickColor) {
     let graph_data_latencies = {
         p50: [],
         p90: [],
@@ -180,21 +239,21 @@ function latenciesChart(latenciesData) {
                 {
                     label: 'P50 Latency',
                     data: graph_data_latencies.p50,
-                    borderColor: 'rgb(99, 71, 217)',
+                    borderColor: '#FF6484',
                     yAxisID: 'y',
                     pointStyle: 'circle',
-                    pointRadius: 10,
-                    pointBorderColor: ['rgb(99,71,217)'],
+                    pointRadius: 5,
+                    pointBorderColor: ['#FF6484'],
                     fill: false,
                 },
                 {
                     label: 'P90 Latency',
                     data: graph_data_latencies.p90,
-                    borderColor: 'rgb(255, 0, 0)',
+                    borderColor: '#36A2EB',
                     yAxisID: 'y',
                     pointStyle: 'circle',
-                    pointRadius: 10,
-                    pointBorderColor: ['rgb(99,71,217)'],
+                    pointRadius: 5,
+                    pointBorderColor: '#36A2EB',
                     fill: false,
                 },
                 {
@@ -202,9 +261,9 @@ function latenciesChart(latenciesData) {
                     data: graph_data_latencies.p99,
                     yAxisID: 'y',
                     pointStyle: 'circle',
-                    pointRadius: 10,
-                    pointBorderColor: ['rgb(99,71,217)'],
-                    borderColor: "green",
+                    pointRadius: 5,
+                    pointBorderColor: "#4BC0C0",
+                    borderColor: "#4BC0C0",
                     fill: false,
                 },
             ]
@@ -217,10 +276,32 @@ function latenciesChart(latenciesData) {
             },
             scales: {
                 y: {
-                    beginAtZero: true, 
+                    beginAtZero: true,
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
+                },
+                x: {
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
                 }
+            },
+            plugins:{
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxHeight: 10,
+                        padding: 20,
+                    }
+                },
             }
-           
         }
     });
 
