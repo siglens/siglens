@@ -11,19 +11,27 @@ $(document).ready(() => {
     displayNavbar();
     setupEventHandlers();
     $(".theme-btn").on("click", themePickerHandler);
+    if (Cookies.get("theme")) {
+        theme = Cookies.get("theme");
+        $("body").attr("data-theme", theme);
+    }
+   
     const serviceName = getParameterFromUrl('service');
     redMetrics['searchText']="service="  + serviceName + "";
+    $('.service-name').text(serviceName);
+    
     let stDate = "now-1h";
     let endDate = "now";
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', isGraphsDatePickerHandler);
     let data = getTimeRange();
+    
     redMetrics = {... redMetrics, ... data}
     getOneServiceOverview()
-    if (Cookies.get("theme")) {
-        theme = Cookies.get("theme");
-        $("body").attr("data-theme", theme);
-    }
+   
+    $(".service-health-text").click(function () {
+        window.location.href = "../service-health.html";
+    })
 });
 
 function isGraphsDatePickerHandler(evt) {

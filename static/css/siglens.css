@@ -2250,6 +2250,10 @@ input[type="submit" i] {
 
 #date-picker-btn {
     cursor: pointer;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border: 1px solid var(--border-btn-color);
 }
  
 .dropdown-menu.daterangepicker.show{
