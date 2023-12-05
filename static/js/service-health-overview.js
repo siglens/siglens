@@ -101,7 +101,7 @@ function rateChart(rateData) {
                     borderColor: ['rgb(99,71,217)'],
                     yAxisID: 'y',
                     pointStyle: 'circle',
-                    pointRadius: 10,
+                    pointRadius: 5,
                     pointBorderColor: ['rgb(99,71,217)'],
                     fill: false,
                 },
@@ -118,6 +118,11 @@ function rateChart(rateData) {
             y: {
                 beginAtZero: true, 
             }
+        },
+        plugins:{
+            legend: {
+                display: false
+            },
         }
         }
     });
@@ -144,7 +149,7 @@ function errorChart(errorData) {
                     borderColor: ['rgb(99,71,217)'],
                     yAxisID: 'y',
                     pointStyle: 'circle',
-                    pointRadius: 10,
+                    pointRadius: 5,
                     pointBorderColor: ['rgb(99,71,217)'],
                     fill: false,
                 },
@@ -161,6 +166,11 @@ function errorChart(errorData) {
                 y: {
                     beginAtZero: true, 
                 }
+            },
+            plugins:{
+                legend: {
+                    display: false
+                },
             }
         }
     });
@@ -188,21 +198,21 @@ function latenciesChart(latenciesData) {
                 {
                     label: 'P50 Latency',
                     data: graph_data_latencies.p50,
-                    borderColor: 'rgb(99, 71, 217)',
+                    borderColor: '#FF6484',
                     yAxisID: 'y',
                     pointStyle: 'circle',
-                    pointRadius: 10,
-                    pointBorderColor: ['rgb(99,71,217)'],
+                    pointRadius: 5,
+                    pointBorderColor: ['#FF6484'],
                     fill: false,
                 },
                 {
                     label: 'P90 Latency',
                     data: graph_data_latencies.p90,
-                    borderColor: 'rgb(255, 0, 0)',
+                    borderColor: '#36A2EB',
                     yAxisID: 'y',
                     pointStyle: 'circle',
-                    pointRadius: 10,
-                    pointBorderColor: ['rgb(99,71,217)'],
+                    pointRadius: 5,
+                    pointBorderColor: '#36A2EB',
                     fill: false,
                 },
                 {
@@ -210,9 +220,9 @@ function latenciesChart(latenciesData) {
                     data: graph_data_latencies.p99,
                     yAxisID: 'y',
                     pointStyle: 'circle',
-                    pointRadius: 10,
-                    pointBorderColor: ['rgb(99,71,217)'],
-                    borderColor: "green",
+                    pointRadius: 5,
+                    pointBorderColor: "#4BC0C0",
+                    borderColor: "#4BC0C0",
                     fill: false,
                 },
             ]
@@ -227,8 +237,16 @@ function latenciesChart(latenciesData) {
                 y: {
                     beginAtZero: true, 
                 }
+            },
+            plugins:{
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxHeight: 10,
+                        padding: 20,
+                    }
+                },
             }
-           
         }
     });
 

@@ -75,27 +75,31 @@
                         </div>
                     </div>
                     <div id="one-service-overview">
-                        <div class="chart-container">
-                            <div class="graph-container mt-2">
-                                <div class="chart_container">
-                                    <div class="ingestion-stats-header">Rate (Request per Second)</div>
-                                    <canvas id="ServiceHealthChart"></canvas>
+                        <div class="d-flex w-100 mt-4 gap-4">
+                            <div class="chart-container">
+                                <div class="graph-container mt-2">
+                                    <div class="chart_container">
+                                        <div class="ingestion-stats-header">Rate (Request per Second)</div>
+                                        <canvas id="ServiceHealthChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <div class="graph-container mt-2">
+                                    <div class="chart_container">
+                                        <div class="ingestion-stats-header">Error (% of Rate)</div>
+                                        <canvas id="ServiceHealthChartErr"></canvas>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="chart-container">
-                            <div class="graph-container mt-2">
-                                <div class="chart_container">
-                                    <div class="ingestion-stats-header">Error (% of Rate)</div>
-                                    <canvas id="ServiceHealthChartErr"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="chart-container">
-                            <div class="graph-container mt-2">
-                                <div class="chart_container">
-                                    <div class="ingestion-stats-header">Latency</div>
-                                    <canvas id="ServiceHealthChart2"></canvas>
+                        <div class="mt-5 d-flex justify-content-center">
+                            <div class="chart-container">
+                                <div class="graph-container mt-2">
+                                    <div class="chart_container">
+                                        <div class="ingestion-stats-header">Latency</div>
+                                        <canvas id="ServiceHealthChart2"></canvas>
+                                    </div>
                                 </div>
                             </div>
                         </div>
