@@ -23,6 +23,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/axiomhq/hyperloglog"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
@@ -329,12 +330,20 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 }
 
 // returns all columns (+timestamp) in the measure operations
+// false indicates it will be used for eval functions; true means it will not be used.
 func getSegStatsMeasureCols(ops []*structs.MeasureAggregator) map[string]bool {
 	aggCols := make(map[string]bool)
 	timestampKey := config.GetTimeStampKey()
 	aggCols[timestampKey] = true
 	for _, op := range ops {
-		aggCols[op.MeasureCol] = true
+		if op.ValueColRequest != nil {
+			for _, field := range op.ValueColRequest.GetFields() {
+				aggCols[field] = false
+			}
+			op.MeasureCol = op.StrEnc
+		} else {
+			aggCols[op.MeasureCol] = true
+		}
 	}
 	return aggCols
 }
@@ -415,7 +424,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 	bri *BlockRecordIterator, lStats map[string]*structs.SegStats, bb *bbp.ByteBuffer, qid uint64) map[string]bool {
 
 	retVal := make(map[string]bool)
-	for colName := range mCols {
+	for colName, notUsedByEval := range mCols {
 		if colName == "*" {
 			stats.AddSegStatsCount(lStats, colName, uint64(len(filterdRecNums)))
 			continue
@@ -437,6 +446,31 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 		}
 		for _, cMap := range results {
 			for colName, rawVal := range cMap {
+				// If current col will be used by eval funcs, we should store the raw data and process it
+				if !notUsedByEval {
+					e := utils.CValueEnclosure{}
+					err := e.ConvertValue(rawVal)
+					if err != nil {
+						log.Errorf("applySegmentStatsUsingDictEncoding: %v", err)
+						continue
+					}
+
+					var stats *structs.SegStats
+					var ok bool
+					stats, ok = lStats[colName]
+					if !ok {
+						stats = &structs.SegStats{
+							IsNumeric: false,
+							Count:     0,
+							Hll:       hyperloglog.New16(),
+							Records:   make([]*utils.CValueEnclosure, 0),
+						}
+
+						lStats[colName] = stats
+					}
+					stats.Records = append(stats.Records, &e)
+					continue
+				}
 				switch val := rawVal.(type) {
 				case string:
 					stats.AddSegStatsStr(lStats, colName, val, bb)
