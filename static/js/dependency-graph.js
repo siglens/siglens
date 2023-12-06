@@ -63,18 +63,23 @@ function getServiceDependencyData() {
         dataType: "json",
         crossDomain: true,
         success: function (res) {
-            $("#dependency-graph-container").show();
-            $("#error-msg-container").hide();
-            createDependencyMatrix(res);
-        },
-        error: function () {
-            $("#dependency-graph-container").hide();
-            $("#error-msg-container").show();
+            if ($.isEmptyObject(res)) {
+                $("#dependency-graph-container").hide();
+                $("#error-msg-container").show()
+            } else {
+                $("#dependency-graph-container").show();
+                $("#error-msg-container").hide();
+                createDependencyMatrix(res);
+            }
         },
     });
 }
 
 function createDependencyMatrix(res) {
+    if ($.isEmptyObject(res)) {
+        $("#error-msg-container").show()
+        return;
+    }
     const data = {};
     const nodes = [];
     const links = [];
