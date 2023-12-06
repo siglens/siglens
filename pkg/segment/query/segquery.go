@@ -675,6 +675,7 @@ func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResul
 	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator) {
 	// Use a global variable to store data that meets the conditions during the process of traversing segments
 	strSet := make(map[string]struct{}, 0)
+	runningEvalStats := make(map[string]interface{}, 0)
 	//assuming we will allow 100 measure Operations
 	for _, segReq := range sortedQSRSlice {
 		isCancelled, err := checkForCancelledQuery(qid)
@@ -685,9 +686,13 @@ func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResul
 			break
 		}
 		isSegmentFullyEncosed := segReq.segKeyTsRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs, segReq.segKeyTsRange.EndEpochMs)
-		var sstMap map[string]*structs.SegStats
 
-		if searchType == structs.MatchAllQuery && isSegmentFullyEncosed {
+		// Because segment only store statistical data such as min, max..., for some functions we should recompute raw data to get the results
+		// If agg has evaluation functions, we should recompute raw data instead of using the previously stored statistical data in the segment
+		aggHasEvalFunc := segReq.aggs.HasValueColRequest()
+		aggHasValuesFunc := segReq.aggs.HasValuesFunc()
+		var sstMap map[string]*structs.SegStats
+		if searchType == structs.MatchAllQuery && isSegmentFullyEncosed && !aggHasEvalFunc && !aggHasValuesFunc {
 			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
 			if err != nil {
 				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
@@ -723,7 +728,7 @@ func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResul
 				}
 			}
 		}
-		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations, strSet)
+		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations, strSet, runningEvalStats)
 		if err != nil {
 			log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
 			allSegFileResults.AddError(err)
