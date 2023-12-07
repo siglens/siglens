@@ -248,18 +248,7 @@
 
 .warn-bottom {
     margin-top: 5px;
-    height: 240px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-width: none;
-    /* firefox */
-    -ms-overflow-style: none;
-    /* IE 10+ */
-}
-
-.warn-bottom::-webkit-scrollbar {
-    display: none;
-    /* Chrome Safari */
+    height: 100%;
 }
 
 .warn-head {
@@ -430,4 +419,15 @@ input.form-control {
 
 .span-id-text {
     color: var(--subsection-border);
+}
+#app-container{
+    overflow-anchor: none;
+}
+.nav-feedback{
+    position: fixed;
+    bottom: 0;
+}
+.theme-btn-group{
+    position: fixed;
+    bottom: 42px;
 }

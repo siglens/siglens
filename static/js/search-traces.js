@@ -25,6 +25,7 @@ let pageNumber = 1,
   traceSize = 0,
   params = {};
 let limitation = -1;
+let hasLoaded = false;
 $(document).ready(() => {
   displayNavbar();
   if (Cookies.get("theme")) {
@@ -34,7 +35,9 @@ $(document).ready(() => {
   $(".theme-btn").on("click", themePickerHandler);
   initPage();
 });
-
+window.onload = function () {
+  hasLoaded = true; 
+};  
 function initPage(){
   initChart();
   getValuesOfColumn("service", "Service");
@@ -149,6 +152,7 @@ function handleDownload(){
     },
   });
 }
+let requestFlag = 0;
 function searchTraceHandler(e){
   e.stopPropagation(); 
   e.preventDefault();
@@ -166,8 +170,12 @@ function searchTraceHandler(e){
     let maxDurationValue = $("#max-duration-input").val();
     let minDurationValue = $("#min-duration-input").val();
     let limitResValue = $("#limit-result-input").val();
-    if (limitResValue) limitation = limitResValue;
+    if (limitResValue) limitation = parseInt(limitResValue);
     else limitation = -1;
+    if (limitation > 0 && limitation < 50) {
+      requestFlag = limitation;
+      limitation = 0;
+    }
     let searchText = "";
     if(serviceValue != "All") searchText = "service=" + serviceValue + " "; 
     if (operationValue != "All") searchText += "name=" + operationValue + " ";
@@ -219,12 +227,14 @@ function searchTrace(params){
     data: JSON.stringify(params),
   }).then((res) => {
     if (res && res.traces && res.traces.length > 0) {
-        if(limitation < 50 && limitation > 0){
+        if ((limitation < 50 && limitation > 0) || limitation== 0) {
           let newArr = res.traces.sort(compare("start_time", "most"));
-          newArr.splice(limitation);
+          if (limitation > 0) newArr.splice(limitation);
+          else newArr.splice(requestFlag);
           limitation = 0;
+          requestFlag = 0;
           returnResTotal = returnResTotal.concat(newArr);
-        }else{
+        } else {
           returnResTotal = returnResTotal.concat(res.traces);
         }
         //concat new traces results
@@ -400,28 +410,6 @@ function reSort(){
   }
 }
 
-
-$('#warn-bottom').unbind("scroll").on("scroll", function (e) {
-    var sum = this.scrollHeight;
-    var $obj = $(this);
-    if (sum <= $obj.scrollTop() + $obj.height() && sum != 240) {
-      //users did not set limitation
-      if(limitation == -1){
-        params.page = params.page + 1;
-        searchTrace(params);
-      }else if(limitation > 0){
-        if(limitation >= 50){
-          limitation = limitation - 50;
-          params.page = params.page + 1;
-          searchTrace(params);
-        }else{
-          params.page = params.page + 1;
-          searchTrace(params);
-        }
-      }
-    }
-})
-
 function calculateTimeToNow(startTime) {
   const nanosecondsTimestamp = startTime;
   const millisecondsTimestamp = nanosecondsTimestamp / 1000000;
@@ -437,4 +425,37 @@ function calculateTimeToNow(startTime) {
     minutes: minutes,
     days: days,
   };
+}
+
+let lastScrollPosition = 0;  
+window.onscroll = function () {
+  if (
+    hasLoaded && (window.innerHeight + window.scrollY >=
+    document.body.offsetHeight)
+  ) {
+    lastScrollPosition = window.scrollY;
+    getData();
+    window.scrollTo({
+      top: lastScrollPosition,
+      behavior: "smooth",
+    });
+  }
+};
+
+function getData() {
+      //users did not set limitation
+      if(limitation == -1){
+        params.page = params.page + 1;
+        searchTrace(params);
+      }else if(limitation > 0){
+        if(limitation >= 50){
+          limitation = limitation - 50;
+          params.page = params.page + 1;
+          searchTrace(params);
+        }else{
+          params.page = params.page + 1;
+          searchTrace(params);
+        }
+      }
+      
 }
