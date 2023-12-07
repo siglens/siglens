@@ -243,7 +243,7 @@
 .section-center {
     width: 100%;
     margin-top: 25px;
-    height: 280px;
+    min-height: 280px;
 }
 
 .warn-bottom {
@@ -262,7 +262,7 @@
 }
 
 .graph-info {
-    height: 66px;
+    min-height: 66px;
     align-items: center;
     padding: 0 20px;
 }
