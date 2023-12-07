@@ -117,7 +117,7 @@ func transferPCREToRE2(pattern string) string {
 func getRexColNames(pattern string) ([]string, error) {
     re, err := regexp.Compile(`\?<(?P<GroupName>[a-zA-Z0-9_]+)>`)
     if err != nil {
-        return nil, fmt.Errorf("getRexcolNames: There are some errors in the pattern: %v", err)
+        return nil, fmt.Errorf("getRexColNames: There are some errors in the pattern: %v", err)
     }
     matches := re.FindAllStringSubmatch(pattern, -1)
 
@@ -727,7 +727,7 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
         }
         return node, nil
     }
-/(opName:("split") "(" stringExpr:StringExpr "," delim:StringExpr ")") {
+/ (opName:("split") "(" stringExpr:StringExpr "," delim:StringExpr ")") {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -1273,7 +1273,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") "(" expr:(N
 
     return node, nil
 }
-/"now" "()" {
+/ "now" "()" {
     return &structs.NumericExpr{
         IsTerminal: true,
         Op:         "now",

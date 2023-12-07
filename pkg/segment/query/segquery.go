@@ -685,14 +685,14 @@ func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResul
 		if isCancelled {
 			break
 		}
-		isSegmentFullyEncosed := segReq.segKeyTsRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs, segReq.segKeyTsRange.EndEpochMs)
+		isSegmentFullyEnclosed := segReq.segKeyTsRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs, segReq.segKeyTsRange.EndEpochMs)
 
 		// Because segment only store statistical data such as min, max..., for some functions we should recompute raw data to get the results
 		// If agg has evaluation functions, we should recompute raw data instead of using the previously stored statistical data in the segment
 		aggHasEvalFunc := segReq.aggs.HasValueColRequest()
 		aggHasValuesFunc := segReq.aggs.HasValuesFunc()
 		var sstMap map[string]*structs.SegStats
-		if searchType == structs.MatchAllQuery && isSegmentFullyEncosed && !aggHasEvalFunc && !aggHasValuesFunc {
+		if searchType == structs.MatchAllQuery && isSegmentFullyEnclosed && !aggHasEvalFunc && !aggHasValuesFunc {
 			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
 			if err != nil {
 				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
