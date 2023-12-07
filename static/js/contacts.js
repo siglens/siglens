@@ -330,9 +330,19 @@ function deleteContactPrompt(data) {
     });
 }
 
-function showDeleteContactDialog(data){
+function showDeleteContactDialog(data,matchingAlertNames){
     $('#contact-name-placeholder-delete-dialog').html('<strong>' + data.contactName + '</strong>');
     $('.popupOverlay, .delete-dialog').addClass('active');
+    $('#view-btn,.popupOverlay').click(function(){
+    $('#alert-name-placeholder-alertsView').empty();
+
+    // Append each element on a new line
+    matchingAlertNames.forEach(function (alertName) {
+        $('#alert-name-placeholder-alertsView').append('<strong>' + alertName + '</strong><br>');
+    });
+
+    $('.popupOverlay, .alertsView').addClass('active');
+});
     $('#cancel-btn, .popupOverlay').click(function () {
         $('.popupOverlay, .delete-dialog').removeClass('active');
     });
@@ -357,12 +367,55 @@ function getAllAlertsWithSameContactPoint(data){
                 matchingAlertNames.push(alert.alert_name);
         }}}
           if(matchingAlertNames.length > 0){
-            showDeleteContactDialog(data);
+            showDeleteContactDialog(data,matchingAlertNames);
+
           }else{
             deleteContactPrompt(data);
           }
     })
 }
+
+function showDeleteContactDialog(data,matchingAlertNames){
+    $('#contact-name-placeholder-delete-dialog').html('<strong>' + data.contactName + '</strong>');
+    $('.popupOverlay, .delete-dialog').addClass('active');
+    $('#view-btn,.popupOverlay').click(function(){
+    $('#alert-name-placeholder-alertsView').empty();
+    matchingAlertNames.forEach(function (alertName) {
+        $('#alert-name-placeholder-alertsView').append('<strong>' + alertName + '</strong><br>');
+    });
+    $('.popupOverlay, .alertsView').addClass('active');
+});
+    $('#cancel-btn, .popupOverlay').click(function () {
+        $('.popupOverlay, .delete-dialog').removeClass('active');
+    });
+}
+
+function getAllAlertsWithSameContactPoint(data){
+    const contactId= data.contactId;
+    const matchingAlertNames = [];
+    $.ajax({
+        method: "get",
+        url: "api/allalerts",
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': '*/*'
+        },
+        dataType: 'json',
+        crossDomain: true,
+    }).then(function (res) {
+        if(res.alerts){  
+            for (const alert of res.alerts) {
+            if (alert.contact_id === contactId) {
+                matchingAlertNames.push(alert.alert_name);
+        }}}
+          if(matchingAlertNames.length > 0){
+            showDeleteContactDialog(data,matchingAlertNames);
+          }else{
+            deleteContactPrompt(data);
+          }
+    })
+}
+
 
 let contactColumnDefs = [
     {
