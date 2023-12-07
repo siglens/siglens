@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -279,7 +278,8 @@ func ProcessRedTracesIngest() {
 	}
 
 	// We can only determine whether a span is an entry span or not after retrieving all the spans,
-	// E.g.: Perhaps there is no parent span for span:12345 in this request, and its parent span exists in the next request. Therefore, we cannot determine if one span has a parent span in a single request.
+	// E.g.: Perhaps there is no parent span for span:12345 in this request, and its parent span exists in the next
+	//request. Therefore, we cannot determine if one span has a parent span in a single request.
 	// We should use this array to record all the spans
 	spans := make([]*structs.Span, 0)
 
@@ -310,6 +310,10 @@ func ProcessRedTracesIngest() {
 
 		spans = append(spans, rawSpanData.Hits.Spans...)
 		searchRequestBody.From += 1000
+	}
+
+	if len(spans) == 0 {
+		return
 	}
 
 	spanIDtoService := make(map[string]string)
@@ -429,7 +433,8 @@ func redMetricsToJson(redMetrics structs.RedMetrics, service string) ([]byte, er
 
 func DependencyGraphThread() {
 	time.Sleep(1 * time.Minute) // Initial one-minute wait
-	MakeTracesDependancyGraph()
+	depMatrix := MakeTracesDependancyGraph()
+	writeDependencyMatrix(depMatrix)
 
 	for {
 		now := time.Now()
@@ -437,11 +442,12 @@ func DependencyGraphThread() {
 		sleepDuration := time.Until(nextHour)
 
 		time.Sleep(sleepDuration)
-		MakeTracesDependancyGraph()
+		depMatrix = MakeTracesDependancyGraph()
+		writeDependencyMatrix(depMatrix)
 	}
 }
 
-func MakeTracesDependancyGraph() {
+func MakeTracesDependancyGraph() map[string]map[string]int {
 	nowTs := putils.GetCurrentTimeInMs()
 	startEpoch := nowTs - OneHourInMs
 	endEpoch := nowTs
@@ -456,7 +462,7 @@ func MakeTracesDependancyGraph() {
 	requestBodyJSON, err := json.Marshal(requestBody)
 	if err != nil {
 		fmt.Println("Error marshaling request body:", err)
-		return
+		return nil
 	}
 	ctx := &fasthttp.RequestCtx{}
 	ctx.Request.SetBody(requestBodyJSON)
@@ -467,7 +473,7 @@ func MakeTracesDependancyGraph() {
 	rawSpanData := structs.RawSpanData{}
 	if err := json.Unmarshal(ctx.Response.Body(), &rawSpanData); err != nil {
 		log.Errorf("MakeTracesDependancyGraph: could not unmarshal json body, err=%v", err)
-		return
+		return nil
 	}
 	spanIdToServiceName := make(map[string]string)
 	dependencyMatrix := make(map[string]map[string]int)
@@ -490,8 +496,11 @@ func MakeTracesDependancyGraph() {
 			dependencyMatrix[parentService] = make(map[string]int)
 		}
 		dependencyMatrix[parentService][span.Service]++
-
 	}
+	return dependencyMatrix
+}
+
+func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 	dependencyMatrixJSON, err := json.Marshal(dependencyMatrix)
 	if err != nil {
 		log.Errorf("Error marshaling dependency matrix:err=%v", err)
@@ -515,44 +524,27 @@ func MakeTracesDependancyGraph() {
 }
 
 func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	searchRequestBody := &structs.SearchRequestBody{}
-	searchRequestBody.QueryLanguage = "Splunk QL"
-	searchRequestBody.IndexName = "service-dependency"
-	searchRequestBody.SearchText = "*"
 
-	pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
-	if err != nil {
-		log.Errorf("ProcessSearchRequest: %v", err)
-		return
-	}
 	processedData := make(map[string]interface{})
-	if pipeSearchResponseOuter.Hits.Hits == nil || len(pipeSearchResponseOuter.Hits.Hits) == 0 {
+	depMatrix := MakeTracesDependancyGraph()
+	if len(depMatrix) == 0 {
 		log.Errorf("pipeSearchResponseOuter: received empty response")
 		pipesearch.SetBadMsg(ctx)
 		return
-
 	}
-	for key, value := range pipeSearchResponseOuter.Hits.Hits[0] {
-		if key == "_index" || key == "timestamp" {
-			processedData[key] = value
-			continue
-		}
-		keys := strings.Split(key, ".")
-		if len(keys) != 2 {
-			fmt.Printf("Unexpected key format: %s\n", key)
-			continue
-		}
-		service, dependentService := keys[0], keys[1]
-		if processedData[service] == nil {
-			processedData[service] = make(map[string]int)
-		}
 
-		serviceMap := processedData[service].(map[string]int)
-		serviceMap[dependentService] = int(value.(float64))
+	for key, value := range depMatrix {
+		for k, v := range value {
+			if processedData[key] == nil {
+				processedData[key] = make(map[string]int)
+			}
+			serviceMap := processedData[key].(map[string]int)
+			serviceMap[k] = v
+		}
 	}
 
 	ctx.SetContentType("application/json; charset=utf-8")
-	err = json.NewEncoder(ctx).Encode(processedData)
+	err := json.NewEncoder(ctx).Encode(processedData)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 		_, writeErr := ctx.WriteString(fmt.Sprintf("Error encoding JSON: %s", err.Error()))
