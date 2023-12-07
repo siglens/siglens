@@ -49,9 +49,10 @@ function initPage(){
 }
 
 function getValuesOfColumn(chooseColumn, spanName) {
+  let searchText = "SELECT DISTINCT " + chooseColumn + " FROM `ind-0`";
   let param = {
     state: "query",
-    searchText: "SELECT DISTINCT " + chooseColumn + " FROM `ind-0`",
+    searchText: searchText,
     startEpoch: "now-3h",
     endEpoch: filterEndDate,
     indexName: "traces",
@@ -82,8 +83,67 @@ function getValuesOfColumn(chooseColumn, spanName) {
     $(`#${chooseColumn}-dropdown`).singleBox({
       spanName: spanName,
       dataList: currList,
-      defaultValue: "All"
+      defaultValue: "All",
+      dataUpdate: true,
+      clickedHead: async function(){
+        await fetchData(chooseColumn);
+        return currList;
+      }
     });
+  });
+}
+function fetchData(chooseColumn) {
+  return new Promise((resolve, reject) => {
+    let searchText = "SELECT DISTINCT " + chooseColumn + " FROM `ind-0`";
+    if (
+      chooseColumn == "name" &&
+      $("#service-span-name").text() &&
+      $("#service-span-name").text() != "All"
+    ) {
+      searchText += " WHERE service='" + $("#service-span-name").text() + "'";
+    } else if (
+      chooseColumn == "service" &&
+      $("#operation-span-name").text() &&
+      $("#operation-span-name").text() != "All"
+    ) {
+      searchText += " WHERE name='" + $("#operation-span-name").text() + "'";
+    }
+    let param = {
+      state: "query",
+      searchText: searchText,
+      startEpoch: "now-3h",
+      endEpoch: filterEndDate,
+      indexName: "traces",
+      queryLanguage: "SQL",
+      from: 0,
+    };
+    $.ajax({
+      method: "post",
+      url: "api/search",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "*/*",
+      },
+      crossDomain: true,
+      dataType: "json",
+      data: JSON.stringify(param),
+    })
+      .then((res) => {
+        let valuesOfColumn = new Set();
+        valuesOfColumn.add("All");
+        if (res && res.hits && res.hits.records) {
+          for (let i = 0; i < res.hits.records.length; i++) {
+            let cur = res.hits.records[i][chooseColumn];
+            if (typeof cur == "string") valuesOfColumn.add(cur);
+            else valuesOfColumn.add(cur.toString());
+          }
+        }
+        currList = Array.from(valuesOfColumn);
+        resolve(currList);
+      })
+      .catch((error) => {
+        reject(error);
+      });
   });
 }
 function handleTimePicker(){
@@ -100,15 +160,15 @@ function handleSort(){
     defaultValue: "Most Recent",
     dataList: currList,
     clicked: function (e) {
-      if (e.target.innerText == "Most Recent") {
+      if (e == "Most Recent") {
         returnResTotal = returnResTotal.sort(compare("start_time", "most"));
-      } else if (e.target.innerText == "Longest First") {
+      } else if (e == "Longest First") {
         returnResTotal = returnResTotal.sort(compareDuration("most"));
-      } else if (e.target.innerText == "Shortest First") {
+      } else if (e == "Shortest First") {
         returnResTotal = returnResTotal.sort(compareDuration("least"));
-      } else if (e.target.innerText == "Most Spans") {
+      } else if (e == "Most Spans") {
         returnResTotal = returnResTotal.sort(compare("span_count", "most"));
-      } else if (e.target.innerText == "Least Spans") {
+      } else if (e == "Least Spans") {
         returnResTotal = returnResTotal.sort(compare("span_count", "least"));
       }
       reSort();
@@ -138,12 +198,12 @@ function handleDownload(){
     spanName: "Download Result",
     dataList: currList,
     clicked: function (e) {
-      if (e.target.innerText == "Download as CSV") {
+      if (e == "Download as CSV") {
         $("#download-trace").download({
           data: returnResTotal,
           downloadMethod: ".csv",
         });
-      } else if (e.target.innerText == "Download as JSON") {
+      } else if (e == "Download as JSON") {
         $("#download-trace").download({
           data: returnResTotal,
           downloadMethod: ".json",

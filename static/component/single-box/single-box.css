@@ -37,6 +37,7 @@
     overflow-x: hidden;
     scrollbar-width: none; /* firefox */
     -ms-overflow-style: none;/* IE 10+ */
+    display: none;
 }
 .dropdown-plugin::-webkit-scrollbar {
     display: none;
