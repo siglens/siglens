@@ -161,7 +161,6 @@ function setDownloadLogsDialog() {
       popBox.style.display = "block";
 
       let params = getSearchFilter(false, false);
-      params.size = totalMatchLogs;
       let searchText = params.searchText;
       let n = searchText.indexOf("BY");
       let arrNew = [], textArr = [];
@@ -270,7 +269,7 @@ function setDownloadLogsDialog() {
     event.preventDefault();
     download();
   });
-  $("#cvs-block").on("click", function () {
+  $("#csv-block").on("click", function () {
     curChoose = ".csv";
     $("#validateTips").hide();
     $("#download-info").dialog("open");
