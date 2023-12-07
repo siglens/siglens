@@ -20,6 +20,9 @@ import (
 	"encoding/base64"
 	jsonEncoding "encoding/json"
 	"errors"
+	"fmt"
+	"net"
+	"os"
 	"strings"
 
 	"github.com/cespare/xxhash"
@@ -787,4 +790,25 @@ func VerifyBasicAuth(ctx *fasthttp.RequestCtx, usernameHash uint64, passwordHash
 	passwordMatches := (xxhash.Sum64String(password) == passwordHash)
 
 	return usernameMatches && passwordMatches
+}
+
+// Use the MAC address as a computer-specific identifier. If it is not available, use the hostname instead.
+func GetSpecificIdentifier() (string, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", fmt.Errorf("GetSpecificIdentifier: %v", err)
+	}
+
+	for _, iface := range interfaces {
+		if len(iface.HardwareAddr.String()) != 0 {
+			return iface.HardwareAddr.String(), nil
+		}
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return "", nil
+	}
+
+	return hostname, nil
 }
