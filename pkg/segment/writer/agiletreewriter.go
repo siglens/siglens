@@ -179,10 +179,20 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 		idx += 4
 
 		// add Parent keys, don't add parents for root (level-0) and level-1 (since their parent is root)
+		ancestor := n.parent
 		for i := 1; i < level; i++ {
-			// todo add parent's keys info
-			copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(0))
+			if ancestor == nil {
+				log.Errorf("encodeNodeDetails: ancestor is nil, level: %v, nodeKey: %+v", level, n.myKey)
+			}
+
+			copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(ancestor.myKey))
 			idx += 4
+			ancestor = ancestor.parent
+		}
+
+		// We should have reached the root.
+		if level > 0 && ancestor != stb.tree.Root {
+			log.Errorf("encodeNodeDetails: ancestor is not the root, level: %v, nodeKey: %+v", level, n.myKey)
 		}
 
 		for agIdx, e := range n.aggValues {

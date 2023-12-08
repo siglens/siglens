@@ -47,7 +47,8 @@ type StarTreeMetadata struct {
 	numGroupByCols  uint16
 	measureColNames []string // store only index of mcol, and calculate all stats for them
 
-	// allDictEncodings[i] has information about the ith groupby column. allDictEncodings[i][num] will give the raw encoding that num references in the agileTree
+	// allDictEncodings[colName] has information about the ith groupby column.
+	// allDictEncodings[colName][num] will give the raw encoding that num references in the agileTree
 	allDictEncodings map[string]map[uint32][]byte
 	levsOffsets      []int64  // stores where each level starts in the file, uses fileOffsetFromStart
 	levsSizes        []uint32 // stores the size of each level
@@ -364,8 +365,11 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 			if grpLev == desiredLevel {
 				copy(wvBuf[kidx:], myKey)
 			} else {
-				sOff := uint32(grpLev-1) * 4
-				copy(wvBuf[kidx:], buf[idx+sOff:idx+sOff+4])
+				// The next four bytes of buf is the parent's node key, the
+				// next four after that is the grandparent's node key, etc.
+				ancestorLevel := desiredLevel - grpLev
+				offset := uint32(ancestorLevel-1) * 4
+				copy(wvBuf[kidx:], buf[idx+offset:idx+offset+4])
 			}
 			kidx += 4
 		}
@@ -410,7 +414,6 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 
 // applies groupby results and returns requested measure operations
 // first applies the first groupby column. For all returned nodes, apply second & so on until no more groupby exists
-// TODO: multiple groupby columns
 func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 	internalMops []*structs.MeasureAggregator, blkResults *blockresults.BlockResults,
 	qid uint64, agileTreeBuf []byte) error {
