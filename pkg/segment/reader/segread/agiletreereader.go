@@ -369,7 +369,7 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 			}
 			kidx += 4
 		}
-		wvNodeKey := toputils.ByteSliceToString(wvBuf[:kidx])
+		wvNodeKey := string(wvBuf[:kidx])
 		idx += uint32(desiredLevel-1) * 4
 
 		aggVal, ok := combiner[wvNodeKey]

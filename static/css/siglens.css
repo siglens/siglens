@@ -4188,14 +4188,13 @@ color: #C8C7CC;
     margin-bottom: 20px;
 }
 
-#info-evaluate-for{
-    top: 10px;
-    right: 425px;
+#label-evaluate-every , #for-span{
+    position: relative;
 }
 
-#info-evaluate-every{
-    top: 10px;
-    right: 610px;
+#info-evaluate-every,#info-evaluate-for{
+    top: 4px;
+    right: -30px;
 }
 
 #alert-condition,#contact-types,#contact-points-dropdown,#alert-data-source,
