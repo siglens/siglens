@@ -543,7 +543,7 @@ func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			pipesearch.SetBadMsg(ctx)
 			return
 		}
-
+		writeDependencyMatrix(depMatrix)
 		for key, value := range depMatrix {
 			for k, v := range value {
 				if processedData[key] == nil {
