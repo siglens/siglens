@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -524,27 +525,57 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 }
 
 func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	searchRequestBody := &structs.SearchRequestBody{}
+	searchRequestBody.QueryLanguage = "Splunk QL"
+	searchRequestBody.IndexName = "service-dependency"
+	searchRequestBody.SearchText = "*"
 
-	processedData := make(map[string]interface{})
-	depMatrix := MakeTracesDependancyGraph()
-	if len(depMatrix) == 0 {
-		log.Errorf("pipeSearchResponseOuter: received empty response")
-		pipesearch.SetBadMsg(ctx)
+	dependencyResponseOuter, err := processSearchRequest(searchRequestBody, myid)
+	if err != nil {
+		log.Errorf("ProcessSearchRequest: %v", err)
 		return
 	}
+	processedData := make(map[string]interface{})
+	if dependencyResponseOuter.Hits.Hits == nil || len(dependencyResponseOuter.Hits.Hits) == 0 {
+		depMatrix := MakeTracesDependancyGraph()
+		if len(depMatrix) == 0 {
+			log.Errorf("pipeSearchResponseOuter: received empty response")
+			pipesearch.SetBadMsg(ctx)
+			return
+		}
 
-	for key, value := range depMatrix {
-		for k, v := range value {
-			if processedData[key] == nil {
-				processedData[key] = make(map[string]int)
+		for key, value := range depMatrix {
+			for k, v := range value {
+				if processedData[key] == nil {
+					processedData[key] = make(map[string]int)
+				}
+				serviceMap := processedData[key].(map[string]int)
+				serviceMap[k] = v
 			}
-			serviceMap := processedData[key].(map[string]int)
-			serviceMap[k] = v
+		}
+	} else {
+		for key, value := range dependencyResponseOuter.Hits.Hits[0] {
+			if key == "_index" || key == "timestamp" {
+				processedData[key] = value
+				continue
+			}
+			keys := strings.Split(key, ".")
+			if len(keys) != 2 {
+				fmt.Printf("Unexpected key format: %s\n", key)
+				continue
+			}
+			service, dependentService := keys[0], keys[1]
+			if processedData[service] == nil {
+				processedData[service] = make(map[string]int)
+			}
+
+			serviceMap := processedData[service].(map[string]int)
+			serviceMap[dependentService] = int(value.(float64))
 		}
 	}
 
 	ctx.SetContentType("application/json; charset=utf-8")
-	err := json.NewEncoder(ctx).Encode(processedData)
+	err = json.NewEncoder(ctx).Encode(processedData)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 		_, writeErr := ctx.WriteString(fmt.Sprintf("Error encoding JSON: %s", err.Error()))
