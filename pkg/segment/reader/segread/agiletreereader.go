@@ -148,8 +148,6 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 	lenMeta := toputils.BytesToUint32LittleEndian(str.metaBuf[idx : idx+4])
 	idx += 4
 
-	//	log.Infof("kunal ReadTreeMeta: metaBytesLen: %v", lenMeta)
-
 	// MetaData
 	meta, err := str.decodeMetadata(str.metaBuf[idx : idx+lenMeta])
 	if err != nil {
@@ -166,8 +164,6 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 		meta.levsSizes[i] = toputils.BytesToUint32LittleEndian(str.metaBuf[idx : idx+4])
 		idx += 4
 	}
-
-	//	log.Infof("kunal ReadTreeMeta: levsOffsets: %v, levsSizes: %v", meta.levsOffsets, meta.levsSizes)
 
 	str.treeMeta = meta
 	str.isMetaLoaded = true
@@ -408,7 +404,7 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 		}
 		idx += uint32(numAggValues) * 9
 	}
-	//		log.Infof("kunal decodeNodeDetailsJit: combiner: %+v", combiner)
+
 	return nil
 }
 
@@ -459,9 +455,6 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 		measResIndices = append(measResIndices, tcidx*writer.TotalMeasFns+fnidx) // see where it is in agileTree
 	}
 
-	//	log.Infof("kunal ApplyGroupByJit: measResIndices: %v, internalMops: %v, maxGrpLevel: %v",
-	//		measResIndices, internalMops, maxGrpLevel)
-
 	combiner := make(map[string][]utils.NumTypeEnclosure)
 
 	err := str.computeAggsJit(combiner, maxGrpLevel, measResIndices, agileTreeBuf, grpTreeLevels)
@@ -470,7 +463,6 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 		return err
 	}
 
-	//	log.Infof("qid=%v, ApplyGroupByJit, numGrpKeys: %v", qid, len(combiner))
 	for mkey, ntAgvals := range combiner {
 		if len(ntAgvals) == 0 {
 			continue
