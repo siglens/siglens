@@ -49,7 +49,6 @@ $(document).ready(() => {
     svgHeight = $("#dependency-graph-container").height();
 
     $("#error-msg-container").hide();
-    $("#empty-msg-container").hide();
 
     getServiceDependencyData();
 });
@@ -67,25 +66,22 @@ function getServiceDependencyData() {
         success: function (res) {
             if ($.isEmptyObject(res)) {
                 $("#dependency-graph-container").hide();
-                $("#empty-msg-container").show()
+                $("#error-msg-container").show()
             } else {
                 $("#dependency-graph-container").show();
                 $("#error-msg-container").hide();
-                try {
-                    createDependencyMatrix(res);
-                } catch (error) {
-                    console.error("Error creating dependency matrix:", error);
-                    $("#dependency-graph-container").hide();
-                    $("#error-msg-container").show()
-                }
             }
+        },
+        error: function () {
+            $("#dependency-graph-container").hide();
+            $("#error-msg-container").show();
         },
     });
 }
 
 function createDependencyMatrix(res) {
     if ($.isEmptyObject(res)) {
-        $("#empty-msg-container").show()
+        $("#error-msg-container").show()
         return;
     }
     const data = {};
