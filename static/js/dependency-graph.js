@@ -199,11 +199,11 @@ function displayDependencyGraph(nodes, links) {
     linkLabel
       .attr(
         "x",
-        (d) => (d.source.x + d.target.x) / 2 - (d.source.x - d.target.x) / 2
+        (d) => (d.source.x + d.target.x) / 2
       )
       .attr(
         "y",
-        (d) => (d.source.y + d.target.y) / 2 - (d.source.y - d.target.y) / 2
+        (d) => (d.source.y + d.target.y) / 2
       );
   });
 
