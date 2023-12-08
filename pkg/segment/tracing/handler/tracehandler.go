@@ -540,7 +540,7 @@ func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		depMatrix := MakeTracesDependancyGraph()
 		if len(depMatrix) == 0 {
 			log.Errorf("pipeSearchResponseOuter: received empty response")
-			pipesearch.SetBadMsg(ctx)
+			ctx.SetStatusCode(fasthttp.StatusOK)
 			return
 		}
 		writeDependencyMatrix(depMatrix)
