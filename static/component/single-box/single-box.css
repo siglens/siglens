@@ -99,7 +99,3 @@
     background: var(--index-drop-down-item-active-bg-color);
     color: var(--index-drop-down-item-active-text-color);
 }
-/* .single-dropdown-item:hover {
-    background: #6347D9;
-    color: var(--white);
-} */
