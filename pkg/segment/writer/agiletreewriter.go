@@ -181,6 +181,7 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 		for i := 1; i < level; i++ {
 			if ancestor == nil {
 				log.Errorf("encodeNodeDetails: ancestor is nil, level: %v, nodeKey: %+v", level, n.myKey)
+				break
 			}
 
 			copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(ancestor.myKey))
