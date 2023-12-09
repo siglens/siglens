@@ -194,4 +194,10 @@ function displayDependencyGraph(nodes, links) {
             .attr("x", (d) => (d.source.x + d.target.x) / 2)
             .attr("y", (d) => (d.source.y + d.target.y) / 2);
     });
+
 }
+let zoom = d3.zoom().on("zoom", displayDependencyGraph);
+function initZoom(){
+    d3.select("#dependency-graph-container").call(zoom);
+}
+
