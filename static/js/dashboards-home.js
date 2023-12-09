@@ -184,10 +184,12 @@ class btnRenderer {
 				<button class='btn' id="viewbutton" title="Open dashboard"></button>
 				<button class="btn-simple" id="delbutton" title="Delete dashboard"></button>
 				<button class="btn-duplicate" id="duplicateButton" title="Duplicate dashboard"></button>
+				<span class="star-icon" title="Mark as favorite" style="margin-left: 10px; cursor:pointer;">☆</span>
 				</div>`;
 		this.vButton = this.eGui.querySelector('.btn');
 		this.dButton = this.eGui.querySelector('.btn-simple');
 		this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
+		this.starIcon=this.eGui.querySelector('.star-icon');
 
 		function view() {
 			$.ajax({
@@ -278,6 +280,10 @@ class btnRenderer {
 				})
 			})
 		}
+        function toggleFavorite(){
+			params.data.favorite=!params.data.favorite;
+			this.starIcon.innerHTML=params.data.favorite ? '★' : '☆';		
+		}
 
 		function showPrompt() {
 			$('#delete-db-prompt').css('display', 'flex');
@@ -299,12 +305,14 @@ class btnRenderer {
 		this.vButton.addEventListener('click', view);
 		this.dButton.addEventListener('click', showPrompt);
 		this.duplicateButton.addEventListener('click', duplicatedb);
+		this.starIcon.addEventListener('click',toggleFavorite.bind(this));
 	}
 
 	getGui() {
 		return this.eGui;
 	}
 	refresh(params) {
+		this.starIcon.innerHTML=params.data.favorite ? '★' : '☆';
 		return false;
 	}
 }
