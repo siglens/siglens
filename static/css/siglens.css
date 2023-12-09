@@ -2,6 +2,7 @@
     --black: #000;
     --white: #fff;
     --error: #f00;
+    --error-trace: #E93125;
     --color-danger: #d1242f;
     --fw-400: 400;
     --fw-500: 500;
@@ -18,6 +19,7 @@
 
     --shadow-1: #6F6B7B29;
     --shadow-2: #00000029;
+    --trace-error-shadow:#E9312526;
 
     /* Dark Theme - default */
     --black-1: #160F29;
@@ -255,7 +257,7 @@
 
     --top-bar-bg-color-regular: var(--white-0);
 
-    --search-bar-bg: var(--white-2);
+    --search-bar-bg: var(--white-1);
     --search-bar-text-color-regular-or-hover: var(--white-8);
     --search-bar-text-color-active: var(--white-5);
 
@@ -2250,6 +2252,10 @@ input[type="submit" i] {
 
 #date-picker-btn {
     cursor: pointer;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border: 1px solid var(--border-btn-color);
 }
  
 .dropdown-menu.daterangepicker.show{
@@ -4182,14 +4188,13 @@ color: #C8C7CC;
     margin-bottom: 20px;
 }
 
-#info-evaluate-for{
-    top: 10px;
-    right: 425px;
+#label-evaluate-every , #for-span{
+    position: relative;
 }
 
-#info-evaluate-every{
-    top: 10px;
-    right: 610px;
+#info-evaluate-every,#info-evaluate-for{
+    top: 4px;
+    right: -30px;
 }
 
 #alert-condition,#contact-types,#contact-points-dropdown,#alert-data-source,

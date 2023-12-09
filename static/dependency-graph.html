@@ -38,6 +38,7 @@
     <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 
 <body data-theme="light">
@@ -58,6 +59,10 @@
                         <div class="section-button active"><a href="./dependency-graph.html">Dependency Graph</a></div>
                     </div>
                 </div>
+            </div>
+            <div id="dependency-graph-container"></div>
+            <div id="error-msg-container">
+                <p>No service dependencies found.</p>
             </div>
         </div>
 
