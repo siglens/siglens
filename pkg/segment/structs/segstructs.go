@@ -241,10 +241,11 @@ type NodeResult struct {
 }
 
 type SegStats struct {
-	IsNumeric bool
-	Count     uint64
-	Hll       *hyperloglog.Sketch
-	NumStats  *NumericStats
+	IsNumeric   bool
+	Count       uint64
+	Hll         *hyperloglog.Sketch
+	NumStats    *NumericStats
+	StringStats *StringStats
 }
 
 type NumericStats struct {
@@ -252,6 +253,10 @@ type NumericStats struct {
 	Max   utils.NumTypeEnclosure `json:"max,omitempty"`
 	Sum   utils.NumTypeEnclosure `json:"sum,omitempty"`
 	Dtype utils.SS_DTYPE         `json:"Dtype,omitempty"` // Dtype shared across min,max, and sum
+}
+
+type StringStats struct {
+	StrSet map[string]struct{}
 }
 
 // json exportable struct for segstats
