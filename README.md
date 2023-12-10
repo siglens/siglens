@@ -1,5 +1,7 @@
 # SigLens
 
+English | [简体中文](README_ZH_CN.md)
+
 <p align="center">
   
 

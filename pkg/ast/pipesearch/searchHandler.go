@@ -309,7 +309,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 			}
 		}
 	} else {
-		log.Infof("ProcessPipeSearchRequest: unknown queryLanguageType: %v;", queryLanguageType)
+		log.Infof("ProcessAlertsPipeSearchRequest: unknown queryLanguageType: %v;", queryLanguageType)
 	}
 
 	return -1

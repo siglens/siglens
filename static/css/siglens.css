@@ -2,6 +2,7 @@
     --black: #000;
     --white: #fff;
     --error: #f00;
+    --error-trace: #E93125;
     --color-danger: #d1242f;
     --fw-400: 400;
     --fw-500: 500;
@@ -18,6 +19,7 @@
 
     --shadow-1: #6F6B7B29;
     --shadow-2: #00000029;
+    --trace-error-shadow:#E9312526;
 
     /* Dark Theme - default */
     --black-1: #160F29;
@@ -255,7 +257,7 @@
 
     --top-bar-bg-color-regular: var(--white-0);
 
-    --search-bar-bg: var(--white-2);
+    --search-bar-bg: var(--white-1);
     --search-bar-text-color-regular-or-hover: var(--white-8);
     --search-bar-text-color-active: var(--white-5);
 
@@ -484,7 +486,8 @@ body {
 .icon-metrics,
 .icon-alerts,
 .icon-minion,
-.icon-live{
+.icon-live,
+.icon-traces{
     min-height: 42px;
     min-width: 63px;
     background-origin: content-box;
@@ -594,6 +597,12 @@ body {
     width: 24px;
 }
 
+.icon-traces {
+    background-image: url("../assets/tracing-icon-inactive.svg");
+    height: 24px;
+    width: 24px;
+}
+
 .icon-search:hover,
 .menu.nav-search.active .icon-search {
     background-image: url("../assets/search-icon-active.svg");
@@ -659,6 +668,13 @@ body {
 .icon-live:hover,
 .menu.nav-live.active .icon-live {
     background-image: url("../assets/live-tail-icon-active.svg");
+    height: 24px;
+    width: 24px;
+}
+
+.icon-traces:hover,
+.menu.nav-traces.active .icon-traces {
+    background-image: url("../assets/tracing-icon-active.svg");
     height: 24px;
     width: 24px;
 }
@@ -2236,6 +2252,10 @@ input[type="submit" i] {
 
 #date-picker-btn {
     cursor: pointer;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border: 1px solid var(--border-btn-color);
 }
  
 .dropdown-menu.daterangepicker.show{
@@ -4168,14 +4188,13 @@ color: #C8C7CC;
     margin-bottom: 20px;
 }
 
-#info-evaluate-for{
-    top: 10px;
-    right: 425px;
+#label-evaluate-every , #for-span{
+    position: relative;
 }
 
-#info-evaluate-every{
-    top: 10px;
-    right: 610px;
+#info-evaluate-every,#info-evaluate-for{
+    top: 4px;
+    right: -30px;
 }
 
 #alert-condition,#contact-types,#contact-points-dropdown,#alert-data-source,
@@ -4748,4 +4767,3 @@ color: #C8C7CC;
     -webkit-transform: translate(-50%, -50%);
     transform: translate(-50%, -50%);
 }
-
