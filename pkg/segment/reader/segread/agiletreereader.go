@@ -47,7 +47,8 @@ type StarTreeMetadata struct {
 	numGroupByCols  uint16
 	measureColNames []string // store only index of mcol, and calculate all stats for them
 
-	// allDictEncodings[i] has information about the ith groupby column. allDictEncodings[i][num] will give the raw encoding that num references in the agileTree
+	// allDictEncodings[colName] has information about the ith groupby column.
+	// allDictEncodings[colName][num] will give the raw encoding that num references in the agileTree
 	allDictEncodings map[string]map[uint32][]byte
 	levsOffsets      []int64  // stores where each level starts in the file, uses fileOffsetFromStart
 	levsSizes        []uint32 // stores the size of each level
@@ -147,8 +148,6 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 	lenMeta := toputils.BytesToUint32LittleEndian(str.metaBuf[idx : idx+4])
 	idx += 4
 
-	//	log.Infof("kunal ReadTreeMeta: metaBytesLen: %v", lenMeta)
-
 	// MetaData
 	meta, err := str.decodeMetadata(str.metaBuf[idx : idx+lenMeta])
 	if err != nil {
@@ -165,8 +164,6 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 		meta.levsSizes[i] = toputils.BytesToUint32LittleEndian(str.metaBuf[idx : idx+4])
 		idx += 4
 	}
-
-	//	log.Infof("kunal ReadTreeMeta: levsOffsets: %v, levsSizes: %v", meta.levsOffsets, meta.levsSizes)
 
 	str.treeMeta = meta
 	str.isMetaLoaded = true
@@ -364,8 +361,11 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 			if grpLev == desiredLevel {
 				copy(wvBuf[kidx:], myKey)
 			} else {
-				sOff := uint32(grpLev-1) * 4
-				copy(wvBuf[kidx:], buf[idx+sOff:idx+sOff+4])
+				// The next four bytes of buf is the parent's node key, the
+				// next four after that is the grandparent's node key, etc.
+				ancestorLevel := desiredLevel - grpLev
+				offset := uint32(ancestorLevel-1) * 4
+				copy(wvBuf[kidx:], buf[idx+offset:idx+offset+4])
 			}
 			kidx += 4
 		}
@@ -404,13 +404,12 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 		}
 		idx += uint32(numAggValues) * 9
 	}
-	//		log.Infof("kunal decodeNodeDetailsJit: combiner: %+v", combiner)
+
 	return nil
 }
 
 // applies groupby results and returns requested measure operations
 // first applies the first groupby column. For all returned nodes, apply second & so on until no more groupby exists
-// TODO: multiple groupby columns
 func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 	internalMops []*structs.MeasureAggregator, blkResults *blockresults.BlockResults,
 	qid uint64, agileTreeBuf []byte) error {
@@ -456,9 +455,6 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 		measResIndices = append(measResIndices, tcidx*writer.TotalMeasFns+fnidx) // see where it is in agileTree
 	}
 
-	//	log.Infof("kunal ApplyGroupByJit: measResIndices: %v, internalMops: %v, maxGrpLevel: %v",
-	//		measResIndices, internalMops, maxGrpLevel)
-
 	combiner := make(map[string][]utils.NumTypeEnclosure)
 
 	err := str.computeAggsJit(combiner, maxGrpLevel, measResIndices, agileTreeBuf, grpTreeLevels)
@@ -467,7 +463,6 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 		return err
 	}
 
-	//	log.Infof("qid=%v, ApplyGroupByJit, numGrpKeys: %v", qid, len(combiner))
 	for mkey, ntAgvals := range combiner {
 		if len(ntAgvals) == 0 {
 			continue
