@@ -129,6 +129,7 @@ function updateDashboard() {
     )
         .then(res => {
             if (res.status == 200) {
+                displayDashboardName();
                 showToast('Dashboard Updated Successfully');
             }
             return res.json();
