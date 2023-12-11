@@ -63,9 +63,14 @@ function getServiceDependencyData() {
         dataType: "json",
         crossDomain: true,
         success: function (res) {
-            $("#dependency-graph-container").show();
-            $("#error-msg-container").hide();
-            createDependencyMatrix(res);
+            if ($.isEmptyObject(res)) {
+                $("#dependency-graph-container").hide();
+                $("#error-msg-container").show()
+            } else {
+                $("#dependency-graph-container").show();
+                $("#error-msg-container").hide();
+                createDependencyMatrix(res);
+            }
         },
         error: function () {
             $("#dependency-graph-container").hide();
@@ -189,4 +194,10 @@ function displayDependencyGraph(nodes, links) {
             .attr("x", (d) => (d.source.x + d.target.x) / 2)
             .attr("y", (d) => (d.source.y + d.target.y) / 2);
     });
+
 }
+let zoom = d3.zoom().on("zoom", displayDependencyGraph);
+function initZoom(){
+    d3.select("#dependency-graph-container").call(zoom);
+}
+
