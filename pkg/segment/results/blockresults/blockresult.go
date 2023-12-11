@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -118,29 +120,53 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 // Count is always tracked for each bucket
 func convertRequestToInternalStats(req *structs.GroupByRequest) (map[string][]int, []*structs.MeasureAggregator, []int) {
 	colToIdx := make(map[string][]int) // maps a column name to all indices in allConvertedMeasureOps it relates to
-	allConvertedMeasureOps := make([]*structs.MeasureAggregator, len(req.MeasureOperations))
-	allReverseIndex := make([]int, len(req.MeasureOperations))
+	allConvertedMeasureOps := make([]*structs.MeasureAggregator, 0)
+	allReverseIndex := make([]int, 0)
 	idx := 0
-	for mIdx, m := range req.MeasureOperations {
+	for _, m := range req.MeasureOperations {
 		var mFunc utils.AggregateFunctions
 		switch m.MeasureFunc {
 		case utils.Count:
-			allReverseIndex[mIdx] = -1 // count is always given by bucket
+			allReverseIndex = append(allReverseIndex, -1)
 			continue
 		case utils.Avg:
 			mFunc = utils.Sum
+		case utils.Range:
+			// Record the index of range() in runningStats; the index is idx
+			// To calculate the range(), we need both the min() and max(), which require two columns to store them
+			// Since it is the runningStats not the stats for results, we can use one extra col to store the min/max
+			// idx stores the result of min, and idx+1 stores the result of max.
+			if _, ok := colToIdx[m.MeasureCol]; !ok {
+				colToIdx[m.MeasureCol] = make([]int, 0)
+			}
+			allReverseIndex = append(allReverseIndex, idx)
+			colToIdx[m.MeasureCol] = append(colToIdx[m.MeasureCol], idx)
+			allConvertedMeasureOps = append(allConvertedMeasureOps, &structs.MeasureAggregator{
+				MeasureCol:  m.MeasureCol,
+				MeasureFunc: utils.Min,
+			})
+			idx++
+
+			allReverseIndex = append(allReverseIndex, idx)
+			colToIdx[m.MeasureCol] = append(colToIdx[m.MeasureCol], idx)
+			allConvertedMeasureOps = append(allConvertedMeasureOps, &structs.MeasureAggregator{
+				MeasureCol:  m.MeasureCol,
+				MeasureFunc: utils.Max,
+			})
+			idx++
+			continue
 		default:
 			mFunc = m.MeasureFunc
 		}
 		if _, ok := colToIdx[m.MeasureCol]; !ok {
 			colToIdx[m.MeasureCol] = make([]int, 0)
 		}
-		allReverseIndex[mIdx] = idx
+		allReverseIndex = append(allReverseIndex, idx)
 		colToIdx[m.MeasureCol] = append(colToIdx[m.MeasureCol], idx)
-		allConvertedMeasureOps[idx] = &structs.MeasureAggregator{
+		allConvertedMeasureOps = append(allConvertedMeasureOps, &structs.MeasureAggregator{
 			MeasureCol:  m.MeasureCol,
 			MeasureFunc: mFunc,
-		}
+		})
 		idx++
 	}
 	allConvertedMeasureOps = allConvertedMeasureOps[:idx]
@@ -427,10 +453,49 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 					avg = sumRawVal / float64(bucket.count)
 				}
 				currRes[mInfoStr] = utils.CValueEnclosure{CVal: avg, Dtype: utils.SS_DT_FLOAT}
+			case utils.Range:
+				minIdx := gb.reverseMeasureIndex[idx]
+				minRawVal, err := bucket.runningStats[minIdx].rawVal.GetFloatValue()
+				if err != nil {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					continue
+				}
+				maxRawVal, err := bucket.runningStats[minIdx+1].rawVal.GetFloatValue()
+				if err != nil {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					continue
+				}
+
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: maxRawVal - minRawVal, Dtype: utils.SS_DT_FLOAT}
 			case utils.Cardinality:
 				valIdx := gb.reverseMeasureIndex[idx]
 				finalVal := bucket.runningStats[valIdx].hll.Estimate()
 				currRes[mInfoStr] = utils.CValueEnclosure{CVal: finalVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
+			case utils.Values:
+				valIdx := gb.reverseMeasureIndex[idx]
+				rawValStrArr, ok := bucket.runningStats[valIdx].rawVal.CVal.([]string)
+				if !ok {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					continue
+				}
+
+				uniqueSet := make(map[string]struct{})
+				uniqueStrings := make([]string, 0)
+
+				for _, str := range rawValStrArr {
+					if _, exists := uniqueSet[str]; !exists {
+						uniqueSet[str] = struct{}{}
+						uniqueStrings = append(uniqueStrings, str)
+					}
+				}
+
+				sort.Strings(uniqueStrings)
+
+				strVal := strings.Join(uniqueStrings, "&nbsp")
+				currRes[mInfoStr] = utils.CValueEnclosure{
+					Dtype: utils.SS_DT_STRING,
+					CVal:  strVal,
+				}
 			default:
 				valIdx := gb.reverseMeasureIndex[idx]
 				currRes[mInfoStr] = bucket.runningStats[valIdx].rawVal

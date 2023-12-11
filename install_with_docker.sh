@@ -3,7 +3,10 @@
 # Extract the version number from pkg/config/version.go by getting everything
 # inside the quotes. Use -n to supress printing each line, and p to print the
 # modified line.
-SIGLENS_VERSION=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
+SIGLENS_VERSION=`\
+    curl  --silent "https://api.github.com/repos/siglens/siglens/releases/latest" |
+    grep '"tag_name":' |
+    sed -E 's/.*"([^"]+)".*/\1/'`
 
 sudo_cmd=""
 
@@ -145,27 +148,59 @@ fi
 
 start_docker
 
-echo -e "\n===>     Pulling the latest docker image for SigLens"
+echo -e "\n===> Pulling the latest docker image for SigLens"
 
 wget "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
-$sudo_cmd docker pull siglens/siglens:0.1.0 
+$sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION}
 $sudo_cmd mkdir data
 echo ""
 echo -e "\n===> SigLens installation complete"
+
+# Extract the first occurrence of a valid MAC address
+computer_specific_identifier=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
+# If it can not get the mac address, use hostname as computer-specific identifier 
+if [ -z "$computer_specific_identifier" ]; then
+  computer_specific_identifier=$(hostname)
+fi
+
+# Get OS information
+runtime_os=$(uname)
+runtime_arch=$(uname -m)
+
+curl -X POST \
+https://api.segment.io/v1/track \
+-H 'Content-Type: application/json' \
+-H 'Authorization: Basic QlBEam5lZlBWMEpjMkJSR2RHaDdDUVRueWtZS2JEOGM6' \
+-d '{
+  "userId": "'"$computer_specific_identifier"'",
+  "event": "install (not running)",
+  "properties": {
+    "runtime_arch": "'"$runtime_os"'",
+    "runtime_os": "'"$runtime_arch"'"
+  }
+}'
+
 echo ""
-echo -e "\n===> Run the following command to start the siglens server"
-echo "================================================"
+tput bold
+echo -e "\n===> ${bold}Run the following command to start the siglens server"
+tput sgr0
+echo "====================**************************************************============================"
+echo ""
 echo -e "docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
     --mount type=bind,source="$(pwd)"/server.yaml,target=/siglens/server.yaml \
     -p 8081:8081 -p 80:80 siglens/siglens:0.1.0"
 echo ""
+echo "====================**************************************************============================"
+
+echo -e "\n===> In case ports 80 and 8081 are in use change the settings as follows"
 echo -e "ingestPort(8081) and queryPort(80) can be changed using in server.yaml."
 echo -e "queryPort(80) can also be changed by setting the environment variable $PORT."
 echo ""
 echo -e "To be able to query data across restarts, set ssInstanceName in server.yaml."
 echo ""
 echo -e "The target for the data directory mounting should be the same as the data directory (dataPath configuration) in server.yaml"
-echo "================================================"
-echo -e "\n===> Frontend can be accessed on http://localhost:80"
+tput bold
+echo -e "\n===> ${bold}Frontend can be accessed on http://localhost:80"
 echo ""
+tput sgr0
 echo -e "\n*** Thank you! ***\n"
