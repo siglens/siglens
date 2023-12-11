@@ -80,12 +80,21 @@
             </div>
             <div class="delete-dialog">
                 <h3 class="header">Cannot delete contact point</h3>
-                <p>The contact point named <strong id="contact-name-placeholder-delete-dialog"></strong> is currently in use by multiple alerts.</p>
-                <button type="button" id="view-btn">View alerts associated with this contact point</button>
-                <button type="button" id="cancel-btn">Close</button>
-                <div class="alertsView">
-                    <p><strong id="alert-name-placeholder-alertsView"></strong></p>
+                <p>
+                    The contact point named <strong id="contact-name-placeholder-delete-dialog"></strong> is currently in use by multiple alerts.
+                </p>
+                <div class="dropdown">
+                    <button class="btn dropdown-toggle" type="button" id="alert-btn" data-toggle="dropdown" aria-haspopup="true"
+                        aria-expanded="false" data-bs-toggle="dropdown" title="Alert Name to search on">
+                        <span>View associated Alerts</span>
+                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                    </button>
+                    <div class="dropdown-menu box-shadow" aria-labelledby="alert-btn" id="associated-alerts">
+                        <div id="alert-listing"></div>
+                    </div>
                 </div>
+                <button type="button" id="cancel-btn">Close</button>
             </div>
             
         </div>
