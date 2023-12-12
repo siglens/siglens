@@ -1224,7 +1224,11 @@ progress.hidden {
     border-radius: 3px;
 }
 
-.ui-widget-content .ui-state-highlight,
+.ui-widget-content .ui-state-highlight{
+    border: 1px solid var(--error);
+    background: var(--accent-color);
+    color: var(--white-0);
+}
 .ui-widget-header .ui-state-highlight {
     border: 1px solid var(--error);
     background: var(--accent-color);
@@ -2151,7 +2155,7 @@ div#download-info {
 .validateTips.active {
     height: 15px;
     line-height: 12px;
-    font-size: 10px;
+    font-size: 12px;
     border:none;
     margin:0 0 5px 0;
     display: block;
