@@ -100,10 +100,9 @@ $(`.dbSet-textareaContainer .copy`).click(function() {
             setTimeout(() => {
                 $(this).tooltip('dispose');
                 $(this).attr('title', 'Copy').tooltip({
-                    title: 'Copy',
-                    trigger: 'manual',
+                    delay: { show: 0, hide: 300 },
+                    trigger: 'hover',
                   });
-                $(this).tooltip('show');
             }, 1000);
         })
 });
