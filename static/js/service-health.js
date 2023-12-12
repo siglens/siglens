@@ -38,22 +38,28 @@ let gridDiv = null;
 let serviceRowData = [];
 const columnDefs=[
     { headerName: "Service", field: "service"},
-    { headerName: "Rate", field: "rate"},
-    { headerName: "Error", field: "error"},
-    { headerName: 'P50', field: 'p50' },
-    { headerName: 'P90', field: 'p90' },
-    { headerName: 'P99', field: 'p99' },
+    { headerName: "Rate (Request per Second)", field: "rate"},
+    { headerName: "Error (% of Rate)", field: "error"},
+    { headerName: 'P50 (in ms)', field: 'p50' },
+    { headerName: 'P90 (in ms)', field: 'p90' },
+    { headerName: 'P99 (in ms)', field: 'p99' },
 ];
 
 const gridOptions = {
     rowData: serviceRowData ,
+    onRowClicked: onRowClicked,
+    rowHeight: 50,
     defaultColDef: {
-      cellStyle: { 'text-align': "left" },
+    cellClass: 'align-center-grid',
       resizable: true,
       sortable: true,
       animateRows: true,
       readOnlyEdit: true,
       autoHeight: true,
+      icons: {
+          sortAscending: '<i class="fa fa-sort-alpha-down"/>',
+          sortDescending: '<i class="fa fa-sort-alpha-up"/>',
+        },
     },
     columnDefs:columnDefs,
 };
@@ -108,7 +114,7 @@ function displayServiceHealthTable(res){
     $.each(res, function (key, value) {
         newRow.set("rowId", key);
         newRow.set("service", value.service);
-        newRow.set("rate", value.rate);
+        newRow.set("rate", Number(value.rate).toFixed(2));
         newRow.set("error", value.error_rate);
         newRow.set("p50", value.p50);
         newRow.set("p90", value.p90);
@@ -118,6 +124,16 @@ function displayServiceHealthTable(res){
     })
     gridOptions.api.setRowData(serviceRowData);
     gridOptions.api.sizeColumnsToFit();
+    gridOptions.columnApi.applyColumnState({
+        state: [{ colId: 'error', sort: 'desc' }],
+        defaultState: { sort: null },
+    });
 }
+
+function onRowClicked(event) {
+    const serviceName = event.data.service; 
+    window.location.href = 'service-health-overview.html?service=' + encodeURIComponent(serviceName);
+}
+
 
 
