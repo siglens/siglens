@@ -27,6 +27,9 @@
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/siglens.css" />
     <link rel="stylesheet" href="./css/tracing.css" />
+    <link rel="stylesheet" href="./component/single-box/single-box.css" />
+    <link rel="stylesheet" href="./component/download/download.css" />
+    <link rel="stylesheet" href="./css/tracing.css" />
 
     <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
@@ -47,8 +50,8 @@
 
         <div id="app-side-nav" class="active">
         </div>
-
-        <div id="dashboard" class="p-20">
+        <div id="download-trace"></div>
+        <div id="dashboard" class="p-20 pb-0">
             <div class="subsection-navbar">
                 <div>
                     <h1 class="myOrg-heading">Tracing</h1>
@@ -56,6 +59,67 @@
                         <div class="section-button"><a href="./service-health.html">Service Health</a></div>
                         <div class="section-button active"><a href="./search-traces.html">Search Traces</a></div>
                         <div class="section-button"><a href="./dependency-graph.html">Dependency Graph</a></div>
+                    </div>
+                </div>
+            </div>
+            <div class="page-block">
+                <div class="search">
+                    <span class="search-text">Search</span>
+                    <div class="dropdown-box">
+                        <span>Service</span>
+                        <div class="dropdown" id = "service-dropdown">
+                        </div>
+                    </div>
+                    <div class="dropdown-box">
+                        <span>Operation</span>
+                        <div class="dropdown" id = "name-dropdown">
+                        </div>
+                    </div>
+                    <div class="input-box">
+                        <span>Tags</span>
+                        <input class="form-control" id="tags-input" placeholder="" type="text">
+                    </div>
+                    <div class="dropdown lookback" id="lookback">
+                        <span>Lookback</span>
+                    </div>
+                    
+                    <div class="duration">
+                        <div class="input-box">
+                            <span>Max Duration</span>
+                            <input class="form-control" id="max-duration-input" placeholder="" type="text">
+                        </div>
+                        <div class="input-box tags-second">
+                            <span>Min Duration</span>
+                            <input class="form-control" id="min-duration-input" placeholder="" type="text">
+                        </div>
+                    </div>
+                    <div class="input-box">
+                        <span>Limit Result</span>
+                        <input class="form-control" id="limit-result-input" placeholder="" type="number">
+                    </div>
+                    <div class="search-trace-btn-box">
+                        <button class="btn search-trace-btn" id="search-trace-btn">Find Traces</button>
+                    </div>
+                </div>
+                <div class="right-section">
+                    <div class="graph-info">
+                        <span class="traces-number" id = "traces-number"></span>
+                        <div class="sorts-method">
+                            <span>Sorts: </span>
+                            <div class="dropdown-sort-box">
+                                <div class="dropdown" id="sort-dropdown">
+                                </div>
+                            </div>
+                            <div class="dropdown-download-box">
+                                <div class="dropdown" id="download-dropdown">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-center">
+                        <div class="graph-show" id="graph-show"></div>
+                    </div>
+                    <div class="warn-bottom" id = "warn-bottom">
                     </div>
                 </div>
             </div>
@@ -69,8 +133,13 @@
 
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/search-traces.js?cb=1_1_10"></script>
+    <script src="./component/single-box/single-box.js"></script>
+    <script src="./component/download/download.js"></script>
+    <script src="./component/time-picker/time-picker.js"></script>
+    <script src="./js/lib/echarts.min.js"></script>
 </body>
 
 </html>
