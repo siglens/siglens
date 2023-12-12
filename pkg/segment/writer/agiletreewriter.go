@@ -112,8 +112,6 @@ func (stb *StarTreeBuilder) encodeMetadata(strMFd *os.File) (uint32, error) {
 	// metaDataLen
 	copy(stb.buf[0:], utils.Uint32ToBytesLittleEndian(idx-4))
 
-	//	log.Infof("kunal EncodeStarTree: metaDataLen: %v", idx-4)
-
 	_, err := strMFd.Write(stb.buf[:idx])
 	if err != nil {
 		log.Errorf("encodeMetadata: meta write failed fname=%v, err=%v", strMFd.Name(), err)
@@ -179,10 +177,21 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 		idx += 4
 
 		// add Parent keys, don't add parents for root (level-0) and level-1 (since their parent is root)
+		ancestor := n.parent
 		for i := 1; i < level; i++ {
-			// todo add parent's keys info
-			copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(0))
+			if ancestor == nil {
+				log.Errorf("encodeNodeDetails: ancestor is nil, level: %v, nodeKey: %+v", level, n.myKey)
+				break
+			}
+
+			copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(ancestor.myKey))
 			idx += 4
+			ancestor = ancestor.parent
+		}
+
+		// We should have reached the root.
+		if level > 0 && ancestor != stb.tree.Root {
+			log.Errorf("encodeNodeDetails: ancestor is not the root, level: %v, nodeKey: %+v", level, n.myKey)
 		}
 
 		for agIdx, e := range n.aggValues {
@@ -212,7 +221,6 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 	strLevFileOff += int64(idx)
 	levsSizes[level] = idx
 
-	//	log.Infof("kunal encode , level: %v, size: %v", level, idx)
 	if len(nextLevelNodes) > 0 {
 		nSize, err := stb.encodeNodeDetails(strLevFd, nextLevelNodes, level+1, strLevFileOff, levsOffsets, levsSizes)
 		if err != nil {
@@ -322,7 +330,6 @@ func (stb *StarTreeBuilder) writeLevsInfo(strMFd *os.File, levsOffsets []int64,
 		idx += 4
 	}
 
-	//	log.Infof("kunal writeLevsInfo: levsOffsets: %v, levsSizes: %v", levsOffsets, levsSizes)
 	_, err := strMFd.Write(stb.buf[:idx])
 	if err != nil {
 		log.Errorf("writeLevsInfo: failed levOff writing, err: %v", err)

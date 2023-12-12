@@ -25,10 +25,14 @@ let contactEditFlag = 0;
 /* Contact Form Component - This component is used on both the "contacts.html" and "alert.html" pages. */
 const contactFormHTML = `
 <form id="contact-form">
+<div class="d-flex btn-container">
+    <button class="btn" id="cancel-contact-btn" type="button">Cancel</button>
+    <button class="btn" id="save-contact-btn" type="submit">Save</button>
+</div>
 <div class="add-contact-form">
     <div>
-        <label for="contact-name">Name</label>
-        <input type="text" class="form-control" placeholder="Name" id="contact-name" required >
+        <label for="contact-name">Contact point name</label>
+        <input type="text" class="form-control" placeholder="Enter a contact point name" id="contact-name" required >
     </div>
     <div id="main-container">
         <div class="contact-container">
@@ -49,10 +53,12 @@ const contactFormHTML = `
                 </div>
             </div>
             <div class="slack-container">
-                <label for="slack">Channel ID</label>
-                <input type="text" class="form-control" id="slack-channel-id">
-                <label for="slack">Slack Token</label>
-                <input type="text" class="form-control" id="slack-token">
+                <div>
+                    <label for="slack-channel-id">Channel ID</label>
+                    <input type="text" class="form-control" id="slack-channel-id" required>
+                </div>
+                <label for="slack-token">Slack Token</label>
+                <input type="text" class="form-control" id="slack-token" required>
 
             </div>
             <div class="webhook-container">
@@ -66,10 +72,6 @@ const contactFormHTML = `
             <img src="./assets/add-icon.svg" class="add-icon">Add new contact type
         </span>
     </button>
-    <div>
-        <button class="btn" id="cancel-contact-btn" type="button">Cancel</button>
-        <button class="btn" id="save-contact-btn" type="submit">Save</button>
-    </div>
 </div>
 </form>
 `;
@@ -141,17 +143,19 @@ function initializeContactForm(contactId) {
 }
 
 function setContactTypes() {
-    $('#main-container input').val('');
     const selectedOption = $(this).html();
     const container = $(this).closest('.contact-container');
     container.find('.contact-option').removeClass('active');
     container.find('#contact-types span').html(selectedOption);
     $(this).addClass('active');
+    container.find('.slack-container input, .webhook-container input').removeAttr('required').val();
     container.find('.slack-container, .webhook-container').css('display', 'none');
     if (selectedOption === 'Slack') {
+        container.find('.slack-container input').attr('required', 'true');
         container.find('.slack-container').css('display', 'block');
     } else if (selectedOption === 'Webhook') {
         container.find('.webhook-container').css('display', 'block');
+        container.find('.webhook-container input').attr('required', 'true');
     } 
 }
 
@@ -296,6 +300,7 @@ class btnRenderer {
 }
 
 function deleteContactPrompt(data) {
+    $('#contact-name-placeholder').html('<strong>' + data.contactName + '</strong>');
     $('.popupOverlay, .popupContent').addClass('active');
     $('#cancel-btn, .popupOverlay').click(function () {
         $('.popupOverlay, .popupContent').removeClass('active');
@@ -318,13 +323,15 @@ function deleteContactPrompt(data) {
             contactGridOptions.api.applyTransaction({
                 remove: [{ rowId: deletedRowID }],
             });
+
             showToast(res.message);
             $('.popupOverlay, .popupContent').removeClass('active');
         });
     });
 }
 
-function showDeleteContactDialog(){
+function showDeleteContactDialog(data){
+    $('#contact-name-placeholder-delete-dialog').html('<strong>' + data.contactName + '</strong>');
     $('.popupOverlay, .delete-dialog').addClass('active');
     $('#cancel-btn, .popupOverlay').click(function () {
         $('.popupOverlay, .delete-dialog').removeClass('active');
@@ -350,7 +357,7 @@ function getAllAlertsWithSameContactPoint(data){
                 matchingAlertNames.push(alert.alert_name);
         }}}
           if(matchingAlertNames.length > 0){
-            showDeleteContactDialog();
+            showDeleteContactDialog(data);
           }else{
             deleteContactPrompt(data);
           }
@@ -394,6 +401,7 @@ const contactGridOptions = {
 			sortAscending: '<i class="fa fa-sort-alpha-up"/>',
 			sortDescending: '<i class="fa fa-sort-alpha-down"/>',
 		},
+        cellClass: 'align-center-grid',
         resizable: true,
         sortable: true,
 	},

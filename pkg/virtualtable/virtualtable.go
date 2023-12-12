@@ -50,6 +50,8 @@ var aliasToIndexNames map[uint64]map[string]map[string]bool = make(map[uint64]ma
 // holds all the tables for orgid -> tname -> bool
 var allVirtualTables map[uint64]map[string]bool
 
+var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
+
 func InitVTable() error {
 	allVirtualTables = make(map[uint64]map[string]bool)
 	var sb strings.Builder
@@ -589,15 +591,22 @@ func ExpandAndReturnIndexNames(indexNameIn string, orgid uint64, isElastic bool)
 			return []string{}
 		}
 		for indexName := range indexNames {
+			if isIndexExcluded(indexName) {
+				continue
+			}
 			if !isElastic && strings.Contains(indexName, ".kibana") {
 				continue
 			}
+
 			finalResultsMap[indexName] = true
 		}
 	} else {
 		indexNames := strings.Split(indexNameIn, ",")
 		for _, indexName := range indexNames {
 			if strings.Contains(indexName, "*") {
+				if isIndexExcluded(indexName) {
+					continue
+				}
 				regexStr := "^" + strings.ReplaceAll(indexName, "*", `.*`) + "$"
 				indexRegExp, err := regexp.Compile(regexStr)
 				if err != nil {
@@ -639,6 +648,9 @@ func ExpandAndReturnIndexNames(indexNameIn string, orgid uint64, isElastic bool)
 
 	// if there are no entries in the results map, return the index as is
 	if indexCount == 0 {
+		if isIndexExcluded(indexNameIn) {
+			return []string{}
+		}
 		finalResults := []string{indexNameIn}
 		return finalResults
 	} else {
@@ -653,6 +665,15 @@ func ExpandAndReturnIndexNames(indexNameIn string, orgid uint64, isElastic bool)
 		return finalResults
 	}
 
+}
+
+func isIndexExcluded(indexName string) bool {
+	for _, value := range excludedInternalIndices {
+		if strings.ReplaceAll(indexName, "*", "") == value {
+			return true
+		}
+	}
+	return false
 }
 
 func DeleteVirtualTable(tname *string, orgid uint64) error {
