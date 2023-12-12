@@ -2,6 +2,7 @@
     --black: #000;
     --white: #fff;
     --error: #f00;
+    --error-trace: #E93125;
     --color-danger: #d1242f;
     --fw-400: 400;
     --fw-500: 500;
@@ -18,6 +19,7 @@
 
     --shadow-1: #6F6B7B29;
     --shadow-2: #00000029;
+    --trace-error-shadow:#E9312526;
 
     /* Dark Theme - default */
     --black-1: #160F29;
@@ -3079,6 +3081,20 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     height: 44px;
 }
 
+.dbSet-textareaContainer .copy{
+    background-image: url(../assets/copy-icon.svg);
+    background-size: contain;
+    width: 20px;
+    height: 20px;
+    position: absolute;
+    right: calc(20% + 20px);
+    top: 20px;
+}
+
+[data-theme='dark'] .dbSet-textareaContainer .copy{
+    background-image: url(../assets/copy-icon-dark-mode.svg);
+}
+
 /* dashboard Grid*/
 #dashboard-grid-container{
     margin-left: 23px;
@@ -4186,14 +4202,13 @@ color: #C8C7CC;
     margin-bottom: 20px;
 }
 
-#info-evaluate-for{
-    top: 10px;
-    right: 425px;
+#label-evaluate-every , #for-span{
+    position: relative;
 }
 
-#info-evaluate-every{
-    top: 10px;
-    right: 610px;
+#info-evaluate-every,#info-evaluate-for{
+    top: 4px;
+    right: -30px;
 }
 
 #alert-condition,#contact-types,#contact-points-dropdown,#alert-data-source,
