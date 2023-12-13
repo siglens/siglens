@@ -625,7 +625,7 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	// Used to find out which attributes belong to tags
 	fieldsNotInTag := []string{"trace_id", "span_id", "parent_span_id", "service", "trace_state", "name", "kind", "start_time", "end_time",
-		"duration", "dropped_attributes_count", "dropped_events_count", "dropped_links_count", "status", "events", "links"}
+		"duration", "dropped_attributes_count", "dropped_events_count", "dropped_links_count", "status", "events", "links", "_index", "timestamp"}
 
 	idToSpanMap := make(map[string]*structs.GanttChartSpan, 0)
 	idToParentId := make(map[string]string, 0)
@@ -718,6 +718,12 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			// Remove all non-tag fields
 			for _, strToRemove := range fieldsNotInTag {
 				delete(spanMap, strToRemove)
+			}
+
+			for key, val := range spanMap {
+				if val == nil {
+					delete(spanMap, key)
+				}
 			}
 			span.Tags = spanMap
 			span.ServiceName = serviceName.(string)
