@@ -587,3 +587,143 @@ func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 
 }
+
+func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+
+	rawJSON := ctx.PostBody()
+	if rawJSON == nil {
+		log.Errorf("ProcessGanttChartRequest: received empty search request body ")
+		pipesearch.SetBadMsg(ctx)
+		return
+	}
+
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	decoder.UseNumber()
+	err := decoder.Decode(&readJSON)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		_, err = ctx.WriteString(err.Error())
+		if err != nil {
+			log.Errorf("ProcessGanttChartRequest: could not write error message err=%v", err)
+		}
+		log.Errorf("ProcessGanttChartRequest: failed to decode search request body! Err=%v", err)
+	}
+
+	// Parse the JSON data from ctx.PostBody
+	searchRequestBody := &structs.SearchRequestBody{}
+	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
+		log.Errorf("ProcessGanttChartRequest: could not unmarshal json body, err=%v", err)
+		return
+	}
+
+	searchRequestBody.QueryLanguage = "Splunk QL"
+	searchRequestBody.IndexName = "traces"
+	searchRequestBody.From = 0
+	searchRequestBody.Size = 1000
+
+	// Used to find out which attributes belong to tags
+	fieldsNotInTag := []string{"trace_id", "span_id", "parent_span_id", "service", "trace_state", "name", "kind", "start_time", "end_time",
+		"duration", "dropped_attributes_count", "dropped_events_count", "dropped_links_count", "status", "events", "links"}
+
+	idToSpanMap := make(map[string]*structs.GanttChartSpan, 0)
+	idToParentId := make(map[string]string, 0)
+
+	for {
+		modifiedData, err := json.Marshal(searchRequestBody)
+		if err != nil {
+			log.Errorf("ProcessGanttChartRequest: could not marshal to json body, err=%v", err)
+			return
+		}
+
+		// Get initial data
+		rawTraceCtx := &fasthttp.RequestCtx{}
+		rawTraceCtx.Request.Header.SetMethod("POST")
+		rawTraceCtx.Request.SetBody(modifiedData)
+		pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
+
+		resultMap := make(map[string]interface{}, 0)
+		err = json.Unmarshal(rawTraceCtx.Response.Body(), &resultMap)
+		if err != nil {
+			log.Errorf("ProcessGanttChartRequest: could not unmarshal json body, err=%v", err)
+			return
+		}
+
+		hits, exists := resultMap["hits"]
+		if !exists {
+			log.Errorf("ProcessGanttChartRequest: Key 'hits' not found in response")
+			break
+		}
+
+		hitsMap, ok := hits.(map[string]interface{})
+		if !ok {
+			log.Errorf("ProcessGanttChartRequest: Error asserting type for 'hits'")
+			break
+		}
+
+		records, exists := hitsMap["records"]
+		if !exists {
+			log.Errorf("ProcessGanttChartRequest: Key 'records' not found in response")
+			break
+		}
+
+		rawSpans, ok := records.([]interface{})
+		if !ok {
+			log.Errorf("ProcessGanttChartRequest: Error asserting type for 'records'")
+			break
+		}
+
+		if len(rawSpans) == 0 {
+			break
+		}
+
+		for _, rawSpan := range rawSpans {
+			spanMap := rawSpan.(map[string]interface{})
+
+			span := &structs.GanttChartSpan{}
+
+			jsonData, err := json.Marshal(spanMap)
+			if err != nil {
+				log.Errorf("ProcessGanttChartRequest: could not marshal to json body, err=%v", err)
+				continue
+			}
+			if err := json.Unmarshal(jsonData, &span); err != nil {
+				log.Errorf("ProcessGanttChartRequest: could not unmarshal to json body, err=%v", err)
+				continue
+			}
+
+			serviceName, exists := spanMap["service"]
+			if !exists {
+				continue
+			}
+
+			operationName, exists := spanMap["name"]
+			if !exists {
+				continue
+			}
+
+			parentSpanId, exists := spanMap["parent_span_id"]
+			if !exists {
+				continue
+			}
+
+			idToParentId[span.SpanID] = parentSpanId.(string)
+
+			// Remove all attributes that are not belong to tags, leaving only the attributes that are tags
+			for _, strToRemove := range fieldsNotInTag {
+				delete(spanMap, strToRemove)
+			}
+			span.Tags = spanMap
+			span.ServiceName = serviceName.(string)
+			span.OperationName = operationName.(string)
+			idToSpanMap[span.SpanID] = span
+		}
+		searchRequestBody.From += 1000
+	}
+
+	results := utils.BuildSpanTree(idToSpanMap, idToParentId)
+
+	putils.WriteJsonResponse(ctx, results)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
