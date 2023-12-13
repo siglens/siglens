@@ -63,12 +63,13 @@ type SearchRequestBody struct {
 }
 
 type GanttChartSpan struct {
-	SpanID        string                 `json:"span_id"`
-	StartTime     uint64                 `json:"start_time"`
-	EndTime       uint64                 `json:"end_time"`
-	Duration      uint64                 `json:"duration"`
-	ServiceName   string                 `json:"service_name"`
-	OperationName string                 `json:"operation_name"`
-	Tags          map[string]interface{} `json:"tags"`
-	Children      []*GanttChartSpan      `json:"children"`
+	SpanID          string                 `json:"span_id"`
+	ActualStartTime uint64                 `json:"actual_start_time"`
+	StartTime       uint64                 `json:"start_time"`
+	EndTime         uint64                 `json:"end_time"`
+	Duration        uint64                 `json:"duration"`
+	ServiceName     string                 `json:"service_name"`
+	OperationName   string                 `json:"operation_name"`
+	Tags            map[string]interface{} `json:"tags"`
+	Children        []*GanttChartSpan      `json:"children"`
 }

@@ -1,12 +1,16 @@
 package utils
 
 import (
+	"fmt"
+
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
 	log "github.com/sirupsen/logrus"
 )
 
-func BuildSpanTree(spanMap map[string]*structs.GanttChartSpan, idToParentId map[string]string) *structs.GanttChartSpan {
+func BuildSpanTree(spanMap map[string]*structs.GanttChartSpan, idToParentId map[string]string) (*structs.GanttChartSpan, error) {
 	res := &structs.GanttChartSpan{}
+
+	// Find root span
 	for spanID, span := range spanMap {
 		parentSpanID, exists := idToParentId[spanID]
 		if !exists {
@@ -16,7 +20,28 @@ func BuildSpanTree(spanMap map[string]*structs.GanttChartSpan, idToParentId map[
 
 		if parentSpanID == "" {
 			res = span
-		} else {
+		}
+	}
+
+	if res.SpanID == "" {
+		return nil, fmt.Errorf("BuildSpanTree: can not find a root span")
+	}
+
+	rootSpanStartTime := res.StartTime
+
+	for spanID, span := range spanMap {
+		// Calculate the absolute start time and end time for each span
+		span.ActualStartTime = span.StartTime
+		span.StartTime -= rootSpanStartTime
+		span.EndTime -= rootSpanStartTime
+
+		parentSpanID, exists := idToParentId[spanID]
+		if !exists {
+			log.Errorf("BuildSpanTree: can not find parent span:%v for span:%v", parentSpanID, spanID)
+			continue
+		}
+
+		if parentSpanID != "" {
 			parentSpan, exists := spanMap[parentSpanID]
 			if !exists {
 				log.Errorf("BuildSpanTree: can not find parent span:%v for span:%v", parentSpanID, spanID)
@@ -26,5 +51,5 @@ func BuildSpanTree(spanMap map[string]*structs.GanttChartSpan, idToParentId map[
 		}
 	}
 
-	return res
+	return res, nil
 }
