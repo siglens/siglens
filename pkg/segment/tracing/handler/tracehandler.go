@@ -695,22 +695,25 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 			serviceName, exists := spanMap["service"]
 			if !exists {
+				log.Errorf("ProcessGanttChartRequest: span:%v does not contain the required field: service", span.SpanID)
 				continue
 			}
 
 			operationName, exists := spanMap["name"]
 			if !exists {
+				log.Errorf("ProcessGanttChartRequest: span:%v does not contain the required field: name", span.SpanID)
 				continue
 			}
 
 			parentSpanId, exists := spanMap["parent_span_id"]
 			if !exists {
+				log.Errorf("ProcessGanttChartRequest: span:%v does not contain the required field: parent_span_id", span.SpanID)
 				continue
 			}
 
 			idToParentId[span.SpanID] = parentSpanId.(string)
 
-			// Remove all attributes that are not belong to tags, leaving only the attributes that are tags
+			// Remove all non-tag fields
 			for _, strToRemove := range fieldsNotInTag {
 				delete(spanMap, strToRemove)
 			}
