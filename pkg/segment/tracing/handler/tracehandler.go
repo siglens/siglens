@@ -654,7 +654,7 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			if err != nil {
 				log.Errorf("ProcessGanttChartRequest: could not write error message err=%v", err)
 			}
-			log.Errorf("ProcessGanttChartRequest:: failed to decode search request body! Err=%v", err)
+			log.Errorf("ProcessGanttChartRequest: failed to decode search request body! Err=%v", err)
 			return
 		}
 
@@ -741,6 +741,11 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	res, err := utils.BuildSpanTree(idToSpanMap, idToParentId)
 	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		_, err = ctx.WriteString(err.Error())
+		if err != nil {
+			log.Errorf("ProcessGanttChartRequest: could not write error message err=%v", err)
+		}
 		log.Errorf("ProcessGanttChartRequest: Err=%v", err)
 	}
 
