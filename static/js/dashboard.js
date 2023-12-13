@@ -62,6 +62,11 @@ $(document).ready(function () {
     getDashboardData();
 
     setTimePicker();
+
+    $(`.dbSet-textareaContainer .copy`).tooltip({
+        delay: { show: 0, hide: 300 },
+        trigger: 'hover'
+    });
 })
 $(document).mouseup(function (e) {
   var popWindows = $("#panel-dropdown-modal");
@@ -86,6 +91,20 @@ window.addEventListener('resize', function (event) {
     recalculatePanelWidths();
     displayPanels();
     resetPanelLocationsHorizontally();
+});
+$(`.dbSet-textareaContainer .copy`).click(function() {
+    $(this).tooltip('dispose');
+    $(this).attr('title', 'Copied!').tooltip('show');
+    navigator.clipboard.writeText($(`.dbSet-jsonModelData`).val())
+        .then(() => {
+            setTimeout(() => {
+                $(this).tooltip('dispose');
+                $(this).attr('title', 'Copy').tooltip({
+                    delay: { show: 0, hide: 300 },
+                    trigger: 'hover',
+                  });
+            }, 1000);
+        })
 });
 
 function recalculatePanelWidths(){
@@ -129,6 +148,7 @@ function updateDashboard() {
     )
         .then(res => {
             if (res.status == 200) {
+                displayDashboardName();
                 showToast('Dashboard Updated Successfully');
             }
             return res.json();
@@ -211,7 +231,7 @@ function handlePanelRemove(panelId) {
     function showPrompt(panelId) {
         $('.popupOverlay, .popupContent').addClass('active');
         $('#delete-btn-panel').on("click", function () {
-            deletePanel(panelId); 
+            deletePanel(panelId);
             $('.popupOverlay, .popupContent').removeClass('active');
         });
         $('#cancel-btn-panel, .popupOverlay').on("click", function () {
@@ -241,7 +261,7 @@ function handleDescriptionTooltip(panelId,description) {
     const panelInfoCorner = $(`#panel${panelId} .panel-info-corner`);
     const panelDescIcon = $(`#panel${panelId} .panel-info-corner #panel-desc-info`);
     panelInfoCorner.show();
-    panelDescIcon.attr('title',description); 
+    panelDescIcon.attr('title',description);
     panelDescIcon.tooltip({
         delay: { show: 0, hide: 300 },
         trigger: 'hover'});
@@ -491,7 +511,7 @@ function displayPanels() {
         } else {
             $(`#panel${idpanel} .panel-info-corner`).hide();
         }
-        
+
         let panelElement = document.getElementById(`panel${idpanel}`);
         panelElement.style.position = "absolute";
         panelElement.style.height = localPanel.gridpos.h + "px";
@@ -564,7 +584,7 @@ function displayPanels() {
                 runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
             else
                 runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
-        } else 
+        } else
             allResultsDisplayed--;
     })
     if(allResultsDisplayed === 0) {
@@ -677,7 +697,7 @@ function displayPanel(panelIndex) {
     } else {
         $(`#panel${panelId} .panel-info-corner`).hide();
     }
-    
+
 
     let panelElement = document.getElementById(`panel${panelId}`);
     panelElement.style.position = "absolute";
@@ -746,7 +766,7 @@ function displayPanelsWithoutRefreshing() {
 
 function showToast(msg) {
     let toast =
-        `<div class="div-toast" id="save-db-modal"> 
+        `<div class="div-toast" id="save-db-modal">
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
     <div>`
@@ -760,7 +780,7 @@ function removeToast() {
 }
 
 function getDashboardId() {
-    let queryString = decodeURIComponent(window.location.search); //parsing 
+    let queryString = decodeURIComponent(window.location.search); //parsing
     queryString = queryString.substring(1).split("=");
     let uniq = queryString[1];
     return uniq;
@@ -891,7 +911,7 @@ var panelLayout =
 `;
 
 function checkForAddigInTopRow() {
-    let temp = [];  
+    let temp = [];
 
     for (let i = 0; i < localPanels.length; i++) {
         let y = localPanels[i].gridpos.y;
@@ -977,7 +997,7 @@ function addPanel(panelToDuplicate) {
         panelToDuplicate.gridpos.w = panelWidth;
         if (panelToDuplicate.description){
             handleDescriptionTooltip(panelToDuplicate.panelId,panelToDuplicate.description)
-        }    
+        }
     }
 
     panelToDuplicate
@@ -1170,7 +1190,7 @@ function startRefreshInterval(refreshInterval) {
             intervalId = setInterval(function () {
                 refreshDashboardHandler();
             }, parsedRefreshInterval);
-        
+
     }else{
         pauseRefreshInterval();
     }
@@ -1196,9 +1216,9 @@ function parseInterval(interval) {
         case 'm':
             return value * 60 * 1000;
         case 'h':
-            return value * 60 * 60 * 1000; 
+            return value * 60 * 60 * 1000;
         case 'd':
-            return value * 24 * 60 * 60 * 1000; 
+            return value * 24 * 60 * 60 * 1000;
         default:
             throw new Error("Invalid interval unit");
     }
