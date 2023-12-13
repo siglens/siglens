@@ -35,12 +35,8 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	decoder.UseNumber()
 	err := decoder.Decode(&readJSON)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: could not write error message err=%v", err)
-		}
-		log.Errorf("ProcessSearchTracesRequest: failed to decode search request body! Err=%v", err)
+		writeErrMsg(ctx, "ProcessSearchTracesRequest", "could not decode raw json", err)
+		return
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
@@ -66,7 +62,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	// Parse the JSON data from ctx.PostBody
 	searchRequestBody := &structs.SearchRequestBody{}
 	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
-		log.Errorf("ProcessSearchTracesRequest: could not unmarshal json body, err=%v", err)
+		writeErrMsg(ctx, "ProcessSearchTracesRequest", "could not unmarshal json body", err)
 		return
 	}
 
@@ -82,13 +78,13 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		if len(searchRequestBody.SearchText) > 0 {
 			searchRequestBody.SearchText = searchRequestBody.SearchText + " | stats count BY trace_id"
 		} else {
-			log.Errorf("ProcessSearchTracesRequest: request does not contain required parameter: searchText")
+			writeErrMsg(ctx, "ProcessSearchTracesRequest", "request does not contain required parameter: searchText", nil)
 			return
 		}
 
 		pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: %v", err)
+			writeErrMsg(ctx, "ProcessSearchTracesRequest", err.Error(), nil)
 			return
 		}
 		traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch, page)
@@ -301,7 +297,7 @@ func ProcessRedTracesIngest() {
 		// Parse initial data
 		rawSpanData := structs.RawSpanData{}
 		if err := json.Unmarshal(ctx.Response.Body(), &rawSpanData); err != nil {
-			log.Errorf("ProcessRedTracesIngest: could not unmarshal json body, err=%v", err)
+			writeErrMsg(ctx, "ProcessRedTracesIngest", "could not unmarshal json body", err)
 			return
 		}
 
@@ -603,19 +599,14 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	decoder.UseNumber()
 	err := decoder.Decode(&readJSON)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("ProcessGanttChartRequest: could not write error message err=%v", err)
-		}
-		log.Errorf("ProcessGanttChartRequest: failed to decode search request body! Err=%v", err)
+		writeErrMsg(ctx, "ProcessGanttChartRequest", "could not decode json", err)
 		return
 	}
 
 	// Parse the JSON data from ctx.PostBody
 	searchRequestBody := &structs.SearchRequestBody{}
 	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
-		log.Errorf("ProcessGanttChartRequest: could not unmarshal json body, err=%v", err)
+		writeErrMsg(ctx, "ProcessGanttChartRequest", "could not unmarshal json body", err)
 		return
 	}
 
@@ -634,8 +625,7 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	for {
 		modifiedData, err := json.Marshal(searchRequestBody)
 		if err != nil {
-			log.Errorf("ProcessGanttChartRequest: could not marshal to json body, err=%v", err)
-			return
+			writeErrMsg(ctx, "ProcessGanttChartRequest", "could not marshal to json body", err)
 		}
 
 		// Get initial data
@@ -649,37 +639,32 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		decoder.UseNumber()
 		err = decoder.Decode(&resultMap)
 		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			_, err = ctx.WriteString(err.Error())
-			if err != nil {
-				log.Errorf("ProcessGanttChartRequest: could not write error message err=%v", err)
-			}
-			log.Errorf("ProcessGanttChartRequest: failed to decode search request body! Err=%v", err)
+			writeErrMsg(ctx, "ProcessGanttChartRequest", "could not decode response body", err)
 			return
 		}
 
 		hits, exists := resultMap["hits"]
 		if !exists {
-			log.Errorf("ProcessGanttChartRequest: Key 'hits' not found in response")
-			break
+			writeErrMsg(ctx, "ProcessGanttChartRequest", "Key 'hits' not found in response", nil)
+			return
 		}
 
 		hitsMap, ok := hits.(map[string]interface{})
 		if !ok {
-			log.Errorf("ProcessGanttChartRequest: Error asserting type for 'hits'")
-			break
+			writeErrMsg(ctx, "ProcessGanttChartRequest", "Error asserting type for 'hits'", nil)
+			return
 		}
 
 		records, exists := hitsMap["records"]
 		if !exists {
-			log.Errorf("ProcessGanttChartRequest: Key 'records' not found in response")
-			break
+			writeErrMsg(ctx, "ProcessGanttChartRequest", "Key 'records' not found in response", nil)
+			return
 		}
 
 		rawSpans, ok := records.([]interface{})
 		if !ok {
-			log.Errorf("ProcessGanttChartRequest: Error asserting type for 'records'")
-			break
+			writeErrMsg(ctx, "ProcessGanttChartRequest", "Error asserting type for 'records'", nil)
+			return
 		}
 
 		if len(rawSpans) == 0 {
@@ -741,14 +726,25 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	res, err := utils.BuildSpanTree(idToSpanMap, idToParentId)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("ProcessGanttChartRequest: could not write error message err=%v", err)
-		}
-		log.Errorf("ProcessGanttChartRequest: Err=%v", err)
+		writeErrMsg(ctx, "ProcessGanttChartRequest", err.Error(), nil)
+		return
 	}
 
 	putils.WriteJsonResponse(ctx, res)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func writeErrMsg(ctx *fasthttp.RequestCtx, functionName string, errorMsg string, err error) {
+
+	errContent := functionName + ": " + errorMsg
+	if err != nil {
+		errContent += fmt.Sprintf(", err=%v", err)
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusBadRequest)
+	_, err = ctx.WriteString(errContent)
+	if err != nil {
+		log.Errorf(functionName, ": could not write error message err=%v", err)
+	}
+	log.Errorf(functionName, ": failed to decode search request body! Err=%v", err)
 }
