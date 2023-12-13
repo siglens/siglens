@@ -348,7 +348,12 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 		return fmt.Errorf("decodeNodeDetailsJit wanted level: %v, but read level: %v", desiredLevel, curLevel)
 	}
 
-	wvBuf := make([]byte, len(grpTreeLevels)*4)
+	// Allocate all the memory we need for the group by keys upfront to avoid
+	// many small allocations this also allows us to convert a byte slice to
+	// a string without copying; this uses the unsafe package, but we never
+	// change that region of the byte slice, so it's safe.
+	wvBuf := make([]byte, len(grpTreeLevels)*4*int(numNodes))
+	wvIdx := uint32(0)
 
 	for i := uint32(0); i < numNodes; i++ {
 		// get mapkey
@@ -359,17 +364,18 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 		kidx := uint32(0)
 		for _, grpLev := range grpTreeLevels {
 			if grpLev == desiredLevel {
-				copy(wvBuf[kidx:], myKey)
+				copy(wvBuf[wvIdx+kidx:], myKey)
 			} else {
 				// The next four bytes of buf is the parent's node key, the
 				// next four after that is the grandparent's node key, etc.
 				ancestorLevel := desiredLevel - grpLev
 				offset := uint32(ancestorLevel-1) * 4
-				copy(wvBuf[kidx:], buf[idx+offset:idx+offset+4])
+				copy(wvBuf[wvIdx+kidx:], buf[idx+offset:idx+offset+4])
 			}
 			kidx += 4
 		}
-		wvNodeKey := string(wvBuf[:kidx])
+		wvNodeKey := toputils.UnsafeByteSliceToString(wvBuf[wvIdx : wvIdx+kidx])
+		wvIdx += kidx
 		idx += uint32(desiredLevel-1) * 4
 
 		aggVal, ok := combiner[wvNodeKey]
