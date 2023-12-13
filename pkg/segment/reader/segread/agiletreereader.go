@@ -316,7 +316,6 @@ func (str *AgileTreeReader) getRawVal(key uint32, dictEncoding map[uint32][]byte
 	rawVal, ok := dictEncoding[key]
 	if !ok {
 		return []byte{}, fmt.Errorf("failed to find raw value for idx %+v which has %+v keys", key, len(dictEncoding))
-
 	}
 	return rawVal, nil
 }
@@ -343,7 +342,7 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 	}
 
 	// Allocate all the memory we need for the group by keys upfront to avoid
-	// many small allocations this also allows us to convert a byte slice to
+	// many small allocations. This also allows us to convert a byte slice to
 	// a string without copying; this uses the unsafe package, but we never
 	// change that region of the byte slice, so it's safe.
 	wvBuf := make([]byte, len(grpTreeLevels)*4*int(numNodes))
