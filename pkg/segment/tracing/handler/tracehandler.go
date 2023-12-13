@@ -609,6 +609,7 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			log.Errorf("ProcessGanttChartRequest: could not write error message err=%v", err)
 		}
 		log.Errorf("ProcessGanttChartRequest: failed to decode search request body! Err=%v", err)
+		return
 	}
 
 	// Parse the JSON data from ctx.PostBody
@@ -648,8 +649,13 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		decoder.UseNumber()
 		err = decoder.Decode(&resultMap)
 		if err != nil {
-			log.Errorf("ProcessGanttChartRequest: failed to decode search request body! Err=%v", err)
-			continue
+			ctx.SetStatusCode(fasthttp.StatusBadRequest)
+			_, err = ctx.WriteString(err.Error())
+			if err != nil {
+				log.Errorf("ProcessGanttChartRequest: could not write error message err=%v", err)
+			}
+			log.Errorf("ProcessGanttChartRequest:: failed to decode search request body! Err=%v", err)
+			return
 		}
 
 		hits, exists := resultMap["hits"]
