@@ -30,7 +30,7 @@ func BuildSpanTree(spanMap map[string]*structs.GanttChartSpan, idToParentId map[
 	rootSpanStartTime := res.StartTime
 
 	for spanID, span := range spanMap {
-		// Calculate the absolute start time and end time for each span
+		// Calculate the relative start time and end time for each span
 		span.ActualStartTime = span.StartTime
 		span.StartTime -= rootSpanStartTime
 		span.EndTime -= rootSpanStartTime
