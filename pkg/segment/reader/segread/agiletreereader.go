@@ -312,16 +312,10 @@ func (str *AgileTreeReader) getLevelForColumn(colName string) (int, error) {
 	return 0, fmt.Errorf("column %+v not found in tree", colName)
 }
 
-func (str *AgileTreeReader) getRawVal(key uint32, col string, level int) ([]byte, error) {
-
-	currLevel, ok := str.treeMeta.allDictEncodings[col]
+func (str *AgileTreeReader) getRawVal(key uint32, dictEncoding map[uint32][]byte) ([]byte, error) {
+	rawVal, ok := dictEncoding[key]
 	if !ok {
-		return []byte{}, fmt.Errorf("failed to find col %+v in read allDictEncodings", col)
-	}
-
-	rawVal, ok := currLevel[key]
-	if !ok {
-		return []byte{}, fmt.Errorf("failed to find raw value for idx %+v (col %v) in level %+v which has %+v keys", key, col, level, len(currLevel))
+		return []byte{}, fmt.Errorf("failed to find raw value for idx %+v which has %+v keys", key, len(dictEncoding))
 
 	}
 	return rawVal, nil
@@ -469,11 +463,16 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 		return err
 	}
 
+	usedDictEncodings := make([]map[uint32][]byte, len(grpColNames))
+	for i, grpCol := range grpColNames {
+		usedDictEncodings[i] = str.treeMeta.allDictEncodings[grpCol]
+	}
+
 	for mkey, ntAgvals := range combiner {
 		if len(ntAgvals) == 0 {
 			continue
 		}
-		rawVal, err := str.decodeRawValBytes(mkey, grpTreeLevels, grpColNames)
+		rawVal, err := str.decodeRawValBytes(mkey, usedDictEncodings, grpColNames)
 		if err != nil {
 			log.Errorf("qid=%v, ApplyGroupByJit: Failed to get raw value for a agileTree key! %+v", qid, err)
 			return err
@@ -541,23 +540,23 @@ func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEn
 	return err
 }
 
-func (str *AgileTreeReader) decodeRawValBytes(mkey string, grpTreeLevels []uint16,
+func (str *AgileTreeReader) decodeRawValBytes(mkey string, usedGrpDictEncodings []map[uint32][]byte,
 	grpColNames []string) (string, error) {
 
 	// Estimate how much space we need for the string builder to avoid
 	// reallocations. An int or float groupby column will take 9 bytes, and
 	// a string groupby column could take more or less space.
 	var sb strings.Builder
-	sb.Grow(len(grpTreeLevels) * 16)
+	sb.Grow(len(usedGrpDictEncodings) * 16)
 
 	buf := []byte(mkey)
 	idx := uint32(0)
-	for i, level := range grpTreeLevels {
+	for i, dictEncoding := range usedGrpDictEncodings {
 		nk := toputils.BytesToUint32LittleEndian(buf[idx : idx+4])
 		idx += 4
 
 		cname := grpColNames[i]
-		rawVal, err := str.getRawVal(nk, cname, int(level))
+		rawVal, err := str.getRawVal(nk, dictEncoding)
 		if err != nil {
 			log.Errorf("decodeRawValBytes: Failed to get raw value for nk:%v, came: %v, err: %+v",
 				nk, cname, err)
