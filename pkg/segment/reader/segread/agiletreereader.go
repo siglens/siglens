@@ -538,8 +538,13 @@ func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEn
 func (str *AgileTreeReader) decodeRawValBytes(mkey string, grpTreeLevels []uint16,
 	grpColNames []string) (string, error) {
 
-	buf := []byte(mkey)
+	// Estimate how much space we need for the string builder to avoid
+	// reallocations. An int or float groupby column will take 9 bytes, and
+	// a string groupby column could take more or less space.
 	var sb strings.Builder
+	sb.Grow(len(grpTreeLevels) * 16)
+
+	buf := []byte(mkey)
 	idx := uint32(0)
 	for i, level := range grpTreeLevels {
 		nk := toputils.BytesToUint32LittleEndian(buf[idx : idx+4])
