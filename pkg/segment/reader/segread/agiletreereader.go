@@ -322,7 +322,7 @@ func (str *AgileTreeReader) getRawVal(key uint32, dictEncoding map[uint32][]byte
 
 func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 	desiredLevel uint16, combiner map[string][]utils.NumTypeEnclosure,
-	measResIndices []int, lenMri int, grpTreeLevels []uint16) error {
+	measResIndices []int, lenMri int, grpTreeLevels []uint16, bucketLimit uint64) error {
 
 	var wvInt64 int64
 	var wvFloat64 float64
@@ -373,6 +373,15 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 
 		aggVal, ok := combiner[wvNodeKey]
 		if !ok {
+			if bucketLimit > 0 && uint64(len(combiner)) >= bucketLimit {
+				// We've reached the bucket limit, so we shouldn't add another.
+				// However, we need to continue reading the AgileTree because
+				// we might reach another node that has data for a bucket we've
+				// already added.
+				idx += uint32(numAggValues) * 9
+				continue
+			}
+
 			aggVal = make([]utils.NumTypeEnclosure, lenMri)
 			combiner[wvNodeKey] = aggVal
 		}
@@ -411,7 +420,7 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 // first applies the first groupby column. For all returned nodes, apply second & so on until no more groupby exists
 func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 	internalMops []*structs.MeasureAggregator, blkResults *blockresults.BlockResults,
-	qid uint64, agileTreeBuf []byte) error {
+	qid uint64, agileTreeBuf []byte, bucketLimit uint64) error {
 
 	// make sure meta is loaded
 	_ = str.ReadTreeMeta()
@@ -456,7 +465,8 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 
 	combiner := make(map[string][]utils.NumTypeEnclosure)
 
-	err := str.computeAggsJit(combiner, maxGrpLevel, measResIndices, agileTreeBuf, grpTreeLevels)
+	err := str.computeAggsJit(combiner, maxGrpLevel, measResIndices, agileTreeBuf,
+		grpTreeLevels, bucketLimit)
 	if err != nil {
 		log.Errorf("qid=%v, ApplyGroupByJit: failed to apply aggs-jit: %v", qid, err)
 		return err
@@ -505,7 +515,8 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 }
 
 func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEnclosure,
-	desiredLevel uint16, measResIndices []int, agileTreeBuf []byte, grpTreeLevels []uint16) error {
+	desiredLevel uint16, measResIndices []int, agileTreeBuf []byte, grpTreeLevels []uint16,
+	bucketLimit uint64) error {
 
 	numAggValues := len(str.treeMeta.measureColNames) * writer.TotalMeasFns
 
@@ -535,7 +546,7 @@ func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEn
 
 	// assumes root is at level -1
 	err = str.decodeNodeDetailsJit(agileTreeBuf[0:myLevsSize], numAggValues, desiredLevel,
-		combiner, measResIndices, len(measResIndices), grpTreeLevels)
+		combiner, measResIndices, len(measResIndices), grpTreeLevels, bucketLimit)
 	return err
 }
 

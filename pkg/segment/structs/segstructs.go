@@ -438,6 +438,16 @@ func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
 	return false
 }
 
+func (qa *QueryAggregators) HasSortInChain() bool {
+	if qa.Sort != nil {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasSortInChain()
+	}
+	return false
+}
+
 // Init default query aggregators.
 // By default, a descending sort is added
 func InitDefaultQueryAggregations() *QueryAggregators {

@@ -36,6 +36,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -507,8 +508,15 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 
 			if doAgileTree {
 				sTime := time.Now()
+
+				// Check if we can limit the number of buckets.
+				bucketLimit := segutils.QUERY_MAX_BUCKETS
+				if queryInfo.aggs.HasSortInChain() {
+					bucketLimit = uint64(0) // Don't limit the number of buckets.
+				}
+
 				search.ApplyAgileTree(str, segReq.aggs, allSegFileResults, segReq.sizeLimit, queryInfo.qid,
-					agileTreeBuf)
+					agileTreeBuf, bucketLimit)
 				str.Close()
 				timeElapsed := time.Since(sTime)
 				queryMetrics := &structs.QueryProcessingMetrics{}
