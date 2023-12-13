@@ -644,10 +644,12 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
 
 		resultMap := make(map[string]interface{}, 0)
-		err = json.Unmarshal(rawTraceCtx.Response.Body(), &resultMap)
+		decoder := jsonc.NewDecoder(bytes.NewReader(rawTraceCtx.Response.Body()))
+		decoder.UseNumber()
+		err = decoder.Decode(&resultMap)
 		if err != nil {
-			log.Errorf("ProcessGanttChartRequest: could not unmarshal json body, err=%v", err)
-			return
+			log.Errorf("ProcessGanttChartRequest: failed to decode search request body! Err=%v", err)
+			continue
 		}
 
 		hits, exists := resultMap["hits"]
@@ -725,8 +727,11 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		searchRequestBody.From += 1000
 	}
 
-	results := utils.BuildSpanTree(idToSpanMap, idToParentId)
+	res, err := utils.BuildSpanTree(idToSpanMap, idToParentId)
+	if err != nil {
+		log.Errorf("ProcessGanttChartRequest: Err=%v", err)
+	}
 
-	putils.WriteJsonResponse(ctx, results)
+	putils.WriteJsonResponse(ctx, res)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
