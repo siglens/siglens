@@ -1024,6 +1024,15 @@ ValueExpr <- condition:ConditionExpr {
 
     return expr, nil
 }
+/ "(" (condition:ConditionExpr) ")" {
+
+    expr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMConditionExpr,
+        ConditionExpr: condition.(*structs.ConditionExpr),
+    }
+
+    return expr, nil
+}
 / numeric:NumericExpr {
 
     expr := &structs.ValueExpr {
