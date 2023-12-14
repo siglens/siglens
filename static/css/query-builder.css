@@ -611,10 +611,6 @@ div.show-record-popup {
     background-color: var(--panel-table-line-color);
     bottom: 0;
 }
-/* .ag-theme-mycustomtheme .ag-header,
-.ag-theme-mycustomtheme .ag-header {
-    background: var(--table-head-bg-color) !important;
-} */
 .aggregations{
     color: var(--black-5) !important;
     margin-left: 10px;
