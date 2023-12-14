@@ -414,3 +414,129 @@ func ComputeAggEvalForValues(measureAgg *structs.MeasureAggregator, sstMap map[s
 
 	return nil
 }
+
+func AddMeasureAggInRunningStatsForCount(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+
+	fields := m.ValueColRequest.GetFields()
+	if len(fields) == 0 {
+		return idx, fmt.Errorf("AddMeasureAggInRunningStatsForCount: Incorrect number of fields for aggCol: %v", m.String())
+	}
+
+	// Use the index of agg to map to the corresponding index of the runningStats result, so that we can determine which index of the result set contains the result we need.
+	*allReverseIndex = append(*allReverseIndex, idx)
+	for _, field := range fields {
+		if _, ok := colToIdx[field]; !ok {
+			colToIdx[field] = make([]int, 0)
+		}
+		colToIdx[field] = append(colToIdx[field], idx)
+		*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+			MeasureCol:      field,
+			MeasureFunc:     utils.Count,
+			ValueColRequest: m.ValueColRequest,
+			StrEnc:          m.StrEnc,
+		})
+		idx++
+	}
+	return idx, nil
+}
+
+func AddMeasureAggInRunningStatsForAvg(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+
+	fields := m.ValueColRequest.GetFields()
+	if len(fields) != 1 {
+		return idx, fmt.Errorf("AddMeasureAggInRunningStatsForAvg: Incorrect number of fields for aggCol: %v", m.String())
+	}
+	field := fields[0]
+
+	if _, ok := colToIdx[field]; !ok {
+		colToIdx[field] = make([]int, 0)
+	}
+
+	// We need to use sum() and count() to calculate the avg()
+	*allReverseIndex = append(*allReverseIndex, idx)
+	colToIdx[field] = append(colToIdx[field], idx)
+	*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+		MeasureCol:      field,
+		MeasureFunc:     utils.Sum,
+		ValueColRequest: m.ValueColRequest,
+		StrEnc:          m.StrEnc,
+	})
+	idx++
+
+	*allReverseIndex = append(*allReverseIndex, idx)
+	colToIdx[field] = append(colToIdx[field], idx)
+	*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+		MeasureCol:      field,
+		MeasureFunc:     utils.Count,
+		ValueColRequest: m.ValueColRequest,
+		StrEnc:          m.StrEnc,
+	})
+	idx++
+	return idx, nil
+}
+
+// Record the index of range() in runningStats; the index is idx
+// To calculate the range(), we need both the min() and max(), which require two columns to store them
+// Since it is the runningStats not the stats for results, we can use one extra col to store the min/max
+// idx stores the result of min, and idx+1 stores the result of max.
+func AddMeasureAggInRunningStatsForRange(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+
+	measureCol := m.MeasureCol
+	if m.ValueColRequest != nil {
+		fields := m.ValueColRequest.GetFields()
+		if len(fields) != 1 {
+			return idx, fmt.Errorf("AddMeasureAggInRunningStatsForRange: Incorrect number of fields for aggCol: %v", m.String())
+		}
+		measureCol = fields[0]
+	}
+
+	if _, ok := colToIdx[measureCol]; !ok {
+		colToIdx[measureCol] = make([]int, 0)
+	}
+	*allReverseIndex = append(*allReverseIndex, idx)
+	colToIdx[measureCol] = append(colToIdx[measureCol], idx)
+	*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+		MeasureCol:      measureCol,
+		MeasureFunc:     utils.Min,
+		ValueColRequest: m.ValueColRequest,
+		StrEnc:          m.StrEnc,
+	})
+	idx++
+
+	*allReverseIndex = append(*allReverseIndex, idx)
+	colToIdx[measureCol] = append(colToIdx[measureCol], idx)
+	*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+		MeasureCol:      measureCol,
+		MeasureFunc:     utils.Max,
+		ValueColRequest: m.ValueColRequest,
+		StrEnc:          m.StrEnc,
+	})
+	idx++
+
+	return idx, nil
+}
+
+func AddMeasureAggInRunningStatsForValuesOrCardinality(m *structs.MeasureAggregator, allConvertedMeasureOps *[]*structs.MeasureAggregator, allReverseIndex *[]int, colToIdx map[string][]int, idx int) (int, error) {
+
+	fields := m.ValueColRequest.GetFields()
+	if len(fields) == 0 {
+		return idx, fmt.Errorf("AddMeasureAggInRunningStatsForValuesOrCardinality: Incorrect number of fields for aggCol: %v", m.String())
+	}
+
+	// Use the index of agg to map to the corresponding index of the runningStats result, so that we can determine which index of the result set contains the result we need.
+	*allReverseIndex = append(*allReverseIndex, idx)
+	for _, field := range fields {
+		if _, ok := colToIdx[field]; !ok {
+			colToIdx[field] = make([]int, 0)
+		}
+		colToIdx[field] = append(colToIdx[field], idx)
+		*allConvertedMeasureOps = append(*allConvertedMeasureOps, &structs.MeasureAggregator{
+			MeasureCol:      field,
+			MeasureFunc:     utils.Values,
+			ValueColRequest: m.ValueColRequest,
+			StrEnc:          m.StrEnc,
+		})
+		idx++
+	}
+	return idx, nil
+}
