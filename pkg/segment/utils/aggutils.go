@@ -93,6 +93,21 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case Count:
 			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(float64) + e2.CVal.(float64)}, nil
 		}
+	case SS_DT_STRING_SET:
+		{
+			switch fun {
+			case Cardinality:
+				fallthrough
+			case Values:
+				set1 := e1.CVal.(map[string]struct{})
+				set2 := e2.CVal.(map[string]struct{})
+				for str := range set2 {
+					set1[str] = struct{}{}
+				}
+				return CValueEnclosure{Dtype: e1.Dtype, CVal: set1}, nil
+			}
+			return e1, fmt.Errorf("Reduce: unsupported CVal Dtype: %v", e1.Dtype)
+		}
 	default:
 		return e1, fmt.Errorf("Reduce: unsupported CVal Dtype: %v", e1.Dtype)
 	}
