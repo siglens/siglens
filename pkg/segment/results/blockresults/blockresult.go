@@ -472,19 +472,6 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 		for _, mInfo := range req.MeasureOperations {
 			mInfoStr := mInfo.String()
 			switch mInfo.MeasureFunc {
-			case utils.Sum:
-				fallthrough
-			case utils.Max:
-				fallthrough
-			case utils.Min:
-				valIdx := gb.reverseMeasureIndex[idx]
-				rawVal, err := bucket.runningStats[valIdx].rawVal.GetFloatValue()
-				if err != nil {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-					continue
-				}
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: rawVal, Dtype: utils.SS_DT_FLOAT}
-				idx++
 			case utils.Count:
 				if mInfo.ValueColRequest != nil {
 					if len(mInfo.ValueColRequest.GetFields()) == 0 {
