@@ -373,6 +373,8 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 
 		aggVal, ok := combiner[wvNodeKey]
 		if !ok {
+			// Check if we hit the bucket limit. bucketLimit == 0 is a special
+			// case and means there is no limit.
 			if bucketLimit > 0 && uint64(len(combiner)) >= bucketLimit {
 				// We've reached the bucket limit, so we shouldn't add another.
 				// However, we need to continue reading the AgileTree because
