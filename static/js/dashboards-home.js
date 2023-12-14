@@ -178,13 +178,16 @@ function createSiglensDashboard(inputdbname) {
 
 class btnRenderer {
     init(params) {
+		const starOutlineURL = 'url("../assets/star-outline.svg")';
+        const starFilledURL = 'url("../assets/star-filled.svg")';
+
         this.eGui = document.createElement('span');
         this.eGui.innerHTML = `<div id="dashboard-grid-btn">
              
                 <button class='btn' id="viewbutton" title="Open dashboard"></button>
                 <button class="btn-simple" id="delbutton" title="Delete dashboard"></button>
                 <button class="btn-duplicate" id="duplicateButton" title="Duplicate dashboard"></button>
-                <span class="star-icon" title="Mark as favorite" style="margin-left: 10px; cursor:pointer;">☆</span>
+                <button class="star-icon" id="favbutton" title="Mark as favorite" ></button>
                 </div>`;
         this.vButton = this.eGui.querySelector('.btn');
         this.dButton = this.eGui.querySelector('.btn-simple');
@@ -282,7 +285,7 @@ class btnRenderer {
         }
         function toggleFavorite(){
             params.data.favorite=!params.data.favorite;
-            this.starIcon.innerHTML=params.data.favorite ? '★' : '☆';       
+            this.starIcon.style.backgroundImage=params.data.favorite ? starFilledURL : starOutlineURL;       
         }
 
         function showPrompt() {
@@ -312,7 +315,11 @@ class btnRenderer {
         return this.eGui;
     }
     refresh(params) {
-        this.starIcon.innerHTML=params.data.favorite ? '★' : '☆';
+        // Use the URL of the SVG files for star icons
+        const starOutlineURL = 'url("../assets/star-outline.svg")';
+        const starFilledURL = 'url("../assets/star-filled.svg")';
+
+        this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
         return false;
     }
 }
