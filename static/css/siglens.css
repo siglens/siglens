@@ -723,21 +723,22 @@ body {
 
 #index-btn,
 #query-language-btn,
-#filter-input,
 #date-picker-btn,
 #cancel-loading,
 #live-tail-btn,
 #create-db-btn,
-#run-metrics-query-btn,
 #logout-btn,
 #search-query-btn,
 #test-data-btn{
     margin: 0;
-    padding: 15px 12px;
+    text-decoration: none;
+    height: 40px;
+}
+.run-metrics-query-btn{
+    margin: 0;
     text-decoration: none;
     border: none;
     height: 40px;
-    line-height: 14px;
 }
 #query-language-btn {
     width: 108px;
@@ -748,8 +749,8 @@ body {
 }
 
 
-#avail-fields-btn {
-    height: 44px;
+.avail-fields-btn {
+    height: 40px;
 }
 
 #index-btn:hover,
@@ -852,7 +853,6 @@ body {
 
 input.form-control {
     background: var(--hits-summary-bg-regular) !important;
-    border: none;
     color: var(--search-bar-text-color-regular-or-hover);
     font-size: 1rem;
     border-radius: 5px;
@@ -965,8 +965,11 @@ progress.hidden {
 }
 
 #log-view {
-    width: 124px;
-    height: 44px;
+    width: 120px;
+    height: 40px;
+    background-color: var(--drop-down-btn-bg-regular);
+    border-radius: 5px;
+    border: 1px solid var(--border-btn-color);
 }
 
 .single-line-icon,
@@ -1017,22 +1020,24 @@ progress.hidden {
     height: 16px;
     width: 16px;
 }
-
+.table-view-icon,
+.multi-line-icon,
+.single-line-icon {
+    background-repeat: no-repeat;
+    background-position: center;
+}
 
 #log-opt-single-btn,
 #log-opt-multi-btn,
 #log-opt-table-btn {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     padding: 0 9px;
-
     border-radius: 4px !important;
 }
-
 #log-opt-single-btn {
     margin: 4px;
 }
-
 #log-opt-multi-btn {
     margin: 4px 4px 4px 0;
 }
@@ -1677,8 +1682,7 @@ progress.hidden {
     margin: 0;
     padding: 15px 12px;
     text-decoration: none;
-    border: none;
-    height: 44px !important;
+    height: 40px;
     line-height: 14px;
 }
 .sq-magnigying-glass {
@@ -2876,7 +2880,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 .save-btn {
     text-decoration: none;
     border: none;
-    height: 44px;
+    height: 40px;
     line-height: 14px;
     display: flex;
     background: var(--btn-regular-bg-color);
@@ -3078,7 +3082,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 
 .search-db-input,.metrics-input{
     padding: 15px 12px;
-    height: 44px;
+    height: 40px;
 }
 
 .dbSet-textareaContainer .copy{
@@ -3235,7 +3239,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 .metrics-table-btn,.metrics-graph-btn{
-    height: 44px;
+    height: 40px;
     margin-right: 10px;
     width: 70px;
 }
@@ -4780,4 +4784,13 @@ color: #C8C7CC;
     top: 50%;
     -webkit-transform: translate(-50%, -50%);
     transform: translate(-50%, -50%);
+}
+.avail-fields-btn,
+.query-language-btn,
+.index-btn,
+.filter-input,
+.metrics-table-btn,
+.metrics-graph-container,
+input.form-control {
+    border: 1px solid var(--border-btn-color);
 }

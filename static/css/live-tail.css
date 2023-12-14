@@ -1,0 +1,15 @@
+.query-language-btn,
+.index-btn,
+.live-tail-btn,
+.filter-input {
+    margin: 0;
+    text-decoration: none;
+    height: 40px;
+}
+.log-opt-single-btn{
+    background-size: 50%;
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 40px;
+    width: 40px;
+}

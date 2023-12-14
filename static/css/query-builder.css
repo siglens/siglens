@@ -47,19 +47,6 @@
 #progress-div{
     margin-top: 0;
 }
-#log-view {
-    width: 120px;
-    height: 40px;
-    background-color: var(--drop-down-btn-bg-regular);
-    border-radius: 5px;
-    border: 1px solid var(--border-btn-color);
-}
-#log-opt-single-btn,
-#log-opt-multi-btn,
-#log-opt-table-btn{
-    width: 32px;
-    height: 32px;
-}
 #logs-view-controls{
     padding-left: 27px;
 }
@@ -624,11 +611,10 @@ div.show-record-popup {
     background-color: var(--panel-table-line-color);
     bottom: 0;
 }
-.ag-theme-mycustomtheme .ag-header,
-.ag-theme-mycustomtheme .ag-header-cell-resize,
+/* .ag-theme-mycustomtheme .ag-header,
 .ag-theme-mycustomtheme .ag-header {
-            background: var(--table-head-bg-color) !important;
-}
+    background: var(--table-head-bg-color) !important;
+} */
 .aggregations{
     color: var(--black-5) !important;
     margin-left: 10px;
