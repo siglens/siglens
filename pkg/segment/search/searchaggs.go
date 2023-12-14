@@ -217,7 +217,15 @@ func GetAggColsAndTimestamp(aggs *structs.QueryAggregators) map[string]bool {
 			aggCols[cName] = true
 		}
 		for _, mOp := range aggs.GroupByRequest.MeasureOperations {
-			aggCols[mOp.MeasureCol] = true
+			if mOp.ValueColRequest != nil {
+				for _, field := range mOp.ValueColRequest.GetFields() {
+					aggCols[field] = false
+				}
+				mOp.MeasureCol = mOp.StrEnc
+			} else {
+				aggCols[mOp.MeasureCol] = true
+			}
+
 		}
 	}
 	return aggCols
