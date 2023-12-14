@@ -338,18 +338,12 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 
 			// Merge two SegStat
 			for str := range currSst.StringStats.StrSet {
-				_, exists := strSet[str]
-				if !exists {
-					strSet[str] = struct{}{}
-				}
+				strSet[str] = struct{}{}
 			}
 			if sr.runningSegStat[idx] != nil {
 
 				for str := range sr.runningSegStat[idx].StringStats.StrSet {
-					_, exists := strSet[str]
-					if !exists {
-						strSet[str] = struct{}{}
-					}
+					strSet[str] = struct{}{}
 				}
 
 				sr.runningSegStat[idx].StringStats.StrSet = strSet
