@@ -438,14 +438,10 @@ func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
 	return false
 }
 
-func (qa *QueryAggregators) HasSortInChain() bool {
-	if qa.Sort != nil {
-		return true
-	}
-	if qa.Next != nil {
-		return qa.Next.HasSortInChain()
-	}
-	return false
+func (qa *QueryAggregators) CanLimitBuckets() bool {
+	// We shouldn't limit the buckets if there's other things to do after the
+	// aggregation, like sorting, filtering, making new columns, etc.
+	return qa.Sort == nil && qa.Next == nil
 }
 
 // Init default query aggregators.

@@ -511,7 +511,7 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 
 				// Check if we can limit the number of buckets.
 				bucketLimit := segutils.QUERY_MAX_BUCKETS
-				if queryInfo.aggs.HasSortInChain() {
+				if queryInfo.aggs.CanLimitBuckets() {
 					bucketLimit = uint64(0) // Don't limit the number of buckets.
 				}
 
