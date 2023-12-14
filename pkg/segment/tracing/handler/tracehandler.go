@@ -35,12 +35,8 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	decoder.UseNumber()
 	err := decoder.Decode(&readJSON)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: could not write error message err=%v", err)
-		}
-		log.Errorf("ProcessSearchTracesRequest: failed to decode search request body! Err=%v", err)
+		writeErrMsg(ctx, "ProcessSearchTracesRequest", "could not decode raw json", err)
+		return
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
@@ -66,7 +62,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	// Parse the JSON data from ctx.PostBody
 	searchRequestBody := &structs.SearchRequestBody{}
 	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
-		log.Errorf("ProcessSearchTracesRequest: could not unmarshal json body, err=%v", err)
+		writeErrMsg(ctx, "ProcessSearchTracesRequest", "could not unmarshal json body", err)
 		return
 	}
 
@@ -82,13 +78,13 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		if len(searchRequestBody.SearchText) > 0 {
 			searchRequestBody.SearchText = searchRequestBody.SearchText + " | stats count BY trace_id"
 		} else {
-			log.Errorf("ProcessSearchTracesRequest: request does not contain required parameter: searchText")
+			writeErrMsg(ctx, "ProcessSearchTracesRequest", "request does not contain required parameter: searchText", nil)
 			return
 		}
 
 		pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: %v", err)
+			writeErrMsg(ctx, "ProcessSearchTracesRequest", err.Error(), nil)
 			return
 		}
 		traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch, page)
@@ -301,7 +297,7 @@ func ProcessRedTracesIngest() {
 		// Parse initial data
 		rawSpanData := structs.RawSpanData{}
 		if err := json.Unmarshal(ctx.Response.Body(), &rawSpanData); err != nil {
-			log.Errorf("ProcessRedTracesIngest: could not unmarshal json body, err=%v", err)
+			writeErrMsg(ctx, "ProcessRedTracesIngest", "could not unmarshal json body", err)
 			return
 		}
 
@@ -586,4 +582,169 @@ func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
 
+}
+
+func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+
+	rawJSON := ctx.PostBody()
+	if rawJSON == nil {
+		log.Errorf("ProcessGanttChartRequest: received empty search request body ")
+		pipesearch.SetBadMsg(ctx)
+		return
+	}
+
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	decoder.UseNumber()
+	err := decoder.Decode(&readJSON)
+	if err != nil {
+		writeErrMsg(ctx, "ProcessGanttChartRequest", "could not decode json", err)
+		return
+	}
+
+	// Parse the JSON data from ctx.PostBody
+	searchRequestBody := &structs.SearchRequestBody{}
+	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
+		writeErrMsg(ctx, "ProcessGanttChartRequest", "could not unmarshal json body", err)
+		return
+	}
+
+	searchRequestBody.QueryLanguage = "Splunk QL"
+	searchRequestBody.IndexName = "traces"
+	searchRequestBody.From = 0
+	searchRequestBody.Size = 1000
+
+	// Used to find out which attributes belong to tags
+	fieldsNotInTag := []string{"trace_id", "span_id", "parent_span_id", "service", "trace_state", "name", "kind", "start_time", "end_time",
+		"duration", "dropped_attributes_count", "dropped_events_count", "dropped_links_count", "status", "events", "links", "_index", "timestamp"}
+
+	idToSpanMap := make(map[string]*structs.GanttChartSpan, 0)
+	idToParentId := make(map[string]string, 0)
+
+	for {
+		modifiedData, err := json.Marshal(searchRequestBody)
+		if err != nil {
+			writeErrMsg(ctx, "ProcessGanttChartRequest", "could not marshal to json body", err)
+		}
+
+		// Get initial data
+		rawTraceCtx := &fasthttp.RequestCtx{}
+		rawTraceCtx.Request.Header.SetMethod("POST")
+		rawTraceCtx.Request.SetBody(modifiedData)
+		pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
+
+		resultMap := make(map[string]interface{}, 0)
+		decoder := jsonc.NewDecoder(bytes.NewReader(rawTraceCtx.Response.Body()))
+		decoder.UseNumber()
+		err = decoder.Decode(&resultMap)
+		if err != nil {
+			writeErrMsg(ctx, "ProcessGanttChartRequest", "could not decode response body", err)
+			return
+		}
+
+		hits, exists := resultMap["hits"]
+		if !exists {
+			writeErrMsg(ctx, "ProcessGanttChartRequest", "Key 'hits' not found in response", nil)
+			return
+		}
+
+		hitsMap, ok := hits.(map[string]interface{})
+		if !ok {
+			writeErrMsg(ctx, "ProcessGanttChartRequest", "Error asserting type for 'hits'", nil)
+			return
+		}
+
+		records, exists := hitsMap["records"]
+		if !exists {
+			writeErrMsg(ctx, "ProcessGanttChartRequest", "Key 'records' not found in response", nil)
+			return
+		}
+
+		rawSpans, ok := records.([]interface{})
+		if !ok {
+			writeErrMsg(ctx, "ProcessGanttChartRequest", "Error asserting type for 'records'", nil)
+			return
+		}
+
+		if len(rawSpans) == 0 {
+			break
+		}
+
+		for _, rawSpan := range rawSpans {
+			spanMap := rawSpan.(map[string]interface{})
+
+			span := &structs.GanttChartSpan{}
+
+			jsonData, err := json.Marshal(spanMap)
+			if err != nil {
+				log.Errorf("ProcessGanttChartRequest: could not marshal to json body, err=%v", err)
+				continue
+			}
+			if err := json.Unmarshal(jsonData, &span); err != nil {
+				log.Errorf("ProcessGanttChartRequest: could not unmarshal to json body, err=%v", err)
+				continue
+			}
+
+			serviceName, exists := spanMap["service"]
+			if !exists {
+				log.Errorf("ProcessGanttChartRequest: span:%v does not contain the required field: service", span.SpanID)
+				continue
+			}
+
+			operationName, exists := spanMap["name"]
+			if !exists {
+				log.Errorf("ProcessGanttChartRequest: span:%v does not contain the required field: name", span.SpanID)
+				continue
+			}
+
+			parentSpanId, exists := spanMap["parent_span_id"]
+			if !exists {
+				log.Errorf("ProcessGanttChartRequest: span:%v does not contain the required field: parent_span_id", span.SpanID)
+				continue
+			}
+
+			idToParentId[span.SpanID] = parentSpanId.(string)
+
+			// Remove all non-tag fields
+			for _, strToRemove := range fieldsNotInTag {
+				delete(spanMap, strToRemove)
+			}
+
+			for key, val := range spanMap {
+				if val == nil {
+					delete(spanMap, key)
+				}
+			}
+			span.Tags = spanMap
+			span.ServiceName = serviceName.(string)
+			span.OperationName = operationName.(string)
+			idToSpanMap[span.SpanID] = span
+		}
+		searchRequestBody.From += 1000
+	}
+
+	res, err := utils.BuildSpanTree(idToSpanMap, idToParentId)
+	if err != nil {
+		writeErrMsg(ctx, "ProcessGanttChartRequest", err.Error(), nil)
+		return
+	}
+
+	putils.WriteJsonResponse(ctx, res)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func writeErrMsg(ctx *fasthttp.RequestCtx, functionName string, errorMsg string, err error) {
+
+	errContent := functionName + ": " + errorMsg
+	if err != nil {
+		errContent += fmt.Sprintf(", err=%v", err)
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusBadRequest)
+	_, err = ctx.WriteString(errContent)
+	if err != nil {
+		log.Errorf(functionName, ": could not write error message err=%v", err)
+	}
+	log.Errorf(functionName, ": failed to decode search request body! Err=%v", err)
 }
