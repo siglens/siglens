@@ -3090,6 +3090,20 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     height: 44px;
 }
 
+.dbSet-textareaContainer .copy{
+    background-image: url(../assets/copy-icon.svg);
+    background-size: contain;
+    width: 20px;
+    height: 20px;
+    position: absolute;
+    right: calc(20% + 20px);
+    top: 20px;
+}
+
+[data-theme='dark'] .dbSet-textareaContainer .copy{
+    background-image: url(../assets/copy-icon-dark-mode.svg);
+}
+
 /* dashboard Grid*/
 #dashboard-grid-container{
     margin-left: 23px;
