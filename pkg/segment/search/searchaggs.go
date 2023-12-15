@@ -537,7 +537,7 @@ func CanDoStarTree(segKey string, aggs *structs.QueryAggregators,
 
 func ApplyAgileTree(str *segread.AgileTreeReader, aggs *structs.QueryAggregators,
 	allSearchResults *segresults.SearchResults, sizeLimit uint64, qid uint64,
-	agileTreeBuf []byte, bucketLimit uint64) {
+	agileTreeBuf []byte) {
 
 	_, internalMops := allSearchResults.BlockResults.GetConvertedMeasureInfo()
 
@@ -546,7 +546,7 @@ func ApplyAgileTree(str *segread.AgileTreeReader, aggs *structs.QueryAggregators
 	// but the side effect is other threads (async wsSearchHandler threads can't access the
 	// blkResuls, else will panic. ALSO this means we can only apply agileTree one seg at a time.
 	err := str.ApplyGroupByJit(aggs.GroupByRequest.GroupByColumns, internalMops,
-		allSearchResults.BlockResults, qid, agileTreeBuf, bucketLimit)
+		allSearchResults.BlockResults, qid, agileTreeBuf)
 	if err != nil {
 		allSearchResults.AddError(err)
 		log.Errorf("qid=%v, ApplyAgileTree: failed to JIT agileTree aggs, err: %v", qid, err)
