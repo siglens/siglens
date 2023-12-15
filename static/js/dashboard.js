@@ -1130,9 +1130,22 @@ function addDbSettingsEventListeners() {
 }
 
 function saveDbSetting() {
+    let trimmedDbName = $('.dbSet-dbName').val().trim();
+    
+    if (!trimmedDbName) {
+        // Show error message or handle the case where the name is empty
+        alert('Dashboard name cannot be empty or consist of only spaces.');
+        return;
+    }
+
     $('.dbSet-dbName').val("");
     $('.dbSet-dbDescr').val("");
     $('.dbSet-jsonModelData').val("");
+// Update dashboard with the trimmed name
+dbName = trimmedDbName;
+dbDescr = dbData.description;
+
+
     updateDashboard();
     $('#app-container').show();
     $('.dbSet-container').hide();
