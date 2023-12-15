@@ -2173,9 +2173,9 @@ div#download-info {
 }
 
 .validateTips.active {
-    height: 15px;
-    line-height: 12px;
-    font-size: 12px;
+    height: 1em;
+    line-height: 1em;
+    font-size: 0.8em;
     border:none;
     margin:0 0 5px 0;
     display: block;
