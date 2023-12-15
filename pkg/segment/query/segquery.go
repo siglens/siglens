@@ -592,7 +592,10 @@ func canUseBucketLimitedAgileAggsTree(sortedQSRSlice []*querySegmentRequest, que
 
 	for _, segReq := range sortedQSRSlice {
 		canUse, agileTree := canUseAgileTree(segReq, queryInfo)
-		agileTree.Close()
+
+		if agileTree != nil {
+			agileTree.Close()
+		}
 
 		if !canUse {
 			return false
