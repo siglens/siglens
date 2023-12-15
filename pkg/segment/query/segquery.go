@@ -456,6 +456,8 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 	// In order, search segKeys (either raw or pqs depending on above sType).
 	// If no aggs, early exit at utils.QUERY_EARLY_EXIT_LIMIT
 	// If sort, check if next segkey's time range will overlap with the recent best results
+	// If there's aggs and they can be computed fully by agile trees, limit the number of
+	// buckets to utils.QUERY_MAX_BUCKETS a sort or computation follows the aggs.
 
 	limitAgileAggsTreeBuckets := canUseBucketLimitedAgileAggsTree(sortedQSRSlice, queryInfo)
 	var agileTreeBuckets map[string]struct{}
@@ -508,18 +510,7 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 					// sync which buckets we're using across segments.
 					str.SetBuckets(agileTreeBuckets)
 					str.SetBucketLimit(segutils.QUERY_MAX_BUCKETS)
-
-					//					log.Errorf("inserted buckets with %v keys", len(agileTreeBuckets))
 				}
-
-				//				myI := 0
-				//				for key := range agileTreeBuckets {
-				//					log.Errorf("key: %v", []byte(key))
-				//					myI++
-				//					if myI > 10 {
-				//						break
-				//					}
-				//				}
 
 				search.ApplyAgileTree(str, segReq.aggs, allSegFileResults, segReq.sizeLimit, queryInfo.qid,
 					agileTreeBuf)
@@ -529,7 +520,6 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 					// segment so that we sync which buckets we're using across
 					// segments.
 					agileTreeBuckets = str.GetBuckets()
-					//					log.Errorf("got buckets with %v keys", len(agileTreeBuckets))
 				}
 
 				str.Close()

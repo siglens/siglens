@@ -399,27 +399,12 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 			}
 			kidx += 4
 		}
-		//wvNodeKey := toputils.UnsafeByteSliceToString(wvBuf[wvIdx : wvIdx+kidx])
-		wvNodeKey := string(wvBuf[wvIdx : wvIdx+kidx])
+		wvNodeKey := toputils.UnsafeByteSliceToString(wvBuf[wvIdx : wvIdx+kidx])
 		wvIdx += kidx
 		idx += uint32(desiredLevel-1) * 4
 
-		//		rawVal, _ := str.decodeRawValBytes(wvNodeKey, usedDictEncodings, grpColNames)
-		//rawValBytes := []byte(rawVal)
-		//firstKey := toputils.BytesToUint32LittleEndian(rawValBytes[1:9])
-		//secondKey := toputils.BytesToFloat64LittleEndian(rawValBytes[10:18])
-		//		log.Errorf("first key: %v, second key: %v", firstKey, secondKey)
-
-		//shouldPrint := (firstKey == 5 && secondKey == 11.95)
-		//if shouldPrint {
-		//	log.Errorf("that key is %v", []byte(wvNodeKey))
-		//}
-
 		aggVal, ok := combiner[wvNodeKey]
 		if !ok {
-			//	if shouldPrint {
-			//		log.Errorf("did not find the bucket.")
-			//	}
 			// Check if we hit the bucket limit. bucketLimit == 0 is a special
 			// case and means there is no limit.
 			if str.buckets.bucketLimit > 0 {
@@ -427,10 +412,6 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 				_, existingBucket := str.buckets.rawVals[rawVal]
 				if !existingBucket {
 					if uint64(len(str.buckets.rawVals))+uint64(newBuckets) >= str.buckets.bucketLimit {
-						//						if shouldPrint {
-						//							log.Errorf("skipping this bucket. bucketLimit: %v, len: %v", str.buckets.bucketLimit, len(combiner))
-						//						}
-						// Skip this bucket.
 						// We've reached the bucket limit, so we shouldn't add another.
 						// However, we need to continue reading the AgileTree because
 						// we might reach another node that has data for a bucket we've
@@ -446,10 +427,6 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 			aggVal = make([]utils.NumTypeEnclosure, lenMri)
 			combiner[wvNodeKey] = aggVal
 		}
-
-		//		if shouldPrint {
-		//			log.Errorf("didn't skip the bucket. ok: %v", ok)
-		//		}
 
 		if aggVal == nil {
 			aggVal = make([]utils.NumTypeEnclosure, lenMri)
