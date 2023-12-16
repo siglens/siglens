@@ -112,92 +112,127 @@ function createDependencyMatrix(res) {
 }
 
 function displayDependencyGraph(nodes, links) {
-    // Create SVG container
-    const svg = d3
-        .select("#dependency-graph-container")
-        .append("svg")
-        .append("g")
-        .attr("transform","translate(" + svgWidth / 4 + "," + svgHeight / 4 + ")");
+  const svg = d3
+    .select("#dependency-graph-container")
+    .append("svg")
+    .attr("width", svgWidth)
+    .attr("height", svgHeight)
+    .call(
+      d3.zoom().on("zoom", (event) => {
+        svg.attr("transform", event.transform);
+      })
+    )
+    .append("g");
 
-    // Create force simulation
-    const simulation = d3
-        .forceSimulation(nodes)
-        .force("link",d3.forceLink(links).id((d) => d.id).distance(200).strength(0.5))
-        .force("charge", d3.forceManyBody().strength(-300))
-        .force("center", d3.forceCenter(250, 250))
-        .force("radial", d3.forceRadial(250, 250, 250).strength(0.1));
+  const simulation = d3
+    .forceSimulation(nodes)
+    .force(
+      "link",
+      d3
+        .forceLink(links)
+        .id((d) => d.id)
+        .distance(200)
+        .strength(0.5)
+    )
+    .force("charge", d3.forceManyBody().strength(-300))
+    .force("center", d3.forceCenter(svgWidth / 2, svgHeight))
+    .force(
+      "radial",
+      d3
+        .forceRadial(
+          Math.min(svgWidth, svgHeight) / 2,
+          svgWidth / 2,
+          svgHeight / 2
+        )
+        .strength(0.1)
+    );
 
-    // Arrow Head
-    svg.append("defs")
-        .append("marker")
-        .attr("id", "arrowhead")
-        .attr("viewBox", "-0 -5 10 10")
-        .attr("refX", 23)
-        .attr("refY", 0)
-        .attr("orient", "auto")
-        .attr("markerWidth", 12)
-        .attr("markerHeight", 12)
-        .attr("xoverflow", "visible")
-        .append("svg:path")
-        .attr("d", "M 0,-5 L 10 ,0 L 0,5");
+  svg
+    .append("defs")
+    .append("marker")
+    .attr("id", "arrowhead")
+    .attr("viewBox", "-0 -5 10 10")
+    .attr("refX", 23)
+    .attr("refY", 0)
+    .attr("orient", "auto")
+    .attr("markerWidth", 12)
+    .attr("markerHeight", 12)
+    .attr("xoverflow", "visible")
+    .append("svg:path")
+    .attr("d", "M 0,-5 L 10 ,0 L 0,5");
 
-    // Create links
-    const link = svg
-        .selectAll(".links")
-        .data(links)
-        .enter()
-        .append("line")
-        .attr("class", "links line")
-        .attr("marker-end", "url(#arrowhead)");
+  const link = svg
+    .selectAll(".links")
+    .data(links)
+    .enter()
+    .append("line")
+    .attr("class", "links line")
+    .attr("marker-end", "url(#arrowhead)");
 
-    // Create nodes
-    const node = svg
-        .selectAll("circle")
-        .data(nodes)
-        .enter()
-        .append("circle")
-        .attr("r", 20) //radius of node
-        .attr("fill", (d, i) => colorArray[i % colorArray.length]);
+  const node = svg
+    .selectAll("circle")
+    .data(nodes)
+    .enter()
+    .append("circle")
+    .attr("r", 20)
+    .attr("fill", (d, i) => colorArray[i % colorArray.length])
+    .call(
+      d3
+        .drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended)
+    );
 
-    // Add labels for nodes
-    const label = svg
-        .selectAll(".label")
-        .data(nodes)
-        .enter()
-        .append("text")
-        .text((d) => d.id)
-        .attr("class", "label");
+  const label = svg
+    .selectAll(".label")
+    .data(nodes)
+    .enter()
+    .append("text")
+    .text((d) => d.id)
+    .attr("class", "label");
 
-    // Add labels for links
-    const linkLabel = svg
-        .selectAll(".link-label")
-        .data(links)
-        .enter()
-        .append("text")
-        .text((d) => d.value)
-        .attr("class", "link-label")
-        .attr("dy", -10)
-        .attr("dx", -10);
+  const linkLabel = svg
+    .selectAll(".link-label")
+    .data(links)
+    .enter()
+    .append("text")
+    .text((d) => d.value)
+    .attr("class", "link-label")
+    .attr("dy", -10)
+    .attr("dx", -10);
 
-    // Update positions on each tick
-    simulation.on("tick", () => {
-        link.attr("x1", (d) => d.source.x)
-            .attr("y1", (d) => d.source.y)
-            .attr("x2", (d) => d.target.x)
-            .attr("y2", (d) => d.target.y);
+  simulation.on("tick", () => {
+    link
+      .attr("x1", (d) => d.source.x)
+      .attr("y1", (d) => d.source.y)
+      .attr("x2", (d) => d.target.x)
+      .attr("y2", (d) => d.target.y);
 
-        node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+    node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
 
-        label.attr("x", (d) => d.x - 10).attr("y", (d) => d.y - 25);
+    label.attr("x", (d) => d.x - 10).attr("y", (d) => d.y - 25);
 
-        linkLabel
-            .attr("x", (d) => (d.source.x + d.target.x) / 2)
-            .attr("y", (d) => (d.source.y + d.target.y) / 2);
-    });
+    linkLabel
+      .attr("x", (d) => (d.source.x + d.target.x) / 2)
+      .attr("y", (d) => (d.source.y + d.target.y) / 2);
+  });
 
-}
-let zoom = d3.zoom().on("zoom", displayDependencyGraph);
-function initZoom(){
-    d3.select("#dependency-graph-container").call(zoom);
+  function dragstarted(event, d) {
+    if (!event.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+  }
+
+  function dragged(event, d) {
+    d.fx = event.x;
+    d.fy = event.y;
+  }
+
+  function dragended(event, d) {
+    if (!event.active) simulation.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
+  }
 }
 

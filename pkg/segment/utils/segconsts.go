@@ -153,10 +153,10 @@ const (
 	SS_DT_RAW_JSON
 )
 
-const STALE_RECENTLY_ROTATED_ENTRY = 60_000                // one minute
-const SEGMENT_ROTATE_DURATION = 15 * 60                    // 15 mins
+const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000             // one minute
+const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
 var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
-const SEGMENT_ROTATE_SLEEP_DURATION = 60                   // 1 min
+const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 60           // 1 min
 
 var QUERY_EARLY_EXIT_LIMIT = uint64(10_000)
 
