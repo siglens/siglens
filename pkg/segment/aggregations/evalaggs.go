@@ -24,6 +24,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 func ComputeAggEvalForMinOrMax(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, isMin bool) error {
@@ -38,13 +39,14 @@ func ComputeAggEvalForMinOrMax(measureAgg *structs.MeasureAggregator, sstMap map
 	}
 	fieldToValue := make(map[string]utils.CValueEnclosure)
 
-	edgeValue := math.SmallestNonzeroFloat64
+	edgeValue := -1.7976931348623157e+308
 	if isMin {
 		edgeValue = math.MaxFloat64
 	}
 
 	for _, eVal := range sst.Records {
 		fieldToValue[fields[0]] = *eVal
+		log.Error("fjl test eval:", eVal.CVal)
 		boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
 		if err != nil {
 			return fmt.Errorf("ComputeAggEvalForMinOrMax: there are some errors in the eval function that is inside the min/max function: %v", err)
@@ -64,7 +66,7 @@ func ComputeAggEvalForMinOrMax(measureAgg *structs.MeasureAggregator, sstMap map
 	enclosure, exists := measureResults[measureAgg.String()]
 	if !exists {
 
-		cVal := math.SmallestNonzeroFloat64
+		cVal := -1.7976931348623157e+308
 		if isMin {
 			cVal = math.MaxFloat64
 		}
@@ -100,7 +102,7 @@ func ComputeAggEvalForRange(measureAgg *structs.MeasureAggregator, sstMap map[st
 	}
 	fieldToValue := make(map[string]utils.CValueEnclosure)
 
-	maxVal := math.SmallestNonzeroFloat64
+	maxVal := -1.7976931348623157e+308
 	minVal := math.MaxFloat64
 
 	for _, eVal := range sst.Records {
