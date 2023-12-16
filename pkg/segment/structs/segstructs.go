@@ -342,6 +342,7 @@ func (ma *MeasureAggregator) String() string {
 
 func (ss *SegStats) Merge(other *SegStats) {
 	ss.Count += other.Count
+	ss.Records = append(ss.Records, other.Records...)
 	err := ss.Hll.Merge(other.Hll)
 	if err != nil {
 		log.Errorf("Failed to merge hyperloglog stats: %v", err)
@@ -352,7 +353,6 @@ func (ss *SegStats) Merge(other *SegStats) {
 		return
 	}
 	ss.NumStats.Merge(other.NumStats)
-	ss.Records = append(ss.Records, other.Records...)
 }
 
 func (ss *NumericStats) Merge(other *NumericStats) {
