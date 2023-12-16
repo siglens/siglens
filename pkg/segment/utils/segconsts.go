@@ -291,6 +291,19 @@ const (
 	Rate
 )
 
+// For columns used by aggs with eval statements, we should keep their raw values because we need to evaluate them
+// For columns only used by aggs without eval statements, we should not keep their raw values because it is a waste of performance
+// If we only use two modes. Later occurring aggs will overwrite earlier occurring aggs' usage status. E.g. stats dc(eval(lower(state))), dc(state)
+// For columns used by the agg values(), we should maintain a set to store unique values during processing.
+type AggColUsageMode int
+
+const (
+	NoEvalUsage   AggColUsageMode = iota // NoEvalUsage indicates that the column will be used by an aggregator without an eval function
+	WithEvalUsage                        // WithEvalUsage indicates that the column will be used by an aggregator with an eval function
+	BothUsage                            // BothUsage indicates that the column will be used by both types of aggregators simultaneously
+	ValuesUsage                          // Values() is an agg func, so ValuesUsage is a subset of NoEvalUsage. If AggColUsageMode is ValuesUsage, it means it is a NoEvalUsage
+)
+
 func (e AggregateFunctions) String() string {
 	switch e {
 	case Count:

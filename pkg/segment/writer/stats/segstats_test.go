@@ -36,7 +36,7 @@ func Test_addSegStatsStr(t *testing.T) {
 	bb := bbp.Get()
 
 	for i := uint64(0); i < numRecs; i++ {
-		AddSegStatsStr(sst, cname, fmt.Sprintf("%v", i), bb)
+		AddSegStatsStr(sst, cname, fmt.Sprintf("%v", i), bb, false)
 	}
 
 	assert.Equal(t, numRecs, sst[cname].Count)
@@ -48,11 +48,11 @@ func Test_addSegStatsNums(t *testing.T) {
 	sst := make(map[string]*SegStats)
 	bb := bbp.Get()
 
-	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, "2345", bb)
+	AddSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, "2345", bb, nil, false)
 	assert.NotEqual(t, SS_DT_FLOAT, sst[cname].NumStats.Min.Ntype)
 	assert.Equal(t, int64(2345), sst[cname].NumStats.Min.IntgrVal)
 
-	AddSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(345.1), "345.1", bb)
+	AddSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(345.1), "345.1", bb, nil, false)
 	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Min.Ntype)
 	assert.Equal(t, float64(345.1), sst[cname].NumStats.Min.FloatVal)
 
