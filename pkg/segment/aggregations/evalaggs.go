@@ -24,7 +24,6 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
-	log "github.com/sirupsen/logrus"
 )
 
 func ComputeAggEvalForMinOrMax(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, isMin bool) error {
@@ -46,7 +45,6 @@ func ComputeAggEvalForMinOrMax(measureAgg *structs.MeasureAggregator, sstMap map
 
 	for _, eVal := range sst.Records {
 		fieldToValue[fields[0]] = *eVal
-		log.Error("fjl test eval:", eVal.CVal)
 		boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
 		if err != nil {
 			return fmt.Errorf("ComputeAggEvalForMinOrMax: there are some errors in the eval function that is inside the min/max function: %v", err)
@@ -324,7 +322,7 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 	return nil
 }
 
-func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, strSet map[string]struct{}) error {
+func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
 	if len(fields) == 0 {
 		return fmt.Errorf("ComputeAggEvalForCount: Incorrect number of fields for aggCol: %v", measureAgg.String())
@@ -333,6 +331,17 @@ func ComputeAggEvalForCardinality(measureAgg *structs.MeasureAggregator, sstMap 
 	sst, ok := sstMap[fields[0]]
 	if !ok {
 		return fmt.Errorf("ComputeAggEvalForCount: applyAggOpOnSegments sstMap was nil for aggCol %v", measureAgg.MeasureCol)
+	}
+
+	strSet := make(map[string]struct{}, 0)
+	valuesStrSetVal, exists := runningEvalStats[measureAgg.String()]
+	if !exists {
+		runningEvalStats[measureAgg.String()] = make(map[string]struct{}, 0)
+	} else {
+		strSet, ok = valuesStrSetVal.(map[string]struct{})
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForCardinality: can not convert strSet for aggCol: %v", measureAgg.String())
+		}
 	}
 
 	length := len(sst.Records)

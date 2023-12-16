@@ -674,7 +674,6 @@ func getAllRotatedSegmentsInAggs(queryInfo *queryInformation, aggs *structs.Quer
 func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary,
 	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator) {
 	// Use a global variable to store data that meets the conditions during the process of traversing segments
-	strSet := make(map[string]struct{}, 0)
 	runningEvalStats := make(map[string]interface{}, 0)
 	//assuming we will allow 100 measure Operations
 	for _, segReq := range sortedQSRSlice {
@@ -728,7 +727,7 @@ func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResul
 				}
 			}
 		}
-		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations, strSet, runningEvalStats)
+		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations, runningEvalStats)
 		if err != nil {
 			log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
 			allSegFileResults.AddError(err)
