@@ -116,24 +116,37 @@ function createDashboard() {
   
 		  var queryString = "?id=" + Object.keys(res)[0];
 		  window.location.href = "../dashboard.html" + queryString;
-		});
+		}).catch(function (updateError) {
+			if (updateError.status === 409) {
+			  $('.error-tip').text('Dashboard name already exists!');
+			  $('.error-tip').addClass('active');
+			  attachEventHandlers();
+			}
+		  });
 	  }
 	}
-  
-	$('#save-dbbtn').click(function () {
-	  createDashboardWithInput();
-	});
-  
-	$(document).keypress(function(event){
-		if(event.keyCode == '13'){
+	// method to attach event handlers to avoid redundant event handlers
+	function attachEventHandlers() {
+		$('#save-dbbtn').on('click', function () {
 			createDashboardWithInput();
-		}
-	});
+		});
 
-	$('#cancel-dbbtn, .popupOverlay').click(function () {
-	  $('.popupOverlay, .popupContent').removeClass('active');
-	  $('.error-tip').removeClass('active');
-	});
+		$(document).on('keypress', function(event){
+			if(event.keyCode == '13'){
+				createDashboardWithInput();
+			}
+		});
+
+		$('#cancel-dbbtn, .popupOverlay').on('click', function () {
+			$("#db-name").val("");
+			$("#db-description").val("");		
+			$('.popupOverlay, .popupContent').removeClass('active');
+			$('.error-tip').removeClass('active');
+		});
+	}
+
+	// Attach event handlers initially
+	attachEventHandlers();
 }
 
 function createSiglensDashboard(inputdbname) {
