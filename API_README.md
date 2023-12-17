@@ -642,6 +642,7 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
             "duration": 2088875,
             "service_name": "featureflagservice",
             "operation_name": "/",
+            "is_anomalous": false,
             "tags": {
                 "http.client_ip": "127.0.0.1",
                 "http.flavor": "1.1",
