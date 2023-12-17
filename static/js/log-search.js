@@ -115,18 +115,6 @@ $(document).ready(() => {
 		}
 	});
 
-    $('#alert-from-logs-btn').on({
-        'click': function() {
-            $(this).tooltip('hide');
-          },
-        'mouseenter': function () {
-            $(this).tooltip('show');
-        },
-        'mouseleave': function () {
-            $(this).tooltip('hide');
-        }
-    });
-        
     $("#info-icon-spl").tooltip({
 		delay: { show: 0, hide: 300 },
 		trigger: 'click'
