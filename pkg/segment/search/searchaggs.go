@@ -410,7 +410,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 						log.Errorf("qid=%d, segmentStatsWorker failed to extract value for string although type check passed %+v. Err: %v", qid, colName, err)
 						continue
 					}
-					stats.AddSegStatsStr(localStats, colName, str, bb, hasValuesFunc)
+					stats.AddSegStatsStr(localStats, colName, str, bb, aggColUsage, hasValuesFunc)
 				} else {
 					fVal, err := val.GetFloatValue()
 					if err != nil {
@@ -497,7 +497,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 
 				switch val := rawVal.(type) {
 				case string:
-					stats.AddSegStatsStr(lStats, colName, val, bb, hasValuesFunc)
+					stats.AddSegStatsStr(lStats, colName, val, bb, aggColUsage, hasValuesFunc)
 				default:
 					// This should never occur as dict encoding is only supported for string fields.
 					log.Errorf("qid=%d, segmentStatsWorker found a non string in a dict encoded segment. CName %+s", qid, colName)

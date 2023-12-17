@@ -50,6 +50,7 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 			Count:     0,
 			Hll:       hyperloglog.New16(),
 			NumStats:  numStats,
+			Records:   make([]*CValueEnclosure, 0),
 		}
 		segstats[cname] = stats
 	}
@@ -202,7 +203,7 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 }
 
 func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
-	bb *bbp.ByteBuffer, hasValuesFunc bool) {
+	bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool) {
 
 	var stats *SegStats
 	var ok bool
@@ -211,11 +212,27 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		stats = &SegStats{
 			IsNumeric: false,
 			Count:     0,
-			Hll:       hyperloglog.New16()}
+			Hll:       hyperloglog.New16(),
+			Records:   make([]*CValueEnclosure, 0)}
 
 		segstats[cname] = stats
 	}
 	stats.Count++
+
+	colUsage := NoEvalUsage
+	if aggColUsage != nil {
+		colUsagVal, exists := aggColUsage[cname]
+		if exists {
+			colUsage = colUsagVal
+		}
+	}
+
+	if colUsage == BothUsage || colUsage == WithEvalUsage {
+		stats.Records = append(stats.Records, &CValueEnclosure{
+			Dtype: SS_DT_STRING,
+			CVal:  strVal,
+		})
+	}
 
 	if hasValuesFunc {
 		if stats.StringStats == nil {
