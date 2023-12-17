@@ -287,7 +287,6 @@ function createPanel(panelIndex, startEpoch) {
     };
     return panel;
 }
-$("#alert-from-logs-btn").attr('title', 'Create alert in a new tab');
 
 $('#alert-from-logs-btn').click(function() {
     var queryParams = {
