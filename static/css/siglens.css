@@ -4575,6 +4575,7 @@ color: #C8C7CC;
     font-weight: var(--fw-400);
     font-family: "DINpro", Arial, sans-serif;
     border-radius: 4px;
+    min-height: 36px; /* Min height for any dropdown option including empty */
 }
 
 #dashboard-options .dashboard:hover{
