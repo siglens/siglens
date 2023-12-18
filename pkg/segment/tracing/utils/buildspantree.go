@@ -47,6 +47,17 @@ func BuildSpanTree(spanMap map[string]*structs.GanttChartSpan, idToParentId map[
 				log.Errorf("BuildSpanTree: can not find parent span:%v for span:%v", parentSpanID, spanID)
 				continue
 			}
+
+			// If a span start before its parent, it is anomalous
+			parentSpanStartTime := parentSpan.StartTime
+			if parentSpan.ActualStartTime != uint64(0) {
+				parentSpanStartTime = parentSpan.ActualStartTime
+			}
+
+			if span.ActualStartTime < parentSpanStartTime || span.ActualStartTime < rootSpanStartTime {
+				span.IsAnomalous = true
+			}
+
 			parentSpan.Children = append(parentSpan.Children, span)
 		}
 	}
