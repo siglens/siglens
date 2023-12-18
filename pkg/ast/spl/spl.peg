@@ -117,7 +117,7 @@ func transferPCREToRE2(pattern string) string {
 func getRexColNames(pattern string) ([]string, error) {
     re, err := regexp.Compile(`\?<(?P<GroupName>[a-zA-Z0-9_]+)>`)
     if err != nil {
-        return nil, fmt.Errorf("getRxcolNames: There are some errors in the pattern: %v", err)
+        return nil, fmt.Errorf("getRexColNames: There are some errors in the pattern: %v", err)
     }
     matches := re.FindAllStringSubmatch(pattern, -1)
 
@@ -727,7 +727,7 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
         }
         return node, nil
     }
-/(opName:("split") "(" stringExpr:StringExpr "," delim:StringExpr ")") {
+/ (opName:("split") "(" stringExpr:StringExpr "," delim:StringExpr ")") {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -955,7 +955,11 @@ LikeExpr <- left:ValueExpr SPACE "LIKE" SPACE right:ValueExpr {
 / inExpr: InExpr {
     return inExpr, nil
 }
-/ left:ValueExpr SPACE op:EqualityOrInequality SPACE right:ValueExpr {
+/ boolComparisonExpr:BoolComparisonExpr {
+    return boolComparisonExpr, nil
+}
+
+BoolComparisonExpr <- left:ValueExpr SPACE op:EqualityOrInequality SPACE right:ValueExpr {
     expr := &structs.BoolExpr {
         IsTerminal: true,
         LeftValue: left.(*structs.ValueExpr),
@@ -1020,7 +1024,16 @@ ValueExpr <- condition:ConditionExpr {
 
     return expr, nil
 }
-/numeric:NumericExpr {
+/ "(" (condition:ConditionExpr) ")" {
+
+    expr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMConditionExpr,
+        ConditionExpr: condition.(*structs.ConditionExpr),
+    }
+
+    return expr, nil
+}
+/ numeric:NumericExpr {
 
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMNumericExpr,
@@ -1029,7 +1042,16 @@ ValueExpr <- condition:ConditionExpr {
 
     return expr, nil
 }
-/str:StringExpr {
+/ str:StringExpr {
+
+    expr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMStringExpr,
+        StringExpr: str.(*structs.StringExpr),
+    }
+
+    return expr, nil
+}
+/ "(" (str:StringExpr) ")" {
 
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMStringExpr,
@@ -1039,12 +1061,15 @@ ValueExpr <- condition:ConditionExpr {
     return expr, nil
 }
 / '('boolean:BoolExpr')' {
-          expr := &structs.ValueExpr{
-              ValueExprMode: structs.VEMBooleanExpr,
-              BooleanExpr: boolean.(*structs.BoolExpr),
-          }
-          return expr, nil
-      }
+
+    expr := &structs.ValueExpr{
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolean.(*structs.BoolExpr),
+    }
+          
+    return expr, nil
+}
+
 StringExpr <- text:TextExpr !(EVAL_CONCAT) {
     expr := &structs.StringExpr {
         StringExprMode: structs.SEMTextExpr,
@@ -1257,7 +1282,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") "(" expr:(N
 
     return node, nil
 }
-/"now" "()" {
+/ "now" "()" {
     return &structs.NumericExpr{
         IsTerminal: true,
         Op:         "now",
@@ -1386,6 +1411,10 @@ Aggregator <- aggFunc:AggFunction asField:AsField? {
     return agg, nil
 }
 
+// For evaluation statements inside aggregate functions:
+// 1. min, max, sum, avg, and range can only evaluate boolComparisonExpr, as they need to compute the field value inside the expression. There should be only one field.
+// 2. count can evaluate boolExpr because it does not care about the field value inside the expression. It only cares about whether the current row should be counted or not.
+// 3. distinctCount and values can evaluate valueExpr because they just need to find out the distinct values of the result of the expression. As for the type of the expression result, it is not important.
 AggFunction <- agg:(AggCount / AggDistinctCount / AggAvg / AggMin / AggMax / AggRange / AggSum / AggValues) {
     return agg, nil
 }
@@ -1400,7 +1429,22 @@ AsField <- AS field:FieldName {
     return fieldStr, nil
 }
 
-AggCount <- ("count" / "c") "(" field:FieldName ")" {
+AggCount <- ("count" / "c") "(eval" boolExpr:BoolExpr ")" {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Count,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ ("count" / "c") "(" field:FieldName ")" {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Count,
@@ -1414,9 +1458,19 @@ AggCount <- ("count" / "c") "(" field:FieldName ")" {
     }
 
     return agg, nil
-}
+} 
 
-AggDistinctCount <- ("distinct_count" / "dc") "(" field:FieldName ")" {
+AggDistinctCount <- ("distinct_count" / "dc") "(eval" valueExpr:ValueExpr ")" {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Cardinality,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
+    }
+
+    return agg, nil
+}
+/ ("distinct_count" / "dc") "(" field:FieldName ")" {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Cardinality,
@@ -1425,7 +1479,22 @@ AggDistinctCount <- ("distinct_count" / "dc") "(" field:FieldName ")" {
     return agg, nil
 }
 
-AggAvg <- "avg(" field:FieldName ")" {
+AggAvg <- "avg(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Avg,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "avg(" field:FieldName ")" {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Avg,
@@ -1434,7 +1503,22 @@ AggAvg <- "avg(" field:FieldName ")" {
     return agg, nil
 }
 
-AggMin <- "min(" field:FieldName ")" {
+AggMin <- "min(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Min,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "min(" field:FieldName ")" {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Min,
@@ -1443,7 +1527,22 @@ AggMin <- "min(" field:FieldName ")" {
     return agg, nil
 }
 
-AggMax <- "max(" field:FieldName ")" {
+AggMax <- "max(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Max,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "max(" field:FieldName ")" {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Max,
@@ -1452,7 +1551,22 @@ AggMax <- "max(" field:FieldName ")" {
     return agg, nil
 }
 
-AggRange <- "range(" field:FieldName ")" {
+AggRange <- "range(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Range,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "range(" field:FieldName ")" {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Range,
@@ -1461,7 +1575,22 @@ AggRange <- "range(" field:FieldName ")" {
     return agg, nil
 }
 
-AggSum <- "sum(" field:FieldName ")" {
+AggSum <- "sum(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Sum,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "sum(" field:FieldName ")" {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Sum,
@@ -1470,7 +1599,17 @@ AggSum <- "sum(" field:FieldName ")" {
     return agg, nil
 }
 
-AggValues <- "values(" field:FieldName ")" {
+AggValues <- "values" "(eval" valueExpr:ValueExpr ")" {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Values,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
+    }
+
+    return agg, nil
+}
+/ "values(" field:FieldName ")" {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Values,
