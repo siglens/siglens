@@ -633,7 +633,7 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
     return aggNode, nil
 }
 
-StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(SPACE FieldNameList) byClause:(ByClause)? options:(Options)? {
+StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(SPACE FieldNameList) byClause:(ByClause)? options:(StatisticOptions)? {
 
     statisticExpr := &structs.StatisticExpr {
         FieldList: fieldList.([]interface{})[1].([]string),
@@ -655,9 +655,9 @@ StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(SPA
     }
 
     if options != nil {
-        statisticExpr.Options = options.(*structs.Options)
+        statisticExpr.StatisticOptions = options.(*structs.StatisticOptions)
     } else {
-        statisticExpr.Options = &structs.Options {
+        statisticExpr.StatisticOptions = &structs.StatisticOptions {
             ShowCount: true,
             CountField: "count",
             ShowPerc: true,
@@ -683,10 +683,10 @@ StatisticLimit <- SPACE number:IntegerAsString {
 }
 
 // Optional arguments for top/rare functions
-Options <- option:(Option)*
+StatisticOptions <- option:(StatisticOption)*
 {
     //Default value
-    options := &structs.Options {
+    options := &structs.StatisticOptions {
         ShowCount: true,
         CountField: "count",
         ShowPerc: true,
@@ -732,12 +732,12 @@ Options <- option:(Option)*
     return options, nil
 }
 
-Option <- SPACE optionCMD:OptionCMD EQUAL field:EvalFieldToRead {
+StatisticOption <- SPACE optionCMD:StatisticOptionCMD EQUAL field:EvalFieldToRead {
     optionArr := []string{optionCMD.(string), field.(string)}
     return optionArr, nil
 }
 
-OptionCMD <- option:("countfield" / "showcount" / "otherstr" / "useother"/ "percentfield" / "showperc") {
+StatisticOptionCMD <- option:("countfield" / "showcount" / "otherstr" / "useother"/ "percentfield" / "showperc") {
     optionStr, err := transferUint8ToString(option)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: StatisticExpr: %v", err)
