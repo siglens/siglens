@@ -176,15 +176,16 @@
                             </div>
                             <div class="evaluation-container position-relative">
                                 <div>
-                                    <label for="evaluation-interval position-relative" id="label-evaluate-every">Evaluate every
+                                    <label for="evaluation-interval" id="label-evaluate-every">Evaluate every
                                         <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
                                         id="info-evaluate-every" style="display: block;" title='How often the alert will be evaluated to see if it fires'>
                                         </i>
                                     </label>
 
                                     <input type="number" name="evaluate-every" min="0" id="evaluate-every" value="1" tabindex="4"
-                                        class="form-control" step="any"></input>min<span
-                                        style="margin-left: 10px;">for
+                                        class="form-control" step="any"></input>min
+                                    <span style="margin-left: 10px;" id="for-span">
+                                            for
                                         <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
                                         id="info-evaluate-for" style="display: block;" title='Once condition is breached, alert will go into pending state. 
                                         If it is pending for longer than the "for" value, it will become a firing alert.'>

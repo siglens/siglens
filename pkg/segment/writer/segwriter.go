@@ -214,7 +214,7 @@ func cleanRecentlyRotatedInternal() {
 	recentlyRotatedSegmentFilesLock.Lock()
 	defer recentlyRotatedSegmentFilesLock.Unlock()
 	for key, value := range RecentlyRotatedSegmentFiles {
-		if currTime-value.TimeRotated > STALE_RECENTLY_ROTATED_ENTRY {
+		if currTime-value.TimeRotated > STALE_RECENTLY_ROTATED_ENTRY_MS {
 			delete(RecentlyRotatedSegmentFiles, key)
 		}
 	}
@@ -222,7 +222,7 @@ func cleanRecentlyRotatedInternal() {
 
 func cleanRecentlyRotatedInfo() {
 	for {
-		sleepDuration := time.Duration(STALE_RECENTLY_ROTATED_ENTRY)
+		sleepDuration := time.Millisecond * STALE_RECENTLY_ROTATED_ENTRY_MS
 		time.Sleep(sleepDuration)
 		cleanRecentlyRotatedInternal()
 	}
@@ -336,16 +336,16 @@ func timeBasedWIPFlushToFile() {
 }
 
 func rotateSegmentOnTime() {
-	segRotateDuration := time.Duration(SEGMENT_ROTATE_DURATION) * time.Second
+	segRotateDuration := time.Duration(SEGMENT_ROTATE_DURATION_SECONDS) * time.Second
 	allSegStoresLock.RLock()
 	wg := sync.WaitGroup{}
 	for sid, ss := range allSegStores {
 
 		if ss.firstTime {
-			rnm := rand.Intn(SEGMENT_ROTATE_DURATION) + 60
+			rnm := rand.Intn(SEGMENT_ROTATE_DURATION_SECONDS) + 60
 			segRotateDuration = time.Duration(rnm) * time.Second
 		} else {
-			segRotateDuration = time.Duration(SEGMENT_ROTATE_DURATION) * time.Second
+			segRotateDuration = time.Duration(SEGMENT_ROTATE_DURATION_SECONDS) * time.Second
 		}
 
 		if time.Since(ss.timeCreated) < segRotateDuration {
@@ -391,7 +391,7 @@ func ForceRotateSegmentsForTest() {
 
 func timeBasedRotateSegment() {
 	for {
-		time.Sleep(SEGMENT_ROTATE_SLEEP_DURATION * time.Second)
+		time.Sleep(SEGMENT_ROTATE_SLEEP_DURATION_SECONDS * time.Second)
 		rotateSegmentOnTime()
 	}
 

@@ -141,6 +141,7 @@ const (
 	SS_DT_UNSIGNED_NUM
 	SS_DT_FLOAT
 	SS_DT_STRING
+	SS_DT_STRING_LIST
 	SS_DT_BACKFILL
 	SS_DT_SIGNED_32_NUM
 	SS_DT_USIGNED_32_NUM
@@ -152,10 +153,10 @@ const (
 	SS_DT_RAW_JSON
 )
 
-const STALE_RECENTLY_ROTATED_ENTRY = 60_000                // one minute
-const SEGMENT_ROTATE_DURATION = 15 * 60                    // 15 mins
+const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000             // one minute
+const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
 var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
-const SEGMENT_ROTATE_SLEEP_DURATION = 60                   // 1 min
+const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 60           // 1 min
 
 var QUERY_EARLY_EXIT_LIMIT = uint64(10_000)
 
@@ -280,6 +281,7 @@ const (
 	Sum
 	Cardinality
 	Quantile
+	Values
 )
 
 type RangeFunctions int
@@ -305,6 +307,8 @@ func (e AggregateFunctions) String() string {
 		return "sum"
 	case Cardinality:
 		return "cardinality"
+	case Values:
+		return "values"
 	default:
 		return fmt.Sprintf("%d", int(e))
 	}
@@ -481,6 +485,8 @@ func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 
 func (e *CValueEnclosure) GetValue() (interface{}, error) {
 	switch e.Dtype {
+	case SS_DT_STRING_LIST:
+		return e.CVal.([]string), nil
 	case SS_DT_STRING:
 		return e.CVal.(string), nil
 	case SS_DT_BOOL:

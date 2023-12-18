@@ -71,6 +71,22 @@ func (rr *RunningBucketResults) AddMeasureResults(measureResults []utils.CValueE
 				continue
 			}
 			rr.runningStats[i].hll.InsertHash(rawVal)
+		} else if rr.currStats[i].MeasureFunc == utils.Values {
+			strVal, err := measureResults[i].GetString()
+			if err != nil {
+				log.Errorf("AddMeasureResults: failed to add measurement to running stats: %v", err)
+				continue
+			}
+
+			if rr.runningStats[i].rawVal.CVal == nil {
+				rr.runningStats[i].rawVal = utils.CValueEnclosure{
+					Dtype: utils.SS_DT_STRING_LIST,
+					CVal:  make([]string, 0),
+				}
+			}
+			strs := rr.runningStats[i].rawVal.CVal.([]string)
+			strs = append(strs, strVal)
+			rr.runningStats[i].rawVal.CVal = strs
 		} else {
 			retVal, err := utils.Reduce(rr.runningStats[i].rawVal, measureResults[i], rr.currStats[i].MeasureFunc)
 			if err != nil {

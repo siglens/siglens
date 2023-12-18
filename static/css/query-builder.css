@@ -483,7 +483,8 @@ a:visited.ui-button,
 .query-text,
 .group-by-reminder,
 .query-builder-text,
-.ui-widget{
+.ui-widget,
+#filter-input.form-control{
     font-family: "DINpro", Arial, sans-serif !important;
 }
 .ui-widget{

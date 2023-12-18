@@ -45,12 +45,21 @@ func Test_ExpandAndReturnIndexNames(t *testing.T) {
 	_ = vtable.AddVirtualTableAndMapping(&idx1, &mapdata, 0)
 	subStringIndex := "blah3-idx"
 	_ = vtable.AddVirtualTableAndMapping(&subStringIndex, &mapdata, 0)
+	idx1 = "traces"
+	_ = vtable.AddVirtualTableAndMapping(&idx1, &mapdata, 0)
+	idx1 = "red-traces"
+	_ = vtable.AddVirtualTableAndMapping(&idx1, &mapdata, 0)
+	idx1 = "service-dependency"
+	_ = vtable.AddVirtualTableAndMapping(&idx1, &mapdata, 0)
 
 	allVirtualTableNames, _ := vtable.GetVirtualTableNames(0)
 	expected := map[string]bool{
-		"idx-blah1": true,
-		"idx-blah2": true,
-		"blah3-idx": true}
+		"idx-blah1":          true,
+		"idx-blah2":          true,
+		"blah3-idx":          true,
+		"traces":             true,
+		"red-traces":         true,
+		"service-dependency": true}
 
 	assert.EqualValues(t, expected, allVirtualTableNames, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", expected, allVirtualTableNames))
 
@@ -139,6 +148,61 @@ func Test_ExpandAndReturnIndexNames(t *testing.T) {
 	indicesExpected = []esutils.ResolveIndexEntry{
 		{
 			Name:       "blah3-idx",
+			Attributes: []string{"open"},
+			Aliases:    []string{},
+		},
+	}
+	assert.EqualValues(t, indicesExpected, indicesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", indicesExpected, indicesEntries))
+	assert.EqualValues(t, aliasesExpected, aliasesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", aliasesExpected, aliasesEntries))
+
+	indexPattern = "*"
+
+	indicesEntries, aliasesEntries, err = ExpandAndReturnIndexNames(indexPattern, allVirtualTableNames, 0)
+	assert.Nil(t, err)
+
+	indicesExpected = []esutils.ResolveIndexEntry{
+		{
+			Name:       "idx-blah1",
+			Attributes: []string{"open"},
+			Aliases:    []string{},
+		},
+		{
+			Name:       "idx-blah2",
+			Attributes: []string{"open"},
+			Aliases:    []string{},
+		},
+		{
+			Name:       "blah3-idx",
+			Attributes: []string{"open"},
+			Aliases:    []string{},
+		},
+	}
+	assert.EqualValues(t, len(indicesExpected), len(indicesEntries), fmt.Sprintf("Comparison failed, expected=%v, actual=%v", indicesExpected, indicesEntries))
+	assert.EqualValues(t, len(aliasesExpected), len(aliasesEntries), fmt.Sprintf("Comparison failed, expected=%v, actual=%v", aliasesExpected, aliasesEntries))
+
+	indexPattern = "red-traces"
+
+	indicesEntries, aliasesEntries, err = ExpandAndReturnIndexNames(indexPattern, allVirtualTableNames, 0)
+	assert.Nil(t, err)
+
+	indicesExpected = []esutils.ResolveIndexEntry{
+		{
+			Name:       "red-traces",
+			Attributes: []string{"open"},
+			Aliases:    []string{},
+		},
+	}
+	assert.EqualValues(t, indicesExpected, indicesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", indicesExpected, indicesEntries))
+	assert.EqualValues(t, aliasesExpected, aliasesEntries, fmt.Sprintf("Comparison failed, expected=%v, actual=%v", aliasesExpected, aliasesEntries))
+
+	indexPattern = "service-dependency"
+
+	indicesEntries, aliasesEntries, err = ExpandAndReturnIndexNames(indexPattern, allVirtualTableNames, 0)
+	assert.Nil(t, err)
+
+	indicesExpected = []esutils.ResolveIndexEntry{
+		{
+			Name:       "service-dependency",
 			Attributes: []string{"open"},
 			Aliases:    []string{},
 		},

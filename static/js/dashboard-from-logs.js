@@ -141,6 +141,18 @@ function displayExistingDashboards() {
     }).then(function (res) {
         if (res) {
             let dropdown = $("#dashboard-options");
+            // Filtering default dashboards
+            let additionalDashboards = Object.keys(res).filter(
+                (id) =>
+                    !existingDashboards.includes(id) &&
+                    id !== "10329b95-47a8-48df-8b1d-0a0a01ec6c42" &&
+                    id !== "a28f485c-4747-4024-bb6b-d230f101f852" &&
+                    id !== "bd74f11e-26c8-4827-bf65-c0b464e1f2a4"
+            );
+            if (additionalDashboards.length === 0 && existingDashboards.length === 0) {
+                // Add empty list item when there are no additional dashboards
+                dropdown.html(`<li class="dashboard"></li>`);
+            } else {
             $.each(res, function (id, dashboardName) {
                 // exclude default dashboards
                 if (
@@ -158,6 +170,7 @@ function displayExistingDashboards() {
             dropdown.off("click", ".dashboard");
             dropdown.on("click", ".dashboard", selectDashboardHandler);
         }
+    }
     });
 }
 
