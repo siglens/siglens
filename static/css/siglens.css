@@ -2766,18 +2766,30 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     background: var(--component-bg-color-hover);
 }
 
-#cancel-dbbtn:focus, #delete-dbbtn:focus, #cancel-del-org-btn:focus {
+#cancel-dbbtn:focus,#error-ok-btn:focus, #delete-dbbtn:focus, #cancel-del-org-btn:focus {
     background: var(--btn-regular-bg-color);
 }
 
-#save-dbbtn, #cancel-db-prompt, .save-btn,#cancel-btn-panel {
+#save-dbbtn,#error-ok-btn, #cancel-db-prompt, .save-btn,#cancel-btn-panel {
     background: var(--btn-regular-bg-color) !important;
 }
 
 #cancel-dbbtn {
     margin: 0 !important;
 }
-
+#error-ok-btn {
+float: right;
+}
+#error-ok-btn {
+    width: 150px !important;
+    height: 45px !important;
+    border-radius: 5px;
+    border: none;
+    margin-left: auto;
+    margin-right: 14px !important;
+    color: var(--component-text-color);
+    margin-top: 15px;
+}
 #delete-db-prompt {
     display: none;
 }
