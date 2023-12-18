@@ -43,11 +43,10 @@ for platform in "${platforms[@]}"; do
         fi
     fi
     if [ ${GOOS} = "darwin" ]; then
-        export CC=clang 
-        export CXX=clang++
+        export CC=o64-clang 
+        export CXX=o64-clang++
         export CGO_ENABLED=1
-        export CFLAGS+=" -Wno-error=unused-command-line-argument"
-        export CXXFLAGS+=" -Wno-error=unused-command-line-argument"
+        export OSXCROSS_NO_INCLUDE_PATH_WARNINGS=1
         echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}."
         go build -o siglens cmd/siglens/main.go
     fi
