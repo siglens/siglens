@@ -202,7 +202,7 @@ function selectDashboardHandler() {
             }
             let panelCreatedFromLogs = createPanel(
                 dashboardDetails.panels.length,
-                dashboardDetails.panels[0].queryData.startEpoch,
+                dashboardDetails.panels[0]?.queryData?.startEpoch,
             );
 
             dashboardDetails = handlePanelPosition(
