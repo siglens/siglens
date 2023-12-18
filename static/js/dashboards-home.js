@@ -118,9 +118,10 @@ function createDashboard() {
 		  window.location.href = "../dashboard.html" + queryString;
 		}).catch(function (updateError) {
 			if (updateError.status === 409) {
-			  $('.error-tip').text('Dashboard name already exists!');
-			  $('.error-tip').addClass('active');
-			  attachEventHandlers();
+				$('.error-tip').text('Dashboard name already exists!');
+				$('.error-tip').addClass('active');
+				$('.popupOverlay, .popupContent').addClass('active');
+				attachEventHandlers();
 			}
 		  });
 	  }
@@ -133,6 +134,7 @@ function createDashboard() {
 
 		$(document).on('keypress', function(event){
 			if(event.keyCode == '13'){
+				event.preventDefault();
 				createDashboardWithInput();
 			}
 		});
