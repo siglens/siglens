@@ -352,7 +352,7 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey bytes.Buffer, measureResul
 	if b.GroupByAggregation == nil {
 		return
 	}
-	bKey := toputils.ByteSliceToString(currKey.Bytes())
+	bKey := toputils.UnsafeByteSliceToString(currKey.Bytes())
 	bucketIdx, ok := b.GroupByAggregation.StringBucketIdx[bKey]
 
 	var bucket *RunningBucketResults

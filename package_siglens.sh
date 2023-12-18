@@ -43,24 +43,13 @@ for platform in "${platforms[@]}"; do
         fi
     fi
     if [ ${GOOS} = "darwin" ]; then
-        if [ ${GOARCH} = "arm64" ]; then
-            export CC="clang -arch ${GOARCH}"
-            export CGO_ENABLED=1
-            echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}"
-            go build -o siglens cmd/siglens/main.go
-        fi
-        if [ ${GOARCH} = "amd64" ]; then
-            export CC="clang -arch x86-64"
-            export CGO_ENABLED=1
-            echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}"
-            go build -o siglens cmd/siglens/main.go
-        fi
-        if [ ${GOARCH} = "x86_64" ]; then
-            export CC="clang -arch x86-64"
-            export CGO_ENABLED=1
-            echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}"
-            go build -o siglens cmd/siglens/main.go
-        fi
+        export CC=clang 
+        export CXX=clang++
+        export CGO_ENABLED=1
+        export CFLAGS+=" -Wno-error=unused-command-line-argument"
+        export CXXFLAGS+=" -Wno-error=unused-command-line-argument"
+        echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}."
+        go build -o siglens cmd/siglens/main.go
     fi
 
     if [ $? -eq 0 ]
