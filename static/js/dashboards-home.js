@@ -60,64 +60,64 @@ function createDashboard() {
 	$('#delete-db-prompt').hide();
   
 	function createDashboardWithInput() {
-	  var inputdbname = $("#db-name").val();
-	  var inputdbdescription = $("#db-description").val();
-	  var timeRange = "Last 1 Hour";
-	  var refresh = "";
-  
-	  if (!inputdbname) {
-		$('.error-tip').addClass('active');
-		$('.popupOverlay, .popupContent').addClass('active');
-		$('#new-dashboard-modal').show();
-	  } else {
-		$('#save-dbbtn').off('click');
-		$(document).off('keypress');
-		
-		$.ajax({
-		  method: "post",
-		  url: "api/dashboards/create",
-		  headers: {
-			'Content-Type': 'application/json; charset=utf-8',
-			'Accept': '*/*'
-		  },
-		  data: JSON.stringify(inputdbname),
-		  dataType: 'json',
-		  crossDomain: true,
-		}).then(function (res) {
-		  $("#db-name").val("");
-		  $("#db-description").val("");
-		  $('.error-tip').removeClass('active');
-		  $('.popupOverlay, .popupContent').removeClass('active');
-  
-		  var updateDashboard = {
-			"id": Object.keys(res)[0],
-			"name": Object.values(res)[0],
-			"details": {
-			  "name": Object.values(res)[0],
-			  "description": inputdbdescription,
-			  "timeRange": timeRange,
-			  "refresh": refresh,
-			}
-		  }
-  
-		  $.ajax({
-			method: "post",
-			url: "api/dashboards/update",
-			headers: {
-			  'Content-Type': 'application/json; charset=utf-8',
-			  'Accept': '*/*'
-			},
-			data: JSON.stringify(updateDashboard),
-			dataType: 'json',
-			crossDomain: true,
-		  }).then(function (msg) {
-			console.log("done:", msg)
-		  })
-  
-		  var queryString = "?id=" + Object.keys(res)[0];
-		  window.location.href = "../dashboard.html" + queryString;
-		});
-	  }
+		var inputdbname = $("#db-name").val().trim();
+		var inputdbdescription = $("#db-description").val();
+		var timeRange = "Last 1 Hour";
+		var refresh = "";
+	
+		if (!inputdbname) {
+			$('.error-tip').addClass('active');
+			$('.popupOverlay, .popupContent').addClass('active');
+			$('#new-dashboard-modal').show();
+		} else {
+			$('#save-dbbtn').off('click');
+			$(document).off('keypress');
+	
+			$.ajax({
+				method: "post",
+				url: "api/dashboards/create",
+				headers: {
+					'Content-Type': 'application/json; charset=utf-8',
+					'Accept': '*/*'
+				},
+				data: JSON.stringify(inputdbname),
+				dataType: 'json',
+				crossDomain: true,
+			}).then(function (res) {
+				$("#db-name").val("");
+				$("#db-description").val("");
+				$('.error-tip').removeClass('active');
+				$('.popupOverlay, .popupContent').removeClass('active');
+	
+				var updateDashboard = {
+					"id": Object.keys(res)[0],
+					"name": Object.values(res)[0],
+					"details": {
+						"name": Object.values(res)[0],
+						"description": inputdbdescription,
+						"timeRange": timeRange,
+						"refresh": refresh,
+					}
+				}
+	
+				$.ajax({
+					method: "post",
+					url: "api/dashboards/update",
+					headers: {
+						'Content-Type': 'application/json; charset=utf-8',
+						'Accept': '*/*'
+					},
+					data: JSON.stringify(updateDashboard),
+					dataType: 'json',
+					crossDomain: true,
+				}).then(function (msg) {
+					console.log("done:", msg)
+				})
+	
+				var queryString = "?id=" + Object.keys(res)[0];
+				window.location.href = "../dashboard.html" + queryString;
+			});
+		}
 	}
   
 	$('#save-dbbtn').click(function () {
