@@ -1136,11 +1136,34 @@ function addDbSettingsEventListeners() {
 }
 
 function saveDbSetting() {
+    let trimmedDbName = $('.dbSet-dbName').val().trim();
+
+    if (!trimmedDbName) {
+        // Show error message using error-tip and popupOverlay
+        $('.error-tip').addClass('active');
+        $('.popupOverlay, .popupContent').addClass('active');
+        $('#error-message').text('Dashboard name cannot be empty.');
+        return;
+    }
+
     $('.dbSet-dbName').val("");
     $('.dbSet-dbDescr').val("");
     $('.dbSet-jsonModelData').val("");
+
+    dbName = trimmedDbName;
+    dbDescr = dbData.description;
+
+
     updateDashboard();
+    $('#app-container').show();
+    $('.dbSet-container').hide();
+    $('#dbSet-discard').click();
 }
+
+$('#error-ok-btn').click(function () {
+    $('.popupOverlay, .popupContent').removeClass('active');
+    $('.error-tip').removeClass('active');
+});
 
 function discardDbSetting() {
     if(editPanelFlag){
