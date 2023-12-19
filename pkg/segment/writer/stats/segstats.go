@@ -18,6 +18,7 @@ package stats
 
 import (
 	"math"
+	"strconv"
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -29,7 +30,7 @@ import (
 
 func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 	inNumType SS_IntUintFloatTypes, intVal int64, uintVal uint64,
-	fltVal float64, numstr string, bb *bbp.ByteBuffer) {
+	fltVal float64, numstr string, bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool) {
 
 	var stats *SegStats
 	var ok bool
@@ -49,14 +50,23 @@ func AddSegStatsNums(segstats map[string]*SegStats, cname string,
 			Count:     0,
 			Hll:       hyperloglog.New16(),
 			NumStats:  numStats,
+			Records:   make([]*CValueEnclosure, 0),
 		}
 		segstats[cname] = stats
+	}
+
+	colUsage := NoEvalUsage
+	if aggColUsage != nil {
+		colUsagVal, exists := aggColUsage[cname]
+		if exists {
+			colUsage = colUsagVal
+		}
 	}
 
 	bb.Reset()
 	_, _ = bb.WriteString(numstr)
 	stats.Hll.Insert(bb.B)
-	processStats(stats, inNumType, intVal, uintVal, fltVal)
+	processStats(stats, inNumType, intVal, uintVal, fltVal, colUsage, hasValuesFunc)
 }
 
 func AddSegStatsCount(segstats map[string]*SegStats, cname string,
@@ -87,7 +97,7 @@ func AddSegStatsCount(segstats map[string]*SegStats, cname string,
 }
 
 func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
-	uintVal uint64, fltVal float64) {
+	uintVal uint64, fltVal float64, colUsage AggColUsageMode, hasValuesFunc bool) {
 
 	stats.Count++
 
@@ -97,6 +107,14 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		inIntgrVal = int64(uintVal)
 	case SS_INT8, SS_INT16, SS_INT32, SS_INT64:
 		inIntgrVal = intVal
+	}
+
+	if hasValuesFunc {
+		if stats.StringStats == nil {
+			stats.StringStats = &StringStats{
+				StrSet: make(map[string]struct{}, 0),
+			}
+		}
 	}
 
 	// we just use the Min stats for stored val comparision but apply the same
@@ -109,6 +127,17 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 			stats.NumStats.Max.FloatVal = math.Max(stats.NumStats.Max.FloatVal, fltVal)
 			stats.NumStats.Sum.FloatVal = stats.NumStats.Sum.FloatVal + fltVal
 			stats.NumStats.Dtype = SS_DT_FLOAT
+
+			if hasValuesFunc {
+				stats.StringStats.StrSet[strconv.FormatFloat(fltVal, 'f', -1, 64)] = struct{}{}
+			}
+
+			if colUsage == BothUsage || colUsage == WithEvalUsage {
+				stats.Records = append(stats.Records, &CValueEnclosure{
+					Dtype: SS_DT_FLOAT,
+					CVal:  fltVal,
+				})
+			}
 		} else {
 			// incoming float, stored is non-float, upgrade it
 			stats.NumStats.Min.FloatVal = math.Min(float64(stats.NumStats.Min.IntgrVal), fltVal)
@@ -120,6 +149,17 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 			stats.NumStats.Sum.FloatVal = float64(stats.NumStats.Sum.IntgrVal) + fltVal
 			stats.NumStats.Sum.Ntype = SS_DT_FLOAT
 			stats.NumStats.Dtype = SS_DT_FLOAT
+
+			if hasValuesFunc {
+				stats.StringStats.StrSet[strconv.FormatFloat(fltVal, 'f', -1, 64)] = struct{}{}
+			}
+
+			if colUsage == BothUsage || colUsage == WithEvalUsage {
+				stats.Records = append(stats.Records, &CValueEnclosure{
+					Dtype: SS_DT_FLOAT,
+					CVal:  fltVal,
+				})
+			}
 		}
 	// incoming is NON-float
 	default:
@@ -129,19 +169,41 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 			stats.NumStats.Max.FloatVal = math.Max(stats.NumStats.Max.FloatVal, float64(inIntgrVal))
 			stats.NumStats.Sum.FloatVal = stats.NumStats.Sum.FloatVal + float64(inIntgrVal)
 			stats.NumStats.Dtype = SS_DT_FLOAT
+
+			if hasValuesFunc {
+				stats.StringStats.StrSet[strconv.FormatInt(inIntgrVal, 10)] = struct{}{}
+			}
+
+			if colUsage == BothUsage || colUsage == WithEvalUsage {
+				stats.Records = append(stats.Records, &CValueEnclosure{
+					Dtype: SS_DT_FLOAT,
+					CVal:  float64(inIntgrVal),
+				})
+			}
 		} else {
 			// incoming non-float, stored is non-float, simple min
 			stats.NumStats.Min.IntgrVal = utils.MinInt64(stats.NumStats.Min.IntgrVal, inIntgrVal)
 			stats.NumStats.Max.IntgrVal = utils.MaxInt64(stats.NumStats.Max.IntgrVal, inIntgrVal)
 			stats.NumStats.Sum.IntgrVal = stats.NumStats.Sum.IntgrVal + inIntgrVal
 			stats.NumStats.Dtype = SS_DT_SIGNED_NUM
+
+			if hasValuesFunc {
+				stats.StringStats.StrSet[strconv.FormatInt(inIntgrVal, 10)] = struct{}{}
+			}
+
+			if colUsage == BothUsage || colUsage == WithEvalUsage {
+				stats.Records = append(stats.Records, &CValueEnclosure{
+					Dtype: SS_DT_SIGNED_NUM,
+					CVal:  inIntgrVal,
+				})
+			}
 		}
 	}
 
 }
 
 func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
-	bb *bbp.ByteBuffer) {
+	bb *bbp.ByteBuffer, aggColUsage map[string]AggColUsageMode, hasValuesFunc bool) {
 
 	var stats *SegStats
 	var ok bool
@@ -150,19 +212,35 @@ func AddSegStatsStr(segstats map[string]*SegStats, cname string, strVal string,
 		stats = &SegStats{
 			IsNumeric: false,
 			Count:     0,
-			Hll:       hyperloglog.New16()}
+			Hll:       hyperloglog.New16(),
+			Records:   make([]*CValueEnclosure, 0)}
 
 		segstats[cname] = stats
 	}
 	stats.Count++
-	if stats.StringStats == nil {
-		stats.StringStats = &StringStats{
-			StrSet: make(map[string]struct{}, 0),
+
+	colUsage := NoEvalUsage
+	if aggColUsage != nil {
+		colUsagVal, exists := aggColUsage[cname]
+		if exists {
+			colUsage = colUsagVal
 		}
 	}
 
-	_, exists := stats.StringStats.StrSet[strVal]
-	if !exists {
+	if colUsage == BothUsage || colUsage == WithEvalUsage {
+		stats.Records = append(stats.Records, &CValueEnclosure{
+			Dtype: SS_DT_STRING,
+			CVal:  strVal,
+		})
+	}
+
+	if hasValuesFunc {
+		if stats.StringStats == nil {
+			stats.StringStats = &StringStats{
+				StrSet: make(map[string]struct{}, 0),
+			}
+		}
+
 		stats.StringStats.StrSet[strVal] = struct{}{}
 	}
 
