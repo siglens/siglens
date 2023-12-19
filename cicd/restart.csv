@@ -107,3 +107,6 @@ city=Boston | stats count AS Count BY app_name | eval len=len(app_name) | where 
 "city=Boston | stats count AS Count BY http_method | rename http_method AS ""test""",now-1d,now,*,group:Count:POST,eq,184,Splunk QL
 "city=Boston | stats count AS Count BY http_status, http_method | eval newField=(http_status - 1000) | rename newField AS http_method",now-1d,now,*,group:http_method:400,eq,-600,Splunk QL
 city=Boston | stats count AS Count BY http_method | eval newField=lower(http_method) | rename new* AS start*end,now-1d,now,*,group:startFieldend:PATCH,eq,patch,Splunk QL
+"city=Boston | stats max(latitude), range(eval(latitude >= 0)) AS range",now-1d,now,*,group:range:*,eq,89.752,Splunk QL
+"* | stats count(eval(latitude < 0)) AS count, dc(eval(lower(app_name)))",now-1d,now,*,group:count:*,eq,"50,146",Splunk QL
+"* | stats min(eval(latitude < 0)), max(eval(latitude < 0)) AS max, range(eval(latitude < 0)) BY weekday",now-1d,now,*,group:max:Monday,eq,-0.004012,Splunk QL
