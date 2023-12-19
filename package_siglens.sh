@@ -44,21 +44,26 @@ for platform in "${platforms[@]}"; do
     fi
     if [ ${GOOS} = "darwin" ]; then
         if [ ${GOARCH} = "arm64" ]; then
-            export CC="clang -arch ${GOARCH}"
+            export CC=o64-clang
+            export CXX=o64-clang++
+            export CGO_CFLAGS="-arch ${GOARCH}"
+            export CGO_LDFLAGS="-arch ${GOARCH}"
+            export CFLAGS=-Qunused-arguments
+            export CPPFLAGS=-Qunused-arguments
             export CGO_ENABLED=1
-            echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}"
+            echo "Compiling SigLens for CGO_ENABLED=1, GOOS=${GOOS} and GOARCH=${GOARCH}"
             go build -o siglens cmd/siglens/main.go
         fi
         if [ ${GOARCH} = "amd64" ]; then
-            export CC="clang -arch x86-64"
+            export CC=o64-clang
+            export CXX=o64-clang++
+            export CGO_CFLAGS="-arch x86_64"
+            export CGO_LDFLAGS="-arch x86_64"
+            export CFLAGS=-Qunused-arguments
+            export CPPFLAGS=-Qunused-arguments
             export CGO_ENABLED=1
-            echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}"
-            go build -o siglens cmd/siglens/main.go
-        fi
-        if [ ${GOARCH} = "x86_64" ]; then
-            export CC="clang -arch x86-64"
-            export CGO_ENABLED=1
-            echo "Compiling SigLens for GOOS=${GOOS} and GOARCH=${GOARCH}"
+            export GOGCCFLAGS="-m64 -mthreads -fno-caret-diagnostics -Qunused-arguments -fmessage-length=0 -gno-record-gcc-switches"
+            echo "Compiling SigLens for CGO_ENABLED=1, GOOS=${GOOS} and GOARCH=${GOARCH}"
             go build -o siglens cmd/siglens/main.go
         fi
     fi
