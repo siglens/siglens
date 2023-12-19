@@ -73,6 +73,22 @@ jobs:
         - 
           name: install cross compiler for linux/amd64
           run: sudo apt-get -y install build-essential
+      
+        # Setup Rust, use the x86_64-apple-darwin target but the rest can be customized.
+        - 
+          name: Setup Rust
+          uses: ATiltedTree/setup-rust@v1
+          with:
+            rust-version: stable
+
+        # Use the v1 of this action
+        - 
+          name: Setup osxcross
+          uses: mbround18/setup-osxcross@v1
+        # This builds executables & sets env variables for rust to consume.
+          with:
+            osx-version: "12.3"
+
         - 
           name: version
           run: |
