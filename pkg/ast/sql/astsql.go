@@ -130,6 +130,123 @@ func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
 	}
 }
 
+func getMathFunctionSQL(funcName string, argExprs sqlparser.SelectExprs, qid uint64) (*structs.NumericExpr, error) {
+	fmt.Println("funcName", funcName)
+	fmt.Println("argExprs", argExprs)
+	fmt.Println("qid", qid)
+
+	// Check for 'round' function and handle arguments
+	if strings.ToLower(funcName) == "round" {
+		if len(argExprs) < 1 || len(argExprs) > 2 {
+			log.Errorf("qid=%v, getMathFunctionSQL: incorrect number of arguments for ROUND function", qid)
+			return nil, fmt.Errorf("incorrect number of arguments for ROUND function")
+		}
+
+		fmt.Println("argExprs[0]", argExprs[0])
+
+		leftExpr, err := convertToNumericExpr(argExprs[0])
+		fmt.Println("leftExpr", leftExpr)
+		fmt.Println("err", err)
+		if err != nil {
+			return nil, err
+		}
+
+		var rightExpr *structs.NumericExpr
+		if len(argExprs) == 2 {
+			rightExpr, err = convertToNumericExpr(argExprs[1])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return createNumericExpr("round", leftExpr, rightExpr, structs.NEMNumericExpr)
+	} else {
+		log.Errorf("qid=%v, getMathFunctionSQL: function %s not supported!", qid, funcName)
+		return nil, fmt.Errorf("function %s not supported", funcName)
+	}
+}
+
+func convertToNumericExpr(expr any) (*structs.NumericExpr, error) {
+	fmt.Println("expr", expr)
+	switch e := expr.(type) {
+	case *sqlparser.ColName:
+		// Handle column name expressions
+		return &structs.NumericExpr{
+			IsTerminal:      true,
+			ValueIsField:    true,
+			Value:           e.Name.CompliantName(),
+			NumericExprMode: determineNumericExprMode(e),
+		}, nil
+	case *sqlparser.SQLVal:
+		// Handle SQL values (like numbers, strings)
+		return &structs.NumericExpr{
+			IsTerminal:      true,
+			Value:           string(e.Val),
+			NumericExprMode: determineNumericExprMode(e),
+		}, nil
+	// Add other cases here as needed, for example handling nested functions or operations
+	case *sqlparser.AliasedExpr:
+
+		fmt.Println("AliasedExpr", sqlparser.String(e.Expr))
+
+		switch agg := e.Expr.(type) {
+		case *sqlparser.FuncExpr:
+			return &structs.NumericExpr{
+				IsTerminal:      true,
+				Value:           agg.Name.CompliantName() + "(" + sqlparser.String(agg.Exprs) + ")",
+				ValueIsField:    true,
+				NumericExprMode: structs.NEMNumberField,
+				Val:             &structs.StringExpr{RawString: agg.Name.CompliantName(), FieldName: sqlparser.String(agg.Exprs)},
+			}, nil
+
+		case *sqlparser.SQLVal:
+			return &structs.NumericExpr{
+				IsTerminal:      true,
+				Value:           string(agg.Val),
+				NumericExprMode: determineNumericExprMode(agg),
+			}, nil
+		default:
+			fmt.Println("Default AliasedExpr")
+			return nil, fmt.Errorf("unsupported expression type: %T", expr)
+		}
+	default:
+		fmt.Println("Default convertToNumericExpr")
+		return nil, fmt.Errorf("unsupported expression type: %T", expr)
+	}
+}
+
+func determineNumericExprMode(e sqlparser.Expr) structs.NumericExprMode {
+	switch expr := e.(type) {
+	case *sqlparser.SQLVal:
+		// Determine if the value is a number or string
+		if expr.Type == sqlparser.IntVal || expr.Type == sqlparser.FloatVal {
+			return structs.NEMNumber
+		} else {
+			return structs.NEMLenString
+		}
+	case *sqlparser.ColName:
+		// If it's a column name, we might treat it as a field
+		return structs.NEMNumberField
+	default:
+		return structs.NEMNumber // Default or error handling
+	}
+}
+
+// Generate NumericExpr struct for eval functions
+func createNumericExpr(op string, leftExpr *structs.NumericExpr, rightExpr *structs.NumericExpr, numericExprMode structs.NumericExprMode) (*structs.NumericExpr, error) {
+	if leftExpr == nil {
+		return nil, fmt.Errorf("expr cannot be nil")
+	}
+
+	return &structs.NumericExpr{
+		IsTerminal:      false,
+		Op:              op,
+		Left:            leftExpr,
+		Right:           rightExpr,
+		NumericExprMode: numericExprMode,
+	}, nil
+}
+
 func parseSingleCondition(expr sqlparser.Expr, astNode *structs.ASTNode, qid uint64, condType int) (*structs.ASTNode, error) {
 	clause := strings.Split(sqlparser.String(expr), " ")
 	if len(clause) > 2 {
@@ -215,6 +332,7 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 	measureOps := make([]*structs.MeasureAggregator, 0)
 	columsArray := make([]string, 0)
 	hardcodedArray := make([]string, 0)
+	mathFunctionCols := make([]*structs.NumericExpr, 0)
 	renameCols := map[string]string{}
 	renameHardcodedCols := map[string]string{}
 	var err error
@@ -244,13 +362,51 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 					renameCols[agg.Name.CompliantName()] = label
 				}
 			case *sqlparser.FuncExpr:
-				measureOp := &structs.MeasureAggregator{
-					MeasureCol: sqlparser.String(agg.Exprs), MeasureFunc: getAggregationSQL(agg.Name.CompliantName(), qid),
-				}
-				measureOps = append(measureOps, measureOp)
-				newGroupByReq.MeasureOperations = append(newGroupByReq.MeasureOperations, measureOp)
-				if len(label) != 0 {
-					renameCols[strings.ToLower(sqlparser.String(agg))] = label
+
+				funcName := strings.ToLower(agg.Name.CompliantName())
+
+				if funcName == "round" {
+					numericExpr, err := getMathFunctionSQL(funcName, agg.Exprs, qid)
+					if err != nil {
+						log.Errorf("qid=%v, parseSelect: getMathFunctionSQL failed! %+v", qid, err)
+						return astNode, aggNode, columsArray, err
+					}
+
+					fmt.Println("numericExpx", numericExpr)
+
+					leftExpr := numericExpr.Left
+
+					var measureOp *structs.MeasureAggregator
+
+					if leftExpr.Val != nil {
+						val := leftExpr.Val
+						if val.RawString != "" {
+							measureFunc := val.RawString
+							measureCol := val.FieldName
+
+							leftExpr.Val = nil
+
+							measureOp = &structs.MeasureAggregator{MeasureCol: measureCol, MeasureFunc: getAggregationSQL(measureFunc, qid)}
+						}
+					} else {
+						measureOp = &structs.MeasureAggregator{MeasureCol: sqlparser.String(agg.Exprs[0])}
+					}
+
+					mathFunctionCols = append(mathFunctionCols, numericExpr)
+
+					measureOps = append(measureOps, measureOp)
+					newGroupByReq.MeasureOperations = append(newGroupByReq.MeasureOperations, measureOp)
+
+				} else {
+
+					measureOp := &structs.MeasureAggregator{
+						MeasureCol: sqlparser.String(agg.Exprs), MeasureFunc: getAggregationSQL(agg.Name.CompliantName(), qid),
+					}
+					measureOps = append(measureOps, measureOp)
+					newGroupByReq.MeasureOperations = append(newGroupByReq.MeasureOperations, measureOp)
+					if len(label) != 0 {
+						renameCols[strings.ToLower(sqlparser.String(agg))] = label
+					}
 				}
 			case *sqlparser.SQLVal:
 				if len(label) != 0 {
@@ -297,6 +453,27 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 			aggNode.OutputTransforms.OutputColumns = &structs.ColumnsRequest{}
 		}
 		aggNode.OutputTransforms.OutputColumns.RenameAggregationColumns = renameCols
+	}
+
+	if len(mathFunctionCols) > 0 {
+		fmt.Println("mathFunctionCols", mathFunctionCols)
+		if len(columsArray) == 0 && len(hardcodedArray) == 0 && len(measureOps) == 0 {
+			aggNode.OutputTransforms = &structs.OutputTransforms{LetColumns: &structs.LetColumnsRequest{}}
+		} else {
+			aggNode.OutputTransforms.LetColumns = &structs.LetColumnsRequest{}
+		}
+
+		aggNode.OutputTransforms.LetColumns.ValueColRequest = &structs.ValueExpr{}
+		aggNode.OutputTransforms.LetColumns.ValueColRequest.NumericExpr = mathFunctionCols[0]
+		aggNode.OutputTransforms.LetColumns.NewColName = "Round(" + mathFunctionCols[0].Left.Value + ")"
+
+		fmt.Println("aggNode.OutputTransforms.LetColumns.ValueColRequest.NumericExpr", aggNode.OutputTransforms.LetColumns.ValueColRequest.NumericExpr)
+
+		aggNode.Next = &structs.QueryAggregators{OutputTransforms: &structs.OutputTransforms{}}
+		aggNode.Next.PipeCommandType = 1
+		aggNode.Next.OutputTransforms = &structs.OutputTransforms{LetColumns: &structs.LetColumnsRequest{}}
+		aggNode.Next.OutputTransforms.LetColumns = aggNode.OutputTransforms.LetColumns
+
 	}
 
 	if currStmt.Where != nil {
