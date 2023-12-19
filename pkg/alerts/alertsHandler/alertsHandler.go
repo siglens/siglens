@@ -45,6 +45,7 @@ type database interface {
 	GetAllMinionSearches() ([]alertutils.MinionSearch, error)
 	UpdateMinionSearchStateByAlertID(alertId string, alertState alertutils.AlertState) error
 	UpdateAlert(*alertutils.AlertDetails) error
+	UpdateSilencePeriod(*alertutils.AlertDetails) error
 	DeleteAlert(alert_id string) error
 	CreateContact(*alertutils.Contact) error
 	CreateNotificationDetails(newNotif *alertutils.Notification) error
@@ -134,6 +135,64 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx) {
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	responseBody["message"] = "Successfully created an alert"
+	utils.WriteJsonResponse(ctx, responseBody)
+}
+func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
+	responseBody := make(map[string]interface{})
+
+	// Check if databaseObj is nil
+	if databaseObj == nil {
+		log.Error("ProcessSilenceAlertRequest: databaseObj is nil")
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		responseBody["error"] = "Internal server error"
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	}
+
+	// Check if request body is empty
+	if string(ctx.PostBody()) == "" {
+		log.Error("ProcessSilenceAlertRequest: request body is empty")
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		responseBody["error"] = "Request body is empty"
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	}
+
+	// Parse request
+	var silenceRequest struct {
+		AlertID       string  `json:"alert_id"`
+		SilencePeriod float64 `json:"silence_period"`
+	}
+	if err := json.Unmarshal(ctx.PostBody(), &silenceRequest); err != nil {
+		log.Errorf("ProcessSilenceAlertRequest: could not parse request body, err=%+v", err)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		responseBody["error"] = err.Error()
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	}
+
+	// Find alert and update SilencePeriod
+	alertDataObj, err := databaseObj.GetAlert(silenceRequest.AlertID)
+	if err != nil {
+		log.Errorf("ProcessSilenceAlertRequest: could not find alert, err=%+v", err)
+		ctx.SetStatusCode(fasthttp.StatusNotFound)
+		responseBody["error"] = err.Error()
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	}
+
+	alertDataObj.AlertInfo.SilencePeriod = silenceRequest.SilencePeriod
+	// Update the SilencePeriod
+	err = databaseObj.UpdateSilencePeriod(alertDataObj)
+	if err != nil {
+		log.Errorf("ProcessUpdateSilenceRequestRequest: could not update alert=%+v, err=%+v", alertDataObj.AlertInfo.AlertName, err)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		responseBody["error"] = err.Error()
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	}
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	responseBody["message"] = "Successfully updated silence period"
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
