@@ -1101,6 +1101,8 @@ function handleDbSettings() {
         crossDomain: true,
     }).then(function (res) {
         console.log(JSON.stringify(res))
+        $(".dbSet-dbName").val(res.name);
+        $(".dbSet-dbDescr").val(res.description);
         $('.dbSet-jsonModelData').val(JSON.stringify(JSON.unflatten(res), null, 2))
     })
 
@@ -1131,7 +1133,7 @@ function addDbSettingsEventListeners() {
 
 function saveDbSetting() {
     let trimmedDbName = $('.dbSet-dbName').val().trim();
-
+    let trimmedDbDescription = $(".dbSet-dbDescr").val().trim();
     if (!trimmedDbName) {
         // Show error message using error-tip and popupOverlay
         $('.error-tip').addClass('active');
@@ -1145,7 +1147,7 @@ function saveDbSetting() {
     $('.dbSet-jsonModelData').val("");
 
     dbName = trimmedDbName;
-    dbDescr = dbData.description;
+    dbDescr = trimmedDbDescription;
 
 
     updateDashboard();
