@@ -144,7 +144,7 @@ func Test_dashboard_storage_methods_multiple_orgs(t *testing.T) {
 	}
 
 	dashboardId = expected[0]
-	dashboardName = "new-dashboard-1"
+	dashboardName = "updated-dashboard-1"
 	err = updateDashboard(dashboardId, dashboardName, eDashboardDetails, 1)
 	assert.Nil(t, err)
 
