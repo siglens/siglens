@@ -2,7 +2,7 @@ name: siglens-docker-release
 on:
   push:
     branches:
-      - 'develop'
+      - 'main'
 jobs:
   siglens-docker:
     runs-on: ubuntu-latest
