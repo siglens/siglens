@@ -156,6 +156,9 @@ function updateDashboard() {
                 showToast('Dashboard Updated Successfully');
                 $('#app-container').show();
                 $('.dbSet-container').hide();
+                $('.dbSet-dbName').val("");
+                $('.dbSet-dbDescr').val("");
+                $('.dbSet-jsonModelData').val("");            
             }
             return res.json();
         })
@@ -1146,18 +1149,12 @@ function saveDbSetting() {
         return;
     }
 
-    $('.dbSet-dbName').val("");
-    $('.dbSet-dbDescr').val("");
-    $('.dbSet-jsonModelData').val("");
 
     dbName = trimmedDbName;
     dbDescr = dbData.description;
 
 
     updateDashboard();
-    $('#app-container').show();
-    $('.dbSet-container').hide();
-    $('#dbSet-discard').click();
 }
 
 $('#error-ok-btn').click(function () {
