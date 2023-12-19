@@ -349,7 +349,7 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 	// Update the dashboard name if it is different
 	if allDashboards[id] != dName {
 		if dashboardNameExists(dName, orgid) {
-			log.Printf("Dashboard with name %s already exists", dName)
+			log.Errorf("Dashboard with name %s already exists", dName)
 			return errors.New("dashboard name already exists")
 		} else {
 			allDashboardsIds[orgid][id] = dName
