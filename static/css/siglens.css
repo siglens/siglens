@@ -4794,3 +4794,8 @@ color: #C8C7CC;
 input.form-control {
     border: 1px solid var(--border-btn-color);
 }
+.filter-input {
+    margin: 0;
+    text-decoration: none;
+    height: 40px;
+}
