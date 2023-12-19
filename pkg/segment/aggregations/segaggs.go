@@ -198,7 +198,6 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 	} else if letColReq.SingleColRequest != nil {
 		return errors.New("performLetColumnsRequest: processing LetColumnsRequest.SingleColRequest is not implemented")
 	} else if letColReq.ValueColRequest != nil {
-		fmt.Println("performLetColumnsRequest: ValueColRequest", *letColReq.ValueColRequest)
 		if err := performValueColRequest(nodeResult, letColReq); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
@@ -1170,8 +1169,6 @@ func getAggregationResultCell(aggResult *structs.AggregationResult, rowIndex int
 }
 
 func getAggregationResultMeasureFunctionCell(aggResult *structs.AggregationResult, rowIndex int, measureCol string) (segutils.CValueEnclosure, bool) {
-	// measureCol = "0(" + measureCol + ")"
-	// fmt.Println("measureCol: ", measureCol)
 	value, ok := aggResult.Results[rowIndex].StatRes[measureCol]
 	return value, ok
 }

@@ -131,9 +131,6 @@ func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
 }
 
 func getMathFunctionSQL(funcName string, argExprs sqlparser.SelectExprs, qid uint64) (*structs.NumericExpr, error) {
-	fmt.Println("funcName", funcName)
-	fmt.Println("argExprs", argExprs)
-	fmt.Println("qid", qid)
 
 	// Check for 'round' function and handle arguments
 	if strings.ToLower(funcName) == "round" {
@@ -142,11 +139,7 @@ func getMathFunctionSQL(funcName string, argExprs sqlparser.SelectExprs, qid uin
 			return nil, fmt.Errorf("incorrect number of arguments for ROUND function")
 		}
 
-		fmt.Println("argExprs[0]", argExprs[0])
-
 		leftExpr, err := convertToNumericExpr(argExprs[0])
-		fmt.Println("leftExpr", leftExpr)
-		fmt.Println("err", err)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +160,6 @@ func getMathFunctionSQL(funcName string, argExprs sqlparser.SelectExprs, qid uin
 }
 
 func convertToNumericExpr(expr any) (*structs.NumericExpr, error) {
-	fmt.Println("expr", expr)
 	switch e := expr.(type) {
 	case *sqlparser.ColName:
 		// Handle column name expressions
@@ -187,8 +179,6 @@ func convertToNumericExpr(expr any) (*structs.NumericExpr, error) {
 	// Add other cases here as needed, for example handling nested functions or operations
 	case *sqlparser.AliasedExpr:
 
-		fmt.Println("AliasedExpr", sqlparser.String(e.Expr))
-
 		switch agg := e.Expr.(type) {
 		case *sqlparser.FuncExpr:
 			return &structs.NumericExpr{
@@ -206,11 +196,9 @@ func convertToNumericExpr(expr any) (*structs.NumericExpr, error) {
 				NumericExprMode: determineNumericExprMode(agg),
 			}, nil
 		default:
-			fmt.Println("Default AliasedExpr")
 			return nil, fmt.Errorf("unsupported expression type: %T", expr)
 		}
 	default:
-		fmt.Println("Default convertToNumericExpr")
 		return nil, fmt.Errorf("unsupported expression type: %T", expr)
 	}
 }
@@ -372,8 +360,6 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 						return astNode, aggNode, columsArray, err
 					}
 
-					fmt.Println("numericExpx", numericExpr)
-
 					leftExpr := numericExpr.Left
 
 					var measureOp *structs.MeasureAggregator
@@ -456,7 +442,6 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 	}
 
 	if len(mathFunctionCols) > 0 {
-		fmt.Println("mathFunctionCols", mathFunctionCols)
 		if len(columsArray) == 0 && len(hardcodedArray) == 0 && len(measureOps) == 0 {
 			aggNode.OutputTransforms = &structs.OutputTransforms{LetColumns: &structs.LetColumnsRequest{}}
 		} else {
@@ -466,8 +451,6 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 		aggNode.OutputTransforms.LetColumns.ValueColRequest = &structs.ValueExpr{}
 		aggNode.OutputTransforms.LetColumns.ValueColRequest.NumericExpr = mathFunctionCols[0]
 		aggNode.OutputTransforms.LetColumns.NewColName = "Round(" + mathFunctionCols[0].Left.Value + ")"
-
-		fmt.Println("aggNode.OutputTransforms.LetColumns.ValueColRequest.NumericExpr", aggNode.OutputTransforms.LetColumns.ValueColRequest.NumericExpr)
 
 		aggNode.Next = &structs.QueryAggregators{OutputTransforms: &structs.OutputTransforms{}}
 		aggNode.Next.PipeCommandType = 1
