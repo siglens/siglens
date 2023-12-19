@@ -48,6 +48,10 @@ func NotifyAlertHandlerRequest(alertID string) error {
 		return nil
 	}
 	silencePeriodOver, err := isSilencePeriodOver(alertID)
+	if err != nil {
+		log.Errorf("NotifyAlertHandlerRequest:Error checking silence period for alert id- %s, err=%v", alertID, err)
+		return err
+	}
 	if !silencePeriodOver {
 		return nil
 	}
