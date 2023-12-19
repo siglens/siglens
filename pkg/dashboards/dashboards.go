@@ -348,7 +348,12 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 
 	// Update the dashboard name if it is different
 	if allDashboards[id] != dName {
-		allDashboards[id] = dName
+		if dashboardNameExists(dName, orgid) {
+			log.Errorf("Dashboard with name %s already exists", dName)
+			return errors.New("dashboard name already exists")
+		} else {
+			allDashboardsIds[orgid][id] = dName
+		}
 	}
 	allDashboardsIdsLock.RLock()
 	orgDashboards := allDashboardsIds[orgid]
@@ -545,9 +550,14 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	dashboardDetails := readJSON["details"].(map[string]interface{})
 	err = updateDashboard(dId, dName, dashboardDetails, myid)
 	if err != nil {
-		log.Errorf("ProcessCreateDashboardRequest: could not create Dashboard=%v, err=%v", dId, err)
-		setBadMsg(ctx)
-		return
+		if err.Error() == "dashboard name already exists" {
+			setConflictMsg(ctx)
+			return
+		} else {
+			log.Errorf("ProcessCreateDashboardRequest: could not create Dashboard=%v, err=%v", dId, err)
+			setBadMsg(ctx)
+			return
+		}
 	}
 	response := "Dashboard updated successfully"
 	utils.WriteJsonResponse(ctx, response)

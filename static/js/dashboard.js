@@ -147,13 +147,22 @@ function updateDashboard() {
         }
     )
         .then(res => {
+            if (res.status === 409) {
+                showToast('Dashboard name already exists');
+                throw new Error('Dashboard name already exists');
+            }    
             if (res.status == 200) {
                 displayDashboardName();
                 showToast('Dashboard Updated Successfully');
+                $('#app-container').show();
+                $('.dbSet-container').hide();
+                $('.dbSet-dbName').val("");
+                $('.dbSet-dbDescr').val("");
+                $('.dbSet-jsonModelData').val("");            
             }
             return res.json();
         })
-        .then(data => console.log(data));
+        .then(data => console.log(data)).catch(error => console.error(error));
 }
 
 function refreshDashboardHandler() {
@@ -1142,18 +1151,12 @@ function saveDbSetting() {
         return;
     }
 
-    $('.dbSet-dbName').val("");
-    $('.dbSet-dbDescr').val("");
-    $('.dbSet-jsonModelData').val("");
 
     dbName = trimmedDbName;
     dbDescr = trimmedDbDescription;
 
 
     updateDashboard();
-    $('#app-container').show();
-    $('.dbSet-container').hide();
-    $('#dbSet-discard').click();
 }
 
 $('#error-ok-btn').click(function () {

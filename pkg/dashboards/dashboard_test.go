@@ -56,7 +56,7 @@ func Test_dashboard_storage_methods(t *testing.T) {
 	eDashboardDetails["description"] = "Dashboard type"
 	eDashboardDetails["note"] = "mydashboard"
 	dashboardId := expected[0]
-	dashboardName := "dashboard-1"
+	dashboardName := "upd-dashboard-1"
 
 	err = updateDashboard(dashboardId, dashboardName, eDashboardDetails, 0)
 	assert.Nil(t, err)
@@ -111,7 +111,7 @@ func Test_dashboard_storage_methods_multiple_orgs(t *testing.T) {
 	eDashboardDetails["description"] = "Dashboard type"
 	eDashboardDetails["note"] = "mydashboard"
 	dashboardId := expected[0]
-	dashboardName := "new-dashboard-1"
+	dashboardName := "updated-dashboard-1"
 
 	err = updateDashboard(dashboardId, dashboardName, eDashboardDetails, 0)
 	assert.Nil(t, err)
@@ -144,7 +144,7 @@ func Test_dashboard_storage_methods_multiple_orgs(t *testing.T) {
 	}
 
 	dashboardId = expected[0]
-	dashboardName = "new-dashboard-1"
+	dashboardName = "updated-dashboard"
 	err = updateDashboard(dashboardId, dashboardName, eDashboardDetails, 1)
 	assert.Nil(t, err)
 
