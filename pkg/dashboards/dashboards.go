@@ -219,7 +219,7 @@ func createUniqId(dname string) string {
 func dashboardNameExists(dname string, orgid uint64) bool {
 	allDashboardIds, err := getAllDashboardIds(orgid)
 	if err != nil {
-		log.Printf("Error getting all dashboard IDs: %v", err)
+		log.Errorf("Error getting all dashboard IDs: %v", err)
 		return false
 	}
 	for _, name := range allDashboardIds {
@@ -239,7 +239,7 @@ func createDashboard(dname string, orgid uint64) (map[string]string, error) {
 	newId := createUniqId(dname)
 
 	if dashboardNameExists(dname, orgid) {
-		log.Printf("Dashboard with name %s already exists", dname)
+		log.Errorf("Dashboard with name %s already exists", dname)
 		return nil, errors.New("dashboard name already exists")
 	}
 
