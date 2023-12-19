@@ -47,6 +47,10 @@ func NotifyAlertHandlerRequest(alertID string) error {
 	if !cooldownOver {
 		return nil
 	}
+	silencePeriodOver, err := isSilencePeriodOver(alertID)
+	if !silencePeriodOver {
+		return nil
+	}
 	contact_id, message, subject, err := processGetContactDetails(alertID)
 	if err != nil {
 		log.Errorf("NotifyAlertHandlerRequest:Error retrieving contact and message for alert id- %s, err=%v", alertID, err)
@@ -143,6 +147,26 @@ func sendWebhooks(webhookUrl, subject, message string) error {
 	return err
 }
 
+func isSilencePeriodOver(alertID string) (bool, error) {
+	silencePeriod, lastSendTime, err := processGetSilencePeriodRequest(alertID)
+
+	if lastSendTime.IsZero() {
+		return true, nil
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	currentTimeUTC := time.Now().UTC()
+	lastSendTimeUTC := lastSendTime.UTC()
+	silencePeriodUTC := time.Duration(silencePeriod) * time.Minute
+	if currentTimeUTC.Sub(lastSendTimeUTC) >= silencePeriodUTC {
+		return true, nil
+	}
+	return false, nil
+}
+
 func isCooldownOver(alertID string) (bool, error) {
 	cooldownMinutes, lastSendTime, err := processGetCooldownRequest(alertID)
 
@@ -198,6 +222,21 @@ func processGetCooldownRequest(alert_id string) (uint64, time.Time, error) {
 	return period, last_time, nil
 }
 
+func processGetSilencePeriodRequest(alert_id string) (float64, time.Time, error) {
+	alertDataObj, err := databaseObj.GetAlert(alert_id)
+	if err != nil {
+		log.Errorf("ProcessGetSilencePeriodRequest:Error getting alert details for alert id- %s err=%v", alert_id, err)
+		return 0, time.Time{}, err
+	}
+
+	_, last_time, err := databaseObj.GetCoolDownDetails(alert_id)
+	if err != nil {
+		log.Errorf("ProcessGetSilencePeriodRequest:Error getting cooldown details for alert id- %s err=%v", alert_id, err)
+		return 0, time.Time{}, err
+	}
+
+	return alertDataObj.AlertInfo.SilencePeriod, last_time, nil
+}
 func processGetContactDetails(alert_id string) (string, string, string, error) {
 	id, message, subject, err := databaseObj.GetContactDetails(alert_id)
 	if err != nil {
