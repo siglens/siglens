@@ -94,7 +94,11 @@ class btnRenderer {
 
         function showPrompt(event) {
             event.stopPropagation();
+            const alertRuleName = params.data.alertName; 
+            const confirmationMessage = `Are you sure you want to delete the "<strong>${alertRuleName}</strong>" alert?`;
+
 			$('.popupOverlay, .popupContent').addClass('active');
+            $('#delete-alert-name').html(confirmationMessage);
 
             $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {
                 $('.popupOverlay, .popupContent').removeClass('active');
@@ -127,7 +131,31 @@ let alertColumnDefs = [
     {
         headerName: "State",
         field: "alertState",
-        width:50,
+        width: 50,
+        cellStyle: (params) => {
+            console.log(params.data)
+            const alertState = params.data.alertState
+            console.log(alertState); 
+            let backgroundColor;
+            switch (alertState) {
+                case "Normal":
+                    backgroundColor = "#53DB6E"; // Green background for Normal State
+                    break;
+                case "Pending":
+                    backgroundColor = "#F4BB20"; // Yellow background for Pending State
+                    break;
+                case "Firing":
+                    backgroundColor = "#F55759"; // Red background for Firing State
+                    break;
+                default:
+                    backgroundColor = ""; // Default background color
+                    break;
+            }
+            return {
+                background: backgroundColor,
+                padding: '5px',
+            };
+        }
     },
     {
         headerName: "Alert Name",
@@ -186,7 +214,6 @@ function displayAllAlerts(res){
             labels.push(label.label_name + '=' + label.label_value);
         });
         let allLabels = labels.join(', ');
-    
         newRow.set("labels", allLabels);
         newRow.set("alertState", mapIndexToAlertState.get(value.state));
         alertRowData = _.concat(alertRowData, Object.fromEntries(newRow));
@@ -194,6 +221,7 @@ function displayAllAlerts(res){
     alertGridOptions.api.setRowData(alertRowData);
     alertGridOptions.api.sizeColumnsToFit();
 }
+
 
 function showToast(msg) {
     let toast =

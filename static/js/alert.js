@@ -353,6 +353,7 @@ function displayAlertProperties(res) {
     const queryParams = res.queryParams;
     $('.alert-name').text(alertInfo.alert_name);
     $('.alert-status').text(mapIndexToAlertState.get(alertInfo.state));
+    $('.alert-status').text(alertStatus).css('background-color', backgroundColor);
     $('.alert-query').val(queryParams.queryText);
     $('.alert-type').text(queryParams.data_source);
     $('.alert-query-language').text(queryParams.queryLanguage);
