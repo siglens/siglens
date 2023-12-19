@@ -117,7 +117,12 @@ function createPanelToNewDashboard() {
             updateDashboard(dashboard);
             var queryString = "?id=" + Object.keys(res)[0];
             window.location.href = "../dashboard.html" + queryString;
-        });
+        }).catch(function (updateError) {
+			if (updateError.status === 409) {
+			  $('.error-tip').text('Dashboard name already exists!');
+			  $('.error-tip').addClass('active');
+			}
+		  });
     }
 }
 
@@ -202,7 +207,7 @@ function selectDashboardHandler() {
             }
             let panelCreatedFromLogs = createPanel(
                 dashboardDetails.panels.length,
-                dashboardDetails.panels[0].queryData.startEpoch,
+                dashboardDetails.panels[0]?.queryData?.startEpoch,
             );
 
             dashboardDetails = handlePanelPosition(
