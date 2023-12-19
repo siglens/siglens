@@ -60,80 +60,95 @@ function createDashboard() {
 	$('#delete-db-prompt').hide();
   
 	function createDashboardWithInput() {
-		var inputdbname = $("#db-name").val().trim();
-		var inputdbdescription = $("#db-description").val();
-		var timeRange = "Last 1 Hour";
-		var refresh = "";
-	
-		if (!inputdbname) {
-			$('.error-tip').addClass('active');
-			$('.popupOverlay, .popupContent').addClass('active');
-			$('#new-dashboard-modal').show();
-		} else {
-			$('#save-dbbtn').off('click');
-			$(document).off('keypress');
-	
-			$.ajax({
-				method: "post",
-				url: "api/dashboards/create",
-				headers: {
-					'Content-Type': 'application/json; charset=utf-8',
-					'Accept': '*/*'
-				},
-				data: JSON.stringify(inputdbname),
-				dataType: 'json',
-				crossDomain: true,
-			}).then(function (res) {
-				$("#db-name").val("");
-				$("#db-description").val("");
-				$('.error-tip').removeClass('active');
-				$('.popupOverlay, .popupContent').removeClass('active');
-	
-				var updateDashboard = {
-					"id": Object.keys(res)[0],
-					"name": Object.values(res)[0],
-					"details": {
-						"name": Object.values(res)[0],
-						"description": inputdbdescription,
-						"timeRange": timeRange,
-						"refresh": refresh,
-					}
-				}
-	
-				$.ajax({
-					method: "post",
-					url: "api/dashboards/update",
-					headers: {
-						'Content-Type': 'application/json; charset=utf-8',
-						'Accept': '*/*'
-					},
-					data: JSON.stringify(updateDashboard),
-					dataType: 'json',
-					crossDomain: true,
-				}).then(function (msg) {
-					console.log("done:", msg)
-				})
-	
-				var queryString = "?id=" + Object.keys(res)[0];
-				window.location.href = "../dashboard.html" + queryString;
-			});
-		}
+	  var inputdbname = $("#db-name").val();
+	  var inputdbdescription = $("#db-description").val();
+	  var timeRange = "Last 1 Hour";
+	  var refresh = "";
+  
+	  if (!inputdbname) {
+		$('.error-tip').addClass('active');
+		$('.popupOverlay, .popupContent').addClass('active');
+		$('#new-dashboard-modal').show();
+	  } else {
+		$('#save-dbbtn').off('click');
+		$(document).off('keypress');
+		
+		$.ajax({
+		  method: "post",
+		  url: "api/dashboards/create",
+		  headers: {
+			'Content-Type': 'application/json; charset=utf-8',
+			'Accept': '*/*'
+		  },
+		  data: JSON.stringify(inputdbname),
+		  dataType: 'json',
+		  crossDomain: true,
+		}).then(function (res) {
+		  $("#db-name").val("");
+		  $("#db-description").val("");
+		  $('.error-tip').removeClass('active');
+		  $('.popupOverlay, .popupContent').removeClass('active');
+  
+		  var updateDashboard = {
+			"id": Object.keys(res)[0],
+			"name": Object.values(res)[0],
+			"details": {
+			  "name": Object.values(res)[0],
+			  "description": inputdbdescription,
+			  "timeRange": timeRange,
+			  "refresh": refresh,
+			}
+		  }
+  
+		  $.ajax({
+			method: "post",
+			url: "api/dashboards/update",
+			headers: {
+			  'Content-Type': 'application/json; charset=utf-8',
+			  'Accept': '*/*'
+			},
+			data: JSON.stringify(updateDashboard),
+			dataType: 'json',
+			crossDomain: true,
+		  }).then(function (msg) {
+			console.log("done:", msg)
+		  })
+  
+		  var queryString = "?id=" + Object.keys(res)[0];
+		  window.location.href = "../dashboard.html" + queryString;
+		}).catch(function (updateError) {
+			if (updateError.status === 409) {
+				$('.error-tip').text('Dashboard name already exists!');
+				$('.error-tip').addClass('active');
+				$('.popupOverlay, .popupContent').addClass('active');
+				attachEventHandlers();
+			}
+		  });
+	  }
 	}
-  
-	$('#save-dbbtn').click(function () {
-	  createDashboardWithInput();
-	});
-  
-	$(document).keypress(function(event){
-		if(event.keyCode == '13'){
+	// method to attach event handlers to avoid redundant event handlers
+	function attachEventHandlers() {
+		$('#save-dbbtn').on('click', function () {
 			createDashboardWithInput();
-		}
-	});
+		});
 
-	$('#cancel-dbbtn, .popupOverlay').click(function () {
-	  $('.popupOverlay, .popupContent').removeClass('active');
-	  $('.error-tip').removeClass('active');
-	});
+		$(document).on('keypress', function(event){
+			if(event.keyCode == '13'){
+				event.preventDefault();
+				createDashboardWithInput();
+			}
+		});
+
+		$('#cancel-dbbtn, .popupOverlay').on('click', function () {
+			$("#db-name").val("");
+			$("#db-description").val("");		
+			$('.popupOverlay, .popupContent').removeClass('active');
+			$('.error-tip').removeClass('active');
+		});
+	}
+
+	// Attach event handlers initially
+	attachEventHandlers();
 }
 
 function createSiglensDashboard(inputdbname) {

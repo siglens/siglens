@@ -215,6 +215,21 @@ func createUniqId(dname string) string {
 	return newId
 }
 
+// method to check if the dashboard name already exists
+func dashboardNameExists(dname string, orgid uint64) bool {
+	allDashboardIds, err := getAllDashboardIds(orgid)
+	if err != nil {
+		log.Errorf("Error getting all dashboard IDs: %v", err)
+		return false
+	}
+	for _, name := range allDashboardIds {
+		if name == dname {
+			return true
+		}
+	}
+	return false
+}
+
 func createDashboard(dname string, orgid uint64) (map[string]string, error) {
 	if dname == "" {
 		log.Errorf("createDashboard: failed to create Dashboard, with empty dashboard name")
@@ -222,6 +237,11 @@ func createDashboard(dname string, orgid uint64) (map[string]string, error) {
 	}
 
 	newId := createUniqId(dname)
+
+	if dashboardNameExists(dname, orgid) {
+		log.Errorf("Dashboard with name %s already exists", dname)
+		return nil, errors.New("dashboard name already exists")
+	}
 
 	dashBoardIds, err := getAllDashboardIds(orgid)
 	if err != nil {
@@ -328,7 +348,12 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 
 	// Update the dashboard name if it is different
 	if allDashboards[id] != dName {
-		allDashboards[id] = dName
+		if dashboardNameExists(dName, orgid) {
+			log.Errorf("Dashboard with name %s already exists", dName)
+			return errors.New("dashboard name already exists")
+		} else {
+			allDashboardsIds[orgid][id] = dName
+		}
 	}
 	allDashboardsIdsLock.RLock()
 	orgDashboards := allDashboardsIds[orgid]
@@ -437,6 +462,15 @@ func setBadMsg(ctx *fasthttp.RequestCtx) {
 	utils.WriteResponse(ctx, httpResp)
 }
 
+// method to set conflict message and 409 status code
+func setConflictMsg(ctx *fasthttp.RequestCtx) {
+	var httpResp utils.HttpServerResponse
+	ctx.SetStatusCode(fasthttp.StatusConflict)
+	httpResp.Message = "Conflict: Dashboard name already exists"
+	httpResp.StatusCode = fasthttp.StatusConflict
+	utils.WriteResponse(ctx, httpResp)
+}
+
 func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
@@ -456,9 +490,14 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	dashboardInfo, err := createDashboard(dname, myid)
 
 	if err != nil {
-		log.Errorf("ProcessCreateDashboardRequest: could not create Dashboard=%v, err=%v", dname, err)
-		setBadMsg(ctx)
-		return
+		if err.Error() == "dashboard name already exists" {
+			setConflictMsg(ctx)
+			return
+		} else {
+			log.Errorf("ProcessCreateDashboardRequest: could not create Dashboard=%v, err=%v", dname, err)
+			setBadMsg(ctx)
+			return
+		}
 	}
 
 	utils.WriteJsonResponse(ctx, dashboardInfo)
@@ -511,9 +550,14 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	dashboardDetails := readJSON["details"].(map[string]interface{})
 	err = updateDashboard(dId, dName, dashboardDetails, myid)
 	if err != nil {
-		log.Errorf("ProcessCreateDashboardRequest: could not create Dashboard=%v, err=%v", dId, err)
-		setBadMsg(ctx)
-		return
+		if err.Error() == "dashboard name already exists" {
+			setConflictMsg(ctx)
+			return
+		} else {
+			log.Errorf("ProcessCreateDashboardRequest: could not create Dashboard=%v, err=%v", dId, err)
+			setBadMsg(ctx)
+			return
+		}
 	}
 	response := "Dashboard updated successfully"
 	utils.WriteJsonResponse(ctx, response)

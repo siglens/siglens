@@ -157,9 +157,10 @@ type GroupByRequest struct {
 }
 
 type MeasureAggregator struct {
-	MeasureCol  string                   `json:"measureCol,omitempty"`
-	MeasureFunc utils.AggregateFunctions `json:"measureFunc,omitempty"`
-	StrEnc      string                   `json:"strEnc,omitempty"`
+	MeasureCol      string                   `json:"measureCol,omitempty"`
+	MeasureFunc     utils.AggregateFunctions `json:"measureFunc,omitempty"`
+	StrEnc          string                   `json:"strEnc,omitempty"`
+	ValueColRequest *ValueExpr               `json:"valueColRequest,omitempty"`
 }
 
 type ColumnsRequest struct {
@@ -246,6 +247,7 @@ type SegStats struct {
 	Hll         *hyperloglog.Sketch
 	NumStats    *NumericStats
 	StringStats *StringStats
+	Records     []*utils.CValueEnclosure
 }
 
 type NumericStats struct {
@@ -269,6 +271,16 @@ type SegStatsJSON struct {
 
 type AllSegStatsJSON struct {
 	AllSegStats map[string]*SegStatsJSON
+}
+
+type RangeStat struct {
+	Min float64
+	Max float64
+}
+
+type AvgStat struct {
+	Count int64
+	Sum   float64
 }
 
 // init SegStats from raw bytes of SegStatsJSON
@@ -330,6 +342,7 @@ func (ma *MeasureAggregator) String() string {
 
 func (ss *SegStats) Merge(other *SegStats) {
 	ss.Count += other.Count
+	ss.Records = append(ss.Records, other.Records...)
 	err := ss.Hll.Merge(other.Hll)
 	if err != nil {
 		log.Errorf("Failed to merge hyperloglog stats: %v", err)
@@ -434,6 +447,26 @@ func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
 	}
 	if qa.Next != nil {
 		return qa.Next.HasQueryAggergatorBlockInChain()
+	}
+	return false
+}
+
+// To determine whether it contains ValueColRequest
+func (qa *QueryAggregators) HasValueColRequest() bool {
+	for _, agg := range qa.MeasureOperations {
+		if agg.ValueColRequest != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// To determine whether it contains Aggregate Func: Values()
+func (qa *QueryAggregators) HasValuesFunc() bool {
+	for _, agg := range qa.MeasureOperations {
+		if agg.MeasureFunc == utils.Values {
+			return true
+		}
 	}
 	return false
 }
