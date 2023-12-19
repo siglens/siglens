@@ -79,3 +79,4 @@ siglens
 
 # multinode testing
 ingest*/
+siglens.db

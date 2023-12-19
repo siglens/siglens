@@ -52,6 +52,15 @@ async function testContactsPage() {
     let saveContactButton = await driver.findElement(By.id("save-contact-btn"));
     await saveContactButton.click();
 
+    await driver.get("http://localhost/contacts.html");
+
+    await driver.sleep(10000); // 5000 milliseconds = 5 seconds
+ 
+
+     let addedContact = await driver.findElement(By.xpath("//span[contains(@class, 'ag-cell-value')]"));
+     let isContactAdded = await addedContact.isDisplayed();
+     assert.equal(isContactAdded, true, "New contact was not added to the table");
+
     console.log("All contacts page tests passed");
   } catch (err) {
     console.error(err);
