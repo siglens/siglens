@@ -147,13 +147,22 @@ function updateDashboard() {
         }
     )
         .then(res => {
+            if (res.status === 409) {
+                showToast('Dashboard name already exists');
+                throw new Error('Dashboard name already exists');
+            }    
             if (res.status == 200) {
                 displayDashboardName();
                 showToast('Dashboard Updated Successfully');
+                $('#app-container').show();
+                $('.dbSet-container').hide();
+                $('.dbSet-dbName').val("");
+                $('.dbSet-dbDescr').val("");
+                $('.dbSet-jsonModelData').val("");            
             }
             return res.json();
         })
-        .then(data => console.log(data));
+        .then(data => console.log(data)).catch(error => console.error(error));
 }
 
 function refreshDashboardHandler() {
@@ -1101,6 +1110,8 @@ function handleDbSettings() {
         crossDomain: true,
     }).then(function (res) {
         console.log(JSON.stringify(res))
+        $(".dbSet-dbName").val(res.name);
+        $(".dbSet-dbDescr").val(res.description);
         $('.dbSet-jsonModelData').val(JSON.stringify(JSON.unflatten(res), null, 2))
     })
 
@@ -1130,13 +1141,28 @@ function addDbSettingsEventListeners() {
 }
 
 function saveDbSetting() {
-    $('.dbSet-dbName').val("");
-    $('.dbSet-dbDescr').val("");
-    $('.dbSet-jsonModelData').val("");
+    let trimmedDbName = $('.dbSet-dbName').val().trim();
+    let trimmedDbDescription = $(".dbSet-dbDescr").val().trim();
+    if (!trimmedDbName) {
+        // Show error message using error-tip and popupOverlay
+        $('.error-tip').addClass('active');
+        $('.popupOverlay, .popupContent').addClass('active');
+        $('#error-message').text('Dashboard name cannot be empty.');
+        return;
+    }
+
+
+    dbName = trimmedDbName;
+    dbDescr = trimmedDbDescription;
+
+
     updateDashboard();
-    $('#app-container').show();
-    $('.dbSet-container').hide();
 }
+
+$('#error-ok-btn').click(function () {
+    $('.popupOverlay, .popupContent').removeClass('active');
+    $('.error-tip').removeClass('active');
+});
 
 function discardDbSetting() {
     if(editPanelFlag){
