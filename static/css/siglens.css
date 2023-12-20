@@ -4823,3 +4823,15 @@ color: #C8C7CC;
     -webkit-transform: translate(-50%, -50%);
     transform: translate(-50%, -50%);
 }
+
+.cell-normal {
+    background-color: #53DB6E; /* Green background for Normal State */
+}
+
+.cell-pending {
+    background-color: #F4BB20; /* Yellow background for Pending State */
+}
+
+.cell-firing {
+    background-color: #F55759; /* Red background for Firing State */
+}
