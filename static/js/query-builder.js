@@ -50,6 +50,7 @@ $(document).ready(function () {
   else $("#search-filter-text").show();
   setShowColumnInfoDialog();
 });
+
 const tags = document.getElementById("tags");
 const tagSecond = document.getElementById("tags-second");
 const tagThird = document.getElementById("tags-third");
@@ -137,13 +138,15 @@ function filterStart(evt) {
         //when the column name is not a number, the symbols can only be = && !=
         availSymbol = ["=", "!="];
         valuesOfColumn.clear();
+        let curIsNum = false;
         for (let i = 0; i < availColNames.length; i++) {
           if (ui.item.value == ColumnsIsNum[i]) {
-            ifCurIsNum = true;
+            curIsNum = true;
             availSymbol = ["=", "!=", "<=", ">=", ">", "<"];
             break;
           }
         }
+        ifCurIsNum = curIsNum;
         $("#symbol").val("");
         $("#value-first").val("");
         //check if complete btn can click

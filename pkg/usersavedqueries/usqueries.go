@@ -464,6 +464,14 @@ func SaveUserQueries(ctx *fasthttp.RequestCtx) {
 				{
 					usQueryMap["indexName"] = valtype
 				}
+			case "filterTab":
+				{
+					usQueryMap["filterTab"] = valtype
+				}
+			case "queryLanguage":
+				{
+					usQueryMap["queryLanguage"] = valtype
+				}
 			}
 		default:
 			log.Errorf("SaveUserQueries: Invalid save query key=[%v]", key)
