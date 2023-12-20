@@ -226,9 +226,9 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 		return
 	}
 	allBlockSearchHelpers := structs.InitAllBlockSearchHelpers(fileParallelism)
-	applyRawSearchToNode(searchNode, searchReq, segmentSearchRecords, allBlockSearchHelpers, queryMetrics,
+	executeRawSearchToNode(searchNode, searchReq, segmentSearchRecords, allBlockSearchHelpers, queryMetrics,
 		qid, allSearchResults)
-	err := applyAggregationsToResult(aggs, segmentSearchRecords, searchReq, blockSummaries, timeRange,
+	err := aggregateResults(aggs, segmentSearchRecords, searchReq, blockSummaries, timeRange,
 		sizeLimit, fileParallelism, queryMetrics, qid, allSearchResults)
 	if err != nil {
 		log.Errorf("qid=%d RawSearchColumnar failed to apply aggregations to result for segKey %+v. Error: %v", qid, searchReq.SegmentKey, err)
@@ -375,7 +375,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		}
 		blkSum := req.SearchMetadata.BlockSummaries[blockNum]
 		if err != nil {
-			log.Errorf("qid=%v, applyAggregationsSingleBlock: failed to initialize block results reader for %s. Err: %v",
+			log.Errorf("qid=%v, aggregrateSingleBlockResults: failed to initialize block results reader for %s. Err: %v",
 				qid, req.SegmentKey, err)
 			allSearchResults.AddError(err)
 		}
@@ -462,33 +462,33 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 	allSearchResults.AddBlockResults(blkResults)
 }
 
-func applyRawSearchToNode(node *structs.SearchNode, searchReq *structs.SegmentSearchRequest, segmentSearch *SegmentSearchStatus,
+func executeRawSearchToNode(node *structs.SearchNode, searchReq *structs.SegmentSearchRequest, segmentSearch *SegmentSearchStatus,
 	allBlockSearchHelpers []*structs.BlockSearchHelper, queryMetrics *structs.QueryProcessingMetrics,
 	qid uint64, allSearchResults *segresults.SearchResults) {
 
 	if node.AndSearchConditions != nil {
-		applyRawSearchToConditions(node.AndSearchConditions, searchReq, segmentSearch, allBlockSearchHelpers,
+		executeRawSearchToConditions(node.AndSearchConditions, searchReq, segmentSearch, allBlockSearchHelpers,
 			utils.And, queryMetrics, qid, allSearchResults)
 	}
 
 	if node.OrSearchConditions != nil {
-		applyRawSearchToConditions(node.OrSearchConditions, searchReq, segmentSearch, allBlockSearchHelpers,
+		executeRawSearchToConditions(node.OrSearchConditions, searchReq, segmentSearch, allBlockSearchHelpers,
 			utils.Or, queryMetrics, qid, allSearchResults)
 	}
 
 	if node.ExclusionSearchConditions != nil {
-		applyRawSearchToConditions(node.ExclusionSearchConditions, searchReq, segmentSearch, allBlockSearchHelpers,
+		executeRawSearchToConditions(node.ExclusionSearchConditions, searchReq, segmentSearch, allBlockSearchHelpers,
 			utils.Exclusion, queryMetrics, qid, allSearchResults)
 	}
 }
 
-func applyRawSearchToConditions(cond *structs.SearchCondition, searchReq *structs.SegmentSearchRequest, segmentSearch *SegmentSearchStatus,
+func executeRawSearchToConditions(cond *structs.SearchCondition, searchReq *structs.SegmentSearchRequest, segmentSearch *SegmentSearchStatus,
 	allBlockSearchHelpers []*structs.BlockSearchHelper, op utils.LogicalOperator, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
 	allSearchResults *segresults.SearchResults) {
 
 	if cond.SearchNode != nil {
 		for _, sNode := range cond.SearchNode {
-			applyRawSearchToNode(sNode, searchReq, segmentSearch, allBlockSearchHelpers, queryMetrics,
+			executeRawSearchToNode(sNode, searchReq, segmentSearch, allBlockSearchHelpers, queryMetrics,
 				qid, allSearchResults)
 		}
 	}
@@ -654,7 +654,7 @@ func aggsFastPath(searchReq *structs.SegmentSearchRequest, searchNode *structs.S
 		return
 	}
 
-	err := applyAggsToResultFastPath(aggs, segmentSearchRecords, searchReq, blockSummaries, timeRange,
+	err := aggregrateResultsFastPath(aggs, segmentSearchRecords, searchReq, blockSummaries, timeRange,
 		sizeLimit, fileParallelism, queryMetrics, qid, allSearchResults)
 	if err != nil {
 		log.Errorf("qid=%d RawSearchColumnar failed to apply aggregations to result for segKey %+v. Error: %v", qid, searchReq.SegmentKey, err)
@@ -722,10 +722,10 @@ func RawComputeSegmentStats(req *structs.SegmentSearchRequest, fileParallelism i
 	}
 
 	allBlockSearchHelpers := structs.InitAllBlockSearchHelpers(fileParallelism)
-	applyRawSearchToNode(searchNode, req, segmentSearchRecords, allBlockSearchHelpers, queryMetrics,
+	executeRawSearchToNode(searchNode, req, segmentSearchRecords, allBlockSearchHelpers, queryMetrics,
 		qid, allSearchResults)
 
-	segStats, err := applySegStatsToMatchedRecords(measureOps, segmentSearchRecords, req, blockSummaries, timeRange,
+	segStats, err := applySegmentStatisticsToRecords(measureOps, segmentSearchRecords, req, blockSummaries, timeRange,
 		fileParallelism, queryMetrics, qid)
 	if err != nil {
 		log.Errorf("qid=%d, failed to raw compute segstats %+v", qid, err)
