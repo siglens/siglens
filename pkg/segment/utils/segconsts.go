@@ -141,7 +141,7 @@ const (
 	SS_DT_UNSIGNED_NUM
 	SS_DT_FLOAT
 	SS_DT_STRING
-	SS_DT_STRING_LIST
+	SS_DT_STRING_SET
 	SS_DT_BACKFILL
 	SS_DT_SIGNED_32_NUM
 	SS_DT_USIGNED_32_NUM
@@ -290,6 +290,17 @@ type RangeFunctions int
 const (
 	Derivative RangeFunctions = iota + 1
 	Rate
+)
+
+// For columns used by aggs with eval statements, we should keep their raw values because we need to evaluate them
+// For columns only used by aggs without eval statements, we should not keep their raw values because it is a waste of performance
+// If we only use two modes. Later occurring aggs will overwrite earlier occurring aggs' usage status. E.g. stats dc(eval(lower(state))), dc(state)
+type AggColUsageMode int
+
+const (
+	NoEvalUsage   AggColUsageMode = iota // NoEvalUsage indicates that the column will be used by an aggregator without an eval function
+	WithEvalUsage                        // WithEvalUsage indicates that the column will be used by an aggregator with an eval function
+	BothUsage                            // BothUsage indicates that the column will be used by both types of aggregators simultaneously
 )
 
 func (e AggregateFunctions) String() string {
@@ -486,8 +497,8 @@ func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 
 func (e *CValueEnclosure) GetValue() (interface{}, error) {
 	switch e.Dtype {
-	case SS_DT_STRING_LIST:
-		return e.CVal.([]string), nil
+	case SS_DT_STRING_SET:
+		return e.CVal.(map[string]struct{}), nil
 	case SS_DT_STRING:
 		return e.CVal.(string), nil
 	case SS_DT_BOOL:
