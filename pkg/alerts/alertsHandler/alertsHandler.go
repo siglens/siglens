@@ -45,7 +45,7 @@ type database interface {
 	GetAllMinionSearches() ([]alertutils.MinionSearch, error)
 	UpdateMinionSearchStateByAlertID(alertId string, alertState alertutils.AlertState) error
 	UpdateAlert(*alertutils.AlertDetails) error
-	UpdateSilencePeriod(*alertutils.AlertDetails) error
+	UpdateSilenceMinutes(*alertutils.AlertDetails) error
 	DeleteAlert(alert_id string) error
 	CreateContact(*alertutils.Contact) error
 	CreateNotificationDetails(newNotif *alertutils.Notification) error
@@ -160,8 +160,8 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 
 	// Parse request
 	var silenceRequest struct {
-		AlertID       string  `json:"alert_id"`
-		SilencePeriod float64 `json:"silence_period"`
+		AlertID        string `json:"alert_id"`
+		SilenceMinutes uint64 `json:"silence_minutes"`
 	}
 	if err := json.Unmarshal(ctx.PostBody(), &silenceRequest); err != nil {
 		log.Errorf("ProcessSilenceAlertRequest: could not parse request body, err=%+v", err)
@@ -171,7 +171,7 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// Find alert and update SilencePeriod
+	// Find alert and update SilenceMinutes
 	alertDataObj, err := databaseObj.GetAlert(silenceRequest.AlertID)
 	if err != nil {
 		log.Errorf("ProcessSilenceAlertRequest: could not find alert, err=%+v", err)
@@ -181,9 +181,9 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	alertDataObj.AlertInfo.SilencePeriod = silenceRequest.SilencePeriod
-	// Update the SilencePeriod
-	err = databaseObj.UpdateSilencePeriod(alertDataObj)
+	alertDataObj.AlertInfo.SilenceMinutes = silenceRequest.SilenceMinutes
+	// Update the SilenceMinutes
+	err = databaseObj.UpdateSilenceMinutes(alertDataObj)
 	if err != nil {
 		log.Errorf("ProcessUpdateSilenceRequestRequest: could not update alert=%+v, err=%+v", alertDataObj.AlertInfo.AlertName, err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)

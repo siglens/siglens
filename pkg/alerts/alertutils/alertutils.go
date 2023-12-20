@@ -47,7 +47,7 @@ type AlertInfo struct {
 	ContactId       string       `json:"contact_id"`
 	ContactName     string       `json:"contact_name"`
 	Labels          []AlertLabel `json:"labels"`
-	SilencePeriod   float64      `json:"silence_period"`
+	SilenceMinutes  uint64       `json:"silence_minutes"`
 }
 
 type QueryParams struct {
