@@ -117,3 +117,60 @@ func Test_ParseShow(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, aggs.ShowRequest, testShowRequest)
 }
+
+func Test_ParseGroupByRound(t *testing.T) {
+	query_string := "SELECT ROUND(latency, 1) FROM `*` GROUP BY country"
+
+	_, aggs, _, err := ConvertToASTNodeSQL(query_string, 0)
+
+	assert.Nil(t, err)
+
+	assert.NotNil(t, aggs.OutputTransforms.LetColumns)
+
+	assert.NotNil(t, aggs.OutputTransforms.LetColumns.ValueColRequest)
+
+	assert.NotNil(t, aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr)
+
+	assert.NotNil(t, aggs.GroupByRequest)
+
+	leftExpr := aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left
+	rightExpr := aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right
+	Op := aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op
+
+	assert.Equal(t, Op, "round")
+	assert.Equal(t, leftExpr.Value, "0(latency)")
+	assert.Equal(t, rightExpr.Value, "1")
+	assert.Equal(t, leftExpr.ValueIsField, true)
+	assert.Equal(t, rightExpr.ValueIsField, false)
+	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "Round(0(latency))")
+
+	assert.NotNil(t, aggs.Next)
+
+	next := aggs.Next
+
+	assert.NotNil(t, next.OutputTransforms)
+	assert.NotNil(t, next.OutputTransforms.LetColumns)
+	assert.Equal(t, next.PipeCommandType, 1)
+
+	query_string = "SELECT ROUND(sum(latitude), 2) FROM `*` GROUP BY city"
+
+	_, aggs, _, err = ConvertToASTNodeSQL(query_string, 0)
+
+	assert.Nil(t, err)
+
+	assert.NotNil(t, aggs.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggs.OutputTransforms.LetColumns.ValueColRequest)
+	assert.NotNil(t, aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr)
+
+	leftExpr = aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left
+	rightExpr = aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right
+	Op = aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op
+
+	assert.Equal(t, Op, "round")
+	assert.Equal(t, leftExpr.Value, "sum(latitude)")
+	assert.Equal(t, rightExpr.Value, "2")
+	assert.Equal(t, leftExpr.ValueIsField, true)
+	assert.Equal(t, rightExpr.ValueIsField, false)
+	assert.Nil(t, leftExpr.Val)
+	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "Round(sum(latitude))")
+}
