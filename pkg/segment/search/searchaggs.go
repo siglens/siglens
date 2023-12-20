@@ -39,7 +39,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchRecords *SegmentSearchStatus,
+func aggregateResults(aggs *structs.QueryAggregators, segmentSearchRecords *SegmentSearchStatus,
 	searchReq *structs.SegmentSearchRequest, blockSummaries []*structs.BlockSummary, queryRange *dtu.TimeRange,
 	sizeLimit uint64, fileParallelism int64, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
 	allSearchResults *segresults.SearchResults) error {
@@ -50,7 +50,7 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	sharedReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, aggCols, searchReq.AllBlocksToSearch,
 		blockSummaries, int(fileParallelism), qid)
 	if err != nil {
-		log.Errorf("applyAggregationsToResult: failed to load all column files reader for %s. Needed cols %+v. Err: %+v",
+		log.Errorf("aggregateResults: failed to load all column files reader for %s. Needed cols %+v. Err: %+v",
 			searchReq.SegmentKey, aggCols, err)
 		if sharedReader != nil {
 			sharedReader.Close()
@@ -63,15 +63,15 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 		cname, ok := checkIfGrpColsPresent(aggs.GroupByRequest, sharedReader.MultiColReaders[0],
 			allSearchResults)
 		if !ok {
-			log.Errorf("qid=%v, applyAggregationsToResult: cname: %v was not present", qid, cname)
-			return fmt.Errorf("qid=%v, applyAggregationsToResult: cname: %v was not present", qid,
+			log.Errorf("qid=%v, aggregateResults: cname: %v was not present", qid, cname)
+			return fmt.Errorf("qid=%v, aggregateResults: cname: %v was not present", qid,
 				cname)
 		}
 	}
 
 	rupReader, err := segread.InitNewRollupReader(searchReq.SegmentKey, config.GetTimeStampKey(), qid)
 	if err != nil {
-		log.Errorf("qid=%d, applyAggregationsToResult: failed initialize rollup reader segkey %s. Error: %v",
+		log.Errorf("qid=%d, aggregateResults: failed initialize rollup reader segkey %s. Error: %v",
 			qid, searchReq.SegmentKey, err)
 	} else {
 		defer rupReader.Close()
@@ -79,7 +79,7 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	allBlocksToXRollup, aggsHasTimeHt, aggsHasNonTimeHt := getRollupForAggregation(aggs, rupReader)
 	for i := int64(0); i < fileParallelism; i++ {
 		blkWG.Add(1)
-		go applyAggregationsSingleBlock(sharedReader.MultiColReaders[i], aggs, allSearchResults, allBlocksChan,
+		go aggregrateSingleBlockResults(sharedReader.MultiColReaders[i], aggs, allSearchResults, allBlocksChan,
 			searchReq, queryRange, sizeLimit, &blkWG, queryMetrics, qid, blockSummaries, aggsHasTimeHt,
 			aggsHasNonTimeHt, allBlocksToXRollup)
 	}
@@ -105,7 +105,7 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	return nil
 }
 
-func applyAggregationsSingleBlock(multiReader *segread.MultiColSegmentReader, aggs *structs.QueryAggregators,
+func aggregrateSingleBlockResults(multiReader *segread.MultiColSegmentReader, aggs *structs.QueryAggregators,
 	allSearchResults *segresults.SearchResults, blockChan chan *BlockSearchStatus, searchReq *structs.SegmentSearchRequest,
 	queryRange *dtu.TimeRange, sizeLimit uint64, wg *sync.WaitGroup, queryMetrics *structs.QueryProcessingMetrics,
 	qid uint64, blockSummaries []*structs.BlockSummary, aggsHasTimeHt bool, aggsHasNonTimeHt bool,
@@ -113,7 +113,7 @@ func applyAggregationsSingleBlock(multiReader *segread.MultiColSegmentReader, ag
 
 	blkResults, err := blockresults.InitBlockResults(sizeLimit, aggs, qid)
 	if err != nil {
-		log.Errorf("applyAggregationsSingleBlock: failed to initialize block results reader for %s. Err: %v", searchReq.SegmentKey, err)
+		log.Errorf("aggregrateSingleBlockResults: failed to initialize block results reader for %s. Err: %v", searchReq.SegmentKey, err)
 		allSearchResults.AddError(err)
 	}
 	defer wg.Done()
@@ -124,7 +124,7 @@ func applyAggregationsSingleBlock(multiReader *segread.MultiColSegmentReader, ag
 		}
 		recIT, err := blockStatus.GetRecordIteratorCopyForBlock(utils.And)
 		if err != nil {
-			log.Errorf("qid=%d, applyAggregationsSingleBlock: failed to initialize record iterator for block %+v. Err: %v",
+			log.Errorf("qid=%d, aggregrateSingleBlockResults: failed to initialize record iterator for block %+v. Err: %v",
 				qid, blockStatus.BlockNum, err)
 			continue
 		}
@@ -228,7 +228,7 @@ func GetAggColsAndTimestamp(aggs *structs.QueryAggregators) (map[string]bool, ma
 	return aggCols, aggColUsage, valuesUsage
 }
 
-func applyAggsToResultFastPath(aggs *structs.QueryAggregators, segmentSearchRecords *SegmentSearchStatus,
+func aggregrateResultsFastPath(aggs *structs.QueryAggregators, segmentSearchRecords *SegmentSearchStatus,
 	searchReq *structs.SegmentSearchRequest, blockSummaries []*structs.BlockSummary, queryRange *dtu.TimeRange,
 	sizeLimit uint64, fileParallelism int64, queryMetrics *structs.QueryProcessingMetrics,
 	qid uint64, allSearchResults *segresults.SearchResults) error {
@@ -238,7 +238,7 @@ func applyAggsToResultFastPath(aggs *structs.QueryAggregators, segmentSearchReco
 
 	rupReader, err := segread.InitNewRollupReader(searchReq.SegmentKey, config.GetTimeStampKey(), qid)
 	if err != nil {
-		log.Errorf("qid=%d, applyAggsToResultFastPath: failed initialize rollup reader segkey %s. Error: %v",
+		log.Errorf("qid=%d, aggregrateResultsFastPath: failed initialize rollup reader segkey %s. Error: %v",
 			qid, searchReq.SegmentKey, err)
 	} else {
 		defer rupReader.Close()
@@ -248,7 +248,7 @@ func applyAggsToResultFastPath(aggs *structs.QueryAggregators, segmentSearchReco
 	allBlocksToXRollup, _, _ := getRollupForAggregation(aggs, rupReader)
 	for i := int64(0); i < fileParallelism; i++ {
 		blkWG.Add(1)
-		go applyAggsSingleBlockFastPath(aggs, allSearchResults, allBlocksChan,
+		go aggregrateSingleBlockFastPath(aggs, allSearchResults, allBlocksChan,
 			searchReq, queryRange, sizeLimit, &blkWG, queryMetrics, qid, blockSummaries,
 			allBlocksToXRollup)
 	}
@@ -261,7 +261,7 @@ func applyAggsToResultFastPath(aggs *structs.QueryAggregators, segmentSearchReco
 	return nil
 }
 
-func applyAggsSingleBlockFastPath(aggs *structs.QueryAggregators,
+func aggregrateSingleBlockFastPath(aggs *structs.QueryAggregators,
 	allSearchResults *segresults.SearchResults, blockChan chan *BlockSearchStatus, searchReq *structs.SegmentSearchRequest,
 	queryRange *dtu.TimeRange, sizeLimit uint64, wg *sync.WaitGroup, queryMetrics *structs.QueryProcessingMetrics,
 	qid uint64, blockSummaries []*structs.BlockSummary,
@@ -269,7 +269,7 @@ func applyAggsSingleBlockFastPath(aggs *structs.QueryAggregators,
 
 	blkResults, err := blockresults.InitBlockResults(sizeLimit, aggs, qid)
 	if err != nil {
-		log.Errorf("applyAggsSingleBlockFastPath: failed to initialize block results reader for %s. Err: %v", searchReq.SegmentKey, err)
+		log.Errorf("aggregrateSingleBlockFastPath: failed to initialize block results reader for %s. Err: %v", searchReq.SegmentKey, err)
 		allSearchResults.AddError(err)
 	}
 
@@ -293,7 +293,7 @@ func applyAggsSingleBlockFastPath(aggs *structs.QueryAggregators,
 	allSearchResults.AddBlockResults(blkResults)
 }
 
-func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSearchRecords *SegmentSearchStatus,
+func applySegmentStatisticsToRecords(ops []*structs.MeasureAggregator, segmentSearchRecords *SegmentSearchStatus,
 	searchReq *structs.SegmentSearchRequest, blockSummaries []*structs.BlockSummary, queryRange *dtu.TimeRange,
 	fileParallelism int64, queryMetrics *structs.QueryProcessingMetrics, qid uint64) (map[string]*structs.SegStats, error) {
 
@@ -304,7 +304,7 @@ func applySegStatsToMatchedRecords(ops []*structs.MeasureAggregator, segmentSear
 	sharedReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, measureColAndTS, searchReq.AllBlocksToSearch,
 		blockSummaries, int(fileParallelism), qid)
 	if err != nil {
-		log.Errorf("applyAggregationsToResult: failed to load all column files reader for %s. Needed cols %+v. Err: %+v",
+		log.Errorf("aggregateResults: failed to load all column files reader for %s. Needed cols %+v. Err: %+v",
 			searchReq.SegmentKey, measureColAndTS, err)
 		return nil, errors.New("failed to init sharedmulticolreader")
 	}
@@ -390,7 +390,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			idx++
 		}
 		sortedMatchedRecs = sortedMatchedRecs[:idx]
-		nonDeCols := applySegmentStatsUsingDictEncoding(multiReader, sortedMatchedRecs, mCols, aggColUsage, valuesUsage, blockStatus.BlockNum, recIT, localStats, bb, qid)
+		nonDeCols := applySegmentStatisticsUsingDictEncoding(multiReader, sortedMatchedRecs, mCols, aggColUsage, valuesUsage, blockStatus.BlockNum, recIT, localStats, bb, qid)
 		for _, recNum := range sortedMatchedRecs {
 			for colName := range nonDeCols {
 				val, err := multiReader.ExtractValueFromColumnFile(colName, blockStatus.BlockNum, recNum, qid)
@@ -426,7 +426,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 }
 
 // returns all columns that are not dict encoded
-func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filterdRecNums []uint16, mCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool,
+func applySegmentStatisticsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filterdRecNums []uint16, mCols map[string]bool, aggColUsage map[string]utils.AggColUsageMode, valuesUsage map[string]bool,
 	blockNum uint16, bri *BlockRecordIterator, lStats map[string]*structs.SegStats, bb *bbp.ByteBuffer, qid uint64) map[string]bool {
 	retVal := make(map[string]bool)
 	for colName := range mCols {
@@ -460,7 +460,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 					e := utils.CValueEnclosure{}
 					err := e.ConvertValue(rawVal)
 					if err != nil {
-						log.Errorf("applySegmentStatsUsingDictEncoding: %v", err)
+						log.Errorf("applySegmentStatisticsUsingDictEncoding: %v", err)
 						continue
 					}
 
@@ -593,7 +593,7 @@ func CanDoStarTree(segKey string, aggs *structs.QueryAggregators,
 	return true, str // caller responsible to close str if we can use agileTree
 }
 
-func ApplyAgileTree(str *segread.AgileTreeReader, aggs *structs.QueryAggregators, allSearchResults *segresults.SearchResults,
+func applyAgileTree(str *segread.AgileTreeReader, aggs *structs.QueryAggregators, allSearchResults *segresults.SearchResults,
 	sizeLimit uint64, qid uint64, agileTreeBuf []byte) {
 
 	_, internalMops := allSearchResults.BlockResults.GetConvertedMeasureInfo()
@@ -606,7 +606,7 @@ func ApplyAgileTree(str *segread.AgileTreeReader, aggs *structs.QueryAggregators
 		allSearchResults.BlockResults, qid, agileTreeBuf)
 	if err != nil {
 		allSearchResults.AddError(err)
-		log.Errorf("qid=%v, ApplyAgileTree: failed to JIT agileTree aggs, err: %v", qid, err)
+		log.Errorf("qid=%v, applyAgileTree: failed to JIT agileTree aggs, err: %v", qid, err)
 		return
 	}
 }

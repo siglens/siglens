@@ -507,7 +507,7 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 
 			if doAgileTree {
 				sTime := time.Now()
-				search.ApplyAgileTree(str, segReq.aggs, allSegFileResults, segReq.sizeLimit, queryInfo.qid,
+				search.applyAgileTree(str, segReq.aggs, allSegFileResults, segReq.sizeLimit, queryInfo.qid,
 					agileTreeBuf)
 				str.Close()
 				timeElapsed := time.Since(sTime)
