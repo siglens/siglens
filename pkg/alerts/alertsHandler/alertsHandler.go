@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/uuid"
 	alertsqlite "github.com/siglens/siglens/pkg/alerts/alertsqlite"
+	"github.com/siglens/siglens/pkg/config"
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -84,6 +85,28 @@ func Disconnect() {
 		return
 	}
 	databaseObj.CloseDb()
+}
+
+func ProcessVersionInfo(ctx *fasthttp.RequestCtx) {
+	responseBody := make(map[string]interface{})
+	// fmt.Println("testing")
+	// return func(ctx *fasthttp.RequestCtx) {
+	// 	response := VersionResponse{
+	// 		Version: config.SigLensVersion,
+	// 	}
+
+	// 	data, err := json.Marshal(response)
+	// 	if err != nil {
+	// 		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	ctx.SetContentType("application/json")
+	// 	ctx.SetStatusCode(fasthttp.StatusOK)
+	// 	ctx.Write(data)
+	// }
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	responseBody["version"] = config.SigLensVersion
+	utils.WriteJsonResponse(ctx, responseBody)
 }
 
 func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx) {

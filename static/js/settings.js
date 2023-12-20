@@ -21,4 +21,10 @@ $(document).ready(function () {
     }
     $('.theme-btn').on('click', themePickerHandler);
     displayNavbar();
+    console.log("testing before")
+    console.log("testing after")
 })
+
+
+
+

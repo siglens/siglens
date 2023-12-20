@@ -44,6 +44,31 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+type VersionResponse struct {
+	Version string `json:"version"`
+}
+
+func getVersionHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		alertsHandler.ProcessVersionInfo(ctx)
+	}
+	// fmt.Println("testing")
+	// return func(ctx *fasthttp.RequestCtx) {
+	// 	response := VersionResponse{
+	// 		Version: config.SigLensVersion,
+	// 	}
+
+	// 	data, err := json.Marshal(response)
+	// 	if err != nil {
+	// 		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	ctx.SetContentType("application/json")
+	// 	ctx.SetStatusCode(fasthttp.StatusOK)
+	// 	ctx.Write(data)
+	// }
+}
+
 func getHealthHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		health.ProcessGetHealth(ctx)

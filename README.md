@@ -90,3 +90,7 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contri
 ## Code of Conduct
 `TBD`
 
+## Steps to create docker image
+docker build --build-arg VERSION=0.1.4 -t yourapp .
+
+

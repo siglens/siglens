@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-    
-        gtag('config', 'G-5SBJC04YFB');
-    </script>
-    
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-5SBJC04YFB');
+</script>
+
 <head>
     <meta charset="UTF-8">
     <title>SigLens</title>
@@ -33,6 +33,7 @@
     <script src="./js/lib/moment.min.js"></script>
     <script src="./js/lib/date_fns.min.js"></script>
     <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/settings.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
 </head>
@@ -51,6 +52,8 @@
                             <div class="section-button"><a href="./cluster-stats.html">Cluster Stats</a></div>
                             <div class="section-button active"><a href="./org-settings.html">Settings</a></div>
                             <div class="section-button"><a href="./test-data.html">Test Data</a></div>
+                            <div class="section-button"><a href="./application-version.html">Application
+                                    Version</a></div>
                         </div>
                     </div>
                 </div>
@@ -70,6 +73,7 @@
                                 <td id="retention-days-value">4 days</td>
                             </tr>
                         </table>
+
                     </div>
                 </div>
             </div>
@@ -91,7 +95,7 @@
     <script src="./js/saved-query.js?cb=1_1_10"></script>
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./js/point-click-search.js?cb=1_1_10"></script>
-    <script src="./js/settings.js"></script>
+
 </body>
 
 </html>

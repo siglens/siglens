@@ -34,15 +34,38 @@ $(document).ready(() => {
 
     // Make api call to get the cluster stats
     let data = getTimeRange();
-
+    fetchVersionInfo();
     renderClusterStatsTables();
-
+    console.log("testing before")
+    console.log("testing after")
     renderChart();
     if (Cookies.get('theme')) {
         theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
     }
 });
+
+
+function fetchVersionInfo() {
+
+    $.ajax({
+        method: "GET",
+        url: "/api/version/info",
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': '*/*'
+        },
+        dataType: 'json',
+        crossDomain: true,
+    }).then(function (res) {
+        const versionInfo = 'SigLens Version: ' + res.version;
+        $('#versionInfo').text(versionInfo);
+        console.log("tsting in res " ,res)
+    }).fail(function (jqXHR, textStatus, errorThrown) {
+        console.error('Error fetching version:', textStatus, errorThrown);
+        $('#versionInfo').text('Error loading version');
+    });
+}
 
 function iStatsDatePickerHandler(evt) {
     evt.preventDefault();
@@ -363,6 +386,13 @@ function drawTotalStatsChart(res) {
 
     
 }
+
+
+
+
+
+
+
 
 function renderTotalCharts(totalIncomingVolume, totalIncomingVolumeMetrics, totalStorageUsed, totalStorageUsedMetrics) {
     var TotalVolumeChartCanvas = $("#TotalVolumeChart").get(0).getContext("2d");

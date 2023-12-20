@@ -33,6 +33,7 @@
     <script src="./js/lib/moment.min.js"></script>
     <script src="./js/lib/date_fns.min.js"></script>
     <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/settings.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
 </head>
@@ -50,9 +51,9 @@
                         <div class="section-buttons">
                             <div class="section-button"><a href="./cluster-stats.html">Cluster Stats</a></div>
                             <div class="section-button"><a href="./org-settings.html">Settings</a></div>
-                            <div class="section-button active"><a href="./test-data.html">Test Data</a></div>
-                            <div class="section-button"><a href="./application-version.html">Application Version</a>
-                            </div>
+                            <div class="section-button"><a href="./test-data.html">Test Data</a></div>
+                            <div class="section-button active"><a href="./application-version.html">Application
+                                    Version</a></div>
                         </div>
                     </div>
                 </div>
@@ -60,34 +61,21 @@
                 <div class="myOrg-inner-container">
                     <div>
                         <div>
-                            <p class="caption">Experiment with a test data set</p>
-                        </div>
-                        <div id="test-data-container">
-                            <div class="main-dropdown">
-                                <div class="role-inner-dropdown">
-                                    <div class="select">Select Test Data
-                                        <span class="arrow-btn"><img src="./assets/arrow-btn.svg" alt="" /></span>
-                                    </div>
-                                </div>
-                                <ul class="list-unstyled dropdown-option">
-                                    <!-- <li class=" roles">Apache access logs</li> -->
-                                    <li class="roles" id="test-dataset-1">Person Profile </li>
-                                </ul>
-                            </div>
-                            <div><button type="button" class="btn" id="test-data-btn">Send Test Data</button></div>
+                            <h3>Application Version:</h3>
+                            <p id="versionInfo">Loading...</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div id="app-footer">
-        2023 &copy; SigLens
-    </div>
+        <div id="app-footer">
+            2023 &copy; SigLens
+        </div>
     </div>
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/cluster-stats.js"></script>
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/available-fields.js?cb=1_1_10"></script>
     <script src="./js/log-results-grid.js?cb=1_1_10"></script>
@@ -97,7 +85,7 @@
     <script src="./js/saved-query.js?cb=1_1_10"></script>
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./js/point-click-search.js?cb=1_1_10"></script>
-    <script src="./js/test-data.js"></script>
+
 </body>
 
 </html>
