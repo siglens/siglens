@@ -67,7 +67,7 @@ The caller is responsible for calling qs.Wait() to wait for all grpcs to finish
 func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators, queryRange *dtu.TimeRange,
 	indexInfo *structs.TableInfo, sizeLimit uint64, parallelismPerFile int64, qid uint64,
 	dqs *DistributedQueryService, orgid uint64) (*queryInformation, error) {
-	colsToSearch := search.GetAggColsAndTimestamp(aggs)
+	colsToSearch, _, _ := search.GetAggColsAndTimestamp(aggs)
 	isQueryPersistent, err := querytracker.IsQueryPersistent(indexInfo.GetQueryTables(), s)
 	if err != nil {
 		log.Errorf("InitQueryInformation: failed to check if query is persistent! Err %v", err)
