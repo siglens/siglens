@@ -180,27 +180,49 @@ https://api.segment.io/v1/track \
   }
 }'
 
+initial_port=5122
+start_port=5122
+end_port=5122
+
+check_ports() {
+    
+    if lsof -Pi :$initial_port -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:${initial_port}->"; then
+        for port in $(seq $start_port $end_port); do
+            if lsof -Pi :$port -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:$port->"; then
+                continue
+            else
+                echo $port
+                return 0
+            fi
+        done
+        echo "-1"
+        return 1
+    else
+        echo "${initial_port}"
+        return 0
+    fi
+}
+
+ui_port=$(check_ports)
+
+if [ ${ui_port} == "-1" ]; then
+    echo ""
+    tput bold
+    printf "\e[31mError: No available port found on port ${initial_port} or in the range from ${start_port} to ${end_port}.\e[0m\n"
+    tput sgr0
+    exit 1
+fi
+
 echo -e "\n===> In case ports 80 and 8081 are in use change the settings as follows"
 echo -e "ingestPort(8081) and queryPort(80) can be changed using in server.yaml."
 echo -e "queryPort(80) can also be changed by setting the environment variable $PORT."
+
 tput bold
-echo -e "\n===> ${bold}Run the following commands together to start the siglens server"
-tput sgr0
-echo "====================**************************************************============================"
+printf "\n===> \e[32mFrontend can be accessed on http://localhost:${ui_port}\e[0m"
 echo ""
-tput bold
-echo "SIGLENS_VERSION=\`\
-    curl  --silent \"https://api.github.com/repos/siglens/siglens/releases/latest\" |
-    grep '\"tag_name\":' |
-    sed -E 's/.*\"([^\"]+)\".*/\\1/'\`"
-echo 'docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
+tput sgr0
+docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
     --mount type=bind,source="$(pwd)"/server.yaml,target=/siglens/server.yaml \
-    -p 8081:8081 -p 80:80 siglens/siglens:$SIGLENS_VERSION'
-tput sgr0
-echo ""
-echo "====================**************************************************============================"
-tput bold
-echo -e "\n===> ${bold}Frontend can be accessed on http://localhost:80"
-echo ""
-tput sgr0
+    -p 8081:8081 -p ${ui_port}:80 siglens/siglens:${SIGLENS_VERSION}
+
 echo -e "\n*** Thank you! ***\n"
