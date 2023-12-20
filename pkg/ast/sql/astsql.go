@@ -141,6 +141,7 @@ func getMathFunctionSQL(funcName string, argExprs sqlparser.SelectExprs, qid uin
 
 		leftExpr, err := convertToNumericExpr(argExprs[0])
 		if err != nil {
+			log.Errorf("qid=%v, getMathFunctionSQL: error converting left expression of round to numeric expression! %+v", qid, err)
 			return nil, err
 		}
 
@@ -148,6 +149,7 @@ func getMathFunctionSQL(funcName string, argExprs sqlparser.SelectExprs, qid uin
 		if len(argExprs) == 2 {
 			rightExpr, err = convertToNumericExpr(argExprs[1])
 			if err != nil {
+				log.Errorf("qid=%v, getMathFunctionSQL: error converting right expression of round to numeric expression! %+v", qid, err)
 				return nil, err
 			}
 		}
@@ -161,25 +163,17 @@ func getMathFunctionSQL(funcName string, argExprs sqlparser.SelectExprs, qid uin
 
 func convertToNumericExpr(expr any) (*structs.NumericExpr, error) {
 	switch e := expr.(type) {
-	case *sqlparser.ColName:
-		// Handle column name expressions
-		return &structs.NumericExpr{
-			IsTerminal:      true,
-			ValueIsField:    true,
-			Value:           e.Name.CompliantName(),
-			NumericExprMode: determineNumericExprMode(e),
-		}, nil
-	case *sqlparser.SQLVal:
-		// Handle SQL values (like numbers, strings)
-		return &structs.NumericExpr{
-			IsTerminal:      true,
-			Value:           string(e.Val),
-			NumericExprMode: determineNumericExprMode(e),
-		}, nil
-	// Add other cases here as needed, for example handling nested functions or operations
 	case *sqlparser.AliasedExpr:
 
 		switch agg := e.Expr.(type) {
+
+		case *sqlparser.ColName:
+			return &structs.NumericExpr{
+				IsTerminal:      true,
+				ValueIsField:    true,
+				Value:           agg.Name.CompliantName(),
+				NumericExprMode: determineNumericExprMode(agg),
+			}, nil
 		case *sqlparser.FuncExpr:
 			return &structs.NumericExpr{
 				IsTerminal:      true,
@@ -375,6 +369,9 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 							measureOp = &structs.MeasureAggregator{MeasureCol: measureCol, MeasureFunc: getAggregationSQL(measureFunc, qid)}
 						}
 					} else {
+
+						leftExpr.Value = "0(" + leftExpr.Value + ")"
+
 						measureOp = &structs.MeasureAggregator{MeasureCol: sqlparser.String(agg.Exprs[0])}
 					}
 
