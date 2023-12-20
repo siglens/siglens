@@ -64,7 +64,7 @@ limitations under the License.
          allFields.removeClass("ui-state-error");
          tips.removeClass("ui-state-highlight");
          tips.text('');
-         valid = valid && checkLength(qname, "queryname", 3, 16);
+         valid = valid && checkLength(qname, "query name", 3, 30);
          valid = valid && checkRegexp(qname, /^[a-zA-Z0-9_-]+$/i, "queryname may consist of a-z, 0-9, dash, underscores.");
  
          if (valid) {
@@ -157,7 +157,20 @@ limitations under the License.
      // init method gets the details of the cell to be renderer
      init(params) {
         this.eGui = document.createElement('span');
-        this.eGui.innerHTML = '<a class="query-link" href="index.html?searchText=' + encodeURIComponent(params.data.searchText)+ "&indexName=" + encodeURIComponent(params.data.indexName) + '" title="' + params.data.description + '"style="display:block;">' + params.data.qname + '</a>'
+        let href = "index.html?searchText=" +
+          encodeURIComponent(params.data.searchText) +
+          "&indexName=" +
+          encodeURIComponent(params.data.indexName) +
+          "&filterTab=" +
+          encodeURIComponent(params.data.filterTab) +
+          "&queryLanguage=" +
+          encodeURIComponent(params.data.queryLanguage);
+        this.eGui.innerHTML = '<a class="query-link" href=' + href +
+          '" title="' +
+          params.data.description +
+          '"style="display:block;">' +
+          params.data.qname +
+          "</a>";
      }
  
      getGui() {
@@ -242,27 +255,37 @@ $(document).ready(function () {
 });
 
  let queriesColumnDefs = [
-     {
-         field: "rowId",
-         hide: true
-     },
-     {
-         field: "qname",
-         headerName: "Query Name",
-         cellRenderer: linkCellRenderer,
-         resizable: true,
-     },
-     {
-         field: "qdescription",
-         headerName: "Description",
-         resizable: true,
-     },
-     {
-         field: "qdelete",
-         headerName: "Delete",
-         cellRenderer: btnCellRenderer,
-         resizable: false
-     }
+   {
+     field: "rowId",
+     hide: true,
+   },
+   {
+     field: "qname",
+     headerName: "Query Name",
+     cellRenderer: linkCellRenderer,
+     resizable: true,
+   },
+   {
+     field: "qdescription",
+     headerName: "Description",
+     resizable: true,
+   },
+   {
+     field: "queryLanguage",
+     headerName: "QueryLanguage",
+     resizable: true,
+   },
+   {
+     field: "filterTab",
+     headerName: "FilterTab",
+     hide: true,
+   },
+   {
+     field: "qdelete",
+     headerName: "Delete",
+     cellRenderer: btnCellRenderer,
+     resizable: false,
+   },
  ];
  
  
@@ -303,7 +326,8 @@ $(document).ready(function () {
             newRow.set("searchText", value.searchText)
             newRow.set("indexName", value.indexName)
             newRow.set("qname", key)
-
+            newRow.set("queryLanguage", value.queryLanguage)
+            newRow.set("filterTab", value.filterTab)
             sqFilteredRowData = _.concat(sqFilteredRowData, Object.fromEntries(newRow));
             idx = idx + 1
     })
@@ -323,6 +347,8 @@ $(document).ready(function () {
             newRow.set("searchText", value.searchText)
             newRow.set("indexName", value.indexName)
             newRow.set("qname", key)
+            newRow.set("queryLanguage", value.queryLanguage)
+            newRow.set("filterTab", value.filterTab)
             sqRowData = _.concat(sqRowData, Object.fromEntries(newRow));
             idx = idx + 1
     })
