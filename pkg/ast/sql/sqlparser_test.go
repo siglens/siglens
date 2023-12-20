@@ -150,7 +150,7 @@ func Test_ParseGroupByRound(t *testing.T) {
 
 	assert.NotNil(t, next.OutputTransforms)
 	assert.NotNil(t, next.OutputTransforms.LetColumns)
-	assert.Equal(t, next.PipeCommandType, 1)
+	assert.Equal(t, next.PipeCommandType, structs.PipeCommandType(0x1))
 
 	query_string = "SELECT ROUND(sum(latitude), 2) FROM `*` GROUP BY city"
 
