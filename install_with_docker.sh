@@ -150,9 +150,9 @@ start_docker
 
 echo -e "\n===> Pulling the latest docker image for SigLens"
 
-wget "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
+curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
 $sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION}
-$sudo_cmd mkdir data
+mkdir data
 echo ""
 echo -e "\n===> SigLens installation complete"
 
@@ -180,25 +180,25 @@ https://api.segment.io/v1/track \
   }
 }'
 
-echo ""
-tput bold
-echo -e "\n===> ${bold}Run the following command to start the siglens server"
-tput sgr0
-echo "====================**************************************************============================"
-echo ""
-echo -e "docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
-    --mount type=bind,source="$(pwd)"/server.yaml,target=/siglens/server.yaml \
-    -p 8081:8081 -p 80:80 siglens/siglens:0.1.0"
-echo ""
-echo "====================**************************************************============================"
-
 echo -e "\n===> In case ports 80 and 8081 are in use change the settings as follows"
 echo -e "ingestPort(8081) and queryPort(80) can be changed using in server.yaml."
 echo -e "queryPort(80) can also be changed by setting the environment variable $PORT."
+tput bold
+echo -e "\n===> ${bold}Run the following commands together to start the siglens server"
+tput sgr0
+echo "====================**************************************************============================"
 echo ""
-echo -e "To be able to query data across restarts, set ssInstanceName in server.yaml."
+tput bold
+echo "SIGLENS_VERSION=\`\
+    curl  --silent \"https://api.github.com/repos/siglens/siglens/releases/latest\" |
+    grep '\"tag_name\":' |
+    sed -E 's/.*\"([^\"]+)\".*/\\1/'\`"
+echo 'docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
+    --mount type=bind,source="$(pwd)"/server.yaml,target=/siglens/server.yaml \
+    -p 8081:8081 -p 80:80 siglens/siglens:$SIGLENS_VERSION'
+tput sgr0
 echo ""
-echo -e "The target for the data directory mounting should be the same as the data directory (dataPath configuration) in server.yaml"
+echo "====================**************************************************============================"
 tput bold
 echo -e "\n===> ${bold}Frontend can be accessed on http://localhost:80"
 echo ""
