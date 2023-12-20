@@ -89,21 +89,6 @@ func Disconnect() {
 
 func ProcessVersionInfo(ctx *fasthttp.RequestCtx) {
 	responseBody := make(map[string]interface{})
-	// fmt.Println("testing")
-	// return func(ctx *fasthttp.RequestCtx) {
-	// 	response := VersionResponse{
-	// 		Version: config.SigLensVersion,
-	// 	}
-
-	// 	data, err := json.Marshal(response)
-	// 	if err != nil {
-	// 		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
-	// 		return
-	// 	}
-	// 	ctx.SetContentType("application/json")
-	// 	ctx.SetStatusCode(fasthttp.StatusOK)
-	// 	ctx.Write(data)
-	// }
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	responseBody["version"] = config.SigLensVersion
 	utils.WriteJsonResponse(ctx, responseBody)
