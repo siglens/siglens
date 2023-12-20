@@ -494,8 +494,15 @@ func searchTracesHandler() func(ctx *fasthttp.RequestCtx) {
 		tracinghandler.ProcessSearchTracesRequest(ctx, 0)
 	}
 }
+
 func getDependencyGraphHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		tracinghandler.ProcessDependencyRequest(ctx, 0)
+	}
+}
+
+func ganttChartHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		tracinghandler.ProcessGanttChartRequest(ctx, 0)
 	}
 }

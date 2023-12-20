@@ -248,6 +248,6 @@ func SearchStr(needle string, haystack []string) bool {
 }
 
 // returns string using unsafe. This is zero-copy and uses unsafe
-func ByteSliceToString(haystack []byte) string {
+func UnsafeByteSliceToString(haystack []byte) string {
 	return *(*string)(unsafe.Pointer(&haystack))
 }
