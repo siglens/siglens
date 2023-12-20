@@ -10,6 +10,11 @@ SIGLENS_VERSION=`\
 
 sudo_cmd=""
 
+# Text color
+RED_TEXT='\e[31m'
+GREEN_TEXT='\e[32m'
+RESET_COLOR='\e[0m'
+
 # Check sudo permissions
 if (( $EUID != 0 )); then
     echo "===> Running installer with non-sudo permissions."
@@ -152,7 +157,7 @@ echo -e "\n===> Pulling the latest docker image for SigLens"
 
 curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
 $sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION}
-mkdir data
+mkdir -p data
 echo ""
 echo -e "\n===> SigLens installation complete"
 
@@ -180,14 +185,14 @@ https://api.segment.io/v1/track \
   }
 }'
 
-initial_port=5122
-start_port=5122
-end_port=5122
+INITIAL_PORT=5122
+START_PORT=5122
+END_PORT=5122
 
 check_ports() {
     
-    if lsof -Pi :$initial_port -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:${initial_port}->"; then
-        for port in $(seq $start_port $end_port); do
+    if lsof -Pi :$INITIAL_PORT -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:${INITIAL_PORT}->"; then
+        for port in $(seq $START_PORT $END_PORT); do
             if lsof -Pi :$port -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:$port->"; then
                 continue
             else
@@ -198,17 +203,17 @@ check_ports() {
         echo "-1"
         return 1
     else
-        echo "${initial_port}"
+        echo "${INITIAL_PORT}"
         return 0
     fi
 }
 
-ui_port=$(check_ports)
+UI_PORT=$(check_ports)
 
-if [ ${ui_port} == "-1" ]; then
+if [ ${UI_PORT} == "-1" ]; then
     echo ""
     tput bold
-    printf "\e[31mError: No available port found on port ${initial_port} or in the range from ${start_port} to ${end_port}.\e[0m\n"
+    printf "${RED_TEXT}Error: Port ${INITIAL_PORT} is already in use.\n"
     tput sgr0
     exit 1
 fi
@@ -218,11 +223,11 @@ echo -e "ingestPort(8081) and queryPort(80) can be changed using in server.yaml.
 echo -e "queryPort(80) can also be changed by setting the environment variable $PORT."
 
 tput bold
-printf "\n===> \e[32mFrontend can be accessed on http://localhost:${ui_port}\e[0m"
+printf "\n===> ${GREEN_TEXT}Frontend can be accessed on http://localhost:${UI_PORT}${RESET_COLOR}"
 echo ""
 tput sgr0
 docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
     --mount type=bind,source="$(pwd)"/server.yaml,target=/siglens/server.yaml \
-    -p 8081:8081 -p ${ui_port}:80 siglens/siglens:${SIGLENS_VERSION}
+    -p 8081:8081 -p ${UI_PORT}:80 siglens/siglens:${SIGLENS_VERSION}
 
 echo -e "\n*** Thank you! ***\n"
