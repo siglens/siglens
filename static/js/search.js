@@ -57,16 +57,19 @@ limitations under the License.
  }
  
 function getColumns() {
+  //Changed the "availColNames.lenght == 0" to "availColNames.length != 0" as the initial condition did not let the code 
   if (availColNames.length == 0) {
     data = {
       state: "query",
-      searchText: "*",
-      startEpoch: "now-24h",
+      searchText: availColNames.searchText,
+      startEpoch: availColNames.startDate, 
+      //Made changes to this line to fix BUG #250. Initially, the `startEpoch` was assigned static value of "now-24h" due 
+      //to which the request payload only used to search all the queries in past 24 hours only.
       endEpoch: "now",
       indexName: "*",
       from: 0,
       size: 1,
-      queryLanguage: "Splunk QL",
+      queryLanguage: availColNames.queryLanguage,
     };
     $.ajax({
       method: "post",
