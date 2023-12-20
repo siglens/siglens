@@ -168,7 +168,36 @@ RenamingLoop:
 	}
 
 	if colReq.RenameColumns != nil {
-		return errors.New("performColumnsRequest: processing ColumnsRequest.RenameColumns is not implemented")
+		// return errors.New("performColumnsRequest: processing ColumnsRequest.RenameColumns is not implemented")
+
+		for oldCName, newCName := range colReq.RenameColumns {
+			// Rename in MeasureFunctions
+			for i, cName := range nodeResult.MeasureFunctions {
+				if cName == oldCName {
+					nodeResult.MeasureFunctions[i] = newCName
+				}
+			}
+
+			// Rename in MeasureResults
+			for _, bucketHolder := range nodeResult.MeasureResults {
+				if _, exists := bucketHolder.MeasureVal[oldCName]; exists {
+					bucketHolder.MeasureVal[newCName] = bucketHolder.MeasureVal[oldCName]
+					delete(bucketHolder.MeasureVal, oldCName)
+				}
+			}
+
+			// Rename in Histogram
+			for _, aggResult := range nodeResult.Histogram {
+				for _, bucketResult := range aggResult.Results {
+					if value, exists := bucketResult.StatRes[oldCName]; exists {
+						bucketResult.StatRes[newCName] = value
+						delete(bucketResult.StatRes, oldCName)
+					}
+				}
+			}
+		}
+
+		return nil
 	}
 	if colReq.ExcludeColumns != nil {
 		return errors.New("performColumnsRequest: processing ColumnsRequest.ExcludeColumns is not implemented")

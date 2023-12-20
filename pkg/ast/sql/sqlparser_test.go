@@ -142,7 +142,7 @@ func Test_ParseGroupByRound(t *testing.T) {
 	assert.Equal(t, rightExpr.Value, "1")
 	assert.Equal(t, leftExpr.ValueIsField, true)
 	assert.Equal(t, rightExpr.ValueIsField, false)
-	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "Round(0(latency))")
+	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "round(0(latency))")
 
 	assert.NotNil(t, aggs.Next)
 
@@ -172,5 +172,5 @@ func Test_ParseGroupByRound(t *testing.T) {
 	assert.Equal(t, leftExpr.ValueIsField, true)
 	assert.Equal(t, rightExpr.ValueIsField, false)
 	assert.Nil(t, leftExpr.Val)
-	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "Round(sum(latitude))")
+	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "round(sum(latitude))")
 }

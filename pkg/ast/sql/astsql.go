@@ -380,6 +380,11 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 					measureOps = append(measureOps, measureOp)
 					newGroupByReq.MeasureOperations = append(newGroupByReq.MeasureOperations, measureOp)
 
+					if len(label) != 0 {
+						renameCols[strings.ToLower(sqlparser.String(agg))] = label
+						renameCols["round_field_name"] = label
+					}
+
 				} else {
 
 					measureOp := &structs.MeasureAggregator{
@@ -447,13 +452,39 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 
 		aggNode.OutputTransforms.LetColumns.ValueColRequest = &structs.ValueExpr{}
 		aggNode.OutputTransforms.LetColumns.ValueColRequest.NumericExpr = mathFunctionCols[0]
-		aggNode.OutputTransforms.LetColumns.NewColName = "Round(" + mathFunctionCols[0].Left.Value + ")"
+
+		if renameCols["round_field_name"] != "" {
+			aggNode.OutputTransforms.LetColumns.NewColName = renameCols["round_field_name"]
+			delete(renameCols, "round_field_name")
+		} else {
+			aggNode.OutputTransforms.LetColumns.NewColName = "round(" + mathFunctionCols[0].Left.Value + ")"
+		}
 
 		aggNode.Next = &structs.QueryAggregators{OutputTransforms: &structs.OutputTransforms{}}
 		aggNode.Next.PipeCommandType = 1
 		aggNode.Next.OutputTransforms = &structs.OutputTransforms{LetColumns: &structs.LetColumnsRequest{}}
 		aggNode.Next.OutputTransforms.LetColumns = aggNode.OutputTransforms.LetColumns
 
+	}
+
+	if aggNode.OutputTransforms != nil && aggNode.OutputTransforms.OutputColumns != nil {
+		renameColumns := aggNode.OutputTransforms.OutputColumns.RenameColumns
+		renameAggregationColumns := aggNode.OutputTransforms.OutputColumns.RenameAggregationColumns
+
+		if (len(renameColumns) > 0) || (len(renameAggregationColumns) > 0) {
+			if aggNode.Next == nil || aggNode.Next.OutputTransforms == nil {
+				aggNode.Next = &structs.QueryAggregators{OutputTransforms: &structs.OutputTransforms{}}
+			}
+
+			if aggNode.Next.OutputTransforms.OutputColumns == nil {
+				aggNode.Next.OutputTransforms.OutputColumns = &structs.ColumnsRequest{}
+			}
+
+			aggNode.Next.OutputTransforms.OutputColumns.RenameColumns = renameColumns
+			aggNode.Next.OutputTransforms.OutputColumns.RenameAggregationColumns = renameAggregationColumns
+
+			aggNode.Next.PipeCommandType = 1
+		}
 	}
 
 	if currStmt.Where != nil {
