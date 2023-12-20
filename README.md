@@ -5,9 +5,9 @@ English | [简体中文](README_ZH_CN.md)
 <p align="center">
   
 
-  <p align="center">SigLens is an Open Source Observability solution that is 💥💥 <b>100x</b> 💥💥 more efficient than Splunk, Elastic.</p>
-  <p align="center">SigLens is a <b>single binary</b> solution for Logs 🎯, Metrics 🎯 and Traces 🎯.</p>
-  <p align="center">Reduce your observability bill by more than ⚡⚡ <b>90%</b> ⚡⚡ using SigLens.</p>
+  <p align="left">Open Source Observability solution that is 💥💥 <b>100x</b> 💥💥 more efficient than Splunk, Elastic.</p>
+  <p align="left"><b>Single binary</b> for Logs 🎯, Metrics 🎯 and Traces 🎯.</p>
+  <p align="left">Cut down your DataDog/Splunk bill by <b>90%</b> ⚡ ⚡ </p>
 
 </p>
 
@@ -26,21 +26,10 @@ Armed with decades of experience in monitoring domain, we set out to build a obs
 <br /><br />
 
 
-## Join our Community
-
-Come say Hi to us on <a href="https://www.siglens.com/slack" target="_blank">Slack</a> 👋
-
-<br />
-
 # Getting Started
-
-### Install Using Git Repo
-Please follow the steps listed <a href="https://siglens.github.io/siglens-docs/installation/git" target="_blank">here</a>.
-
 
 ### Install Using Binary
 Please follow the steps listed <a href="https://siglens.github.io/siglens-docs/installation/binary" target="_blank">here</a>.
-
 
 ### Install Using Docker
 Please follow the steps listed <a href="https://siglens.github.io/siglens-docs/installation/docker" target="_blank">here</a>.
@@ -65,6 +54,15 @@ Check out this <a href="https://www.sigscalr.io/blog/sigscalr-vs-elasticsearch.h
 
 ### SigLens v/s ClickHouse 
 Check out this <a href="https://www.sigscalr.io/blog/sigscalr-vs-clickhouse.html" target="_blank">blog</a> where SigLens is **`4x-37x`** Faster than ClickHouse 🚀🚀
+
+
+<br />
+
+## Join our Community
+
+Come say Hi to us on <a href="https://www.siglens.com/slack" target="_blank">Slack</a> 👋
+
+<br />
 
 
 # Contributing
