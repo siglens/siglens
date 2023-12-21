@@ -535,7 +535,7 @@ OptionCMD <- option:("countfield" / "showcount" / "otherstr" / "useother"/ "perc
     return optionStr, nil
 }
 
-ByClause <- by fieldList:FieldNameList {
+ByClause <- BY fieldList:FieldNameList {
     return fieldList.([]string), nil
 }
 / groupByBlock:GroupbyBlock {
@@ -1796,14 +1796,15 @@ MAJOR_BREAK <- [[\]<>(){}|!;,'"*\n\r \t&?+] / "%21" / "%26" /
                "%2520" / "%5D" / "%5B" / "%3A" / "%0A" / "%2C" / "%28" / "%29"
 MINOR_BREAK <- [/:=@.$#%_] / "-" / "\\"
 
+// https://community.splunk.com/t5/Splunk-Search/are-search-language-keywords-case-sensitive/m-p/9106
+// has some information about case sensitivity.
 NOT <- "NOT" SPACE
 OR <- SPACE "OR" SPACE
 AND <- SPACE "AND" SPACE
 PIPE <- SPACE "|" SPACE
-AS <- SPACE "AS" SPACE
-BY <- SPACE "BY" SPACE
-by <- SPACE "by" SPACE
+AS <- SPACE "AS"i SPACE // Case insensitive
+BY <- SPACE "BY"i SPACE // Case insensitive
 
 EOF <- !.
-SPACE <- (" "? COMMENT " "?) / " "
+SPACE <- (" "? COMMENT " "?) / " "+
 COMMENT <- "```" (!("```") .)* "```"
