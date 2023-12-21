@@ -3,7 +3,7 @@
 ingestPort: 8081
 
 ## Address port for SigLens query server, including UI
-queryPort: 80
+queryPort: 5122
 
 ## Location for storing local node data
 dataPath : data/

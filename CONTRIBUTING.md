@@ -84,9 +84,9 @@ Once golang is installed, start up SigLens by running the following command at t
 go run cmd/siglens/main.go --config server.yaml
 ```
 
-By default, the UI server will start up on port `80` and the backend will start on port `8081`.
+By default, the UI server will start up on port `5122` and the backend will start on port `8081`.
 
-You should be able to access `http://localhost:80` and see the SigLens UI. If you are not able to, check `siglens.log` for any error messages.
+You should be able to access `http://localhost:5122` and see the SigLens UI. If you are not able to, check `siglens.log` for any error messages.
 
 
 ### Send Data to SigLens
@@ -107,7 +107,7 @@ Using the UI, you should be able to send queries using our pipe search query lan
 
 The sigscalr-client also supports sending queries using:
 ```
-go run main.go query -d http://localhost:80/elastic -n 10 -v
+go run main.go query -d http://localhost:5122/elastic -n 10 -v
 ```
 
 
