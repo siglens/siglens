@@ -230,4 +230,16 @@ docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
     --mount type=bind,source="$(pwd)"/server.yaml,target=/siglens/server.yaml \
     -p 8081:8081 -p ${UI_PORT}:80 siglens/siglens:${SIGLENS_VERSION}
 
+if [ $? -ne 0 ]; then
+    tput bold
+    printf "\n${RED_TEXT}Error: Docker failed to start. This could be due to a permission issue.${RESET_COLOR}"
+    printf "\nPlease try these steps:"
+    printf "\n1. Run: sudo groupadd docker"
+    echo ""
+    printf '2. Run: sudo usermod -aG docker ${USER}'
+    printf "\n3. You should log out and log back in so that your group membership is re-evaluated\n"
+    tput sgr0
+    exit 1
+fi
+
 echo -e "\n*** Thank you! ***\n"
