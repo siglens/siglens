@@ -138,7 +138,7 @@ function renderPanelLogsGrid(columnOrder, hits, panelId,logLinesViewType) {
         return {
             field: colName,
             hide: hideCol,
-            headerName: colName.toLowerCase(),
+            headerName: colName,
             cellRenderer: myCellRenderer,
             cellRendererParams: {
                 colName: colName
