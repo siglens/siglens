@@ -387,13 +387,6 @@ function drawTotalStatsChart(res) {
     
 }
 
-
-
-
-
-
-
-
 function renderTotalCharts(totalIncomingVolume, totalIncomingVolumeMetrics, totalStorageUsed, totalStorageUsedMetrics) {
     var TotalVolumeChartCanvas = $("#TotalVolumeChart").get(0).getContext("2d");
     TotalVolumeChart = new Chart(TotalVolumeChartCanvas, {

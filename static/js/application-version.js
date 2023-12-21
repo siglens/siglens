@@ -8,9 +8,7 @@ $(document).ready(function () {
     }
     $('.theme-btn').on('click', themePickerHandler);
     displayNavbar();
-    console.log("before testing")
     fetchVersionInfo();
-    console.log("after testing")
     $('#new-contact-point').on('click',initializeContactForm)
     $('#contact-form-container').css('display', 'none');
     getAllContactPoints();
