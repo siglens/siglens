@@ -58,7 +58,8 @@ limitations under the License.
  }
  
 function getColumns() {
-  if (availColNames.length == 0) {
+  let currentTab = $("#custom-code-tab").tabs("option", "active");
+  if (availColNames.length == 0 && currentTab == 0) {
     data = {
       state: "query",
       searchText: "*",
