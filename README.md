@@ -1,4 +1,11 @@
-# SigLens
+<p align="center">
+   SigLens
+</p>
+
+---
+[![Build Status](https://github.com/siglens/siglens/workflows/siglens-docker-release/badge.svg)](https://github.com/siglens/siglens/actions/workflows/publish-prod-images.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/siglens/siglens)](https://goreportcard.com/report/github.com/siglens/siglens)
+[![GoDoc](https://godoc.org/github.com/siglens/siglens?status.svg)](https://godoc.org/github.com/siglens/siglens)
 
 English | [简体中文](README_ZH_CN.md)
 
@@ -67,7 +74,7 @@ Have questions, ask them in our community <a href="https://www.siglens.com/slack
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contributions to SigLens.
 
-# How TOs
+# How-Tos
 
 #### Searching Logs
 ![Searching Logs](./static/assets/readme-assets/log-searching.png)
