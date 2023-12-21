@@ -593,8 +593,9 @@ func CanDoStarTree(segKey string, aggs *structs.QueryAggregators,
 	return true, str // caller responsible to close str if we can use agileTree
 }
 
-func ApplyAgileTree(str *segread.AgileTreeReader, aggs *structs.QueryAggregators, allSearchResults *segresults.SearchResults,
-	sizeLimit uint64, qid uint64, agileTreeBuf []byte) {
+func ApplyAgileTree(str *segread.AgileTreeReader, aggs *structs.QueryAggregators,
+	allSearchResults *segresults.SearchResults, sizeLimit uint64, qid uint64,
+	agileTreeBuf []byte) {
 
 	_, internalMops := allSearchResults.BlockResults.GetConvertedMeasureInfo()
 
