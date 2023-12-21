@@ -5,9 +5,9 @@ English | [简体中文](README_ZH_CN.md)
 <p align="center">
   
 
-  <p align="left">Open Source Observability solution that is 💥💥 <b>100x</b> 💥💥 more efficient than Splunk, Elastic.</p>
+  <p align="left">Open Source Observability that is 💥💥 <b>100x</b> 💥💥 more efficient than Splunk </p>
   <p align="left"><b>Single binary</b> for Logs 🎯, Metrics 🎯 and Traces 🎯.</p>
-  <p align="left">Cut down your DataDog/Splunk bill by <b>90%</b> ⚡ ⚡ </p>
+  <p align="left">Cut down your Splunk bill by ⚡ ⚡ <b>90%</b> ⚡ ⚡ </p>
 
 </p>
 
@@ -26,23 +26,14 @@ Armed with decades of experience in monitoring domain, we set out to build a obs
 <br /><br />
 
 
-# Getting Started
+# Setup
+## Installation
 
-### Install Using Binary
-Please follow the steps listed <a href="https://siglens.github.io/siglens-docs/installation/binary" target="_blank">here</a>.
+### &emsp; <a href="https://siglens.github.io/siglens-docs/installation/binary" target="_blank">Binary</a> &emsp; | &emsp; <a href="https://siglens.github.io/siglens-docs/installation/docker" target="_blank">Docker</a> &emsp;| &emsp; <a href="https://siglens.github.io/siglens-docs/installation/helm" target="_blank">Helm</a>
 
-### Install Using Docker
-Please follow the steps listed <a href="https://siglens.github.io/siglens-docs/installation/docker" target="_blank">here</a>.
+## Documentation
+### &emsp; <a href="https://siglens.github.io/siglens-docs" target="_blank">Docs</a> &emsp;
 
-### Install Using Helm
-Please follow the steps listed <a href="https://siglens.github.io/siglens-docs/installation/helm" target="_blank">here</a>.
-<br />
-
-# Features:
-
-1. Multiple Ingestion formats: Open Telemetry, Elastic, Splunk HEC, Loki
-2. Multiple Query Languages: Splunk SPL, SQL and Loki LogQL
-3. Simple architecture, easy to get started.
 
 # Differentiators
 
@@ -58,9 +49,16 @@ Check out this <a href="https://www.sigscalr.io/blog/sigscalr-vs-clickhouse.html
 
 <br />
 
+# Features:
+
+1. Multiple Ingestion formats: Open Telemetry, Elastic, Splunk HEC, Loki
+2. Multiple Query Languages: Splunk SPL, SQL and Loki LogQL
+3. Simple architecture, easy to get started.
+
+
 ## Join our Community
 
-Come say Hi to us on <a href="https://www.siglens.com/slack" target="_blank">Slack</a> 👋
+Have questions, ask them in our community <a href="https://www.siglens.com/slack" target="_blank">Slack</a> 👋
 
 <br />
 
@@ -69,7 +67,7 @@ Come say Hi to us on <a href="https://www.siglens.com/slack" target="_blank">Sla
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contributions to SigLens.
 
-# Usability
+# How TOs
 
 #### Searching Logs
 ![Searching Logs](./static/assets/readme-assets/log-searching.png)
