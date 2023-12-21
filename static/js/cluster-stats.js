@@ -36,8 +36,6 @@ $(document).ready(() => {
     let data = getTimeRange();
     fetchVersionInfo();
     renderClusterStatsTables();
-    console.log("testing before")
-    console.log("testing after")
     renderChart();
     if (Cookies.get('theme')) {
         theme = Cookies.get('theme');
@@ -60,7 +58,6 @@ function fetchVersionInfo() {
     }).then(function (res) {
         const versionInfo = 'SigLens Version: ' + res.version;
         $('#versionInfo').text(versionInfo);
-        console.log("tsting in res " ,res)
     }).fail(function (jqXHR, textStatus, errorThrown) {
         console.error('Error fetching version:', textStatus, errorThrown);
         $('#versionInfo').text('Error loading version');
