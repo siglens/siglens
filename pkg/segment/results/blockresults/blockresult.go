@@ -20,8 +20,11 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/axiomhq/hyperloglog"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
@@ -118,29 +121,84 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 // Count is always tracked for each bucket
 func convertRequestToInternalStats(req *structs.GroupByRequest) (map[string][]int, []*structs.MeasureAggregator, []int) {
 	colToIdx := make(map[string][]int) // maps a column name to all indices in allConvertedMeasureOps it relates to
-	allConvertedMeasureOps := make([]*structs.MeasureAggregator, len(req.MeasureOperations))
-	allReverseIndex := make([]int, len(req.MeasureOperations))
+	allConvertedMeasureOps := make([]*structs.MeasureAggregator, 0)
+	allReverseIndex := make([]int, 0)
 	idx := 0
-	for mIdx, m := range req.MeasureOperations {
+	for _, m := range req.MeasureOperations {
+		measureColStr := m.MeasureCol
 		var mFunc utils.AggregateFunctions
 		switch m.MeasureFunc {
+		case utils.Sum:
+			fallthrough
+		case utils.Max:
+			fallthrough
+		case utils.Min:
+			if m.ValueColRequest != nil {
+				fields := m.ValueColRequest.GetFields()
+				if len(fields) != 1 {
+					log.Errorf("convertRequestToInternalStats: Incorrect number of fields for aggCol: %v", m.String())
+					continue
+				}
+				measureColStr = fields[0]
+			}
+			mFunc = m.MeasureFunc
+		case utils.Range:
+			curId, err := aggregations.AddMeasureAggInRunningStatsForRange(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+			if err != nil {
+				log.Errorf("convertRequestToInternalStats: %v", err)
+			}
+			idx = curId
+			continue
 		case utils.Count:
-			allReverseIndex[mIdx] = -1 // count is always given by bucket
+			if m.ValueColRequest != nil {
+				curId, err := aggregations.AddMeasureAggInRunningStatsForCount(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+				if err != nil {
+					log.Errorf("convertRequestToInternalStats: %v", err)
+				}
+				idx = curId
+			} else {
+				allReverseIndex = append(allReverseIndex, -1)
+			}
 			continue
 		case utils.Avg:
-			mFunc = utils.Sum
+			if m.ValueColRequest != nil {
+				curId, err := aggregations.AddMeasureAggInRunningStatsForAvg(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+				if err != nil {
+					log.Errorf("convertRequestToInternalStats: %v", err)
+				}
+				idx = curId
+				continue
+			} else {
+				mFunc = utils.Sum
+			}
+		case utils.Cardinality:
+			fallthrough
+		case utils.Values:
+			if m.ValueColRequest != nil {
+				curId, err := aggregations.AddMeasureAggInRunningStatsForValuesOrCardinality(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+				if err != nil {
+					log.Errorf("convertRequestToInternalStats: %v", err)
+				}
+				idx = curId
+				continue
+			} else {
+				mFunc = m.MeasureFunc
+			}
 		default:
 			mFunc = m.MeasureFunc
 		}
-		if _, ok := colToIdx[m.MeasureCol]; !ok {
-			colToIdx[m.MeasureCol] = make([]int, 0)
+
+		if _, ok := colToIdx[measureColStr]; !ok {
+			colToIdx[measureColStr] = make([]int, 0)
 		}
-		allReverseIndex[mIdx] = idx
-		colToIdx[m.MeasureCol] = append(colToIdx[m.MeasureCol], idx)
-		allConvertedMeasureOps[idx] = &structs.MeasureAggregator{
-			MeasureCol:  m.MeasureCol,
-			MeasureFunc: mFunc,
-		}
+		allReverseIndex = append(allReverseIndex, idx)
+		colToIdx[measureColStr] = append(colToIdx[measureColStr], idx)
+		allConvertedMeasureOps = append(allConvertedMeasureOps, &structs.MeasureAggregator{
+			MeasureCol:      m.MeasureCol,
+			MeasureFunc:     mFunc,
+			ValueColRequest: m.ValueColRequest,
+			StrEnc:          m.StrEnc,
+		})
 		idx++
 	}
 	allConvertedMeasureOps = allConvertedMeasureOps[:idx]
@@ -294,7 +352,7 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey bytes.Buffer, measureResul
 	if b.GroupByAggregation == nil {
 		return
 	}
-	bKey := toputils.ByteSliceToString(currKey.Bytes())
+	bKey := toputils.UnsafeByteSliceToString(currKey.Bytes())
 	bucketIdx, ok := b.GroupByAggregation.StringBucketIdx[bKey]
 
 	var bucket *RunningBucketResults
@@ -408,11 +466,30 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 	for key, idx := range gb.StringBucketIdx {
 		bucket := gb.AllRunningBuckets[idx]
 		currRes := make(map[string]utils.CValueEnclosure)
-		for idx, mInfo := range req.MeasureOperations {
+		// Some aggregate functions require multiple measure funcs or raw field values to calculate the result. For example, range() needs both max() and min(), and aggregates with eval statements may require multiple raw field values
+		// Therefore, it is essential to assign a value to 'idx' appropriately to skip the intermediate results generated during the computation from runningStats bucket
+		idx := 0
+		for _, mInfo := range req.MeasureOperations {
 			mInfoStr := mInfo.String()
 			switch mInfo.MeasureFunc {
 			case utils.Count:
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: bucket.count, Dtype: utils.SS_DT_UNSIGNED_NUM}
+				if mInfo.ValueColRequest != nil {
+					if len(mInfo.ValueColRequest.GetFields()) == 0 {
+						log.Errorf("ConvertToAggregationResult: Incorrect number of fields for aggCol: %v", mInfo.String())
+						continue
+					}
+
+					countIdx := gb.reverseMeasureIndex[idx]
+					countVal, err := bucket.runningStats[countIdx].rawVal.GetUIntValue()
+					if err != nil {
+						currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+						continue
+					}
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: countVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
+				} else {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: bucket.count, Dtype: utils.SS_DT_UNSIGNED_NUM}
+				}
+				idx++
 			case utils.Avg:
 				sumIdx := gb.reverseMeasureIndex[idx]
 				sumRawVal, err := bucket.runningStats[sumIdx].rawVal.GetFloatValue()
@@ -420,20 +497,96 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
 					continue
 				}
+
 				var avg float64
-				if bucket.count == 0 {
-					avg = 0
+				if mInfo.ValueColRequest != nil {
+					countIdx := gb.reverseMeasureIndex[idx+1]
+					countRawVal, err := bucket.runningStats[countIdx].rawVal.GetFloatValue()
+					if err != nil {
+						currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+						continue
+					}
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: sumRawVal / countRawVal, Dtype: utils.SS_DT_FLOAT}
+					idx += 2
 				} else {
-					avg = sumRawVal / float64(bucket.count)
+					if bucket.count == 0 {
+						avg = 0
+					} else {
+						avg = sumRawVal / float64(bucket.count)
+					}
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: avg, Dtype: utils.SS_DT_FLOAT}
+					idx++
 				}
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: avg, Dtype: utils.SS_DT_FLOAT}
+			case utils.Range:
+				minIdx := gb.reverseMeasureIndex[idx]
+				minRawVal, err := bucket.runningStats[minIdx].rawVal.GetFloatValue()
+				if err != nil {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					continue
+				}
+
+				maxIdx := gb.reverseMeasureIndex[idx+1]
+				maxRawVal, err := bucket.runningStats[maxIdx].rawVal.GetFloatValue()
+				if err != nil {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					continue
+				}
+
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: maxRawVal - minRawVal, Dtype: utils.SS_DT_FLOAT}
+				idx += 2
 			case utils.Cardinality:
 				valIdx := gb.reverseMeasureIndex[idx]
-				finalVal := bucket.runningStats[valIdx].hll.Estimate()
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: finalVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
+				if mInfo.ValueColRequest != nil {
+					if len(mInfo.ValueColRequest.GetFields()) == 0 {
+						log.Errorf("ConvertToAggregationResult: Incorrect number of fields for aggCol: %v", mInfo.String())
+						continue
+					}
+					strSet, ok := bucket.runningStats[valIdx].rawVal.CVal.(map[string]struct{})
+					if !ok {
+						currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+						continue
+					}
+
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: uint64(len(strSet)), Dtype: utils.SS_DT_UNSIGNED_NUM}
+				} else {
+					finalVal := bucket.runningStats[valIdx].hll.Estimate()
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: finalVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
+				}
+
+				idx++
+			case utils.Values:
+				if mInfo.ValueColRequest != nil {
+					if len(mInfo.ValueColRequest.GetFields()) == 0 {
+						log.Errorf("ConvertToAggregationResult: Incorrect number of fields for aggCol: %v", mInfo.String())
+						continue
+					}
+				}
+
+				valIdx := gb.reverseMeasureIndex[idx]
+				strSet, ok := bucket.runningStats[valIdx].rawVal.CVal.(map[string]struct{})
+				if !ok {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					continue
+				}
+
+				uniqueStrings := make([]string, 0)
+				for str := range strSet {
+					uniqueStrings = append(uniqueStrings, str)
+				}
+
+				sort.Strings(uniqueStrings)
+
+				strVal := strings.Join(uniqueStrings, "&nbsp")
+				currRes[mInfoStr] = utils.CValueEnclosure{
+					Dtype: utils.SS_DT_STRING,
+					CVal:  strVal,
+				}
+
+				idx++
 			default:
 				valIdx := gb.reverseMeasureIndex[idx]
 				currRes[mInfoStr] = bucket.runningStats[valIdx].rawVal
+				idx++
 			}
 		}
 		var bucketKey interface{}
@@ -450,6 +603,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 			StatRes:     currRes,
 			GroupByKeys: req.GroupByColumns,
 		}
+		idx++
 		bucketNum++
 	}
 	return &structs.AggregationResult{

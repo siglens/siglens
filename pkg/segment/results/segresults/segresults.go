@@ -26,6 +26,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -230,10 +231,15 @@ func (sr *SearchResults) AddError(err error) {
 	sr.updateLock.Unlock()
 }
 
-func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats, measureOps []*structs.MeasureAggregator) error {
+func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats, measureOps []*structs.MeasureAggregator,
+	runningEvalStats map[string]interface{}) error {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 	for idx, measureAgg := range measureOps {
+		if len(sstMap) == 0 {
+			continue
+		}
+
 		aggOp := measureAgg.MeasureFunc
 		aggCol := measureAgg.MeasureCol
 
@@ -245,28 +251,126 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			}
 		}
 		currSst, ok := sstMap[aggCol]
-		if !ok {
+		if !ok && measureAgg.ValueColRequest == nil {
 			log.Debugf("applyAggOpOnSegments sstMap was nil for aggCol %v", aggCol)
 			continue
 		}
 		var err error
 		var sstResult *utils.NumTypeEnclosure
+		// For eval statements in aggregate functions, there should be only one field for min and max
 		switch aggOp {
 		case utils.Min:
+			if measureAgg.ValueColRequest != nil {
+				err := aggregations.ComputeAggEvalForMinOrMax(measureAgg, sstMap, sr.segStatsResults.measureResults, true)
+				if err != nil {
+					return fmt.Errorf("UpdateSegmentStats: %v", err)
+				}
+				continue
+			}
 			sstResult, err = segread.GetSegMin(sr.runningSegStat[idx], currSst)
 		case utils.Max:
+			if measureAgg.ValueColRequest != nil {
+				err := aggregations.ComputeAggEvalForMinOrMax(measureAgg, sstMap, sr.segStatsResults.measureResults, false)
+				if err != nil {
+					return fmt.Errorf("UpdateSegmentStats: %v", err)
+				}
+				continue
+			}
 			sstResult, err = segread.GetSegMax(sr.runningSegStat[idx], currSst)
+		case utils.Range:
+			if measureAgg.ValueColRequest != nil {
+				err := aggregations.ComputeAggEvalForRange(measureAgg, sstMap, sr.segStatsResults.measureResults, runningEvalStats)
+				if err != nil {
+					return fmt.Errorf("UpdateSegmentStats: %v", err)
+				}
+				continue
+			}
+			sstResult, err = segread.GetSegRange(sr.runningSegStat[idx], currSst)
 		case utils.Cardinality:
+			if measureAgg.ValueColRequest != nil {
+				err := aggregations.ComputeAggEvalForCardinality(measureAgg, sstMap, sr.segStatsResults.measureResults, runningEvalStats)
+				if err != nil {
+					return fmt.Errorf("UpdateSegmentStats: %v", err)
+				}
+				continue
+			}
 			sstResult, err = segread.GetSegCardinality(sr.runningSegStat[idx], currSst)
 		case utils.Count:
+			if measureAgg.ValueColRequest != nil {
+				err := aggregations.ComputeAggEvalForCount(measureAgg, sstMap, sr.segStatsResults.measureResults)
+				if err != nil {
+					return fmt.Errorf("UpdateSegmentStats: %v", err)
+				}
+				continue
+			}
 			sstResult, err = segread.GetSegCount(sr.runningSegStat[idx], currSst)
 		case utils.Sum:
+			if measureAgg.ValueColRequest != nil {
+				err := aggregations.ComputeAggEvalForSum(measureAgg, sstMap, sr.segStatsResults.measureResults)
+				if err != nil {
+					return fmt.Errorf("UpdateSegmentStats: %v", err)
+				}
+				continue
+			}
 			sstResult, err = segread.GetSegSum(sr.runningSegStat[idx], currSst)
 		case utils.Avg:
+			if measureAgg.ValueColRequest != nil {
+				err := aggregations.ComputeAggEvalForAvg(measureAgg, sstMap, sr.segStatsResults.measureResults, runningEvalStats)
+				if err != nil {
+					return fmt.Errorf("UpdateSegmentStats: %v", err)
+				}
+				continue
+			}
 			sstResult, err = segread.GetSegAvg(sr.runningSegStat[idx], currSst)
+		case utils.Values:
+			strSet := make(map[string]struct{}, 0)
+			valuesStrSetVal, exists := runningEvalStats[measureAgg.String()]
+			if !exists {
+				runningEvalStats[measureAgg.String()] = make(map[string]struct{}, 0)
+			} else {
+				strSet, ok = valuesStrSetVal.(map[string]struct{})
+				if !ok {
+					return fmt.Errorf("UpdateSegmentStats: can not convert strSet for aggCol: %v", measureAgg.String())
+				}
+			}
+
+			if measureAgg.ValueColRequest != nil {
+				err := aggregations.ComputeAggEvalForValues(measureAgg, sstMap, sr.segStatsResults.measureResults, strSet)
+				if err != nil {
+					return fmt.Errorf("UpdateSegmentStats: %v", err)
+				}
+				continue
+			}
+
+			// Merge two SegStat
+			if currSst != nil && currSst.StringStats != nil && currSst.StringStats.StrSet != nil {
+				for str := range currSst.StringStats.StrSet {
+					strSet[str] = struct{}{}
+				}
+			}
+			if sr.runningSegStat[idx] != nil {
+
+				for str := range sr.runningSegStat[idx].StringStats.StrSet {
+					strSet[str] = struct{}{}
+				}
+
+				sr.runningSegStat[idx].StringStats.StrSet = strSet
+			}
+
+			uniqueStrings := make([]string, 0)
+			for str := range strSet {
+				uniqueStrings = append(uniqueStrings, str)
+			}
+			sort.Strings(uniqueStrings)
+			strVal := strings.Join(uniqueStrings, "&nbsp")
+			sr.segStatsResults.measureResults[measureAgg.String()] = utils.CValueEnclosure{
+				Dtype: utils.SS_DT_STRING,
+				CVal:  strVal,
+			}
+			continue
 		}
 		if err != nil {
-			log.Errorf("UpdateSegmentStats, error getting segment level stats %+v", err)
+			log.Errorf("UpdateSegmentStats: error getting segment level stats %+v", err)
 			return err
 		}
 
@@ -348,7 +452,7 @@ func (sr *SearchResults) AddSegmentStats(allJSON *structs.AllSegStatsJSON) error
 		}
 		sstMap[k] = rawStats
 	}
-	return sr.UpdateSegmentStats(sstMap, sr.sAggs.MeasureOperations)
+	return sr.UpdateSegmentStats(sstMap, sr.sAggs.MeasureOperations, nil)
 }
 
 // Get remote raw logs and columns based on the remoteID and all RRCs
