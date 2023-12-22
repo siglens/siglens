@@ -363,7 +363,7 @@ func getNodeResultsForRRCCmd(queryInfo *queryInformation, sTime time.Time, allSe
 			ErrList: []error{err},
 		}
 	}
-	log.Infof("qid=%d, Recieved %+v query segment requests. %+v raw search %+v pqs and %+v distribued query elapsed time: %+v",
+	log.Infof("qid=%d, Received %+v query segment requests. %+v raw search %+v pqs and %+v distribued query elapsed time: %+v",
 		queryInfo.qid, len(sortedQSRSlice), numRawSearch, numPQS, distributedQueries, time.Since(sTime))
 	err = setTotalSegmentsToSearch(queryInfo.qid, numRawSearch+numPQS+distributedQueries)
 	if err != nil {
@@ -382,7 +382,7 @@ func getNodeResultsForSegmentStatsCmd(queryInfo *queryInformation, sTime time.Ti
 		log.Errorf("qid=%d Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
 	}
 	querySummary.UpdateRemainingDistributedQueries(numDistributed)
-	log.Infof("qid=%d, Recieved %+v query segment aggs, with %+v raw search %v distributed, query elapsed time: %+v",
+	log.Infof("qid=%d, Received %+v query segment aggs, with %+v raw search %v distributed, query elapsed time: %+v",
 		queryInfo.qid, len(sortedQSRSlice), numRawSearch, numDistributed, time.Since(sTime))
 	if queryInfo.aggs.MeasureOperations != nil {
 		allSegFileResults.InitSegmentStatsResults(queryInfo.aggs.MeasureOperations)

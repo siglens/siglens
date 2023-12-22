@@ -114,7 +114,7 @@ type LogLinesFile struct {
 // This MUST be synced with how https://github.com/siglens/logminion structures
 // its output JSON.
 type LogLinesEntry struct {
-	Respository string             `json:"repository,omitempty"`
+	Repository  string             `json:"repository,omitempty"`
 	Filename    string             `json:"filename,omitempty"`
 	LineNumber  int                `json:"line_number,omitempty"`
 	LogText     string             `json:"log_text,omitempty"`
@@ -133,7 +133,7 @@ type LogLinesEntryAlert struct {
 }
 
 type MinionSearchDetails struct {
-	Respository string `json:"repository,omitempty"`
+	Repository  string `json:"repository,omitempty"`
 	Filename    string `json:"filename,omitempty"`
 	LineNumber  int    `json:"line_number,omitempty"`
 	LogText     string `json:"log_text,omitempty"`
