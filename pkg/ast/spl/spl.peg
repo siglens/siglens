@@ -225,9 +225,9 @@ QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / 
     return queryAgg, nil
 }
 
-FieldSelectBlock <- PIPE CMD_FIELDS op:("- " / "+ ")? fields:FieldNameList {
+FieldSelectBlock <- PIPE CMD_FIELDS op:("-" / "+")? EMPTY_OR_SPACE fields:FieldNameList {
     columnsRequest := &structs.ColumnsRequest{}
-    if op == nil || string(op.([]byte)) == "+ " {
+    if op == nil || string(op.([]byte)) == "+" {
         columnsRequest.IncludeColumns = fields.([]string)
     } else {
         columnsRequest.ExcludeColumns = fields.([]string)
@@ -1817,6 +1817,6 @@ L_PAREN <- "(" EMPTY_OR_SPACE
 R_PAREN <- EMPTY_OR_SPACE ")"
 
 EOF <- !.
-SPACE <- (" "? COMMENT " "?) / " "
+SPACE <- (" "? COMMENT " "?) / " "+
 COMMENT <- "```" (!("```") .)* "```"
-EMPTY_OR_SPACE  <- " "?
+EMPTY_OR_SPACE  <- SPACE / ""
