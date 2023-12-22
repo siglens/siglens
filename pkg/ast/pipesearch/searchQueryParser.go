@@ -132,7 +132,6 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 			log.Errorf("qid=%d, parsePipeSearch: PEG Parse error: %v:%v", qid, err, getParseError(err))
 			return nil, nil, getParseError(err)
 		}
-		log.Error("fjl searchText:", searchText)
 		res, err = spl.Parse("", []byte(searchText))
 	default:
 		log.Errorf("qid=%d, parsePipeSearch: Unknown queryLanguage: %v", qid, queryLanguage)
