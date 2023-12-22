@@ -1,11 +1,10 @@
 <p align="center">
-   SigLens
+<img src="https://github.com/siglens/siglens/assets/604069/7dab105b-2102-4a32-85c7-02fbb4604217" width="300">
 </p>
 
 ---
 [![Build Status](https://github.com/siglens/siglens/workflows/siglens-docker-release/badge.svg)](https://github.com/siglens/siglens/actions/workflows/publish-prod-images.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/siglens/siglens)](https://goreportcard.com/report/github.com/siglens/siglens)
-[![GoDoc](https://godoc.org/github.com/siglens/siglens?status.svg)](https://godoc.org/github.com/siglens/siglens)
 
 English | [简体中文](README_ZH_CN.md)
 
@@ -23,7 +22,7 @@ English | [简体中文](README_ZH_CN.md)
 # Why SigLens:
 Our experience servicing 10,000+ engineers with Observability tools taught us a few things:
 
-- Developers have to jump through different tools for logs, metrics, traces 🏃💦 
+- Developers have to jump through different tools for logs, metrics, traces
 - Splunk, DataDog, NewRelic are very expensive 💸 💸 💸 
 - ElasticSearch takes too many machines, cluster maintenance is hard 👩‍💻👩‍💻
 - Grafana Loki has slow query performance 🐌🐌
