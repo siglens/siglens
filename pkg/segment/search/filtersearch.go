@@ -171,8 +171,16 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 					allSearchResults.AddError(err)
 					break
 				}
-				if matched {
-					blockHelper.AddMatchedRecord(i)
+				if query.MatchFilter != nil && query.MatchFilter.NegateMatch {
+					if matched || blockHelper.DoesRecordMatch(i) {
+						blockHelper.ClearBit(i)
+					} else {
+						blockHelper.AddMatchedRecord(i)
+					}
+				} else {
+					if matched {
+						blockHelper.AddMatchedRecord(i)
+					}
 				}
 			}
 		}
