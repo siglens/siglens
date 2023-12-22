@@ -55,8 +55,8 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 	case "!=":
 		opr = NotEquals
 	default:
-		log.Errorf("qid=%d, processPipeSearchMap: invalid comparison operator %v", qid, opr)
-		return nil, errors.New("processPipeSearchMap: invalid comparison operator")
+		log.Errorf("qid=%d, ProcessSingleFilter: invalid comparison operator %v", qid, opr)
+		return nil, errors.New("ProcessSingleFilter: invalid comparison operator")
 	}
 	switch t := colValue.(type) {
 	case string:
@@ -67,14 +67,14 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 				if valueIsRegex {
 					compiledRegex, err := regexp.Compile(t)
 					if err != nil {
-						log.Errorf("ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", t, err)
+						log.Errorf("qid=%d, ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", qid, t, err)
 					}
 					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid)
 					andFilterCondition = append(andFilterCondition, criteria)
 				} else {
 					negateMatch := (opr == NotEquals)
 					if opr != Equals && opr != NotEquals {
-						log.Errorf("qid=%d, processPipeSearchMap: invalid string comparison operator %v", qid, opr)
+						log.Errorf("qid=%d, ProcessSingleFilter: invalid string comparison operator %v", qid, opr)
 					}
 
 					cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t), "\"", "")
@@ -106,7 +106,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 				}
 			}
 		} else {
-			return nil, errors.New("processPipeSearchMap: colValue/ search Text can not be empty ")
+			return nil, errors.New("ProcessSingleFilter: colValue/ search Text can not be empty ")
 		}
 	case json.Number:
 		if colValue.(json.Number) != "" {
@@ -117,15 +117,15 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 			andFilterCondition = append(andFilterCondition, criteria)
 
 		} else {
-			return nil, errors.New("processPipeSearchMap: colValue/ search Text can not be empty ")
+			return nil, errors.New("ProcessSingleFilter: colValue/ search Text can not be empty ")
 		}
 	case GrepValue:
 		cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t.Field), "\"", "")
 		criteria := CreateTermFilterCriteria("*", cleanedColVal, opr, qid)
 		andFilterCondition = append(andFilterCondition, criteria)
 	default:
-		log.Errorf("processPipeSearchMap: Invalid colValue type %v", t)
-		return nil, errors.New("processPipeSearchMap: Invalid colValue type")
+		log.Errorf("ProcessSingleFilter: Invalid colValue type %v", t)
+		return nil, errors.New("ProcessSingleFilter: Invalid colValue type")
 	}
 	return andFilterCondition, nil
 }
