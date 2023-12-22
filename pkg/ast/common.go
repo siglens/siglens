@@ -72,16 +72,21 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid)
 					andFilterCondition = append(andFilterCondition, criteria)
 				} else {
+					negateMatch := (opr == NotEquals)
+					if opr != Equals && opr != NotEquals {
+						log.Errorf("qid=%d, processPipeSearchMap: invalid string comparison operator %v", qid, opr)
+					}
+
 					cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t), "\"", "")
 					if strings.Contains(t, "\"") {
-						criteria := createMatchPhraseFilterCriteria(colName, cleanedColVal, And, qid)
+						criteria := createMatchPhraseFilterCriteria(colName, cleanedColVal, And, negateMatch, qid)
 						andFilterCondition = append(andFilterCondition, criteria)
 					} else {
 						if strings.Contains(t, "*") {
 							criteria := CreateTermFilterCriteria(colName, colValue, opr, qid)
 							andFilterCondition = append(andFilterCondition, criteria)
 						} else {
-							criteria := createMatchFilterCriteria(colName, colValue, And, qid)
+							criteria := createMatchFilterCriteria(colName, colValue, And, negateMatch, qid)
 							andFilterCondition = append(andFilterCondition, criteria)
 						}
 					}
@@ -125,7 +130,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 	return andFilterCondition, nil
 }
 
-func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, qid uint64) *FilterCriteria {
+func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatch bool, qid uint64) *FilterCriteria {
 	//match_phrase value will always be string
 	var rtInput = strings.TrimSpace(v.(string))
 	var matchWords = make([][]byte, 0)
@@ -137,11 +142,12 @@ func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, qid 
 		MatchWords:    matchWords,
 		MatchOperator: opr,
 		MatchPhrase:   []byte(rtInput),
-		MatchType:     MATCH_PHRASE}}
+		MatchType:     MATCH_PHRASE,
+		NegateMatch:   negateMatch}}
 	return &criteria
 }
 
-func createMatchFilterCriteria(k, v interface{}, opr LogicalOperator, qid uint64) *FilterCriteria {
+func createMatchFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatch bool, qid uint64) *FilterCriteria {
 	var rtInput string
 	switch vtype := v.(type) {
 	case json.Number:
@@ -169,7 +175,8 @@ func createMatchFilterCriteria(k, v interface{}, opr LogicalOperator, qid uint64
 	criteria := FilterCriteria{MatchFilter: &MatchFilter{
 		MatchColumn:   k.(string),
 		MatchWords:    matchWords,
-		MatchOperator: opr}}
+		MatchOperator: opr,
+		NegateMatch:   negateMatch}}
 
 	return &criteria
 }
