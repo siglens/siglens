@@ -256,7 +256,7 @@ func (hm *allSegmentMetadata) loadParallel(idxToLoad []int, cmi bool) (uint64, i
 				if err != nil {
 					log.Errorf("loadParallel: error getting persistent columns: %v", err)
 				} else {
-					err = hm.allSegmentMicroIndex[myIdx].loadMicroIndices(map[uint16]map[string]bool{}, true, pqsCols, false)
+					err = hm.allSegmentMicroIndex[myIdx].loadMicroIndices(map[uint16]map[string]bool{}, true, pqsCols, true)
 					if err != nil {
 						log.Errorf("loadParallel: failed to load SSM at index %d. Error %v",
 							myIdx, err)

@@ -378,7 +378,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			if !isBlkFullyEncosed {
 				recTs, err := multiReader.GetTimeStampForRecord(blockStatus.BlockNum, recNum16, qid)
 				if err != nil {
-					log.Errorf("qid=%d, segmentStatsWorker failed to initalize time reader for block %+v. Err: %v", qid,
+					log.Errorf("qid=%d, segmentStatsWorker failed to initialize time reader for block %+v. Err: %v", qid,
 						blockStatus.BlockNum, err)
 					continue
 				}
