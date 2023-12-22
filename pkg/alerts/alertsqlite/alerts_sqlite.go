@@ -1092,7 +1092,7 @@ func (p Sqlite) GetAllMinionSearches() ([]alertutils.MinionSearch, error) {
 		alertinfo := alertutils.AlertInfo{AlertId: alert_id, AlertName: alert_name, State: state,
 			CreateTimestamp: create_timestamp, ContactId: contact_id, ContactName: contact_name}
 
-		minion_search_details := alertutils.MinionSearchDetails{Respository: minionSearchStruct.Respository,
+		minion_search_details := alertutils.MinionSearchDetails{Repository: minionSearchStruct.Repository,
 			Filename: minionSearchStruct.Filename, LineNumber: minionSearchStruct.LineNumber,
 			LogText: minionSearchStruct.LogText, LogTextHash: minionSearchStruct.LogTextHash, LogLevel: minionSearchStruct.LogLevel}
 		alerts = append(alerts, alertutils.MinionSearch{AlertInfo: alertinfo, MinionSearchDetails: minion_search_details,
@@ -1159,7 +1159,7 @@ func (p Sqlite) GetMinionSearch(alert_id string) (*alertutils.MinionSearch, erro
 		return nil, err
 	}
 
-	minion_search_details = alertutils.MinionSearchDetails{Respository: minionAlertStruct.Respository,
+	minion_search_details = alertutils.MinionSearchDetails{Repository: minionAlertStruct.Repository,
 		Filename: minionAlertStruct.Filename, LineNumber: minionAlertStruct.LineNumber,
 		LogText: minionAlertStruct.LogText, LogTextHash: minionAlertStruct.LogTextHash, LogLevel: minionAlertStruct.LogLevel}
 

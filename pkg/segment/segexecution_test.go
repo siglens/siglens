@@ -162,7 +162,7 @@ func simpleQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 	result = ExecuteQuery(columnNode, &QueryAggregators{}, 0, qc)
 	assert.NotNil(t, result, "Query ran successfully")
 	assert.Len(t, result.AllRecords, 0, "no column abc exists")
-	assert.NotEqual(t, 0, result.ErrList, "column not found errors MUST happend")
+	assert.NotEqual(t, 0, result.ErrList, "column not found errors MUST happened")
 }
 
 func wildcardQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
@@ -1594,7 +1594,7 @@ func Test_EncodeDecodeBlockSummary(t *testing.T) {
 
 		// cnames are create in WriteMockColSegFile, we will only verify one of cnames
 		// cnames start from key0..key11
-		// key1 stores "value1", and the blockLen was calcualted by running thw writemock.. func with print statement
+		// key1 stores "value1", and the blockLen was calculated by running thw writemock.. func with print statement
 		assert.Equal(t, uint32(30), readAllBmh[uint16(i)].ColumnBlockLen["key1"])
 		assert.Equal(t, int64(i*30), readAllBmh[uint16(i)].ColumnBlockOffset["key1"])
 	}
