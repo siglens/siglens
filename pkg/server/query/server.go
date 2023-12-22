@@ -206,6 +206,7 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/updateContact", hs.Recovery(updateContactHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/createNotif", hs.Recovery(createNotificationHandler()))
 	hs.Router.DELETE(server_utils.API_PREFIX+"/alerts/deleteContact", hs.Recovery(deleteContactHandler()))
+	hs.Router.PUT(server_utils.API_PREFIX+"/alerts/silenceAlert", hs.Recovery(silenceAlertHandler()))
 
 	hs.Router.GET(server_utils.API_PREFIX+"/minionsearch/allMinionSearches", hs.Recovery(getAllMinionSearchesHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/minionsearch/createMinionSearches", hs.Recovery(createMinionSearchHandler()))

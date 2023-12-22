@@ -387,6 +387,12 @@ func createAlertHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func silenceAlertHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		alertsHandler.ProcessSilenceAlertRequest(ctx)
+	}
+}
+
 func getAlertHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		alertsHandler.ProcessGetAlertRequest(ctx)

@@ -160,7 +160,7 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 	}
 
 	if str.metaFileBuffer[0] != utils.STAR_TREE_BLOCK[0] {
-		log.Errorf("ReadTreeMeta: recieved an unknown encoding type for agileTree: %v",
+		log.Errorf("ReadTreeMeta: received an unknown encoding type for agileTree: %v",
 			str.metaFileBuffer[0])
 		return errors.New("received non-agileTree encoding")
 	}
