@@ -19,6 +19,8 @@ package pipesearch
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"regexp"
 
 	"github.com/siglens/siglens/pkg/ast"
 	"github.com/siglens/siglens/pkg/ast/logql"
@@ -125,6 +127,12 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 	case "Log QL":
 		res, err = logql.Parse("", []byte(searchText))
 	case "Splunk QL":
+		searchText, err = processSearchText(searchText)
+		if err != nil {
+			log.Errorf("qid=%d, parsePipeSearch: PEG Parse error: %v:%v", qid, err, getParseError(err))
+			return nil, nil, getParseError(err)
+		}
+		log.Error("fjl searchText:", searchText)
 		res, err = spl.Parse("", []byte(searchText))
 	default:
 		log.Errorf("qid=%d, parsePipeSearch: Unknown queryLanguage: %v", qid, queryLanguage)
@@ -476,4 +484,23 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 		log.Errorf("parseANDCondition : node type %d not supported", node.NodeType)
 		return errors.New("parseANDCondition : node type not supported")
 	}
+}
+
+// Using regex to replace multiple spaces with one space
+func processSearchText(searchText string) (string, error) {
+	// Compile a regular expression to match either content within double quotes or consecutive spaces.
+	re, err := regexp.Compile(`"([^"]*)"|(\s+)`)
+	if err != nil {
+		return "", fmt.Errorf("processSearchText: %v", err)
+	}
+
+	// We do not replace space inside the double quotes (string literal)
+	res := re.ReplaceAllStringFunc(searchText, func(match string) string {
+		if match[0] == ' ' {
+			return " "
+		}
+		return match
+	})
+
+	return res, nil
 }
