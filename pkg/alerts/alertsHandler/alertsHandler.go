@@ -633,7 +633,7 @@ func convertToSiglensAlert(lmDetails alertutils.LogLinesFile) []*alertutils.Mini
 			CreateTimestamp: time.Now(),
 		}
 		minionSearchDetails := alertutils.MinionSearchDetails{
-			Repository: entry.Repository,
+			Repository:  entry.Repository,
 			Filename:    entry.Filename,
 			LineNumber:  entry.LineNumber,
 			LogText:     entry.LogText,
