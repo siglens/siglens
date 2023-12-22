@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+    
+        gtag('config', 'G-5SBJC04YFB');
+    </script>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+    <link rel="manifest" href="assets/site.webmanifest">
+    <link rel="mask-icon" href="assets/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+
+    <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="./css/lib/all.min.css" />
+    <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
+    <link rel="stylesheet" href="./css/siglens.css" />
+    <link rel="stylesheet" href="./css/tracing.css" />
+
+    <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
+    <script src="./js/lib/lodash.min.js"></script>
+    <script src="./js/lib/jquery-3.6.0.min.js"></script>
+    <script src="./js/lib/jquery-ui.min.js"></script>
+    <script src="./js/lib/js.cookie.min.js"></script>
+    <script src="./js/lib/moment.min.js"></script>
+    <script src="./js/lib/date_fns.min.js"></script>
+    <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/bootstrap.bundle.min.js"></script>
+    <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+    <title>SigLens</title>
+</head>
+<body data-theme="light">
+    <div id="cstats-app-container">
+        <div id="app-side-nav" class="active">
+        </div>
+        <div id="empty-response"></div>
+        <div id="app-content-area">
+            <div class="cstats-data-container myOrg-container">
+                <div class="myOrg-inner-container">
+                    <div class="d-flex justify-content-between mt-4 align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <h4 class="service-health-text">Service Health</h4>
+                            <span>></span>
+                            <h3 class="service-name"></h3>
+                        </div>
+                        <div class="dropdown" id="cstats-time-picker">
+                            <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bs-toggle="dropdown" title="Pick the time window">
+                                <span>Time Picker</span>
+                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                            </button>
+                            <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
+                                id="daterangepicker ">
+                                <p class="dt-header">Graphs for the last</p>
+                                <div class="ranges">
+                                    <div class="inner-range">
+                                        <div id="now-24h" class="range-item">24 Hrs</div>
+                                        <div id="now-7d" class="range-item">7 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-1h" class="range-item">1 Hr</div>
+                                        <div id="now-6h" class="range-item">6 Hrs</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="one-service-overview">
+                        <div class="d-flex w-100 mt-4 gap-4">
+                            <div class="chart-container">
+                                <div class="graph-container mt-2">
+                                    <div class="chart_container">
+                                        <div class="ingestion-stats-header">Rate (Request per Second)</div>
+                                        <canvas id="ServiceHealthChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <div class="graph-container mt-2">
+                                    <div class="chart_container">
+                                        <div class="ingestion-stats-header">Error (% of Rate)</div>
+                                        <canvas id="ServiceHealthChartErr"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-5 d-flex justify-content-center">
+                            <div class="chart-container">
+                                <div class="graph-container mt-2">
+                                    <div class="chart_container">
+                                        <div class="ingestion-stats-header">Latency</div>
+                                        <canvas id="ServiceHealthChart2"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="cstats-app-footer">
+                        2023 &copy; SigLens
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="./js/navbar.js?cb=1_1_10"></script>
+    <script src="./js/event-handlers.js?cb=1_1_10"></script>
+    <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/date-picker.js?cb=1_1_10"></script>
+    <script src="./js/point-click-search.js?cb=1_1_10"></script>
+    <script src="./js/lib/chart.umd.min.js"></script>
+    <script src="./js/service-health-overview.js?cb=1_1_10"></script>
+</body>
+
+</html>

@@ -36,6 +36,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -362,7 +363,7 @@ func getNodeResultsForRRCCmd(queryInfo *queryInformation, sTime time.Time, allSe
 			ErrList: []error{err},
 		}
 	}
-	log.Infof("qid=%d, Recieved %+v query segment requests. %+v raw search %+v pqs and %+v distribued query elapsed time: %+v",
+	log.Infof("qid=%d, Received %+v query segment requests. %+v raw search %+v pqs and %+v distribued query elapsed time: %+v",
 		queryInfo.qid, len(sortedQSRSlice), numRawSearch, numPQS, distributedQueries, time.Since(sTime))
 	err = setTotalSegmentsToSearch(queryInfo.qid, numRawSearch+numPQS+distributedQueries)
 	if err != nil {
@@ -381,7 +382,7 @@ func getNodeResultsForSegmentStatsCmd(queryInfo *queryInformation, sTime time.Ti
 		log.Errorf("qid=%d Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
 	}
 	querySummary.UpdateRemainingDistributedQueries(numDistributed)
-	log.Infof("qid=%d, Recieved %+v query segment aggs, with %+v raw search %v distributed, query elapsed time: %+v",
+	log.Infof("qid=%d, Received %+v query segment aggs, with %+v raw search %v distributed, query elapsed time: %+v",
 		queryInfo.qid, len(sortedQSRSlice), numRawSearch, numDistributed, time.Since(sTime))
 	if queryInfo.aggs.MeasureOperations != nil {
 		allSegFileResults.InitSegmentStatsResults(queryInfo.aggs.MeasureOperations)
@@ -455,7 +456,11 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 	// In order, search segKeys (either raw or pqs depending on above sType).
 	// If no aggs, early exit at utils.QUERY_EARLY_EXIT_LIMIT
 	// If sort, check if next segkey's time range will overlap with the recent best results
+	// If there's aggs and they can be computed fully by agile trees, limit the number of
+	// buckets to utils.QUERY_MAX_BUCKETS unless a sort or computation follows the aggs.
 
+	limitAgileAggsTreeBuckets := canUseBucketLimitedAgileAggsTree(sortedQSRSlice, queryInfo)
+	var agileTreeBuckets map[string]struct{}
 	var agileTreeBuf []byte
 	if config.IsAggregationsEnabled() && queryInfo.qType == structs.GroupByCmd &&
 		queryInfo.sNodeType == structs.MatchAllQuery {
@@ -495,20 +500,28 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 				allSegFileResults.AddError(err)
 			}
 		} else {
-			isSegFullyEncosed := segReq.queryRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs,
-				segReq.segKeyTsRange.EndEpochMs)
-
-			doAgileTree := false
-			var str *segread.AgileTreeReader
-			if config.IsAggregationsEnabled() && isSegFullyEncosed && queryInfo.qType == structs.GroupByCmd &&
-				queryInfo.sNodeType == structs.MatchAllQuery && !timeAggs {
-				doAgileTree, str = search.CanDoStarTree(segReq.segKey, segReq.aggs, queryInfo.qid)
-			}
+			doAgileTree, str := canUseAgileTree(segReq, queryInfo)
 
 			if doAgileTree {
 				sTime := time.Now()
+
+				if limitAgileAggsTreeBuckets {
+					// Reuse the bucket keys from the previous segments so we
+					// sync which buckets we're using across segments.
+					str.SetBuckets(agileTreeBuckets)
+					str.SetBucketLimit(segutils.QUERY_MAX_BUCKETS)
+				}
+
 				search.ApplyAgileTree(str, segReq.aggs, allSegFileResults, segReq.sizeLimit, queryInfo.qid,
 					agileTreeBuf)
+
+				if limitAgileAggsTreeBuckets {
+					// Get the buckets so we can use its keys for the next
+					// segment so that we sync which buckets we're using across
+					// segments.
+					agileTreeBuckets = str.GetBuckets()
+				}
+
 				str.Close()
 				timeElapsed := time.Since(sTime)
 				queryMetrics := &structs.QueryProcessingMetrics{}
@@ -568,6 +581,41 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 	if len(sortedQSRSlice) == 0 {
 		incrementNumFinishedSegments(0, queryInfo.qid, recsSearchedSinceLastUpdate, 0, false, nil)
 	}
+}
+
+// Return true if we can use AgileAggsTrees for all the segments and we can
+// limit the number of buckets.
+func canUseBucketLimitedAgileAggsTree(sortedQSRSlice []*querySegmentRequest, queryInfo *queryInformation) bool {
+	if !queryInfo.aggs.CanLimitBuckets() {
+		return false
+	}
+
+	for _, segReq := range sortedQSRSlice {
+		canUse, agileTree := canUseAgileTree(segReq, queryInfo)
+
+		if agileTree != nil {
+			agileTree.Close()
+		}
+
+		if !canUse {
+			return false
+		}
+	}
+
+	return true
+}
+
+func canUseAgileTree(segReq *querySegmentRequest, queryInfo *queryInformation) (bool, *segread.AgileTreeReader) {
+	isSegFullyEncosed := segReq.queryRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs,
+		segReq.segKeyTsRange.EndEpochMs)
+	_, timeAggs := checkAggTypes(segReq.aggs)
+
+	if config.IsAggregationsEnabled() && isSegFullyEncosed && queryInfo.qType == structs.GroupByCmd &&
+		queryInfo.sNodeType == structs.MatchAllQuery && !timeAggs {
+		return search.CanDoStarTree(segReq.segKey, segReq.aggs, queryInfo.qid)
+	}
+
+	return false, nil
 }
 
 // returns true if any element in qsrs would displace any of the RRCs
@@ -673,6 +721,8 @@ func getAllRotatedSegmentsInAggs(queryInfo *queryInformation, aggs *structs.Quer
 
 func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary,
 	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator) {
+	// Use a global variable to store data that meets the conditions during the process of traversing segments
+	runningEvalStats := make(map[string]interface{}, 0)
 	//assuming we will allow 100 measure Operations
 	for _, segReq := range sortedQSRSlice {
 		isCancelled, err := checkForCancelledQuery(qid)
@@ -682,10 +732,14 @@ func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResul
 		if isCancelled {
 			break
 		}
-		isSegmentFullyEncosed := segReq.segKeyTsRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs, segReq.segKeyTsRange.EndEpochMs)
-		var sstMap map[string]*structs.SegStats
+		isSegmentFullyEnclosed := segReq.segKeyTsRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs, segReq.segKeyTsRange.EndEpochMs)
 
-		if searchType == structs.MatchAllQuery && isSegmentFullyEncosed {
+		// Because segment only store statistical data such as min, max..., for some functions we should recompute raw data to get the results
+		// If agg has evaluation functions, we should recompute raw data instead of using the previously stored statistical data in the segment
+		aggHasEvalFunc := segReq.aggs.HasValueColRequest()
+		aggHasValuesFunc := segReq.aggs.HasValuesFunc()
+		var sstMap map[string]*structs.SegStats
+		if searchType == structs.MatchAllQuery && isSegmentFullyEnclosed && !aggHasEvalFunc && !aggHasValuesFunc {
 			sstMap, err = segread.ReadSegStats(segReq.segKey, segReq.qid)
 			if err != nil {
 				log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
@@ -721,7 +775,7 @@ func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResul
 				}
 			}
 		}
-		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations)
+		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations, runningEvalStats)
 		if err != nil {
 			log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
 			allSegFileResults.AddError(err)

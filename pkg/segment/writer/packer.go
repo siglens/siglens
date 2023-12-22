@@ -165,7 +165,7 @@ func (ss *SegStore) encodeRawJsonObject(currKey string, data []byte, maxIdx uint
 				return fmt.Errorf("encodeRawJsonObject: singnull currKey: %v, err: %v", currKey, err)
 			}
 		default:
-			return fmt.Errorf("currKey: %v, recieved unknown type of %+s", currKey, valueType)
+			return fmt.Errorf("currKey: %v, received unknown type of %+s", currKey, valueType)
 		}
 		return nil
 	}
@@ -260,7 +260,7 @@ func (ss *SegStore) encodeNonJaegerRawJsonArray(currKey string, data []byte, max
 				return
 			}
 		default:
-			finalErr = fmt.Errorf("recieved unknown type of %+s", valueType)
+			finalErr = fmt.Errorf("received unknown type of %+s", valueType)
 			return
 		}
 	})
@@ -349,18 +349,18 @@ func (ss *SegStore) encodeSingleDictArray(arraykey string, data []byte, maxIdx u
 				copy(colWip.cbuf[colWip.cbufidx:], keyVal)
 				colWip.cbufidx += uint32(n)
 			default:
-				finalErr = fmt.Errorf("encodeSingleDictArray : recieved unknown key  %+s", keyType)
+				finalErr = fmt.Errorf("encodeSingleDictArray : received unknown key  %+s", keyType)
 			}
 			if bi != nil {
 				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyName))
 				bi.uniqueWordCount += addToBlockBloom(bi.Bf, []byte(keyVal))
 			}
-			stats.AddSegStatsStr(ss.AllSst, keyName, keyVal, ss.wipBlock.bb)
+			stats.AddSegStatsStr(ss.AllSst, keyName, keyVal, ss.wipBlock.bb, nil, false)
 			if colWip.cbufidx > maxIdx {
 				maxIdx = colWip.cbufidx
 			}
 		default:
-			finalErr = fmt.Errorf("encodeSingleDictArray : recieved unknown type of %+s", valueType)
+			finalErr = fmt.Errorf("encodeSingleDictArray : received unknown type of %+s", valueType)
 			return
 		}
 	})
@@ -387,7 +387,7 @@ func getNestedDictEntries(data []byte) (string, string, string, error) {
 		case "value":
 			nvalue = string(value)
 		default:
-			err := fmt.Errorf("getNestedDictEntries: recieved unknown key of %+s", key)
+			err := fmt.Errorf("getNestedDictEntries: received unknown key of %+s", key)
 			return err
 		}
 		return nil
@@ -462,7 +462,7 @@ func (ss *SegStore) encodeSingleString(key string, value string, maxIdx uint32,
 	if !ss.skipDe {
 		checkAddDictEnc(colWip, colWip.cbuf[s:colWip.cbufidx], recNum)
 	}
-	stats.AddSegStatsStr(ss.AllSst, key, value, ss.wipBlock.bb)
+	stats.AddSegStatsStr(ss.AllSst, key, value, ss.wipBlock.bb, nil, false)
 	if colWip.cbufidx > maxIdx {
 		maxIdx = colWip.cbufidx
 	}
@@ -1478,7 +1478,7 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		inIntgrVal = intVal
 	}
 
-	// we just use the Min stats for stored val comparision but apply the same
+	// we just use the Min stats for stored val comparison but apply the same
 	// logic to max and sum
 	switch inNumType {
 	case SS_FLOAT64:

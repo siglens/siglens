@@ -166,9 +166,9 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		err := sfr.readDictEnc(sfr.currFileBuffer[oPtr:colBlockLen], blockNum)
 		return true, err
 	} else {
-		log.Errorf("recieved an unknown encoding type for %v column! expected zstd or dictenc got %+v",
+		log.Errorf("received an unknown encoding type for %v column! expected zstd or dictenc got %+v",
 			sfr.ColName, sfr.encType)
-		return true, fmt.Errorf("recieved an unknown encoding type for %v column! expected zstd or dictenc got %+v",
+		return true, fmt.Errorf("received an unknown encoding type for %v column! expected zstd or dictenc got %+v",
 			sfr.ColName, sfr.encType)
 	}
 }
@@ -283,8 +283,8 @@ func (sfr *SegmentFileReader) getCurrentRecordLength() (uint32, error) {
 		reclen = 3 + uint32(toputils.BytesToUint16LittleEndian(sfr.currRawBlockBuffer[sfr.currOffset+1:]))
 
 	default:
-		log.Errorf("getCurrentRecordLength: Recieved an unknown encoding type %+v at offset %+v", sfr.currRawBlockBuffer[sfr.currOffset], sfr.currOffset)
-		return 0, errors.New("recieved an unknown encoding type")
+		log.Errorf("getCurrentRecordLength: Received an unknown encoding type %+v at offset %+v", sfr.currRawBlockBuffer[sfr.currOffset], sfr.currOffset)
+		return 0, errors.New("received an unknown encoding type")
 	}
 	return reclen, nil
 }

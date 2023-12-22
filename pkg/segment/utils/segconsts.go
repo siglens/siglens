@@ -72,7 +72,7 @@ var MAX_ACTIVE_SERIES_PER_SEGMENT = 10_000_000
 const MAX_RAW_DATAPOINTS_IN_RESULT = 5_000_000
 
 // leave some room for column name/value meta
-// since we use 2 bytes for record len, columnname-len, we can accomodate 65535
+// since we use 2 bytes for record len, columnname-len, we can accommodate 65535
 const MAX_RECORD_SIZE = 63_000
 const MAX_RECS_PER_WIP = 65_534
 const BLOOM_COLL_PROBABILITY = 0.001
@@ -141,6 +141,7 @@ const (
 	SS_DT_UNSIGNED_NUM
 	SS_DT_FLOAT
 	SS_DT_STRING
+	SS_DT_STRING_SET
 	SS_DT_BACKFILL
 	SS_DT_SIGNED_32_NUM
 	SS_DT_USIGNED_32_NUM
@@ -152,12 +153,13 @@ const (
 	SS_DT_RAW_JSON
 )
 
-const STALE_RECENTLY_ROTATED_ENTRY = 60_000                // one minute
-const SEGMENT_ROTATE_DURATION = 15 * 60                    // 15 mins
+const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000             // one minute
+const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
 var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
-const SEGMENT_ROTATE_SLEEP_DURATION = 60                   // 1 min
+const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 60           // 1 min
 
 var QUERY_EARLY_EXIT_LIMIT = uint64(10_000)
+var QUERY_MAX_BUCKETS = uint64(10_000)
 
 var ZSTD_COMLUNAR_BLOCK = []byte{0}
 var ZSTD_DICTIONARY_BLOCK = []byte{1}
@@ -276,9 +278,11 @@ const (
 	Avg
 	Min
 	Max
+	Range
 	Sum
 	Cardinality
 	Quantile
+	Values
 )
 
 type RangeFunctions int
@@ -286,6 +290,17 @@ type RangeFunctions int
 const (
 	Derivative RangeFunctions = iota + 1
 	Rate
+)
+
+// For columns used by aggs with eval statements, we should keep their raw values because we need to evaluate them
+// For columns only used by aggs without eval statements, we should not keep their raw values because it is a waste of performance
+// If we only use two modes. Later occurring aggs will overwrite earlier occurring aggs' usage status. E.g. stats dc(eval(lower(state))), dc(state)
+type AggColUsageMode int
+
+const (
+	NoEvalUsage   AggColUsageMode = iota // NoEvalUsage indicates that the column will be used by an aggregator without an eval function
+	WithEvalUsage                        // WithEvalUsage indicates that the column will be used by an aggregator with an eval function
+	BothUsage                            // BothUsage indicates that the column will be used by both types of aggregators simultaneously
 )
 
 func (e AggregateFunctions) String() string {
@@ -298,10 +313,14 @@ func (e AggregateFunctions) String() string {
 		return "min"
 	case Max:
 		return "max"
+	case Range:
+		return "range"
 	case Sum:
 		return "sum"
 	case Cardinality:
 		return "cardinality"
+	case Values:
+		return "values"
 	default:
 		return fmt.Sprintf("%d", int(e))
 	}
@@ -478,6 +497,8 @@ func (e *CValueEnclosure) ConvertValue(val interface{}) error {
 
 func (e *CValueEnclosure) GetValue() (interface{}, error) {
 	switch e.Dtype {
+	case SS_DT_STRING_SET:
+		return e.CVal.(map[string]struct{}), nil
 	case SS_DT_STRING:
 		return e.CVal.(string), nil
 	case SS_DT_BOOL:

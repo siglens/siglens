@@ -51,32 +51,23 @@ function getAllAlerts(){
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        console.log(res.alerts);
         displayAllAlerts(res.alerts);
     })
 }
 
 class btnRenderer {
 	init(params) {
-		this.eGui = document.createElement('span');
+        this.eGui = document.createElement('span');
 		this.eGui.innerHTML = `<div id="alert-grid-btn">
-				<button class='btn mt-2 mx-3' id="viewbutton" title="Alert Details"></button>
 				<button class='btn' id="editbutton" title="Edit Alert Rule"></button>
                 <button class="btn-simple" id="delbutton" title="Delete Alert Rule"></button>
 				</div>`;
 		this.eButton = this.eGui.querySelector('#editbutton');
 		this.dButton = this.eGui.querySelector('.btn-simple');
-		this.vButton = this.eGui.querySelector('#viewbutton');
 
         function editAlert(event){        
             var queryString = "?id=" + params.data.alertId;
             window.location.href = "../alert.html" + queryString;
-            event.stopPropagation();
-        }
-
-        function viewAlert(event){        
-            var queryString = "?id=" + params.data.alertId;
-            window.location.href = "../alert-details.html" + queryString;
             event.stopPropagation();
         }
         
@@ -103,7 +94,11 @@ class btnRenderer {
 
         function showPrompt(event) {
             event.stopPropagation();
+            const alertRuleName = params.data.alertName; 
+            const confirmationMessage = `Are you sure you want to delete the "<strong>${alertRuleName}</strong>" alert?`;
+
 			$('.popupOverlay, .popupContent').addClass('active');
+            $('#delete-alert-name').html(confirmationMessage);
 
             $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {
                 $('.popupOverlay, .popupContent').removeClass('active');
@@ -111,7 +106,7 @@ class btnRenderer {
             $('#delete-btn').click(deleteAlert)
 		}
 
-		this.vButton.addEventListener('click', viewAlert);
+		
 		this.eButton.addEventListener('click', editAlert);
 		this.dButton.addEventListener('click', showPrompt);
 	}
@@ -223,4 +218,5 @@ function removeToast() {
 function onRowClicked(event) {
     var queryString = "?id=" + event.data.alertId;
     window.location.href = "../alert-details.html" + queryString;
+    event.stopPropagation();
 }

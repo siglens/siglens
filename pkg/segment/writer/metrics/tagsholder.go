@@ -62,7 +62,7 @@ var tagsHolderPool = sync.Pool{
 /*
 Allocates and returns a TagsHolder
 
-Caller is reponsible for calling ReturnTagsHolder
+Caller is responsible for calling ReturnTagsHolder
 */
 func GetTagsHolder() *TagsHolder {
 	holder := tagsHolderPool.Get().(*TagsHolder)

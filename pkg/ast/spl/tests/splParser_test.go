@@ -71,7 +71,7 @@ func extractExpressionFilter(t *testing.T, node *ast.Node) *structs.ExpressionFi
 
 // Initial setup.
 func TestMain(m *testing.M) {
-	// Supress log output.
+	// Suppress log output.
 	log.SetOutput(ioutil.Discard)
 
 	// Run the tests.
@@ -1838,6 +1838,76 @@ func Test_aggMax(t *testing.T) {
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Max)
 }
 
+func Test_aggRange(t *testing.T) {
+	query := []byte(`search A=1 | stats range(latency)`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, pipeCommands.MeasureOperations, 1)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "latency")
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Range)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+
+	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, aggregator.MeasureOperations, 1)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "latency")
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Range)
+}
+
+func Test_aggValues(t *testing.T) {
+	query := []byte(`search A=1 | stats values(latency)`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, pipeCommands.MeasureOperations, 1)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "latency")
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Values)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+
+	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, aggregator.MeasureOperations, 1)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "latency")
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Values)
+}
+
 func Test_aggSum(t *testing.T) {
 	query := []byte(`search A=1 | stats sum(latency)`)
 	res, err := spl.Parse("", query)
@@ -1957,6 +2027,90 @@ func Test_groupbyManyFields(t *testing.T) {
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[1], "weekday")
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[2], "city")
 	assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
+}
+
+func Test_aggHasEvalFuncWithoutGroupBy(t *testing.T) {
+	query := []byte(`city=Boston | stats max(latitude), range(eval(latitude >= 0))`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
+	assert.Equal(t, "city", filterNode.Comparison.Field)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "\"Boston\"", filterNode.Comparison.Values)
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, pipeCommands.MeasureOperations, 2)
+	assert.Equal(t, "latitude", pipeCommands.MeasureOperations[0].MeasureCol)
+	assert.Equal(t, utils.Max, pipeCommands.MeasureOperations[0].MeasureFunc)
+
+	assert.Equal(t, "range(eval(latitude >= 0))", pipeCommands.MeasureOperations[1].StrEnc)
+	assert.Equal(t, utils.Range, pipeCommands.MeasureOperations[1].MeasureFunc)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest)
+	assert.Equal(t, structs.VEMBooleanExpr, int(pipeCommands.MeasureOperations[1].ValueColRequest.ValueExprMode))
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.LeftValue)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.RightValue)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.LeftValue.NumericExpr)
+	assert.NotNil(t, pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.RightValue.NumericExpr)
+	assert.Equal(t, "latitude", pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.LeftValue.NumericExpr.Value)
+	assert.Equal(t, "0", pipeCommands.MeasureOperations[1].ValueColRequest.BooleanExpr.RightValue.NumericExpr.Value)
+}
+
+func Test_aggHasEvalFuncWithGroupBy(t *testing.T) {
+	query := []byte(`* | stats count(eval(http_status >= 100)), values(eval(if(len(state) > 5, job_title, city))) BY state`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, ast.NodeTerminal, filterNode.NodeType)
+	assert.Equal(t, "*", filterNode.Comparison.Field)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "\"*\"", filterNode.Comparison.Values)
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
+	assert.NotNil(t, pipeCommands.GroupByRequest)
+	assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 2)
+
+	assert.Equal(t, "count(eval(http_status >= 100))", pipeCommands.GroupByRequest.MeasureOperations[0].StrEnc)
+	assert.Equal(t, utils.Count, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest)
+	assert.Equal(t, structs.VEMBooleanExpr, int(pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest.ValueExprMode))
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest.BooleanExpr)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest.BooleanExpr.LeftValue)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest.BooleanExpr.RightValue)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest.BooleanExpr.LeftValue.NumericExpr)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest.BooleanExpr.RightValue.NumericExpr)
+	assert.Equal(t, "http_status", pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest.BooleanExpr.LeftValue.NumericExpr.Value)
+	assert.Equal(t, "100", pipeCommands.GroupByRequest.MeasureOperations[0].ValueColRequest.BooleanExpr.RightValue.NumericExpr.Value)
+
+	assert.Equal(t, "values(eval(if(len(state) > 5, job_title, city)))", pipeCommands.GroupByRequest.MeasureOperations[1].StrEnc)
+	assert.Equal(t, utils.Values, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureFunc)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest)
+	assert.Equal(t, structs.VEMConditionExpr, int(pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ValueExprMode))
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.LeftValue)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.RightValue)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.LeftValue.NumericExpr)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.RightValue.NumericExpr)
+	assert.Equal(t, "len", pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.LeftValue.NumericExpr.Op)
+	assert.Equal(t, "state", pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.LeftValue.NumericExpr.Left.Value)
+	assert.Equal(t, "5", pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.BoolExpr.RightValue.NumericExpr.Value)
+
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.TrueValue)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.FalseValue)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.TrueValue.NumericExpr)
+	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.FalseValue.NumericExpr)
+	assert.Equal(t, "job_title", pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.TrueValue.NumericExpr.Value)
+	assert.Equal(t, "city", pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.FalseValue.NumericExpr.Value)
 }
 
 func Test_groupbyFieldWithWildcard(t *testing.T) {

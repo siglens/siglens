@@ -136,13 +136,14 @@ type Configuration struct {
 	SafeServerStart            bool     `yaml:"safeMode"`         // if set to true, siglens will start a mock webserver with a custom health handler. Actual server will NOT be started
 	AnalyticsEnabled           string   `yaml:"analyticsEnabled"` // is analytics enabled?
 	analyticsEnabledConverted  bool
-	AgileAggsEnabled           bool           `yaml:"agileAggsEnabled"` // feature flag for agileaggstree writing
-	QueryHostname              string         `yaml:"queryHostname"`    // hostname of the query server. i.e. if DNS is https://cloud.siglens.com, this should be cloud.siglens.com
-	IngestUrl                  string         `yaml:"ingestUrl"`        // full address of the ingest server, including scheme and port, e.g. https://ingest.siglens.com:8080
-	S3                         S3Config       `yaml:"s3"`               // s3 related config
-	Etcd                       EtcdConfig     `yaml:"etcd"`             // Etcd related config
-	Log                        LogConfig      `yaml:"log"`              // Log related config
-	TLS                        TLSConfig      `yaml:"tls"`              // TLS related config
+	AgileAggsEnabled           string `yaml:"agileAggsEnabled"` // should we read/write AgileAggsTrees?
+	AgileAggsEnabledConverted  bool
+	QueryHostname              string         `yaml:"queryHostname"` // hostname of the query server. i.e. if DNS is https://cloud.siglens.com, this should be cloud.siglens.com
+	IngestUrl                  string         `yaml:"ingestUrl"`     // full address of the ingest server, including scheme and port, e.g. https://ingest.siglens.com:8080
+	S3                         S3Config       `yaml:"s3"`            // s3 related config
+	Etcd                       EtcdConfig     `yaml:"etcd"`          // Etcd related config
+	Log                        LogConfig      `yaml:"log"`           // Log related config
+	TLS                        TLSConfig      `yaml:"tls"`           // TLS related config
 	EmailConfig                EmailConfig    `yaml:"emailConfig"`
 	DatabaseConfig             DatabaseConfig `yaml:"minionSearch"`
 }
@@ -323,11 +324,12 @@ func IsPQSEnabled() bool {
 }
 
 func IsAggregationsEnabled() bool {
-	return runningConfig.AgileAggsEnabled
+	return runningConfig.AgileAggsEnabledConverted
 }
 
-func SetAggregationsFlag(flag bool) {
-	runningConfig.AgileAggsEnabled = flag
+func SetAggregationsFlag(enabled bool) {
+	runningConfig.AgileAggsEnabledConverted = enabled
+	runningConfig.AgileAggsEnabled = strconv.FormatBool(enabled)
 }
 
 func IsAnalyticsEnabled() bool {
@@ -568,10 +570,11 @@ func InitializeDefaultConfig() {
 		SafeServerStart:            false,
 		AnalyticsEnabled:           "false",
 		analyticsEnabledConverted:  false,
+		AgileAggsEnabled:           "true",
+		AgileAggsEnabledConverted:  true,
 		QueryHostname:              "",
 		Log:                        LogConfig{"", 100, false},
 		TLS:                        TLSConfig{false, "certs/"},
-		AgileAggsEnabled:           true,
 		DatabaseConfig:             DatabaseConfig{Enabled: true, Provider: "sqlite"},
 	}
 	_ = InitDerivedConfig("test-uuid") // This is only used for testing
@@ -646,6 +649,17 @@ func ExtractConfigData(yamlData []byte) (Configuration, error) {
 		config.AnalyticsEnabled = "true"
 	}
 	config.analyticsEnabledConverted = analyticsEnabled
+
+	if len(config.AgileAggsEnabled) <= 0 {
+		config.AgileAggsEnabled = "true"
+	}
+	AgileAggsEnabled, err := strconv.ParseBool(config.AgileAggsEnabled)
+	if err != nil {
+		log.Errorf("ExtractConfigData: failed to parse AgileAggs enabled flag. Defaulting to true. Error: %v", err)
+		AgileAggsEnabled = true
+		config.AgileAggsEnabled = "true"
+	}
+	config.AgileAggsEnabledConverted = AgileAggsEnabled
 
 	if len(config.DataPath) <= 0 {
 		config.DataPath = "data/"

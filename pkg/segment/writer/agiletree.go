@@ -63,6 +63,7 @@ var one = utils.CValueEnclosure{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)
 
 type Node struct {
 	myKey     uint32
+	parent    *Node
 	children  map[uint32]*Node
 	aggValues []utils.CValueEnclosure
 }
@@ -168,6 +169,7 @@ func (stb *StarTreeBuilder) setColValEnc(colNum int, colVal string) uint32 {
 func (stb *StarTreeBuilder) resetNodeData(wip *WipBlock) {
 
 	for _, node := range stb.nodePool {
+		node.parent = nil
 		for k := range node.children {
 			delete(node.children, k)
 		}
@@ -246,12 +248,12 @@ func (stb *StarTreeBuilder) Aggregate(cur *Node) error {
 	return nil
 }
 
-func (stb *StarTreeBuilder) insertIntoTree(node *Node, colVals []uint32, recNum uint16,
-	idx uint) *Node {
+func (stb *StarTreeBuilder) insertIntoTree(node *Node, colVals []uint32, recNum uint16, idx uint) *Node {
 	child, keyExists := node.children[colVals[idx]]
 	if !keyExists {
 		child = stb.newNode()
 		child.myKey = colVals[idx]
+		child.parent = node
 		node.children[colVals[idx]] = child
 	}
 

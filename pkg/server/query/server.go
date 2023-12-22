@@ -206,6 +206,7 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/updateContact", hs.Recovery(updateContactHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/createNotif", hs.Recovery(createNotificationHandler()))
 	hs.Router.DELETE(server_utils.API_PREFIX+"/alerts/deleteContact", hs.Recovery(deleteContactHandler()))
+	hs.Router.PUT(server_utils.API_PREFIX+"/alerts/silenceAlert", hs.Recovery(silenceAlertHandler()))
 
 	hs.Router.GET(server_utils.API_PREFIX+"/minionsearch/allMinionSearches", hs.Recovery(getAllMinionSearchesHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/minionsearch/createMinionSearches", hs.Recovery(createMinionSearchHandler()))
@@ -213,6 +214,8 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 
 	// tracing api endpoints
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/search", hs.Recovery(searchTracesHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/traces/dependencies", hs.Recovery(getDependencyGraphHandler()))
+	hs.Router.POST(server_utils.API_PREFIX+"/traces/ganttChart", hs.Recovery(ganttChartHandler()))
 
 	// query server should still setup ES APIs for Kibana integration
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
