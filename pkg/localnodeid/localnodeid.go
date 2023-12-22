@@ -27,7 +27,7 @@ import (
 const DEFAULT_ALLOWED_VOLUME_GB = 100
 
 var runningNodeId string
-var initIDFile bool // if true, this data dir has been initalized for the first time
+var initIDFile bool // if true, this data dir has been initialized for the first time
 
 func getNodeIdFile() string {
 	return config.GetDataPath() + "common/id.info"
