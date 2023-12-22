@@ -27,7 +27,6 @@ $(document).ready(() => {
         $("body").attr("data-theme", theme);
     }
     svgWidth = $("#timeline-container").width();
-    // displayTimeline();
 
     traceId = getParameterFromUrl('trace_id');
     getTraceInformation(traceId);
@@ -118,7 +117,7 @@ function displayTimeline(data) {
 
     const xScale = d3
         .scaleLinear()
-        .domain([nsToMs(data.start_time), nsToMs(data.end_time)]) // root node end_time
+        .domain([nsToMs(data.start_time), nsToMs(data.end_time)])
         .range([400, svgWidth - 100]);
 
     // Add a time grid
@@ -190,7 +189,7 @@ function displayTimeline(data) {
                     .style("top", event.pageY - 28 + "px");
             })
             .on("mouseout", () => {
-                rect.style("cursor", "default"); // Change cursor back to default on mouseout
+                rect.style("cursor", "default");
                 tooltip.style("display", "none");
             });
         }
@@ -211,7 +210,6 @@ function displayTimeline(data) {
         .append("div")
         .attr("class", "tooltip-gantt");
 
-    // Render the timeline starting from the root node
     renderTimeline(data);
 }
 
