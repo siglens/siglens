@@ -471,6 +471,12 @@ func (qa *QueryAggregators) HasValuesFunc() bool {
 	return false
 }
 
+func (qa *QueryAggregators) CanLimitBuckets() bool {
+	// We shouldn't limit the buckets if there's other things to do after the
+	// aggregation, like sorting, filtering, making new columns, etc.
+	return qa.Sort == nil && qa.Next == nil
+}
+
 // Init default query aggregators.
 // By default, a descending sort is added
 func InitDefaultQueryAggregations() *QueryAggregators {

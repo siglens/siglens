@@ -370,9 +370,9 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 						}
 					} else {
 
-						leftExpr.Value = "0(" + leftExpr.Value + ")"
+						leftExpr.Value = "0(" + leftExpr.Value + ")" // "0" for round function, as it is a default case for aggregation.
 
-						measureOp = &structs.MeasureAggregator{MeasureCol: sqlparser.String(agg.Exprs[0])}
+						measureOp = &structs.MeasureAggregator{MeasureCol: sqlparser.String(agg.Exprs[0])} // Not setting the Measure Func, as round is not a aggregate method.
 					}
 
 					mathFunctionCols = append(mathFunctionCols, numericExpr)

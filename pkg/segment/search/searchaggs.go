@@ -378,7 +378,7 @@ func segmentStatsWorker(statRes *segresults.StatsResults, mCols map[string]bool,
 			if !isBlkFullyEncosed {
 				recTs, err := multiReader.GetTimeStampForRecord(blockStatus.BlockNum, recNum16, qid)
 				if err != nil {
-					log.Errorf("qid=%d, segmentStatsWorker failed to initalize time reader for block %+v. Err: %v", qid,
+					log.Errorf("qid=%d, segmentStatsWorker failed to initialize time reader for block %+v. Err: %v", qid,
 						blockStatus.BlockNum, err)
 					continue
 				}
@@ -593,8 +593,9 @@ func CanDoStarTree(segKey string, aggs *structs.QueryAggregators,
 	return true, str // caller responsible to close str if we can use agileTree
 }
 
-func ApplyAgileTree(str *segread.AgileTreeReader, aggs *structs.QueryAggregators, allSearchResults *segresults.SearchResults,
-	sizeLimit uint64, qid uint64, agileTreeBuf []byte) {
+func ApplyAgileTree(str *segread.AgileTreeReader, aggs *structs.QueryAggregators,
+	allSearchResults *segresults.SearchResults, sizeLimit uint64, qid uint64,
+	agileTreeBuf []byte) {
 
 	_, internalMops := allSearchResults.BlockResults.GetConvertedMeasureInfo()
 

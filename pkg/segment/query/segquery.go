@@ -36,6 +36,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -362,7 +363,7 @@ func getNodeResultsForRRCCmd(queryInfo *queryInformation, sTime time.Time, allSe
 			ErrList: []error{err},
 		}
 	}
-	log.Infof("qid=%d, Recieved %+v query segment requests. %+v raw search %+v pqs and %+v distribued query elapsed time: %+v",
+	log.Infof("qid=%d, Received %+v query segment requests. %+v raw search %+v pqs and %+v distribued query elapsed time: %+v",
 		queryInfo.qid, len(sortedQSRSlice), numRawSearch, numPQS, distributedQueries, time.Since(sTime))
 	err = setTotalSegmentsToSearch(queryInfo.qid, numRawSearch+numPQS+distributedQueries)
 	if err != nil {
@@ -381,7 +382,7 @@ func getNodeResultsForSegmentStatsCmd(queryInfo *queryInformation, sTime time.Ti
 		log.Errorf("qid=%d Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
 	}
 	querySummary.UpdateRemainingDistributedQueries(numDistributed)
-	log.Infof("qid=%d, Recieved %+v query segment aggs, with %+v raw search %v distributed, query elapsed time: %+v",
+	log.Infof("qid=%d, Received %+v query segment aggs, with %+v raw search %v distributed, query elapsed time: %+v",
 		queryInfo.qid, len(sortedQSRSlice), numRawSearch, numDistributed, time.Since(sTime))
 	if queryInfo.aggs.MeasureOperations != nil {
 		allSegFileResults.InitSegmentStatsResults(queryInfo.aggs.MeasureOperations)
@@ -455,7 +456,11 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 	// In order, search segKeys (either raw or pqs depending on above sType).
 	// If no aggs, early exit at utils.QUERY_EARLY_EXIT_LIMIT
 	// If sort, check if next segkey's time range will overlap with the recent best results
+	// If there's aggs and they can be computed fully by agile trees, limit the number of
+	// buckets to utils.QUERY_MAX_BUCKETS unless a sort or computation follows the aggs.
 
+	limitAgileAggsTreeBuckets := canUseBucketLimitedAgileAggsTree(sortedQSRSlice, queryInfo)
+	var agileTreeBuckets map[string]struct{}
 	var agileTreeBuf []byte
 	if config.IsAggregationsEnabled() && queryInfo.qType == structs.GroupByCmd &&
 		queryInfo.sNodeType == structs.MatchAllQuery {
@@ -495,20 +500,28 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 				allSegFileResults.AddError(err)
 			}
 		} else {
-			isSegFullyEncosed := segReq.queryRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs,
-				segReq.segKeyTsRange.EndEpochMs)
-
-			doAgileTree := false
-			var str *segread.AgileTreeReader
-			if config.IsAggregationsEnabled() && isSegFullyEncosed && queryInfo.qType == structs.GroupByCmd &&
-				queryInfo.sNodeType == structs.MatchAllQuery && !timeAggs {
-				doAgileTree, str = search.CanDoStarTree(segReq.segKey, segReq.aggs, queryInfo.qid)
-			}
+			doAgileTree, str := canUseAgileTree(segReq, queryInfo)
 
 			if doAgileTree {
 				sTime := time.Now()
+
+				if limitAgileAggsTreeBuckets {
+					// Reuse the bucket keys from the previous segments so we
+					// sync which buckets we're using across segments.
+					str.SetBuckets(agileTreeBuckets)
+					str.SetBucketLimit(segutils.QUERY_MAX_BUCKETS)
+				}
+
 				search.ApplyAgileTree(str, segReq.aggs, allSegFileResults, segReq.sizeLimit, queryInfo.qid,
 					agileTreeBuf)
+
+				if limitAgileAggsTreeBuckets {
+					// Get the buckets so we can use its keys for the next
+					// segment so that we sync which buckets we're using across
+					// segments.
+					agileTreeBuckets = str.GetBuckets()
+				}
+
 				str.Close()
 				timeElapsed := time.Since(sTime)
 				queryMetrics := &structs.QueryProcessingMetrics{}
@@ -568,6 +581,41 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 	if len(sortedQSRSlice) == 0 {
 		incrementNumFinishedSegments(0, queryInfo.qid, recsSearchedSinceLastUpdate, 0, false, nil)
 	}
+}
+
+// Return true if we can use AgileAggsTrees for all the segments and we can
+// limit the number of buckets.
+func canUseBucketLimitedAgileAggsTree(sortedQSRSlice []*querySegmentRequest, queryInfo *queryInformation) bool {
+	if !queryInfo.aggs.CanLimitBuckets() {
+		return false
+	}
+
+	for _, segReq := range sortedQSRSlice {
+		canUse, agileTree := canUseAgileTree(segReq, queryInfo)
+
+		if agileTree != nil {
+			agileTree.Close()
+		}
+
+		if !canUse {
+			return false
+		}
+	}
+
+	return true
+}
+
+func canUseAgileTree(segReq *querySegmentRequest, queryInfo *queryInformation) (bool, *segread.AgileTreeReader) {
+	isSegFullyEncosed := segReq.queryRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs,
+		segReq.segKeyTsRange.EndEpochMs)
+	_, timeAggs := checkAggTypes(segReq.aggs)
+
+	if config.IsAggregationsEnabled() && isSegFullyEncosed && queryInfo.qType == structs.GroupByCmd &&
+		queryInfo.sNodeType == structs.MatchAllQuery && !timeAggs {
+		return search.CanDoStarTree(segReq.segKey, segReq.aggs, queryInfo.qid)
+	}
+
+	return false, nil
 }
 
 // returns true if any element in qsrs would displace any of the RRCs
