@@ -97,7 +97,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64) {
 		return
 	}
 
-	if aggs != nil && aggs.TableName != "*" {
+	if queryLanguageType == "SQL" && aggs != nil && aggs.TableName != "*" {
 		indexNameIn = aggs.TableName
 		ti = structs.InitTableInfo(indexNameIn, orgid, false) // Re-initialize ti with the updated indexNameIn
 	}
