@@ -1241,7 +1241,6 @@ func getAggregationResultFieldValues(fieldToValue map[string]segutils.CValueEncl
 
 	for _, field := range fields {
 		var enclosure segutils.CValueEnclosure
-
 		value, ok := getAggregationResultCell(aggResult, rowIndex, field)
 		if !ok {
 			return fmt.Errorf("getAggregationResultFieldValues: failed to extract field %v from row %v of AggregationResult", field, rowIndex)
