@@ -96,6 +96,12 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64) {
 		}
 		return
 	}
+	if aggs != nil && aggs.TableName != "*" {
+		indexNameIn = aggs.TableName
+	}
+	ti := structs.InitTableInfo(indexNameIn, orgid, false)
+	log.Infof("qid=%v, ProcessPipeSearchRequest: index=[%s], searchString=[%v] ",
+		qid, ti.String(), searchText)
 
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
