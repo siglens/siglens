@@ -71,7 +71,7 @@ func extractExpressionFilter(t *testing.T, node *ast.Node) *structs.ExpressionFi
 
 // Initial setup.
 func TestMain(m *testing.M) {
-	// Supress log output.
+	// Suppress log output.
 	log.SetOutput(ioutil.Discard)
 
 	// Run the tests.
@@ -3899,6 +3899,85 @@ func Test_evalWithMultipleElements(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].Value, "Max Latency: ")
 	assert.Equal(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].IsField, true)
 	assert.Equal(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].Value, "Max")
+}
+
+func Test_evalWithMultipleSpaces(t *testing.T) {
+	query := []byte(`search      A    =   1  |   stats   max(  latency  )   AS   Max | eval Max  =  Max   .  " seconds", Max="Max Latency: " . Max`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+
+	// Second agg is for renaming max(latency) to Max, the third is for the first statement in eval.
+	assert.NotNil(t, aggregator.Next.Next)
+	assert.Equal(t, aggregator.Next.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "Max")
+	assert.Len(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms, 2)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].IsField, true)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].Value, "Max")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].IsField, false)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].Value, " seconds")
+
+	// The fourth agg is for the second statement in eval.
+	assert.NotNil(t, aggregator.Next.Next.Next)
+	assert.Equal(t, aggregator.Next.Next.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns)
+	assert.Equal(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns.NewColName, "Max")
+	assert.Len(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms, 2)
+	assert.Equal(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].IsField, false)
+	assert.Equal(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].Value, "Max Latency: ")
+	assert.Equal(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].IsField, true)
+	assert.Equal(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].Value, "Max")
+}
+
+func Test_evalWithMultipleSpaces2(t *testing.T) {
+	query := []byte(`search   A   =   1   OR  ( B =  2  AND   C =  3)`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, filterNode.NodeType, ast.NodeOr)
+	assert.Equal(t, filterNode.Right.NodeType, ast.NodeAnd)
+
+	assert.Equal(t, filterNode.Left.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Left.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Left.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Left.Comparison.Values, json.Number("1"))
+
+	assert.Equal(t, filterNode.Right.Left.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Left.Comparison.Field, "B")
+	assert.Equal(t, filterNode.Right.Left.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Left.Comparison.Values, json.Number("2"))
+
+	assert.Equal(t, filterNode.Right.Right.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Right.Comparison.Field, "C")
+	assert.Equal(t, filterNode.Right.Right.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Right.Comparison.Values, json.Number("3"))
+
+	astNode := &structs.ASTNode{}
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode.OrFilterCondition.FilterCriteria)
+	assert.Len(t, astNode.OrFilterCondition.FilterCriteria, 1)
+	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+	assert.Len(t, astNode.OrFilterCondition.NestedNodes, 1)
+	assert.Len(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria, 2)
+	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
+	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
+	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
+	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
 }
 
 func Test_SimpleNumericEval(t *testing.T) {

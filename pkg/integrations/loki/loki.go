@@ -480,7 +480,7 @@ func remove(slice []string, stringToRemove string) []string {
 	return slice
 }
 
-// needs to be modified as changes are made to logql parsing. Logfmt, json, label/line expresions
+// needs to be modified as changes are made to logql parsing. Logfmt, json, label/line expression
 // and stream selectors are supported
 func removeUnimplementedMethods(queryString string) string {
 
