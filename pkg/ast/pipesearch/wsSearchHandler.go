@@ -67,7 +67,6 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64) {
 		return
 	}
 
-
 	queryLanguageType := event["queryLanguage"]
 	var simpleNode *structs.ASTNode
 	var aggs *structs.QueryAggregators
