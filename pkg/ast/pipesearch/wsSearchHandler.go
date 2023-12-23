@@ -67,9 +67,6 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64) {
 		return
 	}
 
-	ti := structs.InitTableInfo(indexNameIn, orgid, false)
-	log.Infof("qid=%v, ProcessPipeSearchWebsocket: index=[%v] searchString=[%v] scrollFrom=[%v]",
-		qid, ti.String(), searchText, scrollFrom)
 
 	queryLanguageType := event["queryLanguage"]
 	var simpleNode *structs.ASTNode
