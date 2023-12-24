@@ -47,6 +47,14 @@ func NotifyAlertHandlerRequest(alertID string) error {
 	if !cooldownOver {
 		return nil
 	}
+	silenceMinutesOver, err := isSilenceMinutesOver(alertID)
+	if err != nil {
+		log.Errorf("NotifyAlertHandlerRequest:Error checking silence period for alert id- %s, err=%v", alertID, err)
+		return err
+	}
+	if !silenceMinutesOver {
+		return nil
+	}
 	contact_id, message, subject, err := processGetContactDetails(alertID)
 	if err != nil {
 		log.Errorf("NotifyAlertHandlerRequest:Error retrieving contact and message for alert id- %s, err=%v", alertID, err)
@@ -143,6 +151,26 @@ func sendWebhooks(webhookUrl, subject, message string) error {
 	return err
 }
 
+func isSilenceMinutesOver(alertID string) (bool, error) {
+	silenceMinutes, lastSendTime, err := processGetSilenceMinutesRequest(alertID)
+
+	if lastSendTime.IsZero() {
+		return true, nil
+	}
+
+	if err != nil {
+		return true, err
+	}
+
+	currentTimeUTC := time.Now().UTC()
+	lastSendTimeUTC := lastSendTime.UTC()
+	silenceMinutesUTC := time.Duration(silenceMinutes) * time.Minute
+	if currentTimeUTC.Sub(lastSendTimeUTC) >= silenceMinutesUTC {
+		return true, nil
+	}
+	return false, nil
+}
+
 func isCooldownOver(alertID string) (bool, error) {
 	cooldownMinutes, lastSendTime, err := processGetCooldownRequest(alertID)
 
@@ -198,6 +226,21 @@ func processGetCooldownRequest(alert_id string) (uint64, time.Time, error) {
 	return period, last_time, nil
 }
 
+func processGetSilenceMinutesRequest(alert_id string) (uint64, time.Time, error) {
+	alertDataObj, err := databaseObj.GetAlert(alert_id)
+	if err != nil {
+		log.Errorf("ProcessGetSilenceMinutesRequest:Error getting alert details for alert id- %s err=%v", alert_id, err)
+		return 0, time.Time{}, err
+	}
+
+	_, last_time, err := databaseObj.GetCoolDownDetails(alert_id)
+	if err != nil {
+		log.Errorf("ProcessGetSilenceMinutesRequest:Error getting cooldown details for alert id- %s err=%v", alert_id, err)
+		return 0, time.Time{}, err
+	}
+
+	return alertDataObj.AlertInfo.SilenceMinutes, last_time, nil
+}
 func processGetContactDetails(alert_id string) (string, string, string, error) {
 	id, message, subject, err := databaseObj.GetContactDetails(alert_id)
 	if err != nil {
