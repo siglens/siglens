@@ -18,6 +18,7 @@ package sql
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -35,6 +36,33 @@ const (
 	And = iota
 	Or
 )
+
+type Expression interface {
+	Evaluate() (interface{}, error)
+}
+
+var ErrInvalidArgumentCount = errors.New("invalid number of arguments")
+
+type SelectExprPlaceholder struct {
+	SelectExpr *sqlparser.SelectExpr
+}
+
+func NewSelectExprPlaceholder(selectExpr *sqlparser.SelectExpr) *SelectExprPlaceholder {
+	return &SelectExprPlaceholder{SelectExpr: selectExpr}
+}
+
+func (s *SelectExprPlaceholder) Evaluate() (interface{}, error) {
+	fmt.Println("Evaluating SelectExpr:", s.SelectExpr)
+	return nil, nil
+}
+
+type ExtractYearExpression struct {
+	Source Expression
+}
+
+func NewExtractYearExpression(source Expression) *ExtractYearExpression {
+	return &ExtractYearExpression{Source: source}
+}
 
 func ConvertToASTNodeSQL(exp string, qid uint64) (*structs.ASTNode, *structs.QueryAggregators, []string, error) {
 	exp = formatStringForSQL(exp)
@@ -396,7 +424,6 @@ func parseOrConditionSQL(astNode *structs.ASTNode, expr *sqlparser.OrExpr, qid u
 }
 
 func formatStringForSQL(querytext string) string {
-	//Add leading and trailing back ticks to words with hyphens
 	hyphenRegex := regexp.MustCompile(`[\w` + "`" + `]+-[\w` + "`" + `]+`)
 	hyphenWords := hyphenRegex.FindAllString(querytext, -1)
 	for _, word := range hyphenWords {
@@ -431,4 +458,55 @@ func parseOtherRead(exp string, qid uint64) (string, error) {
 	new_exp := reg.ReplaceAllString(exp, "SHOW COLUMNS IN ")
 	return new_exp, nil
 
+}
+
+func (e *ExtractYearExpression) Evaluate() (interface{}, error) {
+	sourceValue, err := e.Source.Evaluate()
+	if err != nil {
+		return nil, err
+	}
+
+	year, err := extractYear(sourceValue)
+	if err != nil {
+		return nil, err
+	}
+
+	return year, nil
+}
+
+func extractYear(sourceValue interface{}) (int, error) {
+
+	return 0, nil
+}
+
+func ParseExpression(expr sqlparser.Expr) (Expression, error) {
+	switch e := expr.(type) {
+	case *sqlparser.ColName:
+		fmt.Println("Parsing ColName:", e)
+	case sqlparser.SelectExpr:
+		if se, ok := e.(*sqlparser.SelectExpr); ok {
+			return NewSelectExprPlaceholder(se), nil
+		}
+	default:
+		fmt.Println("Parsing expression:", expr)
+	}
+
+	return nil, nil
+}
+
+func ParseExtractYearExpression(node *sqlparser.FuncExpr) (Expression, error) {
+	if len(node.Exprs) != 1 {
+		return nil, ErrInvalidArgumentCount
+	}
+
+	if node.Exprs[0] == nil {
+		return nil, errors.New("expression is nil")
+	}
+
+	sourceExpression, err := ParseExpression(node.Exprs[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return NewExtractYearExpression(sourceExpression), nil
 }
