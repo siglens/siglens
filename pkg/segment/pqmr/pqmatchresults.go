@@ -160,7 +160,7 @@ func (spqmr *SegmentPQMRResults) CopyBlockResults(blkNum uint16, og *PQMatchResu
 	return uint64(new.BinaryStorageSize())
 }
 
-// Sets teh block results. This should only be used for testing
+// Sets the block results. This should only be used for testing
 func (spqmr *SegmentPQMRResults) SetBlockResults(blkNum uint16, og *PQMatchResults) {
 	spqmr.accessLock.Lock()
 	spqmr.allBlockResults[blkNum] = og

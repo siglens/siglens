@@ -42,6 +42,7 @@ search 404 OR 500,now-1d,now,*,total,gt,100,Splunk QL
 search latency<18580 AND app_name=Stresscrawl,now-1d,now,*,total,gt,0,Splunk QL
 search MintCream AND Thursday OR Monday,now-1d,now,*,total,eq,212,Splunk QL
 search (MintCream AND Thursday) OR Monday,now-1d,now,*,total,gt,212,Splunk QL
+search    (   MintCream    AND   Thursday  )   OR   Monday,now-1d,now,*,total,gt,212,Splunk QL
 search MintCream Thursday OR Monday,now-1d,now,*,total,eq,212,Splunk QL
 search NOT (city!=Boston OR NOT weekday=Friday),now-1d,now,*,total,gt,100,Splunk QL
 search batch=batch-*,now-1d,now,*,total,gt,100,Splunk QL
@@ -70,6 +71,7 @@ city=Boston | stats count AS Count BY zip | eval Average=(Count + zip) / 2,now-1
 city=Boston | stats count AS Count BY http_status | eval abs=abs(http_status - 1000),now-1d,now,*,group:abs:400,eq,600,Splunk QL
 city=Boston | stats count AS Count BY weekday | eval ceil=ceil(Count + 0.1),now-1d,now,*,group:ceil:Thursday,eq,157,Splunk QL
 city=Detroit | stats count AS Count BY latitude | where latitude > 89.6 | eval round=round(latitude),now-1d,now,*,group:round:89.982058,eq,90,Splunk QL
+city   =     Detroit | stats    count   AS   Count   BY   latitude | where   latitude>    89.6 | eval round  =  round(  latitude),now-1d,now,*,group:round:89.982058,eq,90,Splunk QL
 "city=Detroit | stats count AS Count BY latitude | where latitude > 89.6 | eval round=round(latitude, 3)",now-1d,now,*,group:round:89.982058,eq,89.982,Splunk QL
 city=Columbus | stats count AS Count BY http_status | eval sqrt=sqrt(http_status + 200),now-1d,now,*,group:sqrt:200,eq,20,Splunk QL
 city=Boston | stats count AS Count BY app_name | eval len=len(app_name) | where len > 22,now-1d,now,*,group:len:MediumSeaGreenstupidity,eq,23,Splunk QL

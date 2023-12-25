@@ -161,14 +161,11 @@ mkdir -p data
 echo ""
 echo -e "\n===> SigLens installation complete"
 
-# Extract the first occurrence of a valid MAC address
-computer_specific_identifier=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
-# If it can not get the mac address, use hostname as computer-specific identifier 
-if [ -z "$computer_specific_identifier" ]; then
-  computer_specific_identifier=$(hostname)
+csi=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
+if [ -z "$csi" ]; then
+  csi=$(hostname)
 fi
 
-# Get OS information
 runtime_os=$(uname)
 runtime_arch=$(uname -m)
 
@@ -177,7 +174,7 @@ https://api.segment.io/v1/track \
 -H 'Content-Type: application/json' \
 -H 'Authorization: Basic QlBEam5lZlBWMEpjMkJSR2RHaDdDUVRueWtZS2JEOGM6' \
 -d '{
-  "userId": "'"$computer_specific_identifier"'",
+  "userId": "'"$csi"'",
   "event": "install (not running)",
   "properties": {
     "runtime_arch": "'"$runtime_os"'",

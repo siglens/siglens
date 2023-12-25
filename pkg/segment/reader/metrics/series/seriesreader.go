@@ -224,8 +224,8 @@ func (tsbr *TimeSeriesBlockReader) GetTimeSeriesIterator(tsid uint64) (*compress
 func getOffsetFromTsoFile(low uint32, high uint32, nTsids uint32, tsid uint64, tsoBuf []byte) (bool, uint32, uint32) {
 	for low <= high {
 		mid := (high + low) / 2
-		// adding 3 becuase the first byte for version and the next two bytes are for number of entries
-		// mutliplying 'mid' by 12 because every tsid info takes 8 bytes for tsid and 4 bytes for tsid offset
+		// adding 3 because the first byte for version and the next two bytes are for number of entries
+		// multiplying 'mid' by 12 because every tsid info takes 8 bytes for tsid and 4 bytes for tsid offset
 		offsetMid := 3 + mid*12
 		// tsid takes 8 bytes in the tso buffer
 		tempBuffer := tsoBuf[offsetMid : offsetMid+8]
