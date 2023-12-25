@@ -1,12 +1,15 @@
 # Siglens Contributor Guide
 
-* [New Contributor Guide](#contributing-guide)
-  * [Ways to Contribute](#ways-to-contribute)
-  * [Find an Issue](#find-an-issue)
-  * [Ask for Help](#ask-for-help)
-  * [Pull Request Lifecycle](#pull-request-lifecycle)
-  * [Development Environment Setup](#development-environment-setup)
-  * [Pull Request Checklist](#pull-request-checklist)
+- [Siglens Contributor Guide](#siglens-contributor-guide)
+  - [Ways to Contribute](#ways-to-contribute)
+  - [Find an Issue](#find-an-issue)
+  - [Ask for Help](#ask-for-help)
+  - [Pull Request Lifecycle](#pull-request-lifecycle)
+  - [Development Environment Setup](#development-environment-setup)
+    - [Start up Siglens](#start-up-siglens)
+    - [Send Data to SigLens](#send-data-to-siglens)
+    - [Send Queries on Siglens](#send-queries-on-siglens)
+  - [Pull Request Checklist](#pull-request-checklist)
 
 Hello there! We are glad that you want to contribute to our project! 💖
 
@@ -91,14 +94,18 @@ You should be able to access `http://localhost:80` and see the SigLens UI. If yo
 
 ### Send Data to SigLens
 
-To send data, clone the [sigscalr-client](https://github.com/sigscalr/sigscalr-client) repo.
+To send data, go to `tools/sigclient`.
 
-In another terminal, start the ingestion via `sigscalr-client` by running:
+In another terminal, go to the location of sigclient:
+```
+cd tools/sigclient
+```
+ start the ingestion via `sigscalr-client` by running:
 ```
 go run main.go ingest esbulk -t 10_000 -d http://localhost:8081/elastic --processCount 1 -n 1 -b 500 -g dynamic-user
 ```
 
-Look through the [sigscalr-client ReadMe](https://github.com/sigscalr/sigscalr-client/blob/main/README.md) to see all command arguments.
+Look through the [sigscalr-client ReadMe](tools/sigclient/README.md) to see all command arguments.
 
 
 ### Send Queries on Siglens
