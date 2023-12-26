@@ -43,7 +43,8 @@ limitations under the License.
  function resetDataTable(firstQUpdate) {
      if (firstQUpdate) {
          $('#empty-response').hide();
-         $('#logs-view-controls').show();
+    $("#custom-chart-tab").show();
+
          $("#agg-result-container").hide();
          $("#data-row-container").hide();
          hideError();
@@ -747,6 +748,7 @@ function getColumns() {
  
  function processEmptyQueryResults() {
      $("#logs-result-container").hide();
+    $("#custom-chart-tab").hide();
      $("#agg-result-container").hide();
      $("#data-row-container").hide();
      $('#corner-popup').hide();
@@ -782,6 +784,7 @@ function getColumns() {
       }
       resetDashboard();
       $("#logs-result-container").hide();
+      $("#custom-chart-tab").hide();
       $("#agg-result-container").show();
       aggsColumnDefs = [];
       segStatsRowData = [];
@@ -837,6 +840,7 @@ function getColumns() {
          }
          resetDashboard();
          $("#logs-result-container").hide();
+         $("#custom-chart-tab").hide();
          $("#agg-result-container").show();
          aggsColumnDefs=[];
          segStatsRowData=[];
@@ -893,11 +897,13 @@ function getColumns() {
 
  function showErrorResponse(errorMsg,res){
     $("#logs-result-container").hide();
+    $("#custom-chart-tab").hide();
      $("#agg-result-container").hide();
      $("#data-row-container").hide();
      $('#corner-popup').hide();
      $('#empty-response').show();
      $('#logs-view-controls').hide();
+    $("#custom-chart-tab").hide();
      let el = $('#empty-response');
      $('#empty-response').empty();
      if (res && res.no_data_err && res.no_data_err.includes("No data found")){
