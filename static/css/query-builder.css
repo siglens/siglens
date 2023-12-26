@@ -624,3 +624,30 @@ div.show-record-popup {
 .stop-search:hover{
     background-color: var(--border-btn-color);
 }
+.custom-chart-tab{
+    padding: 0 26px;
+    margin-top: -50px;
+    position: relative;
+    height: 100%;
+    background: none;
+}
+.tab-chart-list{
+    height: 40px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 202px;
+    position: absolute;
+    right: 350px;
+    background-color: var(--myOrg-input);
+}
+#tabs-chart,
+#logs-result-container{
+    display: none;
+    margin: 54px 0 0 0;
+}
+.columnChart{
+    width: 100%; 
+    height: 600px;
+}

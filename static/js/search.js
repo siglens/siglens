@@ -44,7 +44,6 @@ limitations under the License.
      if (firstQUpdate) {
          $('#empty-response').hide();
          $('#logs-view-controls').show();
-         $("#logs-result-container").show();
          $("#agg-result-container").hide();
          $("#data-row-container").hide();
          hideError();

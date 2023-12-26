@@ -1,6 +1,7 @@
 "use strict";
 $(function () {
   $("#custom-code-tab").tabs();
+  $("#custom-chart-tab").tabs();
 });
 $("#custom-code-tab").tabs({
   activate: function (event, ui) {
@@ -49,6 +50,7 @@ $(document).ready(function () {
   if (firstBoxSet.size > 0) $("#search-filter-text").hide();
   else $("#search-filter-text").show();
   setShowColumnInfoDialog();
+  timeChart();
 });
 
 const tags = document.getElementById("tags");
@@ -519,4 +521,48 @@ function setShowColumnInfoDialog(){
     $(".ui-widget-overlay").addClass("opacity-75");
     // return false;
   });
+}
+function timeChart(){
+    var dataTime = [
+    ['2018-03-29', 5, 17, 6, 3, 5, 32, 9],
+    ['2018-03-30', 62, 63, 39, 30, 22, 127, 56],
+    ['2018-03-31', 65, 94, 38, 42, 34, 128, 60],
+    ['2018-04-01', 54, 82, 42, 39, 13, 115, 66],
+    ['2018-04-02', 52, 63, 45, 42, 22, 124, 52],
+    ['2018-04-03', 46, 76, 34, 42, 19, 123, 59],
+    ['2018-04-04', 57, 70, 36, 38, 20, 130, 56],
+    ['2018-04-05', 46, 72, 35, 37, 13, 106, 46],
+];
+// Extract dates and series from the data
+var dates = dataTime.map(item => item[0]);
+var series = dataTime.map(item => item.slice(1));
+// ECharts configuration
+var option = {
+    tooltip: {
+        trigger: 'axis'
+    },
+    legend: {
+        data: ['ACCESSORIES', 'ARCADE', 'SHOOTER', 'SIMULATION', 'SPORTS', 'STRATEGY', 'TEE']
+    },
+    xAxis: {
+        type: 'category',
+        data: dates
+    },
+    yAxis: {
+        type: 'value'
+    },
+    series: [
+        { name: 'ACCESSORIES', type: 'bar', data: series[0] },
+        { name: 'ARCADE', type: 'bar', data: series[1] },
+        { name: 'SHOOTER', type: 'bar', data: series[2] },
+        { name: 'SIMULATION', type: 'bar', data: series[3] },
+        { name: 'SPORTS', type: 'bar', data: series[4] },
+        { name: 'STRATEGY', type: 'bar', data: series[5] },
+        { name: 'TEE', type: 'bar', data: series[6] }
+    ]
+};
+// Initialize ECharts
+var chart = echarts.init(document.getElementById('columnChart'));
+// Set the configuration to the chart
+chart.setOption(option);
 }
