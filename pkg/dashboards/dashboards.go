@@ -312,7 +312,7 @@ func toggleFavorite(id string) (bool, error) {
 		return false, err
 	}
 
-	// Unmarshal the JSON file into a map
+	// Unmarshal JSON file into a map
 	var dashboard map[string]interface{}
 	err = json.Unmarshal(dashboardJson, &dashboard)
 	if err != nil {
