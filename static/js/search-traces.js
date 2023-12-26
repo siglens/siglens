@@ -406,7 +406,7 @@ function showScatterPlot() {
 function reSort(){
   $(".warn-box").remove();
   for (let i = 0; i < returnResTotal.length; i++) {
-    $("#warn-bottom").append(`<div class="warn-box"><div class="warn-head">
+    $("#warn-bottom").append(`<div class="warn-box warn-box-${i}"><div class="warn-head">
                             <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
                             <span class = "duration-time" id  = "duration-time-${i}"></span>
                         </div>
@@ -422,6 +422,7 @@ function reSort(){
                             </div>
                         </div></div>`);
     let json = returnResTotal[i];
+    $(`.warn-box-${i}`).attr("id",json.trace_id );
     $(`#span-id-head-${i}`).text(json.service_name + ": " + json.operation_name + "  ");
     $(`#span-id-${i}`).text(json.trace_id.substring(0, 7));
     $(`#total-span-${i}`).text(
@@ -519,3 +520,8 @@ function getData() {
       }
       
 }
+
+$("body").on("click", ".warn-box", function() {
+  var traceId = $(this).attr("id");
+  window.location.href = "trace.html?trace_id=" + traceId;
+});
