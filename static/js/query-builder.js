@@ -1,10 +1,12 @@
 "use strict";
+let chart;
 $(function () {
   $("#custom-code-tab").tabs();
   $("#custom-chart-tab").tabs();
 });
 $("#custom-code-tab").tabs({
   activate: function (event, ui) {
+    if (chart != null && chart != "" && chart != undefined) timeChart();
     let currentTab = $("#custom-code-tab").tabs("option", "active");
     if (currentTab == 0) {
       $(".query-language-option").removeClass("active");
@@ -538,31 +540,56 @@ var dates = dataTime.map(item => item[0]);
 var series = dataTime.map(item => item.slice(1));
 // ECharts configuration
 var option = {
-    tooltip: {
-        trigger: 'axis'
+  tooltip: {
+    trigger: "axis",
+  },
+  legend: {
+    data: [
+      "ACCESSORIES",
+      "ARCADE",
+      "SHOOTER",
+      "SIMULATION",
+      "SPORTS",
+      "STRATEGY",
+      "TEE",
+    ],
+    // textStyle: {
+    //   lineHeight: 20, // 设置行高为20像素
+    // },
+  },
+  xAxis: {
+    type: "category",
+    data: dates,
+    axisLabel: {
+      formatter: function (value) {
+        // Format the date as needed
+        return value; // You may need to format the date here based on your requirements
+      },
     },
-    legend: {
-        data: ['ACCESSORIES', 'ARCADE', 'SHOOTER', 'SIMULATION', 'SPORTS', 'STRATEGY', 'TEE']
-    },
-    xAxis: {
-        type: 'category',
-        data: dates
-    },
-    yAxis: {
-        type: 'value'
-    },
-    series: [
-        { name: 'ACCESSORIES', type: 'bar', data: series[0] },
-        { name: 'ARCADE', type: 'bar', data: series[1] },
-        { name: 'SHOOTER', type: 'bar', data: series[2] },
-        { name: 'SIMULATION', type: 'bar', data: series[3] },
-        { name: 'SPORTS', type: 'bar', data: series[4] },
-        { name: 'STRATEGY', type: 'bar', data: series[5] },
-        { name: 'TEE', type: 'bar', data: series[6] }
-    ]
+  },
+  yAxis: {
+    type: "value",
+  },
+  series: [
+    { name: "ACCESSORIES", type: "bar", data: series[0] },
+    { name: "ARCADE", type: "bar", data: series[1] },
+    { name: "SHOOTER", type: "bar", data: series[2] },
+    { name: "SIMULATION", type: "bar", data: series[3] },
+    { name: "SPORTS", type: "bar", data: series[4] },
+    { name: "STRATEGY", type: "bar", data: series[5] },
+    { name: "TEE", type: "bar", data: series[6] },
+  ],
 };
 // Initialize ECharts
-var chart = echarts.init(document.getElementById('columnChart'));
+let charId = document.getElementById("columnChart");
+if (chart != null && chart != "" && chart != undefined) {
+  echarts.dispose(chart);
+}
+chart = echarts.init(charId);
 // Set the configuration to the chart
 chart.setOption(option);
+let heighty = document.getElementById("custom-code-tab").getBoundingClientRect().height;
+  chart.resize({
+    height: window.innerHeight - heighty - 60
+  });
 }

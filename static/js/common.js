@@ -83,12 +83,11 @@ let aggGridOptions = {
 
 function showError(errorMsg) {
     $("#logs-result-container").hide();
-    $("#custom-chart-tab").hide();
     $("#agg-result-container").hide();
     $("#data-row-container").hide();
     $('#empty-response').hide();
     $('#logs-view-controls').show();
-    $("#custom-chart-tab").hide();
+    $("#custom-chart-tab").show();
     $('#corner-popup .corner-text').html(errorMsg);
     $('#corner-popup').show();
     $('body').css('cursor', 'default');

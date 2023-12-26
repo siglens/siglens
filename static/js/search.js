@@ -43,8 +43,8 @@ limitations under the License.
  function resetDataTable(firstQUpdate) {
      if (firstQUpdate) {
          $('#empty-response').hide();
-    $("#custom-chart-tab").show();
-
+         $("#custom-chart-tab").show();
+         $("#logs-view-controls").show();
          $("#agg-result-container").hide();
          $("#data-row-container").hide();
          hideError();
@@ -897,7 +897,6 @@ function getColumns() {
 
  function showErrorResponse(errorMsg,res){
     $("#logs-result-container").hide();
-    $("#custom-chart-tab").hide();
      $("#agg-result-container").hide();
      $("#data-row-container").hide();
      $('#corner-popup').hide();

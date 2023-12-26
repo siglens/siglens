@@ -647,7 +647,11 @@ div.show-record-popup {
     display: none;
     margin: 54px 0 0 0;
 }
-.columnChart{
+.tab-content-size{
+    height: 100%;
+}
+.column-chart{
     width: 100%; 
-    height: 600px;
+    height: 100%;
+    overflow: hidden;
 }
