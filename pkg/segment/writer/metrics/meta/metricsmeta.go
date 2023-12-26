@@ -227,7 +227,7 @@ func removeMetricsSegmentsByList(metricsMetaFile string, metricsSegmentsToDelete
 			defer wfd.Close()
 			for _, mentry := range preservedEntries {
 				// delete tags trees for removed segments
-				// if ttdir existed in tagsTreeToDelete, that means a perserved metrics entry still will use this ttree
+				// if ttdir existed in tagsTreeToDelete, that means a preserved metrics entry still will use this ttree
 				delete(tagsTreeToDelete, mentry.TTreeDir)
 
 				msegjson, err := json.Marshal(*mentry)

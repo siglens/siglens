@@ -156,7 +156,7 @@ func removeFilesForDiskSpace(sizeToRemove uint64) error {
 	// recreate the heap with all elements in the map
 	recreateLocalHeap()
 	if memFreed == 0 {
-		return fmt.Errorf("failed to delete any memory to accomodate size of %+v", sizeToRemove)
+		return fmt.Errorf("failed to delete any memory to accommodate size of %+v", sizeToRemove)
 	}
 
 	return nil

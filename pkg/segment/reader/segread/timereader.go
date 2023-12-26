@@ -74,7 +74,7 @@ func InitNewTimeReader(segKey string, tsKey string, blockMetadata map[uint16]*st
 	if tsKey != "" {
 		err = blob.DownloadSegmentBlob(fName, true)
 	} else {
-		err = fmt.Errorf("InitNewTimeReader: failed to download segsetfile due to unkown segset col %+v", fName)
+		err = fmt.Errorf("InitNewTimeReader: failed to download segsetfile due to unknown segset col %+v", fName)
 	}
 	if err != nil {
 		log.Errorf("qid=%d, InitNewTimeReader failed to download file. %+v, err=%v", qid, fName, err)
@@ -254,9 +254,9 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 
 	oPtr := uint32(0)
 	if rawRec[oPtr] != utils.TIMESTAMP_TOPDIFF_VARENC[0] {
-		log.Errorf("recieved an unknown encoding type for typestamp column! expected %+v got %+v",
+		log.Errorf("received an unknown encoding type for typestamp column! expected %+v got %+v",
 			utils.TIMESTAMP_TOPDIFF_VARENC[0], rawRec[oPtr])
-		return nil, fmt.Errorf("recieved an unknown encoding type for typestamp column! expected %+v got %+v",
+		return nil, fmt.Errorf("received an unknown encoding type for typestamp column! expected %+v got %+v",
 			utils.TIMESTAMP_TOPDIFF_VARENC[0], rawRec[oPtr])
 	}
 	oPtr++
