@@ -58,7 +58,7 @@ func (e EarlyExitType) String() string {
 	}
 }
 
-// Stores information recieved by remote nodes for a query
+// Stores information received by remote nodes for a query
 type remoteSearchResult struct {
 
 	// for RRCs in BlockResults that come from remote nodes, this map stores the raw logs
@@ -552,7 +552,7 @@ func (sr *SearchResults) GetGroupyByBuckets(limit int) ([]*structs.BucketHolder,
 				groupByValues = append(groupByValues, bKey)
 				added++
 			default:
-				log.Errorf("Recieved an unknown type for bucket key! %+v", bKey)
+				log.Errorf("Received an unknown type for bucket key! %+v", bKey)
 			}
 			bucketHolder := &structs.BucketHolder{
 				GroupByValues: groupByValues,

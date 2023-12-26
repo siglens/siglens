@@ -40,6 +40,13 @@ type AgileTreeReader struct {
 	metaFileBuffer []byte // buffer re-used for file reads values
 	metaBuf        []byte // meta buff block
 	treeMeta       *StarTreeMetadata
+	buckets        aggsTreeBuckets
+}
+
+type aggsTreeBuckets struct {
+	bucketLimit uint64
+	saveBuckets bool
+	rawVals     map[string]struct{}
 }
 
 type StarTreeMetadata struct {
@@ -74,7 +81,25 @@ func InitNewAgileTreeReader(segKey string, qid uint64) (*AgileTreeReader, error)
 		metaFd:         fd,
 		metaFileBuffer: *fileReadBufferPool.Get().(*[]byte),
 		isMetaLoaded:   false,
+		buckets:        aggsTreeBuckets{},
 	}, nil
+}
+
+func (str *AgileTreeReader) GetBuckets() map[string]struct{} {
+	return str.buckets.rawVals
+}
+
+func (str *AgileTreeReader) SetBuckets(buckets map[string]struct{}) {
+	str.buckets.rawVals = buckets
+}
+
+func (str *AgileTreeReader) SetBucketLimit(bucketLimit uint64) {
+	str.buckets.bucketLimit = bucketLimit
+
+	// If the bucketLimit is 0, then there is no limit. If there is a limit, we
+	// need to save the buckets between each segment so if we hit the limit,
+	// we make sure to read all the same buckets between all the segments.
+	str.buckets.saveBuckets = bucketLimit > 0
 }
 
 func (str *AgileTreeReader) Close() error {
@@ -135,7 +160,7 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 	}
 
 	if str.metaFileBuffer[0] != utils.STAR_TREE_BLOCK[0] {
-		log.Errorf("ReadTreeMeta: recieved an unknown encoding type for agileTree: %v",
+		log.Errorf("ReadTreeMeta: received an unknown encoding type for agileTree: %v",
 			str.metaFileBuffer[0])
 		return errors.New("received non-agileTree encoding")
 	}
@@ -322,7 +347,7 @@ func (str *AgileTreeReader) getRawVal(key uint32, dictEncoding map[uint32][]byte
 
 func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 	desiredLevel uint16, combiner map[string][]utils.NumTypeEnclosure,
-	measResIndices []int, lenMri int, grpTreeLevels []uint16) error {
+	measResIndices []int, lenMri int, grpTreeLevels []uint16, grpColNames []string) error {
 
 	var wvInt64 int64
 	var wvFloat64 float64
@@ -341,12 +366,19 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 		return fmt.Errorf("decodeNodeDetailsJit wanted level: %v, but read level: %v", desiredLevel, curLevel)
 	}
 
+	usedDictEncodings := make([]map[uint32][]byte, len(grpTreeLevels))
+	for i, grpCol := range grpColNames {
+		usedDictEncodings[i] = str.treeMeta.allDictEncodings[grpCol]
+	}
+
 	// Allocate all the memory we need for the group by keys upfront to avoid
 	// many small allocations. This also allows us to convert a byte slice to
 	// a string without copying; this uses the unsafe package, but we never
 	// change that region of the byte slice, so it's safe.
 	wvBuf := make([]byte, len(grpTreeLevels)*4*int(numNodes))
 	wvIdx := uint32(0)
+
+	newBuckets := 0
 
 	for i := uint32(0); i < numNodes; i++ {
 		// get mapkey
@@ -373,8 +405,31 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 
 		aggVal, ok := combiner[wvNodeKey]
 		if !ok {
+			// Check if we hit the bucket limit. bucketLimit == 0 is a special
+			// case and means there is no limit.
+			if str.buckets.bucketLimit > 0 {
+				rawVal, _ := str.decodeRawValBytes(wvNodeKey, usedDictEncodings, grpColNames)
+				_, existingBucket := str.buckets.rawVals[rawVal]
+				if !existingBucket {
+					if uint64(len(str.buckets.rawVals))+uint64(newBuckets) >= str.buckets.bucketLimit {
+						// We've reached the bucket limit, so we shouldn't add another.
+						// However, we need to continue reading the AgileTree because
+						// we might reach another node that has data for a bucket we've
+						// already added.
+						idx += uint32(numAggValues) * 9
+						continue
+					} else {
+						newBuckets += 1
+					}
+				}
+			}
+
 			aggVal = make([]utils.NumTypeEnclosure, lenMri)
 			combiner[wvNodeKey] = aggVal
+		}
+
+		if aggVal == nil {
+			aggVal = make([]utils.NumTypeEnclosure, lenMri)
 		}
 
 		for j := 0; j < lenMri; j++ {
@@ -456,7 +511,8 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 
 	combiner := make(map[string][]utils.NumTypeEnclosure)
 
-	err := str.computeAggsJit(combiner, maxGrpLevel, measResIndices, agileTreeBuf, grpTreeLevels)
+	err := str.computeAggsJit(combiner, maxGrpLevel, measResIndices, agileTreeBuf,
+		grpTreeLevels, grpColNames)
 	if err != nil {
 		log.Errorf("qid=%v, ApplyGroupByJit: failed to apply aggs-jit: %v", qid, err)
 		return err
@@ -475,6 +531,14 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 		if err != nil {
 			log.Errorf("qid=%v, ApplyGroupByJit: Failed to get raw value for a agileTree key! %+v", qid, err)
 			return err
+		}
+
+		if str.buckets.saveBuckets {
+			if str.buckets.rawVals == nil {
+				str.buckets.rawVals = make(map[string]struct{})
+			}
+
+			str.buckets.rawVals[rawVal] = struct{}{}
 		}
 
 		cvaggvalues := make([]utils.CValueEnclosure, len(internalMops))
@@ -505,7 +569,8 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 }
 
 func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEnclosure,
-	desiredLevel uint16, measResIndices []int, agileTreeBuf []byte, grpTreeLevels []uint16) error {
+	desiredLevel uint16, measResIndices []int, agileTreeBuf []byte, grpTreeLevels []uint16,
+	grpColNames []string) error {
 
 	numAggValues := len(str.treeMeta.measureColNames) * writer.TotalMeasFns
 
@@ -535,7 +600,7 @@ func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEn
 
 	// assumes root is at level -1
 	err = str.decodeNodeDetailsJit(agileTreeBuf[0:myLevsSize], numAggValues, desiredLevel,
-		combiner, measResIndices, len(measResIndices), grpTreeLevels)
+		combiner, measResIndices, len(measResIndices), grpTreeLevels, grpColNames)
 	return err
 }
 

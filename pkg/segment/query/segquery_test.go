@@ -257,7 +257,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 		for key, value := range allSearchReq {
 			assert.Equal(t, value.SegmentKey, key)
 			// only block 0 should match, but bc blooms are random, there is a non-zero chance another block will pass.
-			// it is unlikley for >1 to pass, but technically it is possible, so this test is on the generous side
+			// it is unlikely for >1 to pass, but technically it is possible, so this test is on the generous side
 			assert.Less(t, len(value.AllBlocksToSearch), numBuffers/2)
 			assert.Contains(t, value.AllBlocksToSearch, uint16(0))
 			assert.NotNil(t, value.SearchMetadata)
