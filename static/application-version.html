@@ -50,41 +50,31 @@
                         <h1 class="myOrg-heading">My Org</h1>
                         <div class="section-buttons">
                             <div class="section-button"><a href="./cluster-stats.html">Cluster Stats</a></div>
-                            <div class="section-button active"><a href="./org-settings.html">Settings</a></div>
+                            <div class="section-button"><a href="./org-settings.html">Settings</a></div>
                             <div class="section-button"><a href="./test-data.html">Test Data</a></div>
-                            <div class="section-button"><a href="./application-version.html">Version</a></div>
+                            <div class="section-button active"><a href="./application-version.html">
+                                    Version</a></div>
                         </div>
                     </div>
                 </div>
 
                 <div class="myOrg-inner-container">
-                    <div class="org-settings">
-                        <div id="api-keys-headings">
-                            <p class="caption">Personalize your organization's settings</p>
+                    <div>
+                        <div>
+                            <p id="versionInfo">Loading...</p>
                         </div>
-                        <table id="org-settings-table">
-                            <tr>
-                                <th>Organization Name</th>
-                                <td id="orgName">SigLens</td>
-                            </tr>
-                            <tr>
-                                <th>Retention</th>
-                                <td id="retention-days-value">4 days</td>
-                            </tr>
-                        </table>
-
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div id="app-footer">
-        2023 &copy; SigLens
-    </div>
+        <div id="app-footer">
+            2023 &copy; SigLens
+        </div>
     </div>
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/cluster-stats.js"></script>
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/available-fields.js?cb=1_1_10"></script>
     <script src="./js/log-results-grid.js?cb=1_1_10"></script>
