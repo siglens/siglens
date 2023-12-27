@@ -33,7 +33,7 @@ func Test_ParseSelect(t *testing.T) {
 	testMeasureOp := append(make([]*structs.MeasureAggregator, 0), &structs.MeasureAggregator{
 		MeasureCol: "latency", MeasureFunc: utils.Count,
 	})
-	testGroupBy := &structs.GroupByRequest{GroupByColumns: make([]string, 0), MeasureOperations: make([]*structs.MeasureAggregator, 0)}
+	testGroupBy := &structs.GroupByRequest{GroupByColumns: make([]string, 0), MeasureOperations: make([]*structs.MeasureAggregator, 0), BucketCount: 100}
 	testGroupBy.GroupByColumns = append(testGroupBy.GroupByColumns, "country")
 	testGroupBy.MeasureOperations = append(testGroupBy.MeasureOperations, &structs.MeasureAggregator{
 		MeasureCol: "latency", MeasureFunc: utils.Count,
