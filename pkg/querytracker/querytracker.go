@@ -646,6 +646,45 @@ func GetPQSById(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+type PqsConfig struct {
+	PQSConfig string `json:"pqsConfig"`
+}
+
+func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
+	var config PqsConfig
+	err := json.Unmarshal(ctx.PostBody(), &config)
+	if err != nil {
+		log.Printf("Error parsing request body: %v", err)
+		ctx.Error("Bad Request", fasthttp.StatusBadRequest)
+		return
+	}
+	if err := SavePQSConfigToRunMod(config.PQSConfig); err != nil {
+		log.Printf("Error saving PQSConfig: %v", err)
+		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetContentType("application/json")
+	ctx.WriteString(`{"status":"success"}`)
+}
+
+func SavePQSConfigToRunMod(pqsConfig string) error {
+	runModFilePath := "data/common/runmod.cfg"
+
+	file, err := os.OpenFile(runModFilePath, os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	configData := map[string]string{
+		"PQSConfig": pqsConfig,
+	}
+	encoder := json.NewEncoder(file)
+	return encoder.Encode(configData)
+}
+
 func getPqsById(pqid string) map[string]interface{} {
 	persistentInfoLock.RLock()
 	defer persistentInfoLock.RUnlock()

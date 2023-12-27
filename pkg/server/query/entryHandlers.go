@@ -301,6 +301,12 @@ func getPqsByIdHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func postPqsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		querytracker.PostPqsUpdate(ctx)
+	}
+}
+
 func createDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		dashboards.ProcessCreateDashboardRequest(ctx, 0)

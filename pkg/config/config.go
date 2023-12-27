@@ -516,6 +516,9 @@ func InitConfigurationData() error {
 		return err
 	}
 	runningConfig = config
+	if err := ReadRunModConfig(); err != nil {
+		return err
+	}
 	fileInfo, err := os.Stat(configFilePath)
 	if err != nil {
 		log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
@@ -585,6 +588,31 @@ func InitializeTestingConfig() {
 	InitializeDefaultConfig()
 	SetDebugMode(true)
 	SetDataPath("data/")
+}
+
+func ReadRunModConfig() error {
+	runModFilePath := "data/common/runmod.cfg"
+	jsonData, err := os.ReadFile(runModFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to read runmod.cfg: %w", err)
+	}
+	var runModConfig struct {
+		PQSConfig string `json:"PQSConfig"`
+	}
+	if err := json.Unmarshal(jsonData, &runModConfig); err != nil {
+		return fmt.Errorf("failed to parse runmod.cfg: %w", err)
+	}
+	var pqsCheck bool
+	switch strings.ToLower(runModConfig.PQSConfig) {
+	case "enabled":
+		pqsCheck = true
+	case "disabled":
+		pqsCheck = false
+	default:
+		return fmt.Errorf("invalid PQSConfig value in runmod.cfg: %s", runModConfig.PQSConfig)
+	}
+	SetPQSEnabled(pqsCheck)
+	return nil
 }
 
 func ReadConfigFile(fileName string) (Configuration, error) {

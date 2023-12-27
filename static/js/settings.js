@@ -16,9 +16,42 @@ limitations under the License.
 
 $(document).ready(function () {
     if (Cookies.get('theme')) {
-        theme = Cookies.get('theme');
+        var theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
     }
     $('.theme-btn').on('click', themePickerHandler);
     displayNavbar();
-})
+
+    function showPersistentQueryWarning(value) {
+        if (value === 'disabled') {
+            alert("Disabling persistent queries may affect your query performance.");
+        }
+    }
+
+    function updatePersistentQueriesSetting(pqsConfig) {
+        $.ajax({
+            method: "POST",
+            url: "/api/pqs/update",
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                Accept: "*/*",
+            },
+            dataType: "json",
+            crossDomain: true,
+            data: JSON.stringify({ pqsConfig: pqsConfig }),
+            success: function (res) {
+                console.log("Update successful:", res);
+            },
+            error: function (xhr, status, error) {
+                console.error("Update failed:", xhr, status, error);
+            },
+        });
+    }
+
+    $('#persistent-queries-dropdown').on('change', function() {
+        showPersistentQueryWarning(this.value);
+        updatePersistentQueriesSetting(this.value);
+    });
+});
+
+
