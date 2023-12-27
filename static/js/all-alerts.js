@@ -54,7 +54,6 @@ function getAllAlerts(){
         displayAllAlerts(res.alerts);
     })
 }
-
 class btnRenderer {
 	init(params) {
         this.eGui = document.createElement('span');

@@ -13,7 +13,7 @@ async function testContactsPage() {
       .setChromeOptions(chromeOptions)
       .build();
 
-    await driver.get("http://localhost/contacts.html");
+    await driver.get("http://localhost:5122/contacts.html");
 
     let alertingHeader = await driver.findElement(By.css(".myOrg-heading")).getText();
     assert.equal(alertingHeader, "Alerting", "Alerting header text is not correct");
@@ -52,7 +52,7 @@ async function testContactsPage() {
     let saveContactButton = await driver.findElement(By.id("save-contact-btn"));
     await saveContactButton.click();
 
-    await driver.get("http://localhost/contacts.html");
+    await driver.get("http://localhost:5122/contacts.html");
 
     await driver.sleep(10000); // 5000 milliseconds = 5 seconds
  
