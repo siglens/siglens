@@ -3,6 +3,7 @@ let chart;
 $(function () {
   $("#custom-code-tab").tabs();
   $("#custom-chart-tab").tabs();
+  $('#logs-view-controls').hide();
 });
 $("#custom-code-tab").tabs({
   activate: function (event, ui) {
@@ -13,9 +14,21 @@ $("#custom-code-tab").tabs({
       $("#query-language-options #option-3").addClass("active");
       $("#query-language-btn span").html("Splunk QL");
       displayQueryLangToolTip("3");
+     $("#logs-view-controls").hide();
     }else{
       let filterValue = $("#query-input").val();
      if (filterValue != "") $("#filter-input").val(filterValue);
+     $("#logs-view-controls").show();
+    }
+  },
+});
+$("#custom-chart-tab").tabs({
+  activate: function (event, ui) {
+    let currentTab = $("#custom-chart-tab").tabs("option", "active");
+    if (currentTab == 0) {
+      $("#logs-view-controls").hide();
+    } else {
+      $("#logs-view-controls").show();
     }
   },
 });

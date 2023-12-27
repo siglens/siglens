@@ -47,9 +47,6 @@
 #progress-div{
     margin-top: 0;
 }
-#logs-view-controls{
-    padding-left: 27px;
-}
 .sidebar-icon{
     z-index: 1;
 }
@@ -626,21 +623,28 @@ div.show-record-popup {
 }
 .custom-chart-tab{
     padding: 0 26px;
-    margin-top: -50px;
     position: relative;
     height: 100%;
     background: none;
 }
 .tab-chart-list{
     height: 40px;
+    top: 5px;
     border-radius: 5px;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     width: 202px;
     position: absolute;
-    right: 350px;
     background-color: var(--myOrg-input);
+}
+#logs-view-controls {
+    position: absolute;
+    left: 240px;
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row;
+    width: calc(100% - 240px);
 }
 #tabs-chart,
 #logs-result-container{

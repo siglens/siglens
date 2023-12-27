@@ -222,54 +222,7 @@
             </div>
             <div id="progress-div"></div>
 
-            <div id="logs-view-controls">
-                <div id="save-query-div" class="save-query-div">
-                    <button class="btn saveq-btn below-btn-img" id="saveq-btn"></button>
-                    <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3"></button>
-                    <button class="btn mx-2 alert-from-logs-btn below-btn-img" id="alert-from-logs-btn"></button>
-                    <div class="dropdown download-btn">
-                        <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button" data-toggle="dropdown" aria-haspopup="true"
-                            aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
-                        </button>
-                        <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn" id="save-query-options">
-                            <li id="csv-block" class="query-language-option">Download as CSV</li>
-                            <li id="json-block" class="query-language-option">Download as JSON</li>
-                        </div>
-                    </div>
-                    <button class="btn show-record-intro-btn below-btn-img" id="show-record-intro-btn"></button>
-                </div>
-                <div id="views-container">
-                    <div class="btn-group" role="group" id="log-view">
-                        <button class="btn log-opt-single-btn" id="log-opt-single-btn">
-                            <span class="single-line-icon" title="Single Line Display View"></span>
-                        </button>
-                        <button class="btn log-opt-multi-btn" id="log-opt-multi-btn">
-                            <span class="multi-line-icon" title="Wrap Line Display View"></span>
-                        </button>
-                        <button class="btn log-opt-table-btn" id="log-opt-table-btn">
-                            <span class="table-view-icon" title="Table Display View"></span>
-                        </button>
-                    </div>
-                    <div class="dropdown">
-                        <button class="btn dropdown-toggle avail-fields-btn" title="Select field names to display" type="button"
-                            id="avail-fields-btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                            data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-list-check" title="Select field names to display"></i>&nbsp;
-                            Available Fields
-                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                        </button>
-                        <div class="dropdown-menu box-shadow" aria-labelledby="avail-fields-btn" id="available-fields">
-
-                            <div class="select-unselect-header" id="select-unselect-header">
-                                Select/Unselect All
-                                <img class="select-unselect-checkbox" src="assets/available-field-checkbox.svg">
-                            </div>
-                            <div class="fields"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
             <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
                 <ul class="tab-chart-list">
                     <li class="tab-li" id="tab-chart-title"><a href="#tabs-chart" class="custom-query-builder">Time Chart</a>
@@ -277,6 +230,54 @@
                     <li class="tab-li" id="tab-table-title"><a href="#logs-result-container" class="custom-query-builder">Table</a>
                     </li>
                 </ul>
+                <div id="logs-view-controls">
+                    <div id="save-query-div" class="save-query-div">
+                        <button class="btn saveq-btn below-btn-img" id="saveq-btn"></button>
+                        <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3"></button>
+                        <button class="btn mx-2 alert-from-logs-btn below-btn-img" id="alert-from-logs-btn"></button>
+                        <div class="dropdown download-btn">
+                            <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button" data-toggle="dropdown"
+                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
+                            </button>
+                            <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn" id="save-query-options">
+                                <li id="csv-block" class="query-language-option">Download as CSV</li>
+                                <li id="json-block" class="query-language-option">Download as JSON</li>
+                            </div>
+                        </div>
+                        <button class="btn show-record-intro-btn below-btn-img" id="show-record-intro-btn"></button>
+                    </div>
+                    <div id="views-container">
+                        <div class="btn-group" role="group" id="log-view">
+                            <button class="btn log-opt-single-btn" id="log-opt-single-btn">
+                                <span class="single-line-icon" title="Single Line Display View"></span>
+                            </button>
+                            <button class="btn log-opt-multi-btn" id="log-opt-multi-btn">
+                                <span class="multi-line-icon" title="Wrap Line Display View"></span>
+                            </button>
+                            <button class="btn log-opt-table-btn" id="log-opt-table-btn">
+                                <span class="table-view-icon" title="Table Display View"></span>
+                            </button>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn dropdown-toggle avail-fields-btn" title="Select field names to display" type="button"
+                                id="avail-fields-btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bs-toggle="dropdown">
+                                <i class="fa-solid fa-list-check" title="Select field names to display"></i>&nbsp;
+                                Available Fields
+                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                            </button>
+                            <div class="dropdown-menu box-shadow" aria-labelledby="avail-fields-btn" id="available-fields">
+                
+                                <div class="select-unselect-header" id="select-unselect-header">
+                                    Select/Unselect All
+                                    <img class="select-unselect-checkbox" src="assets/available-field-checkbox.svg">
+                                </div>
+                                <div class="fields"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div id="tabs-chart" class="tab-content-size">
                     <div id="columnChart" class="column-chart"></div>
                 </div>

@@ -44,7 +44,12 @@ limitations under the License.
      if (firstQUpdate) {
          $('#empty-response').hide();
          $("#custom-chart-tab").show();
-         $("#logs-view-controls").show();
+         let currentTab = $("#custom-chart-tab").tabs("option", "active");
+         if (currentTab == 0) {
+           $("#logs-view-controls").hide();
+         } else {
+           $("#logs-view-controls").show();
+         }
          $("#agg-result-container").hide();
          $("#data-row-container").hide();
          hideError();
