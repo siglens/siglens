@@ -28,7 +28,7 @@ async function testSavedQueriesPageButtons(){
                                     .setChromeOptions(chromeOptions)
                                     .build();
                                     
-        await driver.get("http://localhost/saved-queries.html");
+        await driver.get("http://localhost:5122/saved-queries.html");
 
         let searchButton = await driver.findElement(By.id("search-query-btn"));
         let btnTxt = await searchButton.getText();

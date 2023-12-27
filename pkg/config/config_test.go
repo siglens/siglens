@@ -76,7 +76,7 @@ func Test_ExtractConfigData(t *testing.T) {
 			Configuration{
 				IngestPort:                 9090,
 				IngestUrl:                  "http://localhost:9090",
-				QueryPort:                  80,
+				QueryPort:                  5122,
 				EventTypeKeywords:          []string{"utm_content"},
 				QueryNode:                  "true",
 				IngestNode:                 "true",
@@ -217,7 +217,7 @@ a: b
 `),
 			Configuration{
 				IngestPort:                 8081,
-				QueryPort:                  80,
+				QueryPort:                  5122,
 				IngestUrl:                  "http://localhost:8081",
 				EventTypeKeywords:          []string{"eventType"},
 				QueryNode:                  "true",
