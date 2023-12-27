@@ -103,8 +103,8 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64) {
 
 	// If MaxRows is used to limit the number of returned results, set `sizeLimit`
 	// to it. Currently MaxRows is only valid as the root QueryAggregators.
-	if aggs != nil && aggs.BucketLimit != 0 {
-		sizeLimit = uint64(aggs.BucketLimit)
+	if aggs != nil && aggs.Limit != 0 {
+		sizeLimit = uint64(aggs.Limit)
 	}
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)

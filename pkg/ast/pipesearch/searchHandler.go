@@ -385,8 +385,8 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	// If MaxRows is used to limit the number of returned results, set `sizeLimit`
 	// to it. Currently MaxRows is only valid as the root QueryAggregators.
-	if aggs != nil && aggs.OutputTransforms != nil && aggs.OutputTransforms.MaxRows != 0 {
-		sizeLimit = aggs.OutputTransforms.MaxRows
+	if aggs != nil && aggs.Limit != 0 {
+		sizeLimit = uint64(aggs.Limit)
 	}
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
