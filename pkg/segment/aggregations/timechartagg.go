@@ -92,5 +92,4 @@ func AddAggAvgToTimechartRunningStats(m *structs.MeasureAggregator, allConverted
 		MeasureFunc: utils.Count,
 		StrEnc:      m.StrEnc,
 	})
-	idx++
 }

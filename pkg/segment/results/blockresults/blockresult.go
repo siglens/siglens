@@ -520,7 +520,6 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 			StatRes:     currRes,
 			GroupByKeys: req.GroupByColumns,
 		}
-		idx++
 		bucketNum++
 	}
 	return &structs.AggregationResult{
