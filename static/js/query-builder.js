@@ -525,6 +525,31 @@ function setShowColumnInfoDialog(){
   });
 }
 function timeChart(){
+  let returnData = {
+    measure: [
+      {
+        GroupByValues: ["1703557497472"],
+        measureVal: {
+          "sum(latitude):Sunday": 2452.423,
+          "sum(latitude):Monday": 5633.423,
+          "sum(latitude):Tuesday": 45234.423,
+          "sum(latitude):Wednesday": 2343.423,
+          "sum(latitude):Thursday": 563.423,
+          "sum(latitude):Friday": 243.423,
+          "sum(latitude):Saturday": 3457.423,
+        },
+      },
+    ],
+    measureFuctions: [
+      "sum(latitude):Sunday",
+      "sum(latitude):Monday",
+      "sum(latitude):Tuesday",
+      "sum(latitude):Wednesday",
+      "sum(latitude):Thursday",
+      "sum(latitude):Friday",
+      "sum(latitude):Saturday",
+    ],
+  };
     var dataTime = [
     ['2018-03-29', 5, 17, 6, 3, 5, 32, 9],
     ['2018-03-30', 62, 63, 39, 30, 22, 127, 56],
@@ -545,13 +570,13 @@ var option = {
   },
   legend: {
     data: [
-      "ACCESSORIES",
-      "ARCADE",
-      "SHOOTER",
-      "SIMULATION",
-      "SPORTS",
-      "STRATEGY",
-      "TEE",
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
     ],
     // textStyle: {
     //   lineHeight: 20, // 设置行高为20像素
@@ -571,13 +596,13 @@ var option = {
     type: "value",
   },
   series: [
-    { name: "ACCESSORIES", type: "bar", data: series[0] },
-    { name: "ARCADE", type: "bar", data: series[1] },
-    { name: "SHOOTER", type: "bar", data: series[2] },
-    { name: "SIMULATION", type: "bar", data: series[3] },
-    { name: "SPORTS", type: "bar", data: series[4] },
-    { name: "STRATEGY", type: "bar", data: series[5] },
-    { name: "TEE", type: "bar", data: series[6] },
+    { name: "Monday", type: "bar", data: series[0] },
+    { name: "Tuesday", type: "bar", data: series[1] },
+    { name: "Wednesday", type: "bar", data: series[2] },
+    { name: "Thursday", type: "bar", data: series[3] },
+    { name: "Friday", type: "bar", data: series[4] },
+    { name: "Saturday", type: "bar", data: series[5] },
+    { name: "Sunday", type: "bar", data: series[6] },
   ],
 };
 // Initialize ECharts
