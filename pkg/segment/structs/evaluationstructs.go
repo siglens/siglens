@@ -146,6 +146,43 @@ type ConditionExpr struct {
 	FalseValue *ValueExpr
 }
 
+type TimechartExpr struct {
+	BinOptions *BinOptions
+	SingleAgg  *SingleAgg
+}
+
+type SingleAgg struct {
+	MeasureOperations []*MeasureAggregator
+	//Split By clause
+}
+
+type TcOptions struct {
+	BinOptions *BinOptions
+	UseNull    bool
+	UseOther   bool
+	NullStr    string
+	OtherStr   string
+}
+
+type BinOptions struct {
+	SpanOptions *SpanOptions
+}
+
+type SpanOptions struct {
+	SpanLength *SpanLength
+}
+
+type SpanLength struct {
+	Num       int
+	TimeScalr utils.TimeUnit
+}
+
+type SplitByClause struct {
+	Field     string
+	TcOptions *TcOptions
+	// Where clause: to be finished
+}
+
 type BoolOperator uint8
 
 const (

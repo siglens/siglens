@@ -3,8 +3,10 @@ package spl
 
 import (
     "regexp"
+    "time"
 
     "github.com/siglens/siglens/pkg/ast"
+    "github.com/siglens/siglens/pkg/segment/aggregations"
     "github.com/siglens/siglens/pkg/segment/query"
     "github.com/siglens/siglens/pkg/segment/structs"
     "github.com/siglens/siglens/pkg/segment/utils"
@@ -130,9 +132,14 @@ func getRexColNames(pattern string) ([]string, error) {
 }
 
 type aggregator struct {
-    aggregator          *structs.MeasureAggregator
+    measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
     outputFieldNewName  string
+}
+
+type singleAggTemp struct {
+    aggregators []*aggregator
+    SplitByClause *structs.SplitByClause
 }
 }
 
@@ -220,14 +227,14 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
 
-FieldSelectBlock <- PIPE CMD_FIELDS op:("- " / "+ ")? fields:FieldNameList {
+FieldSelectBlock <- PIPE CMD_FIELDS op:("-" / "+")? EMPTY_OR_SPACE fields:FieldNameList {
     columnsRequest := &structs.ColumnsRequest{}
-    if op == nil || string(op.([]byte)) == "+ " {
+    if op == nil || string(op.([]byte)) == "+" {
         columnsRequest.IncludeColumns = fields.([]string)
     } else {
         columnsRequest.ExcludeColumns = fields.([]string)
@@ -254,7 +261,7 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
     columnsRequest.RenameAggregationColumns = make(map[string]string, 0)
 
     for i, agg := range aggsSlice {
-        measureAggs[i] = agg.aggregator
+        measureAggs[i] = agg.measureAgg
 
         if agg.renameOutputField {
             columnsRequest.RenameAggregationColumns[measureAggs[i].String()] = agg.outputFieldNewName
@@ -378,7 +385,7 @@ ClauseLevel2 <- notList:NOT+ first:ClauseLevel1 {
     return clause, nil
 }
 
-ClauseLevel1 <- "(" clause:ClauseLevel4 ")" {
+ClauseLevel1 <- L_PAREN clause:ClauseLevel4 R_PAREN {
     return clause, nil
 } / term:SearchTerm {
     return term, nil
@@ -388,6 +395,186 @@ ClauseLevel1 <- "(" clause:ClauseLevel4 ")" {
 // parsing as a FieldWithNumberValue first.
 SearchTerm <- term:(FieldWithNumberValue / FieldWithStringValue) {
     return term, nil
+}
+
+// To be finished: add (<eval-expression>) BY <split-by-clause> ) for expr; Limit option ...
+TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExpr){
+    aggNode := &structs.QueryAggregators{}
+
+    columnsRequest := &structs.ColumnsRequest{}
+    columnsRequest.RenameAggregationColumns = make(map[string]string, 0)
+    measureAggs := make([]*structs.MeasureAggregator, 0)
+
+    timechartExpr := &structs.TimechartExpr{}
+    byField := ""
+
+    switch expr.(type) {
+        case *singleAggTemp:
+            singleAgg := &structs.SingleAgg{}
+            aggTemp := expr.(*singleAggTemp)
+
+            for i, agg := range aggTemp.aggregators {
+                measureAggs = append(measureAggs, agg.measureAgg)
+
+                if agg.renameOutputField {
+                    measureAggs[i].StrEnc = agg.outputFieldNewName
+                }
+            }
+
+            singleAgg.MeasureOperations = measureAggs
+            timechartExpr.SingleAgg = singleAgg
+
+            if aggTemp.SplitByClause != nil {
+                byField = aggTemp.SplitByClause.Field
+            }
+        //  case (<eval-expression>) BY <split-by-clause>) to be finished
+        default:
+            return nil, fmt.Errorf("Spl peg: Timechart: either single-agg or eval-expression BY split-by-clause is required")
+    }
+
+    letColReq := &structs.LetColumnsRequest {
+        TimechartColRequest: timechartExpr,
+    }
+
+    root := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    aggNode.Next = root
+    aggNode.PipeCommandType = structs.GroupByType
+    aggNode.GroupByRequest = &structs.GroupByRequest {
+        MeasureOperations: measureAggs,
+        GroupByColumns: []string{"timestamp"},
+    }
+    aggNode.BucketLimit = query.MAX_GRP_BUCKS
+
+    bOptions := binOptions.(*structs.BinOptions)
+
+    timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField)
+    aggNode.TimeHistogram = timeBucket
+
+    return aggNode, nil
+}
+
+// To be finished: <eval-expression> BY <split-by-clause> 
+// TimechartEvalExpr <- ... BY splitByClause:(SplitByClause) {
+// }
+
+SingleAggExpr <- aggs:AggregationList splitByClause:(SplitByClause)? {
+    singleAggExpr := &singleAggTemp {
+        aggregators: aggs.([]*aggregator),
+    }
+
+    if splitByClause != nil {
+        singleAggExpr.SplitByClause = splitByClause.(*structs.SplitByClause)
+    }
+
+    return singleAggExpr, nil
+}
+
+// Syntax: <field> (<tc-options>)... [<where-clause>]
+// <where-clause> to be finished
+SplitByClause <- BY field:FieldName tcOptions:(TcOptions)? {
+    splitByClause := &structs.SplitByClause {
+        Field: field.(string),
+    }
+
+    if tcOptions != nil {
+        splitByClause.TcOptions = tcOptions.(*structs.TcOptions)
+    }
+    return splitByClause, nil
+}
+
+TcOptions <- SPACE option:(BinOptions / (TcOption)+) {
+    //Default value
+    tcOptions := &structs.TcOptions{
+        UseNull: true,
+        UseOther: true,
+        NullStr: "null",
+        OtherStr: "other",
+    }
+    switch option.(type) {
+    case *structs.BinOptions:
+        tcOptions.BinOptions = option.(*structs.BinOptions)
+    case [][]string:
+        optionSlice := option.([]any)
+        for _, opt := range optionSlice {
+            optArr := opt.([]string)
+            switch optArr[0] {
+                case "usenull":
+                    useNullBool, err := strconv.ParseBool(optArr[1])
+                    if err != nil {
+                        return nil, fmt.Errorf("Spl peg: Timechart: TcOptions: %v", err)
+                    } 
+                    tcOptions.UseNull = useNullBool
+                case "useother":
+                    useOtherBool, err := strconv.ParseBool(optArr[1])
+                    if err != nil {
+                        return nil, fmt.Errorf("Spl peg: Timechart: TcOptions: %v", err)
+                    } 
+                    tcOptions.UseOther = useOtherBool
+                case "nullstr":
+                    tcOptions.OtherStr = optArr[1]
+                case "otherstr":
+                    tcOptions.OtherStr = optArr[1]
+                default:
+                    return nil, fmt.Errorf("Spl peg: Timechart: TcOptions: invalid option: %v", optArr[0])
+            }
+            
+        }
+    default:
+        return nil, fmt.Errorf("Spl peg: Timechart: Invalid tcOptions %v", option)
+    }
+    return tcOptions, nil
+}
+
+TcOption <- SPACE tcOptionCMD:TcOptionCMD EQUAL val:EvalFieldToRead {
+    tcOptionArr := []string{tcOptionCMD.(string), val.(string)}
+    return tcOptionArr, nil
+}
+
+TcOptionCMD <- option:("usenull" / "useother" / "nullstr" / "otherstr") {
+    optionStr, err := transferUint8ToString(option)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Timechart: TcOptionCMD: %v", err)
+    }
+    return optionStr, nil
+}
+
+// To be finished: bins=<int> | minspan=<span-length> | span | <start-end>: (end=<num> | start=<num>) | aligntime=(earliest | latest | <time-specifier>)
+BinOptions <- spanOptions:SpanOptions {
+    binOptions := &structs.BinOptions {
+        SpanOptions: spanOptions.(*structs.SpanOptions),
+    }
+    return binOptions, nil
+}
+
+// To be finished: span=<log-span> | span=<span-length> | span=<snap-to-time>
+SpanOptions <- CMD_SPAN EQUAL spanLength:SpanLength {
+    spanOptions := &structs.SpanOptions {
+        SpanLength: spanLength.(*structs.SpanLength),
+    }
+    return spanOptions, nil
+}
+
+SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale SPACE{
+    num, err := strconv.Atoi(intAsStr.(string))
+    if err != nil {
+        return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", intAsStr.(string), err)
+    }
+
+    spanLength := &structs.SpanLength {
+        Num: num,
+        TimeScalr: timeScale.(utils.TimeUnit),
+    }
+    return spanLength, nil
+}
+
+TimeScale <- timeUnit:(Second / Minute / Hour / Day/ Week / Month / Quarter/ Subseconds) {
+    return timeUnit, nil
 }
 
 StatisticBlock <- PIPE statisticExpr:StatisticExpr {
@@ -468,7 +655,7 @@ StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(SPA
 StatisticLimit <- SPACE number:IntegerAsString {
     return number.(string), nil
 }
-/ SPACE "limit=" limit:(IntegerAsString) {
+/ SPACE "limit" EQUAL limit:(IntegerAsString) {
     return limit.(string), nil
 }
 
@@ -522,7 +709,7 @@ Options <- option:(Option)*
     return options, nil
 }
 
-Option <- SPACE optionCMD:OptionCMD "=" field:EvalFieldToRead {
+Option <- SPACE optionCMD:OptionCMD EQUAL field:EvalFieldToRead {
     optionArr := []string{optionCMD.(string), field.(string)}
     return optionArr, nil
 }
@@ -591,7 +778,7 @@ RenameExpr <- originalPattern:RenamePattern AS newPattern:QuotedString {
     return renameExpr, nil
 }
 
-RexBlock <- PIPE CMD_REX "field=" field:EvalFieldToRead SPACE str:QuotedString {
+RexBlock <- PIPE CMD_REX "field" EQUAL field:EvalFieldToRead SPACE str:QuotedString {
     pattern := removeQuotes(str)
     rexColNames, err := getRexColNames(pattern)
     if err != nil {
@@ -618,7 +805,7 @@ RexBlock <- PIPE CMD_REX "field=" field:EvalFieldToRead SPACE str:QuotedString {
 }
 
 // Returns *structs.QueryAggregators
-EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:("," SPACE SingleEval)* {
+EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:(COMMA SingleEval)* {
     root := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
@@ -633,7 +820,7 @@ EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:("," SPACE SingleEval)* {
         nextQueryAgg := &structs.QueryAggregators {
             PipeCommandType: structs.OutputTransformType,
             OutputTransforms: &structs.OutputTransforms {
-                LetColumns: CommaSpaceAndEval[2].(*structs.LetColumnsRequest),
+                LetColumns: CommaSpaceAndEval[1].(*structs.LetColumnsRequest),
             },
         }
 
@@ -645,7 +832,7 @@ EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:("," SPACE SingleEval)* {
 }
 
 // Returns *structs.LetColumnsRequest
-SingleEval <- field:FieldName "=" expr:EvalExpression {
+SingleEval <- field:FieldName EQUAL expr:EvalExpression {
     fieldStr := field.(string)
     if strings.Contains(fieldStr, "*") {
         return nil, fmt.Errorf("New fields must not contain wildcards; invalid field: %v", field)
@@ -666,7 +853,7 @@ EvalExpression <- value:ValueExpr {
     return letColReq, nil
 }
 
-ConditionExpr <- "if(" condition:BoolExpr ", " trueValue:ValueExpr ", " falseValue:ValueExpr  ")" {
+ConditionExpr <- "if" L_PAREN condition:BoolExpr COMMA trueValue:ValueExpr COMMA falseValue:ValueExpr R_PAREN {
 
     node := &structs.ConditionExpr {
         Op: "if",
@@ -678,7 +865,7 @@ ConditionExpr <- "if(" condition:BoolExpr ", " trueValue:ValueExpr ", " falseVal
     return node, nil
 }
 
-TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
+TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -692,7 +879,7 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
     return node, nil
 }
 
-/ (opName:("max" / "min") "(" firstVal:StringExpr rest:(", " StringExpr)* ")" )
+/ (opName:("max" / "min") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN )
       {
         opNameStr, err := transferUint8ToString(opName)
         if err != nil {
@@ -715,7 +902,7 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
         }
         return node, nil   
       }
-/ (opName:("urldecode") "(" url:StringExpr ")" ){
+/ (opName:("urldecode") L_PAREN url:StringExpr R_PAREN ){
         opNameStr, err := transferUint8ToString(opName)
         if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -727,7 +914,7 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
         }
         return node, nil
     }
-/ (opName:("split") "(" stringExpr:StringExpr "," delim:StringExpr ")") {
+/ (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -739,7 +926,7 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
     }
     return node, nil
 }
-/ (opName:("substr") "(" stringExpr:StringExpr ", " startIndex:NumericExpr lengthParam:(", " NumericExpr)? ")") {
+/ (opName:("substr") L_PAREN stringExpr:StringExpr COMMA startIndex:NumericExpr lengthParam:(COMMA NumericExpr)? R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -773,7 +960,7 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
     }
     return node, nil
 }
-/ "tostring" "(" value:ValueExpr format:("," StringExpr )? ")" {
+/ "tostring" L_PAREN value:ValueExpr format:(COMMA StringExpr )? R_PAREN {
     var formatExpr *structs.StringExpr
     if format != nil {
         formatSlice := format.([]interface{})
@@ -786,7 +973,7 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
         Format:     formatExpr,
     }, nil
 }
-/ (opName:("ltrim" / "rtrim") "(" expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? ")") {
+/ (opName:("ltrim" / "rtrim") L_PAREN expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -811,7 +998,7 @@ TextExpr <- (opName:("lower") "(" stringExpr:StringExpr ")") {
     return node, nil
 }
 
-StrToRemoveExpr <- ", " strToRemove:String {
+StrToRemoveExpr <- COMMA strToRemove:String {
     return strToRemove, nil
 }
 
@@ -882,7 +1069,7 @@ BoolExprLevel3 <- first:BoolExprLevel2 rest:(AND BoolExprLevel2)* {
 }
 
 // Returns *structs.BoolExpr
-BoolExprLevel2 <- NOT "(" first:BoolExprLevel1 ")" {
+BoolExprLevel2 <- NOT L_PAREN first:BoolExprLevel1 R_PAREN {
     cur := &structs.BoolExpr {
         IsTerminal: false,
         BoolOp: structs.BoolOpNot,
@@ -897,10 +1084,10 @@ BoolExprLevel2 <- NOT "(" first:BoolExprLevel1 ")" {
 }
 
 // Returns *structs.BoolExpr
-BoolExprLevel1 <- "(" first:BoolExprLevel4 ")" {
+BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
     return first, nil
 }
-/ (op:("isbool" / "isint" / "isstr" / "isnull") "(" value:ValueExpr ")" ) {
+/ (op:("isbool" / "isint" / "isstr" / "isnull") L_PAREN value:ValueExpr R_PAREN ) {
     opNameStr, err := transferUint8ToString(op)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
@@ -925,7 +1112,7 @@ LikeExpr <- left:ValueExpr SPACE "LIKE" SPACE right:ValueExpr {
     }
     return expr, nil
 }
-/ "like(" stringr:ValueExpr ", " pattern:ValueExpr ")" {
+/ "like" L_PAREN stringr:ValueExpr COMMA pattern:ValueExpr R_PAREN {
      expr := &structs.BoolExpr {
          IsTerminal: true,
          LeftValue: stringr.(*structs.ValueExpr),
@@ -934,7 +1121,7 @@ LikeExpr <- left:ValueExpr SPACE "LIKE" SPACE right:ValueExpr {
      }
      return expr, nil
  }
-/ "match(" stringVal:ValueExpr ", " pattern:ValueExpr ")" {
+/ "match" L_PAREN stringVal:ValueExpr COMMA pattern:ValueExpr R_PAREN {
      expr := &structs.BoolExpr {
          IsTerminal: true,
          LeftValue: stringVal.(*structs.ValueExpr),
@@ -943,7 +1130,7 @@ LikeExpr <- left:ValueExpr SPACE "LIKE" SPACE right:ValueExpr {
      }
      return expr, nil
  }
-/ "cidrmatch(" cidr:ValueExpr ", " ip:ValueExpr ")" {
+/ "cidrmatch" L_PAREN cidr:ValueExpr COMMA ip:ValueExpr R_PAREN {
     expr := &structs.BoolExpr {
         IsTerminal: true,
         LeftValue: cidr.(*structs.ValueExpr),
@@ -959,7 +1146,7 @@ LikeExpr <- left:ValueExpr SPACE "LIKE" SPACE right:ValueExpr {
     return boolComparisonExpr, nil
 }
 
-BoolComparisonExpr <- left:ValueExpr SPACE op:EqualityOrInequality SPACE right:ValueExpr {
+BoolComparisonExpr <- left:ValueExpr op:EqualityOrInequality right:ValueExpr {
     expr := &structs.BoolExpr {
         IsTerminal: true,
         LeftValue: left.(*structs.ValueExpr),
@@ -971,7 +1158,7 @@ BoolComparisonExpr <- left:ValueExpr SPACE op:EqualityOrInequality SPACE right:V
 }
 
 
-InExpr <- left:ValueExpr SPACE "in(" valueToJudge:ValueExpr rest:(", " ValueExpr)* ")" {
+InExpr <- left:ValueExpr SPACE "in" L_PAREN valueToJudge:ValueExpr rest:(COMMA ValueExpr)* R_PAREN {
     restSlice := rest.([]any)
     slice := make([]*structs.ValueExpr, 1 + len(restSlice))
     slice[0] = valueToJudge.(*structs.ValueExpr)
@@ -990,7 +1177,7 @@ InExpr <- left:ValueExpr SPACE "in(" valueToJudge:ValueExpr rest:(", " ValueExpr
     return expr, nil
 }
 // For this in use case: if(in(<value>, [<list>]), "true_value", "false_value")
-/ "in(" valueToJudge:ValueExpr rest:(", " ValueExpr)* ")" {
+/ "in" L_PAREN valueToJudge:ValueExpr rest:(COMMA ValueExpr)* R_PAREN {
     restSlice := rest.([]any)
     slice := make([]*structs.ValueExpr, len(restSlice))
 
@@ -1024,7 +1211,7 @@ ValueExpr <- condition:ConditionExpr {
 
     return expr, nil
 }
-/ "(" (condition:ConditionExpr) ")" {
+/ L_PAREN (condition:ConditionExpr) R_PAREN {
 
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMConditionExpr,
@@ -1051,7 +1238,7 @@ ValueExpr <- condition:ConditionExpr {
 
     return expr, nil
 }
-/ "(" (str:StringExpr) ")" {
+/ L_PAREN (str:StringExpr) R_PAREN {
 
     expr := &structs.ValueExpr {
         ValueExprMode: structs.VEMStringExpr,
@@ -1060,7 +1247,7 @@ ValueExpr <- condition:ConditionExpr {
 
     return expr, nil
 }
-/ '('boolean:BoolExpr')' {
+/ L_PAREN boolean:BoolExpr R_PAREN {
 
     expr := &structs.ValueExpr{
         ValueExprMode: structs.VEMBooleanExpr,
@@ -1203,7 +1390,7 @@ NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv) NumericExprLe
     return cur, nil
 }
 
-RoundPrecisionExpr <- ", " expr:NumericExprLevel3 {
+RoundPrecisionExpr <- COMMA expr:NumericExprLevel3 {
     rightNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1213,7 +1400,7 @@ RoundPrecisionExpr <- ", " expr:NumericExprLevel3 {
 }
 
 // Returns *structs.NumericExpr
-NumericExprLevel1 <- "(" expr:NumericExprLevel3 ")" {
+NumericExprLevel1 <- L_PAREN expr:NumericExprLevel3 R_PAREN {
     return expr, nil
 }
 / numericEvalExpr: NumericEvalExpr {
@@ -1241,7 +1428,7 @@ NumericExprLevel1 <- "(" expr:NumericExprLevel3 ")" {
 }
 
 //Currently involves abs, ceil, round, sqrt
-NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") "(" expr:(NumericExprLevel3) ")") {
+NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1261,7 +1448,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") "(" expr:(N
 
     return node, nil
 }
-/ roundExpr:"round(" expr:(NumericExprLevel3) roundPrecision:(RoundPrecisionExpr)? ")" {
+/ roundExpr:"round" L_PAREN expr:(NumericExprLevel3) roundPrecision:(RoundPrecisionExpr)? R_PAREN {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1288,7 +1475,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") "(" expr:(N
         Op:         "now",
     }, nil
 }
-/ "tonumber(" stringExpr:StringExpr baseExpr:("," NumericExprLevel3)? ")" {
+/ "tonumber" L_PAREN stringExpr:StringExpr baseExpr:(COMMA NumericExprLevel3)? R_PAREN {
     stringExprConverted, ok := stringExpr.(*structs.StringExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert stringExpr as *structs.StringExpr")
@@ -1316,7 +1503,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") "(" expr:(N
     }
     return node, nil
 }
-/ lenExpr: "len(" expr:LenExpr ")" {
+/ lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
     return expr, nil
 }
 
@@ -1354,7 +1541,7 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
 }
 
 // Returns *structs.QueryAggregators
-HeadBlock <- PIPE CMD_HEAD "limit="? intAsStr:IntegerAsString {
+HeadBlock <- PIPE CMD_HEAD ("limit" EQUAL)? intAsStr:IntegerAsString {
     limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
     if err != nil {
         return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
@@ -1382,7 +1569,7 @@ HeadBlock <- PIPE CMD_HEAD "limit="? intAsStr:IntegerAsString {
 
 // Parses one or more AggFunctions separated by a comma and space.
 // Returns a slice containing all the AggFunctions.
-AggregationList <- first:Aggregator rest:(", " Aggregator)* {
+AggregationList <- first:Aggregator rest:((COMMA / SPACE) Aggregator)* {
     // Convert `rest` to a slice. Each element of the slice will be a 2-element
     // slice where the first element is ", " and the second is an Aggregator.
     restSlice := rest.([]any)
@@ -1401,7 +1588,7 @@ AggregationList <- first:Aggregator rest:(", " Aggregator)* {
 
 Aggregator <- aggFunc:AggFunction asField:AsField? {
     agg := &aggregator{}
-    agg.aggregator = aggFunc.(*structs.MeasureAggregator)
+    agg.measureAgg = aggFunc.(*structs.MeasureAggregator)
 
     if asField != nil {
         agg.renameOutputField = true
@@ -1429,7 +1616,7 @@ AsField <- AS field:FieldName {
     return fieldStr, nil
 }
 
-AggCount <- ("count" / "c") "(eval" boolExpr:BoolExpr ")" {
+AggCount <- ("count" / "c") L_PAREN "eval" boolExpr:BoolExpr R_PAREN {
     valueExpr := &structs.ValueExpr {
         ValueExprMode: structs.VEMBooleanExpr,
         BooleanExpr: boolExpr.(*structs.BoolExpr),
@@ -1444,7 +1631,7 @@ AggCount <- ("count" / "c") "(eval" boolExpr:BoolExpr ")" {
 
     return agg, nil
 }
-/ ("count" / "c") "(" field:FieldName ")" {
+/ ("count" / "c") L_PAREN field:FieldName R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Count,
@@ -1460,7 +1647,7 @@ AggCount <- ("count" / "c") "(eval" boolExpr:BoolExpr ")" {
     return agg, nil
 } 
 
-AggDistinctCount <- ("distinct_count" / "dc") "(eval" valueExpr:ValueExpr ")" {
+AggDistinctCount <- ("distinct_count" / "dc") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Cardinality,
@@ -1470,7 +1657,7 @@ AggDistinctCount <- ("distinct_count" / "dc") "(eval" valueExpr:ValueExpr ")" {
 
     return agg, nil
 }
-/ ("distinct_count" / "dc") "(" field:FieldName ")" {
+/ ("distinct_count" / "dc") L_PAREN field:FieldName R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Cardinality,
@@ -1479,7 +1666,7 @@ AggDistinctCount <- ("distinct_count" / "dc") "(eval" valueExpr:ValueExpr ")" {
     return agg, nil
 }
 
-AggAvg <- "avg(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
+AggAvg <- "avg" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
     valueExpr := &structs.ValueExpr {
         ValueExprMode: structs.VEMBooleanExpr,
         BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
@@ -1494,7 +1681,7 @@ AggAvg <- "avg(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
 
     return agg, nil
 }
-/ "avg(" field:FieldName ")" {
+/ "avg" L_PAREN field:FieldName R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Avg,
@@ -1503,7 +1690,7 @@ AggAvg <- "avg(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
     return agg, nil
 }
 
-AggMin <- "min(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
+AggMin <- "min" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
     valueExpr := &structs.ValueExpr {
         ValueExprMode: structs.VEMBooleanExpr,
         BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
@@ -1518,7 +1705,7 @@ AggMin <- "min(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
 
     return agg, nil
 }
-/ "min(" field:FieldName ")" {
+/ "min" L_PAREN field:FieldName R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Min,
@@ -1527,7 +1714,7 @@ AggMin <- "min(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
     return agg, nil
 }
 
-AggMax <- "max(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
+AggMax <- "max" L_PAREN "eval" L_PAREN  boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
     valueExpr := &structs.ValueExpr {
         ValueExprMode: structs.VEMBooleanExpr,
         BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
@@ -1542,7 +1729,7 @@ AggMax <- "max(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
 
     return agg, nil
 }
-/ "max(" field:FieldName ")" {
+/ "max" L_PAREN field:FieldName R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Max,
@@ -1551,7 +1738,7 @@ AggMax <- "max(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
     return agg, nil
 }
 
-AggRange <- "range(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
+AggRange <- "range" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
     valueExpr := &structs.ValueExpr {
         ValueExprMode: structs.VEMBooleanExpr,
         BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
@@ -1566,7 +1753,7 @@ AggRange <- "range(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
 
     return agg, nil
 }
-/ "range(" field:FieldName ")" {
+/ "range" L_PAREN field:FieldName R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Range,
@@ -1575,7 +1762,7 @@ AggRange <- "range(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
     return agg, nil
 }
 
-AggSum <- "sum(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
+AggSum <- "sum" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
     valueExpr := &structs.ValueExpr {
         ValueExprMode: structs.VEMBooleanExpr,
         BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
@@ -1590,7 +1777,7 @@ AggSum <- "sum(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
 
     return agg, nil
 }
-/ "sum(" field:FieldName ")" {
+/ "sum" L_PAREN field:FieldName R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Sum,
@@ -1599,7 +1786,7 @@ AggSum <- "sum(eval("  boolComparisonExpr:BoolComparisonExpr "))" {
     return agg, nil
 }
 
-AggValues <- "values" "(eval" valueExpr:ValueExpr ")" {
+AggValues <- "values" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Values,
@@ -1609,7 +1796,7 @@ AggValues <- "values" "(eval" valueExpr:ValueExpr ")" {
 
     return agg, nil
 }
-/ "values(" field:FieldName ")" {
+/ "values" L_PAREN field:FieldName R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Values,
@@ -1661,7 +1848,6 @@ NamedFieldWithStringValue <- key:FieldName op:EqualityOperator value:String {
             Values: value,
         },
     }
-
     return node, nil
 }
 
@@ -1674,13 +1860,12 @@ UnnamedFieldWithStringValue <- value:String {
             Values: value,
         },
     }
-
     return node, nil
 }
 
 // Parses one or more FieldNames separated by a comma and space.
 // Returns a slice containing all the FieldNames.
-FieldNameList <- first:FieldName rest:(", " FieldName)* {
+FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
     // Convert `rest` to a slice. Each element of the slice will be a 2-element
     // slice where the first element is ", " and the second is a FieldName.
     restSlice := rest.([]any)
@@ -1745,12 +1930,20 @@ IntegerAsString <- [-+]? [0-9]+ {
     return string(c.text), nil
 }
 
-EqualityOperator <- ("=" / "!=") {
-    return string(c.text), nil
+EqualityOperator <- EMPTY_OR_SPACE op:("=" / "!=") EMPTY_OR_SPACE {
+    opStr, err := transferUint8ToString(op)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: EqualityOperator: %v", err)
+    }
+    return opStr, nil
 }
 
-InequalityOperator <- ("<=" / "<" / ">=" / ">") {
-    return string(c.text), nil
+InequalityOperator <- EMPTY_OR_SPACE op:("<=" / "<" / ">=" / ">") EMPTY_OR_SPACE {
+    opStr, err := transferUint8ToString(op)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: InequalityOperator: %v", err)
+    }
+    return opStr, nil
 }
 
 EqualityOrInequality <- op:EqualityOperator {
@@ -1760,20 +1953,58 @@ EqualityOrInequality <- op:EqualityOperator {
     return op, nil
 }
 
-OpPlus <- SPACE "+" SPACE {
+OpPlus <- EMPTY_OR_SPACE "+" EMPTY_OR_SPACE {
     return "+", nil
 }
 
-OpMinus <- SPACE "-" SPACE {
+OpMinus <- EMPTY_OR_SPACE "-" EMPTY_OR_SPACE {
     return "-", nil
 }
 
-OpMul <- SPACE "*" SPACE {
+OpMul <- EMPTY_OR_SPACE "*" EMPTY_OR_SPACE {
     return "*", nil
 }
 
-OpDiv <- SPACE "/" SPACE {
+OpDiv <- EMPTY_OR_SPACE "/" EMPTY_OR_SPACE {
     return "/", nil
+}
+
+// Add Empty space here
+Second <- ("seconds" / "second" / "secs" / "sec" / "s") {
+    return utils.TMSecond, nil
+}
+
+Minute <- ("minutes" / "minute" / "mins" / "min" / "m") {
+    return utils.TMMinute, nil
+}
+
+Hour <- ("hours" / "hour" / "hrs" / "hr" / "h") {
+    return utils.TMHour, nil
+}
+
+Day <- ("days" / "day" / "d") {
+    return utils.TMDay, nil
+}
+
+Week <- ("weeks" / "week" / "w") {
+    return utils.TMWeek, nil
+}
+
+Month <- ("months" / "month" / "mon") {
+    return utils.TMMonth, nil
+}
+
+Quarter <- ("quarters" / "quarter" / "qtrs" / "qtr" / "q") {
+    return utils.TMQuarter, nil
+}
+
+// Might not has effect for 'us', because smallest time unit for timestamp in siglens is ms
+Subseconds <- ("us" / "ms" / "cs" / "ds") {
+    timeUnit, err := utils.ConvertSubseconds(string(c.text))
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Subseconds: %v", err)
+    }
+    return timeUnit, nil
 }
 
 CMD_SEARCH <- "search" SPACE
@@ -1788,6 +2019,8 @@ CMD_REX <- "rex" SPACE
 CMD_TOP <- "top"
 CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
+CMD_TIMECHART <- "timechart" SPACE
+CMD_SPAN <- "span"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
@@ -1805,6 +2038,12 @@ PIPE <- SPACE "|" SPACE
 AS <- SPACE "AS"i SPACE // Case insensitive
 BY <- SPACE "BY"i SPACE // Case insensitive
 
+EQUAL <- EMPTY_OR_SPACE "=" EMPTY_OR_SPACE
+COMMA <- EMPTY_OR_SPACE "," EMPTY_OR_SPACE
+L_PAREN <- "(" EMPTY_OR_SPACE
+R_PAREN <- EMPTY_OR_SPACE ")"
+
 EOF <- !.
 SPACE <- (" "? COMMENT " "?) / " "+
 COMMENT <- "```" (!("```") .)* "```"
+EMPTY_OR_SPACE  <- SPACE / ""
