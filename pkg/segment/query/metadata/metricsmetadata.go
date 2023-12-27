@@ -205,7 +205,7 @@ func (mm *MetricsSegmentMetadata) clearSearchMetadata() {
 }
 
 /*
-Caller is reponsible for acquiring the right read locks
+Caller is responsible for acquiring the right read locks
 
 Parameters:
 

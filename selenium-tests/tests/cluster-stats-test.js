@@ -28,7 +28,7 @@ async function testClusterStatsPageButtons(){
                                     .setChromeOptions(chromeOptions)
                                     .build();
 
-        await driver.get("http://localhost/cluster-stats.html");  
+        await driver.get("http://localhost:5122/cluster-stats.html");  
 
          // test time picker button
         let timePickerBtn = await driver.findElement(By.id("date-picker-btn"));
