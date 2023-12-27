@@ -44,6 +44,16 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+type VersionResponse struct {
+	Version string `json:"version"`
+}
+
+func getVersionHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		alertsHandler.ProcessVersionInfo(ctx)
+	}
+}
+
 func getHealthHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		health.ProcessGetHealth(ctx)

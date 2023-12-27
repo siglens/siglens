@@ -195,6 +195,7 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/{dashboard-id}", hs.Recovery(getDashboardIdHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/delete/{dashboard-id}", hs.Recovery(deleteDashboardHandler()))
 	hs.Router.PUT(server_utils.API_PREFIX+"/dashboards/favorite/{dashboard-id}", hs.Recovery(favoriteDashboardHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/version/info", hs.Recovery(getVersionHandler()))
 
 	// alerting api endpoints
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/create", hs.Recovery(createAlertHandler()))
