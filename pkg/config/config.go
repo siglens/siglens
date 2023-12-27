@@ -516,8 +516,8 @@ func InitConfigurationData() error {
 		return err
 	}
 	runningConfig = config
-	if err := ReadRunModConfig(); err != nil {
-		return err
+	if err := ReadRunModConfig(); err != false {
+		return fmt.Errorf("cannot read config")
 	}
 	fileInfo, err := os.Stat(configFilePath)
 	if err != nil {
@@ -589,30 +589,33 @@ func InitializeTestingConfig() {
 	SetDebugMode(true)
 	SetDataPath("data/")
 }
-
-func ReadRunModConfig() error {
+func ReadRunModConfig() bool {
 	runModFilePath := "data/common/runmod.cfg"
-	jsonData, err := os.ReadFile(runModFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to read runmod.cfg: %w", err)
+	if _, err := os.Stat(runModFilePath); err == nil {
+		jsonData, err := os.ReadFile(runModFilePath)
+		if err != nil {
+			return false
+		}
+		var runModConfig struct {
+			PQSConfig string `json:"PQSConfig"`
+		}
+		if err := json.Unmarshal(jsonData, &runModConfig); err != nil {
+			return false
+		}
+		var pqsCheck bool
+		switch strings.ToLower(runModConfig.PQSConfig) {
+		case "enabled":
+			pqsCheck = true
+		case "disabled":
+			pqsCheck = false
+		default:
+			return false
+		}
+		SetPQSEnabled(pqsCheck)
+		return true
+	} else {
+		return false
 	}
-	var runModConfig struct {
-		PQSConfig string `json:"PQSConfig"`
-	}
-	if err := json.Unmarshal(jsonData, &runModConfig); err != nil {
-		return fmt.Errorf("failed to parse runmod.cfg: %w", err)
-	}
-	var pqsCheck bool
-	switch strings.ToLower(runModConfig.PQSConfig) {
-	case "enabled":
-		pqsCheck = true
-	case "disabled":
-		pqsCheck = false
-	default:
-		return fmt.Errorf("invalid PQSConfig value in runmod.cfg: %s", runModConfig.PQSConfig)
-	}
-	SetPQSEnabled(pqsCheck)
-	return nil
 }
 
 func ReadConfigFile(fileName string) (Configuration, error) {
