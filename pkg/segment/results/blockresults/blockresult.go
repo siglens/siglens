@@ -84,9 +84,10 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 		}
 	}
 
+	usedByTimechart := (aggs != nil && aggs.TimeHistogram != nil && aggs.TimeHistogram.UsedByTimechart)
 	if aggs != nil && aggs.GroupByRequest != nil {
 		if len(aggs.GroupByRequest.GroupByColumns) > 0 {
-			mCols, mFuns, revIndex := convertRequestToInternalStats(aggs.GroupByRequest)
+			mCols, mFuns, revIndex := convertRequestToInternalStats(aggs.GroupByRequest, usedByTimechart)
 			blockRes.GroupByAggregation = &GroupByBuckets{
 				AllRunningBuckets:   make([]*RunningBucketResults, 0),
 				StringBucketIdx:     make(map[string]int),
@@ -119,7 +120,8 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 // This function will map[colName] -> []idx of measure functions, converted measure ops, and the reverse index of original to converted op
 // Converted Measure Ops: for example, to calculate average the block will need to track sum
 // Count is always tracked for each bucket
-func convertRequestToInternalStats(req *structs.GroupByRequest) (map[string][]int, []*structs.MeasureAggregator, []int) {
+func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart bool) (map[string][]int, []*structs.MeasureAggregator, []int) {
+	// log.Error("fjl convertRequestToInternalStats:")
 	colToIdx := make(map[string][]int) // maps a column name to all indices in allConvertedMeasureOps it relates to
 	allConvertedMeasureOps := make([]*structs.MeasureAggregator, 0)
 	allReverseIndex := make([]int, 0)
@@ -157,6 +159,11 @@ func convertRequestToInternalStats(req *structs.GroupByRequest) (map[string][]in
 				}
 				idx = curId
 			} else {
+				if usedByTimechart {
+					aggregations.AddAggCountToTimechartRunningStats(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+					idx++
+					continue
+				}
 				allReverseIndex = append(allReverseIndex, -1)
 			}
 			continue
@@ -169,6 +176,11 @@ func convertRequestToInternalStats(req *structs.GroupByRequest) (map[string][]in
 				idx = curId
 				continue
 			} else {
+				if usedByTimechart {
+					aggregations.AddAggAvgToTimechartRunningStats(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
+					idx += 2
+					continue
+				}
 				mFunc = utils.Sum
 			}
 		case utils.Cardinality:
@@ -348,7 +360,8 @@ func (b *BlockResults) ShouldIterateRecords(aggsHasTimeHt bool, isBlkFullyEncose
 
 }
 
-func (b *BlockResults) AddMeasureResultsToKey(currKey bytes.Buffer, measureResults []utils.CValueEnclosure, qid uint64) {
+func (b *BlockResults) AddMeasureResultsToKey(currKey bytes.Buffer, measureResults []utils.CValueEnclosure, groupByColVal string, usedByTimechart bool, qid uint64) {
+
 	if b.GroupByAggregation == nil {
 		return
 	}
@@ -367,7 +380,20 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey bytes.Buffer, measureResul
 	} else {
 		bucket = b.GroupByAggregation.AllRunningBuckets[bucketIdx]
 	}
-	bucket.AddMeasureResults(measureResults, qid, 1)
+
+	if usedByTimechart {
+		var gRunningStats []runningStats
+		_, exists := bucket.groupedRunningStats[groupByColVal]
+		if !exists {
+			gRunningStats = initRunningStats(b.GroupByAggregation.internalMeasureFns)
+			bucket.groupedRunningStats[groupByColVal] = gRunningStats
+		}
+		gRunningStats = bucket.groupedRunningStats[groupByColVal]
+		bucket.AddMeasureResults(&gRunningStats, measureResults, qid, 1, true)
+	} else {
+		bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, 1, false)
+	}
+
 }
 
 func (b *BlockResults) AddMeasureResultsToKeyAgileTree(bKey string,
@@ -389,7 +415,7 @@ func (b *BlockResults) AddMeasureResultsToKeyAgileTree(bKey string,
 	} else {
 		bucket = b.GroupByAggregation.AllRunningBuckets[bucketIdx]
 	}
-	bucket.AddMeasureResults(measureResults, qid, cnt)
+	bucket.AddMeasureResults(nil, measureResults, qid, cnt, false)
 }
 
 func (b *BlockResults) AddKeyToTimeBucket(bucketKey uint64, count uint16) {
@@ -457,138 +483,30 @@ func (b *BlockResults) GetGroupByBuckets() *structs.AggregationResult {
 	if b.GroupByAggregation == nil {
 		return &structs.AggregationResult{IsDateHistogram: false}
 	}
-	return b.GroupByAggregation.ConvertToAggregationResult(b.aggs.GroupByRequest)
+
+	usedByTimechart := false
+	if b.aggs.TimeHistogram != nil {
+		usedByTimechart = b.aggs.TimeHistogram.UsedByTimechart
+	}
+	return b.GroupByAggregation.ConvertToAggregationResult(b.aggs.GroupByRequest, usedByTimechart)
 }
 
-func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest) *structs.AggregationResult {
+func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest, usedByTimechart bool) *structs.AggregationResult {
 	results := make([]*structs.BucketResult, len(gb.AllRunningBuckets))
 	bucketNum := 0
 	for key, idx := range gb.StringBucketIdx {
 		bucket := gb.AllRunningBuckets[idx]
 		currRes := make(map[string]utils.CValueEnclosure)
-		// Some aggregate functions require multiple measure funcs or raw field values to calculate the result. For example, range() needs both max() and min(), and aggregates with eval statements may require multiple raw field values
-		// Therefore, it is essential to assign a value to 'idx' appropriately to skip the intermediate results generated during the computation from runningStats bucket
-		idx := 0
-		for _, mInfo := range req.MeasureOperations {
-			mInfoStr := mInfo.String()
-			switch mInfo.MeasureFunc {
-			case utils.Count:
-				if mInfo.ValueColRequest != nil {
-					if len(mInfo.ValueColRequest.GetFields()) == 0 {
-						log.Errorf("ConvertToAggregationResult: Incorrect number of fields for aggCol: %v", mInfo.String())
-						continue
-					}
 
-					countIdx := gb.reverseMeasureIndex[idx]
-					countVal, err := bucket.runningStats[countIdx].rawVal.GetUIntValue()
-					if err != nil {
-						currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-						continue
-					}
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: countVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
-				} else {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: bucket.count, Dtype: utils.SS_DT_UNSIGNED_NUM}
-				}
-				idx++
-			case utils.Avg:
-				sumIdx := gb.reverseMeasureIndex[idx]
-				sumRawVal, err := bucket.runningStats[sumIdx].rawVal.GetFloatValue()
-				if err != nil {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-					continue
-				}
-
-				var avg float64
-				if mInfo.ValueColRequest != nil {
-					countIdx := gb.reverseMeasureIndex[idx+1]
-					countRawVal, err := bucket.runningStats[countIdx].rawVal.GetFloatValue()
-					if err != nil {
-						currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-						continue
-					}
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: sumRawVal / countRawVal, Dtype: utils.SS_DT_FLOAT}
-					idx += 2
-				} else {
-					if bucket.count == 0 {
-						avg = 0
-					} else {
-						avg = sumRawVal / float64(bucket.count)
-					}
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: avg, Dtype: utils.SS_DT_FLOAT}
-					idx++
-				}
-			case utils.Range:
-				minIdx := gb.reverseMeasureIndex[idx]
-				minRawVal, err := bucket.runningStats[minIdx].rawVal.GetFloatValue()
-				if err != nil {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-					continue
-				}
-
-				maxIdx := gb.reverseMeasureIndex[idx+1]
-				maxRawVal, err := bucket.runningStats[maxIdx].rawVal.GetFloatValue()
-				if err != nil {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-					continue
-				}
-
-				currRes[mInfoStr] = utils.CValueEnclosure{CVal: maxRawVal - minRawVal, Dtype: utils.SS_DT_FLOAT}
-				idx += 2
-			case utils.Cardinality:
-				valIdx := gb.reverseMeasureIndex[idx]
-				if mInfo.ValueColRequest != nil {
-					if len(mInfo.ValueColRequest.GetFields()) == 0 {
-						log.Errorf("ConvertToAggregationResult: Incorrect number of fields for aggCol: %v", mInfo.String())
-						continue
-					}
-					strSet, ok := bucket.runningStats[valIdx].rawVal.CVal.(map[string]struct{})
-					if !ok {
-						currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-						continue
-					}
-
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: uint64(len(strSet)), Dtype: utils.SS_DT_UNSIGNED_NUM}
-				} else {
-					finalVal := bucket.runningStats[valIdx].hll.Estimate()
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: finalVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
-				}
-
-				idx++
-			case utils.Values:
-				if mInfo.ValueColRequest != nil {
-					if len(mInfo.ValueColRequest.GetFields()) == 0 {
-						log.Errorf("ConvertToAggregationResult: Incorrect number of fields for aggCol: %v", mInfo.String())
-						continue
-					}
-				}
-
-				valIdx := gb.reverseMeasureIndex[idx]
-				strSet, ok := bucket.runningStats[valIdx].rawVal.CVal.(map[string]struct{})
-				if !ok {
-					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
-					continue
-				}
-
-				uniqueStrings := make([]string, 0)
-				for str := range strSet {
-					uniqueStrings = append(uniqueStrings, str)
-				}
-
-				sort.Strings(uniqueStrings)
-
-				strVal := strings.Join(uniqueStrings, "&nbsp")
-				currRes[mInfoStr] = utils.CValueEnclosure{
-					Dtype: utils.SS_DT_STRING,
-					CVal:  strVal,
-				}
-
-				idx++
-			default:
-				valIdx := gb.reverseMeasureIndex[idx]
-				currRes[mInfoStr] = bucket.runningStats[valIdx].rawVal
-				idx++
+		// Add results for group by cols inside the time range bucket
+		if len(bucket.groupedRunningStats) > 0 {
+			for groupByColVal, gRunningStats := range bucket.groupedRunningStats {
+				gb.AddResultToStatRes(req, bucket, gRunningStats, currRes, groupByColVal, usedByTimechart)
 			}
+		} else {
+			gb.AddResultToStatRes(req, bucket, bucket.runningStats, currRes, "", usedByTimechart)
 		}
+
 		var bucketKey interface{}
 		bucketKey, err := utils.ConvertGroupByKey([]byte(key))
 		if len(bucketKey.([]string)) == 1 {
@@ -609,6 +527,136 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 	return &structs.AggregationResult{
 		IsDateHistogram: false,
 		Results:         results,
+	}
+}
+
+func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket *RunningBucketResults, runningStats []runningStats, currRes map[string]utils.CValueEnclosure, groupByColVal string, usedByTimechart bool) {
+	// Some aggregate functions require multiple measure funcs or raw field values to calculate the result. For example, range() needs both max() and min(), and aggregates with eval statements may require multiple raw field values
+	// Therefore, it is essential to assign a value to 'idx' appropriately to skip the intermediate results generated during the computation from runningStats bucket
+	idx := 0
+	usedByTimechartGroupByCol := len(groupByColVal) > 0
+	for _, mInfo := range req.MeasureOperations {
+		mInfoStr := mInfo.String()
+		if usedByTimechartGroupByCol {
+			mInfoStr = mInfoStr + ":" + groupByColVal
+		}
+		switch mInfo.MeasureFunc {
+		case utils.Count:
+			if mInfo.ValueColRequest != nil || usedByTimechart {
+				if !usedByTimechart && len(mInfo.ValueColRequest.GetFields()) == 0 {
+					log.Errorf("AddResultToStatRes: Incorrect number of fields for aggCol: %v", mInfoStr)
+					continue
+				}
+
+				countIdx := gb.reverseMeasureIndex[idx]
+				countVal, err := runningStats[countIdx].rawVal.GetUIntValue()
+				if err != nil {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					continue
+				}
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: countVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
+			} else {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: bucket.count, Dtype: utils.SS_DT_UNSIGNED_NUM}
+			}
+			idx++
+		case utils.Avg:
+			sumIdx := gb.reverseMeasureIndex[idx]
+			sumRawVal, err := runningStats[sumIdx].rawVal.GetFloatValue()
+			if err != nil {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				continue
+			}
+
+			var avg float64
+			if mInfo.ValueColRequest != nil || usedByTimechart {
+				countIdx := gb.reverseMeasureIndex[idx+1]
+				countRawVal, err := runningStats[countIdx].rawVal.GetFloatValue()
+				if err != nil {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					continue
+				}
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: sumRawVal / countRawVal, Dtype: utils.SS_DT_FLOAT}
+				idx += 2
+			} else {
+				if bucket.count == 0 {
+					avg = 0
+				} else {
+					avg = sumRawVal / float64(bucket.count)
+				}
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: avg, Dtype: utils.SS_DT_FLOAT}
+				idx++
+			}
+		case utils.Range:
+			minIdx := gb.reverseMeasureIndex[idx]
+			minRawVal, err := runningStats[minIdx].rawVal.GetFloatValue()
+			if err != nil {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				continue
+			}
+
+			maxIdx := gb.reverseMeasureIndex[idx+1]
+			maxRawVal, err := runningStats[maxIdx].rawVal.GetFloatValue()
+			if err != nil {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				continue
+			}
+
+			currRes[mInfoStr] = utils.CValueEnclosure{CVal: maxRawVal - minRawVal, Dtype: utils.SS_DT_FLOAT}
+			idx += 2
+		case utils.Cardinality:
+			valIdx := gb.reverseMeasureIndex[idx]
+			if mInfo.ValueColRequest != nil {
+				if len(mInfo.ValueColRequest.GetFields()) == 0 {
+					log.Errorf("AddResultToStatRes: Incorrect number of fields for aggCol: %v", mInfoStr)
+					continue
+				}
+				strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
+				if !ok {
+					currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+					continue
+				}
+
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: uint64(len(strSet)), Dtype: utils.SS_DT_UNSIGNED_NUM}
+			} else {
+				finalVal := runningStats[valIdx].hll.Estimate()
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: finalVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
+			}
+
+			idx++
+		case utils.Values:
+			if mInfo.ValueColRequest != nil {
+				if len(mInfo.ValueColRequest.GetFields()) == 0 {
+					log.Errorf("AddResultToStatRes: Incorrect number of fields for aggCol: %v", mInfoStr)
+					continue
+				}
+			}
+
+			valIdx := gb.reverseMeasureIndex[idx]
+			strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
+			if !ok {
+				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
+				continue
+			}
+
+			uniqueStrings := make([]string, 0)
+			for str := range strSet {
+				uniqueStrings = append(uniqueStrings, str)
+			}
+
+			sort.Strings(uniqueStrings)
+
+			strVal := strings.Join(uniqueStrings, "&nbsp")
+			currRes[mInfoStr] = utils.CValueEnclosure{
+				Dtype: utils.SS_DT_STRING,
+				CVal:  strVal,
+			}
+
+			idx++
+		default:
+			valIdx := gb.reverseMeasureIndex[idx]
+			currRes[mInfoStr] = runningStats[valIdx].rawVal
+			idx++
+		}
 	}
 }
 
@@ -704,7 +752,7 @@ func (tb *TimeBucketsJSON) ToTimeBuckets() (*TimeBuckets, error) {
 }
 
 func (gb *GroupByBucketsJSON) ToGroupByBucket(req *structs.GroupByRequest) (*GroupByBuckets, error) {
-	mCols, mFuns, revIndex := convertRequestToInternalStats(req)
+	mCols, mFuns, revIndex := convertRequestToInternalStats(req, false)
 	retVal := &GroupByBuckets{
 		AllRunningBuckets:   make([]*RunningBucketResults, 0, len(gb.AllGroupbyBuckets)),
 		StringBucketIdx:     make(map[string]int, len(gb.AllGroupbyBuckets)),
