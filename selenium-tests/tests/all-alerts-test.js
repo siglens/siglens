@@ -14,7 +14,7 @@ async function testAllAlertsPage() {
       .setChromeOptions(chromeOptions)
       .build();
 
-    await driver.get("http://localhost/all-alerts.html");
+    await driver.get("http://localhost:5122/all-alerts.html");
 
     // Test presence and click of "Add Alert Rule" button
     let addAlertRuleButton = await driver.findElement(By.id("new-alert-rule"));
@@ -61,7 +61,7 @@ async function testAllAlertsPage() {
     let saveButton = await driver.findElement(By.id("save-alert-btn"));
     await saveButton.click();
     
-    await driver.get("http://localhost/all-alerts.html");
+    await driver.get("http://localhost:5122/all-alerts.html");
 
     await driver.sleep(10000); // 5000 milliseconds = 5 seconds
 
