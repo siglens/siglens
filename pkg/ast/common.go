@@ -225,7 +225,7 @@ func GetColValues(cname string, table string, qid uint64, orgid uint64) ([]inter
 
 func ParseTimeRange(startEpoch, endEpoch uint64, aggs *QueryAggregators, qid uint64) (*dtu.TimeRange, error) {
 	tRange := new(dtu.TimeRange)
-	if aggs != nil && aggs.TimeHistogram != nil {
+	if aggs != nil && aggs.TimeHistogram != nil && !aggs.TimeHistogram.UsedByTimechart {
 		tRange.StartEpochMs = aggs.TimeHistogram.StartTime
 		tRange.EndEpochMs = aggs.TimeHistogram.EndTime
 		return tRange, nil

@@ -668,6 +668,12 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 		if !ok {
 			continue
 		}
+
+		_, ok = segstore.AllSst[cname]
+		if !ok {
+			continue
+		}
+
 		cest := uint32(segstore.AllSst[cname].Hll.Estimate())
 		gcMap[cname] = cest
 		sortedGrpCols = append(sortedGrpCols, cname)
