@@ -463,6 +463,10 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 		log.Errorf("qid=%d, convertRRCsToJSONResponse: failed to get allrecords from rrc, err=%v", qid, err)
 		return allJsons, allCols, err
 	}
+
+	if sizeLimit < uint64(len(allJsons)) {
+		allJsons = allJsons[:sizeLimit]
+	}
 	return allJsons, allCols, nil
 }
 
