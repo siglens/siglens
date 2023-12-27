@@ -397,7 +397,8 @@ SearchTerm <- term:(FieldWithNumberValue / FieldWithStringValue) {
     return term, nil
 }
 
-TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? SPACE expr:(SingleAggExpr) {
+// To be finished: add (<eval-expression>) BY <split-by-clause> ) for expr; Limit option ...
+TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExpr){
     aggNode := &structs.QueryAggregators{}
 
     columnsRequest := &structs.ColumnsRequest{}
@@ -428,7 +429,7 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? SPACE expr:(Single
             }
         //  case (<eval-expression>) BY <split-by-clause>) to be finished
         default:
-            return nil, fmt.Errorf("Spl peg: Timechart: either <single-agg> or <eval-expression> BY <split-by-clause> is required")
+            return nil, fmt.Errorf("Spl peg: Timechart: either single-agg or eval-expression BY split-by-clause is required")
     }
 
     letColReq := &structs.LetColumnsRequest {
@@ -530,7 +531,7 @@ TcOptions <- SPACE option:(BinOptions / (TcOption)+) {
     return tcOptions, nil
 }
 
-TcOption <- SPACE tcOptionCMD:TcOptionCMD "=" val:EvalFieldToRead {
+TcOption <- SPACE tcOptionCMD:TcOptionCMD EQUAL val:EvalFieldToRead {
     tcOptionArr := []string{tcOptionCMD.(string), val.(string)}
     return tcOptionArr, nil
 }
@@ -552,14 +553,14 @@ BinOptions <- spanOptions:SpanOptions {
 }
 
 // To be finished: span=<log-span> | span=<span-length> | span=<snap-to-time>
-SpanOptions <- CMD_SPAN "=" spanLength:SpanLength {
+SpanOptions <- CMD_SPAN EQUAL spanLength:SpanLength {
     spanOptions := &structs.SpanOptions {
         SpanLength: spanLength.(*structs.SpanLength),
     }
     return spanOptions, nil
 }
 
-SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale {
+SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale SPACE{
     num, err := strconv.Atoi(intAsStr.(string))
     if err != nil {
         return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", intAsStr.(string), err)
@@ -1568,7 +1569,7 @@ HeadBlock <- PIPE CMD_HEAD ("limit" EQUAL)? intAsStr:IntegerAsString {
 
 // Parses one or more AggFunctions separated by a comma and space.
 // Returns a slice containing all the AggFunctions.
-AggregationList <- first:Aggregator rest:(COMMA Aggregator)* {
+AggregationList <- first:Aggregator rest:((COMMA / SPACE) Aggregator)* {
     // Convert `rest` to a slice. Each element of the slice will be a 2-element
     // slice where the first element is ", " and the second is an Aggregator.
     restSlice := rest.([]any)
@@ -2019,7 +2020,7 @@ CMD_TOP <- "top"
 CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
 CMD_TIMECHART <- "timechart" SPACE
-CMD_SPAN <- "span"  // Need to add space after merge upstream develop, which had already solved the multiple spaces issue
+CMD_SPAN <- "span"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

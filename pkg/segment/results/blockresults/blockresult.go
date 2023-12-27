@@ -121,7 +121,6 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 // Converted Measure Ops: for example, to calculate average the block will need to track sum
 // Count is always tracked for each bucket
 func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart bool) (map[string][]int, []*structs.MeasureAggregator, []int) {
-	// log.Error("fjl convertRequestToInternalStats:")
 	colToIdx := make(map[string][]int) // maps a column name to all indices in allConvertedMeasureOps it relates to
 	allConvertedMeasureOps := make([]*structs.MeasureAggregator, 0)
 	allReverseIndex := make([]int, 0)
