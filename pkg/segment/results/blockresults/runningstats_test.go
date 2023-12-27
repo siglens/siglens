@@ -64,7 +64,7 @@ func Test_JoinStats(t *testing.T) {
 			{CVal: uint64(1), Dtype: utils.SS_DT_UNSIGNED_NUM},
 			{CVal: uint64(1), Dtype: utils.SS_DT_UNSIGNED_NUM},
 		}
-		bRes.AddMeasureResultsToKey(buf, mRes, 5)
+		bRes.AddMeasureResultsToKey(buf, mRes, "", false, 5)
 	}
 	assert.NotNil(t, bRes.GroupByAggregation)
 	assert.Len(t, bRes.GroupByAggregation.AllRunningBuckets, 10)
@@ -84,7 +84,7 @@ func Test_JoinStats(t *testing.T) {
 			{CVal: uint64(1), Dtype: utils.SS_DT_UNSIGNED_NUM},
 			{CVal: i, Dtype: utils.SS_DT_UNSIGNED_NUM},
 		}
-		toMerge.AddMeasureResultsToKey(buf, mRes, 5)
+		toMerge.AddMeasureResultsToKey(buf, mRes, "", false, 5)
 	}
 
 	bRes.MergeBuckets(toMerge)
