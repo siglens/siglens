@@ -46,9 +46,9 @@ limitations under the License.
          $("#custom-chart-tab").show();
          let currentTab = $("#custom-chart-tab").tabs("option", "active");
          if (currentTab == 0) {
-           $("#logs-view-controls").hide();
-         } else {
            $("#logs-view-controls").show();
+         } else {
+           $("#logs-view-controls").hide();
          }
          $("#agg-result-container").hide();
          $("#data-row-container").hide();
@@ -725,7 +725,10 @@ function getColumns() {
  
          renderAvailableFields(columnOrder);
          renderLogsGrid(columnOrder, res.hits.records);
- 
+
+        $("#logs-result-container").show();
+        $("#agg-result-container").hide();
+         
          if (res && res.hits && res.hits.totalMatched) {
              totalHits = res.hits.totalMatched
          }
@@ -789,7 +792,7 @@ function getColumns() {
       }
       resetDashboard();
       $("#logs-result-container").hide();
-      $("#custom-chart-tab").hide();
+      $("#custom-chart-tab").show();
       $("#agg-result-container").show();
       aggsColumnDefs = [];
       segStatsRowData = [];
@@ -838,7 +841,7 @@ function getColumns() {
        measureFunctions = res.measureFunctions;
      }
      if (res.measure) {
-         if (res.measure) measureInfo = res.measure;
+         measureInfo = res.measure;
          if (res.groupByCols) {
              columnOrder = _.uniq(_.concat(
                  res.groupByCols));
@@ -849,7 +852,7 @@ function getColumns() {
          }
          resetDashboard();
          $("#logs-result-container").hide();
-         $("#custom-chart-tab").hide();
+         $("#custom-chart-tab").show();
          $("#agg-result-container").show();
          aggsColumnDefs=[];
          segStatsRowData=[];
@@ -857,8 +860,13 @@ function getColumns() {
          if ((res.qtype ==="aggs-query" || res.qtype === "segstats-query") && res.bucketCount){
              totalHits = res.bucketCount;
          }
+     }else{
+      measureInfo = [];
      }
- 
+     let currentResTab = $("#custom-chart-tab").tabs("option", "active");
+     if (currentResTab == 1) {
+       timeChart();
+     }
      let totalTime = (new Date()).getTime() - startQueryTime;
      let percentComplete = res.percent_complete;
      if (res.total_rrc_count > 0){

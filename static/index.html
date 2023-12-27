@@ -225,9 +225,9 @@
             
             <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
                 <ul class="tab-chart-list">
-                    <li class="tab-li" id="tab-chart-title"><a href="#tabs-chart" class="custom-query-builder">Visualization</a>
+                    <li class="tab-li" id="tab-table-title"><a href="#showTable" class="custom-query-builder">Table</a>
                     </li>
-                    <li class="tab-li" id="tab-table-title"><a href="#logs-result-container" class="custom-query-builder">Table</a>
+                    <li class="tab-li" id="tab-chart-title"><a href="#tabs-chart" class="custom-query-builder">Visualization</a>
                     </li>
                 </ul>
                 <div id="logs-view-controls">
@@ -280,16 +280,22 @@
                 </div>
                 <div id="tabs-chart" class="tab-content-size">
                     <div id="columnChart" class="column-chart"></div>
+                    <div id="hideGraph" class="hide-graph">
+                        <div class="hide-graph-text">This query does not contain visualization data</div>
+                    </div>
                 </div>
-                <div id="logs-result-container" class="tab-content-size">
-                    <div id="LogResultsGrid" class="LogResultsGrid ag-theme-mycustomtheme"></div>
+                <div id="showTable" class="show-table">
+                    <div id="logs-result-container" class="tab-content-size">
+                        <div id="LogResultsGrid" class="LogResultsGrid ag-theme-mycustomtheme"></div>
+                    </div>
+                    <div id="agg-result-container" class="tab-content-size">
+                        <div id="measureAggGrid" class="measureAggGrid ag-theme-mycustomtheme"></div>
+                    </div>
                 </div>
             </div>
             <div id="empty-response"></div>
             
-            <div id="agg-result-container">
-                <div id="measureAggGrid" class="measureAggGrid ag-theme-mycustomtheme"></div>
-            </div>
+           
 
             <div id="corner-popup">
                 <div class="corner-container">

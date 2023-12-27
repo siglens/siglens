@@ -90,9 +90,9 @@ function showError(errorMsg) {
     $('#empty-response').hide();
     let currentTab = $("#custom-chart-tab").tabs("option", "active");
     if (currentTab == 0) {
-      $("#logs-view-controls").hide();
-    } else {
       $("#logs-view-controls").show();
+    } else {
+      $("#logs-view-controls").hide();
     }
     $("#custom-chart-tab").show();
     $('#corner-popup .corner-text').html(errorMsg);

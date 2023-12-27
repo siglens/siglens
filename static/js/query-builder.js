@@ -7,18 +7,19 @@ $(function () {
 });
 $("#custom-code-tab").tabs({
   activate: function (event, ui) {
-    if (chart != null && chart != "" && chart != undefined) timeChart();
+    let currentResTab = $("#custom-chart-tab").tabs("option", "active");
+    if(currentResTab == 1){
+      timeChart();
+    }
     let currentTab = $("#custom-code-tab").tabs("option", "active");
     if (currentTab == 0) {
       $(".query-language-option").removeClass("active");
       $("#query-language-options #option-3").addClass("active");
       $("#query-language-btn span").html("Splunk QL");
       displayQueryLangToolTip("3");
-     $("#logs-view-controls").hide();
     }else{
       let filterValue = $("#query-input").val();
      if (filterValue != "") $("#filter-input").val(filterValue);
-     $("#logs-view-controls").show();
     }
   },
 });
@@ -26,9 +27,10 @@ $("#custom-chart-tab").tabs({
   activate: function (event, ui) {
     let currentTab = $("#custom-chart-tab").tabs("option", "active");
     if (currentTab == 0) {
-      $("#logs-view-controls").hide();
-    } else {
       $("#logs-view-controls").show();
+    } else {
+      $("#logs-view-controls").hide();
+      timeChart();
     }
   },
 });
@@ -537,79 +539,38 @@ function setShowColumnInfoDialog(){
     // return false;
   });
 }
-function timeReadable(timestamp) {
+function convertTimestamp(timestampString) {  
+  var timestamp = parseInt(timestampString); 
   var date = new Date(timestamp);
-
-  var year = date.getFullYear();
+  
+  var year = date.getFullYear(); 
   var month = ("0" + (date.getMonth() + 1)).slice(-2);
-  var day = ("0" + date.getDate()).slice(-2);
-
-  var hours = ("0" + date.getHours()).slice(-2);
-  var minutes = ("0" + date.getMinutes()).slice(-2);
+  var day = ("0" + date.getDate()).slice(-2);  
+  
+  var hours = ("0" + date.getHours()).slice(-2); 
+  var minutes = ("0" + date.getMinutes()).slice(-2);  
   var seconds = ("0" + date.getSeconds()).slice(-2);
-
-  var readableDate = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds; 
-  return readableDate;
-}
+  
+  var readableDate = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds; // 拼接可读的日期和时间字符串  
+  return readableDate;  
+}  
 function timeChart() {
-  let returnData = {
-    measure: [
-      {
-        GroupByValues: ["12:00"],
-        measureVal: {
-          "sum(latitude):Sunday": 2452.423,
-          "sum(latitude):Monday": 5633.423,
-          "sum(latitude):Tuesday": 45234.423,
-          "sum(latitude):Wednesday": 2343.423,
-          "sum(latitude):Thursday": 563.423,
-          "sum(latitude):Friday": 243.423,
-          "sum(latitude):Saturday": 3457.423,
-        },
-      },
-      {
-        GroupByValues: ["01:00"],
-        measureVal: {
-          "sum(latitude):Sunday": 2452.423,
-          "sum(latitude):Monday": 5633.423,
-          "sum(latitude):Tuesday": 45234.423,
-          "sum(latitude):Wednesday": 2343.423,
-          "sum(latitude):Thursday": 563.423,
-          "sum(latitude):Friday": 243.423,
-          "sum(latitude):Saturday": 3457.423,
-        },
-      },
-      {
-        GroupByValues: ["02:00"],
-        measureVal: {
-          "sum(latitude):Sunday": 2452.423,
-          "sum(latitude):Monday": 5633.423,
-          "sum(latitude):Tuesday": 45234.423,
-          "sum(latitude):Wednesday": 2343.423,
-          "sum(latitude):Thursday": 563.423,
-          "sum(latitude):Friday": 243.423,
-          "sum(latitude):Saturday": 3457.423,
-        },
-      },
-    ],
-    measureFuctions: [
-      "sum(latitude):Sunday",
-      "sum(latitude):Monday",
-      "sum(latitude):Tuesday",
-      "sum(latitude):Wednesday",
-      "sum(latitude):Thursday",
-      "sum(latitude):Friday",
-      "sum(latitude):Saturday",
-    ],
-  };
-
+  if(measureInfo.length == 0) {
+    $("#columnChart").hide();
+    $("#hideGraph").show();
+    return;
+  }else{
+    $("#columnChart").show();
+    $("#hideGraph").hide();
+  }
   // Extract data for ECharts
-  var timestamps = measureInfo.map((item) => timeReadable(item.GroupByValues[0]));
+  var timestamps = measureInfo.map((item) => convertTimestamp(item.GroupByValues[0]));
   var seriesData = measureFunctions.map(function (measureFunction) {
     return {
       name: measureFunction,
       type: "bar",
       data: measureInfo.map(function (item) {
-        return item.measureVal[measureFunction] || 0;
+        return item.MeasureVal[measureFunction] || 0;
       }),
     };
   });
