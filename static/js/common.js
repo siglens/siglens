@@ -58,6 +58,8 @@ let totalMatchLogs = 0;
 let firstBoxSet = new Set();
 let secondBoxSet = new Set();
 let thirdBoxSet = new Set();
+let measureFunctions = [];
+let measureInfo = [];
 
 
 let aggGridOptions = {

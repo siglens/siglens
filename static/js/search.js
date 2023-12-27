@@ -834,7 +834,11 @@ function getColumns() {
      if (res.totalMatched.value === 0 && res.measure ===undefined) {
          processEmptyQueryResults();
      }
+     if (res.measureFunctions && res.measureFunctions.length > 0) {
+       measureFunctions = res.measureFunctions;
+     }
      if (res.measure) {
+         if (res.measure) measureInfo = res.measure;
          if (res.groupByCols) {
              columnOrder = _.uniq(_.concat(
                  res.groupByCols));

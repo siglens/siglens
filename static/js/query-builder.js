@@ -537,11 +537,49 @@ function setShowColumnInfoDialog(){
     // return false;
   });
 }
-function timeChart(){
+function timeReadable(timestamp) {
+  var date = new Date(timestamp);
+
+  var year = date.getFullYear();
+  var month = ("0" + (date.getMonth() + 1)).slice(-2);
+  var day = ("0" + date.getDate()).slice(-2);
+
+  var hours = ("0" + date.getHours()).slice(-2);
+  var minutes = ("0" + date.getMinutes()).slice(-2);
+  var seconds = ("0" + date.getSeconds()).slice(-2);
+
+  var readableDate = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds; 
+  return readableDate;
+}
+function timeChart() {
   let returnData = {
     measure: [
       {
-        GroupByValues: ["1703557497472"],
+        GroupByValues: ["12:00"],
+        measureVal: {
+          "sum(latitude):Sunday": 2452.423,
+          "sum(latitude):Monday": 5633.423,
+          "sum(latitude):Tuesday": 45234.423,
+          "sum(latitude):Wednesday": 2343.423,
+          "sum(latitude):Thursday": 563.423,
+          "sum(latitude):Friday": 243.423,
+          "sum(latitude):Saturday": 3457.423,
+        },
+      },
+      {
+        GroupByValues: ["01:00"],
+        measureVal: {
+          "sum(latitude):Sunday": 2452.423,
+          "sum(latitude):Monday": 5633.423,
+          "sum(latitude):Tuesday": 45234.423,
+          "sum(latitude):Wednesday": 2343.423,
+          "sum(latitude):Thursday": 563.423,
+          "sum(latitude):Friday": 243.423,
+          "sum(latitude):Saturday": 3457.423,
+        },
+      },
+      {
+        GroupByValues: ["02:00"],
         measureVal: {
           "sum(latitude):Sunday": 2452.423,
           "sum(latitude):Monday": 5633.423,
@@ -563,71 +601,47 @@ function timeChart(){
       "sum(latitude):Saturday",
     ],
   };
-    var dataTime = [
-    ['2018-03-29', 5, 17, 6, 3, 5, 32, 9],
-    ['2018-03-30', 62, 63, 39, 30, 22, 127, 56],
-    ['2018-03-31', 65, 94, 38, 42, 34, 128, 60],
-    ['2018-04-01', 54, 82, 42, 39, 13, 115, 66],
-    ['2018-04-02', 52, 63, 45, 42, 22, 124, 52],
-    ['2018-04-03', 46, 76, 34, 42, 19, 123, 59],
-    ['2018-04-04', 57, 70, 36, 38, 20, 130, 56],
-    ['2018-04-05', 46, 72, 35, 37, 13, 106, 46],
-];
-// Extract dates and series from the data
-var dates = dataTime.map(item => item[0]);
-var series = dataTime.map(item => item.slice(1));
-// ECharts configuration
-var option = {
-  tooltip: {
-    trigger: "axis",
-  },
-  legend: {
-    data: [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ],
-    // textStyle: {
-    //   lineHeight: 20, // 设置行高为20像素
-    // },
-  },
-  xAxis: {
-    type: "category",
-    data: dates,
-    axisLabel: {
-      formatter: function (value) {
-        // Format the date as needed
-        return value; // You may need to format the date here based on your requirements
-      },
+
+  // Extract data for ECharts
+  var timestamps = measureInfo.map((item) => timeReadable(item.GroupByValues[0]));
+  var seriesData = measureFunctions.map(function (measureFunction) {
+    return {
+      name: measureFunction,
+      type: "bar",
+      data: measureInfo.map(function (item) {
+        return item.measureVal[measureFunction] || 0;
+      }),
+    };
+  });
+
+  // ECharts configuration
+  var option = {
+    title: { text: "" },
+    tooltip: { trigger: "axis" },
+    legend: {
+      data: measureFunctions,
+      type: "scroll", // 启用折叠功能
+      left: "center", // 设置 legend 位置居中
+      top: "top",
     },
-  },
-  yAxis: {
-    type: "value",
-  },
-  series: [
-    { name: "Monday", type: "bar", data: series[0] },
-    { name: "Tuesday", type: "bar", data: series[1] },
-    { name: "Wednesday", type: "bar", data: series[2] },
-    { name: "Thursday", type: "bar", data: series[3] },
-    { name: "Friday", type: "bar", data: series[4] },
-    { name: "Saturday", type: "bar", data: series[5] },
-    { name: "Sunday", type: "bar", data: series[6] },
-  ],
-};
-// Initialize ECharts
-let charId = document.getElementById("columnChart");
-if (chart != null && chart != "" && chart != undefined) {
-  echarts.dispose(chart);
-}
-chart = echarts.init(charId);
-// Set the configuration to the chart
-chart.setOption(option);
-let heighty = document.getElementById("custom-code-tab").getBoundingClientRect().height;
+    xAxis: { type: "category", data: timestamps },
+    yAxis: { type: "value" },
+    series: seriesData,
+  };
+
+  // Initialize ECharts
+  let charId = document.getElementById("columnChart");
+  if (chart != null && chart != "" && chart != undefined) {
+    echarts.dispose(chart);
+  }
+  chart = echarts.init(charId);
+  // Set the configuration to the chart
+  chart.setOption(option);
+  let height = document
+    .getElementById("custom-code-tab")
+    .getBoundingClientRect().height;
   chart.resize({
-    height: window.innerHeight - heighty - 60
+    height: window.innerHeight - height - 60,
+    width: window.innerWidth - 150
   });
 }

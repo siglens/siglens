@@ -654,8 +654,13 @@ div.show-record-popup {
 .tab-content-size{
     height: 100%;
 }
-.column-chart{
-    width: 100%; 
-    height: 100%;
+.column-chart {
+    width: 100%;
+    height: calc(100% - 80px);
     overflow: hidden;
+    border: 1px solid var(--search-input-border);
+    box-shadow: var(--box-shadow);
+    border-radius: 10px;
+    padding: 10px;
+    background: var(--black1-to-white0)
 }
