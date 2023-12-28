@@ -81,7 +81,7 @@ func evaluate(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
 			AlertId:          alertToEvaluate.AlertInfo.AlertId,
 			EventDescription: alertutils.AlertFiring,
 			UserName:         alertutils.SystemGeneratedAlert,
-			EventTriggeredAt: alertToEvaluate.AlertInfo.CreateTimestamp,
+			EventTriggeredAt: time.Now().UTC(),
 		}
 		_, err = databaseObj.CreateAlertHistory(&alertEvent)
 		if err != nil {
@@ -104,7 +104,7 @@ func evaluate(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
 			AlertId:          alertToEvaluate.AlertInfo.AlertId,
 			EventDescription: alertutils.AlertNormal,
 			UserName:         alertutils.SystemGeneratedAlert,
-			EventTriggeredAt: alertToEvaluate.AlertInfo.CreateTimestamp,
+			EventTriggeredAt: time.Now().UTC(),
 		}
 		_, err = databaseObj.CreateAlertHistory(&alertEvent)
 		if err != nil {
@@ -153,7 +153,7 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 			AlertId:          msToEvaluate.AlertInfo.AlertId,
 			EventDescription: alertutils.AlertFiring,
 			UserName:         alertutils.SystemGeneratedAlert,
-			EventTriggeredAt: msToEvaluate.AlertInfo.CreateTimestamp,
+			EventTriggeredAt: time.Now().UTC(),
 		}
 		_, err = databaseObj.CreateAlertHistory(&alertEvent)
 		if err != nil {
@@ -176,7 +176,7 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 			AlertId:          msToEvaluate.AlertInfo.AlertId,
 			EventDescription: alertutils.AlertNormal,
 			UserName:         alertutils.SystemGeneratedAlert,
-			EventTriggeredAt: msToEvaluate.AlertInfo.CreateTimestamp,
+			EventTriggeredAt: time.Now().UTC(),
 		}
 		_, err = databaseObj.CreateAlertHistory(&alertEvent)
 		if err != nil {

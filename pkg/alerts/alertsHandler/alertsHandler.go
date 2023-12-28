@@ -325,7 +325,7 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 		AlertId:          alertToBeUpdated.AlertInfo.AlertId,
 		EventDescription: alertutils.ConfigChange,
 		UserName:         alertutils.UserModified,
-		EventTriggeredAt: alertToBeUpdated.AlertInfo.CreateTimestamp,
+		EventTriggeredAt: time.Now().UTC(),
 	}
 	_, err = databaseObj.CreateAlertHistory(&alertEvent)
 	if err != nil {
