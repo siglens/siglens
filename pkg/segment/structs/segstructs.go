@@ -44,10 +44,12 @@ type OrderByAggregator struct {
 }
 
 type TimeBucket struct {
-	IntervalMillis uint64 // size of each histogram bucket in millis
-	StartTime      uint64 // start time of histogram
-	EndTime        uint64 // end time of histogram
-	AggName        string // name of aggregation
+	IntervalMillis  uint64 // size of each histogram bucket in millis
+	StartTime       uint64 // start time of histogram
+	EndTime         uint64 // end time of histogram
+	AggName         string // name of aggregation
+	UsedByTimechart bool
+	ByField         string // group by this field inside each time range bucket (timechart)
 }
 
 type RangeBucket struct {
@@ -186,6 +188,7 @@ type LetColumnsRequest struct {
 	RexColRequest       *RexExpr
 	StatisticColRequest *StatisticExpr
 	RenameColRequest    *RenameExpr
+	TimechartColRequest *TimechartExpr
 	NewColName          string
 }
 
