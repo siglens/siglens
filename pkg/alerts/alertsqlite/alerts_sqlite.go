@@ -94,7 +94,7 @@ const allNotifsTableQuery = `CREATE TABLE IF NOT EXISTS siglens.notification_det
   );`
 
 const alertsHistoryTableQuery = `CREATE TABLE IF NOT EXISTS siglens.alerts_history (
-    id TEXT NOT NULL PRIMARY KEY
+    id TEXT NOT NULL PRIMARY KEY,
 	alert_id TEXT NOT NULL,
 	event_description TEXT,
 	username TEXT,
