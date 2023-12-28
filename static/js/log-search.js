@@ -17,7 +17,6 @@ limitations under the License.
 'use strict';
 
 $(document).ready(() => {
-    displayNavbar();
     setSaveQueriesDialog();
     getListIndices();
     const currentUrl = window.location.href;
