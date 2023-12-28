@@ -44,6 +44,16 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+type VersionResponse struct {
+	Version string `json:"version"`
+}
+
+func getVersionHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		alertsHandler.ProcessVersionInfo(ctx)
+	}
+}
+
 func getHealthHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		health.ProcessGetHealth(ctx)
@@ -304,6 +314,12 @@ func getPqsByIdHandler() func(ctx *fasthttp.RequestCtx) {
 func createDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		dashboards.ProcessCreateDashboardRequest(ctx, 0)
+	}
+}
+
+func favoriteDashboardHandler() fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		dashboards.ProcessFavoriteRequest(ctx)
 	}
 }
 

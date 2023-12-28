@@ -4,7 +4,7 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
 <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 
     gtag('config', 'G-5SBJC04YFB');
@@ -74,18 +74,21 @@
             </div>
             <div class="popupContent">
                 <h3 class="header">Confirmation</h3>
-                <p>Are you sure you want to delete the <strong id="contact-name-placeholder"></strong> contact point?</p>
+                <p>Are you sure you want to delete the <strong id="contact-name-placeholder"></strong> contact point?
+                </p>
                 <button type="button" id="cancel-btn">Cancel</button>
                 <button type="button" id="delete-btn">Delete</button>
             </div>
             <div class="delete-dialog">
                 <h3 class="header">Cannot delete contact point</h3>
                 <p>
-                    The contact point named <strong id="contact-name-placeholder-delete-dialog"></strong> is currently in use by multiple alerts.
+                    The contact point named <strong id="contact-name-placeholder-delete-dialog"></strong> is currently
+                    in use by multiple alerts.
                 </p>
                 <div class="dropdown">
-                    <button class="btn dropdown-toggle" type="button" id="alert-btn" data-toggle="dropdown" aria-haspopup="true"
-                        aria-expanded="false" data-bs-toggle="dropdown" title="Alert Name to search on">
+                    <button class="btn dropdown-toggle" type="button" id="alert-btn" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
+                        title="Alert Name to search on">
                         <span>View associated Alerts</span>
                         <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
                         <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
@@ -96,7 +99,7 @@
                 </div>
                 <button type="button" id="cancel-btn">Close</button>
             </div>
-            
+
         </div>
 
         <div id="app-footer">

@@ -3275,7 +3275,7 @@ float: right;
 #metrics-graph-container,#metrics-table-container{
     height: 80vh;
     border-radius: 5px;
-    margin: 0px 27px 59px 22px;
+    margin: 0px 27px 0px 22px;
     background: var(--search-bar-bg);
 }
 
@@ -4093,7 +4093,7 @@ color: #C8C7CC;
 }
 
 .myOrg #test-data-container .role-inner-dropdown{
-    height: 44px;
+    height: 40px;
 }
 
 /*Alerting Page*/
@@ -4837,6 +4837,7 @@ color: #C8C7CC;
 .filter-input,
 .metrics-table-btn,
 .metrics-graph-container,
+#metrics-table-container,
 input.form-control {
     border: 1px solid var(--border-btn-color);
 }

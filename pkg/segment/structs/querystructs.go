@@ -68,6 +68,7 @@ type MatchFilter struct {
 	MatchPhrase    []byte                 //whole string to search for in case of MatchPhrase query
 	MatchDictArray *MatchDictArrayRequest //array to search for in case of jaeger query
 	MatchType      MatchFilterType
+	NegateMatch    bool
 }
 
 type MatchDictArrayRequest struct {
