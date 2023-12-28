@@ -143,8 +143,8 @@ func IsSubWordPresent(haystack []byte, needle []byte) bool {
 }
 
 func IsPatternPresent(haystack []byte, pattern []byte) bool {
-	// Convert pattern to string and replace '*' with '.*' to create a regex pattern
-	regexPattern := strings.Replace(string(pattern), "*", ".*", -1)
+	// Convert pattern to string, replace '*' with '.*', and add word boundaries to create a regex pattern
+	regexPattern := "\\b" + strings.Replace(string(pattern), "*", ".*", -1) + "\\b"
 
 	// Compile the regex
 	r, err := regexp.Compile(regexPattern)

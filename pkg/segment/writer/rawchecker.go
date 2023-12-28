@@ -55,7 +55,7 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error
 			foundQword = utils.IsPatternPresent(col[idx:idx+clen], match.MatchPhrase)
 		} else {
 			for _, qword := range match.MatchWords {
-				foundQword = utils.IsPatternPresent(col[idx:idx+clen], qword)
+				foundQword = utils.IsPatternPresent(col[idx:idx+clen], []byte(qword))
 				if !foundQword {
 					break
 				}
@@ -67,7 +67,7 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error
 	if match.MatchOperator == Or {
 		var foundQword bool
 		for _, qword := range match.MatchWords {
-			foundQword = utils.IsPatternPresent(col[idx:idx+clen], qword)
+			foundQword = utils.IsPatternPresent(col[idx:idx+clen], []byte(qword))
 			if foundQword {
 				return true, nil
 			}
