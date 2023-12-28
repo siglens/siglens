@@ -50,6 +50,13 @@ type AlertInfo struct {
 	SilenceMinutes  uint64       `json:"silence_minutes"`
 }
 
+type AlertHistoryDetails struct {
+	AlertId          string    `json:"alert_id"`
+	EventDescription string    `json:"event_description"`
+	UserName         string    `json:"user_name"`
+	EventTriggeredAt time.Time `json:"event_triggered_at"`
+}
+
 type QueryParams struct {
 	DataSource    string `json:"data_source"`
 	QueryLanguage string `json:"queryLanguage"`
@@ -103,6 +110,11 @@ const (
 	Inactive AlertState = iota
 	Pending
 	Firing
+	SystemGeneratedAlert = "System Generated"
+	UserModified         = "User Modified"
+	AlertFiring          = "Alert Firing"
+	AlertNormal          = "Alert Normal"
+	ConfigChange         = "Config Modified"
 )
 
 // This MUST be synced with how https://github.com/siglens/logminion structures
