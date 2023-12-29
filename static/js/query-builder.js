@@ -13,13 +13,15 @@ $("#custom-code-tab").tabs({
     }
     let currentTab = $("#custom-code-tab").tabs("option", "active");
     if (currentTab == 0) {
+      let filterValue = $("#filter-input").val();
+      if (filterValue != "" && $("#query-input").val() == "*") $("#query-input").val(filterValue);
       $(".query-language-option").removeClass("active");
       $("#query-language-options #option-3").addClass("active");
       $("#query-language-btn span").html("Splunk QL");
       displayQueryLangToolTip("3");
     }else{
       let filterValue = $("#query-input").val();
-     if (filterValue != "") $("#filter-input").val(filterValue);
+     if (filterValue != "" && ($("#filter-input").val() == "*" || $("#filter-input").val() == "")) $("#filter-input").val(filterValue);
     }
   },
 });
@@ -577,16 +579,31 @@ function timeChart() {
 
   // ECharts configuration
   var option = {
-    title: { text: "" },
-    tooltip: { trigger: "axis" },
-    legend: {
-      data: measureFunctions,
-      type: "scroll", // 启用折叠功能
-      left: "center", // 设置 legend 位置居中
-      top: "top",
+    tooltip: {
+      trigger: "item",
+      formatter: function (params) {
+        return params.seriesName + ": " + params.value;
+      },
     },
-    xAxis: { type: "category", data: timestamps },
-    yAxis: { type: "value" },
+    legend: {
+      textStyle: {
+        color: "#6e7078",
+        fontSize: 12,
+      },
+      data: measureFunctions,
+      type: "scroll", // Enable folding functionality
+      orient: "vertical",
+      right: 10,
+      top: "middle",
+      align: "left",
+      height: "70%",
+      width: 150,
+    },
+    grid: {
+      right: 220, // Set the right margin for the legend
+    },
+    xAxis: { type: "category", data: timestamps, splitLine: { show: false } },
+    yAxis: { type: "value", splitLine: { show: false } },
     series: seriesData,
   };
 
