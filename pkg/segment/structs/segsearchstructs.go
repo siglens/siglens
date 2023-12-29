@@ -375,15 +375,6 @@ func extractSearchQueryFromMatchFilter(match *MatchFilter) *SearchQuery {
 	} else {
 		currQuery.SearchType = MatchWords
 	}
-	if match.MatchPhrase != nil {
-		cval := dtu.ReplaceWildcardStarWithRegex(string(match.MatchPhrase))
-		rexpC, err := regexp.Compile(cval)
-		if err != nil {
-			log.Errorf("extractSearchQueryFromMatchFilter: regexp compile failed, err=%v", err)
-		} else {
-			currQuery.MatchFilter.Regexp = rexpC
-		}
-	}
 	if len(match.MatchWords) > 0 {
 		for _, word := range match.MatchWords {
 			cval := dtu.ReplaceWildcardStarWithRegex(string(word))
@@ -394,7 +385,16 @@ func extractSearchQueryFromMatchFilter(match *MatchFilter) *SearchQuery {
 				currQuery.MatchFilter.Regexp = rexpC
 			}
 		}
+	} else if match.MatchPhrase != nil {
+		cval := dtu.ReplaceWildcardStarWithRegex(string(match.MatchPhrase))
+		rexpC, err := regexp.Compile(cval)
+		if err != nil {
+			log.Errorf("extractSearchQueryFromMatchFilter: regexp compile failed, err=%v", err)
+		} else {
+			currQuery.MatchFilter.Regexp = rexpC
+		}
 	}
+
 	return currQuery
 }
 
