@@ -130,14 +130,22 @@ func (rr *RunningBucketResults) MergeRunningBuckets(toJoin *RunningBucketResults
 	}
 
 	// Merge group by bucket inside each time range bucket (For timechart)
-	if rr.groupedRunningStats != nil && len(rr.groupedRunningStats) > 0 {
+	if toJoin.groupedRunningStats != nil && rr.groupedRunningStats == nil {
+		rr.groupedRunningStats = toJoin.groupedRunningStats
+	} else if rr.groupedRunningStats != nil && len(rr.groupedRunningStats) > 0 {
 		for groupByColVal, runningStats := range rr.groupedRunningStats {
 			toJoinRunningStats, exists := toJoin.groupedRunningStats[groupByColVal]
 			if !exists {
-				log.Errorf("MergeRunningBuckets: groupByColVal: %v does not have a runningStats", groupByColVal)
 				continue
 			}
 			rr.mergeRunningStats(&runningStats, toJoinRunningStats)
+		}
+
+		for groupByColVal, toJoinRunningStats := range toJoin.groupedRunningStats {
+			_, exists := rr.groupedRunningStats[groupByColVal]
+			if !exists {
+				rr.groupedRunningStats[groupByColVal] = toJoinRunningStats
+			}
 		}
 	}
 
