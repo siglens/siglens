@@ -279,7 +279,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 		GroupByCols:         aggGroupByCols,
 		Qtype:               queryType.String(),
 		BucketCount:         bucketCount,
-		IsTimechart:         aggs.TimeHistogram.UsedByTimechart(),
+		IsTimechart:         aggs.UsedByTimechart(),
 	}
 	searchErrors, err := query.GetUniqueSearchErrors(qid)
 	if err != nil {

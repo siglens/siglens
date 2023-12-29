@@ -87,7 +87,7 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 
 	if aggs != nil && aggs.GroupByRequest != nil {
 		if len(aggs.GroupByRequest.GroupByColumns) > 0 {
-			usedByTimechart := aggs.TimeHistogram.UsedByTimechart()
+			usedByTimechart := aggs.UsedByTimechart()
 			mCols, mFuns, revIndex := convertRequestToInternalStats(aggs.GroupByRequest, usedByTimechart)
 			blockRes.GroupByAggregation = &GroupByBuckets{
 				AllRunningBuckets:   make([]*RunningBucketResults, 0),
@@ -240,7 +240,7 @@ func (b *BlockResults) Add(rrc *utils.RecordResultContainer) (bool, string) {
 }
 
 func (b *BlockResults) MergeBuckets(blockRes *BlockResults) {
-	if b.TimeAggregation != nil && blockRes.TimeAggregation != nil && !blockRes.aggs.TimeHistogram.UsedByTimechart() {
+	if b.TimeAggregation != nil && blockRes.TimeAggregation != nil && !blockRes.aggs.UsedByTimechart() {
 		b.TimeAggregation.MergeBuckets(blockRes.TimeAggregation)
 	}
 	if b.GroupByAggregation != nil && blockRes.GroupByAggregation != nil {
@@ -486,7 +486,7 @@ func (b *BlockResults) GetGroupByBuckets() *structs.AggregationResult {
 	}
 
 	var timechart *structs.TimechartExpr
-	if b.aggs.TimeHistogram.UsedByTimechart() {
+	if b.aggs.UsedByTimechart() {
 		timechart = b.aggs.TimeHistogram.Timechart
 	}
 	return b.GroupByAggregation.ConvertToAggregationResult(b.aggs.GroupByRequest, timechart)

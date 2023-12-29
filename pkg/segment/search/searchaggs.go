@@ -60,7 +60,7 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	}
 	defer sharedReader.Close()
 
-	usedByTimechart := (aggs != nil && aggs.TimeHistogram.UsedByTimechart())
+	usedByTimechart := aggs.UsedByTimechart()
 	if (aggs != nil && aggs.GroupByRequest != nil) || usedByTimechart {
 		cname, ok := checkIfGrpColsPresent(aggs.GroupByRequest, sharedReader.MultiColReaders[0],
 			allSearchResults)
@@ -172,7 +172,7 @@ func applyAggregationsSingleBlock(multiReader *segread.MultiColSegmentReader, ag
 func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *structs.TimeBucket, measureInfo map[string][]int, numMFuncs int, multiColReader *segread.MultiColSegmentReader,
 	blockNum uint16, recIT *BlockRecordIterator, blockRes *blockresults.BlockResults, qid uint64) {
 	measureResults := make([]utils.CValueEnclosure, numMFuncs)
-	usedByTimechart := timeHistogram.UsedByTimechart()
+	usedByTimechart := (timeHistogram != nil && timeHistogram.Timechart != nil)
 	hasLimitOption := false
 	groupByColValCnt := make(map[string]int, 0)
 	var timeRangeBuckets []uint64

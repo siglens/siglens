@@ -472,8 +472,8 @@ func (qa *QueryAggregators) HasValuesFunc() bool {
 	return false
 }
 
-func (timeHistogram *TimeBucket) UsedByTimechart() bool {
-	return timeHistogram != nil && timeHistogram.Timechart != nil
+func (qa *QueryAggregators) UsedByTimechart() bool {
+	return qa != nil && qa.TimeHistogram != nil && qa.TimeHistogram.Timechart != nil
 }
 
 func (qa *QueryAggregators) CanLimitBuckets() bool {
