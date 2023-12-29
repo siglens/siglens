@@ -384,7 +384,7 @@ func extractSearchQueryFromMatchFilter(match *MatchFilter) *SearchQuery {
 			currQuery.MatchFilter.Regexp = rexpC
 		}
 	}
-	if len(match.MatchWords) > 1 {
+	if len(match.MatchWords) > 0 {
 		for _, word := range match.MatchWords {
 			cval := dtu.ReplaceWildcardStarWithRegex(string(word))
 			rexpC, err := regexp.Compile(cval)
