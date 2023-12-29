@@ -147,8 +147,17 @@ type ConditionExpr struct {
 }
 
 type TimechartExpr struct {
+	TcOptions  *TcOptions
 	BinOptions *BinOptions
 	SingleAgg  *SingleAgg
+	ByField    string // group by this field inside each time range bucket (timechart)
+	LimitExpr  *LimitExpr
+}
+
+type LimitExpr struct {
+	IsTop          bool // True: keeps the N highest scoring distinct values of the split-by field
+	Num            int
+	LimitScoreMode LimitScoreMode
 }
 
 type SingleAgg struct {
@@ -204,6 +213,13 @@ const (
 	REMPhrase   = iota //Rename with a phrase
 	REMRegex           //Rename fields with similar names using a wildcard
 	REMOverride        //Rename to a existing field
+)
+
+type LimitScoreMode uint8
+
+const (
+	LSMBySum  = iota // If only a single aggregation is specified, the score is based on the sum of the values in the aggregation
+	LSMByFreq        // Otherwise the score is based on the frequency of the by field's val
 )
 
 type ValueExprMode uint8

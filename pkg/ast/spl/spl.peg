@@ -398,7 +398,7 @@ SearchTerm <- term:(FieldWithNumberValue / FieldWithStringValue) {
 }
 
 // To be finished: add (<eval-expression>) BY <split-by-clause> ) for expr; Limit option ...
-TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExpr){
+TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExpr) limitExpr:(LimitExpr)? {
     aggNode := &structs.QueryAggregators{}
 
     columnsRequest := &structs.ColumnsRequest{}
@@ -453,7 +453,15 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
 
     bOptions := binOptions.(*structs.BinOptions)
 
-    timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField)
+    var limitExprTmp *structs.LimitExpr
+    if limitExpr != nil {
+        limitExprTmp = limitExpr.(*structs.LimitExpr)
+        if len(measureAggs) > 1 {
+            limitExprTmp.LimitScoreMode = structs.LSMByFreq
+        }
+    }
+
+    timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp)
     aggNode.TimeHistogram = timeBucket
 
     return aggNode, nil
@@ -576,6 +584,33 @@ SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale SPACE{
 TimeScale <- timeUnit:(Second / Minute / Hour / Day/ Week / Month / Quarter/ Subseconds) {
     return timeUnit, nil
 }
+
+// limit=topN keeps the N highest scoring distinct values of the split-by field
+LimitExpr <- SPACE "limit" EQUAL sortBy:("top" / "bottom")? EMPTY_OR_SPACE intAsStr:(IntegerAsString){
+    num, err := strconv.Atoi(intAsStr.(string))
+    if err != nil {
+        return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", intAsStr.(string), err)
+    }
+
+    limitExpr := &structs.LimitExpr {
+        IsTop: true, // Default Value
+        Num: num,
+        
+    }
+
+    if sortBy != nil {
+        sortByStr, err := transferUint8ToString(sortBy)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Timechart: %v", err)
+        }
+        if sortByStr == "bottom" {
+            limitExpr.IsTop = false
+        }
+    }
+
+    return limitExpr, nil
+}
+ 
 
 StatisticBlock <- PIPE statisticExpr:StatisticExpr {
     letColReq := &structs.LetColumnsRequest {
