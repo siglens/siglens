@@ -79,5 +79,5 @@ node_modules
 siglens
 
 # multinode testing
-ingest*/
+#ingest*/
 siglens.db
