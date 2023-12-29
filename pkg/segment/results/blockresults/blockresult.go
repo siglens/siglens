@@ -416,7 +416,7 @@ func (b *BlockResults) AddMeasureResultsToKeyAgileTree(bKey string,
 	} else {
 		bucket = b.GroupByAggregation.AllRunningBuckets[bucketIdx]
 	}
-	bucket.AddMeasureResults(nil, measureResults, qid, cnt, false)
+	bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, cnt, false)
 }
 
 func (b *BlockResults) AddKeyToTimeBucket(bucketKey uint64, count uint16) {

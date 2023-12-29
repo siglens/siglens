@@ -71,6 +71,10 @@ func (rr *RunningBucketResults) AddTimeToBucketStats(count uint16) {
 func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, qid uint64,
 	cnt uint64, usedByTimechart bool) {
 	if runningStats == nil {
+		if rr.runningStats == nil {
+			log.Errorf("AddMeasureResults: current runningStats is null")
+			return
+		}
 		runningStats = &rr.runningStats
 	}
 
