@@ -284,6 +284,16 @@ const (
 	Values
 )
 
+type MathFunctions int
+
+const (
+	Round MathFunctions = iota + 1
+	Ceil
+	Abs
+	Sqrt
+	Exp
+)
+
 type RangeFunctions int
 
 const (
