@@ -10,6 +10,11 @@ SIGLENS_VERSION=`\
 
 sudo_cmd=""
 
+# Text color
+RED_TEXT='\e[31m'
+GREEN_TEXT='\e[32m'
+RESET_COLOR='\e[0m'
+
 # Check sudo permissions
 if (( $EUID != 0 )); then
     echo "===> Running installer with non-sudo permissions."
@@ -109,6 +114,28 @@ install_docker() {
 
 }
 
+install_docker_compose() {
+  echo "Setting up docker compose"
+  if [[ $package_manager == apt-get ]]; then
+    apt_cmd="$sudo_cmd apt-get --yes --quiet"
+    $apt_cmd update
+    echo "Installing docker compose"
+    $apt_cmd install docker-compose
+  elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
+    echo "Installing docker compose"
+    sudo yum install -y epel-release
+    sudo yum install -y docker-compose
+  elif [[ $package_manager == brew ]]; then
+    echo "Installing docker compose"
+    brew install docker-compose
+  else
+    echo "Docker Compose must be installed manually to proceed. "
+    echo "docker_compose_not_installed"
+    exit 1
+
+  fi
+}
+
 start_docker() {
     echo -e "\n===> Starting Docker ...\n"
     if [[ $os == "darwin" ]]; then
@@ -131,6 +158,7 @@ if ! is_command_present docker; then
     if [[ $package_manager == "apt-get" || $package_manager == "yum" ]]; then
         request_sudo
         install_docker
+        install_docker_compose
     elif [[ $os == "darwin" ]]; then
         echo "Docker Desktop must be installed manually on Mac OS to proceed. "
         echo "https://docs.docker.com/docker-for-mac/install/"
@@ -150,20 +178,19 @@ start_docker
 
 echo -e "\n===> Pulling the latest docker image for SigLens"
 
-wget "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
+curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
+curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
+
 $sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION}
-$sudo_cmd mkdir data
+mkdir -p data
 echo ""
 echo -e "\n===> SigLens installation complete"
 
-# Extract the first occurrence of a valid MAC address
-computer_specific_identifier=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
-# If it can not get the mac address, use hostname as computer-specific identifier 
-if [ -z "$computer_specific_identifier" ]; then
-  computer_specific_identifier=$(hostname)
+csi=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
+if [ -z "$csi" ]; then
+  csi=$(hostname)
 fi
 
-# Get OS information
 runtime_os=$(uname)
 runtime_arch=$(uname -m)
 
@@ -172,7 +199,7 @@ https://api.segment.io/v1/track \
 -H 'Content-Type: application/json' \
 -H 'Authorization: Basic QlBEam5lZlBWMEpjMkJSR2RHaDdDUVRueWtZS2JEOGM6' \
 -d '{
-  "userId": "'"$computer_specific_identifier"'",
+  "userId": "'"$csi"'",
   "event": "install (not running)",
   "properties": {
     "runtime_arch": "'"$runtime_os"'",
@@ -180,27 +207,61 @@ https://api.segment.io/v1/track \
   }
 }'
 
-echo ""
-tput bold
-echo -e "\n===> ${bold}Run the following command to start the siglens server"
-tput sgr0
-echo "====================**************************************************============================"
-echo ""
-echo -e "docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
-    --mount type=bind,source="$(pwd)"/server.yaml,target=/siglens/server.yaml \
-    -p 8081:8081 -p 80:80 siglens/siglens:0.1.0"
-echo ""
-echo "====================**************************************************============================"
+INITIAL_PORT=5122
+START_PORT=5122
+END_PORT=5122
+
+check_ports() {
+    
+    if lsof -Pi :$INITIAL_PORT -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:${INITIAL_PORT}->"; then
+        for port in $(seq $START_PORT $END_PORT); do
+            if lsof -Pi :$port -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:$port->"; then
+                continue
+            else
+                echo $port
+                return 0
+            fi
+        done
+        echo "-1"
+        return 1
+    else
+        echo "${INITIAL_PORT}"
+        return 0
+    fi
+}
+
+UI_PORT=$(check_ports)
+
+if [ ${UI_PORT} == "-1" ]; then
+    echo ""
+    tput bold
+    printf "${RED_TEXT}Error: Port ${INITIAL_PORT} is already in use.\n"
+    tput sgr0
+    exit 1
+fi
 
 echo -e "\n===> In case ports 80 and 8081 are in use change the settings as follows"
 echo -e "ingestPort(8081) and queryPort(80) can be changed using in server.yaml."
 echo -e "queryPort(80) can also be changed by setting the environment variable $PORT."
-echo ""
-echo -e "To be able to query data across restarts, set ssInstanceName in server.yaml."
-echo ""
-echo -e "The target for the data directory mounting should be the same as the data directory (dataPath configuration) in server.yaml"
+
 tput bold
-echo -e "\n===> ${bold}Frontend can be accessed on http://localhost:80"
+printf "\n===> ${GREEN_TEXT}Frontend can be accessed on http://localhost:${UI_PORT}${RESET_COLOR}"
 echo ""
 tput sgr0
+
+# Run Docker compose files
+UI_PORT=${UI_PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose -f ./docker-compose.yml up -d
+
+if [ $? -ne 0 ]; then
+    tput bold
+    printf "\n${RED_TEXT}Error: Docker failed to start. This could be due to a permission issue.${RESET_COLOR}"
+    printf "\nPlease try these steps:"
+    printf "\n1. Run: sudo groupadd docker"
+    echo ""
+    printf '2. Run: sudo usermod -aG docker ${USER}'
+    printf "\n3. You should log out and log back in so that your group membership is re-evaluated\n"
+    tput sgr0
+    exit 1
+fi
+
 echo -e "\n*** Thank you! ***\n"

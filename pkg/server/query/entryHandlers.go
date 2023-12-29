@@ -44,6 +44,16 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+type VersionResponse struct {
+	Version string `json:"version"`
+}
+
+func getVersionHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		alertsHandler.ProcessVersionInfo(ctx)
+	}
+}
+
 func getHealthHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		health.ProcessGetHealth(ctx)
@@ -307,6 +317,12 @@ func createDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func favoriteDashboardHandler() fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		dashboards.ProcessFavoriteRequest(ctx)
+	}
+}
+
 func getDashboardIdsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		dashboards.ProcessListAllRequest(ctx, 0)
@@ -384,6 +400,12 @@ func lokiSeriesHandler() func(ctx *fasthttp.RequestCtx) {
 func createAlertHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		alertsHandler.ProcessCreateAlertRequest(ctx)
+	}
+}
+
+func silenceAlertHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		alertsHandler.ProcessSilenceAlertRequest(ctx)
 	}
 }
 

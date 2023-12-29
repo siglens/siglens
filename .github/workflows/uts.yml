@@ -30,8 +30,14 @@ jobs:
           fi
       - name: Build
         run: go build ./...
-      - name: Test
+      - name: Run Unit Tests
         run: go test ./...
+      - name: Run Coverage
+        run: go test ./... -coverprofile=coverage.txt -covermode=atomic
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        env:
+           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}            
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:

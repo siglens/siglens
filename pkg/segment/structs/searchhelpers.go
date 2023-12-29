@@ -55,3 +55,11 @@ func (h *BlockSearchHelper) GetAllMatchedRecords() *pqmr.PQMatchResults {
 func (h *BlockSearchHelper) AddMatchedRecord(recNum uint) {
 	h.matchedRecs.AddMatchedRecord(recNum)
 }
+
+func (h *BlockSearchHelper) ClearBit(recNum uint) {
+	h.matchedRecs.ClearBit(recNum)
+}
+
+func (h *BlockSearchHelper) DoesRecordMatch(recNum uint) bool {
+	return h.matchedRecs.DoesRecordMatch(recNum)
+}

@@ -54,8 +54,8 @@ const allAlertsTableQuery = `CREATE TABLE IF NOT EXISTS siglens.all_alerts (
 	contact_name TEXT NOT NULL,
 	cron_job JSONB,
 	labels JSONB,
-	node_id INT
-
+	node_id INT,
+	silence_minutes INT DEFAULT 0
   );`
 
 const minionSearchesTableQuery = `CREATE TABLE IF NOT EXISTS siglens.minion_searches (
@@ -376,6 +376,8 @@ func (p Sqlite) GetAllAlerts() ([]alertutils.AlertInfo, error) {
 		log.Errorf("getAllAlerts: unable to begin transaction, err: %+v", err)
 		return nil, err
 	}
+	// #todo: Add silence_minutes back in actual fix
+	// sqlStatement := "SELECT alert_id, alert_name, state, create_timestamp, contact_id, labels, silence_minutes FROM all_alerts;"
 	sqlStatement := "SELECT alert_id, alert_name, state, create_timestamp, contact_id, labels FROM all_alerts;"
 	rows, err := tx.Query(sqlStatement)
 	if err != nil {
@@ -392,7 +394,11 @@ func (p Sqlite) GetAllAlerts() ([]alertutils.AlertInfo, error) {
 			create_timestamp time.Time
 			contact_id       string
 			labels           []byte
+			// #todo: Add silence_minutes back in actual fix
+			// silence_minutes  uint64
 		)
+		// #todo: Add silence_minutes back in actual fix
+		// err := rows.Scan(&alert_id, &alert_name, &state, &create_timestamp, &contact_id, &labels, &silence_minutes)
 		err := rows.Scan(&alert_id, &alert_name, &state, &create_timestamp, &contact_id, &labels)
 		if err != nil {
 			log.Errorf("getAllAlerts: uanble to scan row: %+v", err)
@@ -406,7 +412,8 @@ func (p Sqlite) GetAllAlerts() ([]alertutils.AlertInfo, error) {
 			_ = tx.Rollback()
 			return nil, err
 		}
-
+		// #todo: Add silence_minutes back in actual fix
+		// alerts = append(alerts, alertutils.AlertInfo{AlertId: alert_id, AlertName: alert_name, State: state, CreateTimestamp: create_timestamp, ContactId: contact_id, Labels: labels_array, SilenceMinutes: silence_minutes})
 		alerts = append(alerts, alertutils.AlertInfo{AlertId: alert_id, AlertName: alert_name, State: state, CreateTimestamp: create_timestamp, ContactId: contact_id, Labels: labels_array})
 	}
 	err = tx.Commit()
@@ -415,6 +422,40 @@ func (p Sqlite) GetAllAlerts() ([]alertutils.AlertInfo, error) {
 		return nil, err
 	}
 	return alerts, nil
+}
+func (p Sqlite) UpdateSilenceMinutes(updatedSilenceMinutes *alertutils.AlertDetails) error {
+	if !isValid(updatedSilenceMinutes.AlertInfo.AlertName) || !isValid(updatedSilenceMinutes.AlertInfo.ContactName) || !isValid(updatedSilenceMinutes.QueryParams.QueryText) {
+		log.Errorf("updateSilenceMinutes: data validation check failed")
+		return errors.New("updateSilenceMinutesupdateSilenceMinutes: data validation check failed")
+	}
+	alertExists, _, err := p.verifyAlertExists(updatedSilenceMinutes.AlertInfo.AlertId)
+	if err != nil {
+		log.Errorf("updateSilenceMinutes: unable to verify if alert exists, err: %+v", err)
+		return err
+	}
+	if !alertExists {
+		log.Errorf("updateSilenceMinutes: alert does not exist")
+		return errors.New("alert does not exist")
+	}
+
+	tx, err := p.db.BeginTx(p.ctx, nil)
+	if err != nil {
+		log.Errorf("updateSilenceMinutes: unable to begin transaction, err: %+v", err)
+		return err
+	}
+	sqlStatement := "UPDATE all_alerts SET silence_minutes=$1 WHERE alert_id=$2;"
+	_, err = tx.ExecContext(p.ctx, sqlStatement, updatedSilenceMinutes.AlertInfo.SilenceMinutes, updatedSilenceMinutes.AlertInfo.AlertId)
+	if err != nil {
+		log.Errorf("updateSilenceMinutes: unable to execute query: %v, with alert name: %v, err: %+v", sqlStatement, updatedSilenceMinutes.AlertInfo.AlertName, err)
+		_ = tx.Rollback()
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		log.Errorf("updateSilenceMinutes: unable to execute transaction, err: %+v", err)
+		return err
+	}
+	return nil
 }
 
 // Deletes cron job associated with the alert
@@ -1092,7 +1133,7 @@ func (p Sqlite) GetAllMinionSearches() ([]alertutils.MinionSearch, error) {
 		alertinfo := alertutils.AlertInfo{AlertId: alert_id, AlertName: alert_name, State: state,
 			CreateTimestamp: create_timestamp, ContactId: contact_id, ContactName: contact_name}
 
-		minion_search_details := alertutils.MinionSearchDetails{Respository: minionSearchStruct.Respository,
+		minion_search_details := alertutils.MinionSearchDetails{Repository: minionSearchStruct.Repository,
 			Filename: minionSearchStruct.Filename, LineNumber: minionSearchStruct.LineNumber,
 			LogText: minionSearchStruct.LogText, LogTextHash: minionSearchStruct.LogTextHash, LogLevel: minionSearchStruct.LogLevel}
 		alerts = append(alerts, alertutils.MinionSearch{AlertInfo: alertinfo, MinionSearchDetails: minion_search_details,
@@ -1159,7 +1200,7 @@ func (p Sqlite) GetMinionSearch(alert_id string) (*alertutils.MinionSearch, erro
 		return nil, err
 	}
 
-	minion_search_details = alertutils.MinionSearchDetails{Respository: minionAlertStruct.Respository,
+	minion_search_details = alertutils.MinionSearchDetails{Repository: minionAlertStruct.Repository,
 		Filename: minionAlertStruct.Filename, LineNumber: minionAlertStruct.LineNumber,
 		LogText: minionAlertStruct.LogText, LogTextHash: minionAlertStruct.LogTextHash, LogLevel: minionAlertStruct.LogLevel}
 

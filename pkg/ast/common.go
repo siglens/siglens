@@ -55,8 +55,8 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 	case "!=":
 		opr = NotEquals
 	default:
-		log.Errorf("qid=%d, processPipeSearchMap: invalid comparison operator %v", qid, opr)
-		return nil, errors.New("processPipeSearchMap: invalid comparison operator")
+		log.Errorf("qid=%d, ProcessSingleFilter: invalid comparison operator %v", qid, opr)
+		return nil, errors.New("ProcessSingleFilter: invalid comparison operator")
 	}
 	switch t := colValue.(type) {
 	case string:
@@ -67,21 +67,26 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 				if valueIsRegex {
 					compiledRegex, err := regexp.Compile(t)
 					if err != nil {
-						log.Errorf("ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", t, err)
+						log.Errorf("qid=%d, ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", qid, t, err)
 					}
 					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid)
 					andFilterCondition = append(andFilterCondition, criteria)
 				} else {
+					negateMatch := (opr == NotEquals)
+					if opr != Equals && opr != NotEquals {
+						log.Errorf("qid=%d, ProcessSingleFilter: invalid string comparison operator %v", qid, opr)
+					}
+
 					cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t), "\"", "")
 					if strings.Contains(t, "\"") {
-						criteria := createMatchPhraseFilterCriteria(colName, cleanedColVal, And, qid)
+						criteria := createMatchPhraseFilterCriteria(colName, cleanedColVal, And, negateMatch, qid)
 						andFilterCondition = append(andFilterCondition, criteria)
 					} else {
 						if strings.Contains(t, "*") {
 							criteria := CreateTermFilterCriteria(colName, colValue, opr, qid)
 							andFilterCondition = append(andFilterCondition, criteria)
 						} else {
-							criteria := createMatchFilterCriteria(colName, colValue, And, qid)
+							criteria := createMatchFilterCriteria(colName, colValue, And, negateMatch, qid)
 							andFilterCondition = append(andFilterCondition, criteria)
 						}
 					}
@@ -101,7 +106,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 				}
 			}
 		} else {
-			return nil, errors.New("processPipeSearchMap: colValue/ search Text can not be empty ")
+			return nil, errors.New("ProcessSingleFilter: colValue/ search Text can not be empty ")
 		}
 	case json.Number:
 		if colValue.(json.Number) != "" {
@@ -112,20 +117,20 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 			andFilterCondition = append(andFilterCondition, criteria)
 
 		} else {
-			return nil, errors.New("processPipeSearchMap: colValue/ search Text can not be empty ")
+			return nil, errors.New("ProcessSingleFilter: colValue/ search Text can not be empty ")
 		}
 	case GrepValue:
 		cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t.Field), "\"", "")
 		criteria := CreateTermFilterCriteria("*", cleanedColVal, opr, qid)
 		andFilterCondition = append(andFilterCondition, criteria)
 	default:
-		log.Errorf("processPipeSearchMap: Invalid colValue type %v", t)
-		return nil, errors.New("processPipeSearchMap: Invalid colValue type")
+		log.Errorf("ProcessSingleFilter: Invalid colValue type %v", t)
+		return nil, errors.New("ProcessSingleFilter: Invalid colValue type")
 	}
 	return andFilterCondition, nil
 }
 
-func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, qid uint64) *FilterCriteria {
+func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatch bool, qid uint64) *FilterCriteria {
 	//match_phrase value will always be string
 	var rtInput = strings.TrimSpace(v.(string))
 	var matchWords = make([][]byte, 0)
@@ -137,11 +142,12 @@ func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, qid 
 		MatchWords:    matchWords,
 		MatchOperator: opr,
 		MatchPhrase:   []byte(rtInput),
-		MatchType:     MATCH_PHRASE}}
+		MatchType:     MATCH_PHRASE,
+		NegateMatch:   negateMatch}}
 	return &criteria
 }
 
-func createMatchFilterCriteria(k, v interface{}, opr LogicalOperator, qid uint64) *FilterCriteria {
+func createMatchFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatch bool, qid uint64) *FilterCriteria {
 	var rtInput string
 	switch vtype := v.(type) {
 	case json.Number:
@@ -169,7 +175,8 @@ func createMatchFilterCriteria(k, v interface{}, opr LogicalOperator, qid uint64
 	criteria := FilterCriteria{MatchFilter: &MatchFilter{
 		MatchColumn:   k.(string),
 		MatchWords:    matchWords,
-		MatchOperator: opr}}
+		MatchOperator: opr,
+		NegateMatch:   negateMatch}}
 
 	return &criteria
 }
@@ -218,7 +225,7 @@ func GetColValues(cname string, table string, qid uint64, orgid uint64) ([]inter
 
 func ParseTimeRange(startEpoch, endEpoch uint64, aggs *QueryAggregators, qid uint64) (*dtu.TimeRange, error) {
 	tRange := new(dtu.TimeRange)
-	if aggs != nil && aggs.TimeHistogram != nil {
+	if aggs != nil && aggs.TimeHistogram != nil && !aggs.TimeHistogram.UsedByTimechart {
 		tRange.StartEpochMs = aggs.TimeHistogram.StartTime
 		tRange.EndEpochMs = aggs.TimeHistogram.EndTime
 		return tRange, nil

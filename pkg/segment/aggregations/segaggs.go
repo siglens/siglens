@@ -31,7 +31,7 @@ import (
 
 func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *structs.TimeBucket, aggName string) {
 
-	if nodeResult.Histogram == nil {
+	if nodeResult.Histogram == nil || rangeHistogram.UsedByTimechart {
 		return
 	}
 	res, ok := nodeResult.Histogram[aggName]
@@ -367,7 +367,7 @@ func performRenameColRequestOnHistogram(nodeResult *structs.NodeResult, letColRe
 
 			case structs.REMRegex:
 
-				// If we override orginal field to a new field, we should remove new field key-val pair and just modify the key name of original field to new field
+				// If we override original field to a new field, we should remove new field key-val pair and just modify the key name of original field to new field
 				//Rename statistic functions name
 				for statColName, val := range bucketResult.StatRes {
 					newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(statColName)

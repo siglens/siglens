@@ -1,9 +1,16 @@
 "use strict";
+let chart;
 $(function () {
   $("#custom-code-tab").tabs();
+  $("#custom-chart-tab").tabs();
+  $('#logs-view-controls').hide();
 });
 $("#custom-code-tab").tabs({
   activate: function (event, ui) {
+    let currentResTab = $("#custom-chart-tab").tabs("option", "active");
+    if(currentResTab == 1){
+      timeChart();
+    }
     let currentTab = $("#custom-code-tab").tabs("option", "active");
     if (currentTab == 0) {
       $(".query-language-option").removeClass("active");
@@ -13,6 +20,17 @@ $("#custom-code-tab").tabs({
     }else{
       let filterValue = $("#query-input").val();
      if (filterValue != "") $("#filter-input").val(filterValue);
+    }
+  },
+});
+$("#custom-chart-tab").tabs({
+  activate: function (event, ui) {
+    let currentTab = $("#custom-chart-tab").tabs("option", "active");
+    if (currentTab == 0) {
+      $("#logs-view-controls").show();
+    } else {
+      $("#logs-view-controls").hide();
+      timeChart();
     }
   },
 });
@@ -49,7 +67,9 @@ $(document).ready(function () {
   if (firstBoxSet.size > 0) $("#search-filter-text").hide();
   else $("#search-filter-text").show();
   setShowColumnInfoDialog();
+  timeChart();
 });
+
 const tags = document.getElementById("tags");
 const tagSecond = document.getElementById("tags-second");
 const tagThird = document.getElementById("tags-third");
@@ -137,13 +157,15 @@ function filterStart(evt) {
         //when the column name is not a number, the symbols can only be = && !=
         availSymbol = ["=", "!="];
         valuesOfColumn.clear();
+        let curIsNum = false;
         for (let i = 0; i < availColNames.length; i++) {
           if (ui.item.value == ColumnsIsNum[i]) {
-            ifCurIsNum = true;
+            curIsNum = true;
             availSymbol = ["=", "!=", "<=", ">=", ">", "<"];
             break;
           }
         }
+        ifCurIsNum = curIsNum;
         $("#symbol").val("");
         $("#value-first").val("");
         //check if complete btn can click
@@ -515,5 +537,72 @@ function setShowColumnInfoDialog(){
     $("#show-record-popup").dialog("open");
     $(".ui-widget-overlay").addClass("opacity-75");
     // return false;
+  });
+}
+function convertTimestamp(timestampString) {  
+  var timestamp = parseInt(timestampString); 
+  var date = new Date(timestamp);
+  
+  var year = date.getFullYear(); 
+  var month = ("0" + (date.getMonth() + 1)).slice(-2);
+  var day = ("0" + date.getDate()).slice(-2);  
+  
+  var hours = ("0" + date.getHours()).slice(-2); 
+  var minutes = ("0" + date.getMinutes()).slice(-2);  
+  var seconds = ("0" + date.getSeconds()).slice(-2);
+  
+  var readableDate = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds; // 拼接可读的日期和时间字符串  
+  return readableDate;  
+}  
+function timeChart() {
+  if(measureInfo.length == 0) {
+    $("#columnChart").hide();
+    $("#hideGraph").show();
+    return;
+  }else{
+    $("#columnChart").show();
+    $("#hideGraph").hide();
+  }
+  // Extract data for ECharts
+  var timestamps = measureInfo.map((item) => convertTimestamp(item.GroupByValues[0]));
+  var seriesData = measureFunctions.map(function (measureFunction) {
+    return {
+      name: measureFunction,
+      type: "bar",
+      data: measureInfo.map(function (item) {
+        return item.MeasureVal[measureFunction] || 0;
+      }),
+    };
+  });
+
+  // ECharts configuration
+  var option = {
+    title: { text: "" },
+    tooltip: { trigger: "axis" },
+    legend: {
+      data: measureFunctions,
+      type: "scroll", // 启用折叠功能
+      left: "center", // 设置 legend 位置居中
+      top: "top",
+    },
+    xAxis: { type: "category", data: timestamps },
+    yAxis: { type: "value" },
+    series: seriesData,
+  };
+
+  // Initialize ECharts
+  let charId = document.getElementById("columnChart");
+  if (chart != null && chart != "" && chart != undefined) {
+    echarts.dispose(chart);
+  }
+  chart = echarts.init(charId);
+  // Set the configuration to the chart
+  chart.setOption(option);
+  let height = document
+    .getElementById("custom-code-tab")
+    .getBoundingClientRect().height;
+  chart.resize({
+    height: window.innerHeight - height - 60,
+    width: window.innerWidth - 150
   });
 }

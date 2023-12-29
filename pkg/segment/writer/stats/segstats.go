@@ -117,7 +117,7 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		}
 	}
 
-	// we just use the Min stats for stored val comparision but apply the same
+	// we just use the Min stats for stored val comparison but apply the same
 	// logic to max and sum
 	switch inNumType {
 	case SS_FLOAT64:
