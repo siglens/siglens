@@ -9,6 +9,7 @@
    --search-box-input-trace: var(--black-2);
    --sort-box: var(--black-2);
    --head-trace: var(--black-2);
+   --time-tick:var(--black-3);
 }
 
 [data-theme='light']{
@@ -21,6 +22,7 @@
     --search-box-input-trace: var(--white-0);
     --sort-box: var(--white-0);
     --head-trace: var(--white-1);
+    --time-tick:var(--white-3);
 }
 
 .subsection-navbar {
@@ -178,7 +180,7 @@
 #one-service-overview .chart_container{
     width: 100%;
 }
-#date-picker-btn {
+.search #date-picker-btn {
     width: 100% !important;
     justify-content: space-between;
 }
@@ -362,6 +364,7 @@ input.form-control {
 .warn-box {
     height: 150px;
     margin-top: 20px;
+    cursor: pointer;
 }
 
 .error-span,
@@ -420,14 +423,96 @@ input.form-control {
 .span-id-text {
     color: var(--subsection-border);
 }
+
 #app-container{
-    overflow-anchor: none;
+    height: 100vh;
 }
-.nav-feedback{
-    position: fixed;
-    bottom: 0;
+
+#dashboard{
+    overflow-y: auto;
 }
-.theme-btn-group{
-    position: fixed;
-    bottom: 42px;
+
+/* Trace Timeline View */
+
+#timeline-container{
+    margin-top: 30px;
+    box-shadow: var(--box-shadow);
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 10px;
+    padding-bottom: 40px;
+    overflow: auto; 
+    width: 100%;
+    height: 80vh; 
+}
+
+.back-to-search-traces{
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    color: var(--purple-1);
+    font-weight: 600;
+}
+
+.trace-name{
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.trace-details{
+    margin-top: 16px;
+    font-size: 16px;
+    color: var(--subsection-border);
+    font-weight: normal !important;
+
+}
+
+.trace-name .trace-id{
+    margin-left: 10px;
+    font-size: 18px !important;
+}
+
+.trace-details div{
+    margin-right: 30px;
+    font-weight: normal;
+}
+
+.trace-details span{
+    margin-left: 6px;
+    font-weight: bold !important;
+}
+
+.time-label {
+    font-size: 16px;
+    fill: var(--text-color);
+    margin-bottom: 10px;
+}
+
+.time-tick {
+    stroke: var(--time-tick);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+}
+
+.node-label {
+    font-size: 15px;
+}
+
+.anomalous-node {
+    fill: red;
+}
+
+.normal-node {
+    fill: var(--text-color);
+}
+
+.tooltip-gantt {
+    position: absolute;
+    z-index: 10;
+    display: none;
+    color: var(--text-color) !important;
+    border: 1px var(--accent-color) solid !important;
+    background-color: var(--ui-widget-bg-color) !important;
+    padding: 5px;
+    border-radius: 5px;
+    font-size: 15px;
 }

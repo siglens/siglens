@@ -31,7 +31,7 @@ import (
 
 func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *structs.TimeBucket, aggName string) {
 
-	if nodeResult.Histogram == nil {
+	if nodeResult.Histogram == nil || rangeHistogram.UsedByTimechart {
 		return
 	}
 	res, ok := nodeResult.Histogram[aggName]

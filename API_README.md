@@ -7,7 +7,7 @@
     method: GET
 
     Example:
-    request: http://localhost:80/api/dashboards/listall
+    request: http://localhost:5122/api/dashboards/listall
     response: 
         {
             "1546954169045081977": "dashboard-y",
@@ -22,7 +22,7 @@
     method: GET
 
     Example:
-    request: http://localhost:80/api/dashboards/9352623799225230043
+    request: http://localhost:5122/api/dashboards/9352623799225230043
     response:   
         {
             "description": "this is test dashboard",
@@ -48,7 +48,7 @@
     method: POST
 
     Example:
-    request: http://localhost:80/api/dashboards/create
+    request: http://localhost:5122/api/dashboards/create
     body: test-new
     response: 
         {
@@ -61,7 +61,7 @@
     method: POST
 
     Example:
-    request: http://localhost:80/api/dashboards/update
+    request: http://localhost:5122/api/dashboards/update
     body: 
         {
         "id": "9089097379643921334",
@@ -90,7 +90,7 @@
     method: GET
 
     Example:
-    request: http://localhost:80/api/dashboards/delete/9352623799225230043
+    request: http://localhost:5122/api/dashboards/delete/9352623799225230043
     response: "Dashboard deleted successfully"
 
 ## Alerting APIs
@@ -99,7 +99,7 @@
     method: POST
 
     Example:
-    request: http://localhost:80/api/alerts/createContact
+    request: http://localhost:5122/api/alerts/createContact
     body:  
         {
             "contact_name":"team",
@@ -117,7 +117,7 @@
     method: POST
 
     Example:
-    request: http://localhost:80/api/alerts/create
+    request: http://localhost:5122/api/alerts/create
     body:  
        {
             "alertInfo": {
@@ -141,7 +141,7 @@
     method: GET
 
     Example:
-    request: http://localhost:80/api/allalerts
+    request: http://localhost:5122/api/allalerts
     body:
     response: 
         {
@@ -166,7 +166,7 @@
     method: GET
 
     Example:
-    request: http://localhost:80/api/alerts/{alertID}
+    request: http://localhost:5122/api/alerts/{alertID}
     body:
     response: 
       {
@@ -192,7 +192,7 @@
     method: POST
 
     Example:
-    request: http://localhost:80/api/alerts/update
+    request: http://localhost:5122/api/alerts/update
     body:
         {
             "alertInfo": {
@@ -218,7 +218,7 @@
     method: DELETE
 
     Example:
-    request: http://localhost:80/api/alerts/delete
+    request: http://localhost:5122/api/alerts/delete
     body:
         {
             "alert_id": "fc952d2a-f2f4-4c08-acf2-228c1fbc7583"
@@ -233,7 +233,7 @@
     method: GET
 
     Example:
-    request: http://localhost:80/api/alerts/allContacts
+    request: http://localhost:5122/api/alerts/allContacts
     body:
     response: 
         {
@@ -259,7 +259,7 @@
     method: POST
 
     Example:
-    request: http://localhost:80/api/alerts/updateContact
+    request: http://localhost:5122/api/alerts/updateContact
     body:
         {
             "contact_id": "30c90735-6da5-472f-8fec-a8f1798c0db4",
@@ -278,7 +278,7 @@
     method: DELETE
 
     Example:
-    request: http://localhost:80/api/alerts/deleteContact
+    request: http://localhost:5122/api/alerts/deleteContact
     body:
         {
             "contact_id": "d1187d7f-a079-4280-b54f-ed1f55fa0a28"
@@ -293,7 +293,7 @@
     method: POST
 
     Example:
-    request:http://localhost:80/api/search
+    request:http://localhost:5122/api/search
     body:
         {
             "startEpoch": "now-1h",
@@ -473,7 +473,7 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
     method: POST
 
     Example:
-    request:http://localhost:80/api/search
+    request:http://localhost:5122/api/search
     body:
         {
             "startEpoch": "now-1h",
@@ -488,7 +488,7 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
     method: POST
 
     Example:
-    request:http://localhost:80/api/search
+    request:http://localhost:5122/api/search
     body:
         {
             "startEpoch": "now-1h",
@@ -554,7 +554,7 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
     method: POST
 
     Example:
-    request: http://localhost:80/api/traces/search
+    request: http://localhost:5122/api/traces/search
     body:
         {
             "startEpoch": "now-1h",
@@ -595,7 +595,7 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
     method: POST
 
     Example:
-    request: http://localhost:80/api/traces/dependencies
+    request: http://localhost:5122/api/traces/dependencies
     body:
         {
             "startEpoch": "now-1h",
@@ -626,7 +626,7 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
     method: POST
 
     Example:
-    request: http://localhost:80/api/traces/ganttchart
+    request: http://localhost:5122/api/traces/ganttchart
     body:
         {
             "startEpoch": "now-1h",
