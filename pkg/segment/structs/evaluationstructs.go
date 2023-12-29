@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/axiomhq/hyperloglog"
 	"github.com/dustin/go-humanize"
 
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -190,6 +191,14 @@ type SplitByClause struct {
 	Field     string
 	TcOptions *TcOptions
 	// Where clause: to be finished
+}
+
+// This structure is used to store values which are not within limit. And These values will be merged into the 'other' category.
+type TMLimitResult struct {
+	ValIsInLimit     map[string]bool
+	GroupValScoreMap map[string]*utils.CValueEnclosure
+	Hll              *hyperloglog.Sketch
+	OtherCValArr     []*utils.CValueEnclosure
 }
 
 type BoolOperator uint8

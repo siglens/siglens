@@ -497,7 +497,9 @@ func (b *BlockResults) GetGroupByBuckets() *structs.AggregationResult {
 // 2. Multiple Aggs: The score is based on the frequency of each value of <field>. It only requires one iteration because we already have the frep for groupVal before the iteration begins
 func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest, timechart *structs.TimechartExpr) *structs.AggregationResult {
 
-	groupValScoreMap := aggregations.InitialScoreMap(timechart, gb.GroupByColValCnt)
+	tmLimitResult := &structs.TMLimitResult{
+		GroupValScoreMap: aggregations.InitialScoreMap(timechart, gb.GroupByColValCnt),
+	}
 	isRankBySum := aggregations.IsRankBySum(timechart)
 
 	// Get scores for ranking
@@ -508,7 +510,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 			// Add results for group by cols inside the time range bucket
 			if len(bucket.groupedRunningStats) > 0 {
 				for groupByColVal, gRunningStats := range bucket.groupedRunningStats {
-					gb.AddResultToStatRes(req, bucket, gRunningStats, currRes, groupByColVal, timechart, nil, nil, groupValScoreMap)
+					gb.AddResultToStatRes(req, bucket, gRunningStats, currRes, groupByColVal, timechart, tmLimitResult)
 				}
 			}
 		}
@@ -516,7 +518,8 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 
 	bucketNum := 0
 	results := make([]*structs.BucketResult, len(gb.AllRunningBuckets))
-	valIsInLimit := aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, groupValScoreMap)
+	tmLimitResult.Hll = hyperloglog.New16()
+	tmLimitResult.ValIsInLimit = aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, tmLimitResult.GroupValScoreMap)
 	for key, idx := range gb.StringBucketIdx {
 		bucket := gb.AllRunningBuckets[idx]
 		currRes := make(map[string]utils.CValueEnclosure)
@@ -530,20 +533,21 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 				otherCValArr[i] = &utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
 			}
 
+			tmLimitResult.OtherCValArr = otherCValArr
 			for groupByColVal, gRunningStats := range bucket.groupedRunningStats {
-				gb.AddResultToStatRes(req, bucket, gRunningStats, currRes, groupByColVal, timechart, valIsInLimit, otherCValArr, groupValScoreMap)
+				gb.AddResultToStatRes(req, bucket, gRunningStats, currRes, groupByColVal, timechart, tmLimitResult)
 			}
 
-			if timechart.LimitExpr != nil {
+			if timechart.LimitExpr != nil && timechart.LimitExpr.Num < len(bucket.groupedRunningStats) {
 				for index, mInfo := range req.MeasureOperations {
 					// To be modified: user can customize otherstr
 					mInfoStr := mInfo.String() + ": other"
-					currRes[mInfoStr] = *otherCValArr[index]
+					currRes[mInfoStr] = *tmLimitResult.OtherCValArr[index]
 				}
 			}
 
 		} else {
-			gb.AddResultToStatRes(req, bucket, bucket.runningStats, currRes, "", nil, nil, nil, nil)
+			gb.AddResultToStatRes(req, bucket, bucket.runningStats, currRes, "", nil, tmLimitResult)
 		}
 
 		var bucketKey interface{}
@@ -569,13 +573,13 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 }
 
 func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket *RunningBucketResults, runningStats []runningStats, currRes map[string]utils.CValueEnclosure,
-	groupByColVal string, timechart *structs.TimechartExpr, valIsInLimit map[string]bool, otherCValArr []*utils.CValueEnclosure, scoreMap map[string]*utils.CValueEnclosure) {
+	groupByColVal string, timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult) {
 	// Some aggregate functions require multiple measure funcs or raw field values to calculate the result. For example, range() needs both max() and min(), and aggregates with eval statements may require multiple raw field values
 	// Therefore, it is essential to assign a value to 'idx' appropriately to skip the intermediate results generated during the computation from runningStats bucket
 	idx := 0
 
 	// If current col should be merged into the other col
-	isOtherCol := aggregations.IsOtherCol(valIsInLimit, groupByColVal)
+	isOtherCol := aggregations.IsOtherCol(tmLimitResult.ValIsInLimit, groupByColVal)
 	usedByTimechart := (timechart != nil)
 	usedByTimechartGroupByCol := len(groupByColVal) > 0
 	for index, mInfo := range req.MeasureOperations {
@@ -586,6 +590,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 			}
 		}
 
+		var hll *hyperloglog.Sketch
 		var eVal utils.CValueEnclosure
 		switch mInfo.MeasureFunc {
 		case utils.Count:
@@ -666,6 +671,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 			} else {
 				finalVal := runningStats[valIdx].hll.Estimate()
 				eVal = utils.CValueEnclosure{CVal: finalVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
+				hll = runningStats[valIdx].hll
 			}
 
 			idx++
@@ -703,7 +709,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 			eVal = runningStats[valIdx].rawVal
 			idx++
 		}
-		shouldAddRes := aggregations.ShouldAddRes(timechart, otherCValArr, index, eVal, scoreMap, mInfo.MeasureFunc, groupByColVal, isOtherCol)
+		shouldAddRes := aggregations.ShouldAddRes(timechart, tmLimitResult, index, eVal, hll, mInfo.MeasureFunc, groupByColVal, isOtherCol)
 		if shouldAddRes {
 			currRes[mInfoStr] = eVal
 		}

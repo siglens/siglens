@@ -1,10 +1,10 @@
 package aggregations
 
 import (
-	"fmt"
 	"sort"
 	"time"
 
+	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
@@ -38,7 +38,7 @@ func FindTimeRangeBucket(timePoints []uint64, timestamp uint64, intervalMillis u
 	return timePoints[index]
 }
 
-func InitTimeBucket(num int, timeUnit utils.TimeUnit, byField string, limitExpr *structs.LimitExpr) *structs.TimeBucket {
+func InitTimeBucket(num int, timeUnit utils.TimeUnit, byField string, limitExpr *structs.LimitExpr, measureAggLength int) *structs.TimeBucket {
 	numD := time.Duration(num)
 	intervalMillis := uint64(0)
 	switch timeUnit {
@@ -71,7 +71,18 @@ func InitTimeBucket(num int, timeUnit utils.TimeUnit, byField string, limitExpr 
 	}
 
 	if len(byField) > 0 {
-		timechartExpr.LimitExpr = limitExpr
+		if limitExpr != nil {
+			timechartExpr.LimitExpr = limitExpr
+		} else {
+			timechartExpr.LimitExpr = &structs.LimitExpr{
+				IsTop:          true,
+				Num:            10,
+				LimitScoreMode: structs.LSMBySum,
+			}
+			if measureAggLength > 1 {
+				timechartExpr.LimitExpr.LimitScoreMode = structs.LSMByFreq
+			}
+		}
 	}
 
 	timeBucket := &structs.TimeBucket{
@@ -221,27 +232,54 @@ func IsOtherCol(valIsInLimit map[string]bool, groupByColVal string) bool {
 	return isOtherCol
 }
 
-func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, aggFunc utils.AggregateFunctions) error {
+// For numeric agg(not include dc), we can simply use addition to merge them
+// For string values, it depends on the aggregation function
+func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hll *hyperloglog.Sketch, hllToMerge *hyperloglog.Sketch,
+	aggFunc utils.AggregateFunctions, useAdditionForMerge bool) {
 
 	tmp := utils.CValueEnclosure{
 		Dtype: eVal.Dtype,
 		CVal:  eVal.CVal,
 	}
 
-	// For numeric aggFuncs, we sum up their values
-	_, err := eValToMerge.GetFloatValue()
-	if err == nil {
+	switch aggFunc {
+	case utils.Count:
+		fallthrough
+	case utils.Avg:
+		fallthrough
+	case utils.Min:
+		fallthrough
+	case utils.Max:
+		fallthrough
+	case utils.Range:
+		fallthrough
+	case utils.Sum:
 		aggFunc = utils.Sum
+		// TODO: should merge values for not numeric agg
+		// case utils.Cardinality:
+		// 	if useAdditionForMerge {
+		// 		aggFunc = utils.Sum
+		// 	} else {
+		// 		log.Error("fjl test1:", hll)
+		// 		log.Error("fjl test2:", hllToMerge)
+		// 		err := hll.Merge(hllToMerge)
+		// 		if err != nil {
+		// 			log.Errorf("MergeVal: failed to merge hyperloglog stats: %v", err)
+		// 		}
+		// 		eVal.CVal = hll.Estimate()
+		// 		eVal.Dtype = utils.SS_DT_UNSIGNED_NUM
+		// 		return
+		// 	}
+		// case utils.Values:
 	}
 
 	retVal, err := utils.Reduce(eValToMerge, tmp, aggFunc)
 	if err != nil {
-		return fmt.Errorf("MergeVal: failed to merge eVal into otherCVal: %v", err)
+		log.Errorf("MergeVal: failed to merge eVal into otherCVal: %v", err)
+		return
 	}
 	eVal.CVal = retVal.CVal
 	eVal.Dtype = retVal.Dtype
-
-	return nil
 }
 
 func MergeMap(groupByColValCnt map[string]int, toMerge map[string]int) {
@@ -268,20 +306,21 @@ func IsRankBySum(timechart *structs.TimechartExpr) bool {
 	return false
 }
 
-func ShouldAddRes(timechart *structs.TimechartExpr, otherCValArr []*utils.CValueEnclosure, index int, eVal utils.CValueEnclosure,
-	scoreMap map[string]*utils.CValueEnclosure, aggFunc utils.AggregateFunctions, groupByColVal string, isOtherCol bool) bool {
+func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult, index int, eVal utils.CValueEnclosure,
+	hllToMerge *hyperloglog.Sketch, aggFunc utils.AggregateFunctions, groupByColVal string, isOtherCol bool) bool {
 
+	useAdditionForMerge := (tmLimitResult.OtherCValArr == nil)
 	isRankBySum := IsRankBySum(timechart)
 
 	// If true, current col's val will be added into 'other' col. So its val should not be added into res at this time
 	if isOtherCol {
-		otherCVal := otherCValArr[index]
-		MergeVal(otherCVal, eVal, aggFunc)
+		otherCVal := tmLimitResult.OtherCValArr[index]
+		MergeVal(otherCVal, eVal, tmLimitResult.Hll, hllToMerge, aggFunc, useAdditionForMerge)
 		return false
 	} else {
-		if isRankBySum && otherCValArr == nil {
-			scoreVal := scoreMap[groupByColVal]
-			MergeVal(scoreVal, eVal, aggFunc)
+		if isRankBySum && tmLimitResult.OtherCValArr == nil {
+			scoreVal := tmLimitResult.GroupValScoreMap[groupByColVal]
+			MergeVal(scoreVal, eVal, tmLimitResult.Hll, hllToMerge, aggFunc, useAdditionForMerge)
 			return false
 		}
 		return true
