@@ -60,7 +60,7 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	}
 	defer sharedReader.Close()
 
-	usedByTimechart := (aggs != nil && aggs.TimeHistogram != nil && aggs.TimeHistogram.UsedByTimechart)
+	usedByTimechart := (aggs != nil && aggs.TimeHistogram.UsedByTimechart())
 	if (aggs != nil && aggs.GroupByRequest != nil) || usedByTimechart {
 		cname, ok := checkIfGrpColsPresent(aggs.GroupByRequest, sharedReader.MultiColReaders[0],
 			allSearchResults)
@@ -140,7 +140,7 @@ func applyAggregationsSingleBlock(multiReader *segread.MultiColSegmentReader, ag
 			blockSummaries[blockStatus.BlockNum].HighTs)
 
 		var addedTimeHt = false
-		if aggs != nil && aggs.TimeHistogram != nil && !aggs.TimeHistogram.UsedByTimechart && aggsHasTimeHt && isBlkFullyEncosed &&
+		if aggs != nil && aggs.TimeHistogram != nil && aggs.TimeHistogram.Timechart == nil && aggsHasTimeHt && isBlkFullyEncosed &&
 			toXRollup != nil {
 			for rupTskey, rr := range toXRollup {
 				rr.MatchedRes.InPlaceIntersection(recIT.AllRecords)
@@ -172,10 +172,13 @@ func applyAggregationsSingleBlock(multiReader *segread.MultiColSegmentReader, ag
 func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *structs.TimeBucket, measureInfo map[string][]int, numMFuncs int, multiColReader *segread.MultiColSegmentReader,
 	blockNum uint16, recIT *BlockRecordIterator, blockRes *blockresults.BlockResults, qid uint64) {
 	measureResults := make([]utils.CValueEnclosure, numMFuncs)
-	usedByTimechart := timeHistogram != nil && timeHistogram.UsedByTimechart
+	usedByTimechart := timeHistogram.UsedByTimechart()
+	hasLimitOption := false
+	groupByColValCnt := make(map[string]int, 0)
 	var timeRangeBuckets []uint64
 	if usedByTimechart {
 		timeRangeBuckets = aggregations.GenerateTimeRangeBuckets(timeHistogram)
+		hasLimitOption = timeHistogram.Timechart.LimitExpr != nil
 	}
 	for recNum := uint16(0); recNum < recIT.AllRecLen; recNum++ {
 		if !recIT.ShouldProcessRecord(uint(recNum)) {
@@ -203,10 +206,11 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			currKey.Write(retVal)
 
 			// Get timechart's group by col val, each different val will be a bucket inside each time range bucket
-			if len(timeHistogram.ByField) > 0 {
-				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(timeHistogram.ByField, blockNum, recNum, qid)
+			byField := timeHistogram.Timechart.ByField
+			if len(byField) > 0 {
+				rawVal, err := multiColReader.ReadRawRecordFromColumnFile(byField, blockNum, recNum, qid)
 				if err != nil {
-					log.Errorf("addRecordToAggregations: Failed to get key for column %v: %v", timeHistogram.ByField, err)
+					log.Errorf("addRecordToAggregations: Failed to get key for column %v: %v", byField, err)
 				} else {
 					strs, err := utils.ConvertGroupByKey(rawVal)
 					if err != nil {
@@ -216,6 +220,14 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 						groupByColVal = strs[0]
 					} else {
 						log.Errorf("addRecordToAggregations: invalid length of groupByColVal")
+					}
+				}
+				if hasLimitOption {
+					cnt, exists := groupByColValCnt[groupByColVal]
+					if exists {
+						groupByColValCnt[groupByColVal] = cnt + 1
+					} else {
+						groupByColValCnt[groupByColVal] = 1
 					}
 				}
 			}
@@ -241,7 +253,14 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 				measureResults[idx] = *rawVal
 			}
 		}
-		blockRes.AddMeasureResultsToKey(currKey, measureResults, groupByColVal, true, qid)
+		blockRes.AddMeasureResultsToKey(currKey, measureResults, groupByColVal, usedByTimechart, qid)
+	}
+	if usedByTimechart && len(timeHistogram.Timechart.ByField) > 0 {
+		if len(blockRes.GroupByAggregation.GroupByColValCnt) > 0 {
+			aggregations.MergeMap(blockRes.GroupByAggregation.GroupByColValCnt, groupByColValCnt)
+		} else {
+			blockRes.GroupByAggregation.GroupByColValCnt = groupByColValCnt
+		}
 	}
 }
 
@@ -269,8 +288,8 @@ func GetAggColsAndTimestamp(aggs *structs.QueryAggregators) (map[string]bool, ma
 			aggregations.DetermineAggColUsage(mOp, aggCols, aggColUsage, valuesUsage)
 		}
 	}
-	if aggs.TimeHistogram != nil && len(aggs.TimeHistogram.ByField) > 0 {
-		aggCols[aggs.TimeHistogram.ByField] = true
+	if aggs.TimeHistogram != nil && aggs.TimeHistogram.Timechart != nil && len(aggs.TimeHistogram.Timechart.ByField) > 0 {
+		aggCols[aggs.TimeHistogram.Timechart.ByField] = true
 	}
 	return aggCols, aggColUsage, valuesUsage
 }
