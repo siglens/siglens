@@ -1,0 +1,15 @@
+version: '3'
+services:
+  siglens:
+    image: siglens/siglens:${SIGLENS_VERSION}
+    ports:
+      - "8081:8081"
+      - "${UI_PORT}:5122"
+    volumes:
+      - "${WORK_DIR}/data:/siglens/data"
+      - "${WORK_DIR}/server.yaml:/siglens/server.yaml"
+    command: ["./siglens", "--config", "server.yaml"]
+    environment:
+      - UI_PORT=${UI_PORT}
+      - WORK_DIR=${WORK_DIR}
+      - SIGLENS_VERSION=${SIGLENS_VERSION}
