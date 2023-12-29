@@ -553,9 +553,24 @@ function convertTimestamp(timestampString) {
   var minutes = ("0" + date.getMinutes()).slice(-2);  
   var seconds = ("0" + date.getSeconds()).slice(-2);
   
-  var readableDate = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds; // 拼接可读的日期和时间字符串  
+  var readableDate = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds;  
   return readableDate;  
 }  
+const resizeObserver = new ResizeObserver((entries) => {
+  if (chart != null && chart != "" && chart != undefined) {
+    let height = document
+      .getElementById("custom-code-tab")
+      .getBoundingClientRect().height;
+    let width = document
+        .getElementById("columnChart")
+        .getBoundingClientRect().width;
+    chart.resize({
+      height: window.innerHeight - height - 60,
+      width: width - 20,
+    });
+  }
+});
+resizeObserver.observe(document.getElementById("columnChart"));
 function timeChart() {
   if(measureInfo.length == 0) {
     $("#columnChart").hide();
@@ -600,10 +615,21 @@ function timeChart() {
       width: 150,
     },
     grid: {
-      right: 220, // Set the right margin for the legend
+      left: 10,
+      right: 220,
+      containLabel: true,
     },
-    xAxis: { type: "category", data: timestamps, splitLine: { show: false } },
-    yAxis: { type: "value", splitLine: { show: false } },
+    xAxis: {
+      type: "category",
+      data: timestamps,
+      scale: true,
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: "value",
+      scale: true,
+      splitLine: { show: false },
+    },
     series: seriesData,
   };
 
@@ -618,8 +644,11 @@ function timeChart() {
   let height = document
     .getElementById("custom-code-tab")
     .getBoundingClientRect().height;
+  let width = document
+    .getElementById("columnChart")
+    .getBoundingClientRect().width;
   chart.resize({
     height: window.innerHeight - height - 60,
-    width: window.innerWidth - 150
+    width: width - 20,
   });
 }
