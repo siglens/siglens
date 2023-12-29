@@ -72,7 +72,6 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 	cnt uint64, usedByTimechart bool) {
 	if runningStats == nil {
 		if rr.runningStats == nil {
-			log.Errorf("AddMeasureResults: current runningStats is null")
 			return
 		}
 		runningStats = &rr.runningStats
