@@ -21,8 +21,6 @@ import (
 	"encoding/gob"
 	"fmt"
 	"math/rand"
-	"regexp"
-	"strings"
 
 	"github.com/cespare/xxhash"
 	"github.com/rogpeppe/fastuuid"
@@ -140,18 +138,4 @@ func IsSubWordPresent(haystack []byte, needle []byte) bool {
 	}
 
 	return false
-}
-
-func IsPatternPresent(haystack []byte, pattern []byte) bool {
-	// Convert pattern to string, replace '*' with '.*', and add word boundaries to create a regex pattern
-	regexPattern := "\\b" + strings.Replace(string(pattern), "*", ".*", -1) + "\\b"
-
-	// Compile the regex
-	r, err := regexp.Compile(regexPattern)
-	if err != nil {
-		return false
-	}
-
-	// Check if the regex matches the haystack
-	return r.Match(haystack)
 }
