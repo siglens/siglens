@@ -42,13 +42,13 @@ func InitTimeBucket(num int, timeUnit utils.TimeUnit, byField string, limitExpr 
 	numD := time.Duration(num)
 	intervalMillis := uint64(0)
 	switch timeUnit {
-	case utils.TMUs:
+	case utils.TMMicrosecond:
 		// Might not has effect for 'us', because smallest time unit for timestamp in siglens is ms
-	case utils.TMMs:
+	case utils.TMMillisecond:
 		intervalMillis = uint64(numD)
-	case utils.TMCs:
+	case utils.TMCentisecond:
 		intervalMillis = uint64(numD * 10 * time.Millisecond)
-	case utils.TMDs:
+	case utils.TMDecisecond:
 		intervalMillis = uint64(numD * 100 * time.Millisecond)
 	case utils.TMSecond:
 		intervalMillis = uint64((numD * time.Second).Milliseconds())
