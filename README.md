@@ -5,7 +5,7 @@
 ---
 [![Build Status](https://github.com/siglens/siglens/workflows/siglens-docker-release/badge.svg)](https://github.com/siglens/siglens/actions/workflows/publish-prod-images.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/siglens/siglens)](https://goreportcard.com/report/github.com/siglens/siglens)
-[![GoDoc](https://godoc.org/github.com/teamhanko/hanko?status.svg)](https://pkg.go.dev/github.com/siglens/siglens)
+[![GoDoc](https://pkg.go.dev/github.com/siglens/siglens)
 
 English | [简体中文](README_ZH_CN.md)
 
