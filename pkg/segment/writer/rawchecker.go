@@ -52,10 +52,18 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error
 	if match.MatchOperator == And {
 		var foundQword bool = true
 		if match.MatchType == MATCH_PHRASE {
-			foundQword = utils.IsPatternPresent(col[idx:idx+clen], match.MatchPhrase)
+			regexp := match.Regexp
+			if regexp == nil {
+				return false, errors.New("Failed to compile regular expression for match phrase")
+			}
+			foundQword = regexp.Match(col[idx : idx+clen])
 		} else {
-			for _, qword := range match.MatchWords {
-				foundQword = utils.IsPatternPresent(col[idx:idx+clen], []byte(qword))
+			for range match.MatchWords {
+				regexp := match.Regexp
+				if regexp == nil {
+					return false, errors.New("Failed to compile regular expression for match words in AND operator")
+				}
+				foundQword = regexp.Match(col[idx : idx+clen])
 				if !foundQword {
 					break
 				}
@@ -66,8 +74,12 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error
 
 	if match.MatchOperator == Or {
 		var foundQword bool
-		for _, qword := range match.MatchWords {
-			foundQword = utils.IsPatternPresent(col[idx:idx+clen], []byte(qword))
+		for range match.MatchWords {
+			regexp := match.Regexp
+			if regexp == nil {
+				return false, errors.New("Failed to compile regular expression for match words in OR operator")
+			}
+			foundQword = regexp.Match(col[idx : idx+clen])
 			if foundQword {
 				return true, nil
 			}
