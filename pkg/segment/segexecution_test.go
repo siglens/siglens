@@ -1489,20 +1489,20 @@ func Test_Query(t *testing.T) {
 	fileCount := 2
 	metadata.InitMockColumnarMetadataStore("data/", fileCount, numBuffers, numEntriesForBuffer)
 
-	// simpleQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
-	// wildcardQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
-	// timeHistogramQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
-	// groupByQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
+	simpleQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
+	wildcardQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
+	timeHistogramQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
+	groupByQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
 	timechartGroupByQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
-	// nestedQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
-	// nestedAggregationQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
-	// nestedAggregationQueryWithGroupByTest(t, numBuffers, numEntriesForBuffer, fileCount)
-	// nestedAggsNumericColRequestTest(t, numBuffers, numEntriesForBuffer, fileCount)
-	// nestedAggsNumericColRequestWithGroupByTest(t, numBuffers, numEntriesForBuffer, fileCount)
-	// nestedAggsFilterRowsWithGroupByTest(t, numBuffers, numEntriesForBuffer, fileCount)
-	// asyncQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
+	nestedQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
+	nestedAggregationQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
+	nestedAggregationQueryWithGroupByTest(t, numBuffers, numEntriesForBuffer, fileCount)
+	nestedAggsNumericColRequestTest(t, numBuffers, numEntriesForBuffer, fileCount)
+	nestedAggsNumericColRequestWithGroupByTest(t, numBuffers, numEntriesForBuffer, fileCount)
+	nestedAggsFilterRowsWithGroupByTest(t, numBuffers, numEntriesForBuffer, fileCount)
+	asyncQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
 
-	// groupByQueryTestsForAsteriskQueries(t, numBuffers, numEntriesForBuffer, fileCount)
+	groupByQueryTestsForAsteriskQueries(t, numBuffers, numEntriesForBuffer, fileCount)
 
 	os.RemoveAll("data/")
 }
