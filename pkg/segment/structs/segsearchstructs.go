@@ -375,17 +375,7 @@ func extractSearchQueryFromMatchFilter(match *MatchFilter) *SearchQuery {
 	} else {
 		currQuery.SearchType = MatchWords
 	}
-	if len(match.MatchWords) > 0 {
-		for _, word := range match.MatchWords {
-			cval := dtu.ReplaceWildcardStarWithRegex(string(word))
-			rexpC, err := regexp.Compile(cval)
-			if err != nil {
-				log.Errorf("extractSearchQueryFromMatchFilter: regexp compile failed for MatchWord %s, err=%v", word, err)
-			} else {
-				currQuery.MatchFilter.Regexp = rexpC
-			}
-		}
-	} else if match.MatchPhrase != nil {
+	if match.MatchPhrase != nil && bytes.Contains(match.MatchPhrase, []byte("*")) {
 		cval := dtu.ReplaceWildcardStarWithRegex(string(match.MatchPhrase))
 		rexpC, err := regexp.Compile(cval)
 		if err != nil {

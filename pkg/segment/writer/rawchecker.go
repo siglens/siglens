@@ -51,21 +51,17 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error
 	// todo MatchWords struct can store bytes
 	if match.MatchOperator == And {
 		var foundQword bool = true
-		if match.MatchType == MATCH_PHRASE {
-			regexp := match.Regexp
-			if regexp == nil {
-				return false, errors.New("Failed to compile regular expression for match phrase")
-			}
-			foundQword = regexp.Match(col[idx : idx+clen])
+		if match.Regexp != nil {
+			foundQword = match.Regexp.Match(col[idx : idx+clen])
 		} else {
-			for range match.MatchWords {
-				regexp := match.Regexp
-				if regexp == nil {
-					return false, errors.New("Failed to compile regular expression for match words in AND operator")
-				}
-				foundQword = regexp.Match(col[idx : idx+clen])
-				if !foundQword {
-					break
+			if match.MatchType == MATCH_PHRASE {
+				foundQword = utils.IsSubWordPresent(col[idx:idx+clen], match.MatchPhrase)
+			} else {
+				for _, word := range match.MatchWords {
+					foundQword = utils.IsSubWordPresent(col[idx:idx+clen], []byte(word))
+					if !foundQword {
+						break
+					}
 				}
 			}
 		}
@@ -74,12 +70,12 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error
 
 	if match.MatchOperator == Or {
 		var foundQword bool
-		for range match.MatchWords {
-			regexp := match.Regexp
-			if regexp == nil {
-				return false, errors.New("Failed to compile regular expression for match words in OR operator")
+		for _, word := range match.MatchWords {
+			if match.Regexp != nil {
+				foundQword = match.Regexp.Match(col[idx : idx+clen])
+			} else {
+				foundQword = utils.IsSubWordPresent(col[idx:idx+clen], []byte(word))
 			}
-			foundQword = regexp.Match(col[idx : idx+clen])
 			if foundQword {
 				return true, nil
 			}
