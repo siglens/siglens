@@ -432,18 +432,6 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
             return nil, fmt.Errorf("Spl peg: Timechart: either single-agg or eval-expression BY split-by-clause is required")
     }
 
-    letColReq := &structs.LetColumnsRequest {
-        TimechartColRequest: timechartExpr,
-    }
-
-    root := &structs.QueryAggregators {
-        PipeCommandType: structs.OutputTransformType,
-        OutputTransforms: &structs.OutputTransforms {
-            LetColumns: letColReq,
-        },
-    }
-
-    aggNode.Next = root
     aggNode.PipeCommandType = structs.GroupByType
     aggNode.GroupByRequest = &structs.GroupByRequest {
         MeasureOperations: measureAggs,
@@ -461,7 +449,7 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
         }
     }
 
-    timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp)
+    timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp, len(measureAggs))
     aggNode.TimeHistogram = timeBucket
 
     return aggNode, nil

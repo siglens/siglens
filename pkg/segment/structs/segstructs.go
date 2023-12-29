@@ -187,7 +187,6 @@ type LetColumnsRequest struct {
 	RexColRequest       *RexExpr
 	StatisticColRequest *StatisticExpr
 	RenameColRequest    *RenameExpr
-	TimechartColRequest *TimechartExpr
 	NewColName          string
 }
 
