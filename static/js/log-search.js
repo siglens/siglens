@@ -135,7 +135,6 @@ $(document).ready(() => {
 });
 function displayQueryLangToolTip(selectedQueryLangID) {
     $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
-    $("#filter-input").val("");
     $("#clearInput").hide();
     switch (selectedQueryLangID) {
         case "1":
