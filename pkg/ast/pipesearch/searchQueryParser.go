@@ -60,6 +60,10 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 			if len(queryAggs.GroupByRequest.GroupByColumns) == 1 && queryAggs.GroupByRequest.GroupByColumns[0] == "*" {
 				queryAggs.GroupByRequest.GroupByColumns = metadata.GetAllColNames([]string{indexName})
 			}
+			if queryAggs.TimeHistogram != nil && queryAggs.TimeHistogram.Timechart != nil {
+				queryAggs.TimeHistogram.StartTime = startEpoch
+				queryAggs.TimeHistogram.EndTime = endEpoch
+			}
 		} else if queryAggs.MeasureOperations != nil {
 			queryAggs.EarlyExit = false
 			queryAggs.Sort = nil
@@ -245,6 +249,7 @@ func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggr
 			log.Errorf("qid=%d, searchPipeCommandsToASTnode : parseGroupBySegLevelStats error: %v", qid, err)
 			return nil, err
 		}
+		pipeCommands.TimeHistogram = node.TimeHistogram
 	default:
 		log.Errorf("searchPipeCommandsToASTnode : node type %d not supported", node.PipeCommandType)
 		return nil, errors.New("searchPipeCommandsToASTnode : node type not supported")
