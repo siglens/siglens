@@ -60,7 +60,7 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 			if len(queryAggs.GroupByRequest.GroupByColumns) == 1 && queryAggs.GroupByRequest.GroupByColumns[0] == "*" {
 				queryAggs.GroupByRequest.GroupByColumns = metadata.GetAllColNames([]string{indexName})
 			}
-			if queryAggs.TimeHistogram != nil && queryAggs.TimeHistogram.UsedByTimechart {
+			if queryAggs.TimeHistogram != nil && queryAggs.TimeHistogram.Timechart != nil {
 				queryAggs.TimeHistogram.StartTime = startEpoch
 				queryAggs.TimeHistogram.EndTime = endEpoch
 			}
