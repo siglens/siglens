@@ -227,7 +227,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -2030,6 +2030,50 @@ Subseconds <- ("us" / "ms" / "cs" / "ds") {
     return timeUnit, nil
 }
 
+// Returns *structs.QueryAggergators
+TransactionBlock <- PIPE CMD_TRANSACTION TransactionOptions {
+    queryAgg := &structs.QueryAggergators{
+        PipeCommandType: structs.TransactionType,
+        TransactionRequest: TransactionOptions.(*structs.TransactionRequest),
+    }
+    return queryAgg, nil
+}
+
+TransactionOptions <- FieldList? StartsWithOption? EndsWithOption? {
+    fields, startsWith, endsWith := FieldList, StartsWithOption, EndsWithOption
+    transactionRequest := &structs.TransactionRequest{
+        Fields:     nil,
+        StartsWith: "",
+        EndsWith:   "",
+    }
+
+    if fields != nil {
+        transactionRequest.Fields = fields.([]string)
+    }
+    if startsWith != nil {
+        transactionRequest.StartsWith = startsWith.(string)
+    }
+    if endsWith != nil {
+        transactionRequest.EndsWith = endsWith.(string)
+    }
+
+    return transactionRequest, nil
+}
+
+FieldList <- FieldName (SPACE FieldName)* {
+    var fields []string
+    fields = append(fields, field.(string))
+    for _, f := range FieldName {
+        fields = append(fields, f.(string))
+    }
+    return fields, nil
+}
+
+StartsWithOption <- "startswith=" String
+EndsWithOption <- "endswith=" String
+
+
+
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -2044,6 +2088,7 @@ CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
 CMD_TIMECHART <- "timechart" SPACE
 CMD_SPAN <- "span"
+CMD_TRANSACTION <- "transaction" SPACE
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
