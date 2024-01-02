@@ -23,7 +23,6 @@ $(document).ready(() => {
         $('body').attr('data-theme', theme);
     }
     $('.theme-btn').on('click', themePickerHandler);
-    displayNavbar();
     setupEventHandlers();
     getSavedQueries();
 });
