@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/querytracker"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
-	"github.com/siglens/siglens/pkg/querytracker"
 )
 
 type PqsConfig struct {
@@ -51,12 +51,12 @@ func SavePQSConfigToRunMod(pqsEnabled string) error {
 	}
 
 	if strings.ToLower(pqsEnabled) == "disabled" {
-	   querytracker.ClearAllPQSData()
-	    err = config.ClearPqsFiles()
-	    if err != nil {
-	        log.Errorf("Failed to clear PQS data and files: %v", err)
-	        return err
-	    }
+		querytracker.ClearAllPQSData()
+		err = config.ClearPqsFiles()
+		if err != nil {
+			log.Errorf("Failed to clear PQS data and files: %v", err)
+			return err
+		}
 	}
 
 	return nil

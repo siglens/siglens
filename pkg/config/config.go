@@ -37,6 +37,7 @@ import (
 )
 
 const MINUTES_REREAD_CONFIG = 15
+const RunModFilePath = "data/common/runmod.cfg"
 
 var configFileLastModified uint64
 
@@ -516,8 +517,9 @@ func InitConfigurationData() error {
 		return err
 	}
 	runningConfig = config
-	if err := ReadRunModConfig(); err != false {
-		return fmt.Errorf("cannot read config")
+	err = ReadRunModConfig()
+	if err != nil {
+		log.Errorf("Failed to read runmod config: %v", err)
 	}
 	fileInfo, err := os.Stat(configFilePath)
 	if err != nil {
@@ -589,33 +591,41 @@ func InitializeTestingConfig() {
 	SetDebugMode(true)
 	SetDataPath("data/")
 }
-func ReadRunModConfig() bool {
-	runModFilePath := "data/common/runmod.cfg"
-	if _, err := os.Stat(runModFilePath); err == nil {
-		jsonData, err := os.ReadFile(runModFilePath)
-		if err != nil {
-			return false
-		}
-		var runModConfig struct {
-			PQSConfig string `json:"PQSConfig"`
-		}
-		if err := json.Unmarshal(jsonData, &runModConfig); err != nil {
-			return false
-		}
-		var pqsCheck bool
-		switch strings.ToLower(runModConfig.PQSConfig) {
-		case "enabled":
-			pqsCheck = true
-		case "disabled":
-			pqsCheck = false
-		default:
-			return false
-		}
-		SetPQSEnabled(pqsCheck)
-		return true
-	} else {
-		return false
+
+func ReadRunModConfig() error {
+	_, err := os.Stat(RunModFilePath)
+	if os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		log.Errorf("Error accessing runmod.cfg: %v", err)
+		return err
 	}
+
+	jsonData, err := os.ReadFile(RunModFilePath)
+	if err != nil {
+		log.Errorf("Failed to read runmod.cfg: %v", err)
+		return err
+	}
+	var runModConfig struct {
+		PQSEnabled string `json:"pqsEnabled"`
+	}
+	err = json.Unmarshal(jsonData, &runModConfig)
+	if err != nil {
+		log.Errorf("Failed to parse runmod.cfg: %v", err)
+		return err
+	}
+	var pqsCheck bool
+	switch strings.ToLower(runModConfig.PQSEnabled) {
+	case "enabled":
+		pqsCheck = true
+	case "disabled":
+		pqsCheck = false
+	default:
+		log.Errorf("Invalid PQSEnabled value in runmod.cfg: %s", runModConfig.PQSEnabled)
+	}
+
+	SetPQSEnabled(pqsCheck)
+	return nil
 }
 
 func ReadConfigFile(fileName string) (Configuration, error) {
@@ -624,6 +634,37 @@ func ReadConfigFile(fileName string) (Configuration, error) {
 		log.Errorf("Cannot read input fileName = %v, err=%v", fileName, err)
 	}
 	return ExtractConfigData(yamlData)
+}
+
+// func ClearPqsFiles() error {
+// 	baseDir := GetDataPath() + "querynodes/" + GetHostID() + "/pqueries/"
+// 	files := []string{baseDir + "pqinfo.bin", baseDir + "aggsinfo.bin", baseDir + "groupinfo.bin"}
+// 	for _, file := range files {
+// 		if err := os.Remove(file); err != nil {
+// 			if !os.IsNotExist(err) {
+// 				log.Errorf("Failed to delete file: %v, error: %v", file, err)
+// 				return err
+// 			}
+// 		}
+// 	}
+
+//		return nil
+//	}
+func ClearPqsFiles() error {
+	baseDir := GetDataPath() + "querynodes/" + GetHostID() + "/pqueries/"
+	files := []string{baseDir + "pqinfo.bin", baseDir + "aggsinfo.bin", baseDir + "groupinfo.bin"}
+	for _, file := range files {
+		err := os.Remove(file)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			log.Errorf("Failed to delete file: %v, error: %v", file, err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func ExtractConfigData(yamlData []byte) (Configuration, error) {

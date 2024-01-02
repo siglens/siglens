@@ -26,6 +26,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/cfghandler"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/dashboards"
 	esreader "github.com/siglens/siglens/pkg/es/reader"
@@ -313,7 +314,7 @@ func getPqsByIdHandler() func(ctx *fasthttp.RequestCtx) {
 
 func postPqsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		querytracker.PostPqsUpdate(ctx)
+		cfghandler.PostPqsUpdate(ctx)
 	}
 }
 

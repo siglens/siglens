@@ -20,7 +20,7 @@ $(document).ready(function () {
         $('body').attr('data-theme', theme);
     }
     $('.theme-btn').on('click', themePickerHandler);
-    displayNavbar();
+   
 
     function showPersistentQueryWarning(value) {
         if (value === 'disabled') {
@@ -28,7 +28,7 @@ $(document).ready(function () {
         }
     }
 
-    function updatePersistentQueriesSetting(pqsConfig) {
+    function updatePersistentQueriesSetting(pqsEnabled) {
         $.ajax({
             method: "POST",
             url: "/api/pqs/update",
@@ -38,7 +38,7 @@ $(document).ready(function () {
             },
             dataType: "json",
             crossDomain: true,
-            data: JSON.stringify({ pqsConfig: pqsConfig }),
+            data: JSON.stringify({ pqsEnabled: pqsEnabled }),
             success: function (res) {
                 console.log("Update successful:", res);
             },
@@ -53,5 +53,6 @@ $(document).ready(function () {
         updatePersistentQueriesSetting(this.value);
     });
 });
+
 
 
