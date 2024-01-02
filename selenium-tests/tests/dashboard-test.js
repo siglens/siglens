@@ -30,7 +30,7 @@ async function testDashboardPageButtons(){
                                     .build();
         
         //To fetch http://localhost/dashboards-home.html from the browser with our code.
-        await driver.get("http://localhost/dashboards-home.html");
+        await driver.get("http://localhost:5122/dashboards-home.html");
         let searchButton = await driver.findElement(By.id("run-search"));
         let btnTxt = await searchButton.getText();
         assert.equal(btnTxt, "Search", 'button text is not "Search"');
@@ -57,7 +57,7 @@ async function testDashboardPageButtons(){
         let saveDbBtn = await driver.findElement(By.id("save-dbbtn"));
         // todo check if cancel button works
         let cancelDbBtn = await driver.findElement(By.id("cancel-dbbtn"));
-        const initialUrl = 'http://localhost/dashboards-home.html';
+        const initialUrl = 'http://localhost:5122/dashboards-home.html';
 
         await cancelDbBtn.click();
         await driver.sleep(1000);

@@ -114,6 +114,28 @@ install_docker() {
 
 }
 
+install_docker_compose() {
+  echo "Setting up docker compose"
+  if [[ $package_manager == apt-get ]]; then
+    apt_cmd="$sudo_cmd apt-get --yes --quiet"
+    $apt_cmd update
+    echo "Installing docker compose"
+    $apt_cmd install docker-compose
+  elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
+    echo "Installing docker compose"
+    sudo yum install -y epel-release
+    sudo yum install -y docker-compose
+  elif [[ $package_manager == brew ]]; then
+    echo "Installing docker compose"
+    brew install docker-compose
+  else
+    echo "Docker Compose must be installed manually to proceed. "
+    echo "docker_compose_not_installed"
+    exit 1
+
+  fi
+}
+
 start_docker() {
     echo -e "\n===> Starting Docker ...\n"
     if [[ $os == "darwin" ]]; then
@@ -136,6 +158,7 @@ if ! is_command_present docker; then
     if [[ $package_manager == "apt-get" || $package_manager == "yum" ]]; then
         request_sudo
         install_docker
+        install_docker_compose
     elif [[ $os == "darwin" ]]; then
         echo "Docker Desktop must be installed manually on Mac OS to proceed. "
         echo "https://docs.docker.com/docker-for-mac/install/"
@@ -156,6 +179,8 @@ start_docker
 echo -e "\n===> Pulling the latest docker image for SigLens"
 
 curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
+curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
+
 $sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION}
 mkdir -p data
 echo ""
@@ -223,9 +248,9 @@ tput bold
 printf "\n===> ${GREEN_TEXT}Frontend can be accessed on http://localhost:${UI_PORT}${RESET_COLOR}"
 echo ""
 tput sgr0
-docker run -it --mount type=bind,source="$(pwd)"/data,target=/siglens/data \
-    --mount type=bind,source="$(pwd)"/server.yaml,target=/siglens/server.yaml \
-    -p 8081:8081 -p ${UI_PORT}:80 siglens/siglens:${SIGLENS_VERSION}
+
+# Run Docker compose files
+UI_PORT=${UI_PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose -f ./docker-compose.yml up -d
 
 if [ $? -ne 0 ]; then
     tput bold

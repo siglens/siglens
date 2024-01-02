@@ -10,7 +10,7 @@ ARG TARGETOS TARGETARCH
 RUN echo 'https://dl-cdn.alpinelinux.org/alpine/v3.13/main' >> /etc/apk/repositories
 RUN apk add gcc musl-dev libc-dev make && \
      cd /usr/app/cmd/siglens && \
-     GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o build/siglens
+     GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags "-X 'github.com/siglens/siglens/pkg/config/config.Version=${VERSION}'" -o build/siglens
 
 FROM golang:1.21-alpine3.18
 RUN apk add shadow

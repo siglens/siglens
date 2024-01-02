@@ -44,7 +44,6 @@ $(document).ready(function () {
         theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
     }
-    displayNavbar();
     $('.theme-btn').on('click', themePickerHandler);
     setupEventHandlers();
     dbId = getDashboardId();

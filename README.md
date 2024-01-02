@@ -5,6 +5,8 @@
 ---
 [![Build Status](https://github.com/siglens/siglens/workflows/siglens-docker-release/badge.svg)](https://github.com/siglens/siglens/actions/workflows/publish-prod-images.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/siglens/siglens)](https://goreportcard.com/report/github.com/siglens/siglens)
+[![GoDoc](https://godoc.org/github.com/siglens/siglens?status.svg)](https://pkg.go.dev/github.com/siglens/siglens)
+[![codecov](https://codecov.io/gh/siglens/siglens/graph/badge.svg?token=MH8S9B0EIK)](https://codecov.io/gh/siglens/siglens)
 
 English | [简体中文](README_ZH_CN.md)
 
@@ -94,5 +96,8 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contri
 ## Code of Conduct
 `TBD`
 
+
+## Steps to create docker image
+docker build --build-arg VERSION=0.1.4 -t yourapp .
 
 

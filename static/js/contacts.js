@@ -83,12 +83,9 @@ $(document).ready(function () {
         
     }
     $('.theme-btn').on('click', themePickerHandler);
-    displayNavbar();
-
     $('#new-contact-point').on('click',initializeContactForm)
     $('#contact-form-container').css('display', 'none');
     getAllContactPoints();
-
     if(window.location.href.includes("alert.html")){
         initializeContactForm();
     }
