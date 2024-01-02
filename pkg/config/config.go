@@ -546,7 +546,7 @@ func InitializeDefaultConfig() {
 
 	runningConfig = Configuration{
 		IngestPort:                 8081,
-		QueryPort:                  80,
+		QueryPort:                  5122,
 		IngestUrl:                  "",
 		EventTypeKeywords:          []string{"eventType"},
 		QueryNode:                  "true",
@@ -638,7 +638,7 @@ func ExtractConfigData(yamlData []byte) (Configuration, error) {
 	}
 
 	if config.QueryPort <= 0 {
-		config.QueryPort = 80
+		config.QueryPort = 5122
 	}
 
 	if len(config.EventTypeKeywords) <= 0 {
@@ -1123,7 +1123,7 @@ func GetQueryServerBaseUrl() string {
 	if hostname == "" {
 		port, err := getQueryServerPort()
 		if err != nil {
-			return "http://localhost:80"
+			return "http://localhost:5122"
 		}
 		return "http://localhost:" + fmt.Sprintf("%d", port)
 	} else {

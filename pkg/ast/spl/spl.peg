@@ -3,8 +3,10 @@ package spl
 
 import (
     "regexp"
+    "time"
 
     "github.com/siglens/siglens/pkg/ast"
+    "github.com/siglens/siglens/pkg/segment/aggregations"
     "github.com/siglens/siglens/pkg/segment/query"
     "github.com/siglens/siglens/pkg/segment/structs"
     "github.com/siglens/siglens/pkg/segment/utils"
@@ -130,9 +132,14 @@ func getRexColNames(pattern string) ([]string, error) {
 }
 
 type aggregator struct {
-    aggregator          *structs.MeasureAggregator
+    measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
     outputFieldNewName  string
+}
+
+type singleAggTemp struct {
+    aggregators []*aggregator
+    SplitByClause *structs.SplitByClause
 }
 }
 
@@ -220,7 +227,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -254,7 +261,7 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
     columnsRequest.RenameAggregationColumns = make(map[string]string, 0)
 
     for i, agg := range aggsSlice {
-        measureAggs[i] = agg.aggregator
+        measureAggs[i] = agg.measureAgg
 
         if agg.renameOutputField {
             columnsRequest.RenameAggregationColumns[measureAggs[i].String()] = agg.outputFieldNewName
@@ -389,6 +396,209 @@ ClauseLevel1 <- L_PAREN clause:ClauseLevel4 R_PAREN {
 SearchTerm <- term:(FieldWithNumberValue / FieldWithStringValue) {
     return term, nil
 }
+
+// To be finished: add (<eval-expression>) BY <split-by-clause> ) for expr; Limit option ...
+TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExpr) limitExpr:(LimitExpr)? {
+    aggNode := &structs.QueryAggregators{}
+
+    columnsRequest := &structs.ColumnsRequest{}
+    columnsRequest.RenameAggregationColumns = make(map[string]string, 0)
+    measureAggs := make([]*structs.MeasureAggregator, 0)
+
+    timechartExpr := &structs.TimechartExpr{}
+    byField := ""
+
+    switch expr.(type) {
+        case *singleAggTemp:
+            singleAgg := &structs.SingleAgg{}
+            aggTemp := expr.(*singleAggTemp)
+
+            for i, agg := range aggTemp.aggregators {
+                measureAggs = append(measureAggs, agg.measureAgg)
+
+                if agg.renameOutputField {
+                    measureAggs[i].StrEnc = agg.outputFieldNewName
+                }
+            }
+
+            singleAgg.MeasureOperations = measureAggs
+            timechartExpr.SingleAgg = singleAgg
+
+            if aggTemp.SplitByClause != nil {
+                byField = aggTemp.SplitByClause.Field
+            }
+        //  case (<eval-expression>) BY <split-by-clause>) to be finished
+        default:
+            return nil, fmt.Errorf("Spl peg: Timechart: either single-agg or eval-expression BY split-by-clause is required")
+    }
+
+    aggNode.PipeCommandType = structs.GroupByType
+    aggNode.GroupByRequest = &structs.GroupByRequest {
+        MeasureOperations: measureAggs,
+        GroupByColumns: []string{"timestamp"},
+    }
+    aggNode.BucketLimit = query.MAX_GRP_BUCKS
+
+    bOptions := binOptions.(*structs.BinOptions)
+
+    var limitExprTmp *structs.LimitExpr
+    if limitExpr != nil {
+        limitExprTmp = limitExpr.(*structs.LimitExpr)
+        if len(measureAggs) > 1 {
+            limitExprTmp.LimitScoreMode = structs.LSMByFreq
+        }
+    }
+
+    timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp, len(measureAggs))
+    aggNode.TimeHistogram = timeBucket
+
+    return aggNode, nil
+}
+
+// To be finished: <eval-expression> BY <split-by-clause> 
+// TimechartEvalExpr <- ... BY splitByClause:(SplitByClause) {
+// }
+
+SingleAggExpr <- aggs:AggregationList splitByClause:(SplitByClause)? {
+    singleAggExpr := &singleAggTemp {
+        aggregators: aggs.([]*aggregator),
+    }
+
+    if splitByClause != nil {
+        singleAggExpr.SplitByClause = splitByClause.(*structs.SplitByClause)
+    }
+
+    return singleAggExpr, nil
+}
+
+// Syntax: <field> (<tc-options>)... [<where-clause>]
+// <where-clause> to be finished
+SplitByClause <- BY field:FieldName tcOptions:(TcOptions)? {
+    splitByClause := &structs.SplitByClause {
+        Field: field.(string),
+    }
+
+    if tcOptions != nil {
+        splitByClause.TcOptions = tcOptions.(*structs.TcOptions)
+    }
+    return splitByClause, nil
+}
+
+TcOptions <- SPACE option:(BinOptions / (TcOption)+) {
+    //Default value
+    tcOptions := &structs.TcOptions{
+        UseNull: true,
+        UseOther: true,
+        NullStr: "null",
+        OtherStr: "other",
+    }
+    switch option.(type) {
+    case *structs.BinOptions:
+        tcOptions.BinOptions = option.(*structs.BinOptions)
+    case [][]string:
+        optionSlice := option.([]any)
+        for _, opt := range optionSlice {
+            optArr := opt.([]string)
+            switch optArr[0] {
+                case "usenull":
+                    useNullBool, err := strconv.ParseBool(optArr[1])
+                    if err != nil {
+                        return nil, fmt.Errorf("Spl peg: Timechart: TcOptions: %v", err)
+                    } 
+                    tcOptions.UseNull = useNullBool
+                case "useother":
+                    useOtherBool, err := strconv.ParseBool(optArr[1])
+                    if err != nil {
+                        return nil, fmt.Errorf("Spl peg: Timechart: TcOptions: %v", err)
+                    } 
+                    tcOptions.UseOther = useOtherBool
+                case "nullstr":
+                    tcOptions.OtherStr = optArr[1]
+                case "otherstr":
+                    tcOptions.OtherStr = optArr[1]
+                default:
+                    return nil, fmt.Errorf("Spl peg: Timechart: TcOptions: invalid option: %v", optArr[0])
+            }
+            
+        }
+    default:
+        return nil, fmt.Errorf("Spl peg: Timechart: Invalid tcOptions %v", option)
+    }
+    return tcOptions, nil
+}
+
+TcOption <- SPACE tcOptionCMD:TcOptionCMD EQUAL val:EvalFieldToRead {
+    tcOptionArr := []string{tcOptionCMD.(string), val.(string)}
+    return tcOptionArr, nil
+}
+
+TcOptionCMD <- option:("usenull" / "useother" / "nullstr" / "otherstr") {
+    optionStr, err := transferUint8ToString(option)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Timechart: TcOptionCMD: %v", err)
+    }
+    return optionStr, nil
+}
+
+// To be finished: bins=<int> | minspan=<span-length> | span | <start-end>: (end=<num> | start=<num>) | aligntime=(earliest | latest | <time-specifier>)
+BinOptions <- spanOptions:SpanOptions {
+    binOptions := &structs.BinOptions {
+        SpanOptions: spanOptions.(*structs.SpanOptions),
+    }
+    return binOptions, nil
+}
+
+// To be finished: span=<log-span> | span=<span-length> | span=<snap-to-time>
+SpanOptions <- CMD_SPAN EQUAL spanLength:SpanLength {
+    spanOptions := &structs.SpanOptions {
+        SpanLength: spanLength.(*structs.SpanLength),
+    }
+    return spanOptions, nil
+}
+
+SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale SPACE{
+    num, err := strconv.Atoi(intAsStr.(string))
+    if err != nil {
+        return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", intAsStr.(string), err)
+    }
+
+    spanLength := &structs.SpanLength {
+        Num: num,
+        TimeScalr: timeScale.(utils.TimeUnit),
+    }
+    return spanLength, nil
+}
+
+TimeScale <- timeUnit:(Second / Minute / Hour / Day/ Week / Month / Quarter/ Subseconds) {
+    return timeUnit, nil
+}
+
+// limit=topN keeps the N highest scoring distinct values of the split-by field
+LimitExpr <- SPACE "limit" EQUAL sortBy:("top" / "bottom")? EMPTY_OR_SPACE intAsStr:(IntegerAsString){
+    num, err := strconv.Atoi(intAsStr.(string))
+    if err != nil {
+        return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", intAsStr.(string), err)
+    }
+
+    limitExpr := &structs.LimitExpr {
+        IsTop: true, // Default Value
+        Num: num,
+        
+    }
+
+    if sortBy != nil {
+        sortByStr, err := transferUint8ToString(sortBy)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Timechart: %v", err)
+        }
+        if sortByStr == "bottom" {
+            limitExpr.IsTop = false
+        }
+    }
+
+    return limitExpr, nil
+}
+ 
 
 StatisticBlock <- PIPE statisticExpr:StatisticExpr {
     letColReq := &structs.LetColumnsRequest {
@@ -1382,7 +1592,7 @@ HeadBlock <- PIPE CMD_HEAD ("limit" EQUAL)? intAsStr:IntegerAsString {
 
 // Parses one or more AggFunctions separated by a comma and space.
 // Returns a slice containing all the AggFunctions.
-AggregationList <- first:Aggregator rest:(COMMA Aggregator)* {
+AggregationList <- first:Aggregator rest:((COMMA / SPACE) Aggregator)* {
     // Convert `rest` to a slice. Each element of the slice will be a 2-element
     // slice where the first element is ", " and the second is an Aggregator.
     restSlice := rest.([]any)
@@ -1401,7 +1611,7 @@ AggregationList <- first:Aggregator rest:(COMMA Aggregator)* {
 
 Aggregator <- aggFunc:AggFunction asField:AsField? {
     agg := &aggregator{}
-    agg.aggregator = aggFunc.(*structs.MeasureAggregator)
+    agg.measureAgg = aggFunc.(*structs.MeasureAggregator)
 
     if asField != nil {
         agg.renameOutputField = true
@@ -1782,6 +1992,44 @@ OpDiv <- EMPTY_OR_SPACE "/" EMPTY_OR_SPACE {
     return "/", nil
 }
 
+// Add Empty space here
+Second <- ("seconds" / "second" / "secs" / "sec" / "s") {
+    return utils.TMSecond, nil
+}
+
+Minute <- ("minutes" / "minute" / "mins" / "min" / "m") {
+    return utils.TMMinute, nil
+}
+
+Hour <- ("hours" / "hour" / "hrs" / "hr" / "h") {
+    return utils.TMHour, nil
+}
+
+Day <- ("days" / "day" / "d") {
+    return utils.TMDay, nil
+}
+
+Week <- ("weeks" / "week" / "w") {
+    return utils.TMWeek, nil
+}
+
+Month <- ("months" / "month" / "mon") {
+    return utils.TMMonth, nil
+}
+
+Quarter <- ("quarters" / "quarter" / "qtrs" / "qtr" / "q") {
+    return utils.TMQuarter, nil
+}
+
+// Might not has effect for 'us', because smallest time unit for timestamp in siglens is ms
+Subseconds <- ("us" / "ms" / "cs" / "ds") {
+    timeUnit, err := utils.ConvertSubseconds(string(c.text))
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Subseconds: %v", err)
+    }
+    return timeUnit, nil
+}
+
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -1794,6 +2042,8 @@ CMD_REX <- "rex" SPACE
 CMD_TOP <- "top"
 CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
+CMD_TIMECHART <- "timechart" SPACE
+CMD_SPAN <- "span"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

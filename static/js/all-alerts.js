@@ -31,7 +31,6 @@ $(document).ready(function () {
         $('body').attr('data-theme', theme);
     }
     $('.theme-btn').on('click', themePickerHandler);
-    displayNavbar();
     getAllAlerts();
 
     $('#new-alert-rule').on('click',function(){
@@ -54,7 +53,6 @@ function getAllAlerts(){
         displayAllAlerts(res.alerts);
     })
 }
-
 class btnRenderer {
 	init(params) {
         this.eGui = document.createElement('span');

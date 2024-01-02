@@ -28,7 +28,7 @@ async function testEditPanelScreenOptions(){
     .build();
 
     //To fetch http://localhost/dashboards-home.html from the browser with our code.
-    await driver.get("http://localhost/dashboards-home.html");
+    await driver.get("http://localhost:5122/dashboards-home.html");
 
     let newDbBtn = await driver.findElement(By.id("create-db-btn"));
     await newDbBtn.click();
