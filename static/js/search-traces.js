@@ -27,7 +27,6 @@ let pageNumber = 1,
 let limitation = -1;
 let hasLoaded = false;
 $(document).ready(() => {
-  displayNavbar();
   if (Cookies.get("theme")) {
     theme = Cookies.get("theme");
     $("body").attr("data-theme", theme);
