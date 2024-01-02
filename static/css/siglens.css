@@ -406,7 +406,7 @@ body {
 }
 
 .theme-btn-group {
-    width: 63px;
+    width: 50px;
     border-radius: 5px;
     padding: 4px;
     display: flex;
@@ -489,7 +489,7 @@ body {
 .icon-live,
 .icon-traces{
     min-height: 42px;
-    min-width: 56px;
+    min-width: 48px;
     background-origin: content-box;
     background-repeat: no-repeat;
     background-size: auto;
@@ -506,7 +506,7 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    width: 200px !important;
+    width: 176px !important;
     transition: all 0.3s linear;
 }
 
@@ -527,7 +527,7 @@ body {
 }
 
 #app-side-nav .menu.logo {
-    padding: 20px 0 20px 15px;
+    padding: 14px 0 14px 10px;
 }
 #app-side-nav.active .menu.logo {
     padding: 20px 0 20px 0px;
@@ -605,7 +605,7 @@ body {
 
 .icon-search:hover,
 .menu.nav-search.active .icon-search {
-    background-image: url("../assets/search-icon-active.svg");
+    background-image: url("../assets/Group\ 67.svg");
     height: 19px;
     width: 19px;
 }
@@ -3222,7 +3222,7 @@ float: right;
 }
 
 .nav-link-text{
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--navbar-link-text);
       white-space: nowrap;
