@@ -5,10 +5,10 @@ import "fmt"
 type TimeUnit uint8
 
 const (
-	TMUs TimeUnit = iota
-	TMMs
-	TMCs
-	TMDs
+	TMMicrosecond TimeUnit = iota
+	TMMillisecond
+	TMCentisecond
+	TMDecisecond
 	TMSecond
 	TMMinute
 	TMHour
@@ -22,13 +22,13 @@ const (
 func ConvertSubseconds(subsecond string) (TimeUnit, error) {
 	switch subsecond {
 	case "us":
-		return TMUs, nil
+		return TMMicrosecond, nil
 	case "ms":
-		return TMMs, nil
+		return TMMillisecond, nil
 	case "cs":
-		return TMCs, nil
+		return TMCentisecond, nil
 	case "ds":
-		return TMDs, nil
+		return TMDecisecond, nil
 	default:
 		return 0, fmt.Errorf("ConvertSubseconds: can not convert: %v", subsecond)
 	}

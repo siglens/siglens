@@ -23,7 +23,6 @@ let redMetricsData ={
    
 }
 $(document).ready(() => {
-    displayNavbar();
     if (Cookies.get("theme")) {
         theme = Cookies.get("theme");
         $("body").attr("data-theme", theme);
