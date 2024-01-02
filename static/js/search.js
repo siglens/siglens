@@ -546,6 +546,8 @@ function getColumns() {
          else filterValue += value;
          index++;
        });
+     }else{
+      filterValue = '*';
      }
      index = 0;
      let bothRight = 0;

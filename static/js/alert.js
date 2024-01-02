@@ -58,7 +58,6 @@ $(document).ready(function () {
         
     }
     $('.theme-btn').on('click', themePickerHandler);
-    displayNavbar();
     $("#logs-language-btn").show();
     let startTime = "now-30m";
     let endTime = "now";

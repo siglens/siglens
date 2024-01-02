@@ -20,7 +20,6 @@ let EventCountChart;
  
 $(document).ready(() => {
     $('#app-content-area').hide();
-    displayNavbar();
     setupEventHandlers();
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', renderChart);

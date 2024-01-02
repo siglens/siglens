@@ -22,7 +22,6 @@ $(document).ready(function () {
         $('body').attr('data-theme', theme);
     }
     $('.theme-btn').on('click', themePickerHandler);
-    displayNavbar();
     let org_name;
 
     $.ajax({
