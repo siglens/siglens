@@ -36,7 +36,7 @@ func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
 	if err != nil {
 		log.Errorf("Error writing response: %v", err)
 		return
-	
+
 	}
 }
 func SavePQSConfigToRunMod(pqsEnabled string) error {
