@@ -32,7 +32,12 @@ func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.SetContentType("application/json")
-	ctx.WriteString(`{"status":"success"}`)
+	_, err = ctx.WriteString(`{"status":"success"}`)
+	if err != nil {
+		log.Errorf("Error writing response: %v", err)
+		return
+	
+	}
 }
 func SavePQSConfigToRunMod(pqsEnabled string) error {
 	file, err := os.OpenFile(config.RunModFilePath, os.O_CREATE|os.O_WRONLY, 0666)

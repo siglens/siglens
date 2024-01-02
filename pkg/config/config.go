@@ -636,20 +636,6 @@ func ReadConfigFile(fileName string) (Configuration, error) {
 	return ExtractConfigData(yamlData)
 }
 
-// func ClearPqsFiles() error {
-// 	baseDir := GetDataPath() + "querynodes/" + GetHostID() + "/pqueries/"
-// 	files := []string{baseDir + "pqinfo.bin", baseDir + "aggsinfo.bin", baseDir + "groupinfo.bin"}
-// 	for _, file := range files {
-// 		if err := os.Remove(file); err != nil {
-// 			if !os.IsNotExist(err) {
-// 				log.Errorf("Failed to delete file: %v, error: %v", file, err)
-// 				return err
-// 			}
-// 		}
-// 	}
-
-//		return nil
-//	}
 func ClearPqsFiles() error {
 	baseDir := GetDataPath() + "querynodes/" + GetHostID() + "/pqueries/"
 	files := []string{baseDir + "pqinfo.bin", baseDir + "aggsinfo.bin", baseDir + "groupinfo.bin"}
