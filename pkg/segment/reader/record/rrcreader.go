@@ -35,8 +35,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 	sTime := time.Now()
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
-	recordIndexInFinal := make(map[string]int)
-	for idx, rrc := range allrrc {
+	// recordIndexInFinal := make(map[string]int)
+	for _, rrc := range allrrc {
 		if rrc.SegKeyInfo.IsRemote {
 			log.Debugf("GetJsonFromAllRrc: skipping remote segment:%v", rrc.SegKeyInfo.RecordId)
 			continue
@@ -58,8 +58,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		}
 		blkIdxsCtr.BlkRecIndexes[rrc.BlockNum][rrc.RecordNum] = rrc.TimeStamp
 
-		recordIndent := fmt.Sprintf("%s_%d_%d", segkey, rrc.BlockNum, rrc.RecordNum)
-		recordIndexInFinal[recordIndent] = idx
+		// recordIndent := fmt.Sprintf("%s_%d_%d", segkey, rrc.BlockNum, rrc.RecordNum)
+		// recordIndexInFinal[recordIndent] = idx
 	}
 
 	rawIncludeValuesIndicies := make(map[string]int)
@@ -87,7 +87,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		}
 
 	}
-	allRecords := make([]map[string]interface{}, len(allrrc))
+	allRecords := make([]map[string]interface{}, 0)
 	finalCols := make(map[string]bool)
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
 	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock {
@@ -106,21 +106,21 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				finalCols[key] = true
 			}
 
-			for recInden, record := range recs {
+			if hasQueryAggergatorBlock {
+				agg.PostQueryBucketCleaning(nil, aggs, recs, finalCols)
+			}
 
-				if hasQueryAggergatorBlock {
-					agg.PostQueryBucketCleaning(nil, aggs, recs, finalCols)
-				}
+			for _, record := range recs {
 
 				for key, val := range renameHardcodedColumns {
 					record[key] = val
 				}
 
-				idx, ok := recordIndexInFinal[recInden]
-				if !ok {
-					log.Errorf("qid=%d, GetJsonFromAllRrc: Did not find index for record indentifier %s.", qid, recInden)
-					continue
-				}
+				// idx, ok := recordIndexInFinal[recInden]
+				// if !ok {
+				// 	log.Errorf("qid=%d, GetJsonFromAllRrc: Did not find index for record indentifier %s.", qid, recInden)
+				// 	continue
+				// }
 				if logfmtRequest {
 					record = addKeyValuePairs(record)
 				}
@@ -152,9 +152,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					}
 					record[label] = val
 				}
-				delete(recordIndexInFinal, recInden)
-				allRecords[idx] = record
-
+				// delete(recordIndexInFinal, recInden)
+				// allRecords[idx] = record
+				allRecords = append(allRecords, record)
 			}
 		}
 	} else {

@@ -19,6 +19,7 @@ package aggregations
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -73,7 +74,8 @@ func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *str
 
 // Function to clean up results based on input query aggregations.
 // This will make sure all buckets respect the minCount & is returned in a sorted order
-func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool) *structs.NodeResult {
+func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{},
+	finalCols map[string]bool) *structs.NodeResult {
 	if post.TimeHistogram != nil {
 		applyTimeRangeHistogram(nodeResult, post.TimeHistogram, post.TimeHistogram.AggName)
 	}
@@ -96,7 +98,8 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	return nodeResult
 }
 
-func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
+	finalCols map[string]bool) error {
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -186,7 +189,8 @@ RenamingLoop:
 	return nil
 }
 
-func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
+	finalCols map[string]bool) error {
 
 	if letColReq.NewColName == "" && !aggs.HasQueryAggergatorBlock() && letColReq.StatisticColRequest == nil {
 		return errors.New("performLetColumnsRequest: expected non-empty NewColName")
@@ -211,6 +215,10 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		}
 	} else if letColReq.StatisticColRequest != nil {
 		if err := performStatisticColRequest(nodeResult, aggs, letColReq, recs); err != nil {
+			return fmt.Errorf("performLetColumnsRequest: %v", err)
+		}
+	} else if letColReq.DedupColRequest != nil {
+		if err := performDedupColRequest(nodeResult, aggs, letColReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else {
@@ -458,6 +466,82 @@ func performRenameColRequestOnMeasureResults(nodeResult *structs.NodeResult, let
 			letColReq.RenameColRequest.RemoveBucketHolderGroupByColumnsByIndex(bucketHolder, nodeResult.GroupByCols, indexToRemove)
 		}
 	}
+	return nil
+}
+
+func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
+	finalCols map[string]bool) error {
+	//Without following group by
+	if recs != nil {
+		if err := performDedupColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols); err != nil {
+			return fmt.Errorf("performRenameColRequest: %v", err)
+		}
+		return nil
+	}
+
+	// //Follow group by
+	// if err := performRenameColRequestOnHistogram(nodeResult, letColReq); err != nil {
+	// 	return fmt.Errorf("performRenameColRequest: %v", err)
+	// }
+	// if err := performRenameColRequestOnMeasureResults(nodeResult, letColReq); err != nil {
+	// 	return fmt.Errorf("performRenameColRequest: %v", err)
+	// }
+
+	return nil
+}
+
+func isExists(combination []interface{}, combinations [][]interface{}) {
+
+}
+
+func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
+	finalCols map[string]bool) error {
+
+	// index: index in combinations, val: cnt
+	combToCnt := &letColReq.DedupColRequest.DedupComb.CombToCnt
+	combinations := &letColReq.DedupColRequest.DedupComb.Combinations
+
+	limit := int(letColReq.DedupColRequest.Limit)
+
+	fieldList := letColReq.DedupColRequest.FieldList
+	length := len(fieldList)
+	for key, record := range recs {
+
+		// Initialize combination for current row
+		combination := make([]interface{}, length)
+		for index, field := range fieldList {
+			val, exists := record[field]
+			if !exists {
+				combination[index] = nil
+			} else {
+				combination[index] = val
+			}
+		}
+
+		combExists := false
+		// Find out whether current combination is duplicate or not
+		for index, ele := range *combinations {
+			isEqual := reflect.DeepEqual(ele, combination)
+			if isEqual {
+				combExists = true
+				cnt := (*combToCnt)[index]
+				// If it exceed the limit, we should remove current row
+				if cnt >= limit {
+					delete(recs, key)
+				} else {
+					combination[index] = cnt + 1
+				}
+			}
+		}
+
+		if !combExists {
+			*combToCnt = append(*combToCnt, 1)
+			*combinations = append(*combinations, combination)
+		}
+	}
+
+	// To be finished
+
 	return nil
 }
 
