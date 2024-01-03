@@ -20,13 +20,6 @@ $(document).ready(function () {
         $('body').attr('data-theme', theme);
     }
     $('.theme-btn').on('click', themePickerHandler);
-   
-
-    function showPersistentQueryWarning(value) {
-        if (value === 'disabled') {
-            alert("Disabling persistent queries may affect your query performance.");
-        }
-    }
 
     function updatePersistentQueriesSetting(pqsEnabled) {
         $.ajax({
@@ -48,10 +41,27 @@ $(document).ready(function () {
         });
     }
 
-    $('#persistent-queries-dropdown').on('change', function() {
-        showPersistentQueryWarning(this.value);
-        updatePersistentQueriesSetting(this.value);
+    $('#contact-types').click(function() {
+        $('.contact-options').toggle(); 
     });
+
+    $('.contact-option').click(function() {
+        var selectedOption = $(this).text();
+        $('#contact-types span').text(selectedOption); 
+
+        if (selectedOption.toLowerCase() === 'disabled') {
+            $('.popupOverlay, .popupContent').addClass('active');
+        }
+        updatePersistentQueriesSetting(selectedOption.toLowerCase());
+        $('.contact-options').hide();
+    });
+
+    $(window).click(function(e) {
+        if (!e.target.matches('#contact-types, #contact-types *')) {
+            $('.contact-options').hide();
+        }
+    });
+
 });
 
 

@@ -519,7 +519,7 @@ func InitConfigurationData() error {
 	runningConfig = config
 	err = ReadRunModConfig()
 	if err != nil {
-		log.Errorf("Failed to read runmod config: %v", err)
+		log.Errorf("InitConfigurationData:Failed to read runmod config: %v", err)
 	}
 	fileInfo, err := os.Stat(configFilePath)
 	if err != nil {
@@ -597,13 +597,13 @@ func ReadRunModConfig() error {
 	if os.IsNotExist(err) {
 		return nil
 	} else if err != nil {
-		log.Errorf("Error accessing runmod.cfg: %v", err)
+		log.Errorf("ReadRunModConfig:Error accessing runmod.cfg: %v", err)
 		return err
 	}
 
 	jsonData, err := os.ReadFile(RunModFilePath)
 	if err != nil {
-		log.Errorf("Failed to read runmod.cfg: %v", err)
+		log.Errorf("ReadRunModConfig:Failed to read runmod.cfg: %v", err)
 		return err
 	}
 	var runModConfig struct {
@@ -611,7 +611,7 @@ func ReadRunModConfig() error {
 	}
 	err = json.Unmarshal(jsonData, &runModConfig)
 	if err != nil {
-		log.Errorf("Failed to parse runmod.cfg: %v", err)
+		log.Errorf("ReadRunModConfig:Failed to parse runmod.cfg: %v", err)
 		return err
 	}
 	var pqsCheck bool
@@ -621,7 +621,7 @@ func ReadRunModConfig() error {
 	case "disabled":
 		pqsCheck = false
 	default:
-		log.Errorf("Invalid PQSEnabled value in runmod.cfg: %s", runModConfig.PQSEnabled)
+		log.Errorf("ReadRunModConfig:Invalid PQSEnabled value in runmod.cfg: %s", runModConfig.PQSEnabled)
 	}
 
 	SetPQSEnabled(pqsCheck)
@@ -645,7 +645,7 @@ func ClearPqsFiles() error {
 			if os.IsNotExist(err) {
 				continue
 			}
-			log.Errorf("Failed to delete file: %v, error: %v", file, err)
+			log.Errorf("ClearPqsFiles:Failed to delete file: %v, error: %v", file, err)
 			return err
 		}
 	}

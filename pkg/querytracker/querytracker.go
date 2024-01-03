@@ -448,20 +448,6 @@ func IsQueryPersistent(tableName []string, sn *structs.SearchNode) (bool, error)
 	return false, nil
 }
 
-func ClearAllPQSData() {
-	persistentInfoLock.Lock()
-	localPersistentQueries = make(map[string]*PersistentSearchNode)
-	allNodesPQsSorted = make([]*PersistentSearchNode, 0)
-
-	localPersistentAggs = make(map[string]*PersistentAggregation)
-	allPersistentAggsSorted = make([]*PersistentAggregation, 0)
-	persistentInfoLock.Unlock()
-
-	groupByOverrideLock.Lock()
-	localGroupByOverride = make(map[string]*PersistentGroupBy)
-	groupByOverrideLock.Unlock()
-}
-
 func flushPQueriesToDisk() {
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath() + "querynodes/" + config.GetHostID() + "/pqueries/")
@@ -845,11 +831,11 @@ func RefreshExternalAggsInfo(fNames []string) error {
 }
 
 func PostPqsClear(ctx *fasthttp.RequestCtx) {
-	clearPqs()
+	ClearPqs()
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func clearPqs() {
+func ClearPqs() {
 	persistentInfoLock.Lock()
 	localPersistentQueries = make(map[string]*PersistentSearchNode)
 	allNodesPQsSorted = make([]*PersistentSearchNode, 0)
