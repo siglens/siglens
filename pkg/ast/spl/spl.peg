@@ -2070,24 +2070,6 @@ TransactionOptions <- txnOptions:TransactionDefinitionOptionsList?  {
     return transactionRequest, nil
 }
 
-// Parses one or more FieldNames separate by a space
-// Returns a slice containing all the FieldNames
-FieldList <- first:FieldName !(EQUAL) rest:(SPACE FieldName !(EQUAL))* {
-     var fields []string
-    fields = append(fields, first.(string))
-    for _, r := range rest.([]any) {
-        // Extracting the field name from the tuple (SPACE, FieldName)
-        fields = append(fields, r.([]any)[1].(string))
-    }
-
-    txnArg := &TxnArgs{
-        argOption: "fields",
-        fields: fields,
-    }
-
-    return txnArg, nil
-}
-
 
 TransactionDefinitionOptionsList <- first:TransactionDefinitionOption rest:(SPACE TransactionDefinitionOption)* {
 
@@ -2125,8 +2107,26 @@ TransactionDefinitionOptionsList <- first:TransactionDefinitionOption rest:(SPAC
     return txnArgs, nil
 }
 
-TransactionDefinitionOption <- option:(FieldList / StartsWithOption / EndsWithOption) {
+TransactionDefinitionOption <- option:(SpaceSeparatedFieldNameList / StartsWithOption / EndsWithOption) {
     return option, nil
+}
+
+// Parses one or more FieldNames separate by a space
+// Returns a slice containing all the FieldNames
+SpaceSeparatedFieldNameList <- first:FieldName !(EQUAL) rest:(SPACE FieldName !(EQUAL))* {
+     var fields []string
+    fields = append(fields, first.(string))
+    for _, r := range rest.([]any) {
+        // Extracting the field name from the tuple (SPACE, FieldName)
+        fields = append(fields, r.([]any)[1].(string))
+    }
+
+    txnArg := &TxnArgs{
+        argOption: "fields",
+        fields: fields,
+    }
+
+    return txnArg, nil
 }
 
 StartsWithOption <- "startswith" EQUAL str:QuotedString {
