@@ -141,6 +141,12 @@ type singleAggTemp struct {
     aggregators []*aggregator
     SplitByClause *structs.SplitByClause
 }
+
+type TxnArgs struct {
+    argOption string
+    startsWith string
+    endsWith string
+}
 }
 
 Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
@@ -2030,18 +2036,20 @@ Subseconds <- ("us" / "ms" / "cs" / "ds") {
     return timeUnit, nil
 }
 
-// Returns *structs.QueryAggergators
-TransactionBlock <- PIPE CMD_TRANSACTION TransactionOptions {
-    queryAgg := &structs.QueryAggergators{
+// Returns *structs.QueryAggregators
+TransactionBlock <- PIPE CMD_TRANSACTION txnOptions:TransactionOptions {
+    queryAgg := &structs.QueryAggregators{
         PipeCommandType: structs.TransactionType,
-        TransactionRequest: TransactionOptions.(*structs.TransactionRequest),
+        TransactionArguments: txnOptions.(*structs.TransactionArguments),
     }
     return queryAgg, nil
 }
 
-TransactionOptions <- FieldList? StartsWithOption? EndsWithOption? {
-    fields, startsWith, endsWith := FieldList, StartsWithOption, EndsWithOption
-    transactionRequest := &structs.TransactionRequest{
+// The List of fields should Always be given at the last.
+// The TransactionDefinitionOptionsList will consist of all the Transaction Options
+TransactionOptions <- txnOptions:TransactionDefinitionOptionsList? SPACE? fields:FieldList?  {
+
+    transactionRequest := &structs.TransactionArguments{
         Fields:     nil,
         StartsWith: "",
         EndsWith:   "",
@@ -2050,27 +2058,82 @@ TransactionOptions <- FieldList? StartsWithOption? EndsWithOption? {
     if fields != nil {
         transactionRequest.Fields = fields.([]string)
     }
-    if startsWith != nil {
-        transactionRequest.StartsWith = startsWith.(string)
-    }
-    if endsWith != nil {
-        transactionRequest.EndsWith = endsWith.(string)
+     
+    if txnOptions != nil {
+        txnArgs := txnOptions.(*TxnArgs)
+        transactionRequest.StartsWith = txnArgs.startsWith
+        transactionRequest.EndsWith = txnArgs.endsWith
     }
 
     return transactionRequest, nil
 }
 
-FieldList <- FieldName (SPACE FieldName)* {
-    var fields []string
-    fields = append(fields, field.(string))
-    for _, f := range FieldName {
-        fields = append(fields, f.(string))
+// Parses one or more FieldNames separate by a space
+// Returns a slice containing all the FieldNames
+FieldList <- first:FieldName rest:(SPACE FieldName)* {
+     var fields []string
+    fields = append(fields, first.(string))
+    for _, r := range rest.([]any) {
+        // Extracting the field name from the tuple (SPACE, FieldName)
+        fields = append(fields, r.([]any)[1].(string))
     }
     return fields, nil
 }
 
-StartsWithOption <- "startswith=" String
-EndsWithOption <- "endswith=" String
+
+TransactionDefinitionOptionsList <- first:TransactionDefinitionOption rest:(SPACE TransactionDefinitionOption)* {
+
+    restSlice := rest.([]any)
+    txnArgs := &TxnArgs{
+        argOption: "txn-definition",
+        startsWith: "",
+        endsWith: "",
+    }
+
+    numArgs := 1 + len(restSlice)
+
+    for i := 0; i < numArgs; i++ {
+        var txnArg *TxnArgs
+        if i == 0 {
+            txnArg = first.(*TxnArgs)
+        } else {
+            separatorAndArg := restSlice[i - 1].([]any)
+            txnArg = separatorAndArg[1].(*TxnArgs)
+        }
+        argOption := txnArg.argOption
+
+        switch argOption {
+            case "startswith": 
+                txnArgs.startsWith = txnArg.startsWith
+            case "endswith":
+                txnArgs.endsWith = txnArg.endsWith
+            default: 
+                return nil, fmt.Errorf("Not a Valid Transaction Argument option")
+        }
+    }
+
+    return txnArgs, nil
+}
+
+TransactionDefinitionOption <- option:(StartsWithOption / EndsWithOption) {
+    return option, nil
+}
+
+StartsWithOption <- "startswith" EQUAL str:QuotedString {
+    txnArg := &TxnArgs{
+        argOption: "startswith",
+        startsWith: removeQuotes(str.(string)),
+    }
+    return txnArg, nil
+}
+
+EndsWithOption <- "endswith" EQUAL str:QuotedString {
+    txnArg := &TxnArgs{
+        argOption: "endswith",
+        endsWith: removeQuotes(str.(string)),
+    }
+    return txnArg, nil
+}
 
 
 

@@ -113,25 +113,25 @@ type SortRequest struct {
 	Ascending bool   // if true, result is in ascending order. Else, result is in descending order
 }
 
-type TransactionRequest struct {
+type TransactionArguments struct {
 	Fields     []string
 	StartsWith string
 	EndsWith   string
 }
 
 type QueryAggregators struct {
-	PipeCommandType    PipeCommandType
-	OutputTransforms   *OutputTransforms
-	MeasureOperations  []*MeasureAggregator
-	TimeHistogram      *TimeBucket     // Request for time histograms
-	GroupByRequest     *GroupByRequest // groupby aggregation request
-	Sort               *SortRequest    // how to sort resulting data
-	EarlyExit          bool            // should query early exit
-	BucketLimit        int
-	ShowRequest        *ShowRequest
-	TableName          string
-	TransactionRequest *TransactionRequest
-	Next               *QueryAggregators
+	PipeCommandType      PipeCommandType
+	OutputTransforms     *OutputTransforms
+	MeasureOperations    []*MeasureAggregator
+	TimeHistogram        *TimeBucket     // Request for time histograms
+	GroupByRequest       *GroupByRequest // groupby aggregation request
+	Sort                 *SortRequest    // how to sort resulting data
+	EarlyExit            bool            // should query early exit
+	BucketLimit          int
+	ShowRequest          *ShowRequest
+	TableName            string
+	TransactionArguments *TransactionArguments
+	Next                 *QueryAggregators
 }
 
 type ShowRequest struct {

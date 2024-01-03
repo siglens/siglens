@@ -250,6 +250,12 @@ func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggr
 			return nil, err
 		}
 		pipeCommands.TimeHistogram = node.TimeHistogram
+	case TransactionType:
+		pipeCommands, err = parseTransactionRequest(node.TransactionArguments, qid)
+		if err != nil {
+			log.Errorf("qid=%d, searchPipeCommandsToASTnode : parseTransactionRequest error: %v", qid, err)
+			return nil, err
+		}
 	default:
 		log.Errorf("searchPipeCommandsToASTnode : node type %d not supported", node.PipeCommandType)
 		return nil, errors.New("searchPipeCommandsToASTnode : node type not supported")
@@ -300,6 +306,17 @@ func parseSegLevelStats(node []*structs.MeasureAggregator, qid uint64) (*QueryAg
 		tempMeasureAgg.StrEnc = parsedMeasureAgg.StrEnc
 		aggNode.MeasureOperations = append(aggNode.MeasureOperations, tempMeasureAgg)
 	}
+	return aggNode, nil
+}
+
+func parseTransactionRequest(node *structs.TransactionArguments, qid uint64) (*QueryAggregators, error) {
+	aggNode := &QueryAggregators{}
+	aggNode.PipeCommandType = TransactionType
+	aggNode.TransactionArguments = &TransactionArguments{}
+	aggNode.TransactionArguments.Fields = node.Fields
+	aggNode.TransactionArguments.StartsWith = node.StartsWith
+	aggNode.TransactionArguments.EndsWith = node.EndsWith
+	aggNode.EarlyExit = false
 	return aggNode, nil
 }
 

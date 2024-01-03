@@ -18,6 +18,7 @@ package tests
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -4657,4 +4658,64 @@ func Test_headWithLimitKeyword(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.Equal(t, aggregator.OutputTransforms.MaxRows, uint64(15))
+}
+
+// SPL Transaction command.
+func Test_TransactionRequestWithFields(t *testing.T) {
+	query := []byte(`A=1 | transaction A`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.TransactionArguments)
+
+	transactionRequest := aggregator.TransactionArguments
+	assert.Equal(t, aggregator.PipeCommandType, structs.TransactionType)
+	assert.Equal(t, transactionRequest.Fields, []string{"A"})
+	assert.Equal(t, transactionRequest.StartsWith, "")
+	assert.Equal(t, transactionRequest.EndsWith, "")
+
+	query = []byte(`A=1 | transaction A B C`)
+	res, err = spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode = res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err = pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.TransactionArguments)
+
+	transactionRequest = aggregator.TransactionArguments
+	assert.Equal(t, aggregator.PipeCommandType, structs.TransactionType)
+	assert.Equal(t, transactionRequest.Fields, []string{"A", "B", "C"})
+	assert.Equal(t, transactionRequest.StartsWith, "")
+	assert.Equal(t, transactionRequest.EndsWith, "")
+}
+
+func Test_TransactionRequestWithStartsAndEndsWith(t *testing.T) {
+	query := []byte(`A=1 | transaction startswith="foo" endswith="bar" A B C`)
+	res, err := spl.Parse("", query)
+	fmt.Println(err)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.TransactionArguments)
+
+	transactionRequest := aggregator.TransactionArguments
+	assert.Equal(t, aggregator.PipeCommandType, structs.TransactionType)
+	assert.Equal(t, transactionRequest.Fields, []string{"A", "B", "C"})
+	assert.Equal(t, transactionRequest.StartsWith, "foo")
+	assert.Equal(t, transactionRequest.EndsWith, "bar")
 }
