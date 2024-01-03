@@ -147,6 +147,7 @@ type OutputTransforms struct {
 	LetColumns             *LetColumnsRequest // let columns processing on output columns
 	FilterRows             *BoolExpr          // discard rows failing some condition
 	MaxRows                uint64             // if 0, get all results; else, get at most this many
+	DedupRows              *DedupRequest
 }
 
 type GroupByRequest struct {
@@ -187,6 +188,10 @@ type LetColumnsRequest struct {
 	StatisticColRequest *StatisticExpr
 	RenameColRequest    *RenameExpr
 	NewColName          string
+}
+
+type DedupRequest struct {
+	DedupFields []string
 }
 
 type MultiColLetRequest struct {
@@ -437,8 +442,8 @@ func (qa *QueryAggregators) IsStatisticBlockEmpty() bool {
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
-	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
-		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil)
+	return qa != nil && qa.OutputTransforms != nil && (qa.OutputTransforms.DedupRows != nil || qa.OutputTransforms.LetColumns != nil) &&
+		(qa.OutputTransforms.DedupRows.DedupFields != nil || qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil)
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {

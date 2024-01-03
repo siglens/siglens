@@ -220,7 +220,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / DedupBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -555,6 +555,21 @@ RenameBlock <- PIPE CMD_RENAME renameExpr:RenameExpr {
     }
 
     return root, nil
+}
+
+DedupBlock <- PIPE CMD_DEDUP EMPTY_OR_SPACE fields:FieldNameList {
+    dedupRequest := &structs.DedupRequest{
+        DedupFields: fields.([]string),
+    }
+    
+    queryAggregator := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            DedupRows: dedupRequest,
+        },
+    }
+
+    return queryAggregator, nil
 }
 
 // Rename with a phrase
@@ -1794,6 +1809,7 @@ CMD_REX <- "rex" SPACE
 CMD_TOP <- "top"
 CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
+CMD_DEDUP <- "dedup" SPACE
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

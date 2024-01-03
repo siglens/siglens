@@ -371,7 +371,9 @@ func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregat
 	if node.FilterRows != nil {
 		aggNode.OutputTransforms.FilterRows = node.FilterRows
 	}
-
+	if node.DedupRows != nil {
+		aggNode.OutputTransforms.DedupRows = node.DedupRows
+	}
 	aggNode.OutputTransforms.MaxRows = node.MaxRows
 
 	return aggNode, nil

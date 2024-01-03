@@ -162,8 +162,8 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 			idx++
 		}
 		sort.Slice(allRecNums, func(i, j int) bool { return allRecNums[i] < allRecNums[j] })
-		resultAllRawRecs := readAllRawRecords(allRecNums, blockIdx, multiReader, allMatchedColumns, esQuery, qid, aggs)
-
+		dedupMap := make(map[string]struct{})
+		resultAllRawRecs := readAllRawRecords(allRecNums, blockIdx, multiReader, allMatchedColumns, esQuery, qid, aggs, dedupMap)
 		for r := range resultAllRawRecs {
 			resultAllRawRecs[r][config.GetTimeStampKey()] = recordIdxTSMap[r]
 			resultAllRawRecs[r]["_index"] = vTable
@@ -193,7 +193,7 @@ func checkRecentlyRotatedKey(segkey string) (string, error) {
 }
 
 func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segread.MultiColSegmentReader,
-	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators) map[uint16]map[string]interface{} {
+	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators, dedupMap map[string]struct{}) map[uint16]map[string]interface{} {
 
 	results := make(map[uint16]map[string]interface{})
 
@@ -250,8 +250,19 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 					}
 				}
 			}
-		}
+			// dedup logic
+			var dedupValues []string
+			for _, field := range aggs.OutputTransforms.DedupRows.DedupFields {
+				dedupValues = append(dedupValues, fmt.Sprintf("%v", results[recNum][field]))
+			}
+			dedupKey := strings.Join(dedupValues, "_")
 
+			if _, exists := dedupMap[dedupKey]; !exists {
+				dedupMap[dedupKey] = struct{}{}
+			} else {
+				delete(results, recNum)
+			}
+		}
 	}
 	return results
 }
