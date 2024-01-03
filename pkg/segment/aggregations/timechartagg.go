@@ -2,6 +2,7 @@ package aggregations
 
 import (
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/axiomhq/hyperloglog"
@@ -219,6 +220,40 @@ func InitialScoreMap(timechart *structs.TimechartExpr, groupByColValCnt map[stri
 	}
 
 	return groupByColValScoreMap
+}
+
+func SortTimechartRes(timechart *structs.TimechartExpr, results *[]*structs.BucketResult) {
+	if timechart == nil || results == nil {
+		return
+	}
+
+	sort.Slice(*results, func(i, j int) bool {
+		bucketKey1, ok := (*results)[i].BucketKey.(string)
+		if !ok {
+			log.Errorf("SortTimechartRes: cannot convert bucketKey to string: %v", (*results)[i].BucketKey)
+			return false
+		}
+
+		bucketKey2, ok := (*results)[j].BucketKey.(string)
+		if !ok {
+			log.Errorf("SortTimechartRes: cannot convert bucketKey to string: %v", (*results)[j].BucketKey)
+			return true
+		}
+
+		timestamp1, err := strconv.ParseUint(bucketKey1, 10, 64)
+		if err != nil {
+			log.Errorf("SortTimechartRes: cannot convert bucketKey to timestamp: %v", bucketKey1)
+			return false
+		}
+
+		timestamp2, err := strconv.ParseUint(bucketKey2, 10, 64)
+		if err != nil {
+			log.Errorf("SortTimechartRes: cannot convert bucketKey to timestamp: %v", bucketKey2)
+			return true
+		}
+
+		return timestamp1 < timestamp2
+	})
 }
 
 func IsOtherCol(valIsInLimit map[string]bool, groupByColVal string) bool {
