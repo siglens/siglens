@@ -144,6 +144,7 @@ type singleAggTemp struct {
 
 type TxnArgs struct {
     argOption string
+    fields []string
     startsWith string
     endsWith string
 }
@@ -2047,7 +2048,7 @@ TransactionBlock <- PIPE CMD_TRANSACTION txnOptions:TransactionOptions {
 
 // The List of fields should Always be given at the last.
 // The TransactionDefinitionOptionsList will consist of all the Transaction Options
-TransactionOptions <- fields:FieldList? SPACE? txnOptions:TransactionDefinitionOptionsList?  {
+TransactionOptions <- txnOptions:TransactionDefinitionOptionsList?  {
 
     transactionRequest := &structs.TransactionArguments{
         Fields:     nil,
@@ -2055,12 +2056,13 @@ TransactionOptions <- fields:FieldList? SPACE? txnOptions:TransactionDefinitionO
         EndsWith:   "",
     }
 
-    if fields != nil {
-        transactionRequest.Fields = fields.([]string)
-    }
+    //if fields != nil {
+      //  transactionRequest.Fields = fields.([]string)
+    //}
      
     if txnOptions != nil {
         txnArgs := txnOptions.(*TxnArgs)
+        transactionRequest.Fields = txnArgs.fields
         transactionRequest.StartsWith = txnArgs.startsWith
         transactionRequest.EndsWith = txnArgs.endsWith
     }
@@ -2077,7 +2079,13 @@ FieldList <- first:FieldName !(EQUAL) rest:(SPACE FieldName !(EQUAL))* {
         // Extracting the field name from the tuple (SPACE, FieldName)
         fields = append(fields, r.([]any)[1].(string))
     }
-    return fields, nil
+
+    txnArg := &TxnArgs{
+        argOption: "fields",
+        fields: fields,
+    }
+
+    return txnArg, nil
 }
 
 
@@ -2103,6 +2111,8 @@ TransactionDefinitionOptionsList <- first:TransactionDefinitionOption rest:(SPAC
         argOption := txnArg.argOption
 
         switch argOption {
+            case "fields":
+                txnArgs.fields = txnArg.fields
             case "startswith": 
                 txnArgs.startsWith = txnArg.startsWith
             case "endswith":
@@ -2115,7 +2125,7 @@ TransactionDefinitionOptionsList <- first:TransactionDefinitionOption rest:(SPAC
     return txnArgs, nil
 }
 
-TransactionDefinitionOption <- option:(StartsWithOption / EndsWithOption) {
+TransactionDefinitionOption <- option:(FieldList / StartsWithOption / EndsWithOption) {
     return option, nil
 }
 
