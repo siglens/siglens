@@ -18,7 +18,6 @@ package tests
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -4747,7 +4746,6 @@ func Test_TransactionRequestWithStartsAndEndsWith(t *testing.T) {
 
 	for ind, query := range queries {
 		res, err := spl.Parse("", query)
-		fmt.Println(err)
 		assert.Nil(t, err)
 		filterNode := res.(ast.QueryStruct).SearchFilter
 		assert.NotNil(t, filterNode)
