@@ -2047,7 +2047,7 @@ TransactionBlock <- PIPE CMD_TRANSACTION txnOptions:TransactionOptions {
 
 // The List of fields should Always be given at the last.
 // The TransactionDefinitionOptionsList will consist of all the Transaction Options
-TransactionOptions <- txnOptions:TransactionDefinitionOptionsList? SPACE? fields:FieldList?  {
+TransactionOptions <- fields:FieldList? SPACE? txnOptions:TransactionDefinitionOptionsList?  {
 
     transactionRequest := &structs.TransactionArguments{
         Fields:     nil,
@@ -2070,7 +2070,7 @@ TransactionOptions <- txnOptions:TransactionDefinitionOptionsList? SPACE? fields
 
 // Parses one or more FieldNames separate by a space
 // Returns a slice containing all the FieldNames
-FieldList <- first:FieldName rest:(SPACE FieldName)* {
+FieldList <- first:FieldName !(EQUAL) rest:(SPACE FieldName !(EQUAL))* {
      var fields []string
     fields = append(fields, first.(string))
     for _, r := range rest.([]any) {

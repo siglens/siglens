@@ -4700,7 +4700,7 @@ func Test_TransactionRequestWithFields(t *testing.T) {
 }
 
 func Test_TransactionRequestWithStartsAndEndsWith(t *testing.T) {
-	query := []byte(`A=1 | transaction startswith="foo" endswith="bar" A B C`)
+	query := []byte(`A=1 | transaction A B C startswith="foo" endswith="bar"`)
 	res, err := spl.Parse("", query)
 	fmt.Println(err)
 	assert.Nil(t, err)
