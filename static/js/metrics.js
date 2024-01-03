@@ -19,7 +19,6 @@ limitations under the License.
 var lineChart;
 
 $(document).ready(() => {
-    displayNavbar();
 
     let stDate = "now-1h";
     let endDate = "now";

@@ -506,7 +506,6 @@ function showDBNotFoundMsg() {
 }
 
 $(document).ready(async function () {
-	displayNavbar();
 	if (Cookies.get('theme')) {
 		theme = Cookies.get('theme');
 		$('body').attr('data-theme', theme);
