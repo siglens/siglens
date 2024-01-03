@@ -8,7 +8,6 @@ var RateCountChart;
 var ErrCountChart;
 var LatenciesChart;
 $(document).ready(() => {
-    displayNavbar();
     setupEventHandlers();
     $(".theme-btn").on("click", themePickerHandler);
     if (Cookies.get("theme")) {
