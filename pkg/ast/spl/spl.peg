@@ -220,7 +220,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / DedupBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -540,6 +540,162 @@ ByClause <- by fieldList:FieldNameList {
 }
 / groupByBlock:GroupbyBlock {
     return groupByBlock.([]string), nil
+}
+
+DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
+
+    letColReq := &structs.LetColumnsRequest {
+        DedupColRequest: dedupExpr.(*structs.DedupExpr),
+    }
+
+    root := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    return root, nil
+}
+
+DedupExpr <- limitArr:(SPACE IntegerAsString)? options:(DedupOptions)? fieldList:(DedupFieldList)? sortByClause:(DedupSortByClause)? {
+    dedupComb := &structs.DedupComb {
+        CombToCnt: make([]int, 0),
+        Combinations: make([][]interface{}, 0),
+    }
+
+    dedupExpr := &structs.DedupExpr {
+        FieldList: fieldList.([]string),
+        Limit: 1,
+        DedupComb: dedupComb,
+    }
+
+    if limitArr != nil {
+        limitStr := limitArr.([]interface{})[1].(string)
+        limit, err := strconv.ParseUint(limitStr, 10, 64)
+        if err != nil || limit == 0 {
+            return nil, fmt.Errorf("Invalid limit (%v): %v", limitStr, err)
+        }
+        dedupExpr.Limit = limit
+    }
+
+    if options != nil {
+        dedupExpr.DedupOptions = options.(*structs.DedupOptions)
+    }
+
+    if sortByClause != nil {
+        dedupExpr.DedupSortEles = sortByClause.([]*structs.DedupSortElement)
+    }
+
+    return dedupExpr, nil
+}
+
+DedupFieldList <- SPACE first:FieldName rest:(SPACE FieldName)* {
+    // Convert `rest` to a slice. Each element of the slice will be a 2-element
+    // slice where the first element is " " and the second is a FieldName.
+    restSlice := rest.([]any)
+
+    numFieldNames := 1 + len(restSlice)
+    fields := make([]string, numFieldNames)
+    fields[0] = first.(string)
+
+    for i := 1; i < numFieldNames; i++ {
+        separatorAndField := restSlice[i - 1].([]any)
+        fields[i] = separatorAndField[1].(string)
+    }
+
+    return fields, nil
+}
+
+// Optional arguments for dedup block
+DedupOptions <- option:(DedupOption)*
+{
+    //Default value
+    options := &structs.DedupOptions {
+        Consecutive: false,
+        KeepEmpty: false,
+        KeepEvents: false,
+    }
+
+    optionSlice := option.([]any)
+    for _, opt := range optionSlice {
+        optArr :=  opt.([]string)
+        // Check for matching option types
+        switch optArr[0] {
+        case "consecutive":
+            consecutiveBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: DedupBlock: Options: %v", err)
+            } 
+            options.Consecutive = consecutiveBool
+        case "keepempty":
+            keepEmptyBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: DedupBlock: Options: %v", err)
+            } 
+            options.KeepEmpty = keepEmptyBool
+        case "keepevents":
+            keepEventsBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: DedupBlock: Options: %v", err)
+            } 
+            options.KeepEvents = keepEventsBool
+        default:
+            return nil, fmt.Errorf("Spl peg: DedupBlock: Options: invalid option")
+        }
+    }
+
+    return options, nil
+}
+
+DedupOption <- SPACE optionCMD:DedupOptionCMD "=" field:EvalFieldToRead {
+    optionArr := []string{optionCMD.(string), field.(string)}
+    return optionArr, nil
+}
+
+DedupOptionCMD <- option:("consecutive" / "keepempty" / "keepevents") {
+    optionStr, err := transferUint8ToString(option)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: DedupExpr: %v", err)
+    }
+    return optionStr, nil
+}
+
+DedupSortByClause <- CMD_DEDUP_SORTBY dedupSortEles:DedupSortElements {
+    return dedupSortEles, nil
+}
+
+// sortby ( - | + ) <sort-field> [(- | +) <sort_field> ...]
+DedupSortElements <- first:DedupSingleSortElement rest:(SPACE DedupSingleSortElement)* {
+
+    restSlice := rest.([]any)
+
+    length := 1 + len(restSlice)
+    dedupSortEles := make([]*structs.DedupSortElement, length)
+    dedupSortEles[0] = first.(*structs.DedupSortElement)
+
+    for i := 1; i < length; i++ {
+        elements := restSlice[i - 1].([]any)
+        dedupSortEles[i] = elements[1].(*structs.DedupSortElement)
+    }
+
+    return dedupSortEles, nil
+}
+
+DedupSingleSortElement <- sortBySymbol:("+" / "-") op:("" / "auto" / "str" / "ip" / "num")? field:FieldName {
+
+    sortByAsc := true
+
+    symbol := sortBySymbol.(string)
+    if(symbol == "-") {
+        sortByAsc = false
+    }
+
+    return &structs.DedupSortElement {
+        SortByAsc: sortByAsc,
+        Op: op.(string),
+        Field: field.(string),
+    }, nil
 }
 
 RenameBlock <- PIPE CMD_RENAME renameExpr:RenameExpr {
@@ -1649,6 +1805,8 @@ CMD_REX <- "rex" SPACE
 CMD_TOP <- "top"
 CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
+CMD_DEDUP <- "dedup"
+CMD_DEDUP_SORTBY <- SPACE "sortby" SPACE
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

@@ -363,6 +363,9 @@ func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregat
 		if node.LetColumns.RenameColRequest != nil {
 			aggNode.OutputTransforms.LetColumns.RenameColRequest = node.LetColumns.RenameColRequest
 		}
+		if node.LetColumns.DedupColRequest != nil {
+			aggNode.OutputTransforms.LetColumns.DedupColRequest = node.LetColumns.DedupColRequest
+		}
 	}
 	if node.FilterRows != nil {
 		aggNode.OutputTransforms.FilterRows = node.FilterRows
