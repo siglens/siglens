@@ -187,6 +187,7 @@ type LetColumnsRequest struct {
 	RexColRequest       *RexExpr
 	StatisticColRequest *StatisticExpr
 	RenameColRequest    *RenameExpr
+	DedupColRequest     *DedupExpr
 	NewColName          string
 }
 
@@ -439,7 +440,7 @@ func (qa *QueryAggregators) IsStatisticBlockEmpty() bool {
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
-		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil)
+		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil)
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
