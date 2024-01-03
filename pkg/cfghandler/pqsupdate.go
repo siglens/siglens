@@ -42,7 +42,7 @@ func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
 func SavePQSConfigToRunMod(pqsEnabled string) error {
 	file, err := os.OpenFile(config.RunModFilePath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		log.Errorf("PostPqsUpdate:Failed to open or create the file %s: %v", config.RunModFilePath, err)
+		log.Errorf("SavePQSConfigToRunMod:Failed to open or create the file %s: %v", config.RunModFilePath, err)
 		return err
 	}
 	defer file.Close()
@@ -51,7 +51,7 @@ func SavePQSConfigToRunMod(pqsEnabled string) error {
 
 	err = encoder.Encode(configData)
 	if err != nil {
-		log.Errorf("PostPqsUpdate:Failed to encode JSON data to file %s: %v", config.RunModFilePath, err)
+		log.Errorf("SavePQSConfigToRunMod:Failed to encode JSON data to file %s: %v", config.RunModFilePath, err)
 		return err
 	}
 
@@ -59,7 +59,7 @@ func SavePQSConfigToRunMod(pqsEnabled string) error {
 		querytracker.ClearPqs()
 		err = config.ClearPqsFiles()
 		if err != nil {
-			log.Errorf("PostPqsUpdate:Failed to clear PQS data and files: %v", err)
+			log.Errorf("SavePQSConfigToRunMod:Failed to clear PQS data and files: %v", err)
 			return err
 		}
 	}
