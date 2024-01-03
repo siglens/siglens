@@ -264,7 +264,6 @@ func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hl
 		fallthrough
 	case utils.Sum:
 		aggFunc = utils.Sum
-	// TODO: should merge values for not numeric agg
 	case utils.Cardinality:
 		if useAdditionForMerge {
 			aggFunc = utils.Sum
