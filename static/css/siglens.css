@@ -406,7 +406,7 @@ body {
 }
 
 .theme-btn-group {
-    width: 50px;
+    width: 58px;
     border-radius: 5px;
     padding: 4px;
     display: flex;
@@ -605,7 +605,7 @@ body {
 
 .icon-search:hover,
 .menu.nav-search.active .icon-search {
-    background-image: url("../assets/Group\ 67.svg");
+    background-image: url("../assets/search-icon-active.svg");
     height: 19px;
     width: 19px;
 }
