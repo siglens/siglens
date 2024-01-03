@@ -739,8 +739,6 @@ func performRexColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColRe
 		return fmt.Errorf("performRexColRequestWithoutGroupby: There are some errors in the pattern: %v", err)
 	}
 
-	nodeResult.MeasureFunctions = letColReq.RexColRequest.RexColNames
-
 	fieldName := letColReq.RexColRequest.FieldName
 	for _, record := range recs {
 		fieldValue := fmt.Sprintf("%v", record[fieldName])
