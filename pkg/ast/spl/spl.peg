@@ -2055,10 +2055,6 @@ TransactionOptions <- txnOptions:TransactionDefinitionOptionsList?  {
         StartsWith: "",
         EndsWith:   "",
     }
-
-    //if fields != nil {
-      //  transactionRequest.Fields = fields.([]string)
-    //}
      
     if txnOptions != nil {
         txnArgs := txnOptions.(*TxnArgs)
