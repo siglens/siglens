@@ -119,6 +119,12 @@ type TransactionArguments struct {
 	EndsWith   string
 }
 
+type TransactionGroupState struct {
+	Key       string
+	Open      bool
+	Timestamp uint64
+}
+
 type QueryAggregators struct {
 	PipeCommandType      PipeCommandType
 	OutputTransforms     *OutputTransforms

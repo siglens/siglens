@@ -459,6 +459,10 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 	}
 
 	allJsons, allCols, err := record.GetJsonFromAllRrc(rrcs, false, qid, segencmap, aggs)
+	if aggs != nil && aggs.TransactionArguments != nil && err == nil {
+		// Implement Splunk Transactiomn command.
+		allJsons, allCols, err = processTransactionsOnRecords(allJsons, allCols, aggs.TransactionArguments)
+	}
 	if err != nil {
 		log.Errorf("qid=%d, convertRRCsToJSONResponse: failed to get allrecords from rrc, err=%v", qid, err)
 		return allJsons, allCols, err
@@ -592,4 +596,109 @@ func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
 	utils.WriteJsonResponse(ctx, resp)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 
+}
+
+// Implement Splunk Transaction command based on the TransactionArguments on the JSON records.
+func processTransactionsOnRecords(records []map[string]interface{}, allCols []string, transactionArgs *structs.TransactionArguments) ([]map[string]interface{}, []string, error) {
+
+	if transactionArgs == nil {
+		return records, allCols, nil
+	}
+
+	transactionFields := transactionArgs.Fields
+
+	if transactionFields == nil || (transactionFields != nil && len(transactionFields) == 0) {
+		transactionFields = make([]string, 0)
+		transactionFields = append(transactionFields, "timestamp")
+	}
+
+	transactionStartsWith := transactionArgs.StartsWith
+	transactionEndsWith := transactionArgs.EndsWith
+
+	groupRecords := make(map[string][]map[string]interface{})
+
+	groupedRecords := make([]map[string]interface{}, 0)
+
+	groupState := make(map[string]structs.TransactionGroupState)
+
+	for _, record := range records {
+
+		recordMapStr := fmt.Sprintf("%v", record)
+
+		// Generate the transaction key from the record.
+		transactionKey := ""
+		for _, field := range transactionFields {
+			if record[field] != nil {
+				transactionKey += "_" + fmt.Sprintf("%v", record[field])
+			}
+		}
+
+		// If the transaction key is empty, then skip this record.
+		if transactionKey == "" {
+			continue
+		}
+
+		// Initialize the group state for new transaction keys
+		if _, exists := groupState[transactionKey]; !exists {
+			groupState[transactionKey] = structs.TransactionGroupState{
+				Key:       transactionKey,
+				Open:      false,
+				Timestamp: 0,
+			}
+		}
+
+		currentState := groupState[transactionKey]
+
+		// If StartsWith is given, then the transaction Should only Open when the record matches the StartsWith. Or if StartsWith not present, then the transaction should open for all records.
+		if (transactionStartsWith != "" && strings.Contains(recordMapStr, transactionStartsWith)) || transactionStartsWith == "" {
+			if !currentState.Open {
+				currentState.Open = true
+				currentState.Timestamp = uint64(record["timestamp"].(uint64))
+
+				groupState[transactionKey] = currentState
+
+				groupRecords[transactionKey] = make([]map[string]interface{}, 0)
+			} else if currentState.Open && transactionEndsWith == "" && transactionStartsWith != "" { // If StartsWith is given, but endsWith is not given, then the startswith will apply for endswith also.
+				transactionEndsWith = transactionStartsWith
+			}
+		}
+
+		// If the transaction is open, then append the record to the group.
+		if currentState.Open {
+			groupRecords[transactionKey] = append(groupRecords[transactionKey], record)
+		}
+
+		if transactionEndsWith != "" {
+			if strings.Contains(recordMapStr, transactionEndsWith) {
+				if currentState.Open {
+					groupedRecord := make(map[string]interface{})
+					groupedRecord["timestamp"] = currentState.Timestamp
+					groupedRecord["event"] = groupRecords[transactionKey]
+					groupedRecord["duration"] = uint64(record["timestamp"].(uint64)) - currentState.Timestamp
+					groupedRecords = append(groupedRecords, groupedRecord)
+
+					currentState.Open = false
+					currentState.Timestamp = 0
+					groupState[transactionKey] = currentState
+				}
+			}
+		}
+	}
+
+	// Only group By fields. In this case, the groupRecords will not be appended to the groupedRecords. So we need to append them here.
+	if transactionStartsWith == "" && transactionEndsWith == "" {
+		for _, groupRecord := range groupRecords {
+			groupedRecord := make(map[string]interface{})
+			groupedRecord["timestamp"] = groupRecord[0]["timestamp"]
+			groupedRecord["event"] = groupRecord
+			groupedRecord["duration"] = uint64(groupRecord[len(groupRecord)-1]["timestamp"].(uint64)) - uint64(groupRecord[0]["timestamp"].(uint64))
+			groupedRecords = append(groupedRecords, groupedRecord)
+		}
+	}
+
+	allCols = make([]string, 0)
+	allCols = append(allCols, "timestamp")
+	allCols = append(allCols, "event")
+
+	return groupedRecords, allCols, nil
 }
