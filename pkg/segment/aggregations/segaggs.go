@@ -748,7 +748,8 @@ func performRexColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColRe
 
 		rexResultMap, err := structs.MatchAndExtractGroups(fieldValue, rexExp)
 		if err != nil {
-			return fmt.Errorf("performRexColRequestWithoutGroupby: %v", err)
+			log.Errorf("performRexColRequestWithoutGroupby: %v", err)
+			continue
 		}
 
 		for rexColName, Value := range rexResultMap {
