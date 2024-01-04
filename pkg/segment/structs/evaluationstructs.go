@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/axiomhq/hyperloglog"
 	"github.com/dustin/go-humanize"
 
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -146,6 +147,61 @@ type ConditionExpr struct {
 	FalseValue *ValueExpr
 }
 
+type TimechartExpr struct {
+	TcOptions  *TcOptions
+	BinOptions *BinOptions
+	SingleAgg  *SingleAgg
+	ByField    string // group by this field inside each time range bucket (timechart)
+	LimitExpr  *LimitExpr
+}
+
+type LimitExpr struct {
+	IsTop          bool // True: keeps the N highest scoring distinct values of the split-by field
+	Num            int
+	LimitScoreMode LimitScoreMode
+}
+
+type SingleAgg struct {
+	MeasureOperations []*MeasureAggregator
+	//Split By clause
+}
+
+type TcOptions struct {
+	BinOptions *BinOptions
+	UseNull    bool
+	UseOther   bool
+	NullStr    string
+	OtherStr   string
+}
+
+type BinOptions struct {
+	SpanOptions *SpanOptions
+}
+
+type SpanOptions struct {
+	SpanLength *SpanLength
+}
+
+type SpanLength struct {
+	Num       int
+	TimeScalr utils.TimeUnit
+}
+
+type SplitByClause struct {
+	Field     string
+	TcOptions *TcOptions
+	// Where clause: to be finished
+}
+
+// This structure is used to store values which are not within limit. And These values will be merged into the 'other' category.
+type TMLimitResult struct {
+	ValIsInLimit     map[string]bool
+	GroupValScoreMap map[string]*utils.CValueEnclosure
+	Hll              *hyperloglog.Sketch
+	StrSet           map[string]struct{}
+	OtherCValArr     []*utils.CValueEnclosure
+}
+
 type BoolOperator uint8
 
 const (
@@ -167,6 +223,13 @@ const (
 	REMPhrase   = iota //Rename with a phrase
 	REMRegex           //Rename fields with similar names using a wildcard
 	REMOverride        //Rename to a existing field
+)
+
+type LimitScoreMode uint8
+
+const (
+	LSMBySum  = iota // If only a single aggregation is specified, the score is based on the sum of the values in the aggregation
+	LSMByFreq        // Otherwise the score is based on the frequency of the by field's val
 )
 
 type ValueExprMode uint8

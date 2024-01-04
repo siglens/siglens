@@ -19,6 +19,7 @@ package structs
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"strconv"
@@ -68,6 +69,8 @@ type MatchFilter struct {
 	MatchPhrase    []byte                 //whole string to search for in case of MatchPhrase query
 	MatchDictArray *MatchDictArrayRequest //array to search for in case of jaeger query
 	MatchType      MatchFilterType
+	NegateMatch    bool
+	Regexp         *regexp.Regexp
 }
 
 type MatchDictArrayRequest struct {

@@ -28,7 +28,7 @@ async function testAlertPagesButtons() {
     
         //To fetch http://localhost/alert.html from the browser with our code.
     
-        await driver.get("http://localhost/alert.html");
+        await driver.get("http://localhost:5122/alert.html");
         let cancelBtn = driver.findElement(By.id("cancel-alert-btn"));
         let cancelTxt = await cancelBtn.getText();
         let saveBtn = driver.findElement(By.id("save-alert-btn"));

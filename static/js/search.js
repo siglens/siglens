@@ -43,8 +43,13 @@ limitations under the License.
  function resetDataTable(firstQUpdate) {
      if (firstQUpdate) {
          $('#empty-response').hide();
-         $('#logs-view-controls').show();
-         $("#logs-result-container").show();
+         $("#custom-chart-tab").show();
+         let currentTab = $("#custom-chart-tab").tabs("option", "active");
+         if (currentTab == 0) {
+           $("#logs-view-controls").show();
+         } else {
+           $("#logs-view-controls").hide();
+         }
          $("#agg-result-container").hide();
          $("#data-row-container").hide();
          hideError();
@@ -541,6 +546,8 @@ function getColumns() {
          else filterValue += value;
          index++;
        });
+     }else{
+      filterValue = '*';
      }
      index = 0;
      let bothRight = 0;
@@ -720,7 +727,10 @@ function getColumns() {
  
          renderAvailableFields(columnOrder);
          renderLogsGrid(columnOrder, res.hits.records);
- 
+
+        $("#logs-result-container").show();
+        $("#agg-result-container").hide();
+         
          if (res && res.hits && res.hits.totalMatched) {
              totalHits = res.hits.totalMatched
          }
@@ -748,6 +758,7 @@ function getColumns() {
  
  function processEmptyQueryResults() {
      $("#logs-result-container").hide();
+    $("#custom-chart-tab").hide();
      $("#agg-result-container").hide();
      $("#data-row-container").hide();
      $('#corner-popup').hide();
@@ -783,6 +794,7 @@ function getColumns() {
       }
       resetDashboard();
       $("#logs-result-container").hide();
+      $("#custom-chart-tab").show();
       $("#agg-result-container").show();
       aggsColumnDefs = [];
       segStatsRowData = [];
@@ -824,10 +836,14 @@ function getColumns() {
  function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
      let columnOrder =[]
      let totalHits = res.totalMatched.value;
-     if (res.totalMatched.value === 0 && res.measure ===undefined) {
+     if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure ===undefined) {
          processEmptyQueryResults();
      }
+     if (res.measureFunctions && res.measureFunctions.length > 0) {
+       measureFunctions = res.measureFunctions;
+     }
      if (res.measure) {
+         measureInfo = res.measure;
          if (res.groupByCols) {
              columnOrder = _.uniq(_.concat(
                  res.groupByCols));
@@ -838,6 +854,7 @@ function getColumns() {
          }
          resetDashboard();
          $("#logs-result-container").hide();
+         $("#custom-chart-tab").show();
          $("#agg-result-container").show();
          aggsColumnDefs=[];
          segStatsRowData=[];
@@ -845,8 +862,13 @@ function getColumns() {
          if ((res.qtype ==="aggs-query" || res.qtype === "segstats-query") && res.bucketCount){
              totalHits = res.bucketCount;
          }
+     }else{
+      measureInfo = [];
      }
- 
+     let currentResTab = $("#custom-chart-tab").tabs("option", "active");
+     if (currentResTab == 1) {
+       timeChart();
+     }
      let totalTime = (new Date()).getTime() - startQueryTime;
      let percentComplete = res.percent_complete;
      if (res.total_rrc_count > 0){
@@ -899,6 +921,7 @@ function getColumns() {
      $('#corner-popup').hide();
      $('#empty-response').show();
      $('#logs-view-controls').hide();
+    $("#custom-chart-tab").hide();
      let el = $('#empty-response');
      $('#empty-response').empty();
      if (res && res.no_data_err && res.no_data_err.includes("No data found")){

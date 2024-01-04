@@ -31,7 +31,7 @@ async function testIndexPageButtons(){
         
         //To fetch http://localhost/index.html from the browser with our code.
         
-        await driver.get("http://localhost/index.html");
+        await driver.get("http://localhost:5122/index.html");
             
         // To find search buttons on the index.html page
         
@@ -89,7 +89,7 @@ async function testSearchInvalidQuery(){
                                     .build();
         
         //To fetch http://localhost/index.html from the browser with our code.
-        await driver.get("http://localhost/index.html");
+        await driver.get("http://localhost:5122/index.html");
             
         // Enter text in the search box
         let searchBox = await driver.findElement(By.id("filter-input"));
