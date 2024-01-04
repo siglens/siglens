@@ -460,7 +460,7 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 
 	allJsons, allCols, err := record.GetJsonFromAllRrc(rrcs, false, qid, segencmap, aggs)
 	if aggs != nil && aggs.TransactionArguments != nil && err == nil {
-		// Implement Splunk Transactiomn command.
+		// Process Splunk Transaction command.
 		allJsons, allCols, err = processTransactionsOnRecords(allJsons, allCols, aggs.TransactionArguments)
 	}
 	if err != nil {
@@ -598,7 +598,7 @@ func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
 
 }
 
-// Implement Splunk Transaction command based on the TransactionArguments on the JSON records.
+// Splunk Transaction command based on the TransactionArguments on the JSON records.
 func processTransactionsOnRecords(records []map[string]interface{}, allCols []string, transactionArgs *structs.TransactionArguments) ([]map[string]interface{}, []string, error) {
 
 	if transactionArgs == nil {
@@ -620,6 +620,22 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 	groupedRecords := make([]map[string]interface{}, 0)
 
 	groupState := make(map[string]structs.TransactionGroupState)
+
+	appendGroupedRecords := func(currentState structs.TransactionGroupState, transactionKey string) {
+
+		records, exists := groupRecords[transactionKey]
+
+		if !exists || len(records) == 0 {
+			return
+		}
+
+		groupedRecord := make(map[string]interface{})
+		groupedRecord["timestamp"] = currentState.Timestamp
+		groupedRecord["event"] = records
+		lastRecord := records[len(groupRecords[transactionKey])-1]
+		groupedRecord["duration"] = uint64(lastRecord["timestamp"].(uint64)) - currentState.Timestamp
+		groupedRecords = append(groupedRecords, groupedRecord)
+	}
 
 	for _, record := range records {
 
@@ -649,7 +665,8 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 
 		currentState := groupState[transactionKey]
 
-		// If StartsWith is given, then the transaction Should only Open when the record matches the StartsWith. Or if StartsWith not present, then the transaction should open for all records.
+		// If StartsWith is given, then the transaction Should only Open when the record matches the StartsWith. OR
+		// if StartsWith not present, then the transaction should open for all records.
 		if (transactionStartsWith != "" && strings.Contains(recordMapStr, transactionStartsWith)) || transactionStartsWith == "" {
 			if !currentState.Open {
 				currentState.Open = true
@@ -658,8 +675,17 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 				groupState[transactionKey] = currentState
 
 				groupRecords[transactionKey] = make([]map[string]interface{}, 0)
-			} else if currentState.Open && transactionEndsWith == "" && transactionStartsWith != "" { // If StartsWith is given, but endsWith is not given, then the startswith will apply for endswith also.
-				transactionEndsWith = transactionStartsWith
+			} else if currentState.Open && transactionEndsWith == "" && transactionStartsWith != "" {
+				// If StartsWith is given, but endsWith is not given, then the startswith will be the end of the transaction.
+				// So close with last record and open a new transaction.
+				appendGroupedRecords(currentState, transactionKey)
+
+				currentState.Timestamp = uint64(record["timestamp"].(uint64))
+
+				groupState[transactionKey] = currentState
+
+				groupRecords[transactionKey] = make([]map[string]interface{}, 0)
+
 			}
 		}
 
@@ -671,11 +697,7 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 		if transactionEndsWith != "" {
 			if strings.Contains(recordMapStr, transactionEndsWith) {
 				if currentState.Open {
-					groupedRecord := make(map[string]interface{})
-					groupedRecord["timestamp"] = currentState.Timestamp
-					groupedRecord["event"] = groupRecords[transactionKey]
-					groupedRecord["duration"] = uint64(record["timestamp"].(uint64)) - currentState.Timestamp
-					groupedRecords = append(groupedRecords, groupedRecord)
+					appendGroupedRecords(currentState, transactionKey)
 
 					currentState.Open = false
 					currentState.Timestamp = 0
@@ -687,12 +709,8 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 
 	// Only group By fields. In this case, the groupRecords will not be appended to the groupedRecords. So we need to append them here.
 	if transactionStartsWith == "" && transactionEndsWith == "" {
-		for _, groupRecord := range groupRecords {
-			groupedRecord := make(map[string]interface{})
-			groupedRecord["timestamp"] = groupRecord[0]["timestamp"]
-			groupedRecord["event"] = groupRecord
-			groupedRecord["duration"] = uint64(groupRecord[len(groupRecord)-1]["timestamp"].(uint64)) - uint64(groupRecord[0]["timestamp"].(uint64))
-			groupedRecords = append(groupedRecords, groupedRecord)
+		for key, _ := range groupRecords {
+			appendGroupedRecords(groupState[key], key)
 		}
 	}
 

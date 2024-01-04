@@ -198,6 +198,7 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 					fields = append(fields, eventMap[field].(string))
 				}
 
+				// Check if the fields are same for all events by assigning the first event's fields to initFields
 				if ind == 0 {
 					initFields = fields
 				}
