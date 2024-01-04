@@ -76,6 +76,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			valuesToLabels[rawIncludeValue.ColName] = rawIncludeValue.Label
 		}
 	}
+
 	var hardcodedArray = []string{}
 	var renameHardcodedColumns = make(map[string]string)
 	if aggs != nil && aggs.OutputTransforms != nil && aggs.OutputTransforms.HarcodedCol != nil {
@@ -90,6 +91,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	allRecords := make([]map[string]interface{}, len(allrrc))
 	finalCols := make(map[string]bool)
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
+
 	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock {
 		for currSeg, blkIds := range segmap {
 			recs, cols, err := GetRecordsFromSegment(currSeg, blkIds.VirtualTableName, blkIds.BlkRecIndexes,

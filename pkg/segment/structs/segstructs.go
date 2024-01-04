@@ -95,6 +95,7 @@ const (
 	OutputTransformType PipeCommandType = iota + 1
 	MeasureAggsType
 	GroupByType
+	TransactionType
 )
 
 type QueryType uint8
@@ -112,18 +113,31 @@ type SortRequest struct {
 	Ascending bool   // if true, result is in ascending order. Else, result is in descending order
 }
 
+type TransactionArguments struct {
+	Fields     []string
+	StartsWith string
+	EndsWith   string
+}
+
+type TransactionGroupState struct {
+	Key       string
+	Open      bool
+	Timestamp uint64
+}
+
 type QueryAggregators struct {
-	PipeCommandType   PipeCommandType
-	OutputTransforms  *OutputTransforms
-	MeasureOperations []*MeasureAggregator
-	TimeHistogram     *TimeBucket     // Request for time histograms
-	GroupByRequest    *GroupByRequest // groupby aggregation request
-	Sort              *SortRequest    // how to sort resulting data
-	EarlyExit         bool            // should query early exit
-	BucketLimit       int
-	ShowRequest       *ShowRequest
-	TableName         string
-	Next              *QueryAggregators
+	PipeCommandType      PipeCommandType
+	OutputTransforms     *OutputTransforms
+	MeasureOperations    []*MeasureAggregator
+	TimeHistogram        *TimeBucket     // Request for time histograms
+	GroupByRequest       *GroupByRequest // groupby aggregation request
+	Sort                 *SortRequest    // how to sort resulting data
+	EarlyExit            bool            // should query early exit
+	BucketLimit          int
+	ShowRequest          *ShowRequest
+	TableName            string
+	TransactionArguments *TransactionArguments
+	Next                 *QueryAggregators
 }
 
 type ShowRequest struct {
