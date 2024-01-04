@@ -94,7 +94,6 @@ You should be able to access `http://localhost:5122` and see the SigLens UI. If 
 
 ### Send Data to SigLens
 
-To send data, go to `tools/sigclient`.
 
 In another terminal, go to the location of sigclient:
 ```
