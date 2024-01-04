@@ -515,7 +515,7 @@ body {
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
     border-radius: 0 5px 5px 0;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     margin-right: 8px;
 }
 
@@ -527,7 +527,9 @@ body {
 }
 
 #app-side-nav .menu.logo {
-    padding: 14px 0 14px 10px;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
 }
 #app-side-nav.active .menu.logo {
     padding: 20px 0 20px 0px;
@@ -732,7 +734,7 @@ body {
 #test-data-btn{
     margin: 0;
     text-decoration: none;
-    height: 40px;
+    height: 30px;
 }
 .run-metrics-query-btn{
     margin: 0;
@@ -886,10 +888,10 @@ input.form-control:focus {
     margin-top: 15px;
     margin-left: 23px;
     margin-right: 25px;
-    height: 10px;
+    height: 8px;
 
-    font-size: 16px;
-    font-weight: var(--fw-500);
+    font-size: 14px;
+    font-weight: 600;
 }
 
 #percent-value {
@@ -898,7 +900,8 @@ input.form-control:focus {
 }
 
 progress {
-    height: 10px!important;
+    margin-top: 4px;
+    height: 5px!important;
     width: 100%;
     text-align: center;
     background-color: var(--progress-bar-bg-color);
@@ -969,8 +972,8 @@ progress.hidden {
 }
 
 #log-view {
-    width: 120px;
-    height: 40px;
+    width: 102px;
+    height: 30px;
     background-color: var(--drop-down-btn-bg-regular);
     border-radius: 5px;
     border: 1px solid var(--border-btn-color);
@@ -991,8 +994,8 @@ progress.hidden {
 
 .single-line-icon {
     background-image: url("../assets/single-line-icon.svg");
-    height: 16px;
-    width: 16px;
+    background-size: 15px;
+
 }
 
 .multi-line-icon {
@@ -1009,8 +1012,7 @@ progress.hidden {
 
 .btn.active .single-line-icon {
     background-image: url("../assets/single-line-icon-active.svg");
-    height: 16px;
-    width: 16px;
+    background-size: 24px;
 }
 
 .btn.active .multi-line-icon {
@@ -1035,19 +1037,23 @@ progress.hidden {
 #log-opt-multi-btn,
 #log-opt-table-btn {
     width: 32px;
-    height: 32px;
-    padding: 0 9px;
+    height: 22px;
     border-radius: 4px !important;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0px;
 }
+
 #log-opt-single-btn {
-    margin: 4px;
+    margin: 3px;
 }
 #log-opt-multi-btn {
-    margin: 4px 4px 4px 0;
+    margin: 3px 3px 3px 0;
 }
 
 #log-opt-table-btn {
-    margin: 4px 4px 4px 0;
+    margin: 3px 3px 3px 0;
 }
 
 #log-opt-single-btn:hover,
@@ -1632,7 +1638,7 @@ progress.hidden {
     cursor: pointer;
     margin-left: 12px;
     margin-right: 12px;
-    padding: 6px 0;
+    padding: 4px 0;
     padding-left: 12px;
     font-weight: var(--fw-400);
     font-family: "DINpro", Arial, sans-serif;
@@ -1988,27 +1994,25 @@ progress.hidden {
 
 /*  start available fields dropdown overrides */
 #available-fields {
-    max-height: 224px;
+    max-height: 204px;
     background: var(--index-drop-down-box-bg-color);
     overflow-y: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    border: 1px solid var(--timepicker-border-color);
 }
 #available-fields::-webkit-scrollbar {
     width: 0;
 }
 .available-fields-dropdown-item {
-    width: 321px;
-    height: 35px;
-    background: var(--available-fields-drop-down-box-bg-color);
-    color: var(--available-fields-drop-down-item-inactive-text-color);
+    height: 32px;
+    background: var(--index-drop-down-item-inactive-bg-color);
+    color: var(--index-drop-down-item-inactive-text-color);
     margin-bottom: 10px;
-    margin-top: 10px;
+    margin-top: 6px;
     cursor: pointer;
-    margin-left: 6px;
-    margin-right: 12px;
     padding-left: 12px;
-    font-size: 18px;
+    font-size: 14px;
     font-weight: var(--fw-400);
     font-family: "DINpro", Arial, sans-serif;
     padding-top: 2px;
@@ -2039,7 +2043,7 @@ progress.hidden {
 
 #select-unselect-header {
     color: var(--select-unselect-header-text-color);
-    font-size: 16px;
+    font-size: 14px;
     font-weight: var(--fw-500);
     font-family: "DINpro", Arial, sans-serif;
     left: 11px !important;
@@ -2172,7 +2176,7 @@ div#download-info {
 }
 
 .ui-widget input {
-    font-size: 1em;
+    font-size: 14px;
     background: var(--ui-widget-bg-color);
     padding: 13px 0 14px 14px;
     box-sizing: border-box;
@@ -2291,6 +2295,9 @@ input[type="submit" i] {
     justify-content: space-around;
     align-items: center;
     border: 1px solid var(--border-btn-color);
+}
+.dropdown-menu{
+    font-size: 14px !important;
 }
  
 .dropdown-menu.daterangepicker.show{
@@ -2566,9 +2573,9 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 .info-icon {
-    font-size: 22px;
+    font-size: 16px;
     color: var(--text-color);
-    top: .75rem;
+    top: .5rem;
     /*left: 62.75rem;*/
     pointer-events: all;
     cursor:pointer;
@@ -2636,23 +2643,19 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     color: var(--text-color) !important;
 }
 
-.ag-header{
-    min-height: 40px!important;
-}
-
 .ag-theme-mycustomtheme {
     min-height: 35px!important;
 }
 
 .ag-header-row {
-    min-height: 42px!important;
+    /* min-height: 42px!important; */
     /* margin-top: 6px; */
     height: auto;
 }
 .ag-header-cell-text {
     text-indent: 12px  !important;
     color: var(--text-color) !important;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: bold;
 }
 
@@ -2661,11 +2664,11 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
  .ag-cell {
     padding: 3px 15px !important;
-    font-size: 16px;
+    font-size: 14px;
 }
 
 .ag-theme-mycustomtheme .ag-row{
-    min-height: 35px!important;
+    min-height: 30px!important;
 }
 
 .ag-theme-mycustomtheme .ag-center-cols-container {
@@ -4378,13 +4381,13 @@ color: #C8C7CC;
 
 .clear-icon {
     position: absolute;
-    top: 15px;
-    right: 42px;
+    top: 11px;
+    right: 35px;
     cursor: pointer;
     display: none;
     background: url(../assets/cross-btn-icon.svg);
-    height: 15px;
-    width: 15px;
+    height: 11px;
+    width: 11px;
     background-size: cover;
 }
 
@@ -4501,7 +4504,6 @@ color: #C8C7CC;
 
 /* Create Dashboard from logs popup */
 #add-logs-to-db-btn,#alert-from-logs-btn{
-    height: 44px;
     margin-left: 10px;
 }
 
