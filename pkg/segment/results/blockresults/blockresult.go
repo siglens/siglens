@@ -518,8 +518,9 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 
 	bucketNum := 0
 	results := make([]*structs.BucketResult, len(gb.AllRunningBuckets))
-	tmLimitResult.Hll = hyperloglog.New16()
-	tmLimitResult.ValIsInLimit = aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, tmLimitResult.GroupValScoreMap)
+	tmLimitResult.Hll = hyperloglog.New14()
+	tmLimitResult.StrSet = make(map[string]struct{}, 0)
+	tmLimitResult.ValIsInLimit = aggregations.CheckGroupByColValsAgainstLimit(timechart, gb.GroupByColValCnt, tmLimitResult.GroupValScoreMap, req.MeasureOperations)
 	for key, idx := range gb.StringBucketIdx {
 		bucket := gb.AllRunningBuckets[idx]
 		currRes := make(map[string]utils.CValueEnclosure)
@@ -592,7 +593,8 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 			}
 		}
 
-		var hll *hyperloglog.Sketch
+		var hllToMerge *hyperloglog.Sketch
+		var strSetToMerge map[string]struct{}
 		var eVal utils.CValueEnclosure
 		switch mInfo.MeasureFunc {
 		case utils.Count:
@@ -673,7 +675,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 			} else {
 				finalVal := runningStats[valIdx].hll.Estimate()
 				eVal = utils.CValueEnclosure{CVal: finalVal, Dtype: utils.SS_DT_UNSIGNED_NUM}
-				hll = runningStats[valIdx].hll
+				hllToMerge = runningStats[valIdx].hll
 			}
 
 			idx++
@@ -691,6 +693,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 				currRes[mInfoStr] = utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_INVALID}
 				continue
 			}
+			strSetToMerge = strSet
 
 			uniqueStrings := make([]string, 0)
 			for str := range strSet {
@@ -700,7 +703,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 			sort.Strings(uniqueStrings)
 
 			strVal := strings.Join(uniqueStrings, "&nbsp")
-			currRes[mInfoStr] = utils.CValueEnclosure{
+			eVal = utils.CValueEnclosure{
 				Dtype: utils.SS_DT_STRING,
 				CVal:  strVal,
 			}
@@ -711,7 +714,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 			eVal = runningStats[valIdx].rawVal
 			idx++
 		}
-		shouldAddRes := aggregations.ShouldAddRes(timechart, tmLimitResult, index, eVal, hll, mInfo.MeasureFunc, groupByColVal, isOtherCol)
+		shouldAddRes := aggregations.ShouldAddRes(timechart, tmLimitResult, index, eVal, hllToMerge, strSetToMerge, mInfo.MeasureFunc, groupByColVal, isOtherCol)
 		if shouldAddRes {
 			currRes[mInfoStr] = eVal
 		}
