@@ -218,7 +218,7 @@ InitialSearchBlock <- CMD_SEARCH? clause:ClauseLevel4 {
     return clause, nil
 }
 
-SearchBlock <- CMD_SEARCH clause:ClauseLevel4 {
+SearchBlock <- !(ALLCMD) CMD_SEARCH? clause:ClauseLevel4 {
     return clause, nil
 }
 
@@ -2030,6 +2030,8 @@ Subseconds <- ("us" / "ms" / "cs" / "ds") {
     return timeUnit, nil
 }
 
+// All cmd expect CMD_SEARCH
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
