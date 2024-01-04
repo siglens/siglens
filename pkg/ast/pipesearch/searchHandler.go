@@ -709,7 +709,7 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 
 	// Only group By fields. In this case, the groupRecords will not be appended to the groupedRecords. So we need to append them here.
 	if transactionStartsWith == "" && transactionEndsWith == "" {
-		for key, _ := range groupRecords {
+		for key := range groupRecords {
 			appendGroupedRecords(groupState[key], key)
 		}
 	}
