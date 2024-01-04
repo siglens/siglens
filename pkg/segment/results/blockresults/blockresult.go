@@ -567,6 +567,8 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 		}
 		bucketNum++
 	}
+
+	aggregations.SortTimechartRes(timechart, &results)
 	return &structs.AggregationResult{
 		IsDateHistogram: false,
 		Results:         results,

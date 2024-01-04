@@ -112,3 +112,5 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "city=Boston | stats max(latitude), range(eval(latitude >= 0)) AS range",now-1d,now,*,group:range:*,eq,89.752,Splunk QL
 "* | stats count(eval(latitude < 0)) AS count, dc(eval(lower(app_name)))",now-1d,now,*,group:count:*,eq,"50,146",Splunk QL
 "* | stats min(eval(latitude < 0)), max(eval(latitude < 0)) AS max, range(eval(latitude < 0)) BY weekday",now-1d,now,*,group:max:Monday,eq,-0.004012,Splunk QL
+"app_name=""Albumis"" (Wednesday OR Tuesday)",now-1d,now,*,total,eq,2,Splunk QL
+"app_name=""Albumis"" (Wednesday OR Tuesday) NOT asdfjklnvwer",now-1d,now,*,total,eq,2,Splunk QL
