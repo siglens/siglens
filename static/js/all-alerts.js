@@ -129,7 +129,12 @@ let alertColumnDefs = [
     {
         headerName: "State",
         field: "alertState",
-        width:50,
+        width: 50,
+        cellClass: (params) => {
+            const alertState = params.data.alertState.toLowerCase();
+            console.log(alertState)
+            return `cell-${alertState}`;
+        }
     },
     {
         headerName: "Alert Name",
