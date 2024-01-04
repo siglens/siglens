@@ -180,6 +180,7 @@ echo -e "\n===> Pulling the latest docker image for SigLens"
 
 curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
 curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
+curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/otel-collector-config.yaml"
 
 $sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION}
 mkdir -p data

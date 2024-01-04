@@ -1,0 +1,22 @@
+
+receivers:
+  otlp:
+    protocols:
+      http:
+  
+exporters:
+  otlphttp/siglens:
+      endpoint: "http://localhost:8081/otlp"
+
+processors:
+  batch:
+    send_batch_size: 1000
+    timeout: 10s
+
+service:
+  pipelines:
+    traces:
+      exporters: [otlphttp/siglens]
+      receivers: [otlp]
+      processors: [batch]
+
