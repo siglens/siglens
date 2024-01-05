@@ -376,9 +376,14 @@ func (p Sqlite) GetAllAlerts() ([]alertutils.AlertInfo, error) {
 		log.Errorf("getAllAlerts: unable to begin transaction, err: %+v", err)
 		return nil, err
 	}
-	// #todo: Add silence_minutes back in actual fix
-	// sqlStatement := "SELECT alert_id, alert_name, state, create_timestamp, contact_id, labels, silence_minutes FROM all_alerts;"
-	sqlStatement := "SELECT alert_id, alert_name, state, create_timestamp, contact_id, labels FROM all_alerts;"
+	sqlSta := "ALTER TABLE all_alerts ADD COLUMN silence_minutes INTEGER DEFAULT 0;"
+	_, errorAlter := tx.Exec(sqlSta)
+	if err != nil {
+		log.Errorf("getAllAlerts: Error adding column: %v, err: %+v", sqlSta, errorAlter)
+		return nil, err
+	}
+
+	sqlStatement := "SELECT alert_id, alert_name, state, create_timestamp, contact_id, labels, silence_minutes FROM all_alerts;"
 	rows, err := tx.Query(sqlStatement)
 	if err != nil {
 		log.Errorf("getAllAlerts: unable to execute query: %v, err: %+v", sqlStatement, err)
@@ -394,12 +399,9 @@ func (p Sqlite) GetAllAlerts() ([]alertutils.AlertInfo, error) {
 			create_timestamp time.Time
 			contact_id       string
 			labels           []byte
-			// #todo: Add silence_minutes back in actual fix
-			// silence_minutes  uint64
+			silence_minutes  uint64
 		)
-		// #todo: Add silence_minutes back in actual fix
-		// err := rows.Scan(&alert_id, &alert_name, &state, &create_timestamp, &contact_id, &labels, &silence_minutes)
-		err := rows.Scan(&alert_id, &alert_name, &state, &create_timestamp, &contact_id, &labels)
+		err := rows.Scan(&alert_id, &alert_name, &state, &create_timestamp, &contact_id, &labels, &silence_minutes)
 		if err != nil {
 			log.Errorf("getAllAlerts: uanble to scan row: %+v", err)
 			_ = tx.Rollback()
@@ -412,9 +414,7 @@ func (p Sqlite) GetAllAlerts() ([]alertutils.AlertInfo, error) {
 			_ = tx.Rollback()
 			return nil, err
 		}
-		// #todo: Add silence_minutes back in actual fix
-		// alerts = append(alerts, alertutils.AlertInfo{AlertId: alert_id, AlertName: alert_name, State: state, CreateTimestamp: create_timestamp, ContactId: contact_id, Labels: labels_array, SilenceMinutes: silence_minutes})
-		alerts = append(alerts, alertutils.AlertInfo{AlertId: alert_id, AlertName: alert_name, State: state, CreateTimestamp: create_timestamp, ContactId: contact_id, Labels: labels_array})
+		alerts = append(alerts, alertutils.AlertInfo{AlertId: alert_id, AlertName: alert_name, State: state, CreateTimestamp: create_timestamp, ContactId: contact_id, Labels: labels_array, SilenceMinutes: silence_minutes})
 	}
 	err = tx.Commit()
 	if err != nil {

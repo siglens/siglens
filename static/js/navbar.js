@@ -104,7 +104,7 @@ $(document).ready(function () {
         $(".nav-usq").addClass("active");
     } else if (currentUrl.includes("alerts.html") || currentUrl.includes("alert.html") || currentUrl.includes("alert-details.html")   || currentUrl.includes("contacts.html")){
         $(".nav-alerts").addClass("active");
-    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("test-data.html")) {
+    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("test-data.html") || currentUrl.includes("application-version.html")) {
         $(".nav-myorg").addClass("active");
     } else if (currentUrl.includes("minion-searches.html")) {
         $(".nav-minion").addClass("active");
