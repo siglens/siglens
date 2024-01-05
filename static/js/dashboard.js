@@ -31,8 +31,8 @@ $(document).ready(function () {
         $('#new-dashboard').css("width", "calc(100% - 97px)")
     }
     else {
-        $('#new-dashboard').css("transform", "translate(205px)")
-        $('#new-dashboard').css("width", "calc(100% - 215px)")
+        $('#new-dashboard').css("transform", "translate(170px)")
+        $('#new-dashboard').css("width", "calc(100% - 180px)")
     }
 
     panelContainer = document.getElementById('panel-container');
@@ -44,7 +44,6 @@ $(document).ready(function () {
         theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
     }
-    displayNavbar();
     $('.theme-btn').on('click', themePickerHandler);
     setupEventHandlers();
     dbId = getDashboardId();

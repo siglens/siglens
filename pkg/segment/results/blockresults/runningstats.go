@@ -23,6 +23,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
+	bbp "github.com/valyala/bytebufferpool"
 )
 
 type RunningBucketResults struct {
@@ -70,6 +71,13 @@ func (rr *RunningBucketResults) AddTimeToBucketStats(count uint16) {
 
 func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, qid uint64,
 	cnt uint64, usedByTimechart bool) {
+	if runningStats == nil {
+		if rr.runningStats == nil {
+			return
+		}
+		runningStats = &rr.runningStats
+	}
+
 	for i := 0; i < len(*runningStats); i++ {
 		switch rr.currStats[i].MeasureFunc {
 		case utils.Sum:
@@ -89,12 +97,16 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 			i += step
 		case utils.Cardinality:
 			if rr.currStats[i].ValueColRequest == nil {
-				rawVal, err := measureResults[i].GetUIntValue()
+				rawVal, err := measureResults[i].GetString()
 				if err != nil {
 					log.Errorf("AddMeasureResults: failed to add measurement to running stats: %v", err)
 					continue
 				}
-				(*runningStats)[i].hll.InsertHash(rawVal)
+				bb := bbp.Get()
+				defer bbp.Put(bb)
+				bb.Reset()
+				_, _ = bb.WriteString(rawVal)
+				(*runningStats)[i].hll.Insert(bb.B)
 				continue
 			}
 			fallthrough
@@ -122,14 +134,22 @@ func (rr *RunningBucketResults) MergeRunningBuckets(toJoin *RunningBucketResults
 	}
 
 	// Merge group by bucket inside each time range bucket (For timechart)
-	if rr.groupedRunningStats != nil && len(rr.groupedRunningStats) > 0 {
+	if toJoin.groupedRunningStats != nil && rr.groupedRunningStats == nil {
+		rr.groupedRunningStats = toJoin.groupedRunningStats
+	} else if rr.groupedRunningStats != nil && len(rr.groupedRunningStats) > 0 {
 		for groupByColVal, runningStats := range rr.groupedRunningStats {
 			toJoinRunningStats, exists := toJoin.groupedRunningStats[groupByColVal]
 			if !exists {
-				log.Errorf("MergeRunningBuckets: groupByColVal: %v does not have a runningStats", groupByColVal)
 				continue
 			}
 			rr.mergeRunningStats(&runningStats, toJoinRunningStats)
+		}
+
+		for groupByColVal, toJoinRunningStats := range toJoin.groupedRunningStats {
+			_, exists := rr.groupedRunningStats[groupByColVal]
+			if !exists {
+				rr.groupedRunningStats[groupByColVal] = toJoinRunningStats
+			}
 		}
 	}
 

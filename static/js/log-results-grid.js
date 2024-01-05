@@ -130,6 +130,7 @@ const gridOptions = {
     animateRows: true,
     readOnlyEdit: true,
     singleClickEdit: true,
+    headerHeight:32,
     defaultColDef: {
         initialWidth: 100,
         sortable: true,

@@ -15,4 +15,5 @@ div#download-info {
 }
 .ui-draggable .ui-dialog-titlebar{
     padding: 22px 0 10px 20px !important;
+    background-color: var(--bg-color);
 }
