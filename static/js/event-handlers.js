@@ -640,7 +640,6 @@ function processTableViewOption() {
 }
 
 function themePickerHandler(evt) {
-    console.log("dsfadsfsdf");
 
     if (Cookies.get('theme')){
         theme = Cookies.get('theme');
