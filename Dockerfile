@@ -27,9 +27,14 @@ COPY static static
 COPY server.yaml .
 
 RUN chown -R $UNAME:$GID static
+RUN chown -R $UNAME:$GID /siglens
 USER $UNAME
 
 WORKDIR /$UNAME
 COPY --from=build /usr/app/cmd/siglens/build/siglens .
-RUN chown -R $UNAME:$GID /siglens
+
+USER root
+RUN chown $UNAME:$GID siglens
+
+USER $UNAME
 CMD ["./siglens", "--config", "server.yaml"]
