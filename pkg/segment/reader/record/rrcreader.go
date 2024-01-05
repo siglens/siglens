@@ -109,7 +109,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			for recInden, record := range recs {
 
 				if hasQueryAggergatorBlock {
-					agg.PostQueryBucketCleaning(nil, aggs, recs, finalCols)
+					nodeRes := &structs.NodeResult{}
+					agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
 				}
 
 				for key, val := range renameHardcodedColumns {
