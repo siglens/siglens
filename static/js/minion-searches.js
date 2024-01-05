@@ -53,6 +53,7 @@ const gridOptions = {
       readOnlyEdit: true,
       autoHeight: true,
     },
+    headerHeight:32,
     columnDefs:columnDefs,
     pagination: true,
     paginationAutoPageSize: true,
