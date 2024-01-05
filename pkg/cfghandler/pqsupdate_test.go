@@ -1,9 +1,10 @@
 package cfghandler
 
 import (
+	"testing"
+
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestSavePQSConfigToRunMod(t *testing.T) {
