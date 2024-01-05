@@ -16,14 +16,14 @@ type PqsConfig struct {
 }
 
 func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
-	var config PqsConfig
-	err := json.Unmarshal(ctx.PostBody(), &config)
+	var cfg PqsConfig
+	err := json.Unmarshal(ctx.PostBody(), &cfg)
 	if err != nil {
 		log.Errorf("PostPqsUpdate:Error parsing request body: %v", err)
 		ctx.Error("Bad Request", fasthttp.StatusBadRequest)
 		return
 	}
-	if err := SavePQSConfigToRunMod(config.PQSEnabled); err != nil {
+	if err := SavePQSConfigToRunMod(config.RunModFilePath, cfg.PQSEnabled); err != nil {
 		log.Errorf("PostPqsUpdate:Error saving pqsEnabled: %v", err)
 
 		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
@@ -39,10 +39,10 @@ func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
 
 	}
 }
-func SavePQSConfigToRunMod(pqsEnabled string) error {
-	file, err := os.OpenFile(config.RunModFilePath, os.O_CREATE|os.O_WRONLY, 0666)
+func SavePQSConfigToRunMod(filepath, pqsEnabled string) error {
+	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		log.Errorf("SavePQSConfigToRunMod:Failed to open or create the file %s: %v", config.RunModFilePath, err)
+		log.Errorf("SavePQSConfigToRunMod:Failed to open or create the file %s: %v", filepath, err)
 		return err
 	}
 	defer file.Close()
@@ -51,17 +51,12 @@ func SavePQSConfigToRunMod(pqsEnabled string) error {
 
 	err = encoder.Encode(configData)
 	if err != nil {
-		log.Errorf("SavePQSConfigToRunMod:Failed to encode JSON data to file %s: %v", config.RunModFilePath, err)
+		log.Errorf("SavePQSConfigToRunMod:Failed to encode JSON data to file %s: %v", filepath, err)
 		return err
 	}
 
 	if strings.ToLower(pqsEnabled) == "disabled" {
 		querytracker.ClearPqs()
-		err = config.ClearPqsFiles()
-		if err != nil {
-			log.Errorf("SavePQSConfigToRunMod:Failed to clear PQS data and files: %v", err)
-			return err
-		}
 	}
 
 	return nil

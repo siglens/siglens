@@ -149,6 +149,10 @@ type Configuration struct {
 	DatabaseConfig             DatabaseConfig `yaml:"minionSearch"`
 }
 
+type RunModConfig struct {
+	PQSEnabled string `json:"pqsEnabled"`
+}
+
 var runningConfig Configuration
 var configFilePath string
 
@@ -517,9 +521,10 @@ func InitConfigurationData() error {
 		return err
 	}
 	runningConfig = config
-	err = ReadRunModConfig()
+	var readConfig RunModConfig
+	readConfig, err = ReadRunModConfig(RunModFilePath)
 	if err != nil {
-		log.Errorf("InitConfigurationData:Failed to read runmod config: %v", err)
+		log.Errorf("InitConfigurationData: Failed to read runmod config: %v, config: %+v", err, readConfig)
 	}
 	fileInfo, err := os.Stat(configFilePath)
 	if err != nil {
@@ -592,40 +597,42 @@ func InitializeTestingConfig() {
 	SetDataPath("data/")
 }
 
-func ReadRunModConfig() error {
-	_, err := os.Stat(RunModFilePath)
+func ReadRunModConfig(fileName string) (RunModConfig, error) {
+	_, err := os.Stat(fileName)
 	if os.IsNotExist(err) {
-		return nil
+		log.Infof("ReadRunModConfig:Config file '%s' does not exist. Awaiting user action to create it.", fileName)
+		return RunModConfig{}, nil
 	} else if err != nil {
-		log.Errorf("ReadRunModConfig:Error accessing runmod.cfg: %v", err)
-		return err
+		log.Errorf("ReadRunModConfig:Error accessing config file '%s': %v", fileName, err)
+		return RunModConfig{}, err
 	}
 
-	jsonData, err := os.ReadFile(RunModFilePath)
+	jsonData, err := os.ReadFile(fileName)
 	if err != nil {
-		log.Errorf("ReadRunModConfig:Failed to read runmod.cfg: %v", err)
-		return err
+		log.Errorf("ReadRunModConfig:Cannot read input fileName = %v, err=%v", fileName, err)
 	}
-	var runModConfig struct {
-		PQSEnabled string `json:"pqsEnabled"`
-	}
-	err = json.Unmarshal(jsonData, &runModConfig)
+	return ExtractReadRunModConfig(jsonData)
+}
+
+func ExtractReadRunModConfig(jsonData []byte) (RunModConfig, error) {
+	var config RunModConfig
+	err := json.Unmarshal(jsonData, &config)
 	if err != nil {
-		log.Errorf("ReadRunModConfig:Failed to parse runmod.cfg: %v", err)
-		return err
+		log.Errorf("ExtractReadRunModConfig:Failed to parse runmod.cfg: %v", err)
+		return config, err
 	}
 	var pqsCheck bool
-	switch strings.ToLower(runModConfig.PQSEnabled) {
+	switch strings.ToLower(config.PQSEnabled) {
 	case "enabled":
 		pqsCheck = true
 	case "disabled":
 		pqsCheck = false
 	default:
-		log.Errorf("ReadRunModConfig:Invalid PQSEnabled value in runmod.cfg: %s", runModConfig.PQSEnabled)
+		log.Errorf("ExtractReadRunModConfig:Invalid PQSEnabled value in runmod.cfg: %s", config.PQSEnabled)
 	}
 
 	SetPQSEnabled(pqsCheck)
-	return nil
+	return config, nil
 }
 
 func ReadConfigFile(fileName string) (Configuration, error) {
@@ -634,23 +641,6 @@ func ReadConfigFile(fileName string) (Configuration, error) {
 		log.Errorf("Cannot read input fileName = %v, err=%v", fileName, err)
 	}
 	return ExtractConfigData(yamlData)
-}
-
-func ClearPqsFiles() error {
-	baseDir := GetDataPath() + "querynodes/" + GetHostID() + "/pqueries/"
-	files := []string{baseDir + "pqinfo.bin", baseDir + "aggsinfo.bin", baseDir + "groupinfo.bin"}
-	for _, file := range files {
-		err := os.Remove(file)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			log.Errorf("ClearPqsFiles:Failed to delete file: %v, error: %v", file, err)
-			return err
-		}
-	}
-
-	return nil
 }
 
 func ExtractConfigData(yamlData []byte) (Configuration, error) {
