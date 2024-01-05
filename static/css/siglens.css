@@ -381,7 +381,7 @@ body {
     background: var(--bg-color);
     color: var(--text-color);
 
-    font-size: 18px;
+    font-size: 14px;
     font-weight: var(--fw-400);
     font-family: "DINpro", Arial, sans-serif;
     min-height: 100%;
@@ -740,7 +740,7 @@ body {
     margin: 0;
     text-decoration: none;
     border: none;
-    height: 40px;
+    height: 32px;
 }
 #query-language-btn {
     width: 108px;
@@ -752,7 +752,7 @@ body {
 
 
 .avail-fields-btn {
-    height: 40px;
+    height: 30px;
 }
 #alert-btn:hover,
 #index-btn:hover,
@@ -831,6 +831,7 @@ body {
     color: var(--drop-down-text-color) !important;
     border-radius: 5px;
     box-shadow: none !important;
+    font-size: 14px;
 }
 
 .btn:focus {
@@ -860,7 +861,7 @@ body {
 input.form-control {
     background: var(--hits-summary-bg-regular) !important;
     color: var(--search-bar-text-color-regular-or-hover);
-    font-size: 1rem;
+    font-size: 14px;
     border-radius: 5px;
     transition: none;
     box-shadow: none !important;
@@ -1314,7 +1315,7 @@ progress.hidden {
 .ingestion-stats-header {
     padding-left: 15px;
     margin-bottom: 12px;
-    font-size: 20px;
+    font-size: 16px;
     color: var(--cstats-header-text-color);
     font-weight: 200 !important;
     font-family: "DINpro", Arial, sans-serif;    
@@ -3127,8 +3128,7 @@ float: right;
 }
 
 .search-db-input,.metrics-input{
-    padding: 15px 12px;
-    height: 40px;
+    height: 32px;
 }
 
 .dbSet-textareaContainer .copy{
@@ -3263,13 +3263,24 @@ float: right;
 }
 
 #metrics-display-toggle-container{
-    margin: 10px 0 10px 22px;
+    margin: 0px 0 10px 22px;
+    width: 150px;
+    height: 30px;
+    border-radius: 5px;
+    background: var(--myOrg-input);
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
 }
 
 .metrics-table-btn,.metrics-graph-btn{
-    height: 40px;
-    margin-right: 10px;
+    height: 22px;
+    margin: 4px;
     width: 70px;
+    padding: 0px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .metrics-table-btn.active,.metrics-graph-btn.active{
@@ -3552,7 +3563,7 @@ float: right;
 
 .myOrg-heading {
     font-weight: bold;
-    font-size: 22px;
+    font-size: 18px;
     color: var(--datatable-header-text-color);
 }
 
@@ -4817,7 +4828,6 @@ color: #C8C7CC;
 .query-language-btn,
 .index-btn,
 .filter-input,
-.metrics-table-btn,
 .metrics-graph-container,
 #metrics-table-container,
 input.form-control {
@@ -4826,5 +4836,9 @@ input.form-control {
 .filter-input {
     margin: 0;
     text-decoration: none;
-    height: 40px;
+    height: 30px;
+}
+
+.live-tail-logs-container #LogResultsGrid{
+    margin: 0px 20px;
 }
