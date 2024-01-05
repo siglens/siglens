@@ -188,13 +188,13 @@ jobs:
             asset_name: docker-compose.yml
             asset_content_type: application/octet-stream
         - name: Upload Release Asset - siglens-otel-collector-config.yaml
-           id: upload-release-asset-SigLensOtelCollector
-           uses: actions/upload-release-asset@v1
-           env:
-             GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
-           with:
-             upload_url: ${{ steps.create_release.outputs.upload_url }} 
-             asset_path: siglens-otel-collector-config.yaml
-             asset_name: siglens-otel-collector-config.yaml
-             asset_content_type: application/octet-stream
+          id: upload-release-asset-SigLensOtelCollector
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: siglens-otel-collector-config.yaml
+            asset_name: siglens-otel-collector-config.yaml
+            asset_content_type: application/octet-stream
     
