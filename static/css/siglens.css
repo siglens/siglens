@@ -1947,7 +1947,7 @@ progress.hidden {
 #buttons-popupContent {
     display: flex;
     justify-content: space-between;
-    margin-top: 30px;
+    margin-top: 24px;
 }
 
 .popupOverlay.active ,.popupContent.active,.delete-dialog.active{
@@ -2743,13 +2743,13 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     color: var(--search-bar-text-color-regular-or-hover);
     border: 1px solid var(--ui-widget-border-color);
     width: 100%;
-    height: 50px;
+    height: 32px;
     border-radius: 5px;
 }
 
 .launch-dashboard .popupContent button, #buttons-ret-prompt button,#panel-del-prompt button {
     width: 195px !important;
-    height: 45px !important;
+    height: 32px !important;
     border-radius: 5px;
     border: none;
     background: var(--component-bg-color);
@@ -2757,13 +2757,14 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 .launch-dashboard .popupContent .header{
-    font-size: 24px;
+    font-size: 20px;
 }
 
 .launch-dashboard .popupContent .error-tip{
     color: #6449D6;
     visibility: hidden;
     font-size: 13px;
+    margin-bottom: 6px;
 }
 .launch-dashboard .popupContent .error-tip.active{
     visibility: visible;
@@ -2905,7 +2906,7 @@ float: right;
 }
 
 #new-dashboard .all-dashboards{
-    font-size: 22px;
+    font-size: 18px;
     color: #6F6B7B;
     cursor: pointer;
     margin-bottom: 0;
@@ -2913,7 +2914,7 @@ float: right;
 
 #new-dashboard .name-dashboard{
     font-weight: 500;
-    font-size: 22px;
+    font-size: 18px;
     cursor: pointer;
     margin-bottom: 0;
 }
@@ -3051,12 +3052,12 @@ float: right;
     position: absolute;
     top: 25px;
     list-style-type: none;
-    padding: 16px 23px;
+    padding: 11px 16px;
     cursor: pointer;
     background-color: var(--datatable-bg-color);
     border-radius: 5px;
-    font-size: 18px;
-    width: 167px;
+    font-size: 14px;
+    width: 131px;
     z-index: 2;
 }
 
@@ -3074,8 +3075,8 @@ float: right;
 .dropdown-style .view{
     background-image: url(../assets/view-icon-dropdown.svg);
     background-size: contain;
-    width: 17.5px;
-    height: 14px;
+    width: 16.5px;
+    height: 12px;
      margin-right: 16px;
 }
 
@@ -3086,8 +3087,8 @@ float: right;
 .dropdown-style .edit{
     background-image: url(../assets/edit-icon.svg);
     background-size: contain;
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
      margin-right: 18px;
 }
 
@@ -3110,8 +3111,8 @@ float: right;
 .dropdown-style .duplicate{
     background-image: url(../assets/duplicate-icon.svg);
     background-size: contain;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
      margin-right: 14px;
 }
 
@@ -3122,8 +3123,8 @@ float: right;
 .dropdown-style .remove{
     background-image: url(../assets/remove-icon.svg);
     background-size: contain;
-    width: 16px;
-    height: 17.78px;
+    width: 14px;
+    height: 15.78px;
     margin-right: 18px;
 }
 
