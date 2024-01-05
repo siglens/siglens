@@ -529,7 +529,7 @@ body {
 #app-side-nav .menu.logo {
     display: flex;
     justify-content: center;
-    padding: 20px;
+    padding: 16px;
 }
 #app-side-nav.active .menu.logo {
     padding: 20px 0 20px 0px;
@@ -1804,7 +1804,7 @@ progress.hidden {
 
 #delbutton {
     background-image: url(../assets/dark-delete-icon-regular.svg);
-    height: 17px;
+    height: 16px;
     background-repeat: no-repeat;
     width: 18px;
     cursor: pointer;
@@ -1842,8 +1842,8 @@ progress.hidden {
 
 #viewbutton {
     background-image: url(../assets/view-icon.svg);
-    height: 16px;
-    width: 21px;
+    height: 14px;
+    width: 19px;
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
@@ -1853,8 +1853,8 @@ progress.hidden {
 
 #duplicateButton{
     background-image: url(../assets/dashboard-duplicate-icon.svg);
-    height: 19px;
-    width: 19px;
+    height: 17px;
+    width: 17px;
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
@@ -1873,8 +1873,6 @@ progress.hidden {
 
 #delbutton:hover {
     background-image: url(../assets/dark-delete-icon-hover.svg);
-    height: 17px;
-    width: 18px;
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
@@ -3194,11 +3192,13 @@ float: right;
 #dashboard-grid .ag-cell{
     display: flex !important;
     padding: 0px 15px !important;
-    color: var(--dashboard-title-color);
     cursor: pointer;
-    font-size: 16px;
+    font-size: 14px;
     text-decoration-line: underline;
     border-bottom: var(--bg-color) 5px solid;
+}
+#dashboard-grid .ag-cell a{
+    color: var(--dashboard-title-color) !important;
 }
 
 
