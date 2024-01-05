@@ -2046,7 +2046,6 @@ TransactionBlock <- PIPE CMD_TRANSACTION txnOptions:TransactionOptions {
     return queryAgg, nil
 }
 
-// The List of fields should Always be given at the last.
 // The TransactionDefinitionOptionsList will consist of all the Transaction Options
 TransactionOptions <- txnOptions:TransactionDefinitionOptionsList?  {
 
