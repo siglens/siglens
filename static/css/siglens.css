@@ -4416,8 +4416,9 @@ color: #C8C7CC;
     height: 100%;
 }
 .main-heading{
-    font-size: 22px;
+    font-size: 18px;
     color: var(--datatable-header-text-color);
+    font-weight: 600;
 }
 
 .log-pane {
@@ -4426,9 +4427,9 @@ color: #C8C7CC;
 }
 
 .log-pane button{
-    height: 44px;
-    width: 140px;
-    margin-right: 30px;
+    height: 34px;
+    width: 110px;
+    margin-right: 14px;
     border-radius: 5px;
     color: var(--text-color);
     display: flex;
@@ -4438,13 +4439,13 @@ color: #C8C7CC;
 
 .log-pane button h3{
     margin-right: 10px;
-    font-size: 18px;
+    font-size: 14px;
     margin-bottom: 0;
 }
 
 .log-pane button h4{
     font-weight: 700;
-    font-size: 18px;
+    font-size: 15px;
     margin-bottom: 0;
 }
 
@@ -4473,16 +4474,18 @@ color: #C8C7CC;
     height: 36%;
     border-radius: 5px;
     position: relative;
+    margin-top: 14px;
 }
 
 .result-pane .header{
-    height: 44px;
+    height: 34px;
     position: absolute;
     top: 0;
     background: var(--datatable-header-bg-color);
     width: 100%;
     border-radius: 5px 5px 0 0;
-    padding: 9px;
+    padding: 7px;
+    font-weight: 600;
 }
 
 .result-body {
@@ -4500,7 +4503,7 @@ color: #C8C7CC;
 }
 
 .ag-paging-panel{
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .ag-paging-page-summary-panel{
