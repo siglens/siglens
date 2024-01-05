@@ -407,6 +407,7 @@ const contactGridOptions = {
 	rowData: contactRowData,
 	animateRows: true,
 	rowHeight: 44,
+    headerHeight:32,
 	defaultColDef: {
 		icons: {
 			sortAscending: '<i class="fa fa-sort-alpha-up"/>',

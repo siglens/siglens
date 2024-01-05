@@ -1715,7 +1715,7 @@ progress.hidden {
     margin: 0;
     padding: 15px 12px;
     text-decoration: none;
-    height: 40px;
+    height: 30px;
     line-height: 14px;
 }
 .sq-magnigying-glass {
@@ -1817,7 +1817,7 @@ progress.hidden {
 
 #editbutton {
     background-image: url(../assets/edit-alert-icon.svg);
-    height: 18px;
+    height: 16px;
     background-repeat: no-repeat;
     width: 20px;
     cursor: pointer;
@@ -2818,7 +2818,7 @@ float: right;
 }
 
 .dashboard-header {
-    margin-top: 25px;
+    margin-top: 8px;
     margin-right: 39px;
     display: flex;
     justify-content: flex-end;
@@ -2931,7 +2931,7 @@ float: right;
 .save-btn {
     text-decoration: none;
     border: none;
-    height: 40px;
+    height: 32px;
     line-height: 14px;
     display: flex;
     background: var(--btn-regular-bg-color);
@@ -3191,7 +3191,7 @@ float: right;
     padding: 0px 15px !important;
     color: var(--dashboard-title-color);
     cursor: pointer;
-    font-size: 18px;
+    font-size: 16px;
     text-decoration-line: underline;
     border-bottom: var(--bg-color) 5px solid;
 }
@@ -3448,19 +3448,19 @@ float: right;
 
 .section-buttons {
     display: flex;
-    height: 44px;
+    height: 30px;
     border-radius: 5px;
     width: fit-content;
     align-items: center;
     padding: 4px;
-    margin-top: 22px;
+    margin-top: 10px;
     background: var(--myOrg-input);
 
 }
 
 .section-button {
     padding: 4px 10px 5px 10px;
-    height: 36px;
+    height: 24px;
     width: fit-content;
     border-radius: 5px;
     background: var(--myOrg-input);
@@ -3480,7 +3480,7 @@ float: right;
 }
 
 .section-button.active {
-    height: 34px;
+    height: 24px;
     border: 1px solid #6347D9;
     background: var(--tab-active-background);
 }
@@ -3491,7 +3491,7 @@ float: right;
 }
 
 .caption {
-    font-size: 18px;
+    font-size: 16px;
     color: var(--text-color);
 }
 
@@ -4103,7 +4103,7 @@ color: #C8C7CC;
     flex-direction: column;
     max-height: 100vh;
     overflow-y: scroll;
-    font-size: 18px;
+    font-size: 14px;
 }
 
 #alerting input , #alerting .dropdown-toggle , #alerting textarea ,.add-label-container{
@@ -4139,7 +4139,7 @@ color: #C8C7CC;
 
 .subsection-heading div:nth-child(2){
     color: var(--drop-down-text-color);
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
     margin-left: 20px;
 }
@@ -4148,8 +4148,8 @@ color: #C8C7CC;
     margin-left: 62px
 }
 #alerting .circle{
-    height: 42px;
-    width: 42px;
+    height: 36px;
+    width: 36px;
     border-radius: 50%;
     background-color: var(--purple-1);
     color: var(--white-0);
@@ -4163,11 +4163,11 @@ color: #C8C7CC;
 .alert-form-subsection{
     background-color: var(--black1-to-white0);
     border: 1px solid var(--search-input-border);
-    padding: 30px;
+    padding: 20px;
     border-radius: 10px;
-    margin-bottom: 40px;
+    margin-bottom: 30px;
     margin-top: 20px;
-    margin-left: 62px
+    margin-left: 50px
 }
 
 .alerts-nav-tab{
@@ -4175,15 +4175,15 @@ color: #C8C7CC;
 }
 
 #alerting .caption{
-    margin-top: 30px;
-    margin-bottom: 30px;
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
 
 #save-alert-btn,#save-contact-btn,#new-alert-rule, #new-contact-point,.add-cp-btn,.add-new-contact-type{
     margin: 0;
     text-decoration: none;
     border: none;
-    height: 40px;
+    height: 30px;
     color: var(--button-text-color) !important;
     background: var(--btn-regular-bg-color);
     width: 100px;
@@ -4199,15 +4199,15 @@ color: #C8C7CC;
 
 .add-new-contact-type{
     width: 194px;
-    margin-bottom: 40px;
 }
 
 #cancel-alert-btn,#cancel-contact-btn{
-    height: 40px;
+    height: 30px;
     width: 100px;
     margin-right: 10px;
     color: var(--button-text-color) !important;
     background: var(--component-bg-color);
+    padding: 0px 20px;
 }
 .add-alert-form,.add-contact-form{
     width: 70%;
@@ -4260,7 +4260,7 @@ color: #C8C7CC;
 
 #alert-condition,#contact-types,#contact-points-dropdown,#alert-data-source,
 #logs-language-btn{
-    height: 40px;
+    height: 32px;
     width: 210px;
     display: flex;
     justify-content: space-between;
@@ -4365,12 +4365,12 @@ color: #C8C7CC;
 }
 
 #alerting input,.add-label-container{
-    height: 40px;
+    height: 32px;
 }
 
 #alerting .timepicker .dropdown-toggle{
     margin-left: 20px !important;
-    height: 40px !important;
+    height: 32px !important;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -4697,7 +4697,7 @@ color: #C8C7CC;
     margin-left: 10px;
 }
 #alert-form .btn-container,#contact-form .btn-container {
-    margin-top: -90px;
+    margin-top: -70px;
     position: absolute;
     right: 20px;
 } 
