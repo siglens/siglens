@@ -168,7 +168,6 @@ RenamingLoop:
 	}
 
 	if colReq.RenameColumns != nil {
-		// return errors.New("performColumnsRequest: processing ColumnsRequest.RenameColumns is not implemented")
 
 		for oldCName, newCName := range colReq.RenameColumns {
 			// Rename in MeasureFunctions
