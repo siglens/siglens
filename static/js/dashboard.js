@@ -31,8 +31,8 @@ $(document).ready(function () {
         $('#new-dashboard').css("width", "calc(100% - 97px)")
     }
     else {
-        $('#new-dashboard').css("transform", "translate(205px)")
-        $('#new-dashboard').css("width", "calc(100% - 215px)")
+        $('#new-dashboard').css("transform", "translate(170px)")
+        $('#new-dashboard').css("width", "calc(100% - 180px)")
     }
 
     panelContainer = document.getElementById('panel-container');
