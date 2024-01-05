@@ -557,7 +557,7 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 				if cnt >= limit {
 					delete(recs, key)
 				} else {
-					combination[index] = cnt + 1
+					(*combToCnt)[index] = cnt + 1
 				}
 			}
 		}
