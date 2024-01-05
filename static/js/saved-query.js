@@ -294,6 +294,7 @@ $(document).ready(function () {
      columnDefs: queriesColumnDefs,
      rowData: sqRowData,
      animateRows: true,
+     headerHeight:32,
      defaultColDef: {
          initialWidth: 200,
          sortable: true,
