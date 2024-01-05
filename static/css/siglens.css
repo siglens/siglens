@@ -735,6 +735,9 @@ body {
     margin: 0;
     text-decoration: none;
     height: 30px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
 }
 .run-metrics-query-btn{
     margin: 0;
@@ -753,6 +756,7 @@ body {
 
 .avail-fields-btn {
     height: 30px;
+    padding: 0 14px;
 }
 #alert-btn:hover,
 #index-btn:hover,
@@ -4839,6 +4843,10 @@ input.form-control {
     height: 30px;
 }
 
-.live-tail-logs-container #LogResultsGrid{
-    margin: 0px 20px;
+.live-tail-logs-container{
+    margin: 0px 20px !important;
+}
+
+.live-tail #query-language-btn{
+    margin-left: 0px;
 }
