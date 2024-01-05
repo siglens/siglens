@@ -7,7 +7,6 @@ $(document).ready(function () {
         
     }
     $('.theme-btn').on('click', themePickerHandler);
-    displayNavbar();
     fetchVersionInfo();
     $('#new-contact-point').on('click',initializeContactForm)
     $('#contact-form-container').css('display', 'none');

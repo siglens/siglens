@@ -546,6 +546,8 @@ function getColumns() {
          else filterValue += value;
          index++;
        });
+     }else{
+      filterValue = '*';
      }
      index = 0;
      let bothRight = 0;
@@ -834,7 +836,7 @@ function getColumns() {
  function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
      let columnOrder =[]
      let totalHits = res.totalMatched.value;
-     if (res.totalMatched.value === 0 && res.measure ===undefined) {
+     if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure ===undefined) {
          processEmptyQueryResults();
      }
      if (res.measureFunctions && res.measureFunctions.length > 0) {

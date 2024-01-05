@@ -147,7 +147,11 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 					doRangeCheckForCol(segMicroIndex, blockToCheck, rangeFilter, rangeOp, timeFilteredBlocks, colsToCheck, qid)
 				}
 			} else {
-				if !wildCardValue {
+				negateMatch := false
+				if currQuery != nil && currQuery.MatchFilter != nil && currQuery.MatchFilter.NegateMatch {
+					negateMatch = true
+				}
+				if !wildCardValue && !negateMatch {
 					if wildcardCol {
 						doBloomCheckAllCol(segMicroIndex, blockToCheck, bloomKeys, bloomOp, timeFilteredBlocks)
 					} else {

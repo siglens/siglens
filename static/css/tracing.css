@@ -30,9 +30,9 @@
 }
 
 .subsection-buttons {
-    margin-top: 22px;
+    margin-top: 10px;
     display: flex;
-    height: 40px;
+    height: 30px;
     border-radius: 5px;
     width: fit-content;
     align-items: center;
@@ -42,7 +42,7 @@
 
 .section-button {
     padding: 4px 10px 5px 10px;
-    height: 32px;
+    height: 22px;
     width: fit-content;
     border-radius: 5px;
     background: var(--myOrg-input);
@@ -63,7 +63,7 @@
 }
 
 .section-button.active {
-    height: 32px;
+    height: 22px;
     border: 1px solid #6347D9;
     background: var(--tab-active-background);
 }
@@ -72,8 +72,8 @@
     border-radius: 5px;
     border: 1px solid var(--search-input-border);
     background: var(--search-bar-bg);
-    height: 40px;
-    font-size: 16px;
+    height: 32px;
+    font-size: 14px;
 }
 
 .p-20{
@@ -98,7 +98,7 @@
 
 #error-msg-container p{
     text-align: center;
-    font-size: 24px;
+    font-size: 20px;
     line-height: 31px;
     font-weight: var(--fw-500);
     color: var(--empty-response-text-color);
@@ -161,13 +161,13 @@
 }
 
 .service-name{
-    font-size: 22px;
+    font-size: 18px;
     cursor: pointer;
     margin-bottom: 0;
 }
 
 .service-health-text{
-    font-size: 22px;
+    font-size: 18px;
     color: #6F6B7B;
     cursor: pointer;
     margin-bottom: 0;
@@ -215,7 +215,7 @@
     display: flex;
     flex-direction: column;
     padding: 20px;
-    height: 620px;
+    height: 530px;
     width: 32%;
     min-width: 270px;
 }
@@ -244,7 +244,7 @@
 
 .section-center {
     width: 100%;
-    margin-top: 25px;
+    margin-top: 12px;
     min-height: 280px;
 }
 
@@ -257,14 +257,14 @@
     background-color: var(--head-trace);
     height: 30%;
     align-items: center;
-    font-size: 1rem;
+    font-size: 14px;
     padding: 0 15px;
     font-weight: 600;
     border-radius: 10px 10px 0 0;
 }
 
 .graph-info {
-    min-height: 66px;
+    min-height: 60px;
     align-items: center;
     padding: 0 20px;
 }
@@ -309,7 +309,7 @@ input.form-control {
 .search-text,
 .traces-number {
     font-weight: 600;
-    font-size: 20px;
+    font-size: 16px;
 }
 
 .sorts-method {
@@ -328,7 +328,7 @@ input.form-control {
 }
 
 .form-control {
-    height: 40px;
+    height: 32px;
 }
 
 .lookback {
@@ -348,7 +348,7 @@ input.form-control {
     border: none;
     color: var(--white) !important;
     width: 48%;
-    height: 40px;
+    height: 32px;
 }
 
 .empty-result-show {
@@ -362,7 +362,7 @@ input.form-control {
 }
 
 .warn-box {
-    height: 150px;
+    height: 124px;
     margin-top: 20px;
     cursor: pointer;
 }
@@ -379,7 +379,7 @@ input.form-control {
 
 .spans-box {
     width: 220px;
-    height: 32px;
+    height: 30px;
 }
 
 .error-span {
@@ -396,8 +396,6 @@ input.form-control {
 
 .warn-content {
     padding: 12px 15px;
-    font-size: 1rem;
-    height: 70%;
 }
 
 .warn-content-right {
@@ -417,11 +415,13 @@ input.form-control {
 }
 .downloadresult-btn,
 .mostrecent-btn {
-    background-color: var(--search-box-input-trace)
+    background-color: var(--search-box-input-trace);
+    height: 30px;
 }
 
 .span-id-text {
     color: var(--subsection-border);
+    margin-left: 6px;
 }
 
 #app-container{
@@ -435,7 +435,7 @@ input.form-control {
 /* Trace Timeline View */
 
 #timeline-container{
-    margin-top: 30px;
+    margin-top: 14px;
     box-shadow: var(--box-shadow);
     background-color: var(--black1-to-white0);
     border: 1px solid var(--search-input-border);
@@ -454,13 +454,13 @@ input.form-control {
 }
 
 .trace-name{
-    font-size: 20px;
+    font-size: 18px;
     font-weight: bold;
 }
 
 .trace-details{
-    margin-top: 16px;
-    font-size: 16px;
+    margin-top: 8px;
+    font-size: 14px;
     color: var(--subsection-border);
     font-weight: normal !important;
 
@@ -468,7 +468,7 @@ input.form-control {
 
 .trace-name .trace-id{
     margin-left: 10px;
-    font-size: 18px !important;
+    font-size: 16px !important;
 }
 
 .trace-details div{
@@ -482,7 +482,7 @@ input.form-control {
 }
 
 .time-label {
-    font-size: 16px;
+    font-size: 14px;
     fill: var(--text-color);
     margin-bottom: 10px;
 }
@@ -494,7 +494,7 @@ input.form-control {
 }
 
 .node-label {
-    font-size: 15px;
+    font-size: 14px;
 }
 
 .anomalous-node {

@@ -380,7 +380,7 @@ let dashboardColumnDefs = [
 	},
 	{
 		cellRenderer: btnRenderer,
-		width: 5,
+		width: 40,
 	},
 
 ];
@@ -390,7 +390,7 @@ const dbgridOptions = {
 	columnDefs: dashboardColumnDefs,
 	rowData: dbRowData,
 	animateRows: true,
-	rowHeight: 64,
+	rowHeight: 54,
 	defaultColDef: {
 		icons: {
 			sortAscending: '<i class="fa fa-sort-alpha-up"/>',
@@ -506,7 +506,6 @@ function showDBNotFoundMsg() {
 }
 
 $(document).ready(async function () {
-	displayNavbar();
 	if (Cookies.get('theme')) {
 		theme = Cookies.get('theme');
 		$('body').attr('data-theme', theme);
