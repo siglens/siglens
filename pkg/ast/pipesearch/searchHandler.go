@@ -459,14 +459,19 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 	}
 
 	allJsons, allCols, err := record.GetJsonFromAllRrc(rrcs, false, qid, segencmap, aggs)
-	if aggs != nil && aggs.TransactionArguments != nil && err == nil {
-		// Process Splunk Transaction command.
-		allJsons, allCols, err = processTransactionsOnRecords(allJsons, allCols, aggs.TransactionArguments)
-	}
 	if err != nil {
 		log.Errorf("qid=%d, convertRRCsToJSONResponse: failed to get allrecords from rrc, err=%v", qid, err)
 		return allJsons, allCols, err
 	}
+	if aggs != nil && aggs.TransactionArguments != nil {
+		// Process Splunk Transaction command.
+		allJsons, allCols, err = processTransactionsOnRecords(allJsons, allCols, aggs.TransactionArguments)
+		if err != nil {
+			log.Errorf("qid=%d, processTransactionsOnRecords: failed to get grouped Records from Transaction Command, err=%v", qid, err)
+			return allJsons, allCols, err
+		}
+	}
+
 	return allJsons, allCols, nil
 }
 

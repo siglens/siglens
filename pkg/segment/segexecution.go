@@ -209,7 +209,6 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 		}
 		rQuery.SendQueryStateComplete()
 	}
-
 	return nodeRes
 }
 
