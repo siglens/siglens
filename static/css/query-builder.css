@@ -593,6 +593,7 @@ div.show-record-popup {
 .ag-theme-mycustomtheme .ag-root-wrapper{
     border: 1px solid var(--border-btn-color);
 }
+
 .ag-row,
 .measureAggGrid .ag-row-even,
 .LogResultsGrid .ag-row-even{

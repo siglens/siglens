@@ -515,7 +515,7 @@ body {
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
     border-radius: 0 5px 5px 0;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     margin-right: 8px;
 }
 
@@ -1804,7 +1804,7 @@ progress.hidden {
 
 #delbutton {
     background-image: url(../assets/dark-delete-icon-regular.svg);
-    height: 20px;
+    height: 17px;
     background-repeat: no-repeat;
     width: 18px;
     cursor: pointer;
@@ -1812,7 +1812,8 @@ progress.hidden {
     border-width: 0;
     margin-left: 15px;
     padding-bottom: 0;
-    margin-top: 5px;
+    margin-top: 0px;
+    background-size: contain;
 }
 
 #editbutton {
@@ -1825,7 +1826,6 @@ progress.hidden {
     border-width: 0;
     margin-left: 0px;
     padding-bottom: 0;
-    margin-top: 5px;
     background-size: contain;
     background-position: center;
 }
@@ -1842,27 +1842,29 @@ progress.hidden {
 
 #viewbutton {
     background-image: url(../assets/view-icon.svg);
-    height: 18px;
-    width: 18px;
+    height: 16px;
+    width: 21px;
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
-    margin-left: 15px;
+    padding: 0px;
+    background-size: contain;
 }
 
 #duplicateButton{
     background-image: url(../assets/dashboard-duplicate-icon.svg);
-    height: 22px;
-    width: 22px;
+    height: 19px;
+    width: 19px;
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
     margin-left: 15px;
+    background-size: contain;
 }
 #favbutton{
     background-image: url(../assets/star-outline.svg);
     height: 16px;
-    width: 16px;
+    width: 17px;
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
@@ -1871,7 +1873,7 @@ progress.hidden {
 
 #delbutton:hover {
     background-image: url(../assets/dark-delete-icon-hover.svg);
-    height: 20px;
+    height: 17px;
     width: 18px;
     cursor: pointer;
     background-color: transparent;
@@ -1880,8 +1882,6 @@ progress.hidden {
 }
 #editbutton:hover {
     background-image: url(../assets/edit-alert-icon-active.svg);
-    height: 18px;
-    width: 20px;
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
@@ -2708,6 +2708,10 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 
 .ag-cell.ag-cell-last-left-pinned:not(.ag-cell-range-right):not(.ag-cell-range-single-cell) {
     border-right: 5px solid var(--bg-color)!important;
+}
+
+.ag-cell-label-container{
+    padding: 0;
 }
 
 .odd-popup-textarea{
@@ -4005,8 +4009,8 @@ color: #C8C7CC;
 
 .test-data-toast{
     background: linear-gradient(to right, #6347D9, #160F29);
-    right: 650px;
-    top: 300px;
+    right: 40%;
+    top: 200px;
     position: absolute;
     padding: 0.5rem 1rem;
     transition: 2s;
@@ -4531,7 +4535,7 @@ color: #C8C7CC;
 
 #create-db-popup .create-db{
     width: 195px !important;
-    height: 45px !important;
+    height: 32px !important;
     border-radius: 5px;
     border: none;
     background: var(--btn-regular-bg-color);
@@ -4541,7 +4545,7 @@ color: #C8C7CC;
 
 #create-db-popup #cancel-dbbtn{
     width: 195px !important;
-    height: 44px !important;
+    height: 32px !important;
     border-radius: 5px;
     border: none;
     background: var(--component-bg-color);
@@ -4558,9 +4562,15 @@ color: #C8C7CC;
     font-size: 13px;
     margin-bottom: 0px;
 }
+#create-db-popup .section-buttons, #create-db-popup .section-button{
+    background-color: var(--bg-color);
+}
+#create-db-popup .section-button.active{
+    background: var(--tab-active-background);
+}
 
 #selected-dashboard{
-    height: 44px;
+    height: 32px;
     width: 100%;
     display: flex;
     justify-content: space-between;
@@ -4846,9 +4856,14 @@ input.form-control {
 }
 
 .live-tail-logs-container{
-    margin: 0px 20px !important;
+    margin: 0px 20px 20px 20px!important;
 }
 
 .live-tail #query-language-btn{
     margin-left: 0px;
+}
+
+
+.live-tail-logs-container .ag-theme-mycustomtheme .ag-root-wrapper {
+    border: 1px solid var(--border-btn-color);
 }
