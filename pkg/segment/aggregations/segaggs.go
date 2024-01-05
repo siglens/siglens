@@ -31,7 +31,7 @@ import (
 
 func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *structs.TimeBucket, aggName string) {
 
-	if nodeResult.Histogram == nil || rangeHistogram.UsedByTimechart {
+	if nodeResult.Histogram == nil || rangeHistogram.Timechart != nil {
 		return
 	}
 	res, ok := nodeResult.Histogram[aggName]
@@ -767,8 +767,6 @@ func performRexColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColRe
 		return fmt.Errorf("performRexColRequestWithoutGroupby: There are some errors in the pattern: %v", err)
 	}
 
-	nodeResult.MeasureFunctions = letColReq.RexColRequest.RexColNames
-
 	fieldName := letColReq.RexColRequest.FieldName
 	for _, record := range recs {
 		fieldValue := fmt.Sprintf("%v", record[fieldName])
@@ -778,7 +776,8 @@ func performRexColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColRe
 
 		rexResultMap, err := structs.MatchAndExtractGroups(fieldValue, rexExp)
 		if err != nil {
-			return fmt.Errorf("performRexColRequestWithoutGroupby: %v", err)
+			log.Errorf("performRexColRequestWithoutGroupby: %v", err)
+			continue
 		}
 
 		for rexColName, Value := range rexResultMap {

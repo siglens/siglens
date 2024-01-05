@@ -31,7 +31,6 @@ $(document).ready(function () {
         $('body').attr('data-theme', theme);
     }
     $('.theme-btn').on('click', themePickerHandler);
-    displayNavbar();
     getAllAlerts();
 
     $('#new-alert-rule').on('click',function(){
@@ -154,6 +153,7 @@ const alertGridOptions = {
 	rowData: alertRowData,
 	animateRows: true,
 	rowHeight: 44,
+    headerHeight:32,
 	defaultColDef: {
 		icons: {
 			sortAscending: '<i class="fa fa-sort-alpha-up"/>',

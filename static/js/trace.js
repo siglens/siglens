@@ -20,7 +20,6 @@ let svgWidth;
 let traceId;
 
 $(document).ready(() => {
-    displayNavbar();
     $(".theme-btn").on("click", themePickerHandler);
     if (Cookies.get("theme")) {
         theme = Cookies.get("theme");

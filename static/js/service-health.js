@@ -23,7 +23,6 @@ let redMetricsData ={
    
 }
 $(document).ready(() => {
-    displayNavbar();
     if (Cookies.get("theme")) {
         theme = Cookies.get("theme");
         $("body").attr("data-theme", theme);
@@ -48,7 +47,8 @@ const columnDefs=[
 const gridOptions = {
     rowData: serviceRowData ,
     onRowClicked: onRowClicked,
-    rowHeight: 50,
+    headerHeight:32,
+    rowHeight: 42,
     defaultColDef: {
     cellClass: 'align-center-grid',
       resizable: true,
