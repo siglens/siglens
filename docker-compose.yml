@@ -14,10 +14,10 @@ services:
       - WORK_DIR=${WORK_DIR}
       - SIGLENS_VERSION=${SIGLENS_VERSION}
 
-  otel-collector:
+  siglens-otel-collector:
     image: otel/opentelemetry-collector:latest  
     volumes:
-      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml  
+      - ./siglens-otel-collector-config.yaml:/etc/siglens-otel-collector-config.yaml  
     ports:
       - "4318:4318"
-    command: ["--config=/etc/otel-collector-config.yaml"]   
+    command: ["--config=/etc/siglens-otel-collector-config.yaml"]   
