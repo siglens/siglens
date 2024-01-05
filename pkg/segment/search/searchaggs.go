@@ -81,7 +81,7 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	allBlocksToXRollup, aggsHasTimeHt, aggsHasNonTimeHt := getRollupForAggregation(aggs, rupReader)
 	for i := int64(0); i < fileParallelism; i++ {
 		blkWG.Add(1)
-		go applyAggregationsSingleBlock(sharedReader.MultiColReaders[i], aggs, allSearchResults, allBlocksChan,
+		go applyAggregationsToSingleBlock(sharedReader.MultiColReaders[i], aggs, allSearchResults, allBlocksChan,
 			searchReq, queryRange, sizeLimit, &blkWG, queryMetrics, qid, blockSummaries, aggsHasTimeHt,
 			aggsHasNonTimeHt, allBlocksToXRollup)
 	}
@@ -107,7 +107,7 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	return nil
 }
 
-func applyAggregationsSingleBlock(multiReader *segread.MultiColSegmentReader, aggs *structs.QueryAggregators,
+func applyAggregationsToSingleBlock(multiReader *segread.MultiColSegmentReader, aggs *structs.QueryAggregators,
 	allSearchResults *segresults.SearchResults, blockChan chan *BlockSearchStatus, searchReq *structs.SegmentSearchRequest,
 	queryRange *dtu.TimeRange, sizeLimit uint64, wg *sync.WaitGroup, queryMetrics *structs.QueryProcessingMetrics,
 	qid uint64, blockSummaries []*structs.BlockSummary, aggsHasTimeHt bool, aggsHasNonTimeHt bool,
@@ -115,7 +115,7 @@ func applyAggregationsSingleBlock(multiReader *segread.MultiColSegmentReader, ag
 
 	blkResults, err := blockresults.InitBlockResults(sizeLimit, aggs, qid)
 	if err != nil {
-		log.Errorf("applyAggregationsSingleBlock: failed to initialize block results reader for %s. Err: %v", searchReq.SegmentKey, err)
+		log.Errorf("applyAggregationsToSingleBlock: failed to initialize block results reader for %s. Err: %v", searchReq.SegmentKey, err)
 		allSearchResults.AddError(err)
 	}
 	defer wg.Done()
@@ -126,7 +126,7 @@ func applyAggregationsSingleBlock(multiReader *segread.MultiColSegmentReader, ag
 		}
 		recIT, err := blockStatus.GetRecordIteratorCopyForBlock(utils.And)
 		if err != nil {
-			log.Errorf("qid=%d, applyAggregationsSingleBlock: failed to initialize record iterator for block %+v. Err: %v",
+			log.Errorf("qid=%d, applyAggregationsToSingleBlock: failed to initialize record iterator for block %+v. Err: %v",
 				qid, blockStatus.BlockNum, err)
 			continue
 		}
@@ -294,7 +294,7 @@ func GetAggColsAndTimestamp(aggs *structs.QueryAggregators) (map[string]bool, ma
 	return aggCols, aggColUsage, valuesUsage
 }
 
-func applyAggsToResultFastPath(aggs *structs.QueryAggregators, segmentSearchRecords *SegmentSearchStatus,
+func applyAggregationsToResultFastPath(aggs *structs.QueryAggregators, segmentSearchRecords *SegmentSearchStatus,
 	searchReq *structs.SegmentSearchRequest, blockSummaries []*structs.BlockSummary, queryRange *dtu.TimeRange,
 	sizeLimit uint64, fileParallelism int64, queryMetrics *structs.QueryProcessingMetrics,
 	qid uint64, allSearchResults *segresults.SearchResults) error {
@@ -304,7 +304,7 @@ func applyAggsToResultFastPath(aggs *structs.QueryAggregators, segmentSearchReco
 
 	rupReader, err := segread.InitNewRollupReader(searchReq.SegmentKey, config.GetTimeStampKey(), qid)
 	if err != nil {
-		log.Errorf("qid=%d, applyAggsToResultFastPath: failed initialize rollup reader segkey %s. Error: %v",
+		log.Errorf("qid=%d, applyAggregationsToResultFastPath: failed initialize rollup reader segkey %s. Error: %v",
 			qid, searchReq.SegmentKey, err)
 	} else {
 		defer rupReader.Close()
@@ -314,7 +314,7 @@ func applyAggsToResultFastPath(aggs *structs.QueryAggregators, segmentSearchReco
 	allBlocksToXRollup, _, _ := getRollupForAggregation(aggs, rupReader)
 	for i := int64(0); i < fileParallelism; i++ {
 		blkWG.Add(1)
-		go applyAggsSingleBlockFastPath(aggs, allSearchResults, allBlocksChan,
+		go applyAggregationsToSingleBlockFastPath(aggs, allSearchResults, allBlocksChan,
 			searchReq, queryRange, sizeLimit, &blkWG, queryMetrics, qid, blockSummaries,
 			allBlocksToXRollup)
 	}
@@ -327,7 +327,7 @@ func applyAggsToResultFastPath(aggs *structs.QueryAggregators, segmentSearchReco
 	return nil
 }
 
-func applyAggsSingleBlockFastPath(aggs *structs.QueryAggregators,
+func applyAggregationsToSingleBlockFastPath(aggs *structs.QueryAggregators,
 	allSearchResults *segresults.SearchResults, blockChan chan *BlockSearchStatus, searchReq *structs.SegmentSearchRequest,
 	queryRange *dtu.TimeRange, sizeLimit uint64, wg *sync.WaitGroup, queryMetrics *structs.QueryProcessingMetrics,
 	qid uint64, blockSummaries []*structs.BlockSummary,
@@ -335,7 +335,7 @@ func applyAggsSingleBlockFastPath(aggs *structs.QueryAggregators,
 
 	blkResults, err := blockresults.InitBlockResults(sizeLimit, aggs, qid)
 	if err != nil {
-		log.Errorf("applyAggsSingleBlockFastPath: failed to initialize block results reader for %s. Err: %v", searchReq.SegmentKey, err)
+		log.Errorf("applyAggregationsToSingleBlockFastPath: failed to initialize block results reader for %s. Err: %v", searchReq.SegmentKey, err)
 		allSearchResults.AddError(err)
 	}
 
