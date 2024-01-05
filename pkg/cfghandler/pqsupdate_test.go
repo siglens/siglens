@@ -3,6 +3,9 @@ package cfghandler
 import (
 	"testing"
 
+	"io/ioutil"
+	"os"
+
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/stretchr/testify/assert"
 )
@@ -15,14 +18,22 @@ func TestSavePQSConfigToRunMod(t *testing.T) {
 		{"enabled", true},
 		{"disabled", true},
 	}
-	filepath := "/Users/davleen/Downloads/hyperion_new/oss-siglens/siglens/data/common/runmod.cfg"
+
 	for _, tc := range testCases {
 		t.Run(tc.pqsEnabled, func(t *testing.T) {
-			err := SavePQSConfigToRunMod(filepath, tc.pqsEnabled)
+			tempFile, err := ioutil.TempFile("", "runmodcfg_*.json")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			tempFilePath := tempFile.Name()
+			defer os.Remove(tempFilePath)
+
+			err = SavePQSConfigToRunMod(tempFilePath, tc.pqsEnabled)
 			assert.NoError(t, err, "Error in SavePQSConfigToRunMod")
 		})
 	}
 }
+
 func TestExtractReadRunModConfig(t *testing.T) {
 	cases := []struct {
 		name     string
