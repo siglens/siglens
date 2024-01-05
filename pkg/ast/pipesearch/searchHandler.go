@@ -388,6 +388,10 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	if aggs != nil && aggs.OutputTransforms != nil && aggs.OutputTransforms.MaxRows != 0 {
 		sizeLimit = aggs.OutputTransforms.MaxRows
 	}
+	if queryLanguageType == "SQL" && aggs != nil && aggs.TableName != "*" {
+		indexNameIn = aggs.TableName
+		ti = structs.InitTableInfo(indexNameIn, myid, false) // Re-initialize ti with the updated indexNameIn
+	}
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
 	result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
