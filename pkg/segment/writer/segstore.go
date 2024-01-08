@@ -105,13 +105,19 @@ func (segstore *SegStore) initWipBlock() {
 func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 	segstore.wipBlock.maxIdx = 0
-	for _, cwip := range segstore.wipBlock.colWips {
-		cwip.cbufidx = 0
-		cwip.cstartidx = 0
 
-		cwip.deCount = 0
-		for dword := range cwip.deMap {
-			delete(cwip.deMap, dword)
+	if len(segstore.wipBlock.colWips) > 2000 {
+		log.Errorf("resetWipBlock: colWips size is too large: %v", len(segstore.wipBlock.colWips))
+		segstore.wipBlock.colWips = make(map[string]*ColWip)
+	} else {
+		for _, cwip := range segstore.wipBlock.colWips {
+			cwip.cbufidx = 0
+			cwip.cstartidx = 0
+
+			cwip.deCount = 0
+			for dword := range cwip.deMap {
+				delete(cwip.deMap, dword)
+			}
 		}
 	}
 
