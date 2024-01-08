@@ -4,11 +4,28 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	log "github.com/sirupsen/logrus"
 )
 
+func DeferableAddAccessLogEntry(startTime time.Time, endTimeFunc func() time.Time, user string,
+	uri string, requestBody string, statusCodeFunc func() int, fileName string) {
+
+	data := dtypeutils.AccessLogData{
+		TimeStamp:   startTime.Format("2006-01-02 15:04:05"),
+		UserName:    user,
+		URI:         uri,
+		RequestBody: requestBody,
+		StatusCode:  statusCodeFunc(),
+		Duration:    endTimeFunc().Sub(startTime).Milliseconds(),
+	}
+	AddAccessLogEntry(data, fileName)
+}
+
+// Write to access.log in the following format
+// timeStamp <logged-in user> <request URI> <request body> <response status code> <elapsed time in ms>
 func AddAccessLogEntry(data dtypeutils.AccessLogData, fileName string) {
 	logFile, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
