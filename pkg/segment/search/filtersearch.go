@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -134,10 +134,21 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 	// first we walk through the search checking if this query can be satisfied by looking at the
 	// dict encoding file for the column/s
 	cmiPassedCnames := make(map[string]bool)
+	checkAllCols := false
+	if query.SearchType == structs.MatchWordsAllColumns ||
+		query.SearchType == structs.RegexExpressionAllColumns ||
+		query.SearchType == structs.MatchDictArrayAllColumns {
+		checkAllCols = true
+	}
+
 	for _, colInfo := range multiColReader.AllColums {
-		_, ok := searchReq.CmiPassedCnames[blockNum][colInfo.ColumnName]
-		if ok {
+		if checkAllCols {
 			cmiPassedCnames[colInfo.ColumnName] = true
+		} else {
+			_, ok := searchReq.CmiPassedCnames[blockNum][colInfo.ColumnName]
+			if ok {
+				cmiPassedCnames[colInfo.ColumnName] = true
+			}
 		}
 	}
 

@@ -32,4 +32,9 @@ USER $UNAME
 
 WORKDIR /$UNAME
 COPY --from=build /usr/app/cmd/siglens/build/siglens .
+
+USER root
+RUN chown $UNAME:$GID siglens
+
+USER $UNAME
 CMD ["./siglens", "--config", "server.yaml"]

@@ -50,19 +50,11 @@
 
         <div id="dashboard" class="p-20">
             <div class="subsection-navbar">
-                <div>
-                    <h1 class="myOrg-heading">Tracing</h1>
-                    <div class="subsection-buttons">
-                        <div class="section-button active"><a href="./service-health.html">Service Health</a></div>
-                        <div class="section-button"><a href="./search-traces.html">Search Traces</a></div>
-                        <div class="section-button"><a href="./dependency-graph.html">Dependency Graph</a></div>            
-                    </div>
-                </div>
             </div>
-            <div class="mt-4">
+            <div class="mt-3">
                 <input type="text" class="search-input" placeholder="Search and Filter based on resource attributes">
             </div>
-            <div class="mt-4 h-100 mb-4" id="tracing-container">
+            <div class="mt-3 h-100 mb-2" id="tracing-container">
                 <div id="ag-grid" class="ag-theme-mycustomtheme">
                 </div>
             </div>
@@ -78,6 +70,8 @@
     <script src="./js/common.js?cb=1_1_10"></script>
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/service-health.js?cb=1_1_10"></script>
+    <script src="./component/upper-navbar/upper-navbar.js"></script>
+
 </body>
 
 </html>
