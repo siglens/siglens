@@ -93,6 +93,15 @@ const allNotifsTableQuery = `CREATE TABLE IF NOT EXISTS siglens.notification_det
 	FOREIGN KEY (alert_id) REFERENCES all_alerts(alert_id) ON DELETE CASCADE
   );`
 
+const alertsHistoryTableQuery = `CREATE TABLE IF NOT EXISTS siglens.alerts_history (
+    id TEXT NOT NULL PRIMARY KEY,
+	alert_id TEXT NOT NULL,
+	event_description TEXT,
+	username TEXT,
+	event_triggered_at TIMESTAMP,
+	FOREIGN KEY (alert_id) REFERENCES all_alerts(alert_id) ON DELETE CASCADE
+  );`
+
 func (p *Sqlite) SetDB(dbConnection *sql.DB) {
 	p.db = dbConnection
 }
@@ -148,6 +157,12 @@ func (p *Sqlite) InitializeDB() error {
 	_, err = tx.ExecContext(p.ctx, minionSearchesTableQuery)
 	if err != nil {
 		log.Errorf("initializeDB: unable to execute query: %v, err: %+v", minionSearchesTableQuery, err)
+		_ = tx.Rollback()
+		return err
+	}
+	_, err = tx.ExecContext(p.ctx, alertsHistoryTableQuery)
+	if err != nil {
+		log.Errorf("initializeDB: unable to execute query: %v, err: %+v", alertsHistoryTableQuery, err)
 		_ = tx.Rollback()
 		return err
 	}
@@ -367,6 +382,94 @@ func (p Sqlite) GetAlert(alert_id string) (*alertutils.AlertDetails, error) {
 	return &alertutils.AlertDetails{AlertInfo: alertInfoObj, QueryParams: queryParamsStruct,
 		Condition: condition, Value: value,
 		EvalFor: eval_for, EvalInterval: eval_interval, Message: message}, nil
+}
+
+func (p Sqlite) CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error) {
+	if !isValid(alertHistoryDetails.AlertId) || !isValid(alertHistoryDetails.EventDescription) || !isValid(alertHistoryDetails.UserName) {
+		log.Errorf("CreateAlertHistory: data validation check failed")
+		return nil, errors.New("CreateAlertHistory: data validation check failed")
+	}
+
+	tx, err := p.db.BeginTx(p.ctx, nil)
+	if err != nil {
+		log.Errorf("CreateAlertHistory: unable to begin transaction, err: %+v", err)
+		return nil, err
+	}
+
+	id := CreateUniqId()
+
+	sqlStatement := "INSERT INTO alerts_history(id, alert_id, event_description, username, event_triggered_at) VALUES($1, $2, $3, $4, $5);"
+	_, err = tx.ExecContext(p.ctx, sqlStatement, id, alertHistoryDetails.AlertId, alertHistoryDetails.EventDescription, alertHistoryDetails.UserName, alertHistoryDetails.EventTriggeredAt)
+	if err != nil {
+		log.Errorf("CreateAlertHistory: unable to execute query: %v, with parameters: %v %+v %v %v %v, err: %v ", sqlStatement, id, alertHistoryDetails.AlertId, alertHistoryDetails.EventDescription, alertHistoryDetails.UserName, alertHistoryDetails.EventTriggeredAt, err)
+		_ = tx.Rollback()
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Errorf("CreateAlertHistory: unable to execute transaction, err: %+v", err)
+		_ = tx.Rollback()
+		return nil, err
+	}
+
+	return alertHistoryDetails, nil
+}
+
+func (p Sqlite) GetAlertHistory(alertId string) ([]*alertutils.AlertHistoryDetails, error) {
+	if !isValid(alertId) {
+		log.Errorf("GetAlertHistory: data validation check failed")
+		return nil, errors.New("GetAlertHistory: data validation check failed")
+	}
+
+	alertExists, _, err := p.verifyAlertExists(alertId)
+	if err != nil {
+		log.Errorf("GetAlertHistory: unable to verify if alert exists, err: %+v", err)
+		return nil, err
+	}
+
+	if !alertExists {
+		log.Errorf("GetAlertHistory: alert does not exist")
+		return nil, errors.New("alert does not exist")
+	}
+
+	tx, err := p.db.BeginTx(p.ctx, nil)
+	if err != nil {
+		log.Errorf("GetAlertHistory: unable to begin transaction, err: %+v", err)
+		return nil, err
+	}
+
+	var alertHistory []*alertutils.AlertHistoryDetails
+	sqlStatement := "SELECT event_description, username, event_triggered_at FROM alerts_history WHERE alert_id=$1; ORDER BY event_triggered_at DESC;"
+	rows, err := tx.Query(sqlStatement, alertId)
+	if err != nil {
+		log.Errorf("GetAlertHistory: unable to execute query: %v, err: %+v", sqlStatement, err)
+		_ = tx.Rollback()
+		return nil, err
+	}
+
+	for rows.Next() {
+		var alertHistoryObj *alertutils.AlertHistoryDetails
+
+		alertHistoryObj.AlertId = alertId
+		err = rows.Scan(&alertHistoryObj.EventDescription, &alertHistoryObj.UserName, &alertHistoryObj.EventTriggeredAt)
+		if err != nil {
+			log.Errorf("GetAlertHistory: unable to execute query: %v, err: %+v", sqlStatement, err)
+			_ = tx.Rollback()
+			return nil, err
+		}
+
+		alertHistory = append(alertHistory, alertHistoryObj)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Errorf("GetAlertHistory: unable to execute transaction, err: %+v", err)
+		_ = tx.Rollback()
+		return nil, err
+	}
+
+	return alertHistory, nil
 }
 
 func (p Sqlite) GetAllAlerts() ([]alertutils.AlertInfo, error) {
