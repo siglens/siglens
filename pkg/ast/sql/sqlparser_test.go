@@ -142,7 +142,7 @@ func Test_ParseGroupByRound(t *testing.T) {
 	assert.Equal(t, rightExpr.Value, "1")
 	assert.Equal(t, leftExpr.ValueIsField, true)
 	assert.Equal(t, rightExpr.ValueIsField, false)
-	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "Round(0(latency))")
+	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "round(0(latency))")
 
 	assert.NotNil(t, aggs.Next)
 
@@ -172,5 +172,29 @@ func Test_ParseGroupByRound(t *testing.T) {
 	assert.Equal(t, leftExpr.ValueIsField, true)
 	assert.Equal(t, rightExpr.ValueIsField, false)
 	assert.Nil(t, leftExpr.Val)
-	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "Round(sum(latitude))")
+	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "round(sum(latitude))")
+
+	// round with alias
+	query_string = "SELECT ROUND(sum(latitude), 2) as lat_sum FROM `*` GROUP BY city"
+	_, aggs, _, err = ConvertToASTNodeSQL(query_string, 0)
+
+	assert.Nil(t, err)
+
+	assert.NotNil(t, aggs.OutputTransforms.LetColumns)
+
+	assert.NotNil(t, aggs.OutputTransforms.LetColumns.ValueColRequest)
+
+	assert.NotNil(t, aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr)
+
+	leftExpr = aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left
+	rightExpr = aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right
+	Op = aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op
+
+	assert.Equal(t, Op, "round")
+	assert.Equal(t, leftExpr.Value, "sum(latitude)")
+	assert.Equal(t, rightExpr.Value, "2")
+	assert.Equal(t, leftExpr.ValueIsField, true)
+	assert.Equal(t, rightExpr.ValueIsField, false)
+	assert.Nil(t, leftExpr.Val)
+	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "lat_sum")
 }
