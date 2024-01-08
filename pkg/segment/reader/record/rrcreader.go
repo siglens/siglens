@@ -107,10 +107,6 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			}
 
 			if hasQueryAggergatorBlock {
-				agg.PostQueryBucketCleaning(nil, aggs, recs, finalCols)
-			}
-
-			if hasQueryAggergatorBlock {
 				nodeRes := &structs.NodeResult{}
 				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
 			}
