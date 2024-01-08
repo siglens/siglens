@@ -245,7 +245,7 @@ echo -e "ingestPort(8081) and queryPort(80) can be changed using in server.yaml.
 echo -e "queryPort(80) can also be changed by setting the environment variable $PORT."
 
 tput bold
-printf "\n===> ${GREEN_TEXT}Frontend can be accessed on http://localhost:${UI_PORT}${RESET_COLOR}"
+printf "\n===> ${GREEN_TEXT}Frontend can be accessed on http://localhost:${UI_PORT}\a${RESET_COLOR}"
 echo ""
 tput sgr0
 
