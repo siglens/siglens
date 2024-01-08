@@ -831,11 +831,11 @@ func RefreshExternalAggsInfo(fNames []string) error {
 }
 
 func PostPqsClear(ctx *fasthttp.RequestCtx) {
-	clearPqs()
+	ClearPqs()
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func clearPqs() {
+func ClearPqs() {
 	persistentInfoLock.Lock()
 	localPersistentQueries = make(map[string]*PersistentSearchNode)
 	allNodesPQsSorted = make([]*PersistentSearchNode, 0)

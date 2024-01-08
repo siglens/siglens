@@ -186,7 +186,9 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/{qname}", hs.Recovery(SearchUserSavedQueryHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs/clear", hs.Recovery(postPqsClearHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/pqs/aggs", hs.Recovery(postPqsAggColsHandler()))
+	hs.Router.POST(server_utils.API_PREFIX+"/pqs/update", hs.Recovery(postPqsHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs", hs.Recovery(getPqsHandler()))
+
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs/{pqid}", hs.Recovery(getPqsByIdHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/create", hs.Recovery(createDashboardHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/defaultlistall", hs.Recovery(getDefaultDashboardIdsHandler()))
