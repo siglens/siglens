@@ -1,0 +1,20 @@
+
+receivers:
+  otlp:
+    protocols:
+      http:
+  
+exporters:
+  otlphttp/siglens:
+      endpoint: "http://localhost:8081/otlp"
+
+processors:
+  batch:
+
+service:
+  pipelines:
+    traces:
+      exporters: [otlphttp/siglens]
+      receivers: [otlp]
+      processors: [batch]
+

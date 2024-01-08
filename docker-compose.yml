@@ -13,3 +13,11 @@ services:
       - UI_PORT=${UI_PORT}
       - WORK_DIR=${WORK_DIR}
       - SIGLENS_VERSION=${SIGLENS_VERSION}
+
+  siglens-otel-collector:
+    image: otel/opentelemetry-collector:latest  
+    volumes:
+      - ./siglens-otel-collector-config.yaml:/etc/siglens-otel-collector-config.yaml  
+    ports:
+      - "4318:4318"
+    command: ["--config=/etc/siglens-otel-collector-config.yaml"]   
