@@ -51,6 +51,7 @@ import (
 )
 
 const MaxAgileTreeNodeCount = 8_000_000
+const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
 // SegStore Individual stream buffer
 type SegStore struct {
@@ -106,8 +107,10 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 	segstore.wipBlock.maxIdx = 0
 
-	if len(segstore.wipBlock.colWips) > 2000 {
-		log.Errorf("resetWipBlock: colWips size is too large: %v", len(segstore.wipBlock.colWips))
+	if len(segstore.wipBlock.colWips) > colWipsSizeLimit {
+		log.Errorf("resetWipBlock: colWips size exceeds %v; current size is %v for segKey %v",
+			colWipsSizeLimit, len(segstore.wipBlock.colWips), segstore.SegmentKey)
+
 		segstore.wipBlock.colWips = make(map[string]*ColWip)
 	} else {
 		for _, cwip := range segstore.wipBlock.colWips {
