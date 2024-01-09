@@ -195,11 +195,11 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
         if len(queryAggSlice) > 0 {
             // Chain together all QueryAggergators.
             q.PipeCommands = queryAggSlice[0].(*structs.QueryAggregators)
-    
+
             // Go to the end of the first chain.
             curQueryAgg := q.PipeCommands
             for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
-    
+
             // Link the remaining chains.
             for i := range queryAggSlice[1:] {
                 queryAgg := queryAggSlice[i + 1].(*structs.QueryAggregators)
@@ -455,7 +455,7 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
     return aggNode, nil
 }
 
-// To be finished: <eval-expression> BY <split-by-clause> 
+// To be finished: <eval-expression> BY <split-by-clause>
 // TimechartEvalExpr <- ... BY splitByClause:(SplitByClause) {
 // }
 
@@ -504,13 +504,13 @@ TcOptions <- SPACE option:(BinOptions / (TcOption)+) {
                     useNullBool, err := strconv.ParseBool(optArr[1])
                     if err != nil {
                         return nil, fmt.Errorf("Spl peg: Timechart: TcOptions: %v", err)
-                    } 
+                    }
                     tcOptions.UseNull = useNullBool
                 case "useother":
                     useOtherBool, err := strconv.ParseBool(optArr[1])
                     if err != nil {
                         return nil, fmt.Errorf("Spl peg: Timechart: TcOptions: %v", err)
-                    } 
+                    }
                     tcOptions.UseOther = useOtherBool
                 case "nullstr":
                     tcOptions.OtherStr = optArr[1]
@@ -519,7 +519,6 @@ TcOptions <- SPACE option:(BinOptions / (TcOption)+) {
                 default:
                     return nil, fmt.Errorf("Spl peg: Timechart: TcOptions: invalid option: %v", optArr[0])
             }
-            
         }
     default:
         return nil, fmt.Errorf("Spl peg: Timechart: Invalid tcOptions %v", option)
@@ -583,7 +582,6 @@ LimitExpr <- SPACE "limit" EQUAL sortBy:("top" / "bottom")? EMPTY_OR_SPACE intAs
     limitExpr := &structs.LimitExpr {
         IsTop: true, // Default Value
         Num: num,
-        
     }
 
     if sortBy != nil {
@@ -598,7 +596,6 @@ LimitExpr <- SPACE "limit" EQUAL sortBy:("top" / "bottom")? EMPTY_OR_SPACE intAs
 
     return limitExpr, nil
 }
- 
 
 StatisticBlock <- PIPE statisticExpr:StatisticExpr {
     letColReq := &structs.LetColumnsRequest {
@@ -704,7 +701,7 @@ StatisticOptions <- option:(StatisticOption)*
             showCountBool, err := strconv.ParseBool(optArr[1])
             if err != nil {
                 return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: %v", err)
-            } 
+            }
             options.ShowCount = showCountBool
         case "countfield":
             options.CountField = optArr[1]
@@ -712,7 +709,7 @@ StatisticOptions <- option:(StatisticOption)*
             showPercBool, err := strconv.ParseBool(optArr[1])
             if err != nil {
                 return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: %v", err)
-            } 
+            }
             options.ShowPerc = showPercBool
         case "percentfield":
             options.PercentField = optArr[1]
@@ -720,7 +717,7 @@ StatisticOptions <- option:(StatisticOption)*
             useOtherBool, err := strconv.ParseBool(optArr[1])
             if err != nil {
                 return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: %v", err)
-            } 
+            }
             options.UseOther = useOtherBool
         case "otherstr":
             options.OtherStr = optArr[1]
@@ -831,19 +828,19 @@ DedupOptions <- option:(DedupOption)*
             consecutiveBool, err := strconv.ParseBool(optArr[1])
             if err != nil {
                 return nil, fmt.Errorf("Spl peg: DedupBlock: Options: %v", err)
-            } 
+            }
             options.Consecutive = consecutiveBool
         case "keepempty":
             keepEmptyBool, err := strconv.ParseBool(optArr[1])
             if err != nil {
                 return nil, fmt.Errorf("Spl peg: DedupBlock: Options: %v", err)
-            } 
+            }
             options.KeepEmpty = keepEmptyBool
         case "keepevents":
             keepEventsBool, err := strconv.ParseBool(optArr[1])
             if err != nil {
                 return nil, fmt.Errorf("Spl peg: DedupBlock: Options: %v", err)
-            } 
+            }
             options.KeepEvents = keepEventsBool
         default:
             return nil, fmt.Errorf("Spl peg: DedupBlock: Options: invalid option")
@@ -1074,7 +1071,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
             Op: opNameStr,
             MaxMinValues: values,
         }
-        return node, nil   
+        return node, nil
       }
 / (opName:("urldecode") L_PAREN url:StringExpr R_PAREN ){
         opNameStr, err := transferUint8ToString(opName)
@@ -1130,7 +1127,6 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
         Value: stringExprConverted,
         StartIndex: startIndexConverted,
         LengthExpr: lengthConverted,
-        
     }
     return node, nil
 }
@@ -1138,7 +1134,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     var formatExpr *structs.StringExpr
     if format != nil {
         formatSlice := format.([]interface{})
-        formatExpr, _ = formatSlice[1].(*structs.StringExpr) 
+        formatExpr, _ = formatSlice[1].(*structs.StringExpr)
     }
     return &structs.TextExpr{
         IsTerminal: false,
@@ -1157,7 +1153,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     if !ok {
         return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert expr as *structs.StringExpr: %v", err)
     }
-    
+
     strToRemove := " \t"
     if strToRemoveExpr != nil {
         strToRemove = strToRemoveExpr.(string)
@@ -1427,7 +1423,7 @@ ValueExpr <- condition:ConditionExpr {
         ValueExprMode: structs.VEMBooleanExpr,
         BooleanExpr: boolean.(*structs.BoolExpr),
     }
-          
+
     return expr, nil
 }
 
@@ -1569,7 +1565,7 @@ RoundPrecisionExpr <- COMMA expr:NumericExprLevel3 {
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
     }
-    
+
     return rightNumericExpr, nil
 }
 
@@ -1607,7 +1603,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
     }
-    
+
     //transfer []uint8 to string
     strData, ok := opName.([]byte)
     if !ok {
@@ -1627,9 +1623,9 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
     }
-    
-    var rightNumericExpr *structs.NumericExpr 
-    if roundPrecision != nil { 
+
+    var rightNumericExpr *structs.NumericExpr
+    if roundPrecision != nil {
         rightNumericExpr, ok = roundPrecision.(*structs.NumericExpr)
         if !ok {
             return nil, fmt.Errorf("Failed to assert roundPrecision as *structs.NumericExpr")
@@ -1666,11 +1662,11 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
             }
         }
     }
-    
+
     node := &structs.NumericExpr {
         IsTerminal: false,
         Op: "tonumber",
-        Left: nil, 
+        Left: nil,
         Right: baseExprConverted,
         Val: stringExprConverted,
         NumericExprMode: structs.NEMNumericExpr,
@@ -1689,7 +1685,7 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
         Value: str.(string),
         NumericExprMode: structs.NEMLenString,
     }
-    
+
     node, err := createNumericExpr("len", leftNumericExpr, nil, structs.NEMLenString)
     if err != nil {
         return nil, err
@@ -1705,7 +1701,7 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
         Value: field.(string),
         NumericExprMode: structs.NEMLenField,
     }
-    
+
     node, err := createNumericExpr("len", leftNumericExpr, nil, structs.NEMLenField)
     if err != nil {
         return nil, err
@@ -1819,7 +1815,7 @@ AggCount <- ("count" / "c") L_PAREN "eval" boolExpr:BoolExpr R_PAREN {
     }
 
     return agg, nil
-} 
+}
 
 AggDistinctCount <- ("distinct_count" / "dc") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {

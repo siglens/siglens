@@ -518,10 +518,6 @@ func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 	return nil
 }
 
-func isExists(combination []interface{}, combinations [][]interface{}) {
-
-}
-
 func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {
 
