@@ -138,6 +138,7 @@ type QueryAggregators struct {
 	TableName            string
 	TransactionArguments *TransactionArguments
 	Next                 *QueryAggregators
+	Limit                int
 }
 
 type ShowRequest struct {
