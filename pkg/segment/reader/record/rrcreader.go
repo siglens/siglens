@@ -181,6 +181,24 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 	sort.Strings(colsSlice)
 	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(allRecords), time.Since(sTime))
+
+	if aggs != nil {
+		for post := aggs; post != nil; post = post.Next {
+			if post.TransactionArguments != nil {
+				recs := make(map[string]map[string]interface{}, 0)
+				recs["0"] = make(map[string]interface{})
+				recs["0"]["records"] = allRecords
+				recs["0"]["columns"] = colsSlice
+				nodeRes := &structs.NodeResult{}
+				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
+				allRecords = recs["0"]["records"].([]map[string]interface{})
+				colsSlice = recs["0"]["columns"].([]string)
+				break
+			}
+		}
+
+	}
+
 	return allRecords, colsSlice, nil
 }
 
