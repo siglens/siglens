@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 	"verifier/pkg/utils"
+
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
