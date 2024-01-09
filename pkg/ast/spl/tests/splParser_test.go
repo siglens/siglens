@@ -1437,6 +1437,84 @@ func Test_manyChainedCompoundSearch(t *testing.T) {
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(6))
 }
 
+func Test_searchBlockWithoutUsingSearchKeyword(t *testing.T) {
+	// This should be equivalent to `search A=1 AND ((B=2 AND C=3) AND ((D=4 OR E=5) AND F=6))`
+	query := []byte(`search A=1 | B=2 C=3 | search D=4 OR E=5 | F=6`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, ast.NodeAnd, filterNode.NodeType)
+	assert.Equal(t, ast.NodeAnd, filterNode.Right.NodeType)
+	assert.Equal(t, ast.NodeAnd, filterNode.Right.Left.NodeType)
+	assert.Equal(t, ast.NodeAnd, filterNode.Right.Right.NodeType)
+	assert.Equal(t, ast.NodeOr, filterNode.Right.Right.Left.NodeType)
+
+	assert.Equal(t, filterNode.Left.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Left.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Left.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Left.Comparison.Values, json.Number("1"))
+
+	assert.Equal(t, filterNode.Right.Left.Left.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Left.Left.Comparison.Field, "B")
+	assert.Equal(t, filterNode.Right.Left.Left.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Left.Left.Comparison.Values, json.Number("2"))
+
+	assert.Equal(t, filterNode.Right.Left.Right.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Left.Right.Comparison.Field, "C")
+	assert.Equal(t, filterNode.Right.Left.Right.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Left.Right.Comparison.Values, json.Number("3"))
+
+	assert.Equal(t, filterNode.Right.Right.Left.Left.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Right.Left.Left.Comparison.Field, "D")
+	assert.Equal(t, filterNode.Right.Right.Left.Left.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Right.Left.Left.Comparison.Values, json.Number("4"))
+
+	assert.Equal(t, filterNode.Right.Right.Left.Right.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Right.Left.Right.Comparison.Field, "E")
+	assert.Equal(t, filterNode.Right.Right.Left.Right.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Right.Left.Right.Comparison.Values, json.Number("5"))
+
+	assert.Equal(t, filterNode.Right.Right.Right.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Field, "F")
+	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Values, json.Number("6"))
+
+	astNode := &structs.ASTNode{}
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
+	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+	andFilter := astNode.AndFilterCondition
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+
+	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
+	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes, 2)
+	andFilter = astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes[0].AndFilterCondition
+	assert.Len(t, andFilter.FilterCriteria, 2)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
+
+	andFilter = astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes[1].AndFilterCondition
+	assert.Len(t, andFilter.NestedNodes, 1)
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "D")
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(4))
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "E")
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(5))
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "F")
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(6))
+}
+
 func Test_regexSingleColumnEquals(t *testing.T) {
 	query := []byte(`A=1 | regex B="^\d$"`)
 	res, err := spl.Parse("", query)

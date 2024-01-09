@@ -23,6 +23,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
+	bbp "github.com/valyala/bytebufferpool"
 )
 
 type RunningBucketResults struct {
@@ -96,12 +97,16 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 			i += step
 		case utils.Cardinality:
 			if rr.currStats[i].ValueColRequest == nil {
-				rawVal, err := measureResults[i].GetUIntValue()
+				rawVal, err := measureResults[i].GetString()
 				if err != nil {
 					log.Errorf("AddMeasureResults: failed to add measurement to running stats: %v", err)
 					continue
 				}
-				(*runningStats)[i].hll.InsertHash(rawVal)
+				bb := bbp.Get()
+				defer bbp.Put(bb)
+				bb.Reset()
+				_, _ = bb.WriteString(rawVal)
+				(*runningStats)[i].hll.Insert(bb.B)
 				continue
 			}
 			fallthrough

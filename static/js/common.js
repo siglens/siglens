@@ -60,6 +60,7 @@ let secondBoxSet = new Set();
 let thirdBoxSet = new Set();
 let measureFunctions = [];
 let measureInfo = [];
+let isTimechart = false;
 
 
 let aggGridOptions = {
