@@ -32,10 +32,7 @@ func AddAccessLogEntry(data dtypeutils.AccessLogData, fileName string) {
 		log.Errorf("Unable to write to access.log file, err=%v", err)
 	}
 	defer logFile.Close()
-	// Do not log websocket connections
-	if data.StatusCode == 101 {
-		return
-	}
+
 	// Do not log internal search requests for trace data
 	if (strings.TrimSpace(data.URI) == "http:///" || strings.TrimSpace(data.URI) == "https:///") && strings.Contains(data.RequestBody, "\"indexName\":\"traces\"") {
 		return
