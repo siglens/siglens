@@ -386,7 +386,7 @@ function secondFilterComplete(evt) {
 function getSearchText() {
   let filterValue = getQueryBuilderCode();
   if (filterValue != "") $("#query-input").val(filterValue);
-  if (filterValue == "Syntax Error") $("#query-builder-btn").addClass("stop-search");
+  if (filterValue == "Searches with a Search Criteria must have an Aggregate Attribute") $("#query-builder-btn").addClass("stop-search");
   else $("#query-builder-btn").removeClass("stop-search");
 }
 function cancelInfo(evt) {
