@@ -19,8 +19,6 @@ package queryserver
 import (
 	"time"
 
-	"github.com/siglens/siglens/pkg/utils"
-
 	"github.com/fasthttp/websocket"
 
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
@@ -209,17 +207,6 @@ var upgrader = websocket.FastHTTPUpgrader{
 
 func pipeSearchWebsocketHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		log.Errorf("andrew doing defer")
-		defer utils.DeferableAddAccessLogEntry(
-			time.Now(),
-			func() time.Time { return time.Now() },
-			"No-user", // TODO : Add logged in user when user auth is implemented
-			ctx.Request.URI().String(),
-			string(ctx.PostBody()),
-			func() int { return ctx.Response.StatusCode() },
-			"access.log",
-		)
-
 		err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
 			defer func() {
 				deadline := time.Now().Add(time.Second * 5)
