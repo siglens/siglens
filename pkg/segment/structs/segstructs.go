@@ -48,6 +48,7 @@ type TimeBucket struct {
 	StartTime      uint64 // start time of histogram
 	EndTime        uint64 // end time of histogram
 	AggName        string // name of aggregation
+	Timechart      *TimechartExpr
 }
 
 type RangeBucket struct {
@@ -470,6 +471,10 @@ func (qa *QueryAggregators) HasValuesFunc() bool {
 		}
 	}
 	return false
+}
+
+func (qa *QueryAggregators) UsedByTimechart() bool {
+	return qa != nil && qa.TimeHistogram != nil && qa.TimeHistogram.Timechart != nil
 }
 
 func (qa *QueryAggregators) CanLimitBuckets() bool {

@@ -177,4 +177,14 @@ jobs:
             asset_path: install_with_docker.sh
             asset_name: install_with_docker.sh
             asset_content_type: application/octet-stream
+        - name: Upload Release Asset - docker-compose.yml
+          id: upload-release-asset-DockerCompose
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: docker-compose.yml
+            asset_name: docker-compose.yml
+            asset_content_type: application/octet-stream
     

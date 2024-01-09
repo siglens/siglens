@@ -1437,6 +1437,84 @@ func Test_manyChainedCompoundSearch(t *testing.T) {
 	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(6))
 }
 
+func Test_searchBlockWithoutUsingSearchKeyword(t *testing.T) {
+	// This should be equivalent to `search A=1 AND ((B=2 AND C=3) AND ((D=4 OR E=5) AND F=6))`
+	query := []byte(`search A=1 | B=2 C=3 | search D=4 OR E=5 | F=6`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, ast.NodeAnd, filterNode.NodeType)
+	assert.Equal(t, ast.NodeAnd, filterNode.Right.NodeType)
+	assert.Equal(t, ast.NodeAnd, filterNode.Right.Left.NodeType)
+	assert.Equal(t, ast.NodeAnd, filterNode.Right.Right.NodeType)
+	assert.Equal(t, ast.NodeOr, filterNode.Right.Right.Left.NodeType)
+
+	assert.Equal(t, filterNode.Left.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Left.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Left.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Left.Comparison.Values, json.Number("1"))
+
+	assert.Equal(t, filterNode.Right.Left.Left.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Left.Left.Comparison.Field, "B")
+	assert.Equal(t, filterNode.Right.Left.Left.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Left.Left.Comparison.Values, json.Number("2"))
+
+	assert.Equal(t, filterNode.Right.Left.Right.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Left.Right.Comparison.Field, "C")
+	assert.Equal(t, filterNode.Right.Left.Right.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Left.Right.Comparison.Values, json.Number("3"))
+
+	assert.Equal(t, filterNode.Right.Right.Left.Left.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Right.Left.Left.Comparison.Field, "D")
+	assert.Equal(t, filterNode.Right.Right.Left.Left.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Right.Left.Left.Comparison.Values, json.Number("4"))
+
+	assert.Equal(t, filterNode.Right.Right.Left.Right.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Right.Left.Right.Comparison.Field, "E")
+	assert.Equal(t, filterNode.Right.Right.Left.Right.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Right.Left.Right.Comparison.Values, json.Number("5"))
+
+	assert.Equal(t, filterNode.Right.Right.Right.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Field, "F")
+	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Values, json.Number("6"))
+
+	astNode := &structs.ASTNode{}
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
+	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+	andFilter := astNode.AndFilterCondition
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+
+	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
+	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes, 2)
+	andFilter = astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes[0].AndFilterCondition
+	assert.Len(t, andFilter.FilterCriteria, 2)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(2))
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
+
+	andFilter = astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes[1].AndFilterCondition
+	assert.Len(t, andFilter.NestedNodes, 1)
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "D")
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(4))
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "E")
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.NestedNodes[0].OrFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(5))
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "F")
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(6))
+}
+
 func Test_regexSingleColumnEquals(t *testing.T) {
 	query := []byte(`A=1 | regex B="^\d$"`)
 	res, err := spl.Parse("", query)
@@ -2027,6 +2105,179 @@ func Test_groupbyManyFields(t *testing.T) {
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[1], "weekday")
 	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[2], "city")
 	assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
+}
+
+func Test_timechartHasGroupby(t *testing.T) {
+	query := []byte(`search A=1 | timechart span=1d avg(latency), sum(latitude) BY http_status limit=bottom2`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
+	assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 2)
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureCol, "latitude")
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Sum)
+	assert.Len(t, pipeCommands.GroupByRequest.GroupByColumns, 1)
+	assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "timestamp")
+	assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
+	// Timechart
+	assert.NotNil(t, pipeCommands.TimeHistogram)
+	assert.NotNil(t, pipeCommands.TimeHistogram.Timechart)
+	assert.Equal(t, uint64(86_400_000), pipeCommands.TimeHistogram.IntervalMillis)
+	assert.Equal(t, "http_status", pipeCommands.TimeHistogram.Timechart.ByField)
+	assert.NotNil(t, pipeCommands.TimeHistogram.Timechart.LimitExpr)
+	assert.False(t, pipeCommands.TimeHistogram.Timechart.LimitExpr.IsTop)
+	assert.Equal(t, 2, pipeCommands.TimeHistogram.Timechart.LimitExpr.Num)
+	assert.Equal(t, structs.LSMByFreq, int(pipeCommands.TimeHistogram.Timechart.LimitExpr.LimitScoreMode))
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+
+	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.GroupByType)
+	assert.Len(t, aggregator.GroupByRequest.MeasureOperations, 2)
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureCol, "latitude")
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Sum)
+	assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 1)
+	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "timestamp")
+	assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
+	// Timechart
+	assert.NotNil(t, aggregator.TimeHistogram)
+	assert.NotNil(t, aggregator.TimeHistogram.Timechart)
+	assert.Equal(t, uint64(86_400_000), aggregator.TimeHistogram.IntervalMillis)
+	assert.Equal(t, "http_status", aggregator.TimeHistogram.Timechart.ByField)
+	assert.NotNil(t, aggregator.TimeHistogram.Timechart.LimitExpr)
+	assert.False(t, aggregator.TimeHistogram.Timechart.LimitExpr.IsTop)
+	assert.Equal(t, 2, aggregator.TimeHistogram.Timechart.LimitExpr.Num)
+	assert.Equal(t, structs.LSMByFreq, int(aggregator.TimeHistogram.Timechart.LimitExpr.LimitScoreMode))
+}
+
+func Test_timechartWithoutGroupby(t *testing.T) {
+	query := []byte(`search A=1 | timechart span=1hr min(latency), range(longitude)`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
+	assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 2)
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Min)
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureCol, "longitude")
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Range)
+	assert.Len(t, pipeCommands.GroupByRequest.GroupByColumns, 1)
+	assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "timestamp")
+	assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
+	// Timechart
+	assert.NotNil(t, pipeCommands.TimeHistogram)
+	assert.NotNil(t, pipeCommands.TimeHistogram.Timechart)
+	assert.Equal(t, uint64(3_600_000), pipeCommands.TimeHistogram.IntervalMillis)
+	assert.Equal(t, "", pipeCommands.TimeHistogram.Timechart.ByField)
+	assert.Nil(t, pipeCommands.TimeHistogram.Timechart.LimitExpr)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+
+	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.GroupByType)
+	assert.Len(t, aggregator.GroupByRequest.MeasureOperations, 2)
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Min)
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureCol, "longitude")
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Range)
+	assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 1)
+	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "timestamp")
+	assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
+	// Timechart
+	assert.NotNil(t, aggregator.TimeHistogram)
+	assert.NotNil(t, aggregator.TimeHistogram.Timechart)
+	assert.Equal(t, uint64(3_600_000), aggregator.TimeHistogram.IntervalMillis)
+	assert.Equal(t, "", aggregator.TimeHistogram.Timechart.ByField)
+	assert.Nil(t, aggregator.TimeHistogram.Timechart.LimitExpr)
+}
+
+func Test_timechartWithoutGroupBy(t *testing.T) {
+	query := []byte(`search A=1 | timechart span=1d avg(latency), sum(latitude) BY http_status`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
+	assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 2)
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureCol, "latitude")
+	assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Sum)
+	assert.Len(t, pipeCommands.GroupByRequest.GroupByColumns, 1)
+	assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "timestamp")
+	assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
+	// Timechart
+	assert.NotNil(t, pipeCommands.TimeHistogram)
+	assert.NotNil(t, pipeCommands.TimeHistogram.Timechart)
+	assert.Equal(t, "http_status", pipeCommands.TimeHistogram.Timechart.ByField)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+
+	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.GroupByType)
+	assert.Len(t, aggregator.GroupByRequest.MeasureOperations, 2)
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureCol, "latitude")
+	assert.Equal(t, aggregator.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Sum)
+	assert.Len(t, aggregator.GroupByRequest.GroupByColumns, 1)
+	assert.Equal(t, aggregator.GroupByRequest.GroupByColumns[0], "timestamp")
+	assert.Equal(t, aggregator.BucketLimit, segquery.MAX_GRP_BUCKS)
+	// Timechart
+	assert.NotNil(t, aggregator.TimeHistogram)
+	assert.NotNil(t, aggregator.TimeHistogram.Timechart)
+	assert.Equal(t, "http_status", pipeCommands.TimeHistogram.Timechart.ByField)
 }
 
 func Test_aggHasEvalFuncWithoutGroupBy(t *testing.T) {

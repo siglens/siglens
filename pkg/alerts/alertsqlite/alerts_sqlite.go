@@ -376,6 +376,13 @@ func (p Sqlite) GetAllAlerts() ([]alertutils.AlertInfo, error) {
 		log.Errorf("getAllAlerts: unable to begin transaction, err: %+v", err)
 		return nil, err
 	}
+	sqlSta := "ALTER TABLE all_alerts ADD COLUMN silence_minutes INTEGER DEFAULT 0;"
+	_, errorAlter := tx.Exec(sqlSta)
+	if err != nil {
+		log.Errorf("getAllAlerts: Error adding column: %v, err: %+v", sqlSta, errorAlter)
+		return nil, err
+	}
+
 	sqlStatement := "SELECT alert_id, alert_name, state, create_timestamp, contact_id, labels, silence_minutes FROM all_alerts;"
 	rows, err := tx.Query(sqlStatement)
 	if err != nil {
@@ -407,7 +414,6 @@ func (p Sqlite) GetAllAlerts() ([]alertutils.AlertInfo, error) {
 			_ = tx.Rollback()
 			return nil, err
 		}
-
 		alerts = append(alerts, alertutils.AlertInfo{AlertId: alert_id, AlertName: alert_name, State: state, CreateTimestamp: create_timestamp, ContactId: contact_id, Labels: labels_array, SilenceMinutes: silence_minutes})
 	}
 	err = tx.Commit()

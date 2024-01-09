@@ -58,6 +58,9 @@ let totalMatchLogs = 0;
 let firstBoxSet = new Set();
 let secondBoxSet = new Set();
 let thirdBoxSet = new Set();
+let measureFunctions = [];
+let measureInfo = [];
+let isTimechart = false;
 
 
 let aggGridOptions = {
@@ -86,7 +89,13 @@ function showError(errorMsg) {
     $("#agg-result-container").hide();
     $("#data-row-container").hide();
     $('#empty-response').hide();
-    $('#logs-view-controls').show();
+    let currentTab = $("#custom-chart-tab").tabs("option", "active");
+    if (currentTab == 0) {
+      $("#logs-view-controls").show();
+    } else {
+      $("#logs-view-controls").hide();
+    }
+    $("#custom-chart-tab").show();
     $('#corner-popup .corner-text').html(errorMsg);
     $('#corner-popup').show();
     $('body').css('cursor', 'default');

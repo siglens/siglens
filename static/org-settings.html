@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-    
-        gtag('config', 'G-5SBJC04YFB');
-    </script>
-    
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-5SBJC04YFB');
+</script>
+
 <head>
     <meta charset="UTF-8">
     <title>SigLens</title>
@@ -33,26 +33,19 @@
     <script src="./js/lib/moment.min.js"></script>
     <script src="./js/lib/date_fns.min.js"></script>
     <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/settings.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
 </head>
 
 <body data-theme="light">
     <div id="app-container">
-        <div id="app-side-nav" class="active">
+        <div id="app-side-nav">
         </div>
 
         <div class="myOrg">
             <div class="myOrg-container">
                 <div class="org-nav-tab">
-                    <div>
-                        <h1 class="myOrg-heading">My Org</h1>
-                        <div class="section-buttons">
-                            <div class="section-button"><a href="./cluster-stats.html">Cluster Stats</a></div>
-                            <div class="section-button active"><a href="./org-settings.html">Settings</a></div>
-                            <div class="section-button"><a href="./test-data.html">Test Data</a></div>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="myOrg-inner-container">
@@ -70,6 +63,7 @@
                                 <td id="retention-days-value">4 days</td>
                             </tr>
                         </table>
+
                     </div>
                 </div>
             </div>
@@ -91,7 +85,9 @@
     <script src="./js/saved-query.js?cb=1_1_10"></script>
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./js/point-click-search.js?cb=1_1_10"></script>
-    <script src="./js/settings.js"></script>
+    <script src="./component/upper-navbar/upper-navbar.js"></script>
+    <script src="./js/settings.js?cb=1_1_10"></script>
+
 </body>
 
 </html>

@@ -83,12 +83,9 @@ $(document).ready(function () {
         
     }
     $('.theme-btn').on('click', themePickerHandler);
-    displayNavbar();
-
     $('#new-contact-point').on('click',initializeContactForm)
     $('#contact-form-container').css('display', 'none');
     getAllContactPoints();
-
     if(window.location.href.includes("alert.html")){
         initializeContactForm();
     }
@@ -410,6 +407,7 @@ const contactGridOptions = {
 	rowData: contactRowData,
 	animateRows: true,
 	rowHeight: 44,
+    headerHeight:32,
 	defaultColDef: {
 		icons: {
 			sortAscending: '<i class="fa fa-sort-alpha-up"/>',

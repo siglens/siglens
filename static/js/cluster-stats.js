@@ -20,7 +20,6 @@ let EventCountChart;
  
 $(document).ready(() => {
     $('#app-content-area').hide();
-    displayNavbar();
     setupEventHandlers();
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', renderChart);
@@ -34,14 +33,13 @@ $(document).ready(() => {
 
     // Make api call to get the cluster stats
     let data = getTimeRange();
-
     renderClusterStatsTables();
-
     renderChart();
     if (Cookies.get('theme')) {
         theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
     }
+
 });
 
 function iStatsDatePickerHandler(evt) {

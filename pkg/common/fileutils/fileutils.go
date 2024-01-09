@@ -32,7 +32,7 @@ import (
 */
 
 var GLOBAL_FD_LIMITER *semaphore.WeightedSemaphore
-var DEFAULT_MAX_OPEN_FDs uint64 = 1024
+var DEFAULT_MAX_OPEN_FDs uint64 = 8192
 
 /*
 what percent of max open FDs should we actually use?
@@ -54,8 +54,8 @@ func init() {
 		numFiles = rLimit.Cur
 	}
 	var newLimit syscall.Rlimit
-	newLimit.Max = 8192
-	newLimit.Cur = 8192
+	newLimit.Max = numFiles
+	newLimit.Cur = numFiles
 
 	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &newLimit)
 	if err != nil {
@@ -65,7 +65,7 @@ func init() {
 		numFiles = newLimit.Cur
 	}
 	maxPossibleOpenFds := int64(numFiles*OPEN_FD_THRESHOLD_PERCENT) / 100
-	log.Debugf("Initialized FD limiter with %+v as max number of open files", maxPossibleOpenFds)
+	log.Infof("Initialized FD limiter with %+v as max number of open files", maxPossibleOpenFds)
 	GLOBAL_FD_LIMITER = semaphore.NewDefaultWeightedSemaphore(maxPossibleOpenFds, "GlobalFileLimiter")
 }
 

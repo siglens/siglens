@@ -67,4 +67,5 @@ type PipeSearchCompleteResponse struct {
 	GroupByCols         []string                `json:"groupByCols,omitempty"`
 	Qtype               string                  `json:"qtype,omitempty"`
 	BucketCount         int                     `json:"bucketCount,omitempty"`
+	IsTimechart         bool                    `json:"isTimechart"`
 }

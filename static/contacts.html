@@ -4,7 +4,7 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
 <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 
     gtag('config', 'G-5SBJC04YFB');
@@ -41,18 +41,11 @@
 <body data-theme="light">
     <div id="app-container">
 
-        <div id="app-side-nav" class="active">
+        <div id="app-side-nav">
         </div>
 
         <div id="alerting">
             <div class="alerts-nav-tab">
-                <div>
-                    <h1 class="myOrg-heading">Alerting</h1>
-                    <div class="section-buttons">
-                        <div class="section-button"><a href="./all-alerts.html">Alert rules</a></div>
-                        <div class="section-button active"><a href="./contacts.html">Contact points</a></div>
-                    </div>
-                </div>
             </div>
             <div class="upper-header">
                 <p class="caption">Determine how to notify contact points when an alert fires
@@ -74,18 +67,21 @@
             </div>
             <div class="popupContent">
                 <h3 class="header">Confirmation</h3>
-                <p>Are you sure you want to delete the <strong id="contact-name-placeholder"></strong> contact point?</p>
+                <p>Are you sure you want to delete the <strong id="contact-name-placeholder"></strong> contact point?
+                </p>
                 <button type="button" id="cancel-btn">Cancel</button>
                 <button type="button" id="delete-btn">Delete</button>
             </div>
             <div class="delete-dialog">
                 <h3 class="header">Cannot delete contact point</h3>
                 <p>
-                    The contact point named <strong id="contact-name-placeholder-delete-dialog"></strong> is currently in use by multiple alerts.
+                    The contact point named <strong id="contact-name-placeholder-delete-dialog"></strong> is currently
+                    in use by multiple alerts.
                 </p>
                 <div class="dropdown">
-                    <button class="btn dropdown-toggle" type="button" id="alert-btn" data-toggle="dropdown" aria-haspopup="true"
-                        aria-expanded="false" data-bs-toggle="dropdown" title="Alert Name to search on">
+                    <button class="btn dropdown-toggle" type="button" id="alert-btn" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
+                        title="Alert Name to search on">
                         <span>View associated Alerts</span>
                         <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
                         <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
@@ -96,7 +92,7 @@
                 </div>
                 <button type="button" id="cancel-btn">Close</button>
             </div>
-            
+
         </div>
 
         <div id="app-footer">
@@ -113,6 +109,8 @@
     <script src="./js/search.js?cb=1_1_10"></script>
     <script src="./js/point-click-search.js?cb=1_1_10"></script>
     <script src="./js/contacts.js?cb=1_1_10"></script>
+    <script src="./component/upper-navbar/upper-navbar.js"></script>
+
 </body>
 
 </html>

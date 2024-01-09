@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/bits-and-blooms/bloom/v3"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -375,6 +376,16 @@ func extractSearchQueryFromMatchFilter(match *MatchFilter) *SearchQuery {
 	} else {
 		currQuery.SearchType = MatchWords
 	}
+	if match.MatchPhrase != nil && bytes.Contains(match.MatchPhrase, []byte("*")) {
+		cval := dtu.ReplaceWildcardStarWithRegex(string(match.MatchPhrase))
+		rexpC, err := regexp.Compile(cval)
+		if err != nil {
+			log.Errorf("extractSearchQueryFromMatchFilter: regexp compile failed, err=%v", err)
+		} else {
+			currQuery.MatchFilter.Regexp = rexpC
+		}
+	}
+
 	return currQuery
 }
 
@@ -515,7 +526,8 @@ func (match *MatchFilter) GetAllBlockBloomKeysToSearch() (map[string]bool, bool,
 		return allKeys, wildcardExists, And
 	} else {
 		for _, literal := range match.MatchWords {
-			if bytes.Equal(literal, STAR_BYTE) {
+
+			if strings.Contains(string(literal), "*") {
 				wildcardExists = true
 				continue
 			}

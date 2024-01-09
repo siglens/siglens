@@ -51,6 +51,7 @@ import (
 )
 
 const MaxAgileTreeNodeCount = 8_000_000
+const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
 // SegStore Individual stream buffer
 type SegStore struct {
@@ -105,13 +106,21 @@ func (segstore *SegStore) initWipBlock() {
 func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 	segstore.wipBlock.maxIdx = 0
-	for _, cwip := range segstore.wipBlock.colWips {
-		cwip.cbufidx = 0
-		cwip.cstartidx = 0
 
-		cwip.deCount = 0
-		for dword := range cwip.deMap {
-			delete(cwip.deMap, dword)
+	if len(segstore.wipBlock.colWips) > colWipsSizeLimit {
+		log.Errorf("resetWipBlock: colWips size exceeds %v; current size is %v for segKey %v",
+			colWipsSizeLimit, len(segstore.wipBlock.colWips), segstore.SegmentKey)
+
+		segstore.wipBlock.colWips = make(map[string]*ColWip)
+	} else {
+		for _, cwip := range segstore.wipBlock.colWips {
+			cwip.cbufidx = 0
+			cwip.cstartidx = 0
+
+			cwip.deCount = 0
+			for dword := range cwip.deMap {
+				delete(cwip.deMap, dword)
+			}
 		}
 	}
 
@@ -668,6 +677,12 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 		if !ok {
 			continue
 		}
+
+		_, ok = segstore.AllSst[cname]
+		if !ok {
+			continue
+		}
+
 		cest := uint32(segstore.AllSst[cname].Hll.Estimate())
 		gcMap[cname] = cest
 		sortedGrpCols = append(sortedGrpCols, cname)

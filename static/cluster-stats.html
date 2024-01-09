@@ -4,7 +4,7 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
 <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 
     gtag('config', 'G-5SBJC04YFB');
@@ -41,20 +41,12 @@
 
 <body data-theme="light">
     <div id="cstats-app-container">
-        <div id="app-side-nav" class="active">
+        <div id="app-side-nav">
         </div>
         <div id="empty-response"></div>
         <div id="app-content-area">
             <div class="cstats-data-container myOrg-container">
                 <div class="org-nav-tab">
-                    <div>
-                        <h1 class="myOrg-heading">My Org</h1>
-                        <div class="section-buttons">
-                            <div class="section-button active"><a href="./cluster-stats.html">Cluster Stats</a></div>
-                            <div class="section-button"><a href="./org-settings.html">Settings</a></div>
-                            <div class="section-button"><a href="./test-data.html">Test Data</a></div>
-                        </div>
-                    </div>
                 </div>
                 <div class="myOrg-inner-container">
                     <div class="usage-stats-header">
@@ -150,6 +142,8 @@
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./js/point-click-search.js?cb=1_1_10"></script>
     <script src="./js/lib/chart.umd.min.js"></script>
+    <script src="./component/upper-navbar/upper-navbar.js"></script>
+
 </body>
 
 </html>

@@ -20,7 +20,7 @@ let navbarComponent = `
             <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
             </a>
         </div>
-        <div class="sidebar-icon active"></div>
+     
         <div class="menu nav-search" title="Logs">
             <a href="./index.html" class="nav-links"><span class="icon-search"></span><span
                     class="nav-link-text">Logs</span></a>
@@ -46,7 +46,7 @@ let navbarComponent = `
         </div>
         <div class="menu nav-minion" title="Minion Searches">
             <a href="./minion-searches.html" class="nav-links"><span class="icon-minion"></span><span
-                    class="nav-link-text">Minion Searches</span></a>
+                    class="nav-link-text">Minion</span></a>
         </div>
         <div class="menu nav-usq" title="Saved Queries">
             <a href="./saved-queries.html" class="nav-links"><span class="icon-usq"></span><span
@@ -104,7 +104,7 @@ $(document).ready(function () {
         $(".nav-usq").addClass("active");
     } else if (currentUrl.includes("alerts.html") || currentUrl.includes("alert.html") || currentUrl.includes("alert-details.html")   || currentUrl.includes("contacts.html")){
         $(".nav-alerts").addClass("active");
-    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("test-data.html")) {
+    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("test-data.html") || currentUrl.includes("application-version.html")) {
         $(".nav-myorg").addClass("active");
     } else if (currentUrl.includes("minion-searches.html")) {
         $(".nav-minion").addClass("active");
@@ -113,33 +113,27 @@ $(document).ready(function () {
     } else if (currentUrl.includes("service-health.html")|| currentUrl.includes("service-health-overview.html") || currentUrl.includes("dependency-graph.html")|| currentUrl.includes("search-traces.html")) {
         $(".nav-traces").addClass("active");
     }
+
+    var orgUpperNavTabs = [
+        { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
+        { name: 'Settings', url: './org-settings.html', class : 'org-settings'},
+        { name: 'Test Data', url: './test-data.html', class : 'test-data' },
+        { name: 'Version', url: './application-version.html', class: 'application-version'}
+    ];
+
+    var tracingUpperNavTabs = [
+        { name: 'Service Health', url: './service-health.html', class: 'service-health' },
+        { name: 'Search Traces', url: './search-traces.html', class : 'search-traces'},
+        { name: 'Dependency Graph', url: './dependency-graph.html', class : 'dependency-graph' },
+    ];
+
+    var alertsUpperNavTabs = [
+        { name: 'Alert Rules', url: './all-alerts.html', class: 'all-alerts' },
+        { name: 'Contact Points', url: './contacts.html', class : 'contacts'},
+    ];
+
+    $('.org-nav-tab').appendOrgNavTabs("My Org", orgUpperNavTabs);
+    $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
+    $('.alerts-nav-tab').appendOrgNavTabs("Alerting", alertsUpperNavTabs,true);
 });
 
-
-function displayNavbar() {
-    $('.sidebar-icon').click(function () {
-        var isActive = $('#app-side-nav').hasClass('active');
-        if (isActive) {
-            $('.sidebar-icon').removeClass('active');
-            $('#app-side-nav').removeClass('active');
-            if ($('#new-dashboard').length) {
-                $('#new-dashboard').css("transform", "translate(225px)")
-                $('#new-dashboard').css("width", "calc(100% - 245px)")
-            }
-        } else {
-            $('.sidebar-icon').addClass('active');
-            $('#app-side-nav').addClass('active');
-            if ($('#new-dashboard').length) {
-                $('#new-dashboard').css("transform", "translate(87px)")
-                $('#new-dashboard').css("width", "calc(100% - 97px)")
-            }
-        }
-    });
-
-    $('#dashboard,#app-content-area,#new-dashboard').click(function () {
-        $('.sidebar-icon').addClass('active');
-        $('#app-side-nav').addClass('active');
-        if ($('#new-dashboard').length)
-            $('#new-dashboard').css("transform", "translate(87px)")
-    })
-}
