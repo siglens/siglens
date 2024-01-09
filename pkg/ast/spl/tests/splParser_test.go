@@ -262,6 +262,40 @@ func Test_searchFieldGreaterThanOrEqualToQuotedString(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func Test_searchFieldEqualToBooleanTrue(t *testing.T) {
+	query := []byte(`search status=true`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "status", filterNode.Comparison.Field)
+	assert.Equal(t, true, filterNode.Comparison.Values)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, uint8(1), expressionFilter.RightInput.Expression.LeftInput.ColumnValue.BoolVal)
+}
+
+func Test_searchFieldEqualToBooleanFalse(t *testing.T) {
+	query := []byte(`search status=false`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "status", filterNode.Comparison.Field)
+	assert.Equal(t, false, filterNode.Comparison.Values)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, uint8(0), expressionFilter.RightInput.Expression.LeftInput.ColumnValue.BoolVal)
+}
+
 func Test_searchFieldEqualToUnquotedString(t *testing.T) {
 	query := []byte(`search status=ok`)
 	res, err := spl.Parse("", query)
