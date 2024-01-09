@@ -769,15 +769,10 @@ DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
 }
 
 DedupExpr <- limitArr:(SPACE IntegerAsString)? options:(DedupOptions)? fieldList:(DedupFieldList)? sortByClause:(DedupSortByClause)? {
-    dedupComb := &structs.DedupComb {
-        CombToCnt: make([]int, 0),
-        Combinations: make([][]interface{}, 0),
-    }
-
     dedupExpr := &structs.DedupExpr {
         FieldList: fieldList.([]string),
         Limit: 1,
-        DedupComb: dedupComb,
+        DedupCombinations: make(map[string]int, 0),
     }
 
     if limitArr != nil {

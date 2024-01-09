@@ -83,11 +83,11 @@ type StatisticOptions struct {
 }
 
 type DedupExpr struct {
-	Limit         uint64
-	FieldList     []string // Must have FieldList
-	DedupOptions  *DedupOptions
-	DedupSortEles []*DedupSortElement
-	DedupComb     *DedupComb
+	Limit             uint64
+	FieldList         []string // Must have FieldList
+	DedupOptions      *DedupOptions
+	DedupSortEles     []*DedupSortElement
+	DedupCombinations map[string]int // maps combinations to their count
 }
 
 type DedupOptions struct {
@@ -100,12 +100,6 @@ type DedupSortElement struct {
 	SortByAsc bool
 	Op        string
 	Field     string
-}
-
-// Store field combinations during the streaming process
-type DedupComb struct {
-	CombToCnt    []int // index: index in combinations, val: cnt
-	Combinations [][]interface{}
 }
 
 // See ValueExprMode type definition for which fields are valid for each mode.

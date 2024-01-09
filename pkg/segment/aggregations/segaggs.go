@@ -17,9 +17,9 @@ limitations under the License.
 package aggregations
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -525,50 +525,42 @@ func isExists(combination []interface{}, combinations [][]interface{}) {
 func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {
 
-	// index: index in combinations, val: cnt
-	combToCnt := &letColReq.DedupColRequest.DedupComb.CombToCnt
-	combinations := &letColReq.DedupColRequest.DedupComb.Combinations
-
+	combinations := letColReq.DedupColRequest.DedupCombinations
 	limit := int(letColReq.DedupColRequest.Limit)
-
 	fieldList := letColReq.DedupColRequest.FieldList
 	length := len(fieldList)
+
 	for key, record := range recs {
 
 		// Initialize combination for current row
-		combination := make([]interface{}, length)
+		combinationSlice := make([]interface{}, length)
 		for index, field := range fieldList {
 			val, exists := record[field]
 			if !exists {
-				combination[index] = nil
+				combinationSlice[index] = nil
 			} else {
-				combination[index] = val
+				combinationSlice[index] = val
 			}
 		}
 
-		combExists := false
-		// Find out whether current combination is duplicate or not
-		for index, ele := range *combinations {
-			isEqual := reflect.DeepEqual(ele, combination)
-			if isEqual {
-				combExists = true
-				cnt := (*combToCnt)[index]
-				// If it exceed the limit, we should remove current row
-				if cnt >= limit {
-					delete(recs, key)
-				} else {
-					(*combToCnt)[index] = cnt + 1
-				}
-			}
+		combinationBytes, err := json.Marshal(combinationSlice)
+		if err != nil {
+			return fmt.Errorf("performDedupColRequestWithoutGroupby: failed to marshal combintion %v: %v",
+				combinationSlice, err)
 		}
 
-		if !combExists {
-			*combToCnt = append(*combToCnt, 1)
-			*combinations = append(*combinations, combination)
+		combination := string(combinationBytes)
+		count, exists := combinations[combination]
+		if !exists {
+			count = 0
+		}
+
+		if exists && count >= limit {
+			delete(recs, key)
+		} else {
+			combinations[combination] = count + 1
 		}
 	}
-
-	// To be finished
 
 	return nil
 }
