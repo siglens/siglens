@@ -43,6 +43,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		ctx.Request.URI().String(),
 		fmt.Sprintf("%+v", event),
 		func() int { return ctx.Response.StatusCode() },
+		true, // Log this even though it's a websocket connection
 		"access.log",
 	)
 

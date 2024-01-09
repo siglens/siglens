@@ -321,6 +321,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.Request.URI().String(),
 		string(ctx.PostBody()),
 		func() int { return ctx.Response.StatusCode() },
+		false,
 		"access.log",
 	)
 
