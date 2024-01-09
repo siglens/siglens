@@ -276,7 +276,7 @@ func Test_searchFieldEqualToBooleanTrue(t *testing.T) {
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
 	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
-	assert.Equal(t, "true", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+	assert.Equal(t, uint8(1), expressionFilter.RightInput.Expression.LeftInput.ColumnValue.BoolVal)
 }
 
 func Test_searchFieldEqualToBooleanFalse(t *testing.T) {
@@ -293,7 +293,7 @@ func Test_searchFieldEqualToBooleanFalse(t *testing.T) {
 	expressionFilter := extractExpressionFilter(t, filterNode)
 	assert.Equal(t, "status", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
 	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
-	assert.Equal(t, "false", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+	assert.Equal(t, uint8(0), expressionFilter.RightInput.Expression.LeftInput.ColumnValue.BoolVal)
 }
 
 func Test_searchFieldEqualToUnquotedString(t *testing.T) {
