@@ -30,8 +30,9 @@ func TestAddAccessLogEntry(t *testing.T) {
 	}
 
 	// Call the function with the temporary logFile
+	allowWebsocket := false
 	fileName := tempLogFile.Name()
-	AddAccessLogEntry(data, fileName)
+	AddAccessLogEntry(data, allowWebsocket, fileName)
 
 	// Read the content of the temporary file
 	content, err := ioutil.ReadFile(fileName)
@@ -83,8 +84,9 @@ func Test_AddLogEntryValidations(t *testing.T) {
 		defer os.Remove(tempLogFile.Name())
 
 		// Call the function with the temporary logFile
+		allowWebsocket := false
 		fileName := tempLogFile.Name()
-		AddAccessLogEntry(test.input, fileName)
+		AddAccessLogEntry(test.input, allowWebsocket, fileName)
 
 		// Read the content of the temporary file
 		content, err := ioutil.ReadFile(fileName)
