@@ -27,7 +27,7 @@ fi
 os=""
 case "$(uname -sr)" in
    Darwin*)
-     os="darwin" 
+     os="darwin"
      package_manager="brew" ;;
    Ubuntu*|Pop!_OS)
      os="linux"
@@ -53,7 +53,7 @@ case "$(uname -sr)" in
    *)
      os="Not Found: $os_name"
      echo 'Not Supported OS'
-	 exit 1
+     exit 1
      ;;
 esac
 
@@ -83,7 +83,7 @@ request_sudo() {
 
             echo -e "Got Sudo access.\n"
         fi
-	fi
+    fi
 }
 
 
@@ -140,7 +140,7 @@ start_docker() {
     echo -e "\n===> Starting Docker ...\n"
     if [[ $os == "darwin" ]]; then
         open --background -a Docker && while ! docker system info > /dev/null 2>&1; do sleep 1; done
-    else 
+    else
         if ! $sudo_cmd systemctl is-active docker.service > /dev/null; then
             echo "Starting docker service"
             $sudo_cmd systemctl start docker.service
@@ -183,6 +183,8 @@ curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSI
 
 $sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION}
 mkdir -p data
+chmod a+rwx data
+
 echo ""
 echo -e "\n===> SigLens installation complete"
 
@@ -212,7 +214,7 @@ START_PORT=5122
 END_PORT=5122
 
 check_ports() {
-    
+
     if lsof -Pi :$INITIAL_PORT -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:${INITIAL_PORT}->"; then
         for port in $(seq $START_PORT $END_PORT); do
             if lsof -Pi :$port -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:$port->"; then
@@ -251,6 +253,7 @@ tput sgr0
 
 # Run Docker compose files
 UI_PORT=${UI_PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose -f ./docker-compose.yml up -d
+docker-compose logs -t --tail 20 >> dclogs.txt
 
 if [ $? -ne 0 ]; then
     tput bold
