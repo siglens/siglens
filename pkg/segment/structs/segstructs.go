@@ -453,6 +453,29 @@ func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
 	return false
 }
 
+// Returns true if it contains an operation that may filter out some rows.
+func (qa *QueryAggregators) HasFilterQueryAggergatorBlock() bool {
+	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil {
+		letColumns := qa.OutputTransforms.LetColumns
+
+		if letColumns.DedupColRequest != nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (qa *QueryAggregators) HasFilterQueryAggergatorBlockInChain() bool {
+	if qa.HasFilterQueryAggergatorBlock() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasFilterQueryAggergatorBlock()
+	}
+	return false
+}
+
 // To determine whether it contains ValueColRequest
 func (qa *QueryAggregators) HasValueColRequest() bool {
 	for _, agg := range qa.MeasureOperations {

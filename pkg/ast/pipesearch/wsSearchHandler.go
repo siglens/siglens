@@ -18,6 +18,7 @@ package pipesearch
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/dustin/go-humanize"
 	"github.com/fasthttp/websocket"
@@ -104,6 +105,11 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64) {
 
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
+	} else if aggs.HasFilterQueryAggergatorBlockInChain() {
+		// The query may filter out some records after the initial search, so
+		// we'll get all the records since we don't have a better way of
+		// handling this yet.
+		sizeLimit = math.MaxUint64
 	}
 
 	// If MaxRows is used to limit the number of returned results, set `sizeLimit`

@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -265,6 +266,11 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 
 		if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 			sizeLimit = 0
+		} else if aggs.HasFilterQueryAggergatorBlockInChain() {
+			// The query may filter out some records after the initial search, so
+			// we'll get all the records since we don't have a better way of
+			// handling this yet.
+			sizeLimit = math.MaxUint64
 		}
 		qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
@@ -292,6 +298,11 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 
 		if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 			sizeLimit = 0
+		} else if aggs.HasFilterQueryAggergatorBlockInChain() {
+			// The query may filter out some records after the initial search, so
+			// we'll get all the records since we don't have a better way of
+			// handling this yet.
+			sizeLimit = math.MaxUint64
 		}
 		qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
@@ -381,6 +392,11 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
+	} else if aggs.HasFilterQueryAggergatorBlockInChain() {
+		// The query may filter out some records after the initial search, so
+		// we'll get all the records since we don't have a better way of
+		// handling this yet.
+		sizeLimit = math.MaxUint64
 	}
 
 	// If MaxRows is used to limit the number of returned results, set `sizeLimit`
