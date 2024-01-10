@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -1309,7 +1310,27 @@ func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *stru
 
 }
 
-func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterStringExpr, recordMapStr string) bool {
+func conditionMatch(fieldValue interface{}, Op string, searchValue interface{}) bool {
+
+	switch Op {
+	case "=":
+		return fieldValue == searchValue
+	case "!=":
+		return fieldValue != searchValue
+	case ">":
+		return fieldValue.(float64) > searchValue.(float64)
+	case ">=":
+		return fieldValue.(float64) >= searchValue.(float64)
+	case "<":
+		return fieldValue.(float64) < searchValue.(float64)
+	case "<=":
+		return fieldValue.(float64) <= searchValue.(float64)
+	default:
+		return false
+	}
+}
+
+func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterStringExpr, recordMapStr string, record map[string]interface{}) bool {
 	matched := false
 	if with.StringValue != "" && strings.Contains(recordMapStr, with.StringValue) {
 		matched = true
@@ -1329,6 +1350,41 @@ func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterString
 			}
 		}
 		matched = cummulativeClause
+	} else if with.SearchTerm != nil {
+		fieldValue, exists := record[with.SearchTerm.Field]
+		if !exists {
+			return false
+		}
+
+		switch with.SearchTerm.ExprType {
+		case segutils.SS_DT_STRING, segutils.SS_DT_BOOL:
+			if with.SearchTerm.Op == "=" || with.SearchTerm.Op == "!=" {
+				if with.SearchTerm.ExprType == segutils.SS_DT_STRING {
+					matched = conditionMatch(fieldValue, with.SearchTerm.Op, with.SearchTerm.DtypeEnclosure.StringVal)
+				} else {
+					matched = conditionMatch(fieldValue, with.SearchTerm.Op, with.SearchTerm.DtypeEnclosure.BoolVal)
+				}
+			} else {
+				matched = false
+			}
+		case segutils.SS_DT_SIGNED_NUM:
+			fieldFloatVal, err := dtypeutils.ConvertToFloat(fieldValue, 64)
+			if err != nil {
+				matched = false
+			} else {
+				matched = conditionMatch(fieldFloatVal, with.SearchTerm.Op, with.SearchTerm.DtypeEnclosure.FloatVal)
+			}
+		default:
+			dteVal, err := segutils.CreateDtypeEnclosure(fieldValue, 0)
+			if err != nil {
+				return false
+			}
+			if dteVal.Dtype == with.SearchTerm.DtypeEnclosure.Dtype {
+				matched = conditionMatch(dteVal, with.SearchTerm.Op, with.SearchTerm.DtypeEnclosure)
+			} else {
+				matched = false
+			}
+		}
 	}
 
 	return matched
@@ -1408,7 +1464,7 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 			openState := false
 
 			if transactionStartsWith != nil {
-				openState = isTransactionMatchedWithTheFliterStringCondition(transactionStartsWith, recordMapStr)
+				openState = isTransactionMatchedWithTheFliterStringCondition(transactionStartsWith, recordMapStr, record)
 			} else {
 				openState = true
 			}
@@ -1425,7 +1481,7 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 			// If StartsWith is given, but endsWith is not given, then the startswith will be the end of the transaction.
 			// So close with last record and open a new transaction.
 
-			closeAndOpenState := isTransactionMatchedWithTheFliterStringCondition(transactionStartsWith, recordMapStr)
+			closeAndOpenState := isTransactionMatchedWithTheFliterStringCondition(transactionStartsWith, recordMapStr, record)
 
 			if closeAndOpenState {
 				appendGroupedRecords(currentState, transactionKey)
@@ -1445,7 +1501,7 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 
 		if transactionEndsWith != nil {
 			if currentState.Open {
-				closeState := isTransactionMatchedWithTheFliterStringCondition(transactionEndsWith, recordMapStr)
+				closeState := isTransactionMatchedWithTheFliterStringCondition(transactionEndsWith, recordMapStr, record)
 
 				if closeState {
 					appendGroupedRecords(currentState, transactionKey)

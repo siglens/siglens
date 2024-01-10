@@ -17,10 +17,12 @@ limitations under the License.
 package aggregations
 
 import (
+	"encoding/json"
 	"math/rand"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -62,7 +64,7 @@ func generateTestRecords(numRecords int) []map[string]interface{} {
 		record["gender"] = []string{"male", "female"}[rand.Intn(2)]
 		record["country"] = countries[rand.Intn(len(countries))]
 		record["http_method"] = []string{"GET", "POST", "PUT", "DELETE"}[rand.Intn(4)]
-		record["http_status"] = []string{"200", "301", "302", "404"}[rand.Intn(4)]
+		record["http_status"] = []int{200, 301, 302, 404}[rand.Intn(4)]
 
 		records[i] = record
 	}
@@ -149,7 +151,83 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 	}
 	recordsLengthPositive[9] = true
 
-	allCasesTxnArgs := []*structs.TransactionArguments{txnArgs1, txnArgs2, txnArgs3, txnArgs4, txnArgs5, txnArgs6, txnArgs7, txnArgs8, txnArgs9}
+	// CASE 10: StartsWith is a Valid Search Term and EndsWith is String Clause
+	txnArgs10 := &structs.TransactionArguments{
+		StartsWith: &structs.FilterStringExpr{
+			SearchTerm: &structs.SimpleSearchExpr{
+				Op:           ">=",
+				Field:        "http_status",
+				Values:       json.Number("300"),
+				ValueIsRegex: false,
+				ExprType:     utils.SS_DT_SIGNED_NUM,
+				DtypeEnclosure: &utils.DtypeEnclosure{
+					Dtype:    utils.SS_DT_SIGNED_NUM,
+					FloatVal: float64(300),
+				},
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{StringClauses: [][]string{{"DELETE"}}},
+	}
+	recordsLengthPositive[10] = true
+
+	// CASE 11: StartsWith is not a Valid Search Term (comparing between two string fields) and EndsWith is String value
+	txnArgs11 := &structs.TransactionArguments{
+		StartsWith: &structs.FilterStringExpr{
+			SearchTerm: &structs.SimpleSearchExpr{
+				Op:           ">",
+				Field:        "city",
+				Values:       "Hyderabad",
+				ValueIsRegex: false,
+				ExprType:     utils.SS_DT_STRING,
+				DtypeEnclosure: &utils.DtypeEnclosure{
+					Dtype:     utils.SS_DT_STRING,
+					StringVal: "Hyderabad",
+				},
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{StringValue: "DELETE"},
+	}
+	recordsLengthPositive[11] = false
+
+	// CASE 12: StartsWith is not a Valid Search Term (comparing between string and number fields) and EndsWith is String Clause
+	txnArgs12 := &structs.TransactionArguments{
+		StartsWith: &structs.FilterStringExpr{
+			SearchTerm: &structs.SimpleSearchExpr{
+				Op:           ">",
+				Field:        "city",
+				Values:       json.Number("300"),
+				ValueIsRegex: false,
+				ExprType:     utils.SS_DT_SIGNED_NUM,
+				DtypeEnclosure: &utils.DtypeEnclosure{
+					Dtype:    utils.SS_DT_SIGNED_NUM,
+					FloatVal: float64(300),
+				},
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{StringClauses: [][]string{{"DELETE"}}},
+	}
+	recordsLengthPositive[12] = false
+
+	// CASE 13: StartsWith is a Valid Search Term (String1 = String2) and EndsWith is String Value
+	txnArgs13 := &structs.TransactionArguments{
+		StartsWith: &structs.FilterStringExpr{
+			SearchTerm: &structs.SimpleSearchExpr{
+				Op:           "=",
+				Field:        "city",
+				Values:       "Hyderabad",
+				ValueIsRegex: false,
+				ExprType:     utils.SS_DT_STRING,
+				DtypeEnclosure: &utils.DtypeEnclosure{
+					Dtype:     utils.SS_DT_STRING,
+					StringVal: "Hyderabad",
+				},
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{StringValue: "DELETE"},
+	}
+	recordsLengthPositive[13] = true
+
+	allCasesTxnArgs := []*structs.TransactionArguments{txnArgs1, txnArgs2, txnArgs3, txnArgs4, txnArgs5, txnArgs6, txnArgs7, txnArgs8, txnArgs9, txnArgs10, txnArgs11, txnArgs12, txnArgs13}
 
 	for index, txnArgs := range allCasesTxnArgs {
 		// Process Transactions
