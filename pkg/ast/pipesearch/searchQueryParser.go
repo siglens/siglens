@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/utils"
 
 	segment "github.com/siglens/siglens/pkg/segment"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -324,6 +325,24 @@ func parseTransactionRequest(node *structs.TransactionArguments, qid uint64) (*Q
 	aggNode.TransactionArguments.Fields = node.Fields
 	aggNode.TransactionArguments.StartsWith = node.StartsWith
 	aggNode.TransactionArguments.EndsWith = node.EndsWith
+
+	if node.StartsWith != nil && node.StartsWith.SearchTerm != nil {
+		dte, err := utils.CreateDtypeEnclosure(node.StartsWith.SearchTerm.Values, qid)
+		if err != nil {
+			log.Errorf("qid=%d, parseTransactionRequest: CreateDtypeEnclosure error: %v", qid, err)
+			return nil, err
+		}
+		aggNode.TransactionArguments.StartsWith.SearchTerm.DtypeEnclosure = dte
+	}
+
+	if node.EndsWith != nil && node.EndsWith.SearchTerm != nil {
+		dte, err := utils.CreateDtypeEnclosure(node.EndsWith.SearchTerm.Values, qid)
+		if err != nil {
+			log.Errorf("qid=%d, parseTransactionRequest: CreateDtypeEnclosure error: %v", qid, err)
+			return nil, err
+		}
+		aggNode.TransactionArguments.EndsWith.SearchTerm.DtypeEnclosure = dte
+	}
 	aggNode.EarlyExit = false
 	return aggNode, nil
 }

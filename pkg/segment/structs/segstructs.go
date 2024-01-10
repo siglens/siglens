@@ -114,10 +114,12 @@ type SortRequest struct {
 }
 
 type SimpleSearchExpr struct {
-	Op           string
-	Field        string
-	Values       interface{}
-	ValueIsRegex bool
+	Op             string
+	Field          string
+	Values         interface{}
+	ValueIsRegex   bool
+	ExprType       utils.SS_DTYPE
+	DtypeEnclosure *utils.DtypeEnclosure
 }
 
 type FilterStringExpr struct {

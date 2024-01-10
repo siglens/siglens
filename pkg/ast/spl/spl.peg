@@ -2212,14 +2212,25 @@ TransactionSearch <- expr:SearchTerm {
 	node := astNode.Comparison
 
 	var value interface{}
+	var exprType utils.SS_DTYPE
 
 	switch v := node.Values.(type) {
 	case string:
-			value = removeQuotes(v)
-	case int, int32, int64, float32, float64:
-			value = json.Number(reflect.ValueOf(value).String())
+		value = removeQuotes(v)
+		exprType = utils.SS_DT_STRING
+	case int, int32, int64, float32, float64, json.Number:
+		value = json.Number(reflect.ValueOf(v).String())
+		exprType = utils.SS_DT_SIGNED_NUM
+	case bool:
+		boolValue, err := strconv.ParseBool(reflect.ValueOf(v).String())
+		if err != nil {
+			boolValue = strings.ToLower(reflect.ValueOf(v).String()) == "true"
+		}
+		value = boolValue
+		exprType = utils.SS_DT_BOOL
 	default:
-			value = v
+		value = v
+		exprType = utils.SS_INVALID
 	}
 
 	filterStrExpr := &structs.FilterStringExpr{
@@ -2228,6 +2239,7 @@ TransactionSearch <- expr:SearchTerm {
 			Field:        node.Field,
 			Values:       value,
 			ValueIsRegex: node.ValueIsRegex,
+			ExprType:     exprType,
 		},
 	}
 	return filterStrExpr, nil
