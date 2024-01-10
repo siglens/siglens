@@ -105,10 +105,13 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64) {
 
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
-	} else if aggs.HasFilterQueryAggergatorBlockInChain() {
-		// The query may filter out some records after the initial search, so
-		// we'll get all the records since we don't have a better way of
-		// handling this yet.
+	} else if aggs.HasDedupBlockInChain() {
+		// Dedup needs state information about the previous records, so we can
+		// run into an issue if we show some records, then the user scrolls
+		// down to see more and we run dedup on just the new records and add
+		// them to the existing ones. To get around this, we can run the query
+		// on all of the records initially so that scrolling down doesn't cause
+		// another query to run.
 		sizeLimit = math.MaxUint64
 	}
 

@@ -454,7 +454,7 @@ func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
 }
 
 // Returns true if it contains an operation that may filter out some rows.
-func (qa *QueryAggregators) HasFilterQueryAggergatorBlock() bool {
+func (qa *QueryAggregators) HasDedupBlock() bool {
 	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil {
 		letColumns := qa.OutputTransforms.LetColumns
 
@@ -466,12 +466,12 @@ func (qa *QueryAggregators) HasFilterQueryAggergatorBlock() bool {
 	return false
 }
 
-func (qa *QueryAggregators) HasFilterQueryAggergatorBlockInChain() bool {
-	if qa.HasFilterQueryAggergatorBlock() {
+func (qa *QueryAggregators) HasDedupBlockInChain() bool {
+	if qa.HasDedupBlock() {
 		return true
 	}
 	if qa.Next != nil {
-		return qa.Next.HasFilterQueryAggergatorBlock()
+		return qa.Next.HasDedupBlock()
 	}
 	return false
 }
