@@ -86,6 +86,14 @@ request_sudo() {
     fi
 }
 
+print_error_and_exit() {
+    printf "${RED_TEXT}$1${RESET_COLOR}\n"
+    exit 1
+}
+
+print_success_message() {
+    printf "${GREEN_TEXT}$1${RESET_COLOR}\n"
+}
 
 install_docker() {
     echo "Setting up docker"
@@ -115,25 +123,22 @@ install_docker() {
 }
 
 install_docker_compose() {
-  echo "Setting up docker compose"
-  if [[ $package_manager == apt-get ]]; then
-    apt_cmd="$sudo_cmd apt-get --yes --quiet"
-    $apt_cmd update
-    echo "Installing docker compose"
-    $apt_cmd install docker-compose
-  elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
-    echo "Installing docker compose"
-    sudo yum install -y epel-release
-    sudo yum install -y docker-compose
-  elif [[ $package_manager == brew ]]; then
-    echo "Installing docker compose"
-    brew install docker-compose
-  else
-    echo "Docker Compose must be installed manually to proceed. "
-    echo "docker_compose_not_installed"
-    exit 1
-
-  fi
+    echo "----------Setting up docker compose----------"
+    if [[ $package_manager == apt-get ]]; then
+        apt_cmd="$sudo_cmd apt-get --yes --quiet"
+        $apt_cmd update || print_error_and_exit "apt-get update failed."
+        $apt_cmd install docker-compose || print_error_and_exit "Docker Compose installation failed."
+    elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
+        curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose || print_error_and_exit "Downloading Docker Compose binary failed."
+        chmod +x /usr/local/bin/docker-compose || print_error_and_exit "Making Docker Compose executable failed."
+    elif [[ $package_manager == brew ]]; then
+        brew install docker-compose || print_error_and_exit "Docker Compose installation failed."
+    else
+        echo "---------Docker Compose must be installed manually to proceed---------"
+        print_error_and_exit "Docker Compose Not installed"
+    fi
+    docker_compose_version=$(docker-compose --version) || print_error_and_exit "Docker Compose is not working correctly."
+    print_success_message "Docker Compose installed successfully. $docker_compose_version"
 }
 
 start_docker() {
@@ -241,10 +246,6 @@ if [ ${UI_PORT} == "-1" ]; then
     tput sgr0
     exit 1
 fi
-
-echo -e "\n===> In case ports 80 and 8081 are in use change the settings as follows"
-echo -e "ingestPort(8081) and queryPort(80) can be changed using in server.yaml."
-echo -e "queryPort(80) can also be changed by setting the environment variable $PORT."
 
 tput bold
 printf "\n===> ${GREEN_TEXT}Frontend can be accessed on http://localhost:${UI_PORT}${RESET_COLOR}"
