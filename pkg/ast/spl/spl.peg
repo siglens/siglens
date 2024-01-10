@@ -2158,7 +2158,7 @@ EndsWithOption <- "endswith" EQUAL strExpr:TransactionFilterString {
 }
 
 // Rerturns structs.FilterStringExpr
-TransactionFilterString <- strExpr:(TransactionQuotedString / TransactionEval / TransactionQuotedStringExpr) {
+TransactionFilterString <- strExpr:(TransactionQuotedString / TransactionEval / TransactionSearch / TransactionQuotedStringExpr) {
     return strExpr, nil
 }
 
@@ -2203,10 +2203,34 @@ StringClauseListOr <- first:QuotedString rest:(OR QuotedString)* {
 }
 
 TransactionSearch <- expr:SearchTerm {
-    filterStrExpr := &structs.FilterStringExpr{
-        //SearchTerm: expr.(*ast.Node),  
-    }
-    return filterStrExpr, nil
+    astNode := expr.(*ast.Node)
+
+	if astNode.NodeType != ast.NodeTerminal {
+		return nil, fmt.Errorf("Spl peg: TransactionSearch: %v", "Only Terminal Nodes are allowed")
+	}
+
+	node := astNode.Comparison
+
+	var value interface{}
+
+	switch v := node.Values.(type) {
+	case string:
+			value = removeQuotes(v)
+	case int, int32, int64, float32, float64:
+			value = json.Number(reflect.ValueOf(value).String())
+	default:
+			value = v
+	}
+
+	filterStrExpr := &structs.FilterStringExpr{
+		SearchTerm: &structs.SimpleSearchExpr{
+			Op:           node.Op,
+			Field:        node.Field,
+			Values:       value,
+			ValueIsRegex: node.ValueIsRegex,
+		},
+	}
+	return filterStrExpr, nil
 }
 
 // eval(<bool-expression>)

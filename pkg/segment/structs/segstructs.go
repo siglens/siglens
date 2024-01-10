@@ -113,11 +113,18 @@ type SortRequest struct {
 	Ascending bool   // if true, result is in ascending order. Else, result is in descending order
 }
 
+type SimpleSearchExpr struct {
+	Op           string
+	Field        string
+	Values       interface{}
+	ValueIsRegex bool
+}
+
 type FilterStringExpr struct {
 	StringValue   string
 	StringClauses [][]string // Each []string is a list of strings that are OR'd together
 	EvalBoolExpr  *BoolExpr
-	// SearchTerm  ast.Node
+	SearchTerm    *SimpleSearchExpr
 }
 
 type TransactionArguments struct {
