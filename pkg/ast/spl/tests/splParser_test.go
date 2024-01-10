@@ -4914,6 +4914,11 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 				Field:        "status",
 				Values:       "Ok",
 				ValueIsRegex: false,
+				ExprType:     utils.SS_DT_STRING,
+				DtypeEnclosure: &utils.DtypeEnclosure{
+					Dtype:     utils.SS_DT_STRING,
+					StringVal: "Ok",
+				},
 			},
 		},
 		EndsWith: &structs.FilterStringExpr{
@@ -4931,6 +4936,14 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 				Field:        "duration",
 				Values:       json.Number("10"),
 				ValueIsRegex: false,
+				ExprType:     utils.SS_DT_SIGNED_NUM,
+				DtypeEnclosure: &utils.DtypeEnclosure{
+					Dtype:       utils.SS_DT_UNSIGNED_NUM,
+					UnsignedVal: uint64(10),
+					SignedVal:   int64(10),
+					FloatVal:    float64(10),
+					StringVal:   "10",
+				},
 			},
 		},
 		EndsWith: &structs.FilterStringExpr{
@@ -4967,6 +4980,11 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 				Field:        "status",
 				Values:       "Ok",
 				ValueIsRegex: false,
+				ExprType:     utils.SS_DT_STRING,
+				DtypeEnclosure: &utils.DtypeEnclosure{
+					Dtype:     utils.SS_DT_STRING,
+					StringVal: "Ok",
+				},
 			},
 		},
 		EndsWith: &structs.FilterStringExpr{
