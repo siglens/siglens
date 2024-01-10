@@ -1309,6 +1309,31 @@ func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *stru
 
 }
 
+func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterStringExpr, recordMapStr string) bool {
+	matched := false
+	if with.StringValue != "" && strings.Contains(recordMapStr, with.StringValue) {
+		matched = true
+	} else if with.StringClauses != nil && len(with.StringClauses) > 0 {
+		cummulativeClause := true
+		for _, clause := range with.StringClauses {
+			currentOr := false
+			for _, value := range clause { // Or CLause
+				if strings.Contains(recordMapStr, value) {
+					currentOr = true
+					break
+				}
+			}
+			if !currentOr {
+				cummulativeClause = false
+				break
+			}
+		}
+		matched = cummulativeClause
+	}
+
+	return matched
+}
+
 // Splunk Transaction command based on the TransactionArguments on the JSON records.
 func processTransactionsOnRecords(records []map[string]interface{}, allCols []string, transactionArgs *structs.TransactionArguments) ([]map[string]interface{}, []string, error) {
 
@@ -1379,26 +1404,38 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 
 		// If StartsWith is given, then the transaction Should only Open when the record matches the StartsWith. OR
 		// if StartsWith not present, then the transaction should open for all records.
-		if transactionStartsWith != nil && strings.Contains(recordMapStr, transactionStartsWith.StringValue) || transactionStartsWith == nil {
-			if !currentState.Open {
+		if !currentState.Open {
+			openState := false
+
+			if transactionStartsWith != nil {
+				openState = isTransactionMatchedWithTheFliterStringCondition(transactionStartsWith, recordMapStr)
+			} else {
+				openState = true
+			}
+
+			if openState {
 				currentState.Open = true
 				currentState.Timestamp = uint64(record["timestamp"].(uint64))
 
 				groupState[transactionKey] = currentState
-
 				groupRecords[transactionKey] = make([]map[string]interface{}, 0)
-			} else if currentState.Open && transactionEndsWith == nil && transactionStartsWith != nil {
-				// If StartsWith is given, but endsWith is not given, then the startswith will be the end of the transaction.
-				// So close with last record and open a new transaction.
+			}
+
+		} else if currentState.Open && transactionEndsWith == nil && transactionStartsWith != nil {
+			// If StartsWith is given, but endsWith is not given, then the startswith will be the end of the transaction.
+			// So close with last record and open a new transaction.
+
+			closeAndOpenState := isTransactionMatchedWithTheFliterStringCondition(transactionStartsWith, recordMapStr)
+
+			if closeAndOpenState {
 				appendGroupedRecords(currentState, transactionKey)
 
 				currentState.Timestamp = uint64(record["timestamp"].(uint64))
 
 				groupState[transactionKey] = currentState
-
 				groupRecords[transactionKey] = make([]map[string]interface{}, 0)
-
 			}
+
 		}
 
 		// If the transaction is open, then append the record to the group.
@@ -1406,9 +1443,11 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 			groupRecords[transactionKey] = append(groupRecords[transactionKey], record)
 		}
 
-		if transactionEndsWith != nil && transactionEndsWith.StringValue != "" {
-			if strings.Contains(recordMapStr, transactionEndsWith.StringValue) {
-				if currentState.Open {
+		if transactionEndsWith != nil {
+			if currentState.Open {
+				closeState := isTransactionMatchedWithTheFliterStringCondition(transactionEndsWith, recordMapStr)
+
+				if closeState {
 					appendGroupedRecords(currentState, transactionKey)
 
 					currentState.Open = false

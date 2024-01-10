@@ -75,12 +75,15 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 	records := generateTestRecords(500)
 	allCols := []string{"city", "gender"}
 
+	recordsLengthPositive := make(map[int]bool)
+
 	// CASE 1: Only Fields
 	txnArgs1 := &structs.TransactionArguments{
 		Fields:     []string{"gender", "city"},
 		StartsWith: nil,
 		EndsWith:   nil,
 	}
+	recordsLengthPositive[1] = true
 
 	// CASE 2: Only EndsWith
 	txnArgs2 := &structs.TransactionArguments{
@@ -88,6 +91,7 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 		StartsWith: &structs.FilterStringExpr{StringValue: "GET"},
 		Fields:     []string{},
 	}
+	recordsLengthPositive[2] = true
 
 	// CASE 3: Only StartsWith
 	txnArgs3 := &structs.TransactionArguments{
@@ -95,6 +99,7 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 		EndsWith:   nil,
 		Fields:     []string{},
 	}
+	recordsLengthPositive[3] = true
 
 	// CASE 4: StartsWith and EndsWith
 	txnArgs4 := &structs.TransactionArguments{
@@ -102,6 +107,7 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 		EndsWith:   &structs.FilterStringExpr{StringValue: "DELETE"},
 		Fields:     []string{},
 	}
+	recordsLengthPositive[4] = true
 
 	// CASE 5: StartsWith and EndsWith and one Field
 	txnArgs5 := &structs.TransactionArguments{
@@ -109,6 +115,7 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 		EndsWith:   &structs.FilterStringExpr{StringValue: "DELETE"},
 		Fields:     []string{"gender"},
 	}
+	recordsLengthPositive[5] = true
 
 	// CASE 6: StartsWith and EndsWith and two Fields
 	txnArgs6 := &structs.TransactionArguments{
@@ -116,14 +123,42 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 		EndsWith:   &structs.FilterStringExpr{StringValue: "DELETE"},
 		Fields:     []string{"gender", "country"},
 	}
+	recordsLengthPositive[6] = true
 
-	allCasesTxnArgs := []*structs.TransactionArguments{txnArgs1, txnArgs2, txnArgs3, txnArgs4, txnArgs5, txnArgs6}
+	// CASE 7: StartsWith and EndsWith with String Clauses only OR
+	txnArgs7 := &structs.TransactionArguments{
+		StartsWith: &structs.FilterStringExpr{StringClauses: [][]string{{"GET", "POST1"}}},
+		EndsWith:   &structs.FilterStringExpr{StringClauses: [][]string{{"DELETE", "POST2"}}},
+		Fields:     []string{"gender", "country"},
+	}
+	recordsLengthPositive[7] = true
 
-	for _, txnArgs := range allCasesTxnArgs {
+	// CASE 8: StartsWith and EndsWith with String Clauses only AND (Negative Case)
+	txnArgs8 := &structs.TransactionArguments{
+		StartsWith: &structs.FilterStringExpr{StringClauses: [][]string{{"GET"}, {"POST2"}}},
+		EndsWith:   &structs.FilterStringExpr{StringClauses: [][]string{{"POST"}}},
+		Fields:     []string{"gender", "country"},
+	}
+	recordsLengthPositive[8] = false
+
+	// CASE 9: StartsWith and EndsWith with String Clauses only AND (Positive Case)
+	txnArgs9 := &structs.TransactionArguments{
+		StartsWith: &structs.FilterStringExpr{StringClauses: [][]string{{"GET"}, {"male"}}},
+		EndsWith:   &structs.FilterStringExpr{StringClauses: [][]string{{"DELETE"}}},
+		Fields:     []string{"gender", "country"},
+	}
+	recordsLengthPositive[9] = true
+
+	allCasesTxnArgs := []*structs.TransactionArguments{txnArgs1, txnArgs2, txnArgs3, txnArgs4, txnArgs5, txnArgs6, txnArgs7, txnArgs8, txnArgs9}
+
+	for index, txnArgs := range allCasesTxnArgs {
 		// Process Transactions
 		processedRecords, cols, err := processTransactionsOnRecords(records, allCols, txnArgs)
 		assert.NoError(t, err)
 		assert.Equal(t, cols, []string{"timestamp", "duration", "count", "event"})
+
+		// Check if the number of records is positive or negative
+		assert.Equal(t, recordsLengthPositive[index+1], len(processedRecords) > 0)
 
 		for _, record := range processedRecords {
 			assert.Equal(t, record["timestamp"], uint64(1659874108987))
@@ -149,13 +184,21 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 
 				if txnArgs.StartsWith != nil {
 					if ind == 0 {
-						assert.Equal(t, eventMap["http_method"], txnArgs.StartsWith.StringValue)
+						if txnArgs.StartsWith.StringValue != "" {
+							assert.Equal(t, eventMap["http_method"], txnArgs.StartsWith.StringValue)
+						} else if txnArgs.StartsWith.StringClauses != nil {
+							assert.Contains(t, txnArgs.StartsWith.StringClauses[0][0], eventMap["http_method"])
+						}
 					}
 				}
 
 				if txnArgs.EndsWith != nil {
 					if ind == len(events)-1 {
-						assert.Equal(t, eventMap["http_method"], txnArgs.EndsWith.StringValue)
+						if txnArgs.EndsWith.StringValue != "" {
+							assert.Equal(t, eventMap["http_method"], txnArgs.EndsWith.StringValue)
+						} else if txnArgs.EndsWith.StringClauses != nil {
+							assert.Contains(t, txnArgs.EndsWith.StringClauses[0][0], eventMap["http_method"])
+						}
 					}
 				}
 
