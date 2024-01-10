@@ -4788,8 +4788,6 @@ func Test_TransactionRequestWithFields(t *testing.T) {
 	transactionRequest := aggregator.TransactionArguments
 	assert.Equal(t, aggregator.PipeCommandType, structs.TransactionType)
 	assert.Equal(t, transactionRequest.Fields, []string{"A"})
-	assert.Equal(t, transactionRequest.StartsWith, "")
-	assert.Equal(t, transactionRequest.EndsWith, "")
 
 	query = []byte(`A=1 | transaction A B C`)
 	res, err = spl.Parse("", query)
@@ -4806,51 +4804,49 @@ func Test_TransactionRequestWithFields(t *testing.T) {
 	transactionRequest = aggregator.TransactionArguments
 	assert.Equal(t, aggregator.PipeCommandType, structs.TransactionType)
 	assert.Equal(t, transactionRequest.Fields, []string{"A", "B", "C"})
-	assert.Equal(t, transactionRequest.StartsWith, "")
-	assert.Equal(t, transactionRequest.EndsWith, "")
 }
 
 func Test_TransactionRequestWithStartsAndEndsWith(t *testing.T) {
 	query1 := []byte(`A=1 | transaction A B C startswith="foo" endswith="bar"`)
 	query1Res := &structs.TransactionArguments{
 		Fields:     []string{"A", "B", "C"},
-		StartsWith: "foo",
-		EndsWith:   "bar",
+		StartsWith: &structs.FilterStringExpr{StringValue: "foo"},
+		EndsWith:   &structs.FilterStringExpr{StringValue: "bar"},
 	}
 
 	query2 := []byte(`A=1 | transaction endswith="bar" startswith="foo"`)
 	query2Res := &structs.TransactionArguments{
 		Fields:     []string(nil),
-		StartsWith: "foo",
-		EndsWith:   "bar",
+		StartsWith: &structs.FilterStringExpr{StringValue: "foo"},
+		EndsWith:   &structs.FilterStringExpr{StringValue: "bar"},
 	}
 
 	query3 := []byte(`A=1 | transaction startswith="foo" endswith="bar"`)
 	query3Res := &structs.TransactionArguments{
 		Fields:     []string(nil),
-		StartsWith: "foo",
-		EndsWith:   "bar",
+		StartsWith: &structs.FilterStringExpr{StringValue: "foo"},
+		EndsWith:   &structs.FilterStringExpr{StringValue: "bar"},
 	}
 
 	query4 := []byte(`A=1 | transaction endswith="bar"`)
 	query4Res := &structs.TransactionArguments{
 		Fields:     []string(nil),
-		StartsWith: "",
-		EndsWith:   "bar",
+		StartsWith: nil,
+		EndsWith:   &structs.FilterStringExpr{StringValue: "bar"},
 	}
 
 	query5 := []byte(`A=1 | transaction startswith="foo"`)
 	query5Res := &structs.TransactionArguments{
 		Fields:     []string(nil),
-		StartsWith: "foo",
-		EndsWith:   "",
+		StartsWith: &structs.FilterStringExpr{StringValue: "foo"},
+		EndsWith:   nil,
 	}
 
 	query6 := []byte(`A=1 | transaction startswith="foo" endswith="bar" A B C`)
 	query6Res := &structs.TransactionArguments{
 		Fields:     []string{"A", "B", "C"},
-		StartsWith: "foo",
-		EndsWith:   "bar",
+		StartsWith: &structs.FilterStringExpr{StringValue: "foo"},
+		EndsWith:   &structs.FilterStringExpr{StringValue: "bar"},
 	}
 
 	queries := [][]byte{query1, query2, query3, query4, query5, query6}

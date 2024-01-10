@@ -78,42 +78,42 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 	// CASE 1: Only Fields
 	txnArgs1 := &structs.TransactionArguments{
 		Fields:     []string{"gender", "city"},
-		StartsWith: "",
-		EndsWith:   "",
+		StartsWith: nil,
+		EndsWith:   nil,
 	}
 
 	// CASE 2: Only EndsWith
 	txnArgs2 := &structs.TransactionArguments{
-		EndsWith:   "DELETE",
-		StartsWith: "",
+		EndsWith:   &structs.FilterStringExpr{StringValue: "DELETE"},
+		StartsWith: &structs.FilterStringExpr{StringValue: "GET"},
 		Fields:     []string{},
 	}
 
 	// CASE 3: Only StartsWith
 	txnArgs3 := &structs.TransactionArguments{
-		StartsWith: "GET",
-		EndsWith:   "",
+		StartsWith: &structs.FilterStringExpr{StringValue: "GET"},
+		EndsWith:   nil,
 		Fields:     []string{},
 	}
 
 	// CASE 4: StartsWith and EndsWith
 	txnArgs4 := &structs.TransactionArguments{
-		StartsWith: "GET",
-		EndsWith:   "DELETE",
+		StartsWith: &structs.FilterStringExpr{StringValue: "GET"},
+		EndsWith:   &structs.FilterStringExpr{StringValue: "DELETE"},
 		Fields:     []string{},
 	}
 
 	// CASE 5: StartsWith and EndsWith and one Field
 	txnArgs5 := &structs.TransactionArguments{
-		StartsWith: "GET",
-		EndsWith:   "DELETE",
+		StartsWith: &structs.FilterStringExpr{StringValue: "GET"},
+		EndsWith:   &structs.FilterStringExpr{StringValue: "DELETE"},
 		Fields:     []string{"gender"},
 	}
 
 	// CASE 6: StartsWith and EndsWith and two Fields
 	txnArgs6 := &structs.TransactionArguments{
-		StartsWith: "GET",
-		EndsWith:   "DELETE",
+		StartsWith: &structs.FilterStringExpr{StringValue: "GET"},
+		EndsWith:   &structs.FilterStringExpr{StringValue: "DELETE"},
 		Fields:     []string{"gender", "country"},
 	}
 
@@ -147,15 +147,15 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 
 				assert.Equal(t, fields, initFields)
 
-				if txnArgs.StartsWith != "" {
+				if txnArgs.StartsWith != nil {
 					if ind == 0 {
-						assert.Equal(t, eventMap["http_method"], txnArgs.StartsWith)
+						assert.Equal(t, eventMap["http_method"], txnArgs.StartsWith.StringValue)
 					}
 				}
 
-				if txnArgs.EndsWith != "" {
+				if txnArgs.EndsWith != nil {
 					if ind == len(events)-1 {
-						assert.Equal(t, eventMap["http_method"], txnArgs.EndsWith)
+						assert.Equal(t, eventMap["http_method"], txnArgs.EndsWith.StringValue)
 					}
 				}
 

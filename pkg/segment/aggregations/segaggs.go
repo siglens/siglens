@@ -1379,7 +1379,7 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 
 		// If StartsWith is given, then the transaction Should only Open when the record matches the StartsWith. OR
 		// if StartsWith not present, then the transaction should open for all records.
-		if (transactionStartsWith != "" && strings.Contains(recordMapStr, transactionStartsWith)) || transactionStartsWith == "" {
+		if transactionStartsWith != nil && strings.Contains(recordMapStr, transactionStartsWith.StringValue) || transactionStartsWith == nil {
 			if !currentState.Open {
 				currentState.Open = true
 				currentState.Timestamp = uint64(record["timestamp"].(uint64))
@@ -1387,7 +1387,7 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 				groupState[transactionKey] = currentState
 
 				groupRecords[transactionKey] = make([]map[string]interface{}, 0)
-			} else if currentState.Open && transactionEndsWith == "" && transactionStartsWith != "" {
+			} else if currentState.Open && transactionEndsWith == nil && transactionStartsWith != nil {
 				// If StartsWith is given, but endsWith is not given, then the startswith will be the end of the transaction.
 				// So close with last record and open a new transaction.
 				appendGroupedRecords(currentState, transactionKey)
@@ -1406,8 +1406,8 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 			groupRecords[transactionKey] = append(groupRecords[transactionKey], record)
 		}
 
-		if transactionEndsWith != "" {
-			if strings.Contains(recordMapStr, transactionEndsWith) {
+		if transactionEndsWith != nil && transactionEndsWith.StringValue != "" {
+			if strings.Contains(recordMapStr, transactionEndsWith.StringValue) {
 				if currentState.Open {
 					appendGroupedRecords(currentState, transactionKey)
 
@@ -1420,7 +1420,7 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 	}
 
 	// Only group By fields. In this case, the groupRecords will not be appended to the groupedRecords. So we need to append them here.
-	if transactionStartsWith == "" && transactionEndsWith == "" {
+	if transactionStartsWith == nil && transactionEndsWith == nil {
 		for key := range groupRecords {
 			appendGroupedRecords(groupState[key], key)
 		}

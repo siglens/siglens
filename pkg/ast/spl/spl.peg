@@ -144,9 +144,7 @@ type singleAggTemp struct {
 
 type TxnArgs struct {
     argOption string
-    fields []string
-    startsWith string
-    endsWith string
+    arguments *structs.TransactionArguments
 }
 }
 
@@ -160,7 +158,7 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
     //
     //      AND
     //     /   \
-    //    A     AND
+    //    A     ANDAND
     //         /   \
     //        B     AND
     //             /   \
@@ -2067,17 +2065,13 @@ TransactionBlock <- PIPE CMD_TRANSACTION txnOptions:TransactionOptions {
 // The TransactionDefinitionOptionsList will consist of all the Transaction Options
 TransactionOptions <- txnOptions:TransactionDefinitionOptionsList?  {
 
-    transactionRequest := &structs.TransactionArguments{
-        Fields:     nil,
-        StartsWith: "",
-        EndsWith:   "",
-    }
+    transactionRequest := &structs.TransactionArguments{}
      
     if txnOptions != nil {
-        txnArgs := txnOptions.(*TxnArgs)
-        transactionRequest.Fields = txnArgs.fields
-        transactionRequest.StartsWith = txnArgs.startsWith
-        transactionRequest.EndsWith = txnArgs.endsWith
+        txnArgs := txnOptions.(*TxnArgs).arguments
+        transactionRequest.Fields = txnArgs.Fields
+        transactionRequest.StartsWith = txnArgs.StartsWith
+        transactionRequest.EndsWith = txnArgs.EndsWith
     }
 
     return transactionRequest, nil
@@ -2089,8 +2083,7 @@ TransactionDefinitionOptionsList <- first:TransactionDefinitionOption rest:(SPAC
     restSlice := rest.([]any)
     txnArgs := &TxnArgs{
         argOption: "txn-definition",
-        startsWith: "",
-        endsWith: "",
+        arguments: &structs.TransactionArguments{},
     }
 
     numArgs := 1 + len(restSlice)
@@ -2107,11 +2100,11 @@ TransactionDefinitionOptionsList <- first:TransactionDefinitionOption rest:(SPAC
 
         switch argOption {
             case "fields":
-                txnArgs.fields = txnArg.fields
+                txnArgs.arguments.Fields = txnArg.arguments.Fields
             case "startswith": 
-                txnArgs.startsWith = txnArg.startsWith
+                txnArgs.arguments.StartsWith = txnArg.arguments.StartsWith
             case "endswith":
-                txnArgs.endsWith = txnArg.endsWith
+                txnArgs.arguments.EndsWith = txnArg.arguments.EndsWith
             default: 
                 return nil, fmt.Errorf("Not a Valid Transaction Argument option")
         }
@@ -2127,7 +2120,7 @@ TransactionDefinitionOption <- option:(SpaceSeparatedFieldNameList / StartsWithO
 // Parses one or more FieldNames separate by a space
 // Returns a slice containing all the FieldNames
 SpaceSeparatedFieldNameList <- first:FieldName !(EQUAL) rest:(SPACE FieldName !(EQUAL))* {
-     var fields []string
+    var fields []string
     fields = append(fields, first.(string))
     for _, r := range rest.([]any) {
         // Extracting the field name from the tuple (SPACE, FieldName)
@@ -2136,26 +2129,93 @@ SpaceSeparatedFieldNameList <- first:FieldName !(EQUAL) rest:(SPACE FieldName !(
 
     txnArg := &TxnArgs{
         argOption: "fields",
-        fields: fields,
+        arguments: &structs.TransactionArguments{
+            Fields: fields,
+        },
     }
 
     return txnArg, nil
 }
 
-StartsWithOption <- "startswith" EQUAL str:QuotedString {
+StartsWithOption <- "startswith" EQUAL strExpr:TransactionFilterString {
     txnArg := &TxnArgs{
         argOption: "startswith",
-        startsWith: removeQuotes(str.(string)),
+        arguments: &structs.TransactionArguments{
+            StartsWith: strExpr.(*structs.FilterStringExpr),
+        }, 
     }
     return txnArg, nil
 }
 
-EndsWithOption <- "endswith" EQUAL str:QuotedString {
+EndsWithOption <- "endswith" EQUAL strExpr:TransactionFilterString {
     txnArg := &TxnArgs{
         argOption: "endswith",
-        endsWith: removeQuotes(str.(string)),
+        arguments: &structs.TransactionArguments{
+            EndsWith: strExpr.(*structs.FilterStringExpr),
+        },
     }
     return txnArg, nil
+}
+
+// Rerturns structs.FilterStringExpr
+TransactionFilterString <- strExpr:(TransactionQuotedString / TransactionEval / TransactionQuotedStringExpr) {
+    return strExpr, nil
+}
+
+TransactionQuotedString <- str:QuotedString {
+    filterStrExpr := &structs.FilterStringExpr{
+       StringValue: removeQuotes(str.(string)),
+    }
+
+    return filterStrExpr, nil
+}
+
+TransactionQuotedStringExpr <- L_PAREN cl:StringClauseListAnd R_PAREN {
+
+    filterStrExpr := &structs.FilterStringExpr{
+        StringClauses: cl.([][]string),
+    }
+
+    return filterStrExpr, nil
+}
+
+StringClauseListAnd <- first:StringClauseListOr rest:(AND StringClauseListOr)* {
+    var orClauses [][]string
+
+    orClauses = append(orClauses, first.([]string))
+    for _, r := range rest.([]any) {
+        orClauses = append(orClauses, r.([]any)[1].([]string))
+    }
+
+    return orClauses, nil
+}
+
+StringClauseListOr <- first:QuotedString rest:(OR QuotedString)* {
+    var strs []string
+
+    strs = append(strs, removeQuotes(first.(string)))
+    for _, r := range rest.([]any) {
+        // Extracting the string from the tuple (OR, QuotedString)
+        strs = append(strs, removeQuotes(r.([]any)[1].(string)))
+    }
+
+    return strs, nil
+}
+
+TransactionSearch <- expr:SearchTerm {
+    filterStrExpr := &structs.FilterStringExpr{
+        //SearchTerm: expr.(*ast.Node),  
+    }
+    return filterStrExpr, nil
+}
+
+// eval(<bool-expression>)
+TransactionEval <- "eval" EMPTY_OR_SPACE L_PAREN condition:BoolExpr R_PAREN {
+    filterStrExpr := &structs.FilterStringExpr{
+        EvalBoolExpr: condition.(*structs.BoolExpr),
+    }
+
+    return filterStrExpr, nil
 }
 
 
