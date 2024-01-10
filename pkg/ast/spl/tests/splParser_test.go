@@ -4871,3 +4871,128 @@ func Test_TransactionRequestWithStartsAndEndsWith(t *testing.T) {
 		assert.Equal(t, transactionRequest.EndsWith, results[ind].EndsWith)
 	}
 }
+
+func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
+	// CASE 1: Fields + StartsWith is Eval + EndsWith is TransactionQueryString With only OR
+	query1 := []byte(`A=1 | transaction A B C startswith=eval(duration > 10) endswith=("foo" OR "bar")`)
+	query1Res := &structs.TransactionArguments{
+		Fields: []string{"A", "B", "C"},
+		StartsWith: &structs.FilterStringExpr{
+			EvalBoolExpr: &structs.BoolExpr{
+				IsTerminal: true,
+				LeftValue: &structs.ValueExpr{
+					NumericExpr: &structs.NumericExpr{
+						IsTerminal:      true,
+						NumericExprMode: structs.NEMNumberField,
+						ValueIsField:    true,
+						Value:           "duration",
+					},
+				},
+				RightValue: &structs.ValueExpr{
+					NumericExpr: &structs.NumericExpr{
+						IsTerminal:      true,
+						NumericExprMode: structs.NEMNumber,
+						ValueIsField:    false,
+						Value:           "10",
+					},
+				},
+				ValueOp: ">",
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{
+			StringClauses: [][]string{{"foo", "bar"}},
+		},
+	}
+
+	// CASE 2: Fields + StartsWith is searchTerm (String) + EndsWith is TransactionQueryString With OR & AND
+	query2 := []byte(`A=1 | transaction A B C startswith=status="Ok" endswith=("foo" OR "foo1" AND "bar")`)
+	query2Res := &structs.TransactionArguments{
+		Fields: []string{"A", "B", "C"},
+		StartsWith: &structs.FilterStringExpr{
+			SearchTerm: &structs.SimpleSearchExpr{
+				Op:           "=",
+				Field:        "status",
+				Values:       "Ok",
+				ValueIsRegex: false,
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{
+			StringClauses: [][]string{{"foo", "foo1"}, {"bar"}},
+		},
+	}
+
+	// CASE 3: Fields + StartWith is searchTerm (Number) + endswith is Eval
+	query3 := []byte(`A=1 | transaction A B C startswith=duration>10 endswith=eval(status<400)`)
+	query3Res := &structs.TransactionArguments{
+		Fields: []string{"A", "B", "C"},
+		StartsWith: &structs.FilterStringExpr{
+			SearchTerm: &structs.SimpleSearchExpr{
+				Op:           ">",
+				Field:        "duration",
+				Values:       json.Number("10"),
+				ValueIsRegex: false,
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{
+			EvalBoolExpr: &structs.BoolExpr{
+				IsTerminal: true,
+				LeftValue: &structs.ValueExpr{
+					NumericExpr: &structs.NumericExpr{
+						IsTerminal:      true,
+						NumericExprMode: structs.NEMNumberField,
+						ValueIsField:    true,
+						Value:           "status",
+					},
+				},
+				RightValue: &structs.ValueExpr{
+					NumericExpr: &structs.NumericExpr{
+						IsTerminal:      true,
+						NumericExprMode: structs.NEMNumber,
+						ValueIsField:    false,
+						Value:           "400",
+					},
+				},
+				ValueOp: "<",
+			},
+		},
+	}
+
+	// CASE 4: Fields + StartWith is searchTerm (String) + endswith is String Value
+	query4 := []byte(`A=1 | transaction A B C startswith=status="Ok" endswith="foo"`)
+	query4Res := &structs.TransactionArguments{
+		Fields: []string{"A", "B", "C"},
+		StartsWith: &structs.FilterStringExpr{
+			SearchTerm: &structs.SimpleSearchExpr{
+				Op:           "=",
+				Field:        "status",
+				Values:       "Ok",
+				ValueIsRegex: false,
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{
+			StringValue: "foo",
+		},
+	}
+
+	queries := [][]byte{query1, query2, query3, query4}
+	results := []*structs.TransactionArguments{query1Res, query2Res, query3Res, query4Res}
+
+	for ind, query := range queries {
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+		assert.NotNil(t, aggregator.TransactionArguments)
+
+		transactionRequest := aggregator.TransactionArguments
+		assert.Equal(t, aggregator.PipeCommandType, structs.TransactionType)
+		assert.Equal(t, transactionRequest.Fields, results[ind].Fields)
+		assert.Equal(t, transactionRequest.StartsWith, results[ind].StartsWith)
+		assert.Equal(t, transactionRequest.EndsWith, results[ind].EndsWith)
+	}
+}
