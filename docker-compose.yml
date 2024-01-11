@@ -7,6 +7,7 @@ services:
       - "${UI_PORT}:5122"
     volumes:
       - "${WORK_DIR}/data:/siglens/data"
+      - "${WORK_DIR}/logs:/siglens/logs"
       - "${WORK_DIR}/server.yaml:/siglens/server.yaml"
     command: ["./siglens", "--config", "server.yaml"]
     environment:
