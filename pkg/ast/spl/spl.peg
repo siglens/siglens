@@ -765,7 +765,11 @@ DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
     return root, nil
 }
 
-DedupExpr <- limitArr:(SPACE IntegerAsString)? options:(DedupOptions)? fieldList:(DedupFieldList)? sortByClause:(DedupSortByClause)? {
+// Returns *structs.DedupExpr
+// It's not clear in the Splunk documentation whether the DedupOptions should
+// be before or after the field list. However, the field list probably
+// shouldn't be after the sortby clause.
+DedupExpr <- limitArr:(SPACE IntegerAsString)? options1:(DedupOptions)? fieldList:(DedupFieldList)? options2:(DedupOptions)? sortByClause:(DedupSortByClause)? {
     dedupExpr := &structs.DedupExpr {
         FieldList: fieldList.([]string),
         Limit: 1,
@@ -781,8 +785,27 @@ DedupExpr <- limitArr:(SPACE IntegerAsString)? options:(DedupOptions)? fieldList
         dedupExpr.Limit = limit
     }
 
-    if options != nil {
-        dedupExpr.DedupOptions = options.(*structs.DedupOptions)
+    dedupExpr.DedupOptions = &structs.DedupOptions {
+        Consecutive: false,
+        KeepEmpty: false,
+        KeepEvents: false,
+    }
+
+    if options1 != nil {
+        dedupExpr.DedupOptions = options1.(*structs.DedupOptions)
+    }
+    if options2 != nil {
+        options := options2.(*structs.DedupOptions)
+
+        if options.Consecutive {
+            dedupExpr.DedupOptions.Consecutive = options.Consecutive
+        }
+        if options.KeepEmpty {
+            dedupExpr.DedupOptions.KeepEmpty = options.KeepEmpty
+        }
+        if options.KeepEvents {
+            dedupExpr.DedupOptions.KeepEvents = options.KeepEvents
+        }
     }
 
     if sortByClause != nil {
@@ -792,7 +815,11 @@ DedupExpr <- limitArr:(SPACE IntegerAsString)? options:(DedupOptions)? fieldList
     return dedupExpr, nil
 }
 
-DedupFieldList <- SPACE first:FieldName rest:(SPACE FieldName)* {
+DedupFieldName <- !("sortby") field:FieldName {
+    return field, nil
+}
+
+DedupFieldList <- SPACE first:DedupFieldName rest:(SPACE DedupFieldName !EQUAL)* {
     // Convert `rest` to a slice. Each element of the slice will be a 2-element
     // slice where the first element is " " and the second is a FieldName.
     restSlice := rest.([]any)
@@ -869,7 +896,6 @@ DedupSortByClause <- CMD_DEDUP_SORTBY dedupSortEles:DedupSortElements {
 
 // sortby ( - | + ) <sort-field> [(- | +) <sort_field> ...]
 DedupSortElements <- first:DedupSingleSortElement rest:(SPACE DedupSingleSortElement)* {
-
     restSlice := rest.([]any)
 
     length := 1 + len(restSlice)
@@ -885,17 +911,21 @@ DedupSortElements <- first:DedupSingleSortElement rest:(SPACE DedupSingleSortEle
 }
 
 DedupSingleSortElement <- sortBySymbol:("+" / "-") op:("" / "auto" / "str" / "ip" / "num")? field:FieldName {
-
     sortByAsc := true
 
-    symbol := sortBySymbol.(string)
-    if(symbol == "-") {
+    symbol := sortBySymbol.([]byte)
+    if(symbol[0] == '-') {
         sortByAsc = false
+    }
+
+    opStr, err := transferUint8ToString(op)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: DedupSingleSortElement: %v", err)
     }
 
     return &structs.DedupSortElement {
         SortByAsc: sortByAsc,
-        Op: op.(string),
+        Op: opStr,
         Field: field.(string),
     }, nil
 }
