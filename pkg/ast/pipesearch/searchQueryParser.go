@@ -19,6 +19,7 @@ package pipesearch
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/siglens/siglens/pkg/ast"
 	"github.com/siglens/siglens/pkg/ast/logql"
@@ -41,6 +42,12 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 	boolNode, queryAggs, parsingError = ParseQuery(searchText, qid, queryLanguageType)
 	if parsingError != nil {
 		return nil, nil, parsingError
+	}
+
+	if boolNode == nil && queryAggs == nil {
+		err := fmt.Errorf("qid=%d, ParseRequest: boolNode and queryAggs are nil for searchText: %v", qid, searchText)
+		log.Errorf(err.Error())
+		return nil, nil, err
 	}
 
 	tRange, err := ast.ParseTimeRange(startEpoch, endEpoch, queryAggs, qid)
@@ -138,12 +145,13 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		log.Errorf("qid=%d, parsePipeSearch: PEG Parse error: %v:%v", qid, err, getParseError(err))
 		return nil, nil, getParseError(err)
 	}
+
 	result, err := json.MarshalIndent(res, "", "   ")
-	if err != nil {
-		log.Errorf("qid=%d, parsePipeSearch: MarshalIndent error: %v", qid, err)
-		return nil, nil, nil
+	if err == nil {
+		log.Infof("qid=%d, parsePipeSearch output:\n%v\n", qid, string(result))
+	} else {
+		log.Infof("qid=%d, parsePipeSearch output:\n%v\n", qid, res)
 	}
-	log.Infof("qid=%d, parsePipeSearch output:\n%v\n", qid, string(result))
 
 	queryJson := res.(ast.QueryStruct).SearchFilter
 	pipeCommandsJson := res.(ast.QueryStruct).PipeCommands

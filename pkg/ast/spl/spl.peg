@@ -393,7 +393,7 @@ ClauseLevel1 <- L_PAREN clause:ClauseLevel4 R_PAREN {
 
 // Parsing the text of a Number as a String would succeed, so we need to try
 // parsing as a FieldWithNumberValue first.
-SearchTerm <- term:(FieldWithNumberValue / FieldWithStringValue) {
+SearchTerm <- term:(FieldWithNumberValue / FieldWithBooleanValue / FieldWithStringValue) {
     return term, nil
 }
 
@@ -2035,6 +2035,19 @@ UnnamedFieldWithNumberValue <- value:Number {
     return node, nil
 }
 
+FieldWithBooleanValue <- key:FieldName op:EqualityOperator value:Boolean {
+    node := &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Op: op.(string),
+            Field: key.(string),
+            Values: value,
+        },
+    }
+
+    return node, nil
+}
+
 FieldWithStringValue <- keyValuePair:(NamedFieldWithStringValue / UnnamedFieldWithStringValue) {
     return keyValuePair, nil
 }
@@ -2096,6 +2109,11 @@ String <- str:(QuotedString / UnquotedString) {
 QuotedString <- '"' [^"]* '"' {
     // The returned string has quotes as the first and last character.
     return string(c.text), nil
+}
+
+Boolean <- ("true" / "false") {
+    boolValue, _ := strconv.ParseBool(string(c.text))
+    return boolValue, nil
 }
 
 UnquotedString <- ("*" / (!(MAJOR_BREAK / EOF) .))+ {
