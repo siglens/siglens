@@ -35,7 +35,6 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 	sTime := time.Now()
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
-	// recordIndexInFinal := make(map[string]int)
 	for _, rrc := range allrrc {
 		if rrc.SegKeyInfo.IsRemote {
 			log.Debugf("GetJsonFromAllRrc: skipping remote segment:%v", rrc.SegKeyInfo.RecordId)
@@ -57,9 +56,6 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			blkIdxsCtr.BlkRecIndexes[rrc.BlockNum] = make(map[uint16]uint64)
 		}
 		blkIdxsCtr.BlkRecIndexes[rrc.BlockNum][rrc.RecordNum] = rrc.TimeStamp
-
-		// recordIndent := fmt.Sprintf("%s_%d_%d", segkey, rrc.BlockNum, rrc.RecordNum)
-		// recordIndexInFinal[recordIndent] = idx
 	}
 
 	rawIncludeValuesIndicies := make(map[string]int)
@@ -116,11 +112,6 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					record[key] = val
 				}
 
-				// idx, ok := recordIndexInFinal[recInden]
-				// if !ok {
-				// 	log.Errorf("qid=%d, GetJsonFromAllRrc: Did not find index for record indentifier %s.", qid, recInden)
-				// 	continue
-				// }
 				if logfmtRequest {
 					record = addKeyValuePairs(record)
 				}
@@ -152,8 +143,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					}
 					record[label] = val
 				}
-				// delete(recordIndexInFinal, recInden)
-				// allRecords[idx] = record
+
 				allRecords = append(allRecords, record)
 			}
 		}
