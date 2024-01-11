@@ -127,6 +127,7 @@ type FilterStringExpr struct {
 	StringClauses [][]string // Each []string is a list of strings that are OR'd together
 	EvalBoolExpr  *BoolExpr
 	SearchTerm    *SimpleSearchExpr
+	SearchNode    [][]*SimpleSearchExpr
 }
 
 type TransactionArguments struct {

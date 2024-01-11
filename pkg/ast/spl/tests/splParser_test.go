@@ -4992,8 +4992,17 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 		},
 	}
 
-	queries := [][]byte{query1, query2, query3, query4}
-	results := []*structs.TransactionArguments{query1Res, query2Res, query3Res, query4Res}
+	// CASE 5: Fields + StartWith is String Search Expression + endswith is String Value
+	query5 := []byte(`A=1 | transaction A B C startswith="status=foo OR status=bar" endswith="bar"`)
+	query5Res := &structs.TransactionArguments{
+		Fields: []string{"A", "B", "C"},
+		EndsWith: &structs.FilterStringExpr{
+			StringValue: "bar",
+		},
+	}
+
+	queries := [][]byte{query1, query2, query3, query4, query5}
+	results := []*structs.TransactionArguments{query1Res, query2Res, query3Res, query4Res, query5Res}
 
 	for ind, query := range queries {
 		res, err := spl.Parse("", query)
@@ -5008,9 +5017,9 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 		assert.NotNil(t, aggregator.TransactionArguments)
 
 		transactionRequest := aggregator.TransactionArguments
-		assert.Equal(t, aggregator.PipeCommandType, structs.TransactionType)
-		assert.Equal(t, transactionRequest.Fields, results[ind].Fields)
-		assert.Equal(t, transactionRequest.StartsWith, results[ind].StartsWith)
-		assert.Equal(t, transactionRequest.EndsWith, results[ind].EndsWith)
+		assert.Equal(t, structs.TransactionType, aggregator.PipeCommandType)
+		assert.Equal(t, results[ind].Fields, transactionRequest.Fields)
+		assert.Equal(t, results[ind].StartsWith, transactionRequest.StartsWith)
+		assert.Equal(t, results[ind].EndsWith, transactionRequest.EndsWith)
 	}
 }
