@@ -386,7 +386,7 @@ function secondFilterComplete(evt) {
 function getSearchText() {
   let filterValue = getQueryBuilderCode();
   if (filterValue != "") $("#query-input").val(filterValue);
-  if (filterValue == "Syntax Error") $("#query-builder-btn").addClass("stop-search");
+  if (filterValue == "Searches with a Search Criteria must have an Aggregate Attribute") $("#query-builder-btn").addClass("stop-search");
   else $("#query-builder-btn").removeClass("stop-search");
 }
 function cancelInfo(evt) {
@@ -572,13 +572,13 @@ const resizeObserver = new ResizeObserver((entries) => {
 });
 resizeObserver.observe(document.getElementById("columnChart"));
 function timeChart() {
-  if(measureInfo.length == 0) {
+  if (isTimechart) {
+    $("#columnChart").show();
+    $("#hideGraph").hide();
+  }else{
     $("#columnChart").hide();
     $("#hideGraph").show();
     return;
-  }else{
-    $("#columnChart").show();
-    $("#hideGraph").hide();
   }
   // Extract data for ECharts
   var timestamps = measureInfo.map((item) => convertTimestamp(item.GroupByValues[0]));

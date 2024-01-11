@@ -551,6 +551,7 @@ function getColumns() {
      }
      index = 0;
      let bothRight = 0;
+     let showError = false;
      //concat the second input box
      if (secondBoxSet && secondBoxSet.size > 0) {
        bothRight++;
@@ -563,7 +564,7 @@ function getColumns() {
      }
      index = 0;
      if (thirdBoxSet && thirdBoxSet.size > 0) {
-       bothRight++;
+      if(bothRight == 0) showError = true;
        //concat the third input box
        filterValue += " BY";
        thirdBoxSet.forEach((value, i) => {
@@ -574,9 +575,9 @@ function getColumns() {
      }
      if (filterValue == "") filterValue = "*";
      $("#query-input").val(filterValue);
-     if(bothRight == 1) $("#query-builder-btn").addClass("stop-search");
+     if(thirdBoxSet && thirdBoxSet.size > 0 && (secondBoxSet == null || secondBoxSet.size == 0)) $("#query-builder-btn").addClass("stop-search");
      else $("#query-builder-btn").removeClass("stop-search");
-   return bothRight == 1 ? "Syntax Error" : filterValue;
+   return showError ? "Searches with a Search Criteria must have an Aggregate Attribute" : filterValue;
   }
  function getSearchFilter(skipPushState, scrollingTrigger) {
    let currentTab = $("#custom-code-tab").tabs("option", "active");
