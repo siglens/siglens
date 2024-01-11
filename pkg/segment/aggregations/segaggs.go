@@ -502,20 +502,13 @@ func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 	//Without following group by
 	if recs != nil {
 		if err := performDedupColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols); err != nil {
-			return fmt.Errorf("performRenameColRequest: %v", err)
+			return fmt.Errorf("performDedupColRequest: %v", err)
 		}
 		return nil
 	}
 
-	// //Follow group by
-	// if err := performRenameColRequestOnHistogram(nodeResult, letColReq); err != nil {
-	// 	return fmt.Errorf("performRenameColRequest: %v", err)
-	// }
-	// if err := performRenameColRequestOnMeasureResults(nodeResult, letColReq); err != nil {
-	// 	return fmt.Errorf("performRenameColRequest: %v", err)
-	// }
-
-	return nil
+	// Following a group by
+	return fmt.Errorf("performDedupColRequest: not yet implemented for after a group by")
 }
 
 func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
