@@ -1310,6 +1310,94 @@ func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *stru
 
 }
 
+// Evaluate a boolean expression
+func evaluateBoolExpr(boolExpr *structs.BoolExpr, record map[string]interface{}) bool {
+	// Terminal condition
+	if boolExpr.IsTerminal {
+		return evaluateSimpleCondition(boolExpr, record)
+	}
+
+	// Recursive evaluation
+	leftResult := evaluateBoolExpr(boolExpr.LeftBool, record)
+	rightResult := evaluateBoolExpr(boolExpr.RightBool, record)
+
+	// Combine results based on the boolean operation
+	switch boolExpr.BoolOp {
+	case structs.BoolOpAnd:
+		return leftResult && rightResult
+	case structs.BoolOpOr:
+		return leftResult || rightResult
+	default:
+		// Handle other cases or throw an error
+		return false
+	}
+}
+
+// Evaluate a simple condition (terminal node)
+func evaluateSimpleCondition(term *structs.BoolExpr, record map[string]interface{}) bool {
+	leftVal, err := getValuesFromValueExpr(term.LeftValue, record)
+	if err != nil {
+		return false
+	}
+
+	rightVal, err := getValuesFromValueExpr(term.RightValue, record)
+	if err != nil {
+		return false
+	}
+
+	// If the left or right value is nil, return false
+	if leftVal == nil || rightVal == nil {
+		return false
+	}
+
+	return conditionMatch(leftVal, term.ValueOp, rightVal)
+}
+
+func getValuesFromValueExpr(valueExpr *structs.ValueExpr, record map[string]interface{}) (interface{}, error) {
+	if valueExpr == nil {
+		return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr is nil")
+	}
+
+	switch valueExpr.ValueExprMode {
+	case structs.VEMNumericExpr:
+		if valueExpr.NumericExpr == nil {
+			return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr.NumericExpr is nil")
+		}
+		if valueExpr.NumericExpr.ValueIsField {
+			fieldValue, exists := record[valueExpr.NumericExpr.Value]
+			if !exists {
+				return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr.NumericExpr.Value does not exist in record")
+			}
+			floatFieldVal, err := dtypeutils.ConvertToFloat(fieldValue, 64)
+			if err != nil {
+				return fieldValue, nil
+			}
+			return floatFieldVal, nil
+		} else {
+			floatVal, err := dtypeutils.ConvertToFloat(valueExpr.NumericExpr.Value, 64)
+			return floatVal, err
+		}
+	case structs.VEMStringExpr:
+		if valueExpr.StringExpr == nil {
+			return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr.StringExpr is nil")
+		}
+		switch valueExpr.StringExpr.StringExprMode {
+		case structs.SEMRawString:
+			return valueExpr.StringExpr.RawString, nil
+		case structs.SEMField:
+			fieldValue, exists := record[valueExpr.StringExpr.FieldName]
+			if !exists {
+				return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr.StringExpr.Field does not exist in record")
+			}
+			return fieldValue, nil
+		default:
+			return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr.StringExpr.StringExprMode is invalid")
+		}
+	default:
+		return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr.ValueExprMode is invalid")
+	}
+}
+
 func conditionMatch(fieldValue interface{}, Op string, searchValue interface{}) bool {
 
 	switch Op {
@@ -1385,6 +1473,8 @@ func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterString
 				matched = false
 			}
 		}
+	} else if with.EvalBoolExpr != nil {
+		matched = evaluateBoolExpr(with.EvalBoolExpr, record)
 	}
 
 	return matched

@@ -72,11 +72,8 @@ func generateTestRecords(numRecords int) []map[string]interface{} {
 	return records
 }
 
-func Test_processTransactionsOnRecords(t *testing.T) {
-
-	records := generateTestRecords(500)
-	allCols := []string{"city", "gender"}
-
+// Test Cases for processTransactionsOnRecords
+func All_TestCases() (map[int]bool, []*structs.TransactionArguments) {
 	recordsLengthPositive := make(map[int]bool)
 
 	// CASE 1: Only Fields
@@ -227,7 +224,93 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 	}
 	recordsLengthPositive[13] = true
 
-	allCasesTxnArgs := []*structs.TransactionArguments{txnArgs1, txnArgs2, txnArgs3, txnArgs4, txnArgs5, txnArgs6, txnArgs7, txnArgs8, txnArgs9, txnArgs10, txnArgs11, txnArgs12, txnArgs13}
+	// CASE 14: Eval Expression:  transaction gender startswith=eval(status > 300 AND http_method="POST" OR http_method="PUT")
+	txnArgs14 := &structs.TransactionArguments{
+		Fields: []string{"gender"},
+		StartsWith: &structs.FilterStringExpr{
+			EvalBoolExpr: &structs.BoolExpr{
+				IsTerminal: false,
+				LeftBool: &structs.BoolExpr{
+					IsTerminal: false,
+					LeftBool: &structs.BoolExpr{
+						IsTerminal: true,
+						LeftValue: &structs.ValueExpr{
+							ValueExprMode: structs.VEMNumericExpr,
+							NumericExpr: &structs.NumericExpr{
+								NumericExprMode: structs.NEMNumberField,
+								IsTerminal:      true,
+								ValueIsField:    true,
+								Value:           "http_status",
+							},
+						},
+						RightValue: &structs.ValueExpr{
+							NumericExpr: &structs.NumericExpr{
+								NumericExprMode: structs.NEMNumber,
+								IsTerminal:      true,
+								ValueIsField:    false,
+								Value:           "300",
+							},
+						},
+						ValueOp: ">",
+					},
+					RightBool: &structs.BoolExpr{
+						IsTerminal: true,
+						LeftValue: &structs.ValueExpr{
+							ValueExprMode: structs.VEMNumericExpr,
+							NumericExpr: &structs.NumericExpr{
+								NumericExprMode: structs.NEMNumberField,
+								IsTerminal:      true,
+								ValueIsField:    true,
+								Value:           "http_method",
+							},
+						},
+						RightValue: &structs.ValueExpr{
+							ValueExprMode: structs.VEMStringExpr,
+							StringExpr: &structs.StringExpr{
+								StringExprMode: structs.SEMRawString,
+								RawString:      "POST",
+							},
+						},
+						ValueOp: "=",
+					},
+					BoolOp: structs.BoolOpAnd,
+				},
+				RightBool: &structs.BoolExpr{
+					IsTerminal: true,
+					LeftValue: &structs.ValueExpr{
+						ValueExprMode: structs.VEMNumericExpr,
+						NumericExpr: &structs.NumericExpr{
+							NumericExprMode: structs.NEMNumberField,
+							IsTerminal:      true,
+							ValueIsField:    true,
+							Value:           "http_method",
+						},
+					},
+					RightValue: &structs.ValueExpr{
+						ValueExprMode: structs.VEMStringExpr,
+						StringExpr: &structs.StringExpr{
+							StringExprMode: structs.SEMRawString,
+							RawString:      "PUT",
+						},
+					},
+					ValueOp: "=",
+				},
+				BoolOp: structs.BoolOpOr,
+			},
+		},
+	}
+	recordsLengthPositive[14] = true
+
+	return recordsLengthPositive, []*structs.TransactionArguments{txnArgs1, txnArgs2, txnArgs3, txnArgs4, txnArgs5, txnArgs6, txnArgs7, txnArgs8, txnArgs9,
+		txnArgs10, txnArgs11, txnArgs12, txnArgs13, txnArgs14}
+}
+
+func Test_processTransactionsOnRecords(t *testing.T) {
+
+	records := generateTestRecords(500)
+	allCols := []string{"city", "gender"}
+
+	recordsLengthPositive, allCasesTxnArgs := All_TestCases()
 
 	for index, txnArgs := range allCasesTxnArgs {
 		// Process Transactions
