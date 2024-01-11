@@ -12,7 +12,7 @@ def convert_parquet_to_tsv(input_directory, output_directory):
         df = pd.read_parquet(parquet_file)
         base_name = os.path.basename(parquet_file)
         tsv_file = os.path.join(output_directory, base_name.replace('.parquet', '.tsv'))
-        df.to_csv(tsv_file, index=False)
+        df.to_csv(tsv_file, sep='\t', index=False)
         print(f"Converted {parquet_file} to {tsv_file}")
 
 
