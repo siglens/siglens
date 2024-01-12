@@ -229,7 +229,6 @@ check_ports() {
 check_ports
 
 send_events() {
-    if $FIRST_RUN; then
         curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz
         if [ $? -ne 0 ]; then
             print_error_and_exit "Failed to download sample log dataset"
@@ -243,9 +242,6 @@ send_events() {
             fi
         done
         print_success_message "\n Sample log dataset sent successfully"
-    else
-        echo "Skipping sendevents as this is not the first run"
-    fi
 }
 
 # Run Docker compose files
@@ -262,7 +258,11 @@ else
     FIRST_RUN=true
 fi
 
-send_events
+if $FIRST_RUN; then
+    send_events
+else
+    echo "Skipping sendevents as this is not the first run"
+fi
 
 tput bold
 print_success_message "\n===> Frontend can be accessed on http://localhost:${PORT}"
