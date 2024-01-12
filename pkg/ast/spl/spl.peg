@@ -146,8 +146,8 @@ func resolveTerminalAstNodeToSimpleSearch(astNode *ast.Node) (*structs.SimpleSea
 		value = removeQuotes(v)
 		exprType = utils.SS_DT_STRING
 	case int, int32, int64, float32, float64, json.Number:
-		value = float64(v)
-		exprType = utils.SS_DT_FLOAT
+		value = json.Number(reflect.ValueOf(v).String())
+		exprType = utils.SS_DT_SIGNED_NUM
 	case bool:
 		boolValue, err := strconv.ParseBool(reflect.ValueOf(v).String())
 		if err != nil {
