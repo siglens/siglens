@@ -326,22 +326,46 @@ func parseTransactionRequest(node *structs.TransactionArguments, qid uint64) (*Q
 	aggNode.TransactionArguments.StartsWith = node.StartsWith
 	aggNode.TransactionArguments.EndsWith = node.EndsWith
 
-	if node.StartsWith != nil && node.StartsWith.SearchTerm != nil {
-		dte, err := utils.CreateDtypeEnclosure(node.StartsWith.SearchTerm.Values, qid)
-		if err != nil {
-			log.Errorf("qid=%d, parseTransactionRequest: CreateDtypeEnclosure error: %v", qid, err)
-			return nil, err
+	if node.StartsWith != nil {
+		if node.StartsWith.SearchTerm != nil {
+			dte, err := utils.CreateDtypeEnclosure(node.StartsWith.SearchTerm.Values, qid)
+			if err != nil {
+				log.Errorf("qid=%d, parseTransactionRequest: CreateDtypeEnclosure error: %v", qid, err)
+				return nil, err
+			}
+			aggNode.TransactionArguments.StartsWith.SearchTerm.DtypeEnclosure = dte
 		}
-		aggNode.TransactionArguments.StartsWith.SearchTerm.DtypeEnclosure = dte
+
+		if node.StartsWith.SearchNode != nil {
+			boolNode := &ASTNode{}
+			err := SearchQueryToASTnode(node.StartsWith.SearchNode.(*ast.Node), boolNode, qid)
+			if err != nil {
+				log.Errorf("qid=%d, parseTransactionRequest: SearchQueryToASTnode error: %v", qid, err)
+				return nil, err
+			}
+			aggNode.TransactionArguments.StartsWith.SearchNode = boolNode
+		}
 	}
 
-	if node.EndsWith != nil && node.EndsWith.SearchTerm != nil {
-		dte, err := utils.CreateDtypeEnclosure(node.EndsWith.SearchTerm.Values, qid)
-		if err != nil {
-			log.Errorf("qid=%d, parseTransactionRequest: CreateDtypeEnclosure error: %v", qid, err)
-			return nil, err
+	if node.EndsWith != nil {
+		if node.EndsWith.SearchTerm != nil {
+			dte, err := utils.CreateDtypeEnclosure(node.EndsWith.SearchTerm.Values, qid)
+			if err != nil {
+				log.Errorf("qid=%d, parseTransactionRequest: CreateDtypeEnclosure error: %v", qid, err)
+				return nil, err
+			}
+			aggNode.TransactionArguments.EndsWith.SearchTerm.DtypeEnclosure = dte
 		}
-		aggNode.TransactionArguments.EndsWith.SearchTerm.DtypeEnclosure = dte
+
+		if node.EndsWith.SearchNode != nil {
+			boolNode := &ASTNode{}
+			err := SearchQueryToASTnode(node.EndsWith.SearchNode.(*ast.Node), boolNode, qid)
+			if err != nil {
+				log.Errorf("qid=%d, parseTransactionRequest: SearchQueryToASTnode error: %v", qid, err)
+				return nil, err
+			}
+			aggNode.TransactionArguments.EndsWith.SearchNode = boolNode
+		}
 	}
 	aggNode.EarlyExit = false
 	return aggNode, nil

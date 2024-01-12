@@ -64,7 +64,7 @@ func generateTestRecords(numRecords int) []map[string]interface{} {
 		record["gender"] = []string{"male", "female"}[rand.Intn(2)]
 		record["country"] = countries[rand.Intn(len(countries))]
 		record["http_method"] = []string{"GET", "POST", "PUT", "DELETE"}[rand.Intn(4)]
-		record["http_status"] = []int{200, 301, 302, 404}[rand.Intn(4)]
+		record["http_status"] = []int{200, 201, 301, 302, 404}[rand.Intn(5)]
 
 		records[i] = record
 	}
@@ -301,13 +301,148 @@ func All_TestCases() (map[int]bool, []*structs.TransactionArguments) {
 	}
 	recordsLengthPositive[14] = true
 
+	// CASE 15: String Search Expr: transaction gender startswith="status>300 OR status=201 AND http_method=POST" endswith=eval(status<400)
+	txnArgs15 := &structs.TransactionArguments{
+		Fields: []string{"gender"},
+		StartsWith: &structs.FilterStringExpr{
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "http_method",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:     utils.SS_DT_STRING,
+												StringVal: "POST",
+											},
+											ColumnName: "",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.Equals,
+							},
+						},
+					},
+					NestedNodes: []*structs.ASTNode{
+						{
+							OrFilterCondition: &structs.Condition{
+								FilterCriteria: []*structs.FilterCriteria{
+									{
+										ExpressionFilter: &structs.ExpressionFilter{
+											LeftInput: &structs.FilterInput{
+												Expression: &structs.Expression{
+													LeftInput: &structs.ExpressionInput{
+														ColumnValue: nil,
+														ColumnName:  "http_status",
+													},
+													ExpressionOp: utils.Add,
+													RightInput:   nil,
+												},
+											},
+											RightInput: &structs.FilterInput{
+												Expression: &structs.Expression{
+													LeftInput: &structs.ExpressionInput{
+														ColumnValue: &utils.DtypeEnclosure{
+															Dtype:       utils.SS_DT_UNSIGNED_NUM,
+															UnsignedVal: uint64(300),
+															SignedVal:   int64(300),
+															FloatVal:    float64(300),
+															StringVal:   "300",
+														},
+														ColumnName: "",
+													},
+													ExpressionOp: utils.Add,
+													RightInput:   nil,
+												},
+											},
+											FilterOperator: utils.GreaterThan,
+										},
+									},
+									{
+										ExpressionFilter: &structs.ExpressionFilter{
+											LeftInput: &structs.FilterInput{
+												Expression: &structs.Expression{
+													LeftInput: &structs.ExpressionInput{
+														ColumnValue: nil,
+														ColumnName:  "http_status",
+													},
+													ExpressionOp: utils.Add,
+													RightInput:   nil,
+												},
+											},
+											RightInput: &structs.FilterInput{
+												Expression: &structs.Expression{
+													LeftInput: &structs.ExpressionInput{
+														ColumnValue: &utils.DtypeEnclosure{
+															Dtype:       utils.SS_DT_UNSIGNED_NUM,
+															UnsignedVal: uint64(201),
+															SignedVal:   int64(201),
+															FloatVal:    float64(201),
+															StringVal:   "201",
+														},
+														ColumnName: "",
+													},
+													ExpressionOp: utils.Add,
+													RightInput:   nil,
+												},
+											},
+											FilterOperator: utils.Equals,
+										},
+									},
+								},
+								NestedNodes: nil,
+							},
+						},
+					},
+				},
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{
+			EvalBoolExpr: &structs.BoolExpr{
+				IsTerminal: true,
+				LeftValue: &structs.ValueExpr{
+					NumericExpr: &structs.NumericExpr{
+						IsTerminal:      true,
+						NumericExprMode: structs.NEMNumberField,
+						ValueIsField:    true,
+						Value:           "http_status",
+					},
+				},
+				RightValue: &structs.ValueExpr{
+					NumericExpr: &structs.NumericExpr{
+						IsTerminal:      true,
+						NumericExprMode: structs.NEMNumber,
+						ValueIsField:    false,
+						Value:           "400",
+					},
+				},
+				ValueOp: "<",
+			},
+		},
+	}
+	recordsLengthPositive[15] = true
+
 	return recordsLengthPositive, []*structs.TransactionArguments{txnArgs1, txnArgs2, txnArgs3, txnArgs4, txnArgs5, txnArgs6, txnArgs7, txnArgs8, txnArgs9,
-		txnArgs10, txnArgs11, txnArgs12, txnArgs13, txnArgs14}
+		txnArgs10, txnArgs11, txnArgs12, txnArgs13, txnArgs14, txnArgs15}
 }
 
 func Test_processTransactionsOnRecords(t *testing.T) {
 
-	records := generateTestRecords(500)
+	records := generateTestRecords(1500)
 	allCols := []string{"city", "gender"}
 
 	recordsLengthPositive, allCasesTxnArgs := All_TestCases()

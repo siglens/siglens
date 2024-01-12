@@ -4993,29 +4993,74 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 	}
 
 	// CASE 5: Fields + StartWith is String Search Expression + endswith is String Value
-	query5 := []byte(`A=1 | transaction A B C startswith="status=foo OR status=bar" endswith="bar"`)
+	query5 := []byte(`A=1 | transaction A B C startswith="status=300 OR status=bar" endswith="bar"`)
 	query5Res := &structs.TransactionArguments{
 		Fields: []string{"A", "B", "C"},
 		StartsWith: &structs.FilterStringExpr{
-			SearchNode: &ast.Node{
-				NodeType: ast.NodeOr,
-				Left: &ast.Node{
-					NodeType: ast.NodeTerminal,
-					Comparison: ast.Comparison{
-						Op:           "=",
-						Field:        "status",
-						Values:       "\"foo\"",
-						ValueIsRegex: false,
+			SearchNode: &structs.ASTNode{
+				OrFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "status",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+												StringVal:   "300",
+												UnsignedVal: uint64(300),
+												SignedVal:   int64(300),
+												FloatVal:    float64(300),
+											},
+											ColumnName: "",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.Equals,
+							},
+						},
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "status",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:     utils.SS_DT_STRING,
+												StringVal: "bar",
+											},
+											ColumnName: "",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.Equals,
+							},
+						},
 					},
-				},
-				Right: &ast.Node{
-					NodeType: ast.NodeTerminal,
-					Comparison: ast.Comparison{
-						Op:           "=",
-						Field:        "status",
-						Values:       "\"bar\"",
-						ValueIsRegex: false,
-					},
+					NestedNodes: nil,
 				},
 			},
 		},
@@ -5024,8 +5069,137 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 		},
 	}
 
-	queries := [][]byte{query1, query2, query3, query4, query5}
-	results := []*structs.TransactionArguments{query1Res, query2Res, query3Res, query4Res, query5Res}
+	// CASE 6: Fields + StartWith is String Search Expression + endswith is Eval
+	query6 := []byte(`A=1 | transaction A B C startswith="status=foo OR status=bar AND action=login" endswith=eval(status<400)`)
+	query6Res := &structs.TransactionArguments{
+		Fields: []string{"A", "B", "C"},
+		StartsWith: &structs.FilterStringExpr{
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "action",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:     utils.SS_DT_STRING,
+												StringVal: "login",
+											},
+											ColumnName: "",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.Equals,
+							},
+						},
+					},
+					NestedNodes: []*structs.ASTNode{
+						{
+							OrFilterCondition: &structs.Condition{
+								FilterCriteria: []*structs.FilterCriteria{
+									{
+										ExpressionFilter: &structs.ExpressionFilter{
+											LeftInput: &structs.FilterInput{
+												Expression: &structs.Expression{
+													LeftInput: &structs.ExpressionInput{
+														ColumnValue: nil,
+														ColumnName:  "status",
+													},
+													ExpressionOp: utils.Add,
+													RightInput:   nil,
+												},
+											},
+											RightInput: &structs.FilterInput{
+												Expression: &structs.Expression{
+													LeftInput: &structs.ExpressionInput{
+														ColumnValue: &utils.DtypeEnclosure{
+															Dtype:     utils.SS_DT_STRING,
+															StringVal: "foo",
+														},
+														ColumnName: "",
+													},
+													ExpressionOp: utils.Add,
+													RightInput:   nil,
+												},
+											},
+											FilterOperator: utils.Equals,
+										},
+									},
+									{
+										ExpressionFilter: &structs.ExpressionFilter{
+											LeftInput: &structs.FilterInput{
+												Expression: &structs.Expression{
+													LeftInput: &structs.ExpressionInput{
+														ColumnValue: nil,
+														ColumnName:  "status",
+													},
+													ExpressionOp: utils.Add,
+													RightInput:   nil,
+												},
+											},
+											RightInput: &structs.FilterInput{
+												Expression: &structs.Expression{
+													LeftInput: &structs.ExpressionInput{
+														ColumnValue: &utils.DtypeEnclosure{
+															Dtype:     utils.SS_DT_STRING,
+															StringVal: "bar",
+														},
+														ColumnName: "",
+													},
+													ExpressionOp: utils.Add,
+													RightInput:   nil,
+												},
+											},
+											FilterOperator: utils.Equals,
+										},
+									},
+								},
+								NestedNodes: nil,
+							},
+						},
+					},
+				},
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{
+			EvalBoolExpr: &structs.BoolExpr{
+				IsTerminal: true,
+				LeftValue: &structs.ValueExpr{
+					NumericExpr: &structs.NumericExpr{
+						IsTerminal:      true,
+						NumericExprMode: structs.NEMNumberField,
+						ValueIsField:    true,
+						Value:           "status",
+					},
+				},
+				RightValue: &structs.ValueExpr{
+					NumericExpr: &structs.NumericExpr{
+						IsTerminal:      true,
+						NumericExprMode: structs.NEMNumber,
+						ValueIsField:    false,
+						Value:           "400",
+					},
+				},
+				ValueOp: "<",
+			},
+		},
+	}
+
+	queries := [][]byte{query1, query2, query3, query4, query5, query6}
+	results := []*structs.TransactionArguments{query1Res, query2Res, query3Res, query4Res, query5Res, query6Res}
 
 	for ind, query := range queries {
 		res, err := spl.Parse("", query)

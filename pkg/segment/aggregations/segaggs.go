@@ -1399,23 +1399,229 @@ func getValuesFromValueExpr(valueExpr *structs.ValueExpr, record map[string]inte
 }
 
 func conditionMatch(fieldValue interface{}, Op string, searchValue interface{}) bool {
-
 	switch Op {
-	case "=":
+	case "=", "eq":
 		return fieldValue == searchValue
-	case "!=":
+	case "!=", "neq":
 		return fieldValue != searchValue
-	case ">":
-		return fieldValue.(float64) > searchValue.(float64)
-	case ">=":
-		return fieldValue.(float64) >= searchValue.(float64)
-	case "<":
-		return fieldValue.(float64) < searchValue.(float64)
-	case "<=":
-		return fieldValue.(float64) <= searchValue.(float64)
+	default:
+		fieldValFloat, err := dtypeutils.ConvertToFloat(fieldValue, 64)
+		if err != nil {
+			return false
+		}
+		searchValFloat, err := dtypeutils.ConvertToFloat(searchValue, 64)
+		if err != nil {
+			return false
+		}
+		switch Op {
+		case ">", "gt":
+			return fieldValFloat > searchValFloat
+		case ">=", "gte":
+			return fieldValFloat >= searchValFloat
+		case "<", "lt":
+			return fieldValFloat < searchValFloat
+		case "<=", "lte":
+			return fieldValFloat <= searchValFloat
+		default:
+			return false
+		}
+	}
+}
+
+func evaluateASTNode(node *structs.ASTNode, record map[string]interface{}) bool {
+	if node.AndFilterCondition != nil && !evaluateCondition(node.AndFilterCondition, record, segutils.And) {
+		return false
+	}
+
+	if node.OrFilterCondition != nil && !evaluateCondition(node.OrFilterCondition, record, segutils.Or) {
+		return false
+	}
+
+	if node.ExclusionFilterCondition != nil && !evaluateCondition(node.ExclusionFilterCondition, record, segutils.Exclusion) {
+		return false
+	}
+
+	return true
+}
+
+func evaluateCondition(condition *structs.Condition, record map[string]interface{}, logicalOp segutils.LogicalOperator) bool {
+	for _, criteria := range condition.FilterCriteria {
+		validMatch := false
+		if criteria.MatchFilter != nil {
+			validMatch = evaluateMatchFilter(criteria.MatchFilter, record)
+		} else if criteria.ExpressionFilter != nil {
+			validMatch = evaluateExpressionFilter(criteria.ExpressionFilter, record)
+		}
+
+		// If there is an exclusion filter, and it evaluates to true, then return false
+		if logicalOp == segutils.Exclusion && validMatch {
+			return false
+		} else if logicalOp == segutils.Or && validMatch {
+			return true
+		} else if logicalOp == segutils.And && !validMatch {
+			return false
+		}
+	}
+
+	for _, nestedNode := range condition.NestedNodes {
+		if !evaluateASTNode(nestedNode, record) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func evaluateMatchFilter(matchFilter *structs.MatchFilter, record map[string]interface{}) bool {
+	fieldValue, exists := record[matchFilter.MatchColumn]
+	if !exists {
+		return false
+	}
+
+	dVal, err := segutils.CreateDtypeEnclosure(fieldValue, 0)
+	if err != nil {
+		return false
+	}
+
+	switch matchFilter.MatchType {
+	case structs.MATCH_WORDS:
+		return evaluateMatchWords(matchFilter, dVal.StringVal)
+	case structs.MATCH_PHRASE:
+		return evaluateMatchPhrase(matchFilter, dVal.StringVal)
 	default:
 		return false
 	}
+}
+
+func evaluateMatchWords(matchFilter *structs.MatchFilter, fieldValueStr string) bool {
+	for _, word := range matchFilter.MatchWords {
+		if strings.Contains(fieldValueStr, string(word)) {
+			if matchFilter.MatchOperator == segutils.Or {
+				return true
+			}
+		} else if matchFilter.MatchOperator == segutils.And {
+			return false
+		}
+	}
+
+	return matchFilter.MatchOperator == segutils.And
+}
+
+func evaluateMatchPhrase(matchFilter *structs.MatchFilter, fieldValueStr string) bool {
+	return strings.Contains(fieldValueStr, string(matchFilter.MatchPhrase))
+}
+
+func evaluateExpressionFilter(expressionFilter *structs.ExpressionFilter, record map[string]interface{}) bool {
+	leftValue, errL := evaluateFilterInput(expressionFilter.LeftInput, record)
+	if errL != nil {
+		return false
+	}
+	rightValue, errR := evaluateFilterInput(expressionFilter.RightInput, record)
+	if errR != nil {
+		return false
+	}
+
+	return conditionMatch(leftValue, expressionFilter.FilterOperator.ToString(), rightValue)
+}
+
+func evaluateFilterInput(filterInput *structs.FilterInput, record map[string]interface{}) (interface{}, error) {
+	if filterInput.SubTree != nil {
+		return evaluateASTNode(filterInput.SubTree, record), nil
+	} else if filterInput.Expression != nil {
+		return evaluateExpression(filterInput.Expression, record)
+	}
+
+	return nil, fmt.Errorf("evaluateFilterInput: filterInput is invalid")
+}
+
+func evaluateExpression(expr *structs.Expression, record map[string]interface{}) (interface{}, error) {
+	var leftValue, rightValue, err interface{}
+
+	if expr.LeftInput != nil {
+		leftValue, err = getInputValueFromExpression(expr.LeftInput, record)
+		if err != nil {
+			return nil, err.(error)
+		}
+	}
+
+	if expr.RightInput != nil {
+		rightValue, err = getInputValueFromExpression(expr.RightInput, record)
+		if err != nil {
+			return nil, err.(error)
+		}
+	}
+
+	if leftValue != nil && rightValue != nil {
+		return performArithmeticOperation(leftValue, rightValue, expr.ExpressionOp)
+	}
+
+	return leftValue, nil
+}
+
+func performArithmeticOperation(leftValue interface{}, rightValue interface{}, Op segutils.ArithmeticOperator) (interface{}, error) {
+	switch Op {
+	case segutils.Add:
+		// Handle the case where both operands are strings
+		if lv, ok := leftValue.(string); ok {
+			if rv, ok := rightValue.(string); ok {
+				return lv + rv, nil
+			}
+			return nil, fmt.Errorf("rightValue is not a string")
+		}
+		// Continue to handle the case where both operands are numbers
+		fallthrough
+	case segutils.Subtract, segutils.Multiply, segutils.Divide, segutils.Modulo, segutils.BitwiseAnd, segutils.BitwiseOr, segutils.BitwiseExclusiveOr:
+		lv, errL := dtypeutils.ConvertToFloat(leftValue, 64)
+		rv, errR := dtypeutils.ConvertToFloat(rightValue, 64)
+		if errL != nil || errR != nil {
+			return nil, fmt.Errorf("performArithmeticOperation: leftValue or rightValue is not a number")
+		}
+		switch Op {
+		case segutils.Add:
+			return lv + rv, nil
+		case segutils.Subtract:
+			return lv - rv, nil
+		case segutils.Multiply:
+			return lv * rv, nil
+		case segutils.Divide:
+			if rv == 0 {
+				return nil, fmt.Errorf("performArithmeticOperation: cannot divide by zero")
+			}
+			return lv / rv, nil
+		case segutils.Modulo:
+			return int64(lv) % int64(rv), nil
+		case segutils.BitwiseAnd:
+			return int64(lv) & int64(rv), nil
+		case segutils.BitwiseOr:
+			return int64(lv) | int64(rv), nil
+		case segutils.BitwiseExclusiveOr:
+			return int64(lv) ^ int64(rv), nil
+		default:
+			return nil, fmt.Errorf("performArithmeticOperation: invalid arithmetic operator")
+		}
+	default:
+		return nil, fmt.Errorf("performArithmeticOperation: invalid arithmetic operator")
+	}
+}
+
+func getInputValueFromExpression(expr *structs.ExpressionInput, record map[string]interface{}) (interface{}, error) {
+	if expr.ColumnName != "" {
+		value, exists := record[expr.ColumnName]
+		if !exists {
+			return nil, fmt.Errorf("getInputValueFromExpression: expr.ColumnName does not exist in record")
+		}
+		dval, err := segutils.CreateDtypeEnclosure(value, 0)
+		if err != nil {
+			return value, nil
+		} else {
+			value, _ = dval.GetValue()
+		}
+		return value, nil
+	} else if expr.ColumnValue != nil {
+		return expr.ColumnValue.GetValue()
+	}
+
+	return nil, fmt.Errorf("getInputValueFromExpression: expr is invalid")
 }
 
 func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterStringExpr, recordMapStr string, record map[string]interface{}) bool {
@@ -1475,6 +1681,9 @@ func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterString
 		}
 	} else if with.EvalBoolExpr != nil {
 		matched = evaluateBoolExpr(with.EvalBoolExpr, record)
+	} else if with.SearchNode != nil {
+		node := with.SearchNode.(*structs.ASTNode)
+		matched = evaluateASTNode(node, record)
 	}
 
 	return matched
