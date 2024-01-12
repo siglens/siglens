@@ -1295,18 +1295,43 @@ func getAggregationResultFieldValues(fieldToValue map[string]segutils.CValueEncl
 
 func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool) {
 
-	if recs != nil && recs["0"] != nil {
-		allRecords := recs["0"]["records"].([]map[string]interface{})
-		records, cols, err := processTransactionsOnRecords(allRecords, nil, aggs.TransactionArguments)
+	if recs != nil {
+		records, cols, err := processTransactionsOnRecords(recs, nil, aggs.TransactionArguments)
 		if err != nil {
 			log.Errorf("performTransactionCommandRequest: %v", err)
 			return
 		}
-		recs["0"]["records"] = records
-		recs["0"]["columns"] = cols
 
-		return
+		for k := range recs {
+			delete(recs, k)
+		}
+
+		for i, record := range records {
+			recs[i] = record
+		}
+
+		for k := range finalCols {
+			delete(finalCols, k)
+		}
+
+		for _, col := range cols {
+			finalCols[col] = true
+		}
+
 	}
+
+	// if recs != nil && recs["0"] != nil {
+	// 	// allRecords := recs["0"]["records"].([]map[string]interface{})
+	// 	records, cols, err := processTransactionsOnRecords(recs, nil, aggs.TransactionArguments)
+	// 	if err != nil {
+	// 		log.Errorf("performTransactionCommandRequest: %v", err)
+	// 		return
+	// 	}
+	// 	recs["0"]["records"] = records
+	// 	recs["0"]["columns"] = cols
+
+	// 	return
+	// }
 
 }
 
@@ -1689,8 +1714,8 @@ func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterString
 	return matched
 }
 
-// Splunk Transaction command based on the TransactionArguments on the JSON records.
-func processTransactionsOnRecords(records []map[string]interface{}, allCols []string, transactionArgs *structs.TransactionArguments) ([]map[string]interface{}, []string, error) {
+// Splunk Transaction command based on the TransactionArguments on the JSON records. map[string]map[string]interface{}
+func processTransactionsOnRecords(records map[string]map[string]interface{}, allCols []string, transactionArgs *structs.TransactionArguments) (map[string]map[string]interface{}, []string, error) {
 
 	if transactionArgs == nil {
 		return records, allCols, nil
@@ -1708,7 +1733,7 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 
 	groupRecords := make(map[string][]map[string]interface{})
 
-	groupedRecords := make([]map[string]interface{}, 0)
+	groupedRecords := make(map[string]map[string]interface{}, 0)
 
 	groupState := make(map[string]structs.TransactionGroupState)
 
@@ -1726,10 +1751,10 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 		lastRecord := records[len(groupRecords[transactionKey])-1]
 		groupedRecord["duration"] = uint64(lastRecord["timestamp"].(uint64)) - currentState.Timestamp
 		groupedRecord["count"] = len(records)
-		groupedRecords = append(groupedRecords, groupedRecord)
+		groupedRecords[currentState.RecInden] = groupedRecord
 	}
 
-	for _, record := range records {
+	for recInden, record := range records {
 
 		recordMapStr := fmt.Sprintf("%v", record)
 
@@ -1751,6 +1776,7 @@ func processTransactionsOnRecords(records []map[string]interface{}, allCols []st
 			groupState[transactionKey] = structs.TransactionGroupState{
 				Key:       transactionKey,
 				Open:      false,
+				RecInden:  recInden,
 				Timestamp: 0,
 			}
 		}

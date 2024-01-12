@@ -18,6 +18,7 @@ package aggregations
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"testing"
 
@@ -53,8 +54,8 @@ var countries = []string{
 	"Japan",
 }
 
-func generateTestRecords(numRecords int) []map[string]interface{} {
-	records := make([]map[string]interface{}, numRecords)
+func generateTestRecords(numRecords int) map[string]map[string]interface{} {
+	records := make(map[string]map[string]interface{}, numRecords)
 
 	for i := 0; i < numRecords; i++ {
 		record := make(map[string]interface{})
@@ -66,7 +67,7 @@ func generateTestRecords(numRecords int) []map[string]interface{} {
 		record["http_method"] = []string{"GET", "POST", "PUT", "DELETE"}[rand.Intn(4)]
 		record["http_status"] = []int{200, 201, 301, 302, 404}[rand.Intn(5)]
 
-		records[i] = record
+		records[fmt.Sprint(i)] = record
 	}
 
 	return records

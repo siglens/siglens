@@ -139,6 +139,7 @@ type TransactionArguments struct {
 type TransactionGroupState struct {
 	Key       string
 	Open      bool
+	RecInden  string
 	Timestamp uint64
 }
 
@@ -480,6 +481,20 @@ func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
 	}
 	if qa.Next != nil {
 		return qa.Next.HasQueryAggergatorBlockInChain()
+	}
+	return false
+}
+
+func (qa *QueryAggregators) HasTransactionArguments() bool {
+	return qa != nil && qa.TransactionArguments != nil
+}
+
+func (qa *QueryAggregators) HasTransactionArgumentsInChain() bool {
+	if qa.HasTransactionArguments() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasTransactionArgumentsInChain()
 	}
 	return false
 }

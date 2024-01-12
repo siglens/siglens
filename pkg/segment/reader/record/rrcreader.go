@@ -90,7 +90,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	allRecords := make([]map[string]interface{}, len(allrrc))
 	finalCols := make(map[string]bool)
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
-	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock {
+	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
+	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock || transactionArgsExist {
 		for currSeg, blkIds := range segmap {
 			recs, cols, err := GetRecordsFromSegment(currSeg, blkIds.VirtualTableName, blkIds.BlkRecIndexes,
 				config.GetTimeStampKey(), esResponse, qid, aggs)
@@ -106,7 +107,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				finalCols[key] = true
 			}
 
-			if hasQueryAggergatorBlock {
+			if hasQueryAggergatorBlock || transactionArgsExist {
 				nodeRes := &structs.NodeResult{}
 				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
 			}
@@ -183,22 +184,21 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	sort.Strings(colsSlice)
 	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(allRecords), time.Since(sTime))
 
-	if aggs != nil {
-		for post := aggs; post != nil; post = post.Next {
-			if post.TransactionArguments != nil {
-				recs := make(map[string]map[string]interface{}, 0)
-				recs["0"] = make(map[string]interface{})
-				recs["0"]["records"] = allRecords
-				recs["0"]["columns"] = colsSlice
-				nodeRes := &structs.NodeResult{}
-				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
-				allRecords = recs["0"]["records"].([]map[string]interface{})
-				colsSlice = recs["0"]["columns"].([]string)
-				break
-			}
-		}
-
-	}
+	// if aggs != nil {
+	// 	for post := aggs; post != nil; post = post.Next {
+	// 		if post.TransactionArguments != nil {
+	// 			recs := make(map[string]map[string]interface{}, 0)
+	// 			recs["0"] = make(map[string]interface{})
+	// 			recs["0"]["records"] = allRecords
+	// 			recs["0"]["columns"] = colsSlice
+	// 			nodeRes := &structs.NodeResult{}
+	// 			agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
+	// 			allRecords = recs["0"]["records"].([]map[string]interface{})
+	// 			colsSlice = recs["0"]["columns"].([]string)
+	// 			break
+	// 		}
+	// 	}
+	// }
 
 	return allRecords, colsSlice, nil
 }
