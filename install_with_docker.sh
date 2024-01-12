@@ -127,14 +127,14 @@ install_docker() {
         echo "Installing docker"
         $apt_cmd install docker-ce docker-ce-cli containerd.io || {
             post_event "install_failed" "install_docker: Docker installation failed during apt-get install on $os"
-            print_error_and_exit "Docker installation failed. Please install docker manually and re-run the command."
+            print_error_and_exit "install_docker: Docker installation failed during apt-get install on $os"
         }
     elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
         $sudo_cmd yum install -y amazon-linux-extras
         $sudo_cmd amazon-linux-extras enable docker
         $sudo_cmd yum install -y docker || {
             post_event "install_failed" "install_docker: Docker installation failed during yum install on Amazon Linux"
-            print_error_and_exit "Docker installation failed. Please install docker manually and re-run the command."
+            print_error_and_exit "install_docker: Docker installation failed during yum install on Amazon Linux"
         }
     else
         yum_cmd="$sudo_cmd yum --assumeyes --quiet"
@@ -143,7 +143,7 @@ install_docker() {
         echo "Installing docker"
         $yum_cmd install docker-ce docker-ce-cli containerd.io || {
             post_event "install_failed" "install_docker: Docker installation failed during yum install on $os"
-            print_error_and_exit "Docker installation failed. Please install docker manually and re-run the command."
+            print_error_and_exit "install_docker: Docker installation failed during yum install on $os"
         }
     fi
     docker_version=$(docker --version) || {
@@ -278,7 +278,7 @@ check_ports() {
         if [ -n "$CONTAINER_ID" ]; then
             docker stop $CONTAINER_ID
             if lsof -Pi :$PORT -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:${PORT}->"; then
-                post_event "install_failed" "Port ${PORT} is already in use after attempting to stop the Docker container"
+                post_event "install_failed" "Port ${PORT} is already in use after attempting to stop our Docker container"
                 print_error_and_exit "\nError: Port ${PORT} is already in use."
             fi
         else
@@ -312,6 +312,7 @@ send_events() {
     done
     print_success_message "\n Sample log dataset sent successfully"
 }
+
 UI_PORT=5122
 
 # Run Docker compose files
