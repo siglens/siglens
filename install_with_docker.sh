@@ -237,7 +237,7 @@ chmod a+rwx data || print_error_and_exit "Failed to change permissions for direc
 mkdir -p logs || print_error_and_exit "Failed to create directory 'logs'. Please check your permissions."
 chmod a+rwx logs || print_error_and_exit "Failed to change permissions for directory 'logs'. Please check your file permissions."
 
-print_success_message "\n===> SigLens installation complete"
+print_success_message "\n===> SigLens installation complete with version: ${SIGLENS_VERSION}"
 
 csi=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
 if [ -z "$csi" ]; then
