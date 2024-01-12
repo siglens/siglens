@@ -131,7 +131,7 @@ func getRexColNames(pattern string) ([]string, error) {
     return rexColNames, nil
 }
 
-func resolveAstToSimpleSearch(astNode *ast.Node) (*structs.SimpleSearchExpr, error) {
+func resolveTerminalAstNodeToSimpleSearch(astNode *ast.Node) (*structs.SimpleSearchExpr, error) {
 	if astNode.NodeType != ast.NodeTerminal {
 		return nil, fmt.Errorf("Spl peg: TransactionSearch: %v", "Only Terminal Nodes are allowed")
 	}
@@ -196,7 +196,7 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
     //
     //      AND
     //     /   \
-    //    A     ANDAND
+    //    A     AND
     //         /   \
     //        B     AND
     //             /   \
@@ -2195,7 +2195,7 @@ EndsWithOption <- "endswith" EQUAL strExpr:TransactionFilterString {
     return txnArg, nil
 }
 
-// Rerturns structs.FilterStringExpr
+// Returns structs.FilterStringExpr
 TransactionFilterString <- strExpr:(TransactionQuotedString / TransactionEval / TransactionSearch / TransactionQuotedStringClausesExpr) {
     return strExpr, nil
 }
@@ -2205,9 +2205,8 @@ TransactionQuotedString <- str:(TransactionQuotedStringValue / TransactionQuoted
 }
 
 TransactionQuotedStringSearchExpr <- '"' searchClause:ClauseLevel4 '"' {
-    fmt.Println("TransactionQuotedStringSearchExpr: ", searchClause.(*ast.Node))
     filterStrExpr := &structs.FilterStringExpr{
-       StringValue: "root",
+       SearchNode: searchClause.(*ast.Node),
     }
 
     return filterStrExpr, nil
@@ -2261,7 +2260,7 @@ StringClauseListOr <- first:QuotedString rest:(OR QuotedString)* {
 TransactionSearch <- expr:SearchTerm {
     astNode := expr.(*ast.Node)
 
-	simpleSearchExpr, err := resolveAstToSimpleSearch(astNode)
+	simpleSearchExpr, err := resolveTerminalAstNodeToSimpleSearch(astNode)
 	if err != nil {
 		return nil, fmt.Errorf("Spl peg: TransactionSearch: %v", err)
 	}

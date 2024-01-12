@@ -4996,6 +4996,29 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 	query5 := []byte(`A=1 | transaction A B C startswith="status=foo OR status=bar" endswith="bar"`)
 	query5Res := &structs.TransactionArguments{
 		Fields: []string{"A", "B", "C"},
+		StartsWith: &structs.FilterStringExpr{
+			SearchNode: &ast.Node{
+				NodeType: ast.NodeOr,
+				Left: &ast.Node{
+					NodeType: ast.NodeTerminal,
+					Comparison: ast.Comparison{
+						Op:           "=",
+						Field:        "status",
+						Values:       "\"foo\"",
+						ValueIsRegex: false,
+					},
+				},
+				Right: &ast.Node{
+					NodeType: ast.NodeTerminal,
+					Comparison: ast.Comparison{
+						Op:           "=",
+						Field:        "status",
+						Values:       "\"bar\"",
+						ValueIsRegex: false,
+					},
+				},
+			},
+		},
 		EndsWith: &structs.FilterStringExpr{
 			StringValue: "bar",
 		},
