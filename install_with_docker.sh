@@ -228,6 +228,26 @@ check_ports() {
 
 check_ports
 
+send_events() {
+    if $FIRST_RUN; then
+        curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz
+        if [ $? -ne 0 ]; then
+            print_error_and_exit "Failed to download sample log dataset"
+        fi
+        tar -xvf 2kevents.json.tar.gz || print_error_and_exit "Failed to extract 2kevents.json.tar.gz"
+        for i in $(seq 1 20)
+        do
+            curl -s http://localhost:8081/elastic/_bulk --data-binary "@2kevents.json" -o res.txt
+            if [ $? -ne 0 ]; then
+                print_error_and_exit "Failed to send sample log dataset"
+            fi
+        done
+        print_success_message "\n Sample log dataset sent successfully"
+    else
+        echo "Skipping sendevents as this is not the first run"
+    fi
+}
+
 # Run Docker compose files
 UI_PORT=${PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose -f ./docker-compose.yml up -d || print_error_and_exit "Failed to start Docker Compose"
 UI_PORT=${PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose logs -t --tail 20 >> dclogs.txt
@@ -238,26 +258,11 @@ if [ "$sample_log_dataset_status" -eq 200 ]; then
 elif [ "$sample_log_dataset_status" -eq 404 ]; then
     FIRST_RUN=true
 else
-    print_error_and_exit "Failed to check if sample data is present. Please try again"
+    echo "Failed to check sample log dataset status"
+    FIRST_RUN=true
 fi
 
-if $FIRST_RUN; then
-    curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz
-    if [ $? -ne 0 ]; then
-        print_error_and_exit "Failed to download sample log dataset"
-    fi
-    tar -xvf 2kevents.json.tar.gz || print_error_and_exit "Failed to extract 2kevents.json.tar.gz"
-    for i in $(seq 1 20)
-    do
-        curl -s http://localhost:8081/elastic/_bulk --data-binary "@2kevents.json" -o res.txt
-        if [ $? -ne 0 ]; then
-            print_error_and_exit "Failed to send sample log dataset"
-        fi
-    done
-    print_success_message "\n Sample log dataset sent successfully"
-else
-    echo "Skipping sendevents as this is not the first run"
-fi
+send_events
 
 tput bold
 print_success_message "\n===> Frontend can be accessed on http://localhost:${PORT}"
