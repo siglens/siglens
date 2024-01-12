@@ -183,6 +183,9 @@ $sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION} || print_error_and_exit
 mkdir -p data || print_error_and_exit "Failed to create directory 'data'. Please check your permissions."
 chmod a+rwx data || print_error_and_exit "Failed to change permissions for directory 'data'. Please check your file permissions."
 
+mkdir -p logs || print_error_and_exit "Failed to create directory 'logs'. Please check your permissions."
+chmod a+rwx logs || print_error_and_exit "Failed to change permissions for directory 'logs'. Please check your file permissions."
+
 print_success_message "\n===> SigLens installation complete"
 
 csi=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
@@ -225,9 +228,41 @@ check_ports() {
 
 check_ports
 
+send_events() {
+        curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz
+        if [ $? -ne 0 ]; then
+            print_error_and_exit "Failed to download sample log dataset"
+        fi
+        tar -xvf 2kevents.json.tar.gz || print_error_and_exit "Failed to extract 2kevents.json.tar.gz"
+        for i in $(seq 1 20)
+        do
+            curl -s http://localhost:8081/elastic/_bulk --data-binary "@2kevents.json" -o res.txt
+            if [ $? -ne 0 ]; then
+                print_error_and_exit "Failed to send sample log dataset"
+            fi
+        done
+        print_success_message "\n Sample log dataset sent successfully"
+}
+
 # Run Docker compose files
 UI_PORT=${PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose -f ./docker-compose.yml up -d || print_error_and_exit "Failed to start Docker Compose"
 UI_PORT=${PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose logs -t --tail 20 >> dclogs.txt
+sample_log_dataset_status=$(curl -s -o /dev/null -I -X HEAD -w "%{http_code}" http://localhost:5122/elastic/sample-log-dataset)
+
+if [ "$sample_log_dataset_status" -eq 200 ]; then
+    FIRST_RUN=false
+elif [ "$sample_log_dataset_status" -eq 404 ]; then
+    FIRST_RUN=true
+else
+    echo "Failed to check sample log dataset status"
+    FIRST_RUN=true
+fi
+
+if $FIRST_RUN; then
+    send_events
+else
+    echo "Skipping sendevents as this is not the first run"
+fi
 
 tput bold
 print_success_message "\n===> Frontend can be accessed on http://localhost:${PORT}"
