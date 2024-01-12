@@ -1317,21 +1317,7 @@ func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *stru
 		for _, col := range cols {
 			finalCols[col] = true
 		}
-
 	}
-
-	// if recs != nil && recs["0"] != nil {
-	// 	// allRecords := recs["0"]["records"].([]map[string]interface{})
-	// 	records, cols, err := processTransactionsOnRecords(recs, nil, aggs.TransactionArguments)
-	// 	if err != nil {
-	// 		log.Errorf("performTransactionCommandRequest: %v", err)
-	// 		return
-	// 	}
-	// 	recs["0"]["records"] = records
-	// 	recs["0"]["columns"] = cols
-
-	// 	return
-	// }
 
 }
 

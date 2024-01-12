@@ -437,27 +437,126 @@ func All_TestCases() (map[int]bool, []*structs.TransactionArguments) {
 	}
 	recordsLengthPositive[15] = true
 
+	// CASE 16: String Search Expr: transaction city startswith="status>300 OR status=201" endswith=eval(status<400)
+	txnArgs16 := &structs.TransactionArguments{
+		Fields: []string{"city"},
+		StartsWith: &structs.FilterStringExpr{
+			SearchNode: &structs.ASTNode{
+				OrFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "http_status",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+												UnsignedVal: uint64(300),
+												SignedVal:   int64(300),
+												FloatVal:    float64(300),
+												StringVal:   "300",
+											},
+											ColumnName: "",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.GreaterThan,
+							},
+						},
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "http_status",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+												UnsignedVal: uint64(201),
+												SignedVal:   int64(201),
+												FloatVal:    float64(201),
+												StringVal:   "201",
+											},
+											ColumnName: "",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.Equals,
+							},
+						},
+					},
+					NestedNodes: nil,
+				},
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{
+			EvalBoolExpr: &structs.BoolExpr{
+				IsTerminal: true,
+				LeftValue: &structs.ValueExpr{
+					NumericExpr: &structs.NumericExpr{
+						IsTerminal:      true,
+						NumericExprMode: structs.NEMNumberField,
+						ValueIsField:    true,
+						Value:           "http_status",
+					},
+				},
+				RightValue: &structs.ValueExpr{
+					NumericExpr: &structs.NumericExpr{
+						IsTerminal:      true,
+						NumericExprMode: structs.NEMNumber,
+						ValueIsField:    false,
+						Value:           "400",
+					},
+				},
+				ValueOp: "<",
+			},
+		},
+	}
+	recordsLengthPositive[16] = true
+
 	return recordsLengthPositive, []*structs.TransactionArguments{txnArgs1, txnArgs2, txnArgs3, txnArgs4, txnArgs5, txnArgs6, txnArgs7, txnArgs8, txnArgs9,
-		txnArgs10, txnArgs11, txnArgs12, txnArgs13, txnArgs14, txnArgs15}
+		txnArgs10, txnArgs11, txnArgs12, txnArgs13, txnArgs14, txnArgs15, txnArgs16}
 }
 
 func Test_processTransactionsOnRecords(t *testing.T) {
 
-	records := generateTestRecords(1500)
-	allCols := []string{"city", "gender"}
+	allCols := map[string]bool{"city": true, "gender": true}
 
 	recordsLengthPositive, allCasesTxnArgs := All_TestCases()
 
 	for index, txnArgs := range allCasesTxnArgs {
+		records := generateTestRecords(500)
 		// Process Transactions
-		processedRecords, cols, err := processTransactionsOnRecords(records, allCols, txnArgs)
-		assert.NoError(t, err)
-		assert.Equal(t, cols, []string{"timestamp", "duration", "count", "event"})
+		performTransactionCommandRequest(&structs.NodeResult{}, &structs.QueryAggregators{TransactionArguments: txnArgs}, records, allCols)
+
+		assert.Equal(t, allCols, map[string]bool{"timestamp": true, "duration": true, "count": true, "event": true})
 
 		// Check if the number of records is positive or negative
-		assert.Equal(t, recordsLengthPositive[index+1], len(processedRecords) > 0)
+		assert.Equal(t, recordsLengthPositive[index+1], len(records) > 0)
 
-		for _, record := range processedRecords {
+		for _, record := range records {
 			assert.Equal(t, record["timestamp"], uint64(1659874108987))
 			assert.Equal(t, record["duration"], uint64(0))
 

@@ -91,6 +91,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	finalCols := make(map[string]bool)
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
+	txnArgsRecords := make([]map[string]interface{}, 0)
 	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock || transactionArgsExist {
 		for currSeg, blkIds := range segmap {
 			recs, cols, err := GetRecordsFromSegment(currSeg, blkIds.VirtualTableName, blkIds.BlkRecIndexes,
@@ -156,7 +157,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				}
 				delete(recordIndexInFinal, recInden)
 				allRecords[idx] = record
-
+				if transactionArgsExist {
+					txnArgsRecords = append(txnArgsRecords, record)
+				}
 			}
 		}
 	} else {
@@ -181,26 +184,18 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		idx++
 	}
 
+	var finalRecords []map[string]interface{}
+
+	if transactionArgsExist {
+		finalRecords = txnArgsRecords
+	} else {
+		finalRecords = allRecords
+	}
+
 	sort.Strings(colsSlice)
-	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(allRecords), time.Since(sTime))
+	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
 
-	// if aggs != nil {
-	// 	for post := aggs; post != nil; post = post.Next {
-	// 		if post.TransactionArguments != nil {
-	// 			recs := make(map[string]map[string]interface{}, 0)
-	// 			recs["0"] = make(map[string]interface{})
-	// 			recs["0"]["records"] = allRecords
-	// 			recs["0"]["columns"] = colsSlice
-	// 			nodeRes := &structs.NodeResult{}
-	// 			agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
-	// 			allRecords = recs["0"]["records"].([]map[string]interface{})
-	// 			colsSlice = recs["0"]["columns"].([]string)
-	// 			break
-	// 		}
-	// 	}
-	// }
-
-	return allRecords, colsSlice, nil
+	return finalRecords, colsSlice, nil
 }
 
 func addKeyValuePairs(record map[string]interface{}) map[string]interface{} {
