@@ -25,9 +25,11 @@ RUN useradd -m -u $UID -g $GID -o $UNAME
 WORKDIR /$UNAME
 COPY static static
 COPY server.yaml .
+COPY defaultDBs defaultDBs
 
 RUN chown -R $UNAME:$GID static
 RUN chown -R $UNAME:$GID /siglens
+RUN chown -R $UNAME:$GID defaultDBs
 USER $UNAME
 
 WORKDIR /$UNAME
