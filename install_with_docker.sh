@@ -66,6 +66,25 @@ else
     echo 'Not Supported Architecture'
 fi
 
+post_to_segment() {
+  local event_code=$1
+  local message=$2
+    curl -X POST \
+    https://api.segment.io/v1/track \
+    -H 'Content-Type: application/json' \
+    -H 'Authorization: Basic QlBEam5lZlBWMEpjMkJSR2RHaDdDUVRueWtZS2JEOGM6' \
+    -d '{
+    "userId": "'"$csi"'",
+    "event":  "'"$event_code"'",
+    "properties": {
+        "os": "'"$os"'",
+        "arch": "'"$arch"'",
+        "package_manager": "'"$package_manager"'",
+        "message": "'"$message"'"
+    }
+    }'
+}
+
 print_error_and_exit() {
     printf "${RED_TEXT}$1${RESET_COLOR}\n"
     exit 1
@@ -105,38 +124,70 @@ install_docker() {
             "deb [arch=$arch] https://download.docker.com/linux/$os $(lsb_release -cs) stable"
         $apt_cmd update
         echo "Installing docker"
-        $apt_cmd install docker-ce docker-ce-cli containerd.io || print_error_and_exit "Docker installation failed. Please install docker manually and re-run the command."
+        $apt_cmd install docker-ce docker-ce-cli containerd.io || {
+            post_to_segment "install_failed" "Docker installation failed"
+            print_error_and_exit "Docker installation failed. Please install docker manually and re-run the command."
+        }
     elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
         $sudo_cmd yum install -y amazon-linux-extras
         $sudo_cmd amazon-linux-extras enable docker
-        $sudo_cmd yum install -y docker || print_error_and_exit "Docker installation failed. Please install docker manually and re-run the command."
+        $sudo_cmd yum install -y docker || {
+            post_to_segment "install_failed" "Docker installation failed"
+            print_error_and_exit "Docker installation failed. Please install docker manually and re-run the command."
+        }
     else
         yum_cmd="$sudo_cmd yum --assumeyes --quiet"
         $yum_cmd install yum-utils
         $sudo_cmd yum-config-manager --add-repo https://download.docker.com/linux/$os/docker-ce.repo
         echo "Installing docker"
-        $yum_cmd install docker-ce docker-ce-cli containerd.io || print_error_and_exit "Docker installation failed. Please install docker manually and re-run the command."
+        $yum_cmd install docker-ce docker-ce-cli containerd.io || {
+            post_to_segment "install_failed" "Docker installation failed"
+            print_error_and_exit "Docker installation failed. Please install docker manually and re-run the command."
+        }
     fi
-    docker_version=$(docker --version) || print_error_and_exit "Docker is not working correctly. Please install docker manually and re-run the command."
+    docker_version=$(docker --version) || {
+        post_to_segment "install_failed" "Docker is not working correctly"
+        print_error_and_exit "Docker is not working correctly. Please install docker manually and re-run the command."
+    }
     print_success_message "Docker installed successfully. $docker_version"
 }
+
 
 install_docker_compose() {
     echo "----------Setting up docker compose----------"
     if [[ $package_manager == apt-get ]]; then
         apt_cmd="$sudo_cmd apt-get --yes --quiet"
-        $apt_cmd update || print_error_and_exit "apt-get update failed."
-        $apt_cmd install docker-compose || print_error_and_exit "Docker Compose installation failed."
+        $apt_cmd update || {
+            post_to_segment "install_failed" "apt-get update failed"
+            print_error_and_exit "apt-get update failed."
+        }
+        $apt_cmd install docker-compose || {
+            post_to_segment "install_failed" "Docker Compose installation failed"
+            print_error_and_exit "Docker Compose installation failed."
+        }
     elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
-        curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose || print_error_and_exit "Downloading Docker Compose binary failed."
-        chmod +x /usr/local/bin/docker-compose || print_error_and_exit "Making Docker Compose executable failed."
+        curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose || {
+            post_to_segment "install_failed" "Downloading Docker Compose binary failed"
+            print_error_and_exit "Downloading Docker Compose binary failed."
+        }
+        chmod +x /usr/local/bin/docker-compose || {
+            post_to_segment "install_failed" "Making Docker Compose executable failed"
+            print_error_and_exit "Making Docker Compose executable failed."
+        }
     elif [[ $package_manager == brew ]]; then
-        brew install docker-compose || print_error_and_exit "Docker Compose installation failed."
+        brew install docker-compose || {
+            post_to_segment "install_failed" "Docker Compose installation failed"
+            print_error_and_exit "Docker Compose installation failed."
+        }
     else
+        post_to_segment "install_failed" "Docker Compose Not installed"
         echo "---------Docker Compose must be installed manually to proceed---------"
         print_error_and_exit "Docker Compose Not installed"
     fi
-    docker_compose_version=$(docker-compose --version) || print_error_and_exit "Docker Compose is not working correctly."
+    docker_compose_version=$(docker-compose --version) || {
+        post_to_segment "install_failed" "Docker Compose is not working correctly"
+        print_error_and_exit "Docker Compose is not working correctly."
+    }
     print_success_message "Docker Compose installed successfully. $docker_compose_version"
 }
 
@@ -186,7 +237,7 @@ chmod a+rwx data || print_error_and_exit "Failed to change permissions for direc
 mkdir -p logs || print_error_and_exit "Failed to create directory 'logs'. Please check your permissions."
 chmod a+rwx logs || print_error_and_exit "Failed to change permissions for directory 'logs'. Please check your file permissions."
 
-print_success_message "\n===> SigLens installation complete with version: ${SIGLENS_VERSION}"
+print_success_message "\n===> SigLens installation complete"
 
 csi=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
 if [ -z "$csi" ]; then
@@ -209,9 +260,9 @@ https://api.segment.io/v1/track \
   }
 }'
 
-PORT=5122
 
 check_ports() {
+    PORT=$1
     if lsof -Pi :$PORT -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:${PORT}->"; then
         CONTAINER_ID=$(docker ps --format "{{.ID}}:{{.Image}}:{{.Ports}}" | grep "siglens/siglens.*0.0.0.0:${PORT}" | cut -d ":" -f 1 2>/dev/null)
         if [ -n "$CONTAINER_ID" ]; then
@@ -223,10 +274,11 @@ check_ports() {
             print_error_and_exit "\nError: Port ${PORT} is already in use."
         fi
     fi
-    print_success_message "\nStarting Siglens on Port ${PORT}"
+    print_success_message "Port ${PORT} is available"
 }
 
-check_ports
+check_ports 5122
+check_ports 8081
 
 send_events() {
         curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz
@@ -243,10 +295,11 @@ send_events() {
         done
         print_success_message "\n Sample log dataset sent successfully"
 }
+UI_PORT=5122
 
 # Run Docker compose files
-UI_PORT=${PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose -f ./docker-compose.yml up -d || print_error_and_exit "Failed to start Docker Compose"
-UI_PORT=${PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose logs -t --tail 20 >> dclogs.txt
+UI_PORT=${UI_PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose -f ./docker-compose.yml up -d || print_error_and_exit "Failed to start Docker Compose"
+UI_PORT=${UI_PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose logs -t --tail 20 >> dclogs.txt
 sample_log_dataset_status=$(curl -s -o /dev/null -I -X HEAD -w "%{http_code}" http://localhost:5122/elastic/sample-log-dataset)
 
 if [ "$sample_log_dataset_status" -eq 200 ]; then
@@ -265,7 +318,7 @@ else
 fi
 
 tput bold
-print_success_message "\n===> Frontend can be accessed on http://localhost:${PORT}"
+print_success_message "\n===> Frontend can be accessed on http://localhost:${UI_PORT}"
 echo ""
 tput sgr0
 
