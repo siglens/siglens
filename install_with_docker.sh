@@ -66,7 +66,7 @@ else
     echo 'Not Supported Architecture'
 fi
 
-post_to_segment() {
+post_event() {
   local event_code=$1
   local message=$2
     curl -X POST \
@@ -125,14 +125,14 @@ install_docker() {
         $apt_cmd update
         echo "Installing docker"
         $apt_cmd install docker-ce docker-ce-cli containerd.io || {
-            post_to_segment "install_failed" "Docker installation failed"
+            post_event "install_failed" "Docker installation failed"
             print_error_and_exit "Docker installation failed. Please install docker manually and re-run the command."
         }
     elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
         $sudo_cmd yum install -y amazon-linux-extras
         $sudo_cmd amazon-linux-extras enable docker
         $sudo_cmd yum install -y docker || {
-            post_to_segment "install_failed" "Docker installation failed"
+            post_event "install_failed" "Docker installation failed"
             print_error_and_exit "Docker installation failed. Please install docker manually and re-run the command."
         }
     else
@@ -141,12 +141,12 @@ install_docker() {
         $sudo_cmd yum-config-manager --add-repo https://download.docker.com/linux/$os/docker-ce.repo
         echo "Installing docker"
         $yum_cmd install docker-ce docker-ce-cli containerd.io || {
-            post_to_segment "install_failed" "Docker installation failed"
+            post_event "install_failed" "Docker installation failed"
             print_error_and_exit "Docker installation failed. Please install docker manually and re-run the command."
         }
     fi
     docker_version=$(docker --version) || {
-        post_to_segment "install_failed" "Docker is not working correctly"
+        post_event "install_failed" "Docker is not working correctly"
         print_error_and_exit "Docker is not working correctly. Please install docker manually and re-run the command."
     }
     print_success_message "Docker installed successfully. $docker_version"
@@ -158,34 +158,34 @@ install_docker_compose() {
     if [[ $package_manager == apt-get ]]; then
         apt_cmd="$sudo_cmd apt-get --yes --quiet"
         $apt_cmd update || {
-            post_to_segment "install_failed" "apt-get update failed"
+            post_event "install_failed" "apt-get update failed"
             print_error_and_exit "apt-get update failed."
         }
         $apt_cmd install docker-compose || {
-            post_to_segment "install_failed" "Docker Compose installation failed"
+            post_event "install_failed" "Docker Compose installation failed"
             print_error_and_exit "Docker Compose installation failed."
         }
     elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
         curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose || {
-            post_to_segment "install_failed" "Downloading Docker Compose binary failed"
+            post_event "install_failed" "Downloading Docker Compose binary failed"
             print_error_and_exit "Downloading Docker Compose binary failed."
         }
         chmod +x /usr/local/bin/docker-compose || {
-            post_to_segment "install_failed" "Making Docker Compose executable failed"
+            post_event "install_failed" "Making Docker Compose executable failed"
             print_error_and_exit "Making Docker Compose executable failed."
         }
     elif [[ $package_manager == brew ]]; then
         brew install docker-compose || {
-            post_to_segment "install_failed" "Docker Compose installation failed"
+            post_event "install_failed" "Docker Compose installation failed"
             print_error_and_exit "Docker Compose installation failed."
         }
     else
-        post_to_segment "install_failed" "Docker Compose Not installed"
+        post_event "install_failed" "Docker Compose Not installed"
         echo "---------Docker Compose must be installed manually to proceed---------"
         print_error_and_exit "Docker Compose Not installed"
     fi
     docker_compose_version=$(docker-compose --version) || {
-        post_to_segment "install_failed" "Docker Compose is not working correctly"
+        post_event "install_failed" "Docker Compose is not working correctly"
         print_error_and_exit "Docker Compose is not working correctly."
     }
     print_success_message "Docker Compose installed successfully. $docker_compose_version"
@@ -313,7 +313,9 @@ fi
 
 if $FIRST_RUN; then
     send_events
+    post_event "fresh_install_success" "Fresh installation was successful using docker on $os"
 else
+    post_event "repeat_install_success" "Repeat installation of Docker was successful using docker on $os"
     echo "Skipping sendevents as this is not the first run"
 fi
 
