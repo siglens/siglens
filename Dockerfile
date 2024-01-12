@@ -29,6 +29,7 @@ COPY defaultDBs defaultDBs
 
 RUN chown -R $UNAME:$GID static
 RUN chown -R $UNAME:$GID /siglens
+RUN chown -R $UNAME:$GID defaultDBs
 USER $UNAME
 
 WORKDIR /$UNAME
