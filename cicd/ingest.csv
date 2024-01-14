@@ -47,6 +47,7 @@ search MintCream Thursday OR Monday,now-1d,now,*,total,eq,212,Splunk QL
 search NOT (city!=Boston OR NOT weekday=Friday),now-1d,now,*,total,gt,100,Splunk QL
 search batch=batch-*,now-1d,now,*,total,gt,100,Splunk QL
 latency<10000 | search latitude>0 | search longitude>0,now-1d,now,*,total,gt,10,Splunk QL
+latency<10000 | latitude>0 | search longitude>0,now-1d,now,*,total,gt,10,Splunk QL
 "search batch=batch-5 | regex city=""^[A-L][a-z]+\s[a-zA-Z]+$""",now-1d,now,*,total,gt,5,Splunk QL
 "search batch=batch-5 | regex city!=""^[A-L][a-z]+\s[a-zA-Z]+$""",now-1d,now,*,total,gt,50,Splunk QL
 batch=batch-10 | stats count,now-1d,now,*,group:count(*):*,eq,114,Splunk QL
@@ -112,3 +113,5 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "city=Boston | stats max(latitude), range(eval(latitude >= 0)) AS range",now-1d,now,*,group:range:*,eq,89.752,Splunk QL
 "* | stats count(eval(latitude < 0)) AS count, dc(eval(lower(app_name)))",now-1d,now,*,group:count:*,eq,"50,146",Splunk QL
 "* | stats min(eval(latitude < 0)), max(eval(latitude < 0)) AS max, range(eval(latitude < 0)) BY weekday",now-1d,now,*,group:max:Monday,eq,-0.004012,Splunk QL
+"app_name=""Albumis"" (Wednesday OR Tuesday)",now-1d,now,*,total,eq,2,Splunk QL
+"app_name=""Albumis"" (Wednesday OR Tuesday) NOT asdfjklnvwer",now-1d,now,*,total,eq,2,Splunk QL

@@ -927,7 +927,7 @@ type WebConfig struct {
 
 const (
 	ServerName         = "SigLens"
-	ReadBufferSize     = 1000 * 2
+	ReadBufferSize     = 4096
 	MaxConnsPerIP      = 3000
 	MaxRequestsPerConn = 1000
 	MaxRequestBodySize = 512 * 1000 * 1000

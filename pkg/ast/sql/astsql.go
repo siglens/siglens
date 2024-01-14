@@ -547,7 +547,7 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 			log.Errorf("qid=%v, parseSelect: Limit argument was not an integer!", qid)
 			return astNode, aggNode, columsArray, err
 		}
-		aggNode.BucketLimit = int(rowLimit)
+		aggNode.Limit = int(rowLimit)
 	}
 
 	if currStmt.GroupBy != nil {

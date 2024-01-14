@@ -25,7 +25,6 @@ $(document).ready(function () {
         theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
     }
-    displayNavbar();
     $('.theme-btn').on('click', themePickerHandler);
     getAllMinionSearches()
 });
@@ -54,6 +53,7 @@ const gridOptions = {
       readOnlyEdit: true,
       autoHeight: true,
     },
+    headerHeight:32,
     columnDefs:columnDefs,
     pagination: true,
     paginationAutoPageSize: true,

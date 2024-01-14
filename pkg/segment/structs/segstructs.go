@@ -125,6 +125,7 @@ type QueryAggregators struct {
 	ShowRequest       *ShowRequest
 	TableName         string
 	Next              *QueryAggregators
+	Limit             int
 }
 
 type ShowRequest struct {

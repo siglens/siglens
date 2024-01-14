@@ -124,7 +124,7 @@
   width: 100%;
   border-radius: 5px;
   font-size: 18px;
-  height: 40px;
+  height: 32px;
 }
 
 .panEdit-descrChange {
@@ -150,7 +150,7 @@
 
 #panEdit-descrChangeInput,
 #panEdit-nameChangeInput {
-  font-size: 16px;
+  font-size: 14px;
   background-color: var(--drop-down-btn-bg-regular);
   color: var(--text-color);
 }
@@ -167,12 +167,12 @@
   cursor: pointer;
   transition: all 0.3s;
   border-radius: 5px;
-  height: 40px;
+  height: 32px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  font-size: 16px;
+  font-size: 14px;
   border: 1px solid var(--border-color-regular);
 }
 
@@ -203,8 +203,9 @@
 .dropDown-color, .dropDown-unit , .dropDown-logLinesView{
   margin-top: 15px;
 }
-.dropDown-color{
-  margin-bottom: 15px;
+.editPanelMenu-logLinesView .editPanelMenu-options{
+  padding: 0px;
+  height: 32px;
 }
 .dropDown-unit,.dropDown-logLinesView{
   display: none;
@@ -234,7 +235,7 @@
   list-style: none;
   width: 85%;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
   background-color: var(--edit-panel-bg-color);
   display: flex;
   flex-direction: column;
@@ -377,7 +378,7 @@
   align-items: flex-start;
   padding-left: 12px;
 
-  font-size: 1rem;
+  font-size: 14px;
   padding-bottom: 13px;
   color: var(--black-5);
 }
@@ -453,12 +454,12 @@
 
 .dropDown-dataSource {
   width: 100%;
-  height: 40px;
+  height: 32px;
 }
 
 .queryInput {
-  height: 40px;
-  font-size: 1rem;
+  height: 32px;
+  font-size: 14px;
   width: 100%;
   color: var(--search-bar-text-color-regular-or-hover);
   background: var(--search-bar-bg);
@@ -529,16 +530,16 @@
 .btn-runQuery {
   background: var(--btn-regular-bg-color) !important;
   margin: 0;
-  padding: 15px 12px;
+  padding: 0px 12px;
   text-decoration: none;
   border: none;
-  height: 40px;
+  height: 32px;
   line-height: 7px;
   margin-top: 10px;
   align-self: flex-end;
   border-radius: 5px;
   box-shadow: none !important;
-  font-size: 1rem;
+  font-size: 14px;
   color: white !important;
 }
 
@@ -572,8 +573,8 @@
   width: 100%;
   background-color: var(--db-bg-color);
   color: var(--text-color);
-  font-size: 20px;
-  margin-bottom: 20px;
+  font-size: 18px;
+  margin-bottom: 12px;
 }
 
 .panEdit-navBar .dropdown{
@@ -603,18 +604,18 @@
   align-items: center;
   width: 100%;
   justify-content: flex-end;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .panEdit-btn {
-  height: 40px;
+  height: 32px;
   outline: none;
   border: 0px;
   margin-right: 10px;
   line-height: 14px;
   border-radius: 5px;
   box-shadow: none !important;
-  font-size: 1rem;
+  font-size: 14px;
   border: 1px solid var(--border-color-regular) !important;
 }
 
@@ -1054,8 +1055,9 @@
 }
 
 #metrics-query-language-btn{
-  height: 40px;
-  margin-left: 16px;
+  height: 32px;
+  margin-left: 10px;
+  padding: 0px 20px;
 }
 
 .queryInput-InnerContainer .info-icon{
@@ -1137,7 +1139,7 @@ input:checked + .slider:before {
 }
 
 .table-view-toggle-container{
-  height: 40px;
+  height: 32px;
   width: 147px;
   display: flex;
   align-items: center;
@@ -1184,10 +1186,11 @@ input:checked + .slider:before {
   margin: 0;
   text-decoration: none;
   border: none;
-  height: 40px;
+  height: 32px;
   line-height: 14px;
   cursor: pointer;
   border-radius: 0 5px 5px 0 !important;
+  margin-top: -3px;
 }
 
 #refresh-picker-btn:hover {
@@ -1239,23 +1242,23 @@ input:checked + .slider:before {
 }
 .btn-top{
   width: 137px;
-  height: 40px !important;
+  height: 32px !important;
   border: 1px solid var(--border-color-regular);
 }
 .btn-top:hover{
   color: var(--drop-down-text-color) !important;
 }
 .settings-btn{
-  width: 40px;
-  height: 40px !important;
+  width: 32px;
+  height: 32px !important;
   border: 1px solid var(--border-color-regular) !important;
   background: var(--top-setting-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
   background-size: 50% !important;
 }
 .refresh-btn{
-  height: 40px !important;
+  height: 32px !important;
   background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
-  background-size: 50% !important;
+  background-size: 40% !important;
 }
 .chart-display{
   width: 30px;
@@ -1291,11 +1294,11 @@ input:checked + .slider:before {
   }
 .refresh-btn:hover{
   background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
-  background-size: 50% !important;
+  background-size: 40% !important;
   }
 #save-db-btn:hover{
   background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
-  background-size: 50% !important;
+  background-size: 40% !important;
 }
 .panel-header:hover{
   background-color: var(--edit-panel-border-color) !important;
@@ -1322,12 +1325,12 @@ input:checked + .slider:before {
 }
 #save-db-btn{
   background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
-  background-size: 50% !important;
+  background-size: 40% !important;
 }
 #add-panel-btn,
 #save-db-btn,
 #query-language-btn{
-  height: 40px !important;
+  height: 32px !important;
 }
 #add-panel-btn:hover {
   background: var(--btn-hover-or-click-bg-color) !important;

@@ -198,6 +198,7 @@ type TMLimitResult struct {
 	ValIsInLimit     map[string]bool
 	GroupValScoreMap map[string]*utils.CValueEnclosure
 	Hll              *hyperloglog.Sketch
+	StrSet           map[string]struct{}
 	OtherCValArr     []*utils.CValueEnclosure
 }
 

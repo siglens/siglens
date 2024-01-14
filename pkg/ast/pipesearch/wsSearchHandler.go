@@ -18,6 +18,7 @@ package pipesearch
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/fasthttp/websocket"
@@ -28,11 +29,24 @@ import (
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
-func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64) {
+func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthttp.RequestCtx) {
+
 	qid := rutils.GetNextQid()
 	event, err := readInitialEvent(qid, conn)
+	defer utils.DeferableAddAccessLogEntry(
+		time.Now(),
+		func() time.Time { return time.Now() },
+		"No-user", // TODO : Add logged in user when user auth is implemented
+		ctx.Request.URI().String(),
+		fmt.Sprintf("%+v", event),
+		func() int { return ctx.Response.StatusCode() },
+		true, // Log this even though it's a websocket connection
+		"access.log",
+	)
+
 	if err != nil {
 		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: Failed to read initial event %+v!", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
@@ -97,14 +111,19 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64) {
 		return
 	}
 
+	if queryLanguageType == "SQL" && aggs != nil && aggs.TableName != "*" {
+		indexNameIn = aggs.TableName
+		ti = structs.InitTableInfo(indexNameIn, orgid, false) // Re-initialize ti with the updated indexNameIn
+	}
+
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
 	}
 
 	// If MaxRows is used to limit the number of returned results, set `sizeLimit`
 	// to it. Currently MaxRows is only valid as the root QueryAggregators.
-	if aggs != nil && aggs.OutputTransforms != nil && aggs.OutputTransforms.MaxRows != 0 {
-		sizeLimit = aggs.OutputTransforms.MaxRows
+	if aggs != nil && aggs.Limit != 0 {
+		sizeLimit = uint64(aggs.Limit)
 	}
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
