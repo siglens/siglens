@@ -1448,7 +1448,8 @@ func evaluateASTNode(node *structs.ASTNode, record map[string]interface{}) bool 
 		return false
 	}
 
-	if node.ExclusionFilterCondition != nil && !evaluateCondition(node.ExclusionFilterCondition, record, segutils.Exclusion) {
+	// If the node has an exclusion filter, and the exclusion filter matches, return false.
+	if node.ExclusionFilterCondition != nil && evaluateCondition(node.ExclusionFilterCondition, record, segutils.Exclusion) {
 		return false
 	}
 
@@ -1456,6 +1457,12 @@ func evaluateASTNode(node *structs.ASTNode, record map[string]interface{}) bool 
 }
 
 func evaluateCondition(condition *structs.Condition, record map[string]interface{}, logicalOp segutils.LogicalOperator) bool {
+	for _, nestedNode := range condition.NestedNodes {
+		if !evaluateASTNode(nestedNode, record) {
+			return false
+		}
+	}
+
 	for _, criteria := range condition.FilterCriteria {
 		validMatch := false
 		if criteria.MatchFilter != nil {
@@ -1464,23 +1471,15 @@ func evaluateCondition(condition *structs.Condition, record map[string]interface
 			validMatch = evaluateExpressionFilter(criteria.ExpressionFilter, record)
 		}
 
-		// If there is an exclusion filter, and it evaluates to true, then return false
-		if logicalOp == segutils.Exclusion && validMatch {
-			return false
-		} else if logicalOp == segutils.Or && validMatch {
+		// If the logical operator is Or and at least one of the criteria matches, return true.
+		if logicalOp == segutils.Or && validMatch {
 			return true
-		} else if logicalOp == segutils.And && !validMatch {
+		} else if logicalOp == segutils.And && !validMatch { // If the logical operator is And and at least one of the criteria does not match, return false.
 			return false
 		}
 	}
 
-	for _, nestedNode := range condition.NestedNodes {
-		if !evaluateASTNode(nestedNode, record) {
-			return false
-		}
-	}
-
-	return true
+	return logicalOp == segutils.And
 }
 
 func evaluateMatchFilter(matchFilter *structs.MatchFilter, record map[string]interface{}) bool {
@@ -1736,7 +1735,7 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 		groupedRecord["event"] = records
 		lastRecord := records[len(groupRecords[transactionKey])-1]
 		groupedRecord["duration"] = uint64(lastRecord["timestamp"].(uint64)) - currentState.Timestamp
-		groupedRecord["count"] = len(records)
+		groupedRecord["eventcount"] = len(records)
 		groupedRecords[currentState.RecInden] = groupedRecord
 	}
 
@@ -1835,7 +1834,7 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 	allCols = make([]string, 0)
 	allCols = append(allCols, "timestamp")
 	allCols = append(allCols, "duration")
-	allCols = append(allCols, "count")
+	allCols = append(allCols, "eventcount")
 	allCols = append(allCols, "event")
 
 	return groupedRecords, allCols, nil
