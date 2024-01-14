@@ -26,7 +26,7 @@ esVersion: "7.9.3"
 # ssInstanceName: ""
 
 log:
-  logPrefix : ./
+  logPrefix : ./logs/
 
   ## Maximum size of siglens.log file in megabytes
   # logFileRotationSizeMB: 100
