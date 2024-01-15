@@ -66,6 +66,34 @@ else
     echo 'Not Supported Architecture'
 fi
 
+post_event() {
+  local event_code=$1
+  local message=$2
+    curl -X POST \
+    https://api.segment.io/v1/track \
+    -H 'Content-Type: application/json' \
+    -H 'Authorization: Basic QlBEam5lZlBWMEpjMkJSR2RHaDdDUVRueWtZS2JEOGM6' \
+    -d '{
+    "userId": "'"$csi"'",
+    "event":  "'"$event_code"'",
+    "properties": {
+        "os": "'"$os"'",
+        "arch": "'"$arch"'",
+        "package_manager": "'"$package_manager"'",
+        "message": "'"$message"'"
+    }
+    }'
+}
+
+print_error_and_exit() {
+    printf "${RED_TEXT}$1${RESET_COLOR}\n"
+    exit 1
+}
+
+print_success_message() {
+    printf "${GREEN_TEXT}$1${RESET_COLOR}\n"
+}
+
 is_command_present() {
     type "$1" >/dev/null 2>&1
 }
@@ -77,8 +105,8 @@ request_sudo() {
             sudo_cmd="sudo"
             echo -e "Please enter your sudo password, if prompted."
             if ! $sudo_cmd -l | grep -e "NOPASSWD: ALL" > /dev/null && ! $sudo_cmd -v; then
-                echo "Need sudo privileges to proceed with the installation."
-                exit 1;
+                post_event "install_failed" "request_sudo: Sudo access required but not available"
+                print_error_and_exit "Need sudo privileges to proceed with the installation."
             fi
 
             echo -e "Got Sudo access.\n"
@@ -86,9 +114,8 @@ request_sudo() {
     fi
 }
 
-
 install_docker() {
-    echo "Setting up docker"
+    echo "----------Setting up docker----------"
     if [[ $package_manager == apt-get ]]; then
         apt_cmd="$sudo_cmd apt-get --yes --quiet"
         $apt_cmd update
@@ -98,52 +125,86 @@ install_docker() {
             "deb [arch=$arch] https://download.docker.com/linux/$os $(lsb_release -cs) stable"
         $apt_cmd update
         echo "Installing docker"
-        $apt_cmd install docker-ce docker-ce-cli containerd.io
+        $apt_cmd install docker-ce docker-ce-cli containerd.io || {
+            post_event "install_failed" "install_docker: Docker installation failed during apt-get install on $os"
+            print_error_and_exit "install_docker: Docker installation failed during apt-get install on $os"
+        }
     elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
         $sudo_cmd yum install -y amazon-linux-extras
         $sudo_cmd amazon-linux-extras enable docker
-        $sudo_cmd yum install -y docker
+        $sudo_cmd yum install -y docker || {
+            post_event "install_failed" "install_docker: Docker installation failed during yum install on Amazon Linux"
+            print_error_and_exit "install_docker: Docker installation failed during yum install on Amazon Linux"
+        }
     else
         yum_cmd="$sudo_cmd yum --assumeyes --quiet"
         $yum_cmd install yum-utils
         $sudo_cmd yum-config-manager --add-repo https://download.docker.com/linux/$os/docker-ce.repo
         echo "Installing docker"
-        $yum_cmd install docker-ce docker-ce-cli containerd.io
-
+        $yum_cmd install docker-ce docker-ce-cli containerd.io || {
+            post_event "install_failed" "install_docker: Docker installation failed during yum install on $os"
+            print_error_and_exit "install_docker: Docker installation failed during yum install on $os"
+        }
     fi
-
+    docker_version=$(docker --version) || {
+        post_event "install_failed" "install_docker: Failed to check docker version post-installation on $os"
+        print_error_and_exit "Docker is not working correctly. Please install docker manually and re-run the command."
+    }
+    print_success_message "Docker installed successfully. $docker_version"
 }
 
 install_docker_compose() {
-  echo "Setting up docker compose"
-  if [[ $package_manager == apt-get ]]; then
-    apt_cmd="$sudo_cmd apt-get --yes --quiet"
-    $apt_cmd update
-    echo "Installing docker compose"
-    $apt_cmd install docker-compose
-  elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
-    echo "Installing docker compose"
-    sudo yum install -y epel-release
-    sudo yum install -y docker-compose
-  elif [[ $package_manager == brew ]]; then
-    echo "Installing docker compose"
-    brew install docker-compose
-  else
-    echo "Docker Compose must be installed manually to proceed. "
-    echo "docker_compose_not_installed"
-    exit 1
-
-  fi
+    echo "----------Setting up docker compose----------"
+    if [[ $package_manager == apt-get ]]; then
+        apt_cmd="$sudo_cmd apt-get --yes --quiet"
+        $apt_cmd update || {
+            post_event "install_failed" "install_docker_compose: apt-get update failed during Docker Compose setup"
+            print_error_and_exit "apt-get update failed."
+        }
+        $apt_cmd install docker-compose || {
+            post_event "install_failed" "install_docker_compose: apt-get install docker-compose failed during Docker Compose setup"
+            print_error_and_exit "Docker Compose installation failed."
+        }
+    elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
+        curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose || {
+            post_event "install_failed" "install_docker_compose: Downloading Docker Compose binary failed during Docker Compose setup"
+            print_error_and_exit "Downloading Docker Compose binary failed."
+        }
+        chmod +x /usr/local/bin/docker-compose || {
+            post_event "install_failed" "install_docker_compose: Making Docker Compose executable failed during Docker Compose setup"
+            print_error_and_exit "Making Docker Compose executable failed."
+        }
+    elif [[ $package_manager == brew ]]; then
+        brew install docker-compose || {
+            post_event "install_failed" "install_docker_compose: Docker Compose installation via brew failed during Docker Compose setup"
+            print_error_and_exit "Docker Compose installation failed."
+        }
+    else
+        post_event "install_failed" "install_docker_compose: Docker Compose not installed, manual installation required during Docker Compose setup"
+        echo "---------Docker Compose must be installed manually to proceed---------"
+        print_error_and_exit "Docker Compose Not installed"
+    fi
+    docker_compose_version=$(docker-compose --version) || {
+        post_event "install_failed" "install_docker_compose: Docker Compose post-installation check failed during Docker Compose setup"
+        print_error_and_exit "Docker Compose is not working correctly."
+    }
+    print_success_message "Docker Compose installed successfully. $docker_compose_version"
 }
 
 start_docker() {
     echo -e "\n===> Starting Docker ...\n"
     if [[ $os == "darwin" ]]; then
-        open --background -a Docker && while ! docker system info > /dev/null 2>&1; do sleep 1; done
+        open --background -a Docker && while ! docker system info > /dev/null 2>&1; do sleep 1; done || {
+            post_event "install_failed" "start_docker: Failed to start Docker on macOS"
+            print_error_and_exit "Failed to start Docker"
+        }
     else
         if ! $sudo_cmd systemctl is-active docker.service > /dev/null; then
             echo "Starting docker service"
-            $sudo_cmd systemctl start docker.service
+            $sudo_cmd systemctl start docker.service || {
+                post_event "install_failed" "start_docker: Failed to start systemctl docker service"
+                print_error_and_exit "Failed to start Docker service"
+            }
         fi
         if [[ -z $sudo_cmd ]]; then
             if ! docker ps > /dev/null && true; then
@@ -151,8 +212,12 @@ start_docker() {
             fi
         fi
     fi
+    docker info > /dev/null 2>&1 || {
+        post_event "install_failed" "start_docker: Failed to retrieve Docker info, Docker may not have started correctly"
+        print_error_and_exit "Docker did not start correctly."
+    }
+    print_success_message "Docker started successfully."
 }
-
 
 if ! is_command_present docker; then
     if [[ $package_manager == "apt-get" || $package_manager == "yum" ]]; then
@@ -160,34 +225,44 @@ if ! is_command_present docker; then
         install_docker
         install_docker_compose
     elif [[ $os == "darwin" ]]; then
-        echo "Docker Desktop must be installed manually on Mac OS to proceed. "
-        echo "https://docs.docker.com/docker-for-mac/install/"
-        echo "docker_not_installed"
-        exit 1
+        post_event "install_failed" "Docker Desktop not installed on Mac OS. Automatic installation is not supported."
+        print_error_and_exit "\nDocker Desktop must be installed manually on Mac OS to proceed. \n You can install Docker from here - https://docs.docker.com/docker-for-mac/install/"
     else
-        echo ""
-        echo "Docker must be installed manually on your machine to proceed. Docker can only be installed automatically on Ubuntu / Redhat "
-        echo "https://docs.docker.com/get-docker/"
-        echo "docker_not_installed"
-        exit 1
+        post_event "install_failed" "Docker not installed. Automatic installation is only supported on Ubuntu / Redhat."
+        print_error_and_exit "\nDocker must be installed manually on your machine to proceed. Docker can only be installed automatically on Ubuntu / Redhat. \n You can install Docker from here - https://docs.docker.com/get-docker/"
     fi
 fi
 
-
 start_docker
 
-echo -e "\n===> Pulling the latest docker image for SigLens"
+echo -e "\n----------Pulling the latest docker image for SigLens----------"
 
 curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
 curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
 curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/siglens-otel-collector-config.yaml"
 
-$sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION}
-mkdir -p data
-chmod a+rwx data
+$sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION} || {
+    post_event "install_failed" "Failed to pull Docker image siglens/siglens:${SIGLENS_VERSION}"
+    print_error_and_exit "Failed to pull siglens/siglens:${SIGLENS_VERSION}. Please check your internet connection and Docker installation."
+}
+mkdir -p data || {
+    post_event "install_failed" "Failed to create directory 'data'."
+    print_error_and_exit "Failed to create directory 'data'. Please check your permissions."
+}
+chmod a+rwx data || {
+    post_event "install_failed" "Failed to change permissions for directory 'data'."
+    print_error_and_exit "Failed to change permissions for directory 'data'. Please check your file permissions."
+}
 
-echo ""
-echo -e "\n===> SigLens installation complete"
+mkdir -p logs || {
+    post_event "install_failed" "Failed to create directory 'logs'"
+    print_error_and_exit "Failed to create directory 'logs'. Please check your permissions."
+}
+chmod a+rwx logs || {
+    post_event "install_failed" "Failed to change permissions for directory 'logs'."
+    print_error_and_exit "Failed to change permissions for directory 'logs'. Please check your file permissions."
+}
+print_success_message "\n===> SigLens installation complete with version: ${SIGLENS_VERSION}"
 
 csi=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
 if [ -z "$csi" ]; then
@@ -197,64 +272,79 @@ fi
 runtime_os=$(uname)
 runtime_arch=$(uname -m)
 
-curl -X POST \
-https://api.segment.io/v1/track \
--H 'Content-Type: application/json' \
--H 'Authorization: Basic QlBEam5lZlBWMEpjMkJSR2RHaDdDUVRueWtZS2JEOGM6' \
--d '{
-  "userId": "'"$csi"'",
-  "event": "install (not running)",
-  "properties": {
-    "runtime_arch": "'"$runtime_os"'",
-    "runtime_os": "'"$runtime_arch"'"
-  }
-}'
-
-INITIAL_PORT=5122
-START_PORT=5122
-END_PORT=5122
-
 check_ports() {
-
-    if lsof -Pi :$INITIAL_PORT -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:${INITIAL_PORT}->"; then
-        for port in $(seq $START_PORT $END_PORT); do
-            if lsof -Pi :$port -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:$port->"; then
-                continue
-            else
-                echo $port
-                return 0
+    PORT=$1
+    if lsof -Pi :$PORT -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:${PORT}->"; then
+        CONTAINER_ID=$(docker ps --format "{{.ID}}:{{.Image}}:{{.Ports}}" | grep "siglens/siglens.*0.0.0.0:${PORT}" | cut -d ":" -f 1 2>/dev/null)
+        if [ -n "$CONTAINER_ID" ]; then
+            docker stop $CONTAINER_ID
+            if lsof -Pi :$PORT -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:${PORT}->"; then
+                post_event "install_failed" "Port ${PORT} is already in use after attempting to stop our Docker container"
+                print_error_and_exit "\nError: Port ${PORT} is already in use."
             fi
-        done
-        echo "-1"
-        return 1
-    else
-        echo "${INITIAL_PORT}"
-        return 0
+        else
+            post_event "install_failed" "Port ${PORT} is already in use and no Docker container could be stopped"
+            print_error_and_exit "\nError: Port ${PORT} is already in use."
+        fi
     fi
+    print_success_message "Port ${PORT} is available"
 }
 
-UI_PORT=$(check_ports)
+check_ports 5122
+check_ports 8081
 
-if [ ${UI_PORT} == "-1" ]; then
-    echo ""
-    tput bold
-    printf "${RED_TEXT}Error: Port ${INITIAL_PORT} is already in use.\n"
-    tput sgr0
-    exit 1
-fi
+send_events() {
+    curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz
+    if [ $? -ne 0 ]; then
+        post_event "install_failed" "send_events: Failed to download sample log dataset from https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz"
+        print_error_and_exit "Failed to download sample log dataset"
+    fi
+    tar -xvf 2kevents.json.tar.gz || {
+        post_event "install_failed" "send_events: Failed to extract 2kevents.json.tar.gz"
+        print_error_and_exit "Failed to extract 2kevents.json.tar.gz"
+    }
+    for i in $(seq 1 20)
+    do
+        curl -s http://localhost:8081/elastic/_bulk --data-binary "@2kevents.json" -o res.txt
+        if [ $? -ne 0 ]; then
+            post_event "install_failed" "send_events: Failed to send sample log dataset to http://localhost:8081/elastic/_bulk"
+            print_error_and_exit "Failed to send sample log dataset"
+        fi
+    done
+    print_success_message "\n Sample log dataset sent successfully"
+}
 
-echo -e "\n===> In case ports 80 and 8081 are in use change the settings as follows"
-echo -e "ingestPort(8081) and queryPort(80) can be changed using in server.yaml."
-echo -e "queryPort(80) can also be changed by setting the environment variable $PORT."
-
-tput bold
-printf "\n===> ${GREEN_TEXT}Frontend can be accessed on http://localhost:${UI_PORT}${RESET_COLOR}"
-echo ""
-tput sgr0
+UI_PORT=5122
 
 # Run Docker compose files
-UI_PORT=${UI_PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose -f ./docker-compose.yml up -d
-docker-compose logs -t --tail 20 >> dclogs.txt
+UI_PORT=${UI_PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose -f ./docker-compose.yml up -d || {
+    post_event "install_failed" "Failed to start Docker Compose on $os with docker-compose.yml"
+    print_error_and_exit "Failed to start Docker Compose"
+}
+UI_PORT=${UI_PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose logs -t --tail 20 >> dclogs.txt
+sample_log_dataset_status=$(curl -s -o /dev/null -I -X HEAD -w "%{http_code}" http://localhost:5122/elastic/sample-log-dataset)
+
+if [ "$sample_log_dataset_status" -eq 200 ]; then
+    FIRST_RUN=false
+elif [ "$sample_log_dataset_status" -eq 404 ]; then
+    FIRST_RUN=true
+else
+    echo "Failed to check sample log dataset status"
+    FIRST_RUN=true
+fi
+
+if $FIRST_RUN; then
+    send_events
+    post_event "fresh_install_success" "Fresh installation was successful using docker on $os"
+else
+    post_event "repeat_install_success" "Repeat installation of Docker was successful using docker on $os"
+    echo "Skipping sendevents as this is not the first run"
+fi
+
+tput bold
+print_success_message "\n===> Frontend can be accessed on http://localhost:${UI_PORT}"
+echo ""
+tput sgr0
 
 if [ $? -ne 0 ]; then
     tput bold
