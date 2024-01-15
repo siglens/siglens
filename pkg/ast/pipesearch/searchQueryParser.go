@@ -29,7 +29,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
 
 	segment "github.com/siglens/siglens/pkg/segment"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -327,15 +326,6 @@ func parseTransactionRequest(node *structs.TransactionArguments, qid uint64) (*Q
 	aggNode.TransactionArguments.EndsWith = node.EndsWith
 
 	if node.StartsWith != nil {
-		if node.StartsWith.SearchTerm != nil {
-			dte, err := utils.CreateDtypeEnclosure(node.StartsWith.SearchTerm.Values, qid)
-			if err != nil {
-				log.Errorf("qid=%d, parseTransactionRequest: CreateDtypeEnclosure error: %v", qid, err)
-				return nil, err
-			}
-			aggNode.TransactionArguments.StartsWith.SearchTerm.DtypeEnclosure = dte
-		}
-
 		if node.StartsWith.SearchNode != nil {
 			boolNode := &ASTNode{}
 			err := SearchQueryToASTnode(node.StartsWith.SearchNode.(*ast.Node), boolNode, qid)
@@ -348,15 +338,6 @@ func parseTransactionRequest(node *structs.TransactionArguments, qid uint64) (*Q
 	}
 
 	if node.EndsWith != nil {
-		if node.EndsWith.SearchTerm != nil {
-			dte, err := utils.CreateDtypeEnclosure(node.EndsWith.SearchTerm.Values, qid)
-			if err != nil {
-				log.Errorf("qid=%d, parseTransactionRequest: CreateDtypeEnclosure error: %v", qid, err)
-				return nil, err
-			}
-			aggNode.TransactionArguments.EndsWith.SearchTerm.DtypeEnclosure = dte
-		}
-
 		if node.EndsWith.SearchNode != nil {
 			boolNode := &ASTNode{}
 			err := SearchQueryToASTnode(node.EndsWith.SearchNode.(*ast.Node), boolNode, qid)

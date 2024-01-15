@@ -1439,26 +1439,26 @@ func conditionMatch(fieldValue interface{}, Op string, searchValue interface{}) 
 	}
 }
 
-func evaluateASTNode(node *structs.ASTNode, record map[string]interface{}) bool {
-	if node.AndFilterCondition != nil && !evaluateCondition(node.AndFilterCondition, record, segutils.And) {
+func evaluateASTNode(node *structs.ASTNode, record map[string]interface{}, recordMapStr string) bool {
+	if node.AndFilterCondition != nil && !evaluateCondition(node.AndFilterCondition, record, recordMapStr, segutils.And) {
 		return false
 	}
 
-	if node.OrFilterCondition != nil && !evaluateCondition(node.OrFilterCondition, record, segutils.Or) {
+	if node.OrFilterCondition != nil && !evaluateCondition(node.OrFilterCondition, record, recordMapStr, segutils.Or) {
 		return false
 	}
 
 	// If the node has an exclusion filter, and the exclusion filter matches, return false.
-	if node.ExclusionFilterCondition != nil && evaluateCondition(node.ExclusionFilterCondition, record, segutils.Exclusion) {
+	if node.ExclusionFilterCondition != nil && evaluateCondition(node.ExclusionFilterCondition, record, recordMapStr, segutils.Exclusion) {
 		return false
 	}
 
 	return true
 }
 
-func evaluateCondition(condition *structs.Condition, record map[string]interface{}, logicalOp segutils.LogicalOperator) bool {
+func evaluateCondition(condition *structs.Condition, record map[string]interface{}, recordMapStr string, logicalOp segutils.LogicalOperator) bool {
 	for _, nestedNode := range condition.NestedNodes {
-		if !evaluateASTNode(nestedNode, record) {
+		if !evaluateASTNode(nestedNode, record, recordMapStr) {
 			return false
 		}
 	}
@@ -1466,9 +1466,9 @@ func evaluateCondition(condition *structs.Condition, record map[string]interface
 	for _, criteria := range condition.FilterCriteria {
 		validMatch := false
 		if criteria.MatchFilter != nil {
-			validMatch = evaluateMatchFilter(criteria.MatchFilter, record)
+			validMatch = evaluateMatchFilter(criteria.MatchFilter, record, recordMapStr)
 		} else if criteria.ExpressionFilter != nil {
-			validMatch = evaluateExpressionFilter(criteria.ExpressionFilter, record)
+			validMatch = evaluateExpressionFilter(criteria.ExpressionFilter, record, recordMapStr)
 		}
 
 		// If the logical operator is Or and at least one of the criteria matches, return true.
@@ -1482,10 +1482,17 @@ func evaluateCondition(condition *structs.Condition, record map[string]interface
 	return logicalOp == segutils.And
 }
 
-func evaluateMatchFilter(matchFilter *structs.MatchFilter, record map[string]interface{}) bool {
-	fieldValue, exists := record[matchFilter.MatchColumn]
-	if !exists {
-		return false
+func evaluateMatchFilter(matchFilter *structs.MatchFilter, record map[string]interface{}, recordMapStr string) bool {
+	var fieldValue interface{}
+	var exists bool
+
+	if matchFilter.MatchColumn == "*" {
+		fieldValue = recordMapStr
+	} else {
+		fieldValue, exists = record[matchFilter.MatchColumn]
+		if !exists {
+			return false
+		}
 	}
 
 	dVal, err := segutils.CreateDtypeEnclosure(fieldValue, 0)
@@ -1497,7 +1504,7 @@ func evaluateMatchFilter(matchFilter *structs.MatchFilter, record map[string]int
 	case structs.MATCH_WORDS:
 		return evaluateMatchWords(matchFilter, dVal.StringVal)
 	case structs.MATCH_PHRASE:
-		return evaluateMatchPhrase(matchFilter, dVal.StringVal)
+		return evaluateMatchPhrase(string(matchFilter.MatchPhrase), dVal.StringVal)
 	default:
 		return false
 	}
@@ -1505,7 +1512,7 @@ func evaluateMatchFilter(matchFilter *structs.MatchFilter, record map[string]int
 
 func evaluateMatchWords(matchFilter *structs.MatchFilter, fieldValueStr string) bool {
 	for _, word := range matchFilter.MatchWords {
-		if strings.Contains(fieldValueStr, string(word)) {
+		if evaluateMatchPhrase(string(word), fieldValueStr) {
 			if matchFilter.MatchOperator == segutils.Or {
 				return true
 			}
@@ -1517,16 +1524,24 @@ func evaluateMatchWords(matchFilter *structs.MatchFilter, fieldValueStr string) 
 	return matchFilter.MatchOperator == segutils.And
 }
 
-func evaluateMatchPhrase(matchFilter *structs.MatchFilter, fieldValueStr string) bool {
-	return strings.Contains(fieldValueStr, string(matchFilter.MatchPhrase))
+func evaluateMatchPhrase(matchPhrase string, fieldValueStr string) bool {
+	// Create a regular expression to match the whole word, using \b for word boundaries
+	pattern := `\b` + regexp.QuoteMeta(string(matchPhrase)) + `\b`
+	r, err := regexp.Compile(pattern)
+	if err != nil {
+		return false
+	}
+
+	// Use the regular expression to find a match
+	return r.MatchString(fieldValueStr)
 }
 
-func evaluateExpressionFilter(expressionFilter *structs.ExpressionFilter, record map[string]interface{}) bool {
-	leftValue, errL := evaluateFilterInput(expressionFilter.LeftInput, record)
+func evaluateExpressionFilter(expressionFilter *structs.ExpressionFilter, record map[string]interface{}, recordMapStr string) bool {
+	leftValue, errL := evaluateFilterInput(expressionFilter.LeftInput, record, recordMapStr)
 	if errL != nil {
 		return false
 	}
-	rightValue, errR := evaluateFilterInput(expressionFilter.RightInput, record)
+	rightValue, errR := evaluateFilterInput(expressionFilter.RightInput, record, recordMapStr)
 	if errR != nil {
 		return false
 	}
@@ -1534,9 +1549,9 @@ func evaluateExpressionFilter(expressionFilter *structs.ExpressionFilter, record
 	return conditionMatch(leftValue, expressionFilter.FilterOperator.ToString(), rightValue)
 }
 
-func evaluateFilterInput(filterInput *structs.FilterInput, record map[string]interface{}) (interface{}, error) {
+func evaluateFilterInput(filterInput *structs.FilterInput, record map[string]interface{}, recordMapStr string) (interface{}, error) {
 	if filterInput.SubTree != nil {
-		return evaluateASTNode(filterInput.SubTree, record), nil
+		return evaluateASTNode(filterInput.SubTree, record, recordMapStr), nil
 	} else if filterInput.Expression != nil {
 		return evaluateExpression(filterInput.Expression, record)
 	}
@@ -1635,68 +1650,15 @@ func getInputValueFromExpression(expr *structs.ExpressionInput, record map[strin
 }
 
 func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterStringExpr, recordMapStr string, record map[string]interface{}) bool {
-	matched := false
-	if with.StringValue != "" && strings.Contains(recordMapStr, with.StringValue) {
-		matched = true
-	} else if with.StringClauses != nil && len(with.StringClauses) > 0 {
-		cummulativeClause := true
-		for _, clause := range with.StringClauses {
-			currentOr := false
-			for _, value := range clause { // Or CLause
-				if strings.Contains(recordMapStr, value) {
-					currentOr = true
-					break
-				}
-			}
-			if !currentOr {
-				cummulativeClause = false
-				break
-			}
-		}
-		matched = cummulativeClause
-	} else if with.SearchTerm != nil {
-		fieldValue, exists := record[with.SearchTerm.Field]
-		if !exists {
-			return false
-		}
-
-		switch with.SearchTerm.ExprType {
-		case segutils.SS_DT_STRING, segutils.SS_DT_BOOL:
-			if with.SearchTerm.Op == "=" || with.SearchTerm.Op == "!=" {
-				if with.SearchTerm.ExprType == segutils.SS_DT_STRING {
-					matched = conditionMatch(fieldValue, with.SearchTerm.Op, with.SearchTerm.DtypeEnclosure.StringVal)
-				} else {
-					matched = conditionMatch(fieldValue, with.SearchTerm.Op, with.SearchTerm.DtypeEnclosure.BoolVal)
-				}
-			} else {
-				matched = false
-			}
-		case segutils.SS_DT_SIGNED_NUM:
-			fieldFloatVal, err := dtypeutils.ConvertToFloat(fieldValue, 64)
-			if err != nil {
-				matched = false
-			} else {
-				matched = conditionMatch(fieldFloatVal, with.SearchTerm.Op, with.SearchTerm.DtypeEnclosure.FloatVal)
-			}
-		default:
-			dteVal, err := segutils.CreateDtypeEnclosure(fieldValue, 0)
-			if err != nil {
-				return false
-			}
-			if dteVal.Dtype == with.SearchTerm.DtypeEnclosure.Dtype {
-				matched = conditionMatch(dteVal, with.SearchTerm.Op, with.SearchTerm.DtypeEnclosure)
-			} else {
-				matched = false
-			}
-		}
+	if with.StringValue != "" {
+		return strings.Contains(recordMapStr, with.StringValue)
 	} else if with.EvalBoolExpr != nil {
-		matched = evaluateBoolExpr(with.EvalBoolExpr, record)
+		return evaluateBoolExpr(with.EvalBoolExpr, record)
 	} else if with.SearchNode != nil {
-		node := with.SearchNode.(*structs.ASTNode)
-		matched = evaluateASTNode(node, record)
+		return evaluateASTNode(with.SearchNode.(*structs.ASTNode), record, recordMapStr)
 	}
 
-	return matched
+	return false
 }
 
 // Splunk Transaction command based on the TransactionArguments on the JSON records. map[string]map[string]interface{}

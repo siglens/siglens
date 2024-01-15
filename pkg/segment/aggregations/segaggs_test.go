@@ -27,6 +27,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type SimpleSearchExpr struct {
+	Op             string
+	Field          string
+	Values         interface{}
+	ValueIsRegex   bool
+	ExprType       utils.SS_DTYPE
+	DtypeEnclosure *utils.DtypeEnclosure
+}
+
 func Test_conditionMatch(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -159,61 +168,379 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 	}
 	matchesSomeRecords[6] = true
 
-	// CASE 7: StartsWith and EndsWith with String Clauses only OR
+	// CASE 7: StartsWith and EndsWith with String Clauses only OR: startswith=("GET" OR "POST1") endswith=("DELETE" OR "POST2")
 	txnArgs7 := &structs.TransactionArguments{
-		StartsWith: &structs.FilterStringExpr{StringClauses: [][]string{{"GET", "POST1"}}},
-		EndsWith:   &structs.FilterStringExpr{StringClauses: [][]string{{"DELETE", "POST2"}}},
-		Fields:     []string{"gender", "country"},
-	}
-	matchesSomeRecords[7] = true
-
-	// CASE 8: StartsWith and EndsWith with String Clauses only AND (Negative Case)
-	txnArgs8 := &structs.TransactionArguments{
-		StartsWith: &structs.FilterStringExpr{StringClauses: [][]string{{"GET"}, {"POST2"}}},
-		EndsWith:   &structs.FilterStringExpr{StringClauses: [][]string{{"POST"}}},
-		Fields:     []string{"gender", "country"},
-	}
-	matchesSomeRecords[8] = false
-
-	// CASE 9: StartsWith and EndsWith with String Clauses only AND (Positive Case)
-	txnArgs9 := &structs.TransactionArguments{
-		StartsWith: &structs.FilterStringExpr{StringClauses: [][]string{{"GET"}, {"male"}}},
-		EndsWith:   &structs.FilterStringExpr{StringClauses: [][]string{{"DELETE"}}},
-		Fields:     []string{"gender", "country"},
-	}
-	matchesSomeRecords[9] = true
-
-	// CASE 10: StartsWith is a Valid Search Term and EndsWith is String Clause
-	txnArgs10 := &structs.TransactionArguments{
 		StartsWith: &structs.FilterStringExpr{
-			SearchTerm: &structs.SimpleSearchExpr{
-				Op:           ">=",
-				Field:        "http_status",
-				Values:       json.Number("300"),
-				ValueIsRegex: false,
-				ExprType:     utils.SS_DT_SIGNED_NUM,
-				DtypeEnclosure: &utils.DtypeEnclosure{
-					Dtype:    utils.SS_DT_SIGNED_NUM,
-					FloatVal: float64(300),
+			SearchNode: &structs.ASTNode{
+				OrFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("GET"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("GET"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("POST1"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("POST1"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+					},
 				},
 			},
 		},
-		EndsWith: &structs.FilterStringExpr{StringClauses: [][]string{{"DELETE"}}},
+		EndsWith: &structs.FilterStringExpr{
+			SearchNode: &structs.ASTNode{
+				OrFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("DELETE"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("DELETE"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("POST2"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("POST2"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+					},
+				},
+			},
+		},
+		Fields: []string{"gender", "country"},
+	}
+	matchesSomeRecords[7] = true
+	searchResults[7] = map[string]interface{}{
+		"startswith": [][]*SimpleSearchExpr{
+			{
+				{
+					Op:           "=",
+					Field:        "http_method",
+					Values:       "GET",
+					ValueIsRegex: false,
+					ExprType:     utils.SS_DT_STRING,
+					DtypeEnclosure: &utils.DtypeEnclosure{
+						Dtype:     utils.SS_DT_STRING,
+						StringVal: "GET",
+					},
+				},
+				{
+					Op:           "=",
+					Field:        "http_method",
+					Values:       "POST1",
+					ValueIsRegex: false,
+					ExprType:     utils.SS_DT_STRING,
+					DtypeEnclosure: &utils.DtypeEnclosure{
+						Dtype:     utils.SS_DT_STRING,
+						StringVal: "POST1",
+					},
+				},
+			},
+		},
+		"endswith": [][]*SimpleSearchExpr{
+			{
+				{
+					Op:           "=",
+					Field:        "http_method",
+					Values:       "DELETE",
+					ValueIsRegex: false,
+					ExprType:     utils.SS_DT_STRING,
+					DtypeEnclosure: &utils.DtypeEnclosure{
+						Dtype:     utils.SS_DT_STRING,
+						StringVal: "DELETE",
+					},
+				},
+				{
+					Op:           "=",
+					Field:        "http_method",
+					Values:       "POST2",
+					ValueIsRegex: false,
+					ExprType:     utils.SS_DT_STRING,
+					DtypeEnclosure: &utils.DtypeEnclosure{
+						Dtype:     utils.SS_DT_STRING,
+						StringVal: "POST2",
+					},
+				},
+			},
+		},
+	}
+
+	// CASE 8: StartsWith and EndsWith with String Clauses only AND (Negative Case): startswith=("GET" AND "POST2") endswith=("POST")
+	txnArgs8 := &structs.TransactionArguments{
+		StartsWith: &structs.FilterStringExpr{
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("GET"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("GET"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("POST2"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("POST2"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+					},
+				},
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("DELETE"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("DELETE"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+					},
+				},
+			},
+		},
+		Fields: []string{"gender", "country"},
+	}
+	matchesSomeRecords[8] = false
+
+	// CASE 9: StartsWith and EndsWith with String Clauses only AND (Positive Case): startswith=("GET" AND "male") endswith=("DELETE")
+	txnArgs9 := &structs.TransactionArguments{
+		Fields: []string{"gender", "country"},
+		StartsWith: &structs.FilterStringExpr{
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("GET"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("GET"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("male"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("male"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+					},
+				},
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("DELETE"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("DELETE"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	matchesSomeRecords[9] = true
+	searchResults[9] = map[string]interface{}{
+		"startswith": [][]*SimpleSearchExpr{
+			{
+				{
+					Op:           "=",
+					Field:        "http_method",
+					Values:       "GET",
+					ValueIsRegex: false,
+					ExprType:     utils.SS_DT_STRING,
+					DtypeEnclosure: &utils.DtypeEnclosure{
+						Dtype:          utils.SS_DT_STRING,
+						StringVal:      "GET",
+						StringValBytes: []byte("GET"),
+					},
+				},
+			},
+			{
+				{
+					Op:           "=",
+					Field:        "gender",
+					Values:       "male",
+					ValueIsRegex: false,
+					ExprType:     utils.SS_DT_STRING,
+					DtypeEnclosure: &utils.DtypeEnclosure{
+						Dtype:          utils.SS_DT_STRING,
+						StringVal:      "male",
+						StringValBytes: []byte("male"),
+					},
+				},
+			},
+		},
+		"endswith": [][]*SimpleSearchExpr{
+			{
+				{
+					Op:           "=",
+					Field:        "http_method",
+					Values:       "DELETE",
+					ValueIsRegex: false,
+					ExprType:     utils.SS_DT_STRING,
+					DtypeEnclosure: &utils.DtypeEnclosure{
+						Dtype:     utils.SS_DT_STRING,
+						StringVal: "DELETE",
+					},
+				},
+			},
+		},
+	}
+
+	// CASE 10: StartsWith is a Valid Search Expr and EndsWith is String Value: startswith=status>=300 endswith="DELETE"
+	txnArgs10 := &structs.TransactionArguments{
+		StartsWith: &structs.FilterStringExpr{
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "http_status",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.GreaterThanOrEqualTo,
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+												UnsignedVal: uint64(300),
+												SignedVal:   int64(300),
+												FloatVal:    float64(300),
+												StringVal:   "300",
+											},
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		EndsWith: &structs.FilterStringExpr{StringValue: "DELETE"},
 	}
 	matchesSomeRecords[10] = true
+	searchResults[10] = map[string]interface{}{
+		"startswith": [][]*SimpleSearchExpr{
+			{
+				{
+					Op:           ">=",
+					Field:        "http_status",
+					Values:       json.Number("300"),
+					ValueIsRegex: false,
+					ExprType:     utils.SS_DT_SIGNED_NUM,
+					DtypeEnclosure: &utils.DtypeEnclosure{
+						Dtype:       utils.SS_DT_SIGNED_NUM,
+						FloatVal:    float64(300),
+						UnsignedVal: uint64(300),
+						SignedVal:   int64(300),
+						StringVal:   "300",
+					},
+				},
+			},
+		},
+	}
 
-	// CASE 11: StartsWith is not a Valid Search Term (comparing between two string fields) and EndsWith is String value
+	// CASE 11: StartsWith is not a Valid Search Term (comparing between two string fields) and EndsWith is String value: startswith=city>"Hyderabad" endswith="DELETE"
 	txnArgs11 := &structs.TransactionArguments{
 		StartsWith: &structs.FilterStringExpr{
-			SearchTerm: &structs.SimpleSearchExpr{
-				Op:           ">",
-				Field:        "city",
-				Values:       "Hyderabad",
-				ValueIsRegex: false,
-				ExprType:     utils.SS_DT_STRING,
-				DtypeEnclosure: &utils.DtypeEnclosure{
-					Dtype:     utils.SS_DT_STRING,
-					StringVal: "Hyderabad",
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "city",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.GreaterThan,
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:     utils.SS_DT_STRING,
+												StringVal: "Hyderabad",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -221,43 +548,123 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 	}
 	matchesSomeRecords[11] = false
 
-	// CASE 12: StartsWith is not a Valid Search Term (comparing between string and number fields) and EndsWith is String Clause
+	// CASE 12: StartsWith is not a Valid Search Term (comparing between string and number fields) and EndsWith is String Clause: startswith=city>300 endswith=("DELETE")
 	txnArgs12 := &structs.TransactionArguments{
 		StartsWith: &structs.FilterStringExpr{
-			SearchTerm: &structs.SimpleSearchExpr{
-				Op:           ">",
-				Field:        "city",
-				Values:       json.Number("300"),
-				ValueIsRegex: false,
-				ExprType:     utils.SS_DT_SIGNED_NUM,
-				DtypeEnclosure: &utils.DtypeEnclosure{
-					Dtype:    utils.SS_DT_SIGNED_NUM,
-					FloatVal: float64(300),
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "city",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.GreaterThan,
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+												StringVal:   "300",
+												UnsignedVal: uint64(300),
+												SignedVal:   int64(300),
+												FloatVal:    float64(300),
+											},
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
-		EndsWith: &structs.FilterStringExpr{StringClauses: [][]string{{"DELETE"}}},
+		EndsWith: &structs.FilterStringExpr{
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("DELETE"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("DELETE"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	matchesSomeRecords[12] = false
 
-	// CASE 13: StartsWith is a Valid Search Term (String1 = String2) and EndsWith is String Value
+	// CASE 13: StartsWith is a Valid Search Term (String1 = String2) and EndsWith is String Value: startswith=city="Hyderabad" endswith="DELETE"
 	txnArgs13 := &structs.TransactionArguments{
 		StartsWith: &structs.FilterStringExpr{
-			SearchTerm: &structs.SimpleSearchExpr{
-				Op:           "=",
-				Field:        "city",
-				Values:       "Hyderabad",
-				ValueIsRegex: false,
-				ExprType:     utils.SS_DT_STRING,
-				DtypeEnclosure: &utils.DtypeEnclosure{
-					Dtype:     utils.SS_DT_STRING,
-					StringVal: "Hyderabad",
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "city",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.Equals,
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:     utils.SS_DT_STRING,
+												StringVal: "Hyderabad",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		EndsWith: &structs.FilterStringExpr{StringValue: "DELETE"},
 	}
 	matchesSomeRecords[13] = true
+	searchResults[13] = map[string]interface{}{
+		"startswith": [][]*SimpleSearchExpr{
+			{
+				{
+					Op:           "=",
+					Field:        "city",
+					Values:       "Hyderabad",
+					ValueIsRegex: false,
+					ExprType:     utils.SS_DT_STRING,
+					DtypeEnclosure: &utils.DtypeEnclosure{
+						Dtype:     utils.SS_DT_STRING,
+						StringVal: "Hyderabad",
+					},
+				},
+			},
+		},
+	}
 
 	// CASE 14: Eval Expression:  transaction gender startswith=eval(status > 300 AND http_method="POST" OR http_method="PUT")
 	txnArgs14 := &structs.TransactionArguments{
@@ -336,7 +743,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 	}
 	matchesSomeRecords[14] = true
 	searchResults[14] = map[string]interface{}{
-		"startswith": [][]*structs.SimpleSearchExpr{
+		"startswith": [][]*SimpleSearchExpr{
 			{
 				{
 					Op:           ">",
@@ -515,7 +922,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 	}
 	matchesSomeRecords[15] = true
 	searchResults[15] = map[string]interface{}{
-		"endswith": [][]*structs.SimpleSearchExpr{
+		"endswith": [][]*SimpleSearchExpr{
 			{
 				{
 					Op:           "<",
@@ -533,7 +940,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 				},
 			},
 		},
-		"startswith": [][]*structs.SimpleSearchExpr{
+		"startswith": [][]*SimpleSearchExpr{
 			{
 				{
 					Op:           ">",
@@ -679,7 +1086,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 	}
 	matchesSomeRecords[16] = true
 	searchResults[16] = map[string]interface{}{
-		"endswith": [][]*structs.SimpleSearchExpr{
+		"endswith": [][]*SimpleSearchExpr{
 			{
 				{
 					Op:           "<",
@@ -697,7 +1104,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 				},
 			},
 		},
-		"startswith": [][]*structs.SimpleSearchExpr{
+		"startswith": [][]*SimpleSearchExpr{
 			{
 				{
 					Op:           ">",
@@ -778,19 +1185,14 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 						resultData, exists := getResultData(index+1, "startswith", searchResults)
 						if txnArgs.StartsWith.StringValue != "" {
 							assert.Equal(t, eventMap["http_method"], txnArgs.StartsWith.StringValue)
-						} else if txnArgs.StartsWith.StringClauses != nil {
-							assert.Contains(t, txnArgs.StartsWith.StringClauses[0][0], eventMap["http_method"])
-						} else if txnArgs.StartsWith.SearchTerm != nil {
-							valid := validateSearchString(txnArgs.StartsWith.SearchTerm, eventMap)
-							assert.True(t, valid)
 						} else if txnArgs.StartsWith.EvalBoolExpr != nil {
 							if exists {
-								valid := validateEvalBoolExpr(eventMap, resultData.([][]*structs.SimpleSearchExpr))
+								valid := validateSearchExpr(eventMap, resultData.([][]*SimpleSearchExpr))
 								assert.True(t, valid)
 							}
 						} else if txnArgs.StartsWith.SearchNode != nil {
 							if exists {
-								valid := validateEvalBoolExpr(eventMap, resultData.([][]*structs.SimpleSearchExpr))
+								valid := validateSearchExpr(eventMap, resultData.([][]*SimpleSearchExpr))
 								assert.True(t, valid)
 							}
 						}
@@ -802,19 +1204,14 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 						resultData, exists := getResultData(index+1, "endswith", searchResults)
 						if txnArgs.EndsWith.StringValue != "" {
 							assert.Equal(t, eventMap["http_method"], txnArgs.EndsWith.StringValue)
-						} else if txnArgs.EndsWith.StringClauses != nil {
-							assert.Contains(t, txnArgs.EndsWith.StringClauses[0][0], eventMap["http_method"])
-						} else if txnArgs.EndsWith.SearchTerm != nil {
-							valid := validateSearchString(txnArgs.EndsWith.SearchTerm, eventMap)
-							assert.True(t, valid)
 						} else if txnArgs.EndsWith.EvalBoolExpr != nil {
 							if exists {
-								valid := validateEvalBoolExpr(eventMap, resultData.([][]*structs.SimpleSearchExpr))
+								valid := validateSearchExpr(eventMap, resultData.([][]*SimpleSearchExpr))
 								assert.True(t, valid)
 							}
 						} else if txnArgs.EndsWith.SearchNode != nil {
 							if exists {
-								valid := validateEvalBoolExpr(eventMap, resultData.([][]*structs.SimpleSearchExpr))
+								valid := validateSearchExpr(eventMap, resultData.([][]*SimpleSearchExpr))
 								assert.True(t, valid)
 							}
 						}
@@ -837,7 +1234,7 @@ func getResultData(resultIndex int, resultType string, resultData map[int]map[st
 	}
 }
 
-func validateSearchString(searchTerm *structs.SimpleSearchExpr, eventMap map[string]interface{}) bool {
+func validateSearchString(searchTerm *SimpleSearchExpr, eventMap map[string]interface{}) bool {
 	fieldValue, exists := eventMap[searchTerm.Field]
 	if !exists {
 		return false
@@ -846,7 +1243,7 @@ func validateSearchString(searchTerm *structs.SimpleSearchExpr, eventMap map[str
 	return conditionMatch(fieldValue, searchTerm.Op, searchTerm.Values)
 }
 
-func validateEvalBoolExpr(eventMap map[string]interface{}, resultData [][]*structs.SimpleSearchExpr) bool {
+func validateSearchExpr(eventMap map[string]interface{}, resultData [][]*SimpleSearchExpr) bool {
 	for _, resultAnd := range resultData {
 		valid := false
 		for _, resultOr := range resultAnd {
