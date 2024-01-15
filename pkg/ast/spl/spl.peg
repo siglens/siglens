@@ -131,44 +131,6 @@ func getRexColNames(pattern string) ([]string, error) {
     return rexColNames, nil
 }
 
-func resolveTerminalAstNodeToSimpleSearch(astNode *ast.Node) (*structs.SimpleSearchExpr, error) {
-	if astNode.NodeType != ast.NodeTerminal {
-		return nil, fmt.Errorf("Spl peg: TransactionSearch: %v", "Only Terminal Nodes are allowed")
-	}
-
-	node := astNode.Comparison
-
-	var value interface{}
-	var exprType utils.SS_DTYPE
-
-	switch v := node.Values.(type) {
-	case string:
-		value = removeQuotes(v)
-		exprType = utils.SS_DT_STRING
-	case int, int32, int64, float32, float64, json.Number:
-		value = json.Number(reflect.ValueOf(v).String())
-		exprType = utils.SS_DT_SIGNED_NUM
-	case bool:
-		boolValue, err := strconv.ParseBool(reflect.ValueOf(v).String())
-		if err != nil {
-			boolValue = strings.ToLower(reflect.ValueOf(v).String()) == "true"
-		}
-		value = boolValue
-		exprType = utils.SS_DT_BOOL
-	default:
-		value = v
-		exprType = utils.SS_INVALID
-	}
-
-	return &structs.SimpleSearchExpr{
-		Op:           node.Op,
-		Field:        node.Field,
-		Values:       value,
-		ValueIsRegex: node.ValueIsRegex,
-		ExprType:     exprType,
-	}, nil
-}
-
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
@@ -2196,7 +2158,7 @@ EndsWithOption <- "endswith" EQUAL strExpr:TransactionFilterString {
 }
 
 // Returns structs.FilterStringExpr
-TransactionFilterString <- strExpr:(TransactionQuotedString / TransactionEval / TransactionSearch / TransactionQuotedStringClausesExpr) {
+TransactionFilterString <- strExpr:(TransactionQuotedString / TransactionEval / TransactionSearch) {
     return strExpr, nil
 }
 
@@ -2225,50 +2187,13 @@ TransactionQuotedStringValue <- str:QuotedStringNoOp {
     return filterStrExpr, nil
 }
 
-TransactionQuotedStringClausesExpr <- L_PAREN cl:StringClauseListAnd R_PAREN {
+TransactionSearch <- expr:ClauseLevel1 {
 
-    filterStrExpr := &structs.FilterStringExpr{
-        StringClauses: cl.([][]string),
+	filterStrExpr := &structs.FilterStringExpr{
+       SearchNode: expr.(*ast.Node),
     }
 
     return filterStrExpr, nil
-}
-
-StringClauseListAnd <- first:StringClauseListOr rest:(AND StringClauseListOr)* {
-    var orClauses [][]string
-
-    orClauses = append(orClauses, first.([]string))
-    for _, r := range rest.([]any) {
-        orClauses = append(orClauses, r.([]any)[1].([]string))
-    }
-
-    return orClauses, nil
-}
-
-StringClauseListOr <- first:QuotedString rest:(OR QuotedString)* {
-    var strs []string
-
-    strs = append(strs, removeQuotes(first.(string)))
-    for _, r := range rest.([]any) {
-        // Extracting the string from the tuple (OR, QuotedString)
-        strs = append(strs, removeQuotes(r.([]any)[1].(string)))
-    }
-
-    return strs, nil
-}
-
-TransactionSearch <- expr:SearchTerm {
-    astNode := expr.(*ast.Node)
-
-	simpleSearchExpr, err := resolveTerminalAstNodeToSimpleSearch(astNode)
-	if err != nil {
-		return nil, fmt.Errorf("Spl peg: TransactionSearch: %v", err)
-	}
-
-	filterStrExpr := &structs.FilterStringExpr{
-		SearchTerm: simpleSearchExpr,
-	}
-	return filterStrExpr, nil
 }
 
 // eval(<bool-expression>)

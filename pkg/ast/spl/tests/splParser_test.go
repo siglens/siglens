@@ -18,6 +18,7 @@ package tests
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -4874,7 +4875,7 @@ func Test_TransactionRequestWithStartsAndEndsWith(t *testing.T) {
 
 func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 	// CASE 1: Fields + StartsWith is Eval + EndsWith is TransactionQueryString With only OR
-	query1 := []byte(`A=1 | transaction A B C startswith=eval(duration > 10) endswith=("foo" OR "bar")`)
+	query1 := []byte(`A=1 | transaction A B C startswith=eval(duration > 10) endswith=("foo" OR "bar2")`)
 	query1Res := &structs.TransactionArguments{
 		Fields: []string{"A", "B", "C"},
 		StartsWith: &structs.FilterStringExpr{
@@ -4900,29 +4901,122 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 			},
 		},
 		EndsWith: &structs.FilterStringExpr{
-			StringClauses: [][]string{{"foo", "bar"}},
+			SearchNode: &structs.ASTNode{
+				OrFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("foo"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("foo"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("bar2"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("bar2"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
 	// CASE 2: Fields + StartsWith is searchTerm (String) + EndsWith is TransactionQueryString With OR & AND
-	query2 := []byte(`A=1 | transaction A B C startswith=status="Ok" endswith=("foo" OR "foo1" AND "bar")`)
+	query2 := []byte(`A=1 | transaction A B C startswith=status="ok" endswith=("foo" OR "foo1" AND "bar")`)
 	query2Res := &structs.TransactionArguments{
 		Fields: []string{"A", "B", "C"},
 		StartsWith: &structs.FilterStringExpr{
-			SearchTerm: &structs.SimpleSearchExpr{
-				Op:           "=",
-				Field:        "status",
-				Values:       "Ok",
-				ValueIsRegex: false,
-				ExprType:     utils.SS_DT_STRING,
-				DtypeEnclosure: &utils.DtypeEnclosure{
-					Dtype:     utils.SS_DT_STRING,
-					StringVal: "Ok",
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "status",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.Equals,
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:     utils.SS_DT_STRING,
+												StringVal: "ok",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 		EndsWith: &structs.FilterStringExpr{
-			StringClauses: [][]string{{"foo", "foo1"}, {"bar"}},
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							MatchFilter: &structs.MatchFilter{
+								MatchColumn: "*",
+								MatchWords: [][]byte{
+									[]byte("bar"),
+								},
+								MatchOperator: utils.And,
+								MatchPhrase:   []byte("bar"),
+								MatchType:     structs.MATCH_PHRASE,
+							},
+						},
+					},
+					NestedNodes: []*structs.ASTNode{
+						{
+							OrFilterCondition: &structs.Condition{
+								FilterCriteria: []*structs.FilterCriteria{
+									{
+										MatchFilter: &structs.MatchFilter{
+											MatchColumn: "*",
+											MatchWords: [][]byte{
+												[]byte("foo"),
+											},
+											MatchOperator: utils.And,
+											MatchPhrase:   []byte("foo"),
+											MatchType:     structs.MATCH_PHRASE,
+										},
+									},
+									{
+										MatchFilter: &structs.MatchFilter{
+											MatchColumn: "*",
+											MatchWords: [][]byte{
+												[]byte("foo1"),
+											},
+											MatchOperator: utils.And,
+											MatchPhrase:   []byte("foo1"),
+											MatchType:     structs.MATCH_PHRASE,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -4931,18 +5025,38 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 	query3Res := &structs.TransactionArguments{
 		Fields: []string{"A", "B", "C"},
 		StartsWith: &structs.FilterStringExpr{
-			SearchTerm: &structs.SimpleSearchExpr{
-				Op:           ">",
-				Field:        "duration",
-				Values:       json.Number("10"),
-				ValueIsRegex: false,
-				ExprType:     utils.SS_DT_SIGNED_NUM,
-				DtypeEnclosure: &utils.DtypeEnclosure{
-					Dtype:       utils.SS_DT_UNSIGNED_NUM,
-					UnsignedVal: uint64(10),
-					SignedVal:   int64(10),
-					FloatVal:    float64(10),
-					StringVal:   "10",
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "duration",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.GreaterThan,
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+												UnsignedVal: uint64(10),
+												SignedVal:   int64(10),
+												FloatVal:    float64(10),
+												StringVal:   "10",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -4975,15 +5089,35 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 	query4Res := &structs.TransactionArguments{
 		Fields: []string{"A", "B", "C"},
 		StartsWith: &structs.FilterStringExpr{
-			SearchTerm: &structs.SimpleSearchExpr{
-				Op:           "=",
-				Field:        "status",
-				Values:       "Ok",
-				ValueIsRegex: false,
-				ExprType:     utils.SS_DT_STRING,
-				DtypeEnclosure: &utils.DtypeEnclosure{
-					Dtype:     utils.SS_DT_STRING,
-					StringVal: "Ok",
+			SearchNode: &structs.ASTNode{
+				AndFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "status",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.Equals,
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:     utils.SS_DT_STRING,
+												StringVal: "Ok",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -5199,22 +5333,70 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 	}
 
 	// CASE 6: Fileds + StartWith is Search Term (With Number) + endsWith is String Search Expression
-	query7 := []byte(`A=1 | transaction A B C startswith=status>300 endswith="status=foo OR status=bar AND action=login"`)
+	query7 := []byte(`A=1 | transaction A B C startswith=(status>300 OR status=201) endswith="status=foo OR status=bar AND action=login"`)
 	query7Res := &structs.TransactionArguments{
 		Fields: []string{"A", "B", "C"},
 		StartsWith: &structs.FilterStringExpr{
-			SearchTerm: &structs.SimpleSearchExpr{
-				Op:           ">",
-				Field:        "status",
-				Values:       json.Number("300"),
-				ValueIsRegex: false,
-				ExprType:     utils.SS_DT_SIGNED_NUM,
-				DtypeEnclosure: &utils.DtypeEnclosure{
-					Dtype:       utils.SS_DT_UNSIGNED_NUM,
-					UnsignedVal: uint64(300),
-					SignedVal:   int64(300),
-					FloatVal:    float64(300),
-					StringVal:   "300",
+			SearchNode: &structs.ASTNode{
+				OrFilterCondition: &structs.Condition{
+					FilterCriteria: []*structs.FilterCriteria{
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "status",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.GreaterThan,
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+												UnsignedVal: uint64(300),
+												SignedVal:   int64(300),
+												FloatVal:    float64(300),
+												StringVal:   "300",
+											},
+										},
+									},
+								},
+							},
+						},
+						{
+							ExpressionFilter: &structs.ExpressionFilter{
+								LeftInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: nil,
+											ColumnName:  "status",
+										},
+										ExpressionOp: utils.Add,
+										RightInput:   nil,
+									},
+								},
+								FilterOperator: utils.Equals,
+								RightInput: &structs.FilterInput{
+									Expression: &structs.Expression{
+										LeftInput: &structs.ExpressionInput{
+											ColumnValue: &utils.DtypeEnclosure{
+												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+												UnsignedVal: uint64(201),
+												SignedVal:   int64(201),
+												FloatVal:    float64(201),
+												StringVal:   "201",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -5326,6 +5508,8 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 
 	for ind, query := range queries {
 		res, err := spl.Parse("", query)
+		fmt.Println("res", res)
+		fmt.Println("err", err)
 		assert.Nil(t, err)
 		filterNode := res.(ast.QueryStruct).SearchFilter
 		assert.NotNil(t, filterNode)
