@@ -116,6 +116,7 @@ type QueryAggregators struct {
 	PipeCommandType   PipeCommandType
 	OutputTransforms  *OutputTransforms
 	MeasureOperations []*MeasureAggregator
+	MathOperations    []*MathEvaluator
 	TimeHistogram     *TimeBucket     // Request for time histograms
 	GroupByRequest    *GroupByRequest // groupby aggregation request
 	Sort              *SortRequest    // how to sort resulting data
@@ -163,6 +164,13 @@ type MeasureAggregator struct {
 	MeasureFunc     utils.AggregateFunctions `json:"measureFunc,omitempty"`
 	StrEnc          string                   `json:"strEnc,omitempty"`
 	ValueColRequest *ValueExpr               `json:"valueColRequest,omitempty"`
+}
+
+type MathEvaluator struct {
+	MathCol         string              `json:"mathCol,omitempty"`
+	MathFunc        utils.MathFunctions `json:"mathFunc,omitempty"`
+	StrEnc          string              `json:"strEnc,omitempty"`
+	ValueColRequest *ValueExpr          `json:"valueCol,omitempty"`
 }
 
 type ColumnsRequest struct {
