@@ -95,6 +95,7 @@ const (
 	OutputTransformType PipeCommandType = iota + 1
 	MeasureAggsType
 	GroupByType
+	TransactionType
 )
 
 type QueryType uint8
@@ -112,20 +113,40 @@ type SortRequest struct {
 	Ascending bool   // if true, result is in ascending order. Else, result is in descending order
 }
 
+type FilterStringExpr struct {
+	StringValue  string
+	EvalBoolExpr *BoolExpr
+	SearchNode   interface{} // type: *ast.Node while parsing, later evaluated to ASTNode
+}
+
+type TransactionArguments struct {
+	Fields     []string
+	StartsWith *FilterStringExpr
+	EndsWith   *FilterStringExpr
+}
+
+type TransactionGroupState struct {
+	Key       string
+	Open      bool
+	RecInden  string
+	Timestamp uint64
+}
+
 type QueryAggregators struct {
-	PipeCommandType   PipeCommandType
-	OutputTransforms  *OutputTransforms
-	MeasureOperations []*MeasureAggregator
-	MathOperations    []*MathEvaluator
-	TimeHistogram     *TimeBucket     // Request for time histograms
-	GroupByRequest    *GroupByRequest // groupby aggregation request
-	Sort              *SortRequest    // how to sort resulting data
-	EarlyExit         bool            // should query early exit
-	BucketLimit       int
-	ShowRequest       *ShowRequest
-	TableName         string
-	Next              *QueryAggregators
-	Limit             int
+	PipeCommandType      PipeCommandType
+	OutputTransforms     *OutputTransforms
+	MeasureOperations    []*MeasureAggregator
+	MathOperations       []*MathEvaluator
+	TimeHistogram        *TimeBucket     // Request for time histograms
+	GroupByRequest       *GroupByRequest // groupby aggregation request
+	Sort                 *SortRequest    // how to sort resulting data
+	EarlyExit            bool            // should query early exit
+	BucketLimit          int
+	ShowRequest          *ShowRequest
+	TableName            string
+	TransactionArguments *TransactionArguments
+	Next                 *QueryAggregators
+	Limit                int
 }
 
 type ShowRequest struct {
@@ -457,6 +478,20 @@ func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
 	}
 	if qa.Next != nil {
 		return qa.Next.HasQueryAggergatorBlockInChain()
+	}
+	return false
+}
+
+func (qa *QueryAggregators) HasTransactionArguments() bool {
+	return qa != nil && qa.TransactionArguments != nil
+}
+
+func (qa *QueryAggregators) HasTransactionArgumentsInChain() bool {
+	if qa.HasTransactionArguments() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasTransactionArgumentsInChain()
 	}
 	return false
 }

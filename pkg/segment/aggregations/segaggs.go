@@ -22,7 +22,9 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -80,7 +82,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 
 	// For the query without groupby, skip the first aggregator without a QueryAggergatorBlock
 	// For the query that has a groupby, groupby block's aggregation is in the post.Next. Therefore, we should start from the groupby's aggregation.
-	if !post.HasQueryAggergatorBlock() {
+	if !post.HasQueryAggergatorBlock() && post.TransactionArguments == nil {
 		post = post.Next
 	}
 
@@ -127,6 +129,8 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 				return fmt.Errorf("performAggOnResult: %v", err)
 			}
 		}
+	case structs.TransactionType:
+		performTransactionCommandRequest(nodeResult, agg, recs, finalCols)
 	default:
 		return errors.New("performAggOnResult: multiple QueryAggregators is currently only supported for OutputTransformType")
 	}
@@ -1287,4 +1291,513 @@ func getAggregationResultFieldValues(fieldToValue map[string]segutils.CValueEncl
 	}
 
 	return nil
+}
+
+func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool) {
+
+	if recs != nil {
+		records, cols, err := processTransactionsOnRecords(recs, nil, aggs.TransactionArguments)
+		if err != nil {
+			log.Errorf("performTransactionCommandRequest: %v", err)
+			return
+		}
+
+		for k := range recs {
+			delete(recs, k)
+		}
+
+		for i, record := range records {
+			recs[i] = record
+		}
+
+		for k := range finalCols {
+			delete(finalCols, k)
+		}
+
+		for _, col := range cols {
+			finalCols[col] = true
+		}
+	}
+
+}
+
+// Evaluate a boolean expression
+func evaluateBoolExpr(boolExpr *structs.BoolExpr, record map[string]interface{}) bool {
+	// Terminal condition
+	if boolExpr.IsTerminal {
+		return evaluateSimpleCondition(boolExpr, record)
+	}
+
+	// Recursive evaluation
+	leftResult := evaluateBoolExpr(boolExpr.LeftBool, record)
+	rightResult := evaluateBoolExpr(boolExpr.RightBool, record)
+
+	// Combine results based on the boolean operation
+	switch boolExpr.BoolOp {
+	case structs.BoolOpAnd:
+		return leftResult && rightResult
+	case structs.BoolOpOr:
+		return leftResult || rightResult
+	default:
+		// Handle other cases or throw an error
+		return false
+	}
+}
+
+// Evaluate a simple condition (terminal node)
+func evaluateSimpleCondition(term *structs.BoolExpr, record map[string]interface{}) bool {
+	leftVal, err := getValuesFromValueExpr(term.LeftValue, record)
+	if err != nil {
+		return false
+	}
+
+	rightVal, err := getValuesFromValueExpr(term.RightValue, record)
+	if err != nil {
+		return false
+	}
+
+	// If the left or right value is nil, return false
+	if leftVal == nil || rightVal == nil {
+		return false
+	}
+
+	return conditionMatch(leftVal, term.ValueOp, rightVal)
+}
+
+func getValuesFromValueExpr(valueExpr *structs.ValueExpr, record map[string]interface{}) (interface{}, error) {
+	if valueExpr == nil {
+		return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr is nil")
+	}
+
+	switch valueExpr.ValueExprMode {
+	case structs.VEMNumericExpr:
+		if valueExpr.NumericExpr == nil {
+			return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr.NumericExpr is nil")
+		}
+		if valueExpr.NumericExpr.ValueIsField {
+			fieldValue, exists := record[valueExpr.NumericExpr.Value]
+			if !exists {
+				return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr.NumericExpr.Value does not exist in record")
+			}
+			floatFieldVal, err := dtypeutils.ConvertToFloat(fieldValue, 64)
+			if err != nil {
+				return fieldValue, nil
+			}
+			return floatFieldVal, nil
+		} else {
+			floatVal, err := dtypeutils.ConvertToFloat(valueExpr.NumericExpr.Value, 64)
+			return floatVal, err
+		}
+	case structs.VEMStringExpr:
+		if valueExpr.StringExpr == nil {
+			return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr.StringExpr is nil")
+		}
+		switch valueExpr.StringExpr.StringExprMode {
+		case structs.SEMRawString:
+			return valueExpr.StringExpr.RawString, nil
+		case structs.SEMField:
+			fieldValue, exists := record[valueExpr.StringExpr.FieldName]
+			if !exists {
+				return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr.StringExpr.Field does not exist in record")
+			}
+			return fieldValue, nil
+		default:
+			return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr.StringExpr.StringExprMode is invalid")
+		}
+	default:
+		return nil, fmt.Errorf("getValuesFromValueExpr: valueExpr.ValueExprMode is invalid")
+	}
+}
+
+func conditionMatch(fieldValue interface{}, Op string, searchValue interface{}) bool {
+	switch Op {
+	case "=", "eq":
+		return fieldValue == searchValue
+	case "!=", "neq":
+		return fieldValue != searchValue
+	default:
+		fieldValFloat, err := dtypeutils.ConvertToFloat(fieldValue, 64)
+		if err != nil {
+			return false
+		}
+		searchValFloat, err := dtypeutils.ConvertToFloat(searchValue, 64)
+		if err != nil {
+			return false
+		}
+		switch Op {
+		case ">", "gt":
+			return fieldValFloat > searchValFloat
+		case ">=", "gte":
+			return fieldValFloat >= searchValFloat
+		case "<", "lt":
+			return fieldValFloat < searchValFloat
+		case "<=", "lte":
+			return fieldValFloat <= searchValFloat
+		default:
+			return false
+		}
+	}
+}
+
+func evaluateASTNode(node *structs.ASTNode, record map[string]interface{}, recordMapStr string) bool {
+	if node.AndFilterCondition != nil && !evaluateCondition(node.AndFilterCondition, record, recordMapStr, segutils.And) {
+		return false
+	}
+
+	if node.OrFilterCondition != nil && !evaluateCondition(node.OrFilterCondition, record, recordMapStr, segutils.Or) {
+		return false
+	}
+
+	// If the node has an exclusion filter, and the exclusion filter matches, return false.
+	if node.ExclusionFilterCondition != nil && evaluateCondition(node.ExclusionFilterCondition, record, recordMapStr, segutils.Exclusion) {
+		return false
+	}
+
+	return true
+}
+
+func evaluateCondition(condition *structs.Condition, record map[string]interface{}, recordMapStr string, logicalOp segutils.LogicalOperator) bool {
+	for _, nestedNode := range condition.NestedNodes {
+		if !evaluateASTNode(nestedNode, record, recordMapStr) {
+			return false
+		}
+	}
+
+	for _, criteria := range condition.FilterCriteria {
+		validMatch := false
+		if criteria.MatchFilter != nil {
+			validMatch = evaluateMatchFilter(criteria.MatchFilter, record, recordMapStr)
+		} else if criteria.ExpressionFilter != nil {
+			validMatch = evaluateExpressionFilter(criteria.ExpressionFilter, record, recordMapStr)
+		}
+
+		// If the logical operator is Or and at least one of the criteria matches, return true.
+		if logicalOp == segutils.Or && validMatch {
+			return true
+		} else if logicalOp == segutils.And && !validMatch { // If the logical operator is And and at least one of the criteria does not match, return false.
+			return false
+		}
+	}
+
+	return logicalOp == segutils.And
+}
+
+func evaluateMatchFilter(matchFilter *structs.MatchFilter, record map[string]interface{}, recordMapStr string) bool {
+	var fieldValue interface{}
+	var exists bool
+
+	if matchFilter.MatchColumn == "*" {
+		fieldValue = recordMapStr
+	} else {
+		fieldValue, exists = record[matchFilter.MatchColumn]
+		if !exists {
+			return false
+		}
+	}
+
+	dVal, err := segutils.CreateDtypeEnclosure(fieldValue, 0)
+	if err != nil {
+		return false
+	}
+
+	switch matchFilter.MatchType {
+	case structs.MATCH_WORDS:
+		return evaluateMatchWords(matchFilter, dVal.StringVal)
+	case structs.MATCH_PHRASE:
+		return evaluateMatchPhrase(string(matchFilter.MatchPhrase), dVal.StringVal)
+	default:
+		return false
+	}
+}
+
+func evaluateMatchWords(matchFilter *structs.MatchFilter, fieldValueStr string) bool {
+	for _, word := range matchFilter.MatchWords {
+		if evaluateMatchPhrase(string(word), fieldValueStr) {
+			if matchFilter.MatchOperator == segutils.Or {
+				return true
+			}
+		} else if matchFilter.MatchOperator == segutils.And {
+			return false
+		}
+	}
+
+	return matchFilter.MatchOperator == segutils.And
+}
+
+func evaluateMatchPhrase(matchPhrase string, fieldValueStr string) bool {
+	// Create a regular expression to match the whole word, using \b for word boundaries
+	pattern := `\b` + regexp.QuoteMeta(string(matchPhrase)) + `\b`
+	r, err := regexp.Compile(pattern)
+	if err != nil {
+		return false
+	}
+
+	// Use the regular expression to find a match
+	return r.MatchString(fieldValueStr)
+}
+
+func evaluateExpressionFilter(expressionFilter *structs.ExpressionFilter, record map[string]interface{}, recordMapStr string) bool {
+	leftValue, errL := evaluateFilterInput(expressionFilter.LeftInput, record, recordMapStr)
+	if errL != nil {
+		return false
+	}
+	rightValue, errR := evaluateFilterInput(expressionFilter.RightInput, record, recordMapStr)
+	if errR != nil {
+		return false
+	}
+
+	return conditionMatch(leftValue, expressionFilter.FilterOperator.ToString(), rightValue)
+}
+
+func evaluateFilterInput(filterInput *structs.FilterInput, record map[string]interface{}, recordMapStr string) (interface{}, error) {
+	if filterInput.SubTree != nil {
+		return evaluateASTNode(filterInput.SubTree, record, recordMapStr), nil
+	} else if filterInput.Expression != nil {
+		return evaluateExpression(filterInput.Expression, record)
+	}
+
+	return nil, fmt.Errorf("evaluateFilterInput: filterInput is invalid")
+}
+
+func evaluateExpression(expr *structs.Expression, record map[string]interface{}) (interface{}, error) {
+	var leftValue, rightValue, err interface{}
+
+	if expr.LeftInput != nil {
+		leftValue, err = getInputValueFromExpression(expr.LeftInput, record)
+		if err != nil {
+			return nil, err.(error)
+		}
+	}
+
+	if expr.RightInput != nil {
+		rightValue, err = getInputValueFromExpression(expr.RightInput, record)
+		if err != nil {
+			return nil, err.(error)
+		}
+	}
+
+	if leftValue != nil && rightValue != nil {
+		return performArithmeticOperation(leftValue, rightValue, expr.ExpressionOp)
+	}
+
+	return leftValue, nil
+}
+
+func performArithmeticOperation(leftValue interface{}, rightValue interface{}, Op segutils.ArithmeticOperator) (interface{}, error) {
+	switch Op {
+	case segutils.Add:
+		// Handle the case where both operands are strings
+		if lv, ok := leftValue.(string); ok {
+			if rv, ok := rightValue.(string); ok {
+				return lv + rv, nil
+			}
+			return nil, fmt.Errorf("rightValue is not a string")
+		}
+		// Continue to handle the case where both operands are numbers
+		fallthrough
+	case segutils.Subtract, segutils.Multiply, segutils.Divide, segutils.Modulo, segutils.BitwiseAnd, segutils.BitwiseOr, segutils.BitwiseExclusiveOr:
+		lv, errL := dtypeutils.ConvertToFloat(leftValue, 64)
+		rv, errR := dtypeutils.ConvertToFloat(rightValue, 64)
+		if errL != nil || errR != nil {
+			return nil, fmt.Errorf("performArithmeticOperation: leftValue or rightValue is not a number")
+		}
+		switch Op {
+		case segutils.Add:
+			return lv + rv, nil
+		case segutils.Subtract:
+			return lv - rv, nil
+		case segutils.Multiply:
+			return lv * rv, nil
+		case segutils.Divide:
+			if rv == 0 {
+				return nil, fmt.Errorf("performArithmeticOperation: cannot divide by zero")
+			}
+			return lv / rv, nil
+		case segutils.Modulo:
+			return int64(lv) % int64(rv), nil
+		case segutils.BitwiseAnd:
+			return int64(lv) & int64(rv), nil
+		case segutils.BitwiseOr:
+			return int64(lv) | int64(rv), nil
+		case segutils.BitwiseExclusiveOr:
+			return int64(lv) ^ int64(rv), nil
+		default:
+			return nil, fmt.Errorf("performArithmeticOperation: invalid arithmetic operator")
+		}
+	default:
+		return nil, fmt.Errorf("performArithmeticOperation: invalid arithmetic operator")
+	}
+}
+
+func getInputValueFromExpression(expr *structs.ExpressionInput, record map[string]interface{}) (interface{}, error) {
+	if expr.ColumnName != "" {
+		value, exists := record[expr.ColumnName]
+		if !exists {
+			return nil, fmt.Errorf("getInputValueFromExpression: expr.ColumnName does not exist in record")
+		}
+		dval, err := segutils.CreateDtypeEnclosure(value, 0)
+		if err != nil {
+			return value, nil
+		} else {
+			value, _ = dval.GetValue()
+		}
+		return value, nil
+	} else if expr.ColumnValue != nil {
+		return expr.ColumnValue.GetValue()
+	}
+
+	return nil, fmt.Errorf("getInputValueFromExpression: expr is invalid")
+}
+
+func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterStringExpr, recordMapStr string, record map[string]interface{}) bool {
+	if with.StringValue != "" {
+		return strings.Contains(recordMapStr, with.StringValue)
+	} else if with.EvalBoolExpr != nil {
+		return evaluateBoolExpr(with.EvalBoolExpr, record)
+	} else if with.SearchNode != nil {
+		return evaluateASTNode(with.SearchNode.(*structs.ASTNode), record, recordMapStr)
+	}
+
+	return false
+}
+
+// Splunk Transaction command based on the TransactionArguments on the JSON records. map[string]map[string]interface{}
+func processTransactionsOnRecords(records map[string]map[string]interface{}, allCols []string, transactionArgs *structs.TransactionArguments) (map[string]map[string]interface{}, []string, error) {
+
+	if transactionArgs == nil {
+		return records, allCols, nil
+	}
+
+	transactionFields := transactionArgs.Fields
+
+	if transactionFields == nil || (transactionFields != nil && len(transactionFields) == 0) {
+		transactionFields = make([]string, 0)
+		transactionFields = append(transactionFields, "timestamp")
+	}
+
+	transactionStartsWith := transactionArgs.StartsWith
+	transactionEndsWith := transactionArgs.EndsWith
+
+	groupRecords := make(map[string][]map[string]interface{})
+
+	groupedRecords := make(map[string]map[string]interface{}, 0)
+
+	groupState := make(map[string]structs.TransactionGroupState)
+
+	appendGroupedRecords := func(currentState structs.TransactionGroupState, transactionKey string) {
+
+		records, exists := groupRecords[transactionKey]
+
+		if !exists || len(records) == 0 {
+			return
+		}
+
+		groupedRecord := make(map[string]interface{})
+		groupedRecord["timestamp"] = currentState.Timestamp
+		groupedRecord["event"] = records
+		lastRecord := records[len(groupRecords[transactionKey])-1]
+		groupedRecord["duration"] = uint64(lastRecord["timestamp"].(uint64)) - currentState.Timestamp
+		groupedRecord["eventcount"] = len(records)
+		groupedRecords[currentState.RecInden] = groupedRecord
+	}
+
+	for recInden, record := range records {
+
+		recordMapStr := fmt.Sprintf("%v", record)
+
+		// Generate the transaction key from the record.
+		transactionKey := ""
+		for _, field := range transactionFields {
+			if record[field] != nil {
+				transactionKey += "_" + fmt.Sprintf("%v", record[field])
+			}
+		}
+
+		// If the transaction key is empty, then skip this record.
+		if transactionKey == "" {
+			continue
+		}
+
+		// Initialize the group state for new transaction keys
+		if _, exists := groupState[transactionKey]; !exists {
+			groupState[transactionKey] = structs.TransactionGroupState{
+				Key:       transactionKey,
+				Open:      false,
+				RecInden:  recInden,
+				Timestamp: 0,
+			}
+		}
+
+		currentState := groupState[transactionKey]
+
+		// If StartsWith is given, then the transaction Should only Open when the record matches the StartsWith. OR
+		// if StartsWith not present, then the transaction should open for all records.
+		if !currentState.Open {
+			openState := false
+
+			if transactionStartsWith != nil {
+				openState = isTransactionMatchedWithTheFliterStringCondition(transactionStartsWith, recordMapStr, record)
+			} else {
+				openState = true
+			}
+
+			if openState {
+				currentState.Open = true
+				currentState.Timestamp = uint64(record["timestamp"].(uint64))
+
+				groupState[transactionKey] = currentState
+				groupRecords[transactionKey] = make([]map[string]interface{}, 0)
+			}
+
+		} else if currentState.Open && transactionEndsWith == nil && transactionStartsWith != nil {
+			// If StartsWith is given, but endsWith is not given, then the startswith will be the end of the transaction.
+			// So close with last record and open a new transaction.
+
+			closeAndOpenState := isTransactionMatchedWithTheFliterStringCondition(transactionStartsWith, recordMapStr, record)
+
+			if closeAndOpenState {
+				appendGroupedRecords(currentState, transactionKey)
+
+				currentState.Timestamp = uint64(record["timestamp"].(uint64))
+
+				groupState[transactionKey] = currentState
+				groupRecords[transactionKey] = make([]map[string]interface{}, 0)
+			}
+
+		}
+
+		// If the transaction is open, then append the record to the group.
+		if currentState.Open {
+			groupRecords[transactionKey] = append(groupRecords[transactionKey], record)
+		}
+
+		if transactionEndsWith != nil {
+			if currentState.Open {
+				closeState := isTransactionMatchedWithTheFliterStringCondition(transactionEndsWith, recordMapStr, record)
+
+				if closeState {
+					appendGroupedRecords(currentState, transactionKey)
+
+					currentState.Open = false
+					currentState.Timestamp = 0
+					groupState[transactionKey] = currentState
+				}
+			}
+		}
+	}
+
+	// Only group By fields. In this case, the groupRecords will not be appended to the groupedRecords. So we need to append them here.
+	if transactionStartsWith == nil && transactionEndsWith == nil {
+		for key := range groupRecords {
+			appendGroupedRecords(groupState[key], key)
+		}
+	}
+
+	allCols = make([]string, 0)
+	allCols = append(allCols, "timestamp")
+	allCols = append(allCols, "duration")
+	allCols = append(allCols, "eventcount")
+	allCols = append(allCols, "event")
+
+	return groupedRecords, allCols, nil
 }

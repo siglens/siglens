@@ -141,6 +141,11 @@ type singleAggTemp struct {
     aggregators []*aggregator
     SplitByClause *structs.SplitByClause
 }
+
+type TxnArgs struct {
+    argOption string
+    arguments *structs.TransactionArguments
+}
 }
 
 Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
@@ -227,7 +232,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -2048,8 +2053,161 @@ Subseconds <- ("us" / "ms" / "cs" / "ds") {
     return timeUnit, nil
 }
 
+// Returns *structs.QueryAggregators
+TransactionBlock <- PIPE CMD_TRANSACTION txnOptions:TransactionOptions {
+    queryAgg := &structs.QueryAggregators{
+        PipeCommandType: structs.TransactionType,
+        TransactionArguments: txnOptions.(*structs.TransactionArguments),
+    }
+    return queryAgg, nil
+}
+
+// The TransactionDefinitionOptionsList will consist of all the Transaction Options
+TransactionOptions <- txnOptions:TransactionDefinitionOptionsList?  {
+
+    transactionRequest := &structs.TransactionArguments{}
+     
+    if txnOptions != nil {
+        txnArgs := txnOptions.(*TxnArgs).arguments
+        transactionRequest.Fields = txnArgs.Fields
+        transactionRequest.StartsWith = txnArgs.StartsWith
+        transactionRequest.EndsWith = txnArgs.EndsWith
+    }
+
+    return transactionRequest, nil
+}
+
+
+TransactionDefinitionOptionsList <- first:TransactionDefinitionOption rest:(SPACE TransactionDefinitionOption)* {
+
+    restSlice := rest.([]any)
+    txnArgs := &TxnArgs{
+        argOption: "txn-definition",
+        arguments: &structs.TransactionArguments{},
+    }
+
+    numArgs := 1 + len(restSlice)
+
+    for i := 0; i < numArgs; i++ {
+        var txnArg *TxnArgs
+        if i == 0 {
+            txnArg = first.(*TxnArgs)
+        } else {
+            separatorAndArg := restSlice[i - 1].([]any)
+            txnArg = separatorAndArg[1].(*TxnArgs)
+        }
+        argOption := txnArg.argOption
+
+        switch argOption {
+            case "fields":
+                txnArgs.arguments.Fields = txnArg.arguments.Fields
+            case "startswith": 
+                txnArgs.arguments.StartsWith = txnArg.arguments.StartsWith
+            case "endswith":
+                txnArgs.arguments.EndsWith = txnArg.arguments.EndsWith
+            default: 
+                return nil, fmt.Errorf("Not a Valid Transaction Argument option")
+        }
+    }
+
+    return txnArgs, nil
+}
+
+TransactionDefinitionOption <- option:(SpaceSeparatedFieldNameList / StartsWithOption / EndsWithOption) {
+    return option, nil
+}
+
+// Parses one or more FieldNames separate by a space
+// Returns a slice containing all the FieldNames
+SpaceSeparatedFieldNameList <- first:FieldName !(EQUAL) rest:(SPACE FieldName !(EQUAL))* {
+    var fields []string
+    fields = append(fields, first.(string))
+    for _, r := range rest.([]any) {
+        // Extracting the field name from the tuple (SPACE, FieldName)
+        fields = append(fields, r.([]any)[1].(string))
+    }
+
+    txnArg := &TxnArgs{
+        argOption: "fields",
+        arguments: &structs.TransactionArguments{
+            Fields: fields,
+        },
+    }
+
+    return txnArg, nil
+}
+
+StartsWithOption <- "startswith" EQUAL strExpr:TransactionFilterString {
+    txnArg := &TxnArgs{
+        argOption: "startswith",
+        arguments: &structs.TransactionArguments{
+            StartsWith: strExpr.(*structs.FilterStringExpr),
+        }, 
+    }
+    return txnArg, nil
+}
+
+EndsWithOption <- "endswith" EQUAL strExpr:TransactionFilterString {
+    txnArg := &TxnArgs{
+        argOption: "endswith",
+        arguments: &structs.TransactionArguments{
+            EndsWith: strExpr.(*structs.FilterStringExpr),
+        },
+    }
+    return txnArg, nil
+}
+
+// Returns structs.FilterStringExpr
+TransactionFilterString <- strExpr:(TransactionQuotedString / TransactionEval / TransactionSearch) {
+    return strExpr, nil
+}
+
+TransactionQuotedString <- str:(TransactionQuotedStringValue / TransactionQuotedStringSearchExpr) {
+    return str, nil
+}
+
+TransactionQuotedStringSearchExpr <- '"' searchClause:ClauseLevel4 '"' {
+    filterStrExpr := &structs.FilterStringExpr{
+       SearchNode: searchClause.(*ast.Node),
+    }
+
+    return filterStrExpr, nil
+}
+
+QuotedStringNoOp <- '"' [^" !(OR / AND)]*  '"' {
+    // The returned string has quotes as the first and last character.
+    return string(c.text), nil
+}
+
+TransactionQuotedStringValue <- str:QuotedStringNoOp {
+    filterStrExpr := &structs.FilterStringExpr{
+       StringValue: removeQuotes(str.(string)),
+    }
+
+    return filterStrExpr, nil
+}
+
+TransactionSearch <- expr:ClauseLevel1 {
+
+	filterStrExpr := &structs.FilterStringExpr{
+       SearchNode: expr.(*ast.Node),
+    }
+
+    return filterStrExpr, nil
+}
+
+// eval(<bool-expression>)
+TransactionEval <- "eval" EMPTY_OR_SPACE L_PAREN condition:BoolExpr R_PAREN {
+    filterStrExpr := &structs.FilterStringExpr{
+        EvalBoolExpr: condition.(*structs.BoolExpr),
+    }
+
+    return filterStrExpr, nil
+}
+
+
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -2064,6 +2222,7 @@ CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
 CMD_TIMECHART <- "timechart" SPACE
 CMD_SPAN <- "span"
+CMD_TRANSACTION <- "transaction" SPACE
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

@@ -473,6 +473,25 @@ func (dte *DtypeEnclosure) IsRegex() bool {
 	}
 }
 
+func (dte *DtypeEnclosure) GetValue() (interface{}, error) {
+	switch dte.Dtype {
+	case SS_DT_STRING:
+		return dte.StringVal, nil
+	case SS_DT_BOOL:
+		return dte.BoolVal, nil
+	case SS_DT_UNSIGNED_NUM:
+		return dte.UnsignedVal, nil
+	case SS_DT_SIGNED_NUM:
+		return dte.SignedVal, nil
+	case SS_DT_FLOAT:
+		return dte.FloatVal, nil
+	case SS_DT_BACKFILL:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("GetValue: unsupported Dtype: %v", dte.Dtype)
+	}
+}
+
 type CValueEnclosure struct {
 	Dtype SS_DTYPE
 	CVal  interface{}
