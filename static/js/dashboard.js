@@ -129,7 +129,7 @@ function updateDashboard() {
     let tempPanels = JSON.parse(JSON.stringify(localPanels));
     for (let i = 0; i < tempPanels.length; i++)
         delete tempPanels[i].queryRes;
-    fetch('/api/dashboards/update',
+    return fetch('/api/dashboards/update',
         {
             method: 'POST',
             body: JSON.stringify({
@@ -153,15 +153,14 @@ function updateDashboard() {
             if (res.status == 200) {
                 displayDashboardName();
                 showToast('Dashboard Updated Successfully');
-                $('#app-container').show();
-                $('.dbSet-container').hide();
-                $('.dbSet-dbName').val("");
-                $('.dbSet-dbDescr').val("");
-                $('.dbSet-jsonModelData').val("");            
+                return true;
             }
             return res.json();
         })
-        .then(data => console.log(data)).catch(error => console.error(error));
+        .catch(error => {
+            console.error(error);
+            return false;
+        });
 }
 
 function refreshDashboardHandler() {
@@ -780,7 +779,7 @@ function showToast(msg) {
     <div>`
     $('body').prepend(toast);
     $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 10000);
+    setTimeout(removeToast, 1000);
 }
 
 function removeToast() {
@@ -1155,7 +1154,13 @@ function saveDbSetting() {
     dbDescr = trimmedDbDescription;
 
 
-    updateDashboard();
+    updateDashboard()
+    .then(updateSuccessful => {
+        if (updateSuccessful) {
+            $('#app-container').show();
+            $('.dbSet-container').hide();
+        }
+    })
 }
 
 $('#error-ok-btn').click(function () {

@@ -205,7 +205,7 @@
 }
 .editPanelMenu-logLinesView .editPanelMenu-options{
   padding: 0px;
-  height: 32px;
+  height: 28px;
 }
 .dropDown-unit,.dropDown-logLinesView{
   display: none;
@@ -284,7 +284,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  height: 35px;
+  height: 30px;
   margin-left: 11px;
 }
 
@@ -1191,6 +1191,8 @@ input:checked + .slider:before {
   cursor: pointer;
   border-radius: 0 5px 5px 0 !important;
   margin-top: -3px;
+  width: 32px;
+  padding: 0;
 }
 
 #refresh-picker-btn:hover {
@@ -1206,7 +1208,7 @@ input:checked + .slider:before {
 .refresh-btn{
   border-radius: 5px 0 0 5px !important;
   background-color: var(--drop-down-btn-bg-regular) !important;
-  width: 40px;
+  width: 32px;
 }
 
 .refresh-picker.show{
@@ -1258,7 +1260,7 @@ input:checked + .slider:before {
 .refresh-btn{
   height: 32px !important;
   background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
-  background-size: 40% !important;
+  background-size: 46% !important;
 }
 .chart-display{
   width: 30px;
@@ -1294,11 +1296,9 @@ input:checked + .slider:before {
   }
 .refresh-btn:hover{
   background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
-  background-size: 40% !important;
   }
 #save-db-btn:hover{
   background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
-  background-size: 40% !important;
 }
 .panel-header:hover{
   background-color: var(--edit-panel-border-color) !important;
@@ -1310,7 +1310,7 @@ input:checked + .slider:before {
   border: 1px solid var(--border-color-regular) !important;
 }
 .dropdown-dash{
-  width: 40px;
+  width: 32px;
 }
 #query-language-btn,
 #date-picker-btn,
@@ -1325,7 +1325,7 @@ input:checked + .slider:before {
 }
 #save-db-btn{
   background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
-  background-size: 40% !important;
+  background-size: 45% !important;
 }
 #add-panel-btn,
 #save-db-btn,
@@ -1387,7 +1387,7 @@ input:checked + .slider:before {
 .index-btn-show{
   width: 100px;
 }
-over-title{
+.over-title{
   display: inline-block;
   white-space: nowrap;
   overflow: hidden;
