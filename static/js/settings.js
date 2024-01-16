@@ -20,4 +20,22 @@ $(document).ready(function () {
         $('body').attr('data-theme', theme);
     }
     $('.theme-btn').on('click', themePickerHandler);
+    getRetentionDataFromConfig();
 })
+
+function getRetentionDataFromConfig() {
+    $.ajax({
+        method: 'get',
+        url: 'api/config',
+        crossDomain: true,
+        dataType: 'json',
+        credentials: 'include'
+    })
+        .then((res) => {
+                let ret_days = res.RetentionHours / 24;
+                $('#retention-days-value').html(`${ret_days} days`);
+        })
+        .catch((err) => {
+            console.log(err)
+        });
+}

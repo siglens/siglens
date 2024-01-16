@@ -1,18 +1,17 @@
 ---
-## Address port for SigScalr ingestion server
+## Address port for SigLens ingestion server
 ingestPort: 8081
 
-## Address port for SigScalr query server, including UI
+## Address port for SigLens query server, including UI
 queryPort: 5122
 
 ## Location for storing local node data
-dataPath : /data1/sigscalr/sigrun/data/
+dataPath : data/
 
 ## field name to use as a timestamp key
 timestampKey : timestamp
 
-# ## Current path for licenseKey
-licenseKeyPath: "./licenseKey.txt"
+pqsEnabled: false
 
 ## Elasticsearch Version for kibana integration
 esVersion: "7.9.3"
@@ -20,16 +19,16 @@ esVersion: "7.9.3"
 ## Number of hours data will be stored/retained on persistent storage.
 retentionHours: 168
 
-## Percent of available RAM that sigscalr will occupy
+## Percent of available RAM that siglens will occupy
 # memoryThresholdPercent: 80
 
 ## For ephemeral servers (docker, k8s) set this variable to unique container name to persist data across restarts:
-#ssInstanceName: ""
+# ssInstanceName: ""
 
 log:
-  logPrefix : ./
+  logPrefix : ./logs/
 
-  ## Maximum size of sigscalr.log file in megabytes
+  ## Maximum size of siglens.log file in megabytes
   # logFileRotationSizeMB: 100
 
   ## Compress log file
