@@ -22,7 +22,6 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -1651,7 +1650,7 @@ func getInputValueFromExpression(expr *structs.ExpressionInput, record map[strin
 
 func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterStringExpr, recordMapStr string, record map[string]interface{}) bool {
 	if with.StringValue != "" {
-		return strings.Contains(recordMapStr, with.StringValue)
+		return evaluateMatchPhrase(with.StringValue, recordMapStr)
 	} else if with.EvalBoolExpr != nil {
 		return evaluateBoolExpr(with.EvalBoolExpr, record)
 	} else if with.SearchNode != nil {
@@ -1786,8 +1785,10 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 		}
 	}
 
-	// Only group By fields. In this case, the groupRecords will not be appended to the groupedRecords. So we need to append them here.
-	if transactionStartsWith == nil && transactionEndsWith == nil {
+	// Transaction EndsWith is not given In this case, most or all of the groupRecords will not be appended to the groupedRecords.
+	// Even if we are appending the groupRecords at StartsWith, not all the groupRecords will be appended to the groupedRecords.
+	// So we need to append them here.
+	if transactionEndsWith == nil {
 		for key := range groupRecords {
 			appendGroupedRecords(groupState[key], key)
 		}
