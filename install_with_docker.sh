@@ -10,7 +10,6 @@ SIGLENS_VERSION=`\
 
 sudo_cmd=""
 
-echo ${FOO}
 # Text color
 RED_TEXT='\e[31m'
 GREEN_TEXT='\e[32m'
