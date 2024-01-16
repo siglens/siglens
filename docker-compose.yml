@@ -8,8 +8,8 @@ services:
     volumes:
       - "${WORK_DIR}/data:/siglens/data"
       - "${WORK_DIR}/logs:/siglens/logs"
-      - "${WORK_DIR}/server.yaml:/siglens/server.yaml"
-    command: ["./siglens", "--config", "server.yaml"]
+      - "${WORK_DIR}/${CONFIG_FILE}:/siglens/${CONFIG_FILE}"
+    command: ["./siglens", "--config", "${CONFIG_FILE}"]
     environment:
       - UI_PORT=${UI_PORT}
       - WORK_DIR=${WORK_DIR}
