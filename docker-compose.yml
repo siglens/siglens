@@ -14,3 +14,12 @@ services:
       - UI_PORT=${UI_PORT}
       - WORK_DIR=${WORK_DIR}
       - SIGLENS_VERSION=${SIGLENS_VERSION}
+
+  hotrod:
+    image: jaegertracing/example-hotrod:1.53
+    ports:
+      - "8080:8080"
+    environment:
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://siglens:8081/otlp/v1/traces
+    depends_on:
+      - siglens
