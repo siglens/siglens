@@ -1,0 +1,43 @@
+name: siglens-docker-develop-build
+
+# TODO: update the below conditions as required
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        push: false
+        load: true
+        tags: siglens-develop:latest
+
+    - name: Run install_with_docker.sh script
+      run: |
+        chmod +x ./install_with_docker.sh
+        ./install_with_docker.sh
+      env:
+        DOCKER_IMAGE_NAME: "siglens-develop:latest"
+        DOCKER_COMPOSE_YAML: "./docker-compose.yml"
+        USE_LOCAL_DOCKER_COMPOSE: true
+        TERM: xterm
+
+    - name: Verify server is running
+      run: |
+        until curl --silent http://localhost:5122 | head -n 30; do
+          echo "Waiting for server to start..."
+          sleep 1
+        done
