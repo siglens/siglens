@@ -37,7 +37,9 @@ jobs:
 
     - name: Verify server is running
       run: |
-        until curl --silent http://localhost:5122 | head -n 30; do
-          echo "Waiting for server to start..."
-          sleep 1
-        done
+        echo "Waiting for server to start..."
+        sleep 5
+        if ! curl --silent http://localhost:5122 | head -n 30; then
+          echo "Server did not start within 5 seconds"
+          exit 1
+        fi
