@@ -90,7 +90,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	allRecords := make([]map[string]interface{}, len(allrrc))
 	finalCols := make(map[string]bool)
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
-	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock {
+	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
+	txnArgsRecords := make([]map[string]interface{}, 0)
+	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock || transactionArgsExist {
 		for currSeg, blkIds := range segmap {
 			recs, cols, err := GetRecordsFromSegment(currSeg, blkIds.VirtualTableName, blkIds.BlkRecIndexes,
 				config.GetTimeStampKey(), esResponse, qid, aggs)
@@ -106,12 +108,12 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				finalCols[key] = true
 			}
 
-			for recInden, record := range recs {
+			if hasQueryAggergatorBlock || transactionArgsExist {
+				nodeRes := &structs.NodeResult{}
+				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
+			}
 
-				if hasQueryAggergatorBlock {
-					nodeRes := &structs.NodeResult{}
-					agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
-				}
+			for recInden, record := range recs {
 
 				for key, val := range renameHardcodedColumns {
 					record[key] = val
@@ -155,7 +157,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				}
 				delete(recordIndexInFinal, recInden)
 				allRecords[idx] = record
-
+				if transactionArgsExist {
+					txnArgsRecords = append(txnArgsRecords, record)
+				}
 			}
 		}
 	} else {
@@ -180,9 +184,18 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		idx++
 	}
 
+	var finalRecords []map[string]interface{}
+
+	if transactionArgsExist {
+		finalRecords = txnArgsRecords
+	} else {
+		finalRecords = allRecords
+	}
+
 	sort.Strings(colsSlice)
-	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(allRecords), time.Since(sTime))
-	return allRecords, colsSlice, nil
+	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
+
+	return finalRecords, colsSlice, nil
 }
 
 func addKeyValuePairs(record map[string]interface{}) map[string]interface{} {
