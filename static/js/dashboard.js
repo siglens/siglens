@@ -450,9 +450,10 @@ async function getDashboardData() {
     if (localPanels != undefined) {
         updateTimeRangeForPanels();
         recalculatePanelWidths();
-        displayPanels();
+        // displayPanels();
         resetPanelLocationsHorizontally();
         setRefreshItemHandler();
+        refreshDashboardHandler();
     }
 }
 
@@ -490,6 +491,7 @@ function updateTimeRangeForPanel(panelIndex) {
 
 
 function displayPanels() {
+    console.log("gsdfgsdfgsdfgfdsgfdg");
     allResultsDisplayed = localPanels.length;
     $('#panel-container .panel').remove();
     let panelContainerMinHeight = 0;
