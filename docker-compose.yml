@@ -23,3 +23,11 @@ services:
       - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://siglens:8081/otlp/v1/traces
     depends_on:
       - siglens
+
+  siglens-metrics-otel-collector:
+    image: otel/opentelemetry-collector:latest  
+    volumes:
+      - ./ssmetrics-otel-collector-config.yaml:/etc/ssmetrics-otel-collector-config.yaml  
+    ports:
+      - "4318:4318"
+    command: ["--config=/etc/ssmetrics-otel-collector-config.yaml"]  
