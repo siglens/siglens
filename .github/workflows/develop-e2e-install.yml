@@ -43,5 +43,6 @@ jobs:
         fi
     - name: Run E2E Test
       run: |
+        sleep 40
         cd tools/sigclient
         go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/ingest.csv
