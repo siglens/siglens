@@ -13,8 +13,7 @@ services:
     environment:
       - UI_PORT=${UI_PORT}
       - WORK_DIR=${WORK_DIR}
-      - SIGLENS_VERSION=${SIGLENS_VERSION}
-
+      - IMAGE_NAME=${IMAGE_NAME}
   hotrod:
     image: jaegertracing/example-hotrod:1.53
     ports:

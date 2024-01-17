@@ -1,4 +1,4 @@
-name: siglens-docker-develop-build
+name: develop-e2e-install-test
 
 # TODO: update the below conditions as required
 on:

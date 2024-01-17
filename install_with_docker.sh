@@ -242,6 +242,7 @@ echo -e "\n----------Pulling the latest docker image for SigLens----------"
 if [ "$USE_LOCAL_DOCKER_COMPOSE" != true ]; then
     curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
     curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
+    echo "Pulling the latest docker image for SigLens from upstream"
     $sudo_cmd docker pull $DOCKER_IMAGE_NAME || {
     post_event "install_failed" "Failed to pull Docker image $DOCKER_IMAGE_NAME"
     print_error_and_exit "Failed to pull $DOCKER_IMAGE_NAME. Please check your internet connection and Docker installation."
@@ -326,11 +327,11 @@ if [ -n "${CONFIG_FILE}" ]; then
 fi
 
 print_success_message "\n Starting Siglens with image: ${DOCKER_IMAGE_NAME}"
-UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} IMAGE_NAME=${DOCKER_IMAGE_NAME} docker-compose -f $DOCKER_COMPOSE_FILE up -d || {
+UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${DOCKER_IMAGE_NAME} docker-compose -f $DOCKER_COMPOSE_FILE up -d || {
     post_event "install_failed" "Failed to start Docker Compose on $os with $DOCKER_COMPOSE_FILE"
     print_error_and_exit "Failed to start Docker Compose"
 }
-UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose logs -t --tail 20 >> dclogs.txt
+UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${DOCKER_IMAGE_NAME} docker-compose logs -t --tail 20 >> dclogs.txt
 sample_log_dataset_status=$(curl -s -o /dev/null -I -X HEAD -w "%{http_code}" http://localhost:5122/elastic/sample-log-dataset)
 
 if [ "$sample_log_dataset_status" -eq 200 ]; then
