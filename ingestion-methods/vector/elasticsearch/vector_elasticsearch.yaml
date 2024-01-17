@@ -1,0 +1,56 @@
+# The directory used for persisting Vector state, such as on-disk buffers, file checkpoints, and more. Please make sure the Vector project has write permissions to this directory.
+data_dir: /var/lib/vector
+
+# Sources Reference
+sources:
+  # The type: "demo_logs" will generate apache_common logs
+  generate_apache_common:
+    type: "demo_logs"
+    format: "apache_common"
+    count: 50
+    interval: 1
+    lines:
+      - line1
+
+  # The type: "demo_logs" will generate syslog logs
+  generate_syslog:
+    type:   "demo_logs"
+    format: "syslog"
+    count:  12
+
+  nginx_metrics:
+    type: "nginx_metrics"
+    # A list of NGINX instances to scrape metrics from.
+    # Each endpoint must be a valid HTTP/HTTPS URI pointing to an NGINX instance that has the ngx_http_stub_status_module module enabled.
+    endpoints:
+      - "http://3.139.99.91/nginx_status"
+    namespace: "nginx"
+    # The interval in seconds to poll each endpoint.
+    scrape_interval_secs: 15
+
+
+# Sinks Reference: Ingest the data from Sources to Siglens Sink
+sinks:
+  siglens:
+    # The request parameters are optional.
+    request:
+      concurrency: "adaptive"
+      rate_limit_duration_secs: 1
+      rate_limit_num: 10
+      retry_attempts: 3
+    type: "elasticsearch"
+    # The inputs sources name to ingest the data. This is a list of sources. You can add multiple sources.
+    inputs:
+      - "nginx_metrics"
+      #- "generate_apache_common"
+      #- "generate_syslog"
+    # The ingestion endpoint of Siglens
+    endpoints:
+      - http://localhost:8081/elastic/
+    id_key: hostname
+    compression: none
+    mode: bulk
+    query:
+      X-Powered-By: Vector
+    healthcheck:
+      enabled: false
