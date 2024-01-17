@@ -1,10 +1,8 @@
 name: develop-e2e-install-test
 
-# TODO: update the below conditions as required
 on:
-  push:
-    branches:
-      - '**'
+  schedule:
+    - cron: '0 15 * * *'
 
 jobs:
   build:
