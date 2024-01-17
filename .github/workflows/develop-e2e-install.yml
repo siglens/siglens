@@ -23,23 +23,25 @@ jobs:
         load: true
         tags: siglens-develop:latest
 
-    - name: Run install script, verify server, and run E2E test
+    - name: Run install_with_docker.sh script
       run: |
         chmod +x ./install_with_docker.sh
         ./install_with_docker.sh
+      env:
+        DOCKER_IMAGE_NAME: "siglens-develop:latest"
+        DOCKER_COMPOSE_YAML: "./docker-compose.yml"
+        USE_LOCAL_DOCKER_COMPOSE: true
+        TERM: xterm
 
+    - name: Verify server is running
+      run: |
         echo "Waiting for server to start..."
         sleep 5
         if ! curl --silent http://localhost:5122 | head -n 30; then
           echo "Server did not start within 5 seconds"
           exit 1
         fi
-
-        sleep 40
+    - name: Run E2E Test
+      run: |
         cd tools/sigclient
         go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/ingest.csv
-      env:
-        DOCKER_IMAGE_NAME: "siglens-develop:latest"
-        DOCKER_COMPOSE_YAML: "./docker-compose.yml"
-        USE_LOCAL_DOCKER_COMPOSE: true
-        TERM: xterm
