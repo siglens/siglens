@@ -41,3 +41,7 @@ jobs:
           echo "Server did not start within 5 seconds"
           exit 1
         fi
+    - name: Run E2E Test test
+      run: |
+        cd tools/sigclient
+        go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/ingest.csv
