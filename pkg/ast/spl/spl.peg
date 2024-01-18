@@ -447,6 +447,7 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
     if binOptions == nil {
 		binOptions = &structs.BinOptions{
 			SpanOptions: &structs.SpanOptions{
+				DefaultSettings: true,
 				SpanLength: &structs.SpanLength{
 					Num: 		 1,
 					TimeScalr: utils.TMMinute,
@@ -466,7 +467,8 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
     }
 
     timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp, len(measureAggs))
-    aggNode.TimeHistogram = timeBucket
+	//timeBucket.Timechart.BinOptions = bOptions
+	aggNode.TimeHistogram = timeBucket
 
     return aggNode, nil
 }
