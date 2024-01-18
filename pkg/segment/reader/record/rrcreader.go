@@ -93,7 +93,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	numProcessedRecords := 0
 
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
-	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock {
+	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
+	txnArgsRecords := make([]map[string]interface{}, 0)
+	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock || transactionArgsExist {
 		for currSeg, blkIds := range segmap {
 			recs, cols, err := GetRecordsFromSegment(currSeg, blkIds.VirtualTableName, blkIds.BlkRecIndexes,
 				config.GetTimeStampKey(), esResponse, qid, aggs)
@@ -109,7 +111,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				finalCols[key] = true
 			}
 
-			if hasQueryAggergatorBlock {
+			if hasQueryAggergatorBlock || transactionArgsExist {
 				nodeRes := &structs.NodeResult{}
 				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
 			}
@@ -158,7 +160,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				}
 				delete(recordIndexInFinal, recInden)
 				allRecords[idx] = record
-
+				if transactionArgsExist {
+					txnArgsRecords = append(txnArgsRecords, record)
+				}
 			}
 		}
 	} else {
@@ -186,7 +190,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	// Some commands (like dedup) can remove records from the final result, so
 	// remove the blank records from allRecords to get finalRecords.
 	var finalRecords []map[string]interface{}
-	if numProcessedRecords == len(allrrc) {
+	if transactionArgsExist {
+		finalRecords = txnArgsRecords
+	} else if numProcessedRecords == len(allrrc) {
 		finalRecords = allRecords
 	} else {
 		finalRecords = make([]map[string]interface{}, numProcessedRecords)
@@ -205,6 +211,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 	sort.Strings(colsSlice)
 	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
+
 	return finalRecords, colsSlice, nil
 }
 

@@ -346,7 +346,7 @@ func toggleFavorite(id string) (bool, error) {
 }
 func getDashboard(id string) (map[string]interface{}, error) {
 	var dashboardDetailsFname string
-	if id == "10329b95-47a8-48df-8b1d-0a0a01ec6c42" || id == "a28f485c-4747-4024-bb6b-d230f101f852" || id == "bd74f11e-26c8-4827-bf65-c0b464e1f2a4" {
+	if id == "10329b95-47a8-48df-8b1d-0a0a01ec6c42" || id == "a28f485c-4747-4024-bb6b-d230f101f852" || id == "bd74f11e-26c8-4827-bf65-c0b464e1f2a4" || id == "53cb3dde-fd78-4253-808c-18e4077ef0f1" {
 		dashboardDetailsFname = "defaultDBs/details/" + id + ".json"
 	} else {
 		dashboardDetailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
