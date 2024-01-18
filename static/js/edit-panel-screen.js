@@ -1163,7 +1163,7 @@ function goToDashboard(redirectedFromViewScreen) {
 function resetPanelTimeRanges() {
 	for (let i = 0; i < localPanels.length; i++) {
 		if (localPanels[i].queryData) {
-			(localPanels[i].chartType === "Line Chart" && localPanels[i].queryType === "metrics")
+			((localPanels[i].chartType === "Line Chart" || localPanels[i].chartType === "number" ) && localPanels[i].queryType === "metrics")
 			?(localPanels[i].queryData.start = filterStartDate)
 			:(localPanels[i].queryData.startEpoch = filterStartDate)
 		}

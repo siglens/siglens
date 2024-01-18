@@ -223,7 +223,7 @@ function renderBarChart(columns, hits, panelId, chartType, dataType, panelIndex)
 			panelChart.setOption(pieOptions);
 			break;
 		case 'number':
-			displayBigNumber(columns, bigNumVal, panelId, dataType, panelIndex);
+			displayBigNumber(bigNumVal, panelId, dataType, panelIndex);
 	}
 	$(`#panel${panelId} .panel-body #panel-loading`).hide();
 
@@ -327,7 +327,7 @@ function findSmallestGreaterOne(number) {
   return [smallest.toFixed(2),suffix];
 }
 
-function displayBigNumber(columns, value, panelId, dataType, panelIndex) {
+function displayBigNumber(value, panelId, dataType, panelIndex) {
 	if (panelId === -1) {
 		$('.panelDisplay .panEdit-panel').hide();
 		$(`.panelDisplay .big-number-display-container`).show();
