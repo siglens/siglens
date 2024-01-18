@@ -35,7 +35,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 	sTime := time.Now()
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
-	for _, rrc := range allrrc {
+	recordIndexInFinal := make(map[string]int)
+	for idx, rrc := range allrrc {
 		if rrc.SegKeyInfo.IsRemote {
 			log.Debugf("GetJsonFromAllRrc: skipping remote segment:%v", rrc.SegKeyInfo.RecordId)
 			continue
@@ -56,6 +57,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			blkIdxsCtr.BlkRecIndexes[rrc.BlockNum] = make(map[uint16]uint64)
 		}
 		blkIdxsCtr.BlkRecIndexes[rrc.BlockNum][rrc.RecordNum] = rrc.TimeStamp
+
+		recordIndent := fmt.Sprintf("%s_%d_%d", segkey, rrc.BlockNum, rrc.RecordNum)
+		recordIndexInFinal[recordIndent] = idx
 	}
 
 	rawIncludeValuesIndicies := make(map[string]int)
@@ -83,8 +87,11 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		}
 
 	}
-	allRecords := make([]map[string]interface{}, 0)
+
+	allRecords := make([]map[string]interface{}, len(allrrc))
 	finalCols := make(map[string]bool)
+	numProcessedRecords := 0
+
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
 	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock {
 		for currSeg, blkIds := range segmap {
@@ -107,11 +114,17 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
 			}
 
-			for _, record := range recs {
+			numProcessedRecords += len(recs)
+			for recInden, record := range recs {
 				for key, val := range renameHardcodedColumns {
 					record[key] = val
 				}
 
+				idx, ok := recordIndexInFinal[recInden]
+				if !ok {
+					log.Errorf("qid=%d, GetJsonFromAllRrc: Did not find index for record indentifier %s.", qid, recInden)
+					continue
+				}
 				if logfmtRequest {
 					record = addKeyValuePairs(record)
 				}
@@ -143,8 +156,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					}
 					record[label] = val
 				}
+				delete(recordIndexInFinal, recInden)
+				allRecords[idx] = record
 
-				allRecords = append(allRecords, record)
 			}
 		}
 	} else {
@@ -169,9 +183,29 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		idx++
 	}
 
+	// Some commands (like dedup) can remove records from the final result, so
+	// remove the blank records from allRecords to get finalRecords.
+	var finalRecords []map[string]interface{}
+	if numProcessedRecords == len(allrrc) {
+		finalRecords = allRecords
+	} else {
+		finalRecords = make([]map[string]interface{}, numProcessedRecords)
+		idx = 0
+		for _, record := range allRecords {
+			if idx >= numProcessedRecords {
+				break
+			}
+
+			if record != nil {
+				finalRecords[idx] = record
+				idx++
+			}
+		}
+	}
+
 	sort.Strings(colsSlice)
-	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(allRecords), time.Since(sTime))
-	return allRecords, colsSlice, nil
+	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
+	return finalRecords, colsSlice, nil
 }
 
 func addKeyValuePairs(record map[string]interface{}) map[string]interface{} {
