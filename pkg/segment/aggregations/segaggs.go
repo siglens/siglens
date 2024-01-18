@@ -511,21 +511,27 @@ func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 	}
 
 	// Following a group by
-	return fmt.Errorf("performDedupColRequest: not yet implemented for after a group by")
+	if err := performDedupColRequestOnHistogram(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performDedupColRequest: %v", err)
+	}
+	if err := performDedupColRequestOnMeasureResults(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performDedupColRequest: %v", err)
+	}
+
+	return nil
 }
 
 func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {
 
-	combinations := letColReq.DedupColRequest.DedupCombinations
+	combinations := make(map[string]int)
 	limit := int(letColReq.DedupColRequest.Limit)
 	fieldList := letColReq.DedupColRequest.FieldList
-	length := len(fieldList)
 
 	for key, record := range recs {
 
 		// Initialize combination for current row
-		combinationSlice := make([]interface{}, length)
+		combinationSlice := make([]interface{}, len(fieldList))
 		for index, field := range fieldList {
 			val, exists := record[field]
 			if !exists {
@@ -553,6 +559,138 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 			combinations[combination] = count + 1
 		}
 	}
+
+	return nil
+}
+
+func performDedupColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+	combinations := make(map[string]int)
+	limit := int(letColReq.DedupColRequest.Limit)
+	fieldList := letColReq.DedupColRequest.FieldList
+
+	for _, aggregationResult := range nodeResult.Histogram {
+		newResults := make([]*structs.BucketResult, 0)
+
+		for _, bucketResult := range aggregationResult.Results {
+			// Initialize combination for current row
+			combinationSlice := make([]interface{}, len(fieldList))
+			for index, field := range fieldList {
+				val, exists := bucketResult.StatRes[field]
+				if exists {
+					// This is a measure function
+					combinationSlice[index] = val
+				} else {
+					// This is a group by column
+					groupByIndex := -1
+					for i, groupByCol := range bucketResult.GroupByKeys {
+						if groupByCol == field {
+							groupByIndex = i
+							break
+						}
+					}
+
+					if groupByIndex == -1 {
+						return fmt.Errorf("performDedupColRequestOnHistogram: field %v is not in StatRes or GroupByKeys", field)
+					}
+
+					var bucketKeySlice []string
+					switch bucketKey := bucketResult.BucketKey.(type) {
+					case []string:
+						bucketKeySlice = bucketKey
+					case string:
+						bucketKeySlice = []string{bucketKey}
+					default:
+						return fmt.Errorf("performDedupColRequestOnHistogram: unexpected type for bucketKey %v", bucketKey)
+					}
+
+					combinationSlice[index] = bucketKeySlice[groupByIndex]
+				}
+			}
+
+			// Convert combinationSlice to string so we can hash it.
+			combinationBytes, err := json.Marshal(combinationSlice)
+			if err != nil {
+				return fmt.Errorf("performDedupColRequestOnMeasureResults: failed to marshal combintion %v: %v",
+					combinationSlice, err)
+			}
+
+			combination := string(combinationBytes)
+			count, exists := combinations[combination]
+			if !exists {
+				count = 0
+			}
+
+			// maybe add it to newMeasureResults
+			if !exists || count < limit {
+				combinations[combination] = count + 1
+				newResults = append(newResults, bucketResult)
+			}
+		}
+
+		aggregationResult.Results = newResults
+	}
+
+	return nil
+}
+
+func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+	combinations := make(map[string]int)
+	limit := int(letColReq.DedupColRequest.Limit)
+	fieldList := letColReq.DedupColRequest.FieldList
+
+	newMeasureResults := make([]*structs.BucketHolder, 0)
+
+	for _, bucketHolder := range nodeResult.MeasureResults {
+		// Initialize combination for current row
+		combinationSlice := make([]interface{}, len(fieldList))
+		for index, field := range fieldList {
+			if utils.SliceContainsString(nodeResult.MeasureFunctions, field) {
+				val, exists := bucketHolder.MeasureVal[field]
+				if !exists {
+					combinationSlice[index] = nil
+				} else {
+					combinationSlice[index] = val
+				}
+			} else {
+				groupByIndex := -1
+				for i, groupByCol := range nodeResult.GroupByCols {
+					if groupByCol == field {
+						groupByIndex = i
+						break
+					}
+				}
+
+				if groupByIndex == -1 {
+					return fmt.Errorf("performDedupColRequestOnMeasureResults: field %v is not in MeasureFunctions or GroupByCols", field)
+				}
+
+				val := bucketHolder.GroupByValues[groupByIndex]
+				combinationSlice[index] = val
+			}
+		}
+
+		// Convert combinationSlice to string so we can hash it.
+		combinationBytes, err := json.Marshal(combinationSlice)
+		if err != nil {
+			return fmt.Errorf("performDedupColRequestOnMeasureResults: failed to marshal combintion %v: %v",
+				combinationSlice, err)
+		}
+
+		combination := string(combinationBytes)
+		count, exists := combinations[combination]
+		if !exists {
+			count = 0
+		}
+
+		// maybe add it to newMeasureResults
+		if !exists || count < limit {
+			combinations[combination] = count + 1
+			newMeasureResults = append(newMeasureResults, bucketHolder)
+		}
+	}
+
+	nodeResult.MeasureResults = newMeasureResults
+	nodeResult.BucketCount = len(newMeasureResults)
 
 	return nil
 }

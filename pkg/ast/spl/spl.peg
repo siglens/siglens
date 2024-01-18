@@ -790,7 +790,6 @@ DedupExpr <- limitArr:(SPACE IntegerAsString)? options1:(DedupOptions)? fieldLis
     dedupExpr := &structs.DedupExpr {
         FieldList: fieldList.([]string),
         Limit: 1,
-        DedupCombinations: make(map[string]int, 0),
     }
 
     if limitArr != nil {
