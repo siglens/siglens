@@ -83,10 +83,11 @@ type StatisticOptions struct {
 }
 
 type DedupExpr struct {
-	Limit         uint64
-	FieldList     []string // Must have FieldList
-	DedupOptions  *DedupOptions
-	DedupSortEles []*DedupSortElement
+	Limit             uint64
+	FieldList         []string // Must have FieldList
+	DedupOptions      *DedupOptions
+	DedupSortEles     []*DedupSortElement
+	DedupCombinations map[string]uint64 // maps combinations to their count
 }
 
 type DedupOptions struct {

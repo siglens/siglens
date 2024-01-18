@@ -524,8 +524,6 @@ func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {
 
-	combinations := make(map[string]int)
-	limit := int(letColReq.DedupColRequest.Limit)
 	fieldList := letColReq.DedupColRequest.FieldList
 
 	for key, record := range recs {
@@ -541,22 +539,13 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 			}
 		}
 
-		combinationBytes, err := json.Marshal(combinationSlice)
+		passes, err := combinationPassesDedup(combinationSlice, letColReq.DedupColRequest)
 		if err != nil {
-			return fmt.Errorf("performDedupColRequestWithoutGroupby: failed to marshal combintion %v: %v",
-				combinationSlice, err)
+			return fmt.Errorf("performDedupColRequestWithoutGroupby: %v", err)
 		}
 
-		combination := string(combinationBytes)
-		count, exists := combinations[combination]
-		if !exists {
-			count = 0
-		}
-
-		if exists && count >= limit {
+		if !passes {
 			delete(recs, key)
-		} else {
-			combinations[combination] = count + 1
 		}
 	}
 
@@ -564,8 +553,6 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 }
 
 func performDedupColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
-	combinations := make(map[string]int)
-	limit := int(letColReq.DedupColRequest.Limit)
 	fieldList := letColReq.DedupColRequest.FieldList
 
 	for _, aggregationResult := range nodeResult.Histogram {
@@ -607,22 +594,12 @@ func performDedupColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 				}
 			}
 
-			// Convert combinationSlice to string so we can hash it.
-			combinationBytes, err := json.Marshal(combinationSlice)
+			passes, err := combinationPassesDedup(combinationSlice, letColReq.DedupColRequest)
 			if err != nil {
-				return fmt.Errorf("performDedupColRequestOnMeasureResults: failed to marshal combintion %v: %v",
-					combinationSlice, err)
+				return fmt.Errorf("performDedupColRequestOnHistogram: %v", err)
 			}
 
-			combination := string(combinationBytes)
-			count, exists := combinations[combination]
-			if !exists {
-				count = 0
-			}
-
-			// maybe add it to newMeasureResults
-			if !exists || count < limit {
-				combinations[combination] = count + 1
+			if passes {
 				newResults = append(newResults, bucketResult)
 			}
 		}
@@ -634,8 +611,6 @@ func performDedupColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 }
 
 func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
-	combinations := make(map[string]int)
-	limit := int(letColReq.DedupColRequest.Limit)
 	fieldList := letColReq.DedupColRequest.FieldList
 
 	newMeasureResults := make([]*structs.BucketHolder, 0)
@@ -669,22 +644,12 @@ func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 			}
 		}
 
-		// Convert combinationSlice to string so we can hash it.
-		combinationBytes, err := json.Marshal(combinationSlice)
+		passes, err := combinationPassesDedup(combinationSlice, letColReq.DedupColRequest)
 		if err != nil {
-			return fmt.Errorf("performDedupColRequestOnMeasureResults: failed to marshal combintion %v: %v",
-				combinationSlice, err)
+			return fmt.Errorf("performDedupColRequestOnMeasureResults: %v", err)
 		}
 
-		combination := string(combinationBytes)
-		count, exists := combinations[combination]
-		if !exists {
-			count = 0
-		}
-
-		// maybe add it to newMeasureResults
-		if !exists || count < limit {
-			combinations[combination] = count + 1
+		if passes {
 			newMeasureResults = append(newMeasureResults, bucketHolder)
 		}
 	}
@@ -693,6 +658,30 @@ func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 	nodeResult.BucketCount = len(newMeasureResults)
 
 	return nil
+}
+
+// Return whether the combination should be kept.
+// Note: this will update dedupExpr.DedupCombinations if the combination is kept.
+func combinationPassesDedup(combinationSlice []interface{}, dedupExpr *structs.DedupExpr) (bool, error) {
+	combinationBytes, err := json.Marshal(combinationSlice)
+	if err != nil {
+		return false, fmt.Errorf("checkDedupCombination: failed to marshal combintion %v: %v", combinationSlice, err)
+	}
+
+	combination := string(combinationBytes)
+	combinations := dedupExpr.DedupCombinations
+
+	count, exists := combinations[combination]
+	if !exists {
+		count = 0
+	}
+
+	if !exists || count < dedupExpr.Limit {
+		combinations[combination] = count + 1
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func performStatisticColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
