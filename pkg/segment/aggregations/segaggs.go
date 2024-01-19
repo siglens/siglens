@@ -545,7 +545,16 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 		}
 
 		if !passes {
-			delete(recs, key)
+			if !letColReq.DedupColRequest.DedupOptions.KeepEvents {
+				delete(recs, key)
+			} else {
+				// Keep this record, but clear all the values for the fieldList fields.
+				for _, field := range fieldList {
+					if _, exists := record[field]; exists {
+						record[field] = nil
+					}
+				}
+			}
 		}
 	}
 
@@ -601,6 +610,43 @@ func performDedupColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 
 			if passes {
 				newResults = append(newResults, bucketResult)
+			} else if letColReq.DedupColRequest.DedupOptions.KeepEvents {
+				// Keep this bucketResult, but clear all the values for the fieldList fields.
+
+				// Decode the bucketKey into a slice of strings.
+				var bucketKeySlice []string
+				switch bucketKey := bucketResult.BucketKey.(type) {
+				case []string:
+					bucketKeySlice = bucketKey
+				case string:
+					bucketKeySlice = []string{bucketKey}
+				default:
+					return fmt.Errorf("performDedupColRequestOnHistogram: unexpected type for bucketKey %v", bucketKey)
+				}
+
+				for _, field := range fieldList {
+					if _, exists := bucketResult.StatRes[field]; exists {
+						bucketResult.StatRes[field] = segutils.CValueEnclosure{
+							Dtype: segutils.SS_DT_BACKFILL,
+						}
+					} else {
+						for i, groupByCol := range bucketResult.GroupByKeys {
+							if groupByCol == field {
+								bucketKeySlice[i] = ""
+								break
+							}
+						}
+					}
+				}
+
+				// Set the bucketKey.
+				if len(bucketKeySlice) == 1 {
+					bucketResult.BucketKey = bucketKeySlice[0]
+				} else {
+					bucketResult.BucketKey = bucketKeySlice
+				}
+
+				newResults = append(newResults, bucketResult)
 			}
 		}
 
@@ -651,7 +697,24 @@ func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 
 		if passes {
 			newMeasureResults = append(newMeasureResults, bucketHolder)
+		} else if letColReq.DedupColRequest.DedupOptions.KeepEvents {
+			// Keep this bucketHolder, but clear all the values for the fieldList fields.
+			for _, field := range fieldList {
+				if _, exists := bucketHolder.MeasureVal[field]; exists {
+					bucketHolder.MeasureVal[field] = nil
+				} else {
+					for i, groupByCol := range nodeResult.GroupByCols {
+						if groupByCol == field {
+							bucketHolder.GroupByValues[i] = ""
+							break
+						}
+					}
+				}
+			}
+
+			newMeasureResults = append(newMeasureResults, bucketHolder)
 		}
+
 	}
 
 	nodeResult.MeasureResults = newMeasureResults
@@ -662,6 +725,8 @@ func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 
 // Return whether the combination should be kept.
 // Note: this will update dedupExpr.DedupCombinations if the combination is kept.
+// Note: this ignores the dedupExpr.DedupOptions.KeepEvents option; the caller
+// is responsible for the extra logic when that is set.
 func combinationPassesDedup(combinationSlice []interface{}, dedupExpr *structs.DedupExpr) (bool, error) {
 	// If the keepempty option is set, keep every combination will a nil value.
 	// Otherwise, discard every combination with a nil value.
