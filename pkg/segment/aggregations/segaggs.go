@@ -663,6 +663,14 @@ func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 // Return whether the combination should be kept.
 // Note: this will update dedupExpr.DedupCombinations if the combination is kept.
 func combinationPassesDedup(combinationSlice []interface{}, dedupExpr *structs.DedupExpr) (bool, error) {
+	// If the keepempty option is set, keep every combination will a nil value.
+	// Otherwise, discard every combination with a nil value.
+	for _, val := range combinationSlice {
+		if val == nil {
+			return dedupExpr.DedupOptions.KeepEmpty, nil
+		}
+	}
+
 	combinationBytes, err := json.Marshal(combinationSlice)
 	if err != nil {
 		return false, fmt.Errorf("checkDedupCombination: failed to marshal combintion %v: %v", combinationSlice, err)
