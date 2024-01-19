@@ -514,9 +514,9 @@ func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 	if err := performDedupColRequestOnHistogram(nodeResult, letColReq); err != nil {
 		return fmt.Errorf("performDedupColRequest: %v", err)
 	}
-	if err := performDedupColRequestOnMeasureResults(nodeResult, letColReq); err != nil {
-		return fmt.Errorf("performDedupColRequest: %v", err)
-	}
+	//	if err := performDedupColRequestOnMeasureResults(nodeResult, letColReq); err != nil {
+	//		return fmt.Errorf("performDedupColRequest: %v", err)
+	//	}
 
 	return nil
 }
@@ -563,53 +563,65 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 
 func performDedupColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
 	fieldList := letColReq.DedupColRequest.FieldList
+	dedupRawValues := make(map[string]segutils.CValueEnclosure, len(fieldList))
+	combinationSlice := make([]interface{}, len(fieldList))
+	sortbyRawValues := make(map[string]segutils.CValueEnclosure, len(letColReq.DedupColRequest.DedupSortEles))
+	sortbyValues := make([]structs.DedupSortValue, len(letColReq.DedupColRequest.DedupSortEles))
+	sortbyFields := make([]string, len(letColReq.DedupColRequest.DedupSortEles))
+
+	for i, sortEle := range letColReq.DedupColRequest.DedupSortEles {
+		sortbyFields[i] = sortEle.Field
+		sortbyValues[i] = structs.DedupSortValue{
+			InterpretAs: sortEle.Op,
+		}
+	}
 
 	for _, aggregationResult := range nodeResult.Histogram {
 		newResults := make([]*structs.BucketResult, 0)
+		evictedFromNewResults := make([]bool, 0) // Only used when dedup has a sortby.
+		numEvicted := 0
 
-		for _, bucketResult := range aggregationResult.Results {
-			// Initialize combination for current row
-			combinationSlice := make([]interface{}, len(fieldList))
-			for index, field := range fieldList {
-				val, exists := bucketResult.StatRes[field]
-				if exists {
-					// This is a measure function
-					combinationSlice[index] = val
-				} else {
-					// This is a group by column
-					groupByIndex := -1
-					for i, groupByCol := range bucketResult.GroupByKeys {
-						if groupByCol == field {
-							groupByIndex = i
-							break
-						}
+		for bucketIndex, bucketResult := range aggregationResult.Results {
+			err := getAggregationResultFieldValues(dedupRawValues, fieldList, aggregationResult, bucketIndex)
+			if err != nil {
+				return fmt.Errorf("performDedupColRequestOnHistogram: error getting dedup values: %v", err)
+			}
+
+			for i, field := range fieldList {
+				combinationSlice[i] = dedupRawValues[field]
+			}
+
+			// If the dedup has a sortby, get the sort values.
+			if len(letColReq.DedupColRequest.DedupSortEles) > 0 {
+				err = getAggregationResultFieldValues(sortbyRawValues, sortbyFields, aggregationResult, bucketIndex)
+				if err != nil {
+					return fmt.Errorf("performDedupColRequestOnHistogram: error getting sort values: %v", err)
+				}
+
+				for i, field := range sortbyFields {
+					enclosure := sortbyRawValues[field]
+					sortbyValues[i].Val, err = enclosure.GetString()
+					if err != nil {
+						return fmt.Errorf("performDedupColRequestOnHistogram: error converting sort values: %v", err)
 					}
-
-					if groupByIndex == -1 {
-						return fmt.Errorf("performDedupColRequestOnHistogram: field %v is not in StatRes or GroupByKeys", field)
-					}
-
-					var bucketKeySlice []string
-					switch bucketKey := bucketResult.BucketKey.(type) {
-					case []string:
-						bucketKeySlice = bucketKey
-					case string:
-						bucketKeySlice = []string{bucketKey}
-					default:
-						return fmt.Errorf("performDedupColRequestOnHistogram: unexpected type for bucketKey %v", bucketKey)
-					}
-
-					combinationSlice[index] = bucketKeySlice[groupByIndex]
 				}
 			}
 
-			passes, _, err := combinationPassesDedup(combinationSlice, 0, nil, letColReq.DedupColRequest)
+			recordIndex := len(newResults)
+			passes, evictionIndex, err := combinationPassesDedup(combinationSlice, recordIndex, sortbyValues, letColReq.DedupColRequest)
 			if err != nil {
 				return fmt.Errorf("performDedupColRequestOnHistogram: %v", err)
 			}
 
+			if evictionIndex != -1 {
+				// Evict the item at evictionIndex.
+				evictedFromNewResults[evictionIndex] = true
+				numEvicted++
+			}
+
 			if passes {
 				newResults = append(newResults, bucketResult)
+				evictedFromNewResults = append(evictedFromNewResults, false)
 			} else if letColReq.DedupColRequest.DedupOptions.KeepEvents {
 				// Keep this bucketResult, but clear all the values for the fieldList fields.
 
@@ -647,10 +659,21 @@ func performDedupColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 				}
 
 				newResults = append(newResults, bucketResult)
+				evictedFromNewResults = append(evictedFromNewResults, false)
 			}
 		}
 
-		aggregationResult.Results = newResults
+		// Get the final results by removing the evicted items.
+		finalResults := make([]*structs.BucketResult, len(newResults)-numEvicted)
+		finalResultsIndex := 0
+		for i, bucketResult := range newResults {
+			if !evictedFromNewResults[i] {
+				finalResults[finalResultsIndex] = bucketResult
+				finalResultsIndex++
+			}
+		}
+
+		aggregationResult.Results = finalResults
 	}
 
 	return nil
@@ -762,7 +785,10 @@ func combinationPassesDedup(combinationSlice []interface{}, recordIndex int, sor
 	}
 
 	if !exists || uint64(len(recordsMap)) < dedupExpr.Limit {
-		recordsMap[recordIndex] = sortValues
+		sortValuesCopy := make([]structs.DedupSortValue, len(sortValues))
+		copy(sortValuesCopy, sortValues)
+		recordsMap[recordIndex] = sortValuesCopy
+
 		return true, -1, nil
 	} else if len(dedupExpr.DedupSortEles) > 0 {
 		// Check if this record gets sorted higher than another record with
@@ -773,7 +799,9 @@ func combinationPassesDedup(combinationSlice []interface{}, recordIndex int, sor
 		for index, otherSortValues := range recordsMap {
 			comparison, err := structs.CompareSortValueSlices(sortValuesOfLowest, otherSortValues, dedupExpr.DedupSortAscending)
 			if err != nil {
-				return false, -1, fmt.Errorf("checkDedupCombination: failed to compare sort values %v and %v: %v", sortValuesOfLowest, otherSortValues, err)
+				err := fmt.Errorf("checkDedupCombination: failed to compare sort values %v and %v: with ascending %v: %v",
+					sortValuesOfLowest, otherSortValues, dedupExpr.DedupSortAscending, err)
+				return false, -1, err
 			}
 
 			if comparison > 0 {
@@ -785,7 +813,11 @@ func combinationPassesDedup(combinationSlice []interface{}, recordIndex int, sor
 
 		if foundLower {
 			delete(recordsMap, indexOfLowest)
-			recordsMap[recordIndex] = sortValues
+
+			sortValuesCopy := make([]structs.DedupSortValue, len(sortValues))
+			copy(sortValuesCopy, sortValues)
+			recordsMap[recordIndex] = sortValuesCopy
+
 			return true, indexOfLowest, nil
 		} else {
 			return false, -1, nil

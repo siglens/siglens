@@ -112,8 +112,8 @@ type DedupSortElement struct {
 }
 
 type DedupSortValue struct {
-	Val interface{}
-	As  string // Should be "ip", "num", "str", "auto", or ""
+	Val         interface{}
+	InterpretAs string // Should be "ip", "num", "str", "auto", or ""
 }
 
 // See ValueExprMode type definition for which fields are valid for each mode.
@@ -1480,7 +1480,7 @@ func getValueAsFloat(fieldToValue map[string]utils.CValueEnclosure, field string
 }
 
 func (self *DedupSortValue) Compare(other *DedupSortValue) (int, error) {
-	switch self.As {
+	switch self.InterpretAs {
 	case "ip":
 		selfIP := net.ParseIP(self.Val.(string))
 		otherIP := net.ParseIP(other.Val.(string))
@@ -1536,7 +1536,7 @@ func (self *DedupSortValue) Compare(other *DedupSortValue) (int, error) {
 
 		return 0, fmt.Errorf("DedupSortValue.Compare: cannot compare values")
 	default:
-		return 0, fmt.Errorf("DedupSortValue.Compare: invalid As value: %v", self.As)
+		return 0, fmt.Errorf("DedupSortValue.Compare: invalid InterpretAs value: %v", self.InterpretAs)
 	}
 }
 

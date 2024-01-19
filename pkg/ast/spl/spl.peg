@@ -827,6 +827,16 @@ DedupExpr <- limitArr:(SPACE IntegerAsString)? options1:(DedupOptions)? fieldLis
 
     if sortByClause != nil {
         dedupExpr.DedupSortEles = sortByClause.([]*structs.DedupSortElement)
+
+        // Make the DedupSortAscending from the DedupSortEles.
+        dedupExpr.DedupSortAscending = make([]int, len(dedupExpr.DedupSortEles))
+        for i, ele := range dedupExpr.DedupSortEles {
+            if ele.SortByAsc {
+                dedupExpr.DedupSortAscending[i] = 1
+            } else {
+                dedupExpr.DedupSortAscending[i] = -1
+            }
+        }
     }
 
     return dedupExpr, nil
