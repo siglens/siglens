@@ -679,6 +679,13 @@ func combinationPassesDedup(combinationSlice []interface{}, dedupExpr *structs.D
 	combination := string(combinationBytes)
 	combinations := dedupExpr.DedupCombinations
 
+	if dedupExpr.DedupOptions.Consecutive {
+		// Only remove consecutive duplicates.
+		passes := combination != dedupExpr.PrevCombination
+		dedupExpr.PrevCombination = combination
+		return passes, nil
+	}
+
 	count, exists := combinations[combination]
 	if !exists {
 		count = 0

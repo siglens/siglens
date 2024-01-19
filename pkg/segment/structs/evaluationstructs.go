@@ -88,6 +88,7 @@ type DedupExpr struct {
 	DedupOptions      *DedupOptions
 	DedupSortEles     []*DedupSortElement
 	DedupCombinations map[string]uint64 // maps combinations to their count
+	PrevCombination   string
 }
 
 type DedupOptions struct {
