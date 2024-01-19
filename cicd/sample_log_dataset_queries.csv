@@ -81,4 +81,4 @@ city=Boston | stats count AS Count BY app_name | eval len=len(app_name) | where 
 "city=Boston | stats count AS Count BY state | eval myField=""test "" . "" start:"" . rtrim(state, ""nt"")",now-1d,now,*,group:myField:Vermont,eq,test  start:Vermo,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval myField=if(http_status > 400, http_status + 10, ""Error"")",now-1d,now,*,group:myField:500,eq,510,Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval myField=if(http_status > 400, http_status, ""Error"")",now-1d,now,*,group:myField:400,eq,Error,Splunk QL
-"city=Boston | stats count AS Count BY http_status | where http_status in(404, 301, ""abc"")",now-1d,now,*,total,eq,200,Splunk QL
+"city=Boston | stats count AS Count BY http_status | where http_status in(404, 301, ""abc"")",now-1d,now,*,total,eq,280,Splunk QL
