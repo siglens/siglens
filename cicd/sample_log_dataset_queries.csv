@@ -64,7 +64,7 @@ batch=batch-10 | stats count BY city,now-1d,now,*,group:count(*):Fresno,eq,20,Sp
 "batch=batch-10 | stats count BY city, http_status",now-1d,now,*,group:count(*):Fresno:302,eq,20,Splunk QL
 "404 | fields city, weekday",now-1d,now,*,total,gt,100,Splunk QL
 "404 | ```Only keep city and weekday columns``` fields city, weekday",now-1d,now,*,total,gt,100,Splunk QL
-404 | fields http*,now-1d,now,*,total,gt,100,Splunk QL
+"404 | fields http*",now-1d,now,*,total,gt,100,Splunk QL
 city=Boston | stats count AS Count BY weekday,now-1d,now,*,group:Count:Monday,eq,40,Splunk QL
 city=Boston | stats count AS Count BY weekday | eval Append123=Count . 123, now-1d,now,*,group:Append123:Monday,eq,40123,Splunk QL
 city=Boston | stats count AS Count BY zip | eval Summary=Count . zip, now-1d,now,*,group:Summary:70354,eq,2070354,Splunk QL
