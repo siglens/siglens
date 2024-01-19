@@ -264,11 +264,11 @@ function handlePanelRemove(panelId) {
     }
 }
 
-function handleDescriptionTooltip(panelId,description) {
+function handleDescriptionTooltip(panelId,description,searchText) {
     const panelInfoCorner = $(`#panel${panelId} .panel-info-corner`);
     const panelDescIcon = $(`#panel${panelId} .panel-info-corner #panel-desc-info`);
     panelInfoCorner.show();
-    panelDescIcon.attr('title',description);
+    panelDescIcon.attr('title',`Description: ${description}\nQuery: ${searchText}`);
     panelDescIcon.tooltip({
         delay: { show: 0, hide: 300 },
         trigger: 'hover'});
@@ -519,8 +519,8 @@ function displayPanels() {
         });
         $(`#panel${idpanel} .panel-header p`).html(localPanel.name);
 
-        if (localPanel.description) {
-            handleDescriptionTooltip(idpanel,localPanel.description)
+        if (localPanel.description||localPanel.queryData.searchText) {
+            handleDescriptionTooltip(idpanel,localPanel.description,localPanel.queryData.searchText)
         } else {
             $(`#panel${idpanel} .panel-info-corner`).hide();
         }
@@ -638,8 +638,8 @@ function displayPanelView(panelIndex) {
     panelElement.style.width = "100%";
 
     handlePanelRemove(localPanel.panelId);
-    if (localPanel.description) {
-        handleDescriptionTooltip(localPanel.panelId,localPanel.description);
+    if (localPanel.description||localPanel.queryData.searchText) {
+        handleDescriptionTooltip(localPanel.panelId,localPanel.description,localPanel.queryData.searchText);
     } else {
         $(`#panel${panelId} .panel-info-corner`).hide();
     }
@@ -708,8 +708,8 @@ function displayPanel(panelIndex) {
         $("#" + `panel${panelId}` + " .dropdown-style").toggleClass("hidden");
     });
     $(`#panel${panelId} .panel-header p`).html(localPanel.name);
-    if (localPanel.description) {
-        handleDescriptionTooltip(panelId,localPanel.description)
+    if (localPanel.description||localPanel.queryData.searchText) {
+        handleDescriptionTooltip(panelId,localPanel.description,localPanel.queryData.searchText)
     } else {
         $(`#panel${panelId} .panel-info-corner`).hide();
     }
