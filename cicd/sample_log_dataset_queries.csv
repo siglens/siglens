@@ -12,8 +12,8 @@ latency<9539889 AND app_name=Koalahad,now-1d,now,*,total,gt,0,Pipe QL
 "(MintCream AND (""Thursday"" OR ""Monday""))",now-1d,now,*,total,gt,20,Pipe QL
 "(MintCream AND (""Thursday"" OR ""Monday"")) | min(latency) groupby state",now-1d,now,*,total,gt,20,Pipe QL
 latency<10000 AND latitude>0 AND longitude > 0,now-1d,now,*,total,gt,10,Pipe QL
-404,now-1d,now,*,total,gt,100,Pipe QL
-500,now-1d,now,*,total,gt,100,Pipe QL
+Wisconsin,now-1d,now,*,total,gt,100,Pipe QL
+female,now-1d,now,*,total,gt,100,Pipe QL
 min(latency),now-1d,now,*,group:min(latency):*,eq,"2,837",Pipe QL
 "min(latency) groupby city, http_method",now-1d,now,*,group:min(latency):Boston:POST,eq,655449,Pipe QL
 "select batch as bt",now-1d,now,*,total,gt,100,SQL
