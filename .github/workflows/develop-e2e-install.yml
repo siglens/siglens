@@ -3,7 +3,6 @@ name: develop-e2e-install-test
 on:
   schedule:
     - cron: '0 15 * * *'
-  push:
 jobs:
   build:
     runs-on: ubuntu-latest
