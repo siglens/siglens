@@ -239,6 +239,7 @@ echo -e "\n----------Pulling the latest docker image for SigLens----------"
 
 curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
 curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
+curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/ssmetrics-otel-collector-config.yaml"
 
 $sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION} || {
     post_event "install_failed" "Failed to pull Docker image siglens/siglens:${SIGLENS_VERSION}"
@@ -315,12 +316,20 @@ send_events() {
 
 UI_PORT=5122
 
+
+CFILE="server.yaml"
+if [ -n "${CONFIG_FILE}" ]; then
+    CFILE=${CONFIG_FILE}
+fi
+
+
+
 # Run Docker compose files
-UI_PORT=${UI_PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose -f ./docker-compose.yml up -d || {
+UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose -f ./docker-compose.yml up -d || {
     post_event "install_failed" "Failed to start Docker Compose on $os with docker-compose.yml"
     print_error_and_exit "Failed to start Docker Compose"
 }
-UI_PORT=${UI_PORT} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose logs -t --tail 20 >> dclogs.txt
+UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose logs -t --tail 20 >> dclogs.txt
 sample_log_dataset_status=$(curl -s -o /dev/null -I -X HEAD -w "%{http_code}" http://localhost:5122/elastic/sample-log-dataset)
 
 if [ "$sample_log_dataset_status" -eq 200 ]; then

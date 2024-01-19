@@ -477,7 +477,18 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	handler := func(key []byte, value []byte, valueType jp.ValueType, off int) error {
 		switch {
 		case bytes.Equal(key, otsdb_mname):
-			mName = value
+			switch valueType {
+			case jp.String:
+				temp, err := jp.ParseString(value)
+				if err != nil {
+					log.Errorf("failed to extract tags %+v", err)
+				}
+				if temp != "target_info" {
+					mName = value
+				} else {
+					return nil
+				}
+			}
 		case bytes.Equal(key, otsdb_tags):
 			if valueType != jp.Object {
 				log.Errorf("tags key was not expected object type %+v, raw: %+v", valueType, string(value))
@@ -528,7 +539,7 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	err = jp.ObjectEach(rawJson, handler)
 
 	if err != nil {
-		log.Errorf("ExtractOTSDBPayload failed to extract payload! %+v", err)
+		log.Errorf("ExtractOTSDBPayload payload %v failed to extract payload! %+v ", string(rawJson), err)
 		return mName, dpVal, ts, err
 	}
 	if len(mName) > 0 && ts > 0 {
@@ -945,7 +956,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		log.Errorf("RotateSegment: failed to rename %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
 		return err
 	}
-	log.Infof("rotating segment of size %v that created %v metrics blocks to %+v", ms.totalEncodedSize, ms.currBlockNum, finalDir)
+	log.Infof("rotating segment of size %v that created %v metrics blocks to %+v", ms.totalEncodedSize, ms.currBlockNum+1, finalDir)
 	if !forceRotate {
 		nextSuffix, err := suffix.GetSuffix(ms.Mid, "ts")
 		if err != nil {
@@ -1075,6 +1086,11 @@ func GetUnrotatedMetricsSegmentRequests(metricName string, tRange *dtu.MetricsTi
 					retBlocks[bSum.Blknum] = true
 				}
 			}
+			tKeys := make(map[string]bool)
+			allTrees := GetTagsTreeHolder(orgid, mSeg.Mid).allTrees
+			for k := range allTrees {
+				tKeys[k] = true
+			}
 			if len(retBlocks) == 0 {
 				return
 			}
@@ -1083,6 +1099,7 @@ func GetUnrotatedMetricsSegmentRequests(metricName string, tRange *dtu.MetricsTi
 				BlocksToSearch:    retBlocks,
 				Parallelism:       uint(config.GetParallelism()),
 				QueryType:         structs.UNROTATED_METRICS_SEARCH,
+				AllTagKeys:        tKeys,
 			}
 			tt := GetTagsTreeHolder(orgid, mSeg.Mid)
 			if tt == nil {
@@ -1152,11 +1169,13 @@ func GetTotalEncodedSize() uint64 {
 	return totalSize + totalTagsTreeSize
 }
 
-func GetMetricSegments(orgid uint64) map[string]*MetricsSegment {
+func GetMetricSegments(orgid uint64) []*MetricsSegment {
 	orgMetricsAndTagsLock.RLock()
-	allMetricsSegments := map[string]*MetricsSegment{}
+	allMetricsSegments := []*MetricsSegment{}
 	if metricsAndTags, ok := OrgMetricsAndTags[orgid]; ok {
-		allMetricsSegments = metricsAndTags.Metrics
+		for _, mSeg := range metricsAndTags.Metrics {
+			allMetricsSegments = append(allMetricsSegments, mSeg)
+		}
 	}
 	orgMetricsAndTagsLock.RUnlock()
 	return allMetricsSegments
