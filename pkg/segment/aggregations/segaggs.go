@@ -539,7 +539,7 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 			}
 		}
 
-		passes, err := combinationPassesDedup(combinationSlice, letColReq.DedupColRequest)
+		passes, _, err := combinationPassesDedup(combinationSlice, 0, nil, letColReq.DedupColRequest)
 		if err != nil {
 			return fmt.Errorf("performDedupColRequestWithoutGroupby: %v", err)
 		}
@@ -603,7 +603,7 @@ func performDedupColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 				}
 			}
 
-			passes, err := combinationPassesDedup(combinationSlice, letColReq.DedupColRequest)
+			passes, _, err := combinationPassesDedup(combinationSlice, 0, nil, letColReq.DedupColRequest)
 			if err != nil {
 				return fmt.Errorf("performDedupColRequestOnHistogram: %v", err)
 			}
@@ -690,7 +690,7 @@ func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 			}
 		}
 
-		passes, err := combinationPassesDedup(combinationSlice, letColReq.DedupColRequest)
+		passes, _, err := combinationPassesDedup(combinationSlice, 0, nil, letColReq.DedupColRequest)
 		if err != nil {
 			return fmt.Errorf("performDedupColRequestOnMeasureResults: %v", err)
 		}
@@ -723,22 +723,26 @@ func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 	return nil
 }
 
-// Return whether the combination should be kept.
+// Return whether the combination should be kept, and the index of the record
+// that should be evicted if the combination is kept. The returned record index
+// is only useful when the dedup has a sortby, and the record index to evict
+// will be -1 if nothing should be evicted.
+//
 // Note: this will update dedupExpr.DedupCombinations if the combination is kept.
 // Note: this ignores the dedupExpr.DedupOptions.KeepEvents option; the caller
 // is responsible for the extra logic when that is set.
-func combinationPassesDedup(combinationSlice []interface{}, dedupExpr *structs.DedupExpr) (bool, error) {
+func combinationPassesDedup(combinationSlice []interface{}, recordIndex int, sortValues []structs.DedupSortValue, dedupExpr *structs.DedupExpr) (bool, int, error) {
 	// If the keepempty option is set, keep every combination will a nil value.
 	// Otherwise, discard every combination with a nil value.
 	for _, val := range combinationSlice {
 		if val == nil {
-			return dedupExpr.DedupOptions.KeepEmpty, nil
+			return dedupExpr.DedupOptions.KeepEmpty, -1, nil
 		}
 	}
 
 	combinationBytes, err := json.Marshal(combinationSlice)
 	if err != nil {
-		return false, fmt.Errorf("checkDedupCombination: failed to marshal combintion %v: %v", combinationSlice, err)
+		return false, -1, fmt.Errorf("checkDedupCombination: failed to marshal combintion %v: %v", combinationSlice, err)
 	}
 
 	combination := string(combinationBytes)
@@ -748,20 +752,47 @@ func combinationPassesDedup(combinationSlice []interface{}, dedupExpr *structs.D
 		// Only remove consecutive duplicates.
 		passes := combination != dedupExpr.PrevCombination
 		dedupExpr.PrevCombination = combination
-		return passes, nil
+		return passes, -1, nil
 	}
 
-	count, exists := combinations[combination]
+	recordsMap, exists := combinations[combination]
 	if !exists {
-		count = 0
+		recordsMap = make(map[int][]structs.DedupSortValue, 0)
+		combinations[combination] = recordsMap
 	}
 
-	if !exists || count < dedupExpr.Limit {
-		combinations[combination] = count + 1
-		return true, nil
+	if !exists || uint64(len(recordsMap)) < dedupExpr.Limit {
+		recordsMap[recordIndex] = sortValues
+		return true, -1, nil
+	} else if len(dedupExpr.DedupSortEles) > 0 {
+		// Check if this record gets sorted higher than another record with
+		// this combination, so it should evict the lowest sorted record.
+		foundLower := false
+		indexOfLowest := recordIndex
+		sortValuesOfLowest := sortValues
+		for index, otherSortValues := range recordsMap {
+			comparison, err := structs.CompareSortValueSlices(sortValuesOfLowest, otherSortValues, dedupExpr.DedupSortAscending)
+			if err != nil {
+				return false, -1, fmt.Errorf("checkDedupCombination: failed to compare sort values %v and %v: %v", sortValuesOfLowest, otherSortValues, err)
+			}
+
+			if comparison > 0 {
+				foundLower = true
+				indexOfLowest = index
+				sortValuesOfLowest = otherSortValues
+			}
+		}
+
+		if foundLower {
+			delete(recordsMap, indexOfLowest)
+			recordsMap[recordIndex] = sortValues
+			return true, indexOfLowest, nil
+		} else {
+			return false, -1, nil
+		}
 	}
 
-	return false, nil
+	return false, -1, nil
 }
 
 func performStatisticColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
