@@ -37,8 +37,8 @@ app_name=Zebracould,now-1d,now,*,total,gt,0,Splunk QL
 search app_name=Zebracould,now-1d,now,*,total,gt,0,Splunk QL
 search Sunday,now-1d,now,*,total,gt,1,Splunk QL
 search http_status>400,now-1d,now,*,total,gt,0,Splunk QL
-"search 404",now-1d,now,*,total,gt,100,Splunk QL
-"search 404"OR 500",now-1d,now,*,total,gt,100,Splunk QL
+"search Norway",now-1d,now,*,total,gt,100,Splunk QL
+"search GET OR PUT",now-1d,now,*,total,gt,100,Splunk QL
 search latency<25000 AND app_name=Zebracould,now-1d,now,*,total,eq,0,Splunk QL
 search MintCream AND Thursday OR Monday,now-1d,now,*,total,eq,40,Splunk QL
 search (MintCream AND Thursday) OR Monday,now-1d,now,*,total,gt,30,Splunk QL
