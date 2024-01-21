@@ -162,7 +162,7 @@ function customRangeHandler(evt){
 
     if(currentPanel) {
         if(currentPanel.queryData) {
-            if(currentPanel.chartType === "Line Chart" && currentPanel.queryType === "metrics") {
+            if(currentPanel.chartType === "Line Chart" || currentPanel.queryType === "metrics") {
                 currentPanel.queryData.start = filterStartDate.toString();
                 currentPanel.queryData.end = filterEndDate.toString();
             } else {
@@ -177,7 +177,7 @@ function customRangeHandler(evt){
             // if panel has some stored query data, reset it
             if(localPanels[panelIndex].queryData) {
                 delete localPanels[panelIndex].queryRes
-                if(localPanels[panelIndex].chartType === "Line Chart" && localPanels[panelIndex].queryType === "metrics") {
+                if(localPanels[panelIndex].chartType === "Line Chart" || localPanels[panelIndex].queryType === "metrics") {
                     localPanels[panelIndex].queryData.start = filterStartDate.toString();
                     localPanels[panelIndex].queryData.end = filterEndDate.toString();
                 } else {
@@ -191,7 +191,7 @@ function customRangeHandler(evt){
             localPanels.forEach(panel => {
                 delete panel.queryRes
                 if(panel.queryData) {
-                    if(panel.chartType === "Line Chart" && panel.queryType === "metrics") {
+                    if(panel.chartType === "Line Chart" || panel.queryType === "metrics") {
                         panel.queryData.start = filterStartDate.toString();
                         panel.queryData.end = filterEndDate.toString();
                     } else {
@@ -224,7 +224,7 @@ function dashboardRangeItemHandler(evt){
     // if user is on edit panel screen
     if(currentPanel) {
         if(currentPanel.queryData) {
-            if(currentPanel.chartType === "Line Chart" && currentPanel.queryType === "metrics") {
+            if(currentPanel.chartType === "Line Chart" || currentPanel.queryType === "metrics") {
                 currentPanel.queryData.start = filterStartDate.toString();
                 currentPanel.queryData.end = filterEndDate.toString();
             } else {
@@ -239,7 +239,7 @@ function dashboardRangeItemHandler(evt){
             // if panel has some stored query data, reset it
             if(localPanels[panelIndex].queryData) {
                 delete localPanels[panelIndex].queryRes
-                if(localPanels[panelIndex].chartType === "Line Chart" && localPanels[panelIndex].queryType === "metrics") {
+                if(localPanels[panelIndex].chartType === "Line Chart" || localPanels[panelIndex].queryType === "metrics") {
                     localPanels[panelIndex].queryData.start = filterStartDate.toString();
                     localPanels[panelIndex].queryData.end = filterEndDate.toString();
                 } else {
@@ -253,7 +253,7 @@ function dashboardRangeItemHandler(evt){
             localPanels.forEach(panel => {
                 delete panel.queryRes
                 if(panel.queryData) {
-                    if(panel.chartType === "Line Chart" && panel.queryType === "metrics") {
+                    if(panel.chartType === "Line Chart" || panel.queryType === "metrics") {
                         panel.queryData.start = filterStartDate.toString();
                         panel.queryData.end = filterEndDate.toString();
                     } else {

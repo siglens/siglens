@@ -119,52 +119,19 @@ func Test_ParseShow(t *testing.T) {
 }
 
 func Test_ParseGroupByRound(t *testing.T) {
-	query_string := "SELECT ROUND(latency, 1) FROM `*` GROUP BY country"
+	query_string := "SELECT ROUND(sum(latitude), 2) FROM `*` GROUP BY city"
 
 	_, aggs, _, err := ConvertToASTNodeSQL(query_string, 0)
 
 	assert.Nil(t, err)
 
 	assert.NotNil(t, aggs.OutputTransforms.LetColumns)
-
 	assert.NotNil(t, aggs.OutputTransforms.LetColumns.ValueColRequest)
-
 	assert.NotNil(t, aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr)
-
-	assert.NotNil(t, aggs.GroupByRequest)
 
 	leftExpr := aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left
 	rightExpr := aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right
 	Op := aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op
-
-	assert.Equal(t, Op, "round")
-	assert.Equal(t, leftExpr.Value, "0(latency)")
-	assert.Equal(t, rightExpr.Value, "1")
-	assert.Equal(t, leftExpr.ValueIsField, true)
-	assert.Equal(t, rightExpr.ValueIsField, false)
-	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "round(0(latency))")
-
-	assert.NotNil(t, aggs.Next)
-
-	next := aggs.Next
-
-	assert.NotNil(t, next.OutputTransforms)
-	assert.NotNil(t, next.OutputTransforms.LetColumns)
-	assert.Equal(t, next.PipeCommandType, structs.PipeCommandType(0x1))
-
-	query_string = "SELECT ROUND(sum(latitude), 2) FROM `*` GROUP BY city"
-
-	_, aggs, _, err = ConvertToASTNodeSQL(query_string, 0)
-
-	assert.Nil(t, err)
-
-	assert.NotNil(t, aggs.OutputTransforms.LetColumns)
-	assert.NotNil(t, aggs.OutputTransforms.LetColumns.ValueColRequest)
-	assert.NotNil(t, aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr)
-
-	leftExpr = aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left
-	rightExpr = aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right
-	Op = aggs.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op
 
 	assert.Equal(t, Op, "round")
 	assert.Equal(t, leftExpr.Value, "sum(latitude)")
@@ -197,4 +164,45 @@ func Test_ParseGroupByRound(t *testing.T) {
 	assert.Equal(t, rightExpr.ValueIsField, false)
 	assert.Nil(t, leftExpr.Val)
 	assert.Equal(t, aggs.OutputTransforms.LetColumns.NewColName, "lat_sum")
+}
+
+func Test_ParseMathFunctions(t *testing.T) {
+	query_string := "SELECT city, ROUND(latitude, 2)"
+
+	_, aggs, _, err := ConvertToASTNodeSQL(query_string, 0)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, aggs.MathOperations)
+	assert.Equal(t, aggs.MathOperations[0].MathCol, "latitude")
+	assert.Equal(t, aggs.MathOperations[0].MathFunc, utils.Round)
+	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Op, "round")
+	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Left.Value, "latitude")
+	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Right.Value, "2")
+
+	// math function with alias
+	query_string = "SELECT city, ROUND(latitude, 2) as lat_round"
+
+	_, aggs, _, err = ConvertToASTNodeSQL(query_string, 0)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, aggs.MathOperations)
+	assert.Equal(t, aggs.MathOperations[0].MathCol, "latitude")
+	assert.Equal(t, aggs.MathOperations[0].MathFunc, utils.Round)
+	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Op, "round")
+	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Left.Value, "latitude")
+	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Right.Value, "2")
+	assert.Equal(t, aggs.OutputTransforms.OutputColumns.RenameColumns["latitude"], "lat_round")
+
+	// another math function: abs
+	query_string = "SELECT city, ABS(latitude) as lat_abs"
+
+	_, aggs, _, err = ConvertToASTNodeSQL(query_string, 0)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, aggs.MathOperations)
+	assert.Equal(t, aggs.MathOperations[0].MathCol, "latitude")
+	assert.Equal(t, aggs.MathOperations[0].MathFunc, utils.Abs)
+	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Op, "abs")
+	assert.Equal(t, aggs.MathOperations[0].ValueColRequest.NumericExpr.Left.Value, "latitude")
+	assert.Equal(t, aggs.OutputTransforms.OutputColumns.RenameColumns["latitude"], "lat_abs")
 }

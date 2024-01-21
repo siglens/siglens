@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
 )
@@ -192,6 +193,14 @@ func checkRecentlyRotatedKey(segkey string) (string, error) {
 	return segkey, nil
 }
 
+func getMathOpsColMap(MathOps []*structs.MathEvaluator) map[string]int {
+	colMap := make(map[string]int)
+	for index, mathOp := range MathOps {
+		colMap[mathOp.MathCol] = index
+	}
+	return colMap
+}
+
 func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segread.MultiColSegmentReader,
 	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators) map[uint16]map[string]interface{} {
 
@@ -215,6 +224,17 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 		}
 	}
 
+	var mathColMap map[string]int
+	var mathColOpsPresent bool
+
+	if aggs != nil && aggs.MathOperations != nil && len(aggs.MathOperations) > 0 {
+		mathColMap = getMathOpsColMap(aggs.MathOperations)
+		mathColOpsPresent = true
+	} else {
+		mathColOpsPresent = false
+		mathColMap = make(map[string]int)
+	}
+
 	for _, recNum := range orderedRecNums {
 		_, ok := results[recNum]
 		if !ok {
@@ -233,6 +253,22 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 			if err != nil {
 				// if the column was absent for an entire block and came for other blocks, this will error, hence no error logging here
 			} else {
+
+				if mathColOpsPresent {
+					colIndex, exists := mathColMap[col]
+					if exists {
+						mathOp := aggs.MathOperations[colIndex]
+						fieldToValue := make(map[string]utils.CValueEnclosure)
+						fieldToValue[mathOp.MathCol] = *cValEnc
+						valueFloat, err := mathOp.ValueColRequest.EvaluateToFloat(fieldToValue)
+						if err != nil {
+							log.Errorf("qid=%d, failed to evaluate math operation for col %s, err=%v", qid, col, err)
+						} else {
+							cValEnc.CVal = valueFloat
+						}
+					}
+				}
+
 				results[recNum][col] = cValEnc.CVal
 				allMatchedColumns[col] = true
 			}
