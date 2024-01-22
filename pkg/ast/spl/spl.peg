@@ -444,6 +444,18 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
     }
     aggNode.BucketLimit = query.MAX_GRP_BUCKS
 
+    if binOptions == nil {
+		binOptions = &structs.BinOptions{
+			SpanOptions: &structs.SpanOptions{
+				DefaultSettings: true,
+				SpanLength: &structs.SpanLength{
+					Num: 		 1,
+					TimeScalr: utils.TMMinute,
+				},
+			},
+		}
+	}
+
     bOptions := binOptions.(*structs.BinOptions)
 
     var limitExprTmp *structs.LimitExpr
@@ -455,7 +467,7 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
     }
 
     timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp, len(measureAggs))
-    aggNode.TimeHistogram = timeBucket
+	aggNode.TimeHistogram = timeBucket
 
     return aggNode, nil
 }

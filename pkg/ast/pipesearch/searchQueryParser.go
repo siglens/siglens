@@ -26,6 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/ast/spl"
 	"github.com/siglens/siglens/pkg/ast/sql"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
@@ -68,6 +69,17 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 				queryAggs.GroupByRequest.GroupByColumns = metadata.GetAllColNames([]string{indexName})
 			}
 			if queryAggs.TimeHistogram != nil && queryAggs.TimeHistogram.Timechart != nil {
+				if queryAggs.TimeHistogram.Timechart.BinOptions != nil &&
+					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions != nil &&
+					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions.DefaultSettings {
+					spanOptions, err := ast.GetDefaultTimechartSpanOptions(startEpoch, endEpoch, qid)
+					if err != nil {
+						log.Errorf("qid=%d, Search ParseRequest: GetDefaultTimechartSpanOptions error: %v", qid, err)
+						return nil, nil, err
+					}
+					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions = spanOptions
+					queryAggs.TimeHistogram.IntervalMillis = aggregations.GetIntervalInMillis(spanOptions.SpanLength.Num, spanOptions.SpanLength.TimeScalr)
+				}
 				queryAggs.TimeHistogram.StartTime = startEpoch
 				queryAggs.TimeHistogram.EndTime = endEpoch
 			}
