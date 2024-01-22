@@ -31,6 +31,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/utils"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -243,4 +244,31 @@ func ParseTimeRange(startEpoch, endEpoch uint64, aggs *QueryAggregators, qid uin
 	tRange.StartEpochMs = startEpoch
 	tRange.EndEpochMs = endEpoch
 	return tRange, nil
+}
+
+func GetDefaultTimechartSpanOptions(startEpoch, endEpoch uint64, qid uint64) (*structs.SpanOptions, error) {
+	if startEpoch == 0 || endEpoch == 0 {
+		err := fmt.Errorf("GetDefaultTimechartSpanOptions: , time range not set")
+		return nil, err
+	}
+
+	duration := endEpoch - startEpoch
+
+	// 15 minutes
+	if duration <= 15*60*1000 {
+		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 10, TimeScalr: utils.TMSecond}}, nil
+	} else if duration <= 60*60*1000 {
+		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 1, TimeScalr: utils.TMMinute}}, nil
+	} else if duration <= 4*60*60*1000 {
+		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 5, TimeScalr: utils.TMMinute}}, nil
+	} else if duration <= 24*60*60*1000 {
+		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 30, TimeScalr: utils.TMMinute}}, nil
+	} else if duration <= 7*24*60*60*1000 {
+		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 1, TimeScalr: utils.TMHour}}, nil
+	} else if duration <= 180*24*60*60*1000 {
+		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 1, TimeScalr: utils.TMDay}}, nil
+	} else {
+		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 1, TimeScalr: utils.TMMonth}}, nil
+	}
+
 }

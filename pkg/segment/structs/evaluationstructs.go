@@ -199,7 +199,8 @@ type BinOptions struct {
 }
 
 type SpanOptions struct {
-	SpanLength *SpanLength
+	DefaultSettings bool
+	SpanLength      *SpanLength
 }
 
 type SpanLength struct {
