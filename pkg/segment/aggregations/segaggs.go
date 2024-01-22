@@ -502,7 +502,7 @@ func performRenameColRequestOnMeasureResults(nodeResult *structs.NodeResult, let
 
 func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool) error {
-	//Without following group by
+	// Without following a group by
 	if recs != nil {
 		if err := performDedupColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performDedupColRequest: %v", err)
@@ -514,9 +514,19 @@ func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 	if err := performDedupColRequestOnHistogram(nodeResult, letColReq); err != nil {
 		return fmt.Errorf("performDedupColRequest: %v", err)
 	}
-	//	if err := performDedupColRequestOnMeasureResults(nodeResult, letColReq); err != nil {
-	//		return fmt.Errorf("performDedupColRequest: %v", err)
-	//	}
+
+	// Reset DedupCombinations so we can use it for computing dedup on the
+	// MeasureResults without the deduped records from the Histogram
+	// interfering.
+	// Note that this is only ok because we never again need the dedup buckets
+	// from the Histogram, and this is ok even when there's multiple segments
+	// because this post-processing logic is run on group by data only after
+	// the data from all the segments has been compiled into one NodeResult.
+	letColReq.DedupColRequest.DedupCombinations = make(map[string]map[int][]structs.DedupSortValue, 0)
+
+	if err := performDedupColRequestOnMeasureResults(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performDedupColRequest: %v", err)
+	}
 
 	return nil
 }
@@ -681,45 +691,64 @@ func performDedupColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq
 
 func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
 	fieldList := letColReq.DedupColRequest.FieldList
+	dedupRawValues := make(map[string]segutils.CValueEnclosure, len(fieldList))
+	combinationSlice := make([]interface{}, len(fieldList))
+	sortbyRawValues := make(map[string]segutils.CValueEnclosure, len(letColReq.DedupColRequest.DedupSortEles))
+	sortbyValues := make([]structs.DedupSortValue, len(letColReq.DedupColRequest.DedupSortEles))
+	sortbyFields := make([]string, len(letColReq.DedupColRequest.DedupSortEles))
 
-	newMeasureResults := make([]*structs.BucketHolder, 0)
+	for i, sortEle := range letColReq.DedupColRequest.DedupSortEles {
+		sortbyFields[i] = sortEle.Field
+		sortbyValues[i] = structs.DedupSortValue{
+			InterpretAs: sortEle.Op,
+		}
+	}
 
-	for _, bucketHolder := range nodeResult.MeasureResults {
-		// Initialize combination for current row
-		combinationSlice := make([]interface{}, len(fieldList))
-		for index, field := range fieldList {
-			if utils.SliceContainsString(nodeResult.MeasureFunctions, field) {
-				val, exists := bucketHolder.MeasureVal[field]
-				if !exists {
-					combinationSlice[index] = nil
-				} else {
-					combinationSlice[index] = val
+	newResults := make([]*structs.BucketHolder, 0)
+	evictedFromNewResults := make([]bool, 0) // Only used when dedup has a sortby.
+	numEvicted := 0
+
+	for bucketIndex, bucketHolder := range nodeResult.MeasureResults {
+		err := getMeasureResultsFieldValues(dedupRawValues, fieldList, nodeResult, bucketIndex)
+		if err != nil {
+			return fmt.Errorf("performDedupColRequestOnMeasureResults: error getting dedup values: %v", err)
+		}
+
+		for i, field := range fieldList {
+			combinationSlice[i] = dedupRawValues[field]
+		}
+
+		// If the dedup has a sortby, get the sort values.
+		if len(letColReq.DedupColRequest.DedupSortEles) > 0 {
+			err = getMeasureResultsFieldValues(sortbyRawValues, sortbyFields, nodeResult, bucketIndex)
+			if err != nil {
+				return fmt.Errorf("performDedupColRequestOnMeasureResults: error getting sort values: %v", err)
+			}
+
+			for i, field := range sortbyFields {
+				enclosure := sortbyRawValues[field]
+				sortbyValues[i].Val, err = enclosure.GetString()
+				if err != nil {
+					return fmt.Errorf("performDedupColRequestOnMeasureResults: error converting sort values: %v", err)
 				}
-			} else {
-				groupByIndex := -1
-				for i, groupByCol := range nodeResult.GroupByCols {
-					if groupByCol == field {
-						groupByIndex = i
-						break
-					}
-				}
-
-				if groupByIndex == -1 {
-					return fmt.Errorf("performDedupColRequestOnMeasureResults: field %v is not in MeasureFunctions or GroupByCols", field)
-				}
-
-				val := bucketHolder.GroupByValues[groupByIndex]
-				combinationSlice[index] = val
 			}
 		}
 
-		passes, _, err := combinationPassesDedup(combinationSlice, 0, nil, letColReq.DedupColRequest)
+		recordIndex := len(newResults)
+		passes, evictionIndex, err := combinationPassesDedup(combinationSlice, recordIndex, sortbyValues, letColReq.DedupColRequest)
 		if err != nil {
 			return fmt.Errorf("performDedupColRequestOnMeasureResults: %v", err)
 		}
 
+		if evictionIndex != -1 {
+			// Evict the item at evictionIndex.
+			evictedFromNewResults[evictionIndex] = true
+			numEvicted++
+		}
+
 		if passes {
-			newMeasureResults = append(newMeasureResults, bucketHolder)
+			newResults = append(newResults, bucketHolder)
+			evictedFromNewResults = append(evictedFromNewResults, false)
 		} else if letColReq.DedupColRequest.DedupOptions.KeepEvents {
 			// Keep this bucketHolder, but clear all the values for the fieldList fields.
 			for _, field := range fieldList {
@@ -735,13 +764,22 @@ func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 				}
 			}
 
-			newMeasureResults = append(newMeasureResults, bucketHolder)
+			newResults = append(newResults, bucketHolder)
 		}
-
 	}
 
-	nodeResult.MeasureResults = newMeasureResults
-	nodeResult.BucketCount = len(newMeasureResults)
+	// Get the final results by removing the evicted items.
+	finalResults := make([]*structs.BucketHolder, len(newResults)-numEvicted)
+	finalResultsIndex := 0
+	for i, bucketHolder := range newResults {
+		if !evictedFromNewResults[i] {
+			finalResults[finalResultsIndex] = bucketHolder
+			finalResultsIndex++
+		}
+	}
+
+	nodeResult.MeasureResults = finalResults
+	nodeResult.BucketCount = len(newResults)
 
 	return nil
 }
