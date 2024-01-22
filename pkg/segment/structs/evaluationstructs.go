@@ -112,7 +112,7 @@ type DedupSortElement struct {
 }
 
 type DedupSortValue struct {
-	Val         interface{}
+	Val         string
 	InterpretAs string // Should be "ip", "num", "str", "auto", or ""
 }
 
@@ -1482,17 +1482,17 @@ func getValueAsFloat(fieldToValue map[string]utils.CValueEnclosure, field string
 func (self *DedupSortValue) Compare(other *DedupSortValue) (int, error) {
 	switch self.InterpretAs {
 	case "ip":
-		selfIP := net.ParseIP(self.Val.(string))
-		otherIP := net.ParseIP(other.Val.(string))
+		selfIP := net.ParseIP(self.Val)
+		otherIP := net.ParseIP(other.Val)
 		if selfIP == nil || otherIP == nil {
 			return 0, fmt.Errorf("DedupSortValue.Compare: cannot parse IP address")
 		}
 		return bytes.Compare(selfIP, otherIP), nil
 	case "num":
-		selfFloat, selfIsFloat := self.Val.(float64)
-		otherFloat, otherIsFloat := other.Val.(float64)
-		if !selfIsFloat || !otherIsFloat {
-			return 0, fmt.Errorf("DedupSortValue.Compare: cannot convert to float")
+		selfFloat, selfErr := strconv.ParseFloat(self.Val, 64)
+		otherFloat, otherErr := strconv.ParseFloat(other.Val, 64)
+		if selfErr != nil || otherErr != nil {
+			return 0, fmt.Errorf("DedupSortValue.Compare: cannot parse %v and %v as float", self.Val, other.Val)
 		}
 
 		if selfFloat == otherFloat {
@@ -1503,16 +1503,11 @@ func (self *DedupSortValue) Compare(other *DedupSortValue) (int, error) {
 			return 1, nil
 		}
 	case "str":
-		selfStr, selfIsStr := self.Val.(string)
-		otherStr, otherIsStr := other.Val.(string)
-		if !selfIsStr || !otherIsStr {
-			return 0, fmt.Errorf("DedupSortValue.Compare: cannot convert to string")
-		}
-		return strings.Compare(selfStr, otherStr), nil
+		return strings.Compare(self.Val, other.Val), nil
 	case "auto", "":
-		selfFloat, selfIsFloat := self.Val.(float64)
-		otherFloat, otherIsFloat := other.Val.(float64)
-		if selfIsFloat && otherIsFloat {
+		selfFloat, selfErr := strconv.ParseFloat(self.Val, 64)
+		otherFloat, otherErr := strconv.ParseFloat(other.Val, 64)
+		if selfErr == nil && otherErr == nil {
 			if selfFloat == otherFloat {
 				return 0, nil
 			} else if selfFloat < otherFloat {
@@ -1522,19 +1517,13 @@ func (self *DedupSortValue) Compare(other *DedupSortValue) (int, error) {
 			}
 		}
 
-		selfIp := net.ParseIP(self.Val.(string))
-		otherIp := net.ParseIP(other.Val.(string))
+		selfIp := net.ParseIP(self.Val)
+		otherIp := net.ParseIP(other.Val)
 		if selfIp != nil && otherIp != nil {
 			return bytes.Compare(selfIp, otherIp), nil
 		}
 
-		selfStr, selfIsStr := self.Val.(string)
-		otherStr, otherIsStr := other.Val.(string)
-		if selfIsStr && otherIsStr {
-			return strings.Compare(selfStr, otherStr), nil
-		}
-
-		return 0, fmt.Errorf("DedupSortValue.Compare: cannot compare values")
+		return strings.Compare(self.Val, other.Val), nil
 	default:
 		return 0, fmt.Errorf("DedupSortValue.Compare: invalid InterpretAs value: %v", self.InterpretAs)
 	}

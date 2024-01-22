@@ -937,7 +937,26 @@ DedupSortElements <- first:DedupSingleSortElement rest:(SPACE DedupSingleSortEle
     return dedupSortEles, nil
 }
 
-DedupSingleSortElement <- sortBySymbol:("+" / "-") op:("" / "auto" / "str" / "ip" / "num")? field:FieldName {
+DedupSingleSortElement <- element:(DedupSingleSortElementWithCast / DedupSingleSortElementWithoutCast) {
+    return element, nil
+}
+
+DedupSingleSortElementWithoutCast <- sortBySymbol:("+" / "-") field:FieldName {
+    sortByAsc := true
+
+    symbol := sortBySymbol.([]byte)
+    if(symbol[0] == '-') {
+        sortByAsc = false
+    }
+
+    return &structs.DedupSortElement {
+        SortByAsc: sortByAsc,
+        Op: "",
+        Field: field.(string),
+    }, nil
+}
+
+DedupSingleSortElementWithCast <- sortBySymbol:("+" / "-") op:("auto" / "str" / "ip" / "num") L_PAREN field:FieldName R_PAREN {
     sortByAsc := true
 
     symbol := sortBySymbol.([]byte)
@@ -947,7 +966,7 @@ DedupSingleSortElement <- sortBySymbol:("+" / "-") op:("" / "auto" / "str" / "ip
 
     opStr, err := transferUint8ToString(op)
     if err != nil {
-        return nil, fmt.Errorf("Spl peg: DedupSingleSortElement: %v", err)
+        return nil, fmt.Errorf("Spl peg: DedupSingleSortElementWithCast: %v", err)
     }
 
     return &structs.DedupSortElement {
