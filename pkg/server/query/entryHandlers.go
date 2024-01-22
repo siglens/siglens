@@ -19,9 +19,6 @@ package queryserver
 import (
 	"time"
 
-	"github.com/siglens/siglens/pkg/common/dtypeutils"
-	"github.com/siglens/siglens/pkg/utils"
-
 	"github.com/fasthttp/websocket"
 
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
@@ -209,9 +206,8 @@ var upgrader = websocket.FastHTTPUpgrader{
 }
 
 func pipeSearchWebsocketHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
-
+	instrumentation.IncrementInt64Counter(instrumentation.QUERY_COUNT, 1)
 	return func(ctx *fasthttp.RequestCtx) {
-		startTime := time.Now()
 		err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
 			defer func() {
 				deadline := time.Now().Add(time.Second * 5)
@@ -230,24 +226,12 @@ func pipeSearchWebsocketHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
 					return
 				}
 			}()
-			pipesearch.ProcessPipeSearchWebsocket(conn, myid)
+			pipesearch.ProcessPipeSearchWebsocket(conn, myid, ctx)
 		})
 		if err != nil {
 			log.Errorf("PipeSearchWebsocketHandler: Error upgrading websocket connection %+v", err)
 			return
 		}
-
-		// Logging data to access.log
-		// timeStamp <logged-in user> <request URI> <request body> <response status code> <elapsed time in ms>
-		duration := time.Since(startTime).Milliseconds()
-		utils.AddAccessLogEntry(dtypeutils.AccessLogData{
-			TimeStamp:   time.Now().Format("2006-01-02 15:04:05"),
-			UserName:    "No-User", // TODO : Add logged in user when user auth is implemented
-			URI:         ctx.Request.URI().String(),
-			RequestBody: string(ctx.PostBody()),
-			StatusCode:  ctx.Response.StatusCode(),
-			Duration:    duration,
-		}, "access.log")
 	}
 }
 
@@ -501,7 +485,7 @@ func liveTailHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
 					return
 				}
 			}()
-			pipesearch.ProcessPipeSearchWebsocket(conn, myid)
+			pipesearch.ProcessPipeSearchWebsocket(conn, myid, ctx)
 		})
 		if err != nil {
 			log.Errorf("liveTailHandler: Error upgrading websocket connection %+v", err)

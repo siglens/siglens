@@ -129,7 +129,7 @@ function updateDashboard() {
     let tempPanels = JSON.parse(JSON.stringify(localPanels));
     for (let i = 0; i < tempPanels.length; i++)
         delete tempPanels[i].queryRes;
-    fetch('/api/dashboards/update',
+    return fetch('/api/dashboards/update',
         {
             method: 'POST',
             body: JSON.stringify({
@@ -153,15 +153,14 @@ function updateDashboard() {
             if (res.status == 200) {
                 displayDashboardName();
                 showToast('Dashboard Updated Successfully');
-                $('#app-container').show();
-                $('.dbSet-container').hide();
-                $('.dbSet-dbName').val("");
-                $('.dbSet-dbDescr').val("");
-                $('.dbSet-jsonModelData').val("");            
+                return true;
             }
             return res.json();
         })
-        .then(data => console.log(data)).catch(error => console.error(error));
+        .catch(error => {
+            console.error(error);
+            return false;
+        });
 }
 
 function refreshDashboardHandler() {
@@ -396,12 +395,18 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
         let responseDiv = `<div class="big-number-display-container"></div>
         <div id="empty-response"></div><div id="corner-popup"></div>`
         panEl.append(responseDiv)
-
-        if (localPanel.queryRes)
-            runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
-        else
-            runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
-    } else if (localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'Bar Chart') {
+        if(localPanel.queryType ==='metrics') {
+            if (localPanel.queryRes)
+                runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
+            else
+                runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+        }else{
+            if (localPanel.queryRes)
+                runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
+            else
+                runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+        }
+        } else if (localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'Bar Chart') {
         // generic for both bar and pie chartTypes.
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`
@@ -451,9 +456,9 @@ async function getDashboardData() {
     if (localPanels != undefined) {
         updateTimeRangeForPanels();
         recalculatePanelWidths();
-        displayPanels();
         resetPanelLocationsHorizontally();
         setRefreshItemHandler();
+        refreshDashboardHandler();
     }
 }
 
@@ -461,7 +466,7 @@ function updateTimeRangeForPanels() {
     localPanels.forEach(panel => {
         delete panel.queryRes;
         if(panel.queryData) {
-            if((panel.chartType === "Line Chart" || panel.chartType === "number") && panel.queryType === "metrics") {
+            if(panel.chartType === "Line Chart" || panel.queryType === "metrics") {
                 datePickerHandler(panel.queryData.start, panel.queryData.end, panel.queryData.start)
                 panel.queryData.start = filterStartDate.toString();
                 panel.queryData.end = filterEndDate.toString();
@@ -567,14 +572,17 @@ function displayPanels() {
 
             $('.big-number-display-container').show();
             if (localPanel.queryType === "metrics"){
+
                 if (localPanel.queryRes){
-                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.queryRes)
+                    delete localPanel.queryData.startEpoch
+                    delete localPanel.queryData.endEpoch
+                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
                 }
                 else {
                     //remove startEpoch from from localPanel.queryData
                     delete localPanel.queryData.startEpoch
                     delete localPanel.queryData.endEpoch
-                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType)
+                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
                 }
             }else {
                 if (localPanel.queryRes)
@@ -780,7 +788,7 @@ function showToast(msg) {
     <div>`
     $('body').prepend(toast);
     $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 10000);
+    setTimeout(removeToast, 1000);
 }
 
 function removeToast() {
@@ -1155,7 +1163,13 @@ function saveDbSetting() {
     dbDescr = trimmedDbDescription;
 
 
-    updateDashboard();
+    updateDashboard()
+    .then(updateSuccessful => {
+        if (updateSuccessful) {
+            $('#app-container').show();
+            $('.dbSet-container').hide();
+        }
+    })
 }
 
 $('#error-ok-btn').click(function () {

@@ -7,9 +7,27 @@ services:
       - "${UI_PORT}:5122"
     volumes:
       - "${WORK_DIR}/data:/siglens/data"
-      - "${WORK_DIR}/server.yaml:/siglens/server.yaml"
-    command: ["./siglens", "--config", "server.yaml"]
+      - "${WORK_DIR}/logs:/siglens/logs"
+      - "${WORK_DIR}/${CONFIG_FILE}:/siglens/${CONFIG_FILE}"
+    command: ["./siglens", "--config", "${CONFIG_FILE}"]
     environment:
       - UI_PORT=${UI_PORT}
       - WORK_DIR=${WORK_DIR}
       - SIGLENS_VERSION=${SIGLENS_VERSION}
+
+  hotrod:
+    image: jaegertracing/example-hotrod:1.53
+    ports:
+      - "8080:8080"
+    environment:
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://siglens:8081/otlp/v1/traces
+    depends_on:
+      - siglens
+
+  siglens-metrics-otel-collector:
+    image: otel/opentelemetry-collector:latest  
+    volumes:
+      - ./ssmetrics-otel-collector-config.yaml:/etc/ssmetrics-otel-collector-config.yaml  
+    ports:
+      - "4318:4318"
+    command: ["--config=/etc/ssmetrics-otel-collector-config.yaml"]  

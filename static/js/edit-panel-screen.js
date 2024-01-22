@@ -74,6 +74,9 @@ let mapDataTypeToIndex = new Map([
 	["GB", 3],
 	["TB", 4],
 	["PB", 5],
+	["EB", 6],
+	["ZB", 7],
+	["YB", 8],
 ])
 
 let mapIndexToUnitType = new Map([
@@ -137,7 +140,10 @@ let mapIndexToDataType = new Map([
 	[2, "MB"],
 	[3, "GB"],
 	[4, "TB"],
-	[5, "PB"]
+	[5, "PB"],
+	[6, "EB"],
+	[7, "ZB"],
+	[8, "YB"],
 ])
 
 let mapIndexToThroughputOptions = new Map([
@@ -1157,7 +1163,7 @@ function goToDashboard(redirectedFromViewScreen) {
 function resetPanelTimeRanges() {
 	for (let i = 0; i < localPanels.length; i++) {
 		if (localPanels[i].queryData) {
-			(localPanels[i].chartType === "Line Chart" && localPanels[i].queryType === "metrics")
+			((localPanels[i].chartType === "Line Chart" || localPanels[i].chartType === "number" ) && localPanels[i].queryType === "metrics")
 			?(localPanels[i].queryData.start = filterStartDate)
 			:(localPanels[i].queryData.startEpoch = filterStartDate)
 		}
