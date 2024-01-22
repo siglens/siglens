@@ -17,6 +17,7 @@ limitations under the License.
 package aggregations
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -74,7 +75,8 @@ func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *str
 
 // Function to clean up results based on input query aggregations.
 // This will make sure all buckets respect the minCount & is returned in a sorted order
-func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool) *structs.NodeResult {
+func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{},
+	finalCols map[string]bool) *structs.NodeResult {
 	if post.TimeHistogram != nil {
 		applyTimeRangeHistogram(nodeResult, post.TimeHistogram, post.TimeHistogram.AggName)
 	}
@@ -97,7 +99,8 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	return nodeResult
 }
 
-func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
+	finalCols map[string]bool) error {
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -217,7 +220,8 @@ RenamingLoop:
 	return nil
 }
 
-func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
+	finalCols map[string]bool) error {
 
 	if letColReq.NewColName == "" && !aggs.HasQueryAggergatorBlock() && letColReq.StatisticColRequest == nil {
 		return errors.New("performLetColumnsRequest: expected non-empty NewColName")
@@ -242,6 +246,10 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		}
 	} else if letColReq.StatisticColRequest != nil {
 		if err := performStatisticColRequest(nodeResult, aggs, letColReq, recs); err != nil {
+			return fmt.Errorf("performLetColumnsRequest: %v", err)
+		}
+	} else if letColReq.DedupColRequest != nil {
+		if err := performDedupColRequest(nodeResult, aggs, letColReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else {
@@ -492,6 +500,63 @@ func performRenameColRequestOnMeasureResults(nodeResult *structs.NodeResult, let
 	return nil
 }
 
+func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
+	finalCols map[string]bool) error {
+	//Without following group by
+	if recs != nil {
+		if err := performDedupColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols); err != nil {
+			return fmt.Errorf("performDedupColRequest: %v", err)
+		}
+		return nil
+	}
+
+	// Following a group by
+	return fmt.Errorf("performDedupColRequest: not yet implemented for after a group by")
+}
+
+func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
+	finalCols map[string]bool) error {
+
+	combinations := letColReq.DedupColRequest.DedupCombinations
+	limit := int(letColReq.DedupColRequest.Limit)
+	fieldList := letColReq.DedupColRequest.FieldList
+	length := len(fieldList)
+
+	for key, record := range recs {
+
+		// Initialize combination for current row
+		combinationSlice := make([]interface{}, length)
+		for index, field := range fieldList {
+			val, exists := record[field]
+			if !exists {
+				combinationSlice[index] = nil
+			} else {
+				combinationSlice[index] = val
+			}
+		}
+
+		combinationBytes, err := json.Marshal(combinationSlice)
+		if err != nil {
+			return fmt.Errorf("performDedupColRequestWithoutGroupby: failed to marshal combintion %v: %v",
+				combinationSlice, err)
+		}
+
+		combination := string(combinationBytes)
+		count, exists := combinations[combination]
+		if !exists {
+			count = 0
+		}
+
+		if exists && count >= limit {
+			delete(recs, key)
+		} else {
+			combinations[combination] = count + 1
+		}
+	}
+
+	return nil
+}
+
 func performStatisticColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
 
 	if err := performStatisticColRequestOnHistogram(nodeResult, letColReq); err != nil {
@@ -506,8 +571,8 @@ func performStatisticColRequest(nodeResult *structs.NodeResult, aggs *structs.Qu
 
 func performStatisticColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
 
-	countIsGroupByCol := utils.SliceContainsString(letColReq.StatisticColRequest.GetGroupByCols(), letColReq.StatisticColRequest.Options.CountField)
-	percentIsGroupByCol := utils.SliceContainsString(letColReq.StatisticColRequest.GetGroupByCols(), letColReq.StatisticColRequest.Options.PercentField)
+	countIsGroupByCol := utils.SliceContainsString(letColReq.StatisticColRequest.GetGroupByCols(), letColReq.StatisticColRequest.StatisticOptions.CountField)
+	percentIsGroupByCol := utils.SliceContainsString(letColReq.StatisticColRequest.GetGroupByCols(), letColReq.StatisticColRequest.StatisticOptions.PercentField)
 
 	for _, aggregationResult := range nodeResult.Histogram {
 
@@ -554,35 +619,35 @@ func performStatisticColRequestOnHistogram(nodeResult *structs.NodeResult, letCo
 				}
 			}
 
-			if letColReq.StatisticColRequest.Options.ShowCount && !countIsGroupByCol {
+			if letColReq.StatisticColRequest.StatisticOptions.ShowCount && !countIsGroupByCol {
 				//Set Count to StatResult
 				letColReq.StatisticColRequest.SetCountToStatRes(bucketResult.StatRes, bucketResult.ElemCount)
 			}
 
-			if letColReq.StatisticColRequest.Options.ShowPerc && !percentIsGroupByCol {
+			if letColReq.StatisticColRequest.StatisticOptions.ShowPerc && !percentIsGroupByCol {
 				//Set Percent to StatResult
 				letColReq.StatisticColRequest.SetPercToStatRes(bucketResult.StatRes, bucketResult.ElemCount, resTotal)
 			}
 		}
 
 		//If useother=true, a row representing all other values is added to the results.
-		if letColReq.StatisticColRequest.Options.UseOther {
+		if letColReq.StatisticColRequest.StatisticOptions.UseOther {
 			statRes := make(map[string]segutils.CValueEnclosure)
 			groupByKeys := aggregationResult.Results[0].GroupByKeys
 			bucketKey := make([]string, len(groupByKeys))
 			otherEnclosure := segutils.CValueEnclosure{
 				Dtype: segutils.SS_DT_STRING,
-				CVal:  letColReq.StatisticColRequest.Options.OtherStr,
+				CVal:  letColReq.StatisticColRequest.StatisticOptions.OtherStr,
 			}
 			for i := 0; i < len(groupByKeys); i++ {
-				if groupByKeys[i] == letColReq.StatisticColRequest.Options.CountField || groupByKeys[i] == letColReq.StatisticColRequest.Options.PercentField {
+				if groupByKeys[i] == letColReq.StatisticColRequest.StatisticOptions.CountField || groupByKeys[i] == letColReq.StatisticColRequest.StatisticOptions.PercentField {
 					continue
 				}
-				bucketKey[i] = letColReq.StatisticColRequest.Options.OtherStr
+				bucketKey[i] = letColReq.StatisticColRequest.StatisticOptions.OtherStr
 			}
 
 			for key := range aggregationResult.Results[0].StatRes {
-				if key == letColReq.StatisticColRequest.Options.CountField || key == letColReq.StatisticColRequest.Options.PercentField {
+				if key == letColReq.StatisticColRequest.StatisticOptions.CountField || key == letColReq.StatisticColRequest.StatisticOptions.PercentField {
 					continue
 				}
 				statRes[key] = otherEnclosure
@@ -602,11 +667,11 @@ func performStatisticColRequestOnHistogram(nodeResult *structs.NodeResult, letCo
 				}
 			}
 
-			if letColReq.StatisticColRequest.Options.ShowCount && !countIsGroupByCol {
+			if letColReq.StatisticColRequest.StatisticOptions.ShowCount && !countIsGroupByCol {
 				letColReq.StatisticColRequest.SetCountToStatRes(statRes, otherCnt)
 			}
 
-			if letColReq.StatisticColRequest.Options.ShowPerc && !percentIsGroupByCol {
+			if letColReq.StatisticColRequest.StatisticOptions.ShowPerc && !percentIsGroupByCol {
 				letColReq.StatisticColRequest.SetPercToStatRes(statRes, otherCnt, resTotal)
 			}
 
@@ -631,13 +696,13 @@ func performStatisticColRequestOnMeasureResults(nodeResult *structs.NodeResult, 
 	countColIndex := -1
 	percentColIndex := -1
 	for i, measureCol := range nodeResult.MeasureFunctions {
-		if letColReq.StatisticColRequest.Options.ShowCount && letColReq.StatisticColRequest.Options.CountField == measureCol {
+		if letColReq.StatisticColRequest.StatisticOptions.ShowCount && letColReq.StatisticColRequest.StatisticOptions.CountField == measureCol {
 			// We'll write over this existing column.
 			countIsGroupByCol = false
 			countColIndex = i
 		}
 
-		if letColReq.StatisticColRequest.Options.ShowPerc && letColReq.StatisticColRequest.Options.PercentField == measureCol {
+		if letColReq.StatisticColRequest.StatisticOptions.ShowPerc && letColReq.StatisticColRequest.StatisticOptions.PercentField == measureCol {
 			// We'll write over this existing column.
 			percentIsGroupByCol = false
 			percentColIndex = i
@@ -645,24 +710,24 @@ func performStatisticColRequestOnMeasureResults(nodeResult *structs.NodeResult, 
 	}
 
 	for i, groupByCol := range nodeResult.GroupByCols {
-		if letColReq.StatisticColRequest.Options.ShowCount && letColReq.StatisticColRequest.Options.CountField == groupByCol {
+		if letColReq.StatisticColRequest.StatisticOptions.ShowCount && letColReq.StatisticColRequest.StatisticOptions.CountField == groupByCol {
 			// We'll write over this existing column.
 			countIsGroupByCol = true
 			countColIndex = i
 		}
-		if letColReq.StatisticColRequest.Options.ShowPerc && letColReq.StatisticColRequest.Options.PercentField == groupByCol {
+		if letColReq.StatisticColRequest.StatisticOptions.ShowPerc && letColReq.StatisticColRequest.StatisticOptions.PercentField == groupByCol {
 			// We'll write over this existing column.
 			percentIsGroupByCol = true
 			percentColIndex = i
 		}
 	}
 
-	if letColReq.StatisticColRequest.Options.ShowCount && countColIndex == -1 {
-		nodeResult.MeasureFunctions = append(nodeResult.MeasureFunctions, letColReq.StatisticColRequest.Options.CountField)
+	if letColReq.StatisticColRequest.StatisticOptions.ShowCount && countColIndex == -1 {
+		nodeResult.MeasureFunctions = append(nodeResult.MeasureFunctions, letColReq.StatisticColRequest.StatisticOptions.CountField)
 	}
 
-	if letColReq.StatisticColRequest.Options.ShowPerc && percentColIndex == -1 {
-		nodeResult.MeasureFunctions = append(nodeResult.MeasureFunctions, letColReq.StatisticColRequest.Options.PercentField)
+	if letColReq.StatisticColRequest.StatisticOptions.ShowPerc && percentColIndex == -1 {
+		nodeResult.MeasureFunctions = append(nodeResult.MeasureFunctions, letColReq.StatisticColRequest.StatisticOptions.PercentField)
 	}
 
 	countName := "count(*)"
@@ -672,7 +737,7 @@ func performStatisticColRequestOnMeasureResults(nodeResult *structs.NodeResult, 
 	}
 
 	resTotal := uint64(0)
-	if letColReq.StatisticColRequest.Options.ShowPerc {
+	if letColReq.StatisticColRequest.StatisticOptions.ShowPerc {
 		for _, bucketHolder := range nodeResult.MeasureResults {
 			resTotal += bucketHolder.MeasureVal[countName].(uint64)
 		}
@@ -684,7 +749,7 @@ func performStatisticColRequestOnMeasureResults(nodeResult *structs.NodeResult, 
 
 		countVal := bucketHolder.MeasureVal[countName]
 
-		if letColReq.StatisticColRequest.Options.ShowCount {
+		if letColReq.StatisticColRequest.StatisticOptions.ShowCount {
 			// Set the appropriate column to the computed value.
 			if countIsGroupByCol {
 				count, ok := countVal.(uint64)
@@ -693,7 +758,7 @@ func performStatisticColRequestOnMeasureResults(nodeResult *structs.NodeResult, 
 				}
 				bucketHolder.GroupByValues[countColIndex] = strconv.FormatUint(count, 10)
 			} else {
-				bucketHolder.MeasureVal[letColReq.StatisticColRequest.Options.CountField] = countVal
+				bucketHolder.MeasureVal[letColReq.StatisticColRequest.StatisticOptions.CountField] = countVal
 			}
 		}
 
@@ -703,7 +768,7 @@ func performStatisticColRequestOnMeasureResults(nodeResult *structs.NodeResult, 
 			delete(bucketHolder.MeasureVal, countName)
 		}
 
-		if letColReq.StatisticColRequest.Options.ShowPerc {
+		if letColReq.StatisticColRequest.StatisticOptions.ShowPerc {
 			count, ok := countVal.(uint64)
 			if !ok {
 				return fmt.Errorf("performStatisticColRequestOnMeasureResults: Can not convert count to uint64")
@@ -712,7 +777,7 @@ func performStatisticColRequestOnMeasureResults(nodeResult *structs.NodeResult, 
 			if percentIsGroupByCol {
 				bucketHolder.GroupByValues[percentColIndex] = fmt.Sprintf("%.6f", percent)
 			} else {
-				bucketHolder.MeasureVal[letColReq.StatisticColRequest.Options.PercentField] = fmt.Sprintf("%.6f", percent)
+				bucketHolder.MeasureVal[letColReq.StatisticColRequest.StatisticOptions.PercentField] = fmt.Sprintf("%.6f", percent)
 			}
 		}
 
