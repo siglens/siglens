@@ -302,23 +302,34 @@ class btnRenderer {
             params.data.favorite=!params.data.favorite;
             this.starIcon.style.backgroundImage=params.data.favorite ? starFilledURL : starOutlineURL;       
         }
-
-        function showPrompt() {
-            $('#delete-db-prompt').css('display', 'flex');
-            $('.popupOverlay, .popupContent').addClass('active');
-            $('#new-dashboard-modal').hide();
-
-            $('#cancel-db-prompt, .popupOverlay').click(function () {
-                $('.popupOverlay, .popupContent').removeClass('active');
-                $('#delete-db-prompt').hide();
-            });
-
-            $('#delete-dbbtn').click(function () {
-                deletedb();
-                $('.popupOverlay, .popupContent').removeClass('active');
-                $('#delete-db-prompt').hide();
-            });
-        }
+		function showPrompt() {
+			let defaultDashboardIds = [
+				"10329b95-47a8-48df-8b1d-0a0a01ec6c42",
+				"a28f485c-4747-4024-bb6b-d230f101f852",
+				"bd74f11e-26c8-4827-bf65-c0b464e1f2a4",
+				"53cb3dde-fd78-4253-808c-18e4077ef0f1"
+			];
+		
+			if (defaultDashboardIds.includes(params.data.uniqId)) {
+				return; // Disable delete functionality for default dashboard
+			}
+		
+			$('#delete-db-prompt').css('display', 'flex');
+			$('.popupOverlay, .popupContent').addClass('active');
+			$('#new-dashboard-modal').hide();
+		
+			$('#cancel-db-prompt, .popupOverlay').click(function () {
+				$('.popupOverlay, .popupContent').removeClass('active');
+				$('#delete-db-prompt').hide();
+			});
+		
+			$('#delete-dbbtn').click(function () {
+				deletedb();
+				$('.popupOverlay, .popupContent').removeClass('active');
+				$('#delete-db-prompt').hide();
+			});
+		}
+		
 
         this.vButton.addEventListener('click', view);
         this.dButton.addEventListener('click', showPrompt);
