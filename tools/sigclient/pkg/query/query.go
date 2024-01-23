@@ -572,7 +572,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 		expectedValue := rec[6]
 
 		// create websocket connection
-		conn, _, err := websocket.DefaultDialer.Dial("ws://localhost/api/search/ws", nil)
+		conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:5122/api/search/ws", nil)
 		if err != nil {
 			log.Fatalf("RunQueryFromFile: Error connecting to WebSocket server: %v", err)
 			return
