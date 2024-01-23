@@ -18,6 +18,7 @@ package pipesearch
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -118,6 +119,14 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
+	} else if aggs.HasDedupBlockInChain() {
+		// Dedup needs state information about the previous records, so we can
+		// run into an issue if we show some records, then the user scrolls
+		// down to see more and we run dedup on just the new records and add
+		// them to the existing ones. To get around this, we can run the query
+		// on all of the records initially so that scrolling down doesn't cause
+		// another query to run.
+		sizeLimit = math.MaxUint64
 	}
 
 	// If MaxRows is used to limit the number of returned results, set `sizeLimit`
