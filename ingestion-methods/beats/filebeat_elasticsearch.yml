@@ -1,0 +1,23 @@
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - C:\Program Files\Filebeat\SplunkExport.json  # Ensure this is the correct path
+
+
+output.elasticsearch:
+  # Replace with your custom Elasticsearch endpoint
+  hosts: ["http://localhost:8081/elastic/"]
+  index: "filebeat-ind-0"  # Custom index name
+
+# Template settings (adjust if you're managing templates externally)
+# setup.template.name: "filebeat"
+# setup.template.pattern: "filebeat-ind-*"
+
+# Disable template management
+setup.template.enabled: false
+
+# Disable ilm
+setup.ilm.enabled: false
+
+# logging.level: debug

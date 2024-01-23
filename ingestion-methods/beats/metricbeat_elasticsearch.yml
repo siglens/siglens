@@ -1,0 +1,26 @@
+metricbeat.modules:
+- module: nginx
+  metricsets: ["stubstatus"]
+  enabled: true
+  # The interval in seconds to poll each endpoint.
+  period: 10s
+
+  # Nginx hosts
+  hosts: ["http://3.139.99.91"]
+
+  # Path to server status. Default nginx_status
+  server_status_path: "nginx_status"
+
+output.elasticsearch:
+  # Replace with your custom Elasticsearch endpoint
+  hosts: ["http://localhost:8081/elastic/"]
+  index: "filebeat-ind-0"  # Custom index name
+
+
+# Disable template management
+setup.template.enabled: false
+
+# Disable ilm
+setup.ilm.enabled: false
+
+# logging.level: debug

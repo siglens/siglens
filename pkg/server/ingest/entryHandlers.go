@@ -17,6 +17,8 @@ limitations under the License.
 package ingestserver
 
 import (
+	"fmt"
+
 	"github.com/siglens/siglens/pkg/config"
 	esutils "github.com/siglens/siglens/pkg/es/utils"
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
@@ -39,6 +41,7 @@ func processKibanaIngestRequest(ctx *fasthttp.RequestCtx, request map[string]int
 
 func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
+		fmt.Println("esPostBulkHandler")
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
 		eswriter.ProcessBulkRequest(ctx, 0, processKibanaIngestRequest)
 	}
@@ -84,6 +87,7 @@ func influxPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 
 func esGreetHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
+		fmt.Println("esGreetHandler")
 		esutils.ProcessGreetHandler(ctx)
 	}
 }

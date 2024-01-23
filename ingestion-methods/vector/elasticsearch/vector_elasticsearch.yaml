@@ -26,7 +26,26 @@ sources:
       - "http://3.139.99.91/nginx_status"
     namespace: "nginx"
     # The interval in seconds to poll each endpoint.
-    scrape_interval_secs: 15
+    scrape_interval_secs: 5
+
+  # The type: "file" will read the data from the file
+  read_from_file:
+    type: file
+    include:
+      - /mnt/d/Siglens/SplunkExport.json
+    read_from: beginning
+
+# Transforms Reference: Transform the data from Sources into desired format
+transforms:
+  remap_file_log:
+    inputs:
+      - "read_from_file"
+    type:   "remap"
+    # The path to the file containing the remap rules. Parsing the message which is the data read from the file. 
+    # The parsed json is stored in the structured variable. The structured variable is merged with the other data/fields.
+    source: |
+            structured = parse_json!(.message)
+            ., err = merge(., structured)
 
 
 # Sinks Reference: Ingest the data from Sources to Siglens Sink
@@ -41,7 +60,8 @@ sinks:
     type: "elasticsearch"
     # The inputs sources name to ingest the data. This is a list of sources. You can add multiple sources.
     inputs:
-      - "nginx_metrics"
+      - "remap_file_log"
+      #- "nginx_metrics"
       #- "generate_apache_common"
       #- "generate_syslog"
     # The ingestion endpoint of Siglens
