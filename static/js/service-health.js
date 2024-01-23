@@ -115,7 +115,7 @@ function displayServiceHealthTable(res){
         newRow.set("rowId", key);
         newRow.set("service", value.service);
         newRow.set("rate", Number(value.rate).toFixed(2));
-        newRow.set("error", value.error_rate);
+        newRow.set("error", Number(value.rate).toFixed(2));
         newRow.set("p50", value.p50);
         newRow.set("p90", value.p90);
         newRow.set("p99", value.p99);
