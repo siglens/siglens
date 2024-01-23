@@ -48,7 +48,7 @@ function initPage(){
 }
 
 function getValuesOfColumn(chooseColumn, spanName) {
-  let searchText = "SELECT DISTINCT " + chooseColumn + " FROM `ind-0`";
+  let searchText = "SELECT DISTINCT " + chooseColumn + " FROM `traces`";
   let param = {
     state: "query",
     searchText: searchText,
@@ -93,7 +93,7 @@ function getValuesOfColumn(chooseColumn, spanName) {
 }
 function fetchData(chooseColumn) {
   return new Promise((resolve, reject) => {
-    let searchText = "SELECT DISTINCT " + chooseColumn + " FROM `ind-0`";
+    let searchText = "SELECT DISTINCT " + chooseColumn + " FROM `traces`";
     if (
       chooseColumn == "name" &&
       $("#service-span-name").text() &&
