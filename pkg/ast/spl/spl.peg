@@ -200,11 +200,11 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
         if len(queryAggSlice) > 0 {
             // Chain together all QueryAggergators.
             q.PipeCommands = queryAggSlice[0].(*structs.QueryAggregators)
-    
+
             // Go to the end of the first chain.
             curQueryAgg := q.PipeCommands
             for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
-    
+
             // Link the remaining chains.
             for i := range queryAggSlice[1:] {
                 queryAgg := queryAggSlice[i + 1].(*structs.QueryAggregators)
@@ -232,7 +232,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -444,6 +444,18 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
     }
     aggNode.BucketLimit = query.MAX_GRP_BUCKS
 
+    if binOptions == nil {
+		binOptions = &structs.BinOptions{
+			SpanOptions: &structs.SpanOptions{
+				DefaultSettings: true,
+				SpanLength: &structs.SpanLength{
+					Num: 		 1,
+					TimeScalr: utils.TMMinute,
+				},
+			},
+		}
+	}
+
     bOptions := binOptions.(*structs.BinOptions)
 
     var limitExprTmp *structs.LimitExpr
@@ -455,12 +467,12 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
     }
 
     timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp, len(measureAggs))
-    aggNode.TimeHistogram = timeBucket
+	aggNode.TimeHistogram = timeBucket
 
     return aggNode, nil
 }
 
-// To be finished: <eval-expression> BY <split-by-clause> 
+// To be finished: <eval-expression> BY <split-by-clause>
 // TimechartEvalExpr <- ... BY splitByClause:(SplitByClause) {
 // }
 
@@ -509,13 +521,13 @@ TcOptions <- SPACE option:(BinOptions / (TcOption)+) {
                     useNullBool, err := strconv.ParseBool(optArr[1])
                     if err != nil {
                         return nil, fmt.Errorf("Spl peg: Timechart: TcOptions: %v", err)
-                    } 
+                    }
                     tcOptions.UseNull = useNullBool
                 case "useother":
                     useOtherBool, err := strconv.ParseBool(optArr[1])
                     if err != nil {
                         return nil, fmt.Errorf("Spl peg: Timechart: TcOptions: %v", err)
-                    } 
+                    }
                     tcOptions.UseOther = useOtherBool
                 case "nullstr":
                     tcOptions.OtherStr = optArr[1]
@@ -524,7 +536,6 @@ TcOptions <- SPACE option:(BinOptions / (TcOption)+) {
                 default:
                     return nil, fmt.Errorf("Spl peg: Timechart: TcOptions: invalid option: %v", optArr[0])
             }
-            
         }
     default:
         return nil, fmt.Errorf("Spl peg: Timechart: Invalid tcOptions %v", option)
@@ -588,7 +599,6 @@ LimitExpr <- SPACE "limit" EQUAL sortBy:("top" / "bottom")? EMPTY_OR_SPACE intAs
     limitExpr := &structs.LimitExpr {
         IsTop: true, // Default Value
         Num: num,
-        
     }
 
     if sortBy != nil {
@@ -603,7 +613,6 @@ LimitExpr <- SPACE "limit" EQUAL sortBy:("top" / "bottom")? EMPTY_OR_SPACE intAs
 
     return limitExpr, nil
 }
- 
 
 StatisticBlock <- PIPE statisticExpr:StatisticExpr {
     letColReq := &structs.LetColumnsRequest {
@@ -638,7 +647,7 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
     return aggNode, nil
 }
 
-StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(SPACE FieldNameList) byClause:(ByClause)? options:(Options)? {
+StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(SPACE FieldNameList) byClause:(ByClause)? options:(StatisticOptions)? {
 
     statisticExpr := &structs.StatisticExpr {
         FieldList: fieldList.([]interface{})[1].([]string),
@@ -660,9 +669,9 @@ StatisticExpr <- cmd:(CMD_TOP / CMD_RARE) limit:(StatisticLimit)? fieldList:(SPA
     }
 
     if options != nil {
-        statisticExpr.Options = options.(*structs.Options)
+        statisticExpr.StatisticOptions = options.(*structs.StatisticOptions)
     } else {
-        statisticExpr.Options = &structs.Options {
+        statisticExpr.StatisticOptions = &structs.StatisticOptions {
             ShowCount: true,
             CountField: "count",
             ShowPerc: true,
@@ -688,10 +697,10 @@ StatisticLimit <- SPACE number:IntegerAsString {
 }
 
 // Optional arguments for top/rare functions
-Options <- option:(Option)*
+StatisticOptions <- option:(StatisticOption)*
 {
     //Default value
-    options := &structs.Options {
+    options := &structs.StatisticOptions {
         ShowCount: true,
         CountField: "count",
         ShowPerc: true,
@@ -709,7 +718,7 @@ Options <- option:(Option)*
             showCountBool, err := strconv.ParseBool(optArr[1])
             if err != nil {
                 return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: %v", err)
-            } 
+            }
             options.ShowCount = showCountBool
         case "countfield":
             options.CountField = optArr[1]
@@ -717,7 +726,7 @@ Options <- option:(Option)*
             showPercBool, err := strconv.ParseBool(optArr[1])
             if err != nil {
                 return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: %v", err)
-            } 
+            }
             options.ShowPerc = showPercBool
         case "percentfield":
             options.PercentField = optArr[1]
@@ -725,7 +734,7 @@ Options <- option:(Option)*
             useOtherBool, err := strconv.ParseBool(optArr[1])
             if err != nil {
                 return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: %v", err)
-            } 
+            }
             options.UseOther = useOtherBool
         case "otherstr":
             options.OtherStr = optArr[1]
@@ -737,12 +746,12 @@ Options <- option:(Option)*
     return options, nil
 }
 
-Option <- SPACE optionCMD:OptionCMD EQUAL field:EvalFieldToRead {
+StatisticOption <- SPACE optionCMD:StatisticOptionCMD EQUAL field:EvalFieldToRead {
     optionArr := []string{optionCMD.(string), field.(string)}
     return optionArr, nil
 }
 
-OptionCMD <- option:("countfield" / "showcount" / "otherstr" / "useother"/ "percentfield" / "showperc") {
+StatisticOptionCMD <- option:("countfield" / "showcount" / "otherstr" / "useother"/ "percentfield" / "showperc") {
     optionStr, err := transferUint8ToString(option)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: StatisticExpr: %v", err)
@@ -755,6 +764,187 @@ ByClause <- BY fieldList:FieldNameList {
 }
 / groupByBlock:GroupbyBlock {
     return groupByBlock.([]string), nil
+}
+
+DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
+
+    letColReq := &structs.LetColumnsRequest {
+        DedupColRequest: dedupExpr.(*structs.DedupExpr),
+    }
+
+    root := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    return root, nil
+}
+
+// Returns *structs.DedupExpr
+// It's not clear in the Splunk documentation whether the DedupOptions should
+// be before or after the field list. However, the field list probably
+// shouldn't be after the sortby clause.
+DedupExpr <- limitArr:(SPACE IntegerAsString)? options1:(DedupOptions)? fieldList:(DedupFieldList)? options2:(DedupOptions)? sortByClause:(DedupSortByClause)? {
+    dedupExpr := &structs.DedupExpr {
+        FieldList: fieldList.([]string),
+        Limit: 1,
+        DedupCombinations: make(map[string]int, 0),
+    }
+
+    if limitArr != nil {
+        limitStr := limitArr.([]interface{})[1].(string)
+        limit, err := strconv.ParseUint(limitStr, 10, 64)
+        if err != nil || limit == 0 {
+            return nil, fmt.Errorf("Invalid limit (%v): %v", limitStr, err)
+        }
+        dedupExpr.Limit = limit
+    }
+
+    dedupExpr.DedupOptions = &structs.DedupOptions {
+        Consecutive: false,
+        KeepEmpty: false,
+        KeepEvents: false,
+    }
+
+    if options1 != nil {
+        dedupExpr.DedupOptions = options1.(*structs.DedupOptions)
+    }
+    if options2 != nil {
+        options := options2.(*structs.DedupOptions)
+
+        if options.Consecutive {
+            dedupExpr.DedupOptions.Consecutive = options.Consecutive
+        }
+        if options.KeepEmpty {
+            dedupExpr.DedupOptions.KeepEmpty = options.KeepEmpty
+        }
+        if options.KeepEvents {
+            dedupExpr.DedupOptions.KeepEvents = options.KeepEvents
+        }
+    }
+
+    if sortByClause != nil {
+        dedupExpr.DedupSortEles = sortByClause.([]*structs.DedupSortElement)
+    }
+
+    return dedupExpr, nil
+}
+
+DedupFieldName <- !("sortby") field:FieldName {
+    return field, nil
+}
+
+DedupFieldList <- SPACE first:DedupFieldName rest:(SPACE DedupFieldName !EQUAL)* {
+    // Convert `rest` to a slice. Each element of the slice will be a 2-element
+    // slice where the first element is " " and the second is a FieldName.
+    restSlice := rest.([]any)
+
+    numFieldNames := 1 + len(restSlice)
+    fields := make([]string, numFieldNames)
+    fields[0] = first.(string)
+
+    for i := 1; i < numFieldNames; i++ {
+        separatorAndField := restSlice[i - 1].([]any)
+        fields[i] = separatorAndField[1].(string)
+    }
+
+    return fields, nil
+}
+
+// Optional arguments for dedup block
+DedupOptions <- option:(DedupOption)*
+{
+    //Default value
+    options := &structs.DedupOptions {
+        Consecutive: false,
+        KeepEmpty: false,
+        KeepEvents: false,
+    }
+
+    optionSlice := option.([]any)
+    for _, opt := range optionSlice {
+        optArr :=  opt.([]string)
+        // Check for matching option types
+        switch optArr[0] {
+        case "consecutive":
+            consecutiveBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: DedupBlock: Options: %v", err)
+            }
+            options.Consecutive = consecutiveBool
+        case "keepempty":
+            keepEmptyBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: DedupBlock: Options: %v", err)
+            }
+            options.KeepEmpty = keepEmptyBool
+        case "keepevents":
+            keepEventsBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: DedupBlock: Options: %v", err)
+            }
+            options.KeepEvents = keepEventsBool
+        default:
+            return nil, fmt.Errorf("Spl peg: DedupBlock: Options: invalid option")
+        }
+    }
+
+    return options, nil
+}
+
+DedupOption <- SPACE optionCMD:DedupOptionCMD "=" field:EvalFieldToRead {
+    optionArr := []string{optionCMD.(string), field.(string)}
+    return optionArr, nil
+}
+
+DedupOptionCMD <- option:("consecutive" / "keepempty" / "keepevents") {
+    optionStr, err := transferUint8ToString(option)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: DedupExpr: %v", err)
+    }
+    return optionStr, nil
+}
+
+DedupSortByClause <- CMD_DEDUP_SORTBY dedupSortEles:DedupSortElements {
+    return dedupSortEles, nil
+}
+
+// sortby ( - | + ) <sort-field> [(- | +) <sort_field> ...]
+DedupSortElements <- first:DedupSingleSortElement rest:(SPACE DedupSingleSortElement)* {
+    restSlice := rest.([]any)
+
+    length := 1 + len(restSlice)
+    dedupSortEles := make([]*structs.DedupSortElement, length)
+    dedupSortEles[0] = first.(*structs.DedupSortElement)
+
+    for i := 1; i < length; i++ {
+        elements := restSlice[i - 1].([]any)
+        dedupSortEles[i] = elements[1].(*structs.DedupSortElement)
+    }
+
+    return dedupSortEles, nil
+}
+
+DedupSingleSortElement <- sortBySymbol:("+" / "-") op:("" / "auto" / "str" / "ip" / "num")? field:FieldName {
+    sortByAsc := true
+
+    symbol := sortBySymbol.([]byte)
+    if(symbol[0] == '-') {
+        sortByAsc = false
+    }
+
+    opStr, err := transferUint8ToString(op)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: DedupSingleSortElement: %v", err)
+    }
+
+    return &structs.DedupSortElement {
+        SortByAsc: sortByAsc,
+        Op: opStr,
+        Field: field.(string),
+    }, nil
 }
 
 RenameBlock <- PIPE CMD_RENAME renameExpr:RenameExpr {
@@ -928,7 +1118,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
             Op: opNameStr,
             MaxMinValues: values,
         }
-        return node, nil   
+        return node, nil
       }
 / (opName:("urldecode") L_PAREN url:StringExpr R_PAREN ){
         opNameStr, err := transferUint8ToString(opName)
@@ -984,7 +1174,6 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
         Value: stringExprConverted,
         StartIndex: startIndexConverted,
         LengthExpr: lengthConverted,
-        
     }
     return node, nil
 }
@@ -992,7 +1181,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     var formatExpr *structs.StringExpr
     if format != nil {
         formatSlice := format.([]interface{})
-        formatExpr, _ = formatSlice[1].(*structs.StringExpr) 
+        formatExpr, _ = formatSlice[1].(*structs.StringExpr)
     }
     return &structs.TextExpr{
         IsTerminal: false,
@@ -1011,7 +1200,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     if !ok {
         return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert expr as *structs.StringExpr: %v", err)
     }
-    
+
     strToRemove := " \t"
     if strToRemoveExpr != nil {
         strToRemove = strToRemoveExpr.(string)
@@ -1281,7 +1470,7 @@ ValueExpr <- condition:ConditionExpr {
         ValueExprMode: structs.VEMBooleanExpr,
         BooleanExpr: boolean.(*structs.BoolExpr),
     }
-          
+
     return expr, nil
 }
 
@@ -1423,7 +1612,7 @@ RoundPrecisionExpr <- COMMA expr:NumericExprLevel3 {
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
     }
-    
+
     return rightNumericExpr, nil
 }
 
@@ -1461,7 +1650,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
     }
-    
+
     //transfer []uint8 to string
     strData, ok := opName.([]byte)
     if !ok {
@@ -1481,9 +1670,9 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
     }
-    
-    var rightNumericExpr *structs.NumericExpr 
-    if roundPrecision != nil { 
+
+    var rightNumericExpr *structs.NumericExpr
+    if roundPrecision != nil {
         rightNumericExpr, ok = roundPrecision.(*structs.NumericExpr)
         if !ok {
             return nil, fmt.Errorf("Failed to assert roundPrecision as *structs.NumericExpr")
@@ -1520,11 +1709,11 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
             }
         }
     }
-    
+
     node := &structs.NumericExpr {
         IsTerminal: false,
         Op: "tonumber",
-        Left: nil, 
+        Left: nil,
         Right: baseExprConverted,
         Val: stringExprConverted,
         NumericExprMode: structs.NEMNumericExpr,
@@ -1543,7 +1732,7 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
         Value: str.(string),
         NumericExprMode: structs.NEMLenString,
     }
-    
+
     node, err := createNumericExpr("len", leftNumericExpr, nil, structs.NEMLenString)
     if err != nil {
         return nil, err
@@ -1559,7 +1748,7 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
         Value: field.(string),
         NumericExprMode: structs.NEMLenField,
     }
-    
+
     node, err := createNumericExpr("len", leftNumericExpr, nil, structs.NEMLenField)
     if err != nil {
         return nil, err
@@ -1673,7 +1862,7 @@ AggCount <- ("count" / "c") L_PAREN "eval" boolExpr:BoolExpr R_PAREN {
     }
 
     return agg, nil
-} 
+}
 
 AggDistinctCount <- ("distinct_count" / "dc") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
@@ -2207,7 +2396,7 @@ TransactionEval <- "eval" EMPTY_OR_SPACE L_PAREN condition:BoolExpr R_PAREN {
 
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -2223,6 +2412,8 @@ CMD_RENAME <- "rename" SPACE
 CMD_TIMECHART <- "timechart" SPACE
 CMD_SPAN <- "span"
 CMD_TRANSACTION <- "transaction" SPACE
+CMD_DEDUP <- "dedup"
+CMD_DEDUP_SORTBY <- SPACE "sortby" SPACE
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

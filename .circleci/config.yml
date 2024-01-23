@@ -14,7 +14,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 20.10.6
+          version: docker23
       - run:
           name: Build Siglens
           command: make build

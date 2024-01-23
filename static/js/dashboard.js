@@ -456,9 +456,9 @@ async function getDashboardData() {
     if (localPanels != undefined) {
         updateTimeRangeForPanels();
         recalculatePanelWidths();
-        displayPanels();
         resetPanelLocationsHorizontally();
         setRefreshItemHandler();
+        refreshDashboardHandler();
     }
 }
 

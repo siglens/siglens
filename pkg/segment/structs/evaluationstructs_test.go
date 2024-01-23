@@ -1728,7 +1728,7 @@ func Test_StatisticExpr(t *testing.T) {
 	statisticExpr := &StatisticExpr{
 		StatisticFunctionMode: SFMRare,
 		Limit:                 "2",
-		Options: &Options{
+		StatisticOptions: &StatisticOptions{
 			CountField:   "app_name",
 			OtherStr:     "other",
 			PercentField: "http_method",

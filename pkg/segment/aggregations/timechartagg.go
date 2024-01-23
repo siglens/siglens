@@ -40,33 +40,39 @@ func FindTimeRangeBucket(timePoints []uint64, timestamp uint64, intervalMillis u
 	return timePoints[index]
 }
 
-func InitTimeBucket(num int, timeUnit utils.TimeUnit, byField string, limitExpr *structs.LimitExpr, measureAggLength int) *structs.TimeBucket {
+func GetIntervalInMillis(num int, timeUnit utils.TimeUnit) uint64 {
 	numD := time.Duration(num)
-	intervalMillis := uint64(0)
+
 	switch timeUnit {
 	case utils.TMMicrosecond:
 		// Might not has effect for 'us', because smallest time unit for timestamp in siglens is ms
 	case utils.TMMillisecond:
-		intervalMillis = uint64(numD)
+		return uint64(numD)
 	case utils.TMCentisecond:
-		intervalMillis = uint64(numD * 10 * time.Millisecond)
+		return uint64(numD * 10 * time.Millisecond)
 	case utils.TMDecisecond:
-		intervalMillis = uint64(numD * 100 * time.Millisecond)
+		return uint64(numD * 100 * time.Millisecond)
 	case utils.TMSecond:
-		intervalMillis = uint64((numD * time.Second).Milliseconds())
+		return uint64((numD * time.Second).Milliseconds())
 	case utils.TMMinute:
-		intervalMillis = uint64((numD * time.Minute).Milliseconds())
+		return uint64((numD * time.Minute).Milliseconds())
 	case utils.TMHour:
-		intervalMillis = uint64((numD * time.Hour).Milliseconds())
+		return uint64((numD * time.Hour).Milliseconds())
 	case utils.TMDay:
-		intervalMillis = uint64((numD * 24 * time.Hour).Milliseconds())
+		return uint64((numD * 24 * time.Hour).Milliseconds())
 	case utils.TMWeek:
-		intervalMillis = uint64((numD * 7 * 24 * time.Hour).Milliseconds())
+		return uint64((numD * 7 * 24 * time.Hour).Milliseconds())
 	case utils.TMMonth:
-		intervalMillis = uint64((numD * 30 * 24 * time.Hour).Milliseconds())
+		return uint64((numD * 30 * 24 * time.Hour).Milliseconds())
 	case utils.TMQuarter:
-		intervalMillis = uint64((numD * 120 * 24 * time.Hour).Milliseconds())
+		return uint64((numD * 120 * 24 * time.Hour).Milliseconds())
 	}
+	return uint64((10 * time.Minute).Milliseconds()) // 10 Minutes
+}
+
+func InitTimeBucket(num int, timeUnit utils.TimeUnit, byField string, limitExpr *structs.LimitExpr, measureAggLength int) *structs.TimeBucket {
+
+	intervalMillis := GetIntervalInMillis(num, timeUnit)
 
 	timechartExpr := &structs.TimechartExpr{
 		ByField: byField,
