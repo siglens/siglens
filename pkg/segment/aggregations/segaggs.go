@@ -535,11 +535,21 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 	finalCols map[string]bool) error {
 
 	fieldList := letColReq.DedupColRequest.FieldList
+	combinationSlice := make([]interface{}, len(fieldList))
+	sortbyValues := make([]structs.DedupSortValue, len(letColReq.DedupColRequest.DedupSortEles))
+	sortbyFields := make([]string, len(letColReq.DedupColRequest.DedupSortEles))
 
+	for i, sortEle := range letColReq.DedupColRequest.DedupSortEles {
+		sortbyFields[i] = sortEle.Field
+		sortbyValues[i] = structs.DedupSortValue{
+			InterpretAs: sortEle.Op,
+		}
+	}
+
+	recsIndexToKey := make([]string, len(recs))
+	recsIndex := 0
 	for key, record := range recs {
-
 		// Initialize combination for current row
-		combinationSlice := make([]interface{}, len(fieldList))
 		for index, field := range fieldList {
 			val, exists := record[field]
 			if !exists {
@@ -549,9 +559,23 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 			}
 		}
 
-		passes, _, err := combinationPassesDedup(combinationSlice, 0, nil, letColReq.DedupColRequest)
+		for i, field := range sortbyFields {
+			val, exists := record[field]
+			if !exists {
+				val = nil
+			}
+
+			sortbyValues[i].Val = fmt.Sprintf("%v", val)
+		}
+
+		passes, evictionIndex, err := combinationPassesDedup(combinationSlice, recsIndex, sortbyValues, letColReq.DedupColRequest)
 		if err != nil {
 			return fmt.Errorf("performDedupColRequestWithoutGroupby: %v", err)
+		}
+
+		if evictionIndex != -1 {
+			// Evict the item at evictionIndex.
+			delete(recs, recsIndexToKey[evictionIndex])
 		}
 
 		if !passes {
@@ -566,6 +590,9 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 				}
 			}
 		}
+
+		recsIndexToKey[recsIndex] = key
+		recsIndex++
 	}
 
 	return nil
@@ -829,6 +856,7 @@ func combinationPassesDedup(combinationSlice []interface{}, recordIndex int, sor
 
 		return true, -1, nil
 	} else if len(dedupExpr.DedupSortEles) > 0 {
+
 		// Check if this record gets sorted higher than another record with
 		// this combination, so it should evict the lowest sorted record.
 		foundLower := false
