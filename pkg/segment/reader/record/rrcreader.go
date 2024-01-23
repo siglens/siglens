@@ -87,8 +87,11 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		}
 
 	}
+
 	allRecords := make([]map[string]interface{}, len(allrrc))
 	finalCols := make(map[string]bool)
+	numProcessedRecords := 0
+
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
 	txnArgsRecords := make([]map[string]interface{}, 0)
@@ -113,8 +116,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
 			}
 
+			numProcessedRecords += len(recs)
 			for recInden, record := range recs {
-
 				for key, val := range renameHardcodedColumns {
 					record[key] = val
 				}
@@ -184,12 +187,26 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		idx++
 	}
 
+	// Some commands (like dedup) can remove records from the final result, so
+	// remove the blank records from allRecords to get finalRecords.
 	var finalRecords []map[string]interface{}
-
 	if transactionArgsExist {
 		finalRecords = txnArgsRecords
-	} else {
+	} else if numProcessedRecords == len(allrrc) {
 		finalRecords = allRecords
+	} else {
+		finalRecords = make([]map[string]interface{}, numProcessedRecords)
+		idx = 0
+		for _, record := range allRecords {
+			if idx >= numProcessedRecords {
+				break
+			}
+
+			if record != nil {
+				finalRecords[idx] = record
+				idx++
+			}
+		}
 	}
 
 	sort.Strings(colsSlice)
