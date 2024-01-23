@@ -17,9 +17,13 @@ limitations under the License.
 package ssa
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/segmentio/analytics-go/v3"
@@ -42,6 +46,18 @@ var client analytics.Client = nil
 var ssaStarted = false
 var segmentKey string = "BPDjnefPV0Jc2BRGdGh7CQTnykYKbD8c"
 var userId = ""
+var IPAddressInfo IPAddressDetails
+
+type IPAddressDetails struct {
+	IP        string  `json:"ip"`
+	City      string  `json:"city"`
+	Region    string  `json:"region"`
+	Country   string  `json:"country"`
+	Loc       string  `json:"loc"`
+	Latitude  float64 `json:"-"`
+	Longitude float64 `json:"-"`
+	Timezone  string  `json:"timezone"`
+}
 
 type silentLogger struct {
 }
@@ -51,7 +67,41 @@ func (sl *silentLogger) Logf(format string, args ...interface{}) {
 
 func (sl *silentLogger) Errorf(format string, args ...interface{}) {
 }
+func FetchIPAddressDetails() (IPAddressDetails, error) {
+	var details IPAddressDetails
+	resp, err := http.Get("https://ipinfo.io")
+	if err != nil {
+		log.Errorf("Failed to fetch IP address details: %v", err)
+		return details, err
+	}
+	defer resp.Body.Close()
 
+	if err := json.NewDecoder(resp.Body).Decode(&details); err != nil {
+		log.Errorf("Failed to decode IP address details: %v", err)
+		return details, err
+	}
+
+	// Parse latitude and longitude from Loc
+	locParts := strings.Split(details.Loc, ",")
+	if len(locParts) == 2 {
+		if lat, err := strconv.ParseFloat(locParts[0], 64); err == nil {
+			details.Latitude = lat
+		} else {
+			log.Errorf("Failed to parse latitude: %v", err)
+		}
+		if lon, err := strconv.ParseFloat(locParts[1], 64); err == nil {
+			details.Longitude = lon
+		} else {
+			log.Errorf("Failed to parse longitude: %v", err)
+		}
+	} else {
+		log.Errorf("Failed to parse location: %v", details.Loc)
+	}
+
+	log.Infof("Successfully fetched and decoded IP address details")
+
+	return details, nil
+}
 func InitSsa() {
 
 	currClient, err := analytics.NewWithConfig(segmentKey,
@@ -65,7 +115,13 @@ func InitSsa() {
 		log.Errorf("Error initializing ssa: %v", err)
 		return
 	}
+	ipDetails, err := FetchIPAddressDetails()
+	if err != nil {
+		log.Fatalf("Failed to fetch IP address details: %v", err)
+	}
 
+	IPAddressInfo = ipDetails
+	log.Infof("IP address details: %+v\n", IPAddressInfo)
 	client = currClient
 	go waitForInitialEvent()
 }

@@ -66,6 +66,21 @@ else
     echo 'Not Supported Architecture'
 fi
 
+fetch_ip_info() {
+    response=$(curl -s https://ipinfo.io)
+
+    ip=$(echo "$response" | awk -F'"' '/ip/{print $4}')
+    city=$(echo "$response" | awk -F'"' '/city/{print $4}')
+    region=$(echo "$response" | awk -F'"' '/region/{print $4}')
+    country=$(echo "$response" | awk -F'"' '/country/{print $4}')
+    loc=$(echo "$response" | awk -F'"' '/loc/{print $4}')
+    timezone=$(echo "$response" | awk -F'"' '/timezone/{print $4}')
+    latitude=$(echo "$loc" | cut -d',' -f1)
+    longitude=$(echo "$loc" | cut -d',' -f2)
+}
+
+fetch_ip_info
+
 post_event() {
   local event_code=$1
   local message=$2
