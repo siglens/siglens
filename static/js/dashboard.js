@@ -268,7 +268,25 @@ function handleDescriptionTooltip(panelId,description,searchText) {
     const panelInfoCorner = $(`#panel${panelId} .panel-info-corner`);
     const panelDescIcon = $(`#panel${panelId} .panel-info-corner #panel-desc-info`);
     panelInfoCorner.show();
-    panelDescIcon.attr('title',`Description: ${description}\nQuery: ${searchText}`);
+    let tooltipText = '';
+
+    // Check if description is provided
+    if (description) {
+        tooltipText += `Description: ${description}`;
+    }
+
+    // Check if both description and searchText are provided, add line break if needed
+    if (description && searchText) {
+        tooltipText += '\n';
+    }
+
+    // Check if searchText is provided
+    if (searchText) {
+        tooltipText += `Query: ${searchText}`;
+    }
+
+    panelDescIcon.attr('title', tooltipText);
+
     panelDescIcon.tooltip({
         delay: { show: 0, hide: 300 },
         trigger: 'hover'});
@@ -519,8 +537,8 @@ function displayPanels() {
         });
         $(`#panel${idpanel} .panel-header p`).html(localPanel.name);
 
-        if (localPanel.description||localPanel.queryData.searchText) {
-            handleDescriptionTooltip(idpanel,localPanel.description,localPanel.queryData.searchText)
+        if (localPanel.description || (localPanel.queryData && localPanel.queryData.searchText)) {
+            handleDescriptionTooltip(idpanel, localPanel.description, localPanel.queryData ? localPanel.queryData.searchText : '');
         } else {
             $(`#panel${idpanel} .panel-info-corner`).hide();
         }
