@@ -416,7 +416,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
     //if data source is metrics
     if(!res.qtype && chartType != "number") {
         panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId)
-    }else if(chartType === "number"){
+    }else if(!res.qtype && chartType === "number"){
         let resultVal
         $.each(res, function (key, value) {
             var series = value;
