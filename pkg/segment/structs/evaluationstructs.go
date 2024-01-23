@@ -26,6 +26,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/axiomhq/hyperloglog"
@@ -97,6 +98,10 @@ type DedupExpr struct {
 	// records for that combination.
 	DedupCombinations map[string]map[int][]DedupSortValue
 	PrevCombination   string
+
+	DedupRecords          map[string]map[string]interface{}
+	NumProcessedSegments  uint64
+	ProcessedSegmentsLock sync.Mutex
 }
 
 type DedupOptions struct {

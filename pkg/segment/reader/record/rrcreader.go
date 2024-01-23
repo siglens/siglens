@@ -113,7 +113,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 			if hasQueryAggergatorBlock || transactionArgsExist {
 				nodeRes := &structs.NodeResult{}
-				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols)
+				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols, uint64(len(segmap)))
 			}
 
 			numProcessedRecords += len(recs)
@@ -122,10 +122,11 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					record[key] = val
 				}
 
+				unknownIndex := false
 				idx, ok := recordIndexInFinal[recInden]
 				if !ok {
 					log.Errorf("qid=%d, GetJsonFromAllRrc: Did not find index for record indentifier %s.", qid, recInden)
-					continue
+					unknownIndex = true
 				}
 				if logfmtRequest {
 					record = addKeyValuePairs(record)
@@ -158,8 +159,15 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					}
 					record[label] = val
 				}
+
 				delete(recordIndexInFinal, recInden)
-				allRecords[idx] = record
+
+				if unknownIndex {
+					allRecords = append(allRecords, record)
+				} else {
+					allRecords[idx] = record
+				}
+
 				if transactionArgsExist {
 					txnArgsRecords = append(txnArgsRecords, record)
 				}
