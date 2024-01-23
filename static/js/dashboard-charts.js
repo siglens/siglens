@@ -223,7 +223,7 @@ function renderBarChart(columns, hits, panelId, chartType, dataType, panelIndex)
 			panelChart.setOption(pieOptions);
 			break;
 		case 'number':
-			displayBigNumber(columns, bigNumVal, panelId, dataType, panelIndex);
+			displayBigNumber(bigNumVal, panelId, dataType, panelIndex);
 	}
 	$(`#panel${panelId} .panel-body #panel-loading`).hide();
 
@@ -239,6 +239,9 @@ let mapIndexToAbbrev = new Map([
 	["GB", "GB"],
 	["TB", "TB"],
 	["PB", "PB"],
+	["EB", "EB"],
+	["ZB", "ZB"],
+	["YB", "YB"],
 	["counts/sec", "c/s"],
 	["writes/sec", "wr/s"],
 	["reads/sec", "rd/s"],
@@ -324,7 +327,7 @@ function findSmallestGreaterOne(number) {
   return [smallest.toFixed(2),suffix];
 }
 
-function displayBigNumber(columns, value, panelId, dataType, panelIndex) {
+function displayBigNumber(value, panelId, dataType, panelIndex) {
 	if (panelId === -1) {
 		$('.panelDisplay .panEdit-panel').hide();
 		$(`.panelDisplay .big-number-display-container`).show();
@@ -354,7 +357,7 @@ function displayBigNumber(columns, value, panelId, dataType, panelIndex) {
 			let dataTypeAbbrev = mapIndexToAbbrev.get(dataType);
 			let number = parseFloat(value.replace(/,/g, ''));
 			let dataTypeAbbrevCap = dataTypeAbbrev.substring(0,2).toUpperCase()
-			if (["KB",'MB',"GB","TB","PB"].includes(dataTypeAbbrevCap)){
+			if (["KB",'MB',"GB","TB","PB","EB","ZB","YB"].includes(dataTypeAbbrevCap)){
 				dataTypeAbbrev = dataTypeAbbrev.substring(1)
 				if(dataTypeAbbrevCap === "KB"){
 					number = number * 1000;
@@ -366,7 +369,13 @@ function displayBigNumber(columns, value, panelId, dataType, panelIndex) {
 					number = number * 1e12;
 				} else if(dataTypeAbbrevCap === "PB"){
 					number = number * 1e15;
-				} 
+				} else if (dataTypeAbbrevCap === "EB") {
+					number *= 1e18;
+				} else if (dataTypeAbbrevCap === "ZB") {
+					number *= 1e21;
+				} else if (dataTypeAbbrevCap === "YB") {
+					number *= 1e24;
+				}
 				bigNum = addSuffix(number);
 
 			} else if(['ns',"µs", "ms", "d","m","s","h"].includes(dataTypeAbbrev)){				

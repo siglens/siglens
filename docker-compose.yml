@@ -1,7 +1,7 @@
 version: '3'
 services:
   siglens:
-    image: siglens/siglens:${SIGLENS_VERSION}
+    image: ${IMAGE_NAME}
     ports:
       - "8081:8081"
       - "${UI_PORT}:5122"
@@ -13,8 +13,7 @@ services:
     environment:
       - UI_PORT=${UI_PORT}
       - WORK_DIR=${WORK_DIR}
-      - SIGLENS_VERSION=${SIGLENS_VERSION}
-
+      - IMAGE_NAME=${IMAGE_NAME}
   hotrod:
     image: jaegertracing/example-hotrod:1.53
     ports:
@@ -23,3 +22,11 @@ services:
       - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://siglens:8081/otlp/v1/traces
     depends_on:
       - siglens
+
+  siglens-metrics-otel-collector:
+    image: otel/opentelemetry-collector:latest  
+    volumes:
+      - ./ssmetrics-otel-collector-config.yaml:/etc/ssmetrics-otel-collector-config.yaml  
+    ports:
+      - "4318:4318"
+    command: ["--config=/etc/ssmetrics-otel-collector-config.yaml"]  

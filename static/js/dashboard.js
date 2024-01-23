@@ -264,11 +264,29 @@ function handlePanelRemove(panelId) {
     }
 }
 
-function handleDescriptionTooltip(panelId,description) {
+function handleDescriptionTooltip(panelId,description,searchText) {
     const panelInfoCorner = $(`#panel${panelId} .panel-info-corner`);
     const panelDescIcon = $(`#panel${panelId} .panel-info-corner #panel-desc-info`);
     panelInfoCorner.show();
-    panelDescIcon.attr('title',description);
+    let tooltipText = '';
+
+    // Check if description is provided
+    if (description) {
+        tooltipText += `Description: ${description}`;
+    }
+
+    // Check if both description and searchText are provided, add line break if needed
+    if (description && searchText) {
+        tooltipText += '\n';
+    }
+
+    // Check if searchText is provided
+    if (searchText) {
+        tooltipText += `Query: ${searchText}`;
+    }
+
+    panelDescIcon.attr('title', tooltipText);
+
     panelDescIcon.tooltip({
         delay: { show: 0, hide: 300 },
         trigger: 'hover'});
@@ -395,12 +413,18 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
         let responseDiv = `<div class="big-number-display-container"></div>
         <div id="empty-response"></div><div id="corner-popup"></div>`
         panEl.append(responseDiv)
-
-        if (localPanel.queryRes)
-            runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
-        else
-            runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
-    } else if (localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'Bar Chart') {
+        if(localPanel.queryType ==='metrics') {
+            if (localPanel.queryRes)
+                runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
+            else
+                runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+        }else{
+            if (localPanel.queryRes)
+                runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
+            else
+                runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+        }
+        } else if (localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'Bar Chart') {
         // generic for both bar and pie chartTypes.
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`
@@ -450,9 +474,9 @@ async function getDashboardData() {
     if (localPanels != undefined) {
         updateTimeRangeForPanels();
         recalculatePanelWidths();
-        displayPanels();
         resetPanelLocationsHorizontally();
         setRefreshItemHandler();
+        refreshDashboardHandler();
     }
 }
 
@@ -460,7 +484,7 @@ function updateTimeRangeForPanels() {
     localPanels.forEach(panel => {
         delete panel.queryRes;
         if(panel.queryData) {
-            if((panel.chartType === "Line Chart" || panel.chartType === "number") && panel.queryType === "metrics") {
+            if(panel.chartType === "Line Chart" || panel.queryType === "metrics") {
                 datePickerHandler(panel.queryData.start, panel.queryData.end, panel.queryData.start)
                 panel.queryData.start = filterStartDate.toString();
                 panel.queryData.end = filterEndDate.toString();
@@ -513,8 +537,8 @@ function displayPanels() {
         });
         $(`#panel${idpanel} .panel-header p`).html(localPanel.name);
 
-        if (localPanel.description) {
-            handleDescriptionTooltip(idpanel,localPanel.description)
+        if (localPanel.description || (localPanel.queryData && localPanel.queryData.searchText)) {
+            handleDescriptionTooltip(idpanel, localPanel.description, localPanel.queryData ? localPanel.queryData.searchText : '');
         } else {
             $(`#panel${idpanel} .panel-info-corner`).hide();
         }
@@ -566,14 +590,17 @@ function displayPanels() {
 
             $('.big-number-display-container').show();
             if (localPanel.queryType === "metrics"){
+
                 if (localPanel.queryRes){
-                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.queryRes)
+                    delete localPanel.queryData.startEpoch
+                    delete localPanel.queryData.endEpoch
+                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
                 }
                 else {
                     //remove startEpoch from from localPanel.queryData
                     delete localPanel.queryData.startEpoch
                     delete localPanel.queryData.endEpoch
-                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType)
+                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
                 }
             }else {
                 if (localPanel.queryRes)
@@ -629,8 +656,8 @@ function displayPanelView(panelIndex) {
     panelElement.style.width = "100%";
 
     handlePanelRemove(localPanel.panelId);
-    if (localPanel.description) {
-        handleDescriptionTooltip(localPanel.panelId,localPanel.description);
+    if (localPanel.description||localPanel.queryData.searchText) {
+        handleDescriptionTooltip(localPanel.panelId,localPanel.description,localPanel.queryData.searchText);
     } else {
         $(`#panel${panelId} .panel-info-corner`).hide();
     }
@@ -699,8 +726,8 @@ function displayPanel(panelIndex) {
         $("#" + `panel${panelId}` + " .dropdown-style").toggleClass("hidden");
     });
     $(`#panel${panelId} .panel-header p`).html(localPanel.name);
-    if (localPanel.description) {
-        handleDescriptionTooltip(panelId,localPanel.description)
+    if (localPanel.description||localPanel.queryData.searchText) {
+        handleDescriptionTooltip(panelId,localPanel.description,localPanel.queryData.searchText)
     } else {
         $(`#panel${panelId} .panel-info-corner`).hide();
     }
