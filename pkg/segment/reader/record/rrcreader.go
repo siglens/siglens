@@ -24,6 +24,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
+	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
@@ -113,7 +114,19 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 			if hasQueryAggergatorBlock || transactionArgsExist {
 				nodeRes := &structs.NodeResult{}
-				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols, uint64(len(segmap)))
+
+				numTotalSegments, err := query.GetTotalSegmentsToSearch(qid)
+				if err != nil {
+					// For synchronous queries, the query is deleted by this
+					// point, but segmap has all the segments that the query
+					// searched.
+					// For async queries, the segmap has just one segment
+					// because we process them as the search completes, but the
+					// query isn't deleted until all segments get processed, so
+					// we shouldn't get to this block for async queries.
+					numTotalSegments = uint64(len(segmap))
+				}
+				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols, numTotalSegments)
 			}
 
 			numProcessedRecords += len(recs)
@@ -125,7 +138,14 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				unknownIndex := false
 				idx, ok := recordIndexInFinal[recInden]
 				if !ok {
-					log.Errorf("qid=%d, GetJsonFromAllRrc: Did not find index for record indentifier %s.", qid, recInden)
+					// For async queries where we need all records before we
+					// can return any (like dedup with a sortby), once we can
+					// get to this block because processing the dedup may
+					// return some records from previous segments and since
+					// it's an async query we're running this function with
+					// len(segmap)=1 because we try to process the data as the
+					// searched complete.
+					log.Infof("qid=%d, GetJsonFromAllRrc: Did not find index for record indentifier %s.", qid, recInden)
 					unknownIndex = true
 				}
 				if logfmtRequest {

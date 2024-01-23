@@ -241,7 +241,6 @@ func GetTotalSegmentsToSearch(qid uint64) (uint64, error) {
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		log.Errorf("getTotalSegmentsToSearch: qid %+v does not exist!", qid)
 		return 0, fmt.Errorf("qid does not exist")
 	}
 

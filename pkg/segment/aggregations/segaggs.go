@@ -536,17 +536,13 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 
 	letColReq.DedupColRequest.ProcessedSegmentsLock.Lock()
 	defer letColReq.DedupColRequest.ProcessedSegmentsLock.Unlock()
+	letColReq.DedupColRequest.NumProcessedSegments++
 
 	// Keep track of all the matched records across all segments, and only run
 	// the dedup logic once all the records are gathered.
-	for k, v := range recs {
-		letColReq.DedupColRequest.DedupRecords[k] = v
-	}
-
-	letColReq.DedupColRequest.NumProcessedSegments++
 	if letColReq.DedupColRequest.NumProcessedSegments < numTotalSegments {
-		// Clear recs.
-		for k := range recs {
+		for k, v := range recs {
+			letColReq.DedupColRequest.DedupRecords[k] = v
 			delete(recs, k)
 		}
 
@@ -563,10 +559,6 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 		sortbyValues[i] = structs.DedupSortValue{
 			InterpretAs: sortEle.Op,
 		}
-	}
-
-	for k := range recs {
-		delete(recs, k)
 	}
 
 	for k, v := range letColReq.DedupColRequest.DedupRecords {
