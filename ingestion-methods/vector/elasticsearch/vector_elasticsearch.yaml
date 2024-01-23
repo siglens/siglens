@@ -32,7 +32,7 @@ sources:
   read_from_file:
     type: file
     include:
-      - ./migration1/SplunkExport.json
+      - /mnt/d/Siglens/SplunkExport.json
     read_from: beginning
 
 # Transforms Reference: Transform the data from Sources into desired format
@@ -60,8 +60,8 @@ sinks:
     type: "elasticsearch"
     # The inputs sources name to ingest the data. This is a list of sources. You can add multiple sources.
     inputs:
-      #- "remap_file_log"
-      - "nginx_metrics"
+      - "remap_file_log"
+      #- "nginx_metrics"
       #- "generate_apache_common"
       #- "generate_syslog"
     # The ingestion endpoint of Siglens

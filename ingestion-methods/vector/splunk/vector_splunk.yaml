@@ -1,0 +1,21 @@
+data_dir: /var/lib/vector
+sources:
+  my_source_id:
+    type: file
+    include:
+      - /mnt/d/Siglens/SplunkExport2.json
+sinks:
+  siglens:
+    type: splunk_hec_logs
+    inputs:
+      - my_source_id
+    endpoint: http://localhost:8081/splunk/
+    host_key: hostname
+    index: "ind-0"
+    indexed_fields:
+      - index
+    timestamp_key: time
+    compression: none
+    encoding:
+      codec: json
+    default_token: "A94A8FE5CCB19BA61C4C08"
