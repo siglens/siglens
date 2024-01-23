@@ -68,18 +68,38 @@ type RexExpr struct {
 type StatisticExpr struct {
 	StatisticFunctionMode StatisticFunctionMode
 	Limit                 string
-	Options               *Options
+	StatisticOptions      *StatisticOptions
 	FieldList             []string //Must have FieldList
 	ByClause              []string
 }
 
-type Options struct {
+type StatisticOptions struct {
 	CountField   string
 	OtherStr     string
 	PercentField string
 	ShowCount    bool
 	ShowPerc     bool
 	UseOther     bool
+}
+
+type DedupExpr struct {
+	Limit             uint64
+	FieldList         []string // Must have FieldList
+	DedupOptions      *DedupOptions
+	DedupSortEles     []*DedupSortElement
+	DedupCombinations map[string]int // maps combinations to their count
+}
+
+type DedupOptions struct {
+	Consecutive bool
+	KeepEmpty   bool
+	KeepEvents  bool
+}
+
+type DedupSortElement struct {
+	SortByAsc bool
+	Op        string
+	Field     string
 }
 
 // See ValueExprMode type definition for which fields are valid for each mode.
@@ -179,7 +199,8 @@ type BinOptions struct {
 }
 
 type SpanOptions struct {
-	SpanLength *SpanLength
+	DefaultSettings bool
+	SpanLength      *SpanLength
 }
 
 type SpanLength struct {
@@ -680,15 +701,15 @@ func (self *StatisticExpr) OverrideGroupByCol(bucketResult *BucketResult, resTot
 
 	cellValueStr := ""
 	for keyIndex, groupByCol := range bucketResult.GroupByKeys {
-		if !self.Options.ShowCount || !self.Options.ShowPerc || (self.Options.CountField != groupByCol && self.Options.PercentField != groupByCol) {
+		if !self.StatisticOptions.ShowCount || !self.StatisticOptions.ShowPerc || (self.StatisticOptions.CountField != groupByCol && self.StatisticOptions.PercentField != groupByCol) {
 			continue
 		}
 
-		if self.Options.ShowCount && self.Options.CountField == groupByCol {
+		if self.StatisticOptions.ShowCount && self.StatisticOptions.CountField == groupByCol {
 			cellValueStr = strconv.FormatUint(bucketResult.ElemCount, 10)
 		}
 
-		if self.Options.ShowPerc && self.Options.PercentField == groupByCol {
+		if self.StatisticOptions.ShowPerc && self.StatisticOptions.PercentField == groupByCol {
 			percent := float64(bucketResult.ElemCount) / float64(resTotal) * 100
 			cellValueStr = fmt.Sprintf("%.6f", percent)
 		}
@@ -711,7 +732,7 @@ func (self *StatisticExpr) OverrideGroupByCol(bucketResult *BucketResult, resTot
 }
 
 func (self *StatisticExpr) SetCountToStatRes(statRes map[string]utils.CValueEnclosure, elemCount uint64) {
-	statRes[self.Options.CountField] = utils.CValueEnclosure{
+	statRes[self.StatisticOptions.CountField] = utils.CValueEnclosure{
 		Dtype: utils.SS_DT_UNSIGNED_NUM,
 		CVal:  elemCount,
 	}
@@ -719,7 +740,7 @@ func (self *StatisticExpr) SetCountToStatRes(statRes map[string]utils.CValueEncl
 
 func (self *StatisticExpr) SetPercToStatRes(statRes map[string]utils.CValueEnclosure, elemCount uint64, resTotal uint64) {
 	percent := float64(elemCount) / float64(resTotal) * 100
-	statRes[self.Options.PercentField] = utils.CValueEnclosure{
+	statRes[self.StatisticOptions.PercentField] = utils.CValueEnclosure{
 		Dtype: utils.SS_DT_STRING,
 		CVal:  fmt.Sprintf("%.6f", percent),
 	}
