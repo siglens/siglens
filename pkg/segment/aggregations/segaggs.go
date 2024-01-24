@@ -811,6 +811,7 @@ func performDedupColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 			}
 
 			newResults = append(newResults, bucketHolder)
+			evictedFromNewResults = append(evictedFromNewResults, false)
 		}
 	}
 
