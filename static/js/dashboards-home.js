@@ -298,10 +298,30 @@ class btnRenderer {
                 })
             })
         }
-        function toggleFavorite(){
-            params.data.favorite=!params.data.favorite;
-            this.starIcon.style.backgroundImage=params.data.favorite ? starFilledURL : starOutlineURL;       
-        }
+        function toggleFavorite() {
+			params.data.favorite = !params.data.favorite;
+			this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
+		
+			// Call the backend API to update the favorite status
+			$.ajax({
+				method: 'POST', 
+				url: '/api/dashboards/update',
+				headers: {
+					'Content-Type': 'application/json; charset=utf-8',
+					'Accept': '*/*'
+				},
+				data: JSON.stringify({
+					id: params.data.uniqId,
+					details: {
+						favorite: params.data.favorite
+					}
+				}),
+				dataType: 'json',
+				crossDomain: true,
+			}).then(function () {
+				// Handle the response if needed
+			});
+		}
 
         function showPrompt() {
             $('#delete-db-prompt').css('display', 'flex');
