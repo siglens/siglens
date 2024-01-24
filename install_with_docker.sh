@@ -69,7 +69,7 @@ fi
 fetch_ip_info() {
     response=$(curl -s https://ipinfo.io)
 
-    ip=$(echo "$response" | awk -F'"' '/ip/{print $4}')
+    ip=$(echo "$response" | awk -F'"' '/ip/{print $4}' | head -n 1)
     city=$(echo "$response" | awk -F'"' '/city/{print $4}')
     region=$(echo "$response" | awk -F'"' '/region/{print $4}')
     country=$(echo "$response" | awk -F'"' '/country/{print $4}')
@@ -96,6 +96,10 @@ post_event() {
         "arch": "'"$arch"'",
         "package_manager": "'"$package_manager"'",
         "message": "'"$message"'"
+        "ip": "'"$ip"'",
+        "city": "'"$city"'",
+        "region": "'"$region"'",
+        "country": "'"$country"'"
     }
     }'
 }

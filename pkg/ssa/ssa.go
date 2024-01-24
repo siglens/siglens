@@ -228,6 +228,10 @@ func getBaseInfo() map[string]interface{} {
 	m["cpu_count"] = cpuCount
 	m["total_memory_gb"] = mem.Total / (1000 * 1000 * 1000)
 	m["company_name"] = "OSS"
+	m["ip"] = IPAddressInfo.IP
+	m["city"] = IPAddressInfo.City
+	m["region"] = IPAddressInfo.Region
+	m["country"] = IPAddressInfo.Country
 	return m
 }
 
@@ -236,6 +240,10 @@ func populateDeploymentSsa(m map[string]interface{}) {
 	m["company_name"] = "OSS"
 	m["version"] = config.SigLensVersion
 	m["deployment_type"] = getDeploymentType()
+	m["ip"] = IPAddressInfo.IP
+	m["city"] = IPAddressInfo.City
+	m["region"] = IPAddressInfo.Region
+	m["country"] = IPAddressInfo.Country
 }
 
 func populateIngestSsa(m map[string]interface{}) {
@@ -269,12 +277,20 @@ func populateIngestSsa(m map[string]interface{}) {
 	m["total_incoming_bytes"] = totalIncomingBytes
 	m["total_table_count"] = len(allVirtualTableNames)
 	m["largest_index_event_count"] = largestIndexEventCount
+	m["ip"] = IPAddressInfo.IP
+	m["city"] = IPAddressInfo.City
+	m["region"] = IPAddressInfo.Region
+	m["country"] = IPAddressInfo.Country
 }
 
 func populateQuerySsa(m map[string]interface{}) {
 	queryCount, totalResponseTime, querieSinceInstall := usageStats.GetQueryStats(0)
 	m["num_queries"] = queryCount
 	m["queries_since_install"] = querieSinceInstall
+	m["ip"] = IPAddressInfo.IP
+	m["city"] = IPAddressInfo.City
+	m["region"] = IPAddressInfo.Region
+	m["country"] = IPAddressInfo.Country
 	if queryCount > 1 {
 		m["avg_query_latency_ms"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime/float64(queryCount), 3)) + " ms"
 	} else {
