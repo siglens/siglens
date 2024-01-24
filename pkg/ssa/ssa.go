@@ -121,7 +121,6 @@ func InitSsa() {
 	}
 
 	IPAddressInfo = ipDetails
-	log.Infof("IP address details: %+v\n", IPAddressInfo)
 	client = currClient
 	go waitForInitialEvent()
 }
