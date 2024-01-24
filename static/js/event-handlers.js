@@ -69,12 +69,6 @@ function setupEventHandlers() {
     $('.ui-widget input').on('keyup', saveqInputHandler);
 
     $(window).bind('popstate', windowPopStateHandler);
-
-    // point, click, search
-    $(document).on('mouseup', selectedTextHandler);
-    $('body').on('click', '#replace-pcs-btn', replaceSearchQueryInputHandler);
-    $('body').on('click', '#append-pcs-btn', appendSearchQueryInputHandler);
-
 }
 
 
