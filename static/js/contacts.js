@@ -58,7 +58,7 @@ const contactFormHTML = `
                     <label for="slack-channel-id">Channel ID</label>
                     <input type="text" class="form-control" id="slack-channel-id" style="position: relative;" required >
                     <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
-            title="CO1P825DS78 \n (You can find your Channel ID in the browser URL path once you open Slack in any browser.)"
+            title="general, \n support"
             id="info-slack-channel-id"></i>
             </div>
                 </div>
@@ -66,7 +66,7 @@ const contactFormHTML = `
                 <label for="slack-token">Slack Token</label>
                 <input type="text" class="form-control" id="slack-token" style="position: relative;" required>
                     <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
-                    title="TOQ4MKEA2 \n (You can find your Slack Token in the browser URL path once you open Slack in any browser.)"
+                    title="xoxp-6124269680468-6234703329959-6528029909106-ddf227fce70c8da274b5566709ce7879 "
                     id="info-slack-token"></i>
                 </div>
             </div>
