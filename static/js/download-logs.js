@@ -141,14 +141,12 @@ function setDownloadLogsDialog() {
     tips.removeClass("ui-state-highlight");
     tips.text("");
     valid = valid && checkLength(qname, "download name", 3, 16);
-    valid =
-      valid &&
-      checkRegexp(
-        qname,
-        /^[a-zA-Z0-9_-]+$/i,
-        "Download name may consist of a-z, 0-9, dash, underscores."
-      );
-    let name = $("#qnameDL").val() + curChoose;
+    valid = valid && checkRegexp(
+      qname,
+      /^[a-zA-Z0-9_.-]+$/i,
+      "Download name may consist of a-z, 0-9, period, dash, underscores."
+  );
+    let name = $("#qnameDL").val() + '.' + curChoose;
     if (valid) {
       dialog.dialog("close");
       $("#progressbar").show();
