@@ -172,7 +172,12 @@ func (s *SortResults) GetLastValue() float64 {
 
 // This function uses heap.Pop, therefore can only be called once
 func (s *SortResults) GetSortedResults() []*utils.RecordResultContainer {
-	allSorts := make([]*utils.RecordResultContainer, s.Count)
+	size := uint64(s.Results.Len())
+	if s.Count < size {
+		size = s.Count
+	}
+
+	allSorts := make([]*utils.RecordResultContainer, size)
 	resultIdx := uint64(0)
 	for s.Results.Len() > 0 && resultIdx < s.Count {
 		item := heap.Pop(s.Results).(*ResultRecordSort)
@@ -184,7 +189,12 @@ func (s *SortResults) GetSortedResults() []*utils.RecordResultContainer {
 }
 
 func (s *SortResults) GetSortedResultsCopy() []*utils.RecordResultContainer {
-	allSorts := make([]*utils.RecordResultContainer, s.Count)
+	size := uint64(s.Results.Len())
+	if s.Count < size {
+		size = s.Count
+	}
+
+	allSorts := make([]*utils.RecordResultContainer, size)
 	resultIdx := uint64(0)
 
 	var newHeap SortedResultRecords
