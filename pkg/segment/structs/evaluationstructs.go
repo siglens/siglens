@@ -87,7 +87,7 @@ type DedupExpr struct {
 	FieldList         []string // Must have FieldList
 	DedupOptions      *DedupOptions
 	DedupSortEles     []*DedupSortElement
-	DedupCombinations map[string]int // maps combinations to their count
+	DedupCombinations map[string]uint64 // maps combinations to their count
 }
 
 type DedupOptions struct {
