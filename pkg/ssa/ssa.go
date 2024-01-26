@@ -136,13 +136,13 @@ func waitForInitialEvent() {
 	if userId = os.Getenv("CSI"); userId != "" {
 		source = "CSI"
 	} else {
-		computerID, err := utils.GetSpecificIdentifier()
+		var err error
+		userId, err = utils.GetSpecificIdentifier()
 		if err != nil {
 			log.Errorf("waitForInitialEvent: %v", err)
+			userId = "unknown"
 		}
-		userId = computerID
 	}
-
 	baseInfo := getBaseInfo()
 	for k, v := range baseInfo {
 		traits.Set(k, v)
