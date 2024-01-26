@@ -14,6 +14,7 @@ services:
       - UI_PORT=${UI_PORT}
       - WORK_DIR=${WORK_DIR}
       - IMAGE_NAME=${IMAGE_NAME}
+      - CSI=${CSI}
   hotrod:
     image: jaegertracing/example-hotrod:1.53
     ports:
