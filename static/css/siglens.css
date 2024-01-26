@@ -2541,25 +2541,6 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 /* end datepicker*/
 
-.point-click-search .popover-body .selected-text{
-    max-height: 200px;
-    overflow: auto;
-}
-
-.point-click-search .btn{
-    background: var(--btn-regular-bg-color);
-}
-
-.point-click-search {
-     background-color: var(--ui-widget-bg-color);
-     border-color:  var(--purple-1) !important;
-     border-radius: 5px;
-}
-
-.point-click-search .popover-body {
-    color: var(--text-color);
-}
-
 #replace-pcs-btn.btn {
     color: var(--button-text-color) !important;
 }
