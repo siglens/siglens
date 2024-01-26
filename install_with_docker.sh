@@ -95,7 +95,7 @@ post_event() {
         "os": "'"$os"'",
         "arch": "'"$arch"'",
         "package_manager": "'"$package_manager"'",
-        "message": "'"$message"'"
+        "message": "'"$message"'",
         "ip": "'"$ip"'",
         "city": "'"$city"'",
         "region": "'"$region"'",
@@ -346,7 +346,7 @@ if [ -n "${CONFIG_FILE}" ]; then
 fi
 
 print_success_message "\n Starting Siglens with image: ${DOCKER_IMAGE_NAME}"
-UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${DOCKER_IMAGE_NAME} docker-compose -f $DOCKER_COMPOSE_FILE up -d || {
+CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${DOCKER_IMAGE_NAME} docker-compose -f $DOCKER_COMPOSE_FILE up -d || {
     post_event "install_failed" "Failed to start Docker Compose on $os with $DOCKER_COMPOSE_FILE"
     print_error_and_exit "Failed to start Docker Compose"
 }
