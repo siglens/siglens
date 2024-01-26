@@ -47,6 +47,7 @@ var ssaStarted = false
 var segmentKey string = "BPDjnefPV0Jc2BRGdGh7CQTnykYKbD8c"
 var userId = ""
 var IPAddressInfo IPAddressDetails
+var source = "computerID"
 
 type IPAddressDetails struct {
 	IP        string  `json:"ip"`
@@ -132,18 +133,22 @@ func waitForInitialEvent() {
 	props := analytics.NewProperties()
 
 	// Initialize computer-specific identifier
-	computerID, err := utils.GetSpecificIdentifier()
-	if err != nil {
-		log.Errorf("waitForInitialEvent: %v", err)
+	if userId = os.Getenv("CSI"); userId != "" {
+		source = "CSI"
+	} else {
+		computerID, err := utils.GetSpecificIdentifier()
+		if err != nil {
+			log.Errorf("waitForInitialEvent: %v", err)
+		}
+		userId = computerID
 	}
-
-	userId = computerID
 
 	baseInfo := getBaseInfo()
 	for k, v := range baseInfo {
 		traits.Set(k, v)
 		props.Set(k, v)
 	}
+	props.Set("id_source", source)
 	_ = client.Enqueue(analytics.Identify{
 		UserId: userId,
 		Traits: traits,
@@ -199,6 +204,7 @@ func flushSsa() {
 	for k, v := range allSsa {
 		props.Set(k, v)
 	}
+	props.Set("id_source", source)
 	_ = client.Enqueue(analytics.Track{
 		Event:      "server status",
 		UserId:     userId,
