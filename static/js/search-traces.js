@@ -365,8 +365,18 @@ function showScatterPlot() {
       formatter: function (param) {
         var green = param.value[4];
         var red = param.value[5];
+        var duration = param.value[1];
+        var spans = param.value[2];
+        var errors = param.value[3];
+        var traceId = param.dataIndex < returnResTotal.length ? returnResTotal[param.dataIndex].trace_id.substring(0, 7) : '';
+
         return (
-          "<div>" + green + ": " + red + "</div>"
+          "<div>" + green + ": " + red + 
+          "<br>Duration: " + duration + "ms" +
+          "<br>No. of Spans: " + spans +
+          "<br>No. of Error Spans: " + errors +
+          "<br>Trace ID: " + traceId +
+          "</div>"
         );
       },
     },
