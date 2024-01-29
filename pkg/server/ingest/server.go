@@ -90,7 +90,9 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	hs.router.POST("/config/reload", hs.Recovery(getConfigReloadHandler()))
 
 	//elasticsearch endpoints
+	hs.router.HEAD(server_utils.ELASTIC_PREFIX+"/", hs.Recovery(esGreetHandler()))
 	hs.router.GET(server_utils.ELASTIC_PREFIX+"/", hs.Recovery(esGreetHandler()))
+	hs.router.GET(server_utils.ELASTIC_PREFIX+"/_xpack", hs.Recovery(esGreetHandler()))
 	hs.router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
 	hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(esPutIndexHandler()))
 
