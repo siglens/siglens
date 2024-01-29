@@ -414,30 +414,8 @@ function getCookie(cname) {
 function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res) {
     resetQueryResAttr(res, panelId);
     //if data source is metrics
-    if(!res.qtype && chartType != "number") {
+    if(!res.qtype) {
         panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId)
-    }else if(!res.qtype && chartType === "number"){
-        let resultVal
-        $.each(res, function (key, value) {
-            var series = value;
-            $.each(series, function (key, value) {
-                var tsmap = value
-                $.each(tsmap, function (key, value) {
-                    if (value > 0){
-                        resultVal = value
-                    }
-                })
-            })        
-        })
-        if(resultVal === undefined || resultVal === null){
-            panelProcessEmptyQueryResults("", panelId);
-        }else{
-            displayBigNumber(resultVal.toString(), panelId, dataType, panelIndex);
-            allResultsDisplayed--;
-            if(allResultsDisplayed <= 0 || panelId === -1) {
-                $('body').css('cursor', 'default');
-            }
-        }
     }
     if (res.qtype === "logs-query") {
         panelProcessEmptyQueryResults("", panelId);
@@ -590,6 +568,15 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
                     })
                 })         
             });
+            if(bigNumVal === undefined || bigNumVal === null){
+                panelProcessEmptyQueryResults("", panelId);
+            }else{
+                displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
+                allResultsDisplayed--;
+                if(allResultsDisplayed <= 0 || panelId === -1) {
+                    $('body').css('cursor', 'default');
+                }
+            }
             displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
             allResultsDisplayed--;
             if(allResultsDisplayed <= 0 || panelId === -1) {
