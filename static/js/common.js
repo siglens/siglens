@@ -576,13 +576,8 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
                 if(allResultsDisplayed <= 0 || panelId === -1) {
                     $('body').css('cursor', 'default');
                 }
-            }
-            displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
-            allResultsDisplayed--;
-            if(allResultsDisplayed <= 0 || panelId === -1) {
-                $('body').css('cursor', 'default');
-            }    
-            $(`#panel${panelId} .panel-body #panel-loading`).hide();    
+                $(`#panel${panelId} .panel-body #panel-loading`).hide();    
+            }  
         } else {
             hideError();
             const colors = createMetricsColorsArray();
