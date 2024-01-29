@@ -53,7 +53,25 @@ async function getAllDefaultDashboards() {
 	})
 	return serverResponse
 }
-
+async function getAllFavoriteDashboards() {
+    let serverResponse = []
+    await $.ajax({
+        method: 'get',
+        url: 'api/dashboards/listfavorites',
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': '*/*'
+        },
+        crossDomain: true,
+        dataType: 'json',
+    }).then(function (res) {
+		serverResponse = res;
+    })
+    return serverResponse
+}
+getAllFavoriteDashboards().then((response) => {
+	console.log("response", response)
+});
 function createDashboard() {
 	$('.popupOverlay, .popupContent').addClass('active');
 	$('#new-dashboard-modal').show();
@@ -208,6 +226,7 @@ class btnRenderer {
         this.dButton = this.eGui.querySelector('.btn-simple');
         this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
         this.starIcon=this.eGui.querySelector('.star-icon');
+        this.starIcon.style.backgroundImage = favoriteDBsSet.has(params.data.uniqId) ? starFilledURL : starOutlineURL;
 
         function view() {
             $.ajax({
@@ -298,11 +317,25 @@ class btnRenderer {
                 })
             })
         }
-        function toggleFavorite(){
-            params.data.favorite=!params.data.favorite;
-            this.starIcon.style.backgroundImage=params.data.favorite ? starFilledURL : starOutlineURL;       
-        }
-
+		function toggleFavorite() {
+			$.ajax({
+				method: 'put',
+				url: 'api/dashboards/favorite/' + params.data.uniqId,
+				headers: {
+					'Content-Type': 'application/json; charset=utf-8',
+					Accept: '*/*',
+				},
+				crossDomain: true,
+			}).then((response) => {
+				// Update the favorite status based on the response
+				params.data.favorite = response.isFavorite;
+				if(params.data.favorite) {
+					this.starIcon.style.backgroundImage = starFilled;
+				} else {
+					this.starIcon.style.backgroundImage = starOutline;
+				}							
+			});
+		}
         function showPrompt() {
             $('#delete-db-prompt').css('display', 'flex');
             $('.popupOverlay, .popupContent').addClass('active');
@@ -504,6 +537,7 @@ function showDBNotFoundMsg() {
 	$('#dashboard-grid-container').hide();
 	$('#empty-response').show();
 }
+let favoriteDBsSet;
 
 $(document).ready(async function () {
 	if (Cookies.get('theme')) {
@@ -515,6 +549,9 @@ $(document).ready(async function () {
 	let normalDBs = await getAllDashboards();
 	let allDefaultDBs = await getAllDefaultDashboards();
 	let allDBs = {...normalDBs, ...allDefaultDBs}
+	let favoriteDBs = await getAllFavoriteDashboards();
+    // Convert the array of favorite dashboards to a Set for faster lookup
+	favoriteDBsSet = new Set(Object.keys(favoriteDBs));
 	displayDashboards(allDBs)
 
 	$('#create-db-btn').click(createDashboard);
