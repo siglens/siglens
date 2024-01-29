@@ -315,22 +315,23 @@ class btnRenderer {
             params.data.favorite=!params.data.favorite;
             this.starIcon.style.backgroundImage=params.data.favorite ? starFilledURL : starOutlineURL;       
         }
-		function showPrompt() {
-			$('#delete-db-prompt').css('display', 'flex');
-			$('.popupOverlay, .popupContent').addClass('active');
-			$('#new-dashboard-modal').hide();
-		
-			$('#cancel-db-prompt, .popupOverlay').click(function () {
-				$('.popupOverlay, .popupContent').removeClass('active');
-				$('#delete-db-prompt').hide();
-			});
-		
-			$('#delete-dbbtn').click(function () {
-				deletedb();
-				$('.popupOverlay, .popupContent').removeClass('active');
-				$('#delete-db-prompt').hide();
-			});
-		}
+
+        function showPrompt() {
+            $('#delete-db-prompt').css('display', 'flex');
+            $('.popupOverlay, .popupContent').addClass('active');
+            $('#new-dashboard-modal').hide();
+
+            $('#cancel-db-prompt, .popupOverlay').click(function () {
+                $('.popupOverlay, .popupContent').removeClass('active');
+                $('#delete-db-prompt').hide();
+            });
+
+            $('#delete-dbbtn').click(function () {
+                deletedb();
+                $('.popupOverlay, .popupContent').removeClass('active');
+                $('#delete-db-prompt').hide();
+            });
+        }
 		
 
         this.vButton.addEventListener('click', view);
