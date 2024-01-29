@@ -146,7 +146,14 @@ function setDownloadLogsDialog() {
       /^[a-zA-Z0-9_.-]+$/i,
       "Download name may consist of a-z, 0-9, period, dash, underscores."
   );
-    let name = $("#qnameDL").val() + '.' + curChoose;
+  let enteredName = $("#qnameDL").val();
+  let extension = curChoose;
+  let name = enteredName;
+
+  if (!enteredName.endsWith(extension)) {
+    name += extension;
+  }
+
     if (valid) {
       dialog.dialog("close");
       $("#progressbar").show();
