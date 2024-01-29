@@ -632,7 +632,11 @@ func isDashboardFavorite(id string) (bool, error) {
 	}
 
 	var dashboard map[string]interface{}
-	json.Unmarshal(dashboardJson, &dashboard)
+	err = json.Unmarshal(dashboardJson, &dashboard)
+	if err != nil {
+		log.Errorf("isDashboardFavorite: Failed to unmarshal json, err=%v", err)
+		return false, err
+	}
 
 	isFav, ok := dashboard["isFavorite"].(bool)
 	if !ok {
