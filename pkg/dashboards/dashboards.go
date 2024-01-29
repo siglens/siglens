@@ -181,27 +181,6 @@ func releaseLock(orgid uint64) {
 	allDashIdsLock[orgid].Unlock()
 }
 
-func getAllFavoriteDashboardIds(orgId uint64) (map[string]string, error) {
-	allDashboards, err := getAllDashboardIds(orgId)
-	if err != nil {
-		return nil, err
-	}
-
-	favoriteDashboards := make(map[string]string)
-	for id, name := range allDashboards {
-		isFavorite, err := isDashboardFavorite(id)
-		if err != nil {
-			return nil, err
-		}
-
-		if isFavorite {
-			favoriteDashboards[id] = name
-		}
-	}
-
-	return favoriteDashboards, nil
-}
-
 func getAllDashboardIds(orgid uint64) (map[string]string, error) {
 	createOrAcquireLock(orgid)
 	_, err := readSavedDashboards(orgid)
@@ -615,6 +594,27 @@ func ProcessListFavoritesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	utils.WriteJsonResponse(ctx, dIds)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func getAllFavoriteDashboardIds(orgId uint64) (map[string]string, error) {
+	allDashboards, err := getAllDashboardIds(orgId)
+	if err != nil {
+		return nil, err
+	}
+
+	favoriteDashboards := make(map[string]string)
+	for id, name := range allDashboards {
+		isFavorite, err := isDashboardFavorite(id)
+		if err != nil {
+			return nil, err
+		}
+
+		if isFavorite {
+			favoriteDashboards[id] = name
+		}
+	}
+
+	return favoriteDashboards, nil
 }
 
 func isDashboardFavorite(id string) (bool, error) {
