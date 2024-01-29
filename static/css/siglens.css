@@ -4870,3 +4870,7 @@ input.form-control {
 .live-tail-logs-container .ag-theme-mycustomtheme .ag-root-wrapper {
     border: 1px solid var(--border-btn-color);
 }
+
+#delbutton.default-dashboard-delete:hover {
+    background-image: url(../assets/dark-delete-icon-regular.svg);
+}
