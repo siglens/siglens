@@ -27,10 +27,20 @@ import (
 
 var s = gocron.NewScheduler(time.UTC)
 
+func VerifyAlertCronJobExists(alertDataObj *alertutils.AlertDetails) bool {
+	job_ids := s.GetAllTags()
+	for _, id := range job_ids {
+		if alertDataObj.AlertId == id {
+			return true
+		}
+	}
+	return false
+}
+
 func AddCronJob(alertDataObj *alertutils.AlertDetails) (*gocron.Job, error) {
 	evaluationIntervalInSec := int(alertDataObj.EvalInterval * 60)
 
-	cron_job, err := s.Every(evaluationIntervalInSec).Second().Tag(alertDataObj.AlertInfo.AlertId).DoWithJobDetails(evaluate, alertDataObj)
+	cron_job, err := s.Every(evaluationIntervalInSec).Second().Tag(alertDataObj.AlertId).DoWithJobDetails(evaluate, alertDataObj)
 	if err != nil {
 		log.Errorf("AddCronJob: Error adding a new cronJob to the CRON Scheduler: %s", err)
 		return &gocron.Job{}, err
@@ -72,28 +82,28 @@ func evaluate(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
 	}
 	isFiring := evaluateConditions(serResVal, &alertToEvaluate.Condition, alertToEvaluate.Value)
 	if isFiring {
-		err := updateAlertState(alertToEvaluate.AlertInfo.AlertId, alertutils.Firing)
+		err := updateAlertState(alertToEvaluate.AlertId, alertutils.Firing)
 		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluate: could not update the state to FIRING. Alert=%+v & err=%+v.", alertToEvaluate.AlertInfo.AlertName, err)
+			log.Errorf("ALERTSERVICE: evaluate: could not update the state to FIRING. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
 		}
 
-		err = NotifyAlertHandlerRequest(alertToEvaluate.AlertInfo.AlertId)
+		err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId)
 		if err != nil {
 			log.Errorf("ALERTSERVICE: evaluate: could not setup the notification handler. found error = %v", err)
 			return
 		}
 	} else {
-		err := updateAlertState(alertToEvaluate.AlertInfo.AlertId, alertutils.Inactive)
+		err := updateAlertState(alertToEvaluate.AlertId, alertutils.Inactive)
 		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluate: could not update the state to INACTIVE. Alert=%+v & err=%+v.", alertToEvaluate.AlertInfo.AlertName, err)
+			log.Errorf("ALERTSERVICE: evaluate: could not update the state to INACTIVE. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
 
 		}
 	}
 }
 
 func updateAlertState(alertId string, alertState alertutils.AlertState) error {
-	err := databaseObj.UpdateAlertStateByAlertID(alertId, alertState)
-	return err
+	// err := databaseObj.UpdateAlertStateByAlertID(alertId, alertState)
+	return nil
 }
 
 func evaluateConditions(serResVal int, queryCond *alertutils.AlertQueryCondition, val float32) bool {
@@ -141,6 +151,6 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 }
 
 func updateMinionSearchState(alertId string, alertState alertutils.AlertState) error {
-	err := databaseObj.UpdateMinionSearchStateByAlertID(alertId, alertState)
-	return err
+	// err := databaseObj.UpdateMinionSearchStateByAlertID(alertId, alertState)
+	return nil
 }

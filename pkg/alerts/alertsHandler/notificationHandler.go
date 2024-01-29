@@ -239,7 +239,7 @@ func processGetSilenceMinutesRequest(alert_id string) (uint64, time.Time, error)
 		return 0, time.Time{}, err
 	}
 
-	return alertDataObj.AlertInfo.SilenceMinutes, last_time, nil
+	return alertDataObj.SilenceMinutes, last_time, nil
 }
 func processGetContactDetails(alert_id string) (string, string, string, error) {
 	id, message, subject, err := databaseObj.GetContactDetails(alert_id)

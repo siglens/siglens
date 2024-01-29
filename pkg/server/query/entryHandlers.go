@@ -406,7 +406,7 @@ func getAllAlertsHandler() func(ctx *fasthttp.RequestCtx) {
 
 func getAllMinionSearchesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessGetAllMinionSearchesRequest(ctx)
+		// alertsHandler.ProcessGetAllMinionSearchesRequest(ctx)
 	}
 }
 
@@ -440,12 +440,6 @@ func updateContactHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func createNotificationHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessCreateNotificationRequest(ctx)
-	}
-}
-
 func deleteContactHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		alertsHandler.ProcessDeleteContactRequest(ctx)
@@ -454,13 +448,13 @@ func deleteContactHandler() func(ctx *fasthttp.RequestCtx) {
 
 func createMinionSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessCreateLogMinionSearchRequest(ctx)
+		// alertsHandler.ProcessCreateLogMinionSearchRequest(ctx)
 	}
 }
 
 func getMinionSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessGetMinionSearchRequest(ctx)
+		// alertsHandler.ProcessGetMinionSearchRequest(ctx)
 	}
 }
 

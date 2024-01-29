@@ -17,14 +17,13 @@ limitations under the License.
 package alertsHandler
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	alertsqlite "github.com/siglens/siglens/pkg/alerts/alertsqlite"
 	"github.com/siglens/siglens/pkg/config"
+	"gorm.io/gorm"
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -35,21 +34,20 @@ import (
 
 type database interface {
 	Connect() error
-	CloseDb()
-	InitializeDB() error
-	SetDB(db *sql.DB)
+	// CloseDb()
+	// InitializeDB() error
+	SetDB(db *gorm.DB)
 	CreateAlert(alertInfo *alertutils.AlertDetails) (alertutils.AlertDetails, error)
 	GetAlert(alert_id string) (*alertutils.AlertDetails, error)
-	GetAllAlerts() ([]alertutils.AlertInfo, error)
-	CreateMinionSearch(alertInfo *alertutils.MinionSearch) (alertutils.MinionSearch, error)
-	GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error)
-	GetAllMinionSearches() ([]alertutils.MinionSearch, error)
-	UpdateMinionSearchStateByAlertID(alertId string, alertState alertutils.AlertState) error
+	GetAllAlerts() ([]alertutils.AlertDetails, error)
+	// CreateMinionSearch(alertInfo *alertutils.MinionSearch) (alertutils.MinionSearch, error)
+	// GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error)
+	// GetAllMinionSearches() ([]alertutils.MinionSearch, error)
+	// UpdateMinionSearchStateByAlertID(alertId string, alertState alertutils.AlertState) error
 	UpdateAlert(*alertutils.AlertDetails) error
 	UpdateSilenceMinutes(*alertutils.AlertDetails) error
 	DeleteAlert(alert_id string) error
 	CreateContact(*alertutils.Contact) error
-	CreateNotificationDetails(newNotif *alertutils.Notification) error
 	GetAllContactPoints() ([]alertutils.Contact, error)
 	UpdateContactPoint(contact *alertutils.Contact) error
 	GetCoolDownDetails(alert_id string) (uint64, time.Time, error)
@@ -74,19 +72,15 @@ func ConnectSiglensDB() error {
 	if err != nil {
 		return err
 	}
-	err = databaseObj.InitializeDB()
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
-func Disconnect() {
-	if databaseObj == nil {
-		return
-	}
-	databaseObj.CloseDb()
-}
+// func Disconnect() {
+// 	if databaseObj == nil {
+// 		return
+// 	}
+// 	databaseObj.CloseDb()
+// }
 
 func ProcessVersionInfo(ctx *fasthttp.RequestCtx) {
 	responseBody := make(map[string]interface{})
@@ -125,7 +119,7 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx) {
 	}
 	alertDataObj, err := databaseObj.CreateAlert(&alertToBeCreated)
 	if err != nil {
-		log.Errorf("ProcessCreateAlertRequest: could not create alert=%v, err=%v", alertToBeCreated.AlertInfo.AlertName, err)
+		log.Errorf("ProcessCreateAlertRequest: could not create alert=%v, err=%v", alertToBeCreated.AlertName, err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		responseBody["error"] = err.Error()
 		utils.WriteJsonResponse(ctx, responseBody)
@@ -134,7 +128,7 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx) {
 
 	_, err = AddCronJob(&alertDataObj)
 	if err != nil {
-		log.Errorf("ProcessCreateAlertRequest: could not add a new CronJob corresponding to alert=%+v, err=%+v", alertDataObj.AlertInfo.AlertName, err)
+		log.Errorf("ProcessCreateAlertRequest: could not add a new CronJob corresponding to alert=%+v, err=%+v", alertDataObj.AlertName, err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		responseBody["error"] = err.Error()
 		utils.WriteJsonResponse(ctx, responseBody)
@@ -145,6 +139,7 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx) {
 	responseBody["message"] = "Successfully created an alert"
 	utils.WriteJsonResponse(ctx, responseBody)
 }
+
 func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 	responseBody := make(map[string]interface{})
 
@@ -189,11 +184,11 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	alertDataObj.AlertInfo.SilenceMinutes = silenceRequest.SilenceMinutes
+	alertDataObj.SilenceMinutes = silenceRequest.SilenceMinutes
 	// Update the SilenceMinutes
-	err = databaseObj.UpdateSilenceMinutes(alertDataObj)
+	err = databaseObj.UpdateAlert(alertDataObj)
 	if err != nil {
-		log.Errorf("ProcessUpdateSilenceRequestRequest: could not update alert=%+v, err=%+v", alertDataObj.AlertInfo.AlertName, err)
+		log.Errorf("ProcessUpdateSilenceRequestRequest: could not update alert=%+v, err=%+v", alertDataObj.AlertName, err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		responseBody["error"] = err.Error()
 		utils.WriteJsonResponse(ctx, responseBody)
@@ -250,35 +245,50 @@ func ProcessGetAllAlertsRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	//check if cron job started before
+	for _, alertDataObj := range alerts {
+		cronJobExists := VerifyAlertCronJobExists(&alertDataObj)
+		if !cronJobExists {
+			log.Infof("ProcessGetAllAlertsRequest: CronJob corresponding to alert=%+v not found. Creating new cron job", alertDataObj.AlertName)
+			_, err = AddCronJob(&alertDataObj)
+			if err != nil {
+				log.Errorf("ProcessGetAllAlertsRequest: could not add a new cron job corresponding to alert=%+v, err=%+v", alertDataObj.AlertName, err)
+				ctx.SetStatusCode(fasthttp.StatusBadRequest)
+				responseBody["error"] = err.Error()
+				utils.WriteJsonResponse(ctx, responseBody)
+				return
+			}
+		}
+	}
 	responseBody["alerts"] = alerts
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
-func ProcessGetAllMinionSearchesRequest(ctx *fasthttp.RequestCtx) {
-	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessGetAllMinionSearchesRequest: failed to get all alerts, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
-		return
-	}
+// func ProcessGetAllMinionSearchesRequest(ctx *fasthttp.RequestCtx) {
+// 	if databaseObj == nil {
+// 		responseBody := make(map[string]interface{})
+// 		log.Errorf("ProcessGetAllMinionSearchesRequest: failed to get all alerts, err = %+v", invalidDatabaseProvider)
+// 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+// 		responseBody["error"] = invalidDatabaseProvider
+// 		utils.WriteJsonResponse(ctx, responseBody)
+// 		return
+// 	}
 
-	responseBody := make(map[string]interface{})
-	minionSearches, err := databaseObj.GetAllMinionSearches()
-	if err != nil {
-		log.Errorf("ProcessGetAllMinionSearchesRequest: could not get all alerts, err: %+v", err.Error())
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
-		return
-	}
+// 	responseBody := make(map[string]interface{})
+// 	minionSearches, err := databaseObj.GetAllMinionSearches()
+// 	if err != nil {
+// 		log.Errorf("ProcessGetAllMinionSearchesRequest: could not get all alerts, err: %+v", err.Error())
+// 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+// 		responseBody["error"] = err.Error()
+// 		utils.WriteJsonResponse(ctx, responseBody)
+// 		return
+// 	}
 
-	responseBody["minionSearches"] = minionSearches
-	ctx.SetStatusCode(fasthttp.StatusOK)
-	utils.WriteJsonResponse(ctx, responseBody)
-}
+// 	responseBody["minionSearches"] = minionSearches
+// 	ctx.SetStatusCode(fasthttp.StatusOK)
+// 	utils.WriteJsonResponse(ctx, responseBody)
+// }
 
 func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 	if databaseObj == nil {
@@ -311,16 +321,16 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 
 	err = databaseObj.UpdateAlert(alertToBeUpdated)
 	if err != nil {
-		log.Errorf("ProcessUpdateAlertRequest: could not update alert=%+v, err=%+v", alertToBeUpdated.AlertInfo.AlertName, err)
+		log.Errorf("ProcessUpdateAlertRequest: could not update alert=%+v, err=%+v", alertToBeUpdated.AlertName, err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		responseBody["error"] = err.Error()
 		utils.WriteJsonResponse(ctx, responseBody)
 		return
 	}
 
-	err = RemoveCronJob(alertToBeUpdated.AlertInfo.AlertId)
+	err = RemoveCronJob(alertToBeUpdated.AlertId)
 	if err != nil {
-		log.Errorf("ProcessUpdateAlertRequest: could not remove old cron job corresponding to alert=%+v, err=%+v", alertToBeUpdated.AlertInfo.AlertName, err)
+		log.Errorf("ProcessUpdateAlertRequest: could not remove old cron job corresponding to alert=%+v, err=%+v", alertToBeUpdated.AlertName, err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		responseBody["error"] = err.Error()
 		utils.WriteJsonResponse(ctx, responseBody)
@@ -328,7 +338,7 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 	}
 	_, err = AddCronJob(alertToBeUpdated)
 	if err != nil {
-		log.Errorf("ProcessUpdateAlertRequest: could not add a new cron job corresponding to alert=%+v, err=%+v", alertToBeUpdated.AlertInfo.AlertName, err)
+		log.Errorf("ProcessUpdateAlertRequest: could not add a new cron job corresponding to alert=%+v, err=%+v", alertToBeUpdated.AlertName, err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		responseBody["error"] = err.Error()
 		utils.WriteJsonResponse(ctx, responseBody)
@@ -412,7 +422,7 @@ func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx) {
 		utils.WriteJsonResponse(ctx, responseBody)
 		return
 	}
-
+	log.Info("********************************", contactToBeCreated)
 	err := json.Unmarshal(rawJSON, &contactToBeCreated)
 	if err != nil {
 		log.Errorf("ProcessCreateContactRequest: could not unmarshal json body, err=%v", err)
@@ -453,52 +463,9 @@ func ProcessGetAllContactsRequest(ctx *fasthttp.RequestCtx) {
 		utils.WriteJsonResponse(ctx, responseBody)
 		return
 	}
-
+	log.Info(contacts, "getAllContactPoints")
 	responseBody["contacts"] = contacts
 	ctx.SetStatusCode(fasthttp.StatusOK)
-	utils.WriteJsonResponse(ctx, responseBody)
-}
-
-func ProcessCreateNotificationRequest(ctx *fasthttp.RequestCtx) {
-	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessCreateNotificationRequest: failed to create notification details, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
-		return
-	}
-	responseBody := make(map[string]interface{})
-	var notificationToBeCreated *alertutils.Notification
-
-	rawJSON := ctx.PostBody()
-	if len(rawJSON) == 0 {
-		log.Errorf("ProcessCreateNotificationRequest: empty json body received")
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = "empty json body received"
-		utils.WriteJsonResponse(ctx, responseBody)
-		return
-	}
-
-	err := json.Unmarshal(rawJSON, &notificationToBeCreated)
-	if err != nil {
-		log.Errorf("ProcessCreateNotificationRequest: could not unmarshal json body, err=%v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = "could not unmarshal json body"
-		utils.WriteJsonResponse(ctx, responseBody)
-		return
-	}
-
-	err = databaseObj.CreateNotificationDetails(notificationToBeCreated)
-	if err != nil {
-		log.Errorf("ProcessCreateNotificationRequest: could not create notification with parameters: cooldownPeriod = %v, lastSentTime = %v, err=%v", notificationToBeCreated.CooldownPeriod, notificationToBeCreated.LastSentTime, err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
-		return
-	}
-	ctx.SetStatusCode(fasthttp.StatusOK)
-	responseBody["message"] = "Successfully updated notification details"
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
@@ -589,170 +556,170 @@ func ProcessDeleteContactRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func InitAlertingService() {
-	if databaseObj == nil {
-		log.Errorf("InitAlertingService, err = %+v", invalidDatabaseProvider)
-		return
-	}
-	//get all alerts from database
-	allAlerts, err := databaseObj.GetAllAlerts()
-	if err != nil {
-		log.Errorf("InitAlertingService: unable to GetAllAlerts: ,err: %+v", err)
-	}
-	for _, alertInfo := range allAlerts {
-		alertDataObj, err := databaseObj.GetAlert(alertInfo.AlertId)
-		if err != nil {
-			log.Errorf("InitAlertingService: unable to GetAlert with alertId %v: ,err: %+v", alertInfo.AlertId, err)
-		}
-		if alertDataObj != nil {
-			_, err = AddCronJob(alertDataObj)
-			if err != nil {
-				log.Errorf("InitAlertingService: could not add a new CronJob corresponding to alert=%+v, err=%+v", alertDataObj.AlertInfo.AlertName, err)
-				return
-			}
-		}
+// func InitAlertingService() {
+// 	if databaseObj == nil {
+// 		log.Errorf("InitAlertingService, err = %+v", invalidDatabaseProvider)
+// 		return
+// 	}
+// 	//get all alerts from database
+// 	allAlerts, err := databaseObj.GetAllAlerts()
+// 	if err != nil {
+// 		log.Errorf("InitAlertingService: unable to GetAllAlerts: ,err: %+v", err)
+// 	}
+// 	for _, alertInfo := range allAlerts {
+// 		alertDataObj, err := databaseObj.GetAlert(alertInfo.AlertId)
+// 		if err != nil {
+// 			log.Errorf("InitAlertingService: unable to GetAlert with alertId %v: ,err: %+v", alertInfo.AlertId, err)
+// 		}
+// 		if alertDataObj != nil {
+// 			_, err = AddCronJob(alertDataObj)
+// 			if err != nil {
+// 				log.Errorf("InitAlertingService: could not add a new CronJob corresponding to alert=%+v, err=%+v", alertDataObj.AlertInfo.AlertName, err)
+// 				return
+// 			}
+// 		}
 
-	}
-}
+// 	}
+// }
 
-func InitMinionSearchService() {
-	if databaseObj == nil {
-		log.Errorf("InitMinionSearchService, err = %+v", invalidDatabaseProvider)
-		return
-	}
-	//get all alerts from database
-	allMinionSearches, err := databaseObj.GetAllMinionSearches()
-	if err != nil {
-		log.Errorf("InitMinionSearchService: unable to GetAllAlerts: ,err: %+v", err)
-	}
-	for _, minionSearch := range allMinionSearches {
-		_, err = AddMinionSearchCronJob(&minionSearch)
-		if err != nil {
-			log.Errorf("InitMinionSearchService: could not add a new CronJob corresponding to alert=%+v, err=%+v", minionSearch.AlertInfo.AlertName, err)
-			return
-		}
+// func InitMinionSearchService() {
+// 	if databaseObj == nil {
+// 		log.Errorf("InitMinionSearchService, err = %+v", invalidDatabaseProvider)
+// 		return
+// 	}
+// 	//get all alerts from database
+// 	allMinionSearches, err := databaseObj.GetAllMinionSearches()
+// 	if err != nil {
+// 		log.Errorf("InitMinionSearchService: unable to GetAllAlerts: ,err: %+v", err)
+// 	}
+// 	for _, minionSearch := range allMinionSearches {
+// 		_, err = AddMinionSearchCronJob(&minionSearch)
+// 		if err != nil {
+// 			log.Errorf("InitMinionSearchService: could not add a new CronJob corresponding to alert=%+v, err=%+v", minionSearch.AlertInfo.AlertName, err)
+// 			return
+// 		}
 
-	}
-}
+// 	}
+// }
 
-func ProcessCreateLogMinionSearchRequest(ctx *fasthttp.RequestCtx) {
-	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessCreateLogMinionSearchRequest: failed to create alert, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
-		return
-	}
-	responseBody := make(map[string]interface{})
-	var LogLinesEntry alertutils.LogLinesFile
+// func ProcessCreateLogMinionSearchRequest(ctx *fasthttp.RequestCtx) {
+// 	if databaseObj == nil {
+// 		responseBody := make(map[string]interface{})
+// 		log.Errorf("ProcessCreateLogMinionSearchRequest: failed to create alert, err = %+v", invalidDatabaseProvider)
+// 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+// 		responseBody["error"] = invalidDatabaseProvider
+// 		utils.WriteJsonResponse(ctx, responseBody)
+// 		return
+// 	}
+// 	responseBody := make(map[string]interface{})
+// 	var LogLinesEntry alertutils.LogLinesFile
 
-	rawJSON := ctx.PostBody()
-	if len(rawJSON) == 0 {
-		log.Errorf("ProcessCreateLogMinionSearchRequest: empty json body received")
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = "empty json body received"
-		utils.WriteJsonResponse(ctx, responseBody)
-		return
-	}
-	err := json.Unmarshal(rawJSON, &LogLinesEntry)
-	if err != nil {
-		log.Errorf("ProcessCreateLogMinionSearchRequest: could not unmarshal json body, err=%v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
-		return
-	}
-	minionSearches := convertToSiglensAlert(LogLinesEntry)
-	for _, searchToBeCreated := range minionSearches {
-		searchDataObj, err := databaseObj.CreateMinionSearch(searchToBeCreated)
-		if err != nil {
-			log.Errorf("ProcessCreateLogMinionSearchRequest: could not create alert=%v, err=%v", searchToBeCreated.AlertInfo.AlertName, err)
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			responseBody["error"] = err.Error()
-			utils.WriteJsonResponse(ctx, responseBody)
-			return
-		}
-		_, err = AddMinionSearchCronJob(&searchDataObj)
-		if err != nil {
-			log.Errorf("ProcessCreateLogMinionSearchRequest: could not add a new CronJob corresponding to alert=%+v, err=%+v", searchDataObj.AlertInfo.AlertName, err)
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			responseBody["error"] = err.Error()
-			utils.WriteJsonResponse(ctx, responseBody)
-			return
-		}
-	}
+// 	rawJSON := ctx.PostBody()
+// 	if len(rawJSON) == 0 {
+// 		log.Errorf("ProcessCreateLogMinionSearchRequest: empty json body received")
+// 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+// 		responseBody["error"] = "empty json body received"
+// 		utils.WriteJsonResponse(ctx, responseBody)
+// 		return
+// 	}
+// 	err := json.Unmarshal(rawJSON, &LogLinesEntry)
+// 	if err != nil {
+// 		log.Errorf("ProcessCreateLogMinionSearchRequest: could not unmarshal json body, err=%v", err)
+// 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+// 		responseBody["error"] = err.Error()
+// 		utils.WriteJsonResponse(ctx, responseBody)
+// 		return
+// 	}
+// 	minionSearches := convertToSiglensAlert(LogLinesEntry)
+// 	for _, searchToBeCreated := range minionSearches {
+// 		searchDataObj, err := databaseObj.CreateMinionSearch(searchToBeCreated)
+// 		if err != nil {
+// 			log.Errorf("ProcessCreateLogMinionSearchRequest: could not create alert=%v, err=%v", searchToBeCreated.AlertInfo.AlertName, err)
+// 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
+// 			responseBody["error"] = err.Error()
+// 			utils.WriteJsonResponse(ctx, responseBody)
+// 			return
+// 		}
+// 		_, err = AddMinionSearchCronJob(&searchDataObj)
+// 		if err != nil {
+// 			log.Errorf("ProcessCreateLogMinionSearchRequest: could not add a new CronJob corresponding to alert=%+v, err=%+v", searchDataObj.AlertInfo.AlertName, err)
+// 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
+// 			responseBody["error"] = err.Error()
+// 			utils.WriteJsonResponse(ctx, responseBody)
+// 			return
+// 		}
+// 	}
 
-	ctx.SetStatusCode(fasthttp.StatusOK)
-	responseBody["message"] = "Successfully created an minion search"
-	utils.WriteJsonResponse(ctx, responseBody)
-}
+// 	ctx.SetStatusCode(fasthttp.StatusOK)
+// 	responseBody["message"] = "Successfully created an minion search"
+// 	utils.WriteJsonResponse(ctx, responseBody)
+// }
 
-func convertToSiglensAlert(lmDetails alertutils.LogLinesFile) []*alertutils.MinionSearch {
-	var minionSearches []*alertutils.MinionSearch
-	for _, entry := range lmDetails.LogAlerts {
-		alert_id := uuid.New().String()
-		alert_name := entry.LogTextHash
-		alertInfoObj := alertutils.AlertInfo{
-			AlertName:       alert_name,
-			AlertId:         alert_id,
-			State:           alertutils.Inactive,
-			CreateTimestamp: time.Now(),
-		}
-		minionSearchDetails := alertutils.MinionSearchDetails{
-			Repository:  entry.Repository,
-			Filename:    entry.Filename,
-			LineNumber:  entry.LineNumber,
-			LogText:     entry.LogText,
-			LogTextHash: entry.LogTextHash,
-			LogLevel:    entry.LogLevel,
-		}
+// func convertToSiglensAlert(lmDetails alertutils.LogLinesFile) []*alertutils.MinionSearch {
+// 	var minionSearches []*alertutils.MinionSearch
+// 	for _, entry := range lmDetails.LogAlerts {
+// 		alert_id := uuid.New().String()
+// 		alert_name := entry.LogTextHash
+// 		alertInfoObj := alertutils.AlertInfo{
+// 			AlertName:       alert_name,
+// 			AlertId:         alert_id,
+// 			State:           alertutils.Inactive,
+// 			CreateTimestamp: time.Now(),
+// 		}
+// 		minionSearchDetails := alertutils.MinionSearchDetails{
+// 			Repository:  entry.Repository,
+// 			Filename:    entry.Filename,
+// 			LineNumber:  entry.LineNumber,
+// 			LogText:     entry.LogText,
+// 			LogTextHash: entry.LogTextHash,
+// 			LogLevel:    entry.LogLevel,
+// 		}
 
-		queryParams := alertutils.QueryParams{
-			DataSource:    "Logs",
-			QueryLanguage: entry.Alert.QueryLanguage,
-			StartTime:     time.Now().Add(time.Duration(-15) * time.Minute).String(),
-			EndTime:       time.Now().String(),
-			QueryText:     entry.Alert.Query,
-		}
-		siglensAlert := &alertutils.MinionSearch{
-			AlertInfo:           alertInfoObj,
-			QueryParams:         queryParams,
-			MinionSearchDetails: minionSearchDetails,
-			Condition:           alertutils.IsAbove,
-			Value1:              float32(entry.Alert.Value),
-			Value2:              0,
-			EvalFor:             0,
-			EvalInterval:        1,
-			Message:             "Minion search " + alert_name,
-		}
-		minionSearches = append(minionSearches, siglensAlert)
-	}
-	return minionSearches
-}
+// 		queryParams := alertutils.QueryParams{
+// 			DataSource:    "Logs",
+// 			QueryLanguage: entry.Alert.QueryLanguage,
+// 			StartTime:     time.Now().Add(time.Duration(-15) * time.Minute).String(),
+// 			EndTime:       time.Now().String(),
+// 			QueryText:     entry.Alert.Query,
+// 		}
+// 		siglensAlert := &alertutils.MinionSearch{
+// 			AlertInfo:           alertInfoObj,
+// 			QueryParams:         queryParams,
+// 			MinionSearchDetails: minionSearchDetails,
+// 			Condition:           alertutils.IsAbove,
+// 			Value1:              float32(entry.Alert.Value),
+// 			Value2:              0,
+// 			EvalFor:             0,
+// 			EvalInterval:        1,
+// 			Message:             "Minion search " + alert_name,
+// 		}
+// 		minionSearches = append(minionSearches, siglensAlert)
+// 	}
+// 	return minionSearches
+// }
 
-func ProcessGetMinionSearchRequest(ctx *fasthttp.RequestCtx) {
-	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessGetMinionSearchRequest: failed to get alert, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
-		return
-	}
+// func ProcessGetMinionSearchRequest(ctx *fasthttp.RequestCtx) {
+// 	if databaseObj == nil {
+// 		responseBody := make(map[string]interface{})
+// 		log.Errorf("ProcessGetMinionSearchRequest: failed to get alert, err = %+v", invalidDatabaseProvider)
+// 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+// 		responseBody["error"] = invalidDatabaseProvider
+// 		utils.WriteJsonResponse(ctx, responseBody)
+// 		return
+// 	}
 
-	responseBody := make(map[string]interface{})
-	alert_id := utils.ExtractParamAsString(ctx.UserValue("alertID"))
-	msearch, err := databaseObj.GetMinionSearch(alert_id)
-	if err != nil {
-		log.Errorf("ProcessGetMinionSearchRequest: failed to get alert with alertId = %+v, err = %+v", alert_id, err.Error())
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
-		return
-	}
+// 	responseBody := make(map[string]interface{})
+// 	alert_id := utils.ExtractParamAsString(ctx.UserValue("alertID"))
+// 	msearch, err := databaseObj.GetMinionSearch(alert_id)
+// 	if err != nil {
+// 		log.Errorf("ProcessGetMinionSearchRequest: failed to get alert with alertId = %+v, err = %+v", alert_id, err.Error())
+// 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+// 		responseBody["error"] = err.Error()
+// 		utils.WriteJsonResponse(ctx, responseBody)
+// 		return
+// 	}
 
-	responseBody["minionsearch"] = msearch
-	ctx.SetStatusCode(fasthttp.StatusOK)
-	utils.WriteJsonResponse(ctx, responseBody)
-}
+// 	responseBody["minionsearch"] = msearch
+// 	ctx.SetStatusCode(fasthttp.StatusOK)
+// 	utils.WriteJsonResponse(ctx, responseBody)
+// }
