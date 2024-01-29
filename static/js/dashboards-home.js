@@ -69,9 +69,7 @@ async function getAllFavoriteDashboards() {
     })
     return serverResponse
 }
-getAllFavoriteDashboards().then((response) => {
-	console.log("response", response)
-});
+
 function createDashboard() {
 	$('.popupOverlay, .popupContent').addClass('active');
 	$('#new-dashboard-modal').show();
@@ -330,9 +328,9 @@ class btnRenderer {
 				// Update the favorite status based on the response
 				params.data.favorite = response.isFavorite;
 				if(params.data.favorite) {
-					this.starIcon.style.backgroundImage = starFilled;
+					this.starIcon.style.backgroundImage = starFilledURL;
 				} else {
-					this.starIcon.style.backgroundImage = starOutline;
+					this.starIcon.style.backgroundImage = starOutlineURL;
 				}							
 			});
 		}
