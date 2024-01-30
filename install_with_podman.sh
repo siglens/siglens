@@ -23,7 +23,7 @@ fi
 
 os=""
 case "$(uname -sr)" in
-   Ubuntu*|Pop!_OS|Debian*|Linux\ Mint*)
+   Ubuntu*|Pop!_OS|Debian*|Linux*|Mint*)
      os="linux"
      package_manager="apt-get" ;;
    *)
@@ -143,7 +143,7 @@ else
 fi
 
 # Define the Podman image name and compose file variables
-PODMAN_IMAGE_NAME="${PODMAN_IMAGE_NAME:-siglens/siglens:${SIGLENS_VERSION}}"
+PODMAN_IMAGE_NAME="${PODMAN_IMAGE_NAME:-docker.io/siglens/siglens:${SIGLENS_VERSION}}"
 PODMAN_COMPOSE_FILE="${PODMAN_COMPOSE_FILE:-docker-compose.yml}"
 
 echo -e "\n----------Pulling the latest Podman image for SigLens----------"
@@ -237,12 +237,35 @@ CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=
     print_error_and_exit "Failed to start Podman Compose"
 }
 UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${PODMAN_IMAGE_NAME} podman-compose logs -t --tail 20 >> pclogs.txt
+sample_log_dataset_status=$(curl -s -o /dev/null -I -X HEAD -w "%{http_code}" http://localhost:5122/elastic/sample-log-dataset)
 
-# ... (Continue with any additional setup or checks)
+if [ "$sample_log_dataset_status" -eq 200 ]; then
+    FIRST_RUN=false
+elif [ "$sample_log_dataset_status" -eq 404 ]; then
+    FIRST_RUN=true
+else
+    echo "Failed to check sample log dataset status"
+    FIRST_RUN=true
+fi
+
+if $FIRST_RUN; then
+    send_events
+    post_event "fresh_install_success" "Fresh installation was successful using docker on $os"
+else
+    post_event "repeat_install_success" "Repeat installation of Docker was successful using docker on $os"
+    echo "Skipping sendevents as this is not the first run"
+fi
 
 tput bold
 print_success_message "\n===> Frontend can be accessed on http://localhost:${UI_PORT}"
 echo ""
 tput sgr0
+
+if [ $? -ne 0 ]; then
+    tput bold
+    printf "\n${RED_TEXT}Error: Podman failed to start. This could be due to a permission issue.${RESET_COLOR}"
+    tput sgr0
+    exit 1
+fi
 
 echo -e "\n*** Thank you! ***\n"
