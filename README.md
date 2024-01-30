@@ -94,8 +94,7 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contri
 
 
 ## Code of Conduct
-`TBD`
-
+Please review our [code of conduct](https://github.com/siglens/siglens?tab=coc-ov-file#siglens-code-of-conduct) before contributing.
 
 ## Steps to create docker image
 docker build --build-arg VERSION=0.1.4 -t yourapp .
