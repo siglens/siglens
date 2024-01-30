@@ -151,7 +151,8 @@ echo -e "\n----------Pulling the latest Podman image for SigLens----------"
 # Check if the user wants to use a local compose file
 if [ "$USE_LOCAL_PODMAN_COMPOSE" != true ]; then
     curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
-    curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
+    #curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
+    curl -O -L https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-compose.yml"
     echo "Pulling the latest Podman image for SigLens from upstream"
     $sudo_cmd podman pull $PODMAN_IMAGE_NAME || {
         print_error_and_exit "Failed to pull $PODMAN_IMAGE_NAME. Please check your internet connection and Podman installation."
