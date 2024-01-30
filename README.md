@@ -46,13 +46,13 @@ Armed with decades of experience in monitoring domain, we set out to build a obs
 # Differentiators
 
 ### SigLens v/s Splunk,Elastic,Loki  
-Check out this <a href="https://www.sigscalr.io/blog/petabyte-of-observability-data.html" target="_blank">blog</a> where SigLens ingested data at 1 PB/day rate for 24 hours on a mere `32 EC2 instances` compared to `3000 EC2 instances` required for Splunk, Elastic, Grafana Loki
+Check out this <a href="https://www.siglens.com/blog/petabyte-of-observability-data.html" target="_blank">blog</a> where SigLens ingested data at 1 PB/day rate for 24 hours on a mere `32 EC2 instances` compared to `3000 EC2 instances` required for Splunk, Elastic, Grafana Loki
 
 ### SigLens v/s Elasticsearch 
-Check out this <a href="https://www.sigscalr.io/blog/sigscalr-vs-elasticsearch.html" target="_blank">blog</a> where SigLens is **`8x`** Faster than Elasticsearch 🚀🚀
+Check out this <a href="https://www.siglens.com/blog/siglens-1025x-faster-than-elasticsearch" target="_blank">blog</a> where SigLens is **`1025x`** Faster than Elasticsearch 🚀🚀
 
 ### SigLens v/s ClickHouse 
-Check out this <a href="https://www.sigscalr.io/blog/sigscalr-vs-clickhouse.html" target="_blank">blog</a> where SigLens is **`4x-37x`** Faster than ClickHouse 🚀🚀
+Check out this <a href="https://www.siglens.com/blog/siglens-54x-faster-than-clickhouse.html" target="_blank">blog</a> where SigLens is **`54x`** Faster than ClickHouse 🚀🚀
 
 
 <br />
