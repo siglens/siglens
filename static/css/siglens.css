@@ -230,6 +230,7 @@
     --alerting-table-line-color:var(--white-4);
     --alerting-table-hover: var(--black-2);
     --tab-active-background:var(--purple-1);
+    --dashboard-tab-bg: var(--black-2);
 }
 
 /* end aliases */
@@ -366,6 +367,7 @@
     --alerting-table-line-color: var(--white-3);
     --alerting-table-hover: var(--white-1);
     --tab-active-background: #E8E3F9;
+    --dashboard-tab-bg: var(--white-1);
 }
 
 
@@ -1905,7 +1907,7 @@ progress.hidden {
     border: 1px solid var(--ui-widget-border-color);
     padding: 25px;
     position: absolute;
-    top:27%;
+    top:32%;
     left:35%;
     visibility: hidden;
     color: var(--text-color);
@@ -2541,25 +2543,6 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 /* end datepicker*/
 
-.point-click-search .popover-body .selected-text{
-    max-height: 200px;
-    overflow: auto;
-}
-
-.point-click-search .btn{
-    background: var(--btn-regular-bg-color);
-}
-
-.point-click-search {
-     background-color: var(--ui-widget-bg-color);
-     border-color:  var(--purple-1) !important;
-     border-radius: 5px;
-}
-
-.point-click-search .popover-body {
-    color: var(--text-color);
-}
-
 #replace-pcs-btn.btn {
     color: var(--button-text-color) !important;
 }
@@ -2602,12 +2585,13 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     text-align: left !important;
     max-width: fit-content;
     white-space: pre-line !important;
-    padding: 1rem !important;
+    padding: 0.5rem !important;
     border: 1px var(--accent-color) !important;
     border-style: solid !important;
     background-color: var(--ui-widget-bg-color) !important;
     color: var(--text-color) !important;
     justify-content: center;
+    font-size: 14px;
 }
 
 /* Logs Results Ag-Grid Css */
@@ -4311,7 +4295,7 @@ color: #C8C7CC;
     background: var(--search-bar-bg);
     border: none;
     color: var(--search-bar-text-color-regular-or-hover);
-    font-size: 1rem;
+    font-size: 14px;
     border-radius: 5px;
 }
 
@@ -4563,7 +4547,7 @@ color: #C8C7CC;
     margin-bottom: 0px;
 }
 #create-db-popup .section-buttons, #create-db-popup .section-button{
-    background-color: var(--bg-color);
+    background-color: var(--dashboard-tab-bg);
 }
 #create-db-popup .section-button.active{
     background: var(--tab-active-background);
@@ -4583,7 +4567,7 @@ color: #C8C7CC;
     overflow: hidden;
     padding: 0px 10px 0px 0px;
     border: 1px solid var(--timepicker-border-color);
-    max-height: 195px;
+    max-height: 102px;
     overflow-y: scroll;
 }
 
@@ -4596,12 +4580,12 @@ color: #C8C7CC;
     cursor: pointer;
     margin-left: 12px;
     margin-right: 12px;
-    padding: 6px 0;
+    padding: 4px 0;
     padding-left: 12px;
     font-weight: var(--fw-400);
     font-family: "DINpro", Arial, sans-serif;
     border-radius: 4px;
-    min-height: 36px; /* Min height for any dropdown option including empty */
+    min-height: 32px; /* Min height for any dropdown option including empty */
 }
 
 #dashboard-options .dashboard:hover{
@@ -4641,18 +4625,18 @@ color: #C8C7CC;
 .alert-properties > div {
     display: flex;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .alert-properties h4 {
     font-weight: bold;
     margin-right: 10px;
-    font-size: 18px !important;
+    font-size: 16px !important;
     margin-bottom: 0px;
 }
 
 .alert-properties{
-    padding: 30px;
+    padding: 20px;
     border: 1px solid var(--search-input-border);
     box-shadow: var(--box-shadow);
     border-radius: 5px;
@@ -4666,16 +4650,17 @@ color: #C8C7CC;
     padding: 5px;
     margin: 5px;
     border-radius: 5px;
-    height: 40px;
+    height: 32px;
 }
 
 #edit-alert-btn ,#delete-alert, #cancel-alert-details{
-    height: 40px;
+    height: 30px;
     border: 1px solid var(--search-input-border);
     border-radius: 5px;
     background-color: var(--black1-to-white0);
     width: 100px;
     margin-right: 10px;
+    padding: 0;
 }
 
 #edit-alert-btn:hover ,#delete-alert:hover, #cancel-alert-details:hover{
@@ -4683,7 +4668,7 @@ color: #C8C7CC;
 }
 
 #alert-details{
-    margin-top: 30px;
+    margin-top: 10px;
 }
 .alert-query{
     color: var(--text-color) !important;
@@ -4692,7 +4677,7 @@ color: #C8C7CC;
 
 .alert-rule-ctn{
     font-weight: 600;
-    font-size: 22px;
+    font-size: 18px;
     margin-bottom: 0px;
 }
 
@@ -4866,4 +4851,8 @@ input.form-control {
 
 .live-tail-logs-container .ag-theme-mycustomtheme .ag-root-wrapper {
     border: 1px solid var(--border-btn-color);
+}
+
+#delbutton.default-dashboard-delete:hover {
+    background-image: url(../assets/dark-delete-icon-regular.svg);
 }
