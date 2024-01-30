@@ -58,15 +58,15 @@ const contactFormHTML = `
                     <label for="slack-channel-id">Channel ID</label>
                     <input type="text" class="form-control" id="slack-channel-id" style="position: relative;" required >
                     <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
-            title="general, \n support"
+            title="Specify channel, private group, or IM channel (can be an encoded ID or a name) - required unless you provide a webhook."
             id="info-slack-channel-id"></i>
             </div>
                 </div>
                 <div style="position: relative;">
-                <label for="slack-token">Slack Token</label>
+                <label for="slack-token">Slack API Token</label>
                 <input type="text" class="form-control" id="slack-token" style="position: relative;" required>
                     <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
-                    title="xoxp-6124269680468-6234703329959-6528029909106-ddf227fce70c8da274b5566709ce7879 "
+                    title="Provide a Slack API token (starts with “xoxb”) - required unless you provide a webhook."
                     id="info-slack-token"></i>
                 </div>
             </div>
