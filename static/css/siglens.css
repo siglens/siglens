@@ -230,6 +230,7 @@
     --alerting-table-line-color:var(--white-4);
     --alerting-table-hover: var(--black-2);
     --tab-active-background:var(--purple-1);
+    --dashboard-tab-bg: var(--black-2);
 }
 
 /* end aliases */
@@ -366,6 +367,7 @@
     --alerting-table-line-color: var(--white-3);
     --alerting-table-hover: var(--white-1);
     --tab-active-background: #E8E3F9;
+    --dashboard-tab-bg: var(--white-1);
 }
 
 
@@ -1905,7 +1907,7 @@ progress.hidden {
     border: 1px solid var(--ui-widget-border-color);
     padding: 25px;
     position: absolute;
-    top:27%;
+    top:32%;
     left:35%;
     visibility: hidden;
     color: var(--text-color);
@@ -4545,7 +4547,7 @@ color: #C8C7CC;
     margin-bottom: 0px;
 }
 #create-db-popup .section-buttons, #create-db-popup .section-button{
-    background-color: var(--bg-color);
+    background-color: var(--dashboard-tab-bg);
 }
 #create-db-popup .section-button.active{
     background: var(--tab-active-background);
@@ -4565,7 +4567,7 @@ color: #C8C7CC;
     overflow: hidden;
     padding: 0px 10px 0px 0px;
     border: 1px solid var(--timepicker-border-color);
-    max-height: 195px;
+    max-height: 102px;
     overflow-y: scroll;
 }
 
@@ -4578,12 +4580,12 @@ color: #C8C7CC;
     cursor: pointer;
     margin-left: 12px;
     margin-right: 12px;
-    padding: 6px 0;
+    padding: 4px 0;
     padding-left: 12px;
     font-weight: var(--fw-400);
     font-family: "DINpro", Arial, sans-serif;
     border-radius: 4px;
-    min-height: 36px; /* Min height for any dropdown option including empty */
+    min-height: 32px; /* Min height for any dropdown option including empty */
 }
 
 #dashboard-options .dashboard:hover{
