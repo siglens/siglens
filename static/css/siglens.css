@@ -2583,12 +2583,13 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     text-align: left !important;
     max-width: fit-content;
     white-space: pre-line !important;
-    padding: 1rem !important;
+    padding: 0.5rem !important;
     border: 1px var(--accent-color) !important;
     border-style: solid !important;
     background-color: var(--ui-widget-bg-color) !important;
     color: var(--text-color) !important;
     justify-content: center;
+    font-size: 14px;
 }
 
 /* Logs Results Ag-Grid Css */
@@ -4292,7 +4293,7 @@ color: #C8C7CC;
     background: var(--search-bar-bg);
     border: none;
     color: var(--search-bar-text-color-regular-or-hover);
-    font-size: 1rem;
+    font-size: 14px;
     border-radius: 5px;
 }
 
@@ -4622,18 +4623,18 @@ color: #C8C7CC;
 .alert-properties > div {
     display: flex;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .alert-properties h4 {
     font-weight: bold;
     margin-right: 10px;
-    font-size: 18px !important;
+    font-size: 16px !important;
     margin-bottom: 0px;
 }
 
 .alert-properties{
-    padding: 30px;
+    padding: 20px;
     border: 1px solid var(--search-input-border);
     box-shadow: var(--box-shadow);
     border-radius: 5px;
@@ -4647,16 +4648,17 @@ color: #C8C7CC;
     padding: 5px;
     margin: 5px;
     border-radius: 5px;
-    height: 40px;
+    height: 32px;
 }
 
 #edit-alert-btn ,#delete-alert, #cancel-alert-details{
-    height: 40px;
+    height: 30px;
     border: 1px solid var(--search-input-border);
     border-radius: 5px;
     background-color: var(--black1-to-white0);
     width: 100px;
     margin-right: 10px;
+    padding: 0;
 }
 
 #edit-alert-btn:hover ,#delete-alert:hover, #cancel-alert-details:hover{
@@ -4664,7 +4666,7 @@ color: #C8C7CC;
 }
 
 #alert-details{
-    margin-top: 30px;
+    margin-top: 10px;
 }
 .alert-query{
     color: var(--text-color) !important;
@@ -4673,7 +4675,7 @@ color: #C8C7CC;
 
 .alert-rule-ctn{
     font-weight: 600;
-    font-size: 22px;
+    font-size: 18px;
     margin-bottom: 0px;
 }
 

@@ -42,7 +42,7 @@ function processListIndicesResult(res) {
 function renderIndexDropdown(listIndices) {
     let el = $('#index-listing');
     el.html(``);
-    if (listIndices.length > 0) {
+    if (listIndices) {
         el.append(`<div class="index-dropdown-item" data-index="*">
                        <span class="indexname-text">*</span>
                        <img src="/assets/index-selection-check.svg">
