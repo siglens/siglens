@@ -389,10 +389,10 @@ function showScatterPlot() {
         },
         data: curSpanTraceArray,
         symbolSize: function (val) {
-          return val[2] == 1 ? 2 : val[2];
+          return val[2] < 5 ? 5 : val[2];
         },
         itemStyle: {
-          color: "rgba(1, 191, 179, 0.5)",
+          color: "rgba(99, 71, 217, 0.5)",
         },
       },
       {
@@ -403,7 +403,7 @@ function showScatterPlot() {
         },
         data: curErrorTraceArray,
         symbolSize: function (val) {
-          return val[3] == 1 ? 2 : val[3];
+          return val[3] < 5 ? 5 : val[3];
         },
         itemStyle: {
           color: "rgba(233, 49, 37, 0.5)",
