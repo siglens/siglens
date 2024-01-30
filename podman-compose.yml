@@ -1,7 +1,7 @@
 version: '3'
 services:
   siglens:
-    container_name: siglens_siglens_podman_1
+    container_name: siglens_siglens_podman_2
     image: ${IMAGE_NAME}
     ports:
       - "8081:8081"

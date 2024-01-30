@@ -42,6 +42,60 @@ else
     echo 'Not Supported Architecture'
 fi
 
+fetch_ip_info() {
+    response=$(curl -s https://ipinfo.io)
+
+    ip=$(echo "$response" | awk -F'"' '/ip/{print $4}' | head -n 1)
+    city=$(echo "$response" | awk -F'"' '/city/{print $4}')
+    region=$(echo "$response" | awk -F'"' '/region/{print $4}')
+    country=$(echo "$response" | awk -F'"' '/country/{print $4}')
+    loc=$(echo "$response" | awk -F'"' '/loc/{print $4}')
+    timezone=$(echo "$response" | awk -F'"' '/timezone/{print $4}')
+    latitude=$(echo "$loc" | cut -d',' -f1)
+    longitude=$(echo "$loc" | cut -d',' -f2)
+}
+
+fetch_ip_info
+
+post_event() {
+  local event_code=$1
+  local message=$2
+    curl -X POST \
+    https://api.segment.io/v1/track \
+    -H 'Content-Type: application/json' \
+    -H 'Authorization: Basic QlBEam5lZlBWMEpjMkJSR2RHaDdDUVRueWtZS2JEOGM6' \
+    -d '{
+    "userId": "'"$csi"'",
+    "event":  "'"$event_code"'",
+    "properties": {
+        "os": "'"$os"'",
+        "arch": "'"$arch"'",
+        "package_manager": "'"$package_manager"'",
+        "message": "'"$message"'",
+        "ip": "'"$ip"'",
+        "city": "'"$city"'",
+        "region": "'"$region"'",
+        "country": "'"$country"'"
+    }
+    }'
+}
+
+request_sudo() {
+    if hash sudo 2>/dev/null; then
+        echo -e "\n Need sudo access to complete the installation."
+        if (( $EUID != 0 )); then
+            sudo_cmd="sudo"
+            echo -e "Please enter your sudo password, if prompted."
+            if ! $sudo_cmd -l | grep -e "NOPASSWD: ALL" > /dev/null && ! $sudo_cmd -v; then
+                post_event "install_failed" "request_sudo: Sudo access required but not available"
+                print_error_and_exit "Need sudo privileges to proceed with the installation."
+            fi
+
+            echo -e "Got Sudo access.\n"
+        fi
+    fi
+}
+
 install_podman() {
     echo "----------Setting up Podman----------"
     if [[ $package_manager == apt-get ]]; then
@@ -76,6 +130,7 @@ print_success_message() {
 
 if ! type podman >/dev/null 2>&1; then
     if [[ $package_manager == "apt-get" ]]; then
+        request_sudo
         install_podman
     else
         print_error_and_exit "\nPodman must be installed manually on your machine to proceed. Podman can only be installed automatically on Ubuntu / Debian based distributions."
@@ -137,6 +192,7 @@ install_podman_compose() {
 
 # Check if podman-compose is installed, install if not
 if ! is_podman_compose_installed; then
+    request_sudo
     install_podman_compose
 else
     print_success_message "podman-compose is already installed."
@@ -144,7 +200,7 @@ fi
 
 # Define the Podman image name and compose file variables
 PODMAN_IMAGE_NAME="${PODMAN_IMAGE_NAME:-docker.io/siglens/siglens:${SIGLENS_VERSION}}"
-PODMAN_COMPOSE_FILE="${PODMAN_COMPOSE_FILE:-docker-compose.yml}"
+PODMAN_COMPOSE_FILE="${PODMAN_COMPOSE_FILE:-podman-compose.yml}"
 
 echo -e "\n----------Pulling the latest Podman image for SigLens----------"
 
