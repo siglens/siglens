@@ -37,7 +37,7 @@ Armed with decades of experience in monitoring domain, we set out to build a obs
 # Setup
 ## Installation
 
-### &emsp; <a href="https://siglens.github.io/siglens-docs/installation/binary" target="_blank">Binary</a> &emsp; | &emsp; <a href="https://siglens.github.io/siglens-docs/installation/docker" target="_blank">Docker</a> &emsp;| &emsp; <a href="https://siglens.github.io/siglens-docs/installation/helm" target="_blank">Helm</a>
+### &emsp; <a href="https://siglens.github.io/siglens-docs/installation/git" target="_blank">Git</a> &emsp; | &emsp; <a href="https://siglens.github.io/siglens-docs/installation/docker" target="_blank">Docker</a> &emsp;| &emsp; <a href="https://siglens.github.io/siglens-docs/installation/helm" target="_blank">Helm</a>
 
 ## Documentation
 ### &emsp; <a href="https://siglens.github.io/siglens-docs" target="_blank">Docs</a> &emsp;
@@ -94,10 +94,4 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contri
 
 
 ## Code of Conduct
-`TBD`
-
-
-## Steps to create docker image
-docker build --build-arg VERSION=0.1.4 -t yourapp .
-
-
+Please review our [code of conduct](https://github.com/siglens/siglens?tab=coc-ov-file#siglens-code-of-conduct) before contributing.
