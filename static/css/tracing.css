@@ -298,6 +298,10 @@ input.form-control {
     margin-top: 14px;
 }
 
+.input-box{
+    width: 100%;
+}
+
 .sort-dropdown {
     width: 100px;
 }
