@@ -32,9 +32,6 @@
 ### 通过 Git 安装
 请按照 <a href="https://siglens.github.io/siglens-docs/installation/git" target="_blank">此处</a> 列出的步骤进行安装。
 
-### 通过 SigLens 二进制文件安装
-请按照 <a href="https://siglens.github.io/siglens-docs/installation/binary" target="_blank">此处</a> 列出的步骤进行安装。
-
 ### 通过 Docker 安装
 请按照 <a href="https://siglens.github.io/siglens-docs/installation/docker" target="_blank">此处</a> 列出的步骤进行安装。
 

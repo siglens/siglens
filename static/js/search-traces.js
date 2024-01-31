@@ -48,7 +48,7 @@ function initPage(){
 }
 
 function getValuesOfColumn(chooseColumn, spanName) {
-  let searchText = "SELECT DISTINCT " + chooseColumn + " FROM `ind-0`";
+  let searchText = "SELECT DISTINCT " + chooseColumn + " FROM `traces`";
   let param = {
     state: "query",
     searchText: searchText,
@@ -93,7 +93,7 @@ function getValuesOfColumn(chooseColumn, spanName) {
 }
 function fetchData(chooseColumn) {
   return new Promise((resolve, reject) => {
-    let searchText = "SELECT DISTINCT " + chooseColumn + " FROM `ind-0`";
+    let searchText = "SELECT DISTINCT " + chooseColumn + " FROM `traces`";
     if (
       chooseColumn == "name" &&
       $("#service-span-name").text() &&
@@ -365,8 +365,18 @@ function showScatterPlot() {
       formatter: function (param) {
         var green = param.value[4];
         var red = param.value[5];
+        var duration = param.value[1];
+        var spans = param.value[2];
+        var errors = param.value[3];
+        var traceId = param.dataIndex < returnResTotal.length ? returnResTotal[param.dataIndex].trace_id.substring(0, 7) : '';
+
         return (
-          "<div>" + green + ": " + red + "</div>"
+          "<div>" + green + ": " + red + 
+          "<br>Duration: " + duration + "ms" +
+          "<br>No. of Spans: " + spans +
+          "<br>No. of Error Spans: " + errors +
+          "<br>Trace ID: " + traceId +
+          "</div>"
         );
       },
     },
@@ -379,10 +389,10 @@ function showScatterPlot() {
         },
         data: curSpanTraceArray,
         symbolSize: function (val) {
-          return val[2] == 1 ? 2 : val[2];
+          return val[2] < 5 ? 5 : val[2];
         },
         itemStyle: {
-          color: "rgba(1, 191, 179, 0.5)",
+          color: "rgba(99, 71, 217, 0.5)",
         },
       },
       {
@@ -393,7 +403,7 @@ function showScatterPlot() {
         },
         data: curErrorTraceArray,
         symbolSize: function (val) {
-          return val[3] == 1 ? 2 : val[3];
+          return val[3] < 5 ? 5 : val[3];
         },
         itemStyle: {
           color: "rgba(233, 49, 37, 0.5)",
