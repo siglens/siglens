@@ -1,0 +1,57 @@
+[
+    {
+        "args": {
+            "podman_labels": {
+                "com.docker.compose.project": "podman-network_siglens",
+                "io.podman.compose.project": "podman-network_siglens"
+            }
+        },
+        "cniVersion": "0.4.0",
+        "name": "podman-network_siglens_default",
+        "plugins": [
+            {
+                "bridge": "cni-podman1",
+                "hairpinMode": true,
+                "ipMasq": true,
+                "ipam": {
+                    "ranges": [
+                        [
+                            {
+                                "gateway": "10.89.0.1",
+                                "subnet": "10.89.0.0/24"
+                            }
+                        ]
+                    ],
+                    "routes": [
+                        {
+                            "dst": "0.0.0.0/0"
+                        }
+                    ],
+                    "type": "host-local"
+                },
+                "isGateway": true,
+                "type": "bridge"
+            },
+            {
+                "capabilities": {
+                    "portMappings": true
+                },
+                "type": "portmap"
+            },
+            {
+                "backend": "",
+                "type": "firewall"
+            },
+            {
+                "type": "tuning"
+            },
+            {
+                "capabilities": {
+                    "aliases": true
+                },
+                "domainName": "dns.podman",
+                "type": "dnsname"
+            }
+        ]
+    }
+]

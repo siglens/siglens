@@ -198,6 +198,35 @@ else
     print_success_message "podman-compose is already installed."
 fi
 
+# Fetch and set up the custom network configuration file
+get_podman_custom_network_configuration() {
+    echo "Setting up custom Podman network configuration..."
+    curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-network_siglens.conflist" || {
+        print_error_and_exit "Failed to download custom network configuration file."
+    }
+    sudo mv podman-network_siglens.conflist /etc/cni/net.d/ || {
+        print_error_and_exit "Failed to move custom network configuration file to /etc/cni/net.d"
+    }
+    echo "Custom network configuration set up successfully."
+}
+
+create_podman_network() {
+    echo "Creating custom Podman network: siglens-custom-network"
+
+    # Check if the network already exists
+    if ! sudo podman network inspect siglens-custom-network >/dev/null 2>&1; then
+        get_podman_custom_network_configuration
+        # Create the network
+        sudo podman network create siglens-custom-network || {
+            print_error_and_exit "Failed to create custom Podman network: siglens-custom-network."
+        }
+        echo "Custom Podman network created successfully."
+    else
+        echo "Custom Podman network already exists."
+    fi
+}
+
+
 # Define the Podman image name and compose file variables
 PODMAN_IMAGE_NAME="${PODMAN_IMAGE_NAME:-docker.io/siglens/siglens:${SIGLENS_VERSION}}"
 PODMAN_COMPOSE_FILE="${PODMAN_COMPOSE_FILE:-podman-compose.yml}"
@@ -260,6 +289,9 @@ check_ports() {
 # Check if required ports are available
 check_ports 5122
 check_ports 8081
+
+# Create the custom network
+create_podman_network
 
 send_events() {
     curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz
