@@ -31,10 +31,10 @@ services:
   siglens-metrics-otel-collector:
     image: docker.io/otel/opentelemetry-collector:latest  
     volumes:
-      - ./ssmetrics-otel-collector-config.yaml:/etc/ssmetrics-otel-collector-config.yaml 
+      - ./ssmetrics-otel-collector-config.yaml:./ssmetrics-otel-collector-config.yaml 
     ports:
       - "4318:4318"
-    command: ["--config=/etc/ssmetrics-otel-collector-config.yaml"]
+    command: ["--config=./ssmetrics-otel-collector-config.yaml"]
     networks:
       - podman-network_siglens
 networks:
