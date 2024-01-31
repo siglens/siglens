@@ -18,7 +18,7 @@ package tests
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 	"regexp"
 	"testing"
@@ -72,7 +72,7 @@ func extractExpressionFilter(t *testing.T, node *ast.Node) *structs.ExpressionFi
 // Initial setup.
 func TestMain(m *testing.M) {
 	// Suppress log output.
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	// Run the tests.
 	os.Exit(m.Run())
