@@ -17,6 +17,7 @@ limitations under the License.
 package structs
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"net"
@@ -25,6 +26,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/axiomhq/hyperloglog"
@@ -83,11 +85,23 @@ type StatisticOptions struct {
 }
 
 type DedupExpr struct {
-	Limit             uint64
-	FieldList         []string // Must have FieldList
-	DedupOptions      *DedupOptions
-	DedupSortEles     []*DedupSortElement
-	DedupCombinations map[string]uint64 // maps combinations to their count
+	Limit              uint64
+	FieldList          []string // Must have FieldList
+	DedupOptions       *DedupOptions
+	DedupSortEles      []*DedupSortElement
+	DedupSortAscending []int // Derived from DedupSortEles.SortByAsc values.
+
+	// DedupCombinations maps combinations to a map mapping the record index
+	// (of all included records for this combination) to the sort values for
+	// that record. For example, if Limit is 3, each inner map will have at
+	// most 3 entries and will store the index and sort values of the top 3
+	// records for that combination.
+	DedupCombinations map[string]map[int][]DedupSortValue
+	PrevCombination   string
+
+	DedupRecords          map[string]map[string]interface{}
+	NumProcessedSegments  uint64
+	ProcessedSegmentsLock sync.Mutex
 }
 
 type DedupOptions struct {
@@ -100,6 +114,11 @@ type DedupSortElement struct {
 	SortByAsc bool
 	Op        string
 	Field     string
+}
+
+type DedupSortValue struct {
+	Val         string
+	InterpretAs string // Should be "ip", "num", "str", "auto", or ""
 }
 
 // See ValueExprMode type definition for which fields are valid for each mode.
@@ -1463,4 +1482,76 @@ func getValueAsFloat(fieldToValue map[string]utils.CValueEnclosure, field string
 	}
 
 	return 0, fmt.Errorf("Cannot convert CValueEnclosure %v to float", enclosure)
+}
+
+func (self *DedupSortValue) Compare(other *DedupSortValue) (int, error) {
+	switch self.InterpretAs {
+	case "ip":
+		selfIP := net.ParseIP(self.Val)
+		otherIP := net.ParseIP(other.Val)
+		if selfIP == nil || otherIP == nil {
+			return 0, fmt.Errorf("DedupSortValue.Compare: cannot parse IP address")
+		}
+		return bytes.Compare(selfIP, otherIP), nil
+	case "num":
+		selfFloat, selfErr := strconv.ParseFloat(self.Val, 64)
+		otherFloat, otherErr := strconv.ParseFloat(other.Val, 64)
+		if selfErr != nil || otherErr != nil {
+			return 0, fmt.Errorf("DedupSortValue.Compare: cannot parse %v and %v as float", self.Val, other.Val)
+		}
+
+		if selfFloat == otherFloat {
+			return 0, nil
+		} else if selfFloat < otherFloat {
+			return -1, nil
+		} else {
+			return 1, nil
+		}
+	case "str":
+		return strings.Compare(self.Val, other.Val), nil
+	case "auto", "":
+		selfFloat, selfErr := strconv.ParseFloat(self.Val, 64)
+		otherFloat, otherErr := strconv.ParseFloat(other.Val, 64)
+		if selfErr == nil && otherErr == nil {
+			if selfFloat == otherFloat {
+				return 0, nil
+			} else if selfFloat < otherFloat {
+				return -1, nil
+			} else {
+				return 1, nil
+			}
+		}
+
+		selfIp := net.ParseIP(self.Val)
+		otherIp := net.ParseIP(other.Val)
+		if selfIp != nil && otherIp != nil {
+			return bytes.Compare(selfIp, otherIp), nil
+		}
+
+		return strings.Compare(self.Val, other.Val), nil
+	default:
+		return 0, fmt.Errorf("DedupSortValue.Compare: invalid InterpretAs value: %v", self.InterpretAs)
+	}
+}
+
+// The `ascending` slice should have the same length as `a` and `b`. Moreover,
+// each element of `ascending` should be either +1 or -1; +1 means higher
+// values get sorted higher, and -1 means lower values get sorted higher.
+func CompareSortValueSlices(a []DedupSortValue, b []DedupSortValue, ascending []int) (int, error) {
+	if len(a) != len(b) || len(a) != len(ascending) {
+		return 0, fmt.Errorf("CompareSortValueSlices: slices have different lengths")
+	}
+
+	for i := 0; i < len(a); i++ {
+		comp, err := a[i].Compare(&b[i])
+		if err != nil {
+			return 0, fmt.Errorf("CompareSortValueSlices: %v", err)
+		}
+
+		if comp != 0 {
+			return comp * ascending[i], nil
+		}
+	}
+
+	return 0, nil
 }
