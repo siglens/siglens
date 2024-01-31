@@ -375,7 +375,6 @@ func ProcessAlertHistoryRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// TODO: Sort alertHistory based on timestamp
 	responseBody["alertHistory"] = alertHistory
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, responseBody)
