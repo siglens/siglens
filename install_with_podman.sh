@@ -204,7 +204,7 @@ get_podman_custom_network_configuration() {
     curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-network_siglens.conflist" || {
         print_error_and_exit "Failed to download custom network configuration file."
     }
-    sudo cp podman-network_siglens.conflist /etc/cni/net.d/ || {
+    sudo mv podman-network_siglens.conflist /etc/cni/net.d/ || {
         print_error_and_exit "Failed to move custom network configuration file to /etc/cni/net.d"
     }
     echo "Custom network configuration set up successfully."
@@ -216,11 +216,6 @@ create_podman_network() {
     # Check if the network already exists
     if ! sudo podman network inspect podman-network_siglens >/dev/null 2>&1; then
         get_podman_custom_network_configuration
-        # Create the network
-        # sudo podman network create podman-network_siglens || {
-        #     print_error_and_exit "Failed to create custom Podman network: podman-network_siglens."
-        # }
-        echo "Custom Podman network created successfully."
     else
         echo "Custom Podman network already exists."
     fi
