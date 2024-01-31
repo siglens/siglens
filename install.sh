@@ -1,9 +1,11 @@
 #! /bin/bash
 
-# USAGE: sudo ./install_script.sh [docker|podman]
+# USAGE:
+# export CONTAINER_TOOL=podman/docker
+# ./install.sh
 
 # Default container tool
-CONTAINER_TOOL="docker"
+CONTAINER_TOOL=${CONTAINER_TOOL:-docker}
 
 # Check if an argument is provided
 if [[ "$#" -eq 1 ]]; then
@@ -32,15 +34,6 @@ sudo_cmd=""
 RED_TEXT='\e[31m'
 GREEN_TEXT='\e[32m'
 RESET_COLOR='\e[0m'
-
-# Check sudo permissions
-if (( $EUID != 0 )); then
-    echo "===> Running installer with non-sudo permissions."
-    echo "     In case of any failure or prompt, run the script with sudo privileges."
-    echo ""
-else
-    sudo_cmd="sudo"
-fi
 
 # Check sudo permissions
 if (( $EUID != 0 )); then
@@ -360,8 +353,8 @@ get_podman_custom_network_configuration() {
     curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-network_siglens.conflist" || {
         print_error_and_exit "Failed to download custom network configuration file."
     }
-    sudo mv podman-network_siglens.conflist /etc/cni/net.d/ || {
-        print_error_and_exit "Failed to move custom network configuration file to /etc/cni/net.d"
+    $sudo_cmd mv podman-network_siglens.conflist ~/.config/cni/net.d/ || {
+        print_error_and_exit "Failed to move custom network configuration file to ~/.config/cni/net.d"
     }
     echo "Custom network configuration set up successfully."
 }
@@ -370,7 +363,7 @@ create_podman_network() {
     echo "Creating custom Podman network: podman-network_siglens"
 
     # Check if the network already exists
-    if ! sudo podman network inspect podman-network_siglens >/dev/null 2>&1; then
+    if ! podman network inspect podman-network_siglens >/dev/null 2>&1; then
         get_podman_custom_network_configuration
     else
         echo "Custom Podman network already exists."
