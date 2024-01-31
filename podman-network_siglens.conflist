@@ -7,7 +7,7 @@
         }
     },
     "cniVersion": "0.4.0",
-    "name": "podman-network_siglens_default",
+    "name": "podman-network_siglens",
     "plugins": [
         {
             "bridge": "cni-podman1",
