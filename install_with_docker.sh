@@ -350,7 +350,7 @@ CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=
     post_event "install_failed" "Failed to start Docker Compose on $os with $DOCKER_COMPOSE_FILE"
     print_error_and_exit "Failed to start Docker Compose"
 }
-UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${DOCKER_IMAGE_NAME} docker-compose logs -t --tail 20 >> dclogs.txt
+CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${DOCKER_IMAGE_NAME} docker-compose logs -t --tail 20 >> dclogs.txt
 sample_log_dataset_status=$(curl -s -o /dev/null -I -X HEAD -w "%{http_code}" http://localhost:5122/elastic/sample-log-dataset)
 
 if [ "$sample_log_dataset_status" -eq 200 ]; then
