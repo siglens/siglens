@@ -561,7 +561,7 @@ $(document).ready(async function () {
 	let allDefaultDBs = await getAllDefaultDashboards();
 	let allDBs = {...normalDBs, ...allDefaultDBs}
 	let favoriteDBs = await getAllFavoriteDashboards();
-    // Convert the array of favorite dashboards to a Set for faster lookup
+	// Convert the array of favorite dashboards to a Set for faster lookup
 	favoriteDBsSet = new Set(Object.keys(favoriteDBs));
 	displayDashboards(allDBs)
 
