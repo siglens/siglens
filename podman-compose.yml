@@ -31,7 +31,8 @@ services:
   siglens-metrics-otel-collector:
     image: docker.io/otel/opentelemetry-collector:latest  
     volumes:
-      - "${WORK_DIR}/ssmetrics-otel-collector-config.yaml:/etc/ssmetrics-otel-collector-config.yaml"
+      - "${WORK_DIR}/ssmetrics-otel:/etc/ssmetrics-otel"
+      - "${WORK_DIR}/ssmetrics-otel/ssmetrics-otel-collector-config.yaml:/etc/ssmetrics-otel/ssmetrics-otel-collector-config.yaml"
     ports:
       - "4318:4318"
     command: ["--config=/etc/ssmetrics-otel-collector-config.yaml"]

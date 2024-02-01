@@ -464,16 +464,16 @@ runtime_arch=$(uname -m)
 
 check_ports() {
     PORT=$1
-    if lsof -Pi :$PORT -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:${PORT}->"; then
-        CONTAINER_ID=$(docker ps --format "{{.ID}}:{{.Image}}:{{.Ports}}" | grep "siglens/siglens.*0.0.0.0:${PORT}" | cut -d ":" -f 1 2>/dev/null)
+    if lsof -Pi :$PORT -sTCP:LISTEN -t > /dev/null || $CONTAINER_TOOL ps --format "{{.Ports}}" | grep -q "0.0.0.0:${PORT}->"; then
+        CONTAINER_ID=$($CONTAINER_TOOL ps --format "{{.ID}}:{{.Image}}:{{.Ports}}" | grep "siglens/siglens.*0.0.0.0:${PORT}" | cut -d ":" -f 1 2>/dev/null)
         if [ -n "$CONTAINER_ID" ]; then
-            docker stop $CONTAINER_ID
-            if lsof -Pi :$PORT -sTCP:LISTEN -t > /dev/null || docker ps --format "{{.Ports}}" | grep -q "0.0.0.0:${PORT}->"; then
-                post_event "install_failed" "Port ${PORT} is already in use after attempting to stop our Docker container"
+            $CONTAINER_TOOL stop $CONTAINER_ID
+            if lsof -Pi :$PORT -sTCP:LISTEN -t > /dev/null || $CONTAINER_TOOL ps --format "{{.Ports}}" | grep -q "0.0.0.0:${PORT}->"; then
+                post_event "install_failed" "Port ${PORT} is already in use after attempting to stop our ${CONTAINER_TOOL} container"
                 print_error_and_exit "\nError: Port ${PORT} is already in use."
             fi
         else
-            post_event "install_failed" "Port ${PORT} is already in use and no Docker container could be stopped"
+            post_event "install_failed" "Port ${PORT} is already in use and no ${CONTAINER_TOOL} container could be stopped"
             print_error_and_exit "\nError: Port ${PORT} is already in use."
         fi
     fi
