@@ -20,9 +20,7 @@ fi
 echo "===> Selected container tool: $CONTAINER_TOOL"
 
 
-# Extract the version number from pkg/config/version.go by getting everything
-# inside the quotes. Use -n to supress printing each line, and p to print the
-# modified line.
+# Extract the latest version number from the SigLens GitHub repository
 SIGLENS_VERSION=`\
     curl  --silent "https://api.github.com/repos/siglens/siglens/releases/latest" |
     grep '"tag_name":' |
@@ -44,26 +42,41 @@ else
     sudo_cmd="sudo"
 fi
 
+is_command_present() {
+    type "$1" >/dev/null 2>&1
+}
+
 os=""
 package_manager=""
 case "$(uname -sr)" in
-   Darwin*)
-     os="darwin"
-     package_manager="brew" ;;
-   Linux*amzn2*)
-     os="amazon linux"
-     package_manager="yum" ;;
-   Red\ Hat*|CentOS*|Fedora*)
-     os="linux"
-     package_manager="yum" ;;
-   Ubuntu*|Pop!_OS|Debian*|Linux*|Mint*)
-     os="linux"
-     package_manager="apt-get" ;;
-   *)
-     os="Not Found: $os_name"
-     echo 'Not Supported OS'
-     exit 1
-     ;;
+    Darwin*)
+        os="darwin"
+        package_manager="brew" ;;
+    Linux*amzn2*)
+        os="amazon linux"
+        package_manager="yum" ;;
+    *Fedora*|*CentOS*|*Red\ Hat*)
+        os="linux"
+        package_manager="yum" ;;
+    Ubuntu*|Pop!_OS|Debian*|Linux\ Mint*)
+        os="linux"
+        package_manager="apt-get" ;;
+    Linux*)
+        os="linux"
+        if is_command_present apt-get; then
+            package_manager="apt-get"
+        elif is_command_present yum; then
+            package_manager="yum"
+        else 
+            os="Package Manager Not Found"
+            echo 'Unsupported package manager'
+            exit 1
+        fi ;;
+    *)
+        os="Not Found"
+        echo 'Unsupported OS'
+        exit 1
+        ;;
 esac
 
 if [[ -z $package_manager ]]; then
@@ -126,10 +139,6 @@ print_error_and_exit() {
 
 print_success_message() {
     printf "${GREEN_TEXT}$1${RESET_COLOR}\n"
-}
-
-is_command_present() {
-    type "$1" >/dev/null 2>&1
 }
 
 request_sudo() {
@@ -283,26 +292,79 @@ pull_siglens_docker_image() {
 
 install_podman() {
     echo "----------Setting up Podman----------"
-    if [[ $package_manager == apt-get ]]; then
-        apt_cmd="$sudo_cmd apt-get --yes --quiet"
-        $apt_cmd update
-        $apt_cmd install software-properties-common
-        . /etc/os-release
-        $sudo_cmd sh -c "echo 'deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_$VERSION_ID/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list"
-        wget -nv https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/xUbuntu_$VERSION_ID/Release.key -O Release.key
-        $sudo_cmd apt-key add - < Release.key
-        rm -f Release.key
-        $apt_cmd update
-        echo "Installing Podman"
-        $apt_cmd install podman || {
-            print_error_and_exit "Podman installation failed during apt-get install on $os"
-        }
-    fi
-    podman_version=$(podman --version) || {
-        print_error_and_exit "Podman is not working correctly. Please install Podman manually and re-run the command."
+    case $package_manager in
+        apt-get)
+            apt_cmd="$sudo_cmd apt-get --yes --quiet"
+            $apt_cmd update || { 
+                print_error_and_exit "apt-get update failed." 
+            }
+            $apt_cmd install software-properties-common || { 
+                print_error_and_exit "Failed to install software-properties-common." 
+            }
+            
+            . /etc/os-release
+            if [[ "$ID" == "ubuntu" ]]; then
+                repo_url="http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_$VERSION_ID/"
+            else
+                # For other Debian-based systems, adjust the repository URL if needed
+                repo_url="http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_$VERSION_ID/"
+            fi
+            
+            $sudo_cmd sh -c "echo 'deb $repo_url /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list" || {
+                print_error_and_exit "Failed to add Podman repository." 
+            }
+            wget -nv "$repo_url/Release.key" -O Release.key || { 
+                print_error_and_exit "Failed to download Podman repository key." 
+            }
+            $sudo_cmd apt-key add - < Release.key || { 
+                print_error_and_exit "Failed to add Podman repository key."
+            }
+            rm -f Release.key
+            $apt_cmd update || { 
+                print_error_and_exit "Failed to update package lists after adding Podman repository." 
+            }
+            $apt_cmd install podman || { 
+                print_error_and_exit "Podman installation failed." 
+            }
+            ;;
+        yum)
+            # Update package lists
+            $sudo_cmd yum update -y || { 
+                print_error_and_exit "Failed to update package lists." 
+            }
+
+            # Check if Podman is available in the default repo, otherwise add EPEL repo
+            if ! $sudo_cmd yum list podman >/dev/null 2>&1; then
+                echo "Adding EPEL repository for Podman..."
+                $sudo_cmd yum install -y epel-release || { 
+                    print_error_and_exit "Failed to install EPEL repository." 
+                }
+                $sudo_cmd yum update -y || { 
+                    print_error_and_exit "Failed to update package lists after adding EPEL repository." 
+                }
+            fi
+
+            # Install Podman
+            $sudo_cmd yum install -y podman || { 
+                print_error_and_exit "Podman installation failed." 
+            }
+            ;;
+        brew)
+            # On macOS, Podman should be available via Homebrew
+            brew install podman || { 
+                print_error_and_exit "Podman installation failed." 
+            }
+            ;;
+        *)
+            print_error_and_exit "Unsupported package manager: $package_manager."
+            ;;
+    esac
+    podman_version=$(podman --version) || { 
+        print_error_and_exit "Podman is not working correctly." 
     }
     print_success_message "Podman installed successfully. $podman_version"
 }
+
 
 # Install Python and pip if they are not present
 install_python_and_pip() {
@@ -311,9 +373,26 @@ install_python_and_pip() {
     # Check for Python3 and install if not present
     if ! type python3 >/dev/null 2>&1; then
         echo "Python 3 not found. Installing Python 3..."
-        $sudo_cmd apt-get install -y python3 || {
-            print_error_and_exit "Failed to install Python 3. Please check your system's repositories."
-        }
+        case $package_manager in
+            apt-get)
+                $sudo_cmd apt-get install -y python3 || {
+                    print_error_and_exit "Failed to install Python 3. Please check your system's repositories."
+                }
+                ;;
+            yum)
+                $sudo_cmd yum install -y python3 || {
+                    print_error_and_exit "Failed to install Python 3. Please check your system's repositories."
+                }
+                ;;
+            brew)
+                brew install python3 || {
+                    print_error_and_exit "Failed to install Python 3. Please check your system's repositories."
+                }
+                ;;
+            *)
+                print_error_and_exit "Unsupported package manager for installing Python 3."
+                ;;
+        esac
     else
         echo "Python 3 is already installed."
     fi
@@ -321,13 +400,31 @@ install_python_and_pip() {
     # Check for pip3 and install if not present
     if ! type pip3 >/dev/null 2>&1; then
         echo "pip for Python 3 not found. Installing pip3..."
-        $sudo_cmd apt-get install -y python3-pip || {
-            print_error_and_exit "Failed to install pip for Python 3. Please check your system's repositories."
-        }
+        case $package_manager in
+            apt-get)
+                $sudo_cmd apt-get install -y python3-pip || {
+                    print_error_and_exit "Failed to install pip for Python 3. Please check your system's repositories."
+                }
+                ;;
+            yum)
+                $sudo_cmd yum install -y python3-pip || {
+                    print_error_and_exit "Failed to install pip for Python 3. Please check your system's repositories."
+                }
+                ;;
+            brew)
+                brew install python3-pip || {
+                    print_error_and_exit "Failed to install pip for Python 3. Please check your system's repositories."
+                }
+                ;;
+            *)
+                print_error_and_exit "Unsupported package manager for installing pip3."
+                ;;
+        esac
     else
         echo "pip3 is already installed."
     fi
 }
+
 
 # Install podman-compose
 install_podman_compose() {
@@ -336,11 +433,7 @@ install_podman_compose() {
     # Ensure Python and pip are installed
     install_python_and_pip
 
-    # Use pip to install podman-compose
-    if ! type pip3 >/dev/null 2>&1; then
-        $sudo_cmd apt-get install -y python3-pip
-    fi
-
+    # Install podman-compose with pip
     $sudo_cmd pip3 install podman-compose || {
         print_error_and_exit "Failed to install podman-compose. Please check your Python/pip configuration."
     }
@@ -353,9 +446,17 @@ get_podman_custom_network_configuration() {
     curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-network_siglens.conflist" || {
         print_error_and_exit "Failed to download custom network configuration file."
     }
-    $sudo_cmd mv podman-network_siglens.conflist ~/.config/cni/net.d/ || {
-        print_error_and_exit "Failed to move custom network configuration file to ~/.config/cni/net.d"
+    $sudo_cmd cp podman-network_siglens.conflist /etc/cni/net.d/ || {
+        echo "Failed to move custom network configuration file to /etc/cni/net.d"
     }
+    $sudo_cmd mv podman-network_siglens.conflist ~/.config/cni/net.d/ || {
+        echo "Failed to move custom network configuration file to ~/.config/cni/net.d"
+    }
+    if ! podman network inspect podman-network_siglens >/dev/null 2>&1; then
+        podman network create podman-network_siglens || {
+            print_error_and_exit "Failed to create custom Podman network."
+        }
+    fi
     echo "Custom network configuration set up successfully."
 }
 
@@ -375,13 +476,34 @@ pull_siglens_podman_image() {
 
     # Check if the user wants to use a local compose file
     if [ "$USE_LOCAL_PODMAN_COMPOSE" != true ]; then
-        curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
-        curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-compose.yml"
-        curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/ssmetrics-otel-collector-config.yaml"
+        # Download server.yaml
+        if ! curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"; then
+            print_error_and_exit "Failed to download server.yaml."
+        fi
+        
+        # Download podman-compose.yml
+        if ! curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-compose.yml"; then
+            print_error_and_exit "Failed to download podman-compose.yml."
+        fi
+        
+        # Download ssmetrics-otel-collector-config.yaml
+        if ! curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/ssmetrics-otel-collector-config.yaml"; then
+            print_error_and_exit "Failed to download ssmetrics-otel-collector-config.yaml."
+        fi
+
+        # Attempt to read files and change permissions if necessary
+        for file in server.yaml ssmetrics-otel-collector-config.yaml; do   
+            echo "Attempting to change permissions........ $file"
+            if ! $sudo_cmd chmod 644 "$file"; then
+                print_error_and_exit "Failed to change permissions for $file."
+            fi
+            echo "Permissions changed for $file."
+        done
+
         echo "Pulling the latest Podman image for SigLens from upstream"
-        $sudo_cmd podman pull $IMAGE_NAME || {
+        if ! $sudo_cmd podman pull $IMAGE_NAME; then
             print_error_and_exit "Failed to pull $IMAGE_NAME. Please check your internet connection and Podman installation."
-        }
+        fi
     fi
 
     echo -e "\n-----------------Podman image pulled successfully-----------------"
@@ -455,7 +577,7 @@ chmod a+rwx logs || {
 }
 print_success_message "\n===> SigLens installation complete with version: ${SIGLENS_VERSION}"
 
-csi=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
+csi=$(ifconfig 2>/dev/null | grep -o -E --color='never' '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
 if [ -z "$csi" ]; then
   csi=$(hostname)
 fi

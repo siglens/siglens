@@ -6,9 +6,9 @@ services:
       - "8081:8081"
       - "${UI_PORT}:5122"
     volumes:
-      - "${WORK_DIR}/data:/siglens/data"
-      - "${WORK_DIR}/logs:/siglens/logs"
-      - "${WORK_DIR}/${CONFIG_FILE}:/siglens/${CONFIG_FILE}"
+      - "${WORK_DIR}/data:/siglens/data:Z"
+      - "${WORK_DIR}/logs:/siglens/logs:Z"
+      - "${WORK_DIR}/${CONFIG_FILE}:/siglens/${CONFIG_FILE}:Z"
     command: ["./siglens", "--config", "${CONFIG_FILE}"]
     environment:
       - UI_PORT=${UI_PORT}
@@ -29,9 +29,9 @@ services:
       - podman-network_siglens
 
   siglens-metrics-otel-collector:
-    image: docker.io/otel/opentelemetry-collector:latest
+    image: docker.io/otel/opentelemetry-collector:latest  
     volumes:
-      - "${WORK_DIR}/ssmetrics-otel-collector-config.yaml:/etc/ssmetrics-otel-collector-config.yaml"
+      - "${WORK_DIR}/ssmetrics-otel-collector-config.yaml:/etc/ssmetrics-otel-collector-config.yaml:Z"
     ports:
       - "4318:4318"
     command: ["--config=/etc/ssmetrics-otel-collector-config.yaml"]
@@ -40,4 +40,4 @@ services:
 networks:
   podman-network_siglens:
     external:
-      name: podman-network_siglens 
+      name: podman-network_siglens
