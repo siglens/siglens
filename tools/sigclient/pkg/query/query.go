@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"reflect"
@@ -420,7 +419,7 @@ func sendSingleRequest(qType logsQueryTypes, client *http.Client, body []byte, u
 		log.Fatalf("sendRequest: client.Do ERROR: %v", err)
 	}
 	defer resp.Body.Close()
-	rawBody, err := ioutil.ReadAll(resp.Body)
+	rawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatalf("sendRequest: client.Do ERROR: %v", err)
 	}
