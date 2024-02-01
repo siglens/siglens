@@ -287,7 +287,7 @@ chmod a+rwx logs || {
 }
 print_success_message "\n===> SigLens installation complete with version: ${SIGLENS_VERSION}"
 
-csi=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
+csi=$(ifconfig 2>/dev/null | grep -o -E --color='never' '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
 if [ -z "$csi" ]; then
   csi=$(hostname)
 fi
