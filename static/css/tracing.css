@@ -82,7 +82,7 @@
 
 /* Dependency Graph */
 #dependency-graph-container,#error-msg-container {
-    margin-top: 30px;
+    margin-top: 20px;
     height: 100%; 
     width: 100%;
 }
@@ -119,14 +119,14 @@
 .label {
     text-anchor: end;
     fill: var(--graph-link);
-    font-size: 20px;
+    font-size: 16px;
 }
 
 .link-label {
     text-anchor: middle;
     fill: var(--link-label);
     font-weight: bold;
-    font-size: 20px;
+    font-size: 16px;
 }
 
 /* Service Health  */
@@ -296,6 +296,10 @@ input.form-control {
 .input-box,
 .search-trace-btn {
     margin-top: 14px;
+}
+
+.input-box{
+    width: 100%;
 }
 
 .sort-dropdown {
@@ -514,5 +518,9 @@ input.form-control {
     background-color: var(--ui-widget-bg-color) !important;
     padding: 5px;
     border-radius: 5px;
-    font-size: 15px;
+    font-size: 13px;
+}
+
+circle:hover{
+    cursor: pointer;
 }

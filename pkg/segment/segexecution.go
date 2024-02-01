@@ -194,7 +194,11 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 	// if query aggregations exist, get all results then truncate after
 	nodeRes := query.ApplyFilterOperator(root, root.TimeRange, aggs, qid, qc)
 	if aggs != nil {
-		nodeRes = agg.PostQueryBucketCleaning(nodeRes, aggs, nil, nil)
+		numTotalSegments, err := query.GetTotalSegmentsToSearch(qid)
+		if err != nil {
+			log.Errorf("executeQueryInternal: failed to get number of total segments for qid! Error: %v", err)
+		}
+		nodeRes = agg.PostQueryBucketCleaning(nodeRes, aggs, nil, nil, numTotalSegments)
 	}
 	// truncate final results after running post aggregations
 	if uint64(len(nodeRes.AllRecords)) > qc.SizeLimit {

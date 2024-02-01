@@ -382,7 +382,9 @@ function getColumns() {
               .split(" BY")[0]
               .split(/(?=[A-Z])/)
           );
-        thirdBoxSet = new Set(filterValue.split(" BY ")[1].split(","));
+          if (filterValue.includes(" BY ")) {
+            thirdBoxSet = new Set(filterValue.split(" BY ")[1].split(","));
+          }
         }else{
           firstBoxSet = new Set(filterValue.split(" "));
         }
