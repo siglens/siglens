@@ -173,7 +173,7 @@ const myCellRenderer= (params) => {
     let logString = '';
     if (typeof params.data === 'object' && params.data !== null){
         let value = params.data[params.colName]
-        if (value != ""){
+        if (value !== ""){
             if (Array.isArray(value)){
                 logString= JSON.stringify(JSON.unflatten(value), null, 2)
             }else{
