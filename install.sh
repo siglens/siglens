@@ -370,6 +370,25 @@ create_podman_network() {
     fi
 }
 
+check_and_create_ssmetrics_otel_config(){
+    # Define the full path of the file using PWD
+    FILE_PATH="${PWD}/ssmetrics-otel-collector-config.yaml"
+
+    # Check if the file exists
+    if [ -f "$FILE_PATH" ]; then
+        echo "The file already exists: $FILE_PATH"
+    else
+        # Create the file if it does not exist
+        touch "$FILE_PATH"
+        if [ $? -eq 0 ]; then
+            echo "File created successfully: $FILE_PATH"
+        else
+            echo "Failed to create the file: $FILE_PATH"
+            exit 1
+        fi
+    fi
+}
+
 pull_siglens_podman_image() {
     echo -e "\n----------Pulling the latest Podman image for SigLens----------"
 
@@ -382,6 +401,8 @@ pull_siglens_podman_image() {
             print_error_and_exit "Failed to pull $IMAGE_NAME. Please check your internet connection and Podman installation."
         }
     fi
+
+    check_and_create_ssmetrics_otel_config
 
     echo -e "\n-----------------Podman image pulled successfully-----------------"
 }
