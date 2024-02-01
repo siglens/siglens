@@ -1397,3 +1397,47 @@ input:checked + .slider:before {
   max-width: 150px;
   vertical-align: bottom;
 }
+.legend-options {
+  margin: 20px;
+  text-align: left;
+}
+
+.legend-options label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.legend-options select {
+  width: 200px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: #333;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+/* Style for the legend options dropdown caret */
+.legend-options select::-ms-expand {
+  display: none;
+}
+
+.legend-options select::after {
+  content: '\25BC';
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+}
+.legend-options {
+  text-align: left;
+}
+
+.legend-options select:hover,
+.legend-options select:focus {
+  border-color: rgb(114, 82, 220);
+  box-shadow: 0 0 8px rgba(136, 94, 228, 0.912);
+}

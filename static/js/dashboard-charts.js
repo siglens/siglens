@@ -16,7 +16,22 @@ limitations under the License.
 
 var lineChart;
 var pieOptions, barOptions;
-
+$('.chart-options').on('click', function() {
+	const selectedChartIndex = $(this).data('index');
+	const isLegendVisible = [0, 1, 2].includes(selectedChartIndex); 
+	$('.legend-options').toggle(isLegendVisible);
+});
+let legendMode = 'list';
+let legendPlacement = 'left';
+let legendDisplay = 'value';
+$('#legendMode, #legendPlacement, #legendValueDisplay').on('change', function () {
+    legendMode = $('#legendMode').val();
+    legendPlacement = $('#legendPlacement').val();
+    legendDisplay = $('#legendValueDisplay').val();
+    // Call the function to update the chart with the new legend options
+    loadPieOptions(xAxisData, yAxisData);
+	loadBarOptions(xAxisData, yAxisData);
+});
 function loadBarOptions(xAxisData, yAxisData) {
 	// colors for dark & light modes
 	let root = document.querySelector(':root');
@@ -25,7 +40,13 @@ function loadBarOptions(xAxisData, yAxisData) {
 	let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
 	let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
 	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1')
+	let legendData;
 
+    if (legendValueDisplay === 'name') {
+        legendData = xAxisData;
+    } else if (legendValueDisplay === 'value') {
+        legendData = yAxisData;
+    }
 	barOptions = {
 		xAxis: {
 			type: 'category',
@@ -57,6 +78,17 @@ function loadBarOptions(xAxisData, yAxisData) {
 				},
 			},
 		},
+		legend: {
+		    show: legendMode !== 'hidden', 
+            orient: legendPlacement === 'right' ? 'vertical' :(legendPlacement === 'left' ? 'vertical' : 'horizontal'),
+            left: legendPlacement === 'right' ? 'right' : (legendPlacement === 'left' ? 'left' : 'center'),
+            top: legendPlacement === 'bottom' ? 'bottom' : 'center',
+            data: legendData,
+            textStyle: {
+                color: legendMode === 'table' ? labelDarkThemeColor : labelLightThemeColor,
+                borderColor: labelDarkThemeColor,
+            },
+        },
 		series: [
 			{
 				data: yAxisData,
@@ -119,7 +151,12 @@ function loadPieOptions(xAxisData, yAxisData) {
 	let rootStyles = getComputedStyle(root);
 	let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
 	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1')
-
+	let legendData;
+    if (legendDisplay === 'name') {
+        legendData = xAxisData;
+    } else if (legendDisplay === 'value') {
+        legendData =  yAxisData;
+    } 
 	pieOptions = {
 		xAxis: {
 			show: false
@@ -129,21 +166,22 @@ function loadPieOptions(xAxisData, yAxisData) {
 			formatter: "{a} <br/>{b} : {c} ({d}%)"
 		},
 		legend: {
-			orient: 'vertical',
-			left: 'left',
-			data: xAxisData,
-			textStyle: {
-				color: labelDarkThemeColor,
-				borderColor: labelDarkThemeColor,
-
-			},
-		},
+		    show: legendMode !== 'hidden', 
+            orient: legendPlacement === 'right' ? 'vertical' :(legendPlacement === 'left' ? 'vertical' : 'horizontal'),
+            left: legendPlacement === 'right' ? 'right' : (legendPlacement === 'left' ? 'left' : 'center'),
+            top: legendPlacement === 'bottom' ? 'bottom' : 'center',
+            data: legendData,
+            textStyle: {
+                color: legendMode === 'table' ? labelDarkThemeColor : labelLightThemeColor,
+                borderColor: labelDarkThemeColor,
+            },
+        },
 		series: [
 			{
 				name: 'Pie Chart',
 				type: 'pie',
 				radius: '55%',
-				center: ['50%', '60%'],
+				center: ['50%', '50%'],
 				data: pieDataMapList,
 				itemStyle: {
 					emphasis: {
@@ -153,8 +191,8 @@ function loadPieOptions(xAxisData, yAxisData) {
 					}
 				},
 				label: {
-					color: labelDarkThemeColor,
-				}
+                    color: legendMode === 'table' ? labelDarkThemeColor : labelLightThemeColor,
+                }
 			}
 		]
 	}
