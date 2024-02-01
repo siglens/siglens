@@ -307,6 +307,11 @@ func favoriteDashboardHandler() fasthttp.RequestHandler {
 	}
 }
 
+func getFavoriteDashboardIdsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		dashboards.ProcessListFavoritesRequest(ctx, 0)
+	}
+}
 func getDashboardIdsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		dashboards.ProcessListAllRequest(ctx, 0)
