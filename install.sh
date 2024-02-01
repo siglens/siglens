@@ -31,6 +31,7 @@ sudo_cmd=""
 # Text color
 RED_TEXT='\e[31m'
 GREEN_TEXT='\e[32m'
+BLUE_TEXT="\033[0;34m"
 RESET_COLOR='\e[0m'
 
 # Check sudo permissions
@@ -139,6 +140,10 @@ print_error_and_exit() {
 
 print_success_message() {
     printf "${GREEN_TEXT}$1${RESET_COLOR}\n"
+}
+
+print_info_message() {
+    printf "${BLUE_TEXT}$1${RESET_COLOR}\n"
 }
 
 request_sudo() {
@@ -333,21 +338,29 @@ install_podman() {
                 print_error_and_exit "Failed to update package lists." 
             }
 
-            # Check if Podman is available in the default repo, otherwise add EPEL repo
-            if ! $sudo_cmd yum list podman >/dev/null 2>&1; then
-                echo "Adding EPEL repository for Podman..."
-                $sudo_cmd yum install -y epel-release || { 
-                    print_error_and_exit "Failed to install EPEL repository." 
+            # Amazon Linux specific handling
+            if grep -q 'amzn' /etc/os-release; then
+                echo "Detected Amazon Linux. Installing Podman from Amazon Linux Extras..."
+                $sudo_cmd amazon-linux-extras install -y podman || {
+                    print_error_and_exit "Failed to install Podman from Amazon Linux Extras."
                 }
-                $sudo_cmd yum update -y || { 
-                    print_error_and_exit "Failed to update package lists after adding EPEL repository." 
+            else
+                # For other yum-based distros, attempt to add and use EPEL if Podman isn't available
+                if ! $sudo_cmd yum list podman >/dev/null 2>&1; then
+                    echo "Adding EPEL repository for Podman..."
+                    $sudo_cmd yum install -y epel-release || { 
+                        print_error_and_exit "Failed to install EPEL repository." 
+                    }
+                    $sudo_cmd yum update -y || { 
+                        print_error_and_exit "Failed to update package lists after adding EPEL repository." 
+                    }
+                fi
+
+                # Install Podman
+                $sudo_cmd yum install -y podman || { 
+                    print_error_and_exit "Podman installation failed." 
                 }
             fi
-
-            # Install Podman
-            $sudo_cmd yum install -y podman || { 
-                print_error_and_exit "Podman installation failed." 
-            }
             ;;
         brew)
             # On macOS, Podman should be available via Homebrew
@@ -435,7 +448,32 @@ install_podman_compose() {
 
     # Install podman-compose with pip
     $sudo_cmd pip3 install podman-compose || {
-        print_error_and_exit "Failed to install podman-compose. Please check your Python/pip configuration."
+        # trying to install podman-compose with pipx
+        echo "Failed to install podman-compose using pip. Attempting to install using pipx..."
+
+        # Attempt to install pipx if not already installed
+        if ! type pipx >/dev/null 2>&1; then
+            echo "pipx not found. Attempting to install pipx..."
+            $sudo_cmd apt install -y pipx && pipx ensurepath || {
+                print_error_and_exit "Failed to install pipx. Please check your Python/pip configuration."
+            }
+        else
+            echo "pipx is already installed."
+        fi
+
+        # Use pipx to install podman-compose
+        pipx install podman-compose || {
+            print_error_and_exit "Failed to install podman-compose using pipx."
+        }
+
+        print_info_message "podman-compose installed successfully using pipx."
+
+        print_info_message "Please open a new terminal or re-login to apply changes."
+        print_info_message "After that, Please run the install script again to continue the installation by running the below commands."
+        print_info_message "export CONTAINER_TOOL=podman"
+        print_info_message "./install.sh"
+
+        exit 0
     }
     print_success_message "podman-compose installed successfully."
 }
