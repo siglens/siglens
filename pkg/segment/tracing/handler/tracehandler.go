@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -150,6 +151,66 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	rawJSON := ctx.PostBody()
+	if rawJSON == nil {
+		log.Errorf("ProcessTotalTracesRequest: received empty search request body ")
+		pipesearch.SetBadMsg(ctx)
+		return
+	}
+
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	decoder.UseNumber()
+	err := decoder.Decode(&readJSON)
+	if err != nil {
+		writeErrMsg(ctx, "ProcessTotalTracesRequest", "could not decode raw json", err)
+		return
+	}
+
+	nowTs := putils.GetCurrentTimeInMs()
+	searchText, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+
+	searchRequestBody := &structs.SearchRequestBody{}
+	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
+		writeErrMsg(ctx, "ProcessTotalTracesRequest", "could not unmarshal json body", err)
+		return
+	}
+
+	searchRequestBody.QueryLanguage = "Splunk QL"
+	searchRequestBody.IndexName = "traces"
+	isOnlyTraceID, _ := ExtractTraceID(searchText)
+
+	if isOnlyTraceID {
+		// If the search text is a trace ID, the total count is 1
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		ctx.SetBodyString("1")
+		return
+	}
+
+	// In order to get unique trace_id,  append group by block to the "searchText" field
+	if len(searchRequestBody.SearchText) > 0 {
+		searchRequestBody.SearchText = searchRequestBody.SearchText + " | stats count BY trace_id"
+	} else {
+		writeErrMsg(ctx, "ProcessTotalTracesRequest", "request does not contain required parameter: searchText", nil)
+		return
+	}
+
+	pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
+	if err != nil {
+		writeErrMsg(ctx, "ProcessTotalTracesRequest", err.Error(), nil)
+		return
+	}
+
+	totalTraces := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetBodyString(strconv.Itoa(totalTraces))
+}
+
+func GetTotalUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter) int {
+	return len(pipeSearchResponseOuter.Aggs[""].Buckets)
+}
 func GetUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
 	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*50 {
 		return []string{}
