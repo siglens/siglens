@@ -205,9 +205,8 @@ install_docker() {
     if ! [[ -z $dist_id ]]; then
         dist=$dist_id
     fi
-    echo "===> Installing Docker on $dist"
+    echo "===> Installing Docker on $dist using $package_manager"
     if [[ $package_manager == apt-get ]]; then
-        echo "===> using $package_manager"
         apt_cmd="$sudo_cmd apt-get --yes --quiet"
         $apt_cmd update
         $apt_cmd install software-properties-common gnupg-agent
@@ -248,10 +247,10 @@ install_docker_compose() {
     echo "----------Setting up docker compose----------"
     if [[ $package_manager == apt-get ]]; then
         apt_cmd="$sudo_cmd apt-get --yes --quiet"
-        # $apt_cmd update || {
-        #     post_event "install_failed" "install_docker_compose: apt-get update failed during Docker Compose setup"
-        #     print_error_and_exit "apt-get update failed."
-        # }
+        $apt_cmd update || {
+            post_event "install_failed" "install_docker_compose: apt-get update failed during Docker Compose setup"
+            print_error_and_exit "apt-get update failed."
+        }
         $apt_cmd install docker-compose || {
             post_event "install_failed" "install_docker_compose: apt-get install docker-compose failed during Docker Compose setup"
             print_error_and_exit "Docker Compose installation failed."
@@ -338,10 +337,10 @@ install_podman() {
         apt-get)
             apt_cmd="$sudo_cmd apt-get --yes --quiet"
             $apt_cmd update || { 
-                echo "apt-get update failed." 
+                print_error_and_exit "apt-get update failed." 
             }
             $apt_cmd install software-properties-common || { 
-                echo "Failed to install software-properties-common." 
+                print_error_and_exit "Failed to install software-properties-common." 
             }
             
             . /etc/os-release
