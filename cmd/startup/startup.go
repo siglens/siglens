@@ -17,10 +17,14 @@ limitations under the License.
 package startup
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
 	"github.com/siglens/siglens/pkg/blob"
@@ -28,6 +32,8 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/dashboards"
 	"github.com/siglens/siglens/pkg/instrumentation"
+	"github.com/siglens/siglens/pkg/localnodeid"
+	"github.com/siglens/siglens/pkg/lookuptable"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/retention"
 	"github.com/siglens/siglens/pkg/scroll"
@@ -40,8 +46,10 @@ import (
 	"github.com/siglens/siglens/pkg/ssa"
 	"github.com/siglens/siglens/pkg/usageStats"
 	usq "github.com/siglens/siglens/pkg/usersavedqueries"
+	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var StdOutLogger *log.Logger
@@ -57,6 +65,104 @@ func init() {
 	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
 	customFormatter.FullTimestamp = true
 	StdOutLogger.SetFormatter(customFormatter)
+}
+
+func initlogger() {
+	customFormatter := new(log.TextFormatter)
+	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
+	log.SetFormatter(customFormatter)
+	customFormatter.FullTimestamp = true
+}
+
+func Main() {
+	if hook := lookuptable.GlobalLookupTable.StartupHook; hook != nil {
+		hook()
+	}
+	log.Errorf("Finished StartupHook")
+
+	initlogger()
+	utils.SetServerStartTime(time.Now())
+	err := config.InitConfigurationData()
+	if err != nil {
+		log.Error("Failed to initialize config! Exiting to avoid misconfigured server...")
+		os.Exit(1)
+	}
+
+	nodeType, err := config.ValidateDeployment()
+	if err != nil {
+		log.Errorf("Invalid deployment type! Error=[%+v]", err)
+		os.Exit(1)
+	}
+
+	nodeID := localnodeid.GetRunningNodeID()
+	err = config.InitDerivedConfig(nodeID)
+	if err != nil {
+		log.Errorf("Error initializing derived configurations! %v", err)
+		os.Exit(1)
+	}
+
+	serverCfg := *config.GetRunningConfig() // Init the Configuration
+	var logOut string
+	if config.GetLogPrefix() == "" {
+		logOut = "stdout"
+	} else {
+		logOut = serverCfg.Log.LogPrefix + "siglens.log"
+	}
+	baseLogDir := serverCfg.Log.LogPrefix
+	if baseLogDir == "" {
+		log.SetOutput(os.Stdout)
+	} else {
+		err := os.MkdirAll(baseLogDir, 0764)
+		if err != nil {
+			log.Fatalf("failed to make log directory at=%v, err=%v", baseLogDir, err)
+		}
+		log.SetOutput(&lumberjack.Logger{
+			Filename:   logOut,
+			MaxSize:    serverCfg.Log.LogFileRotationSizeMB,
+			MaxBackups: 30,
+			MaxAge:     1, //days
+			Compress:   serverCfg.Log.CompressLogFile,
+		})
+	}
+	if config.IsDebugMode() {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
+	log.Infof("----- Siglens server type %s starting up.... ----- \n", nodeType.String())
+	log.Infof("----- Siglens server logging to %s ----- \n", logOut)
+
+	configJSON, err := json.MarshalIndent(serverCfg, "", "  ")
+	if err != nil {
+		log.Errorf("main : Error marshalling config struct %v", err.Error())
+	}
+	log.Infof("Running config %s", string(configJSON))
+
+	err = StartSiglensServer(nodeType, nodeID)
+	if err != nil {
+		ShutdownSiglensServer()
+		if baseLogDir != "" {
+			StdOutLogger.Errorf("siglens main: Error in starting server:%v ", err)
+		}
+		log.Errorf("siglens main: Error in starting server:%v ", err)
+		os.Exit(1)
+	}
+
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+
+	switch <-ch {
+	case os.Interrupt, os.Kill, syscall.SIGTERM, syscall.SIGINT:
+		log.Errorf("Interrupt signal received. Exiting server...")
+		ShutdownSiglensServer()
+		log.Errorf("Server shutdown")
+		os.Exit(0)
+	default:
+		log.Errorf("Something went wrong. Exiting server...")
+		ShutdownSiglensServer()
+		log.Errorf("Server shutdown")
+		os.Exit(1)
+	}
 }
 
 // Licenses should be checked outside of this function
