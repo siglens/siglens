@@ -347,7 +347,7 @@ install_podman() {
             if [[ "$ID" == "ubuntu" ]]; then
                 repo_url="http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_$VERSION_ID/"
             else
-                # For other Debian-based systems, adjust the repository URL if needed
+                # For other Debian-based systems
                 repo_url="http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_$VERSION_ID/"
             fi
             
