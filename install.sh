@@ -484,12 +484,22 @@ get_podman_custom_network_configuration() {
     curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-network_siglens.conflist" || {
         print_error_and_exit "Failed to download custom network configuration file."
     }
+
+    # Detect macOS
+    if [[ $os == "darwin" ]]; then
+        echo "Running on macOS. Attempting to Start Podman VM."
+        # Initialize and start Podman VM if not already done
+        podman machine init  # This command is idempotent
+        podman machine start
+    fi
+
     $sudo_cmd cp podman-network_siglens.conflist /etc/cni/net.d/ || {
         echo "Failed to move custom network configuration file to /etc/cni/net.d"
     }
     $sudo_cmd mv podman-network_siglens.conflist ~/.config/cni/net.d/ || {
         echo "Failed to move custom network configuration file to ~/.config/cni/net.d"
     }
+
     if ! podman network inspect podman-network_siglens >/dev/null 2>&1; then
         podman network create podman-network_siglens || {
             print_error_and_exit "Failed to create custom Podman network."
