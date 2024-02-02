@@ -377,7 +377,9 @@ install_podman() {
             # Amazon Linux specific handling
             if grep -q 'amzn' /etc/os-release; then
                 echo "Detected Amazon Linux. Installing Podman from Amazon Linux Extras..."
-                $sudo_cmd amazon-linux-extras install -y podman || {
+                $sudo_cmd yum install -y amazon-linux-extras
+                $sudo_cmd amazon-linux-extras enable podman
+                $sudo_cmd yum install -y podman || {
                     print_error_and_exit "Failed to install Podman from Amazon Linux Extras."
                 }
             else
@@ -529,9 +531,12 @@ get_podman_custom_network_configuration() {
         podman machine start
     fi
 
+    # For running as root
     $sudo_cmd cp podman-network_siglens.conflist /etc/cni/net.d/ || {
         echo "Failed to move custom network configuration file to /etc/cni/net.d"
     }
+
+    # For running as non-root
     $sudo_cmd mv podman-network_siglens.conflist ~/.config/cni/net.d/ || {
         echo "Failed to move custom network configuration file to ~/.config/cni/net.d"
     }
