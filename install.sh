@@ -47,6 +47,36 @@ is_command_present() {
     type "$1" >/dev/null 2>&1
 }
 
+dist_id=""
+dist_version=""
+
+# Check if the command is available
+if is_command_present lsb_release; then
+    dist_id=$(lsb_release -is)
+    dist_version=$(lsb_release -rs)
+elif  [ -f /etc/os-release ]; then
+    . /etc/os-release
+    dist_id=$NAME
+    dist_version=$VERSION_ID
+elif is_command_present distro; then
+    dist_id=$(distro | awk '{print $1}')
+    dist_version=$(distro | awk '{print $2}')
+else 
+    echo "Couldn't determine the OS distribution"
+fi
+
+# convert dist_id to lowercase
+if [[ -n $dist_id ]]; then
+    dist_id=$(echo "$dist_id" | tr '[:upper:]' '[:lower:]')
+fi
+
+# Check if dist_id contains 'red hat' and change it to 'rhel'
+if [[ $dist_id == *"red hat"* ]]; then
+    dist_id="rhel"
+fi
+
+echo "===> Detected OS: $dist_id $dist_version"
+
 os=""
 package_manager=""
 case "$(uname -sr)" in
@@ -171,18 +201,24 @@ COMPOSE_FILE=""
 
 install_docker() {
     echo "----------Setting up docker----------"
+    dist=$os
+    if ! [[ -z $dist_id ]]; then
+        dist=$dist_id
+    fi
+    echo "===> Installing Docker on $dist"
     if [[ $package_manager == apt-get ]]; then
+        echo "===> using $package_manager"
         apt_cmd="$sudo_cmd apt-get --yes --quiet"
         $apt_cmd update
         $apt_cmd install software-properties-common gnupg-agent
-        curl -fsSL "https://download.docker.com/linux/$os/gpg" | $sudo_cmd apt-key add -
+        curl -fsSL "https://download.docker.com/linux/$dist/gpg" | $sudo_cmd apt-key add -
         $sudo_cmd add-apt-repository \
-            "deb [arch=$arch] https://download.docker.com/linux/$os $(lsb_release -cs) stable"
+            "deb [arch=$arch] https://download.docker.com/linux/$dist $(lsb_release -cs) stable"
         $apt_cmd update
         echo "Installing docker"
         $apt_cmd install docker-ce docker-ce-cli containerd.io || {
-            post_event "install_failed" "install_docker: Docker installation failed during apt-get install on $os"
-            print_error_and_exit "install_docker: Docker installation failed during apt-get install on $os"
+            post_event "install_failed" "install_docker: Docker installation failed during apt-get install on $dist"
+            print_error_and_exit "install_docker: Docker installation failed during apt-get install on $dist"
         }
     elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
         $sudo_cmd yum install -y amazon-linux-extras
@@ -194,15 +230,15 @@ install_docker() {
     else
         yum_cmd="$sudo_cmd yum --assumeyes --quiet"
         $yum_cmd install yum-utils
-        $sudo_cmd yum-config-manager --add-repo https://download.docker.com/linux/$os/docker-ce.repo
+        $sudo_cmd yum-config-manager --add-repo https://download.docker.com/linux/$dist/docker-ce.repo
         echo "Installing docker"
         $yum_cmd install docker-ce docker-ce-cli containerd.io || {
-            post_event "install_failed" "install_docker: Docker installation failed during yum install on $os"
-            print_error_and_exit "install_docker: Docker installation failed during yum install on $os"
+            post_event "install_failed" "install_docker: Docker installation failed during yum install on $dist"
+            print_error_and_exit "install_docker: Docker installation failed during yum install on $dist"
         }
     fi
     docker_version=$(docker --version) || {
-        post_event "install_failed" "install_docker: Failed to check docker version post-installation on $os"
+        post_event "install_failed" "install_docker: Failed to check docker version post-installation on $dist"
         print_error_and_exit "Docker is not working correctly. Please install docker manually and re-run the command."
     }
     print_success_message "Docker installed successfully. $docker_version"
@@ -212,10 +248,10 @@ install_docker_compose() {
     echo "----------Setting up docker compose----------"
     if [[ $package_manager == apt-get ]]; then
         apt_cmd="$sudo_cmd apt-get --yes --quiet"
-        $apt_cmd update || {
-            post_event "install_failed" "install_docker_compose: apt-get update failed during Docker Compose setup"
-            print_error_and_exit "apt-get update failed."
-        }
+        # $apt_cmd update || {
+        #     post_event "install_failed" "install_docker_compose: apt-get update failed during Docker Compose setup"
+        #     print_error_and_exit "apt-get update failed."
+        # }
         $apt_cmd install docker-compose || {
             post_event "install_failed" "install_docker_compose: apt-get install docker-compose failed during Docker Compose setup"
             print_error_and_exit "Docker Compose installation failed."
@@ -280,6 +316,7 @@ pull_siglens_docker_image() {
     if [ "$USE_LOCAL_DOCKER_COMPOSE" != true ]; then
         curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
         curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
+        curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/ssmetrics-otel-collector-config.yaml"
         echo "Pulling the latest docker image for SigLens from upstream"
         $sudo_cmd docker pull $IMAGE_NAME || {
         post_event "install_failed" "Failed to pull Docker image $IMAGE_NAME"
@@ -301,10 +338,10 @@ install_podman() {
         apt-get)
             apt_cmd="$sudo_cmd apt-get --yes --quiet"
             $apt_cmd update || { 
-                print_error_and_exit "apt-get update failed." 
+                echo "apt-get update failed." 
             }
             $apt_cmd install software-properties-common || { 
-                print_error_and_exit "Failed to install software-properties-common." 
+                echo "Failed to install software-properties-common." 
             }
             
             . /etc/os-release
@@ -536,7 +573,7 @@ pull_siglens_podman_image() {
         
         # Download ssmetrics-otel-collector-config.yaml
         if ! curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/ssmetrics-otel-collector-config.yaml"; then
-            print_error_and_exit "Failed to download ssmetrics-otel-collector-config.yaml."
+            print_info_message "Failed to download ssmetrics-otel-collector-config.yaml."
         fi
 
         # Attempt to read files and change permissions if necessary
@@ -567,13 +604,22 @@ if [[ $CONTAINER_TOOL == "docker" ]]; then
         if [[ $package_manager == "apt-get" || $package_manager == "yum" ]]; then
             request_sudo
             install_docker
-            install_docker_compose
         elif [[ $os == "darwin" ]]; then
             post_event "install_failed" "Docker Desktop not installed on Mac OS. Automatic installation is not supported."
             print_error_and_exit "\nDocker Desktop must be installed manually on Mac OS to proceed. \n You can install Docker from here - https://docs.docker.com/docker-for-mac/install/"
         else
             post_event "install_failed" "Docker not installed. Automatic installation is only supported on Ubuntu / Redhat."
             print_error_and_exit "\nDocker must be installed manually on your machine to proceed. Docker can only be installed automatically on Ubuntu / Redhat. \n You can install Docker from here - https://docs.docker.com/get-docker/"
+        fi
+    fi
+
+    if ! is_command_present docker-compose; then
+        if [[ $package_manager == "apt-get" || $package_manager == "yum" ]]; then
+            request_sudo
+            install_docker_compose
+        else
+            post_event "install_failed" "Docker Compose not installed. Automatic installation is only supported on Ubuntu / Redhat."
+            print_error_and_exit "\nDocker Compose must be installed manually on your machine to proceed. Docker Compose can only be installed automatically on Ubuntu / Redhat. \n You can install Docker Compose from here - https://docs.docker.com/compose/install/"
         fi
     fi
 
@@ -688,6 +734,16 @@ CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=
     print_error_and_exit "Failed to start $CONTAINER_TOOL Compose"
 }
 CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${IMAGE_NAME} $CONTAINER_TOOL-compose logs -t --tail 20 >> ${CONTAINER_TOOL}_logs.txt
+
+# Create .env file for docker-compose down
+cat << EOF > .env
+IMAGE_NAME=${IMAGE_NAME}
+UI_PORT=${UI_PORT}
+CONFIG_FILE=${CFILE}
+WORK_DIR="$(pwd)"
+CSI=${csi}
+EOF
+
 
 # Check if the sample log dataset is available
 sample_log_dataset_status=$(curl -s -o /dev/null -I -X HEAD -w "%{http_code}" http://localhost:5122/elastic/sample-log-dataset)
