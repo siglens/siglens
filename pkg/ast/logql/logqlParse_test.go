@@ -17,6 +17,7 @@ limitations under the License.
 package logql
 
 import (
+	"os"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/ast"
@@ -44,6 +45,24 @@ func Test_ParseStream(t *testing.T) {
 	assert.Equal(t, queryJson.Right.Comparison.Field, "another")
 	assert.Equal(t, queryJson.Right.Comparison.Values, "\"thing\"")
 	assert.Equal(t, queryJson.NodeType, ast.NodeAnd)
+}
+
+func Test_ParseFile(t *testing.T) {
+	tempFile, err := os.CreateTemp("", "test.log")
+	assert.Nil(t, err)
+	defer os.Remove(tempFile.Name())
+
+	testContent := []byte(`{something="another"} | another >= thing`)
+	_, err = tempFile.Write(testContent)
+	assert.Nil(t, err)
+
+	res, err := ParseFile(tempFile.Name())
+	assert.Nil(t, err)
+	queryJson := res.(ast.QueryStruct).SearchFilter
+	assert.Equal(t, queryJson.Left.Comparison.Field, "something")
+	assert.Equal(t, queryJson.Left.Comparison.Values, "\"another\"")
+	assert.Equal(t, queryJson.Right.Comparison.Field, "another")
+	assert.Equal(t, queryJson.Right.Comparison.Values, "thing")
 }
 
 func Test_ParseLabelFilter(t *testing.T) {
