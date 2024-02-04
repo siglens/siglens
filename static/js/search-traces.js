@@ -342,6 +342,9 @@ function searchTrace(params){
       if (res.traces.length == 50 && params.page < 2) {
         getData(params);
       }
+      if(res.traces.length <50){
+        allResultsFetched = true;
+      } 
     } else {
       if (returnResTotal.length == 0) {
         if (chart != null && chart != "" && chart != undefined) {
@@ -352,9 +355,6 @@ function searchTrace(params){
         $("#graph-show").html(queryText);
         $("#graph-show").addClass("empty-result-show");
       }
-    }
-    if(res.traces.length <50){
-      allResultsFetched = true;
     }
     isLoading = false; // Set the flag to false after getting the response
   });

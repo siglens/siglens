@@ -232,8 +232,8 @@
 
 .scrollable-container {
     overflow-y: scroll;
-    height: 500px;
-    margin: 20px 0;
+    height: 100vh;
+    margin-top: 20px;
     scrollbar-width: thin;
     scrollbar-color: rgba(155, 155, 155, 0.7) transparent; 
 }
