@@ -278,12 +278,12 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 }
 
 func renderTemplate(ctx *fasthttp.RequestCtx, tpl *template.Template) {
-	data := uiCfgData{
-		AlertEnabled: true,
-	}
+	// data := uiCfgData{
+	// 	AlertEnabled: true,
+	// }
 	filename := utils.ExtractParamAsString(ctx.UserValue("filename"))
 	ctx.Response.Header.Set("Content-Type", "text/html; charset=utf-8")
-	err := tpl.ExecuteTemplate(ctx, filename+".html", data)
+	err := tpl.ExecuteTemplate(ctx, filename+".html", lookuptable.GlobalLookupTable)
 	if err != nil {
 		log.Errorf("renderTemplate: unable to execute template, err: %v", err.Error())
 		return

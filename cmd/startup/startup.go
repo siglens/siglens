@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"os"
 	"os/signal"
 	"syscall"
@@ -323,7 +324,14 @@ func startQueryServer(serverAddr string) {
 			if templateHook == nil {
 				log.Fatalf("startQueryServer: TemplateHook is nil")
 			}
-			tpl := templateHook()
+
+			tpl := template.New("html").Funcs(template.FuncMap{
+				"safeHTML": func(htmlContent string) template.HTML {
+					return template.HTML(htmlContent)
+				},
+			})
+			templateHook(tpl)
+
 			err := s.Run(tpl)
 			if err != nil {
 				log.Errorf("Failed to start server! Error: %v", err)
