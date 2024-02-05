@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"os"
 	"os/signal"
 	"syscall"
@@ -320,7 +319,11 @@ func startQueryServer(serverAddr string) {
 		}()
 	} else {
 		go func() {
-			tpl := template.Must(template.ParseGlob("./static/*.html"))
+			templateHook := lookuptable.GlobalLookupTable.TemplateHook
+			if templateHook == nil {
+				log.Fatalf("startQueryServer: TemplateHook is nil")
+			}
+			tpl := templateHook()
 			err := s.Run(tpl)
 			if err != nil {
 				log.Errorf("Failed to start server! Error: %v", err)

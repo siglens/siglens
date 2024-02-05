@@ -25,6 +25,7 @@ import (
 	"github.com/fasthttp/router"
 	"github.com/oklog/run"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/lookuptable"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
@@ -227,8 +228,9 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}
 
-	//Static File Routes
-	hs.Router.ServeFiles("/{filepath:*}", "./static")
+	if hook := lookuptable.GlobalLookupTable.ServeHtmlHook; hook != nil {
+		hook(hs.Router)
+	}
 
 	hs.ln, err = reuseport.Listen("tcp4", hs.Addr)
 	if err != nil {
