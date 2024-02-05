@@ -461,7 +461,8 @@ function displayDashboards(res, flag) {
 			nonFavorites.push([key, value]);
 		}
 	}
-	
+	favorites.sort((a, b) => b[1].localeCompare(a[1]));
+	nonFavorites.sort((a, b) => b[1].localeCompare(a[1]));
 	let resArray = [...favorites, ...nonFavorites];
 	res = Object.fromEntries(resArray);
 	if (flag == -1) {
