@@ -392,7 +392,6 @@ let dashboardColumnDefs = [
 		headerName: "Dashboard Name",
 		field: "dbname",
 		sortable: true,
-		sort: 'desc',
 		cellClass: "",
 		cellRenderer: (params) => {
 			var link = document.createElement('a');
@@ -452,6 +451,19 @@ const dbgridOptions = {
 
 
 function displayDashboards(res, flag) {
+	let favorites = [];
+	let nonFavorites = [];
+	
+	for (let [key, value] of Object.entries(res)) {
+		if (favoriteDBsSet.has(key)) {
+			favorites.push([key, value]);
+		} else {
+			nonFavorites.push([key, value]);
+		}
+	}
+	
+	let resArray = [...favorites, ...nonFavorites];
+	res = Object.fromEntries(resArray);
 	if (flag == -1) {
 		// show search results
 		let dbFilteredRowData = [];
