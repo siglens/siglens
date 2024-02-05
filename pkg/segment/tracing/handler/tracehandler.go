@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -22,21 +23,9 @@ import (
 const OneHourInMs = 60 * 60 * 1000
 
 func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-
-	rawJSON := ctx.PostBody()
-	if rawJSON == nil {
-		log.Errorf("ProcessSearchTracesRequest: received empty search request body ")
-		pipesearch.SetBadMsg(ctx)
-		return
-	}
-
-	readJSON := make(map[string]interface{})
-	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
-	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
-	decoder.UseNumber()
-	err := decoder.Decode(&readJSON)
+	searchRequestBody, readJSON, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
-		writeErrMsg(ctx, "ProcessSearchTracesRequest", "could not decode raw json", err)
+		writeErrMsg(ctx, "ProcessSearchTracesRequest", "could not parse and validate request body", err)
 		return
 	}
 
@@ -60,18 +49,8 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
-	// Parse the JSON data from ctx.PostBody
-	searchRequestBody := &structs.SearchRequestBody{}
-	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
-		writeErrMsg(ctx, "ProcessSearchTracesRequest", "could not unmarshal json body", err)
-		return
-	}
-
-	searchRequestBody.QueryLanguage = "Splunk QL"
-	searchRequestBody.IndexName = "traces"
 	isOnlyTraceID, traceId := ExtractTraceID(searchText)
 	traceIds := make([]string, 0)
-
 	if isOnlyTraceID {
 		traceIds = append(traceIds, traceId)
 	} else {
@@ -152,34 +131,15 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 }
 
 func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	rawJSON := ctx.PostBody()
-	if rawJSON == nil {
-		log.Errorf("ProcessTotalTracesRequest: received empty search request body ")
-		pipesearch.SetBadMsg(ctx)
-		return
-	}
-
-	readJSON := make(map[string]interface{})
-	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
-	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
-	decoder.UseNumber()
-	err := decoder.Decode(&readJSON)
+	searchRequestBody, readJSON, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
-		writeErrMsg(ctx, "ProcessTotalTracesRequest", "could not decode raw json", err)
+		writeErrMsg(ctx, "ProcessTotalTracesRequest", "could not parse and validate request body", err)
 		return
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
 	searchText, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
-	searchRequestBody := &structs.SearchRequestBody{}
-	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
-		writeErrMsg(ctx, "ProcessTotalTracesRequest", "could not unmarshal json body", err)
-		return
-	}
-
-	searchRequestBody.QueryLanguage = "Splunk QL"
-	searchRequestBody.IndexName = "traces"
 	isOnlyTraceID, _ := ExtractTraceID(searchText)
 
 	if isOnlyTraceID {
@@ -206,6 +166,33 @@ func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	totalTraces := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.SetBodyString(strconv.Itoa(totalTraces))
+}
+func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchRequestBody, map[string]interface{}, error) {
+	rawJSON := ctx.PostBody()
+	if rawJSON == nil {
+		log.Errorf("Received empty search request body")
+		pipesearch.SetBadMsg(ctx)
+		return nil, nil, errors.New("Received empty search request body")
+	}
+
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	decoder.UseNumber()
+	err := decoder.Decode(&readJSON)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	searchRequestBody := &structs.SearchRequestBody{}
+	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
+		return nil, nil, err
+	}
+
+	searchRequestBody.QueryLanguage = "Splunk QL"
+	searchRequestBody.IndexName = "traces"
+
+	return searchRequestBody, readJSON, nil
 }
 
 func GetTotalUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter) int {
