@@ -236,6 +236,19 @@ func setTotalSegmentsToSearch(qid uint64, numSegments uint64) error {
 	return nil
 }
 
+func GetTotalSegmentsToSearch(qid uint64) (uint64, error) {
+	arqMapLock.RLock()
+	rQuery, ok := allRunningQueries[qid]
+	arqMapLock.RUnlock()
+	if !ok {
+		return 0, fmt.Errorf("qid does not exist")
+	}
+
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.totalSegments, nil
+}
+
 func setQidAsFinished(qid uint64) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
