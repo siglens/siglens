@@ -53,6 +53,22 @@ async function getAllDefaultDashboards() {
 	})
 	return serverResponse
 }
+async function getAllFavoriteDashboards() {
+    let serverResponse = []
+    await $.ajax({
+        method: 'get',
+        url: 'api/dashboards/listfavorites',
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': '*/*'
+        },
+        crossDomain: true,
+        dataType: 'json',
+    }).then(function (res) {
+		serverResponse = res;
+    })
+    return serverResponse
+}
 
 function createDashboard() {
 	$('.popupOverlay, .popupContent').addClass('active');
@@ -208,6 +224,20 @@ class btnRenderer {
         this.dButton = this.eGui.querySelector('.btn-simple');
         this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
         this.starIcon=this.eGui.querySelector('.star-icon');
+        this.starIcon.style.backgroundImage = favoriteDBsSet.has(params.data.uniqId) ? starFilledURL : starOutlineURL;
+
+		let defaultDashboardIds = [
+            "10329b95-47a8-48df-8b1d-0a0a01ec6c42",
+            "a28f485c-4747-4024-bb6b-d230f101f852",
+            "bd74f11e-26c8-4827-bf65-c0b464e1f2a4",
+            "53cb3dde-fd78-4253-808c-18e4077ef0f1"
+        ];
+
+        if (defaultDashboardIds.includes(params.data.uniqId)) {
+            this.dButton.disabled = true;
+            this.dButton.title = "Delete disabled";
+			this.dButton.classList.add('default-dashboard-delete'); 
+        }
 
         function view() {
             $.ajax({
@@ -298,11 +328,25 @@ class btnRenderer {
                 })
             })
         }
-        function toggleFavorite(){
-            params.data.favorite=!params.data.favorite;
-            this.starIcon.style.backgroundImage=params.data.favorite ? starFilledURL : starOutlineURL;       
-        }
-
+		function toggleFavorite() {
+			$.ajax({
+				method: 'put',
+				url: 'api/dashboards/favorite/' + params.data.uniqId,
+				headers: {
+					'Content-Type': 'application/json; charset=utf-8',
+					Accept: '*/*',
+				},
+				crossDomain: true,
+			}).then((response) => {
+				// Update the favorite status based on the response
+				params.data.favorite = response.isFavorite;
+				if(params.data.favorite) {
+					this.starIcon.style.backgroundImage = starFilledURL;
+				} else {
+					this.starIcon.style.backgroundImage = starOutlineURL;
+				}							
+			});
+		}
         function showPrompt() {
             $('#delete-db-prompt').css('display', 'flex');
             $('.popupOverlay, .popupContent').addClass('active');
@@ -504,6 +548,7 @@ function showDBNotFoundMsg() {
 	$('#dashboard-grid-container').hide();
 	$('#empty-response').show();
 }
+let favoriteDBsSet;
 
 $(document).ready(async function () {
 	if (Cookies.get('theme')) {
@@ -515,6 +560,9 @@ $(document).ready(async function () {
 	let normalDBs = await getAllDashboards();
 	let allDefaultDBs = await getAllDefaultDashboards();
 	let allDBs = {...normalDBs, ...allDefaultDBs}
+	let favoriteDBs = await getAllFavoriteDashboards();
+	// Convert the array of favorite dashboards to a Set for faster lookup
+	favoriteDBsSet = new Set(Object.keys(favoriteDBs));
 	displayDashboards(allDBs)
 
 	$('#create-db-btn').click(createDashboard);

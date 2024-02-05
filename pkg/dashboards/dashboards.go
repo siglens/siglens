@@ -303,9 +303,32 @@ func createDashboard(dname string, orgid uint64) (map[string]string, error) {
 
 	return retval, nil
 }
+
+func dashboardIsDefault(id string) bool {
+	defaultIds := []string{
+		"10329b95-47a8-48df-8b1d-0a0a01ec6c42",
+		"a28f485c-4747-4024-bb6b-d230f101f852",
+		"bd74f11e-26c8-4827-bf65-c0b464e1f2a4",
+		"53cb3dde-fd78-4253-808c-18e4077ef0f1",
+	}
+
+	for _, defaultId := range defaultIds {
+		if id == defaultId {
+			return true
+		}
+	}
+
+	return false
+}
+
 func toggleFavorite(id string) (bool, error) {
 	// Load the dashboard JSON file
-	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
+	var dashboardDetailsFname string
+	if dashboardIsDefault(id) {
+		dashboardDetailsFname = "defaultDBs/details/" + id + ".json"
+	} else {
+		dashboardDetailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
+	}
 	dashboardJson, err := os.ReadFile(dashboardDetailsFname)
 	if err != nil {
 		log.Errorf("toggleFavorite: Failed to read file=%v, err=%v", dashboardDetailsFname, err)
@@ -346,7 +369,7 @@ func toggleFavorite(id string) (bool, error) {
 }
 func getDashboard(id string) (map[string]interface{}, error) {
 	var dashboardDetailsFname string
-	if id == "10329b95-47a8-48df-8b1d-0a0a01ec6c42" || id == "a28f485c-4747-4024-bb6b-d230f101f852" || id == "bd74f11e-26c8-4827-bf65-c0b464e1f2a4" || id == "53cb3dde-fd78-4253-808c-18e4077ef0f1" {
+	if dashboardIsDefault(id) {
 		dashboardDetailsFname = "defaultDBs/details/" + id + ".json"
 	} else {
 		dashboardDetailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
@@ -578,6 +601,69 @@ func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx) {
 	utils.WriteJsonResponse(ctx, response)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
+
+func ProcessListFavoritesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	dIds, err := getAllFavoriteDashboardIds(myid)
+
+	if err != nil {
+		log.Errorf("ProcessListFavoritesRequest: could not get favorite dashboard ids, err=%v", err)
+		setBadMsg(ctx)
+		return
+	}
+	utils.WriteJsonResponse(ctx, dIds)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func getAllFavoriteDashboardIds(orgId uint64) (map[string]string, error) {
+	allDashboards, err := getAllDashboardIds(orgId)
+	if err != nil {
+		return nil, err
+	}
+
+	favoriteDashboards := make(map[string]string)
+	for id, name := range allDashboards {
+		isFavorite, err := isDashboardFavorite(id)
+		if err != nil {
+			return nil, err
+		}
+
+		if isFavorite {
+			favoriteDashboards[id] = name
+		}
+	}
+
+	return favoriteDashboards, nil
+}
+
+func isDashboardFavorite(id string) (bool, error) {
+	var dashboardDetailsFname string
+
+	if dashboardIsDefault(id) {
+		dashboardDetailsFname = "defaultDBs/details/" + id + ".json"
+	} else {
+		dashboardDetailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
+	}
+
+	dashboardJson, err := os.ReadFile(dashboardDetailsFname)
+	if err != nil {
+		return false, err
+	}
+
+	var dashboard map[string]interface{}
+	err = json.Unmarshal(dashboardJson, &dashboard)
+	if err != nil {
+		log.Errorf("isDashboardFavorite: Failed to unmarshal json, err=%v", err)
+		return false, err
+	}
+
+	isFav, ok := dashboard["isFavorite"].(bool)
+	if !ok {
+		isFav = false
+	}
+
+	return isFav, nil
+}
+
 func ProcessListAllRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	dIds, err := getAllDashboardIds(myid)
 

@@ -514,7 +514,7 @@ function processClusterStats(res) {
         scroller: true,
         lengthChange: false,
         searching: false,
-        order: [[0, 'desc']],
+        order: [],
         columnDefs: [],
         data: []
     };
@@ -525,6 +525,11 @@ function processClusterStats(res) {
     function displayIndexDataRows(res) {
         let totalIngestVolume = 0;
         let totalEventCount = 0;
+        let totalValRow = [];
+        totalValRow[0] = `Total`;
+        totalValRow[1] = `${Number(`${totalIngestVolume >= 10 ? totalIngestVolume.toFixed().toLocaleString("en-US") : totalIngestVolume}`)} GB`;
+        totalValRow[2] = `${totalEventCount.toLocaleString()}`;
+        indexDataTable.row.add(totalValRow);
         if (res.indexStats && res.indexStats.length > 0) {
             res.indexStats.map((item) => {
                 _.forEach(item, (v, k) => {
@@ -551,11 +556,8 @@ function processClusterStats(res) {
         }
       
         totalIngestVolume = Math.round(parseFloat(`${res.ingestionStats["Log Incoming Volume"]}`) * 1000)/1000
-        let totalValRow = [];
-        totalValRow[0] = `Total`;
         totalValRow[1] = `${Number(`${totalIngestVolume >= 10 ? totalIngestVolume.toFixed().toLocaleString("en-US") : totalIngestVolume}`)} GB`;
         totalValRow[2] = `${totalEventCount.toLocaleString()}`;
-        indexDataTable.row.add(totalValRow);
         indexDataTable.draw();
         metricsDataTable.draw();
     }

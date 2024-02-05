@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/utils"
@@ -37,7 +37,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
-		data, err = ioutil.ReadAll(reader)
+		data, err = io.ReadAll(reader)
 		if err != nil {
 			setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to gzip decompress the data")
 			return

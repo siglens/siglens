@@ -151,7 +151,7 @@ function filterStart(evt) {
   if (availColNames.length == 0) getColumns();
   $("#column-first")
     .autocomplete({
-      source: availColNames,
+      source: availColNames.sort(),
       minLength: 0,
       maxheight: 100,
       select: function (event, ui) {
@@ -432,7 +432,7 @@ function ThirdCancelInfo(event) {
 
 $("#column-second")
   .autocomplete({
-    source: calculations,
+    source: calculations.sort(),
     minLength: 0,
     maxheight: 100,
     select: function (event, ui) {
@@ -444,7 +444,7 @@ $("#column-second")
       $("#completed-second").attr("disabled", true);
       $("#value-second")
         .autocomplete({
-          source: columnInfo,
+          source: columnInfo.sort(),
           minLength: 0,
           select: function (event, ui) {
             let secVal = $("#column-second").val();
@@ -498,7 +498,7 @@ function getValuesofColumn(chooseColumn) {
     let arr = Array.from(valuesOfColumn);
     $("#value-first")
       .autocomplete({
-        source: arr,
+        source: arr.sort(),
         minLength: 0,
         select: function (event, ui) {
           //check if complete btn can click
