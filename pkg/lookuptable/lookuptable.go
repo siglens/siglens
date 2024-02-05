@@ -13,7 +13,8 @@ type LookupTable struct {
 	TemplateHook  func(tpl *template.Template)
 
 	// HTML templates
-	HelloHtml string
+	HelloHtml           string
+	LinkToOtherPageHtml string
 }
 
 var GlobalLookupTable = LookupTable{
