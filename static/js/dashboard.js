@@ -48,8 +48,10 @@ $(document).ready(function () {
     setupEventHandlers();
     dbId = getDashboardId();
 
-    $("#add-panel-btn").click(() => addPanel());
-
+    $("#add-panel-btn").click(() => {
+        addPanel();  
+        handlePanelEdit();  
+    });
     $(".all-dashboards").click(function () {
         window.location.href = "../dashboards-home.html";
     })
@@ -211,6 +213,21 @@ function goToDashboardFromView() {
 }
 
 function handlePanelEdit() {
+    $("#add-panel-btn").unbind("click");
+    $("#add-panel-btn").on("click", function () {
+        panelIndex = $(this).closest(".panel").attr("panel-index");
+
+        if ($('#viewPanel-container').css('display') !== 'none') {
+            editPanelInit(-1);
+        } else {
+            editPanelInit();
+        }
+        $('.panelEditor-container').show();
+        $('#app-container').hide();
+        $('.panelDisplay #panelLogResultsGrid').empty();
+        $('.panelDisplay .big-number-display-container').hide();
+        $('.panelDisplay #empty-response').hide();
+    })
     $(".panel-edit-li").unbind("click");
     $(".panel-edit-li").on("click", function () {
         panelIndex = $(this).closest(".panel").attr("panel-index");

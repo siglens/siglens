@@ -276,7 +276,28 @@ function editPanelInit(redirectedFromViewScreen) {
 	$('.panelDisplay #panelLogResultsGrid').empty();
 	$('.panelDisplay #panelLogResultsGrid').hide();
 	$('.panelDisplay .panel-info-corner').hide();
-	currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
+	if (localPanels[panelIndex] !== undefined) {
+		currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
+	} else {
+			currentPanel = {
+			"name": "Default Panel",
+			"panelIndex": panelIndex,
+			"panelId": "defaultPanelId",
+			"description": "",
+			"chartType": "",
+			"unit": "",
+			"dataType": "",
+			"gridpos": {
+				"h": 500, 
+				"w": 200, 
+				"x": 0,
+				"y": 0,
+				"wPercent": 10, 
+			},
+			"queryType": "",
+		};
+	}
+	
 	$('.panEdit-navBar .panEdit-dbName').html(`${dbName}`);
 	// reset inputs to show placeholders
 	$('.panEdit-navBar .panelTitle').html(currentPanel.name)
