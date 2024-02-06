@@ -18,8 +18,9 @@ package queryserver
 
 import (
 	"crypto/tls"
-	"html/template"
+	htmltemplate "html/template"
 	"net"
+	texttemplate "text/template"
 	"time"
 
 	"github.com/fasthttp/router"
@@ -85,7 +86,7 @@ func extractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*struc
 	return ssr
 }
 
-func (hs *queryserverCfg) Run(tpl *template.Template) error {
+func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) error {
 	query.InitQueryMetrics()
 	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
 	if err != nil {
@@ -94,7 +95,10 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 	}
 
 	hs.Router.GET("/{filename}.html", func(ctx *fasthttp.RequestCtx) {
-		renderTemplate(ctx, tpl)
+		renderHtmlTemplate(ctx, htmlTemplate)
+	})
+	hs.Router.GET("/js/{filename}.js", func(ctx *fasthttp.RequestCtx) {
+		renderJavaScriptTemplate(ctx, textTemplate)
 	})
 	hs.Router.GET(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler(0)))
 	hs.Router.POST(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler(0)))
@@ -277,7 +281,7 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 	return g.Run()
 }
 
-func renderTemplate(ctx *fasthttp.RequestCtx, tpl *template.Template) {
+func renderHtmlTemplate(ctx *fasthttp.RequestCtx, tpl *htmltemplate.Template) {
 	// data := uiCfgData{
 	// 	AlertEnabled: true,
 	// }
@@ -285,7 +289,20 @@ func renderTemplate(ctx *fasthttp.RequestCtx, tpl *template.Template) {
 	ctx.Response.Header.Set("Content-Type", "text/html; charset=utf-8")
 	err := tpl.ExecuteTemplate(ctx, filename+".html", lookuptable.GlobalLookupTable)
 	if err != nil {
-		log.Errorf("renderTemplate: unable to execute template, err: %v", err.Error())
+		log.Errorf("renderHtmlTemplate: unable to execute template, err: %v", err.Error())
+		return
+	}
+}
+
+func renderJavaScriptTemplate(ctx *fasthttp.RequestCtx, tpl *texttemplate.Template) {
+	// data := uiCfgData{
+	// 	AlertEnabled: true,
+	// }
+	filename := utils.ExtractParamAsString(ctx.UserValue("filename"))
+	ctx.Response.Header.Set("Content-Type", "application/javascript; charset=utf-8")
+	err := tpl.ExecuteTemplate(ctx, filename+".js", lookuptable.GlobalLookupTable)
+	if err != nil {
+		log.Errorf("renderJavaScriptTemplate: unable to execute template, err: %v", err.Error())
 		return
 	}
 }

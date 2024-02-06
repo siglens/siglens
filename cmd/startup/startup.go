@@ -20,10 +20,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
+	htmltemplate "html/template"
 	"os"
 	"os/signal"
 	"syscall"
+	texttemplate "text/template"
 	"time"
 
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
@@ -325,14 +326,15 @@ func startQueryServer(serverAddr string) {
 				log.Fatalf("startQueryServer: TemplateHook is nil")
 			}
 
-			tpl := template.New("html").Funcs(template.FuncMap{
-				"safeHTML": func(htmlContent string) template.HTML {
-					return template.HTML(htmlContent)
+			htmlTemplate := htmltemplate.New("html").Funcs(htmltemplate.FuncMap{
+				"safeHTML": func(htmlContent string) htmltemplate.HTML {
+					return htmltemplate.HTML(htmlContent)
 				},
 			})
-			templateHook(tpl)
+			textTemplate := texttemplate.New("other")
+			templateHook(htmlTemplate, textTemplate)
 
-			err := s.Run(tpl)
+			err := s.Run(htmlTemplate, textTemplate)
 			if err != nil {
 				log.Errorf("Failed to start server! Error: %v", err)
 			}

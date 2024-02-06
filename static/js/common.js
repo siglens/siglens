@@ -62,6 +62,7 @@ let measureFunctions = [];
 let measureInfo = [];
 let isTimechart = false;
 
+{{.HelloJs}}
 
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,
