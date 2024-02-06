@@ -166,8 +166,6 @@ function updateDashboard() {
 function refreshDashboardHandler() {
     if ($('#viewPanel-container').css('display') !== 'none') {
         displayPanelView(panelIndex);
-    } else if($('.panelEditor-container').css('display') !== 'none'){
-        runQueryBtnHandler()
     }
     else {
         for (let i = 0; i < localPanels.length; i++) {

@@ -1,0 +1,43 @@
+version: '3'
+services:
+  siglens:
+    image: ${IMAGE_NAME}
+    ports:
+      - "8081:8081"
+      - "${UI_PORT}:5122"
+    volumes:
+      - "${WORK_DIR}/data:/siglens/data:Z"
+      - "${WORK_DIR}/logs:/siglens/logs:Z"
+      - "${WORK_DIR}/${CONFIG_FILE}:/siglens/${CONFIG_FILE}:Z"
+    command: ["./siglens", "--config", "${CONFIG_FILE}"]
+    environment:
+      - UI_PORT=${UI_PORT}
+      - WORK_DIR=${WORK_DIR}
+      - IMAGE_NAME=${IMAGE_NAME}
+      - CSI=${CSI}
+    networks:
+      - podman-network_siglens
+  hotrod:
+    image: docker.io/jaegertracing/example-hotrod:1.53
+    ports:
+      - "8080:8080"
+    environment:
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://siglens:8081/otlp/v1/traces
+    depends_on:
+      - siglens
+    networks:
+      - podman-network_siglens
+
+  siglens-metrics-otel-collector:
+    image: docker.io/otel/opentelemetry-collector:latest  
+    volumes:
+      - "${WORK_DIR}/ssmetrics-otel-collector-config.yaml:/etc/ssmetrics-otel-collector-config.yaml:Z"
+    ports:
+      - "4318:4318"
+    command: ["--config=/etc/ssmetrics-otel-collector-config.yaml"]
+    networks:
+      - podman-network_siglens
+networks:
+  podman-network_siglens:
+    external:
+      name: podman-network_siglens

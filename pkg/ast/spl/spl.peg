@@ -790,7 +790,8 @@ DedupExpr <- limitArr:(SPACE IntegerAsString)? options1:(DedupOptions)? fieldLis
     dedupExpr := &structs.DedupExpr {
         FieldList: fieldList.([]string),
         Limit: 1,
-        DedupCombinations: make(map[string]uint64, 0),
+        DedupCombinations: make(map[string]map[int][]structs.DedupSortValue, 0),
+        DedupRecords: make(map[string]map[string]interface{}, 0),
     }
 
     if limitArr != nil {
@@ -827,6 +828,16 @@ DedupExpr <- limitArr:(SPACE IntegerAsString)? options1:(DedupOptions)? fieldLis
 
     if sortByClause != nil {
         dedupExpr.DedupSortEles = sortByClause.([]*structs.DedupSortElement)
+
+        // Make the DedupSortAscending from the DedupSortEles.
+        dedupExpr.DedupSortAscending = make([]int, len(dedupExpr.DedupSortEles))
+        for i, ele := range dedupExpr.DedupSortEles {
+            if ele.SortByAsc {
+                dedupExpr.DedupSortAscending[i] = 1
+            } else {
+                dedupExpr.DedupSortAscending[i] = -1
+            }
+        }
     }
 
     return dedupExpr, nil
@@ -927,7 +938,26 @@ DedupSortElements <- first:DedupSingleSortElement rest:(SPACE DedupSingleSortEle
     return dedupSortEles, nil
 }
 
-DedupSingleSortElement <- sortBySymbol:("+" / "-") op:("" / "auto" / "str" / "ip" / "num")? field:FieldName {
+DedupSingleSortElement <- element:(DedupSingleSortElementWithCast / DedupSingleSortElementWithoutCast) {
+    return element, nil
+}
+
+DedupSingleSortElementWithoutCast <- sortBySymbol:("+" / "-") field:FieldName {
+    sortByAsc := true
+
+    symbol := sortBySymbol.([]byte)
+    if(symbol[0] == '-') {
+        sortByAsc = false
+    }
+
+    return &structs.DedupSortElement {
+        SortByAsc: sortByAsc,
+        Op: "",
+        Field: field.(string),
+    }, nil
+}
+
+DedupSingleSortElementWithCast <- sortBySymbol:("+" / "-") op:("auto" / "str" / "ip" / "num") L_PAREN field:FieldName R_PAREN {
     sortByAsc := true
 
     symbol := sortBySymbol.([]byte)
@@ -937,7 +967,7 @@ DedupSingleSortElement <- sortBySymbol:("+" / "-") op:("" / "auto" / "str" / "ip
 
     opStr, err := transferUint8ToString(op)
     if err != nil {
-        return nil, fmt.Errorf("Spl peg: DedupSingleSortElement: %v", err)
+        return nil, fmt.Errorf("Spl peg: DedupSingleSortElementWithCast: %v", err)
     }
 
     return &structs.DedupSortElement {
