@@ -66,7 +66,7 @@ const contactFormHTML = `
                 <label for="slack-token">Slack API Token</label>
                 <input type="text" class="form-control" id="slack-token" style="position: relative;" required>
                     <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
-                    title="Provide a Slack API token (starts with “xoxb”)."
+                    title="Provide a Slack bot API token (starts with “xoxb”)."
                     id="info-slack-token"></i>
                 </div>
             </div>
