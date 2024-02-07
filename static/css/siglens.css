@@ -4203,7 +4203,18 @@ color: #C8C7CC;
 .evaluation-container,.condition-container,.notification-container,.query-container,.query-lang-container{
     display: flex;
 }
-
+.query-lang-container{
+    width: 92%;
+}
+.query-lang-container div, .query-lang-container div button{
+    width: 100%;
+}
+#alert-data-source,#logs-language-btn{
+    max-width: 210px;
+}
+#alert-condition,#contact-types,#contact-points-dropdown{
+    width: 210px;
+}
 .evaluation-container div,.condition-container div,.notification-container div{
     margin-right: 30px;
     margin-bottom: 0;
@@ -4248,7 +4259,6 @@ color: #C8C7CC;
 #alert-condition,#contact-types,#contact-points-dropdown,#alert-data-source,
 #logs-language-btn{
     height: 32px;
-    width: 210px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -4356,7 +4366,6 @@ color: #C8C7CC;
 }
 
 #alerting .timepicker .dropdown-toggle{
-    margin-left: 20px !important;
     height: 32px !important;
     display: flex;
     align-items: center;
@@ -4377,9 +4386,6 @@ color: #C8C7CC;
     align-items: center;
 }
 
-#logs-language-btn{
-    margin-left: 20px;
-}
 
 .clear-icon {
     position: absolute;
