@@ -66,6 +66,21 @@ else
     echo 'Not Supported Architecture'
 fi
 
+fetch_ip_info() {
+    response=$(curl -s https://ipinfo.io)
+
+    ip=$(echo "$response" | awk -F'"' '/ip/{print $4}' | head -n 1)
+    city=$(echo "$response" | awk -F'"' '/city/{print $4}')
+    region=$(echo "$response" | awk -F'"' '/region/{print $4}')
+    country=$(echo "$response" | awk -F'"' '/country/{print $4}')
+    loc=$(echo "$response" | awk -F'"' '/loc/{print $4}')
+    timezone=$(echo "$response" | awk -F'"' '/timezone/{print $4}')
+    latitude=$(echo "$loc" | cut -d',' -f1)
+    longitude=$(echo "$loc" | cut -d',' -f2)
+}
+
+fetch_ip_info
+
 post_event() {
   local event_code=$1
   local message=$2
@@ -80,7 +95,11 @@ post_event() {
         "os": "'"$os"'",
         "arch": "'"$arch"'",
         "package_manager": "'"$package_manager"'",
-        "message": "'"$message"'"
+        "message": "'"$message"'",
+        "ip": "'"$ip"'",
+        "city": "'"$city"'",
+        "region": "'"$region"'",
+        "country": "'"$country"'"
     }
     }'
 }
@@ -234,16 +253,21 @@ if ! is_command_present docker; then
 fi
 
 start_docker
+DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-siglens/siglens:${SIGLENS_VERSION}}"
+DOCKER_COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-docker-compose.yml}"
 
 echo -e "\n----------Pulling the latest docker image for SigLens----------"
 
-curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
-curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
-
-$sudo_cmd docker pull siglens/siglens:${SIGLENS_VERSION} || {
-    post_event "install_failed" "Failed to pull Docker image siglens/siglens:${SIGLENS_VERSION}"
-    print_error_and_exit "Failed to pull siglens/siglens:${SIGLENS_VERSION}. Please check your internet connection and Docker installation."
+if [ "$USE_LOCAL_DOCKER_COMPOSE" != true ]; then
+    curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
+    curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
+    echo "Pulling the latest docker image for SigLens from upstream"
+    $sudo_cmd docker pull $DOCKER_IMAGE_NAME || {
+    post_event "install_failed" "Failed to pull Docker image $DOCKER_IMAGE_NAME"
+    print_error_and_exit "Failed to pull $DOCKER_IMAGE_NAME. Please check your internet connection and Docker installation."
 }
+fi
+
 mkdir -p data || {
     post_event "install_failed" "Failed to create directory 'data'."
     print_error_and_exit "Failed to create directory 'data'. Please check your permissions."
@@ -263,7 +287,7 @@ chmod a+rwx logs || {
 }
 print_success_message "\n===> SigLens installation complete with version: ${SIGLENS_VERSION}"
 
-csi=$(ifconfig 2>/dev/null | grep -o -E '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
+csi=$(ifconfig 2>/dev/null | grep -o -E --color='never' '([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})' | head -n 1)
 if [ -z "$csi" ]; then
   csi=$(hostname)
 fi
@@ -321,14 +345,12 @@ if [ -n "${CONFIG_FILE}" ]; then
     CFILE=${CONFIG_FILE}
 fi
 
-
-
-# Run Docker compose files
-UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose -f ./docker-compose.yml up -d || {
-    post_event "install_failed" "Failed to start Docker Compose on $os with docker-compose.yml"
+print_success_message "\n Starting Siglens with image: ${DOCKER_IMAGE_NAME}"
+CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${DOCKER_IMAGE_NAME} docker-compose -f $DOCKER_COMPOSE_FILE up -d || {
+    post_event "install_failed" "Failed to start Docker Compose on $os with $DOCKER_COMPOSE_FILE"
     print_error_and_exit "Failed to start Docker Compose"
 }
-UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" SIGLENS_VERSION=${SIGLENS_VERSION} docker-compose logs -t --tail 20 >> dclogs.txt
+CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${DOCKER_IMAGE_NAME} docker-compose logs -t --tail 20 >> dclogs.txt
 sample_log_dataset_status=$(curl -s -o /dev/null -I -X HEAD -w "%{http_code}" http://localhost:5122/elastic/sample-log-dataset)
 
 if [ "$sample_log_dataset_status" -eq 200 ]; then

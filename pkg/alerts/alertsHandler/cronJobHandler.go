@@ -83,10 +83,22 @@ func evaluate(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
 	isFiring := evaluateConditions(serResVal, &alertToEvaluate.Condition, alertToEvaluate.Value)
 	if isFiring {
 		err := updateAlertState(alertToEvaluate.AlertId, alertutils.Firing)
+
 		if err != nil {
 			log.Errorf("ALERTSERVICE: evaluate: could not update the state to FIRING. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
+
 		}
 
+		alertEvent := alertutils.AlertHistoryDetails{
+			AlertId:          alertToEvaluate.AlertId,
+			EventDescription: alertutils.AlertFiring,
+			UserName:         alertutils.SystemGeneratedAlert,
+			EventTriggeredAt: time.Now().UTC(),
+		}
+		_, err = databaseObj.CreateAlertHistory(&alertEvent)
+		if err != nil {
+			log.Errorf("ALERTSERVICE: evaluate: could not create alert event in alert history. found error = %v", err)
+		}
 		err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId)
 		if err != nil {
 			log.Errorf("ALERTSERVICE: evaluate: could not setup the notification handler. found error = %v", err)
@@ -98,6 +110,18 @@ func evaluate(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
 			log.Errorf("ALERTSERVICE: evaluate: could not update the state to INACTIVE. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
 
 		}
+
+		alertEvent := alertutils.AlertHistoryDetails{
+			AlertId:          alertToEvaluate.AlertId,
+			EventDescription: alertutils.AlertNormal,
+			UserName:         alertutils.SystemGeneratedAlert,
+			EventTriggeredAt: time.Now().UTC(),
+		}
+		_, err = databaseObj.CreateAlertHistory(&alertEvent)
+		if err != nil {
+			log.Errorf("ALERTSERVICE: evaluate: could not create alert event in alert history. found error = %v", err)
+		}
+
 	}
 }
 
@@ -136,6 +160,17 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 			log.Errorf("MinionSearch: evaluate: could not update the state to FIRING. Alert=%+v & err=%+v.", msToEvaluate.AlertName, err)
 		}
 
+		alertEvent := alertutils.AlertHistoryDetails{
+			AlertId:          msToEvaluate.AlertId,
+			EventDescription: alertutils.AlertFiring,
+			UserName:         alertutils.SystemGeneratedAlert,
+			EventTriggeredAt: time.Now().UTC(),
+		}
+		_, err = databaseObj.CreateAlertHistory(&alertEvent)
+		if err != nil {
+			log.Errorf("MinionSearch: evaluate: could not create alert event in alert history. found error = %v", err)
+
+		}
 		err = NotifyAlertHandlerRequest(msToEvaluate.AlertId)
 		if err != nil {
 			log.Errorf("MinionSearch: evaluate: could not setup the notification handler. found error = %v", err)
@@ -145,6 +180,18 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 		err := updateMinionSearchState(msToEvaluate.AlertId, alertutils.Inactive)
 		if err != nil {
 			log.Errorf("MinionSearch: evaluate: could not update the state to INACTIVE. Alert=%+v & err=%+v.", msToEvaluate.AlertName, err)
+
+		}
+
+		alertEvent := alertutils.AlertHistoryDetails{
+			AlertId:          msToEvaluate.AlertId,
+			EventDescription: alertutils.AlertNormal,
+			UserName:         alertutils.SystemGeneratedAlert,
+			EventTriggeredAt: time.Now().UTC(),
+		}
+		_, err = databaseObj.CreateAlertHistory(&alertEvent)
+		if err != nil {
+			log.Errorf("MinionSearch: evaluate: could not create alert event in alert history. found error = %v", err)
 
 		}
 	}

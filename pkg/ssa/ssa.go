@@ -17,9 +17,13 @@ limitations under the License.
 package ssa
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/segmentio/analytics-go/v3"
@@ -42,6 +46,19 @@ var client analytics.Client = nil
 var ssaStarted = false
 var segmentKey string = "BPDjnefPV0Jc2BRGdGh7CQTnykYKbD8c"
 var userId = ""
+var IPAddressInfo IPAddressDetails
+var source = "computerID"
+
+type IPAddressDetails struct {
+	IP        string  `json:"ip"`
+	City      string  `json:"city"`
+	Region    string  `json:"region"`
+	Country   string  `json:"country"`
+	Loc       string  `json:"loc"`
+	Latitude  float64 `json:"-"`
+	Longitude float64 `json:"-"`
+	Timezone  string  `json:"timezone"`
+}
 
 type silentLogger struct {
 }
@@ -51,7 +68,41 @@ func (sl *silentLogger) Logf(format string, args ...interface{}) {
 
 func (sl *silentLogger) Errorf(format string, args ...interface{}) {
 }
+func FetchIPAddressDetails() (IPAddressDetails, error) {
+	var details IPAddressDetails
+	resp, err := http.Get("https://ipinfo.io")
+	if err != nil {
+		log.Errorf("Failed to fetch IP address details: %v", err)
+		return details, err
+	}
+	defer resp.Body.Close()
 
+	if err := json.NewDecoder(resp.Body).Decode(&details); err != nil {
+		log.Errorf("Failed to decode IP address details: %v", err)
+		return details, err
+	}
+
+	// Parse latitude and longitude from Loc
+	locParts := strings.Split(details.Loc, ",")
+	if len(locParts) == 2 {
+		if lat, err := strconv.ParseFloat(locParts[0], 64); err == nil {
+			details.Latitude = lat
+		} else {
+			log.Errorf("Failed to parse latitude: %v", err)
+		}
+		if lon, err := strconv.ParseFloat(locParts[1], 64); err == nil {
+			details.Longitude = lon
+		} else {
+			log.Errorf("Failed to parse longitude: %v", err)
+		}
+	} else {
+		log.Errorf("Failed to parse location: %v", details.Loc)
+	}
+
+	log.Infof("Successfully fetched and decoded IP address details")
+
+	return details, nil
+}
 func InitSsa() {
 
 	currClient, err := analytics.NewWithConfig(segmentKey,
@@ -65,7 +116,12 @@ func InitSsa() {
 		log.Errorf("Error initializing ssa: %v", err)
 		return
 	}
+	ipDetails, err := FetchIPAddressDetails()
+	if err != nil {
+		log.Fatalf("Failed to fetch IP address details: %v", err)
+	}
 
+	IPAddressInfo = ipDetails
 	client = currClient
 	go waitForInitialEvent()
 }
@@ -77,18 +133,22 @@ func waitForInitialEvent() {
 	props := analytics.NewProperties()
 
 	// Initialize computer-specific identifier
-	computerID, err := utils.GetSpecificIdentifier()
-	if err != nil {
-		log.Errorf("waitForInitialEvent: %v", err)
+	if userId = os.Getenv("CSI"); userId != "" {
+		source = "CSI"
+	} else {
+		var err error
+		userId, err = utils.GetSpecificIdentifier()
+		if err != nil {
+			log.Errorf("waitForInitialEvent: %v", err)
+			userId = "unknown"
+		}
 	}
-
-	userId = computerID
-
 	baseInfo := getBaseInfo()
 	for k, v := range baseInfo {
 		traits.Set(k, v)
 		props.Set(k, v)
 	}
+	props.Set("id_source", source)
 	_ = client.Enqueue(analytics.Identify{
 		UserId: userId,
 		Traits: traits,
@@ -144,6 +204,7 @@ func flushSsa() {
 	for k, v := range allSsa {
 		props.Set(k, v)
 	}
+	props.Set("id_source", source)
 	_ = client.Enqueue(analytics.Track{
 		Event:      "server status",
 		UserId:     userId,
@@ -173,6 +234,10 @@ func getBaseInfo() map[string]interface{} {
 	m["cpu_count"] = cpuCount
 	m["total_memory_gb"] = mem.Total / (1000 * 1000 * 1000)
 	m["company_name"] = "OSS"
+	m["ip"] = IPAddressInfo.IP
+	m["city"] = IPAddressInfo.City
+	m["region"] = IPAddressInfo.Region
+	m["country"] = IPAddressInfo.Country
 	return m
 }
 
@@ -181,6 +246,10 @@ func populateDeploymentSsa(m map[string]interface{}) {
 	m["company_name"] = "OSS"
 	m["version"] = config.SigLensVersion
 	m["deployment_type"] = getDeploymentType()
+	m["ip"] = IPAddressInfo.IP
+	m["city"] = IPAddressInfo.City
+	m["region"] = IPAddressInfo.Region
+	m["country"] = IPAddressInfo.Country
 }
 
 func populateIngestSsa(m map[string]interface{}) {
@@ -214,12 +283,20 @@ func populateIngestSsa(m map[string]interface{}) {
 	m["total_incoming_bytes"] = totalIncomingBytes
 	m["total_table_count"] = len(allVirtualTableNames)
 	m["largest_index_event_count"] = largestIndexEventCount
+	m["ip"] = IPAddressInfo.IP
+	m["city"] = IPAddressInfo.City
+	m["region"] = IPAddressInfo.Region
+	m["country"] = IPAddressInfo.Country
 }
 
 func populateQuerySsa(m map[string]interface{}) {
 	queryCount, totalResponseTime, querieSinceInstall := usageStats.GetQueryStats(0)
 	m["num_queries"] = queryCount
 	m["queries_since_install"] = querieSinceInstall
+	m["ip"] = IPAddressInfo.IP
+	m["city"] = IPAddressInfo.City
+	m["region"] = IPAddressInfo.Region
+	m["country"] = IPAddressInfo.Country
 	if queryCount > 1 {
 		m["avg_query_latency_ms"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime/float64(queryCount), 3)) + " ms"
 	} else {

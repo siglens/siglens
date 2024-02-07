@@ -56,6 +56,18 @@ func (AlertLabel) TableName() string {
 	return "alert_labels"
 }
 
+type AlertHistoryDetails struct {
+	ID               uint      `gorm:"primaryKey;autoIncrement:true"`
+	AlertId          string    `json:"alert_id"`
+	EventDescription string    `json:"event_description"`
+	UserName         string    `json:"user_name"`
+	EventTriggeredAt time.Time `json:"event_triggered_at"`
+}
+
+func (AlertHistoryDetails) TableName() string {
+	return "alert_history_details"
+}
+
 type QueryParams struct {
 	DataSource    string `json:"data_source"`
 	QueryLanguage string `json:"queryLanguage"`
@@ -119,6 +131,11 @@ const (
 	Inactive AlertState = iota
 	Pending
 	Firing
+	SystemGeneratedAlert = "System Generated"
+	UserModified         = "User Modified"
+	AlertFiring          = "Alert Firing"
+	AlertNormal          = "Alert Normal"
+	ConfigChange         = "Config Modified"
 )
 
 // This MUST be synced with how https://github.com/sigscalr/logminion structures

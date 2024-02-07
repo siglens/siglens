@@ -423,7 +423,7 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 			endDuration = (endEpoch.UnixMilli() / segutils.MS_IN_MIN) * segutils.MS_IN_MIN
 			runningTs = startEpoch
 
-			for endDuration >= startDuration {
+			for endDuration > startDuration+segutils.MS_IN_MIN {
 				runningTs = runningTs.Add(1 * time.Minute)
 				startDuration = startDuration + segutils.MS_IN_MIN
 				bucketInterval := runningTs.Format("2006-01-02T15:04")

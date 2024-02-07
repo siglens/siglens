@@ -18,7 +18,7 @@ package tests
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 	"regexp"
 	"testing"
@@ -72,7 +72,7 @@ func extractExpressionFilter(t *testing.T, node *ast.Node) *structs.ExpressionFi
 // Initial setup.
 func TestMain(m *testing.M) {
 	// Suppress log output.
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	// Run the tests.
 	os.Exit(m.Run())
@@ -2919,12 +2919,12 @@ func Test_statisticBlockWithoutStatsGroupBy(t *testing.T) {
 	assert.Equal(t, structs.SFMRare, int(aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticFunctionMode))
 
 	assert.Equal(t, "3", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Limit)
-	assert.Equal(t, "gender", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.CountField)
-	assert.Equal(t, "testOther", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.OtherStr)
-	assert.Equal(t, "http_method", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.PercentField)
-	assert.Equal(t, true, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.ShowCount)
-	assert.Equal(t, false, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.ShowPerc)
-	assert.Equal(t, true, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.UseOther)
+	assert.Equal(t, "gender", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.CountField)
+	assert.Equal(t, "testOther", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.OtherStr)
+	assert.Equal(t, "http_method", aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.PercentField)
+	assert.Equal(t, true, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.ShowCount)
+	assert.Equal(t, false, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.ShowPerc)
+	assert.Equal(t, true, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.UseOther)
 
 	assert.Equal(t, []string{"http_method", "gender"}, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.FieldList)
 	assert.Equal(t, []string{"country", "http_status"}, aggregator.Next.OutputTransforms.LetColumns.StatisticColRequest.ByClause)
@@ -2957,12 +2957,12 @@ func Test_statisticBlockWithStatsGroupBy(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest)
 	assert.Equal(t, structs.SFMTop, int(aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticFunctionMode))
 	assert.Equal(t, "2", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Limit)
-	assert.Equal(t, "true", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.CountField)
-	assert.Equal(t, "other", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.OtherStr)
-	assert.Equal(t, "weekday", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.PercentField)
-	assert.Equal(t, true, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.ShowCount)
-	assert.Equal(t, true, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.ShowPerc)
-	assert.Equal(t, true, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.Options.UseOther)
+	assert.Equal(t, "true", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.CountField)
+	assert.Equal(t, "other", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.OtherStr)
+	assert.Equal(t, "weekday", aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.PercentField)
+	assert.Equal(t, true, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.ShowCount)
+	assert.Equal(t, true, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.ShowPerc)
+	assert.Equal(t, true, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.StatisticOptions.UseOther)
 
 	assert.Equal(t, []string{"gg", "state", "http_status"}, aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.FieldList)
 	assert.Equal(t, []string(nil), aggregator.Next.Next.Next.OutputTransforms.LetColumns.StatisticColRequest.ByClause)
@@ -4769,6 +4769,174 @@ func Test_headWithLimitKeyword(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.Equal(t, aggregator.OutputTransforms.MaxRows, uint64(15))
+}
+
+func Test_dedupOneField(t *testing.T) {
+	query := []byte(`A=1 | dedup state`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.DedupColRequest)
+
+	dedupExpr := aggregator.OutputTransforms.LetColumns.DedupColRequest
+	assert.Equal(t, dedupExpr.Limit, uint64(1))
+	assert.Equal(t, dedupExpr.FieldList, []string{"state"})
+	assert.NotNil(t, dedupExpr.DedupOptions)
+	assert.Equal(t, dedupExpr.DedupOptions.Consecutive, false)
+	assert.Equal(t, dedupExpr.DedupOptions.KeepEmpty, false)
+	assert.Equal(t, dedupExpr.DedupOptions.KeepEvents, false)
+	assert.Len(t, dedupExpr.DedupSortEles, 0)
+}
+
+func Test_dedupMultipleFields(t *testing.T) {
+	query := []byte(`A=1 | dedup state weekday http_status`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.DedupColRequest)
+
+	dedupExpr := aggregator.OutputTransforms.LetColumns.DedupColRequest
+	assert.Equal(t, dedupExpr.Limit, uint64(1))
+	assert.Equal(t, dedupExpr.FieldList, []string{"state", "weekday", "http_status"})
+	assert.NotNil(t, dedupExpr.DedupOptions)
+	assert.Equal(t, dedupExpr.DedupOptions.Consecutive, false)
+	assert.Equal(t, dedupExpr.DedupOptions.KeepEmpty, false)
+	assert.Equal(t, dedupExpr.DedupOptions.KeepEvents, false)
+	assert.Len(t, dedupExpr.DedupSortEles, 0)
+}
+
+func Test_dedupWithLimit(t *testing.T) {
+	query := []byte(`A=1 | dedup 4 state weekday http_status`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.DedupColRequest)
+
+	dedupExpr := aggregator.OutputTransforms.LetColumns.DedupColRequest
+	assert.Equal(t, dedupExpr.Limit, uint64(4))
+	assert.Equal(t, dedupExpr.FieldList, []string{"state", "weekday", "http_status"})
+	assert.NotNil(t, dedupExpr.DedupOptions)
+	assert.Equal(t, dedupExpr.DedupOptions.Consecutive, false)
+	assert.Equal(t, dedupExpr.DedupOptions.KeepEmpty, false)
+	assert.Equal(t, dedupExpr.DedupOptions.KeepEvents, false)
+	assert.Len(t, dedupExpr.DedupSortEles, 0)
+}
+
+func Test_dedupWithOptionsBeforeFieldList(t *testing.T) {
+	query := []byte(`A=1 | dedup keepevents=true keepempty=false consecutive=true state weekday http_status `)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.DedupColRequest)
+
+	dedupExpr := aggregator.OutputTransforms.LetColumns.DedupColRequest
+	assert.Equal(t, dedupExpr.Limit, uint64(1))
+	assert.Equal(t, dedupExpr.FieldList, []string{"state", "weekday", "http_status"})
+	assert.NotNil(t, dedupExpr.DedupOptions)
+	assert.Equal(t, dedupExpr.DedupOptions.Consecutive, true)
+	assert.Equal(t, dedupExpr.DedupOptions.KeepEmpty, false)
+	assert.Equal(t, dedupExpr.DedupOptions.KeepEvents, true)
+	assert.Len(t, dedupExpr.DedupSortEles, 0)
+}
+
+func Test_dedupWithOptionsAfterFieldList(t *testing.T) {
+	query := []byte(`A=1 | dedup state weekday http_status keepevents=true keepempty=true consecutive=false`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.DedupColRequest)
+
+	dedupExpr := aggregator.OutputTransforms.LetColumns.DedupColRequest
+	assert.Equal(t, dedupExpr.Limit, uint64(1))
+	assert.Equal(t, dedupExpr.FieldList, []string{"state", "weekday", "http_status"})
+	assert.NotNil(t, dedupExpr.DedupOptions)
+	assert.Equal(t, dedupExpr.DedupOptions.Consecutive, false)
+	assert.Equal(t, dedupExpr.DedupOptions.KeepEmpty, true)
+	assert.Equal(t, dedupExpr.DedupOptions.KeepEvents, true)
+	assert.Len(t, dedupExpr.DedupSortEles, 0)
+}
+
+func Test_dedupWithSortBy(t *testing.T) {
+	query := []byte(`A=1 | dedup state weekday http_status sortby +weekday -state`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.DedupColRequest)
+
+	dedupExpr := aggregator.OutputTransforms.LetColumns.DedupColRequest
+	assert.Equal(t, dedupExpr.Limit, uint64(1))
+	assert.Equal(t, dedupExpr.FieldList, []string{"state", "weekday", "http_status"})
+	assert.NotNil(t, dedupExpr.DedupOptions)
+	assert.Equal(t, dedupExpr.DedupOptions.Consecutive, false)
+	assert.Equal(t, dedupExpr.DedupOptions.KeepEmpty, false)
+	assert.Equal(t, dedupExpr.DedupOptions.KeepEvents, false)
+	assert.Len(t, dedupExpr.DedupSortEles, 2)
+	assert.Equal(t, dedupExpr.DedupSortEles[0].SortByAsc, true)
+	assert.Equal(t, dedupExpr.DedupSortEles[0].Op, "")
+	assert.Equal(t, dedupExpr.DedupSortEles[0].Field, "weekday")
+	assert.Equal(t, dedupExpr.DedupSortEles[1].SortByAsc, false)
+	assert.Equal(t, dedupExpr.DedupSortEles[1].Op, "")
+	assert.Equal(t, dedupExpr.DedupSortEles[1].Field, "state")
 }
 
 // SPL Transaction command.

@@ -1161,7 +1161,7 @@ input:checked + .slider:before {
   top: 0;
   left: 0;
   border-bottom: 30px solid #0000;
-  border-left: 32px solid #9784E2;
+  border-left: 32px solid var(--purple-1);
   border-right: none;
   border-radius: 5px 0;
   cursor: pointer;
@@ -1191,8 +1191,8 @@ input:checked + .slider:before {
   cursor: pointer;
   border-radius: 0 5px 5px 0 !important;
   margin-top: -3px;
-  width: 32px;
-  padding: 0;
+  width: auto;
+  padding: 0 5px;
 }
 
 #refresh-picker-btn:hover {
@@ -1296,9 +1296,11 @@ input:checked + .slider:before {
   }
 .refresh-btn:hover{
   background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
+  background-size: 46% !important;
   }
 #save-db-btn:hover{
   background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
+  background-size: 45% !important;
 }
 .panel-header:hover{
   background-color: var(--edit-panel-border-color) !important;

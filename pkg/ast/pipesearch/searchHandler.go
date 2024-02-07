@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -263,6 +264,10 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 
 		if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 			sizeLimit = 0
+		} else if aggs.HasDedupBlockInChain() {
+			// Dedup needs to see all the matched records before it can return any
+			// of them when there's a sortby option.
+			sizeLimit = math.MaxUint64
 		}
 		qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
@@ -389,6 +394,10 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
+	} else if aggs.HasDedupBlockInChain() {
+		// Dedup needs to see all the matched records before it can return any
+		// of them when there's a sortby option.
+		sizeLimit = math.MaxUint64
 	}
 
 	// If MaxRows is used to limit the number of returned results, set `sizeLimit`

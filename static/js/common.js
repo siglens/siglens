@@ -414,12 +414,13 @@ function getCookie(cname) {
 function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res) {
     resetQueryResAttr(res, panelId);
     //if data source is metrics
-    if(!res.qtype) {
+    if(!res.qtype && chartType != "number") {
         panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId)
     }
     if (res.qtype === "logs-query") {
         panelProcessEmptyQueryResults("", panelId);
     }
+    
     if (res.qtype === "aggs-query" || res.qtype === "segstats-query") {
         if (panelId == -1) { // for panel on the editPanelScreen page
             $(".panelDisplay #panelLogResultsGrid").hide();
@@ -428,7 +429,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             $(".panelDisplay #empty-response").hide();
             $('.panelDisplay .panEdit-panel').show();
             $(`.panelDisplay .big-number-display-container`).empty();
-            $(`.panelDisplay .big-number-display-container`).hide();
+	        $(`.panelDisplay .big-number-display-container`).hide();
         } else { // for panels on the dashboard page
             $(`#panel${panelId} #panelLogResultsGrid`).hide();
             $(`#panel${panelId} #empty-response`).empty();
@@ -436,7 +437,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             $(`#panel${panelId} #empty-response`).hide();
             $(`#panel${panelId} .panEdit-panel`).show();
             $(`.panelDisplay .big-number-display-container`).empty();
-            $(`.panelDisplay .big-number-display-container`).hide();
+	        $(`.panelDisplay .big-number-display-container`).hide();
         }
 
         let columnOrder = []
@@ -530,11 +531,12 @@ function runMetricsQuery(data, panelId, currentPanel, queryRes) {
                 }
                 $('body').css('cursor', 'default')
             })
-    }
+    }  
 }
 
-function processMetricsSearchResult(res, startTime, panelId, chartType) {
+function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex,dataType) {
     resetQueryResAttr(res, panelId);
+    let bigNumVal = null;
     if (panelId == -1) { // for panel on the editPanelScreen page
         $(".panelDisplay #panelLogResultsGrid").hide();
         $(".panelDisplay #empty-response").empty();
@@ -552,59 +554,83 @@ function processMetricsSearchResult(res, startTime, panelId, chartType) {
     if (res.aggStats && Object.keys(res.aggStats).length === 0) {
         panelProcessEmptyQueryResults("", panelId);
         $('body').css('cursor', 'default');
-        $(`#panel${panelId} .panel-body #panel-loading`).hide();
+	    $(`#panel${panelId} .panel-body #panel-loading`).hide();
     } else {
-        hideError();
-        const colors = createMetricsColorsArray();
-        let seriesArray = [];
-        let label = [];
-        $.each(res, function (key, value) {
-            var series = value;
-            $.each(series, function (key, value) {
-                seriesArray.push({ seriesName: key, values: value });
-                label = [];
-                $.each(value, function (k, v) {
-                    label.push(k);
-                })
-            })
-            let gridLineColor;
-            let tickColor;
-            if ($('body').attr('data-theme') == "light") {
-                gridLineColor = "#DCDBDF";
-                tickColor = "#160F29";
-            }
-            else {
-                gridLineColor = "#383148";
-                tickColor = "#FFFFFF"
-            }
-            metricsDatasets = seriesArray.map((o, i) => {
-                return {
-                    name: o.seriesName,
-                    data: Object.values(o.values),
-                    type: chartType,
-                    lineStyle: {
-                        color: colors[i],
-                        width: 2,
-                        type: 'solid',
-                        backgroundColor: colors[i],
-                        borderColor: colors[i],
-                    }, itemStyle: {
-                        color: colors[i],
-                        width: 2,
-                        type: 'solid',
-                        backgroundColor: colors[i],
-                        borderColor: colors[i],
-                    },
+        if (chartType === 'number'){
+            $.each(res, function (key, value) {
+                var series = value;
+                $.each(series, function (key, value) {
+                    var tsmap = value
+                    $.each(tsmap, function (key, value) {
+                        if (value > 0){
+                            bigNumVal = value
+                        }
+                    })
+                })         
+            });   
+            if(bigNumVal === undefined || bigNumVal === null){
+                panelProcessEmptyQueryResults("", panelId);
+            }else{
+                displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
+                allResultsDisplayed--;
+                if(allResultsDisplayed <= 0 || panelId === -1) {
+                    $('body').css('cursor', 'default');
                 }
-            }
-            );
-        })
-        let labels = label;
+                $(`#panel${panelId} .panel-body #panel-loading`).hide();   
+            } 
+        } else {
+            hideError();
+            const colors = createMetricsColorsArray();
+            let seriesArray = [];
+            let label = [];
+            $.each(res, function (key, value) {
+                var series = value;
+                $.each(series, function (key, value) {
+                    seriesArray.push({ seriesName: key, values: value });
+                    label = [];
+                    $.each(value, function (k, v) {
+                        label.push(k);
+                    })
+                })
+                let gridLineColor;
+                let tickColor;
+                if ($('body').attr('data-theme') == "light") {
+                    gridLineColor = "#DCDBDF";
+                    tickColor = "#160F29";
+                }
+                else {
+                    gridLineColor = "#383148";
+                    tickColor = "#FFFFFF"
+                }
+                metricsDatasets = seriesArray.map((o, i) => {
+                    return {
+                        name: o.seriesName,
+                        data: Object.values(o.values),
+                        type: chartType,
+                        lineStyle: {
+                            color: colors[i],
+                            width: 2,
+                            type: 'solid',
+                            backgroundColor: colors[i],
+                            borderColor: colors[i],
+                        }, itemStyle: {
+                            color: colors[i],
+                            width: 2,
+                            type: 'solid',
+                            backgroundColor: colors[i],
+                            borderColor: colors[i],
+                        },
+                    }
+                }
+                );
+            })
+            let labels = label;
 
-        renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, -1);
-        allResultsDisplayed--;
-        if(allResultsDisplayed <= 0 || panelId === -1) {
-            $('body').css('cursor', 'default');
+            renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, -1);
+            allResultsDisplayed--;
+            if(allResultsDisplayed <= 0 || panelId === -1) {
+                $('body').css('cursor', 'default');
+            }
         }
     }
 }
@@ -740,29 +766,9 @@ function showRetDaysUpdateToast(msg) {
     setTimeout(removeToast, 3000);
 }
 
-function getIngestionToken(org_name) {
-    let data = { org_name };
-    return $.ajax({
-        method: 'post',
-        url: 'api/viewToken',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
-        },
-        data: JSON.stringify(data),
-        dataType: 'json',
-        crossDomain: true,
-    }).then((res) => {
-        if(window.location.pathname === "/apiKeys.html")
-            populateIngestionToken(res);
-        if(window.location.pathname === "/test-data.html")
-            myOrgSendTestData(res.token);
-    }).catch((err) => console.log(err));
-}
 
-function populateIngestionToken(res) {
-    $('#itoken').val(res.token);
-}
+
+
 
 function myOrgSendTestData(token) {
     $('#test-data-btn').on('click', (e) => {
@@ -814,14 +820,20 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
             break;
         case "Line Chart":
             let startTime = (new Date()).getTime();
-            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType)
+            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,"")
             break;
         case "number":
+            
             if (currentPanel.unit === "" || currentPanel.dataType === "none" || currentPanel.dataType === ""){
                 currentPanel.unit = "misc"
                 currentPanel.dataType = "none"
             }
-            renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
+            if (currentPanel.queryType == 'metrics'){
+                let startTime = (new Date()).getTime();
+                processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,currentPanel.dataType)
+            }else{
+                renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
+            }
             break;
     }
 }

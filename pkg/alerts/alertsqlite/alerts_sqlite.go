@@ -71,6 +71,10 @@ func (p *Sqlite) Connect() error {
 	if err != nil {
 		return err
 	}
+	err = dbConnection.AutoMigrate(&alertutils.AlertHistoryDetails{})
+	if err != nil {
+		return err
+	}
 	err = dbConnection.AutoMigrate(&alertutils.Notification{})
 	if err != nil {
 		return err
@@ -580,4 +584,42 @@ func (p Sqlite) verifyMinionSearchExists(alert_id string) (bool, string, error) 
 		}
 	}
 	return true, "", nil
+}
+
+func (p Sqlite) CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error) {
+	if !isValid(alertHistoryDetails.AlertId) || !isValid(alertHistoryDetails.EventDescription) || !isValid(alertHistoryDetails.UserName) {
+		log.Errorf("CreateAlertHistory: data validation check failed")
+		return nil, errors.New("CreateAlertHistory: data validation check failed")
+	}
+
+	result := p.db.Create(alertHistoryDetails)
+	if result.Error != nil && result.RowsAffected != 1 {
+		log.Errorf("createAlert: unable to create alert:%v", result.Error)
+		return &alertutils.AlertHistoryDetails{}, result.Error
+	}
+	return alertHistoryDetails, nil
+}
+
+func (p Sqlite) GetAlertHistory(alertId string) ([]*alertutils.AlertHistoryDetails, error) {
+	if !isValid(alertId) {
+		log.Errorf("GetAlertHistory: data validation check failed")
+		return nil, errors.New("GetAlertHistory: data validation check failed")
+	}
+
+	alertExists, _, err := p.verifyAlertExists(alertId)
+	if err != nil {
+		log.Errorf("GetAlertHistory: unable to verify if alert exists, err: %+v", err)
+		return nil, err
+	}
+
+	if !alertExists {
+		log.Errorf("GetAlertHistory: alert does not exist")
+		return nil, errors.New("alert does not exist")
+	}
+
+	alertHistory := make([]*alertutils.AlertHistoryDetails, 0)
+
+	err = p.db.First(&alertHistory).Where("alert_id = ?", alertId).Error
+	return alertHistory, err
+
 }

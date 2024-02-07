@@ -39,6 +39,8 @@ type database interface {
 	SetDB(db *gorm.DB)
 	CreateAlert(alertInfo *alertutils.AlertDetails) (alertutils.AlertDetails, error)
 	GetAlert(alert_id string) (*alertutils.AlertDetails, error)
+	CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error)
+	GetAlertHistory(alertId string) ([]*alertutils.AlertHistoryDetails, error)
 	GetAllAlerts() ([]alertutils.AlertDetails, error)
 	CreateMinionSearch(alertInfo *alertutils.MinionSearch) (alertutils.MinionSearch, error)
 	GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error)
@@ -313,7 +315,20 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	// TODO: Update Username with specific user who changed the config. Username can be fetched from "ctx" when the authentication is implemented.
+	alertEvent := alertutils.AlertHistoryDetails{
+		AlertId:          alertToBeUpdated.AlertId,
+		EventDescription: alertutils.ConfigChange,
+		UserName:         alertutils.UserModified,
+		EventTriggeredAt: time.Now().UTC(),
+	}
+	_, err = databaseObj.CreateAlertHistory(&alertEvent)
+	if err != nil {
+		log.Errorf("ProcessUpdateAlertRequest: could not create alert event in alert history. found error = %v", err)
+	}
+
 	err = RemoveCronJob(alertToBeUpdated.AlertId)
+
 	if err != nil {
 		log.Errorf("ProcessUpdateAlertRequest: could not remove old cron job corresponding to alert=%+v, err=%+v", alertToBeUpdated.AlertName, err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -333,6 +348,32 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 	responseBody["message"] = "Alert updated successfully"
 	utils.WriteJsonResponse(ctx, responseBody)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessAlertHistoryRequest(ctx *fasthttp.RequestCtx) {
+	if databaseObj == nil {
+		responseBody := make(map[string]interface{})
+		log.Errorf("ProcessAlertHistoryRequest: failed to get alert history, err = %+v", invalidDatabaseProvider)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		responseBody["error"] = invalidDatabaseProvider
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	}
+
+	responseBody := make(map[string]interface{})
+	alertId := utils.ExtractParamAsString(ctx.UserValue("alertID"))
+	alertHistory, err := databaseObj.GetAlertHistory(alertId)
+	if err != nil {
+		log.Errorf("ProcessAlertHistoryRequest: failed to get alert history with alertId = %+v, err = %+v", alertId, err.Error())
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		responseBody["error"] = err.Error()
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	}
+
+	responseBody["alertHistory"] = alertHistory
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, responseBody)
 }
 
 // request body should contain alert_id only
