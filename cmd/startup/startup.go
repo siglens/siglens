@@ -144,8 +144,8 @@ func StartSiglensServer(nodeType config.DeploymentType, nodeID string) error {
 	instrumentation.InitMetrics()
 	querytracker.InitQT()
 
-	// alertsHandler.InitAlertingService()
-	// alertsHandler.InitMinionSearchService()
+	alertsHandler.InitAlertingService()
+	alertsHandler.InitMinionSearchService()
 	go tracinghandler.MonitorSpansHealth()
 	go tracinghandler.DependencyGraphThread()
 
@@ -164,7 +164,7 @@ func ShutdownSiglensServer() {
 	scroll.ForcedFlushToScrollFile()
 	ssa.StopSsa()
 	usageStats.ForceFlushStatstoFile()
-	// alertsHandler.Disconnect()
+	alertsHandler.Disconnect()
 }
 
 func startIngestServer(serverAddr string) {

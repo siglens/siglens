@@ -54,7 +54,7 @@ func AddCronJob(alertDataObj *alertutils.AlertDetails) (*gocron.Job, error) {
 func AddMinionSearchCronJob(alertDataObj *alertutils.MinionSearch) (*gocron.Job, error) {
 	evaluationIntervalInSec := int(alertDataObj.EvalInterval * 60)
 
-	cron_job, err := s.Every(evaluationIntervalInSec).Second().Tag(alertDataObj.AlertInfo.AlertId).DoWithJobDetails(evaluateMinionSearch, alertDataObj)
+	cron_job, err := s.Every(evaluationIntervalInSec).Second().Tag(alertDataObj.AlertId).DoWithJobDetails(evaluateMinionSearch, alertDataObj)
 	if err != nil {
 		log.Errorf("AddMinionSearchCronJob: Error adding a new cronJob to the CRON Scheduler: %s", err)
 		return &gocron.Job{}, err
@@ -102,8 +102,8 @@ func evaluate(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
 }
 
 func updateAlertState(alertId string, alertState alertutils.AlertState) error {
-	// err := databaseObj.UpdateAlertStateByAlertID(alertId, alertState)
-	return nil
+	err := databaseObj.UpdateAlertStateByAlertID(alertId, alertState)
+	return err
 }
 
 func evaluateConditions(serResVal int, queryCond *alertutils.AlertQueryCondition, val float32) bool {
@@ -129,28 +129,28 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 		log.Errorf("MinionSearch: evaluate: Empty response returned by server.")
 		return
 	}
-	isFiring := evaluateConditions(serResVal, &msToEvaluate.Condition, msToEvaluate.Value1)
+	isFiring := evaluateConditions(serResVal, &msToEvaluate.Condition, msToEvaluate.Value)
 	if isFiring {
-		err := updateMinionSearchState(msToEvaluate.AlertInfo.AlertId, alertutils.Firing)
+		err := updateMinionSearchState(msToEvaluate.AlertId, alertutils.Firing)
 		if err != nil {
-			log.Errorf("MinionSearch: evaluate: could not update the state to FIRING. Alert=%+v & err=%+v.", msToEvaluate.AlertInfo.AlertName, err)
+			log.Errorf("MinionSearch: evaluate: could not update the state to FIRING. Alert=%+v & err=%+v.", msToEvaluate.AlertName, err)
 		}
 
-		err = NotifyAlertHandlerRequest(msToEvaluate.AlertInfo.AlertId)
+		err = NotifyAlertHandlerRequest(msToEvaluate.AlertId)
 		if err != nil {
 			log.Errorf("MinionSearch: evaluate: could not setup the notification handler. found error = %v", err)
 			return
 		}
 	} else {
-		err := updateMinionSearchState(msToEvaluate.AlertInfo.AlertId, alertutils.Inactive)
+		err := updateMinionSearchState(msToEvaluate.AlertId, alertutils.Inactive)
 		if err != nil {
-			log.Errorf("MinionSearch: evaluate: could not update the state to INACTIVE. Alert=%+v & err=%+v.", msToEvaluate.AlertInfo.AlertName, err)
+			log.Errorf("MinionSearch: evaluate: could not update the state to INACTIVE. Alert=%+v & err=%+v.", msToEvaluate.AlertName, err)
 
 		}
 	}
 }
 
 func updateMinionSearchState(alertId string, alertState alertutils.AlertState) error {
-	// err := databaseObj.UpdateMinionSearchStateByAlertID(alertId, alertState)
-	return nil
+	err := databaseObj.UpdateMinionSearchStateByAlertID(alertId, alertState)
+	return err
 }

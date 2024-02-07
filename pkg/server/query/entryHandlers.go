@@ -406,7 +406,7 @@ func getAllAlertsHandler() func(ctx *fasthttp.RequestCtx) {
 
 func getAllMinionSearchesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		// alertsHandler.ProcessGetAllMinionSearchesRequest(ctx)
+		alertsHandler.ProcessGetAllMinionSearchesRequest(ctx)
 	}
 }
 

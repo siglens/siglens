@@ -42,6 +42,14 @@ func (p *Sqlite) SetDB(dbConnection *gorm.DB) {
 	p.db = dbConnection
 }
 
+func (p *Sqlite) CloseDb() {
+	sqlDB, err := p.db.DB()
+	if err != nil {
+		log.Errorf("Error occurred while closing a DB connection")
+	}
+	defer sqlDB.Close()
+}
+
 func (p *Sqlite) Connect() error {
 	dbname := "siglens.db"
 	logger := logrus.New()
@@ -72,6 +80,10 @@ func (p *Sqlite) Connect() error {
 		return err
 	}
 	err = dbConnection.AutoMigrate(&alertutils.SlackTokenConfig{})
+	if err != nil {
+		return err
+	}
+	err = dbConnection.AutoMigrate(&alertutils.MinionSearch{})
 	if err != nil {
 		return err
 	}
@@ -131,7 +143,7 @@ func (p Sqlite) verifyContactExists(contact_id string) (bool, error) {
 			return false, err
 		}
 	}
-	return false, nil
+	return true, nil
 }
 
 // Generates uniq uuid for alert, contact point
@@ -167,6 +179,7 @@ func (p Sqlite) CreateAlert(alertDetails *alertutils.AlertDetails) (alertutils.A
 	var notification alertutils.Notification
 	notification.CooldownPeriod = 0
 	notification.AlertId = alert_id
+	notification.NotificationId = CreateUniqId()
 	result = p.db.Create(&notification)
 	if result.Error != nil && result.RowsAffected != 1 {
 		log.Errorf("createAlert: unable to update notification details:%v", result.Error)
@@ -190,10 +203,8 @@ func (p Sqlite) GetAlert(alert_id string) (*alertutils.AlertDetails, error) {
 
 func (p Sqlite) GetAllAlerts() ([]alertutils.AlertDetails, error) {
 	alerts := make([]alertutils.AlertDetails, 0)
-	if err := p.db.Preload("Labels").Find(&alerts).Error; err != nil {
-		return nil, err
-	}
-	return alerts, nil
+	err := p.db.Model(&alerts).Preload("Labels").Find(&alerts).Error
+	return alerts, err
 }
 
 func (p Sqlite) UpdateSilenceMinutes(updatedSilenceMinutes *alertutils.AlertDetails) error {
@@ -252,7 +263,7 @@ func (p Sqlite) UpdateAlert(editedAlert *alertutils.AlertDetails) error {
 			return errors.New("alert name already exists")
 		}
 	}
-	result := p.db.Save(&editedAlert)
+	result := p.db.Set("gorm:association_autoupdate", true).Save(&editedAlert)
 	if result.Error != nil && result.RowsAffected != 1 {
 		log.Errorf("UpdateAlert: unable to update alert details:%v", result.Error)
 		return result.Error
@@ -276,6 +287,7 @@ func (p Sqlite) DeleteAlert(alert_id string) error {
 			return result.Error
 		}
 	}
+	p.db.Model(&alert).Association("Labels").Clear()
 
 	result = p.db.Delete(&alert)
 	if result.Error != nil && result.RowsAffected != 1 {
@@ -288,7 +300,6 @@ func (p Sqlite) DeleteAlert(alert_id string) error {
 
 func (p Sqlite) CreateContact(newContact *alertutils.Contact) error {
 	var contact alertutils.Contact
-	log.Info(newContact, "newContact")
 	result := p.db.First(&contact, "contact_name = ?", newContact.ContactName)
 	if result.Error != nil {
 		if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -296,7 +307,6 @@ func (p Sqlite) CreateContact(newContact *alertutils.Contact) error {
 			return result.Error
 		} else {
 			contact_id := CreateUniqId()
-			log.Info(contact_id, "Contact")
 			newContact.ContactId = contact_id
 			result = p.db.Create(&newContact)
 			if result.Error != nil && result.RowsAffected != 1 {
@@ -306,12 +316,6 @@ func (p Sqlite) CreateContact(newContact *alertutils.Contact) error {
 		}
 	}
 	return nil
-}
-
-func (p Sqlite) GetLabels(alertDetails *alertutils.AlertDetails) ([]alertutils.AlertLabel, error) {
-	labels := make([]alertutils.AlertLabel, 0)
-	err := p.db.Model(alertDetails).Association(alertutils.LabelAssociation).Find(&labels)
-	return labels, err
 }
 
 func (p Sqlite) GetAllContactPoints() ([]alertutils.Contact, error) {
@@ -340,7 +344,21 @@ func (p Sqlite) UpdateContactPoint(contact *alertutils.Contact) error {
 		return errors.New("contact does not exist")
 	}
 
-	result := p.db.Save(&contact)
+	if len(contact.Slack) != 0 {
+		err := p.db.Model(&alertutils.Contact{ContactId: contact.ContactId}).Association("Slack").Clear()
+		if err != nil {
+			log.Errorf("updateContactPoint: unable to update contact : %v, err: %+v", contact.ContactName, err)
+			return err
+		}
+	}
+	if len(contact.Webhook) != 0 {
+		err := p.db.Model(&alertutils.Contact{ContactId: contact.ContactId}).Association("Webhook").Clear()
+		if err != nil {
+			log.Errorf("updateContactPoint: unable to update contact : %v, err: %+v", contact.ContactName, err)
+			return err
+		}
+	}
+	result := p.db.Session(&gorm.Session{FullSaveAssociations: true}).Save(&contact)
 	if result.Error != nil && result.RowsAffected != 1 {
 		log.Errorf("updateContactPoint: unable to update contact : %v, err: %+v", contact.ContactName, err)
 		return result.Error
@@ -353,8 +371,7 @@ func (p Sqlite) UpdateContactPoint(contact *alertutils.Contact) error {
 func (p Sqlite) GetContactDetails(alert_id string) (string, string, string, error) {
 
 	var alert alertutils.AlertDetails
-
-	if err := p.db.First(alert, "alert_id = ?", alert_id).Error; err != nil {
+	if err := p.db.First(&alert).Where("alert_id = ?", alert_id).Error; err != nil {
 		return "", "", "", err
 	}
 	alert_name := alert.AlertName
@@ -386,7 +403,7 @@ func (p Sqlite) GetContactDetails(alert_id string) (string, string, string, erro
 
 func (p Sqlite) GetCoolDownDetails(alert_id string) (uint64, time.Time, error) {
 	var notification alertutils.Notification
-	if err := p.db.Preload("Notification").Where(&alertutils.AlertDetails{AlertId: alert_id}).Find(&notification).Error; err != nil {
+	if err := p.db.First(&notification).Where("alert_id = ?", alert_id).Error; err != nil {
 		return 0, time.Time{}, err
 	}
 	cooldown_period := notification.CooldownPeriod
@@ -413,10 +430,23 @@ func (p Sqlite) DeleteContactPoint(contact_id string) error {
 	}
 
 	var contact alertutils.Contact
-	if err := p.db.Model(&contact).Where("contact_id = ?", contact_id).Delete(contact).Error; err != nil {
-		log.Errorf("deleteContactPoint: unable to delete contact: %v, err: %+v", contact_id, err)
 
-		return err
+	result := p.db.First(&contact, "contact_id = ?", contact_id)
+	if result.Error != nil {
+		log.Errorf("deleteContactPoint: error deleting contact %v", result.Error)
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			log.Errorf("deleteContactPoint: contact does not exist")
+			return result.Error
+		} else {
+			return result.Error
+		}
+	}
+	p.db.Model(&contact).Association("Slack").Clear()
+
+	result = p.db.Delete(&contact)
+	if result.Error != nil && result.RowsAffected != 1 {
+		log.Errorf("deleteContactPoint: unable to delete contact :%v", result.Error)
+		return result.Error
 	}
 
 	return nil
@@ -457,7 +487,7 @@ func (p Sqlite) UpdateAlertStateByAlertID(alert_id string, alertState alertutils
 func (p Sqlite) GetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []string, error) {
 
 	var contact = &alertutils.Contact{}
-	if err := p.db.Model(&contact).Where("contact_id = ?", contact_id).Error; err != nil {
+	if err := p.db.Preload("Slack").First(&contact).Where("contact_id = ?", contact_id).Error; err != nil {
 		log.Errorf("GetEmailAndChannelID: unable to update contact, err: %+v", err)
 		return nil, nil, nil, err
 	}
@@ -466,4 +496,88 @@ func (p Sqlite) GetEmailAndChannelID(contact_id string) ([]string, []alertutils.
 	webhookArray := contact.Webhook
 
 	return emailArray, slackArray, webhookArray, nil
+}
+
+func (p Sqlite) GetAllMinionSearches() ([]alertutils.MinionSearch, error) {
+
+	alerts := make([]alertutils.MinionSearch, 0)
+	err := p.db.Model(&alerts).Find(&alertutils.MinionSearch{}).Error
+	return alerts, err
+
+}
+
+// Creates a new record in all_alerts table
+func (p Sqlite) CreateMinionSearch(minionSearchDetails *alertutils.MinionSearch) (alertutils.MinionSearch, error) {
+	if !isValid(minionSearchDetails.AlertName) {
+		log.Errorf("CreateMinionSearch: data validation check failed")
+		return alertutils.MinionSearch{}, errors.New("CreateMinionSearch: data validation check failed")
+	}
+	isNewAlertName, _ := p.isNewAlertName(minionSearchDetails.AlertName)
+
+	if !isNewAlertName {
+		log.Errorf("CreateMinionSearch: alert name already exists")
+		return alertutils.MinionSearch{}, errors.New("alert name already exists")
+	}
+	minionSearchDetails.CreateTimestamp = time.Now()
+	minionSearchDetails.State = alertutils.Inactive
+
+	result := p.db.Create(minionSearchDetails)
+	if result.Error != nil && result.RowsAffected != 1 {
+		log.Errorf("createAlert: unable to create alert:%v", result.Error)
+		return alertutils.MinionSearch{}, result.Error
+	}
+
+	return *minionSearchDetails, nil
+}
+
+func (p Sqlite) GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error) {
+	if !isValid(alert_id) {
+		log.Errorf("GetMinionSearch: data validation check failed")
+		return nil, errors.New("GetMinionSearch: data validation check failed")
+	}
+
+	var alert alertutils.MinionSearch
+	if err := p.db.Preload("Labels").Where(&alertutils.AlertDetails{AlertId: alert_id}).Find(&alert).Error; err != nil {
+		return nil, err
+	}
+	return &alert, nil
+
+}
+
+func (p Sqlite) UpdateMinionSearchStateByAlertID(alertId string, alertState alertutils.AlertState) error {
+	if !isValid(alertId) {
+		log.Errorf("UpdateMinionSearchStateByAlertID: data validation check failed")
+		return errors.New("UpdateMinionSearchStateByAlertID: data validation check failed")
+	}
+	searchExists, _, err := p.verifyMinionSearchExists(alertId)
+	if err != nil {
+		log.Errorf("UpdateMinionSearchStateByAlertID: unable to verify if alert name exists, err: %+v", err)
+		return err
+	}
+	if !searchExists {
+		log.Errorf("UpdateMinionSearchStateByAlertID: alert does not exist")
+		return errors.New("MinionSearch does not exist")
+	}
+	if err := p.db.Model(&alertutils.MinionSearch{}).Where("alert_id = ?", alertId).Update("state", alertState).Error; err != nil {
+		log.Errorf("UpdateAlertStateByAlertID: unable to update alert state, with alert id: %v, err: %+v", alertId, err)
+		return err
+	}
+	return nil
+}
+
+func (p Sqlite) verifyMinionSearchExists(alert_id string) (bool, string, error) {
+	if !isValid(alert_id) {
+		log.Errorf("verifyMinionSearchExists: data validation check failed %v", alert_id)
+		return false, "", errors.New("verifyMinionSearchExists: data validation check failed")
+	}
+	var alert alertutils.MinionSearch
+
+	if err := p.db.Where("alert_id = ?", alert_id).Find(&alert).First(&alertutils.AlertDetails{}).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return true, alert.AlertName, nil
+		} else {
+			return false, "", err
+		}
+	}
+	return true, "", nil
 }
