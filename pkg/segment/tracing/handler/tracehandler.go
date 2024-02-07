@@ -3,8 +3,10 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,21 +23,9 @@ import (
 const OneHourInMs = 60 * 60 * 1000
 
 func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-
-	rawJSON := ctx.PostBody()
-	if rawJSON == nil {
-		log.Errorf("ProcessSearchTracesRequest: received empty search request body ")
-		pipesearch.SetBadMsg(ctx)
-		return
-	}
-
-	readJSON := make(map[string]interface{})
-	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
-	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
-	decoder.UseNumber()
-	err := decoder.Decode(&readJSON)
+	searchRequestBody, readJSON, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
-		writeErrMsg(ctx, "ProcessSearchTracesRequest", "could not decode raw json", err)
+		writeErrMsg(ctx, "ProcessSearchTracesRequest", "could not parse and validate request body", err)
 		return
 	}
 
@@ -59,18 +49,8 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
-	// Parse the JSON data from ctx.PostBody
-	searchRequestBody := &structs.SearchRequestBody{}
-	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
-		writeErrMsg(ctx, "ProcessSearchTracesRequest", "could not unmarshal json body", err)
-		return
-	}
-
-	searchRequestBody.QueryLanguage = "Splunk QL"
-	searchRequestBody.IndexName = "traces"
 	isOnlyTraceID, traceId := ExtractTraceID(searchText)
 	traceIds := make([]string, 0)
-
 	if isOnlyTraceID {
 		traceIds = append(traceIds, traceId)
 	} else {
@@ -150,6 +130,63 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	searchRequestBody, _, err := ParseAndValidateRequestBody(ctx)
+	if err != nil {
+		writeErrMsg(ctx, "ProcessTotalTracesRequest", "could not parse and validate request body", err)
+		return
+	}
+
+	// In order to get unique trace_id,  append group by block to the "searchText" field
+	if len(searchRequestBody.SearchText) > 0 {
+		searchRequestBody.SearchText = searchRequestBody.SearchText + " | stats count BY trace_id"
+	} else {
+		writeErrMsg(ctx, "ProcessTotalTracesRequest", "request does not contain required parameter: searchText", nil)
+		return
+	}
+
+	pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
+	if err != nil {
+		writeErrMsg(ctx, "ProcessTotalTracesRequest", err.Error(), nil)
+		return
+	}
+
+	totalTraces := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetBodyString(strconv.Itoa(totalTraces))
+}
+
+func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchRequestBody, map[string]interface{}, error) {
+	rawJSON := ctx.PostBody()
+	if rawJSON == nil {
+		log.Errorf("Received empty search request body")
+		pipesearch.SetBadMsg(ctx)
+		return nil, nil, errors.New("Received empty search request body")
+	}
+
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	decoder.UseNumber()
+	err := decoder.Decode(&readJSON)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	searchRequestBody := &structs.SearchRequestBody{}
+	if err := json.Unmarshal(ctx.PostBody(), &searchRequestBody); err != nil {
+		return nil, nil, err
+	}
+
+	searchRequestBody.QueryLanguage = "Splunk QL"
+	searchRequestBody.IndexName = "traces"
+
+	return searchRequestBody, readJSON, nil
+}
+
+func GetTotalUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter) int {
+	return len(pipeSearchResponseOuter.Aggs[""].Buckets)
+}
 func GetUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
 	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*50 {
 		return []string{}

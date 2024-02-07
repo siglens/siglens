@@ -512,6 +512,12 @@ func searchTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func totalTracesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		tracinghandler.ProcessTotalTracesRequest(ctx, 0)
+	}
+}
+
 func getDependencyGraphHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		tracinghandler.ProcessDependencyRequest(ctx, 0)
