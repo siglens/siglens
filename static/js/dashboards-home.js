@@ -53,6 +53,22 @@ async function getAllDefaultDashboards() {
 	})
 	return serverResponse
 }
+async function getAllFavoriteDashboards() {
+    let serverResponse = []
+    await $.ajax({
+        method: 'get',
+        url: 'api/dashboards/listfavorites',
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': '*/*'
+        },
+        crossDomain: true,
+        dataType: 'json',
+    }).then(function (res) {
+		serverResponse = res;
+    })
+    return serverResponse
+}
 
 function createDashboard() {
 	$('.popupOverlay, .popupContent').addClass('active');
@@ -208,6 +224,7 @@ class btnRenderer {
         this.dButton = this.eGui.querySelector('.btn-simple');
         this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
         this.starIcon=this.eGui.querySelector('.star-icon');
+        this.starIcon.style.backgroundImage = favoriteDBsSet.has(params.data.uniqId) ? starFilledURL : starOutlineURL;
 
 		let defaultDashboardIds = [
             "10329b95-47a8-48df-8b1d-0a0a01ec6c42",
@@ -311,11 +328,25 @@ class btnRenderer {
                 })
             })
         }
-        function toggleFavorite(){
-            params.data.favorite=!params.data.favorite;
-            this.starIcon.style.backgroundImage=params.data.favorite ? starFilledURL : starOutlineURL;       
-        }
-
+		function toggleFavorite() {
+			$.ajax({
+				method: 'put',
+				url: 'api/dashboards/favorite/' + params.data.uniqId,
+				headers: {
+					'Content-Type': 'application/json; charset=utf-8',
+					Accept: '*/*',
+				},
+				crossDomain: true,
+			}).then((response) => {
+				// Update the favorite status based on the response
+				params.data.favorite = response.isFavorite;
+				if(params.data.favorite) {
+					this.starIcon.style.backgroundImage = starFilledURL;
+				} else {
+					this.starIcon.style.backgroundImage = starOutlineURL;
+				}							
+			});
+		}
         function showPrompt() {
             $('#delete-db-prompt').css('display', 'flex');
             $('.popupOverlay, .popupContent').addClass('active');
@@ -361,7 +392,6 @@ let dashboardColumnDefs = [
 		headerName: "Dashboard Name",
 		field: "dbname",
 		sortable: true,
-		sort: 'desc',
 		cellClass: "",
 		cellRenderer: (params) => {
 			var link = document.createElement('a');
@@ -421,6 +451,20 @@ const dbgridOptions = {
 
 
 function displayDashboards(res, flag) {
+	let favorites = [];
+	let nonFavorites = [];
+	
+	for (let [key, value] of Object.entries(res)) {
+		if (favoriteDBsSet.has(key)) {
+			favorites.push([key, value]);
+		} else {
+			nonFavorites.push([key, value]);
+		}
+	}
+	favorites.sort((a, b) => b[1].localeCompare(a[1]));
+	nonFavorites.sort((a, b) => b[1].localeCompare(a[1]));
+	let resArray = [...favorites, ...nonFavorites];
+	res = Object.fromEntries(resArray);
 	if (flag == -1) {
 		// show search results
 		let dbFilteredRowData = [];
@@ -517,6 +561,7 @@ function showDBNotFoundMsg() {
 	$('#dashboard-grid-container').hide();
 	$('#empty-response').show();
 }
+let favoriteDBsSet;
 
 $(document).ready(async function () {
 	if (Cookies.get('theme')) {
@@ -528,6 +573,9 @@ $(document).ready(async function () {
 	let normalDBs = await getAllDashboards();
 	let allDefaultDBs = await getAllDefaultDashboards();
 	let allDBs = {...normalDBs, ...allDefaultDBs}
+	let favoriteDBs = await getAllFavoriteDashboards();
+	// Convert the array of favorite dashboards to a Set for faster lookup
+	favoriteDBsSet = new Set(Object.keys(favoriteDBs));
 	displayDashboards(allDBs)
 
 	$('#create-db-btn').click(createDashboard);
