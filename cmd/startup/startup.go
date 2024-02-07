@@ -182,13 +182,13 @@ func startIngestServer(serverAddr string) {
 			err = s.RunSafeServer()
 		} else {
 			err = s.Run()
-			if err != nil {
-				var opErr *net.OpError
-				if errors.As(err, &opErr) {
-					if opErr.Op == "listen" {
-						StdOutLogger.Errorf("Failed to start server: %v", err)
-						os.Exit(1)
-					}
+		}
+		if err != nil {
+			var opErr *net.OpError
+			if errors.As(err, &opErr) {
+				if opErr.Op == "listen" {
+					StdOutLogger.Errorf("Failed to start server: %v", err)
+					os.Exit(1)
 				}
 			}
 		}
@@ -213,13 +213,13 @@ func startQueryServer(serverAddr string) {
 		} else {
 			tpl := template.Must(template.ParseGlob("./static/*.html"))
 			err = s.Run(tpl)
-			if err != nil {
-				var opErr *net.OpError
-				if errors.As(err, &opErr) {
-					if opErr.Op == "listen" {
-						StdOutLogger.Errorf("Failed to start server: %v", err)
-						os.Exit(1)
-					}
+		}
+		if err != nil {
+			var opErr *net.OpError
+			if errors.As(err, &opErr) {
+				if opErr.Op == "listen" {
+					StdOutLogger.Errorf("Failed to start server: %v", err)
+					os.Exit(1)
 				}
 			}
 		}
