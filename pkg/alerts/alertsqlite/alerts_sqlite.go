@@ -291,7 +291,11 @@ func (p Sqlite) DeleteAlert(alert_id string) error {
 			return result.Error
 		}
 	}
-	p.db.Model(&alert).Association("Labels").Clear()
+	err := p.db.Model(&alert).Association("Labels").Clear()
+	if err != nil {
+		log.Errorf("deleteAlert: unable to delete alert :%v", err)
+		return err
+	}
 
 	result = p.db.Delete(&alert)
 	if result.Error != nil && result.RowsAffected != 1 {
@@ -445,7 +449,11 @@ func (p Sqlite) DeleteContactPoint(contact_id string) error {
 			return result.Error
 		}
 	}
-	p.db.Model(&contact).Association("Slack").Clear()
+	err = p.db.Model(&contact).Association("Slack").Clear()
+	if err != nil {
+		log.Errorf("deleteContactPoint: unable to delete contact :%v", err)
+		return err
+	}
 
 	result = p.db.Delete(&contact)
 	if result.Error != nil && result.RowsAffected != 1 {

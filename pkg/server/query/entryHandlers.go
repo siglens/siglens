@@ -460,13 +460,13 @@ func deleteContactHandler() func(ctx *fasthttp.RequestCtx) {
 
 func createMinionSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		// alertsHandler.ProcessCreateLogMinionSearchRequest(ctx)
+		alertsHandler.ProcessCreateLogMinionSearchRequest(ctx)
 	}
 }
 
 func getMinionSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		// alertsHandler.ProcessGetMinionSearchRequest(ctx)
+		alertsHandler.ProcessGetMinionSearchRequest(ctx)
 	}
 }
 
