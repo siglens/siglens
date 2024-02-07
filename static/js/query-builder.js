@@ -468,10 +468,10 @@ function getValuesofColumn(chooseColumn) {
   valuesOfColumn.clear();
   let param = {
     state: "query",
-    searchText: "SELECT DISTINCT " + chooseColumn + " FROM `ind-0`",
+    searchText: `SELECT DISTINCT ${chooseColumn} FROM \`${selectedSearchIndex}\``,
     startEpoch: filterStartDate,
     endEpoch: filterEndDate,
-    indexName: "*",
+    indexName: selectedSearchIndex,
     queryLanguage: "SQL",
     from: 0,
     size: 1000,
