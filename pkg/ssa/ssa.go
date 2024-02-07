@@ -27,8 +27,8 @@ import (
 	"time"
 
 	"github.com/segmentio/analytics-go/v3"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/localnodeid"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
