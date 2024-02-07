@@ -301,6 +301,12 @@ func postPqsHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func getPqsEnabledHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		cfghandler.GetPqsEnabled(ctx)
+	}
+}
+
 func createDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		dashboards.ProcessCreateDashboardRequest(ctx, 0)

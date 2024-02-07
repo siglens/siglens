@@ -2,8 +2,8 @@ package cfghandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
-	"strings"
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/querytracker"
@@ -12,7 +12,29 @@ import (
 )
 
 type PqsConfig struct {
-	PQSEnabled string `json:"pqsEnabled"`
+	PQSEnabled bool `json:"pqsEnabled"`
+}
+
+func GetPqsEnabled(ctx *fasthttp.RequestCtx) {
+	// Read the value from the runmod config file, but if that doesn't exist,
+	// read the value from the config file.
+	var pqsEnabled bool
+	runModConfig, err := config.ReadRunModConfig(config.RunModFilePath)
+	if err != nil {
+		log.Info("GetPqsEnabled:Error reading runmod config: %v", err)
+		pqsEnabled = config.IsPQSEnabled()
+	} else {
+		pqsEnabled = runModConfig.PQSEnabled
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetContentType("application/json")
+	_, err = ctx.WriteString(`{"pqsEnabled":` + fmt.Sprintf("%v", pqsEnabled) + `}`)
+	if err != nil {
+		log.Errorf("GetPqsEnabled:Error writing response: %v", err)
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		return
+	}
 }
 
 func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
@@ -39,14 +61,14 @@ func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
 
 	}
 }
-func SavePQSConfigToRunMod(filepath, pqsEnabled string) error {
+func SavePQSConfigToRunMod(filepath string, pqsEnabled bool) error {
 	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		log.Errorf("SavePQSConfigToRunMod:Failed to open or create the file %s: %v", filepath, err)
 		return err
 	}
 	defer file.Close()
-	configData := map[string]string{"PQSEnabled": pqsEnabled}
+	configData := map[string]bool{"PQSEnabled": pqsEnabled}
 	encoder := json.NewEncoder(file)
 
 	err = encoder.Encode(configData)
@@ -55,7 +77,7 @@ func SavePQSConfigToRunMod(filepath, pqsEnabled string) error {
 		return err
 	}
 
-	if strings.ToLower(pqsEnabled) == "disabled" {
+	if !pqsEnabled {
 		querytracker.ClearPqs()
 	}
 

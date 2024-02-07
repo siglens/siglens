@@ -45,7 +45,7 @@ func TestExtractReadRunModConfig(t *testing.T) {
 			name:  "Valid Enabled Config",
 			input: []byte(`{"pqsEnabled": "enabled"}`),
 			expected: config.RunModConfig{
-				PQSEnabled: "enabled",
+				PQSEnabled: true,
 			},
 			wantErr: false,
 		},
@@ -53,7 +53,7 @@ func TestExtractReadRunModConfig(t *testing.T) {
 			name:  "Valid Disabled Config",
 			input: []byte(`{"pqsEnabled": "disabled"}`),
 			expected: config.RunModConfig{
-				PQSEnabled: "disabled",
+				PQSEnabled: false,
 			},
 			wantErr: false,
 		},

@@ -150,7 +150,7 @@ type Configuration struct {
 }
 
 type RunModConfig struct {
-	PQSEnabled string `json:"pqsEnabled"`
+	PQSEnabled bool `json:"pqsEnabled"`
 }
 
 var runningConfig Configuration
@@ -601,7 +601,7 @@ func ReadRunModConfig(fileName string) (RunModConfig, error) {
 	_, err := os.Stat(fileName)
 	if os.IsNotExist(err) {
 		log.Infof("ReadRunModConfig:Config file '%s' does not exist. Awaiting user action to create it.", fileName)
-		return RunModConfig{}, nil
+		return RunModConfig{}, err
 	} else if err != nil {
 		log.Errorf("ReadRunModConfig:Error accessing config file '%s': %v", fileName, err)
 		return RunModConfig{}, err
@@ -615,24 +615,15 @@ func ReadRunModConfig(fileName string) (RunModConfig, error) {
 }
 
 func ExtractReadRunModConfig(jsonData []byte) (RunModConfig, error) {
-	var config RunModConfig
-	err := json.Unmarshal(jsonData, &config)
+	var runModConfig RunModConfig
+	err := json.Unmarshal(jsonData, &runModConfig)
 	if err != nil {
 		log.Errorf("ExtractReadRunModConfig:Failed to parse runmod.cfg: %v", err)
-		return config, err
-	}
-	var pqsCheck bool
-	switch strings.ToLower(config.PQSEnabled) {
-	case "enabled":
-		pqsCheck = true
-	case "disabled":
-		pqsCheck = false
-	default:
-		log.Errorf("ExtractReadRunModConfig:Invalid PQSEnabled value in runmod.cfg: %s", config.PQSEnabled)
+		return runModConfig, err
 	}
 
-	SetPQSEnabled(pqsCheck)
-	return config, nil
+	SetPQSEnabled(runModConfig.PQSEnabled)
+	return runModConfig, nil
 }
 
 func ReadConfigFile(fileName string) (Configuration, error) {

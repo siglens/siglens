@@ -16,53 +16,12 @@ limitations under the License.
 
 $(document).ready(function () {
     if (Cookies.get('theme')) {
-        var theme = Cookies.get('theme');
+        theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
     }
     $('.theme-btn').on('click', themePickerHandler);
     getRetentionDataFromConfig();
-
-    function updatePersistentQueriesSetting(pqsEnabled) {
-        $.ajax({
-            method: "POST",
-            url: "/api/pqs/update",
-            headers: {
-                "Content-Type": "application/json; charset=utf-8",
-                Accept: "*/*",
-            },
-            dataType: "json",
-            crossDomain: true,
-            data: JSON.stringify({ pqsEnabled: pqsEnabled }),
-            success: function (res) {
-                console.log("Update successful:", res);
-            },
-            error: function (xhr, status, error) {
-                console.error("Update failed:", xhr, status, error);
-            },
-        });
-    }
-
-    $('#contact-types').click(function() {
-        $('.contact-options').toggle(); 
-    });
-
-    $('.contact-option').click(function() {
-        var selectedOption = $(this).text();
-        $('#contact-types span').text(selectedOption); 
-
-        if (selectedOption.toLowerCase() === 'disabled') {
-            $('.popupOverlay, .popupContent').addClass('active');
-        }
-        updatePersistentQueriesSetting(selectedOption.toLowerCase());
-        $('.contact-options').hide();
-    });
-
-    $(window).click(function(e) {
-        if (!e.target.matches('#contact-types, #contact-types *')) {
-            $('.contact-options').hide();
-        }
-    });
-
+    getPersistentQueriesSetting();
 });
 
 function getRetentionDataFromConfig() {
@@ -80,4 +39,78 @@ function getRetentionDataFromConfig() {
         .catch((err) => {
             console.log(err)
         });
+}
+
+function getPersistentQueriesSetting(){
+    console.log("getPersistentQueriesSetting");
+    $.ajax({
+        method: "GET",
+        url: "/api/pqs/get",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            Accept: "*/*",
+        },
+        dataType: "json",
+        crossDomain: true,
+        success: function (res) {
+            console.log("Update successful:", res);
+            setPersistentQueries(res.pqsEnabled);
+        },
+        error: function (xhr, status, error) {
+            console.error("Update failed:", xhr, status, error);
+        },
+    });
+}
+function updatePersistentQueriesSetting(pqsEnabled) {
+    console.log("function updatePersistentQueriesSetting");
+    $.ajax({
+        method: "POST",
+        url: "/api/pqs/update",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            Accept: "*/*",
+        },
+        dataType: "json",
+        crossDomain: true,
+        data: JSON.stringify({ pqsEnabled: pqsEnabled }),
+        success: function (res) {
+            console.log("Update successful:", res);
+        },
+        error: function (xhr, status, error) {
+            console.error("Update failed:", xhr, status, error);
+        },
+    });
+}
+
+$(document).on('click', '.contact-option', updatePQS);
+
+function updatePQS() {
+    var selectedOption = $(this).text();
+    $('.contact-option').removeClass('active');
+
+    if (selectedOption.toLowerCase() === 'disabled') {
+        $('.popupOverlay, .popupContent').addClass('active');
+        $('#cancel-disable-pqs').on('click', function() {
+            $('.popupOverlay, .popupContent').removeClass('active');
+            $(`.contact-option:contains("Enabled")`).addClass('active');
+        });
+        
+        $('#disable-pqs').on('click', function() {
+            $('#contact-types span').text(selectedOption); 
+            $('.popupOverlay, .popupContent').removeClass('active');
+            $(`.contact-option:contains("Disabled")`).addClass('active');
+            updatePersistentQueriesSetting(false);
+        });
+    }
+    if(selectedOption.toLowerCase() === 'enabled') {
+        updatePersistentQueriesSetting(true);
+        $('#contact-types span').text(selectedOption); 
+        $(`.contact-option:contains("Enabled")`).addClass('active');
+    }
+}
+
+function setPersistentQueries(pqsEnabled) {
+    $('.contact-option').removeClass('active');
+    $('#contact-types span').text(pqsEnabled ? "Enabled" : "Disabled");
+    $('.contact-option:contains("' + (pqsEnabled ? "Enabled" : "Disabled") + '")').addClass('active');
 }
