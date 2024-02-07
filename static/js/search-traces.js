@@ -27,6 +27,7 @@ let pageNumber = 1,
 let limitation = -1;
 let hasLoaded = false;
 let allResultsFetched = false;
+let totalTraces = 0;
 $(document).ready(() => {
   if (Cookies.get("theme")) {
     theme = Cookies.get("theme");
@@ -256,6 +257,8 @@ function searchTraceHandler(e){
       queryLanguage: "Splunk QL",
       page: pageNumber,
     };
+    allResultsFetched = false;
+    echarts.dispose(chart);
     searchTrace(params);
     handleSort();
     return false;
@@ -275,7 +278,6 @@ function initChart(){
   };
     searchTrace(params);
 }
-
 function getTotalTraces(params) {
   $.ajax({
       method: "post",
@@ -288,6 +290,7 @@ function getTotalTraces(params) {
       dataType: "json",
       data: JSON.stringify(params),
   }).then((res) => {
+    totalTraces = res;
       // Update the total traces number with the response
       $("#traces-number").text(res + " Traces");
   });
@@ -342,7 +345,7 @@ function searchTrace(params){
       if (res.traces.length == 50 && params.page < 2) {
         getData(params);
       }
-      if(res.traces.length <50){
+      if(returnResTotal.length >= totalTraces && res.traces.length < 50){
         allResultsFetched = true;
       } 
     } else {
@@ -529,17 +532,17 @@ function calculateTimeToNow(startTime) {
 }
 let lastScrollPosition = 0;
 let isLoading = false; // Flag to indicate whether an API call is in progress
-let container = document.querySelector('.scrollable-container');
 
-container.onscroll = function () {
-  let scrollHeight = container.scrollHeight;
-  let scrollPosition = container.clientHeight + container.scrollTop;
+let dashboard = document.getElementById('dashboard');
 
+dashboard.onscroll = function () {
+  let scrollHeight = dashboard.scrollHeight;
+  let scrollPosition = dashboard.clientHeight + dashboard.scrollTop;
   if (!isLoading && hasLoaded && !allResultsFetched && (scrollPosition / scrollHeight >= 0.6)) { // 60% scroll
     isLoading = true; // Set the flag to true to indicate that an API call is in progress
-    lastScrollPosition = container.scrollTop;
+    lastScrollPosition = dashboard.scrollTop;
     getData();
-    container.scrollTo({
+    dashboard.scrollTo({
       top: lastScrollPosition,
       behavior: "smooth",
     });

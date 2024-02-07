@@ -131,21 +131,9 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 }
 
 func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	searchRequestBody, readJSON, err := ParseAndValidateRequestBody(ctx)
+	searchRequestBody, _, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
 		writeErrMsg(ctx, "ProcessTotalTracesRequest", "could not parse and validate request body", err)
-		return
-	}
-
-	nowTs := putils.GetCurrentTimeInMs()
-	searchText, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
-
-	isOnlyTraceID, _ := ExtractTraceID(searchText)
-
-	if isOnlyTraceID {
-		// If the search text is a trace ID, the total count is 1
-		ctx.SetStatusCode(fasthttp.StatusOK)
-		ctx.SetBodyString("1")
 		return
 	}
 
@@ -167,6 +155,7 @@ func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.SetBodyString(strconv.Itoa(totalTraces))
 }
+
 func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchRequestBody, map[string]interface{}, error) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {

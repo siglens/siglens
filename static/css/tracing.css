@@ -230,14 +230,6 @@
     background-color: var(--default-tab);
 }
 
-.scrollable-container {
-    overflow-y: scroll;
-    height: 100vh;
-    margin-top: 20px;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(155, 155, 155, 0.7) transparent; 
-}
-
 .duration {
     display: flex;
     flex-direction: row;
