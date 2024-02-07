@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"net"
 	"os"
 
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
@@ -175,22 +176,23 @@ func startIngestServer(serverAddr string) {
 	log.Infof(siglensStartupLog)
 	cfg := config.DefaultIngestionHttpConfig()
 	s := ingestserver.ConstructIngestServer(cfg, serverAddr)
-	if config.IsSafeMode() {
-		go func() {
-			err := s.RunSafeServer()
+	go func() {
+		var err error
+		if config.IsSafeMode() {
+			err = s.RunSafeServer()
+		} else {
+			err = s.Run()
 			if err != nil {
-				log.Errorf("Failed to start mock server! Error: %v", err)
-				return
+				var opErr *net.OpError
+				if errors.As(err, &opErr) {
+					if opErr.Op == "listen" {
+						StdOutLogger.Errorf("Failed to start server: %v", err)
+						os.Exit(1)
+					}
+				}
 			}
-		}()
-	} else {
-		go func() {
-			err := s.Run()
-			if err != nil {
-				log.Errorf("Failed to start server! Error: %v", err)
-			}
-		}()
-	}
+		}
+	}()
 }
 
 func startQueryServer(serverAddr string) {
@@ -204,21 +206,22 @@ func startQueryServer(serverAddr string) {
 	log.Infof(siglensUIStartupLog)
 	cfg := config.DefaultQueryServerHttpConfig()
 	s := queryserver.ConstructQueryServer(cfg, serverAddr)
-	if config.IsSafeMode() {
-		go func() {
-			err := s.RunSafeServer()
-			if err != nil {
-				log.Errorf("Failed to start mock server! Error: %v", err)
-				return
-			}
-		}()
-	} else {
-		go func() {
+	go func() {
+		var err error
+		if config.IsSafeMode() {
+			err = s.RunSafeServer()
+		} else {
 			tpl := template.Must(template.ParseGlob("./static/*.html"))
-			err := s.Run(tpl)
+			err = s.Run(tpl)
 			if err != nil {
-				log.Errorf("Failed to start server! Error: %v", err)
+				var opErr *net.OpError
+				if errors.As(err, &opErr) {
+					if opErr.Op == "listen" {
+						StdOutLogger.Errorf("Failed to start server: %v", err)
+						os.Exit(1)
+					}
+				}
 			}
-		}()
-	}
+		}
+	}()
 }
