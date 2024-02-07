@@ -62,10 +62,40 @@
                                 <th>Retention</th>
                                 <td id="retention-days-value">4 days</td>
                             </tr>
+                            <tr>
+                                <th>Persistent Queries</th>
+                                <td>
+                                    <div class="dropdown">
+                                        <button class="btn dropdown-toggle" type="button" id="contact-types" style=" border-radius: 0; padding: 0.1rem 0.1rem "
+                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                            data-bs-toggle="dropdown">
+                                            <span style="color: var(--health-stats-value-text-color);font-size: 18px;">Enabled</span>
+                                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                        </button>
+                                        <div class="dropdown-menu box-shadow contact-options" style=" border-radius: 0; width: 100%;">
+                                            <li id="option-0" class="contact-option active " style=" border-radius: 0">Enabled</li>
+                                            <li id="option-1" class="contact-option" style=" border-radius: 0">Disabled</li>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
                         </table>
 
                     </div>
                 </div>
+                <div class="popupOverlay">
+                </div>
+                <div class="popupContent" id="disable-pqs-prompt">
+                <div class="disable-dialog">
+                    <h3 class="header">Disable Persistant Queries</h3>
+                    <p>
+                        Disabling persistant queries may affect your query performance. <strong id="contact-name-placeholder-delete-dialog"></strong> 
+                    </p>
+                    
+                    <button type="button" id="cancel-btn">Ok</button>
+                </div>
+            </div>
             </div>
         </div>
     </div>

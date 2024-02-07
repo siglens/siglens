@@ -16,12 +16,54 @@ limitations under the License.
 
 $(document).ready(function () {
     if (Cookies.get('theme')) {
-        theme = Cookies.get('theme');
+        var theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
     }
     $('.theme-btn').on('click', themePickerHandler);
     getRetentionDataFromConfig();
-})
+
+    function updatePersistentQueriesSetting(pqsEnabled) {
+        $.ajax({
+            method: "POST",
+            url: "/api/pqs/update",
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                Accept: "*/*",
+            },
+            dataType: "json",
+            crossDomain: true,
+            data: JSON.stringify({ pqsEnabled: pqsEnabled }),
+            success: function (res) {
+                console.log("Update successful:", res);
+            },
+            error: function (xhr, status, error) {
+                console.error("Update failed:", xhr, status, error);
+            },
+        });
+    }
+
+    $('#contact-types').click(function() {
+        $('.contact-options').toggle(); 
+    });
+
+    $('.contact-option').click(function() {
+        var selectedOption = $(this).text();
+        $('#contact-types span').text(selectedOption); 
+
+        if (selectedOption.toLowerCase() === 'disabled') {
+            $('.popupOverlay, .popupContent').addClass('active');
+        }
+        updatePersistentQueriesSetting(selectedOption.toLowerCase());
+        $('.contact-options').hide();
+    });
+
+    $(window).click(function(e) {
+        if (!e.target.matches('#contact-types, #contact-types *')) {
+            $('.contact-options').hide();
+        }
+    });
+
+});
 
 function getRetentionDataFromConfig() {
     $.ajax({
