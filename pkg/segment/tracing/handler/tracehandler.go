@@ -421,7 +421,7 @@ func ProcessRedTracesIngest() {
 
 		durations, exists := serviceToSpanDuration[service]
 		for i, duration := range durations {
-			durations[i] = duration / 1000000
+			durations[i] = duration / 1000000 // convert duration from nanoseconds to milliseconds
 		}
 		if exists {
 			redMetrics.P50 = utils.FindPercentileData(durations, 50)
