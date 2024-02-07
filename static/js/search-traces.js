@@ -258,7 +258,9 @@ function searchTraceHandler(e){
       page: pageNumber,
     };
     allResultsFetched = false;
-    echarts.dispose(chart);
+    if (chart != null && chart != "" && chart != undefined) {
+      echarts?.dispose(chart);
+    }
     searchTrace(params);
     handleSort();
     return false;
