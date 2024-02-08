@@ -17,7 +17,11 @@ type Hooks struct {
 }
 
 type HtmlSnippets struct {
-	// TODO: add string fields
+	RunSaasAuthCheck string
+	RunRbacAuthCheck string
+	RunOktaSignin    string
+	LogoutButton     string
+	DeleteIndex      string
 }
 
 type JsSnippets struct {
