@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,6 +16,22 @@ limitations under the License.
 
 var lineChart;
 var pieOptions, barOptions;
+
+let chartTheme = {
+	"colorCircle-1": "lavender",
+	"colorCircle-2": "purple",
+	"colorCircle-3": "orange",
+}
+
+function createColorTheme(circle) {
+	let root = document.querySelector(':root');
+	let rootStyles = getComputedStyle(root);
+	let theme = [];
+	for (let i = 1; i <= 7; i++) {
+		theme.push(rootStyles.getPropertyValue(`--${chartTheme[circle]}-${i}`));
+	}
+	return theme;
+}
 
 function loadBarOptions(xAxisData, yAxisData) {
 	// colors for dark & light modes
@@ -118,7 +134,24 @@ function loadPieOptions(xAxisData, yAxisData) {
 	let root = document.querySelector(':root');
 	let rootStyles = getComputedStyle(root);
 	let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
-	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1')
+	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
+
+	let colorCircles = document.querySelectorAll(".colorCircle");
+
+	let selectedColorCircle = null;
+
+	colorCircles.forEach(circle => {
+		console.log(circle);
+		if (circle.classList.contains('selected')) {
+			selectedColorCircle = circle;
+		}
+	});
+
+	let theme = [];
+	if (selectedColorCircle) {
+		console.log(selectedColorCircle.classList[1]);
+		theme = createColorTheme(selectedColorCircle.classList[1]);
+	}
 
 	pieOptions = {
 		xAxis: {
@@ -158,6 +191,11 @@ function loadPieOptions(xAxisData, yAxisData) {
 			}
 		]
 	}
+
+	if (theme.length > 0) {
+		pieOptions.color = theme;
+	}
+
 	if ($('body').attr('data-theme') == "dark") {
 		pieOptions.series[0].label.color = labelDarkThemeColor;
 		pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
@@ -279,52 +317,52 @@ function addSuffix(number) {
 		suffix = "Z";
 		number /= 1e21;
 	} else if (number >= 1e18) {
-	  suffix = "E";
-	  number /= 1e18;
+		suffix = "E";
+		number /= 1e18;
 	} else if (number >= 1e15) {
-	  suffix = "P";
-	  number /= 1e15;
+		suffix = "P";
+		number /= 1e15;
 	} else if (number >= 1e12) {
-	  suffix = "T";
-	  number /= 1e12;
+		suffix = "T";
+		number /= 1e12;
 	} else if (number >= 1e9) {
-	  suffix = "G";
-	  number /= 1e9;
+		suffix = "G";
+		number /= 1e9;
 	} else if (number >= 1e6) {
-	  suffix = "M";
-	  number /= 1e6;
+		suffix = "M";
+		number /= 1e6;
 	}
-  
+
 	return [number.toFixed(2), suffix];
-  }
-  
+}
+
 function findSmallestGreaterOne(number) {
-  const hours = number / 3600; // Convert seconds to hours
-  const minutes = number / 60; // Convert seconds to minutes
-  const years = number / (3600 * 24 * 365); // Convert seconds to years
+	const hours = number / 3600; // Convert seconds to hours
+	const minutes = number / 60; // Convert seconds to minutes
+	const years = number / (3600 * 24 * 365); // Convert seconds to years
 
-  let smallest = Infinity;
-  let suffix = '';
+	let smallest = Infinity;
+	let suffix = '';
 
-  if (hours > 1 && hours < smallest) {
-    smallest = hours;
-    suffix = 'h';
-  }
-  if (minutes > 1 && minutes < smallest) {
-    smallest = minutes;
-    suffix = 'm';
-  }
-  if (years > 1 && years < smallest) {
-    smallest = years;
-    suffix = 'year';
-  }
+	if (hours > 1 && hours < smallest) {
+		smallest = hours;
+		suffix = 'h';
+	}
+	if (minutes > 1 && minutes < smallest) {
+		smallest = minutes;
+		suffix = 'm';
+	}
+	if (years > 1 && years < smallest) {
+		smallest = years;
+		suffix = 'year';
+	}
 
-  if (smallest === Infinity) {
-    smallest = number;
-    suffix = 's';
-  }
+	if (smallest === Infinity) {
+		smallest = number;
+		suffix = 's';
+	}
 
-  return [smallest.toFixed(2),suffix];
+	return [smallest.toFixed(2),suffix];
 }
 
 function displayBigNumber(value, panelId, dataType, panelIndex) {
@@ -378,7 +416,7 @@ function displayBigNumber(value, panelId, dataType, panelIndex) {
 				}
 				bigNum = addSuffix(number);
 
-			} else if(['ns',"µs", "ms", "d","m","s","h"].includes(dataTypeAbbrev)){				
+			} else if(['ns',"µs", "ms", "d","m","s","h"].includes(dataTypeAbbrev)){
 				if (dataTypeAbbrev === "ns"){
 					number = number / 1e9;
 				} else if (dataTypeAbbrev === "µs"){
@@ -390,18 +428,18 @@ function displayBigNumber(value, panelId, dataType, panelIndex) {
 				}else if (dataTypeAbbrev === "m"){
 					number = number * 60
 				}else if (dataTypeAbbrev === "s"){
-					number = number 
+					number = number
 				}else if (dataTypeAbbrev === "h"){
 					number = number * 3600;
 				}
 				dataTypeAbbrev = ""
-				bigNum = findSmallestGreaterOne(number);		
+				bigNum = findSmallestGreaterOne(number);
 			} else if (dataTypeAbbrev === "" || dataTypeAbbrev === "%"){
 				bigNum[1]  = ""
 				bigNum[0] = number
 			} else{
-				bigNum = addSuffix(number);		
-			}	
+				bigNum = addSuffix(number);
+			}
 			panelChartEl.append(`<div class="big-number">${bigNum[0]} </div> <div class="unit">${bigNum[1]+dataTypeAbbrev} </div> `);
 		}else{
 			panelChartEl.append(`<div class="big-number">${value} </div> `);
@@ -423,19 +461,19 @@ function displayBigNumber(value, panelId, dataType, panelIndex) {
 }
 
 function createColorsArray() {
-    let root = document.querySelector(':root');
-    let rootStyles = getComputedStyle(root);
-    let colorArray = [];
-    for (let i = 1; i <= 20; i++) {
-        colorArray.push(rootStyles.getPropertyValue(`--graph-line-color-${i}`));
-    }
-    return colorArray;
+	let root = document.querySelector(':root');
+	let rootStyles = getComputedStyle(root);
+	let colorArray = [];
+	for (let i = 1; i <= 20; i++) {
+		colorArray.push(rootStyles.getPropertyValue(`--graph-line-color-${i}`));
+	}
+	return colorArray;
 }
 
 function renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, flag) {
 	const colors = createColorsArray();
-    let gridLineColor;
-    let tickColor;
+	let gridLineColor;
+	let tickColor;
 	let root = document.querySelector(':root');
 	let rootStyles = getComputedStyle(root);
 	let gridLineDarkThemeColor = rootStyles.getPropertyValue('--black-3');
@@ -444,75 +482,75 @@ function renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartTyp
 	let tickLightThemeColor = rootStyles.getPropertyValue('--white-6');
 
 	if ($('body').attr('data-theme') == "light") {
-        gridLineColor = gridLineLightThemeColor;
-        tickColor = tickLightThemeColor;
-    }
-    else {
-        gridLineColor = gridLineDarkThemeColor;
-        tickColor = tickDarkThemeColor;
-    }
+		gridLineColor = gridLineLightThemeColor;
+		tickColor = tickLightThemeColor;
+	}
+	else {
+		gridLineColor = gridLineDarkThemeColor;
+		tickColor = tickDarkThemeColor;
+	}
 	let datasets = [];
-    let data = {};
+	let data = {};
 
-    datasets = seriesArray.map((o, i) => ({
-        label: o.seriesName,
-        data: Object.values(o.values),
-        backgroundColor: colors[i],
-        borderColor: colors[i],
-        color: gridLineColor,
-        borderWidth: 2,
-        fill: false,
-    }));
+	datasets = seriesArray.map((o, i) => ({
+		label: o.seriesName,
+		data: Object.values(o.values),
+		backgroundColor: colors[i],
+		borderColor: colors[i],
+		color: gridLineColor,
+		borderWidth: 2,
+		fill: false,
+	}));
 	data = {
-        labels: labels,
-        datasets: datasets
-    }
+		labels: labels,
+		datasets: datasets
+	}
 
 	const config = {
-        type: 'line',
-        data,
-        options: {
-            maintainAspectRatio: false,
-            responsive: true,
-            title: {
-                display: true,
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    enabled: true,
-                }
-            },
-            scales: {
-                x: {
-                    grid: {
-                        color: function () {
-							return $('body').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
-						},
-                    },
-                    ticks: {
-                        color: function () {
-							return $('body').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
-                    }
-                },
+		type: 'line',
+		data,
+		options: {
+			maintainAspectRatio: false,
+			responsive: true,
+			title: {
+				display: true,
 			},
-                y: {
-                    grid: {
-                        color: function () {
+			plugins: {
+				legend: {
+					display: false
+				},
+				tooltip: {
+					enabled: true,
+				}
+			},
+			scales: {
+				x: {
+					grid: {
+						color: function () {
 							return $('body').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
 						},
-                    },
-                    ticks: {
-                        color: function () {
+					},
+					ticks: {
+						color: function () {
+							return $('body').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
+						}
+					},
+				},
+				y: {
+					grid: {
+						color: function () {
+							return $('body').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
+						},
+					},
+					ticks: {
+						color: function () {
 							return $('body').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
 						},
-                },
-            }
-        }
+					},
+				}
+			}
+		}
 	}
-    }
 	if (panelId == -1) {
 		var panelChartEl = $(`.panelDisplay .panEdit-panel`);
 	} else {
@@ -524,71 +562,71 @@ function renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartTyp
 		let can = `<canvas class="line-chart-canvas" ></canvas>`
 		panelChartEl.append(can)
 		var lineCanvas = (panelChartEl).find('canvas')[0].getContext('2d');
-        lineChart = new Chart(lineCanvas, config);
+		lineChart = new Chart(lineCanvas, config);
 		$(`#panel${panelId} .panel-body #panel-loading`).hide();
 		if (panelId === -1){
 			panelChartEl.append(`<div class="lineChartLegend"></div>`)
 			displayLegendsForLineChart(seriesArray, labels, colors,metricsDatasets,panelId, chartType);
 		}
-    }
+	}
 
-    const bgColor = [];
-    const bColor = data.datasets.map(color => {
-        bgColor.push(color.backgroundColor);
-        return color.borderColor;
-    })
+	const bgColor = [];
+	const bColor = data.datasets.map(color => {
+		bgColor.push(color.backgroundColor);
+		return color.borderColor;
+	})
 
-    if (flag == -2) {
+	if (flag == -2) {
 
-        lineChart.config.data.datasets.map((dataset, index) => {
-            dataset.backgroundColor = bgColor[index];
-            dataset.borderColor = bColor[index];
-        })
-        lineChart.update();
-    }
+		lineChart.config.data.datasets.map((dataset, index) => {
+			dataset.backgroundColor = bgColor[index];
+			dataset.borderColor = bColor[index];
+		})
+		lineChart.update();
+	}
 
-    if(flag >= 0) {
-        const chartDataObject = lineChart.config.data.datasets.map(dataset => {
-            dataset.borderColor = "rgba(0,0,0,0)";
-            dataset.backgroundColor = "rgba(0,0,0,0)";
-        })
+	if(flag >= 0) {
+		const chartDataObject = lineChart.config.data.datasets.map(dataset => {
+			dataset.borderColor = "rgba(0,0,0,0)";
+			dataset.backgroundColor = "rgba(0,0,0,0)";
+		})
 
-        lineChart.config.data.datasets[flag].borderColor = bColor[flag];
-        lineChart.config.data.datasets[flag].backgroundColor = bgColor[flag];
-        lineChart.update();
-    }
+		lineChart.config.data.datasets[flag].borderColor = bColor[flag];
+		lineChart.config.data.datasets[flag].backgroundColor = bgColor[flag];
+		lineChart.update();
+	}
 
 	return lineChart;
 };
 
 function displayLegendsForLineChart(seriesArray, labels, colors,metricsDatasets,panelId, chartType) {
-    $.each(seriesArray, function (k, v) {
+	$.each(seriesArray, function (k, v) {
 		const htmlString = `<div class="legend-element-line" id="legend-line-${k}"><span class="legend-colors-line" style="background-color:` + colors[k] + `"></span>` + v.seriesName + `</div>`;
-        $('.lineChartLegend').append(htmlString);
+		$('.lineChartLegend').append(htmlString);
 	});
 
-    let prev = null;
+	let prev = null;
 
-    const legends = document.querySelectorAll('.legend-element-line');
-    $.each(legends, function (i, legend) {
-        legend.addEventListener('click', (e) => {
-                let currSelectedEl = parseInt((e.target.id).slice(12));
-                if(prev == null) {
-                    e.target.classList.add("selected");
-                    prev = currSelectedEl;
-                    renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, currSelectedEl);
-                } else if (prev == currSelectedEl) {
-                    e.target.classList.remove("selected");
-                    prev = null;
-                    renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, -2);
-                } else {
-                    let prevEl = document.getElementById(`legend-line-${prev}`);
-                    prevEl.classList.remove("selected");
-                    e.target.classList.add("selected");
-                    prev = currSelectedEl;
-                    renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, currSelectedEl);                  
-                }
-            }
-        )
-    })
+	const legends = document.querySelectorAll('.legend-element-line');
+	$.each(legends, function (i, legend) {
+		legend.addEventListener('click', (e) => {
+			let currSelectedEl = parseInt((e.target.id).slice(12));
+			if(prev == null) {
+				e.target.classList.add("selected");
+				prev = currSelectedEl;
+				renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, currSelectedEl);
+			} else if (prev == currSelectedEl) {
+				e.target.classList.remove("selected");
+				prev = null;
+				renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, -2);
+			} else {
+				let prevEl = document.getElementById(`legend-line-${prev}`);
+				prevEl.classList.remove("selected");
+				e.target.classList.add("selected");
+				prev = currSelectedEl;
+				renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, currSelectedEl);
+			}
+		}
+		)
+	})
 }
