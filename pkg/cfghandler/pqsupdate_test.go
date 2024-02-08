@@ -3,9 +3,10 @@ package cfghandler
 import (
 	"testing"
 
+	"fmt"
 	"io/ioutil"
 	"os"
-	"fmt"
+
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/stretchr/testify/assert"
 )

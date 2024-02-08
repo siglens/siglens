@@ -523,7 +523,7 @@ func InitConfigurationData() error {
 	runningConfig = config
 	var readConfig RunModConfig
 	readConfig, err = ReadRunModConfig(RunModFilePath)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		log.Errorf("InitConfigurationData: Failed to read runmod config: %v, config: %+v", err, readConfig)
 	}
 	fileInfo, err := os.Stat(configFilePath)
