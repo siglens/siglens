@@ -26,7 +26,7 @@ import (
 	"github.com/fasthttp/router"
 	"github.com/oklog/run"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/lookuptable"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
@@ -47,10 +47,6 @@ type queryserverCfg struct {
 	lnTls  net.Listener
 	Router *router.Router
 	debug  bool
-}
-
-type uiCfgData struct {
-	AlertEnabled bool
 }
 
 var (
@@ -232,7 +228,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}
 
-	if hook := lookuptable.GlobalLookupTable.ServeHtmlHook; hook != nil {
+	if hook := hooks.GlobalHooks.ServeStaticHook; hook != nil {
 		hook(hs.Router)
 	}
 
@@ -282,12 +278,9 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 }
 
 func renderHtmlTemplate(ctx *fasthttp.RequestCtx, tpl *htmltemplate.Template) {
-	// data := uiCfgData{
-	// 	AlertEnabled: true,
-	// }
 	filename := utils.ExtractParamAsString(ctx.UserValue("filename"))
 	ctx.Response.Header.Set("Content-Type", "text/html; charset=utf-8")
-	err := tpl.ExecuteTemplate(ctx, filename+".html", lookuptable.GlobalLookupTable)
+	err := tpl.ExecuteTemplate(ctx, filename+".html", hooks.GlobalHooks.HtmlSnippets)
 	if err != nil {
 		log.Errorf("renderHtmlTemplate: unable to execute template, err: %v", err.Error())
 		return
@@ -295,12 +288,9 @@ func renderHtmlTemplate(ctx *fasthttp.RequestCtx, tpl *htmltemplate.Template) {
 }
 
 func renderJavaScriptTemplate(ctx *fasthttp.RequestCtx, tpl *texttemplate.Template) {
-	// data := uiCfgData{
-	// 	AlertEnabled: true,
-	// }
 	filename := utils.ExtractParamAsString(ctx.UserValue("filename"))
 	ctx.Response.Header.Set("Content-Type", "application/javascript; charset=utf-8")
-	err := tpl.ExecuteTemplate(ctx, filename+".js", lookuptable.GlobalLookupTable)
+	err := tpl.ExecuteTemplate(ctx, filename+".js", hooks.GlobalHooks.JsSnippets)
 	if err != nil {
 		log.Errorf("renderJavaScriptTemplate: unable to execute template, err: %v", err.Error())
 		return

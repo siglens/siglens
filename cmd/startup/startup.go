@@ -32,9 +32,9 @@ import (
 	local "github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/dashboards"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/localnodeid"
-	"github.com/siglens/siglens/pkg/lookuptable"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/retention"
 	"github.com/siglens/siglens/pkg/scroll"
@@ -76,10 +76,9 @@ func initlogger() {
 }
 
 func Main() {
-	if hook := lookuptable.GlobalLookupTable.StartupHook; hook != nil {
+	if hook := hooks.GlobalHooks.StartupHook; hook != nil {
 		hook()
 	}
-	log.Errorf("Finished StartupHook")
 
 	initlogger()
 	utils.SetServerStartTime(time.Now())
@@ -321,18 +320,18 @@ func startQueryServer(serverAddr string) {
 		}()
 	} else {
 		go func() {
-			templateHook := lookuptable.GlobalLookupTable.TemplateHook
-			if templateHook == nil {
-				log.Fatalf("startQueryServer: TemplateHook is nil")
-			}
-
 			htmlTemplate := htmltemplate.New("html").Funcs(htmltemplate.FuncMap{
 				"safeHTML": func(htmlContent string) htmltemplate.HTML {
 					return htmltemplate.HTML(htmlContent)
 				},
 			})
 			textTemplate := texttemplate.New("other")
-			templateHook(htmlTemplate, textTemplate)
+
+			parseTemplatesHook := hooks.GlobalHooks.ParseTemplatesHook
+			if parseTemplatesHook == nil {
+				log.Fatalf("startQueryServer: ParseTemplatesHook is nil")
+			}
+			parseTemplatesHook(htmlTemplate, textTemplate)
 
 			err := s.Run(htmlTemplate, textTemplate)
 			if err != nil {
