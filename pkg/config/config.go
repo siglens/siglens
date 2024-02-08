@@ -672,7 +672,7 @@ func ExtractConfigData(yamlData []byte) (Configuration, error) {
 	}
 	pqsEnabled, err := strconv.ParseBool(config.PQSEnabled)
 	if err != nil {
-		log.Errorf("ExtractConfigData: failed to parse PQS enabled flag. Defaulting to true. Error: %v", err)
+		log.Errorf("ExtractConfigData: failed to parse PQS enabled flag. Defaulting to false. Error: %v", err)
 		pqsEnabled = false
 		config.PQSEnabled = "false"
 	}

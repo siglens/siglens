@@ -21,7 +21,7 @@ func GetPqsEnabled(ctx *fasthttp.RequestCtx) {
 	var pqsEnabled bool
 	runModConfig, err := config.ReadRunModConfig(config.RunModFilePath)
 	if err != nil {
-		log.Info("GetPqsEnabled:Error reading runmod config: %v", err)
+		log.Infof("GetPqsEnabled:Error reading runmod config: %v", err)
 		pqsEnabled = config.IsPQSEnabled()
 	} else {
 		pqsEnabled = runModConfig.PQSEnabled
