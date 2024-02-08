@@ -389,26 +389,30 @@
                 </ul>
                 
                 <div class="legend-options" style="display: none;">
-                    <label>Legend Modes:</label>
-                    <select id="legendMode">
-                        <option value="list">List</option>
-                        <option value="table">Table</option>
-                        <option value="hidden">Hidden</option>
-                    </select>
-                
-                    <label>Legend Placements:</label>
-                    <select id="legendPlacement">
-                        <option value="bottom">Bottom</option>
-                        <option value="right">Right</option>
-                        <option value="left">Left</option>
-                    </select>
-               
-                    <label>Legend Value Displays:</label>
-                    <select id="legendValueDisplay">
-                        <option value="name">Name</option>
-                        <option value="value">Value</option>
-                        <option value="percentage">Percentage</option>
-                    </select>
+                    <div class="legend-visibility-toggle-container btn">
+                        <label class="label-legend-visibility">Legend visibility</label>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-switch1" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                <div class="legendPlacementContainer">
+                    <div class="dropDownTitle dropDown-legend" title="Click to change the legend placement">
+                        <span>Legend Placement</span>
+                        <div class="caret"></div>
+                    </div>
+                    <ul class="editPanelMenu editPanelMenu-legend" id="legendPlacementDropdown">
+                        <div class="editPanelMenu-options legend-options" data-value="left">
+                            <li>Left</li>
+                        </div>
+                        <div class="editPanelMenu-options legend-options" data-value="right">
+                            <li>Right</li>
+                        </div>
+                        <div class="editPanelMenu-options legend-options" data-value="bottom">
+                            <li>Bottom</li>
+                        </div>
+                    </ul>
+                </div>
                 </div>
                 <div class="dropDownTitle dropDown-color active">
                     <span>Color Palette</span>

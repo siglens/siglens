@@ -16,22 +16,40 @@ limitations under the License.
 
 var lineChart;
 var pieOptions, barOptions;
+function showLegendOptions(selectedChartIndex) {
+    const isLegendVisible = [0, 1, 2].includes(selectedChartIndex);
+    $('.legend-options').toggle(isLegendVisible);
+    if (isLegendVisible) {
+        $('#legendPlacementDropdown').show();
+    } else {
+        $('#legendPlacementDropdown').hide();
+    }
+}
+const initialSelectedChartIndex = 1;
+showLegendOptions(initialSelectedChartIndex);
+// Handle chart options click
 $('.chart-options').on('click', function() {
-	const selectedChartIndex = $(this).data('index');
-	const isLegendVisible = [0, 1, 2].includes(selectedChartIndex); 
-	$('.legend-options').toggle(isLegendVisible);
+    const selectedChartIndex = $(this).data('index');
+    showLegendOptions(selectedChartIndex);
 });
-let legendMode = 'list';
+
 let legendPlacement = 'left';
-let legendDisplay = 'value';
-$('#legendMode, #legendPlacement, #legendValueDisplay').on('change', function () {
-    legendMode = $('#legendMode').val();
-    legendPlacement = $('#legendPlacement').val();
-    legendDisplay = $('#legendValueDisplay').val();
-    // Call the function to update the chart with the new legend options
-    loadPieOptions(xAxisData, yAxisData);
-	loadBarOptions(xAxisData, yAxisData);
+let isLegendVisible = true;
+
+// Handle legend visibility toggle switch change
+$('#toggle-switch1').on('change', function () {
+    isLegendVisible = this.checked;
+	$('.legendPlacementContainer').toggle(isLegendVisible);
+   loadPieOptions(xAxisData, yAxisData);
 });
+
+$('#legendPlacementDropdown .legend-options').on('click', function () {
+    legendPlacement = $(this).data('value');
+	$('#legendPlacementDropdown .legend-options').removeClass('selected');
+    $(this).addClass('selected');
+    loadPieOptions(xAxisData, yAxisData);
+});
+
 function loadBarOptions(xAxisData, yAxisData) {
 	// colors for dark & light modes
 	let root = document.querySelector(':root');
@@ -40,13 +58,6 @@ function loadBarOptions(xAxisData, yAxisData) {
 	let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
 	let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
 	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1')
-	let legendData;
-
-    if (legendValueDisplay === 'name') {
-        legendData = xAxisData;
-    } else if (legendValueDisplay === 'value') {
-        legendData = yAxisData;
-    }
 	barOptions = {
 		xAxis: {
 			type: 'category',
@@ -78,17 +89,6 @@ function loadBarOptions(xAxisData, yAxisData) {
 				},
 			},
 		},
-		legend: {
-		    show: legendMode !== 'hidden', 
-            orient: legendPlacement === 'right' ? 'vertical' :(legendPlacement === 'left' ? 'vertical' : 'horizontal'),
-            left: legendPlacement === 'right' ? 'right' : (legendPlacement === 'left' ? 'left' : 'center'),
-            top: legendPlacement === 'bottom' ? 'bottom' : 'center',
-            data: legendData,
-            textStyle: {
-                color: legendMode === 'table' ? labelDarkThemeColor : labelLightThemeColor,
-                borderColor: labelDarkThemeColor,
-            },
-        },
 		series: [
 			{
 				data: yAxisData,
@@ -150,13 +150,8 @@ function loadPieOptions(xAxisData, yAxisData) {
 	let root = document.querySelector(':root');
 	let rootStyles = getComputedStyle(root);
 	let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
-	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1')
-	let legendData;
-    if (legendDisplay === 'name') {
-        legendData = xAxisData;
-    } else if (legendDisplay === 'value') {
-        legendData =  yAxisData;
-    } 
+	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
+
 	pieOptions = {
 		xAxis: {
 			show: false
@@ -166,15 +161,15 @@ function loadPieOptions(xAxisData, yAxisData) {
 			formatter: "{a} <br/>{b} : {c} ({d}%)"
 		},
 		legend: {
-		    show: legendMode !== 'hidden', 
             orient: legendPlacement === 'right' ? 'vertical' :(legendPlacement === 'left' ? 'vertical' : 'horizontal'),
             left: legendPlacement === 'right' ? 'right' : (legendPlacement === 'left' ? 'left' : 'center'),
             top: legendPlacement === 'bottom' ? 'bottom' : 'center',
-            data: legendData,
+            data: xAxisData,
             textStyle: {
-                color: legendMode === 'table' ? labelDarkThemeColor : labelLightThemeColor,
+                color: labelDarkThemeColor,
                 borderColor: labelDarkThemeColor,
             },
+			show: isLegendVisible, 
         },
 		series: [
 			{
@@ -191,7 +186,7 @@ function loadPieOptions(xAxisData, yAxisData) {
 					}
 				},
 				label: {
-                    color: legendMode === 'table' ? labelDarkThemeColor : labelLightThemeColor,
+                    color: labelDarkThemeColor,
                 }
 			}
 		]
