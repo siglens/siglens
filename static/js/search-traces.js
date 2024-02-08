@@ -294,7 +294,7 @@ function getTotalTraces(params) {
   }).then((res) => {
     totalTraces = res;
       // Update the total traces number with the response
-      $("#traces-number").text(res + " Traces");
+      $("#traces-number").text(res.toLocaleString("en-US") + " Traces");
   });
 }
 
@@ -542,11 +542,18 @@ let isLoading = false; // Flag to indicate whether an API call is in progress
 let dashboard = document.getElementById('dashboard');
 
 dashboard.onscroll = function () {
+  console.log("scroll");
   let scrollHeight = dashboard.scrollHeight;
   let scrollPosition = dashboard.clientHeight + dashboard.scrollTop;
+  console.log(!isLoading && hasLoaded && !allResultsFetched && (scrollPosition / scrollHeight >= 0.6));
+  console.log("!isLoading", !isLoading);
+  console.log("hasLoaded", hasLoaded);
+  console.log("allResultsFetched", !allResultsFetched);
+  console.log("(scrollPosition / scrollHeight >= 0.6)", (scrollPosition / scrollHeight >= 0.6));
   if (!isLoading && hasLoaded && !allResultsFetched && (scrollPosition / scrollHeight >= 0.6)) { // 60% scroll
     isLoading = true; // Set the flag to true to indicate that an API call is in progress
     lastScrollPosition = dashboard.scrollTop;
+    console.log("sdfasdfasdf");
     getData();
     dashboard.scrollTo({
       top: lastScrollPosition,
@@ -556,6 +563,7 @@ dashboard.onscroll = function () {
 };
 function getData() {
   //users did not set limitation
+  console.log(limitation);
   if(limitation == -1){
     params.page = params.page + 1;
     searchTrace(params);
