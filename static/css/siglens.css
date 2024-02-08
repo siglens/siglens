@@ -4621,9 +4621,11 @@ color: #C8C7CC;
     left: 22%;
     height: 70%;
     width: 60% !important;
-    overflow-y: scroll;
+    overflow: hidden;
 }
-
+#add-new-contact-popup #contact-form-container{
+    height: 90%;
+}
 #add-new-contact-popup .add-contact-form{
     width: 100%;
 }
