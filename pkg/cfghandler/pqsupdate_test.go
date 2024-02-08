@@ -5,22 +5,22 @@ import (
 
 	"io/ioutil"
 	"os"
-
+	"fmt"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSavePQSConfigToRunMod(t *testing.T) {
 	testCases := []struct {
-		pqsEnabled       string
+		pqsEnabled       bool
 		expectConfigFile bool
 	}{
-		{"enabled", true},
-		{"disabled", true},
+		{true, true},
+		{false, true},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.pqsEnabled, func(t *testing.T) {
+		t.Run(fmt.Sprintf("pqsEnabled_%t", tc.pqsEnabled), func(t *testing.T) {
 			tempFile, err := ioutil.TempFile("", "runmodcfg_*.json")
 			if err != nil {
 				t.Fatalf("Failed to create temp file: %v", err)
@@ -43,7 +43,7 @@ func TestExtractReadRunModConfig(t *testing.T) {
 	}{
 		{
 			name:  "Valid Enabled Config",
-			input: []byte(`{"pqsEnabled": "enabled"}`),
+			input: []byte(`{"pqsEnabled": true}`),
 			expected: config.RunModConfig{
 				PQSEnabled: true,
 			},
@@ -51,7 +51,7 @@ func TestExtractReadRunModConfig(t *testing.T) {
 		},
 		{
 			name:  "Valid Disabled Config",
-			input: []byte(`{"pqsEnabled": "disabled"}`),
+			input: []byte(`{"pqsEnabled": false}`),
 			expected: config.RunModConfig{
 				PQSEnabled: false,
 			},
