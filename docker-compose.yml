@@ -28,6 +28,10 @@ services:
     image: docker.io/otel/opentelemetry-collector:latest 
     volumes:
       - "${WORK_DIR}/ssmetrics-otel-collector-config.yaml:/etc/ssmetrics-otel-collector-config.yaml"  
+    
     ports:
       - "4318:4318"
+      - "2222:2222"
+    environment:
+      - WORK_DIR=${WORK_DIR}
     command: ["--config=/etc/ssmetrics-otel-collector-config.yaml"]  
