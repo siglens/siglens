@@ -565,7 +565,7 @@ func InitializeDefaultConfig() {
 		S3IngestBufferSize:         1000,
 		MaxParallelS3IngestBuffers: 10,
 		SSInstanceName:             "",
-		PQSEnabled:                 "true",
+		PQSEnabled:                 "false",
 		pqsEnabledConverted:        false,
 		SafeServerStart:            false,
 		AnalyticsEnabled:           "false",
@@ -629,13 +629,13 @@ func ExtractConfigData(yamlData []byte) (Configuration, error) {
 	}
 
 	if len(config.PQSEnabled) <= 0 {
-		config.PQSEnabled = "true"
+		config.PQSEnabled = "false"
 	}
 	pqsEnabled, err := strconv.ParseBool(config.PQSEnabled)
 	if err != nil {
 		log.Errorf("ExtractConfigData: failed to parse PQS enabled flag. Defaulting to true. Error: %v", err)
-		pqsEnabled = true
-		config.PQSEnabled = "true"
+		pqsEnabled = false
+		config.PQSEnabled = "false"
 	}
 	config.pqsEnabledConverted = pqsEnabled
 
