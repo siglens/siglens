@@ -26,6 +26,8 @@ let pageNumber = 1,
   params = {};
 let limitation = -1;
 let hasLoaded = false;
+let allResultsFetched = false;
+let totalTraces = 0;
 $(document).ready(() => {
   if (Cookies.get("theme")) {
     theme = Cookies.get("theme");
@@ -223,6 +225,7 @@ function searchTraceHandler(e){
    traceSize = 0;
     params = {};
     $(".warn-box").remove();
+    $("#traces-number").text("");
     let serviceValue = $("#service-span-name").text();
     let operationValue = $("#operation-span-name").text();
     let tagValue = $("#tags-input").val();
@@ -254,6 +257,10 @@ function searchTraceHandler(e){
       queryLanguage: "Splunk QL",
       page: pageNumber,
     };
+    allResultsFetched = false;
+    if (chart != null && chart != "" && chart != undefined) {
+      echarts?.dispose(chart);
+    }
     searchTrace(params);
     handleSort();
     return false;
@@ -273,6 +280,24 @@ function initChart(){
   };
     searchTrace(params);
 }
+function getTotalTraces(params) {
+  $.ajax({
+      method: "post",
+      url: "http://localhost:5122/api/traces/count",
+      headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          Accept: "*/*",
+      },
+      crossDomain: true,
+      dataType: "json",
+      data: JSON.stringify(params),
+  }).then((res) => {
+    totalTraces = res;
+      // Update the total traces number with the response
+      $("#traces-number").text(res + " Traces");
+  });
+}
+
 function searchTrace(params){
   $.ajax({
     method: "post",
@@ -286,21 +311,23 @@ function searchTrace(params){
     data: JSON.stringify(params),
   }).then((res) => {
     if (res && res.traces && res.traces.length > 0) {
-        if ((limitation < 50 && limitation > 0) || limitation== 0) {
-          let newArr = res.traces.sort(compare("start_time", "most"));
-          if (limitation > 0) newArr.splice(limitation);
-          else newArr.splice(requestFlag);
-          limitation = 0;
-          requestFlag = 0;
-          returnResTotal = returnResTotal.concat(newArr);
-        } else {
-          returnResTotal = returnResTotal.concat(res.traces);
-        }
-        //concat new traces results
+      if ((limitation < 50 && limitation > 0) || limitation== 0) {
+        let newArr = res.traces.sort(compare("start_time", "most"));
+        if (limitation > 0) newArr.splice(limitation);
+        else newArr.splice(requestFlag);
+        limitation = 0;
+        requestFlag = 0;
+        returnResTotal = returnResTotal.concat(newArr);
+      } else {
+        returnResTotal = returnResTotal.concat(res.traces);
+      }
+      //concat new traces results
       returnResTotal = returnResTotal.sort(compare("start_time", "most"));
       //reset total size
       traceSize = returnResTotal.length;
-      $("#traces-number").text(traceSize + " Traces");
+      if ($("#traces-number").text().trim() === "") {
+        getTotalTraces(params);
+      }      
       timeList = [];
       for (let i = 0; i < traceSize; i++) {
         let json = returnResTotal[i];
@@ -308,14 +335,22 @@ function searchTrace(params){
         let dataInfo = new Date(milliseconds);
         let dataStr = dataInfo.toLocaleString().toLowerCase();
         let duration = Number((json.end_time - json.start_time) / 1000000);
-        let newArr = [i, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name];
+        let newArr = [i, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name, json.trace_id];
         timeList.push(dataStr);
         if(json.span_errors_count == 0) curSpanTraceArray.push(newArr);
         else curErrorTraceArray.push(newArr);
       }
       showScatterPlot();
       reSort();
-    }else{
+
+      // If the number of traces returned is 50, call getData again
+      if (res.traces.length == 50 && params.page < 2) {
+        getData(params);
+      }
+      if(returnResTotal.length >= totalTraces && res.traces.length < 50){
+        allResultsFetched = true;
+      } 
+    } else {
       if (returnResTotal.length == 0) {
         if (chart != null && chart != "" && chart != undefined) {
           chart.dispose();
@@ -326,6 +361,7 @@ function searchTrace(params){
         $("#graph-show").addClass("empty-result-show");
       }
     }
+    isLoading = false; // Set the flag to false after getting the response
   });
 }
 const resizeObserver = new ResizeObserver((entries) => {
@@ -368,7 +404,7 @@ function showScatterPlot() {
         var duration = param.value[1];
         var spans = param.value[2];
         var errors = param.value[3];
-        var traceId = param.dataIndex < returnResTotal.length ? returnResTotal[param.dataIndex].trace_id.substring(0, 7) : '';
+        var traceId = param.value[6] ? param.value[6].substring(0, 7) : '';
 
         return (
           "<div>" + green + ": " + red + 
@@ -496,38 +532,39 @@ function calculateTimeToNow(startTime) {
     days: days,
   };
 }
+let lastScrollPosition = 0;
+let isLoading = false; // Flag to indicate whether an API call is in progress
 
-let lastScrollPosition = 0;  
-window.onscroll = function () {
-  if (
-    hasLoaded && (window.innerHeight + window.scrollY >=
-    document.body.offsetHeight)
-  ) {
-    lastScrollPosition = window.scrollY;
+let dashboard = document.getElementById('dashboard');
+
+dashboard.onscroll = function () {
+  let scrollHeight = dashboard.scrollHeight;
+  let scrollPosition = dashboard.clientHeight + dashboard.scrollTop;
+  if (!isLoading && hasLoaded && !allResultsFetched && (scrollPosition / scrollHeight >= 0.6)) { // 60% scroll
+    isLoading = true; // Set the flag to true to indicate that an API call is in progress
+    lastScrollPosition = dashboard.scrollTop;
     getData();
-    window.scrollTo({
+    dashboard.scrollTo({
       top: lastScrollPosition,
       behavior: "smooth",
     });
   }
 };
-
 function getData() {
-      //users did not set limitation
-      if(limitation == -1){
-        params.page = params.page + 1;
-        searchTrace(params);
-      }else if(limitation > 0){
-        if (limitation >= 50) {
-          limitation = limitation - 50;
-          params.page = params.page + 1;
-          searchTrace(params);
-        } else {
-        params.page = params.page + 1;
-          searchTrace(params);
-        }
-      }
-      
+  //users did not set limitation
+  if(limitation == -1){
+    params.page = params.page + 1;
+    searchTrace(params);
+  } else if(limitation > 0){
+    if (limitation >= 50) {
+      limitation = limitation - 50;
+      params.page = params.page + 1;
+      searchTrace(params);
+    } else {
+      params.page = params.page + 1;
+      searchTrace(params);
+    }
+  }
 }
 
 $("body").on("click", ".warn-box", function() {
