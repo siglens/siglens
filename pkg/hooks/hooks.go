@@ -43,6 +43,8 @@ type JsSnippets struct {
 	SettingsExtraOnReadySetup      string
 	SettingsRetentionDataThenBlock string
 	SettingsExtraFunctions         string
+
+	TestDataSendData string
 }
 
 var GlobalHooks = Hooks{

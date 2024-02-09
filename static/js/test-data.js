@@ -33,7 +33,11 @@ $(document).ready(function () {
     })
         .then((res) => {
             let token;
-            myOrgSendTestData(token);
+            {{ if .TestDataSendData }}
+                {{ .TestDataSendData }}
+            {{ else }}
+                myOrgSendTestData(token);
+            {{ end }}
         })
         .catch((err) => {
             console.log(err)
