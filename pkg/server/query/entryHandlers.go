@@ -464,12 +464,6 @@ func updateContactHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func createNotificationHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessCreateNotificationRequest(ctx)
-	}
-}
-
 func deleteContactHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		alertsHandler.ProcessDeleteContactRequest(ctx)
