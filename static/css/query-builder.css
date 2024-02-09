@@ -320,6 +320,7 @@ input.form-control {
     background-size: 50%;
     background-position: center;
     border-radius: 0 5px 5px 0;
+    cursor: pointer;
 }
 .run-filter-btn {
     background-image: url("../assets/search-img.svg");
