@@ -5,7 +5,7 @@ receivers:
         - job_name: 'siglens-metrics'
           scrape_interval: 60s
           static_configs:
-            - targets: ['localhost:2222']
+            - targets: ['siglens:2222']
 
 processors:
   batch:
@@ -15,7 +15,7 @@ exporters:
     loglevel: debug
 
   prometheusremotewrite:
-    endpoint: 'http://localhost:8081/promql/api/v1/write'
+    endpoint: 'http://siglens:8081/promql/api/v1/write'
 
 service:
   pipelines:
