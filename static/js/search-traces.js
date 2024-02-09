@@ -294,7 +294,7 @@ function getTotalTraces(params) {
   }).then((res) => {
     totalTraces = res;
       // Update the total traces number with the response
-      $("#traces-number").text(res + " Traces");
+      $("#traces-number").text(res.toLocaleString("en-US") + " Traces");
   });
 }
 
@@ -408,10 +408,10 @@ function showScatterPlot() {
 
         return (
           "<div>" + green + ": " + red + 
+          "<br>Trace ID: " + traceId +
           "<br>Duration: " + duration + "ms" +
           "<br>No. of Spans: " + spans +
           "<br>No. of Error Spans: " + errors +
-          "<br>Trace ID: " + traceId +
           "</div>"
         );
       },
@@ -446,6 +446,10 @@ function showScatterPlot() {
         },
       },
     ],
+  });
+   // Open Gantt Chart when click on Scatter Chart
+   chart.on('click', function (params) {
+    window.location.href = "trace.html?trace_id=" + params.data[6];
   });
 }
 function reSort(){
