@@ -37,6 +37,7 @@ import (
 )
 
 const MINUTES_REREAD_CONFIG = 15
+const RunModFilePath = "data/common/runmod.cfg"
 
 var configFileLastModified uint64
 
@@ -146,6 +147,10 @@ type Configuration struct {
 	TLS                        TLSConfig      `yaml:"tls"`           // TLS related config
 	EmailConfig                EmailConfig    `yaml:"emailConfig"`
 	DatabaseConfig             DatabaseConfig `yaml:"minionSearch"`
+}
+
+type RunModConfig struct {
+	PQSEnabled bool `json:"pqsEnabled"`
 }
 
 var runningConfig Configuration
@@ -516,6 +521,11 @@ func InitConfigurationData() error {
 		return err
 	}
 	runningConfig = config
+	var readConfig RunModConfig
+	readConfig, err = ReadRunModConfig(RunModFilePath)
+	if err != nil && !os.IsNotExist(err) {
+		log.Errorf("InitConfigurationData: Failed to read runmod config: %v, config: %+v", err, readConfig)
+	}
 	fileInfo, err := os.Stat(configFilePath)
 	if err != nil {
 		log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
@@ -587,6 +597,35 @@ func InitializeTestingConfig() {
 	SetDataPath("data/")
 }
 
+func ReadRunModConfig(fileName string) (RunModConfig, error) {
+	_, err := os.Stat(fileName)
+	if os.IsNotExist(err) {
+		log.Infof("ReadRunModConfig:Config file '%s' does not exist. Awaiting user action to create it.", fileName)
+		return RunModConfig{}, err
+	} else if err != nil {
+		log.Errorf("ReadRunModConfig:Error accessing config file '%s': %v", fileName, err)
+		return RunModConfig{}, err
+	}
+
+	jsonData, err := os.ReadFile(fileName)
+	if err != nil {
+		log.Errorf("ReadRunModConfig:Cannot read input fileName = %v, err=%v", fileName, err)
+	}
+	return ExtractReadRunModConfig(jsonData)
+}
+
+func ExtractReadRunModConfig(jsonData []byte) (RunModConfig, error) {
+	var runModConfig RunModConfig
+	err := json.Unmarshal(jsonData, &runModConfig)
+	if err != nil {
+		log.Errorf("ExtractReadRunModConfig:Failed to parse runmod.cfg: %v", err)
+		return runModConfig, err
+	}
+
+	SetPQSEnabled(runModConfig.PQSEnabled)
+	return runModConfig, nil
+}
+
 func ReadConfigFile(fileName string) (Configuration, error) {
 	yamlData, err := os.ReadFile(fileName)
 	if err != nil {
@@ -633,7 +672,7 @@ func ExtractConfigData(yamlData []byte) (Configuration, error) {
 	}
 	pqsEnabled, err := strconv.ParseBool(config.PQSEnabled)
 	if err != nil {
-		log.Errorf("ExtractConfigData: failed to parse PQS enabled flag. Defaulting to true. Error: %v", err)
+		log.Errorf("ExtractConfigData: failed to parse PQS enabled flag. Defaulting to false. Error: %v", err)
 		pqsEnabled = false
 		config.PQSEnabled = "false"
 	}
