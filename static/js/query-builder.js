@@ -13,15 +13,24 @@ $("#custom-code-tab").tabs({
     }
     let currentTab = $("#custom-code-tab").tabs("option", "active");
     if (currentTab == 0) {
+      // Query Builder Tab
       let filterValue = $("#filter-input").val();
-      if (filterValue != "" && $("#query-input").val() == "*") $("#query-input").val(filterValue);
+      if (filterValue != "") $("#query-input").val(filterValue);
+      if (filterValue == "") $("#query-input").val('*')
+      if(!isQueryBuilderSearch){
+        // Clear input boxes of the query builder when a query is searched from the free text
+        $(".tags-list").empty();  
+        [firstBoxSet, secondBoxSet, thirdBoxSet] = [new Set(), new Set(), new Set()];
+        $("#aggregations, #aggregate-attribute-text, #search-filter-text").show();
+      }
       $(".query-language-option").removeClass("active");
       $("#query-language-options #option-3").addClass("active");
       $("#query-language-btn span").html("Splunk QL");
       displayQueryLangToolTip("3");
     }else{
+      // Free Text Tab
       let filterValue = $("#query-input").val();
-     if (filterValue != "" && ($("#filter-input").val() == "*" || $("#filter-input").val() == "")) $("#filter-input").val(filterValue);
+      if (filterValue != "") $("#filter-input").val(filterValue);
     }
   },
 });
