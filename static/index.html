@@ -41,7 +41,7 @@
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
 
-    {{ .RunOktaSignin }}
+    {{ .RunOktaSignin | safeHTML }}
 </head>
 
 <body data-theme="light">
@@ -400,10 +400,10 @@
     <script src="./js/dashboard-from-logs.js?cb=1_1_10"></script>
     <script src="./js/query-builder.js"></script>
     <script src="./js/lib/echarts.min.js"></script>
-    {{ .IndexExtraImports }}
+    {{ .IndexExtraImports | safeHTML }}
 
-    {{ .RunRbacAuthCheck }}
-    {{ .RunSaasAuthCheck }}
+    {{ .RunRbacAuthCheck | safeHTML }}
+    {{ .RunSaasAuthCheck | safeHTML }}
 
 </body>
 

@@ -49,9 +49,7 @@ type JsSnippets struct {
 }
 
 var GlobalHooks = Hooks{
-	ServeStaticHook: func(router *router.Router, htmlTemplate *htmltemplate.Template) {
-		router.ServeFiles("/{filepath:*}", "./static")
-	},
+
 	ParseTemplatesHook: func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) {
 		htmlTemplate = htmltemplate.Must(htmlTemplate.ParseGlob("./static/*.html"))
 		textTemplate = texttemplate.Must(textTemplate.ParseGlob("./static/js/*.js"))

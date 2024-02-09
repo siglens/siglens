@@ -230,6 +230,27 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 
 	if hook := hooks.GlobalHooks.ServeStaticHook; hook != nil {
 		hook(hs.Router, htmlTemplate)
+	} else {
+		hook = func(router *router.Router, htmlTemplate *htmltemplate.Template) {
+			router.GET("/{filepath:*}", func(ctx *fasthttp.RequestCtx) {
+				filepath := ctx.UserValue("filepath").(string)
+				if filepath == "" {
+					// Render index.html and send that.
+					ctx.Response.Header.Set("Content-Type", "text/html; charset=utf-8")
+					err := htmlTemplate.ExecuteTemplate(ctx, "index.html", hooks.GlobalHooks.HtmlSnippets)
+					if err != nil {
+						log.Fatalf("serveStatic: error executing index.html template: %v", err)
+					}
+
+					return
+				}
+
+				log.Errorf("andrew: attempting to serve file: %v", filepath)
+
+				fasthttp.ServeFile(ctx, "static/"+filepath)
+			})
+		}
+		hook(hs.Router, htmlTemplate)
 	}
 
 	hs.ln, err = reuseport.Listen("tcp4", hs.Addr)
