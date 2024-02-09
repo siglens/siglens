@@ -29,7 +29,12 @@ type HtmlSnippets struct {
 }
 
 type JsSnippets struct {
-	// TODO: add string fields
+	ClusterStatsExtraFunctions  string
+	ClusterStatsExtraSetup      string
+	ClusterStatsSetUserRole     string
+	ClusterStatsAdminView       string
+	ClusterStatsAdminButton     string
+	ClusterStatsCallDisplayRows string
 }
 
 var GlobalHooks = Hooks{
