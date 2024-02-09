@@ -97,6 +97,8 @@ let alertsUpperNavTabs = [
     { name: 'Contact Points', url: './contacts.html', class : 'contacts'},
 ];
 
+{{ .NavBarExtraFunctions }}
+
 $(document).ready(function () {
     $("#app-side-nav").prepend(navbarComponent);
     const currentUrl = window.location.href;

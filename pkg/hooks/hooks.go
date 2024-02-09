@@ -37,6 +37,8 @@ type JsSnippets struct {
 	ClusterStatsCallDisplayRows string
 
 	CommonExtraFunctions string
+
+	NavBarExtraFunctions string
 }
 
 var GlobalHooks = Hooks{
