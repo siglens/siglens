@@ -1052,13 +1052,14 @@ function addPanel(panelToDuplicate) {
             },
             "queryType": "",
         });
+    if (!panelToDuplicate) {        
         editPanelInit(panelIndex);
         $('.panelEditor-container').show();
         $('#app-container').hide();
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
-    
+    }
     resetPanelContainerHeight();
 
     handlePanelView();
