@@ -229,7 +229,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	}
 
 	if hook := hooks.GlobalHooks.ServeStaticHook; hook != nil {
-		hook(hs.Router)
+		hook(hs.Router, htmlTemplate)
 	}
 
 	hs.ln, err = reuseport.Listen("tcp4", hs.Addr)

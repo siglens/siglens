@@ -12,7 +12,7 @@ type Hooks struct {
 	HtmlSnippets HtmlSnippets
 	JsSnippets   JsSnippets
 
-	ServeStaticHook    func(router *router.Router)
+	ServeStaticHook    func(router *router.Router, htmlTemplate *htmltemplate.Template)
 	ParseTemplatesHook func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template)
 }
 
@@ -26,6 +26,7 @@ type HtmlSnippets struct {
 	RetentionPeriod               string
 	ExtraOrgSettings              string
 	ImportExtraOrgSettingsScripts string
+	IndexExtraImports             string
 }
 
 type JsSnippets struct {
@@ -48,7 +49,7 @@ type JsSnippets struct {
 }
 
 var GlobalHooks = Hooks{
-	ServeStaticHook: func(router *router.Router) {
+	ServeStaticHook: func(router *router.Router, htmlTemplate *htmltemplate.Template) {
 		router.ServeFiles("/{filepath:*}", "./static")
 	},
 	ParseTemplatesHook: func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) {
