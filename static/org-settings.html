@@ -36,7 +36,7 @@
     <script src="./js/settings.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
-    {{.RunOktaSignin | safeHTML}}
+    {{ .RunOktaSignin | safeHTML }}
 </head>
 
 <body data-theme="light">
@@ -47,7 +47,7 @@
         <div class="myOrg">
             <div class="myOrg-container">
                 <div class="org-nav-tab">
-                    {{.LogoutButton | safeHTML}}
+                    {{ .LogoutButton | safeHTML }}
                 </div>
 
                 <div class="myOrg-inner-container">
@@ -58,14 +58,23 @@
                         <table id="org-settings-table">
                             <tr>
                                 <th>Organization Name</th>
-                                {{.OrgName | safeHTML}}
+                                {{ if .OrgSettingsOrgName }}
+                                    {{ .OrgSettingsOrgName | safeHTML }}
+                                {{ else }}
+                                    <td id="orgName">SigLens</td>
+                                {{ end }}
                             </tr>
                             <tr>
                                 <th>Retention</th>
-                                {{.RetentionDays | safeHTML}}
+                                {{ .OrgSettingsRetentionPeriod | safeHTML }}
+                                {{ if .OrgSettingsRetentionPeriod }}
+                                    {{ .OrgSettingsRetentionPeriod | safeHTML }}
+                                {{ else }}
+                                    <td id="retention-days-value">4 days</td>
+                                {{ end }}
                             </tr>
                         </table>
-                        {{.ExtraOrgSettings | safeHTML}}
+                        {{ .OrgSettingsExtras | safeHTML }}
                     </div>
                 </div>
             </div>
@@ -88,10 +97,10 @@
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
     <script src="./js/settings.js?cb=1_1_10"></script>
-    {{.ImportExtraOrgSettingsScripts | safeHTML}}
+    {{ .OrgSettingsExtraImports | safeHTML }}
 
-    {{.RunRbacAuthCheck | safeHTML}}
-    {{.RunSaasAuthCheck | safeHTML}}
+    {{ .RunRbacAuthCheck | safeHTML }}
+    {{ .RunSaasAuthCheck | safeHTML }}
 
 </body>
 

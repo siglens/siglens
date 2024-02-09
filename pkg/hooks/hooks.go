@@ -17,16 +17,19 @@ type Hooks struct {
 }
 
 type HtmlSnippets struct {
-	RunSaasAuthCheck              string
-	RunRbacAuthCheck              string
-	RunOktaSignin                 string
-	LogoutButton                  string
-	DeleteIndex                   string
-	OrgName                       string
-	RetentionPeriod               string
-	ExtraOrgSettings              string
-	ImportExtraOrgSettingsScripts string
-	IndexExtraImports             string
+	RunSaasAuthCheck string
+	RunRbacAuthCheck string
+	RunOktaSignin    string
+	LogoutButton     string
+
+	ClusterStatsDeleteIndex string
+
+	OrgSettingsOrgName         string
+	OrgSettingsRetentionPeriod string
+	OrgSettingsExtras          string
+	OrgSettingsExtraImports    string
+
+	IndexExtraImports string
 }
 
 type JsSnippets struct {
@@ -49,14 +52,8 @@ type JsSnippets struct {
 }
 
 var GlobalHooks = Hooks{
-
 	ParseTemplatesHook: func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) {
 		htmlTemplate = htmltemplate.Must(htmlTemplate.ParseGlob("./static/*.html"))
 		textTemplate = texttemplate.Must(textTemplate.ParseGlob("./static/js/*.js"))
-	},
-
-	HtmlSnippets: HtmlSnippets{
-		OrgName:         `<td id="orgName">SigLens</td>`,
-		RetentionPeriod: `<td id="retention-days-value">4 days</td>`,
 	},
 }

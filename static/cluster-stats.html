@@ -48,7 +48,7 @@
         <div id="app-content-area">
             <div class="cstats-data-container myOrg-container">
                 <div class="org-nav-tab">
-                    {{.LogoutButton | safeHTML}}
+                    {{ .LogoutButton | safeHTML }}
                 </div>
                 <div class="myOrg-inner-container">
                     <div class="usage-stats-header">
@@ -123,7 +123,7 @@
                                 Storage Savings
                             </div>
                         </div>
-                        {{.DeleteIndex | safeHTML}}
+                        {{ .ClusterStatsDeleteIndex | safeHTML }}
                     </div>
                     <div id="cstats-app-footer">
                         2023 &copy; SigLens
@@ -146,8 +146,8 @@
     <script src="./js/lib/chart.umd.min.js"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
 
-    {{.RunRbacAuthCheck | safeHTML}}
-    {{.RunSaasAuthCheck | safeHTML}}
+    {{ .RunRbacAuthCheck | safeHTML }}
+    {{ .RunSaasAuthCheck | safeHTML }}
 </body>
 
 </html>
