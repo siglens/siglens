@@ -156,7 +156,23 @@ function initializeContactForm(contactId) {
             '<button class="btn-simple del-contact-type" type="button"></button>',
         );
         newContactContainer.appendTo("#main-container");
-        $(this).blur();
+        // Generate unique IDs for new info icons
+        const newChannelIdInfoId = "info-slack-channel-id-" + Date.now();
+        const newTokenInfoId = "info-slack-token-" + Date.now();
+
+        // Update the IDs of info icons in the cloned container
+        newContactContainer.find('.fa-info-circle').eq(0).attr('id', newChannelIdInfoId);
+        newContactContainer.find('.fa-info-circle').eq(1).attr('id', newTokenInfoId);
+
+        // Initialize tooltips for the newly added container
+        [newChannelIdInfoId, newTokenInfoId].forEach(id => {
+            $(`#${id}`).tooltip({
+                delay: { show: 0, hide: 300 },
+                trigger: "click"
+            }).on("click", function () {
+                $(`#${id}`).tooltip("show");
+            });
+        });
     });
 
     //remove contact type container
