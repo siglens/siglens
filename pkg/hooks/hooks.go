@@ -29,7 +29,7 @@ var GlobalHooks = Hooks{
 		router.ServeFiles("/{filepath:*}", "./static")
 	},
 	ParseTemplatesHook: func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) {
-		htmlTemplate = htmltemplate.Must(htmlTemplate.ParseGlob("./static/*.html"))
-		textTemplate = texttemplate.Must(textTemplate.ParseGlob("./static/js/*.js"))
+		*htmlTemplate = *htmltemplate.Must(htmlTemplate.ParseGlob("./static/*.html"))
+		*textTemplate = *texttemplate.Must(textTemplate.ParseGlob("./static/js/*.js"))
 	},
 }
