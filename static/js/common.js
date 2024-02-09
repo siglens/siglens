@@ -84,6 +84,8 @@ let aggGridOptions = {
     }
 };
 
+{{ .CommonExtraFunctions }}
+
 function showError(errorMsg) {
     $("#logs-result-container").hide();
     $("#agg-result-container").hide();

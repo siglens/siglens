@@ -35,6 +35,8 @@ type JsSnippets struct {
 	ClusterStatsAdminView       string
 	ClusterStatsAdminButton     string
 	ClusterStatsCallDisplayRows string
+
+	CommonExtraFunctions string
 }
 
 var GlobalHooks = Hooks{
