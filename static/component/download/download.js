@@ -157,10 +157,16 @@ $("#cancel-loading").on("click", cancelDownload);
         valid &&
         checkRegexp(
           qname,
-          /^[a-zA-Z0-9_-]+$/i,
-          "Download name may consist of a-z, 0-9, dash, underscores."
+          /^[a-zA-Z0-9_.-]+$/i,
+          "Download name may consist of a-z, 0-9, period, dash, underscores."
         );
-      let name = $(`#qnameDL-${curMethod}`).val() + curChoose;
+    let enteredName = $(`#qnameDL-${curMethod}`).val();
+    let extension = curChoose;
+    let name = enteredName;
+  
+    if (!enteredName.endsWith(extension)) {
+      name += extension;
+    }
       if (valid) {
         dialog.dialog("close");
         $("#progressbar").show();
