@@ -608,8 +608,10 @@ function getColumns() {
     queryLanguage = "Splunk QL";
      //concat the 3 input boxes
      filterValue = getQueryBuilderCode();
+     isQueryBuilderSearch = true;
    }else{
     filterValue = $("#filter-input").val().trim() || "*";
+    isQueryBuilderSearch = false;
    }
    addQSParm("searchText", filterValue);
    addQSParm("startEpoch", stDate);
