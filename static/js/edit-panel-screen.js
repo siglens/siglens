@@ -1103,9 +1103,7 @@ function applyChangesToPanel(redirectedFromViewScreen) {
 
 function handleGoToDBArrowClick(redirectedFromViewScreen) {
 	if (!checkUnsavedChages()) {
-		if (showPrompt(redirectedFromViewScreen)) {
-			goToDashboard(redirectedFromViewScreen);
-		}
+		showPrompt(redirectedFromViewScreen)
 	} else {
 		goToDashboard(redirectedFromViewScreen);
 	}
@@ -1133,11 +1131,9 @@ function handleGoToDBArrowClick(redirectedFromViewScreen) {
 		$('#exit-btn-panel').on("click", function () {
 			$('.popupOverlay, .popupContent').removeClass('active');
 			goToDashboard(redirectedFromViewScreen);
-			return true;
 		});
 		$('#cancel-btn-panel, .popupOverlay').on("click", function () {
 			$('.popupOverlay, .popupContent').removeClass('active');
-			return false;
 		});
 	}
 }
