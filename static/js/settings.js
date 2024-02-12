@@ -45,3 +45,5 @@ function getRetentionDataFromConfig() {
         console.log(err)
     });
 }
+
+{{ .SettingsExtraFunctions }}
