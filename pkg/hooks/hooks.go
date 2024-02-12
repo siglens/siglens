@@ -53,7 +53,7 @@ type JsSnippets struct {
 
 var GlobalHooks = Hooks{
 	ParseTemplatesHook: func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) {
-		htmlTemplate = htmltemplate.Must(htmlTemplate.ParseGlob("./static/*.html"))
-		textTemplate = texttemplate.Must(textTemplate.ParseGlob("./static/js/*.js"))
+		*htmlTemplate = *htmltemplate.Must(htmlTemplate.ParseGlob("./static/*.html"))
+		*textTemplate = *texttemplate.Must(textTemplate.ParseGlob("./static/js/*.js"))
 	},
 }
