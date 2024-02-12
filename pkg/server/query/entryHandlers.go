@@ -23,6 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/cfghandler"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/dashboards"
 	esreader "github.com/siglens/siglens/pkg/es/reader"
@@ -206,7 +207,6 @@ var upgrader = websocket.FastHTTPUpgrader{
 }
 
 func pipeSearchWebsocketHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
-	instrumentation.IncrementInt64Counter(instrumentation.QUERY_COUNT, 1)
 	return func(ctx *fasthttp.RequestCtx) {
 		err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
 			defer func() {
@@ -295,6 +295,18 @@ func getPqsByIdHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func postPqsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		cfghandler.PostPqsUpdate(ctx)
+	}
+}
+
+func getPqsEnabledHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		cfghandler.GetPqsEnabled(ctx)
+	}
+}
+
 func createDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		dashboards.ProcessCreateDashboardRequest(ctx, 0)
@@ -307,6 +319,11 @@ func favoriteDashboardHandler() fasthttp.RequestHandler {
 	}
 }
 
+func getFavoriteDashboardIdsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		dashboards.ProcessListFavoritesRequest(ctx, 0)
+	}
+}
 func getDashboardIdsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		dashboards.ProcessListAllRequest(ctx, 0)
@@ -417,6 +434,12 @@ func updateAlertHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func alertHistoryHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		alertsHandler.ProcessAlertHistoryRequest(ctx)
+	}
+}
+
 func deleteAlertHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		alertsHandler.ProcessDeleteAlertRequest(ctx)
@@ -438,12 +461,6 @@ func getAllContactsHandler() func(ctx *fasthttp.RequestCtx) {
 func updateContactHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		alertsHandler.ProcessUpdateContactRequest(ctx)
-	}
-}
-
-func createNotificationHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessCreateNotificationRequest(ctx)
 	}
 }
 
@@ -498,6 +515,12 @@ func liveTailHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
 func searchTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		tracinghandler.ProcessSearchTracesRequest(ctx, 0)
+	}
+}
+
+func totalTracesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		tracinghandler.ProcessTotalTracesRequest(ctx, 0)
 	}
 }
 

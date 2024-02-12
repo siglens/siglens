@@ -54,12 +54,21 @@ const contactFormHTML = `
             </div>
             <div class="slack-container">
                 <div>
+                <div style="position: relative;">
                     <label for="slack-channel-id">Channel ID</label>
-                    <input type="text" class="form-control" id="slack-channel-id" required>
+                    <input type="text" class="form-control" id="slack-channel-id" style="position: relative;" required >
+                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
+            title="Specify channel, private group, or IM channel (can be an encoded ID or a name)."
+            id="info-slack-channel-id"></i>
+            </div>
                 </div>
-                <label for="slack-token">Slack Token</label>
-                <input type="text" class="form-control" id="slack-token" required>
-
+                <div style="position: relative;">
+                <label for="slack-token">Slack API Token</label>
+                <input type="text" class="form-control" id="slack-token" style="position: relative;" required>
+                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
+                    title="Provide a Slack bot API token (starts with “xoxb”)."
+                    id="info-slack-token"></i>
+                </div>
             </div>
             <div class="webhook-container">
                 <label for="webhook">Webhook URL</label>
@@ -89,6 +98,23 @@ $(document).ready(function () {
     if(window.location.href.includes("alert.html")){
         initializeContactForm();
     }
+
+    const tooltipIds = ["info-slack-channel-id", "info-slack-token"];
+
+    tooltipIds.forEach(id => {
+        $(`#${id}`).tooltip({
+            delay: { show: 0, hide: 300 },
+            trigger: "click"
+        }).on("click", function () {
+            $(`#${id}`).tooltip("show");
+        });
+    });
+
+    $(document).mouseup(function (e) {
+        if ($(e.target).closest(".tooltip-inner").length === 0) {
+            tooltipIds.forEach(id => $(`#${id}`).tooltip("hide"));
+        }
+    });
 });
 
 $(document).on('click', '.contact-option', setContactTypes);

@@ -61,6 +61,7 @@ let thirdBoxSet = new Set();
 let measureFunctions = [];
 let measureInfo = [];
 let isTimechart = false;
+let isQueryBuilderSearch = false;
 
 
 let aggGridOptions = {
@@ -416,28 +417,6 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
     //if data source is metrics
     if(!res.qtype && chartType != "number") {
         panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId)
-    }else if(chartType === "number"){
-        let resultVal
-        $.each(res, function (key, value) {
-            var series = value;
-            $.each(series, function (key, value) {
-                var tsmap = value
-                $.each(tsmap, function (key, value) {
-                    if (value > 0){
-                        resultVal = value
-                    }
-                })
-            })        
-        })
-        if(resultVal === undefined || resultVal === null){
-            panelProcessEmptyQueryResults("", panelId);
-        }else{
-            displayBigNumber(resultVal.toString(), panelId, dataType, panelIndex);
-            allResultsDisplayed--;
-            if(allResultsDisplayed <= 0 || panelId === -1) {
-                $('body').css('cursor', 'default');
-            }
-        }
     }
     if (res.qtype === "logs-query") {
         panelProcessEmptyQueryResults("", panelId);
@@ -589,13 +568,17 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
                         }
                     })
                 })         
-            });
-            displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
-            allResultsDisplayed--;
-            if(allResultsDisplayed <= 0 || panelId === -1) {
-                $('body').css('cursor', 'default');
-            }    
-            $(`#panel${panelId} .panel-body #panel-loading`).hide();    
+            });   
+            if(bigNumVal === undefined || bigNumVal === null){
+                panelProcessEmptyQueryResults("", panelId);
+            }else{
+                displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
+                allResultsDisplayed--;
+                if(allResultsDisplayed <= 0 || panelId === -1) {
+                    $('body').css('cursor', 'default');
+                }
+                $(`#panel${panelId} .panel-body #panel-loading`).hide();   
+            } 
         } else {
             hideError();
             const colors = createMetricsColorsArray();

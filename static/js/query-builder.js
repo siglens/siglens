@@ -13,15 +13,24 @@ $("#custom-code-tab").tabs({
     }
     let currentTab = $("#custom-code-tab").tabs("option", "active");
     if (currentTab == 0) {
+      // Query Builder Tab
       let filterValue = $("#filter-input").val();
-      if (filterValue != "" && $("#query-input").val() == "*") $("#query-input").val(filterValue);
+      if (filterValue != "") $("#query-input").val(filterValue);
+      if (filterValue == "") $("#query-input").val('*')
+      if(!isQueryBuilderSearch){
+        // Clear input boxes of the query builder when a query is searched from the free text
+        $(".tags-list").empty();  
+        [firstBoxSet, secondBoxSet, thirdBoxSet] = [new Set(), new Set(), new Set()];
+        $("#aggregations, #aggregate-attribute-text, #search-filter-text").show();
+      }
       $(".query-language-option").removeClass("active");
       $("#query-language-options #option-3").addClass("active");
       $("#query-language-btn span").html("Splunk QL");
       displayQueryLangToolTip("3");
     }else{
+      // Free Text Tab
       let filterValue = $("#query-input").val();
-     if (filterValue != "" && ($("#filter-input").val() == "*" || $("#filter-input").val() == "")) $("#filter-input").val(filterValue);
+      if (filterValue != "") $("#filter-input").val(filterValue);
     }
   },
 });
@@ -151,7 +160,7 @@ function filterStart(evt) {
   if (availColNames.length == 0) getColumns();
   $("#column-first")
     .autocomplete({
-      source: availColNames,
+      source: availColNames.sort(),
       minLength: 0,
       maxheight: 100,
       select: function (event, ui) {
@@ -432,7 +441,7 @@ function ThirdCancelInfo(event) {
 
 $("#column-second")
   .autocomplete({
-    source: calculations,
+    source: calculations.sort(),
     minLength: 0,
     maxheight: 100,
     select: function (event, ui) {
@@ -444,7 +453,7 @@ $("#column-second")
       $("#completed-second").attr("disabled", true);
       $("#value-second")
         .autocomplete({
-          source: columnInfo,
+          source: columnInfo.sort(),
           minLength: 0,
           select: function (event, ui) {
             let secVal = $("#column-second").val();
@@ -468,10 +477,10 @@ function getValuesofColumn(chooseColumn) {
   valuesOfColumn.clear();
   let param = {
     state: "query",
-    searchText: "SELECT DISTINCT " + chooseColumn + " FROM `ind-0`",
+    searchText: `SELECT DISTINCT ${chooseColumn} FROM \`${selectedSearchIndex}\``,
     startEpoch: filterStartDate,
     endEpoch: filterEndDate,
-    indexName: "*",
+    indexName: selectedSearchIndex,
     queryLanguage: "SQL",
     from: 0,
     size: 1000,
@@ -498,7 +507,7 @@ function getValuesofColumn(chooseColumn) {
     let arr = Array.from(valuesOfColumn);
     $("#value-first")
       .autocomplete({
-        source: arr,
+        source: arr.sort(),
         minLength: 0,
         select: function (event, ui) {
           //check if complete btn can click
