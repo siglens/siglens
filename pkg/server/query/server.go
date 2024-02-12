@@ -34,7 +34,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/pprofhandler"
-	"github.com/valyala/fasthttp/reuseport"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -235,7 +234,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		hook(hs.Router)
 	}
 
-	hs.ln, err = reuseport.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
 		return err
 	}
@@ -303,7 +302,7 @@ func renderJavaScriptTemplate(ctx *fasthttp.RequestCtx, tpl *texttemplate.Templa
 func (hs *queryserverCfg) RunSafeServer() error {
 	hs.Router.GET("/health", hs.Recovery(getSafeHealthHandler()))
 	var err error
-	hs.ln, err = reuseport.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
 		return err
 	}
