@@ -184,7 +184,9 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/deleteone/{qname}", hs.Recovery(deleteUserSavedQueryHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/{qname}", hs.Recovery(SearchUserSavedQueryHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs/clear", hs.Recovery(postPqsClearHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/pqs/get", hs.Recovery(getPqsEnabledHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/pqs/aggs", hs.Recovery(postPqsAggColsHandler()))
+	hs.Router.POST(server_utils.API_PREFIX+"/pqs/update", hs.Recovery(postPqsHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs", hs.Recovery(getPqsHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs/{pqid}", hs.Recovery(getPqsByIdHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/create", hs.Recovery(createDashboardHandler()))
@@ -207,7 +209,6 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/createContact", hs.Recovery(createContactHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/alerts/allContacts", hs.Recovery(getAllContactsHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/updateContact", hs.Recovery(updateContactHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/alerts/createNotif", hs.Recovery(createNotificationHandler()))
 	hs.Router.DELETE(server_utils.API_PREFIX+"/alerts/deleteContact", hs.Recovery(deleteContactHandler()))
 	hs.Router.PUT(server_utils.API_PREFIX+"/alerts/silenceAlert", hs.Recovery(silenceAlertHandler()))
 

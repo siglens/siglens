@@ -23,6 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/cfghandler"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/dashboards"
 	esreader "github.com/siglens/siglens/pkg/es/reader"
@@ -206,7 +207,6 @@ var upgrader = websocket.FastHTTPUpgrader{
 }
 
 func pipeSearchWebsocketHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
-	instrumentation.IncrementInt64Counter(instrumentation.QUERY_COUNT, 1)
 	return func(ctx *fasthttp.RequestCtx) {
 		err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
 			defer func() {
@@ -292,6 +292,18 @@ func getPqsHandler() func(ctx *fasthttp.RequestCtx) {
 func getPqsByIdHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		querytracker.GetPQSById(ctx)
+	}
+}
+
+func postPqsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		cfghandler.PostPqsUpdate(ctx)
+	}
+}
+
+func getPqsEnabledHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		cfghandler.GetPqsEnabled(ctx)
 	}
 }
 
@@ -449,12 +461,6 @@ func getAllContactsHandler() func(ctx *fasthttp.RequestCtx) {
 func updateContactHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		alertsHandler.ProcessUpdateContactRequest(ctx)
-	}
-}
-
-func createNotificationHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessCreateNotificationRequest(ctx)
 	}
 }
 

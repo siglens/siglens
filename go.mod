@@ -20,7 +20,6 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/klauspost/compress v1.16.3
 	github.com/lithammer/shortuuid/v4 v4.0.0
-	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/nqd/flat v0.1.1
 	github.com/oklog/run v1.1.0
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
@@ -51,6 +50,9 @@ require (
 require (
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
@@ -94,4 +96,6 @@ require (
 	github.com/prometheus/common v0.44.0
 	github.com/slack-go/slack v0.12.2
 	golang.org/x/net v0.18.0 // indirect
+	gorm.io/driver/sqlite v1.5.4
+	gorm.io/gorm v1.25.5
 )
