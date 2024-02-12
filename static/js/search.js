@@ -382,7 +382,9 @@ function getColumns() {
               .split(" BY")[0]
               .split(/(?=[A-Z])/)
           );
-        thirdBoxSet = new Set(filterValue.split(" BY ")[1].split(","));
+          if (filterValue.includes(" BY ")) {
+            thirdBoxSet = new Set(filterValue.split(" BY ")[1].split(","));
+          }
         }else{
           firstBoxSet = new Set(filterValue.split(" "));
         }
@@ -606,8 +608,10 @@ function getColumns() {
     queryLanguage = "Splunk QL";
      //concat the 3 input boxes
      filterValue = getQueryBuilderCode();
+     isQueryBuilderSearch = true;
    }else{
     filterValue = $("#filter-input").val().trim() || "*";
+    isQueryBuilderSearch = false;
    }
    addQSParm("searchText", filterValue);
    addQSParm("startEpoch", stDate);

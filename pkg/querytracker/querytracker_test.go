@@ -379,7 +379,7 @@ func Test_PostPqsClear(t *testing.T) {
 
 	pqsinfo := getPqsById(pqid)
 	assert.NotNil(t, pqsinfo)
-	clearPqs()
+	ClearPqs()
 	clearPqsSummary = getPQSSummary()
 	assert.NotNil(t, clearPqsSummary)
 	assert.Equal(t, expected, clearPqsSummary, "the pqsinfo was supposed to be cleared")

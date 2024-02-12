@@ -49,7 +49,6 @@ $(document).ready(function () {
     dbId = getDashboardId();
 
     $("#add-panel-btn").click(() => addPanel());
-
     $(".all-dashboards").click(function () {
         window.location.href = "../dashboards-home.html";
     })
@@ -166,8 +165,6 @@ function updateDashboard() {
 function refreshDashboardHandler() {
     if ($('#viewPanel-container').css('display') !== 'none') {
         displayPanelView(panelIndex);
-    } else if($('.panelEditor-container').css('display') !== 'none'){
-        runQueryBtnHandler()
     }
     else {
         for (let i = 0; i < localPanels.length; i++) {
@@ -1055,7 +1052,14 @@ function addPanel(panelToDuplicate) {
             },
             "queryType": "",
         });
-
+    if (!panelToDuplicate) {        
+        editPanelInit(panelIndex);
+        $('.panelEditor-container').show();
+        $('#app-container').hide();
+        $('.panelDisplay #panelLogResultsGrid').empty();
+        $('.panelDisplay .big-number-display-container').hide();
+        $('.panelDisplay #empty-response').hide();
+    }
     resetPanelContainerHeight();
 
     handlePanelView();

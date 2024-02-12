@@ -67,6 +67,65 @@ func Test_dashboard_storage_methods(t *testing.T) {
 	assert.Equal(t, eDashboardDetails["description"], aDashBoardDetails["description"])
 	assert.Equal(t, eDashboardDetails["note"], aDashBoardDetails["note"])
 
+	// Test toggleFavorite with non-existing dashboard
+	_, err = toggleFavorite("non-existing-id")
+	assert.NotNil(t, err)
+
+	// Test isDashboardFavorite with non-existing dashboard
+	_, err = isDashboardFavorite("non-existing-id")
+	assert.NotNil(t, err)
+
+	isFavorite, err := toggleFavorite(expected[0])
+	assert.Nil(t, err)
+	assert.True(t, isFavorite)
+
+	// Test isDashboardFavorite
+	isFavorite, err = isDashboardFavorite(expected[0])
+	assert.Nil(t, err)
+	assert.True(t, isFavorite)
+
+	// Test isDashboardFavorite for non-favorite dashboard
+	isFavorite, err = isDashboardFavorite(expected[1])
+	assert.Nil(t, err)
+	assert.False(t, isFavorite)
+
+	// Test getAllFavoriteDashboardIds
+	favoriteDashboards, err := getAllFavoriteDashboardIds(0)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(favoriteDashboards))
+	assert.Contains(t, favoriteDashboards, expected[0])
+
+	// Toggle favorite off
+	isFavorite, err = toggleFavorite(expected[0])
+	assert.Nil(t, err)
+	assert.False(t, isFavorite)
+
+	// Test isDashboardFavorite
+	isFavorite, err = isDashboardFavorite(expected[0])
+	assert.Nil(t, err)
+	assert.False(t, isFavorite)
+
+	// Test getAllFavoriteDashboardIds
+	favoriteDashboards, err = getAllFavoriteDashboardIds(0)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(favoriteDashboards))
+
+	// Test toggleFavorite with multiple dashboards
+	isFavorite, err = toggleFavorite(expected[0])
+	assert.Nil(t, err)
+	assert.True(t, isFavorite)
+
+	isFavorite, err = toggleFavorite(expected[1])
+	assert.Nil(t, err)
+	assert.True(t, isFavorite)
+
+	// Test getAllFavoriteDashboardIds with multiple favorite dashboards
+	favoriteDashboards, err = getAllFavoriteDashboardIds(0)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(favoriteDashboards))
+	assert.Contains(t, favoriteDashboards, expected[0])
+	assert.Contains(t, favoriteDashboards, expected[1])
+
 	err = deleteDashboard(expected[0], 0)
 	assert.Nil(t, err)
 

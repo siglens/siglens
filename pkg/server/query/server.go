@@ -34,7 +34,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/pprofhandler"
-	"github.com/valyala/fasthttp/reuseport"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -186,7 +185,9 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/deleteone/{qname}", hs.Recovery(deleteUserSavedQueryHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/{qname}", hs.Recovery(SearchUserSavedQueryHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs/clear", hs.Recovery(postPqsClearHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/pqs/get", hs.Recovery(getPqsEnabledHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/pqs/aggs", hs.Recovery(postPqsAggColsHandler()))
+	hs.Router.POST(server_utils.API_PREFIX+"/pqs/update", hs.Recovery(postPqsHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs", hs.Recovery(getPqsHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs/{pqid}", hs.Recovery(getPqsByIdHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/create", hs.Recovery(createDashboardHandler()))
@@ -196,6 +197,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/{dashboard-id}", hs.Recovery(getDashboardIdHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/delete/{dashboard-id}", hs.Recovery(deleteDashboardHandler()))
 	hs.Router.PUT(server_utils.API_PREFIX+"/dashboards/favorite/{dashboard-id}", hs.Recovery(favoriteDashboardHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/listfavorites", hs.Recovery(getFavoriteDashboardIdsHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/version/info", hs.Recovery(getVersionHandler()))
 
 	// alerting api endpoints
@@ -204,10 +206,10 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET(server_utils.API_PREFIX+"/allalerts", hs.Recovery(getAllAlertsHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/update", hs.Recovery(updateAlertHandler()))
 	hs.Router.DELETE(server_utils.API_PREFIX+"/alerts/delete", hs.Recovery(deleteAlertHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/alerts/{alertID}/history", hs.Recovery(alertHistoryHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/createContact", hs.Recovery(createContactHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/alerts/allContacts", hs.Recovery(getAllContactsHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/updateContact", hs.Recovery(updateContactHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/alerts/createNotif", hs.Recovery(createNotificationHandler()))
 	hs.Router.DELETE(server_utils.API_PREFIX+"/alerts/deleteContact", hs.Recovery(deleteContactHandler()))
 	hs.Router.PUT(server_utils.API_PREFIX+"/alerts/silenceAlert", hs.Recovery(silenceAlertHandler()))
 
@@ -219,7 +221,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/search", hs.Recovery(searchTracesHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/traces/dependencies", hs.Recovery(getDependencyGraphHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/ganttChart", hs.Recovery(ganttChartHandler()))
-
+	hs.Router.POST(server_utils.API_PREFIX+"/traces/count", hs.Recovery((totalTracesHandler())))
 	// query server should still setup ES APIs for Kibana integration
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
 	hs.Router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(esPutIndexHandler()))
@@ -250,10 +252,11 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 				fasthttp.ServeFile(ctx, "static/"+filepath)
 			})
 		}
+
 		hook(hs.Router, htmlTemplate)
 	}
 
-	hs.ln, err = reuseport.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
 		return err
 	}
@@ -321,7 +324,7 @@ func renderJavaScriptTemplate(ctx *fasthttp.RequestCtx, tpl *texttemplate.Templa
 func (hs *queryserverCfg) RunSafeServer() error {
 	hs.Router.GET("/health", hs.Recovery(getSafeHealthHandler()))
 	var err error
-	hs.ln, err = reuseport.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
 		return err
 	}
