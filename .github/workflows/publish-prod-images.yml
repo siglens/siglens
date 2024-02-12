@@ -53,13 +53,14 @@ jobs:
             platforms: linux/amd64,linux/arm64
             tags: ${{ steps.meta.outputs.tags }}
       -
-        name: Build and push without tag (to add latest tag to build)
+        name: Build and push with latest tag
         uses: docker/build-push-action@v3
         with:
             context: .
             file: Dockerfile
             push: true
-            platforms: linux/amd64,linux/arm64                 
+            platforms: linux/amd64,linux/arm64   
+            tags: latest
   sigscalr-binaries:
       runs-on: ubuntu-latest
       environment: build-environment
