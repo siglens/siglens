@@ -16,7 +16,7 @@ limitations under the License.
 
 'use strict';
 
-let alertData = {alertInfo :{},queryParams :{}};
+let alertData = {queryParams :{}};
 let alertEditFlag = 0;
 let alertID;
 let alertRule_name = "alertRule_name";
@@ -194,7 +194,7 @@ function submitAddAlertForm(e){
 
 function setAlertRule(){
     let dataSource = $('#alert-data-source span').text();
-    alertData.alertInfo.alert_name = $('#alert-rule-name').val(),
+    alertData.alert_name = $('#alert-rule-name').val(),
     alertData.queryParams.data_source = dataSource;
     alertData.queryParams.queryLanguage = $('#logs-language-btn span').text();
     alertData.queryParams.queryText= $('#query').val(),
@@ -203,12 +203,12 @@ function setAlertRule(){
     alertData.condition= mapConditionTypeToIndex.get($('#alert-condition span').text()),
     alertData.eval_interval= parseInt($('#evaluate-every').val()),
     alertData.eval_for= parseInt($('#evaluate-for').val()),
-    alertData.alertInfo.contact_name= $('#contact-points-dropdown span').text(),
-    alertData.alertInfo.contact_id= $('#contact-points-dropdown span').attr('id'),
+    alertData.contact_name= $('#contact-points-dropdown span').text(),
+    alertData.contact_id= $('#contact-points-dropdown span').attr('id'),
     alertData.message= $('.message').val()
     alertData.value = parseFloat($('#threshold-value').val());
     alertData.message = $(".message").val();
-    alertData.alertInfo.labels =[]
+    alertData.labels =[]
     
     $('.label-container').each(function() {
       let labelName = $(this).find('#label-key').val();
@@ -218,7 +218,7 @@ function setAlertRule(){
                 label_name: labelName,
                 label_value: labelVal
               };
-              alertData.alertInfo.labels.push(labelEntry);
+              alertData.labels.push(labelEntry);
         }
     })
 }
@@ -268,7 +268,7 @@ function resetAddAlertForm(){
 }
 
 function displayAlert(res){
-    $('#alert-rule-name').val(res.alertInfo.alert_name);
+    $('#alert-rule-name').val(res.alert_name);
     $('#alert-data-source span').html(res.queryParams.data_source);
     const queryLanguage = res.queryParams.queryLanguage;
     $('#logs-language-btn span').text(queryLanguage);
@@ -287,13 +287,13 @@ function displayAlert(res){
     $('#evaluate-for').val(res.eval_for);
     $('.message').val(res.message);
     if(alertEditFlag){
-        alertData.alertInfo.alert_id = res.alertInfo.alert_id;
+        alertData.alert_id = res.alert_id;
     }
-    $('#contact-points-dropdown span').html(res.alertInfo.contact_name);
-    $('#contact-points-dropdown span').attr('id', res.alertInfo.contact_id);
+    $('#contact-points-dropdown span').html(res.contact_name);
+    $('#contact-points-dropdown span').attr('id', res.contact_id);
     
     let isFirst = true;
-    (res.alertInfo.labels).forEach(function(label){
+    (res.labels).forEach(function(label){
         let labelContainer;
         if (isFirst) {
             labelContainer = $('.label-container');
@@ -348,10 +348,9 @@ function displayQueryToolTip(selectedQueryLang) {
 
 // Display Alert Details
 function displayAlertProperties(res) {
-    const alertInfo = res.alertInfo;
     const queryParams = res.queryParams;
-    $('.alert-name').text(alertInfo.alert_name);
-    $('.alert-status').text(mapIndexToAlertState.get(alertInfo.state));
+    $('.alert-name').text(res.alert_name);
+    $('.alert-status').text(mapIndexToAlertState.get(res.state));
     $('.alert-query').val(queryParams.queryText);
     $('.alert-type').text(queryParams.data_source);
     $('.alert-query-language').text(queryParams.queryLanguage);
@@ -359,9 +358,9 @@ function displayAlertProperties(res) {
     $('.alert-value').text(res.value);
     $('.alert-every').text(res.eval_interval);
     $('.alert-for').text(res.eval_for);
-    $('.alert-contact-point').text(alertInfo.contact_name);
+    $('.alert-contact-point').text(res.contact_name);
     const labelContainer = $('.alert-labels-container');
-    const labels = res.alertInfo.labels;
+    const labels = res.labels;
     labels.forEach(label => {
         const labelElement = $('<div>').addClass('label-element').text(`${label.label_name}=${label.label_value}`);
         labelContainer.append(labelElement);

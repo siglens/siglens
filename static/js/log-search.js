@@ -131,6 +131,12 @@ $(document).ready(() => {
 	});
 
     doSearch(data);
+
+    $("#filter-input").focus(function() {
+        if ($(this).val() === "*") {
+          $(this).val("");
+        }
+    });
 });
 function displayQueryLangToolTip(selectedQueryLangID) {
     $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();

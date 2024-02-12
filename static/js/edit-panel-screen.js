@@ -276,7 +276,7 @@ function editPanelInit(redirectedFromViewScreen) {
 	$('.panelDisplay #panelLogResultsGrid').empty();
 	$('.panelDisplay #panelLogResultsGrid').hide();
 	$('.panelDisplay .panel-info-corner').hide();
-	currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
+	currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));	
 	$('.panEdit-navBar .panEdit-dbName').html(`${dbName}`);
 	// reset inputs to show placeholders
 	$('.panEdit-navBar .panelTitle').html(currentPanel.name)
