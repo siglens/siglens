@@ -40,7 +40,22 @@ function loadBarOptions(xAxisData, yAxisData) {
 	let gridLineDarkThemeColor = rootStyles.getPropertyValue('--black-3');
 	let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
 	let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
-	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1')
+	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
+
+	let colorCircles = document.querySelectorAll(".colorCircle");
+
+	let selectedColorCircle = null;
+
+	colorCircles.forEach(circle => {
+		if (circle.classList.contains('selected')) {
+			selectedColorCircle = circle;
+		}
+	});
+
+	let theme = [];
+	if (selectedColorCircle) {
+		theme = createColorTheme(selectedColorCircle.classList[1]);
+	}
 
 	barOptions = {
 		xAxis: {
@@ -81,7 +96,12 @@ function loadBarOptions(xAxisData, yAxisData) {
 				itemStyle: {
 					// color: '#6347D9' // You can set any color code here
 					color: function (params) {
-						var colorList = ['#6347D9', '#FF8700']; // Define an array of colors
+						if (theme.length > 0) {
+							var colorList = theme;
+						}
+						else {
+							var colorList = ['#6347D9', '#FF8700']; // Define an array of colors
+						}
 						return colorList[params.dataIndex % colorList.length]; // Use the modulus operator to alternate between colors
 					}
 				},
@@ -112,6 +132,7 @@ function loadBarOptions(xAxisData, yAxisData) {
 
 		]
 	}
+
 	if ($('body').attr('data-theme') == "dark") {
 		barOptions.xAxis.axisLine.lineStyle.color = gridLineDarkThemeColor;
 		barOptions.yAxis.splitLine.lineStyle.color = gridLineDarkThemeColor;
@@ -120,6 +141,7 @@ function loadBarOptions(xAxisData, yAxisData) {
 		barOptions.yAxis.splitLine.lineStyle.color = gridLineLightThemeColor;
 	}
 }
+
 function loadPieOptions(xAxisData, yAxisData) {
 	let pieDataMapList = [];
 	// loop
@@ -141,7 +163,6 @@ function loadPieOptions(xAxisData, yAxisData) {
 	let selectedColorCircle = null;
 
 	colorCircles.forEach(circle => {
-		console.log(circle);
 		if (circle.classList.contains('selected')) {
 			selectedColorCircle = circle;
 		}
@@ -149,7 +170,6 @@ function loadPieOptions(xAxisData, yAxisData) {
 
 	let theme = [];
 	if (selectedColorCircle) {
-		console.log(selectedColorCircle.classList[1]);
 		theme = createColorTheme(selectedColorCircle.classList[1]);
 	}
 
