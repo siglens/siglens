@@ -89,13 +89,23 @@ func Main() {
 		os.Exit(1)
 	}
 
-	nodeType, err := config.ValidateDeployment()
+	validateDeploymentHook := hooks.GlobalHooks.ValidateDeploymentHook
+	if validateDeploymentHook == nil {
+		validateDeploymentHook = config.ValidateDeployment
+	}
+
+	nodeType, err := validateDeploymentHook()
 	if err != nil {
 		log.Errorf("Invalid deployment type! Error=[%+v]", err)
 		os.Exit(1)
 	}
 
-	nodeID := localnodeid.GetRunningNodeID()
+	getNodeIdHook := hooks.GlobalHooks.GetNodeIdHook
+	if getNodeIdHook == nil {
+		getNodeIdHook = localnodeid.GetRunningNodeID
+	}
+
+	nodeID := getNodeIdHook()
 	err = config.InitDerivedConfig(nodeID)
 	if err != nil {
 		log.Errorf("Error initializing derived configurations! %v", err)
@@ -133,11 +143,19 @@ func Main() {
 	log.Infof("----- Siglens server type %s starting up.... ----- \n", nodeType.String())
 	log.Infof("----- Siglens server logging to %s ----- \n", logOut)
 
+	if hook := hooks.GlobalHooks.CheckLicenseHook; hook != nil {
+		hook()
+	}
+
 	configJSON, err := json.MarshalIndent(serverCfg, "", "  ")
 	if err != nil {
 		log.Errorf("main : Error marshalling config struct %v", err.Error())
 	}
 	log.Infof("Running config %s", string(configJSON))
+
+	if hook := hooks.GlobalHooks.AfterConfigHook; hook != nil {
+		hook()
+	}
 
 	err = StartSiglensServer(nodeType, nodeID)
 	if err != nil {

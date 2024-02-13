@@ -5,6 +5,7 @@ import (
 	texttemplate "text/template"
 
 	"github.com/fasthttp/router"
+	"github.com/siglens/siglens/pkg/config"
 )
 
 type Hooks struct {
@@ -12,8 +13,12 @@ type Hooks struct {
 	HtmlSnippets HtmlSnippets
 	JsSnippets   JsSnippets
 
-	ServeStaticHook    func(router *router.Router, htmlTemplate *htmltemplate.Template)
-	ParseTemplatesHook func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template)
+	ServeStaticHook        func(router *router.Router, htmlTemplate *htmltemplate.Template)
+	ParseTemplatesHook     func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template)
+	AfterConfigHook        func()
+	CheckLicenseHook       func()
+	ValidateDeploymentHook func() (config.DeploymentType, error)
+	GetNodeIdHook          func() string
 }
 
 type HtmlSnippets struct {
