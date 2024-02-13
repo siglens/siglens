@@ -24,10 +24,21 @@ let query_string = "query_string";
 let condition = "condition";
 let notification_channel_type = "notification_channel_type";
 let messageTemplateInfo =
-  '<i class="fa fa-info-circle position-absolute info-icon sendMsg" rel="tooltip" id="info-icon-msg" style="display: block;" title = "You can use following template variables:\n{{alert_rule_name}}\n{{query_string}}\n{{condition}}\n{{queryLanguage}}"></i>';
+  '<i class="fa fa-info-circle position-absolute info-icon sendMsg" rel="tooltip" id="info-icon-msg" style="display: block;" title = "You can use following template variables:' +
+'\n' + inDoubleBrackets("alert_rule_name") +
+'\n' + inDoubleBrackets("query_string") +
+'\n' + inDoubleBrackets('condition') +
+'\n' + inDoubleBrackets('queryLanguage') + '"></i>';
 let messageInputBox = document.getElementById("message-info");
 if(messageInputBox)
     messageInputBox.innerHTML += messageTemplateInfo;
+
+// If there's double brackets next to each other, the templating system will
+// try to replace what's inside the brackets with a value. We don't want that
+// in this case.
+function inDoubleBrackets(str) {
+    return "{" + "{" + str + "}" + "}";
+}
 
 let mapConditionTypeToIndex =new Map([
     ["Is above",0],
