@@ -2733,7 +2733,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     border-radius: 5px;
 }
 
-.launch-dashboard .popupContent button, #buttons-ret-prompt button,#panel-del-prompt button {
+.launch-dashboard .popupContent button, #buttons-ret-prompt button,#panel-del-prompt button, #panel-edit-prompt button {
     width: 195px !important;
     height: 32px !important;
     border-radius: 5px;

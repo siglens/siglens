@@ -62,38 +62,6 @@ limitations under the License.
      }
  }
  
-function getColumns() {
-  let currentTab = $("#custom-code-tab").tabs("option", "active");
-  if (availColNames.length == 0 && currentTab == 0) {
-    data = {
-      state: "query",
-      searchText: "*",
-      startEpoch: "now-24h",
-      endEpoch: "now",
-      indexName: "*",
-      from: 0,
-      size: 1,
-      queryLanguage: "Splunk QL",
-    };
-    $.ajax({
-      method: "post",
-      url: "api/search/",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        Accept: "*/*",
-      },
-      crossDomain: true,
-      dataType: "json",
-      data: JSON.stringify(data),
-      success: function (res) {
-        if (res) {
-          availColNames = res.allColumns;
-        }
-      },
-    });
-  }
-}
-
  function doSearch(data) {
      startQueryTime = (new Date()).getTime();
      newUri = wsURL("/api/search/ws");
@@ -159,14 +127,12 @@ function getColumns() {
                  console.log(`[message] Timeout state received from server: ${jsonEvent}`);
                  processTimeoutUpdate(jsonEvent);
                  console.timeEnd("TIMEOUT");
-                 if (availColNames.length == 0) getColumns();
                  break;
              case "ERROR":
                  console.time("ERROR");
                  console.log(`[message] Error state received from server: ${jsonEvent}`);
                  processErrorUpdate(jsonEvent);
                  console.timeEnd("ERROR");
-                 if (availColNames.length == 0) getColumns();
                  break;
              default:
                  console.log(`[message] Unknown state received from server: `+ JSON.stringify(jsonEvent));
@@ -175,7 +141,6 @@ function getColumns() {
                  } else if (jsonEvent.message.includes("not present")){
                     jsonEvent['no_data_err'] = "No data found for the query"
                  }
-                 if (availColNames.length == 0) getColumns();
                  processSearchErrorLog(jsonEvent);
          }
      };
@@ -187,7 +152,6 @@ function getColumns() {
              console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
          }
          console.timeEnd("socket timing");
-         if (availColNames.length == 0) getColumns();
      };
  
      socket.addEventListener('error', (event) => {
