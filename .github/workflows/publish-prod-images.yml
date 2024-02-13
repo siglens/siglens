@@ -37,6 +37,7 @@ jobs:
             images: siglens/siglens
             tags: |
               type=raw,value=${{ env.TAG }}
+              type=raw,value=latest
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -52,15 +53,7 @@ jobs:
             push: true
             platforms: linux/amd64,linux/arm64
             tags: ${{ steps.meta.outputs.tags }}
-      -
-        name: Build and push with latest tag
-        uses: docker/build-push-action@v3
-        with:
-            context: .
-            file: Dockerfile
-            push: true
-            platforms: linux/amd64,linux/arm64   
-            tags: latest
+
   sigscalr-binaries:
       runs-on: ubuntu-latest
       environment: build-environment
