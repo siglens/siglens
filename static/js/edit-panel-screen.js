@@ -448,7 +448,7 @@ function editPanelInit(redirectedFromViewScreen) {
 	$(".panEdit-apply").unbind("click");
 	$('.panEdit-apply').on('click', () => applyChangesToPanel(redirectedFromViewScreen))
 	$(".panEdit-goToDB").unbind("click");
-	$('.panEdit-goToDB').on("click", () => goToDashboard(redirectedFromViewScreen))
+	$('.panEdit-goToDB').on("click", () => handleGoToDBArrowClick(redirectedFromViewScreen))
 	setTimePicker();
 	pauseRefreshInterval();
 }
@@ -1106,6 +1106,43 @@ function applyChangesToPanel(redirectedFromViewScreen) {
 	else {
 		updateTimeRangeForPanels();
 		goToDashboard();
+	}
+}
+
+function handleGoToDBArrowClick(redirectedFromViewScreen) {
+	if (!checkUnsavedChages()) {
+		showPrompt(redirectedFromViewScreen)
+	} else {
+		goToDashboard(redirectedFromViewScreen);
+	}
+	
+	function checkUnsavedChages() {
+		let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
+		return (currentPanel.chartType === serverPanel.chartType
+			&& currentPanel.dataType === serverPanel.dataType
+			&& currentPanel.description === serverPanel.description
+			&& currentPanel.name === serverPanel.name
+			&& currentPanel.queryType === serverPanel.queryType
+			&& currentPanel.unit === serverPanel.unit
+			&& currentPanel.panelIndex === serverPanel.panelIndex
+			
+			&& currentPanel.queryData.endEpoch === serverPanel.queryData.endEpoch
+			&& currentPanel.queryData.indexName === serverPanel.queryData.indexName
+			&& currentPanel.queryData.queryLanguage === serverPanel.queryData.queryLanguage
+			&& currentPanel.queryData.searchText === serverPanel.queryData.searchText
+			&& currentPanel.queryData.startEpoch === serverPanel.queryData.startEpoch
+			&& currentPanel.queryData.state === serverPanel.queryData.state);
+	}
+	
+	function showPrompt(redirectedFromViewScreen) {
+		$('.popupOverlay, .popupContent').addClass('active');
+		$('#exit-btn-panel').on("click", function () {
+			$('.popupOverlay, .popupContent').removeClass('active');
+			goToDashboard(redirectedFromViewScreen);
+		});
+		$('#cancel-btn-panel, .popupOverlay').on("click", function () {
+			$('.popupOverlay, .popupContent').removeClass('active');
+		});
 	}
 }
 
