@@ -285,11 +285,16 @@ function hideColumnHandler(evt) {
 function setQueryLangHandler(e) {
     $('.query-language-option').removeClass('active');
     let currentTab = $("#custom-code-tab").tabs("option", "active");
-    if ($(this).attr("id").split("-")[1] != "3" && currentTab == 0) {
+    let selectedQueryLanguageId = $(this).attr("id").split("-")[1];
+    if (selectedQueryLanguageId !== "3" && currentTab === 0) {
         $("#custom-code-tab").tabs("option", "active", 1);
+    } else if (selectedQueryLanguageId !== "3" && currentTab === 1) {
+        $("#custom-code-tab").tabs("option", "disabled", [0]);
+    } else if (selectedQueryLanguageId === "3" && currentTab === 1) {
+        $("#custom-code-tab").tabs("option", "disabled", []);
     }
     $('#query-language-btn span').html($(this).html());
-    displayQueryLangToolTip($(this).attr('id').split('-')[1]);
+    displayQueryLangToolTip(selectedQueryLanguageId);
     $(this).addClass('active');
 }
 
