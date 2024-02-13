@@ -18,13 +18,15 @@ package queryserver
 
 import (
 	"crypto/tls"
-	"html/template"
+	htmltemplate "html/template"
 	"net"
+	texttemplate "text/template"
 	"time"
 
 	"github.com/fasthttp/router"
 	"github.com/oklog/run"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
@@ -32,7 +34,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/pprofhandler"
-	"github.com/valyala/fasthttp/reuseport"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -45,10 +46,6 @@ type queryserverCfg struct {
 	lnTls  net.Listener
 	Router *router.Router
 	debug  bool
-}
-
-type uiCfgData struct {
-	AlertEnabled bool
 }
 
 var (
@@ -84,7 +81,7 @@ func extractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*struc
 	return ssr
 }
 
-func (hs *queryserverCfg) Run(tpl *template.Template) error {
+func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) error {
 	query.InitQueryMetrics()
 	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
 	if err != nil {
@@ -93,7 +90,10 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 	}
 
 	hs.Router.GET("/{filename}.html", func(ctx *fasthttp.RequestCtx) {
-		renderTemplate(ctx, tpl)
+		renderHtmlTemplate(ctx, htmlTemplate)
+	})
+	hs.Router.GET("/js/{filename}.js", func(ctx *fasthttp.RequestCtx) {
+		renderJavaScriptTemplate(ctx, textTemplate)
 	})
 	hs.Router.GET(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler(0)))
 	hs.Router.POST(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler(0)))
@@ -210,7 +210,6 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/createContact", hs.Recovery(createContactHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/alerts/allContacts", hs.Recovery(getAllContactsHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/updateContact", hs.Recovery(updateContactHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/alerts/createNotif", hs.Recovery(createNotificationHandler()))
 	hs.Router.DELETE(server_utils.API_PREFIX+"/alerts/deleteContact", hs.Recovery(deleteContactHandler()))
 	hs.Router.PUT(server_utils.API_PREFIX+"/alerts/silenceAlert", hs.Recovery(silenceAlertHandler()))
 
@@ -231,10 +230,11 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}
 
-	//Static File Routes
-	hs.Router.ServeFiles("/{filepath:*}", "./static")
+	if hook := hooks.GlobalHooks.ServeStaticHook; hook != nil {
+		hook(hs.Router)
+	}
 
-	hs.ln, err = reuseport.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
 		return err
 	}
@@ -279,15 +279,22 @@ func (hs *queryserverCfg) Run(tpl *template.Template) error {
 	return g.Run()
 }
 
-func renderTemplate(ctx *fasthttp.RequestCtx, tpl *template.Template) {
-	data := uiCfgData{
-		AlertEnabled: true,
-	}
+func renderHtmlTemplate(ctx *fasthttp.RequestCtx, tpl *htmltemplate.Template) {
 	filename := utils.ExtractParamAsString(ctx.UserValue("filename"))
 	ctx.Response.Header.Set("Content-Type", "text/html; charset=utf-8")
-	err := tpl.ExecuteTemplate(ctx, filename+".html", data)
+	err := tpl.ExecuteTemplate(ctx, filename+".html", hooks.GlobalHooks.HtmlSnippets)
 	if err != nil {
-		log.Errorf("renderTemplate: unable to execute template, err: %v", err.Error())
+		log.Errorf("renderHtmlTemplate: unable to execute template, err: %v", err.Error())
+		return
+	}
+}
+
+func renderJavaScriptTemplate(ctx *fasthttp.RequestCtx, tpl *texttemplate.Template) {
+	filename := utils.ExtractParamAsString(ctx.UserValue("filename"))
+	ctx.Response.Header.Set("Content-Type", "application/javascript; charset=utf-8")
+	err := tpl.ExecuteTemplate(ctx, filename+".js", hooks.GlobalHooks.JsSnippets)
+	if err != nil {
+		log.Errorf("renderJavaScriptTemplate: unable to execute template, err: %v", err.Error())
 		return
 	}
 }
@@ -295,7 +302,7 @@ func renderTemplate(ctx *fasthttp.RequestCtx, tpl *template.Template) {
 func (hs *queryserverCfg) RunSafeServer() error {
 	hs.Router.GET("/health", hs.Recovery(getSafeHealthHandler()))
 	var err error
-	hs.ln, err = reuseport.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
 		return err
 	}
