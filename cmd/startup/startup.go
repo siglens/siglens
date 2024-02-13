@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	local "github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/config"
+	commonconfig "github.com/siglens/siglens/pkg/config/common"
 	"github.com/siglens/siglens/pkg/dashboards"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
@@ -147,14 +148,18 @@ func Main() {
 		hook()
 	}
 
-	configJSON, err := json.MarshalIndent(serverCfg, "", "  ")
-	if err != nil {
-		log.Errorf("main : Error marshalling config struct %v", err.Error())
+	if hook := hooks.GlobalHooks.LogConfigHook; hook != nil {
+		hook()
+	} else {
+		configJSON, err := json.MarshalIndent(serverCfg, "", "  ")
+		if err != nil {
+			log.Errorf("main : Error marshalling config struct %v", err.Error())
+		}
+		log.Infof("Running config %s", string(configJSON))
 	}
-	log.Infof("Running config %s", string(configJSON))
 
 	if hook := hooks.GlobalHooks.AfterConfigHook; hook != nil {
-		hook()
+		hook(baseLogDir)
 	}
 
 	err = StartSiglensServer(nodeType, nodeID)
@@ -185,7 +190,7 @@ func Main() {
 }
 
 // Licenses should be checked outside of this function
-func StartSiglensServer(nodeType config.DeploymentType, nodeID string) error {
+func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) error {
 	err := alertsHandler.ConnectSiglensDB()
 	if err != nil {
 		log.Errorf("Failed to connect to siglens database, err: %v", err)
