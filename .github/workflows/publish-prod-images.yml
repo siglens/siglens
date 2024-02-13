@@ -209,15 +209,15 @@ jobs:
             asset_path: ssmetrics-otel-collector-config.yaml
             asset_name: ssmetrics-otel-collector-config.yaml
             asset_content_type: application/octet-stream
-        - name: Upload Release Asset - podman-compose.yaml
+        - name: Upload Release Asset - podman-compose.yml
           id: upload-release-asset-PodmanCompose
           uses: actions/upload-release-asset@v1
           env:
             GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
-            asset_path: podman-compose.yaml
-            asset_name: podman-compose.yaml
+            asset_path: podman-compose.yml
+            asset_name: podman-compose.yml
             asset_content_type: application/octet-stream
         - name: Upload Release Asset - podman-network_siglens.conflist
           id: upload-release-asset-Podman-Network_SigLens
