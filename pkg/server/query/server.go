@@ -247,8 +247,6 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 					return
 				}
 
-				log.Errorf("andrew: attempting to serve file: %v", filepath)
-
 				fasthttp.ServeFile(ctx, "static/"+filepath)
 			})
 		}
