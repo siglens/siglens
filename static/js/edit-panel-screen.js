@@ -371,13 +371,19 @@ function editPanelInit(redirectedFromViewScreen) {
 		$('.dropDown-data-rate-options span').html('Data Rate');
 		prevSelectedDataTypeIndex = -2;
 	}
-			
+	if (selectedDataSourceTypeIndex === -1 || selectedDataSourceTypeIndex === undefined) {
+		selectedDataSourceTypeIndex = mapDataSourceTypeToIndex.get("logs");
+	}
+	refreshDataSourceMenuOptions();
+		
 	if (selectedDataSourceTypeIndex != -1 && selectedDataSourceTypeIndex !== undefined) {
-		refreshDataSourceMenuOptions();
+		
 		if(selectedDataSourceTypeIndex == 1) {
 			$("#index-btn").css('display', 'inline-block');
 			$("#query-language-btn").css('display', 'inline-block');
 			$("#metrics-query-language-btn").css('display', 'none');
+			selectedChartTypeIndex = mapChartTypeToIndex.get("loglines");
+			$(".editPanelMenu-chart .editPanelMenu-options[data-index='" + selectedChartTypeIndex + "']").click();
 		} else if (selectedDataSourceTypeIndex==0){
 			$("#metrics-query-language-btn").css('display', 'inline-block');
 			$("#index-btn").css('display', 'none');
@@ -388,6 +394,8 @@ function editPanelInit(redirectedFromViewScreen) {
 			$("#query-language-btn").css('display', 'none');
 			$("#metrics-query-language-btn").css('display', 'none');
 		}
+		displayQueryToolTip(selectedDataSourceTypeIndex);
+		$(".editPanelMenu-dataSource .editPanelMenu-options[data-index='" + selectedDataSourceTypeIndex + "']").click();
 	}
 	if (selectedChartTypeIndex != -1 && selectedChartTypeIndex !== undefined)
 		refreshChartMenuOptions();
