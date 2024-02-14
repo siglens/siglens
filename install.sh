@@ -313,7 +313,7 @@ pull_siglens_docker_image() {
     echo -e "\n----------Pulling the latest docker image for SigLens----------"
 
     if [ "$USE_LOCAL_DOCKER_COMPOSE" != true ]; then
-        if [ "$ENVIRONMENT" = "playground" ]; then
+        if [ "$SERVERNAME" = "playground" ]; then
             curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/playground.yaml"
         fi
         curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
@@ -569,7 +569,7 @@ pull_siglens_podman_image() {
     # Check if the user wants to use a local compose file
     if [ "$USE_LOCAL_PODMAN_COMPOSE" != true ]; then
         # Download playground.yaml
-        if [ "$ENVIRONMENT" = "playground" ]; then
+        if [ "$SERVERNAME" = "playground" ]; then
             curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/playground.yaml"
         fi
 
@@ -768,7 +768,7 @@ CFILE="server.yaml"
 if [ -n "${CONFIG_FILE}" ]; then
     CFILE=${CONFIG_FILE}
 # Check if the script is running in playground environment
-elif [ "$ENVIRONMENT" = "playground" ]; then
+elif [ "$SERVERNAME" = "playground" ]; then
     echo "Running in playground environment. Using playground.yaml."
     CFILE="playground.yaml"
 fi

@@ -285,7 +285,7 @@ DOCKER_COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-docker-compose.yml}"
 echo -e "\n----------Pulling the latest docker image for SigLens----------"
 
 if [ "$USE_LOCAL_DOCKER_COMPOSE" != true ]; then
-    if [ "$ENVIRONMENT" = "playground" ]; then
+    if [ "$SERVERNAME" = "playground" ]; then
         curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/playground.yaml"
     fi
     curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
@@ -374,7 +374,7 @@ CFILE="server.yaml"
 if [ -n "${CONFIG_FILE}" ]; then
     CFILE=${CONFIG_FILE}
 # Check if the script is running in playground environment
-elif [ "$ENVIRONMENT" = "playground" ]; then
+elif [ "$SERVERNAME" = "playground" ]; then
     echo "Running in playground environment. Using playground.yaml."
     CFILE="playground.yaml"
 fi
