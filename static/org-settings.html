@@ -35,7 +35,7 @@
     <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
-    {{ .RunOktaSignin | safeHTML }}
+    {{ .RunCheck1 | safeHTML }}
 </head>
 
 <body data-theme="light">
@@ -46,7 +46,7 @@
         <div class="myOrg">
             <div class="myOrg-container">
                 <div class="org-nav-tab">
-                    {{ .LogoutButton | safeHTML }}
+                    {{ .Button1 | safeHTML }}
                 </div>
 
                 <div class="myOrg-inner-container">
@@ -131,8 +131,8 @@
     <script src="./js/settings.js?cb=1_1_10"></script>
     {{ .OrgSettingsExtraImports | safeHTML }}
 
-    {{ .RunRbacAuthCheck | safeHTML }}
-    {{ .RunSaasAuthCheck | safeHTML }}
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
 
 </body>
 

@@ -17,12 +17,11 @@ type Hooks struct {
 }
 
 type HtmlSnippets struct {
-	RunSaasAuthCheck string
-	RunRbacAuthCheck string
-	RunOktaSignin    string
-	LogoutButton     string
-
-	ClusterStatsDeleteIndex string
+	RunCheck1 string
+	RunCheck2 string
+	RunCheck3 string
+	Button1   string
+	Popup1    string
 
 	OrgSettingsOrgName         string
 	OrgSettingsRetentionPeriod string

@@ -41,7 +41,7 @@
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
 
-    {{ .RunOktaSignin | safeHTML }}
+    {{ .RunCheck1 | safeHTML }}
 </head>
 
 <body data-theme="light">
@@ -402,8 +402,8 @@
     <script src="./js/lib/echarts.min.js"></script>
     {{ .IndexExtraImports | safeHTML }}
 
-    {{ .RunRbacAuthCheck | safeHTML }}
-    {{ .RunSaasAuthCheck | safeHTML }}
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
 
 </body>
 
