@@ -41,6 +41,7 @@
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script src="./js/lib/echarts.min.js"></script>
+    {{ .RunCheck1 | safeHTML }}
 </head>
 
 <body data-theme="light" class="classBody">
@@ -649,6 +650,9 @@
     <script src="./js/edit-panel-screen.js?cb=1_1_10"></script>
     <script src="./js/dashboard-logs-results-grid.js?cb=1_1_10"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
+
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
 </body>
 
 </html>
