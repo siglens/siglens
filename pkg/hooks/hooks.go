@@ -27,8 +27,6 @@ type HtmlSnippets struct {
 	OrgSettingsRetentionPeriod string
 	OrgSettingsExtras          string
 	OrgSettingsExtraImports    string
-
-	IndexExtraImports string
 }
 
 type JsSnippets struct {
