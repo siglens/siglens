@@ -30,6 +30,7 @@ import (
 	esutils "github.com/siglens/siglens/pkg/es/utils"
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/health"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/integrations/loki"
 	otsdbquery "github.com/siglens/siglens/pkg/integrations/otsdb/query"
@@ -237,13 +238,21 @@ func pipeSearchWebsocketHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
 
 func getClusterStatsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		health.ProcessClusterStatsHandler(ctx, 0)
+		if hook := hooks.GlobalHooks.StatsHandlerHook; hook != nil {
+			hook(ctx, 0)
+		} else {
+			health.ProcessClusterStatsHandler(ctx, 0)
+		}
 	}
 }
 
 func getClusterIngestStatsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		health.ProcessClusterIngestStatsHandler(ctx, 0)
+		if hook := hooks.GlobalHooks.IngestStatsHandlerHook; hook != nil {
+			hook(ctx)
+		} else {
+			health.ProcessClusterIngestStatsHandler(ctx)
+		}
 	}
 }
 

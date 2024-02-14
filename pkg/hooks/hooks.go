@@ -6,6 +6,8 @@ import (
 
 	"github.com/fasthttp/router"
 	commonconfig "github.com/siglens/siglens/pkg/config/common"
+	"github.com/siglens/siglens/pkg/utils"
+	"github.com/valyala/fasthttp"
 )
 
 type Hooks struct {
@@ -13,6 +15,7 @@ type Hooks struct {
 	HtmlSnippets HtmlSnippets
 	JsSnippets   JsSnippets
 
+	// Startup
 	ServeStaticHook        func(router *router.Router, htmlTemplate *htmltemplate.Template)
 	ParseTemplatesHook     func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template)
 	InitConfigurationHook  func() error
@@ -22,6 +25,16 @@ type Hooks struct {
 	GetNodeIdHook          func() string
 	ExtractConfigHook      func(yamlData []byte) (commonconfig.Configuration, error)
 	LogConfigHook          func()
+
+	// Cluster health
+	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx)
+	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid uint64)
+	SetExtraIngestionStatsHook func(map[string]interface{})
+	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (uint64, error)
+	AddMultinodeStatsHook      func(indexData map[string]utils.ResultPerIndex, orgId uint64,
+		logsIncomingBytes *float64, logsOnDiskBytes *float64, logsEventCount *int64,
+		metricsIncomingBytes *uint64, metricsOnDiskBytes *uint64, metricsDatapointsCount *uint64,
+		queryCount *uint64, totalResponseTime *float64)
 }
 
 type HtmlSnippets struct {
