@@ -40,6 +40,12 @@ type Hooks struct {
 	ExtraRetentionCleanerHook     func() error
 	InternalRetentionCleanerHook1 func() string
 	InternalRetentionCleanerHook2 func(string, int)
+
+	// Usage stats
+	GetQueryCountHook                 func()
+	WriteUsageStatsIfConditionHook    func() bool
+	WriteUsageStatsElseExtraLogicHook func()
+	ForceFlushIfConditionHook         func() bool
 }
 
 type HtmlSnippets struct {
