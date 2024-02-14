@@ -35,6 +35,11 @@ type Hooks struct {
 		logsIncomingBytes *float64, logsOnDiskBytes *float64, logsEventCount *int64,
 		metricsIncomingBytes *uint64, metricsOnDiskBytes *uint64, metricsDatapointsCount *uint64,
 		queryCount *uint64, totalResponseTime *float64)
+
+	// Retention
+	ExtraRetentionCleanerHook     func() error
+	InternalRetentionCleanerHook1 func() string
+	InternalRetentionCleanerHook2 func(string, int)
 }
 
 type HtmlSnippets struct {

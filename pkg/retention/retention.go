@@ -25,6 +25,7 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -37,23 +38,41 @@ const MAXIMUM_WARNINGS_COUNT = 5
 
 // Starting the periodic retention based deletion
 func InitRetentionCleaner() error {
+	if hook := hooks.GlobalHooks.ExtraRetentionCleanerHook; hook != nil {
+		err := hook()
+		if err != nil {
+			return err
+		}
+	}
+
 	go internalRetentionCleaner()
 	return nil
 }
 
 func internalRetentionCleaner() {
 	time.Sleep(1 * time.Minute) // sleep for 1min for the rest of the system to come up
+
+	var hook1Result string
+	if hook := hooks.GlobalHooks.InternalRetentionCleanerHook1; hook != nil {
+		hook1Result = hook()
+	}
+
 	deletionWarningCounter := 0
 	for {
-		doRetentionBasedDeletion(config.GetCurrentNodeIngestDir(), config.GetRetentionHours(), 0)
+		if hook := hooks.GlobalHooks.InternalRetentionCleanerHook2; hook != nil {
+			hook(hook1Result, deletionWarningCounter)
+		} else {
+			DoRetentionBasedDeletion(config.GetCurrentNodeIngestDir(), config.GetRetentionHours(), 0)
+		}
+
 		deletionWarningCounter++
 		time.Sleep(1 * time.Hour)
 	}
 }
 
-func doRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid uint64) {
+func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid uint64) {
 	currTime := time.Now()
-	deleteBefore := getRetentionTimeMs(retentionHours, currTime)
+	deleteBefore := GetRetentionTimeMs(retentionHours, currTime)
 
 	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
 	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
@@ -133,11 +152,11 @@ func doRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 		len(allEntries), len(segmentsToDelete), len(metricSegmentsToDelete), oldest, orgid)
 
 	// Delete all segment data
-	deleteSegmentData(currentSegmeta, segmentsToDelete, true)
-	deleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
+	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
+	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
 }
 
-func getRetentionTimeMs(retentionHours int, currTime time.Time) uint64 {
+func GetRetentionTimeMs(retentionHours int, currTime time.Time) uint64 {
 	retDur := time.Duration(retentionHours) * time.Hour
 	retentionTime := currTime.Add(-retDur)
 	return uint64(retentionTime.UnixMilli())
@@ -150,7 +169,7 @@ func deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete map[string]*structs.Seg
 	}
 }
 
-func deleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.SegMeta, updateBlob bool) {
+func DeleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.SegMeta, updateBlob bool) {
 
 	if len(segmentsToDelete) == 0 {
 		return
@@ -186,7 +205,7 @@ func deleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.
 	}
 }
 
-func deleteMetricsSegmentData(mmetaFile string, metricSegmentsToDelete map[string]*structs.MetricsMeta, updateBlob bool) {
+func DeleteMetricsSegmentData(mmetaFile string, metricSegmentsToDelete map[string]*structs.MetricsMeta, updateBlob bool) {
 	if len(metricSegmentsToDelete) == 0 {
 		return
 	}
