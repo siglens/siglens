@@ -37,6 +37,7 @@ jobs:
             images: siglens/siglens
             tags: |
               type=raw,value=${{ env.TAG }}
+              type=raw,value=latest
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -51,7 +52,8 @@ jobs:
             file: Dockerfile
             push: true
             platforms: linux/amd64,linux/arm64
-            tags: ${{ steps.meta.outputs.tags }}          
+            tags: ${{ steps.meta.outputs.tags }}
+
   sigscalr-binaries:
       runs-on: ubuntu-latest
       environment: build-environment
@@ -177,6 +179,16 @@ jobs:
             asset_path: install_with_docker.sh
             asset_name: install_with_docker.sh
             asset_content_type: application/octet-stream
+        - name: Upload Release Asset - Install using Docker/Podman script
+          id: upload-release-asset-InstallDockerPodmanScripts
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: install.sh
+            asset_name: install.sh
+            asset_content_type: application/octet-stream
         - name: Upload Release Asset - docker-compose.yml
           id: upload-release-asset-DockerCompose
           uses: actions/upload-release-asset@v1
@@ -196,5 +208,25 @@ jobs:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: ssmetrics-otel-collector-config.yaml
             asset_name: ssmetrics-otel-collector-config.yaml
+            asset_content_type: application/octet-stream
+        - name: Upload Release Asset - podman-compose.yml
+          id: upload-release-asset-PodmanCompose
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: podman-compose.yml
+            asset_name: podman-compose.yml
+            asset_content_type: application/octet-stream
+        - name: Upload Release Asset - podman-network_siglens.conflist
+          id: upload-release-asset-Podman-Network_SigLens
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }} 
+            asset_path: podman-network_siglens.conflist
+            asset_name: podman-network_siglens.conflist
             asset_content_type: application/octet-stream
     
