@@ -24,12 +24,11 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_HOST: ${{ secrets.PG_HOST }}
-      - name: Set terminal and servername environment variables
+      - name: Set terminal and servername environment variables and start the server
         run: |
           echo "export TERM=xterm" >> ~/.bashrc
           echo "export SERVERNAME=playground" >> ~/.bashrc
-      - name: Start the server
-        run: ssh playground 'curl -L https://siglens.com/install.sh | sh'
+          ssh playground 'curl -L https://siglens.com/install.sh | sh'
         env:
           TERM: xterm
       - name: Wait for the server to start
