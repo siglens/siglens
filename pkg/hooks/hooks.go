@@ -39,8 +39,6 @@ type JsSnippets struct {
 
 	CommonExtraFunctions string
 
-	NavBarExtraFunctions string
-
 	SettingsExtraOnReadySetup      string
 	SettingsRetentionDataThenBlock string
 	SettingsExtraFunctions         string
