@@ -5,10 +5,10 @@ on:
 
 jobs:
   deploy:
-    name: "Deploy to playground"
+    name: "Deploy Siglens on playground"
     runs-on: ubuntu-latest
     steps:
-      - name: Configure SSH
+      - name: Setup SSH Configuration
         run: |
           mkdir -p ~/.ssh/
           echo "$SSH_KEY" > ~/.ssh/playground.key
@@ -24,18 +24,22 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_HOST: ${{ secrets.PG_HOST }}
-      - name: Set terminal and servername environment variables and start the server
+      - name: Export Environment Variables
         run: |
-          export TERM=xterm
-          export SERVERNAME=playground
+          ssh playground export TERM=$TERM
+          ssh playground export SERVERNAME=$SERVERNAME
+        env:
+          TERM: xterm
+          SERVERNAME: playground
+      - name: Execute Install Script
+        run: |
           ssh playground 'curl -L https://siglens.com/install.sh | sh'
         env:
           TERM: xterm
-      - name: Wait for the server to start
+      - name: Verify Server Start
         run: |
           sleep 5
           if ! curl --silent http://localhost:5122 | head -n 30; then
             echo "Server did not start within 5 seconds"
             exit 1
           fi
-
