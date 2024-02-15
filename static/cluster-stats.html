@@ -37,6 +37,7 @@
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/jquery.dataTables.min.js"></script>
     <script src="./js/lib/dataTables.scroller.min.js"></script>
+    {{.RunCheck1 | safeHTML}}
 </head>
 
 <body data-theme="light">
@@ -47,6 +48,7 @@
         <div id="app-content-area">
             <div class="cstats-data-container myOrg-container">
                 <div class="org-nav-tab">
+                    {{ .Button1 | safeHTML }}
                 </div>
                 <div class="myOrg-inner-container">
                     <div class="usage-stats-header">
@@ -121,6 +123,7 @@
                                 Storage Savings
                             </div>
                         </div>
+                        {{ .Popup1 | safeHTML }}
                     </div>
                     <div id="cstats-app-footer">
                         2023 &copy; SigLens
@@ -143,6 +146,8 @@
     <script src="./js/lib/chart.umd.min.js"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
 
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
 </body>
 
 </html>

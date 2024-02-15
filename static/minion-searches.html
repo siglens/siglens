@@ -36,6 +36,7 @@
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script src="https://unpkg.com/ag-grid-community@26.2.1/dist/ag-grid-community.min.js"></script>
+    {{ .RunCheck1 | safeHTML }}
 </head>
 
 <body data-theme="light">
@@ -93,6 +94,8 @@
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/minion-searches.js?cb=1_1_10"></script>
 
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
 </body>
 
 </html>

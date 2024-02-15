@@ -36,6 +36,7 @@
     <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+    {{ .RunCheck1 | safeHTML }}
 </head>
 
 <body data-theme="light">
@@ -111,6 +112,9 @@
     <script src="./js/saved-query.js?cb=1_1_10"></script>
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./js/dashboards-home.js?cb=1_1_10"></script>
+
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
 </body>
 
 </html>
