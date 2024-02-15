@@ -30,6 +30,8 @@ jobs:
           echo "export SERVERNAME=playground" >> ~/.bashrc
       - name: Start the server
         run: ssh playground 'curl -L https://siglens.com/install.sh | sh'
+        env:
+          TERM: xterm
       - name: Wait for the server to start
         run: |
           sleep 5
@@ -37,3 +39,4 @@ jobs:
             echo "Server did not start within 5 seconds"
             exit 1
           fi
+
