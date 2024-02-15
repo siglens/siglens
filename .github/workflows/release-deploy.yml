@@ -26,8 +26,8 @@ jobs:
           SSH_HOST: ${{ secrets.PG_HOST }}
       - name: Export Environment Variables
         run: |
-          ssh playground export TERM=$TERM
-          ssh playground export SERVERNAME=$SERVERNAME
+          ssh playground 'export TERM=$TERM'
+          ssh playground 'export SERVERNAME=$SERVERNAME'
         env:
           TERM: xterm
           SERVERNAME: playground
