@@ -59,8 +59,7 @@ jobs:
             context: .
             file: Dockerfile
             push: true
-            platforms: linux/amd64,linux/arm64   
-            tags: latest
+            platforms: linux/amd64,linux/arm64                 
   sigscalr-binaries:
       runs-on: ubuntu-latest
       environment: build-environment
