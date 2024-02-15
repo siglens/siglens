@@ -29,6 +29,7 @@ let hasLoaded = false;
 let allResultsFetched = false;
 let totalTraces = 0;
 $(document).ready(() => {
+  allResultsFetched = false;
   if (Cookies.get("theme")) {
     theme = Cookies.get("theme");
     $("body").attr("data-theme", theme);
@@ -280,8 +281,8 @@ function initChart(){
   };
     searchTrace(params);
 }
-function getTotalTraces(params) {
-  $.ajax({
+async function getTotalTraces(params) {
+  return $.ajax({
       method: "post",
       url: "http://localhost:5122/api/traces/count",
       headers: {
@@ -309,7 +310,7 @@ function searchTrace(params){
     crossDomain: true,
     dataType: "json",
     data: JSON.stringify(params),
-  }).then((res) => {
+  }).then(async (res) => {
     if (res && res.traces && res.traces.length > 0) {
       if ((limitation < 50 && limitation > 0) || limitation== 0) {
         let newArr = res.traces.sort(compare("start_time", "most"));
@@ -326,7 +327,7 @@ function searchTrace(params){
       //reset total size
       traceSize = returnResTotal.length;
       if ($("#traces-number").text().trim() === "") {
-        getTotalTraces(params);
+       await getTotalTraces(params);
       }      
       timeList = [];
       for (let i = 0; i < traceSize; i++) {
