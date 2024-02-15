@@ -46,6 +46,18 @@ type Hooks struct {
 	WriteUsageStatsIfConditionHook    func() bool
 	WriteUsageStatsElseExtraLogicHook func()
 	ForceFlushIfConditionHook         func() bool
+
+	// Blobstore
+	InitBlobStoreExtrasHook             func() (bool, error)
+	UploadSegmentFilesExtrasHook        func(allFiles []string) (bool, error)
+	UploadIngestNodeExtrasHook          func() (bool, error)
+	UploadQueryNodeExtrasHook           func() (bool, error)
+	DeleteBlobExtrasHook                func(filepath string) (bool, error)
+	DownloadAllIngestNodesDirExtrasHook func() (bool, error)
+	DownloadAllQueryNodesDirExtrasHook  func() (bool, error)
+	DownloadSegmentBlobExtrasHook       func(filename string) (bool, error)
+	GetFileSizeExtrasHook               func(filename string) (bool, uint64)
+	DoesMetaFileExistExtrasHook         func(filename string) (bool, bool, error)
 }
 
 type HtmlSnippets struct {
