@@ -58,6 +58,13 @@ type Hooks struct {
 	DownloadSegmentBlobExtrasHook       func(filename string) (bool, error)
 	GetFileSizeExtrasHook               func(filename string) (bool, uint64)
 	DoesMetaFileExistExtrasHook         func(filename string) (bool, bool, error)
+
+	// Ingest server
+	IngestMiddlewareRecoveryHook    func(ctx *fasthttp.RequestCtx) error
+	KibanaIngestHandlerHook         func(ctx *fasthttp.RequestCtx)
+	LokiPostBulkHandlerInternalHook func(ctx *fasthttp.RequestCtx)
+	GetIdsConditionHook             func(ids []uint64) bool
+	ExtraIngestEndpointsHook        func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
 }
 
 type HtmlSnippets struct {

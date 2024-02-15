@@ -113,7 +113,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, kiba
 				processedCount++
 				success = true
 				if strings.Contains(indexName, ".kibana") {
-					indexNameConverted := addAndGetRealIndexName(indexName, localIndexMap, myid)
+					indexNameConverted := AddAndGetRealIndexName(indexName, localIndexMap, myid)
 					if idVal == "" {
 						idVal = uuid.New().String()
 					}
@@ -230,7 +230,7 @@ func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
 	return DELETE, "eventType", ""
 }
 
-func addAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string, myid uint64) string {
+func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string, myid uint64) string {
 
 	// first check localCopy of map, if it exists then avoid the lock inside vtables.
 	// note that this map gets reset on every bulk request
@@ -258,7 +258,7 @@ func addAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64) error {
 
-	indexNameConverted := addAndGetRealIndexName(indexNameIn, localIndexMap, myid)
+	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
 	cfgkey := config.GetTimeStampKey()
 
 	var docType segment.SIGNAL_TYPE
@@ -331,7 +331,7 @@ func PostBulkErrorResponse(ctx *fasthttp.RequestCtx) {
 func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 	inIndexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
 
-	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid)
+	convertedIndexNames, indicesNotFound := DeleteIndex(inIndexName, myid)
 
 	if indicesNotFound == len(convertedIndexNames) {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
@@ -349,7 +349,7 @@ func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 }
 
-func deleteIndex(inIndexName string, myid uint64) ([]string, int) {
+func DeleteIndex(inIndexName string, myid uint64) ([]string, int) {
 	convertedIndexNames := vtable.ExpandAndReturnIndexNames(inIndexName, myid, true)
 	indicesNotFound := 0
 	for _, indexName := range convertedIndexNames {

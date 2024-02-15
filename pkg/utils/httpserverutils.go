@@ -812,3 +812,11 @@ func GetSpecificIdentifier() (string, error) {
 
 	return hostname, nil
 }
+
+func SetBadMsg(ctx *fasthttp.RequestCtx) {
+	var httpResp HttpServerResponse
+	ctx.SetStatusCode(fasthttp.StatusBadRequest)
+	httpResp.Message = "Bad Request"
+	httpResp.StatusCode = fasthttp.StatusBadRequest
+	WriteResponse(ctx, httpResp)
+}
