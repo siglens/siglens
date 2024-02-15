@@ -252,13 +252,42 @@ if ! is_command_present docker; then
     fi
 fi
 
-start_docker
+start_docker_with_timeout() {
+    start_docker &
+    start_docker_pid=$!
+
+    # Wait for up to 180 seconds for start_docker to finish
+    for i in {1..180}; do
+        if ! ps -p $start_docker_pid > /dev/null; then
+            wait $start_docker_pid
+            exit_code=$?
+            if [ $exit_code -ne 0 ]; then
+                print_error_and_exit "Docker failed to start"
+            fi
+            break
+        fi
+        if (( i % 30 == 0 )); then
+            echo "Attempting to start docker... ($((i / 60)) minute(s))"
+        fi
+        sleep 1
+    done
+
+    # If start_docker is still running after 180 seconds, print an error message and exit
+    if ps -p $start_docker_pid > /dev/null; then
+        print_error_and_exit "Docker failed to start in 3 minutes. Please start docker and try again."
+    fi
+}
+
+start_docker_with_timeout
 DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-siglens/siglens:${SIGLENS_VERSION}}"
 DOCKER_COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-docker-compose.yml}"
 
 echo -e "\n----------Pulling the latest docker image for SigLens----------"
 
 if [ "$USE_LOCAL_DOCKER_COMPOSE" != true ]; then
+    if [ "$SERVERNAME" = "playground" ]; then
+        curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/playground.yaml"
+    fi
     curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
     curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
     echo "Pulling the latest docker image for SigLens from upstream"
@@ -339,10 +368,15 @@ send_events() {
 
 UI_PORT=5122
 
-
 CFILE="server.yaml"
+
+# Check if CONFIG_FILE is set and not empty
 if [ -n "${CONFIG_FILE}" ]; then
     CFILE=${CONFIG_FILE}
+# Check if the script is running in playground environment
+elif [ "$SERVERNAME" = "playground" ]; then
+    echo "Running in playground environment. Using playground.yaml."
+    CFILE="playground.yaml"
 fi
 
 print_success_message "\n Starting Siglens with image: ${DOCKER_IMAGE_NAME}"
