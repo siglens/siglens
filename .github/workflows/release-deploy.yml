@@ -24,18 +24,12 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_HOST: ${{ secrets.PG_HOST }}
-      - name: Export Environment Variables
+      - name: Export Environment Variables and Execute Install Script
         run: |
-          ssh playground 'export TERM=$TERM'
-          ssh playground 'export SERVERNAME=$SERVERNAME'
+          ssh playground 'export TERM=xterm; export SERVERNAME=playground; curl -L https://siglens.com/install.sh | sh'
         env:
           TERM: xterm
           SERVERNAME: playground
-      - name: Execute Install Script
-        run: |
-          ssh playground 'curl -L https://siglens.com/install.sh | sh'
-        env:
-          TERM: xterm
       - name: Verify Server Start
         run: |
           sleep 5
