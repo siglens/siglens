@@ -22,6 +22,7 @@ $(document).ready(function () {
     $('.theme-btn').on('click', themePickerHandler);
     getRetentionDataFromConfig();
     getPersistentQueriesSetting();
+    {{ .SettingsExtraOnReadySetup }}
 });
 
 function getRetentionDataFromConfig() {
@@ -32,13 +33,17 @@ function getRetentionDataFromConfig() {
         dataType: 'json',
         credentials: 'include'
     })
+    {{ if .SettingsRetentionDataThenBlock }}
+        {{ .SettingsRetentionDataThenBlock }}
+    {{ else }}
         .then((res) => {
-                let ret_days = res.RetentionHours / 24;
-                $('#retention-days-value').html(`${ret_days} days`);
+            let ret_days = res.RetentionHours / 24;
+            $('#retention-days-value').html(`${ret_days} days`);
         })
-        .catch((err) => {
-            console.log(err)
-        });
+    {{ end }}
+    .catch((err) => {
+        console.log(err)
+    });
 }
 
 function getPersistentQueriesSetting(){
@@ -114,3 +119,5 @@ function setPersistentQueries(pqsEnabled) {
     $('#contact-types span').text(pqsEnabled ? "Enabled" : "Disabled");
     $('.contact-option:contains("' + (pqsEnabled ? "Enabled" : "Disabled") + '")').addClass('active');
 }
+
+{{ .SettingsExtraFunctions }}

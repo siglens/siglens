@@ -371,13 +371,19 @@ function editPanelInit(redirectedFromViewScreen) {
 		$('.dropDown-data-rate-options span').html('Data Rate');
 		prevSelectedDataTypeIndex = -2;
 	}
-			
+	if (selectedDataSourceTypeIndex === -1 || selectedDataSourceTypeIndex === undefined) {
+		selectedDataSourceTypeIndex = mapDataSourceTypeToIndex.get("logs");
+	}
+	refreshDataSourceMenuOptions();
+		
 	if (selectedDataSourceTypeIndex != -1 && selectedDataSourceTypeIndex !== undefined) {
-		refreshDataSourceMenuOptions();
+		
 		if(selectedDataSourceTypeIndex == 1) {
 			$("#index-btn").css('display', 'inline-block');
 			$("#query-language-btn").css('display', 'inline-block');
 			$("#metrics-query-language-btn").css('display', 'none');
+			selectedChartTypeIndex = mapChartTypeToIndex.get("loglines");
+			$(".editPanelMenu-chart .editPanelMenu-options[data-index='" + selectedChartTypeIndex + "']").click();
 		} else if (selectedDataSourceTypeIndex==0){
 			$("#metrics-query-language-btn").css('display', 'inline-block');
 			$("#index-btn").css('display', 'none');
@@ -388,6 +394,8 @@ function editPanelInit(redirectedFromViewScreen) {
 			$("#query-language-btn").css('display', 'none');
 			$("#metrics-query-language-btn").css('display', 'none');
 		}
+		displayQueryToolTip(selectedDataSourceTypeIndex);
+		$(".editPanelMenu-dataSource .editPanelMenu-options[data-index='" + selectedDataSourceTypeIndex + "']").click();
 	}
 	if (selectedChartTypeIndex != -1 && selectedChartTypeIndex !== undefined)
 		refreshChartMenuOptions();
@@ -440,7 +448,7 @@ function editPanelInit(redirectedFromViewScreen) {
 	$(".panEdit-apply").unbind("click");
 	$('.panEdit-apply').on('click', () => applyChangesToPanel(redirectedFromViewScreen))
 	$(".panEdit-goToDB").unbind("click");
-	$('.panEdit-goToDB').on("click", () => goToDashboard(redirectedFromViewScreen))
+	$('.panEdit-goToDB').on("click", () => handleGoToDBArrowClick(redirectedFromViewScreen))
 	setTimePicker();
 	pauseRefreshInterval();
 }
@@ -1098,6 +1106,43 @@ function applyChangesToPanel(redirectedFromViewScreen) {
 	else {
 		updateTimeRangeForPanels();
 		goToDashboard();
+	}
+}
+
+function handleGoToDBArrowClick(redirectedFromViewScreen) {
+	if (!checkUnsavedChages()) {
+		showPrompt(redirectedFromViewScreen)
+	} else {
+		goToDashboard(redirectedFromViewScreen);
+	}
+	
+	function checkUnsavedChages() {
+		let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
+		return (currentPanel.chartType === serverPanel.chartType
+			&& currentPanel.dataType === serverPanel.dataType
+			&& currentPanel.description === serverPanel.description
+			&& currentPanel.name === serverPanel.name
+			&& currentPanel.queryType === serverPanel.queryType
+			&& currentPanel.unit === serverPanel.unit
+			&& currentPanel.panelIndex === serverPanel.panelIndex
+			
+			&& currentPanel.queryData.endEpoch === serverPanel.queryData.endEpoch
+			&& currentPanel.queryData.indexName === serverPanel.queryData.indexName
+			&& currentPanel.queryData.queryLanguage === serverPanel.queryData.queryLanguage
+			&& currentPanel.queryData.searchText === serverPanel.queryData.searchText
+			&& currentPanel.queryData.startEpoch === serverPanel.queryData.startEpoch
+			&& currentPanel.queryData.state === serverPanel.queryData.state);
+	}
+	
+	function showPrompt(redirectedFromViewScreen) {
+		$('.popupOverlay, .popupContent').addClass('active');
+		$('#exit-btn-panel').on("click", function () {
+			$('.popupOverlay, .popupContent').removeClass('active');
+			goToDashboard(redirectedFromViewScreen);
+		});
+		$('#cancel-btn-panel, .popupOverlay').on("click", function () {
+			$('.popupOverlay, .popupContent').removeClass('active');
+		});
 	}
 }
 
