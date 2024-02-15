@@ -298,7 +298,6 @@ async function getTotalTraces(params) {
       $("#traces-number").text(res.toLocaleString("en-US") + " Traces");
   });
 }
-
 function searchTrace(params){
   $.ajax({
     method: "post",
