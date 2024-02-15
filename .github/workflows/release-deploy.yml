@@ -29,7 +29,7 @@ jobs:
           echo "export TERM=xterm" >> ~/.bashrc
           echo "export SERVERNAME=playground" >> ~/.bashrc
       - name: Start the server
-        run: ssh staging 'curl -L https://siglens.com/install.sh | sh'
+        run: ssh playground 'curl -L https://siglens.com/install.sh | sh'
       - name: Wait for the server to start
         run: |
           sleep 5
