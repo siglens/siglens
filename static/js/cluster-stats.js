@@ -35,12 +35,15 @@ $(document).ready(() => {
     let data = getTimeRange();
     renderClusterStatsTables();
     renderChart();
+    {{ .ClusterStatsExtraSetup }}
     if (Cookies.get('theme')) {
         theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
     }
 
 });
+
+{{ .ClusterStatsExtraFunctions }}
 
 function iStatsDatePickerHandler(evt) {
     evt.preventDefault();
@@ -450,6 +453,7 @@ function renderTotalCharts(totalIncomingVolume, totalIncomingVolumeMetrics, tota
 }
 
 function processClusterStats(res) {
+    {{ .ClusterStatsSetUserRole }}
     _.forEach(res, (value, key) => {
         if (key === "ingestionStats") {
             let table = $('#ingestion-table');
@@ -491,6 +495,8 @@ function processClusterStats(res) {
         'Incoming Volume',
         'Event Count',
     ];
+
+    {{ .ClusterStatsAdminView }}
 
     let indexdataTableColumns = columnOrder.map((columnName, index) => {
         let title = `<div class="grid"><div>${columnName}&nbsp;</div><div><i data-index="${index}"></i></div></div>`;
@@ -538,6 +544,8 @@ function processClusterStats(res) {
                     let l = parseFloat(v.ingestVolume)
                     currRow[1] = Number(`${l >= 10 ? l.toFixed().toLocaleString("en-US") : l}`) + '  GB';
                     currRow[2] = `${v.eventCount}`;
+                    {{ .ClusterStatsAdminButton }}
+
                     totalIngestVolume += parseFloat(`${v.ingestVolume}`);
                     totalEventCount += parseInt(`${v.eventCount}`.replaceAll(',',''));
 
@@ -562,9 +570,13 @@ function processClusterStats(res) {
         metricsDataTable.draw();
     }
 
-    setTimeout(() => {
-        displayIndexDataRows(res);
-    }, 0);
+    {{ if .ClusterStatsCallDisplayRows }}
+        {{ .ClusterStatsCallDisplayRows }}
+    {{ else }}
+        setTimeout(() => {
+            displayIndexDataRows(res);
+        }, 0);
+    {{ end }}
 
 }
 

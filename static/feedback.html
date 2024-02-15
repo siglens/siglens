@@ -14,6 +14,8 @@
     <title>SigLens</title>
 
     <link href="./css/siglens.css" rel="stylesheet" />
+
+    {{ .RunCheck1 | safeHTML }}
 </head>
 
 <body data-theme="dark">
@@ -45,6 +47,8 @@
 
     </div>
 
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
 </body>
 
 </html>
