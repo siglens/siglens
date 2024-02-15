@@ -1,0 +1,39 @@
+name: release-deploy.yml
+
+on:
+  push:
+
+jobs:
+  deploy:
+    name: "Deploy to playground"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$SSH_KEY" > ~/.ssh/playground.key
+          chmod 600 ~/.ssh/playground.key
+          cat >>~/.ssh/config <<END
+          Host playground
+            HostName $SSH_HOST
+            User $SSH_USER
+            IdentityFile ~/.ssh/playground.key
+            StrictHostKeyChecking no
+          END
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.PG_HOST }}
+      - name: Set terminal and servername environment variables
+        run: |
+          echo "export TERM=xterm" >> ~/.bashrc
+          echo "export SERVERNAME=playground" >> ~/.bashrc
+      - name: Start the server
+        run: ssh staging 'curl -L https://siglens.com/install.sh | sh'
+      - name: Wait for the server to start
+        run: |
+          sleep 5
+          if ! curl --silent http://localhost:5122 | head -n 30; then
+            echo "Server did not start within 5 seconds"
+            exit 1
+          fi
