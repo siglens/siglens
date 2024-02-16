@@ -27,7 +27,6 @@ function showLegendOptions(selectedChartIndex) {
 }
 const initialSelectedChartIndex = 1;
 showLegendOptions(initialSelectedChartIndex);
-// Handle chart options click
 $('.chart-options').on('click', function() {
     const selectedChartIndex = $(this).data('index');
     showLegendOptions(selectedChartIndex);
@@ -40,7 +39,7 @@ let isLegendVisible = true;
 $('#toggle-switch1').on('change', function () {
     isLegendVisible = this.checked;
 	$('.legendPlacementContainer').toggle(isLegendVisible);
-   
+	saveDashboardLegendSettings();
    const legendVisibilityChangeEvent = new Event('legendVisibilityChange');
     document.dispatchEvent(legendVisibilityChangeEvent);
 });
@@ -50,9 +49,24 @@ $('#legendPlacementDropdown .legend-options').on('click', function () {
     $('#legendPlacementDropdown .legend-options').removeClass('selected');
     $(this).addClass('selected');
     $('.legendPlacementContainer .placement-options').hide();
+	saveDashboardLegendSettings();
     const legendChangeEvent = new Event('legendChange');
     document.dispatchEvent(legendChangeEvent);
 });
+function saveDashboardLegendSettings() {
+    localPanels.forEach(panel => {
+        panel.legendPlacement = legendPlacement;
+        panel.isLegendVisible = isLegendVisible;
+    });
+    updateDashboard()
+        .then(updateSuccessful => {
+            if (updateSuccessful) {
+                console.log('Legend settings saved successfully.');
+            } else {
+                console.error('Failed to save legend settings.');
+            }
+        });
+}
 
 $('.legendPlacementContainer').on('click', function (event) {
     event.stopPropagation();
