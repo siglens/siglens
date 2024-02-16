@@ -31,7 +31,6 @@ import (
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/pprofhandler"
-	"github.com/valyala/fasthttp/reuseport"
 )
 
 type ingestionServerCfg struct {
@@ -120,7 +119,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	if config.IsDebugMode() {
 		hs.router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}
-	hs.ln, err = reuseport.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
 		return err
 	}
@@ -147,7 +146,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 
 func (hs *ingestionServerCfg) RunSafeServer() (err error) {
 	hs.router.GET("/health", hs.Recovery(getSafeHealthHandler()))
-	hs.ln, err = reuseport.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
 		return err
 	}

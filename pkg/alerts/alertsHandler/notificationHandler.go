@@ -82,7 +82,7 @@ func NotifyAlertHandlerRequest(alertID string) error {
 		for _, channelID := range channelIDs {
 			err = sendSlack(subject, message, channelID)
 			if err != nil {
-				log.Errorf("NotifyAlertHandlerRequest: Error sending Slack message to channelID- %s for alert id- %s, err=%v", channelID, alertID, err)
+				log.Errorf("NotifyAlertHandlerRequest: Error sending Slack message to channelID- %v for alert id- %v, err=%v", channelID, alertID, err)
 			} else {
 				slackSent = true
 			}
@@ -194,7 +194,7 @@ func isCooldownOver(alertID string) (bool, error) {
 func sendSlack(alertName string, message string, channel alertutils.SlackTokenConfig) error {
 
 	channelID := channel.ChannelId
-	token := channel.SlackToken
+	token := channel.SlToken
 	alert := fmt.Sprintf("Alert Name : '%s'", alertName)
 	client := slack.New(token, slack.OptionDebug(false))
 
@@ -239,7 +239,7 @@ func processGetSilenceMinutesRequest(alert_id string) (uint64, time.Time, error)
 		return 0, time.Time{}, err
 	}
 
-	return alertDataObj.AlertInfo.SilenceMinutes, last_time, nil
+	return alertDataObj.SilenceMinutes, last_time, nil
 }
 func processGetContactDetails(alert_id string) (string, string, string, error) {
 	id, message, subject, err := databaseObj.GetContactDetails(alert_id)

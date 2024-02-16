@@ -34,7 +34,9 @@
     <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="./js/lib/d3.v7.min.js"></script>
+    {{ .RunCheck1 | safeHTML }}
+
     <title>SigLens</title>
 </head>
 <body data-theme="light">
@@ -63,6 +65,9 @@
     <script src="./js/common.js?cb=1_1_10"></script>
     <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/trace.js?cb=1_1_10"></script>
+
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
 </body>
 
 </html>

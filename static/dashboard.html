@@ -41,6 +41,7 @@
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script src="./js/lib/echarts.min.js"></script>
+    {{ .RunCheck1 | safeHTML }}
 </head>
 
 <body data-theme="light" class="classBody">
@@ -603,6 +604,18 @@
                 </ul>
             </div>
         </div>
+        <div class="popupOverlay">
+        </div>
+        <div id="panel-edit-prompt" class="popupContent">
+            <h3 class="header">Confirmation</h3>
+            <div class="prompt-text-container">
+                <div class="edit-db-text">You have unsaved changes. Are you sure you want to exit?</div>
+            </div>
+            <div id="buttons-db-prompt">
+                <button type="button" id="cancel-btn-panel">Cancel</button>
+                <button type="button" id="exit-btn-panel">Discard and Exit</button>
+            </div>
+        </div>
     </div>
     <div class="dbSet-container">
         <div class="dbSet-navBar">
@@ -676,6 +689,9 @@
     <script src="./js/edit-panel-screen.js?cb=1_1_10"></script>
     <script src="./js/dashboard-logs-results-grid.js?cb=1_1_10"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
+
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
 </body>
 
 </html>

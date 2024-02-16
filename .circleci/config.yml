@@ -30,7 +30,7 @@ jobs:
           command: |
             sleep 10
             ls -l
-            tail -f siglens.log
+            tail -f logs/siglens.log
           background: true
       - run:
           name: Run E2E Test test

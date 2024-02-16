@@ -33,9 +33,9 @@
     <script src="./js/lib/moment.min.js"></script>
     <script src="./js/lib/date_fns.min.js"></script>
     <script src="./js/lib/popper.min.js"></script>
-    <script src="./js/settings.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+    {{ .RunCheck1 | safeHTML }}
 </head>
 
 <body data-theme="light">
@@ -46,6 +46,7 @@
         <div class="myOrg">
             <div class="myOrg-container">
                 <div class="org-nav-tab">
+                    {{ .Button1 | safeHTML }}
                 </div>
 
                 <div class="myOrg-inner-container">
@@ -56,14 +57,56 @@
                         <table id="org-settings-table">
                             <tr>
                                 <th>Organization Name</th>
-                                <td id="orgName">SigLens</td>
+                                {{ if .OrgSettingsOrgName }}
+                                    {{ .OrgSettingsOrgName | safeHTML }}
+                                {{ else }}
+                                    <td id="orgName">SigLens</td>
+                                {{ end }}
                             </tr>
                             <tr>
                                 <th>Retention</th>
-                                <td id="retention-days-value">4 days</td>
+                                {{ .OrgSettingsRetentionPeriod | safeHTML }}
+                                {{ if .OrgSettingsRetentionPeriod }}
+                                    {{ .OrgSettingsRetentionPeriod | safeHTML }}
+                                {{ else }}
+                                    <td id="retention-days-value">4 days</td>
+                                {{ end }}
+                            </tr>
+                            <tr>
+                                <th>Persistent Queries</th>
+                                <td>
+                                    <div class="dropdown">
+                                        <button class="btn dropdown-toggle" type="button" id="contact-types"
+                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                            data-bs-toggle="dropdown">
+                                            <span style="color: var(--health-stats-value-text-color); margin-left: -10px;">Enabled</span>
+                                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                        </button>
+                                        <div class="dropdown-menu box-shadow contact-options">
+                                            <li id="option-0" class="contact-option active">Enabled</li>
+                                            <li id="option-1" class="contact-option">Disabled</li>
+                                        </div>
+                                    </div>
+                                </td>
                             </tr>
                         </table>
-
+                        {{ .OrgSettingsExtras | safeHTML }}
+                    </div>
+                </div>
+                <div class="popupOverlay">
+                </div>
+                <div class="popupContent" id="disable-pqs-prompt">
+                    <div class="disable-dialog">
+                        <h3 class="header">Disable Persistant Queries</h3>
+                        <p>
+                            Disabling persistant queries may affect your query performance. <strong
+                                id="contact-name-placeholder-delete-dialog"></strong>
+                        </p>
+                        <div class="mt-4">
+                            <button type="button" class="cancelqButton" id="cancel-disable-pqs">Cancel</button>
+                            <button type="button" id="disable-pqs" class="saveqButton">Ok</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -86,6 +129,10 @@
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
     <script src="./js/settings.js?cb=1_1_10"></script>
+    {{ .OrgSettingsExtraImports | safeHTML }}
+
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
 
 </body>
 

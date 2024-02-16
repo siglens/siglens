@@ -61,6 +61,7 @@ let thirdBoxSet = new Set();
 let measureFunctions = [];
 let measureInfo = [];
 let isTimechart = false;
+let isQueryBuilderSearch = false;
 
 
 let aggGridOptions = {
@@ -83,6 +84,8 @@ let aggGridOptions = {
         sortDescending: '<i class="fa fa-sort-alpha-down"/>',
     }
 };
+
+{{ .CommonExtraFunctions }}
 
 function showError(errorMsg) {
     $("#logs-result-container").hide();

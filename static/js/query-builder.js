@@ -13,15 +13,24 @@ $("#custom-code-tab").tabs({
     }
     let currentTab = $("#custom-code-tab").tabs("option", "active");
     if (currentTab == 0) {
+      // Query Builder Tab
       let filterValue = $("#filter-input").val();
-      if (filterValue != "" && $("#query-input").val() == "*") $("#query-input").val(filterValue);
+      if (filterValue != "") $("#query-input").val(filterValue);
+      if (filterValue == "") $("#query-input").val('*')
+      if(!isQueryBuilderSearch){
+        // Clear input boxes of the query builder when a query is searched from the free text
+        $(".tags-list").empty();  
+        [firstBoxSet, secondBoxSet, thirdBoxSet] = [new Set(), new Set(), new Set()];
+        $("#aggregations, #aggregate-attribute-text, #search-filter-text").show();
+      }
       $(".query-language-option").removeClass("active");
       $("#query-language-options #option-3").addClass("active");
       $("#query-language-btn span").html("Splunk QL");
       displayQueryLangToolTip("3");
     }else{
+      // Free Text Tab
       let filterValue = $("#query-input").val();
-     if (filterValue != "" && ($("#filter-input").val() == "*" || $("#filter-input").val() == "")) $("#filter-input").val(filterValue);
+      if (filterValue != "") $("#filter-input").val(filterValue);
     }
   },
 });
@@ -135,12 +144,17 @@ $(document).mouseup(function (e) {
   }
 });
 var calculations = ["min", "max", "count", "avg", "sum"];
-var ColumnsIsNum = ["http_status", "longitude", "latitude", "latency"];
+var numericColumns = [];
 var ifCurIsNum = false;
 var availSymbol = [];
 let valuesOfColumn = new Set();
 let paramFirst;
-function filterStart(evt) {
+let columnsNames = [];
+let previousStartEpoch = null;
+let previousEndEpoch = null;
+let previousIndexName = null;
+
+async function filterStart(evt) {
   evt.preventDefault();
   $("#column-first").attr("type", "text");
   $("#add-con").hide();
@@ -148,10 +162,21 @@ function filterStart(evt) {
   $("#add-filter").show();
   $("#add-filter").css({ visibility: "visible" });
   $("#filter-box-1").addClass("select-box");
-  if (availColNames.length == 0) getColumns();
+  // fetch columns if empty or startTime, endTime or Index is changed
+  if (
+    columnsNames.length === 0 ||
+    filterStartDate !== previousStartEpoch ||
+    filterEndDate !== previousEndEpoch ||
+    selectedSearchIndex !== previousIndexName
+  ) {
+    await getColumns();
+    previousStartEpoch = filterStartDate;
+    previousEndEpoch = filterEndDate;
+    previousIndexName = selectedSearchIndex;
+  }
   $("#column-first")
     .autocomplete({
-      source: availColNames.sort(),
+      source: columnsNames.sort(),
       minLength: 0,
       maxheight: 100,
       select: function (event, ui) {
@@ -160,8 +185,8 @@ function filterStart(evt) {
         availSymbol = ["=", "!="];
         valuesOfColumn.clear();
         let curIsNum = false;
-        for (let i = 0; i < availColNames.length; i++) {
-          if (ui.item.value == ColumnsIsNum[i]) {
+        for (let i = 0; i < columnsNames.length; i++) {
+          if (ui.item.value == numericColumns[i]) {
             curIsNum = true;
             availSymbol = ["=", "!=", "<=", ">=", ">", "<"];
             break;
@@ -207,16 +232,28 @@ function secondFilterStart(evt) {
   $("#add-filter-second").css({ visibility: "visible" });
   $("#column-second").focus();
 }
-function ThirdFilterStart(evt) {
+async function ThirdFilterStart(evt) {
   evt.preventDefault();
   $("#filter-box-3").addClass("select-box");
   $("#column-third").attr("type", "text");
   $("#add-con-third").hide();
   $("#add-filter-third").show();
   $("#add-filter-third").css({ visibility: "visible" });
+  // fetch columns if empty or startTime, endTime or index is changed
+  if (
+    columnsNames.length === 0 ||
+    filterStartDate !== previousStartEpoch ||
+    filterEndDate !== previousEndEpoch ||
+    selectedSearchIndex !== previousIndexName
+  ) {
+    await getColumns();
+    previousStartEpoch = filterStartDate;
+    previousEndEpoch = filterEndDate;
+    previousIndexName = selectedSearchIndex;
+  }
   $("#column-third")
     .autocomplete({
-      source: availColNames,
+      source: columnsNames.sort(),
       minLength: 0,
       maxheight: 100,
       select: function (event, ui) {
@@ -435,12 +472,13 @@ $("#column-second")
     source: calculations.sort(),
     minLength: 0,
     maxheight: 100,
-    select: function (event, ui) {
+    select: async function (event, ui) {
       $("#value-second").attr("type", "text");
       $("#completed-second").show();
       $("#value-second").val("");
-      let columnInfo = availColNames;
-      if (ui.item.value != "count") columnInfo = ColumnsIsNum;
+      let columnInfo = columnsNames;
+      if (numericColumns.length ==0) { await getColumns()}
+      if (ui.item.value != "count") columnInfo = numericColumns;
       $("#completed-second").attr("disabled", true);
       $("#value-second")
         .autocomplete({
@@ -461,6 +499,59 @@ $("#column-second")
     if (!$(this).val().trim()) $(this).keydown();
   });
 /**
+ * get cur column names from back-end for first input box
+ *
+ */
+async function getColumns() {
+  const data = {
+    state: "query",
+    searchText: "*",
+    startEpoch: filterStartDate,
+    endEpoch: filterEndDate,
+    indexName: selectedSearchIndex,
+    from: 0,
+    size: 1,
+    queryLanguage: "Splunk QL",
+  };
+
+  const res = await $.ajax({
+    method: "post",
+    url: "api/search/",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Accept: "*/*",
+    },
+    crossDomain: true,
+    dataType: "json",
+    data: JSON.stringify(data),
+  });
+
+  if (res) {
+    columnsNames = res.allColumns;
+    getNumericColumns(res)
+  }
+}
+/**
+ * get numeric column names from back-end for second input box (aggregation)
+ *
+ */
+function getNumericColumns(data) {
+  function areAllNumerical(values) {
+    return values.every(value => typeof value === 'number');
+  }
+  numericColumns = [];
+  for (const column of data.allColumns) {
+    // Skip the "timestamp" column
+    if (column === "timestamp") continue;
+    
+    const values = data.hits.records.map(record => record[column]);
+    
+    if (areAllNumerical(values)) {
+      numericColumns.push(column);
+    }
+  }
+}
+/**
  * get values of cur column names from back-end for first input box
  *
  */
@@ -468,10 +559,10 @@ function getValuesofColumn(chooseColumn) {
   valuesOfColumn.clear();
   let param = {
     state: "query",
-    searchText: "SELECT DISTINCT " + chooseColumn + " FROM `ind-0`",
+    searchText: `SELECT DISTINCT ${chooseColumn} FROM \`${selectedSearchIndex}\``,
     startEpoch: filterStartDate,
     endEpoch: filterEndDate,
-    indexName: "*",
+    indexName: selectedSearchIndex,
     queryLanguage: "SQL",
     from: 0,
     size: 1000,
