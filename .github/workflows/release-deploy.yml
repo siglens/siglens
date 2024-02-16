@@ -5,28 +5,28 @@ on:
 
 jobs:
   deploy:
-    name: "Deploy Siglens on playground"
+    name: "Deploy Siglens"
     runs-on: ubuntu-latest
     steps:
       - name: Setup SSH Configuration
         run: |
           mkdir -p ~/.ssh/
-          echo "$SSH_KEY" > ~/.ssh/playground.key
-          chmod 600 ~/.ssh/playground.key
+          echo "$SSH_KEY" > ~/.ssh/playground
+          chmod 600 ~/.ssh/playground
           cat >>~/.ssh/config <<END
           Host playground
             HostName $SSH_HOST
             User $SSH_USER
-            IdentityFile ~/.ssh/playground.key
+            IdentityFile ~/.ssh/playground
             StrictHostKeyChecking no
           END
         env:
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_USER: ${{ secrets.PG_SSH_USER }}
+          SSH_KEY: ${{ secrets.PG_SSH_PRIVATE_KEY }}
           SSH_HOST: ${{ secrets.PG_HOST }}
       - name: Export Environment Variables and Execute Install Script
         run: |
-          ssh playground 'export TERM=xterm; export SERVERNAME=${{ secrets.PG_SERVERNAME }}; curl -L https://siglens.com/install.sh | sh'
+          ssh playground 'export TERM=xterm; curl -L https://siglens.com/install.sh | sh > /dev/null 2>&1'
       - name: Verify Server Start
         run: |
           sleep 5
