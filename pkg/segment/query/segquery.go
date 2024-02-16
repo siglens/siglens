@@ -458,7 +458,6 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 	// If sort, check if next segkey's time range will overlap with the recent best results
 	// If there's aggs and they can be computed fully by agile trees, limit the number of
 	// buckets to utils.QUERY_MAX_BUCKETS unless a sort or computation follows the aggs.
-
 	limitAgileAggsTreeBuckets := canUseBucketLimitedAgileAggsTree(sortedQSRSlice, queryInfo)
 	var agileTreeBuckets map[string]struct{}
 	var agileTreeBuf []byte

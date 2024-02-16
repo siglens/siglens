@@ -127,6 +127,10 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		// on all of the records initially so that scrolling down doesn't cause
 		// another query to run.
 		sizeLimit = math.MaxUint64
+	} else if aggs.HasRexBlockInChainWithStats() {
+		// If there's a Stats block in the chain followed by a Rex block, we need to
+		// see all the matched records before we apply or calculate the stats.
+		sizeLimit = math.MaxUint64
 	}
 
 	// If MaxRows is used to limit the number of returned results, set `sizeLimit`

@@ -322,3 +322,11 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 
 	return len(fields) - 1, nil
 }
+
+func (rr *RunningBucketResults) GetRunningStatsBucketValues() ([]utils.CValueEnclosure, uint64) {
+	retVal := make([]utils.CValueEnclosure, len(rr.runningStats))
+	for i := 0; i < len(rr.runningStats); i++ {
+		retVal[i] = rr.runningStats[i].rawVal
+	}
+	return retVal, rr.count
+}

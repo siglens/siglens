@@ -25,6 +25,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
@@ -37,6 +38,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	sTime := time.Now()
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
+	nodeRes := &structs.NodeResult{RecsAggsType: make([]structs.PipeCommandType, 0), RecsAggsRecords: make(map[string]map[string]interface{}, 0)}
 	for idx, rrc := range allrrc {
 		if rrc.SegKeyInfo.IsRemote {
 			log.Debugf("GetJsonFromAllRrc: skipping remote segment:%v", rrc.SegKeyInfo.RecordId)
@@ -93,9 +95,13 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	finalCols := make(map[string]bool)
 	numProcessedRecords := 0
 
+	var validRecIndens map[string]bool
+	checkValidRecs := false
+
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
-	txnArgsRecords := make([]map[string]interface{}, 0)
+	recsAggRecords := make([]map[string]interface{}, 0)
+
 	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock || transactionArgsExist {
 		for currSeg, blkIds := range segmap {
 			recs, cols, err := GetRecordsFromSegment(currSeg, blkIds.VirtualTableName, blkIds.BlkRecIndexes,
@@ -113,7 +119,6 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			}
 
 			if hasQueryAggergatorBlock || transactionArgsExist {
-				nodeRes := &structs.NodeResult{}
 
 				numTotalSegments, err := query.GetTotalSegmentsToSearch(qid)
 				if err != nil {
@@ -127,10 +132,20 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					numTotalSegments = uint64(len(segmap))
 				}
 				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols, numTotalSegments)
+
+				if nodeRes.PerformAggsOnRecs {
+					validRecIndens = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, qid)
+					checkValidRecs = true
+				}
 			}
 
 			numProcessedRecords += len(recs)
 			for recInden, record := range recs {
+				if checkValidRecs {
+					if _, ok := validRecIndens[recInden]; !ok {
+						continue
+					}
+				}
 				for key, val := range renameHardcodedColumns {
 					record[key] = val
 				}
@@ -188,8 +203,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					allRecords[idx] = record
 				}
 
-				if transactionArgsExist {
-					txnArgsRecords = append(txnArgsRecords, record)
+				if transactionArgsExist || checkValidRecs {
+					recsAggRecords = append(recsAggRecords, record)
 				}
 			}
 		}
@@ -218,8 +233,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	// Some commands (like dedup) can remove records from the final result, so
 	// remove the blank records from allRecords to get finalRecords.
 	var finalRecords []map[string]interface{}
-	if transactionArgsExist {
-		finalRecords = txnArgsRecords
+	if transactionArgsExist || checkValidRecs {
+		finalRecords = recsAggRecords
 	} else if numProcessedRecords == len(allrrc) {
 		finalRecords = allRecords
 	} else {
