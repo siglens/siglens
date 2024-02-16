@@ -40,16 +40,29 @@ let isLegendVisible = true;
 $('#toggle-switch1').on('change', function () {
     isLegendVisible = this.checked;
 	$('.legendPlacementContainer').toggle(isLegendVisible);
-   loadPieOptions(xAxisData, yAxisData);
+   
+   const legendVisibilityChangeEvent = new Event('legendVisibilityChange');
+    document.dispatchEvent(legendVisibilityChangeEvent);
 });
 
 $('#legendPlacementDropdown .legend-options').on('click', function () {
     legendPlacement = $(this).data('value');
-	$('#legendPlacementDropdown .legend-options').removeClass('selected');
+    $('#legendPlacementDropdown .legend-options').removeClass('selected');
     $(this).addClass('selected');
-    loadPieOptions(xAxisData, yAxisData);
+    $('.legendPlacementContainer .placement-options').hide();
+    const legendChangeEvent = new Event('legendChange');
+    document.dispatchEvent(legendChangeEvent);
 });
 
+$('.legendPlacementContainer').on('click', function (event) {
+    event.stopPropagation();
+    $('.legendPlacementContainer .placement-options').toggle();
+});
+
+// Hide the Legends Placement dropdown when the document is clicked
+$(document).on('click', function () {
+    $('.legendPlacementContainer .placement-options').hide();
+});
 function loadBarOptions(xAxisData, yAxisData) {
 	// colors for dark & light modes
 	let root = document.querySelector(':root');

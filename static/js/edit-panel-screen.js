@@ -795,8 +795,12 @@ $(".editPanelMenu-unit .editPanelMenu-unit-options").on('click', function () {
 	currentPanel.unit = mapIndexToUnitType.get(selectedUnitTypeIndex);
 	refreshUnitMenuOptions();
 });
-
-
+document.addEventListener('legendChange', function () {
+    runQueryBtnHandler();
+});
+document.addEventListener('legendVisibilityChange', function () {
+    runQueryBtnHandler();
+});
 $(".editPanelMenu-logLinesView .editPanelMenu-options").on('click', function () {
 	selectedLogLinesViewTypeIndex = $(this).data('index');
 	if(selectedLogLinesViewTypeIndex === 0){
