@@ -2005,16 +2005,20 @@ progress.hidden {
     scrollbar-width: none;
     -ms-overflow-style: none;
     border: 1px solid var(--timepicker-border-color);
+    width: max-content;
 }
 #available-fields::-webkit-scrollbar {
     width: 0;
 }
 .available-fields-dropdown-item {
     height: 32px;
+    display: flex; 
+    align-items: center;
     background: var(--index-drop-down-item-inactive-bg-color);
     color: var(--index-drop-down-item-inactive-text-color);
     margin-bottom: 10px;
     margin-top: 6px;
+    margin-right: 10px;
     cursor: pointer;
     padding-left: 12px;
     font-size: 14px;
@@ -2032,16 +2036,24 @@ progress.hidden {
 .available-fields-dropdown-item.active {
     background: var(--available-fields-drop-down-item-active-bg-color);
     color: var(--available-fields-drop-down-item-active-text-color);
+    width: max-content;
 }
 
 .available-fields-dropdown-item img {
     display: none;
     float: right;
     position: relative;
-    top: 9px;
+    top: 15%; 
+    transform: translateY(-50%); 
     right: 5px;
+    vertical-align: middle;
+    margin-left: 10px;
 }
-
+.fieldname-text {
+    flex-grow: 1; 
+    white-space: nowrap;
+    overflow: visible;
+}
 .available-fields-dropdown-item.active img {
     display: inline;
 }
@@ -2051,44 +2063,37 @@ progress.hidden {
     font-size: 14px;
     font-weight: var(--fw-500);
     font-family: "DINpro", Arial, sans-serif;
-    left: 11px !important;
     position: relative;
-    margin-top: 5px 0 0 10px;
+    margin-top: 5px;
+    margin-left: 11px;
+    display: flex;
+    align-items: center;
 }
 
 .select-unselect-checkbox {
-    float: right;
-    position: relative;
-    right: 26px;
+    margin-left: 10px; 
     height: 20px;
     width: 20px;
+    border: 1px solid transparent; 
     border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    z-index: 1; 
 }
-.select-unselect-checkbox:hover {
-    float: right;
-    position: relative;
-    right: 26px;
-    height: 20px;
-    width: 20px;
-    border: 1px solid var(--select-unselect-box-border-color-hover);
-    border-radius: 4px;
+.select-unselect-checkbox:hover {   
+    border: 1px solid var(--select-unselect-box-border-color-hover); 
 }
 
-.select-unselect-checkbox.active {
-    float: right;
-    position: relative;
-    right: 26px;
-    height: 20px;
-    width: 20px;
+.select-unselect-checkbox.active {  
     border: 0px solid var(--select-unselect-box-border-color-clicked);
-    border-radius: 4px;
 }
 
 .select-unselect-checkmark {
-    float: right;
     position: relative;
-    right: 9px;
-    top: 5px;
+    z-index: 2; 
+    float: right;
+    right: 16px;
+    top: 0px;
 }
 
 
