@@ -41,6 +41,7 @@
     <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+    {{ .RunCheck1 | safeHTML }}
 </head>
 
 <body data-theme="light">
@@ -134,6 +135,8 @@
     <script src="./js/lib/echarts.min.js"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
 
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
 </body>
 
 </html>
