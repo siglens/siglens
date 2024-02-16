@@ -522,7 +522,7 @@ install_podman_compose() {
 # Fetch and set up the custom network configuration file
 get_podman_custom_network_configuration() {
     echo "Setting up custom Podman network configuration..."
-    curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-network_siglens.conflist" || {
+    curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/podman-network_siglens.conflist" || {
         print_error_and_exit "Failed to download custom network configuration file."
     }
 
@@ -579,7 +579,7 @@ pull_siglens_podman_image() {
         fi
         
         # Download podman-compose.yml
-        if ! curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-compose.yml"; then
+        if ! curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/podman-compose.yml"; then
             print_error_and_exit "Failed to download podman-compose.yml."
         fi
         
