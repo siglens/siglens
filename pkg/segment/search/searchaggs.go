@@ -306,7 +306,7 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 	blockRes, err := blockresults.InitBlockResults(uint64(len(recs)), &structs.QueryAggregators{GroupByRequest: nodeResult.GroupByRequest}, qid)
 	if err != nil {
-		log.Errorf("qid=%d, PerformGroupByRequestAggsOnRecs: failed to initialize block results reader for %s. Err: %v", qid, err)
+		log.Errorf("PerformGroupByRequestAggsOnRecs: failed to initialize block results reader. Err: %v", err)
 		return nil
 	}
 
