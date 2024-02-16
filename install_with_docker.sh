@@ -92,8 +92,8 @@ post_event() {
     "userId": "'"$csi"'",
     "event":  "'"$event_code"'",
     "properties": {
-        "os": "'"$os"'",
-        "arch": "'"$arch"'",
+        "runtime_os": "'"$os"'",
+        "runtime_arch": "'"$arch"'",
         "package_manager": "'"$package_manager"'",
         "message": "'"$message"'",
         "ip": "'"$ip"'",
