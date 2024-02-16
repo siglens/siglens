@@ -543,9 +543,7 @@ a:visited.ui-button,
     width: 30px;
     border: 1px solid var(--border-btn-color);
 }
-/*.available-fields-dropdown-item{
-   width: 180px !important;
-}*/
+
 .fields{
     margin-left: 10px;
 }
