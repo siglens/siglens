@@ -37,24 +37,13 @@ function renderAvailableFields(columnOrder) {
                         </div>`);
     });
 
-    // Adjust the width of the availablefields drop down items
-    var longestColName = availColNames.sort(
-        function (a, b) {
-            return b.length - a.length;
-        })[0];
+let afieldDropDownItem = $(".fields .available-fields-dropdown-item");
+afieldDropDownItem.each(function (idx, li) {
+    li.style.width = "auto"; 
+});
 
-    let selUnselHeader = $(".select-unselect-header")
-    let minWidth = Math.min(displayTextWidth(selUnselHeader.text(), "italic 19pt  DINpro "), 200)
-    let maxWidth = Math.max(displayTextWidth(longestColName, "italic 19pt  DINpro "), 200)
-
-    let afieldDropDownItem = $(".fields .available-fields-dropdown-item");
-    afieldDropDownItem.each(function(idx, li){
-        li.style.width = maxWidth + "px";
-    });
-
-    let afieldDropDown = document.getElementById("available-fields");
-    afieldDropDown.style.width= maxWidth + "px";
-    afieldDropDown.style.minWidth= minWidth + "px";
+let afieldDropDown = document.getElementById("available-fields");
+afieldDropDown.style.width = "auto"; 
 
     if (updatedSelFieldList){
         selectedFieldsList = _.intersection(selectedFieldsList, availColNames);
