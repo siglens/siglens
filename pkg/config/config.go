@@ -110,6 +110,8 @@ assignment in the following functions
 
 // If you add a new config parameters to the Configuration struct below, make sure to add a descriptive info in server.yaml
 type Configuration struct {
+	IngestListenIP             string   `yaml:"ingestListenIP"`       // Listen IP used for ingestion server
+	QueryListenIP              string   `yaml:"queryListenIP"`        // Listen IP used for query server
 	IngestPort                 uint64   `yaml:"ingestPort"`           // Port for ingestion server
 	QueryPort                  uint64   `yaml:"queryPort"`            // Port used for query server
 	PsqlPort                   uint64   `yaml:"psqlPort"`             // Port used for sql server
@@ -253,6 +255,18 @@ func GetMaxSegFileSize() *uint64 {
 
 func GetESVersion() *string {
 	return &runningConfig.ESVersion
+}
+
+// returns the configured ingest listen IP Addr
+// if the node is not an ingest node, this will not be set
+func GetIngestListenIP() string {
+	return runningConfig.IngestListenIP
+}
+
+// returns the configured query listen IP Addr
+// if the node is not a query node, this will not be set
+func GetQueryListenIP() string {
+	return runningConfig.QueryListenIP
 }
 
 // returns the configured ingest port
@@ -552,6 +566,8 @@ func InitializeDefaultConfig() {
 	// ************************************
 
 	runningConfig = Configuration{
+		IngestListenIP:             "0.0.0.0",
+		QueryListenIP:              "0.0.0.0",
 		IngestPort:                 8081,
 		QueryPort:                  5122,
 		IngestUrl:                  "",
@@ -641,6 +657,14 @@ func ExtractConfigData(yamlData []byte) (Configuration, error) {
 		log.Errorf("Error parsing yaml err=%v", err)
 		return config, err
 	}
+
+	if len(config.IngestListenIP) <= 0 {
+		config.IngestListenIP = "0.0.0.0"
+	}
+	if len(config.QueryListenIP) <= 0 {
+		config.QueryListenIP = "0.0.0.0"
+	}
+
 	if config.IngestPort <= 0 {
 		config.IngestPort = 8081
 	}
