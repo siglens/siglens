@@ -183,8 +183,8 @@ func StartSiglensServer(nodeType config.DeploymentType, nodeID string) error {
 	usageStats.StartUsageStats()
 	ingestNode := config.IsIngestNode()
 	queryNode := config.IsQueryNode()
-	ingestServer := "0.0.0.0:" + fmt.Sprintf("%d", config.GetIngestPort())
-	queryServer := "0.0.0.0:" + fmt.Sprintf("%d", config.GetQueryPort())
+	ingestServer := fmt.Sprint(config.GetIngestListenIP()) + ":" + fmt.Sprintf("%d", config.GetIngestPort())
+	queryServer := fmt.Sprint(config.GetQueryListenIP()) + ":" + fmt.Sprintf("%d", config.GetQueryPort())
 
 	if config.IsTlsEnabled() && config.GetQueryPort() != 443 {
 		fmt.Printf("Error starting Query/UI server with TLS, QueryPort should be set to 443 ")
