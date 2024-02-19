@@ -781,13 +781,15 @@ CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=
 CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${IMAGE_NAME} $CONTAINER_TOOL-compose logs -t --tail 20 >> ${CONTAINER_TOOL}_logs.txt
 
 # Create .env file for docker-compose down
+if [[ $CONTAINER_TOOL == "docker" ]]; then
 cat << EOF > .env
-IMAGE_NAME=${IMAGE_NAME}
-UI_PORT=${UI_PORT}
-CONFIG_FILE=${CFILE}
-WORK_DIR="$(pwd)"
-CSI=${csi}
+    IMAGE_NAME=${IMAGE_NAME}
+    UI_PORT=${UI_PORT}
+    CONFIG_FILE=${CFILE}
+    WORK_DIR="$(pwd)"
+    CSI=${csi}
 EOF
+fi
 
 
 # Check if the sample log dataset is available
