@@ -276,22 +276,22 @@ func PerformAggsOnRecs(nodeResult *structs.NodeResult, aggs *structs.QueryAggreg
 	nodeResult.RecsAggsProcessedSegments++
 
 	// Fetch All the data from all the Segments and perform the Aggregations
-	if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
-		for k, v := range recs {
-			nodeResult.RecsAggsRecords[k] = v
-			delete(recs, k)
-		}
+	// if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
+	// 	for k, v := range recs {
+	// 		nodeResult.RecsAggsRecords[k] = v
+	// 		delete(recs, k)
+	// 	}
 
-		return nil
-	}
+	// 	return nil
+	// }
 
-	for k, v := range nodeResult.RecsAggsRecords {
-		recs[k] = v
-	}
+	// for k, v := range nodeResult.RecsAggsRecords {
+	// 	recs[k] = v
+	// }
 
 	for _, pipeCommandType := range nodeResult.RecsAggsType {
 		if pipeCommandType == structs.GroupByType {
-			return PerformGroupByRequestAggsOnRecs(nodeResult, recs, finalCols, qid)
+			return PerformGroupByRequestAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments)
 		} else if pipeCommandType == structs.MeasureAggsType {
 			return PerformMeasureAggsOnRecs(nodeResult, recs, finalCols, qid)
 		}
@@ -300,7 +300,7 @@ func PerformAggsOnRecs(nodeResult *structs.NodeResult, aggs *structs.QueryAggreg
 	return nil
 }
 
-func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64) map[string]bool {
+func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64) map[string]bool {
 
 	nodeResult.GroupByRequest.BucketCount = 3000
 
@@ -382,6 +382,22 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 		}
 
 		blockRes.AddMeasureResultsToKey(currKey, measureResults, "", false, qid)
+	}
+
+	if nodeResult.RecsAggsProcessedSegments == 1 {
+		nodeResult.RecsAggsBlockResults = blockRes
+	} else {
+		recAggsBlockresults := nodeResult.RecsAggsBlockResults.(*blockresults.BlockResults)
+		recAggsBlockresults.MergeBuckets(blockRes)
+	}
+
+	if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
+		for k := range recs {
+			delete(recs, k)
+		}
+		return nil
+	} else {
+		blockRes = nodeResult.RecsAggsBlockResults.(*blockresults.BlockResults)
 	}
 
 	for k := range finalCols {

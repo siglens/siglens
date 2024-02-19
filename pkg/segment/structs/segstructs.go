@@ -277,7 +277,7 @@ type NodeResult struct {
 	GroupByRequest                *GroupByRequest
 	MeasureOperations             []*MeasureAggregator
 	RecsAggsRecords               map[string]map[string]interface{}
-	RecsAggsRunningBuckets        interface{} // Evaluates to []*blockresults.RunningBucketResults
+	RecsAggsBlockResults          interface{} // Evaluates to *blockresults.BlockResults
 	RecsAggsStringBucketIdx       map[string]int
 	RecsAggsProcessedSegments     uint64
 	RecsAggsProcessedSegmentsLock sync.Mutex

@@ -161,7 +161,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 				if nodeRes.PerformAggsOnRecs {
 					validRecIndens = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, qid)
-					checkValidRecs = true
+					if len(validRecIndens) > 0 {
+						checkValidRecs = true
+					}
 				}
 			}
 
