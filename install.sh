@@ -782,7 +782,8 @@ CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=
 
 # Create .env file for docker-compose down
 if [[ $CONTAINER_TOOL == "docker" ]]; then
-cat << EOF > .env
+request_sudo
+sudo cat << EOF > .env
     IMAGE_NAME=${IMAGE_NAME}
     UI_PORT=${UI_PORT}
     CONFIG_FILE=${CFILE}
