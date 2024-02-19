@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -31,6 +32,30 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var (
+	nodeResMap = make(map[uint64]*structs.NodeResult)
+	mapMutex   sync.Mutex
+)
+
+func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
+	mapMutex.Lock()
+	defer mapMutex.Unlock()
+
+	// Check if the nodeRes instance exists for the given qid
+	if nr, exists := nodeResMap[qid]; exists {
+		return nr
+	}
+
+	// If not exists, create a new instance and add it to the map
+	nr := &structs.NodeResult{
+		RecsAggsType:    make([]structs.PipeCommandType, 0),
+		RecsAggsRecords: make(map[string]map[string]interface{}, 0),
+	}
+	nodeResMap[qid] = nr
+
+	return nr
+}
+
 // Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
 func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
 	segEncToKey map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
@@ -38,7 +63,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	sTime := time.Now()
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
-	nodeRes := &structs.NodeResult{RecsAggsType: make([]structs.PipeCommandType, 0), RecsAggsRecords: make(map[string]map[string]interface{}, 0)}
+	nodeRes := GetOrCreateNodeRes(qid)
 	for idx, rrc := range allrrc {
 		if rrc.SegKeyInfo.IsRemote {
 			log.Debugf("GetJsonFromAllRrc: skipping remote segment:%v", rrc.SegKeyInfo.RecordId)
@@ -101,6 +126,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
 	recsAggRecords := make([]map[string]interface{}, 0)
+	var numTotalSegments uint64
 
 	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock || transactionArgsExist {
 		for currSeg, blkIds := range segmap {
@@ -120,7 +146,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 			if hasQueryAggergatorBlock || transactionArgsExist {
 
-				numTotalSegments, err := query.GetTotalSegmentsToSearch(qid)
+				numTotalSegments, err = query.GetTotalSegmentsToSearch(qid)
 				if err != nil {
 					// For synchronous queries, the query is deleted by this
 					// point, but segmap has all the segments that the query
@@ -254,6 +280,10 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 	sort.Strings(colsSlice)
 	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
+
+	if nodeRes.RecsAggsProcessedSegments == numTotalSegments {
+		delete(nodeResMap, qid)
+	}
 
 	return finalRecords, colsSlice, nil
 }
