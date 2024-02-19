@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"sync"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/config"
@@ -260,27 +259,24 @@ type QueryCount struct {
 // A helper struct to keep track of errors and results together
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
-	AllRecords                    []*utils.RecordResultContainer
-	ErrList                       []error
-	Histogram                     map[string]*AggregationResult
-	TotalResults                  *QueryCount
-	RenameColumns                 map[string]string
-	SegEncToKey                   map[uint16]string
-	TotalRRCCount                 uint64
-	MeasureFunctions              []string          `json:"measureFunctions,omitempty"`
-	MeasureResults                []*BucketHolder   `json:"measure,omitempty"`
-	GroupByCols                   []string          `json:"groupByCols,omitempty"`
-	Qtype                         string            `json:"qtype,omitempty"`
-	BucketCount                   int               `json:"bucketCount,omitempty"`
-	PerformAggsOnRecs             bool              // if true, perform aggregations on records that are returned from rrcreader.go
-	RecsAggsType                  []PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
-	GroupByRequest                *GroupByRequest
-	MeasureOperations             []*MeasureAggregator
-	RecsAggsRecords               map[string]map[string]interface{}
-	RecsAggsBlockResults          interface{} // Evaluates to *blockresults.BlockResults
-	RecsAggsStringBucketIdx       map[string]int
-	RecsAggsProcessedSegments     uint64
-	RecsAggsProcessedSegmentsLock sync.Mutex
+	AllRecords                []*utils.RecordResultContainer
+	ErrList                   []error
+	Histogram                 map[string]*AggregationResult
+	TotalResults              *QueryCount
+	RenameColumns             map[string]string
+	SegEncToKey               map[uint16]string
+	TotalRRCCount             uint64
+	MeasureFunctions          []string          `json:"measureFunctions,omitempty"`
+	MeasureResults            []*BucketHolder   `json:"measure,omitempty"`
+	GroupByCols               []string          `json:"groupByCols,omitempty"`
+	Qtype                     string            `json:"qtype,omitempty"`
+	BucketCount               int               `json:"bucketCount,omitempty"`
+	PerformAggsOnRecs         bool              // if true, perform aggregations on records that are returned from rrcreader.go
+	RecsAggsType              []PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
+	GroupByRequest            *GroupByRequest
+	MeasureOperations         []*MeasureAggregator
+	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
+	RecsAggsProcessedSegments uint64
 }
 
 type SegStats struct {

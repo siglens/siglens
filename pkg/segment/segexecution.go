@@ -193,7 +193,7 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 		}
 	}
 	if qc.SizeLimit == math.MaxUint64 {
-		qc.SizeLimit = 150000
+		qc.SizeLimit = 1500000 // temp Fix: Will debug and remove it.
 	}
 	// if query aggregations exist, get all results then truncate after
 	nodeRes := query.ApplyFilterOperator(root, root.TimeRange, aggs, qid, qc)

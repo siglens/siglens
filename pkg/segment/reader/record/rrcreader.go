@@ -48,8 +48,7 @@ func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
 
 	// If not exists, create a new instance and add it to the map
 	nr := &structs.NodeResult{
-		RecsAggsType:    make([]structs.PipeCommandType, 0),
-		RecsAggsRecords: make(map[string]map[string]interface{}, 0),
+		RecsAggsType: make([]structs.PipeCommandType, 0),
 	}
 	nodeResMap[qid] = nr
 

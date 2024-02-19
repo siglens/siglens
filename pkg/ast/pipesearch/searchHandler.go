@@ -269,7 +269,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 			// of them when there's a sortby option.
 			sizeLimit = math.MaxUint64
 		} else if aggs.HasRexBlockInChainWithStats() {
-			// If there's a Stats block in the chain followed by a Rex block, we need to
+			// If there's a Rex block in the chain followed by a Stats block, we need to
 			// see all the matched records before we apply or calculate the stats.
 			sizeLimit = math.MaxUint64
 		}

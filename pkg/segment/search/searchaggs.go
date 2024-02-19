@@ -271,23 +271,7 @@ func PerformAggsOnRecs(nodeResult *structs.NodeResult, aggs *structs.QueryAggreg
 		return nil
 	}
 
-	nodeResult.RecsAggsProcessedSegmentsLock.Lock()
-	defer nodeResult.RecsAggsProcessedSegmentsLock.Unlock()
 	nodeResult.RecsAggsProcessedSegments++
-
-	// Fetch All the data from all the Segments and perform the Aggregations
-	// if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
-	// 	for k, v := range recs {
-	// 		nodeResult.RecsAggsRecords[k] = v
-	// 		delete(recs, k)
-	// 	}
-
-	// 	return nil
-	// }
-
-	// for k, v := range nodeResult.RecsAggsRecords {
-	// 	recs[k] = v
-	// }
 
 	for _, pipeCommandType := range nodeResult.RecsAggsType {
 		if pipeCommandType == structs.GroupByType {
