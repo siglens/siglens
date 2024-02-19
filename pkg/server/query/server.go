@@ -49,9 +49,9 @@ type queryserverCfg struct {
 }
 
 var (
-	corsAllowHeaders = "Access-Control-Allow-Origin, Access-Control-Request-Method, Access-Control-Allow-Methods, Access-Control-Max-Age, Content-Type, Authorization, Origin, X-Requested-With , Accept"
-	corsAllowMethods = "HEAD,GET,POST,PUT,DELETE,OPTIONS,UPGRADE"
-	corsAllowOrigin  = "*"
+	CorsAllowHeaders = "Access-Control-Allow-Origin, Access-Control-Request-Method, Access-Control-Allow-Methods, Access-Control-Max-Age, Content-Type, Authorization, Origin, X-Requested-With , Accept"
+	CorsAllowMethods = "HEAD,GET,POST,PUT,DELETE,OPTIONS,UPGRADE"
+	CorsAllowOrigin  = "*"
 )
 
 // ConstructHttpServer new fasthttp server
@@ -72,9 +72,19 @@ func (hs *queryserverCfg) Close() {
 
 func getMyIds() []uint64 {
 	myids := make([]uint64, 1)
-	myids[0] = 0
+
+	alreadyHandled := false
+	if hook := hooks.GlobalHooks.GetIdsConditionHook; hook != nil {
+		alreadyHandled = hook(myids)
+	}
+
+	if !alreadyHandled {
+		myids[0] = 0
+	}
+
 	return myids
 }
+
 func extractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*structs.SegmentSearchRequest {
 	ssr := make(map[string]*structs.SegmentSearchRequest)
 
@@ -95,8 +105,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET("/js/{filename}.js", func(ctx *fasthttp.RequestCtx) {
 		renderJavaScriptTemplate(ctx, textTemplate)
 	})
-	hs.Router.GET(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler(0)))
-	hs.Router.POST(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler(0)))
+	hs.Router.GET(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler()))
+	hs.Router.POST(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/search", hs.Recovery(pipeSearchHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/search/{dbPanel-id}", hs.Recovery(dashboardPipeSearchHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/search/ws", hs.Recovery(pipeSearchWebsocketHandler(0)))
@@ -228,6 +238,10 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 
 	if config.IsDebugMode() {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
+	}
+
+	if hook := hooks.GlobalHooks.ExtraQueryEndpointsHook; hook != nil {
+		hook(hs.Router, hs.Recovery)
 	}
 
 	if hook := hooks.GlobalHooks.ServeStaticHook; hook != nil {

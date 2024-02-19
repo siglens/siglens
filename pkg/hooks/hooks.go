@@ -65,6 +65,10 @@ type Hooks struct {
 	LokiPostBulkHandlerInternalHook func(ctx *fasthttp.RequestCtx)
 	GetIdsConditionHook             func(ids []uint64) bool
 	ExtraIngestEndpointsHook        func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
+
+	// Query server
+	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
+	ExtraQueryEndpointsHook     func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx)) error
 }
 
 type HtmlSnippets struct {

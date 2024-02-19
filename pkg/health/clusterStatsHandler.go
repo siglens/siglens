@@ -109,6 +109,11 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx) {
 	var err error
 	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
 		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessClusterIngestStatsHandler: failed to extract orgId from context. Err=%+v", err)
+			setBadMsg(ctx)
+			return
+		}
 	}
 
 	var httpResp utils.ClusterStatsResponseInfo
