@@ -245,6 +245,7 @@ install_docker() {
 
 install_docker_compose() {
     echo "----------Setting up docker compose----------"
+    request_sudo
     if [[ $package_manager == apt-get ]]; then
         apt_cmd="$sudo_cmd apt-get --yes --quiet"
         $apt_cmd update || {
@@ -256,11 +257,11 @@ install_docker_compose() {
             print_error_and_exit "Docker Compose installation failed."
         }
     elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
-        curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose || {
+        sudo curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose || {
             post_event "install_failed" "install_docker_compose: Downloading Docker Compose binary failed during Docker Compose setup"
             print_error_and_exit "Downloading Docker Compose binary failed."
         }
-        chmod +x /usr/local/bin/docker-compose || {
+        sudo chmod +x /usr/local/bin/docker-compose || {
             post_event "install_failed" "install_docker_compose: Making Docker Compose executable failed during Docker Compose setup"
             print_error_and_exit "Making Docker Compose executable failed."
         }
@@ -282,6 +283,7 @@ install_docker_compose() {
 }
 
 start_docker() {
+    request_sudo
     echo -e "\n===> Starting Docker ...\n"
     if [[ $os == "darwin" ]]; then
         open --background -a Docker && while ! docker system info > /dev/null 2>&1; do sleep 1; done || {
@@ -347,7 +349,7 @@ install_podman() {
             }
             
             . /etc/os-release
-            if [[ "$ID" == "ubuntu" ]]; then
+            if [[ "$dist_id" == "ubuntu" ]]; then
                 repo_url="http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_$VERSION_ID/"
             else
                 # For other Debian-based systems
