@@ -151,8 +151,8 @@ post_event() {
     "userId": "'"$csi"'",
     "event":  "'"$event_code"'",
     "properties": {
-        "os": "'"$os"'",
-        "arch": "'"$arch"'",
+        "runtime_os": "'"$os"'",
+        "runtime_arch": "'"$arch"'",
         "package_manager": "'"$package_manager"'",
         "message": "'"$message"'",
         "ip": "'"$ip"'",
@@ -522,7 +522,7 @@ install_podman_compose() {
 # Fetch and set up the custom network configuration file
 get_podman_custom_network_configuration() {
     echo "Setting up custom Podman network configuration..."
-    curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-network_siglens.conflist" || {
+    curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/podman-network_siglens.conflist" || {
         print_error_and_exit "Failed to download custom network configuration file."
     }
 
@@ -579,7 +579,7 @@ pull_siglens_podman_image() {
         fi
         
         # Download podman-compose.yml
-        if ! curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-compose.yml"; then
+        if ! curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/podman-compose.yml"; then
             print_error_and_exit "Failed to download podman-compose.yml."
         fi
         
@@ -781,13 +781,16 @@ CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=
 CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${IMAGE_NAME} $CONTAINER_TOOL-compose logs -t --tail 20 >> ${CONTAINER_TOOL}_logs.txt
 
 # Create .env file for docker-compose down
-cat << EOF > .env
-IMAGE_NAME=${IMAGE_NAME}
-UI_PORT=${UI_PORT}
-CONFIG_FILE=${CFILE}
-WORK_DIR="$(pwd)"
-CSI=${csi}
+if [[ $CONTAINER_TOOL == "docker" ]]; then
+request_sudo
+sudo cat << EOF > .env
+    IMAGE_NAME=${IMAGE_NAME}
+    UI_PORT=${UI_PORT}
+    CONFIG_FILE=${CFILE}
+    WORK_DIR="$(pwd)"
+    CSI=${csi}
 EOF
+fi
 
 
 # Check if the sample log dataset is available
