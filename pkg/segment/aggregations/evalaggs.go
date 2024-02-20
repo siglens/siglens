@@ -177,6 +177,8 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 
 	sumVal := float64(0)
 
+	fmt.Println("sst.Records", len(sst.Records))
+
 	for _, eVal := range sst.Records {
 		fieldToValue[fields[0]] = *eVal
 		boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)

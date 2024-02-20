@@ -305,6 +305,7 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			}
 			sstResult, err = segread.GetSegCount(sr.runningSegStat[idx], currSst)
 		case utils.Sum:
+			fmt.Println("Sum")
 			if measureAgg.ValueColRequest != nil {
 				err := aggregations.ComputeAggEvalForSum(measureAgg, sstMap, sr.segStatsResults.measureResults)
 				if err != nil {
@@ -312,6 +313,7 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 				}
 				continue
 			}
+			fmt.Println("Sum: Getting SegSum")
 			sstResult, err = segread.GetSegSum(sr.runningSegStat[idx], currSst)
 		case utils.Avg:
 			if measureAgg.ValueColRequest != nil {
@@ -385,6 +387,7 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 			log.Errorf("UpdateSegmentStats: cannot convert sstResult: %v", err)
 			return err
 		}
+		fmt.Println("UpdateSegmentStats: enclosure: ", enclosure.CVal)
 		sr.segStatsResults.measureResults[measureAgg.String()] = *enclosure
 	}
 	return nil
@@ -508,6 +511,18 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.Bucket
 	}
 	aggMeasureResult := []*structs.BucketHolder{bucketHolder}
 	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, len(sr.segStatsResults.measureResults)
+}
+
+func (sr *SearchResults) GetSegmentStatsMeasureResults() map[string]utils.CValueEnclosure {
+	sr.updateLock.Lock()
+	defer sr.updateLock.Unlock()
+	return sr.segStatsResults.measureResults
+}
+
+func (sr *SearchResults) GetSegmentRunningStats() []*structs.SegStats {
+	sr.updateLock.Lock()
+	defer sr.updateLock.Unlock()
+	return sr.runningSegStat
 }
 
 func (sr *SearchResults) GetGroupyByBuckets(limit int) ([]*structs.BucketHolder, []string, []string, int) {

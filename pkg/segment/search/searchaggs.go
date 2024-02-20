@@ -24,6 +24,7 @@ import (
 	"sync"
 
 	"github.com/axiomhq/hyperloglog"
+	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
@@ -277,7 +278,7 @@ func PerformAggsOnRecs(nodeResult *structs.NodeResult, aggs *structs.QueryAggreg
 		if pipeCommandType == structs.GroupByType {
 			return PerformGroupByRequestAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments)
 		} else if pipeCommandType == structs.MeasureAggsType {
-			return PerformMeasureAggsOnRecs(nodeResult, recs, finalCols, qid)
+			return PerformMeasureAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments)
 		}
 	}
 
@@ -422,8 +423,113 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 }
 
-func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64) map[string]bool {
-	return nil
+func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64) map[string]bool {
+	fmt.Println("PerformMeasureAggsOnRecs")
+	searchResults, err := segresults.InitSearchResults(uint64(len(recs)), &structs.QueryAggregators{MeasureOperations: nodeResult.MeasureOperations}, structs.SegmentStatsCmd, qid)
+	if err != nil {
+		log.Errorf("PerformMeasureAggsOnRecs: failed to initialize search results. Err: %v", err)
+		return nil
+	}
+
+	searchResults.InitSegmentStatsResults(nodeResult.MeasureOperations)
+
+	runningEvalStats := make(map[string]interface{}, 0)
+
+	i := 0
+
+	for recInden, record := range recs {
+		sstMap := make(map[string]*structs.SegStats, 0)
+
+		for _, mOp := range nodeResult.MeasureOperations {
+			dtypeVal, err := utils.CreateDtypeEnclosure(record[mOp.MeasureCol], qid)
+			if err != nil {
+				log.Errorf("PerformMeasureAggsOnRecs: failed to create Dtype Value from rec: %v", err)
+				continue
+			}
+
+			fmt.Println("PerformMeasureAggsOnRecs: dtypeVal: isnUmeric: ", dtypeVal.IsNumeric(), dtypeVal.Dtype)
+
+			if !dtypeVal.IsNumeric() {
+				floatVal, err := dtu.ConvertToFloat(record[mOp.MeasureCol], 64)
+				if err != nil {
+					log.Errorf("PerformMeasureAggsOnRecs: failed to convert to float: %v", err)
+					continue
+				}
+				dtypeVal = &utils.DtypeEnclosure{Dtype: utils.SS_DT_FLOAT, FloatVal: floatVal}
+			}
+
+			fmt.Println("PerformMeasureAggsOnRecs: dtypeVal: ", dtypeVal.FloatVal, dtypeVal.SignedVal, dtypeVal.UnsignedVal, dtypeVal.StringVal)
+
+			nTypeEnclosure := &utils.NumTypeEnclosure{
+				Ntype:    dtypeVal.Dtype,
+				IntgrVal: int64(dtypeVal.FloatVal),
+				FloatVal: dtypeVal.FloatVal,
+			}
+
+			sstMap[mOp.MeasureCol] = &structs.SegStats{
+				IsNumeric:   dtypeVal.IsNumeric(),
+				Count:       1,
+				Hll:         nil,
+				NumStats:    &structs.NumericStats{Min: *nTypeEnclosure, Max: *nTypeEnclosure, Sum: *nTypeEnclosure, Dtype: dtypeVal.Dtype},
+				StringStats: nil,
+				Records:     nil,
+			}
+
+		}
+
+		searchResults.UpdateSegmentStats(sstMap, nodeResult.MeasureOperations, runningEvalStats)
+
+		delete(recs, recInden)
+		i++
+
+		// if i == 3 {
+		// 	break
+		// }
+	}
+
+	if nodeResult.RecsRunningSegStats == nil {
+		nodeResult.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
+	} else {
+		// nodeResult.RecsRunningEvalStats = searchResults.MergeSegmentStatsMeasureResults(nodeResult.RecsRunningEvalStats)
+		sstMap := make(map[string]*structs.SegStats, 0)
+
+		for idx, mOp := range nodeResult.MeasureOperations {
+			sstMap[mOp.MeasureCol] = nodeResult.RecsRunningSegStats[idx]
+		}
+
+		searchResults.UpdateSegmentStats(sstMap, nodeResult.MeasureOperations, runningEvalStats)
+
+		nodeResult.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
+	}
+
+	fmt.Println("PerformMeasureAggsOnRecs: runningEvalStats: ", nodeResult.RecsRunningEvalStats)
+
+	if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
+		return nil
+	} else {
+		for k := range finalCols {
+			delete(finalCols, k)
+		}
+
+		nodeResult.RecsRunningEvalStats = make(map[string]utils.CValueEnclosure, 0)
+
+		for colName, value := range searchResults.GetSegmentStatsMeasureResults() {
+			finalCols[colName] = true
+			if value.Dtype == utils.SS_DT_FLOAT {
+				value.CVal = humanize.CommafWithDigits(value.CVal.(float64), 3)
+			} else {
+				value.CVal = humanize.Comma(value.CVal.(int64))
+			}
+
+			nodeResult.RecsRunningEvalStats[colName] = value
+
+			fmt.Println("PerformMeasureAggsOnRecs: colName: ", colName, " value: ", value.CVal)
+		}
+
+		fmt.Println("PerformMeasureAggsOnRecs: finalCols: ", finalCols)
+	}
+
+	return map[string]bool{"SEGMENT_STATS": true}
 }
 
 // returns all columns in aggs and the timestamp column

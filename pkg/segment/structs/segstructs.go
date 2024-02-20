@@ -277,6 +277,8 @@ type NodeResult struct {
 	MeasureOperations         []*MeasureAggregator
 	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
 	RecsAggsProcessedSegments uint64
+	RecsRunningSegStats       []*SegStats
+	RecsRunningEvalStats      map[string]utils.CValueEnclosure
 }
 
 type SegStats struct {
