@@ -476,8 +476,8 @@ $("#column-second")
       $("#value-second").attr("type", "text");
       $("#completed-second").show();
       $("#value-second").val("");
+      if (columnsNames.length === 0 || numericColumns.length ==0) await getColumns();
       let columnInfo = columnsNames;
-      if (numericColumns.length ==0) { await getColumns()}
       if (ui.item.value != "count") columnInfo = numericColumns;
       $("#completed-second").attr("disabled", true);
       $("#value-second")
@@ -527,8 +527,8 @@ async function getColumns() {
   });
 
   if (res) {
-    columnsNames = res.allColumns;
-    getNumericColumns(res)
+    columnsNames = res.allColumns.filter(column => column !== '_index' && column !== 'timestamp'); // remove '_index' and 'timestamp' column from query builder
+    getNumericColumns(res);
   }
 }
 /**
