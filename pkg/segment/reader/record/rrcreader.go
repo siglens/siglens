@@ -277,8 +277,6 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 		finalRecords = append(finalRecords, finalSegmentRecord)
 
-		fmt.Println("finalRecords", finalRecords)
-
 	} else if numProcessedRecords == len(allrrc) {
 		finalRecords = allRecords
 	} else {
@@ -302,8 +300,6 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	if nodeRes.RecsAggsProcessedSegments == numTotalSegments {
 		delete(nodeResMap, qid)
 	}
-
-	fmt.Println("finalRecords", finalRecords, finalCols)
 
 	return finalRecords, colsSlice, nil
 }

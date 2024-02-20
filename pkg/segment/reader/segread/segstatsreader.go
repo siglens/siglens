@@ -336,7 +336,6 @@ func GetSegSum(runningSegStat *structs.SegStats,
 		Ntype:    utils.SS_DT_SIGNED_NUM,
 		IntgrVal: 0,
 	}
-	fmt.Println("currSegStat", currSegStat)
 	if currSegStat == nil {
 		log.Errorf("GetSegSum: currSegStat was of nil")
 		return &rSst, errors.New("GetSegSum: currSegStat was of nil")
@@ -347,12 +346,8 @@ func GetSegSum(runningSegStat *structs.SegStats,
 		return &rSst, errors.New("GetSegSum: current segStat is non-numeric")
 	}
 
-	fmt.Println("currSegStat.NumStats.Sum.Ntype", currSegStat.NumStats.Sum.Ntype)
-
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
-		fmt.Println("No running stats")
-		fmt.Println("currSegStat.NumStats.Sum.Ntype", currSegStat.NumStats.Sum.Ntype)
 		switch currSegStat.NumStats.Sum.Ntype {
 		case utils.SS_DT_FLOAT:
 			rSst.FloatVal = currSegStat.NumStats.Sum.FloatVal
@@ -360,7 +355,6 @@ func GetSegSum(runningSegStat *structs.SegStats,
 		default:
 			rSst.IntgrVal = currSegStat.NumStats.Sum.IntgrVal
 		}
-		fmt.Println("rSst", rSst.FloatVal, rSst.IntgrVal, rSst.Ntype)
 		return &rSst, nil
 	}
 
@@ -473,16 +467,8 @@ func GetSegAvg(runningSegStat *structs.SegStats,
 	}
 	runningSegStat.Count = runningSegStat.Count + currSegStat.Count
 
-	fmt.Println("BEFORE: runningSegStat.NumStats.Sum.FLoatVal", runningSegStat.NumStats.Sum.FloatVal)
-	fmt.Println("BEFORE: runningSegStat.Count", runningSegStat.Count)
-
-	fmt.Println("currSegStat.NumStats.Sum.Ntype", currSegStat.NumStats.Sum.Ntype)
-	fmt.Println("currSegStat.NumStats.Sum.FLoatVal", currSegStat.NumStats.Sum.FloatVal)
-	fmt.Println("currSegStat.Count", currSegStat.Count)
-
 	switch currSegStat.NumStats.Sum.Ntype {
 	case utils.SS_DT_FLOAT:
-		fmt.Println("The type is float")
 		if runningSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
 			runningSegStat.NumStats.Sum.FloatVal = runningSegStat.NumStats.Sum.FloatVal + currSegStat.NumStats.Sum.FloatVal
 			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
@@ -493,23 +479,17 @@ func GetSegAvg(runningSegStat *structs.SegStats,
 			rSst.Ntype = utils.SS_DT_FLOAT
 		}
 	default:
-		fmt.Println("The type is int")
 		if runningSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
-			fmt.Println("runningSegStats TYPE is float")
 			runningSegStat.NumStats.Sum.FloatVal = runningSegStat.NumStats.Sum.FloatVal + float64(currSegStat.NumStats.Sum.IntgrVal)
 			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
 			rSst.Ntype = utils.SS_DT_FLOAT
 		} else {
-			fmt.Println("runningSegStats TYPE is int")
 			runningSegStat.NumStats.Sum.FloatVal = float64(runningSegStat.NumStats.Sum.IntgrVal + currSegStat.NumStats.Sum.IntgrVal)
 			runningSegStat.NumStats.Sum.Ntype = utils.SS_DT_FLOAT
 			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
 			rSst.Ntype = utils.SS_DT_FLOAT
 		}
 	}
-
-	fmt.Println("AFTER: runningSegStat.NumStats.Sum.FLoatVal", runningSegStat.NumStats.Sum.FloatVal)
-	fmt.Println("AFTER: runningSegStat.Count", runningSegStat.Count)
 
 	return &rSst, nil
 }

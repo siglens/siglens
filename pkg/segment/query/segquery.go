@@ -722,7 +722,6 @@ func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResul
 	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator) {
 	// Use a global variable to store data that meets the conditions during the process of traversing segments
 	runningEvalStats := make(map[string]interface{}, 0)
-	fmt.Println("applyAggOpOnSegments: measureOperations", measureOperations)
 	//assuming we will allow 100 measure Operations
 	for _, segReq := range sortedQSRSlice {
 		isCancelled, err := checkForCancelledQuery(qid)
@@ -746,7 +745,6 @@ func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResul
 				allSegFileResults.AddError(err)
 				continue
 			}
-			fmt.Println("applyAggOpOnSegments: sstMap", sstMap)
 		} else {
 			// run through micro index check for block tracker & generate SSR
 			blocksToRawSearch, err := segReq.GetMicroIndexFilter()
@@ -769,7 +767,6 @@ func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResul
 
 			// rawSearchSSR should be of size 1 or 0
 			for _, req := range rawSearchSSR {
-				fmt.Println("applyAggOpOnSegments: rawSearchSSR", req)
 				sstMap, err = search.RawComputeSegmentStats(req, segReq.parallelismPerFile, segReq.sNode, segReq.segKeyTsRange, segReq.aggs.MeasureOperations, allSegFileResults, qid, qs)
 				if err != nil {
 					log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
@@ -777,7 +774,6 @@ func applyAggOpOnSegments(sortedQSRSlice []*querySegmentRequest, allSegFileResul
 				}
 			}
 		}
-		fmt.Println("applyAggOpOnSegments: UdapteSegmentStats", runningEvalStats)
 		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations, runningEvalStats)
 		if err != nil {
 			log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey %+v! Error: %v", qid, segReq.segKey, err)

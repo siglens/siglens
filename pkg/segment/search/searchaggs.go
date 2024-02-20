@@ -424,7 +424,7 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 }
 
 func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64) map[string]bool {
-	fmt.Println("PerformMeasureAggsOnRecs")
+
 	searchResults, err := segresults.InitSearchResults(uint64(len(recs)), &structs.QueryAggregators{MeasureOperations: nodeResult.MeasureOperations}, structs.SegmentStatsCmd, qid)
 	if err != nil {
 		log.Errorf("PerformMeasureAggsOnRecs: failed to initialize search results. Err: %v", err)
@@ -447,8 +447,6 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 				continue
 			}
 
-			fmt.Println("PerformMeasureAggsOnRecs: dtypeVal: isnUmeric: ", dtypeVal.IsNumeric(), dtypeVal.Dtype)
-
 			if !dtypeVal.IsNumeric() {
 				floatVal, err := dtu.ConvertToFloat(record[mOp.MeasureCol], 64)
 				if err != nil {
@@ -457,8 +455,6 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 				}
 				dtypeVal = &utils.DtypeEnclosure{Dtype: utils.SS_DT_FLOAT, FloatVal: floatVal}
 			}
-
-			fmt.Println("PerformMeasureAggsOnRecs: dtypeVal: ", dtypeVal.FloatVal, dtypeVal.SignedVal, dtypeVal.UnsignedVal, dtypeVal.StringVal)
 
 			nTypeEnclosure := &utils.NumTypeEnclosure{
 				Ntype:    dtypeVal.Dtype,
@@ -481,16 +477,11 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 
 		delete(recs, recInden)
 		i++
-
-		// if i == 3 {
-		// 	break
-		// }
 	}
 
 	if nodeResult.RecsRunningSegStats == nil {
 		nodeResult.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
 	} else {
-		// nodeResult.RecsRunningEvalStats = searchResults.MergeSegmentStatsMeasureResults(nodeResult.RecsRunningEvalStats)
 		sstMap := make(map[string]*structs.SegStats, 0)
 
 		for idx, mOp := range nodeResult.MeasureOperations {
@@ -501,8 +492,6 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 
 		nodeResult.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
 	}
-
-	fmt.Println("PerformMeasureAggsOnRecs: runningEvalStats: ", nodeResult.RecsRunningEvalStats)
 
 	if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
 		return nil
@@ -522,11 +511,7 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 			}
 
 			nodeResult.RecsRunningEvalStats[colName] = value
-
-			fmt.Println("PerformMeasureAggsOnRecs: colName: ", colName, " value: ", value.CVal)
 		}
-
-		fmt.Println("PerformMeasureAggsOnRecs: finalCols: ", finalCols)
 	}
 
 	return map[string]bool{"SEGMENT_STATS": true}
