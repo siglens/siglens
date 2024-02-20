@@ -160,7 +160,7 @@ post_event() {
         "region": "'"$region"'",
         "country": "'"$country"'"
     }
-    }'
+    }' > /dev/null 2>&1
 }
 
 print_error_and_exit() {
