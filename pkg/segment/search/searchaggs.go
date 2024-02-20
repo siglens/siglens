@@ -437,6 +437,16 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 
 	i := 0
 
+	anyCountStat := -1
+	lenRecords := len(recs)
+
+	for idx, mOp := range nodeResult.MeasureOperations {
+		if mOp.String() == "count(*)" {
+			anyCountStat = idx
+			break
+		}
+	}
+
 	for recInden, record := range recs {
 		sstMap := make(map[string]*structs.SegStats, 0)
 
@@ -493,6 +503,10 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 		nodeResult.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
 	}
 
+	if anyCountStat > -1 {
+		nodeResult.TotalRRCCount += uint64(lenRecords)
+	}
+
 	if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
 		return nil
 	} else {
@@ -501,6 +515,14 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 		}
 
 		nodeResult.RecsRunningEvalStats = make(map[string]utils.CValueEnclosure, 0)
+
+		if anyCountStat > -1 {
+			finalCols[nodeResult.MeasureOperations[anyCountStat].String()] = true
+			nodeResult.RecsRunningEvalStats[nodeResult.MeasureOperations[anyCountStat].String()] = utils.CValueEnclosure{
+				Dtype: utils.SS_DT_UNSIGNED_NUM,
+				CVal:  humanize.Comma(int64(nodeResult.TotalRRCCount)),
+			}
+		}
 
 		for colName, value := range searchResults.GetSegmentStatsMeasureResults() {
 			finalCols[colName] = true
