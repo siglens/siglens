@@ -192,6 +192,27 @@ let mapIndexToLogLinesViewType = new Map([
 
 $(document).ready(function () {
 
+	let initialPanelContainerWidth = $('.panelDisplay').width();
+    let initialPanelContainerHeight = $('.panelDisplay').height();
+
+    $(window).resize(function() {
+        var currentPanelContainerWidth = $('.panelDisplay').width();
+        var currentPanelContainerHeight = $('.panelDisplay').height();
+
+        if (initialPanelContainerWidth !== currentPanelContainerWidth || initialPanelContainerHeight !== currentPanelContainerHeight) {
+            runAfterResize();
+        }
+    });
+
+    function runAfterResize() {
+        runQueryBtnHandler();
+        toggleTableView();
+        displayPanelView(panelIndex);
+
+        initialPanelContainerWidth = $('.panelDisplay').width();
+        initialPanelContainerHeight = $('.panelDisplay').height();
+    }
+
 	$("#info-icon-metrics").tooltip({
 		delay: { show: 0, hide: 300 },
 		trigger: 'click'
