@@ -433,10 +433,6 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 
 	searchResults.InitSegmentStatsResults(nodeResult.MeasureOperations)
 
-	runningEvalStats := make(map[string]interface{}, 0)
-
-	i := 0
-
 	anyCountStat := -1
 	lenRecords := len(recs)
 
@@ -483,10 +479,12 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 
 		}
 
-		searchResults.UpdateSegmentStats(sstMap, nodeResult.MeasureOperations, runningEvalStats)
+		err := searchResults.UpdateSegmentStats(sstMap, nodeResult.MeasureOperations, nil)
+		if err != nil {
+			log.Errorf("PerformMeasureAggsOnRecs: failed to update segment stats: %v", err)
+		}
 
 		delete(recs, recInden)
-		i++
 	}
 
 	if nodeResult.RecsRunningSegStats == nil {
@@ -498,7 +496,10 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 			sstMap[mOp.MeasureCol] = nodeResult.RecsRunningSegStats[idx]
 		}
 
-		searchResults.UpdateSegmentStats(sstMap, nodeResult.MeasureOperations, runningEvalStats)
+		err := searchResults.UpdateSegmentStats(sstMap, nodeResult.MeasureOperations, nil)
+		if err != nil {
+			log.Errorf("PerformMeasureAggsOnRecs: failed to update segment stats: %v", err)
+		}
 
 		nodeResult.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
 	}
