@@ -188,7 +188,6 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *structs.SearchNode, timeRange *dtu.TimeRange,
 	sizeLimit uint64, aggs *structs.QueryAggregators, fileParallelism int64, allSearchResults *segresults.SearchResults, qid uint64,
 	querySummary *summary.QuerySummary) {
-
 	if fileParallelism <= 0 {
 		log.Errorf("qid=%d, RawSearchSegmentFile: invalid fileParallelism of %d - must be > 0", qid, fileParallelism)
 		allSearchResults.AddError(errors.New("invalid fileParallelism - must be > 0"))

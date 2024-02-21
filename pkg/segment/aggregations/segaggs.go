@@ -131,6 +131,15 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 				return fmt.Errorf("performAggOnResult: %v", err)
 			}
 		}
+	case structs.GroupByType:
+		nodeResult.PerformAggsOnRecs = true
+		nodeResult.RecsAggsType = append(nodeResult.RecsAggsType, structs.GroupByType)
+		nodeResult.GroupByCols = agg.GroupByRequest.GroupByColumns
+		nodeResult.GroupByRequest = agg.GroupByRequest
+	case structs.MeasureAggsType:
+		nodeResult.PerformAggsOnRecs = true
+		nodeResult.RecsAggsType = append(nodeResult.RecsAggsType, structs.MeasureAggsType)
+		nodeResult.MeasureOperations = agg.MeasureOperations
 	case structs.TransactionType:
 		performTransactionCommandRequest(nodeResult, agg, recs, finalCols)
 	default:
