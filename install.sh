@@ -151,8 +151,8 @@ post_event() {
     "userId": "'"$csi"'",
     "event":  "'"$event_code"'",
     "properties": {
-        "os": "'"$os"'",
-        "arch": "'"$arch"'",
+        "runtime_os": "'"$os"'",
+        "runtime_arch": "'"$arch"'",
         "package_manager": "'"$package_manager"'",
         "message": "'"$message"'",
         "ip": "'"$ip"'",
@@ -160,7 +160,7 @@ post_event() {
         "region": "'"$region"'",
         "country": "'"$country"'"
     }
-    }'
+    }' > /dev/null 2>&1
 }
 
 print_error_and_exit() {
@@ -245,6 +245,7 @@ install_docker() {
 
 install_docker_compose() {
     echo "----------Setting up docker compose----------"
+    request_sudo
     if [[ $package_manager == apt-get ]]; then
         apt_cmd="$sudo_cmd apt-get --yes --quiet"
         $apt_cmd update || {
@@ -256,11 +257,11 @@ install_docker_compose() {
             print_error_and_exit "Docker Compose installation failed."
         }
     elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
-        curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose || {
+        sudo curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose || {
             post_event "install_failed" "install_docker_compose: Downloading Docker Compose binary failed during Docker Compose setup"
             print_error_and_exit "Downloading Docker Compose binary failed."
         }
-        chmod +x /usr/local/bin/docker-compose || {
+        sudo chmod +x /usr/local/bin/docker-compose || {
             post_event "install_failed" "install_docker_compose: Making Docker Compose executable failed during Docker Compose setup"
             print_error_and_exit "Making Docker Compose executable failed."
         }
@@ -282,6 +283,7 @@ install_docker_compose() {
 }
 
 start_docker() {
+    request_sudo
     echo -e "\n===> Starting Docker ...\n"
     if [[ $os == "darwin" ]]; then
         open --background -a Docker && while ! docker system info > /dev/null 2>&1; do sleep 1; done || {
@@ -313,6 +315,9 @@ pull_siglens_docker_image() {
     echo -e "\n----------Pulling the latest docker image for SigLens----------"
 
     if [ "$USE_LOCAL_DOCKER_COMPOSE" != true ]; then
+        if [ "$SERVERNAME" = "playground" ]; then
+            curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/playground.yaml"
+        fi
         curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"
         curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/docker-compose.yml"
         curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/ssmetrics-otel-collector-config.yaml"
@@ -344,7 +349,7 @@ install_podman() {
             }
             
             . /etc/os-release
-            if [[ "$ID" == "ubuntu" ]]; then
+            if [[ "$dist_id" == "ubuntu" ]]; then
                 repo_url="http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_$VERSION_ID/"
             else
                 # For other Debian-based systems
@@ -519,7 +524,7 @@ install_podman_compose() {
 # Fetch and set up the custom network configuration file
 get_podman_custom_network_configuration() {
     echo "Setting up custom Podman network configuration..."
-    curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-network_siglens.conflist" || {
+    curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/podman-network_siglens.conflist" || {
         print_error_and_exit "Failed to download custom network configuration file."
     }
 
@@ -565,13 +570,18 @@ pull_siglens_podman_image() {
 
     # Check if the user wants to use a local compose file
     if [ "$USE_LOCAL_PODMAN_COMPOSE" != true ]; then
+        # Download playground.yaml
+        if [ "$SERVERNAME" = "playground" ]; then
+            curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/playground.yaml"
+        fi
+
         # Download server.yaml
         if ! curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/server.yaml"; then
             print_error_and_exit "Failed to download server.yaml."
         fi
         
         # Download podman-compose.yml
-        if ! curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-compose.yml"; then
+        if ! curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/podman-compose.yml"; then
             print_error_and_exit "Failed to download podman-compose.yml."
         fi
         
@@ -630,7 +640,34 @@ if [[ $CONTAINER_TOOL == "docker" ]]; then
     IMAGE_NAME="${DOCKER_IMAGE_NAME:-siglens/siglens:${SIGLENS_VERSION}}"
     COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-docker-compose.yml}"
 
-    start_docker
+start_docker_with_timeout() {
+    start_docker &
+    start_docker_pid=$!
+
+    # Wait for up to 180 seconds for start_docker to finish
+    for i in {1..180}; do
+        if ! ps -p $start_docker_pid > /dev/null; then
+            wait $start_docker_pid
+            exit_code=$?
+            if [ $exit_code -ne 0 ]; then
+                print_error_and_exit "Docker failed to start"
+            fi
+            break
+        fi
+        if (( i % 30 == 0 )); then
+            echo "Attempting to start docker... ($((i / 60)) minute(s))"
+        fi
+        sleep 1
+    done
+
+    # If docker is not up after 180 seconds, print an error message and exit
+    docker info > /dev/null 2>&1 || {
+        post_event "install_failed" "start_docker_with_timeout: Failed to retrieve Docker info after 180 seconds"
+        print_error_and_exit "Docker failed to start. Pleas start docker and try again"
+    }
+}
+
+    start_docker_with_timeout
 
     pull_siglens_docker_image
 else
@@ -728,8 +765,14 @@ send_events() {
 UI_PORT=5122
 
 CFILE="server.yaml"
+
+# Check if CONFIG_FILE is set and not empty
 if [ -n "${CONFIG_FILE}" ]; then
     CFILE=${CONFIG_FILE}
+# Check if the script is running in playground environment
+elif [ "$SERVERNAME" = "playground" ]; then
+    echo "Running in playground environment. Using playground.yaml."
+    CFILE="playground.yaml"
 fi
 
 print_success_message "\n Starting Siglens with image: ${IMAGE_NAME}"
@@ -740,13 +783,16 @@ CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=
 CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${IMAGE_NAME} $CONTAINER_TOOL-compose logs -t --tail 20 >> ${CONTAINER_TOOL}_logs.txt
 
 # Create .env file for docker-compose down
-cat << EOF > .env
-IMAGE_NAME=${IMAGE_NAME}
-UI_PORT=${UI_PORT}
-CONFIG_FILE=${CFILE}
-WORK_DIR="$(pwd)"
-CSI=${csi}
+if [[ $CONTAINER_TOOL == "docker" ]]; then
+request_sudo
+sudo cat << EOF > .env
+    IMAGE_NAME=${IMAGE_NAME}
+    UI_PORT=${UI_PORT}
+    CONFIG_FILE=${CFILE}
+    WORK_DIR="$(pwd)"
+    CSI=${csi}
 EOF
+fi
 
 
 # Check if the sample log dataset is available
