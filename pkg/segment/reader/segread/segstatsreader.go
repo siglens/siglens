@@ -485,6 +485,7 @@ func GetSegAvg(runningSegStat *structs.SegStats,
 			rSst.Ntype = utils.SS_DT_FLOAT
 		} else {
 			runningSegStat.NumStats.Sum.FloatVal = float64(runningSegStat.NumStats.Sum.IntgrVal + currSegStat.NumStats.Sum.IntgrVal)
+			runningSegStat.NumStats.Sum.Ntype = utils.SS_DT_FLOAT
 			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal / float64(runningSegStat.Count)
 			rSst.Ntype = utils.SS_DT_FLOAT
 		}

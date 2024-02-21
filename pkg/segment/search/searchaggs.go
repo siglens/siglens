@@ -24,6 +24,7 @@ import (
 	"sync"
 
 	"github.com/axiomhq/hyperloglog"
+	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
@@ -44,7 +45,6 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 	searchReq *structs.SegmentSearchRequest, blockSummaries []*structs.BlockSummary, queryRange *dtu.TimeRange,
 	sizeLimit uint64, fileParallelism int64, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
 	allSearchResults *segresults.SearchResults) error {
-
 	var blkWG sync.WaitGroup
 	allBlocksChan := make(chan *BlockSearchStatus, fileParallelism)
 	aggCols, _, _ := GetAggColsAndTimestamp(aggs)
@@ -255,6 +255,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 		}
 		blockRes.AddMeasureResultsToKey(currKey, measureResults, groupByColVal, usedByTimechart, qid)
 	}
+
 	if usedByTimechart && len(timeHistogram.Timechart.ByField) > 0 {
 		if len(blockRes.GroupByAggregation.GroupByColValCnt) > 0 {
 			aggregations.MergeMap(blockRes.GroupByAggregation.GroupByColValCnt, groupByColValCnt)
@@ -262,6 +263,281 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			blockRes.GroupByAggregation.GroupByColValCnt = groupByColValCnt
 		}
 	}
+}
+
+func PerformAggsOnRecs(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, recs map[string]map[string]interface{},
+	finalCols map[string]bool, numTotalSegments uint64, qid uint64) map[string]bool {
+
+	if !nodeResult.PerformAggsOnRecs {
+		return nil
+	}
+
+	nodeResult.RecsAggsProcessedSegments++
+
+	for _, pipeCommandType := range nodeResult.RecsAggsType {
+		if pipeCommandType == structs.GroupByType {
+			return PerformGroupByRequestAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments)
+		} else if pipeCommandType == structs.MeasureAggsType {
+			return PerformMeasureAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments)
+		}
+	}
+
+	return nil
+}
+
+func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64) map[string]bool {
+
+	nodeResult.GroupByRequest.BucketCount = 3000
+
+	blockRes, err := blockresults.InitBlockResults(uint64(len(recs)), &structs.QueryAggregators{GroupByRequest: nodeResult.GroupByRequest}, qid)
+	if err != nil {
+		log.Errorf("PerformGroupByRequestAggsOnRecs: failed to initialize block results reader. Err: %v", err)
+		return nil
+	}
+
+	measureInfo, internalMops := blockRes.GetConvertedMeasureInfo()
+
+	if nodeResult.GroupByRequest != nil && nodeResult.GroupByRequest.MeasureOperations != nil {
+		for _, mOp := range nodeResult.GroupByRequest.MeasureOperations {
+			if mOp.MeasureFunc == utils.Count {
+				internalMops = append(internalMops, mOp)
+			}
+		}
+
+	}
+
+	measureResults := make([]utils.CValueEnclosure, len(internalMops))
+
+	columnKeys := make(map[string][]interface{})
+
+	finalRecInden := make(map[string]string)
+
+	for recInden, record := range recs {
+		colKeyValues := make([]interface{}, 0)
+		byteKey := make([]byte, 0) // bucket Key
+		for idx, colName := range nodeResult.GroupByCols {
+			value, exists := record[colName]
+			if !exists {
+				value = ""
+			}
+			if idx > 0 {
+				byteKey = append(byteKey, '_')
+			}
+			byteKey = append(byteKey, []byte(fmt.Sprintf("%v", value))...)
+			colKeyValues = append(colKeyValues, value)
+		}
+
+		var currKey bytes.Buffer
+		currKey.Write(byteKey)
+
+		keyStr := toputils.UnsafeByteSliceToString(currKey.Bytes())
+
+		if _, exists := columnKeys[keyStr]; !exists {
+			columnKeys[keyStr] = colKeyValues
+			finalRecInden[keyStr] = recInden
+		}
+
+		for cname, indices := range measureInfo {
+			var cVal utils.CValueEnclosure
+			value, exists := record[cname]
+			if !exists {
+				log.Errorf("qid=%d, PerformGroupByRequestAggsOnRecs: failed to find column %s in record", qid, cname)
+				cVal = utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL}
+			} else {
+				dval, err := utils.CreateDtypeEnclosure(value, qid)
+				if dval.Dtype == utils.SS_DT_STRING {
+					floatFieldVal, _ := dtu.ConvertToFloat(value, 64)
+					if err == nil {
+						value = floatFieldVal
+						dval.Dtype = utils.SS_DT_FLOAT
+					}
+				}
+
+				if err != nil {
+					log.Errorf("qid=%d, PerformGroupByRequestAggsOnRecs: failed to create Dtype Value from rec: %v", qid, err)
+					cVal = utils.CValueEnclosure{Dtype: utils.SS_DT_BACKFILL}
+				} else {
+					cVal = utils.CValueEnclosure{Dtype: dval.Dtype, CVal: value}
+				}
+			}
+
+			for _, idx := range indices {
+				measureResults[idx] = cVal
+			}
+		}
+
+		blockRes.AddMeasureResultsToKey(currKey, measureResults, "", false, qid)
+	}
+
+	if nodeResult.RecsAggsProcessedSegments == 1 {
+		nodeResult.RecsAggsBlockResults = blockRes
+	} else {
+		recAggsBlockresults := nodeResult.RecsAggsBlockResults.(*blockresults.BlockResults)
+		recAggsBlockresults.MergeBuckets(blockRes)
+	}
+
+	if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
+		for k := range recs {
+			delete(recs, k)
+		}
+		return nil
+	} else {
+		blockRes = nodeResult.RecsAggsBlockResults.(*blockresults.BlockResults)
+	}
+
+	for k := range finalCols {
+		delete(finalCols, k)
+	}
+
+	validRecIndens := make(map[string]bool)
+
+	for bKey, index := range blockRes.GroupByAggregation.StringBucketIdx {
+		recInden, exists := finalRecInden[bKey]
+		if !exists {
+			continue
+		}
+		validRecIndens[recInden] = true
+		bucketValues, bucketCount := blockRes.GroupByAggregation.AllRunningBuckets[index].GetRunningStatsBucketValues()
+
+		for idx, colName := range nodeResult.GroupByCols {
+			if index == 0 {
+				finalCols[colName] = true
+			}
+			recs[recInden][colName] = columnKeys[bKey][idx]
+		}
+
+		for i, mOp := range internalMops {
+			if index == 0 {
+				finalCols[mOp.String()] = true
+			}
+
+			if mOp.MeasureFunc == utils.Count {
+				recs[recInden][mOp.String()] = bucketCount
+			} else {
+				recs[recInden][mOp.String()] = bucketValues[i].CVal
+			}
+		}
+	}
+
+	return validRecIndens
+
+}
+
+func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64) map[string]bool {
+
+	searchResults, err := segresults.InitSearchResults(uint64(len(recs)), &structs.QueryAggregators{MeasureOperations: nodeResult.MeasureOperations}, structs.SegmentStatsCmd, qid)
+	if err != nil {
+		log.Errorf("PerformMeasureAggsOnRecs: failed to initialize search results. Err: %v", err)
+		return nil
+	}
+
+	searchResults.InitSegmentStatsResults(nodeResult.MeasureOperations)
+
+	anyCountStat := -1
+	lenRecords := len(recs)
+
+	for idx, mOp := range nodeResult.MeasureOperations {
+		if mOp.String() == "count(*)" {
+			anyCountStat = idx
+			break
+		}
+	}
+
+	for recInden, record := range recs {
+		sstMap := make(map[string]*structs.SegStats, 0)
+
+		for _, mOp := range nodeResult.MeasureOperations {
+			dtypeVal, err := utils.CreateDtypeEnclosure(record[mOp.MeasureCol], qid)
+			if err != nil {
+				log.Errorf("PerformMeasureAggsOnRecs: failed to create Dtype Value from rec: %v", err)
+				continue
+			}
+
+			if !dtypeVal.IsNumeric() {
+				floatVal, err := dtu.ConvertToFloat(record[mOp.MeasureCol], 64)
+				if err != nil {
+					log.Errorf("PerformMeasureAggsOnRecs: failed to convert to float: %v", err)
+					continue
+				}
+				dtypeVal = &utils.DtypeEnclosure{Dtype: utils.SS_DT_FLOAT, FloatVal: floatVal}
+			}
+
+			nTypeEnclosure := &utils.NumTypeEnclosure{
+				Ntype:    dtypeVal.Dtype,
+				IntgrVal: int64(dtypeVal.FloatVal),
+				FloatVal: dtypeVal.FloatVal,
+			}
+
+			sstMap[mOp.MeasureCol] = &structs.SegStats{
+				IsNumeric:   dtypeVal.IsNumeric(),
+				Count:       1,
+				Hll:         nil,
+				NumStats:    &structs.NumericStats{Min: *nTypeEnclosure, Max: *nTypeEnclosure, Sum: *nTypeEnclosure, Dtype: dtypeVal.Dtype},
+				StringStats: nil,
+				Records:     nil,
+			}
+
+		}
+
+		err := searchResults.UpdateSegmentStats(sstMap, nodeResult.MeasureOperations, nil)
+		if err != nil {
+			log.Errorf("PerformMeasureAggsOnRecs: failed to update segment stats: %v", err)
+		}
+
+		delete(recs, recInden)
+	}
+
+	if nodeResult.RecsRunningSegStats == nil {
+		nodeResult.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
+	} else {
+		sstMap := make(map[string]*structs.SegStats, 0)
+
+		for idx, mOp := range nodeResult.MeasureOperations {
+			sstMap[mOp.MeasureCol] = nodeResult.RecsRunningSegStats[idx]
+		}
+
+		err := searchResults.UpdateSegmentStats(sstMap, nodeResult.MeasureOperations, nil)
+		if err != nil {
+			log.Errorf("PerformMeasureAggsOnRecs: failed to update segment stats: %v", err)
+		}
+
+		nodeResult.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
+	}
+
+	if anyCountStat > -1 {
+		nodeResult.TotalRRCCount += uint64(lenRecords)
+	}
+
+	if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
+		return nil
+	} else {
+		for k := range finalCols {
+			delete(finalCols, k)
+		}
+
+		nodeResult.RecsRunningEvalStats = make(map[string]utils.CValueEnclosure, 0)
+
+		if anyCountStat > -1 {
+			finalCols[nodeResult.MeasureOperations[anyCountStat].String()] = true
+			nodeResult.RecsRunningEvalStats[nodeResult.MeasureOperations[anyCountStat].String()] = utils.CValueEnclosure{
+				Dtype: utils.SS_DT_UNSIGNED_NUM,
+				CVal:  humanize.Comma(int64(nodeResult.TotalRRCCount)),
+			}
+		}
+
+		for colName, value := range searchResults.GetSegmentStatsMeasureResults() {
+			finalCols[colName] = true
+			if value.Dtype == utils.SS_DT_FLOAT {
+				value.CVal = humanize.CommafWithDigits(value.CVal.(float64), 3)
+			} else {
+				value.CVal = humanize.Comma(value.CVal.(int64))
+			}
+
+			nodeResult.RecsRunningEvalStats[colName] = value
+		}
+	}
+
+	return map[string]bool{"SEGMENT_STATS": true}
 }
 
 // returns all columns in aggs and the timestamp column
@@ -680,7 +956,6 @@ func ApplyAgileTree(str *segread.AgileTreeReader, aggs *structs.QueryAggregators
 
 func checkIfGrpColsPresent(grpReq *structs.GroupByRequest,
 	mcsr *segread.MultiColSegmentReader, allSearchResults *segresults.SearchResults) (string, bool) {
-
 	measureInfo, _ := allSearchResults.BlockResults.GetConvertedMeasureInfo()
 	for _, cname := range grpReq.GroupByColumns {
 		if !mcsr.IsColPresent(cname) {
