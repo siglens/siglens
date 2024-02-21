@@ -510,6 +510,18 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.Bucket
 	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, len(sr.segStatsResults.measureResults)
 }
 
+func (sr *SearchResults) GetSegmentStatsMeasureResults() map[string]utils.CValueEnclosure {
+	sr.updateLock.Lock()
+	defer sr.updateLock.Unlock()
+	return sr.segStatsResults.measureResults
+}
+
+func (sr *SearchResults) GetSegmentRunningStats() []*structs.SegStats {
+	sr.updateLock.Lock()
+	defer sr.updateLock.Unlock()
+	return sr.runningSegStat
+}
+
 func (sr *SearchResults) GetGroupyByBuckets(limit int) ([]*structs.BucketHolder, []string, []string, int) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
