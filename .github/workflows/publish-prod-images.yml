@@ -97,11 +97,6 @@ jobs:
             RELEASE_TAG=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
             echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
             cat $GITHUB_ENV
-        -
-          name: Package SigLens
-          run: |
-            chmod +x package_siglens.sh
-            ./package_siglens.sh -p linux/amd64,linux/arm64,darwin/amd64,darwin/arm64
         - name: release
           uses: actions/create-release@v1
           id: create_release
@@ -112,43 +107,7 @@ jobs:
               tag_name: ${{ env.RELEASE_TAG }}
           env:
             GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
-        - name: upload linux amd artifact
-          uses: actions/upload-release-asset@v1
-          env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
-          with:
-            upload_url: ${{ steps.create_release.outputs.upload_url }}
-            asset_path: "siglens-${{ env.RELEASE_TAG }}-linux-amd64.tar.gz"
-            asset_name: "siglens-${{ env.RELEASE_TAG }}-linux-amd64.tar.gz"
-            asset_content_type: application/gzip
-        - name: upload linux arm artifact
-          uses: actions/upload-release-asset@v1
-          env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
-          with:
-            upload_url: ${{ steps.create_release.outputs.upload_url }}
-            asset_path: "siglens-${{ env.RELEASE_TAG }}-linux-arm64.tar.gz"
-            asset_name: "siglens-${{ env.RELEASE_TAG }}-linux-arm64.tar.gz"
-            asset_content_type: application/gzip
-    
-        - name: upload darwin amd artifact
-          uses: actions/upload-release-asset@v1
-          env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
-          with:
-            upload_url: ${{ steps.create_release.outputs.upload_url }}
-            asset_path: "siglens-${{ env.RELEASE_TAG }}-darwin-amd64.tar.gz"
-            asset_name: "siglens-${{ env.RELEASE_TAG }}-darwin-amd64.tar.gz"
-            asset_content_type: application/gzip
-        - name: upload darwin arm artifact
-          uses: actions/upload-release-asset@v1
-          env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
-          with:
-            upload_url: ${{ steps.create_release.outputs.upload_url }}
-            asset_path: "siglens-${{ env.RELEASE_TAG }}-darwin-arm64.tar.gz"
-            asset_name: "siglens-${{ env.RELEASE_TAG }}-darwin-arm64.tar.gz"
-            asset_content_type: application/gzip
+        
         - name: Upload Release Asset - server.yaml
           id: upload-release-asset-serverConfig
           uses: actions/upload-release-asset@v1

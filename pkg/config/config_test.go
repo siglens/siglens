@@ -32,6 +32,8 @@ func Test_ExtractConfigData(t *testing.T) {
 	}{
 		{ // case 1 - For correct input parameters and values
 			[]byte(`
+ ingestListenIP: "0.0.0.0"
+ queryListenIP: "0.0.0.0"
  ingestPort: 9090
  eventTypeKeywords: ["utm_content"]
  baseLogDir: "./pkg/ingestor/httpserver/"
@@ -74,6 +76,8 @@ func Test_ExtractConfigData(t *testing.T) {
  `),
 
 			Configuration{
+				IngestListenIP:             "0.0.0.0",
+				QueryListenIP:              "0.0.0.0",
 				IngestPort:                 9090,
 				IngestUrl:                  "http://localhost:9090",
 				QueryPort:                  5122,
@@ -108,6 +112,8 @@ func Test_ExtractConfigData(t *testing.T) {
 		},
 		{ // case 2 - For wrong input type, show error message
 			[]byte(`
+ ingestListenIP: "0.0.0.0"
+ queryListenIP: "0.0.0.0"
  ingestPort: 9090
  queryPort: 9000
  eventTypeKeywords: ["utm_content"]
@@ -143,6 +149,8 @@ func Test_ExtractConfigData(t *testing.T) {
  `),
 
 			Configuration{
+				IngestListenIP:             "0.0.0.0",
+				QueryListenIP:              "0.0.0.0",
 				IngestPort:                 9090,
 				QueryPort:                  9000,
 				IngestUrl:                  "http://localhost:9090",
@@ -181,6 +189,8 @@ invalid input, we should error out
 `),
 
 			Configuration{
+				IngestListenIP:           "0.0.0.0",
+				QueryListenIP:            "0.0.0.0",
 				IngestPort:               8081,
 				QueryPort:                0,
 				IngestUrl:                "http://localhost:8081",
@@ -216,6 +226,8 @@ invalid input, we should error out
 a: b
 `),
 			Configuration{
+				IngestListenIP:             "0.0.0.0",
+				QueryListenIP:              "0.0.0.0",
 				IngestPort:                 8081,
 				QueryPort:                  5122,
 				IngestUrl:                  "http://localhost:8081",

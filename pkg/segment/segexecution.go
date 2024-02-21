@@ -19,6 +19,7 @@ package segment
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"time"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -190,6 +191,9 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 		return &structs.NodeResult{
 			ErrList: []error{errors.New("empty array of Index Names provided")},
 		}
+	}
+	if qc.SizeLimit == math.MaxUint64 {
+		qc.SizeLimit = 1500000 // temp Fix: Will debug and remove it.
 	}
 	// if query aggregations exist, get all results then truncate after
 	nodeRes := query.ApplyFilterOperator(root, root.TimeRange, aggs, qid, qc)

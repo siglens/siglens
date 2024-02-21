@@ -259,18 +259,26 @@ type QueryCount struct {
 // A helper struct to keep track of errors and results together
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
-	AllRecords       []*utils.RecordResultContainer
-	ErrList          []error
-	Histogram        map[string]*AggregationResult
-	TotalResults     *QueryCount
-	RenameColumns    map[string]string
-	SegEncToKey      map[uint16]string
-	TotalRRCCount    uint64
-	MeasureFunctions []string        `json:"measureFunctions,omitempty"`
-	MeasureResults   []*BucketHolder `json:"measure,omitempty"`
-	GroupByCols      []string        `json:"groupByCols,omitempty"`
-	Qtype            string          `json:"qtype,omitempty"`
-	BucketCount      int             `json:"bucketCount,omitempty"`
+	AllRecords                []*utils.RecordResultContainer
+	ErrList                   []error
+	Histogram                 map[string]*AggregationResult
+	TotalResults              *QueryCount
+	RenameColumns             map[string]string
+	SegEncToKey               map[uint16]string
+	TotalRRCCount             uint64
+	MeasureFunctions          []string          `json:"measureFunctions,omitempty"`
+	MeasureResults            []*BucketHolder   `json:"measure,omitempty"`
+	GroupByCols               []string          `json:"groupByCols,omitempty"`
+	Qtype                     string            `json:"qtype,omitempty"`
+	BucketCount               int               `json:"bucketCount,omitempty"`
+	PerformAggsOnRecs         bool              // if true, perform aggregations on records that are returned from rrcreader.go
+	RecsAggsType              []PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
+	GroupByRequest            *GroupByRequest
+	MeasureOperations         []*MeasureAggregator
+	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
+	RecsAggsProcessedSegments uint64
+	RecsRunningSegStats       []*SegStats
+	RecsRunningEvalStats      map[string]utils.CValueEnclosure
 }
 
 type SegStats struct {
@@ -515,6 +523,35 @@ func (qa *QueryAggregators) HasTransactionArgumentsInChain() bool {
 	}
 	if qa.Next != nil {
 		return qa.Next.HasTransactionArgumentsInChain()
+	}
+	return false
+}
+
+func (qa *QueryAggregators) HasRexBlockInQA() bool {
+	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
+		(qa.OutputTransforms.LetColumns.RexColRequest != nil)
+}
+
+func (qa *QueryAggregators) HasGroupByOrMeasureAggsInBlock() bool {
+	return qa != nil && (qa.GroupByRequest != nil || qa.MeasureOperations != nil)
+}
+
+func (qa *QueryAggregators) HasGroupByOrMeasureAggsInChain() bool {
+	if qa.HasGroupByOrMeasureAggsInBlock() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasGroupByOrMeasureAggsInChain()
+	}
+	return false
+}
+
+func (qa *QueryAggregators) HasRexBlockInChainWithStats() bool {
+	if qa.HasRexBlockInQA() {
+		return qa.Next != nil && qa.Next.HasGroupByOrMeasureAggsInChain()
+	}
+	if qa.Next != nil {
+		return qa.Next.HasRexBlockInChainWithStats()
 	}
 	return false
 }

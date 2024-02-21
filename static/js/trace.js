@@ -174,12 +174,13 @@ function displayTimeline(data) {
                     .style("display", "block")
                     .html(
                         `
-                        SpanId : ${node.span_id} <br>
-                        Name: ${node.service_name} : ${node.operation_name}<br>Start Time: ${
-                            nsToMs(node.start_time)
-                        }ms<br>End Time: ${nsToMs(node.end_time)}<br>Duration: ${
-                            nsToMs(node.duration)
-                        }`,
+                        <strong>SpanId</strong>: ${node.span_id} <br>
+                        <strong>Name</strong>: ${node.service_name} : ${node.operation_name}<br>
+                        <strong>Start Time</strong>: ${nsToMs(node.start_time)}ms<br>
+                        <strong>End Time</strong>: ${nsToMs(node.end_time)}ms<br>
+                        <strong>Duration</strong>: ${nsToMs(node.duration)}ms <br>
+                        <strong>Tags</strong>: ${Object.entries(node.tags).map(([key, value]) => `<em>${key}</em> <strong>:</strong> <em>${value}</em><br>`).join('')}
+                      `,
                     );
             })
             .on("mousemove", (event) => {
