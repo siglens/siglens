@@ -4,9 +4,12 @@
 # inside the quotes. Use -n to supress printing each line, and p to print the
 # modified line.
 SIGLENS_VERSION=`\
-    curl  --silent "https://api.github.com/repos/siglens/siglens/releases/latest" |
-    grep '"tag_name":' |
-    sed -E 's/.*"([^"]+)".*/\1/'`
+    git ls-remote --tags "https://github.com/siglens/siglens.git" |
+    grep -E 'refs/tags/v?[0-9]+\.[0-9]+\.[0-9]+$' |
+    awk '{print $2}' |
+    awk -F"/" '{print $3}' |
+    sort -V |
+    tail -n1`
 
 sudo_cmd=""
 
