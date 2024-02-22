@@ -241,7 +241,11 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	}
 
 	if hook := hooks.GlobalHooks.ExtraQueryEndpointsHook; hook != nil {
-		hook(hs.Router, hs.Recovery)
+		err := hook(hs.Router, hs.Recovery)
+		if err != nil {
+			log.Errorf("Run: error in ExtraQueryEndpointsHook: %v", err)
+			return err
+		}
 	}
 
 	if hook := hooks.GlobalHooks.ServeStaticHook; hook != nil {

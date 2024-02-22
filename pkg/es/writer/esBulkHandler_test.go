@@ -48,7 +48,7 @@ func Test_ProcessDeleteIndex(t *testing.T) {
 	numberOfSegments := 5
 
 	localIndexMap := make(map[string]string)
-	indexNameConverted := addAndGetRealIndexName(indexName, localIndexMap, orgId)
+	indexNameConverted := AddAndGetRealIndexName(indexName, localIndexMap, orgId)
 
 	indexPresent := vtable.IsVirtualTablePresent(&indexNameConverted, orgId)
 	assert.Equal(t, true, indexPresent, "Index could not be created")

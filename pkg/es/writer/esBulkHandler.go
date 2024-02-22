@@ -250,7 +250,7 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 
 	err := vtable.AddVirtualTable(&indexNameConverted, myid)
 	if err != nil {
-		log.Errorf("addAndGetRealIndexName: failed to add virtual table, err=%v", err)
+		log.Errorf("AddAndGetRealIndexName: failed to add virtual table, err=%v", err)
 	}
 	return indexNameConverted
 }

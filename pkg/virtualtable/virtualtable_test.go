@@ -33,11 +33,11 @@ func Test_AddGetVTables(t *testing.T) {
 	_ = InitVTable()
 
 	vTableBaseDir = "vtabbase/"
-	vTableMappingsDir = "vtabbase/mappings/"
-	vTableTemplatesDir = "vtabbase/templates/"
+	VTableMappingsDir = "vtabbase/mappings/"
+	VTableTemplatesDir = "vtabbase/templates/"
 	vTableAliasesDir = "vtabbase/aliases/"
 	// special test code only to override the default paths and have idempotent tests
-	_ = CreateVirtTableBaseDirs(vTableBaseDir, vTableMappingsDir, vTableTemplatesDir, vTableAliasesDir)
+	_ = CreateVirtTableBaseDirs(vTableBaseDir, VTableMappingsDir, VTableTemplatesDir, vTableAliasesDir)
 
 	mapdata := ""
 	idx1 := "idx-blah1"
@@ -72,11 +72,11 @@ func Test_AddAliases(t *testing.T) {
 	// special test code only to override the default paths and have idempotent tests
 
 	vTableBaseDir = "vtabbase/"
-	vTableMappingsDir = "vtabbase/mappings/"
-	vTableTemplatesDir = "vtabbase/templates/"
+	VTableMappingsDir = "vtabbase/mappings/"
+	VTableTemplatesDir = "vtabbase/templates/"
 	vTableAliasesDir = "vtabbase/aliases/"
 	// special test code only to override the default paths and have idempotent tests
-	_ = CreateVirtTableBaseDirs(vTableBaseDir, vTableMappingsDir, vTableTemplatesDir, vTableAliasesDir)
+	_ = CreateVirtTableBaseDirs(vTableBaseDir, VTableMappingsDir, VTableTemplatesDir, vTableAliasesDir)
 
 	expected := map[string]bool{}
 	expected["myalias1"] = true
@@ -106,11 +106,11 @@ func Test_GetIndexNameFromAlias(t *testing.T) {
 	// special test code only to ove\rride the default paths and have idempotent tests
 
 	vTableBaseDir = "vtabbase/"
-	vTableMappingsDir = "vtabbase/mappings/"
-	vTableTemplatesDir = "vtabbase/templates/"
+	VTableMappingsDir = "vtabbase/mappings/"
+	VTableTemplatesDir = "vtabbase/templates/"
 	vTableAliasesDir = "vtabbase/aliases/"
 	// special test code only to override the default paths and have idempotent tests
-	_ = CreateVirtTableBaseDirs(vTableBaseDir, vTableMappingsDir, vTableTemplatesDir, vTableAliasesDir)
+	_ = CreateVirtTableBaseDirs(vTableBaseDir, VTableMappingsDir, VTableTemplatesDir, vTableAliasesDir)
 
 	idxname := "myidx1"
 
@@ -137,11 +137,11 @@ func Test_AddRemoveAlias(t *testing.T) {
 	// special test code only to ove\rride the default paths and have idempotent tests
 
 	vTableBaseDir = "vtabbase/"
-	vTableMappingsDir = "vtabbase/mappings/"
-	vTableTemplatesDir = "vtabbase/templates/"
+	VTableMappingsDir = "vtabbase/mappings/"
+	VTableTemplatesDir = "vtabbase/templates/"
 	vTableAliasesDir = "vtabbase/aliases/"
 	// special test code only to override the default paths and have idempotent tests
-	_ = CreateVirtTableBaseDirs(vTableBaseDir, vTableMappingsDir, vTableTemplatesDir, vTableAliasesDir)
+	_ = CreateVirtTableBaseDirs(vTableBaseDir, VTableMappingsDir, VTableTemplatesDir, vTableAliasesDir)
 
 	idxname := "myidx1"
 

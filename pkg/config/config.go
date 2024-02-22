@@ -30,7 +30,6 @@ import (
 
 	"github.com/pbnjay/memory"
 	"github.com/siglens/siglens/pkg/config/common"
-	commonconfig "github.com/siglens/siglens/pkg/config/common"
 	"github.com/siglens/siglens/pkg/hooks"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -391,19 +390,19 @@ func IsMultinodeEnabled() bool {
 	return runningConfig.Etcd.Enabled
 }
 
-func ValidateDeployment() (commonconfig.DeploymentType, error) {
+func ValidateDeployment() (common.DeploymentType, error) {
 
 	if runningConfig.Etcd.Enabled {
 		if runningConfig.S3.Enabled {
-			return commonconfig.DistributedS3, nil
+			return common.DistributedS3, nil
 		}
 		return 0, fmt.Errorf("etcd must be enabled with S3")
 	}
 	if IsQueryNode() && IsIngestNode() {
 		if runningConfig.S3.Enabled {
-			return commonconfig.SingleNodeS3, nil
+			return common.SingleNodeS3, nil
 		}
-		return commonconfig.SingleNode, nil
+		return common.SingleNode, nil
 	}
 	return 0, fmt.Errorf("single node deployment must have both query and ingest in the same node")
 }
@@ -472,7 +471,7 @@ func InitializeDefaultConfig() {
 		IngestNode:                 "true",
 		SegFlushIntervalSecs:       5,
 		DataPath:                   "data/",
-		S3:                         common.S3Config{false, "", "", ""},
+		S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
 		RetentionHours:             24 * 90,
 		TimeStampKey:               "timestamp",
 		MaxSegFileSize:             1_073_741_824,
@@ -495,12 +494,12 @@ func InitializeDefaultConfig() {
 		AgileAggsEnabled:           "true",
 		AgileAggsEnabledConverted:  true,
 		QueryHostname:              "",
-		Log:                        common.LogConfig{"", 100, false},
-		TLS:                        common.TLSConfig{false, "certs/"},
+		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
+		TLS:                        common.TLSConfig{Enabled: false, ACMEFolder: "certs/"},
 		DatabaseConfig:             common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
 	}
 	_ = InitDerivedConfig("test-uuid") // This is only used for testing
-	runningConfig.EmailConfig = common.EmailConfig{"smtp.gmail.com", 587, "doe1024john@gmail.com", " "}
+	runningConfig.EmailConfig = common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "}
 }
 
 func InitializeTestingConfig() {
