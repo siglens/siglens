@@ -20,15 +20,40 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/siglens/siglens/pkg/config"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
+
+var (
+	nodeResMap = make(map[uint64]*structs.NodeResult)
+	mapMutex   sync.Mutex
+)
+
+func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
+	mapMutex.Lock()
+	defer mapMutex.Unlock()
+
+	// Check if the nodeRes instance exists for the given qid
+	if nr, exists := nodeResMap[qid]; exists {
+		return nr
+	}
+
+	// If not exists, create a new instance and add it to the map
+	nr := &structs.NodeResult{
+		RecsAggsType: make([]structs.PipeCommandType, 0),
+	}
+	nodeResMap[qid] = nr
+
+	return nr
+}
 
 // Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
 func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
@@ -37,6 +62,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	sTime := time.Now()
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
+	nodeRes := GetOrCreateNodeRes(qid)
 	for idx, rrc := range allrrc {
 		if rrc.SegKeyInfo.IsRemote {
 			log.Debugf("GetJsonFromAllRrc: skipping remote segment:%v", rrc.SegKeyInfo.RecordId)
@@ -93,9 +119,15 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	finalCols := make(map[string]bool)
 	numProcessedRecords := 0
 
+	var validRecIndens map[string]bool
+	checkValidRecs := false
+
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
-	txnArgsRecords := make([]map[string]interface{}, 0)
+	recsAggRecords := make([]map[string]interface{}, 0)
+	var numTotalSegments uint64
+	var returnSegmentStats bool
+
 	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock || transactionArgsExist {
 		for currSeg, blkIds := range segmap {
 			recs, cols, err := GetRecordsFromSegment(currSeg, blkIds.VirtualTableName, blkIds.BlkRecIndexes,
@@ -113,9 +145,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			}
 
 			if hasQueryAggergatorBlock || transactionArgsExist {
-				nodeRes := &structs.NodeResult{}
 
-				numTotalSegments, err := query.GetTotalSegmentsToSearch(qid)
+				numTotalSegments, err = query.GetTotalSegmentsToSearch(qid)
 				if err != nil {
 					// For synchronous queries, the query is deleted by this
 					// point, but segmap has all the segments that the query
@@ -127,10 +158,27 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					numTotalSegments = uint64(len(segmap))
 				}
 				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols, numTotalSegments)
+
+				if nodeRes.PerformAggsOnRecs {
+					validRecIndens = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, qid)
+					if len(validRecIndens) > 0 {
+						boolVal, exists := validRecIndens["SEGMENT_STATS"]
+						if exists && boolVal {
+							returnSegmentStats = true
+						} else {
+							checkValidRecs = true
+						}
+					}
+				}
 			}
 
 			numProcessedRecords += len(recs)
 			for recInden, record := range recs {
+				if checkValidRecs {
+					if _, ok := validRecIndens[recInden]; !ok {
+						continue
+					}
+				}
 				for key, val := range renameHardcodedColumns {
 					record[key] = val
 				}
@@ -188,8 +236,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					allRecords[idx] = record
 				}
 
-				if transactionArgsExist {
-					txnArgsRecords = append(txnArgsRecords, record)
+				if transactionArgsExist || checkValidRecs {
+					recsAggRecords = append(recsAggRecords, record)
 				}
 			}
 		}
@@ -218,8 +266,17 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	// Some commands (like dedup) can remove records from the final result, so
 	// remove the blank records from allRecords to get finalRecords.
 	var finalRecords []map[string]interface{}
-	if transactionArgsExist {
-		finalRecords = txnArgsRecords
+	if transactionArgsExist || checkValidRecs {
+		finalRecords = recsAggRecords
+	} else if returnSegmentStats {
+		finalSegmentRecord := make(map[string]interface{}, 0)
+
+		for key, value := range nodeRes.RecsRunningEvalStats {
+			finalSegmentRecord[key] = value.CVal
+		}
+
+		finalRecords = append(finalRecords, finalSegmentRecord)
+
 	} else if numProcessedRecords == len(allrrc) {
 		finalRecords = allRecords
 	} else {
@@ -239,6 +296,10 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 	sort.Strings(colsSlice)
 	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
+
+	if nodeRes.RecsAggsProcessedSegments == numTotalSegments {
+		delete(nodeResMap, qid)
+	}
 
 	return finalRecords, colsSlice, nil
 }
