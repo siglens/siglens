@@ -175,6 +175,8 @@ func StopSsa() {
 		return
 	}
 	props := make(map[string]interface{})
+	props["runtime_os"] = runtime.GOOS
+	props["runtime_arch"] = runtime.GOARCH
 	populateDeploymentSsa(props)
 	populateIngestSsa(props)
 	populateQuerySsa(props)
@@ -193,7 +195,7 @@ func startSsa() {
 	ssaStarted = true
 	for {
 		flushSsa()
-		time.Sleep(time.Hour * 24)
+		time.Sleep(time.Hour * 3)
 	}
 }
 
@@ -204,6 +206,8 @@ func flushSsa() {
 	for k, v := range allSsa {
 		props.Set(k, v)
 	}
+	props.Set("runtime_os", runtime.GOOS)
+	props.Set("runtime_arch", runtime.GOARCH)
 	props.Set("id_source", source)
 	_ = client.Enqueue(analytics.Track{
 		Event:      "server status",

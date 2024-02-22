@@ -69,6 +69,8 @@ assignment in the following functions
 
 // If you add a new config parameters to the Configuration struct below, make sure to add a descriptive info in server.yaml
 type Configuration struct {
+	IngestListenIP             string   `yaml:"ingestListenIP"`       // Listen IP used for ingestion server
+	QueryListenIP              string   `yaml:"queryListenIP"`        // Listen IP used for query server
 	IngestPort                 uint64   `yaml:"ingestPort"`           // Port for ingestion server
 	QueryPort                  uint64   `yaml:"queryPort"`            // Port used for query server
 	PsqlPort                   uint64   `yaml:"psqlPort"`             // Port used for sql server

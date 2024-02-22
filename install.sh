@@ -151,8 +151,8 @@ post_event() {
     "userId": "'"$csi"'",
     "event":  "'"$event_code"'",
     "properties": {
-        "os": "'"$os"'",
-        "arch": "'"$arch"'",
+        "runtime_os": "'"$os"'",
+        "runtime_arch": "'"$arch"'",
         "package_manager": "'"$package_manager"'",
         "message": "'"$message"'",
         "ip": "'"$ip"'",
@@ -160,7 +160,7 @@ post_event() {
         "region": "'"$region"'",
         "country": "'"$country"'"
     }
-    }'
+    }' > /dev/null 2>&1
 }
 
 print_error_and_exit() {
@@ -245,6 +245,7 @@ install_docker() {
 
 install_docker_compose() {
     echo "----------Setting up docker compose----------"
+    request_sudo
     if [[ $package_manager == apt-get ]]; then
         apt_cmd="$sudo_cmd apt-get --yes --quiet"
         $apt_cmd update || {
@@ -256,11 +257,11 @@ install_docker_compose() {
             print_error_and_exit "Docker Compose installation failed."
         }
     elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
-        curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose || {
+        sudo curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose || {
             post_event "install_failed" "install_docker_compose: Downloading Docker Compose binary failed during Docker Compose setup"
             print_error_and_exit "Downloading Docker Compose binary failed."
         }
-        chmod +x /usr/local/bin/docker-compose || {
+        sudo chmod +x /usr/local/bin/docker-compose || {
             post_event "install_failed" "install_docker_compose: Making Docker Compose executable failed during Docker Compose setup"
             print_error_and_exit "Making Docker Compose executable failed."
         }
@@ -282,6 +283,7 @@ install_docker_compose() {
 }
 
 start_docker() {
+    request_sudo
     echo -e "\n===> Starting Docker ...\n"
     if [[ $os == "darwin" ]]; then
         open --background -a Docker && while ! docker system info > /dev/null 2>&1; do sleep 1; done || {
@@ -347,7 +349,7 @@ install_podman() {
             }
             
             . /etc/os-release
-            if [[ "$ID" == "ubuntu" ]]; then
+            if [[ "$dist_id" == "ubuntu" ]]; then
                 repo_url="http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_$VERSION_ID/"
             else
                 # For other Debian-based systems
@@ -522,7 +524,7 @@ install_podman_compose() {
 # Fetch and set up the custom network configuration file
 get_podman_custom_network_configuration() {
     echo "Setting up custom Podman network configuration..."
-    curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-network_siglens.conflist" || {
+    curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/podman-network_siglens.conflist" || {
         print_error_and_exit "Failed to download custom network configuration file."
     }
 
@@ -579,7 +581,7 @@ pull_siglens_podman_image() {
         fi
         
         # Download podman-compose.yml
-        if ! curl -O -L "https://raw.githubusercontent.com/Macbeth98/siglens/install-with-podman/podman-compose.yml"; then
+        if ! curl -O -L "https://github.com/siglens/siglens/releases/download/${SIGLENS_VERSION}/podman-compose.yml"; then
             print_error_and_exit "Failed to download podman-compose.yml."
         fi
         
@@ -781,13 +783,16 @@ CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=
 CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${IMAGE_NAME} $CONTAINER_TOOL-compose logs -t --tail 20 >> ${CONTAINER_TOOL}_logs.txt
 
 # Create .env file for docker-compose down
-cat << EOF > .env
-IMAGE_NAME=${IMAGE_NAME}
-UI_PORT=${UI_PORT}
-CONFIG_FILE=${CFILE}
-WORK_DIR="$(pwd)"
-CSI=${csi}
+if [[ $CONTAINER_TOOL == "docker" ]]; then
+request_sudo
+sudo cat << EOF > .env
+    IMAGE_NAME=${IMAGE_NAME}
+    UI_PORT=${UI_PORT}
+    CONFIG_FILE=${CFILE}
+    WORK_DIR="$(pwd)"
+    CSI=${csi}
 EOF
+fi
 
 
 # Check if the sample log dataset is available

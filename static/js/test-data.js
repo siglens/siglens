@@ -58,43 +58,40 @@ function dropdown() {
 }
 
 function sendTestData(e, token) {
-    getIngestUrl()
-        .then((ingestionUrl) => {
-            if (token) {
-                sendTestDataWithBearerToken(ingestionUrl, token).then((res) => {
-                    showSendTestDataUpdateToast('Sent Test Data Successfully');
-                    let testDataBtn = document.getElementById("test-data-btn");
-                    testDataBtn.disabled = false;
-                })
-                    .catch((err) => {
-                        console.log(err)
-                        showSendTestDataUpdateToast('Error Sending Test Data');
-                        let testDataBtn = document.getElementById("test-data-btn");
-                        testDataBtn.disabled = false;
-                    });
-            } else {
-                sendTestDataWithoutBearerToken(ingestionUrl).then((res) => {
-                    showSendTestDataUpdateToast('Sent Test Data Successfully');
-                    let testDataBtn = document.getElementById("test-data-btn");
-                    testDataBtn.disabled = false;
-                })
-                    .catch((err) => {
-                        console.log(err)
-                        showSendTestDataUpdateToast('Error Sending Test Data');
-                        let testDataBtn = document.getElementById("test-data-btn");
-                        testDataBtn.disabled = false;
-                    });
-            }
+    
+    if (token) {
+        sendTestDataWithBearerToken(token).then((res) => {
+            showSendTestDataUpdateToast('Sent Test Data Successfully');
+            let testDataBtn = document.getElementById("test-data-btn");
+            testDataBtn.disabled = false;
         })
-        .catch((err) => {
-            console.error(err);
-        });
+            .catch((err) => {
+                console.log(err)
+                showSendTestDataUpdateToast('Error Sending Test Data');
+                let testDataBtn = document.getElementById("test-data-btn");
+                testDataBtn.disabled = false;
+            });
+    } else {
+        sendTestDataWithoutBearerToken().then((res) => {
+            showSendTestDataUpdateToast('Sent Test Data Successfully');
+            let testDataBtn = document.getElementById("test-data-btn");
+            testDataBtn.disabled = false;
+        })
+            .catch((err) => {
+                console.log(err)
+                showSendTestDataUpdateToast('Error Sending Test Data');
+                let testDataBtn = document.getElementById("test-data-btn");
+                testDataBtn.disabled = false;
+            });
+    }
 
-    function sendTestDataWithBearerToken(ingestionUrl, token) {
+        
+
+    function sendTestDataWithBearerToken( token) {
         return new Promise((resolve, reject) => {
             $.ajax({
                 method: 'post',
-                url: ingestionUrl + '/api/sampledataset_bulk',
+                url: '/api/sampledataset_bulk',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 },
@@ -111,11 +108,11 @@ function sendTestData(e, token) {
         });
     }
 
-    function sendTestDataWithoutBearerToken(ingestionUrl) {
+    function sendTestDataWithoutBearerToken() {
         return new Promise((resolve, reject) => {
             $.ajax({
                 method: 'post',
-                url: ingestionUrl + '/api/sampledataset_bulk',
+                url:  '/api/sampledataset_bulk',
                 crossDomain: true,
                 dataType: 'json',
                 credentials: 'include'
