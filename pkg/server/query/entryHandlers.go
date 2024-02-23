@@ -501,7 +501,7 @@ func liveTailHandler() func(ctx *fasthttp.RequestCtx) {
 				orgId, err = hook(ctx)
 				if err != nil {
 					log.Errorf("ProcessClusterIngestStatsHandler: failed to extract orgId from context. Err=%+v", err)
-					utils.SetBadMsg(ctx)
+					utils.SetBadMsg(ctx, "")
 					return
 				}
 			}
