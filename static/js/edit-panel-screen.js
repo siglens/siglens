@@ -382,8 +382,11 @@ function editPanelInit(redirectedFromViewScreen) {
 			$("#index-btn").css('display', 'inline-block');
 			$("#query-language-btn").css('display', 'inline-block');
 			$("#metrics-query-language-btn").css('display', 'none');
-			selectedChartTypeIndex = mapChartTypeToIndex.get("loglines");
-			$(".editPanelMenu-chart .editPanelMenu-options[data-index='" + selectedChartTypeIndex + "']").click();
+			if(selectedChartTypeIndex=== -1){
+				selectedChartTypeIndex = mapChartTypeToIndex.get("Data Table");
+				currentPanel.chartType = "Data Table";
+				currentPanel.logLinesViewType = "Table view";
+			}
 		} else if (selectedDataSourceTypeIndex==0){
 			$("#metrics-query-language-btn").css('display', 'inline-block');
 			$("#index-btn").css('display', 'none');
@@ -1300,6 +1303,7 @@ function displayQueryToolTip(selectedDataSourceTypeIndex) {
 }
 
 async function runQueryBtnHandler() {
+	console.log("Current Panel", currentPanel);
 	// reset the current panel's queryRes attribute
 	delete currentPanel.queryRes;
 	resetEditPanel();
