@@ -16,7 +16,8 @@ limitations under the License.
 
 var lineChart;
 var pieOptions, barOptions;
-
+var showValuesOption = 'always'; 
+var textSize = 14;
 function loadBarOptions(xAxisData, yAxisData) {
 	// colors for dark & light modes
 	let root = document.querySelector(':root');
@@ -71,31 +72,39 @@ function loadBarOptions(xAxisData, yAxisData) {
 				},
 				barCategoryGap: '10%', // You can adjust this value to add space between bars
 				barGap: '15%',
-				tooltip: {
-					trigger: 'axis', // Set the trigger type for the tooltip
-					axisPointer: { // Set the type of pointer that shows up when hovering over the bars
-						type: 'shadow' // 'line' or 'shadow' for vertical or horizontal lines, respectively
-					},
-					formatter: function (params) { // Add a formatter function to show the value of the bar in the tooltip
-						return params[0].name + ': ' + params[0].value;
-					}
-				},
-				emphasis: {
+				label: {
+                    show: showValuesOption === 'always', // Set show property based on the selected option
+                    position: 'top',
+                    formatter: function (params) {
+                        return params.value;
+                    },
+					fontSize: textSize + 'px'
+                },
+                emphasis: {
 					itemStyle: {
-						color: '#FFC107' // Set the color of the bars when hovering over them
-					},
-					label: {
-						show: true,
-						position: 'top',
-						formatter: function (params) { // Add a formatter function to show the value of the bar on hover
-							return params.value;
-						}
-					}
-				}
-			},
-
-		]
-	}
+                        color: '#FFC107' // Set the color of the bars when hovering over them
+                    },
+                    label: {
+                        show: showValuesOption === 'auto',
+                        position: 'top',
+                        formatter: function (params) {
+                            return params.value;
+                        },
+						fontSize: textSize + 'px'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    },
+                    formatter: function (params) {
+                        return params[0].name + ': ' + params[0].value;
+                    }
+                },
+            }
+        ]
+    };
 	if ($('body').attr('data-theme') == "dark") {
 		barOptions.xAxis.axisLine.lineStyle.color = gridLineDarkThemeColor;
 		barOptions.yAxis.splitLine.lineStyle.color = gridLineDarkThemeColor;
@@ -169,6 +178,43 @@ function loadPieOptions(xAxisData, yAxisData) {
 	}
 
 }
+$('input[type=radio][name=showValuesOption]').change(function () {
+    showValuesOption = this.value;
+    updateChart();
+});
+$('#textSize').on('input', function () {
+    textSize = parseInt(this.value);
+    updateChart();
+});
+
+function showBarOptions(selectedChartIndex) {
+    const isOptionsVisible = [1].includes(selectedChartIndex);
+    $('.show-bar-values').toggle(isOptionsVisible);
+    if (isOptionsVisible) {
+        $('#show-values-options').show();
+    } else {
+        $('#show-values-options').hide();
+    }
+}
+const initialSelectedChartIndex = 1;
+showBarOptions(initialSelectedChartIndex);
+$('.chart-options').on('click', function() {
+    const selectedChartIndex = $(this).data('index');
+    showBarOptions(selectedChartIndex);
+});
+function updateChart() {
+    barOptions.series[0].label.show = showValuesOption === 'always';
+    barOptions.series[0].emphasis.label.show = showValuesOption === 'auto';
+	barOptions.series[0].label.fontSize = textSize; // Set the font size
+    barOptions.series[0].emphasis.label.fontSize = textSize; // Set the font size
+	loadBarOptions(xAxisData, yAxisData);
+	// Update the chart with the new options
+    lineChart.setOption(barOptions);
+}
+// Set initial value for radio buttons
+$('input[type=radio][name=showValuesOption][value=' + showValuesOption + ']').prop('checked', true);
+$('#textSize').val(textSize);
+
 function renderBarChart(columns, hits, panelId, chartType, dataType, panelIndex) {
 	$(".panelDisplay #panelLogResultsGrid").hide();
 	$(".panelDisplay #empty-response").empty();
@@ -213,10 +259,10 @@ function renderBarChart(columns, hits, panelId, chartType, dataType, panelIndex)
 
 	switch (chartType) {
 		case 'Bar Chart':
-			$(`.panelDisplay .big-number-display-container`).hide();
-			loadBarOptions(xAxisData, yAxisData);
-			panelChart.setOption(barOptions);
-			break;
+            $(`.panelDisplay .big-number-display-container`).hide();
+            loadBarOptions(xAxisData, yAxisData);
+            panelChart.setOption(barOptions);
+            break;
 		case 'Pie Chart':
 			$(`.panelDisplay .big-number-display-container`).hide();
 			loadPieOptions(xAxisData, yAxisData);
