@@ -378,11 +378,11 @@ func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx) {
 	deleted, err := deleteUsq(queryName, 0)
 	if err != nil {
 		log.Errorf("DeleteUserSavedQuery: Failed to delete user saved query %v, err=%v", queryName, err)
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	if !deleted {
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	log.Infof("DeleteUserSavedQuery: Successfully deleted user saved query %v", queryName)
@@ -399,7 +399,7 @@ func GetUserSavedQueriesAll(ctx *fasthttp.RequestCtx) {
 	found, savedQueriesAll, err := getUsqAll(0)
 	if err != nil {
 		log.Errorf("GetUserSavedQueriesAll: Failed to read user saved queries, err=%v", err)
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	if !found {
@@ -412,19 +412,11 @@ func GetUserSavedQueriesAll(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func setBadMsg(ctx *fasthttp.RequestCtx) {
-	var httpResp utils.HttpServerResponse
-	ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	httpResp.Message = "Bad Request"
-	httpResp.StatusCode = fasthttp.StatusBadRequest
-	utils.WriteResponse(ctx, httpResp)
-}
-
 func SaveUserQueries(ctx *fasthttp.RequestCtx) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("SaveUserQueries: received empty user query")
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 
@@ -475,14 +467,14 @@ func SaveUserQueries(ctx *fasthttp.RequestCtx) {
 			}
 		default:
 			log.Errorf("SaveUserQueries: Invalid save query key=[%v]", key)
-			setBadMsg(ctx)
+			utils.SetBadMsg(ctx, "")
 			return
 		}
 	}
 	err = writeUsq(qname, usQueryMap, 0)
 	if err != nil {
 		log.Errorf("SaveUserQueries: could not write query to file err=%v", err)
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	log.Infof("SaveUserQueries: successfully written query %v to file ", qname)
@@ -524,7 +516,7 @@ func SearchUserSavedQuery(ctx *fasthttp.RequestCtx) {
 	log.Infof("SearchUserSavedQuery: Found=%v, usqInfo=%v", found, usqInfo)
 	if err != nil {
 		log.Errorf("SearchUserSavedQuery: Failed to get user saved query %v, err=%v", queryName, err)
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	if !found {

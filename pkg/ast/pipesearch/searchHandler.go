@@ -339,7 +339,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf(" ProcessPipeSearchRequest: received empty search request body ")
-		SetBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	qid := rutils.GetNextQid()
@@ -526,14 +526,6 @@ func convertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
 	}
 
 	return utils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
-}
-
-func SetBadMsg(ctx *fasthttp.RequestCtx) {
-	var httpResp utils.HttpServerResponse
-	ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	httpResp.Message = "Bad Request"
-	httpResp.StatusCode = fasthttp.StatusBadRequest
-	utils.WriteResponse(ctx, httpResp)
 }
 
 /*
