@@ -81,3 +81,5 @@ siglens
 # multinode testing
 
 siglens.db
+
+*.fasthttp.br
