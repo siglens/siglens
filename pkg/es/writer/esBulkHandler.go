@@ -53,8 +53,6 @@ const CREATE_TOP_STR string = "create"
 const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
 
-var httpResp utils.HttpServerResponse
-
 type kibanaIngHandlerFnDef func(
 	ctx *fasthttp.RequestCtx, request map[string]interface{},
 	indexNameConverted string, updateArg bool, idVal string, tsNow uint64, myid uint64) error
@@ -286,13 +284,6 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 		return err
 	}
 	return nil
-}
-
-func setBadMsg(ctx *fasthttp.RequestCtx) {
-	ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	httpResp.Message = "Bad Request"
-	httpResp.StatusCode = fasthttp.StatusBadRequest
-	utils.WriteResponse(ctx, httpResp)
 }
 
 func ProcessPutIndex(ctx *fasthttp.RequestCtx, myid uint64) {

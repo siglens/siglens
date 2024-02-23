@@ -120,7 +120,7 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf(" ClusterIngestStatsHandler: received empty search request body ")
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 
@@ -269,14 +269,6 @@ func convertBytesToGB(bytes float64) string {
 	convertedGB := bytes / 1_000_000_000
 	finalStr := fmt.Sprintf("%.3f", convertedGB) + " GB"
 	return finalStr
-}
-
-func setBadMsg(ctx *fasthttp.RequestCtx) {
-	var httpResp utils.HttpServerResponse
-	ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	httpResp.Message = "Bad Request"
-	httpResp.StatusCode = fasthttp.StatusBadRequest
-	utils.WriteResponse(ctx, httpResp)
 }
 
 func getMetricsStats(myid uint64) (uint64, uint64, uint64) {
