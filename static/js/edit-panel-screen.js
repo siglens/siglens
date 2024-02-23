@@ -1303,7 +1303,6 @@ function displayQueryToolTip(selectedDataSourceTypeIndex) {
 }
 
 async function runQueryBtnHandler() {
-	console.log("Current Panel", currentPanel);
 	// reset the current panel's queryRes attribute
 	delete currentPanel.queryRes;
 	resetEditPanel();
