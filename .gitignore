@@ -83,4 +83,4 @@ siglens
 siglens.db
 
 *.fasthttp.br
-*.fasthttp.bz
+*.fasthttp.gz
