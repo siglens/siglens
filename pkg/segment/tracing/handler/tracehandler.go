@@ -160,7 +160,7 @@ func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchReque
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("Received empty search request body")
-		pipesearch.SetBadMsg(ctx)
+		putils.SetBadMsg(ctx, "")
 		return nil, nil, errors.New("Received empty search request body")
 	}
 
@@ -629,7 +629,7 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("ProcessGanttChartRequest: received empty search request body ")
-		pipesearch.SetBadMsg(ctx)
+		putils.SetBadMsg(ctx, "")
 		return
 	}
 
