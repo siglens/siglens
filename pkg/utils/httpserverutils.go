@@ -417,6 +417,17 @@ func WriteJsonResponse(ctx *fasthttp.RequestCtx, httpResp interface{}) {
 	}
 }
 
+func SetBadMsg(ctx *fasthttp.RequestCtx, msg string) {
+	if len(msg) == 0 {
+		msg = "Bad Request"
+	}
+	var httpResp HttpServerResponse
+	ctx.SetStatusCode(fasthttp.StatusBadRequest)
+	httpResp.Message = msg
+	httpResp.StatusCode = fasthttp.StatusBadRequest
+	WriteResponse(ctx, httpResp)
+}
+
 func ExtractParamAsString(_interface interface{}) string {
 	switch intfc := _interface.(type) {
 	case string:
