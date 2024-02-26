@@ -379,7 +379,7 @@ function editPanelInit(redirectedFromViewScreen) {
 	if (selectedDataSourceTypeIndex != -1 && selectedDataSourceTypeIndex !== undefined) {
 		
 		if(selectedDataSourceTypeIndex == 1) {
-			$("#index-btn").css('display', 'inline-block');
+			$("#index-btn").css('display', 'inline-flex');
 			$("#query-language-btn").css('display', 'inline-block');
 			$("#metrics-query-language-btn").css('display', 'none');
 			if(selectedChartTypeIndex=== -1){
@@ -737,7 +737,7 @@ $(".editPanelMenu-dataSource .editPanelMenu-options").on('click', function () {
 	selectedDataSourceTypeIndex = $(this).data('index');
 	displayQueryToolTip(selectedDataSourceTypeIndex);
 	if(selectedDataSourceTypeIndex == 1) {
-		$("#index-btn").css('display', 'inline-block');
+		$("#index-btn").css('display', 'inline-flex');
 		$("#query-language-btn").css('display', 'inline-block');
 		$("#metrics-query-language-btn").css('display', 'none');
 	} else if (selectedDataSourceTypeIndex==0){
