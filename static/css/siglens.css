@@ -1941,7 +1941,7 @@ progress.hidden {
   color: var(--text-color);
   margin-bottom: 25px;
   font-weight: bold;
-  font-size: 24px;
+  font-size: 18px;
 }
 
 #buttons-popupContent {
@@ -1959,7 +1959,7 @@ progress.hidden {
 #delete-btn ,
 #cancel-btn {
     width: 195px !important;
-    height: 45px !important;
+    height: 32px !important;
     border-radius: 5px;
     border: none;
     background: var(--component-bg-color);
