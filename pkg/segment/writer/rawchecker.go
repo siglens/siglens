@@ -19,6 +19,7 @@ package writer
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -165,6 +166,16 @@ func ApplySearchToExpressionFilterSimpleCsg(qValDte *DtypeEnclosure, fop FilterO
 	return filterOpOnDataType(col, qValDte, fop, isRegexSearch, holderDte)
 }
 
+func isValTypeEncANumber(valTypeEnc byte) bool {
+	switch valTypeEnc {
+	case VALTYPE_ENC_INT8[0], VALTYPE_ENC_INT16[0], VALTYPE_ENC_INT32[0], VALTYPE_ENC_INT64[0],
+		VALTYPE_ENC_UINT8[0], VALTYPE_ENC_UINT16[0], VALTYPE_ENC_UINT32[0], VALTYPE_ENC_UINT64[0],
+		VALTYPE_ENC_FLOAT64[0]:
+		return true
+	}
+	return false
+}
+
 func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 	isRegexSearch bool, recDte *DtypeEnclosure) (bool, error) {
 
@@ -174,6 +185,10 @@ func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 	switch qValDte.Dtype {
 	case SS_DT_STRING:
 		if len(rec) == 0 || rec[0] != VALTYPE_ENC_SMALL_STRING[0] {
+			// if we are doing a regex search on a number, we need to convert the number to string
+			if isRegexSearch && isValTypeEncANumber(rec[0]) {
+				return filterOpOnRecNumberEncType(rec, qValDte, fop, isRegexSearch, recDte)
+			}
 			return false, nil
 		}
 		return fopOnString(rec, qValDte, fop, isRegexSearch)
@@ -189,6 +204,45 @@ func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 	default:
 		return false, errors.New("filterOpOnDataType:could not complete op")
 	}
+}
+
+func filterOpOnRecNumberEncType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
+	isRegexSearch bool, recDte *DtypeEnclosure) (bool, error) {
+
+	if qValDte == nil || !isRegexSearch {
+		return false, nil
+	}
+
+	validNumberType, err := getNumberRecDte(rec, recDte)
+	if !validNumberType {
+		return false, err
+	}
+
+	regexp := qValDte.GetRegexp()
+	if regexp == nil {
+		return false, errors.New("qValDte had nil regexp compilation")
+	}
+
+	var recValString string
+
+	if recDte.Dtype == SS_DT_FLOAT {
+		recValString = fmt.Sprintf("%f", recDte.FloatVal)
+	} else if recDte.Dtype == SS_DT_UNSIGNED_NUM {
+		recValString = fmt.Sprintf("%d", recDte.UnsignedVal)
+	} else if recDte.Dtype == SS_DT_SIGNED_NUM {
+		recValString = fmt.Sprintf("%d", recDte.SignedVal)
+	} else {
+		return false, errors.New("filterOpOnRecNumberEncType: unknown dtype")
+	}
+
+	if fop == Equals {
+		return regexp.Match([]byte(recValString)), nil
+	} else if fop == NotEquals {
+		return !regexp.Match([]byte(recValString)), nil
+	} else {
+		return false, nil
+	}
+
 }
 
 func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
@@ -232,15 +286,13 @@ func fopOnBool(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator) (bool, e
 	return false, nil
 }
 
-func fopOnNumber(rec []byte, qValDte *DtypeEnclosure,
-	recDte *DtypeEnclosure, op FilterOperator) (bool, error) {
-
+func getNumberRecDte(rec []byte, recDte *DtypeEnclosure) (bool, error) {
 	if len(rec) == 0 {
 		return false, nil
 	}
 	// first find recDte's Dtype and typecast it
 	switch rec[0] {
-	case VALTYPE_ENC_BACKFILL[0]:
+	case VALTYPE_ENC_BOOL[0]:
 		return false, nil
 	case VALTYPE_ENC_BOOL[0]:
 		return false, nil
@@ -278,6 +330,16 @@ func fopOnNumber(rec []byte, qValDte *DtypeEnclosure,
 	default:
 		log.Errorf("fopOnNumber: dont know how to convert type=%v", rec[0])
 		return false, errors.New("fopOnNumber: invalid rec type")
+	}
+	return true, nil
+}
+
+func fopOnNumber(rec []byte, qValDte *DtypeEnclosure,
+	recDte *DtypeEnclosure, op FilterOperator) (bool, error) {
+
+	validNumberType, err := getNumberRecDte(rec, recDte)
+	if !validNumberType {
+		return false, err
 	}
 
 	// now create a float (highest level for rec, only if we need to based on query

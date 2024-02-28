@@ -117,7 +117,19 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 			if colName == "" {
 				colName = "*"
 			}
-			criteria := CreateTermFilterCriteria(colName, colValue, opr, qid)
+
+			var criteria *FilterCriteria
+
+			if valueIsRegex {
+				compiledRegex, err := regexp.Compile(string(colValue.(json.Number)))
+				if err != nil {
+					log.Errorf("ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", colValue, err)
+				}
+				criteria = CreateTermFilterCriteria(colName, compiledRegex, opr, qid)
+			} else {
+				criteria = CreateTermFilterCriteria(colName, colValue, opr, qid)
+			}
+
 			andFilterCondition = append(andFilterCondition, criteria)
 
 		} else {
