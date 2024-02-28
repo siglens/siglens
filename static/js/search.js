@@ -803,6 +803,7 @@ limitations under the License.
     }
   }
  function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
+    console.log("processCompleteUpdate");
      let columnOrder =[]
      let totalHits = res.totalMatched.value;
      if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure ===undefined) {
@@ -834,10 +835,8 @@ limitations under the License.
      }else{
       measureInfo = [];
      }
-     let currentResTab = $("#custom-chart-tab").tabs("option", "active");
-     if (currentResTab == 1) {
-       timeChart();
-     }
+    isTimechart = res.isTimechart;
+    timeChart();
      let totalTime = (new Date()).getTime() - startQueryTime;
      let percentComplete = res.percent_complete;
      if (res.total_rrc_count > 0){
