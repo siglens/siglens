@@ -454,6 +454,9 @@ function editPanelInit(redirectedFromViewScreen) {
 	$('.panEdit-goToDB').on("click", () => handleGoToDBArrowClick(redirectedFromViewScreen))
 	setTimePicker();
 	pauseRefreshInterval();
+	if(currentPanel.queryRes){
+		runQueryBtnHandler();
+	}
 }
 
 $('#panelLogResultsGrid').empty();
