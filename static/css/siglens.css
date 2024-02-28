@@ -738,7 +738,7 @@ body {
     text-decoration: none;
     height: 30px;
     display: flex;
-    justify-content: space-around;
+    justify-content: space-between;
     align-items: center;
 }
 .run-metrics-query-btn{
@@ -749,9 +749,6 @@ body {
 }
 #query-language-btn {
     width: 108px;
-    display: flex;
-    align-items: center;
-    justify-content: space-evenly;
     margin-left: 16px;
 }
 
@@ -3130,11 +3127,12 @@ float: right;
 .dbSet-textareaContainer .copy{
     background-image: url(../assets/copy-icon.svg);
     background-size: contain;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     position: absolute;
-    right: calc(20% + 20px);
-    top: 20px;
+    right: calc(20% + 10px);
+    top: 10px;
+    cursor: pointer;
 }
 
 [data-theme='dark'] .dbSet-textareaContainer .copy{

@@ -380,7 +380,7 @@ function editPanelInit(redirectedFromViewScreen) {
 		
 		if(selectedDataSourceTypeIndex == 1) {
 			$("#index-btn").css('display', 'inline-flex');
-			$("#query-language-btn").css('display', 'inline-block');
+			$("#query-language-btn").css('display', 'inline-flex');
 			$("#metrics-query-language-btn").css('display', 'none');
 			if(selectedChartTypeIndex=== -1){
 				selectedChartTypeIndex = mapChartTypeToIndex.get("Data Table");
@@ -738,7 +738,7 @@ $(".editPanelMenu-dataSource .editPanelMenu-options").on('click', function () {
 	displayQueryToolTip(selectedDataSourceTypeIndex);
 	if(selectedDataSourceTypeIndex == 1) {
 		$("#index-btn").css('display', 'inline-flex');
-		$("#query-language-btn").css('display', 'inline-block');
+		$("#query-language-btn").css('display', 'inline-flex');
 		$("#metrics-query-language-btn").css('display', 'none');
 	} else if (selectedDataSourceTypeIndex==0){
 		$("#metrics-query-language-btn").css('display', 'inline-block');
