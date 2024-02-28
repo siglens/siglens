@@ -49,9 +49,9 @@ type queryserverCfg struct {
 }
 
 var (
-	CorsAllowHeaders = "Access-Control-Allow-Origin, Access-Control-Request-Method, Access-Control-Allow-Methods, Access-Control-Max-Age, Content-Type, Authorization, Origin, X-Requested-With , Accept"
-	CorsAllowMethods = "HEAD,GET,POST,PUT,DELETE,OPTIONS,UPGRADE"
-	CorsAllowOrigin  = "*"
+	corsAllowHeaders = "Access-Control-Allow-Origin, Access-Control-Request-Method, Access-Control-Allow-Methods, Access-Control-Max-Age, Content-Type, Authorization, Origin, X-Requested-With , Accept"
+	corsAllowMethods = "HEAD,GET,POST,PUT,DELETE,OPTIONS,UPGRADE"
+	corsAllowOrigin  = "*"
 )
 
 // ConstructHttpServer new fasthttp server

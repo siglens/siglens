@@ -27,7 +27,6 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	segment "github.com/siglens/siglens/pkg/segment/utils"
 
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -317,58 +316,4 @@ func PostBulkErrorResponse(ctx *fasthttp.RequestCtx) {
 	responsebody["index"] = error_response
 	responsebody["status"] = 400
 	utils.WriteJsonResponse(ctx, responsebody)
-}
-
-func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
-	inIndexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
-
-	convertedIndexNames, indicesNotFound := DeleteIndex(inIndexName, myid)
-
-	if indicesNotFound == len(convertedIndexNames) {
-		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		response := make(map[string]interface{})
-		final := make(map[string]interface{})
-		var items = make([]interface{}, 0)
-		items = append(items, *utils.NewDeleteIndexErrorResponseInfo(inIndexName))
-		final["root_cause"] = items
-		final["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
-		final["status"] = 404
-		response["error"] = final
-		utils.WriteJsonResponse(ctx, response)
-	} else {
-		ctx.SetStatusCode(fasthttp.StatusOK)
-	}
-}
-
-func DeleteIndex(inIndexName string, myid uint64) ([]string, int) {
-	convertedIndexNames := vtable.ExpandAndReturnIndexNames(inIndexName, myid, true)
-	indicesNotFound := 0
-	for _, indexName := range convertedIndexNames {
-
-		indexPresent := vtable.IsVirtualTablePresent(&indexName, myid)
-		if !indexPresent {
-			indicesNotFound++
-			continue
-		}
-
-		ok, _ := vtable.IsAlias(indexName, myid)
-		if ok {
-			alias, _ := vtable.GetAliasesAsArray(indexName, myid)
-			error := vtable.RemoveAliases(indexName, alias, myid)
-			if error != nil {
-				log.Errorf("ProcessDeleteIndex : No Aliases removed for indexName = %v, alias: %v ", indexName, alias)
-			}
-		}
-		err := vtable.DeleteVirtualTable(&indexName, myid)
-		if err != nil {
-			log.Errorf("ProcessDeleteIndex : Failed to delete virtual table for indexName = %v err: %v", indexName, err)
-		}
-
-		// TODO: multinode delete index
-		currSegmeta := writer.GetLocalSegmetaFName()
-		writer.DeleteSegmentsForIndex(currSegmeta, indexName)
-		writer.DeleteVirtualTableSegStore(indexName)
-		metadata.DeleteVirtualTable(indexName, myid)
-	}
-	return convertedIndexNames, indicesNotFound
 }

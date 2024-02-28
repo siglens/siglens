@@ -38,9 +38,9 @@ func (hs *queryserverCfg) Recovery(next func(ctx *fasthttp.RequestCtx)) func(ctx
 
 func cors(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return func(ctx *fasthttp.RequestCtx) {
-		ctx.Response.Header.Set("Access-Control-Allow-Headers", CorsAllowHeaders)
-		ctx.Response.Header.Set("Access-Control-Allow-Methods", CorsAllowMethods)
-		ctx.Response.Header.Set("Access-Control-Allow-Origin", CorsAllowOrigin)
+		ctx.Response.Header.Set("Access-Control-Allow-Headers", corsAllowHeaders)
+		ctx.Response.Header.Set("Access-Control-Allow-Methods", corsAllowMethods)
+		ctx.Response.Header.Set("Access-Control-Allow-Origin", corsAllowOrigin)
 		next(ctx)
 	}
 }
