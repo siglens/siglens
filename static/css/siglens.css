@@ -738,7 +738,7 @@ body {
     text-decoration: none;
     height: 30px;
     display: flex;
-    justify-content: space-between;
+    justify-content: space-evenly;
     align-items: center;
 }
 .run-metrics-query-btn{
