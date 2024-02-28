@@ -45,6 +45,11 @@ const MIN_IN_MS = 60_000
 const HOUR_IN_MS = 3600_000
 const DAY_IN_MS = 86400_000
 
+const (
+	ERROR_INVALID_FIELD_IN_BODY   = "parseSearchBody: unexpected field %s"
+	ERROR_INVALID_VALUE_FOR_FIELD = "parseSearchBody: invalid value for field %s = %v"
+)
+
 /*
 Example incomingBody
 
@@ -54,7 +59,16 @@ Example incomingBody
 
 finalSize = size + from
 */
-func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int) {
+func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, error) {
+	for k := range jsonSource {
+		switch k {
+		case "searchText", "indexName", "startEpoch", "endEpoch", "size", "from", "queryLanguage", "scroll", "state":
+		default:
+			log.Errorf("parseSearchBody %s is not expected in search!", k)
+			return "", 0, 0, 0, "", -1, fmt.Errorf(ERROR_INVALID_FIELD_IN_BODY, k)
+		}
+	}
+
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
 	var scrollFrom int
@@ -67,6 +81,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			searchText = val
 		default:
 			log.Errorf("parseSearchBody searchText is not a string! Val %+v", val)
+			return "", 0, 0, 0, "", -1, fmt.Errorf(ERROR_INVALID_VALUE_FOR_FIELD, "searchText", sText)
 		}
 	}
 
@@ -93,6 +108,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 
 		default:
 			log.Errorf("parseSearchBody indexName is not a string! Val %+v, type: %T", val, iText)
+			return "", 0, 0, 0, "", -1, fmt.Errorf(ERROR_INVALID_VALUE_FOR_FIELD, "indexName", iText)
 		}
 	}
 
@@ -207,7 +223,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 	}
 	finalSize = finalSize + uint64(scrollFrom)
 
-	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom
+	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, nil
 }
 
 func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
@@ -242,8 +258,10 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
-
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, err := ParseSearchBody(readJSON, nowTs)
+	if err != nil {
+		return -1
+	}
 	if scrollFrom > 10_000 {
 		return -1
 	}
@@ -356,11 +374,20 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			log.Errorf("qid=%v, ProcessPipeSearchRequest: could not write error message err=%v", qid, err)
 		}
 		log.Errorf("qid=%v, ProcessPipeSearchRequest: failed to decode search request body! Err=%+v", qid, err)
+		return
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
-
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, err := ParseSearchBody(readJSON, nowTs)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		_, err = ctx.WriteString(err.Error())
+		if err != nil {
+			log.Errorf("qid=%v, ProcessPipeSearchRequest: could not write error message err=%v", qid, err)
+		}
+		log.Errorf("qid=%v, ProcessPipeSearchRequest: failed to decode search request body! Err=%+v", qid, err)
+		return
+	}
 	if scrollFrom > 10_000 {
 		processMaxScrollCount(ctx, qid)
 		return
