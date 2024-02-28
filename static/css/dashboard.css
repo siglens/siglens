@@ -551,10 +551,6 @@
   background: var(--btn-hover-or-click-bg-color) !important;
 }
 
-.panEdit-btn {
-  color: black !important;
-}
-
 .panelEditor-container {
   display: flex;
   flex-direction: row;
@@ -775,10 +771,6 @@
   align-items: center;
   width: 90%;
   margin-top: 1rem;
-}
-
-#dbSet-save{
-  width: 80px;
 }
 
 .dbSet-goToDB {
@@ -1051,7 +1043,7 @@
 .dbSet-name,.dbSet-heading{
   white-space: nowrap;
   font-weight: 500;
-  font-size: 22px;
+  font-size: 18px;
 }
 
 #metrics-query-language-btn{
@@ -1396,4 +1388,9 @@ input:checked + .slider:before {
   text-overflow: ellipsis;
   max-width: 150px;
   vertical-align: bottom;
+}
+#dbSet-discard, #dbSet-save{
+  background: var(--myOrg-input);
+  color: var(--text-color);
+  width: 100px;
 }
