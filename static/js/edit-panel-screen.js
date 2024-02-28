@@ -461,6 +461,10 @@ $('#panelLogResultsGrid').hide();
 
 $('.panEdit-discard').on("click", goToDashboard)
 $('.panEdit-save').on("click", function(){
+	 if (!currentPanel.queryData && currentPanel.chartType ==='Data Table' && currentPanel.queryType ==='logs') {
+        currentPanel.chartType = "";
+        currentPanel.queryType = "";
+    }
 	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
 	updateDashboard();
 });
@@ -1098,6 +1102,10 @@ function applyChangesToPanel(redirectedFromViewScreen) {
 			currentPanel.queryData.endEpoch = filterEndDate
 		}
     }
+	if (!currentPanel.queryData && currentPanel.chartType === 'Data Table' && currentPanel.queryType === 'logs') {
+		currentPanel.chartType = "";
+		currentPanel.queryType = "";
+	}
 	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
 	// update filterStartDate, filterEndDate before leaving edit panel screen
 	setTimePicker();
@@ -1129,12 +1137,12 @@ function handleGoToDBArrowClick(redirectedFromViewScreen) {
 			&& currentPanel.unit === serverPanel.unit
 			&& currentPanel.panelIndex === serverPanel.panelIndex
 			
-			&& currentPanel.queryData.endEpoch === serverPanel.queryData.endEpoch
-			&& currentPanel.queryData.indexName === serverPanel.queryData.indexName
-			&& currentPanel.queryData.queryLanguage === serverPanel.queryData.queryLanguage
-			&& currentPanel.queryData.searchText === serverPanel.queryData.searchText
-			&& currentPanel.queryData.startEpoch === serverPanel.queryData.startEpoch
-			&& currentPanel.queryData.state === serverPanel.queryData.state);
+			&& currentPanel.queryData?.endEpoch === serverPanel.queryData?.endEpoch
+			&& currentPanel.queryData?.indexName === serverPanel.queryData?.indexName
+			&& currentPanel.queryData?.queryLanguage === serverPanel.queryData?.queryLanguage
+			&& currentPanel.queryData?.searchText === serverPanel.queryData?.searchText
+			&& currentPanel.queryData?.startEpoch === serverPanel.queryData?.startEpoch
+			&& currentPanel.queryData?.state === serverPanel.queryData?.state);
 	}
 	
 	function showPrompt(redirectedFromViewScreen) {
