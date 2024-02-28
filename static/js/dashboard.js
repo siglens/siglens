@@ -653,7 +653,7 @@ function displayPanelView(panelIndex) {
     panelElement.style.width = "100%";
 
     handlePanelRemove(localPanel.panelId);
-    if (localPanel.description||localPanel.queryData.searchText) {
+    if (localPanel.description||localPanel.queryData?.searchText) {
         handleDescriptionTooltip(localPanel.panelId,localPanel.description,localPanel.queryData.searchText);
     } else {
         $(`#panel${panelId} .panel-info-corner`).hide();
