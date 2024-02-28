@@ -31,6 +31,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 	blockNum uint16, recordNum uint16, holderDte *DtypeEnclosure, qid uint64,
 	dictEncColNames map[string]bool, searchReq *SegmentSearchRequest,
 	cmiPassedCnames map[string]bool) (bool, error) {
+
 	switch query.SearchType {
 	case MatchAll:
 		// ts should have already been checked
@@ -247,6 +248,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 		return true, dictEncColNames, nil
 
 	case SimpleExpression, RegexExpression:
+
 		isDict, err := mcr.IsBlkDictEncoded(sq.QueryInfo.ColName, blockNum)
 		if err != nil {
 			return true, dictEncColNames, err

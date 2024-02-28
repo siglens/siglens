@@ -292,7 +292,7 @@ func getNumberRecDte(rec []byte, recDte *DtypeEnclosure) (bool, error) {
 	}
 	// first find recDte's Dtype and typecast it
 	switch rec[0] {
-	case VALTYPE_ENC_BOOL[0]:
+	case VALTYPE_ENC_BACKFILL[0]:
 		return false, nil
 	case VALTYPE_ENC_BOOL[0]:
 		return false, nil

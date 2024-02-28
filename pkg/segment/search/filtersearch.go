@@ -130,6 +130,7 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 	multiColReader *segread.MultiColSegmentReader, recIT *BlockRecordIterator, blockNum uint16,
 	holderDte *utils.DtypeEnclosure, qid uint64, allSearchResults *segresults.SearchResults,
 	searchReq *structs.SegmentSearchRequest) {
+
 	// first we walk through the search checking if this query can be satisfied by looking at the
 	// dict encoding file for the column/s
 	cmiPassedCnames := make(map[string]bool)
