@@ -706,19 +706,19 @@
 .big-number-display-container {
   display: flex;
   justify-content: center;
-  align-items: flex-end;
-  height: fit-content !important;
-  width: fit-content !important;
+  align-items: center;
   background-color: var(--datatable-bg-color);
   border-radius: 5px;
+  height: 100%;
+  width: 100%;
 }
 
 .big-number {
   display: flex;
   justify-content: center;
-  align-items: flex-end;
+  align-items: center;
   color: var(--orange-1);
-  font-size: 8.5em;
+  font-size: 8vmax;
   font-weight: 500;
   color: var(--number-and-unit-color);
 }
