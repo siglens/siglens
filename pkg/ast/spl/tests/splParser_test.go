@@ -2334,6 +2334,37 @@ func Test_timechartWithoutGroupBy(t *testing.T) {
 	}
 }
 
+func Test_TimechartSpanArgWithoutGroupBy(t *testing.T) {
+	queries := []string{
+		`search A=1 | timechart span=1m avg(latency)`,
+		`search A=1 | timechart avg(latency) span=1m`,
+	}
+
+	for _, queryStr := range queries {
+		query := []byte(queryStr)
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+
+		astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+
+		assert.Nil(t, err)
+		assert.NotNil(t, astNode)
+		assert.NotNil(t, aggregator)
+
+		assert.Equal(t, uint64(60_000), aggregator.TimeHistogram.IntervalMillis)
+
+		pipeCommands := res.(ast.QueryStruct).PipeCommands
+		assert.NotNil(t, pipeCommands)
+		assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
+		assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 1)
+		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
+		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
+		assert.Len(t, pipeCommands.GroupByRequest.GroupByColumns, 1)
+		assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "timestamp")
+		assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
+	}
+}
+
 func Test_aggHasEvalFuncWithoutGroupBy(t *testing.T) {
 	query := []byte(`city=Boston | stats max(latitude), range(eval(latitude >= 0))`)
 	res, err := spl.Parse("", query)
@@ -2416,38 +2447,6 @@ func Test_aggHasEvalFuncWithGroupBy(t *testing.T) {
 	assert.NotNil(t, pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.FalseValue.NumericExpr)
 	assert.Equal(t, "job_title", pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.TrueValue.NumericExpr.Value)
 	assert.Equal(t, "city", pipeCommands.GroupByRequest.MeasureOperations[1].ValueColRequest.ConditionExpr.FalseValue.NumericExpr.Value)
-}
-
-func Test_TimechartSpanArgWithoutGroupBy(t *testing.T) {
-	queries := []string{
-		`search A=1 | timechart span=1m avg(latency)`,
-		`search A=1 | timechart avg(latency) span=1m`,
-	}
-
-	for _, queryStr := range queries {
-		query := []byte(queryStr)
-		res, err := spl.Parse("", query)
-		assert.Nil(t, err)
-
-		astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-
-		assert.Nil(t, err)
-		assert.NotNil(t, astNode)
-		assert.NotNil(t, aggregator)
-
-		assert.Equal(t, uint64(60_000), aggregator.TimeHistogram.IntervalMillis)
-
-		pipeCommands := res.(ast.QueryStruct).PipeCommands
-		assert.NotNil(t, pipeCommands)
-		assert.Equal(t, pipeCommands.PipeCommandType, structs.GroupByType)
-		assert.Len(t, pipeCommands.GroupByRequest.MeasureOperations, 1)
-		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-		assert.Equal(t, pipeCommands.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Avg)
-		assert.Len(t, pipeCommands.GroupByRequest.GroupByColumns, 1)
-		assert.Equal(t, pipeCommands.GroupByRequest.GroupByColumns[0], "timestamp")
-		assert.Equal(t, pipeCommands.BucketLimit, segquery.MAX_GRP_BUCKS)
-	}
-
 }
 
 func Test_groupbyFieldWithWildcard(t *testing.T) {

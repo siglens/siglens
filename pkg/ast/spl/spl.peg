@@ -424,73 +424,73 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
     }
     
     timechartArgs := tcArgs.(*TimechartArgs)
-
-	// Todo: Should add || timechartArgs.evalExpr == nil
-	if timechartArgs.singleAggExpr == nil {
-		return nil, fmt.Errorf("spl peg: timechart: either single-agg or eval-expression by split-by-clause is required")
-	}
+    
+    // Todo: Should add || timechartArgs.evalExpr == nil
+    if timechartArgs.singleAggExpr == nil {
+        return nil, fmt.Errorf("spl peg: timechart: either single-agg or eval-expression by split-by-clause is required")
+    }
 
     var bOptions *structs.BinOptions
+    
+    if timechartArgs.tcOptions != nil {
+        if timechartArgs.tcOptions.BinOptions != nil {
+            bOptions = timechartArgs.tcOptions.BinOptions
+        }
+    }
 
-	if timechartArgs.tcOptions != nil {
-		if timechartArgs.tcOptions.BinOptions != nil {
-			bOptions = timechartArgs.tcOptions.BinOptions
-		}
-	}
+    if timechartArgs.singleAggExpr != nil {
+        singleAgg := &structs.SingleAgg{}
+        aggTemp := timechartArgs.singleAggExpr
 
-	if timechartArgs.singleAggExpr != nil {
-		singleAgg := &structs.SingleAgg{}
-		aggTemp := timechartArgs.singleAggExpr
+        for i, agg := range aggTemp.aggregators {
+            measureAggs = append(measureAggs, agg.measureAgg)
 
-		for i, agg := range aggTemp.aggregators {
-			measureAggs = append(measureAggs, agg.measureAgg)
+            if agg.renameOutputField {
+                measureAggs[i].StrEnc = agg.outputFieldNewName
+            }
+        }
 
-			if agg.renameOutputField {
-				measureAggs[i].StrEnc = agg.outputFieldNewName
-			}
-		}
+        singleAgg.MeasureOperations = measureAggs
+        timechartExpr.SingleAgg = singleAgg
 
-		singleAgg.MeasureOperations = measureAggs
-		timechartExpr.SingleAgg = singleAgg
+        if aggTemp.SplitByClause != nil {
+            byField = aggTemp.SplitByClause.Field
+        }
+    }
 
-		if aggTemp.SplitByClause != nil {
-			byField = aggTemp.SplitByClause.Field
-		}
-	}
+    // TODO: if timechartArgs.evalExpr != nil {}
 
-	// TODO: if timechartArgs.evalExpr != nil {}
+    aggNode.PipeCommandType = structs.GroupByType
+    aggNode.GroupByRequest = &structs.GroupByRequest{
+        MeasureOperations: measureAggs,
+        GroupByColumns:    []string{"timestamp"},
+    }
+    aggNode.BucketLimit = query.MAX_GRP_BUCKS
 
-	aggNode.PipeCommandType = structs.GroupByType
-	aggNode.GroupByRequest = &structs.GroupByRequest{
-		MeasureOperations: measureAggs,
-		GroupByColumns:    []string{"timestamp"},
-	}
-	aggNode.BucketLimit = query.MAX_GRP_BUCKS
+    if bOptions == nil {
+        bOptions = &structs.BinOptions{
+            SpanOptions: &structs.SpanOptions{
+                DefaultSettings: true,
+                SpanLength: &structs.SpanLength{
+                    Num: 1,
+                    TimeScalr: utils.TMMinute,
+                },
+            },
+        }
+    }
 
-	if bOptions == nil {
-		bOptions = &structs.BinOptions{
-			SpanOptions: &structs.SpanOptions{
-				DefaultSettings: true,
-				SpanLength: &structs.SpanLength{
-					Num:       1,
-					TimeScalr: utils.TMMinute,
-				},
-			},
-		}
-	}
+    var limitExprTmp *structs.LimitExpr
+    if limitExpr != nil {
+        limitExprTmp = limitExpr.(*structs.LimitExpr)
+        if len(measureAggs) > 1 {
+            limitExprTmp.LimitScoreMode = structs.LSMByFreq
+        }
+    }
 
-	var limitExprTmp *structs.LimitExpr
-	if limitExpr != nil {
-		limitExprTmp = limitExpr.(*structs.LimitExpr)
-		if len(measureAggs) > 1 {
-			limitExprTmp.LimitScoreMode = structs.LSMByFreq
-		}
-	}
+    timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp, len(measureAggs))
+    aggNode.TimeHistogram = timeBucket
 
-	timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp, len(measureAggs))
-	aggNode.TimeHistogram = timeBucket
-
-	return aggNode, nil
+    return aggNode, nil
 }
 
 // To be finished: <eval-expression> BY <split-by-clause>
@@ -522,20 +522,12 @@ TimechartArgumentsList <- first:TimechartArgument rest:(SPACE TimechartArgument)
                 return nil, fmt.Errorf("Spl peg: Timechart: invalid timechart argument: %v", numArg)
         }
     }
-
-	return timechartArgs, nil
+    
+    return timechartArgs, nil
 }
 
 TimechartArgument <- tcArg:(SingleAggExpr / TcOptions) {
-    switch tcArg.(type) {
-	case *structs.BinOptions:
-		return &structs.TcOptions{
-			BinOptions: tcArg.(*structs.BinOptions),
-		}, nil
-	
-	default:
-		return tcArg, nil
-	}
+    return tcArg, nil
 }
 
 SingleAggExpr <- aggs:AggregationList splitByClause:SplitByClause? {
@@ -1920,8 +1912,8 @@ AsField <- AS field: (FieldName / String) {
     }
     
     if fieldStr[0] == '"' && fieldStr[len(fieldStr)-1] == '"' {
-		fieldStr = fieldStr[1 : len(fieldStr)-1]
-	}
+        fieldStr = fieldStr[1 : len(fieldStr)-1]
+    }
 
     return fieldStr, nil
 }
@@ -2470,8 +2462,8 @@ TransactionQuotedStringValue <- str:QuotedStringNoOp {
 }
 
 TransactionSearch <- expr:ClauseLevel1 {
-
-	filterStrExpr := &structs.FilterStringExpr{
+    
+    filterStrExpr := &structs.FilterStringExpr{
        SearchNode: expr.(*ast.Node),
     }
 
