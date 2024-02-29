@@ -68,6 +68,9 @@ type Hooks struct {
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
 	ExtraQueryEndpointsHook     func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx)) error
+
+	// Query summary
+	ShouldAddDistributedInfoHook func() bool
 }
 
 type HtmlSnippets struct {

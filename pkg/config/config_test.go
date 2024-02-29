@@ -62,7 +62,6 @@ func Test_ExtractConfigData(t *testing.T) {
  partitionCountConsistentHasher: 271
  replicationFactorConsistentHasher: 40
  loadConsistentHasher: 1.2
- grpcPort: 0
  s3IngestQueueName: ""
  s3IngestQueueRegion: ""
  s3IngestBufferSize: 1000
@@ -95,7 +94,6 @@ func Test_ExtractConfigData(t *testing.T) {
 				ESVersion:                  "6.8.20",
 				DataDiskThresholdPercent:   85,
 				MemoryThresholdPercent:     80,
-				GRPCPort:                   50051,
 				S3IngestQueueName:          "",
 				S3IngestQueueRegion:        "",
 				S3IngestBufferSize:         1000,
@@ -135,7 +133,6 @@ func Test_ExtractConfigData(t *testing.T) {
  partitionCountConsistentHasher: 271
  replicationFactorConsistentHasher: 40
  loadConsistentHasher: 1.2
- grpcPort: 66
  S3IngestQueueName: ""
  S3IngestQueueRegion: ""
  S3IngestBufferSize: 1000
@@ -168,7 +165,6 @@ func Test_ExtractConfigData(t *testing.T) {
 				ESVersion:                  "6.8.20",
 				DataDiskThresholdPercent:   85,
 				MemoryThresholdPercent:     80,
-				GRPCPort:                   66,
 				S3IngestQueueName:          "",
 				S3IngestQueueRegion:        "",
 				S3IngestBufferSize:         1000,
@@ -208,7 +204,6 @@ invalid input, we should error out
 				ESVersion:                "6.8.20",
 				DataDiskThresholdPercent: 85,
 				MemoryThresholdPercent:   80,
-				GRPCPort:                 50051,
 				S3IngestQueueName:        "",
 				S3IngestQueueRegion:      "",
 
@@ -245,7 +240,6 @@ a: b
 				ESVersion:                  "6.8.20",
 				DataDiskThresholdPercent:   85,
 				MemoryThresholdPercent:     80,
-				GRPCPort:                   50051,
 				S3IngestQueueName:          "",
 				S3IngestQueueRegion:        "",
 				S3IngestBufferSize:         1000,

@@ -92,11 +92,6 @@ func GetRunningConfig() *common.Configuration {
 	return &runningConfig
 }
 
-// Returns :Port
-func GetGRPCPort() string {
-	return ":" + strconv.FormatUint(runningConfig.GRPCPort, 10)
-}
-
 func GetSSInstanceName() string {
 	return runningConfig.SSInstanceName
 }
@@ -169,14 +164,6 @@ func GetQueryPort() uint64 {
 	return runningConfig.QueryPort
 }
 
-// returns the psql port
-func GetPsqlPort() (uint64, error) {
-	if runningConfig.PsqlPort != 0 {
-		return runningConfig.PsqlPort, nil
-	}
-	return 0, errors.New("Psql port not defined in server.yaml")
-}
-
 func GetDataPath() string {
 	return runningConfig.DataPath
 }
@@ -194,10 +181,6 @@ func IsTlsEnabled() bool {
 // used by
 func GetQueryHostname() string {
 	return runningConfig.QueryHostname
-}
-
-func GetEtcdConfig() common.EtcdConfig {
-	return runningConfig.Etcd
 }
 
 // returns SmtpHost, SmtpPort, SenderEmail and GmailAppPassword
@@ -386,18 +369,7 @@ func SetQueryPort(value uint64) {
 	runningConfig.QueryPort = value
 }
 
-func IsMultinodeEnabled() bool {
-	return runningConfig.Etcd.Enabled
-}
-
 func ValidateDeployment() (common.DeploymentType, error) {
-
-	if runningConfig.Etcd.Enabled {
-		if runningConfig.S3.Enabled {
-			return common.DistributedS3, nil
-		}
-		return 0, fmt.Errorf("etcd must be enabled with S3")
-	}
 	if IsQueryNode() && IsIngestNode() {
 		if runningConfig.S3.Enabled {
 			return common.SingleNodeS3, nil
@@ -480,7 +452,6 @@ func InitializeDefaultConfig() {
 		Debug:                      false,
 		MemoryThresholdPercent:     80,
 		DataDiskThresholdPercent:   85,
-		GRPCPort:                   50051,
 		S3IngestQueueName:          "",
 		S3IngestQueueRegion:        "",
 		S3IngestBufferSize:         1000,
@@ -683,9 +654,6 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.MemoryThresholdPercent = 80
 	}
 
-	if config.GRPCPort == 0 {
-		config.GRPCPort = 50051
-	}
 	if len(config.S3IngestQueueName) <= 0 {
 		config.S3IngestQueueName = ""
 	}

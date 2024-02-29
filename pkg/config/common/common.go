@@ -19,11 +19,6 @@ type S3Config struct {
 	RegionName   string `yaml:"regionName"`
 }
 
-type EtcdConfig struct {
-	Enabled  bool     `yaml:"enabled"`
-	SeedUrls []string `yaml:"seedUrls"`
-}
-
 type EmailConfig struct {
 	SmtpHost         string `yaml:"smtpHost"`
 	SmtpPort         int    `yaml:"smtpPort"`
@@ -73,7 +68,6 @@ type Configuration struct {
 	QueryListenIP              string   `yaml:"queryListenIP"`        // Listen IP used for query server
 	IngestPort                 uint64   `yaml:"ingestPort"`           // Port for ingestion server
 	QueryPort                  uint64   `yaml:"queryPort"`            // Port used for query server
-	PsqlPort                   uint64   `yaml:"psqlPort"`             // Port used for sql server
 	EventTypeKeywords          []string `yaml:"eventTypeKeywords"`    //Required event type keyword
 	QueryNode                  string   `yaml:"queryNode"`            //Node to enable/disable all query endpoints
 	IngestNode                 string   `yaml:"ingestNode"`           //Node to enable/disable all ingest endpoints
@@ -87,7 +81,6 @@ type Configuration struct {
 	Debug                      bool     `yaml:"debug"`                  // debug logging
 	MemoryThresholdPercent     uint64   `yaml:"memoryThresholdPercent"` // percent of all available free data allocated for loading micro indices in memory
 	DataDiskThresholdPercent   uint64   `yaml:"dataDiskThresholdPercent"`
-	GRPCPort                   uint64   `yaml:"grpcPort"` // Address to listen for GRPC connections
 	S3IngestQueueName          string   `yaml:"s3IngestQueueName"`
 	S3IngestQueueRegion        string   `yaml:"s3IngestQueueRegion"`
 	S3IngestBufferSize         uint64   `yaml:"s3IngestBufferSize"`
@@ -103,7 +96,6 @@ type Configuration struct {
 	QueryHostname              string         `yaml:"queryHostname"` // hostname of the query server. i.e. if DNS is https://cloud.siglens.com, this should be cloud.siglens.com
 	IngestUrl                  string         `yaml:"ingestUrl"`     // full address of the ingest server, including scheme and port, e.g. https://ingest.siglens.com:8080
 	S3                         S3Config       `yaml:"s3"`            // s3 related config
-	Etcd                       EtcdConfig     `yaml:"etcd"`          // Etcd related config
 	Log                        LogConfig      `yaml:"log"`           // Log related config
 	TLS                        TLSConfig      `yaml:"tls"`           // TLS related config
 	EmailConfig                EmailConfig    `yaml:"emailConfig"`

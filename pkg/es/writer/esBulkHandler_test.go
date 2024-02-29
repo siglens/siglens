@@ -21,14 +21,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 	"testing"
-	"time"
 
 	jp "github.com/buger/jsonparser"
 	"github.com/siglens/siglens/pkg/config"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	"github.com/stretchr/testify/assert"
@@ -90,28 +86,6 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 
 	// Cleanup
 	os.RemoveAll(config.GetDataPath())
-}
-
-func setupData(t *testing.T, numberOfSegments int, indexName string) {
-	sleep := time.Duration(1)
-	for segNum := 0; segNum < numberOfSegments; segNum++ {
-		for batch := 0; batch < 10; batch++ {
-			for rec := 0; rec < 100; rec++ {
-				record := make(map[string]interface{})
-				record["col1"] = "abc"
-				record["col2"] = strconv.Itoa(rec)
-				record["timestamp"] = uint64(rec)
-				rawJson, err := json.Marshal(record)
-				assert.Nil(t, err)
-				err = segwriter.AddEntryToInMemBuf("deleteIndexTest", rawJson, uint64(rec)+1, indexName, 100, false,
-					segutils.SIGNAL_EVENTS, 0)
-				assert.Nil(t, err)
-			}
-			time.Sleep(sleep)
-			segwriter.FlushWipBufferToFile(&sleep)
-		}
-		segwriter.ForcedFlushToSegfile()
-	}
 }
 
 func flattenJson(currKey string, data []byte) error {
