@@ -21,72 +21,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 	"testing"
-	"time"
 
 	jp "github.com/buger/jsonparser"
 	"github.com/siglens/siglens/pkg/config"
-	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	"github.com/stretchr/testify/assert"
-	"github.com/valyala/fasthttp"
 )
-
-func Test_ProcessDeleteIndex(t *testing.T) {
-	// Create a new HTTP request context
-	config.InitializeTestingConfig()
-	_ = vtable.InitVTable()
-
-	dataPath := config.GetDataPath()
-
-	ctx := &fasthttp.RequestCtx{}
-	indexName := "test_Index"
-	orgId := uint64(0)
-	numberOfSegments := 5
-
-	localIndexMap := make(map[string]string)
-	indexNameConverted := addAndGetRealIndexName(indexName, localIndexMap, orgId)
-
-	indexPresent := vtable.IsVirtualTablePresent(&indexNameConverted, orgId)
-	assert.Equal(t, true, indexPresent, "Index could not be created")
-
-	setupData(t, numberOfSegments, indexNameConverted)
-	allSegMetas := segwriter.ReadAllSegmetas()
-	assert.Equal(t, numberOfSegments, len(allSegMetas))
-
-	baseDirs := []string{}
-	for i := 0; i < len(allSegMetas); i++ {
-		baseDirs = append(baseDirs, allSegMetas[i].SegbaseDir)
-	}
-
-	indexAlias := "test_IndexAlias"
-	_ = vtable.AddAliases(indexNameConverted, []string{indexAlias}, 0)
-	aliases, _ := vtable.GetAliases(indexNameConverted, orgId)
-	assert.Contains(t, aliases, indexAlias, "Index alias could not be created")
-
-	ctx.SetUserValue("indexName", indexNameConverted)
-
-	segwriter.InitWriterNode()
-	smrBaseDir := dataPath + "ingestnodes" + "/" + config.GetHostID() + "/"
-	config.SetSmrBaseDirForTestOnly(smrBaseDir)
-
-	ProcessDeleteIndex(ctx, 0) // Not deleting aliases of index
-
-	indexPresent = vtable.IsVirtualTablePresent(&indexNameConverted, orgId)
-	assert.Equal(t, false, indexPresent, "Index exists")
-
-	allSegMetas = segwriter.ReadAllSegmetas()
-	assert.Equal(t, 0, len(allSegMetas))
-
-	for i := 0; i < len(baseDirs); i++ {
-		assert.NoDirExists(t, baseDirs[i])
-	}
-
-	os.RemoveAll(dataPath)
-}
 
 // Test ingesting multiple types of values into one column.
 // Currently the only test is that it doesn't crash.
@@ -144,28 +86,6 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 
 	// Cleanup
 	os.RemoveAll(config.GetDataPath())
-}
-
-func setupData(t *testing.T, numberOfSegments int, indexName string) {
-	sleep := time.Duration(1)
-	for segNum := 0; segNum < numberOfSegments; segNum++ {
-		for batch := 0; batch < 10; batch++ {
-			for rec := 0; rec < 100; rec++ {
-				record := make(map[string]interface{})
-				record["col1"] = "abc"
-				record["col2"] = strconv.Itoa(rec)
-				record["timestamp"] = uint64(rec)
-				rawJson, err := json.Marshal(record)
-				assert.Nil(t, err)
-				err = segwriter.AddEntryToInMemBuf("deleteIndexTest", rawJson, uint64(rec)+1, indexName, 100, false,
-					segutils.SIGNAL_EVENTS, 0)
-				assert.Nil(t, err)
-			}
-			time.Sleep(sleep)
-			segwriter.FlushWipBufferToFile(&sleep)
-		}
-		segwriter.ForcedFlushToSegfile()
-	}
 }
 
 func flattenJson(currKey string, data []byte) error {

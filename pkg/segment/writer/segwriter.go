@@ -244,7 +244,7 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	defer segstore.lock.Unlock()
 	if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
 		segstore.wipBlock.blockSummary.RecCount >= MAX_RECS_PER_WIP {
-		err = segstore.appendWipToSegfile(streamid, false, false, false)
+		err = segstore.AppendWipToSegfile(streamid, false, false, false)
 		if err != nil {
 			log.Errorf("AddEntryToInMemBuf: failed to append segkey=%v, err=%v", segstore.SegmentKey, err)
 			return err
@@ -254,14 +254,14 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 
 	segstore.adjustEarliestLatestTimes(ts_millis)
 	segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
-	err = segstore.writePackedRecord(rawJson, ts_millis, signalType)
+	err = segstore.WritePackedRecord(rawJson, ts_millis, signalType)
 	if err != nil {
 		return err
 	}
 	segstore.BytesReceivedCount += bytesReceived
 
 	if flush {
-		err = segstore.appendWipToSegfile(streamid, false, false, false)
+		err = segstore.AppendWipToSegfile(streamid, false, false, false)
 		if err != nil {
 			log.Errorf("AddEntryToInMemBuf: failed to append during flush segkey=%v, err=%v", segstore.SegmentKey, err)
 			return err
@@ -312,7 +312,7 @@ func ForcedFlushToSegfile() {
 	allSegStoresLock.Lock()
 	for streamid, segstore := range allSegStores {
 		segstore.lock.Lock()
-		err := segstore.appendWipToSegfile(streamid, true, false, false)
+		err := segstore.AppendWipToSegfile(streamid, true, false, false)
 		if err != nil {
 			log.Errorf("ForcedFlushToSegfile: failed to append err=%v", err)
 		}
@@ -356,7 +356,7 @@ func rotateSegmentOnTime() {
 			defer wg.Done()
 			segstore.lock.Lock()
 			segstore.firstTime = false
-			err := segstore.appendWipToSegfile(streamid, false, false, true)
+			err := segstore.AppendWipToSegfile(streamid, false, false, true)
 			if err != nil {
 				log.Errorf("rotateSegmentOnTime: failed to append,  streamid=%s err=%v", err, streamid)
 			} else {
@@ -378,7 +378,7 @@ func ForceRotateSegmentsForTest() {
 	allSegStoresLock.Lock()
 	for streamid, segstore := range allSegStores {
 		segstore.lock.Lock()
-		err := segstore.appendWipToSegfile(streamid, false, false, true)
+		err := segstore.AppendWipToSegfile(streamid, false, false, true)
 		if err != nil {
 			log.Errorf("ForceRotateSegmentsForTest: failed to append,  streamid=%s err=%v", err, streamid)
 		} else {
@@ -402,7 +402,7 @@ func FlushWipBufferToFile(sleepDuration *time.Duration) {
 	for streamid, segstore := range allSegStores {
 		segstore.lock.Lock()
 		if segstore.wipBlock.maxIdx > 0 && time.Since(segstore.lastUpdated) > *sleepDuration {
-			err := segstore.appendWipToSegfile(streamid, false, false, false)
+			err := segstore.AppendWipToSegfile(streamid, false, false, false)
 			if err != nil {
 				log.Errorf("FlushWipBufferToFile: failed to append, err=%v", err)
 			}
