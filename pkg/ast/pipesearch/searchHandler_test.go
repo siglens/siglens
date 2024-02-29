@@ -62,6 +62,31 @@ func Test_parseSearchBody(t *testing.T) {
 	jssrc["indexName"] = 1
 	_, _, _, _, _, _, err = ParseSearchBody(jssrc, nowTs)
 	assert.EqualError(t, err, "parseSearchBody: invalid value for field indexName = 1")
+	jssrc["indexName"] = "svc-2"
+
+	// Test : wrong type of value for startEpoch
+	jssrc["startEpoch"] = []int{}
+	_, _, _, _, _, _, err = ParseSearchBody(jssrc, nowTs)
+	assert.EqualError(t, err, "parseSearchBody: invalid value for field startEpoch = []")
+	jssrc["startEpoch"] = "now-15m"
+
+	// Test : wrong type of value for endEpoch
+	jssrc["endEpoch"] = []int{}
+	_, _, _, _, _, _, err = ParseSearchBody(jssrc, nowTs)
+	assert.EqualError(t, err, "parseSearchBody: invalid value for field endEpoch = []")
+	jssrc["endEpoch"] = "now"
+
+	// Test : wrong type of value for size
+	jssrc["size"] = "invalid-value"
+	_, _, _, _, _, _, err = ParseSearchBody(jssrc, nowTs)
+	assert.EqualError(t, err, "parseSearchBody: invalid value for field size = invalid-value")
+	jssrc["size"] = 200
+
+	// Test : wrong type of value for from
+	jssrc["from"] = "invalid-value"
+	_, _, _, _, _, _, err = ParseSearchBody(jssrc, nowTs)
+	assert.EqualError(t, err, "parseSearchBody: invalid value for field from = invalid-value")
+	jssrc["from"] = 200
 
 }
 
