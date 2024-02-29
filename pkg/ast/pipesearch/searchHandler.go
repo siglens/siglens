@@ -45,11 +45,6 @@ const MIN_IN_MS = 60_000
 const HOUR_IN_MS = 3600_000
 const DAY_IN_MS = 86400_000
 
-const (
-	ERROR_INVALID_FIELD_IN_BODY   = "parseSearchBody: unexpected field %s"
-	ERROR_INVALID_VALUE_FOR_FIELD = "parseSearchBody: invalid value for field %s = %v"
-)
-
 /*
 Example incomingBody
 
@@ -65,7 +60,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case "searchText", "indexName", "startEpoch", "endEpoch", "size", "from", "queryLanguage", "scroll", "state":
 		default:
 			log.Errorf("parseSearchBody %s is not expected in search!", k)
-			return "", 0, 0, 0, "", -1, fmt.Errorf(ERROR_INVALID_FIELD_IN_BODY, k)
+			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: unexpected field %s", k)
 		}
 	}
 
@@ -80,8 +75,8 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case string:
 			searchText = val
 		default:
-			log.Errorf("parseSearchBody searchText is not a string! Val %+v", val)
-			return "", 0, 0, 0, "", -1, fmt.Errorf(ERROR_INVALID_VALUE_FOR_FIELD, "searchText", sText)
+			log.Errorf("parseSearchBody unknown type for searchText: %T", sText)
+			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: invalid value for field %s = %v", "searchText", sText)
 		}
 	}
 
@@ -107,8 +102,8 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			}
 
 		default:
-			log.Errorf("parseSearchBody indexName is not a string! Val %+v, type: %T", val, iText)
-			return "", 0, 0, 0, "", -1, fmt.Errorf(ERROR_INVALID_VALUE_FOR_FIELD, "indexName", iText)
+			log.Errorf("parseSearchBody unknown type for indexName: %T", iText)
+			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: invalid value for field %s = %v", "indexName", iText)
 		}
 	}
 
@@ -130,7 +125,8 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			defValue := nowTs - (15 * 60 * 1000)
 			startEpoch = parseAlphaNumTime(nowTs, string(val), defValue)
 		default:
-			startEpoch = nowTs - (15 * 60 * 1000)
+			log.Errorf("parseSearchBody unknown type for startEpoch: %T", startE)
+			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: invalid value for field %s = %v", "startEpoch", iText)
 		}
 	}
 
@@ -151,7 +147,8 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case string:
 			endEpoch = parseAlphaNumTime(nowTs, string(val), nowTs)
 		default:
-			endEpoch = nowTs
+			log.Errorf("parseSearchBody unknown type for endEpoch: %T", endE)
+			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: invalid value for field %s = %v", "endEpoch", endE)
 		}
 	}
 
@@ -184,7 +181,8 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case int:
 			finalSize = uint64(val)
 		default:
-			finalSize = uint64(100)
+			log.Errorf("parseSearchBody unknown type for size: %T", size)
+			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: invalid value for field %s = %v", "size", size)
 		}
 	}
 
@@ -217,8 +215,8 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case int:
 			scrollFrom = val
 		default:
-			log.Infof("parseSearchBody: unknown type for scroll=%T", val)
-			scrollFrom = 0
+			log.Errorf("parseSearchBody unknown type for scroll: %T", scroll)
+			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: invalid value for field %s = %v", "scroll", scroll)
 		}
 	}
 	finalSize = finalSize + uint64(scrollFrom)
