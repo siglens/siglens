@@ -21,6 +21,7 @@ import (
 	esutils "github.com/siglens/siglens/pkg/es/utils"
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/health"
+	"github.com/siglens/siglens/pkg/hooks"
 	influxwriter "github.com/siglens/siglens/pkg/influx/writer"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/integrations/loki"
@@ -40,7 +41,12 @@ func processKibanaIngestRequest(ctx *fasthttp.RequestCtx, request map[string]int
 func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		eswriter.ProcessBulkRequest(ctx, 0, processKibanaIngestRequest)
+
+		if hook := hooks.GlobalHooks.KibanaIngestHandlerHook; hook != nil {
+			hook(ctx)
+		} else {
+			eswriter.ProcessBulkRequest(ctx, 0, processKibanaIngestRequest)
+		}
 	}
 }
 
@@ -63,7 +69,7 @@ func splunkHecIngestHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func esPutIndexHandler() func(ctx *fasthttp.RequestCtx) {
+func EsPutIndexHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		eswriter.ProcessPutIndex(ctx, 0)
 	}
@@ -128,6 +134,11 @@ func getConfigReloadHandler() func(ctx *fasthttp.RequestCtx) {
 func lokiPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		loki.ProcessLokiLogsIngestRequest(ctx, 0)
+
+		if hook := hooks.GlobalHooks.LokiPostBulkHandlerInternalHook; hook != nil {
+			hook(ctx)
+		} else {
+			loki.ProcessLokiLogsIngestRequest(ctx, 0)
+		}
 	}
 }

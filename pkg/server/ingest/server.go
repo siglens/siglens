@@ -20,6 +20,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
 	log "github.com/sirupsen/logrus"
 
@@ -66,7 +67,16 @@ func (hs *ingestionServerCfg) Close() {
 
 func getMyIds() []uint64 {
 	myids := make([]uint64, 1)
-	myids[0] = 0
+
+	alreadyHandled := false
+	if hook := hooks.GlobalHooks.GetIdsConditionHook; hook != nil {
+		alreadyHandled = hook(myids)
+	}
+
+	if !alreadyHandled {
+		myids[0] = 0
+	}
+
 	return myids
 }
 
@@ -93,7 +103,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	hs.router.GET(server_utils.ELASTIC_PREFIX+"/", hs.Recovery(esGreetHandler()))
 	hs.router.GET(server_utils.ELASTIC_PREFIX+"/_xpack", hs.Recovery(esGreetHandler()))
 	hs.router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
-	hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(esPutIndexHandler()))
+	hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(EsPutIndexHandler()))
 
 	// Loki endpoints
 	hs.router.POST(server_utils.LOKI_PREFIX+"/api/v1/push", hs.Recovery(lokiPostBulkHandler()))
@@ -119,6 +129,11 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	if config.IsDebugMode() {
 		hs.router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}
+
+	if hook := hooks.GlobalHooks.ExtraIngestEndpointsHook; hook != nil {
+		hook(hs.router, hs.Recovery)
+	}
+
 	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
 		return err

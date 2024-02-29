@@ -42,7 +42,7 @@ func ProcessSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var httpRespScroll utils.HttpServerESResponseScroll
 	queryStart := time.Now()
 
-	queryJson := processHttpGetRequest(ctx)
+	queryJson := ProcessHttpGetRequest(ctx)
 	queryArgs := ctx.QueryArgs()
 	scrollTimeout := queryArgs.Peek("scroll")
 	getTotalHits, err := strconv.ParseBool(string(queryArgs.Peek("rest_total_hits_as_int")))
@@ -172,7 +172,7 @@ func ProcessSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func processHttpGetRequest(ctx *fasthttp.RequestCtx) []byte {
+func ProcessHttpGetRequest(ctx *fasthttp.RequestCtx) []byte {
 	var httpResp utils.HttpServerResponse
 	queryJson := ctx.PostBody()
 	if queryJson == nil {

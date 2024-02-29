@@ -30,6 +30,7 @@ import (
 	esutils "github.com/siglens/siglens/pkg/es/utils"
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/health"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/integrations/loki"
 	otsdbquery "github.com/siglens/siglens/pkg/integrations/otsdb/query"
@@ -38,6 +39,7 @@ import (
 	"github.com/siglens/siglens/pkg/sampledataset"
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
 	usq "github.com/siglens/siglens/pkg/usersavedqueries"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -237,13 +239,21 @@ func pipeSearchWebsocketHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
 
 func getClusterStatsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		health.ProcessClusterStatsHandler(ctx, 0)
+		if hook := hooks.GlobalHooks.StatsHandlerHook; hook != nil {
+			hook(ctx, 0)
+		} else {
+			health.ProcessClusterStatsHandler(ctx, 0)
+		}
 	}
 }
 
 func getClusterIngestStatsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		health.ProcessClusterIngestStatsHandler(ctx, 0)
+		if hook := hooks.GlobalHooks.IngestStatsHandlerHook; hook != nil {
+			hook(ctx)
+		} else {
+			health.ProcessClusterIngestStatsHandler(ctx)
+		}
 	}
 }
 
@@ -482,9 +492,20 @@ func getMinionSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func liveTailHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
+func liveTailHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
+			var orgId uint64
+			var err error
+			if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+				orgId, err = hook(ctx)
+				if err != nil {
+					log.Errorf("ProcessClusterIngestStatsHandler: failed to extract orgId from context. Err=%+v", err)
+					utils.SetBadMsg(ctx, "")
+					return
+				}
+			}
+
 			defer func() {
 				deadline := time.Now().Add(time.Second * 5)
 				err := conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), deadline)
@@ -502,7 +523,7 @@ func liveTailHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
 					return
 				}
 			}()
-			pipesearch.ProcessPipeSearchWebsocket(conn, myid, ctx)
+			pipesearch.ProcessPipeSearchWebsocket(conn, orgId, ctx)
 		})
 		if err != nil {
 			log.Errorf("liveTailHandler: Error upgrading websocket connection %+v", err)

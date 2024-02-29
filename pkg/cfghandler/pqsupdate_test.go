@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/siglens/siglens/pkg/config"
+	commonconfig "github.com/siglens/siglens/pkg/config/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,13 +40,13 @@ func TestExtractReadRunModConfig(t *testing.T) {
 	cases := []struct {
 		name     string
 		input    []byte
-		expected config.RunModConfig
+		expected commonconfig.RunModConfig
 		wantErr  bool
 	}{
 		{
 			name:  "Valid Enabled Config",
 			input: []byte(`{"pqsEnabled": true}`),
-			expected: config.RunModConfig{
+			expected: commonconfig.RunModConfig{
 				PQSEnabled: true,
 			},
 			wantErr: false,
@@ -53,7 +54,7 @@ func TestExtractReadRunModConfig(t *testing.T) {
 		{
 			name:  "Valid Disabled Config",
 			input: []byte(`{"pqsEnabled": false}`),
-			expected: config.RunModConfig{
+			expected: commonconfig.RunModConfig{
 				PQSEnabled: false,
 			},
 			wantErr: false,
