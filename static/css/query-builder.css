@@ -486,7 +486,7 @@ a:visited.ui-button,
     width: 0;
 }
 .ui-dialog-title{
-    font-size: 22px;
+    font-size: 18px;
 }
 .completed{
     background-image: var(--complete-bg-img);
