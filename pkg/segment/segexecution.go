@@ -204,6 +204,7 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 		}
 		nodeRes = agg.PostQueryBucketCleaning(nodeRes, aggs, nil, nil, numTotalSegments)
 	}
+
 	// truncate final results after running post aggregations
 	if uint64(len(nodeRes.AllRecords)) > qc.SizeLimit {
 		nodeRes.AllRecords = nodeRes.AllRecords[0:qc.SizeLimit]

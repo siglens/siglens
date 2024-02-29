@@ -149,6 +149,14 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 	}
 	sort.Slice(sortedBlkNums, func(i, j int) bool { return sortedBlkNums[i] < sortedBlkNums[j] })
 
+	valueColRequestPresent := false
+	var fieldsInExpr []string
+
+	if aggs != nil && aggs.OutputTransforms != nil && aggs.OutputTransforms.LetColumns != nil && aggs.OutputTransforms.LetColumns.ValueColRequest != nil {
+		valueColRequestPresent = true
+		fieldsInExpr = aggs.OutputTransforms.LetColumns.ValueColRequest.GetFields()
+	}
+
 	var addedExtraFields bool
 	for _, blockIdx := range sortedBlkNums {
 		// traverse the sorted blocknums and use it to extract the recordIdxTSMap
@@ -168,6 +176,33 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 		for r := range resultAllRawRecs {
 			resultAllRawRecs[r][config.GetTimeStampKey()] = recordIdxTSMap[r]
 			resultAllRawRecs[r]["_index"] = vTable
+
+			if valueColRequestPresent && len(fieldsInExpr) > 0 {
+				fieldToValue := make(map[string]utils.CValueEnclosure)
+
+				for _, col := range fieldsInExpr {
+					value, ok := resultAllRawRecs[r][col]
+					if !ok {
+						continue
+					}
+					dVal, err := utils.CreateDtypeEnclosure(value, qid)
+					if err != nil {
+						log.Errorf("qid=%d, failed to create dtype enclosure for field %s, err=%v", qid, col, err)
+						dVal = &utils.DtypeEnclosure{Dtype: utils.SS_DT_STRING, StringVal: fmt.Sprintf("%v", value), StringValBytes: []byte(fmt.Sprintf("%v", value))}
+						value = fmt.Sprintf("%v", value)
+					}
+
+					fieldToValue[col] = utils.CValueEnclosure{Dtype: dVal.Dtype, CVal: value}
+				}
+
+				value, err := performValueColRequestOnRawRecord(aggs.OutputTransforms.LetColumns, fieldToValue, qid)
+				if err != nil {
+					log.Errorf("qid=%d, failed to perform value col request on raw record, err=%v", qid, err)
+				} else {
+					resultAllRawRecs[r][aggs.OutputTransforms.LetColumns.NewColName] = value
+					allMatchedColumns[aggs.OutputTransforms.LetColumns.NewColName] = true
+				}
+			}
 
 			resId := fmt.Sprintf("%s_%d_%d", segKey, blockIdx, r)
 			if esQuery {
@@ -273,6 +308,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 				allMatchedColumns[col] = true
 			}
 		}
+
 		if aggs != nil && aggs.OutputTransforms != nil {
 			if aggs.OutputTransforms.OutputColumns != nil && aggs.OutputTransforms.OutputColumns.RenameColumns != nil {
 				for oldCname, newCname := range aggs.OutputTransforms.OutputColumns.RenameColumns {
@@ -290,6 +326,45 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 
 	}
 	return results
+}
+
+func performValueColRequestOnRawRecord(letColReq *structs.LetColumnsRequest, fieldToValue map[string]utils.CValueEnclosure, qid uint64) (interface{}, error) {
+	if letColReq == nil || letColReq.ValueColRequest == nil {
+		return nil, fmt.Errorf("qid=%d, invalid letColReq", qid)
+	}
+
+	switch letColReq.ValueColRequest.ValueExprMode {
+	case structs.VEMConditionExpr:
+		value, err := letColReq.ValueColRequest.ConditionExpr.EvaluateCondition(fieldToValue)
+		if err != nil {
+			log.Errorf("qid=%d, failed to evaluate condition expr, err=%v", qid, err)
+			return nil, err
+		}
+		return value, nil
+	case structs.VEMStringExpr:
+		value, err := letColReq.ValueColRequest.EvaluateValueExprAsString(fieldToValue)
+		if err != nil {
+			log.Errorf("qid=%d, failed to evaluate string expr, err=%v", qid, err)
+			return nil, err
+		}
+		return value, nil
+	case structs.VEMNumericExpr:
+		value, err := letColReq.ValueColRequest.EvaluateToFloat(fieldToValue)
+		if err != nil {
+			log.Errorf("qid=%d, failed to evaluate numeric expr, err=%v", qid, err)
+			return nil, err
+		}
+		return value, nil
+	case structs.VEMBooleanExpr:
+		value, err := letColReq.ValueColRequest.EvaluateToString(fieldToValue)
+		if err != nil {
+			log.Errorf("qid=%d, failed to evaluate boolean expr, err=%v", qid, err)
+			return nil, err
+		}
+		return value, nil
+	default:
+		return nil, fmt.Errorf("qid=%d, unknown value expr mode %v", qid, letColReq.ValueColRequest.ValueExprMode)
+	}
 }
 
 func applyColNameTransform(allCols map[string]bool, aggs *structs.QueryAggregators, qid uint64) map[string]bool {
