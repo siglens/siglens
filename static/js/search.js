@@ -803,7 +803,6 @@ limitations under the License.
     }
   }
  function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
-    console.log("processCompleteUpdate");
      let columnOrder =[]
      let totalHits = res.totalMatched.value;
      if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure ===undefined) {
