@@ -75,7 +75,15 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(event, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, err := ParseSearchBody(event, nowTs)
+	if err != nil {
+		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to parse query err=%v", qid, err)
+		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
+		if wErr != nil {
+			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! %+v", qid, wErr)
+		}
+		return
+	}
 
 	if scrollFrom > 10_000 {
 		processMaxScrollComplete(conn, qid)
