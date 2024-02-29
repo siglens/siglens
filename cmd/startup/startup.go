@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	local "github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/config"
+	commonconfig "github.com/siglens/siglens/pkg/config/common"
 	"github.com/siglens/siglens/pkg/dashboards"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
@@ -89,13 +90,23 @@ func Main() {
 		os.Exit(1)
 	}
 
-	nodeType, err := config.ValidateDeployment()
+	validateDeploymentHook := hooks.GlobalHooks.ValidateDeploymentHook
+	if validateDeploymentHook == nil {
+		validateDeploymentHook = config.ValidateDeployment
+	}
+
+	nodeType, err := validateDeploymentHook()
 	if err != nil {
 		log.Errorf("Invalid deployment type! Error=[%+v]", err)
 		os.Exit(1)
 	}
 
-	nodeID := localnodeid.GetRunningNodeID()
+	getNodeIdHook := hooks.GlobalHooks.GetNodeIdHook
+	if getNodeIdHook == nil {
+		getNodeIdHook = localnodeid.GetRunningNodeID
+	}
+
+	nodeID := getNodeIdHook()
 	err = config.InitDerivedConfig(nodeID)
 	if err != nil {
 		log.Errorf("Error initializing derived configurations! %v", err)
@@ -133,11 +144,23 @@ func Main() {
 	log.Infof("----- Siglens server type %s starting up.... ----- \n", nodeType.String())
 	log.Infof("----- Siglens server logging to %s ----- \n", logOut)
 
-	configJSON, err := json.MarshalIndent(serverCfg, "", "  ")
-	if err != nil {
-		log.Errorf("main : Error marshalling config struct %v", err.Error())
+	if hook := hooks.GlobalHooks.CheckLicenseHook; hook != nil {
+		hook()
 	}
-	log.Infof("Running config %s", string(configJSON))
+
+	if hook := hooks.GlobalHooks.LogConfigHook; hook != nil {
+		hook()
+	} else {
+		configJSON, err := json.MarshalIndent(serverCfg, "", "  ")
+		if err != nil {
+			log.Errorf("main : Error marshalling config struct %v", err.Error())
+		}
+		log.Infof("Running config %s", string(configJSON))
+	}
+
+	if hook := hooks.GlobalHooks.AfterConfigHook; hook != nil {
+		hook(baseLogDir)
+	}
 
 	err = StartSiglensServer(nodeType, nodeID)
 	if err != nil {
@@ -167,7 +190,7 @@ func Main() {
 }
 
 // Licenses should be checked outside of this function
-func StartSiglensServer(nodeType config.DeploymentType, nodeID string) error {
+func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) error {
 	err := alertsHandler.ConnectSiglensDB()
 	if err != nil {
 		log.Errorf("Failed to connect to siglens database, err: %v", err)
