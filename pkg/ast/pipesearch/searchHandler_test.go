@@ -62,7 +62,7 @@ func Test_parseSearchBody(t *testing.T) {
 	jssrc["indexName"] = 1
 	_, _, _, _, _, _, err = ParseSearchBody(jssrc, nowTs)
 	assert.EqualError(t, err, "parseSearchBody: invalid value for field indexName = 1")
-	
+
 }
 
 func Test_parseAlphaNumTime(t *testing.T) {
