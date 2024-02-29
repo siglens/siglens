@@ -1127,6 +1127,38 @@ function handleDbSettings() {
         }), null, 2))
     })
 
+    $.ajax({
+        method: "get",
+        url: "api/dashboards/defaultlistall",
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': '*/*'
+        },
+        dataType: 'json',
+        crossDomain: true,
+    }).then(function (res) {
+        for (let [key, value] of Object.entries(res)) {
+            console.log(key, value)
+            if (key == dbId ){
+                $(".dbSet-dbName").prop('readonly', true);
+                $('.dbSet-dbDescr').prop('readonly', true);
+                
+                // disable changing Db name
+                $('.dbSet-dbName').attr('data-toggle', 'tooltip');
+                $('.dbSet-dbName').attr('data-placement', 'top');
+                $('.dbSet-dbName').attr('title', 'default dashboards cannot be modified');
+                $('.dbSet-dbName').tooltip('toggle');
+
+                // disable changing Db desc
+                $('.dbSet-dbDescr').attr('data-toggle', 'tooltip');
+                $('.dbSet-dbDescr').attr('data-placement', 'top');
+                $('.dbSet-dbDescr').attr('title', 'default dashboards cannot be modified');
+                $('.dbSet-dbDescr').tooltip('toggle');
+                break
+            }
+        }
+    })
+
     //get dashboard data from database
     $.ajax({
         method: "get",
