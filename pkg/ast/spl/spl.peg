@@ -1853,12 +1853,16 @@ AggFunction <- agg:(AggCount / AggDistinctCount / AggAvg / AggMin / AggMax / Agg
     return agg, nil
 }
 
-AsField <- AS field:FieldName {
+AsField <- AS field: (FieldName / String) {
     fieldStr := field.(string)
 
     if strings.Contains(fieldStr, "*") {
         return nil, errors.New("The field specified in `AS` cannot contain wildcards")
     }
+    
+    if fieldStr[0] == '"' && fieldStr[len(fieldStr)-1] == '"' {
+		fieldStr = fieldStr[1 : len(fieldStr)-1]
+	}
 
     return fieldStr, nil
 }

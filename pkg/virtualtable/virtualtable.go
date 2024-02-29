@@ -33,8 +33,8 @@ import (
 )
 
 var vTableBaseDir string
-var vTableMappingsDir string
-var vTableTemplatesDir string
+var VTableMappingsDir string
+var VTableTemplatesDir string
 var vTableAliasesDir string
 
 const VIRTUAL_TAB_FILENAME = "/virtualtablenames"
@@ -57,8 +57,8 @@ func InitVTable() error {
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath() + "ingestnodes/" + config.GetHostID() + "/vtabledata")
 	vTableBaseDir = sb.String()
-	vTableMappingsDir = vTableBaseDir + "/mappings/"
-	vTableTemplatesDir = vTableBaseDir + "/templates/"
+	VTableMappingsDir = vTableBaseDir + "/mappings/"
+	VTableTemplatesDir = vTableBaseDir + "/templates/"
 	vTableAliasesDir = vTableBaseDir + "/aliases/"
 
 	var sb1 strings.Builder
@@ -67,7 +67,7 @@ func InitVTable() error {
 
 	vTableBaseFileName = sb1.String()
 
-	err := CreateVirtTableBaseDirs(vTableBaseDir, vTableMappingsDir, vTableTemplatesDir, vTableAliasesDir)
+	err := CreateVirtTableBaseDirs(vTableBaseDir, VTableMappingsDir, VTableTemplatesDir, vTableAliasesDir)
 	if err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func AddVirtualTableAndMapping(tname *string, mapping *string, orgid uint64) err
 
 func AddMapping(tname *string, mapping *string, orgid uint64) error {
 	var sb1 strings.Builder
-	sb1.WriteString(vTableMappingsDir)
+	sb1.WriteString(VTableMappingsDir)
 	if orgid != 0 {
 		sb1.WriteString(strconv.FormatUint(orgid, 10))
 		sb1.WriteString("/")

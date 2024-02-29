@@ -30,7 +30,11 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, _, _, _, err := pipesearch.ParseSearchBody(readJSON, nowTs)
+	if err != nil {
+		writeErrMsg(ctx, "ProcessSearchTracesRequest", err.Error(), nil)
+		return
+	}
 
 	page := 1
 	pageVal, ok := readJSON["page"]
@@ -160,7 +164,7 @@ func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchReque
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("Received empty search request body")
-		pipesearch.SetBadMsg(ctx)
+		putils.SetBadMsg(ctx, "")
 		return nil, nil, errors.New("Received empty search request body")
 	}
 
@@ -629,7 +633,7 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("ProcessGanttChartRequest: received empty search request body ")
-		pipesearch.SetBadMsg(ctx)
+		putils.SetBadMsg(ctx, "")
 		return
 	}
 
