@@ -24,6 +24,7 @@ type Hooks struct {
 	GetNodeIdHook          func() string
 	ExtractConfigHook      func(yamlData []byte) (commonconfig.Configuration, error)
 	LogConfigHook          func()
+	StartSiglensExtrasHook func(nodeID string) error
 
 	// Cluster health
 	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx)
