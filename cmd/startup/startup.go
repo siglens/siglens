@@ -191,6 +191,17 @@ func Main() {
 
 // Licenses should be checked outside of this function
 func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) error {
+	if nodeID == "" {
+		return fmt.Errorf("nodeID cannot be empty")
+	}
+
+	if hook := hooks.GlobalHooks.StartSiglensExtrasHook; hook != nil {
+		err := hook(nodeID)
+		if err != nil {
+			return err
+		}
+	}
+
 	err := alertsHandler.ConnectSiglensDB()
 	if err != nil {
 		log.Errorf("Failed to connect to siglens database, err: %v", err)
@@ -199,9 +210,6 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	}
 
 	limit.InitMemoryLimiter()
-	if nodeID == "" {
-		return fmt.Errorf("nodeID cannot be empty")
-	}
 
 	usageStats.StartUsageStats()
 	ingestNode := config.IsIngestNode()
