@@ -181,10 +181,11 @@ type GroupByRequest struct {
 }
 
 type MeasureAggregator struct {
-	MeasureCol      string                   `json:"measureCol,omitempty"`
-	MeasureFunc     utils.AggregateFunctions `json:"measureFunc,omitempty"`
-	StrEnc          string                   `json:"strEnc,omitempty"`
-	ValueColRequest *ValueExpr               `json:"valueColRequest,omitempty"`
+	MeasureCol         string                   `json:"measureCol,omitempty"`
+	MeasureFunc        utils.AggregateFunctions `json:"measureFunc,omitempty"`
+	StrEnc             string                   `json:"strEnc,omitempty"`
+	ValueColRequest    *ValueExpr               `json:"valueColRequest,omitempty"`
+	OverrodeMeasureAgg *MeasureAggregator       `json:"overrideFunc,omitempty"`
 }
 
 type MathEvaluator struct {

@@ -175,6 +175,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 						if len(resultRecMap) > 0 {
 							boolVal, exists := resultRecMap["CHECK_NEXT_AGG"]
 							if exists && boolVal {
+								// Reset the flag to false and update aggs with NextQueryAgg to loop for additional cleaning.
 								nodeRes.PerformAggsOnRecs = false
 								aggs = nodeRes.NextQueryAgg
 							} else {
