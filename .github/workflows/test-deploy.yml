@@ -1,0 +1,54 @@
+name: test-deploy-using k3s-helm
+on:
+  push:
+    branches:
+      - 'test_with_helm'
+jobs:
+#   siglens-docker:
+# upload assets
+    e2e-k3s:
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Checkout code
+                uses: actions/checkout@v4
+
+            -   name: Setup golang
+                uses: actions/setup-go@v4
+                with:
+                    go-version: "1.21"
+            -   name: Create a k3s cluster
+                uses: AbsaOSS/k3d-action@v2
+                with:
+                    cluster-name: "siglens"
+                    args: >-
+                        -p "8081:8081@agent:0:direct"
+                        -p "5122:5122@agent:0:direct"
+                        -p "2222:2222@agent:0:direct"
+                        --agents 1
+                        --k3s-arg "--no-deploy=traefik,servicelb,metrics-server@server:*"
+
+            -   name: Deploy the app
+                run: |
+                    helm repo add siglens https://siglens.github.io/charts
+                    # create platform namespace
+                    kubectl create ns platform
+
+                    # installing using helm
+                    helm install siglens siglens/siglens -n platform \
+                    --wait \
+                    --timeout 10m0s
+                    # get pods, services and the container images
+                    kubectl get pods -n platform
+                    kubectl get svc -n platform
+
+            -   name: Start tunnel
+                env:
+                    COMMIT_SHA: pr-${{ steps.short-sha.outputs.sha }}
+                run: |
+                    npm install -g localtunnel
+                    host=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f4)
+                    port=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f5 | cut -d":" -f1)
+                    lt -p $port -l $host -s $COMMIT_SHA
+                            
+            
+            
