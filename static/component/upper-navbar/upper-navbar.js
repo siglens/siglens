@@ -47,7 +47,7 @@
             </div>
         `;
 
-        this.append(htmlBlock);
+        this.prepend(htmlBlock);
         this.orgNavTabs();
     };
 })(jQuery);

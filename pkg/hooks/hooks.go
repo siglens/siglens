@@ -84,7 +84,6 @@ type HtmlSnippets struct {
 	OrgSettingsOrgName         string
 	OrgSettingsRetentionPeriod string
 	OrgSettingsExtras          string
-	OrgSettingsExtraImports    string
 
 	Constants map[string]interface{}
 }
@@ -98,12 +97,16 @@ type JsSnippets struct {
 	ClusterStatsCallDisplayRows string
 
 	CommonExtraFunctions string
+	Button1Function      string
 
 	SettingsExtraOnReadySetup      string
 	SettingsRetentionDataThenBlock string
 	SettingsExtraFunctions         string
 
 	TestDataSendData string
+
+	OrgUpperNavTabs string
+	OrgUpperNavUrls string
 }
 
 var GlobalHooks = Hooks{
