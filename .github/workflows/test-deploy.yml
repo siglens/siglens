@@ -20,12 +20,12 @@ jobs:
                 uses: AbsaOSS/k3d-action@v2
                 with:
                     cluster-name: "siglens"
-                    args: >-
-                        -p "8081:8081@agent:0:direct"
-                        -p "5122:5122@agent:0:direct"
-                        -p "2222:2222@agent:0:direct"
-                        --agents 1
-                        --k3s-arg "--no-deploy=traefik,servicelb,metrics-server@server:*"
+                    # args: >-
+                    #     -p "8081:8081@agent:0:direct"
+                    #     -p "5122:5122@agent:0:direct"
+                    #     -p "2222:2222@agent:0:direct"
+                    #     --agents 1
+                    #     --k3s-arg "--no-deploy=traefik,servicelb,metrics-server@server:*"
 
             -   name: Deploy the app
                 run: |
@@ -37,18 +37,28 @@ jobs:
                     helm install siglens siglens/siglens -n platform \
                     --wait \
                     --timeout 10m0s
+                    --set siglens-query-svc.service.type=LoadBalancer 
                     # get pods, services and the container images
                     kubectl get pods -n platform
                     kubectl get svc -n platform
 
+            -   name: Get short commit SHA, display tunnel URL and IP Address of the worker node
+                id: get-subdomain
+                run: |
+                    subdomain="siglens-latest"
+                    echo "URL for tunnelling: https://$subdomain.loca.lt"
+                    echo "subdomain=$subdomain" >> $GITHUB_OUTPUT
+                    worker_ip="$(curl -4 -s ipconfig.io/ip)"
+                    echo "Worker node IP address: $worker_ip"
+            
             -   name: Start tunnel
                 env:
-                    COMMIT_SHA: latest
+                    SUBDOMAIN: ${{ steps.get-subdomain.outputs.subdomain }}
                 run: |
                     npm install -g localtunnel
-                    host=$(kubectl get svc -n platform | grep siglens1-query-svc | tr -s ' ' | cut -d" " -f4)
+                    host=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f4)
                     port=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f5 | cut -d":" -f1)
-                    lt -p 5122 -l localhost -s $COMMIT_SHA
+                    lt -p $port -l $host -s $SUBDOMAIN
                             
             
             
