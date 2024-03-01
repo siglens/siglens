@@ -295,10 +295,17 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 	measureInfo, internalMops := blockRes.GetConvertedMeasureInfo()
 
+	avgIndex := -1
+	avgMeasureAggStrEnc := ""
+
 	if nodeResult.GroupByRequest != nil && nodeResult.GroupByRequest.MeasureOperations != nil {
-		for _, mOp := range nodeResult.GroupByRequest.MeasureOperations {
+		for idx, mOp := range nodeResult.GroupByRequest.MeasureOperations {
 			if mOp.MeasureFunc == utils.Count {
 				internalMops = append(internalMops, mOp)
+			}
+			if mOp.MeasureFunc == utils.Avg {
+				avgIndex = idx
+				avgMeasureAggStrEnc = mOp.String()
 			}
 		}
 
@@ -412,7 +419,18 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 			if mOp.MeasureFunc == utils.Count {
 				recs[recInden][mOp.String()] = bucketCount
 			} else {
-				recs[recInden][mOp.String()] = bucketValues[i].CVal
+				if avgIndex > -1 && avgIndex == i {
+					floatVal, err := dtu.ConvertToFloat(bucketValues[i].CVal, 64)
+					if err != nil {
+						log.Errorf("PerformGroupByRequestAggsOnRecs: failed to convert to float: %v", err)
+						continue
+					}
+					recs[recInden][avgMeasureAggStrEnc] = (floatVal / float64(bucketCount))
+					finalCols[avgMeasureAggStrEnc] = true
+					delete(finalCols, mOp.String())
+				} else {
+					recs[recInden][mOp.String()] = bucketValues[i].CVal
+				}
 			}
 		}
 	}
