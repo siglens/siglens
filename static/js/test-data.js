@@ -43,7 +43,6 @@ $(document).ready(function () {
             console.log(err)
         });
 
-    $('#logout-btn').on('click', deleteCookie);
     $('.role-inner-dropdown').on('click', dropdown);
 
     $("ul").on("click", "li", function (e) {
