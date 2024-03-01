@@ -84,7 +84,6 @@ type HtmlSnippets struct {
 	OrgSettingsOrgName         string
 	OrgSettingsRetentionPeriod string
 	OrgSettingsExtras          string
-	OrgSettingsExtraImports    string
 
 	Constants map[string]interface{}
 }
