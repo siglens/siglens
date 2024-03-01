@@ -37,12 +37,12 @@ jobs:
                     helm install siglens siglens/siglens -n platform \
                     --wait \
                     --timeout 10m0s
-                    --set siglens-query-svc.service.type=LoadBalancer 
+                    --set query.service.type=LoadBalancer 
                     # get pods, services and the container images
                     kubectl get pods -n platform
                     kubectl get svc -n platform
 
-            -   name: Get short commit SHA, display tunnel URL and IP Address of the worker node
+            -   name: Display tunnel URL and IP Address of the worker node
                 id: get-subdomain
                 run: |
                     subdomain="siglens-latest"
