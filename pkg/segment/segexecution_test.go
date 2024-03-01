@@ -46,15 +46,10 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
-
-func extractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*structs.SegmentSearchRequest {
-	ssr := make(map[string]*structs.SegmentSearchRequest)
-
-	return ssr
-}
 
 func simpleQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
 	value1, _ := CreateDtypeEnclosure("value1", 0)
@@ -1480,7 +1475,7 @@ func Test_Query(t *testing.T) {
 	limit.InitMemoryLimiter()
 	instrumentation.InitMetrics()
 
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		log.Fatalf("Failed to initialize query node: %v", err)
 	}
@@ -1512,7 +1507,7 @@ func Test_Scroll(t *testing.T) {
 	limit.InitMemoryLimiter()
 	_ = localstorage.InitLocalStorage()
 
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		log.Fatalf("Failed to initialize query node: %v", err)
 	}
@@ -1529,7 +1524,7 @@ func Test_unrotatedQuery(t *testing.T) {
 	config.InitializeTestingConfig()
 	config.SetDataPath("unrotatedtest/")
 	limit.InitMemoryLimiter()
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	assert.Nil(t, err)
 	writer.InitWriterNode()
 	_ = localstorage.InitLocalStorage()
