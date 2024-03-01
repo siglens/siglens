@@ -8,12 +8,32 @@
     --fw-500: 500;
     --fw-900: 900;
 
+    /* Lavender Theme */
     --lavender-1: #B4A6E6;
     --lavender-2: #826CE1;
+    --lavender-3: #6E58CC;
+    --lavender-4: #5A44B7;
+    --lavender-5: #462FA2;
+    --lavender-6: #321B8D;
+    --lavender-7: #1E0778;
+
+    /* Orange Theme */
     --orange-1: #F2A52B;
+    --orange-2: #E49124;
+    --orange-3: #D07D1D;
+    --orange-4: #BD6916;
+    --orange-5: #AB5510;
+    --orange-6: #99310A;
+    --orange-7: #870D03;
+
+    /* Purple Theme */
     --purple-1: #6347D9;
     --purple-2: #6449D6;
     --purple-3: #8270DC;
+    --purple-4: #8A79E0;
+    --purple-5: #9382E3;
+    --purple-6: #9B8BE7;
+    --purple-7: #A494EB;
 
     --purple-15p: rgba(99, 71, 217, 0.15);
 
