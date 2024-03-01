@@ -37,7 +37,7 @@ jobs:
                     helm install siglens siglens/siglens -n platform \
                     --wait \
                     --timeout 10m0s \
-                    --set query.service.serviceType=LoadBalancer 
+                    --set siglens.query.service.serviceType=LoadBalancer 
                     # get pods, services and the container images
                     kubectl get pods -n platform
                     kubectl get svc -n platform
