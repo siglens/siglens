@@ -48,7 +48,6 @@ function getRetentionDataFromConfig() {
 }
 
 function getPersistentQueriesSetting(){
-    console.log("getPersistentQueriesSetting");
     $.ajax({
         method: "GET",
         url: "/api/pqs/get",
@@ -68,7 +67,6 @@ function getPersistentQueriesSetting(){
     });
 }
 function updatePersistentQueriesSetting(pqsEnabled) {
-    console.log("function updatePersistentQueriesSetting");
     $.ajax({
         method: "POST",
         url: "/api/pqs/update",
