@@ -90,7 +90,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	for agg := post; agg != nil; agg = agg.Next {
 		err := performAggOnResult(nodeResult, agg, recs, finalCols, numTotalSegments)
 
-		if nodeResult.PerformAggsOnRecs {
+		if nodeResult.PerformAggsOnRecs && len(recs) > 0 {
 			nodeResult.NextQueryAgg = agg
 			return nodeResult
 		}
