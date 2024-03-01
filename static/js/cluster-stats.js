@@ -35,6 +35,7 @@ $(document).ready(() => {
     let data = getTimeRange();
     renderClusterStatsTables();
     renderChart();
+    {{ .Button1Function }}
     {{ .ClusterStatsExtraSetup }}
     if (Cookies.get('theme')) {
         theme = Cookies.get('theme');

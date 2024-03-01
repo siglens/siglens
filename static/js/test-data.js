@@ -50,6 +50,7 @@ $(document).ready(function () {
         selectedTestData = $(this).attr('id');
         $('.dropdown-option').toggleClass('active');
     });
+    {{ .Button1Function }}
 })
 
 function dropdown() {

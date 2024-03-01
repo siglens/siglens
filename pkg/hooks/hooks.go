@@ -98,6 +98,7 @@ type JsSnippets struct {
 	ClusterStatsCallDisplayRows string
 
 	CommonExtraFunctions string
+	Button1Function string
 
 	SettingsExtraOnReadySetup      string
 	SettingsRetentionDataThenBlock string

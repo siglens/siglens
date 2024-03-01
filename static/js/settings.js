@@ -23,6 +23,7 @@ $(document).ready(function () {
     getRetentionDataFromConfig();
     getPersistentQueriesSetting();
     {{ .SettingsExtraOnReadySetup }}
+    {{ .Button1Function }}
 });
 
 function getRetentionDataFromConfig() {
