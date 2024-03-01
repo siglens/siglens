@@ -136,9 +136,6 @@ function hideError() {
     $('#corner-popup').hide();
 }
 
-function deleteCookie() {
-}
-
 function decodeJwt(token) {
     let base64Payload = token.split(".")[1];
     let payload = decodeURIComponent(
