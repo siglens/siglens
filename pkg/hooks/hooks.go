@@ -104,6 +104,9 @@ type JsSnippets struct {
 	SettingsExtraFunctions         string
 
 	TestDataSendData string
+
+	OrgUpperNavTabs string
+	OrgUpperNavUrls string
 }
 
 var GlobalHooks = Hooks{
