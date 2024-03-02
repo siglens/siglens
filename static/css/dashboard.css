@@ -1397,3 +1397,24 @@ input:checked + .slider:before {
   max-width: 150px;
   vertical-align: bottom;
 }
+.legend-visibility-toggle-container {
+  height: 32px;
+  width: 350px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-color-regular);
+}
+.legend-visibility-toggle-container {
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+.label-legend-visibility {
+  padding-right: 180px;
+  justify-content: space-between;
+  font-size: 14px;
+}
+.legend-options.selected {
+  background-color:var(--btn-regular-bg-color) !important;
+  color:white !important;
+} 
+  

@@ -16,7 +16,67 @@ limitations under the License.
 
 var lineChart;
 var pieOptions, barOptions;
+function showLegendOptions(selectedChartIndex) {
+    const isLegendVisible = [0, 1, 2].includes(selectedChartIndex);
+    $('.legend-options').toggle(isLegendVisible);
+    if (isLegendVisible) {
+        $('#legendPlacementDropdown').show();
+    } else {
+        $('#legendPlacementDropdown').hide();
+    }
+}
+const initialSelectedChartIndex = 1;
+showLegendOptions(initialSelectedChartIndex);
+$('.chart-options').on('click', function() {
+    const selectedChartIndex = $(this).data('index');
+    showLegendOptions(selectedChartIndex);
+});
 
+let legendPlacement = 'left';
+let isLegendVisible = true;
+
+// Handle legend visibility toggle switch change
+$('#toggle-switch1').on('change', function () {
+    isLegendVisible = this.checked;
+	$('.legendPlacementContainer').toggle(isLegendVisible);
+	saveDashboardLegendSettings();
+   const legendVisibilityChangeEvent = new Event('legendVisibilityChange');
+    document.dispatchEvent(legendVisibilityChangeEvent);
+});
+
+$('#legendPlacementDropdown .legend-options').on('click', function () {
+    legendPlacement = $(this).data('value');
+    $('#legendPlacementDropdown .legend-options').removeClass('selected');
+    $(this).addClass('selected');
+    $('.legendPlacementContainer .placement-options').hide();
+	saveDashboardLegendSettings();
+    const legendChangeEvent = new Event('legendChange');
+    document.dispatchEvent(legendChangeEvent);
+});
+function saveDashboardLegendSettings() {
+    localPanels.forEach(panel => {
+        panel.legendPlacement = legendPlacement;
+        panel.isLegendVisible = isLegendVisible;
+    });
+    updateDashboard()
+        .then(updateSuccessful => {
+            if (updateSuccessful) {
+                console.log('Legend settings saved successfully.');
+            } else {
+                console.error('Failed to save legend settings.');
+            }
+        });
+}
+
+$('.legendPlacementContainer').on('click', function (event) {
+    event.stopPropagation();
+    $('.legendPlacementContainer .placement-options').toggle();
+});
+
+// Hide the Legends Placement dropdown when the document is clicked
+$(document).on('click', function () {
+    $('.legendPlacementContainer .placement-options').hide();
+});
 function loadBarOptions(xAxisData, yAxisData) {
 	// colors for dark & light modes
 	let root = document.querySelector(':root');
@@ -25,7 +85,6 @@ function loadBarOptions(xAxisData, yAxisData) {
 	let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
 	let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
 	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1')
-
 	barOptions = {
 		xAxis: {
 			type: 'category',
@@ -118,7 +177,7 @@ function loadPieOptions(xAxisData, yAxisData) {
 	let root = document.querySelector(':root');
 	let rootStyles = getComputedStyle(root);
 	let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
-	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1')
+	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
 
 	pieOptions = {
 		xAxis: {
@@ -129,21 +188,22 @@ function loadPieOptions(xAxisData, yAxisData) {
 			formatter: "{a} <br/>{b} : {c} ({d}%)"
 		},
 		legend: {
-			orient: 'vertical',
-			left: 'left',
-			data: xAxisData,
-			textStyle: {
-				color: labelDarkThemeColor,
-				borderColor: labelDarkThemeColor,
-
-			},
-		},
+            orient: legendPlacement === 'right' ? 'vertical' :(legendPlacement === 'left' ? 'vertical' : 'horizontal'),
+            left: legendPlacement === 'right' ? 'right' : (legendPlacement === 'left' ? 'left' : 'center'),
+            top: legendPlacement === 'bottom' ? 'bottom' : 'center',
+            data: xAxisData,
+            textStyle: {
+                color: labelDarkThemeColor,
+                borderColor: labelDarkThemeColor,
+            },
+			show: isLegendVisible, 
+        },
 		series: [
 			{
 				name: 'Pie Chart',
 				type: 'pie',
 				radius: '55%',
-				center: ['50%', '60%'],
+				center: ['50%', '50%'],
 				data: pieDataMapList,
 				itemStyle: {
 					emphasis: {
@@ -153,8 +213,8 @@ function loadPieOptions(xAxisData, yAxisData) {
 					}
 				},
 				label: {
-					color: labelDarkThemeColor,
-				}
+                    color: labelDarkThemeColor,
+                }
 			}
 		]
 	}
