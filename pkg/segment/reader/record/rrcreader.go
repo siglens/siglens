@@ -47,9 +47,7 @@ func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
 	}
 
 	// If not exists, create a new instance and add it to the map
-	nr := &structs.NodeResult{
-		RecsAggsType: make([]structs.PipeCommandType, 0),
-	}
+	nr := &structs.NodeResult{}
 	nodeResMap[qid] = nr
 
 	return nr
@@ -119,14 +117,12 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	finalCols := make(map[string]bool)
 	numProcessedRecords := 0
 
-	var validRecIndens map[string]bool
-	checkValidRecs := false
+	var resultRecMap map[string]bool
 
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
 	recsAggRecords := make([]map[string]interface{}, 0)
 	var numTotalSegments uint64
-	var returnSegmentStats bool
 
 	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock || transactionArgsExist {
 		for currSeg, blkIds := range segmap {
@@ -157,28 +153,48 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					// we shouldn't get to this block for async queries.
 					numTotalSegments = uint64(len(segmap))
 				}
-				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols, numTotalSegments)
 
-				if nodeRes.PerformAggsOnRecs {
-					validRecIndens = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, qid)
-					if len(validRecIndens) > 0 {
-						boolVal, exists := validRecIndens["SEGMENT_STATS"]
-						if exists && boolVal {
-							returnSegmentStats = true
+				/**
+				* Overview of Aggregation Processing:
+				* 1. Initiate the process by executing PostQueryBucketCleaning to prepare records for aggregation.
+				* 2. Evaluate the PerformAggsOnRecs flag post-cleanup:
+				*    - True: Indicates not all aggregations were processed. In this case:
+				*       a. Perform aggregations on records using performAggsOnRecs. This function requires all the segments to be processed before proceeding to the next step.
+				*       b. Evaluate the CheckNextAgg flag from the result:
+				*          i. If true, reset PerformAggsOnRecs to false, update aggs with NextQueryAgg, and loop for additional cleaning.
+				*          ii. If false or if resultRecMap is empty, it implies additional segments may require processing; exit the loop for further segment evaluation.
+				*    - False: All aggregations for the current segment have been processed; exit the loop to either process the next segment or return the final results.
+				* 3. The loop facilitates sequential data processing, ensuring each or all the segments are thoroughly processed before proceeding to the next,
+				*    adapting dynamically based on the flags set by the PostQueryBucketCleaning and PerformAggsOnRecs functions.
+				 */
+				for {
+					agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols, numTotalSegments)
+
+					if nodeRes.PerformAggsOnRecs {
+						resultRecMap = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, qid)
+						if len(resultRecMap) > 0 {
+							boolVal, exists := resultRecMap["CHECK_NEXT_AGG"]
+							if exists && boolVal {
+								// Reset the flag to false and update aggs with NextQueryAgg to loop for additional cleaning.
+								nodeRes.PerformAggsOnRecs = false
+								aggs = nodeRes.NextQueryAgg
+							} else {
+								break
+							}
 						} else {
-							checkValidRecs = true
+							// Not checking or processing Next Agg. This implies that there might be more segments to process.
+							// Break out of the loop and continue processing the next segment.
+							break
 						}
+					} else {
+						// No need to perform aggs on recs. All the Aggs are Processed.
+						break
 					}
 				}
 			}
 
 			numProcessedRecords += len(recs)
 			for recInden, record := range recs {
-				if checkValidRecs {
-					if _, ok := validRecIndens[recInden]; !ok {
-						continue
-					}
-				}
 				for key, val := range renameHardcodedColumns {
 					record[key] = val
 				}
@@ -236,7 +252,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					allRecords[idx] = record
 				}
 
-				if transactionArgsExist || checkValidRecs {
+				if transactionArgsExist {
 					recsAggRecords = append(recsAggRecords, record)
 				}
 			}
@@ -266,17 +282,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	// Some commands (like dedup) can remove records from the final result, so
 	// remove the blank records from allRecords to get finalRecords.
 	var finalRecords []map[string]interface{}
-	if transactionArgsExist || checkValidRecs {
+	if transactionArgsExist {
 		finalRecords = recsAggRecords
-	} else if returnSegmentStats {
-		finalSegmentRecord := make(map[string]interface{}, 0)
-
-		for key, value := range nodeRes.RecsRunningEvalStats {
-			finalSegmentRecord[key] = value.CVal
-		}
-
-		finalRecords = append(finalRecords, finalSegmentRecord)
-
 	} else if numProcessedRecords == len(allrrc) {
 		finalRecords = allRecords
 	} else {

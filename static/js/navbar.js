@@ -81,6 +81,7 @@ let navbarComponent = `
 
 let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
+    {{ .OrgUpperNavTabs}}
     { name: 'Settings', url: './org-settings.html', class : 'org-settings'},
     { name: 'Test Data', url: './test-data.html', class : 'test-data' },
     { name: 'Version', url: './application-version.html', class: 'application-version'}
@@ -124,7 +125,7 @@ $(document).ready(function () {
     } else if (currentUrl.includes("alerts.html") || currentUrl.includes("alert.html") || currentUrl.includes("alert-details.html")   || currentUrl.includes("contacts.html")){
         $(".nav-alerts").addClass("active");
         $('.alerts-nav-tab').appendOrgNavTabs("Alerting", alertsUpperNavTabs);
-    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("test-data.html") || currentUrl.includes("application-version.html")) {
+    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("test-data.html") || currentUrl.includes("application-version.html") {{ .OrgUpperNavUrls}} ) {
         $(".nav-myorg").addClass("active");
         $('.org-nav-tab').appendOrgNavTabs("My Org", orgUpperNavTabs);
     } else if (currentUrl.includes("minion-searches.html")) {

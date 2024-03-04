@@ -1486,7 +1486,9 @@ progress.hidden {
 .index-data-table tbody tr:last-child td:last-child {
     border-radius: 0 0 10px 0 !important;
 }
-
+div.dts div.dataTables_scrollBody table {
+    z-index: 0 !important;
+}
 
 
 .dataTables_wrapper.no-footer .index-data-table {

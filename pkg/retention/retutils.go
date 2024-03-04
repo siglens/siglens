@@ -24,7 +24,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 )
 
-func isDirEmpty(name string) bool {
+func IsDirEmpty(name string) bool {
 	f, err := os.Open(name)
 	if err != nil {
 		return false
@@ -38,13 +38,13 @@ func isDirEmpty(name string) bool {
 	return err == io.EOF
 }
 
-func recursivelyDeleteParentDirectories(filePath string) {
+func RecursivelyDeleteParentDirectories(filePath string) {
 	temp := path.Dir(filePath)
 	for {
 		if temp == config.GetDataPath() {
 			break
 		}
-		if isDirEmpty(temp) {
+		if IsDirEmpty(temp) {
 			os.RemoveAll(temp)
 		} else {
 			break

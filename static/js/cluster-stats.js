@@ -35,15 +35,12 @@ $(document).ready(() => {
     let data = getTimeRange();
     renderClusterStatsTables();
     renderChart();
-    {{ .ClusterStatsExtraSetup }}
     if (Cookies.get('theme')) {
         theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
     }
-
+    {{ .Button1Function }}
 });
-
-{{ .ClusterStatsExtraFunctions }}
 
 function iStatsDatePickerHandler(evt) {
     evt.preventDefault();
@@ -580,12 +577,11 @@ function processClusterStats(res) {
 
 }
 
-function processStats(res){
-    drawTotalStatsChart(res);
-    processClusterStats(res);
-}
+
 
 function renderClusterStatsTables() {
+    {{ .ClusterStatsSetUserRole }}
+    {{ .ClusterStatsExtraFunctions }}
     $.ajax({
         method: 'get',
         url: 'api/clusterStats',
@@ -598,7 +594,9 @@ function renderClusterStatsTables() {
     }).then(function (res) {
         $('#empty-response').empty();
         $('#empty-response').hide();
-        processStats(res);
+        drawTotalStatsChart(res);
+        {{ .ClusterStatsExtraSetup }}
+            processClusterStats(res);
         $('#app-content-area').show();
     }).catch(showCStatsError);
 }

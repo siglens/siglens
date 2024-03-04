@@ -722,10 +722,11 @@ runtime_arch=$(uname -m)
 
 check_ports() {
     PORT=$1
+    IMAGE=$2
     if lsof -Pi :$PORT -sTCP:LISTEN -t > /dev/null || $CONTAINER_TOOL ps --format "{{.Ports}}" | grep -q "0.0.0.0:${PORT}->"; then
-        CONTAINER_ID=$($CONTAINER_TOOL ps --format "{{.ID}}:{{.Image}}:{{.Ports}}" | grep "siglens/siglens.*0.0.0.0:${PORT}" | cut -d ":" -f 1 2>/dev/null)
+        CONTAINER_ID=$($CONTAINER_TOOL ps --format "{{.ID}}:{{.Image}}:{{.Ports}}" | grep "${IMAGE}.*0.0.0.0:${PORT}" | cut -d ":" -f 1 2>/dev/null)
         if [ -n "$CONTAINER_ID" ]; then
-            $CONTAINER_TOOL stop $CONTAINER_ID
+            $CONTAINER_TOOL stop $CONTAINER_ID > /dev/null 2>&1
             if lsof -Pi :$PORT -sTCP:LISTEN -t > /dev/null || $CONTAINER_TOOL ps --format "{{.Ports}}" | grep -q "0.0.0.0:${PORT}->"; then
                 post_event "install_failed" "Port ${PORT} is already in use after attempting to stop our ${CONTAINER_TOOL} container"
                 print_error_and_exit "\nError: Port ${PORT} is already in use."
@@ -738,8 +739,11 @@ check_ports() {
     print_success_message "Port ${PORT} is available"
 }
 
-check_ports 5122
-check_ports 8081
+check_ports 5122 "siglens/siglens"
+check_ports 8081 "siglens/siglens"
+check_ports 8080 "jaegertracing/example-hotrod"
+check_ports 2222 "otel/opentelemetry-collector"
+check_ports 4318 "otel/opentelemetry-collector"
 
 send_events() {
     curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz
@@ -747,7 +751,7 @@ send_events() {
         post_event "install_failed" "send_events: Failed to download sample log dataset from https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz"
         print_error_and_exit "Failed to download sample log dataset"
     fi
-    tar -xvf 2kevents.json.tar.gz || {
+    tar -xvf 2kevents.json.tar.gz --warning=no-unknown-keyword || {
         post_event "install_failed" "send_events: Failed to extract 2kevents.json.tar.gz"
         print_error_and_exit "Failed to extract 2kevents.json.tar.gz"
     }
