@@ -59,12 +59,15 @@ type Hooks struct {
 	GetFileSizeExtrasHook               func(filename string) (bool, uint64)
 	DoesMetaFileExistExtrasHook         func(filename string) (bool, bool, error)
 
+	// Server helpers
+	GetOrgIdHook              func(ctx *fasthttp.RequestCtx) (uint64, error)
+	ExtractKibanaRequestsHook func(kibanaIndices []string, qid uint64) map[string]interface{}
+
 	// Ingest server
-	IngestMiddlewareRecoveryHook    func(ctx *fasthttp.RequestCtx) error
-	KibanaIngestHandlerHook         func(ctx *fasthttp.RequestCtx)
-	LokiPostBulkHandlerInternalHook func(ctx *fasthttp.RequestCtx)
-	GetIdsConditionHook             func(ids []uint64) bool
-	ExtraIngestEndpointsHook        func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
+	IngestMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
+	KibanaIngestHandlerHook      func(ctx *fasthttp.RequestCtx)
+	GetIdsConditionHook          func(ids []uint64) bool
+	ExtraIngestEndpointsHook     func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
 
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error

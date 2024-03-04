@@ -34,6 +34,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -414,7 +415,7 @@ func Test_segQueryFilter(t *testing.T) {
 	_ = localstorage.InitLocalStorage()
 	config.InitializeTestingConfig()
 	limit.InitMemoryLimiter()
-	err := InitQueryNode(getMyIds, extractKibanaRequests)
+	err := InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		t.Fatalf("Failed to initialize query node: %v", err)
 	}
