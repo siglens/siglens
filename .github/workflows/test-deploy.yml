@@ -4,9 +4,8 @@ on:
     branches:
       - 'test_with_helm'
 jobs:
-#   siglens-docker:
-# upload assets
-    e2e-k3s:
+    deploy-using-k3s-helm:
+        timeout-minutes: 30
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout code
@@ -20,13 +19,6 @@ jobs:
                 uses: AbsaOSS/k3d-action@v2
                 with:
                     cluster-name: "siglens"
-                    # args: >-
-                    #     -p "8081:8081@agent:0:direct"
-                    #     -p "5122:5122@agent:0:direct"
-                    #     -p "2222:2222@agent:0:direct"
-                    #     --agents 1
-                    #     --k3s-arg "--no-deploy=traefik,servicelb,metrics-server@server:*"
-
             -   name: Deploy the app
                 run: |
                     helm repo add siglens https://siglens.github.io/charts
@@ -59,6 +51,3 @@ jobs:
                     host=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f4)
                     port=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f5 | cut -d":" -f1)
                     lt -p $port -l $host -s $SUBDOMAIN
-                            
-            
-            
