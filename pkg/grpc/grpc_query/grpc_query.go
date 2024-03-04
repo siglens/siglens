@@ -17,9 +17,9 @@ limitations under the License.
 package grpc_query
 
 // A single request for a segment key
-type SegkeyRequest struct {
-	SegmentKey   string
-	TableName    string
-	StartEpochMs uint64
-	EndEpochMs   uint64
+type SegkeyRequest interface {
+	GetSegmentKey() string
+	GetTableName() string
+	GetStartEpochMs() uint64
+	GetEndEpochMs() uint64
 }

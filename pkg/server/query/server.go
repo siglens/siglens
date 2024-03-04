@@ -28,7 +28,6 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/segment/structs"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -85,15 +84,9 @@ func getMyIds() []uint64 {
 	return myids
 }
 
-func extractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*structs.SegmentSearchRequest {
-	ssr := make(map[string]*structs.SegmentSearchRequest)
-
-	return ssr
-}
-
 func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) error {
 	query.InitQueryMetrics()
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+	err := query.InitQueryNode(getMyIds, server_utils.ExtractKibanaRequests)
 	if err != nil {
 		log.Errorf("Failed to initialize query node: %v", err)
 		return err
