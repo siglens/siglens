@@ -1833,12 +1833,13 @@ div.dts div.dataTables_scrollBody table {
 
 #delOrgUserBtn, .index-del-btn {
     background-image: url(../assets/dark-delete-icon-regular.svg);
-    height: 20px;
-    width: 18px;
+    height: 16px;
+    width: 15px;
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
     margin-left: 15px;
+    background-size: contain;
 }
 
 #viewbutton {
@@ -1967,7 +1968,7 @@ div.dts div.dataTables_scrollBody table {
 }
 
 .prompt-text-container {
-    margin-bottom: 30px;
+    margin-bottom: 16px;
 }
 
 #buttons-db-prompt {
@@ -3129,12 +3130,11 @@ float: right;
 .dbSet-textareaContainer .copy{
     background-image: url(../assets/copy-icon.svg);
     background-size: contain;
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     position: absolute;
-    right: calc(20% + 10px);
-    top: 10px;
-    cursor: pointer;
+    right: calc(20% + 20px);
+    top: 20px;
 }
 
 [data-theme='dark'] .dbSet-textareaContainer .copy{
@@ -3392,47 +3392,47 @@ float: right;
 .myOrg-container {
     display: flex;
     flex-direction: column;
+    height: 100%;
 }
 
 .myOrg-inner-container {
     font-size: 14px;
     padding: 20px;
     padding-top: 0px;
+    height: 100%;
 }
 
 .copy-link-container {
     display: flex;
-    height: 45px;
+    height: 32px;
     align-items: center;
-    margin-top: 6px;
 }
 
 .myOrgFormInput {
     flex-grow: 3;
     width: 694px;
-    height: 44px;
-    margin-right: 18px;
+    height: 32px;
+    margin-right: 6px;
     border: none;
     background: var(--myOrg-input);
-    font-size: 18px;
+    font-size: 14px;
     border-radius: 5px;
-    padding: 12px;
     color: var(--timepicker-text-color);
 }
 
 .copy-button {
     background-size: cover;
-    height: 39px;
+    height: 32px;
     background-color: var(--myOrg-input);
     border-radius: 5px;
     color:  var(--timepicker-text-color);
-    width: 38px;
-    margin-right: 18px;
+    width: 32px;
+    margin-right: 8px;
     border: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: 20px;
 }
 
 .copy-button:hover {
@@ -3481,19 +3481,20 @@ float: right;
 
 .api-keys-inner-info {
     display: flex;
-    margin-bottom: 2.5rem;
+    margin-bottom: 16px;
 }
 
 .caption {
     font-size: 16px;
     color: var(--text-color);
+    margin-bottom: 10px;
 }
 
 .inviteBtn {
     width: 106px !important;
     justify-content: center;
     border-radius: 5px;
-    font-size: 16px !important;
+    font-size: 14px !important;
 }
 
 .inviteBtn:disabled, #del-org-btn:disabled, #del-index-btn:disabled {
@@ -3506,27 +3507,27 @@ float: right;
     background-color: var(--purple-1);
     border-radius: 5px;
     color: white;
-    padding: 10px !important;
     line-height: 20px;
-    font-size: 18px;
+    font-size: 14px;
     width: 144px;
-    margin-right: 18px;
 }
 
 .users-header {
     display: flex;
     justify-content: space-between;
+    align-items: baseline;
 }
 
 #inviteForm {
     display: flex;
-    height: 44px;
+    height: 32px;
     align-items: center;
 }
 
 .users-data-table {
-    height: 68vh;
+    height: 90%;
     width: 100%;
+    margin-top: 8px;
 }
 
 .myOrg #panelLogResultsGrid{
@@ -3546,11 +3547,10 @@ float: right;
 
 .allInputs {
     padding: 8px 10px;
-    font-size: 16px;
+    font-size: 14px;
     color: var(--timepicker-text-color);
     border: none;
     background: #F4F4F5;
-    font-size: 16px;
     border-radius: 5px;
     display: flex;
     margin-right: 12px;
@@ -3566,7 +3566,8 @@ float: right;
 }
 
 .myOrg-inner-container label {
-    font-size: 18px;
+    font-size: 14px;
+    margin-bottom: 5px;
 }
 
 .myOrg .main-dropdown{
@@ -3576,7 +3577,7 @@ float: right;
 }
 
 .myOrg .role-inner-dropdown{
-    line-height: 36px;
+    line-height: 28px;
     border-radius: 5px;
     border: 1px solid var(--myOrg-dropdown-border-color);
     padding-left: 10px;
@@ -3586,6 +3587,7 @@ float: right;
     justify-content: space-between;
     align-items: center;
     color: var(--table-or-regular-text-color);
+    position: relative;
 }
 
 .myOrg .roles.selected {
@@ -3650,7 +3652,7 @@ float: right;
 
 .myOrgScreen .ag-root-wrapper {
     padding-left: 0 !important;
-    height: 100vh;
+    height: 100%;
 }
 
 #viewPanel-container {
@@ -3769,12 +3771,10 @@ color: #C8C7CC;
 }
 
 #retention-days-value {
-    /* margin-right: 13px; */
     margin: 5px;
     width: 64px;
     padding: 5px;
-    height: 34px;
-    margin-right: 9px;
+    height: 32px;
 }
 
 #confirm-ret-change-prompt {
@@ -3793,7 +3793,7 @@ color: #C8C7CC;
 
 .buttons-prompt button {
     width: 49%;
-    height: 45px !important;
+    height: 32px !important;
     border-radius: 5px;
     border: none;
 }
@@ -3809,7 +3809,7 @@ color: #C8C7CC;
     border-radius: 5px;
     box-shadow: none !important;
     border: none;
-    font-size: 1rem;
+    font-size: 14px;
 }
 
 #delete-org-container {
@@ -3830,18 +3830,19 @@ color: #C8C7CC;
 .delete-org-btn, #del-index-btn {
     background-color: var(--delete-btn) !important;
     color: var(--button-text-color) !important;
-    padding: 9px 17px;
+    height: 32px;
+    padding: 0 20px;
 }
 
 #confirm-del-org-prompt .header {
     color: var(--text-color);
     margin-bottom: 15px;
     font-weight: bold;
-    font-size: 1em;
+    font-size: 18px;
 }
 
 .prompt-input {
-    height: 40px;
+    height: 32px;
     margin-bottom: 18px;
 }
 
@@ -3855,6 +3856,8 @@ color: #C8C7CC;
 
 #delete-org-inner .header {
     margin-bottom: 10px;
+    font-size: 16px;
+    font-weight: bold;
 }
 
 #confirm-del-org-prompt {
@@ -4050,10 +4053,7 @@ color: #C8C7CC;
     display: flex;
     justify-content: space-between;
     margin: 20px;
-    margin-bottom: 20px;
-}
-.api-keys-submit-btn{
-    font-size: 1rem !important;
+    margin-bottom: 10px;
 }
 
 .usage-stats{
