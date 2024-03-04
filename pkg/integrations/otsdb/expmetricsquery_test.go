@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
+	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -189,16 +190,11 @@ func getMyIds() []uint64 {
 	return myids
 }
 
-func extractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*structs.SegmentSearchRequest {
-	ssr := make(map[string]*structs.SegmentSearchRequest)
-
-	return ssr
-}
 func Test_ExpMetricsQueryIncorrectID(t *testing.T) {
 	config.InitializeTestingConfig()
 	limit.InitMemoryLimiter()
 	writer.InitWriterNode()
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	assert.Nil(t, err)
 	_ = localstorage.InitLocalStorage()
 	metrics.InitTestingConfig()
