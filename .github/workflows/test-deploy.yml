@@ -45,6 +45,7 @@ jobs:
                     echo "Worker node IP address: $worker_ip"
             
             -   name: Start tunnel
+                continue-on-error: true
                 env:
                     SUBDOMAIN: ${{ steps.get-subdomain.outputs.subdomain }}
                 run: |
