@@ -2,10 +2,10 @@ name: test-deploy-using k3s-helm
 on:
   push:
     branches:
-      - 'main'
+      - 'test_with_helm'
 jobs:
     deploy-using-k3s-helm:
-        timeout-minutes: 30
+        timeout-minutes: 5
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout code
@@ -51,3 +51,17 @@ jobs:
                     host=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f4)
                     port=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f5 | cut -d":" -f1)
                     lt -p $port -l $host -s $SUBDOMAIN
+
+    helm-deployment:
+        name: helm deployment Results
+        if: always()
+        needs:
+        - deploy-using-k3s-helm
+        runs-on: ubuntu-latest
+        steps:
+        -   name: Mark the job as a success
+            if: needs.deploy-using-k3s-helm.result == 'success'
+            run: exit 0
+        -   name: Mark the job as a failure
+            if: needs.deploy-using-k3s-helm.result != 'success'
+            run: exit 1
