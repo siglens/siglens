@@ -34,7 +34,23 @@ jobs:
                     kubectl get pods -n platform
                     kubectl get svc -n platform
 
+            -   name: Display tunnel URL and IP Address of the worker node
+                id: get-subdomain
+                run: |
+                    subdomain="siglens-latest"
+                    echo "URL for tunnelling: https://$subdomain.loca.lt"
+                    echo "subdomain=$subdomain" >> $GITHUB_OUTPUT
+                    worker_ip="$(curl -4 -s ipconfig.io/ip)"
+                    echo "Worker node IP address: $worker_ip"
             
+            -   name: Start tunnel
+                env:
+                    SUBDOMAIN: ${{ steps.get-subdomain.outputs.subdomain }}
+                run: |
+                    npm install -g localtunnel
+                    host=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f4)
+                    port=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f5 | cut -d":" -f1)
+                    lt -p $port -l $host -s $SUBDOMAIN
 
     helm-deployment:
         name: helm deployment Results
@@ -43,24 +59,9 @@ jobs:
         - deploy-using-k3s-helm
         runs-on: ubuntu-latest
         steps:
-            -   name: Display tunnel URL and IP Address of the worker node
-                if: needs.deploy-using-k3s-helm.result == 'success'
-                id: get-subdomain
-                run: |
-                    subdomain="siglens-latest"
-                    echo "URL for tunnelling: https://$subdomain.loca.lt"
-                    echo "subdomain=$subdomain" >> $GITHUB_OUTPUT
-                    worker_ip="$(curl -4 -s ipconfig.io/ip)"
-                    echo "Worker node IP address: $worker_ip"
-            -   name: Start tunnel
-                if: needs.deploy-using-k3s-helm.result == 'success'
-                env:
-                    SUBDOMAIN: ${{ steps.get-subdomain.outputs.subdomain }}
-                run: |
-                    npm install -g localtunnel
-                    host=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f4)
-                    port=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f5 | cut -d":" -f1)
-                    lt -p $port -l $host -s $SUBDOMAIN
-            -   name: Mark the job as a failure
-                if: needs.deploy-using-k3s-helm.result != 'success'
-                run: exit 1
+        -   name: Mark the job as a success
+            if: needs.deploy-using-k3s-helm.result == 'success'
+            run: exit 0
+        -   name: Mark the job as a failure
+            if: needs.deploy-using-k3s-helm.result != 'success'
+            run: exit 1
