@@ -52,7 +52,9 @@ jobs:
                     host=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f4)
                     port=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f5 | cut -d":" -f1)
                     lt -p $port -l $host -s $SUBDOMAIN
-                    sleep 300
+            -   name: Stop tunnel
+                if: cancelled()
+                run: |
                     exit 0
             
                     
