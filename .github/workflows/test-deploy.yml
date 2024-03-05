@@ -21,7 +21,7 @@ jobs:
                     cluster-name: "siglens"
             -   name: Deploy the app
                 run: |
-                    helm repo add siglens https://siglens1.github.io/charts
+                    helm repo add siglens https://siglens.github.io/charts
                     # create platform namespace
                     kubectl create ns platform
 
