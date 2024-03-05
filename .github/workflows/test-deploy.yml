@@ -45,7 +45,6 @@ jobs:
                     echo "Worker node IP address: $worker_ip"
             
             -   name: Start tunnel
-                if: always()
                 env:
                     SUBDOMAIN: ${{ steps.get-subdomain.outputs.subdomain }}
                 run: |
@@ -53,4 +52,7 @@ jobs:
                     host=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f4)
                     port=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f5 | cut -d":" -f1)
                     lt -p $port -l $host -s $SUBDOMAIN
+                    sleep 300
+                    exit 0
+            
                     
