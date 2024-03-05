@@ -2,7 +2,7 @@ name: test-deploy-using k3s-helm
 on:
   push:
     branches:
-      - 'test_with_helm'
+      - 'main'
 jobs:
     deploy-using-k3s-helm:
         runs-on: ubuntu-latest
