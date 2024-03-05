@@ -88,6 +88,43 @@ type PQTracker struct {
 	PQNodes     map[string]*structs.SearchNode // maps pqid to search node
 }
 
+func InitSegStore(
+	segmentKey string,
+	segbaseDir string,
+	suffix uint64,
+	virtualTableName string,
+	skipDe bool,
+	orgId uint64,
+	usingSegTree bool,
+	highTs uint64,
+	lowTs uint64,
+) *SegStore {
+	now := time.Now()
+	ss := SegStore{
+		lock:              sync.Mutex{},
+		pqNonEmptyResults: make(map[string]bool),
+		SegmentKey:        segmentKey,
+		segbaseDir:        segbaseDir,
+		suffix:            suffix,
+		lastUpdated:       now,
+		VirtualTableName:  virtualTableName,
+		AllSeenColumns:    make(map[string]bool),
+		pqTracker:         initPQTracker(),
+		skipDe:            skipDe,
+		timeCreated:       now,
+		AllSst:            make(map[string]*structs.SegStats),
+		usingSegTree:      usingSegTree,
+		OrgId:             orgId,
+		firstTime:         true,
+	}
+
+	ss.initWipBlock()
+	ss.wipBlock.blockSummary.HighTs = highTs
+	ss.wipBlock.blockSummary.LowTs = lowTs
+
+	return &ss
+}
+
 func (segstore *SegStore) initWipBlock() {
 
 	segstore.wipBlock = WipBlock{
@@ -391,7 +428,7 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 	delete(wipBlock.columnRangeIndexes, colName)
 }
 
-func (segstore *SegStore) appendWipToSegfile(streamid string, forceRotate bool, isKibana bool, onTimeRotate bool) error {
+func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, isKibana bool, onTimeRotate bool) error {
 	// If there's columns that had both strings and numbers in them, we need to
 	// try converting them all to numbers, but if that doesn't work we'll
 	// convert them all to strings.
@@ -412,7 +449,7 @@ func (segstore *SegStore) appendWipToSegfile(streamid string, forceRotate bool, 
 		numOpenFDs := int64(len(segstore.wipBlock.colWips)*2 + 2)
 		err := fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(numOpenFDs, 10, segstore.SegmentKey)
 		if err != nil {
-			log.Errorf("appendWipToSegfile failed to acquire lock for opening %+v file descriptors. err %+v", numOpenFDs, err)
+			log.Errorf("AppendWipToSegfile failed to acquire lock for opening %+v file descriptors. err %+v", numOpenFDs, err)
 			return err
 		}
 		defer fileutils.GLOBAL_FD_LIMITER.Release(numOpenFDs)
@@ -425,7 +462,7 @@ func (segstore *SegStore) appendWipToSegfile(streamid string, forceRotate bool, 
 					if cname == config.GetTimeStampKey() {
 						encType, err = segstore.wipBlock.encodeTimestamps()
 						if err != nil {
-							log.Errorf("appendWipToSegfile: failed to encode timestamps err=%v", err)
+							log.Errorf("AppendWipToSegfile: failed to encode timestamps err=%v", err)
 							return
 						}
 						_ = segstore.writeWipTsRollups(cname)
@@ -437,7 +474,7 @@ func (segstore *SegStore) appendWipToSegfile(streamid string, forceRotate bool, 
 
 					blkLen, blkOffset, err := writeWip(colWip, encType)
 					if err != nil {
-						log.Errorf("appendWipToSegfile: failed to write colsegfilename=%v, err=%v", colWip.csgFname, err)
+						log.Errorf("AppendWipToSegfile: failed to write colsegfilename=%v, err=%v", colWip.csgFname, err)
 						return
 					}
 
@@ -488,7 +525,7 @@ func (segstore *SegStore) appendWipToSegfile(streamid string, forceRotate bool, 
 
 		err = segstore.FlushSegStats()
 		if err != nil {
-			log.Errorf("appendWipToSegfile: failed to flushsegstats, err=%v", err)
+			log.Errorf("AppendWipToSegfile: failed to flushsegstats, err=%v", err)
 			return err
 		}
 
@@ -503,7 +540,7 @@ func (segstore *SegStore) appendWipToSegfile(streamid string, forceRotate bool, 
 		sidFname := fmt.Sprintf("%v.sid", segstore.SegmentKey)
 		err = writeRunningSegMeta(sidFname, &segmeta)
 		if err != nil {
-			log.Errorf("appendWipToSegfile: failed to write sidFname=%v, err=%v", sidFname, err)
+			log.Errorf("AppendWipToSegfile: failed to write sidFname=%v, err=%v", sidFname, err)
 			return err
 		}
 
@@ -512,7 +549,7 @@ func (segstore *SegStore) appendWipToSegfile(streamid string, forceRotate bool, 
 			pqidFname := fmt.Sprintf("%v/pqmr/%v.pqmr", segstore.SegmentKey, pqid)
 			err := pqResults.FlushPqmr(&pqidFname, segstore.numBlocks)
 			if err != nil {
-				log.Errorf("appendWipToSegfile: failed to flush pqmr results to fname %s: %v", pqidFname, err)
+				log.Errorf("AppendWipToSegfile: failed to flush pqmr results to fname %s: %v", pqidFname, err)
 				return err
 			}
 		}
@@ -788,7 +825,7 @@ func (wipBlock *WipBlock) adjustEarliestLatestTimes(ts_millis uint64) {
 
 }
 
-func (segstore *SegStore) writePackedRecord(rawJson []byte, ts_millis uint64, signalType utils.SIGNAL_TYPE) error {
+func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64, signalType utils.SIGNAL_TYPE) error {
 
 	var maxIdx uint32
 	var err error
@@ -797,11 +834,11 @@ func (segstore *SegStore) writePackedRecord(rawJson []byte, ts_millis uint64, si
 	if signalType == utils.SIGNAL_EVENTS || signalType == utils.SIGNAL_JAEGER_TRACES {
 		maxIdx, matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType)
 		if err != nil {
-			log.Errorf("Failed to encode record=%+v", string(rawJson))
+			log.Errorf("WritePackedRecord: Failed to encode record=%+v", string(rawJson))
 			return err
 		}
 	} else {
-		log.Errorf("Unknown SignalType=%+v", signalType)
+		log.Errorf("WritePackedRecord: Unknown SignalType=%+v", signalType)
 		return errors.New("unknown signal type")
 	}
 
@@ -1338,4 +1375,8 @@ func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
 		allColsSizes[cname] = &csinfo
 	}
 	return allColsSizes
+}
+
+func (ss *SegStore) DestroyWipBlock() {
+	bbp.Put(ss.wipBlock.bb)
 }

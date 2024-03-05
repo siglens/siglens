@@ -23,35 +23,85 @@ import (
 
 	"github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/blob/ssutils"
+	"github.com/siglens/siglens/pkg/hooks"
 	log "github.com/sirupsen/logrus"
 )
 
 func InitBlobStore() error {
+	if hook := hooks.GlobalHooks.InitBlobStoreExtrasHook; hook != nil {
+		alreadyHandled, err := hook()
+		if alreadyHandled {
+			return err
+		}
+	}
+
 	return local.InitLocalStorage()
 }
 
 func UploadSegmentFiles(allFiles []string) error {
+	if hook := hooks.GlobalHooks.UploadSegmentFilesExtrasHook; hook != nil {
+		alreadyHandled, err := hook(allFiles)
+		if alreadyHandled {
+			return err
+		}
+	}
+
 	local.BulkAddSegSetFilesToLocal(allFiles)
 	return nil
 }
 
 func UploadIngestNodeDir() error {
+	if hook := hooks.GlobalHooks.UploadIngestNodeExtrasHook; hook != nil {
+		alreadyHandled, err := hook()
+		if alreadyHandled {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func UploadQueryNodeDir() error {
+	if hook := hooks.GlobalHooks.UploadQueryNodeExtrasHook; hook != nil {
+		alreadyHandled, err := hook()
+		if alreadyHandled {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func DeleteBlob(filepath string) error {
+	if hook := hooks.GlobalHooks.DeleteBlobExtrasHook; hook != nil {
+		alreadyHandled, err := hook(filepath)
+		if alreadyHandled {
+			return err
+		}
+	}
+
 	return local.DeleteLocal(filepath)
 }
 
 func DownloadAllIngestNodesDir() error {
+	if hook := hooks.GlobalHooks.DownloadAllIngestNodesDirExtrasHook; hook != nil {
+		alreadyHandled, err := hook()
+		if alreadyHandled {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func DownloadAllQueryNodesDir() error {
+	if hook := hooks.GlobalHooks.DownloadAllQueryNodesDirExtrasHook; hook != nil {
+		alreadyHandled, err := hook()
+		if alreadyHandled {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -64,6 +114,14 @@ func DownloadSegmentBlob(fName string, inUseFlag bool) error {
 	if local.IsFilePresentOnLocal(fName) {
 		return nil
 	}
+
+	if hook := hooks.GlobalHooks.DownloadSegmentBlobExtrasHook; hook != nil {
+		alreadyHandled, err := hook(fName)
+		if alreadyHandled {
+			return err
+		}
+	}
+
 	size, _ := ssutils.GetFileSizeFromDisk(fName)
 	ssData := ssutils.NewSegSetData(fName, size)
 	local.AddSegSetFileToLocal(fName, ssData)
@@ -142,11 +200,26 @@ func GetFileSize(filename string) uint64 {
 	if onLocal {
 		return size
 	}
+
+	if hook := hooks.GlobalHooks.GetFileSizeExtrasHook; hook != nil {
+		alreadyHandled, size := hook(filename)
+		if alreadyHandled {
+			return size
+		}
+	}
+
 	return 0
 }
 
 // For a given meta file, returns if it exists in blob store.
 // The input should always be a file in the ingestnodes directory. Either segmetas or metrics metas
 func DoesMetaFileExistInBlob(fName string) (bool, error) {
+	if hook := hooks.GlobalHooks.DoesMetaFileExistExtrasHook; hook != nil {
+		alreadyHandled, exists, err := hook(fName)
+		if alreadyHandled {
+			return exists, err
+		}
+	}
+
 	return false, nil
 }

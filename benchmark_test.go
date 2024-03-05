@@ -34,6 +34,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/valyala/fastrand"
 
 	localstorage "github.com/siglens/siglens/pkg/blob/local"
@@ -60,11 +61,7 @@ func getMyIds() []uint64 {
 	myids[0] = 0
 	return myids
 }
-func extractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*structs.SegmentSearchRequest {
-	ssr := make(map[string]*structs.SegmentSearchRequest)
 
-	return ssr
-}
 func Benchmark_EndToEnd(b *testing.B) {
 	config.InitializeTestingConfig()
 	_ = localstorage.InitLocalStorage()
@@ -79,7 +76,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 	smbasedir := "/Users/ssubramanian/Desktop/SigLens/siglens/data/ingestnodes/Sris-MBP.lan/smr/"
 	config.SetSmrBaseDirForTestOnly(smbasedir)
 
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		b.Fatalf("Failed to initialize query node: %v", err)
 	}
@@ -161,7 +158,7 @@ func Benchmark_RRCToJson(b *testing.B) {
 	smbasedir := "/Users/knawale/code/perf/siglens/data/ingestnodes/kunals-imac.lan/smr/"
 	config.SetSmrBaseDirForTestOnly(smbasedir)
 
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		b.Fatalf("Failed to initialize query node: %v", err)
 	}
@@ -387,7 +384,7 @@ func Benchmark_E2E_AgileTree(b *testing.B) {
 	smbasedir := "/Users/kunalnawale/work/perf/siglens/data/ingestnodes/Kunals-MacBook-Pro.local/"
 	config.SetSmrBaseDirForTestOnly(smbasedir)
 
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		b.Fatalf("Failed to initialize query node: %v", err)
 	}

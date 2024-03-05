@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/text/language"
@@ -59,7 +60,7 @@ type QueryStats struct {
 	TotalRespTime       float64
 }
 
-var queryStats = make(map[uint64]*QueryStats)
+var QueryStatsMap = make(map[uint64]*QueryStats)
 
 type ReadStats struct {
 	BytesCount             uint64
@@ -70,23 +71,29 @@ type ReadStats struct {
 
 func StartUsageStats() {
 	msgPrinter = message.NewPrinter(language.English)
-	getQueryCount()
+
+	if hook := hooks.GlobalHooks.GetQueryCountHook; hook != nil {
+		hook()
+	} else {
+		GetQueryCount()
+	}
+
 	go writeUsageStats()
 }
 
-func getQueryCount() {
-	queryStats[0] = &QueryStats{
+func GetQueryCount() {
+	QueryStatsMap[0] = &QueryStats{
 		QueryCount:          0,
 		QueriesSinceInstall: 0,
 		TotalRespTime:       0,
 	}
-	err := readQueryStats(0)
+	err := ReadQueryStats(0)
 	if err != nil {
 		log.Errorf("ReadQueryStats from file failed:%v\n", err)
 	}
 }
 
-func readQueryStats(orgid uint64) error {
+func ReadQueryStats(orgid uint64) error {
 	filename := getQueryStatsFilename(getBaseQueryStatsDir(orgid))
 	fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -104,14 +111,14 @@ func readQueryStats(orgid uint64) error {
 		if err != nil {
 			return err
 		}
-		if queryStats[orgid] != nil {
-			queryStats[orgid].QueriesSinceInstall = flushedQueriesSinceInstall
+		if QueryStatsMap[orgid] != nil {
+			QueryStatsMap[orgid].QueriesSinceInstall = flushedQueriesSinceInstall
 		}
 	}
 	return nil
 }
 
-func getBaseStatsDir(orgid uint64) string {
+func GetBaseStatsDir(orgid uint64) string {
 
 	var sb strings.Builder
 	timeNow := uint64(time.Now().UnixNano()) / uint64(time.Millisecond)
@@ -229,23 +236,42 @@ func getQueryStatsFilename(baseDir string) string {
 
 func writeUsageStats() {
 	for {
-		go func() {
-			err := flushStatsToFile(0)
-			if err != nil {
-				log.Errorf("WriteUsageStats failed:%v\n", err)
-			}
-			errC := flushCompressedStatsToFile(0)
-			if errC != nil {
-				log.Errorf("WriteUsageStats failed:%v\n", errC)
-			}
+		alreadyHandled := false
+		if hook := hooks.GlobalHooks.WriteUsageStatsIfConditionHook; hook != nil {
+			alreadyHandled = hook()
+		}
 
-		}()
+		if !alreadyHandled {
+			go func() {
+				err := FlushStatsToFile(0)
+				if err != nil {
+					log.Errorf("WriteUsageStats failed:%v\n", err)
+				}
+				errC := flushCompressedStatsToFile(0)
+				if errC != nil {
+					log.Errorf("WriteUsageStats failed:%v\n", errC)
+				}
+
+			}()
+
+			if hook := hooks.GlobalHooks.WriteUsageStatsElseExtraLogicHook; hook != nil {
+				hook()
+			}
+		}
 		time.Sleep(1 * time.Minute)
 	}
 }
 
 func ForceFlushStatstoFile() {
-	err := flushStatsToFile(0)
+	alreadyHandled := false
+	if hook := hooks.GlobalHooks.ForceFlushIfConditionHook; hook != nil {
+		alreadyHandled = hook()
+	}
+	if alreadyHandled {
+		return
+	}
+
+	err := FlushStatsToFile(0)
 	if err != nil {
 		log.Errorf("ForceFlushStatstoFile failed:%v\n", err)
 	}
@@ -269,8 +295,8 @@ func GetTotalLogLines(orgid uint64) uint64 {
 	return ustats[orgid].TotalLogLinesCount
 }
 
-func flushStatsToFile(orgid uint64) error {
-	if _, ok := queryStats[orgid]; ok {
+func FlushStatsToFile(orgid uint64) error {
+	if _, ok := QueryStatsMap[orgid]; ok {
 		filename := getQueryStatsFilename(getBaseQueryStatsDir(orgid))
 		fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
@@ -280,7 +306,7 @@ func flushStatsToFile(orgid uint64) error {
 		w := csv.NewWriter(fd)
 		var records [][]string
 		var record []string
-		queriesSinceInstallAsString := strconv.FormatUint(queryStats[orgid].QueriesSinceInstall, 10)
+		queriesSinceInstallAsString := strconv.FormatUint(QueryStatsMap[orgid].QueriesSinceInstall, 10)
 		record = []string{queriesSinceInstallAsString}
 		records = append(records, record)
 		err = w.WriteAll(records)
@@ -288,13 +314,13 @@ func flushStatsToFile(orgid uint64) error {
 			log.Errorf("flushStatsToFile: write records failed, err=%v", err)
 			return err
 		}
-		log.Debugf("flushQueryStatsToFile: flushed queryStats' queriesSinceInstall=%v", queryStats[orgid].QueriesSinceInstall)
+		log.Debugf("flushQueryStatsToFile: flushed queryStats' queriesSinceInstall=%v", QueryStatsMap[orgid].QueriesSinceInstall)
 	}
 
 	if _, ok := ustats[orgid]; ok {
 		logStatSummary(orgid)
 		if ustats[orgid].BytesCount > 0 {
-			filename := getStatsFilename(getBaseStatsDir(orgid))
+			filename := getStatsFilename(GetBaseStatsDir(orgid))
 			fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 			if err != nil {
 				return err
@@ -358,10 +384,10 @@ func UpdateMetricsStats(bytesCount uint64, incomingMetrics uint64, orgid uint64)
 }
 
 func GetQueryStats(orgid uint64) (uint64, float64, uint64) {
-	if _, ok := queryStats[orgid]; !ok {
+	if _, ok := QueryStatsMap[orgid]; !ok {
 		return 0, 0, 0
 	}
-	return queryStats[orgid].QueryCount, queryStats[orgid].TotalRespTime, queryStats[orgid].QueriesSinceInstall
+	return QueryStatsMap[orgid].QueryCount, QueryStatsMap[orgid].TotalRespTime, QueryStatsMap[orgid].QueriesSinceInstall
 }
 
 func GetCurrentMetricsStats(orgid uint64) (uint64, uint64) {
@@ -369,15 +395,15 @@ func GetCurrentMetricsStats(orgid uint64) (uint64, uint64) {
 }
 
 func UpdateQueryStats(queryCount uint64, totalRespTime float64, orgid uint64) {
-	if _, ok := queryStats[orgid]; !ok {
-		queryStats[orgid] = &QueryStats{
+	if _, ok := QueryStatsMap[orgid]; !ok {
+		QueryStatsMap[orgid] = &QueryStats{
 			QueryCount:    0,
 			TotalRespTime: 0,
 		}
 	}
-	atomic.AddUint64(&queryStats[orgid].QueryCount, queryCount)
-	atomic.AddUint64(&queryStats[orgid].QueriesSinceInstall, queryCount)
-	queryStats[orgid].TotalRespTime += totalRespTime
+	atomic.AddUint64(&QueryStatsMap[orgid].QueryCount, queryCount)
+	atomic.AddUint64(&QueryStatsMap[orgid].QueriesSinceInstall, queryCount)
+	QueryStatsMap[orgid].TotalRespTime += totalRespTime
 }
 
 // Calculate total bytesCount,linesCount and return hourly / daily count

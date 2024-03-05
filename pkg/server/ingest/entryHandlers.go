@@ -21,6 +21,7 @@ import (
 	esutils "github.com/siglens/siglens/pkg/es/utils"
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/health"
+	"github.com/siglens/siglens/pkg/hooks"
 	influxwriter "github.com/siglens/siglens/pkg/influx/writer"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/integrations/loki"
@@ -29,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/integrations/splunk"
 	"github.com/siglens/siglens/pkg/otlp"
 	"github.com/siglens/siglens/pkg/sampledataset"
+	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/valyala/fasthttp"
 )
 
@@ -40,7 +42,12 @@ func processKibanaIngestRequest(ctx *fasthttp.RequestCtx, request map[string]int
 func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		eswriter.ProcessBulkRequest(ctx, 0, processKibanaIngestRequest)
+
+		if hook := hooks.GlobalHooks.KibanaIngestHandlerHook; hook != nil {
+			hook(ctx)
+		} else {
+			eswriter.ProcessBulkRequest(ctx, 0, processKibanaIngestRequest)
+		}
 	}
 }
 
@@ -59,26 +66,25 @@ func getSafeHealthHandler() func(ctx *fasthttp.RequestCtx) {
 func splunkHecIngestHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		splunk.ProcessSplunkHecIngestRequest(ctx, 0)
+		serverutils.CallWithOrgId(splunk.ProcessSplunkHecIngestRequest, ctx)
 	}
 }
 
-func esPutIndexHandler() func(ctx *fasthttp.RequestCtx) {
+func EsPutIndexHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		eswriter.ProcessPutIndex(ctx, 0)
+		serverutils.CallWithOrgId(eswriter.ProcessPutIndex, ctx)
 	}
 }
 
 func otsdbPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		otsdbwriter.PutMetrics(ctx, 0)
-
+		serverutils.CallWithOrgId(otsdbwriter.PutMetrics, ctx)
 	}
 }
 
 func influxPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		influxwriter.PutMetrics(ctx, 0)
+		serverutils.CallWithOrgId(influxwriter.PutMetrics, ctx)
 	}
 }
 
@@ -103,7 +109,7 @@ func otlpIngestTracesHandler() func(ctx *fasthttp.RequestCtx) {
 func sampleDatasetBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		sampledataset.ProcessSyntheicDataRequest(ctx, 0)
+		serverutils.CallWithOrgId(sampledataset.ProcessSyntheicDataRequest, ctx)
 	}
 }
 
@@ -128,6 +134,6 @@ func getConfigReloadHandler() func(ctx *fasthttp.RequestCtx) {
 func lokiPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		loki.ProcessLokiLogsIngestRequest(ctx, 0)
+		serverutils.CallWithOrgId(loki.ProcessLokiLogsIngestRequest, ctx)
 	}
 }

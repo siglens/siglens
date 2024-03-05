@@ -155,7 +155,7 @@ func ProcessMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf(" ProcessMetricsSearchRequest: received empty search request body ")
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	qid := rutils.GetNextQid()
@@ -226,7 +226,7 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf(" ProcessMetricsSearchRequest: received empty search request body ")
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	qid := rutils.GetNextQid()
@@ -528,15 +528,6 @@ func getArithmeticOperation(op pql.ItemType) segutils.ArithmeticOperator {
 		log.Errorf("getArithmeticOperation: unexpected op: %v", op)
 		return 0
 	}
-}
-
-func setBadMsg(ctx *fasthttp.RequestCtx) {
-	var httpResp utils.HttpServerResponse
-	ctx.SetContentType(ContentJson)
-	ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	httpResp.Message = "Bad Request"
-	httpResp.StatusCode = fasthttp.StatusBadRequest
-	utils.WriteResponse(ctx, httpResp)
 }
 
 func parseTimeFromString(timeStr string) (uint32, error) {

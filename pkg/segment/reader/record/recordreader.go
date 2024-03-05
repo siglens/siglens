@@ -273,6 +273,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 				allMatchedColumns[col] = true
 			}
 		}
+
 		if aggs != nil && aggs.OutputTransforms != nil {
 			if aggs.OutputTransforms.OutputColumns != nil && aggs.OutputTransforms.OutputColumns.RenameColumns != nil {
 				for oldCname, newCname := range aggs.OutputTransforms.OutputColumns.RenameColumns {

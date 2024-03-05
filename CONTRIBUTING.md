@@ -80,6 +80,20 @@ VS Code is the recomended IDE and offers good extensions and tools that will hel
 
 To locally run `golinter`, install from https://golangci-lint.run/usage/install/#local-installation
 
+For Linux systems, the `build-essential` package is necessary. If it's already installed, no action is needed. Otherwise, please execute the following commands:
+
+ - For Debian/Ubuntu:
+
+    ```bash
+    sudo apt update
+    sudo apt install build-essential
+    ```
+ - For Fedora/CentOS/RHEL:
+   ```bash
+   sudo yum groupinstall "Development Tools"
+   sudo yum install gcc g++ make
+   ```
+
 ### Start up Siglens
 
 Once golang is installed, start up SigLens by running the following command at the root of the repo:

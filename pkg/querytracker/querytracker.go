@@ -856,7 +856,7 @@ func PostPqsAggCols(ctx *fasthttp.RequestCtx) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("PostPqsAggCols: received empty request")
-		setBadMsg(ctx, "Empty post body")
+		utils.SetBadMsg(ctx, "Empty post body")
 		return
 	}
 
@@ -877,7 +877,7 @@ func PostPqsAggCols(ctx *fasthttp.RequestCtx) {
 	err = parsePostPqsAggBody(readJSON)
 
 	if err != nil {
-		setBadMsg(ctx, err.Error())
+		utils.SetBadMsg(ctx, err.Error())
 	} else {
 		ctx.SetStatusCode(fasthttp.StatusOK)
 		httpResp.Message = "All OK"
@@ -962,12 +962,4 @@ func processPostAggs(inputValueParam interface{}) (map[string]bool, error) {
 		}
 	}
 	return evMap, nil
-}
-
-func setBadMsg(ctx *fasthttp.RequestCtx, msg string) {
-	var httpResp utils.HttpServerResponse
-	ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	httpResp.Message = msg
-	httpResp.StatusCode = fasthttp.StatusBadRequest
-	utils.WriteResponse(ctx, httpResp)
 }

@@ -17,13 +17,17 @@ limitations under the License.
 package queryserver
 
 import (
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/valyala/fasthttp"
 )
 
 func (hs *queryserverCfg) Recovery(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx) {
 	fn := func(ctx *fasthttp.RequestCtx) {
-		{
-
+		if hook := hooks.GlobalHooks.QueryMiddlewareRecoveryHook; hook != nil {
+			err := hook(ctx)
+			if err != nil {
+				return
+			}
 		}
 
 		// do next

@@ -62,7 +62,7 @@ func flushCompressedStatsToFile(orgid uint64) error {
 	if _, ok := cstats[orgid]; ok {
 		if cstats[orgid].CompressedBytes > 0 {
 			cstats[orgid].TimeStamp = time.Now().UTC()
-			filename := getCompressedStatsFilename(getBaseStatsDir(orgid))
+			filename := getCompressedStatsFilename(GetBaseStatsDir(orgid))
 			fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 			if err != nil {
 				return err
