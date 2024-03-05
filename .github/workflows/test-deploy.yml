@@ -20,7 +20,6 @@ jobs:
                 with:
                     cluster-name: "siglens"
             -   name: Deploy the app
-                if: always()
                 continue-on-error: false
                 run: |
                     helm repo add siglens https://siglens.github.io/charts
@@ -46,7 +45,7 @@ jobs:
                     echo "Worker node IP address: $worker_ip"
             
             -   name: Start tunnel
-                if: failure()
+                if: always()
                 env:
                     SUBDOMAIN: ${{ steps.get-subdomain.outputs.subdomain }}
                 run: |
@@ -54,5 +53,4 @@ jobs:
                     host=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f4)
                     port=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f5 | cut -d":" -f1)
                     lt -p $port -l $host -s $SUBDOMAIN
-                    exit 0
                     
