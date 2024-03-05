@@ -20,6 +20,8 @@ jobs:
                 with:
                     cluster-name: "siglens"
             -   name: Deploy the app
+                if: always()
+                continue-on-error: false
                 run: |
                     helm repo add siglens https://siglens.github.io/charts
                     # create platform namespace
@@ -44,6 +46,8 @@ jobs:
                     echo "Worker node IP address: $worker_ip"
             
             -   name: Start tunnel
+                if: failure()
+                continue-on-error: true
                 env:
                     SUBDOMAIN: ${{ steps.get-subdomain.outputs.subdomain }}
                 run: |
@@ -51,17 +55,4 @@ jobs:
                     host=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f4)
                     port=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f5 | cut -d":" -f1)
                     lt -p $port -l $host -s $SUBDOMAIN
-
-    helm-deployment:
-        name: helm deployment Results
-        if: always()
-        needs:
-        - deploy-using-k3s-helm
-        runs-on: ubuntu-latest
-        steps:
-        -   name: Mark the job as a success
-            if: needs.deploy-using-k3s-helm.result == 'success'
-            run: exit 0
-        -   name: Mark the job as a failure
-            if: needs.deploy-using-k3s-helm.result != 'success'
-            run: exit 1
+                    exit 0
