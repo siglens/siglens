@@ -380,7 +380,7 @@ function editPanelInit(redirectedFromViewScreen) {
 		
 		if(selectedDataSourceTypeIndex == 1) {
 			$("#index-btn").css('display', 'inline-flex');
-			$("#query-language-btn").css('display', 'inline-block');
+			$("#query-language-btn").css('display', 'inline-flex');
 			$("#metrics-query-language-btn").css('display', 'none');
 			if(selectedChartTypeIndex=== -1){
 				selectedChartTypeIndex = mapChartTypeToIndex.get("Data Table");
@@ -454,6 +454,9 @@ function editPanelInit(redirectedFromViewScreen) {
 	$('.panEdit-goToDB').on("click", () => handleGoToDBArrowClick(redirectedFromViewScreen))
 	setTimePicker();
 	pauseRefreshInterval();
+	if(currentPanel.queryRes){
+		runQueryBtnHandler();
+	}
 }
 
 $('#panelLogResultsGrid').empty();
@@ -461,6 +464,10 @@ $('#panelLogResultsGrid').hide();
 
 $('.panEdit-discard').on("click", goToDashboard)
 $('.panEdit-save').on("click", function(){
+	 if (!currentPanel.queryData && currentPanel.chartType ==='Data Table' && currentPanel.queryType ==='logs') {
+        currentPanel.chartType = "";
+        currentPanel.queryType = "";
+    }
 	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
 	updateDashboard();
 });
@@ -738,7 +745,7 @@ $(".editPanelMenu-dataSource .editPanelMenu-options").on('click', function () {
 	displayQueryToolTip(selectedDataSourceTypeIndex);
 	if(selectedDataSourceTypeIndex == 1) {
 		$("#index-btn").css('display', 'inline-flex');
-		$("#query-language-btn").css('display', 'inline-block');
+		$("#query-language-btn").css('display', 'inline-flex');
 		$("#metrics-query-language-btn").css('display', 'none');
 	} else if (selectedDataSourceTypeIndex==0){
 		$("#metrics-query-language-btn").css('display', 'inline-block');
@@ -1098,6 +1105,10 @@ function applyChangesToPanel(redirectedFromViewScreen) {
 			currentPanel.queryData.endEpoch = filterEndDate
 		}
     }
+	if (!currentPanel.queryData && currentPanel.chartType === 'Data Table' && currentPanel.queryType === 'logs') {
+		currentPanel.chartType = "";
+		currentPanel.queryType = "";
+	}
 	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
 	// update filterStartDate, filterEndDate before leaving edit panel screen
 	setTimePicker();
@@ -1129,12 +1140,12 @@ function handleGoToDBArrowClick(redirectedFromViewScreen) {
 			&& currentPanel.unit === serverPanel.unit
 			&& currentPanel.panelIndex === serverPanel.panelIndex
 			
-			&& currentPanel.queryData.endEpoch === serverPanel.queryData.endEpoch
-			&& currentPanel.queryData.indexName === serverPanel.queryData.indexName
-			&& currentPanel.queryData.queryLanguage === serverPanel.queryData.queryLanguage
-			&& currentPanel.queryData.searchText === serverPanel.queryData.searchText
-			&& currentPanel.queryData.startEpoch === serverPanel.queryData.startEpoch
-			&& currentPanel.queryData.state === serverPanel.queryData.state);
+			&& currentPanel.queryData?.endEpoch === serverPanel.queryData?.endEpoch
+			&& currentPanel.queryData?.indexName === serverPanel.queryData?.indexName
+			&& currentPanel.queryData?.queryLanguage === serverPanel.queryData?.queryLanguage
+			&& currentPanel.queryData?.searchText === serverPanel.queryData?.searchText
+			&& currentPanel.queryData?.startEpoch === serverPanel.queryData?.startEpoch
+			&& currentPanel.queryData?.state === serverPanel.queryData?.state);
 	}
 	
 	function showPrompt(redirectedFromViewScreen) {
