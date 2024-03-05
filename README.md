@@ -83,6 +83,9 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contri
 #### Searching Logs
 ![Searching Logs](./static/assets/readme-assets/log-searching.png)
 
+#### Tracing
+![Tracing](./static/assets/readme-assets/tracing.png)
+
 #### Creating Dashboards
 ![Creating Dashboards](./static/assets/readme-assets/dashboards.png)
 
