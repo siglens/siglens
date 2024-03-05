@@ -5,7 +5,6 @@ on:
       - 'test_with_helm'
 jobs:
     deploy-using-k3s-helm:
-        timeout-minutes: 3
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout code
@@ -34,31 +33,3 @@ jobs:
                     # get pods, services and the container images
                     kubectl get pods -n platform
                     kubectl get svc -n platform
-
-            -   name: Display tunnel URL and IP Address of the worker node
-                id: get-subdomain
-                run: |
-                    subdomain="siglens-latest"
-                    echo "URL for tunnelling: https://$subdomain.loca.lt"
-                    echo "subdomain=$subdomain" >> $GITHUB_OUTPUT
-                    worker_ip="$(curl -4 -s ipconfig.io/ip)"
-                    echo "Worker node IP address: $worker_ip"
-            
-            -   name: Start tunnel
-                continue-on-error: true
-                env:
-                    SUBDOMAIN: ${{ steps.get-subdomain.outputs.subdomain }}
-                run: |
-                    npm install -g localtunnel
-                    host=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f4)
-                    port=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f5 | cut -d":" -f1)
-                    lt -p $port -l $host -s $SUBDOMAIN
-    end-success:
-        if: cancelled()
-        name: Stop tunnel
-        runs-on: ubuntu-latest    
-        steps:
-          - name: Mark the job as successful
-            run: exit 0
-            
-                    
