@@ -5,7 +5,7 @@ on:
       - 'test_with_helm'
 jobs:
     deploy-using-k3s-helm:
-        timeout-minutes: 5
+        timeout-minutes: 3
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout code
@@ -52,9 +52,12 @@ jobs:
                     host=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f4)
                     port=$(kubectl get svc -n platform | grep siglens-query-svc | tr -s ' ' | cut -d" " -f5 | cut -d":" -f1)
                     lt -p $port -l $host -s $SUBDOMAIN
-            -   name: Stop tunnel
-                if: cancelled()
-                run: |
-                    exit 0
+    end-success:
+        if: cancelled()
+        name: Stop tunnel
+        runs-on: ubuntu-latest    
+        steps:
+          - name: Mark the job as successful
+            run: exit 0
             
                     
