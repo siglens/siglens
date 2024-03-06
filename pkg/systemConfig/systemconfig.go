@@ -9,6 +9,8 @@ import (
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/valyala/fasthttp"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type SystemInfo struct {
@@ -30,10 +32,12 @@ type DiskInfo struct {
 	UsedPercent float64 `json:"used_percent"`
 }
 
-func GetSystemInfo() (SystemInfo, error) {
+func GetSystemInfo(ctx *fasthttp.RequestCtx) {
 	cpuInfo, err := cpu.Info()
 	if err != nil {
-		return SystemInfo{}, err
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		log.Errorf("GetSystemInfo: Failed to retrieve CPU info: %v", err)
+		return
 	}
 
 	var totalCores int
@@ -43,17 +47,23 @@ func GetSystemInfo() (SystemInfo, error) {
 
 	memInfo, err := mem.VirtualMemory()
 	if err != nil {
-		return SystemInfo{}, err
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		log.Errorf("GetSystemInfo: Failed to retrieve memory info: %v", err)
+		return
 	}
 
 	diskInfo, err := disk.Usage("/")
 	if err != nil {
-		return SystemInfo{}, err
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		log.Errorf("GetSystemInfo: Failed to retrieve disk info: %v", err)
+		return
 	}
 
 	hostInfo, err := host.Info()
 	if err != nil {
-		return SystemInfo{}, err
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		log.Errorf("GetSystemInfo: Failed to retrieve host info: %v", err)
+		return
 	}
 
 	systemInfo := SystemInfo{
@@ -69,17 +79,6 @@ func GetSystemInfo() (SystemInfo, error) {
 			Free:        diskInfo.Free,
 			UsedPercent: diskInfo.UsedPercent,
 		},
-	}
-
-	return systemInfo, nil
-}
-
-func SystemInfoHandler(ctx *fasthttp.RequestCtx) {
-	systemInfo, err := GetSystemInfo()
-	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		fmt.Fprintf(ctx, "Failed to retrieve system info: %v", err)
-		return
 	}
 
 	response, err := json.Marshal(systemInfo)

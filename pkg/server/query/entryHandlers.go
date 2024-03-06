@@ -566,6 +566,6 @@ func ganttChartHandler() func(ctx *fasthttp.RequestCtx) {
 
 func getSystemInfoHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		systemconfig.SystemInfoHandler(ctx)
+		systemconfig.GetSystemInfo(ctx)
 	}
 }
