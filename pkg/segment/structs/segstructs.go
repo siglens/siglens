@@ -219,6 +219,7 @@ type LetColumnsRequest struct {
 	StatisticColRequest *StatisticExpr
 	RenameColRequest    *RenameExpr
 	DedupColRequest     *DedupExpr
+	SortColRequest      *SortExpr
 	NewColName          string
 }
 
@@ -480,7 +481,7 @@ func (qa *QueryAggregators) IsStatisticBlockEmpty() bool {
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
-			qa.OutputTransforms.LetColumns.ValueColRequest != nil)
+			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil)
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
@@ -511,6 +512,28 @@ func (qa *QueryAggregators) HasDedupBlockInChain() bool {
 	}
 	if qa.Next != nil {
 		return qa.Next.HasDedupBlock()
+	}
+	return false
+}
+
+func (qa *QueryAggregators) HasSortBlock() bool {
+	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil {
+		letColumns := qa.OutputTransforms.LetColumns
+
+		if letColumns.SortColRequest != nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (qa *QueryAggregators) HasSortBlockInChain() bool {
+	if qa.HasSortBlock() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasSortBlock()
 	}
 	return false
 }
