@@ -308,17 +308,18 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	}
 	queryType := query.GetQueryType(qid)
 	resp := &PipeSearchCompleteResponse{
-		TotalMatched:        convertQueryCountToTotalResponse(queryC),
-		State:               query.COMPLETE.String(),
-		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
-		CanScrollMore:       canScrollMore,
-		TotalRRCCount:       numRRCs,
-		MeasureResults:      aggMeasureRes,
-		MeasureFunctions:    aggMeasureFunctions,
-		GroupByCols:         aggGroupByCols,
-		Qtype:               queryType.String(),
-		BucketCount:         bucketCount,
-		IsTimechart:         aggs.UsedByTimechart(),
+		TotalMatched:             convertQueryCountToTotalResponse(queryC),
+		State:                    query.COMPLETE.String(),
+		TotalEventsSearched:      humanize.Comma(int64(totalEventsSearched)),
+		CanScrollMore:            canScrollMore,
+		TotalRRCCount:            numRRCs,
+		MeasureResults:           aggMeasureRes,
+		MeasureFunctions:         aggMeasureFunctions,
+		GroupByCols:              aggGroupByCols,
+		Qtype:                    queryType.String(),
+		BucketCount:              bucketCount,
+		IsTimechart:              aggs.UsedByTimechart(),
+		SortByTimestampAtDefault: aggs.HasSortBlockInChain(),
 	}
 	searchErrors, err := query.GetUniqueSearchErrors(qid)
 	if err != nil {
