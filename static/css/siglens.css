@@ -1422,6 +1422,11 @@ progress.hidden {
     margin: 5px 0px !important;
 }
 
+#system-info-table td div b{
+    width: 75px;
+    display: inline-block;
+}
+
 .index-stats {
     margin: auto;
     float: left;

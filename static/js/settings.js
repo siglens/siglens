@@ -153,9 +153,9 @@ function addSystemInfoTable(systemInfo) {
     var memoryUsage = systemInfo.memory.used_percent.toFixed(2);
     var totalMemoryGB = (systemInfo.memory.total / Math.pow(1024, 3)).toFixed(2);
     var availableMemoryGB = (systemInfo.memory.free / Math.pow(1024, 3)).toFixed(2);
-    var memoryInfo = `<div><b>Total</b>: ${totalMemoryGB} GB</div>
-                    <div><b>Available</b>: ${availableMemoryGB} GB</div>
-                    <div><b>Used</b>: ${memoryUsage}%</div>`;
+    var memoryInfo = `<div><b>Total:</b> ${totalMemoryGB} GB</div>
+                    <div><b>Available:</b> ${availableMemoryGB} GB</div>
+                    <div><b>Used:</b> ${memoryUsage}%</div>`;
     var memoryRow = createRow("Memory Usage", memoryInfo);
     var diskUsage = systemInfo.disk.used_percent.toFixed(2);
     var totalDiskGB = (systemInfo.disk.total / Math.pow(1024, 3)).toFixed(2);
