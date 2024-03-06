@@ -3,15 +3,19 @@
 </p>
 
 ---
-[![Build Status](https://github.com/siglens/siglens/workflows/siglens-docker-release/badge.svg)](https://github.com/siglens/siglens/actions/workflows/publish-prod-images.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/siglens/siglens)](https://goreportcard.com/report/github.com/siglens/siglens)
-[![GoDoc](https://godoc.org/github.com/siglens/siglens?status.svg)](https://pkg.go.dev/github.com/siglens/siglens)
-[![codecov](https://codecov.io/gh/siglens/siglens/graph/badge.svg?token=MH8S9B0EIK)](https://codecov.io/gh/siglens/siglens)
-[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=Follow%20%40SigLensHQ)](https://twitter.com/SigLensHQ)
-[![RSS](https://img.shields.io/badge/RSS-Subscribe-orange?style=social&logo=rss)](https://www.siglens.com/blog/blog-rss.xml)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=social&logo=linkedin)](https://www.linkedin.com/company/siglens-com)
+<div align="center">
 
-</a>
+  [![Build Status](https://github.com/siglens/siglens/workflows/siglens-docker-release/badge.svg)](https://github.com/siglens/siglens/actions/workflows/publish-prod-images.yml)
+  [![Go Report Card](https://goreportcard.com/badge/github.com/siglens/siglens)](https://goreportcard.com/report/github.com/siglens/siglens)
+  [![GoDoc](https://godoc.org/github.com/siglens/siglens?status.svg)](https://pkg.go.dev/github.com/siglens/siglens)
+  [![codecov](https://codecov.io/gh/siglens/siglens/graph/badge.svg?token=MH8S9B0EIK)](https://codecov.io/gh/siglens/siglens)
+</div>
+<div align="center">
+
+  [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=Follow%20%40SigLensHQ)](https://twitter.com/SigLensHQ)
+  [![RSS](https://img.shields.io/badge/RSS-Subscribe-orange?style=social&logo=rss)](https://www.siglens.com/blog/blog-rss.xml)
+  [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=social&logo=linkedin)](https://www.linkedin.com/company/siglens-com)
+</div>
 
 English | [简体中文](README_ZH_CN.md)
 
