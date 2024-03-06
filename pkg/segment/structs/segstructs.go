@@ -511,7 +511,7 @@ func (qa *QueryAggregators) HasDedupBlockInChain() bool {
 		return true
 	}
 	if qa.Next != nil {
-		return qa.Next.HasDedupBlock()
+		return qa.Next.HasDedupBlockInChain()
 	}
 	return false
 }
@@ -533,7 +533,7 @@ func (qa *QueryAggregators) HasSortBlockInChain() bool {
 		return true
 	}
 	if qa.Next != nil {
-		return qa.Next.HasSortBlock()
+		return qa.Next.HasSortBlockInChain()
 	}
 	return false
 }
