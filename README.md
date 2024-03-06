@@ -3,10 +3,19 @@
 </p>
 
 ---
-[![Build Status](https://github.com/siglens/siglens/workflows/siglens-docker-release/badge.svg)](https://github.com/siglens/siglens/actions/workflows/publish-prod-images.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/siglens/siglens)](https://goreportcard.com/report/github.com/siglens/siglens)
-[![GoDoc](https://godoc.org/github.com/siglens/siglens?status.svg)](https://pkg.go.dev/github.com/siglens/siglens)
-[![codecov](https://codecov.io/gh/siglens/siglens/graph/badge.svg?token=MH8S9B0EIK)](https://codecov.io/gh/siglens/siglens)
+<div align="center">
+
+  [![Build Status](https://github.com/siglens/siglens/workflows/siglens-docker-release/badge.svg)](https://github.com/siglens/siglens/actions/workflows/publish-prod-images.yml)
+  [![Go Report Card](https://goreportcard.com/badge/github.com/siglens/siglens)](https://goreportcard.com/report/github.com/siglens/siglens)
+  [![GoDoc](https://godoc.org/github.com/siglens/siglens?status.svg)](https://pkg.go.dev/github.com/siglens/siglens)
+  [![codecov](https://codecov.io/gh/siglens/siglens/graph/badge.svg?token=MH8S9B0EIK)](https://codecov.io/gh/siglens/siglens)
+</div>
+<div align="center">
+
+  [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=Follow%20%40SigLensHQ)](https://twitter.com/SigLensHQ)
+  [![RSS](https://img.shields.io/badge/RSS-Subscribe-orange?style=social&logo=rss)](https://www.siglens.com/blog/blog-rss.xml)
+  [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=social&logo=linkedin)](https://www.linkedin.com/company/siglens-com)
+</div>
 
 English | [简体中文](README_ZH_CN.md)
 
@@ -80,6 +89,9 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contri
 #### Searching Logs
 ![Searching Logs](./static/assets/readme-assets/log-searching.png)
 
+#### Tracing
+![Tracing](./static/assets/readme-assets/tracing.png)
+
 #### Creating Dashboards
 ![Creating Dashboards](./static/assets/readme-assets/dashboards.png)
 
@@ -95,3 +107,9 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contri
 
 ## Code of Conduct
 Please review our [code of conduct](https://github.com/siglens/siglens?tab=coc-ov-file#siglens-code-of-conduct) before contributing.
+
+## Thanks to all contributors for their efforts
+
+<a href="https://github.com/siglens/siglens/graphs/contributors" target="_blank">
+  <img src="https://contrib.rocks/image?repo=siglens/siglens" />
+</a>
