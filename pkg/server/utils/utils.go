@@ -35,6 +35,23 @@ const HEROKU_ADDON_PREFIX string = "/heroku/resources"
 
 // This function reduces some boilerplate code by handling the logic for
 // injecting orgId if necessary, or using the default.
+func CallWithOrgIdQuery(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthttp.RequestCtx) {
+	orgId := uint64(0)
+	var err error
+	if hook := hooks.GlobalHooks.GetOrgIdHookQuery; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			responsebody := make(map[string]interface{})
+			ctx.SetStatusCode(fasthttp.StatusUnauthorized)
+			responsebody["error"] = err.Error()
+			utils.WriteJsonResponse(ctx, responsebody)
+			return
+		}
+	}
+
+	handler(ctx, orgId)
+}
+
 func CallWithOrgId(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthttp.RequestCtx) {
 	orgId := uint64(0)
 	var err error
