@@ -229,6 +229,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
 	hs.Router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(esPutIndexHandler()))
 
+	hs.Router.GET(server_utils.API_PREFIX+"/system-info", hs.Recovery(getSystemInfoHandler()))
 	if config.IsDebugMode() {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}

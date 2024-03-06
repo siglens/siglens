@@ -39,6 +39,7 @@ import (
 	"github.com/siglens/siglens/pkg/sampledataset"
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
+	systemconfig "github.com/siglens/siglens/pkg/systemConfig"
 	usq "github.com/siglens/siglens/pkg/usersavedqueries"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -560,5 +561,11 @@ func getDependencyGraphHandler() func(ctx *fasthttp.RequestCtx) {
 func ganttChartHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgId(tracinghandler.ProcessGanttChartRequest, ctx)
+	}
+}
+
+func getSystemInfoHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		systemconfig.SystemInfoHandler(ctx)
 	}
 }
