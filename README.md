@@ -7,8 +7,10 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/siglens/siglens)](https://goreportcard.com/report/github.com/siglens/siglens)
 [![GoDoc](https://godoc.org/github.com/siglens/siglens?status.svg)](https://pkg.go.dev/github.com/siglens/siglens)
 [![codecov](https://codecov.io/gh/siglens/siglens/graph/badge.svg?token=MH8S9B0EIK)](https://codecov.io/gh/siglens/siglens)
-<a href="https://www.siglens.com/blog/blog-rss.xml" target="_blank">
-  <img src="./static/assets/rss-icon.png" alt="RSS" width="20" height="20">
+[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=Follow%20%40SigLensHQ)](https://twitter.com/SigLensHQ)
+[![RSS](https://img.shields.io/badge/RSS-Subscribe-orange?style=social&logo=rss)](https://www.siglens.com/blog/blog-rss.xml)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=social&logo=linkedin)](https://www.linkedin.com/company/siglens-com)
+
 </a>
 
 English | [简体中文](README_ZH_CN.md)
