@@ -1376,12 +1376,11 @@ progress.hidden {
     font-style: normal;
 }
 
-.query-table, .metrics-table, #org-settings-table {
+.query-table, .metrics-table, .org-settings-table {
     margin-top: 12px;
-    display: left ;
 }
 
-.query-table tbody td, .metrics-table tbody td, #org-settings-table td, #org-settings-table th{
+.query-table tbody td, .metrics-table tbody td, .org-settings-table td, .org-settings-table th{
     padding-left: 15px;
     width: 334px;
     height: 50px;
@@ -1389,7 +1388,7 @@ progress.hidden {
     background-color: var(--cstats-table-bg-color);
 }
 
-.query-table tbody tr, .metrics-table tbody tr, #org-settings-table tr{
+.query-table tbody tr, .metrics-table tbody tr, .org-settings-table tr{
     padding-bottom: 20px;
     /* width: 300px; */
     line-height: 18px;
@@ -1411,8 +1410,16 @@ progress.hidden {
     border-radius: 0 0 10px 0;
 }
 
-.health-stats-value, #org-settings-table td {
+.health-stats-value, .org-settings-table td {
     color: var(--health-stats-value-text-color);
+}
+
+#system-info-table td{
+    width: 530px;
+}
+
+#system-info-table td div{
+    margin: 5px 0px !important;
 }
 
 .index-stats {
@@ -3766,14 +3773,13 @@ color: #C8C7CC;
     width: 38vw;
 }
 
-#org-settings-table tr {
+.org-settings-table tr {
     font-weight: var(--fw-500) !important;
 }
 
 #retention-days-value {
     margin: 5px;
     width: 64px;
-    padding: 5px;
     height: 32px;
 }
 
