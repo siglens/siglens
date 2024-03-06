@@ -163,7 +163,7 @@ function addSystemInfoTable(systemInfo) {
     var diskInfo = `<div><b>Total:</b> ${totalDiskGB} GB</div>
                     <div><b>Available:</b> ${availableDiskGB} GB</div>
                     <div><b>Used:</b> ${diskUsage}%</div>`;
-    var diskRow = createRow("Memory Usage", diskInfo);
+    var diskRow = createRow("Disk Usage", diskInfo);
 
     table.append(cpuRow, memoryRow, osRow, diskRow);
 }
