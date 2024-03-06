@@ -54,7 +54,7 @@
                         <div id="api-keys-headings">
                             <p class="caption">Personalize your organization's settings</p>
                         </div>
-                        <table id="org-settings-table">
+                        <table class="org-settings-table">
                             <tr>
                                 <th>Organization Name</th>
                                 {{ if .OrgSettingsOrgName }}
@@ -90,6 +90,8 @@
                                 </td>
                             </tr>
                         </table>
+                        <h6 class="mt-3">System Configuration</h6>
+                        <table class="org-settings-table" id="system-info-table"></table>
                         {{ .OrgSettingsExtras | safeHTML }}
                     </div>
                 </div>

@@ -592,3 +592,9 @@ function displayLegendsForLineChart(seriesArray, labels, colors,metricsDatasets,
         )
     })
 }
+
+window.addEventListener('resize', function (event) {
+    if ($('.panelEditor-container').css('display') !== 'none' && panelChart){
+		panelChart.resize();
+    }
+});
