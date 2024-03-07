@@ -319,7 +319,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 		Qtype:                    queryType.String(),
 		BucketCount:              bucketCount,
 		IsTimechart:              aggs.UsedByTimechart(),
-		SortByTimestampAtDefault: aggs.HasSortBlockInChain(),
+		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
 	}
 	searchErrors, err := query.GetUniqueSearchErrors(qid)
 	if err != nil {
