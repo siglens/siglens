@@ -214,7 +214,7 @@ var upgrader = websocket.FastHTTPUpgrader{
 	WriteBufferSize: 4096,
 }
 
-func pipeSearchWebsocketHandler(myid uint64) func(ctx *fasthttp.RequestCtx) {
+func pipeSearchWebsocketHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
 			var orgId uint64
@@ -426,7 +426,7 @@ func lokiSeriesHandler() func(ctx *fasthttp.RequestCtx) {
 // alerting apis
 func createAlertHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessCreateAlertRequest(ctx)
+		serverutils.CallWithOrgIdQuery(alertsHandler.ProcessCreateAlertRequest, ctx)
 	}
 }
 
@@ -444,13 +444,13 @@ func getAlertHandler() func(ctx *fasthttp.RequestCtx) {
 
 func getAllAlertsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessGetAllAlertsRequest(ctx)
+		serverutils.CallWithOrgIdQuery(alertsHandler.ProcessGetAllAlertsRequest, ctx)
 	}
 }
 
 func getAllMinionSearchesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessGetAllMinionSearchesRequest(ctx)
+		serverutils.CallWithOrgIdQuery(alertsHandler.ProcessGetAllMinionSearchesRequest, ctx)
 	}
 }
 
@@ -474,13 +474,13 @@ func deleteAlertHandler() func(ctx *fasthttp.RequestCtx) {
 
 func createContactHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessCreateContactRequest(ctx)
+		serverutils.CallWithOrgIdQuery(alertsHandler.ProcessCreateContactRequest, ctx)
 	}
 }
 
 func getAllContactsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessGetAllContactsRequest(ctx)
+		serverutils.CallWithOrgIdQuery(alertsHandler.ProcessGetAllContactsRequest, ctx)
 	}
 }
 
@@ -498,7 +498,7 @@ func deleteContactHandler() func(ctx *fasthttp.RequestCtx) {
 
 func createMinionSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessCreateLogMinionSearchRequest(ctx)
+		serverutils.CallWithOrgIdQuery(alertsHandler.ProcessCreateLogMinionSearchRequest, ctx)
 	}
 }
 

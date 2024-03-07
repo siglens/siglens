@@ -282,8 +282,6 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	instrumentation.InitMetrics()
 	querytracker.InitQT()
 
-	alertsHandler.InitAlertingService()
-	alertsHandler.InitMinionSearchService()
 	go tracinghandler.MonitorSpansHealth()
 	go tracinghandler.DependencyGraphThread()
 
