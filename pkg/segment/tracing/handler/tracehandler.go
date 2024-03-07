@@ -32,8 +32,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	nowTs := putils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, _, _, _, err := pipesearch.ParseSearchBody(readJSON, nowTs)
 	if err != nil {
-		writeErrMsg(ctx, "ProcessSearchTracesRequest", err.Error(), nil)
-		return
+		log.Errorf("ProcessSearchTracesRequest: error parsing search body: %v", err)
 	}
 
 	page := 1
