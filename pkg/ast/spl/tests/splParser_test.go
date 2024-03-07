@@ -4990,6 +4990,64 @@ func Test_dedupWithSortBy(t *testing.T) {
 	assert.Equal(t, dedupExpr.DedupSortEles[1].Field, "state")
 }
 
+func Test_sortWithOneField(t *testing.T) {
+	query := []byte(`A=1 | sort auto(city)`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.SortColRequest)
+
+	sortExpr := aggregator.OutputTransforms.LetColumns.SortColRequest
+	assert.Len(t, sortExpr.SortEles, 1)
+	assert.Equal(t, []int{1}, sortExpr.SortAscending)
+	assert.Equal(t, "city", sortExpr.SortEles[0].Field)
+	assert.Equal(t, "auto", sortExpr.SortEles[0].Op)
+	assert.Equal(t, true, sortExpr.SortEles[0].SortByAsc)
+}
+
+func Test_sortWithMultipleFields(t *testing.T) {
+	query := []byte(`A=1 | sort str(app_name), -city, num(latency)`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.SortColRequest)
+
+	sortExpr := aggregator.OutputTransforms.LetColumns.SortColRequest
+	assert.Len(t, sortExpr.SortEles, 3)
+	assert.Equal(t, []int{1, -1, 1}, sortExpr.SortAscending)
+	assert.Equal(t, "app_name", sortExpr.SortEles[0].Field)
+	assert.Equal(t, "str", sortExpr.SortEles[0].Op)
+	assert.Equal(t, true, sortExpr.SortEles[0].SortByAsc)
+
+	assert.Equal(t, "city", sortExpr.SortEles[1].Field)
+	assert.Equal(t, "", sortExpr.SortEles[1].Op)
+	assert.Equal(t, false, sortExpr.SortEles[1].SortByAsc)
+
+	assert.Equal(t, "latency", sortExpr.SortEles[2].Field)
+	assert.Equal(t, "num", sortExpr.SortEles[2].Op)
+	assert.Equal(t, true, sortExpr.SortEles[2].SortByAsc)
+}
+
 // SPL Transaction command.
 func Test_TransactionRequestWithFields(t *testing.T) {
 	query := []byte(`A=1 | transaction A`)

@@ -127,16 +127,15 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() {
-		// Dedup needs state information about the previous records, so we can
+	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() {
+		// 1. Dedup needs state information about the previous records, so we can
 		// run into an issue if we show some records, then the user scrolls
 		// down to see more and we run dedup on just the new records and add
 		// them to the existing ones. To get around this, we can run the query
 		// on all of the records initially so that scrolling down doesn't cause
 		// another query to run.
-		sizeLimit = math.MaxUint64
-	} else if aggs.HasRexBlockInChainWithStats() {
-		// If there's a Rex block in the chain followed by a Stats block, we need to
+		// 2. Sort cmd is similar to Dedup cmd; we need to process all the records at once and extract those with top/rare priority based on requirements.
+		// 3. If there's a Rex block in the chain followed by a Stats block, we need to
 		// see all the matched records before we apply or calculate the stats.
 		sizeLimit = math.MaxUint64
 	}
@@ -309,17 +308,18 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	}
 	queryType := query.GetQueryType(qid)
 	resp := &PipeSearchCompleteResponse{
-		TotalMatched:        convertQueryCountToTotalResponse(queryC),
-		State:               query.COMPLETE.String(),
-		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
-		CanScrollMore:       canScrollMore,
-		TotalRRCCount:       numRRCs,
-		MeasureResults:      aggMeasureRes,
-		MeasureFunctions:    aggMeasureFunctions,
-		GroupByCols:         aggGroupByCols,
-		Qtype:               queryType.String(),
-		BucketCount:         bucketCount,
-		IsTimechart:         aggs.UsedByTimechart(),
+		TotalMatched:             convertQueryCountToTotalResponse(queryC),
+		State:                    query.COMPLETE.String(),
+		TotalEventsSearched:      humanize.Comma(int64(totalEventsSearched)),
+		CanScrollMore:            canScrollMore,
+		TotalRRCCount:            numRRCs,
+		MeasureResults:           aggMeasureRes,
+		MeasureFunctions:         aggMeasureFunctions,
+		GroupByCols:              aggGroupByCols,
+		Qtype:                    queryType.String(),
+		BucketCount:              bucketCount,
+		IsTimechart:              aggs.UsedByTimechart(),
+		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
 	}
 	searchErrors, err := query.GetUniqueSearchErrors(qid)
 	if err != nil {

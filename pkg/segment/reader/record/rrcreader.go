@@ -168,8 +168,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				*    adapting dynamically based on the flags set by the PostQueryBucketCleaning and PerformAggsOnRecs functions.
 				 */
 				for {
-					agg.PostQueryBucketCleaning(nodeRes, aggs, recs, finalCols, numTotalSegments)
-
+					agg.PostQueryBucketCleaning(nodeRes, aggs, recs, recordIndexInFinal, finalCols, numTotalSegments)
 					if nodeRes.PerformAggsOnRecs {
 						resultRecMap = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, qid)
 						if len(resultRecMap) > 0 {
@@ -190,6 +189,12 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 						// No need to perform aggs on recs. All the Aggs are Processed.
 						break
 					}
+				}
+				// For other cmds, if we cannot map recInden to an index, we simply append the record to allRecords
+				// However, for the sort cmd, we should assign the length of the result set to be the same as recordIndexInFinal
+				// This way, when mapping the results to allRecords, we can preserve the order of the results rather than just appending them to the end of allRecords
+				if len(recordIndexInFinal) > len(allRecords) {
+					allRecords = make([]map[string]interface{}, len(recordIndexInFinal))
 				}
 			}
 

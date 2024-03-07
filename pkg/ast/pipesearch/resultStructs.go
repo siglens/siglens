@@ -57,15 +57,16 @@ type PipeSearchWSUpdateResponse struct {
 }
 
 type PipeSearchCompleteResponse struct {
-	State               string                  `json:"state,omitempty"`
-	TotalMatched        interface{}             `json:"totalMatched,omitempty"`
-	TotalEventsSearched interface{}             `json:"total_events_searched,omitempty"`
-	CanScrollMore       bool                    `json:"can_scroll_more"`
-	TotalRRCCount       interface{}             `json:"total_rrc_count,omitempty"`
-	MeasureFunctions    []string                `json:"measureFunctions,omitempty"`
-	MeasureResults      []*structs.BucketHolder `json:"measure,omitempty"`
-	GroupByCols         []string                `json:"groupByCols,omitempty"`
-	Qtype               string                  `json:"qtype,omitempty"`
-	BucketCount         int                     `json:"bucketCount,omitempty"`
-	IsTimechart         bool                    `json:"isTimechart"`
+	State                    string                  `json:"state,omitempty"`
+	TotalMatched             interface{}             `json:"totalMatched,omitempty"`
+	TotalEventsSearched      interface{}             `json:"total_events_searched,omitempty"`
+	CanScrollMore            bool                    `json:"can_scroll_more"`
+	TotalRRCCount            interface{}             `json:"total_rrc_count,omitempty"`
+	MeasureFunctions         []string                `json:"measureFunctions,omitempty"`
+	MeasureResults           []*structs.BucketHolder `json:"measure,omitempty"`
+	GroupByCols              []string                `json:"groupByCols,omitempty"`
+	Qtype                    string                  `json:"qtype,omitempty"`
+	BucketCount              int                     `json:"bucketCount,omitempty"`
+	IsTimechart              bool                    `json:"isTimechart"`
+	SortByTimestampAtDefault bool                    `json:"sortByTimestampAtDefault"`
 }
