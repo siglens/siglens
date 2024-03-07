@@ -60,6 +60,7 @@ type Hooks struct {
 	DoesMetaFileExistExtrasHook         func(filename string) (bool, bool, error)
 
 	// Server helpers
+	GetOrgIdHookQuery         func(ctx *fasthttp.RequestCtx) (uint64, error)
 	GetOrgIdHook              func(ctx *fasthttp.RequestCtx) (uint64, error)
 	ExtractKibanaRequestsHook func(kibanaIndices []string, qid uint64) map[string]interface{}
 
