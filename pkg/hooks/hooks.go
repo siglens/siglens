@@ -19,6 +19,7 @@ type Hooks struct {
 	ServeStaticHook        func(router *router.Router, htmlTemplate *htmltemplate.Template)
 	ParseTemplatesHook     func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template)
 	CheckLicenseHook       func()
+	CheckOrgValidityHook   func()
 	AfterConfigHook        func(baseLogDir string)
 	ValidateDeploymentHook func() (commonconfig.DeploymentType, error)
 	GetNodeIdHook          func() string
