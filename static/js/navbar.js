@@ -57,7 +57,7 @@ let navbarComponent = `
                     class="nav-link-text">My Org</span></a>
         </div>
         <div class="menu nav-ingest" title="Ingestion">
-            <a href="./logstash-ingestion.html" class="nav-links"><span class="icon-ingest"></span><span
+            <a href="./test-data.html" class="nav-links"><span class="icon-ingest"></span><span
                     class="nav-link-text">Ingestion</span></a>
         </div>
     </div>
@@ -122,7 +122,8 @@ $(document).ready(function () {
         ".nav-myorg",
         ".nav-minion",
         ".nav-live",
-        ".nav-traces"
+        ".nav-traces",
+        ".nav-ingest",
     ];
     navItems.forEach((item) => $(item).removeClass("active"));
 

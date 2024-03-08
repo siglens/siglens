@@ -585,7 +585,7 @@ body {
 }
 
 .icon-ingest {
-    background-image: url("../assets/my-org-icon-inactive.svg");
+    background-image: url("../assets/ingestion-icon-inactive.svg");
     height: 18px;
     width: 18px;
 }
@@ -664,7 +664,7 @@ body {
 
 .icon-ingest:hover,
 .menu.nav-ingest.active .icon-ingest {
-    background-image: url("../assets/my-org-icon-active.svg");
+    background-image: url("../assets/ingestion-icon-active.svg");
     height: 18px;
     width: 18px;
 }
