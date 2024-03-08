@@ -489,7 +489,8 @@ body {
 .icon-alerts,
 .icon-minion,
 .icon-live,
-.icon-traces{
+.icon-traces,
+.icon-ingest{
     min-height: 42px;
     min-width: 48px;
     background-origin: content-box;
@@ -583,6 +584,12 @@ body {
     width: 18px;
 }
 
+.icon-ingest {
+    background-image: url("../assets/my-org-icon-inactive.svg");
+    height: 18px;
+    width: 18px;
+}
+
 .icon-alerts {
     background-image: url("../assets/alerting-icon-inactive.svg");
     height: 18px;
@@ -650,6 +657,13 @@ body {
 
 .icon-myorg:hover,
 .menu.nav-myorg.active .icon-myorg {
+    background-image: url("../assets/my-org-icon-active.svg");
+    height: 18px;
+    width: 18px;
+}
+
+.icon-ingest:hover,
+.menu.nav-ingest.active .icon-ingest {
     background-image: url("../assets/my-org-icon-active.svg");
     height: 18px;
     width: 18px;
@@ -3634,7 +3648,7 @@ float: right;
     visibility: visible;
 }
 
-.myOrg ul li:hover{  
+.myOrg .dropdown-option li:hover{  
     background: #6347D9;
     color: #fff;
 }
@@ -4060,7 +4074,7 @@ color: #C8C7CC;
 }
 
 
-.org-nav-tab{
+.org-nav-tab, .ingestion-nav-tab{
     display: flex;
     justify-content: space-between;
     margin: 20px;
@@ -4879,4 +4893,19 @@ input.form-control {
 
 #delbutton.default-dashboard-delete:hover {
     background-image: url(../assets/dark-delete-icon-regular.svg);
+}
+
+.ingestion-container{
+    margin-top: 16px;
+    width: 70%;
+    font-size: 16px;
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: var(--box-shadow);
+}
+
+.ingestion-container a{
+    color: var(--dashboard-title-color);
 }
