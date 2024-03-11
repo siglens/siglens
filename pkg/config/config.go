@@ -1024,19 +1024,22 @@ func getQueryServerPort() (uint64, error) {
 
 func GetQueryServerBaseUrl() string {
 	hostname := GetQueryHostname()
+	port, err := getQueryServerPort()
+	if err != nil {
+		log.Errorf("GetQueryServerBaseUrl: failed to get query port; err: %v", err)
+		return "http://localhost:5122"
+	}
+
 	if hostname == "" {
-		port, err := getQueryServerPort()
-		if err != nil {
-			return "http://localhost:5122"
-		}
 		return "http://localhost:" + fmt.Sprintf("%d", port)
 	} else {
-		if IsTlsEnabled() {
-			hostname = "https://" + hostname
-		} else {
-			hostname = "http://" + hostname
+		isTlsEnabled := IsTlsEnabled()
+		protocol := "http"
+		if isTlsEnabled {
+			protocol = "https"
 		}
-		return hostname
+
+		return fmt.Sprintf("%s://%s:%d", protocol, hostname, port)
 	}
 }
 
