@@ -306,6 +306,9 @@ $(document).ready(function () {
      onGridReady(params) {
          this.gridApi = params.api; // To access the grids API
      },
+     localeText: {
+        noRowsToShow: 'No Saved Query Found'
+    }
     //  domLayout: 'autoHeight',
  };
  
