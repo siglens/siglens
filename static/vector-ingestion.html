@@ -47,49 +47,28 @@
             <div class="myOrg-container">
                 <div class="ingestion-nav-tab">
                 </div>
-
                 <div class="myOrg-inner-container">
-                    <div>
-                        <div>
-                            <p class="caption">Experiment with a test data set</p>
-                        </div>
-                        <div id="test-data-container">
-                            <div class="main-dropdown">
-                                <div class="role-inner-dropdown">
-                                    <div class="select">Select Test Data
-                                        <span class="arrow-btn"><img src="./assets/arrow-btn.svg" alt="" /></span>
-                                    </div>
-                                </div>
-                                <ul class="list-unstyled dropdown-option">
-                                    <!-- <li class=" roles">Apache access logs</li> -->
-                                    <li class="roles" id="test-dataset-1">Person Profile </li>
-                                </ul>
-                            </div>
-                            <div><button type="button" class="btn" id="test-data-btn">Send Test Data</button></div>
-                        </div>
+                    <div class="ingestion-container">
+                        <h5 class="myOrg-heading">Vector</h5>
+                        <p><em>Ingesting logs into SigLens using Vector</em></p>
+                        <p>Vector is a high-performance, open-source observability data pipeline that allows you to
+                            collect, transform, and route all your logs and metrics. It's designed to be robust,
+                            efficient, and easy to use, making it a popular choice for observability data pipelines.</p>
+                        <p>For detailed instructions on how to use Vector to send logs to SigLens, please refer to the documentation <a href="https://www.siglens.com/siglens-docs/log-ingestion/vector" target="_blank">here</a>.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
     <div id="app-footer">
         2023 &copy; SigLens
-    </div>
     </div>
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/common.js?cb=1_1_10"></script>
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
-    <script src="./js/available-fields.js?cb=1_1_10"></script>
-    <script src="./js/log-results-grid.js?cb=1_1_10"></script>
-    <script src="./js/ag-grid-seg-stats.js?cb=1_1_10"></script>
-    <script src="./js/date-picker.js?cb=1_1_10"></script>
-    <script src="./js/search.js?cb=1_1_10"></script>
-    <script src="./js/saved-query.js?cb=1_1_10"></script>
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./js/test-data.js"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
-
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
 </body>

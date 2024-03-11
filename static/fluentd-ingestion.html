@@ -47,27 +47,13 @@
             <div class="myOrg-container">
                 <div class="ingestion-nav-tab">
                 </div>
-
                 <div class="myOrg-inner-container">
-                    <div>
-                        <div>
-                            <p class="caption">Experiment with a test data set</p>
-                        </div>
-                        <div id="test-data-container">
-                            <div class="main-dropdown">
-                                <div class="role-inner-dropdown">
-                                    <div class="select">Select Test Data
-                                        <span class="arrow-btn"><img src="./assets/arrow-btn.svg" alt="" /></span>
-                                    </div>
-                                </div>
-                                <ul class="list-unstyled dropdown-option">
-                                    <!-- <li class=" roles">Apache access logs</li> -->
-                                    <li class="roles" id="test-dataset-1">Person Profile </li>
-                                </ul>
-                            </div>
-                            <div><button type="button" class="btn" id="test-data-btn">Send Test Data</button></div>
-                        </div>
-                    </div>
+                    <div class="ingestion-container">
+                        <h1 class="myOrg-heading">Fluentd</h1>
+                        <p><em>Ingesting logs into SigLens using Fluentd</em></p>
+                        <p>Fluentd is an open-source data collector that unifies data collection and consumption for better use and understanding of data. It's designed to handle various types of data sources with different types and formats, making it a popular choice for logging solutions.</p>
+                        <p>For detailed instructions on how to use Fluentd to send logs to SigLens, please refer to the documentation <a href="https://www.siglens.com/siglens-docs/log-ingestion/fluentd" target="blank">here</a>.</p>
+                    </div>                   
                 </div>
             </div>
         </div>
@@ -80,16 +66,9 @@
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/common.js?cb=1_1_10"></script>
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
-    <script src="./js/available-fields.js?cb=1_1_10"></script>
-    <script src="./js/log-results-grid.js?cb=1_1_10"></script>
-    <script src="./js/ag-grid-seg-stats.js?cb=1_1_10"></script>
-    <script src="./js/date-picker.js?cb=1_1_10"></script>
-    <script src="./js/search.js?cb=1_1_10"></script>
-    <script src="./js/saved-query.js?cb=1_1_10"></script>
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./js/test-data.js"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
-
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
 </body>

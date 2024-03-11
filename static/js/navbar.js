@@ -56,6 +56,10 @@ let navbarComponent = `
             <a href="./cluster-stats.html" class="nav-links"><span class="icon-myorg"></span><span
                     class="nav-link-text">My Org</span></a>
         </div>
+        <div class="menu nav-ingest" title="Ingestion">
+            <a href="./test-data.html" class="nav-links"><span class="icon-ingest"></span><span
+                    class="nav-link-text">Ingestion</span></a>
+        </div>
     </div>
     <div>
         <div>
@@ -83,7 +87,6 @@ let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
     {{ .OrgUpperNavTabs}}
     { name: 'Settings', url: './org-settings.html', class : 'org-settings'},
-    { name: 'Test Data', url: './test-data.html', class : 'test-data' },
     { name: 'Version', url: './application-version.html', class: 'application-version'}
 ];
 
@@ -98,6 +101,15 @@ let alertsUpperNavTabs = [
     { name: 'Contact Points', url: './contacts.html', class : 'contacts'},
 ];
 
+let ingestionUpperNavTabs = [
+    { name: 'Test Data', url: './test-data.html', class : 'test-data' },
+    { name: 'Vector', url: './vector-ingestion.html', class: 'vector-ingestion' },
+    { name: 'Logstash', url: './logstash-ingestion.html', class: 'logstash-ingestion' },
+    { name: 'Fluentd', url: './fluentd-ingestion.html', class: 'fluentd-ingestion' },
+    { name: 'Filebeat', url: './filebeat-ingestion.html', class: 'filebeat-ingestion' },
+    { name: 'Promtail', url: './promtail-ingestion.html', class: 'promtail-ingestion' },
+];
+
 $(document).ready(function () {
     $("#app-side-nav").prepend(navbarComponent);
     const currentUrl = window.location.href;
@@ -110,7 +122,8 @@ $(document).ready(function () {
         ".nav-myorg",
         ".nav-minion",
         ".nav-live",
-        ".nav-traces"
+        ".nav-traces",
+        ".nav-ingest",
     ];
     navItems.forEach((item) => $(item).removeClass("active"));
 
@@ -125,7 +138,7 @@ $(document).ready(function () {
     } else if (currentUrl.includes("alerts.html") || currentUrl.includes("alert.html") || currentUrl.includes("alert-details.html")   || currentUrl.includes("contacts.html")){
         $(".nav-alerts").addClass("active");
         $('.alerts-nav-tab').appendOrgNavTabs("Alerting", alertsUpperNavTabs);
-    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("test-data.html") || currentUrl.includes("application-version.html") {{ .OrgUpperNavUrls}} ) {
+    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("application-version.html") {{ .OrgUpperNavUrls}} ) {
         $(".nav-myorg").addClass("active");
         $('.org-nav-tab').appendOrgNavTabs("My Org", orgUpperNavTabs);
     } else if (currentUrl.includes("minion-searches.html")) {
@@ -135,6 +148,9 @@ $(document).ready(function () {
     } else if (currentUrl.includes("service-health.html")|| currentUrl.includes("service-health-overview.html") || currentUrl.includes("dependency-graph.html")|| currentUrl.includes("search-traces.html")) {
         $(".nav-traces").addClass("active");
         $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
+    } else if (currentUrl.includes("test-data.html") || currentUrl.includes("logstash-ingestion.html")|| currentUrl.includes("vector-ingestion.html")|| currentUrl.includes("promtail-ingestion.html")|| currentUrl.includes("filebeat-ingestion.html")|| currentUrl.includes("fluentd-ingestion.html")) {
+        $(".nav-ingest").addClass("active");
+        $('.ingestion-nav-tab').appendOrgNavTabs("Ingestion", ingestionUpperNavTabs);
     }
 
 });
