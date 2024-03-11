@@ -1033,9 +1033,8 @@ func GetQueryServerBaseUrl() string {
 	if hostname == "" {
 		return "http://localhost:" + fmt.Sprintf("%d", port)
 	} else {
-		isTlsEnabled := IsTlsEnabled()
 		protocol := "http"
-		if isTlsEnabled {
+		if IsTlsEnabled() {
 			protocol = "https"
 		}
 
