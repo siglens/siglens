@@ -51,7 +51,12 @@ limitations under the License.
             if (resMap.GroupByValues!=null && resMap.GroupByValues[index]!="*" && index< (resMap.GroupByValues).length){
                 newRow.set(colName, resMap.GroupByValues[index])
             }else{
-                newRow.set(colName, resMap.MeasureVal[colName])
+                // Check if MeasureVal is undefined or null and set it to 0
+                if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {
+                    newRow.set(colName, "0");
+                } else {
+                    newRow.set(colName, resMap.MeasureVal[colName]);
+                }
             }
         })
          segStatsRowData = _.concat(segStatsRowData, Object.fromEntries(newRow));

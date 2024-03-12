@@ -165,8 +165,8 @@ limitations under the License.
     }
     lockReconnect = true;
     //keep reconnect，set delay to avoid much request, set tt, cancel first, then reset
-    tt && clearTimeout(tt);
-    tt = setTimeout(function () {
+    clearInterval(tt);
+    tt = setInterval(function () {
       if (!liveTailState) {
         lockReconnect = false;
         return;
@@ -174,7 +174,7 @@ limitations under the License.
       data = getLiveTailFilter(false, false, 30);
       createLiveTailSocket(data);
       lockReconnect = false;
-    }, 30000);
+  }, refreshInterval);
   }
 
   function createLiveTailSocket(data) {
@@ -835,7 +835,9 @@ limitations under the License.
       measureInfo = [];
      }
     isTimechart = res.isTimechart;
-    timeChart();
+    const currentUrl = window.location.href;
+    if (currentUrl.includes("index.html"))
+      timeChart();
      let totalTime = (new Date()).getTime() - startQueryTime;
      let percentComplete = res.percent_complete;
      if (res.total_rrc_count > 0){
@@ -915,7 +917,8 @@ limitations under the License.
      console.log(`rendering total hits: ${totalHits}. elapedTimeMS: ${elapedTimeMS}`);
      let startDate = displayStart ;
      let endDate = displayEnd;
-     let totalHitsFormatted = Number(totalHits).toLocaleString();
+     // Check if totalHits is undefined and set it to 0
+     let totalHitsFormatted = Number(totalHits || 0).toLocaleString();
  
      if (eventType === "QUERY_UPDATE") {
       if (totalHits > 0){
@@ -945,8 +948,8 @@ limitations under the License.
          if (qtype == "aggs-query" || qtype === "segstats-query") {
            let bucketGrammer = totalHits == 1 ? "bucket was" : "buckets were";
            $("#hits-summary").html(`
-             <div>Response: ${timeToFirstByte} ms</div>
-             <div><span class="total-hits">${operatorSign} ${totalHitsFormatted}</span><span> ${bucketGrammer} created from ${totalEventsSearched} records.</span></div>
+             <div><b>Response: ${timeToFirstByte} ms</b></div>
+             <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> ${bucketGrammer} created from <b>${totalEventsSearched}</b> records.</span></div>
              <div>${dateFns.format(
                startDate,
                timestampDateFmt
@@ -954,8 +957,8 @@ limitations under the License.
          `);
          } else if (totalHits > 0) {
            $("#hits-summary").html(`
-             <div>Response: ${timeToFirstByte} ms</div>
-             <div><span class="total-hits">${operatorSign} ${totalHitsFormatted}</span><span> of ${totalEventsSearched} Records Matched</span></div>
+             <div><b>Response: ${timeToFirstByte} ms</b></div>
+             <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> of <b>${totalEventsSearched}</b> Records Matched</span></div>
              <div>${dateFns.format(
                startDate,
                timestampDateFmt
@@ -963,8 +966,8 @@ limitations under the License.
          `);
          } else {
            $("#hits-summary").html(`
-             <div>Response: ${timeToFirstByte} ms</div>
-             <div><span> ${totalEventsSearched} Records Searched</span></div>
+             <div><b>Response: ${timeToFirstByte} ms</b></div>
+             <div><span><b> ${totalEventsSearched} </b>Records Searched</span></div>
              <div>${dateFns.format(
                startDate,
                timestampDateFmt
@@ -974,3 +977,41 @@ limitations under the License.
          $('#progress-div').html(``)
      }
  }
+
+// LiveTail Refresh Duration
+let refreshInterval = 10000;
+
+$('.refresh-range-item').on('click', refreshRangeItemHandler);
+
+function refreshRangeItemHandler(evt){
+  $.each($(".refresh-range-item.active"), function () {
+      $(this).removeClass('active');
+  });
+  $(evt.currentTarget).addClass('active');
+  let interval = $(evt.currentTarget).attr('id');
+  $('#refresh-picker-btn span').html(interval);
+
+  refreshInterval = parseInterval(interval); // Parsing interval
+  if(liveTailState) 
+    reconnect();
+}
+
+function parseInterval(interval) {
+  const regex = /(\d+)([smhd])/;
+  const match = interval.match(regex);
+  const value = parseInt(match[1]);
+  const unit = match[2];
+  
+  switch (unit) {
+      case 's':
+          return value * 1000;
+      case 'm':
+          return value * 60 * 1000;
+      case 'h':
+          return value * 60 * 60 * 1000;
+      case 'd':
+          return value * 24 * 60 * 60 * 1000;
+      default:
+          throw new Error("Invalid interval unit");
+  }
+}
