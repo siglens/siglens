@@ -961,13 +961,10 @@ progress.hidden {
 .hits-summary div:last-child{
     margin-top: 20px;
     font-size: 12px;
+    color: var(--hits-summary-small-text-color);
 }
 #hits-summary progress {
     vertical-align: middle;
-}
-
-[data-theme='dark'] #hits-summary span:not(.total-hits) {
-    color: var(--hits-summary-small-text-color);
 }
 
 [data-theme='light'] #hits-summary {
