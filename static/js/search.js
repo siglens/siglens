@@ -917,7 +917,8 @@ limitations under the License.
      console.log(`rendering total hits: ${totalHits}. elapedTimeMS: ${elapedTimeMS}`);
      let startDate = displayStart ;
      let endDate = displayEnd;
-     let totalHitsFormatted = Number(totalHits).toLocaleString();
+     // Check if totalHits is undefined and set it to 0
+     let totalHitsFormatted = Number(totalHits || 0).toLocaleString();
  
      if (eventType === "QUERY_UPDATE") {
       if (totalHits > 0){
