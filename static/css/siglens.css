@@ -231,6 +231,7 @@
     --alerting-table-hover: var(--black-2);
     --tab-active-background:var(--purple-1);
     --dashboard-tab-bg: var(--black-2);
+  --top-refresh-btn-bg-img: url("../assets/refresh-icon.svg");
 }
 
 /* end aliases */
@@ -368,6 +369,7 @@
     --alerting-table-hover: var(--white-1);
     --tab-active-background: #E8E3F9;
     --dashboard-tab-bg: var(--white-1);
+  --top-refresh-btn-bg-img: url("../assets/refreshy-icon.svg");
 }
 
 
@@ -4871,10 +4873,83 @@ input.form-control {
 .live-tail #query-language-btn{
     margin-left: 0px;
 }
-
+.live-tail #views-container{
+    margin-left: 0 !important;
+}
 
 .live-tail-logs-container .ag-theme-mycustomtheme .ag-root-wrapper {
     border: 1px solid var(--border-btn-color);
+}
+
+#logs-view-controls .refresh-container{
+    display: flex;
+    margin-top: 5px;
+}
+
+#logs-view-controls #refresh-picker-btn{
+    margin: 0;
+    text-decoration: none;
+    border: none;
+    height: 30px;
+    line-height: 14px;
+    cursor: pointer;
+    border-radius: 0 5px 5px 0 !important;
+    width: auto;
+    padding: 0 5px;
+    border: 1px solid var(--border-color-regular) !important
+}
+  
+#refresh-picker-btn:hover {
+    background: var(--drop-down-btn-bg-hover);
+}
+  
+#refresh-picker-btn.active {
+    background: var(--drop-down-btn-bg-active) !important;
+    outline: 1px solid var(--drop-down-btn-border-active);
+    outline-offset: -1pt;
+}
+  
+#logs-view-controls .refresh-btn{
+    border-radius: 5px 0 0 5px !important;
+    background-color: var(--drop-down-btn-bg-regular) !important;
+    width: 30px;
+    height: 30px !important;
+    border: 1px solid var(--border-color-regular) !important
+}
+  
+.refresh-picker.show{
+    min-width: 53px !important;
+    height: auto !important;
+    background: var(--timepicker-bg-color);
+    border: 1px solid var(--timepicker-border-color);
+    color: var(--table-or-regular-text-color);
+    border-radius: 5px;
+    left:3px !important;
+    padding: 0.5rem;
+}
+  
+.refresh-range-item.active {
+    background-color: var(--index-drop-down-item-active-bg-color);
+    color: var(--index-drop-down-item-active-text-color);
+}
+
+.refresh-range-item {
+    padding:6px 10px !important;
+    display: flex;
+    align-items: center;
+    border-radius: 5px;
+    line-height: 23px;
+    cursor: pointer;
+}
+  
+.refresh-range-item:hover {
+    color: var(--timepicker-text-color-hover);
+}
+
+.refresh-btn{
+    height: 32px !important;
+    background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
+    background-size: 46% !important;
 }
 
 #delbutton.default-dashboard-delete:hover {

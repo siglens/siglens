@@ -165,8 +165,8 @@ limitations under the License.
     }
     lockReconnect = true;
     //keep reconnect，set delay to avoid much request, set tt, cancel first, then reset
-    tt && clearTimeout(tt);
-    tt = setTimeout(function () {
+    clearInterval(tt);
+    tt = setInterval(function () {
       if (!liveTailState) {
         lockReconnect = false;
         return;
@@ -174,7 +174,7 @@ limitations under the License.
       data = getLiveTailFilter(false, false, 30);
       createLiveTailSocket(data);
       lockReconnect = false;
-    }, 30000);
+  }, refreshInterval);
   }
 
   function createLiveTailSocket(data) {
@@ -835,7 +835,9 @@ limitations under the License.
       measureInfo = [];
      }
     isTimechart = res.isTimechart;
-    timeChart();
+    const currentUrl = window.location.href;
+    if (currentUrl.includes("index.html"))
+      timeChart();
      let totalTime = (new Date()).getTime() - startQueryTime;
      let percentComplete = res.percent_complete;
      if (res.total_rrc_count > 0){
@@ -974,3 +976,41 @@ limitations under the License.
          $('#progress-div').html(``)
      }
  }
+
+// LiveTail Refresh Duration
+let refreshInterval = 10000;
+
+$('.refresh-range-item').on('click', refreshRangeItemHandler);
+
+function refreshRangeItemHandler(evt){
+  $.each($(".refresh-range-item.active"), function () {
+      $(this).removeClass('active');
+  });
+  $(evt.currentTarget).addClass('active');
+  let interval = $(evt.currentTarget).attr('id');
+  $('#refresh-picker-btn span').html(interval);
+
+  refreshInterval = parseInterval(interval); // Parsing interval
+  if(liveTailState) 
+    reconnect();
+}
+
+function parseInterval(interval) {
+  const regex = /(\d+)([smhd])/;
+  const match = interval.match(regex);
+  const value = parseInt(match[1]);
+  const unit = match[2];
+  
+  switch (unit) {
+      case 's':
+          return value * 1000;
+      case 'm':
+          return value * 60 * 1000;
+      case 'h':
+          return value * 60 * 60 * 1000;
+      case 'd':
+          return value * 24 * 60 * 60 * 1000;
+      default:
+          throw new Error("Invalid interval unit");
+  }
+}
