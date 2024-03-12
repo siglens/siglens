@@ -2209,7 +2209,7 @@ div#download-info {
     background: var(--ui-widget-bg-color);
     padding: 13px 0 14px 14px;
     box-sizing: border-box;
-    color: var(--search-bar-text-color-regular-or-hover);
+    color: var(--text-color);
 }
 
 .ui-widget input:focus {
