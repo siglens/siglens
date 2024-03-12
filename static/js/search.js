@@ -947,8 +947,8 @@ limitations under the License.
          if (qtype == "aggs-query" || qtype === "segstats-query") {
            let bucketGrammer = totalHits == 1 ? "bucket was" : "buckets were";
            $("#hits-summary").html(`
-             <div>Response: ${timeToFirstByte} ms</div>
-             <div><span class="total-hits">${operatorSign} ${totalHitsFormatted}</span><span> ${bucketGrammer} created from ${totalEventsSearched} records.</span></div>
+             <div><b>Response: ${timeToFirstByte} ms</b></div>
+             <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> ${bucketGrammer} created from <b>${totalEventsSearched}</b> records.</span></div>
              <div>${dateFns.format(
                startDate,
                timestampDateFmt
@@ -956,8 +956,8 @@ limitations under the License.
          `);
          } else if (totalHits > 0) {
            $("#hits-summary").html(`
-             <div>Response: ${timeToFirstByte} ms</div>
-             <div><span class="total-hits">${operatorSign} ${totalHitsFormatted}</span><span> of ${totalEventsSearched} Records Matched</span></div>
+             <div><b>Response: ${timeToFirstByte} ms</b></div>
+             <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> of <b>${totalEventsSearched}</b> Records Matched</span></div>
              <div>${dateFns.format(
                startDate,
                timestampDateFmt
@@ -965,8 +965,8 @@ limitations under the License.
          `);
          } else {
            $("#hits-summary").html(`
-             <div>Response: ${timeToFirstByte} ms</div>
-             <div><span> ${totalEventsSearched} Records Searched</span></div>
+             <div><b>Response: ${timeToFirstByte} ms</b></div>
+             <div><span><b> ${totalEventsSearched} </b>Records Searched</span></div>
              <div>${dateFns.format(
                startDate,
                timestampDateFmt

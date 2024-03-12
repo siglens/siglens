@@ -939,10 +939,15 @@ progress.hidden {
     font-size: 16px;
     display: flex;
     flex-direction: column;
-    height: 80px;
     justify-content: space-between;
 }
-
+.hits-summary div{
+    margin-top: 10px;
+}
+.hits-summary div:last-child{
+    margin-top: 20px;
+    font-size: 12px;
+}
 #hits-summary progress {
     vertical-align: middle;
 }
