@@ -418,13 +418,16 @@ func InitConfigurationData() error {
 }
 
 /*
-	Use only for testing purpose, DO NOT use externally
-
-To do - Currently we are assigning default value two times.. in InitializeDefaultConfig() for testing and
-ExtractConfigData(). Do this in one time.
+Use only for testing purpose, DO NOT use externally
 */
 func InitializeDefaultConfig() {
+	runningConfig = GetTestConfig()
+	_ = InitDerivedConfig("test-uuid") // This is only used for testing
+}
 
+// To do - Currently we are assigning default value two times.. in InitializeDefaultConfig() for testing and
+// ExtractConfigData(). Do this in one time.
+func GetTestConfig() common.Configuration {
 	// *************************************
 	// THIS IS ONLY USED in TESTS, MAKE SURE:
 	// 1. set the defaults ExtractConfigData
@@ -432,7 +435,7 @@ func InitializeDefaultConfig() {
 	// 3. And Here.
 	// ************************************
 
-	runningConfig = common.Configuration{
+	testConfig := common.Configuration{
 		IngestListenIP:             "0.0.0.0",
 		QueryListenIP:              "0.0.0.0",
 		IngestPort:                 8081,
@@ -468,9 +471,10 @@ func InitializeDefaultConfig() {
 		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 		TLS:                        common.TLSConfig{Enabled: false, ACMEFolder: "certs/"},
 		DatabaseConfig:             common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
+		EmailConfig:                common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
 	}
-	_ = InitDerivedConfig("test-uuid") // This is only used for testing
-	runningConfig.EmailConfig = common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "}
+
+	return testConfig
 }
 
 func InitializeTestingConfig() {
@@ -1020,19 +1024,21 @@ func getQueryServerPort() (uint64, error) {
 
 func GetQueryServerBaseUrl() string {
 	hostname := GetQueryHostname()
+	port, err := getQueryServerPort()
+	if err != nil {
+		log.Errorf("GetQueryServerBaseUrl: failed to get query port; err: %v", err)
+		return "http://localhost:5122"
+	}
+
 	if hostname == "" {
-		port, err := getQueryServerPort()
-		if err != nil {
-			return "http://localhost:5122"
-		}
 		return "http://localhost:" + fmt.Sprintf("%d", port)
 	} else {
+		protocol := "http"
 		if IsTlsEnabled() {
-			hostname = "https://" + hostname
-		} else {
-			hostname = "http://" + hostname
+			protocol = "https"
 		}
-		return hostname
+
+		return fmt.Sprintf("%s://%s:%d", protocol, hostname, port)
 	}
 }
 

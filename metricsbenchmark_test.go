@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/valyala/fastrand"
 
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
@@ -143,7 +144,7 @@ func Benchmark_MetricsEndToEnd(b *testing.B) {
 
 	baseDir := "/Users/ssubramanian/Desktop/SigLens/siglens/data/ingestnodes/Sris-MBP.attlocal.net/"
 	config.SetSmrBaseDirForTestOnly(baseDir)
-	err = query.InitQueryNode(getMyIds, extractKibanaRequests)
+	err = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		b.Fatalf("failed to initialize metrics meta")
 	}

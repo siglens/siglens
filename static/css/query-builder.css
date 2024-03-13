@@ -292,6 +292,7 @@ input.form-control {
 .custom-code-tab {
     border: 0 !important;
     font-size: 14px;
+    background-color: var(--bg-color);
 }
 
 .ui-tabs .ui-tabs-panel {
@@ -477,9 +478,6 @@ a:visited.ui-button,
 .ui-widget{
     height: auto;
     width: auto;
-}
-.ui-widget-content {
-    background-color: var(--bg-color);
 }
 
 .ui-autocomplete::-webkit-scrollbar {

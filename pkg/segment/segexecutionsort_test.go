@@ -26,13 +26,14 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_SortResultsArossMultipleFiles(t *testing.T) {
 	config.InitializeTestingConfig()
-	_ = query.InitQueryNode(getMyIds, extractKibanaRequests)
+	_ = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	numBuffers := 5
 	numEntriesForBuffer := 10
 	fileCount := 10

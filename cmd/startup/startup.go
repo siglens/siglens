@@ -171,7 +171,9 @@ func Main() {
 		log.Errorf("siglens main: Error in starting server:%v ", err)
 		os.Exit(1)
 	}
-
+	if hook := hooks.GlobalHooks.CheckOrgValidityHook; hook != nil {
+		hook()
+	}
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
@@ -282,8 +284,6 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	instrumentation.InitMetrics()
 	querytracker.InitQT()
 
-	alertsHandler.InitAlertingService()
-	alertsHandler.InitMinionSearchService()
 	go tracinghandler.MonitorSpansHealth()
 	go tracinghandler.DependencyGraphThread()
 

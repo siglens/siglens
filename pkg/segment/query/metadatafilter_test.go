@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -283,12 +284,6 @@ func getMyIds() []uint64 {
 	return myids
 }
 
-func extractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*SegmentSearchRequest {
-	ssr := make(map[string]*SegmentSearchRequest)
-
-	return ssr
-}
-
 func Test_MetadataFilter(t *testing.T) {
 	numBlocks := 5
 	numEntriesInBlock := 10
@@ -296,7 +291,7 @@ func Test_MetadataFilter(t *testing.T) {
 	config.InitializeDefaultConfig()
 	_ = localstorage.InitLocalStorage()
 	limit.InitMemoryLimiter()
-	err := InitQueryNode(getMyIds, extractKibanaRequests)
+	err := InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		t.Fatalf("Failed to initialize query node: %v", err)
 	}
