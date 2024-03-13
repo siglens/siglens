@@ -26,6 +26,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/siglens/siglens/pkg/hooks"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
@@ -39,12 +40,26 @@ import (
 func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	var httpResp utils.ClusterStatsResponseInfo
-
+	var err error
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		myid, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessClusterStatsHandler: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
 	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes := getIngestionStats(myid)
 	queryCount, totalResponseTime, querieSinceInstall := usageStats.GetQueryStats(myid)
 
 	metricsIncomingBytes, metricsDatapointsCount, metricsOnDiskBytes := getMetricsStats(myid)
 	metricsImMemBytes := metrics.GetTotalEncodedSize()
+
+	if hook := hooks.GlobalHooks.AddMultinodeStatsHook; hook != nil {
+		hook(indexData, myid, &logsIncomingBytes, &logsOnDiskBytes, &logsEventCount,
+			&metricsIncomingBytes, &metricsOnDiskBytes, &metricsDatapointsCount,
+			&queryCount, &totalResponseTime)
+	}
 
 	httpResp.IngestionStats = make(map[string]interface{})
 	httpResp.QueryStats = make(map[string]interface{})
@@ -61,6 +76,10 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	httpResp.IngestionStats["Metrics Storage Used"] = convertBytesToGB(float64(metricsOnDiskBytes + metricsImMemBytes))
 	totalOnDiskBytes := logsOnDiskBytes + float64(metricsOnDiskBytes) + float64(metricsImMemBytes)
 	httpResp.IngestionStats["Storage Saved"] = (1 - (totalOnDiskBytes / (logsIncomingBytes + float64(metricsIncomingBytes)))) * 100
+
+	if hook := hooks.GlobalHooks.SetExtraIngestionStatsHook; hook != nil {
+		hook(httpResp.IngestionStats)
+	}
 
 	httpResp.MetricsStats["Incoming Volume"] = convertBytesToGB(float64(metricsIncomingBytes))
 	httpResp.MetricsStats["Datapoints Count"] = humanize.Comma(int64(metricsDatapointsCount))
@@ -93,7 +112,17 @@ func convertIndexDataToSlice(indexData map[string]utils.ResultPerIndex) []utils.
 	return retVal[:i]
 }
 
-func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx) {
+	var orgId uint64
+	var err error
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessClusterIngestStatsHandler: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
 
 	var httpResp utils.ClusterStatsResponseInfo
 	rawJSON := ctx.PostBody()
@@ -107,7 +136,7 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
 	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
 	decoder.UseNumber()
-	err := decoder.Decode(&readJSON)
+	err = decoder.Decode(&readJSON)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString(err.Error())
@@ -119,7 +148,7 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	pastXhours, granularity := parseIngestionStatsRequest(readJSON)
-	rStats, _ := usageStats.GetUsageStats(pastXhours, granularity, myid)
+	rStats, _ := usageStats.GetUsageStats(pastXhours, granularity, orgId)
 	httpResp.ChartStats = make(map[string]map[string]interface{})
 
 	for k, entry := range rStats {

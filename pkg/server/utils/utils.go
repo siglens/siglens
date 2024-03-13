@@ -16,6 +16,13 @@ limitations under the License.
 
 package server_utils
 
+import (
+	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/utils"
+	"github.com/valyala/fasthttp"
+)
+
 const ELASTIC_PREFIX string = "/elastic"
 const OTSDB_PREFIX string = "/otsdb"
 const INFLUX_PREFIX string = "/influx"
@@ -25,3 +32,52 @@ const API_PREFIX string = "/api"
 const SPLUNK_PREFIX string = "/splunk"
 const LOKI_PREFIX string = "/loki"
 const HEROKU_ADDON_PREFIX string = "/heroku/resources"
+
+// This function reduces some boilerplate code by handling the logic for
+// injecting orgId if necessary, or using the default.
+func CallWithOrgIdQuery(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthttp.RequestCtx) {
+	orgId := uint64(0)
+	var err error
+	if hook := hooks.GlobalHooks.GetOrgIdHookQuery; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			responsebody := make(map[string]interface{})
+			ctx.SetStatusCode(fasthttp.StatusUnauthorized)
+			responsebody["error"] = err.Error()
+			utils.WriteJsonResponse(ctx, responsebody)
+			return
+		}
+	}
+
+	handler(ctx, orgId)
+}
+
+func CallWithOrgId(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthttp.RequestCtx) {
+	orgId := uint64(0)
+	var err error
+	if hook := hooks.GlobalHooks.GetOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			responsebody := make(map[string]interface{})
+			ctx.SetStatusCode(fasthttp.StatusUnauthorized)
+			responsebody["error"] = err.Error()
+			utils.WriteJsonResponse(ctx, responsebody)
+			return
+		}
+	}
+
+	handler(ctx, orgId)
+}
+
+func ExtractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*structs.SegmentSearchRequest {
+	ssr := make(map[string]*structs.SegmentSearchRequest)
+
+	if hook := hooks.GlobalHooks.ExtractKibanaRequestsHook; hook != nil {
+		interfaces := hook(kibanaIndices, qid)
+		for k, v := range interfaces {
+			ssr[k] = v.(*structs.SegmentSearchRequest)
+		}
+	}
+
+	return ssr
+}

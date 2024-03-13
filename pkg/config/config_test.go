@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/siglens/siglens/pkg/config/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,7 +29,7 @@ func Test_ExtractConfigData(t *testing.T) {
 	flag.Parse()
 	cases := []struct {
 		input    []byte
-		expected Configuration
+		expected common.Configuration
 	}{
 		{ // case 1 - For correct input parameters and values
 			[]byte(`
@@ -61,13 +62,12 @@ func Test_ExtractConfigData(t *testing.T) {
  partitionCountConsistentHasher: 271
  replicationFactorConsistentHasher: 40
  loadConsistentHasher: 1.2
- grpcPort: 0
  s3IngestQueueName: ""
  s3IngestQueueRegion: ""
  s3IngestBufferSize: 1000
  maxParallelS3IngestBuffers: 10
  queryHostname: "abc:123"
- pqsEnabled: bad string
+ PQSEnabled: bad string
  analyticsEnabled: false
  agileAggsEnabled: false
  safeMode: true
@@ -75,7 +75,7 @@ func Test_ExtractConfigData(t *testing.T) {
    logPrefix: "./pkg/ingestor/httpserver/"
  `),
 
-			Configuration{
+			common.Configuration{
 				IngestListenIP:             "0.0.0.0",
 				QueryListenIP:              "0.0.0.0",
 				IngestPort:                 9090,
@@ -86,7 +86,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				IngestNode:                 "true",
 				SegFlushIntervalSecs:       5,
 				DataPath:                   "data/",
-				S3:                         S3Config{true, "test-1", "", "us-east-1"},
+				S3:                         common.S3Config{Enabled: true, BucketName: "test-1", BucketPrefix: "", RegionName: "us-east-1"},
 				RetentionHours:             90,
 				TimeStampKey:               "timestamp",
 				MaxSegFileSize:             10,
@@ -94,20 +94,19 @@ func Test_ExtractConfigData(t *testing.T) {
 				ESVersion:                  "6.8.20",
 				DataDiskThresholdPercent:   85,
 				MemoryThresholdPercent:     80,
-				GRPCPort:                   50051,
 				S3IngestQueueName:          "",
 				S3IngestQueueRegion:        "",
 				S3IngestBufferSize:         1000,
 				MaxParallelS3IngestBuffers: 10,
 				QueryHostname:              "abc:123",
 				PQSEnabled:                 "false",
-				pqsEnabledConverted:        false,
+				PQSEnabledConverted:        false,
 				AnalyticsEnabled:           "false",
-				analyticsEnabledConverted:  false,
+				AnalyticsEnabledConverted:  false,
 				AgileAggsEnabled:           "false",
 				AgileAggsEnabledConverted:  false,
 				SafeServerStart:            true,
-				Log:                        LogConfig{"./pkg/ingestor/httpserver/", 100, false},
+				Log:                        common.LogConfig{LogPrefix: "./pkg/ingestor/httpserver/", LogFileRotationSizeMB: 100, CompressLogFile: false},
 			},
 		},
 		{ // case 2 - For wrong input type, show error message
@@ -134,12 +133,11 @@ func Test_ExtractConfigData(t *testing.T) {
  partitionCountConsistentHasher: 271
  replicationFactorConsistentHasher: 40
  loadConsistentHasher: 1.2
- grpcPort: 66
  S3IngestQueueName: ""
  S3IngestQueueRegion: ""
  S3IngestBufferSize: 1000
  MaxParallelS3IngestBuffers: 10
- pqsEnabled: F
+ PQSEnabled: F
  analyticsEnabled: bad string
  AgileAggsEnabled: bad string
  log:
@@ -148,7 +146,7 @@ func Test_ExtractConfigData(t *testing.T) {
    compressLogFile: true
  `),
 
-			Configuration{
+			common.Configuration{
 				IngestListenIP:             "0.0.0.0",
 				QueryListenIP:              "0.0.0.0",
 				IngestPort:                 9090,
@@ -159,7 +157,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				IngestNode:                 "true",
 				SegFlushIntervalSecs:       1200,
 				DataPath:                   "data/",
-				S3:                         S3Config{false, "", "", ""},
+				S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
 				RetentionHours:             123,
 				TimeStampKey:               "timestamp",
 				MaxSegFileSize:             12345,
@@ -167,20 +165,19 @@ func Test_ExtractConfigData(t *testing.T) {
 				ESVersion:                  "6.8.20",
 				DataDiskThresholdPercent:   85,
 				MemoryThresholdPercent:     80,
-				GRPCPort:                   66,
 				S3IngestQueueName:          "",
 				S3IngestQueueRegion:        "",
 				S3IngestBufferSize:         1000,
 				MaxParallelS3IngestBuffers: 10,
 				QueryHostname:              "",
-				PQSEnabled:                 "F",
-				pqsEnabledConverted:        false,
+				PQSEnabled:                 "false",
+				PQSEnabledConverted:        false,
 				AnalyticsEnabled:           "true",
-				analyticsEnabledConverted:  true,
+				AnalyticsEnabledConverted:  true,
 				AgileAggsEnabled:           "true",
 				AgileAggsEnabledConverted:  true,
 				SafeServerStart:            false,
-				Log:                        LogConfig{"./pkg/ingestor/httpserver/", 1000, true},
+				Log:                        common.LogConfig{LogPrefix: "./pkg/ingestor/httpserver/", LogFileRotationSizeMB: 1000, CompressLogFile: true},
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -188,7 +185,7 @@ func Test_ExtractConfigData(t *testing.T) {
 invalid input, we should error out
 `),
 
-			Configuration{
+			common.Configuration{
 				IngestListenIP:           "0.0.0.0",
 				QueryListenIP:            "0.0.0.0",
 				IngestPort:               8081,
@@ -199,7 +196,7 @@ invalid input, we should error out
 				IngestNode:               "true",
 				SegFlushIntervalSecs:     30,
 				DataPath:                 "data/",
-				S3:                       S3Config{false, "", "", ""},
+				S3:                       common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
 				RetentionHours:           90,
 				TimeStampKey:             "timestamp",
 				MaxSegFileSize:           1_073_741_824,
@@ -207,7 +204,6 @@ invalid input, we should error out
 				ESVersion:                "6.8.20",
 				DataDiskThresholdPercent: 85,
 				MemoryThresholdPercent:   80,
-				GRPCPort:                 50051,
 				S3IngestQueueName:        "",
 				S3IngestQueueRegion:      "",
 
@@ -215,17 +211,17 @@ invalid input, we should error out
 				MaxParallelS3IngestBuffers: 10,
 				QueryHostname:              "",
 				AnalyticsEnabled:           "true",
-				analyticsEnabledConverted:  true,
+				AnalyticsEnabledConverted:  true,
 				AgileAggsEnabled:           "true",
 				AgileAggsEnabledConverted:  true,
-				Log:                        LogConfig{"", 100, false},
+				Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 			},
 		},
 		{ // case 4 - For no input, pick defaults
 			[]byte(`
 a: b
 `),
-			Configuration{
+			common.Configuration{
 				IngestListenIP:             "0.0.0.0",
 				QueryListenIP:              "0.0.0.0",
 				IngestPort:                 8081,
@@ -236,7 +232,7 @@ a: b
 				IngestNode:                 "true",
 				SegFlushIntervalSecs:       5,
 				DataPath:                   "data/",
-				S3:                         S3Config{false, "", "", ""},
+				S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
 				RetentionHours:             90 * 24,
 				TimeStampKey:               "timestamp",
 				MaxSegFileSize:             1_073_741_824,
@@ -244,20 +240,19 @@ a: b
 				ESVersion:                  "6.8.20",
 				DataDiskThresholdPercent:   85,
 				MemoryThresholdPercent:     80,
-				GRPCPort:                   50051,
 				S3IngestQueueName:          "",
 				S3IngestQueueRegion:        "",
 				S3IngestBufferSize:         1000,
 				MaxParallelS3IngestBuffers: 10,
 				QueryHostname:              "",
 				PQSEnabled:                 "false",
-				pqsEnabledConverted:        false,
+				PQSEnabledConverted:        false,
 				SafeServerStart:            false,
 				AnalyticsEnabled:           "true",
-				analyticsEnabledConverted:  true,
+				AnalyticsEnabledConverted:  true,
 				AgileAggsEnabled:           "true",
 				AgileAggsEnabledConverted:  true,
-				Log:                        LogConfig{"", 100, false},
+				Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 			},
 		},
 	}

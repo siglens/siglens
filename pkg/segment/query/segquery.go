@@ -241,7 +241,7 @@ Assumptions:
   - no kibana indices
   - sNode may have regexes that needs to be compiled
 */
-func ApplyRotatedQuery(reqs []*grpc_query.SegkeyRequest, sNode *structs.SearchNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
+func ApplyRotatedQuery(reqs []grpc_query.SegkeyRequest, sNode *structs.SearchNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
 	indexInfo *structs.TableInfo, sizeLimit uint64, qid uint64, orgid uint64) *structs.NodeResult {
 
 	sTime := time.Now()
@@ -291,28 +291,28 @@ func ApplyRotatedQuery(reqs []*grpc_query.SegkeyRequest, sNode *structs.SearchNo
 	}
 }
 
-func convertSegKeysToQSR(qI *queryInformation, segReqs []*grpc_query.SegkeyRequest) []*querySegmentRequest {
+func convertSegKeysToQSR(qI *queryInformation, segReqs []grpc_query.SegkeyRequest) []*querySegmentRequest {
 	qsrs := make([]*querySegmentRequest, 0, len(segReqs))
 	for _, segReq := range segReqs {
 		qsrs = append(qsrs, &querySegmentRequest{
 			queryInformation: *qI,
-			segKey:           segReq.SegmentKey,
-			tableName:        segReq.TableName,
-			segKeyTsRange:    &dtu.TimeRange{StartEpochMs: segReq.StartEpochMs, EndEpochMs: segReq.EndEpochMs},
+			segKey:           segReq.GetSegmentKey(),
+			tableName:        segReq.GetTableName(),
+			segKeyTsRange:    &dtu.TimeRange{StartEpochMs: segReq.GetStartEpochMs(), EndEpochMs: segReq.GetEndEpochMs()},
 		})
 	}
 	return qsrs
 }
 
-func convertSegStatKeysToQSR(qI *queryInformation, segReqs []*grpc_query.SegkeyRequest) []*querySegmentRequest {
+func convertSegStatKeysToQSR(qI *queryInformation, segReqs []grpc_query.SegkeyRequest) []*querySegmentRequest {
 	qsrs := make([]*querySegmentRequest, 0, len(segReqs))
 	for _, segReq := range segReqs {
 		qsrs = append(qsrs, &querySegmentRequest{
 			queryInformation: *qI,
-			segKey:           segReq.SegmentKey,
-			tableName:        segReq.TableName,
+			segKey:           segReq.GetSegmentKey(),
+			tableName:        segReq.GetTableName(),
 			sType:            structs.SEGMENT_STATS_SEARCH,
-			segKeyTsRange:    &dtu.TimeRange{StartEpochMs: segReq.StartEpochMs, EndEpochMs: segReq.EndEpochMs},
+			segKeyTsRange:    &dtu.TimeRange{StartEpochMs: segReq.GetStartEpochMs(), EndEpochMs: segReq.GetEndEpochMs()},
 		})
 	}
 	return qsrs
@@ -374,7 +374,7 @@ func getNodeResultsForRRCCmd(queryInfo *queryInformation, sTime time.Time, allSe
 }
 
 func getNodeResultsForSegmentStatsCmd(queryInfo *queryInformation, sTime time.Time, allSegFileResults *segresults.SearchResults,
-	reqs []*grpc_query.SegkeyRequest, querySummary *summary.QuerySummary, unrotatedOnly bool, orgid uint64) *structs.NodeResult {
+	reqs []grpc_query.SegkeyRequest, querySummary *summary.QuerySummary, unrotatedOnly bool, orgid uint64) *structs.NodeResult {
 	sortedQSRSlice, numRawSearch, numDistributed := getAllSegmentsInAggs(queryInfo, reqs, queryInfo.aggs, queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(),
 		queryInfo.qid, unrotatedOnly, sTime, orgid)
 	err := setTotalSegmentsToSearch(queryInfo.qid, numRawSearch)
@@ -665,7 +665,7 @@ func getAllUnrotatedSegments(queryInfo *queryInformation, unrotatedGRPC bool, sT
 }
 
 // returns query segment requests, count of keys to raw search, and distributed query count
-func getAllSegmentsInAggs(queryInfo *queryInformation, reqs []*grpc_query.SegkeyRequest, aggs *structs.QueryAggregators, timeRange *dtu.TimeRange, indexNames []string,
+func getAllSegmentsInAggs(queryInfo *queryInformation, reqs []grpc_query.SegkeyRequest, aggs *structs.QueryAggregators, timeRange *dtu.TimeRange, indexNames []string,
 	qid uint64, unrotatedGRPC bool, sTime time.Time, orgid uint64) ([]*querySegmentRequest, uint64, uint64) {
 
 	if len(reqs) != 0 {

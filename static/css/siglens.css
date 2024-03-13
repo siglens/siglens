@@ -231,6 +231,7 @@
     --alerting-table-hover: var(--black-2);
     --tab-active-background:var(--purple-1);
     --dashboard-tab-bg: var(--black-2);
+  --top-refresh-btn-bg-img: url("../assets/refresh-icon.svg");
 }
 
 /* end aliases */
@@ -368,6 +369,7 @@
     --alerting-table-hover: var(--white-1);
     --tab-active-background: #E8E3F9;
     --dashboard-tab-bg: var(--white-1);
+  --top-refresh-btn-bg-img: url("../assets/refreshy-icon.svg");
 }
 
 
@@ -489,7 +491,8 @@ body {
 .icon-alerts,
 .icon-minion,
 .icon-live,
-.icon-traces{
+.icon-traces,
+.icon-ingest{
     min-height: 42px;
     min-width: 48px;
     background-origin: content-box;
@@ -583,6 +586,12 @@ body {
     width: 18px;
 }
 
+.icon-ingest {
+    background-image: url("../assets/ingestion-icon-inactive.svg");
+    height: 18px;
+    width: 18px;
+}
+
 .icon-alerts {
     background-image: url("../assets/alerting-icon-inactive.svg");
     height: 18px;
@@ -651,6 +660,13 @@ body {
 .icon-myorg:hover,
 .menu.nav-myorg.active .icon-myorg {
     background-image: url("../assets/my-org-icon-active.svg");
+    height: 18px;
+    width: 18px;
+}
+
+.icon-ingest:hover,
+.menu.nav-ingest.active .icon-ingest {
+    background-image: url("../assets/ingestion-icon-active.svg");
     height: 18px;
     width: 18px;
 }
@@ -738,7 +754,7 @@ body {
     text-decoration: none;
     height: 30px;
     display: flex;
-    justify-content: space-around;
+    justify-content: space-evenly;
     align-items: center;
 }
 .run-metrics-query-btn{
@@ -749,9 +765,6 @@ body {
 }
 #query-language-btn {
     width: 108px;
-    display: flex;
-    align-items: center;
-    justify-content: space-evenly;
     margin-left: 16px;
 }
 
@@ -940,16 +953,18 @@ progress.hidden {
     font-size: 16px;
     display: flex;
     flex-direction: column;
-    height: 80px;
     justify-content: space-between;
 }
-
+.hits-summary div{
+    margin-top: 10px;
+}
+.hits-summary div:last-child{
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--hits-summary-small-text-color);
+}
 #hits-summary progress {
     vertical-align: middle;
-}
-
-[data-theme='dark'] #hits-summary span:not(.total-hits) {
-    color: var(--hits-summary-small-text-color);
 }
 
 [data-theme='light'] #hits-summary {
@@ -1379,12 +1394,11 @@ progress.hidden {
     font-style: normal;
 }
 
-.query-table, .metrics-table, #org-settings-table {
+.query-table, .metrics-table, .org-settings-table {
     margin-top: 12px;
-    display: left ;
 }
 
-.query-table tbody td, .metrics-table tbody td, #org-settings-table td, #org-settings-table th{
+.query-table tbody td, .metrics-table tbody td, .org-settings-table td, .org-settings-table th{
     padding-left: 15px;
     width: 334px;
     height: 50px;
@@ -1392,7 +1406,7 @@ progress.hidden {
     background-color: var(--cstats-table-bg-color);
 }
 
-.query-table tbody tr, .metrics-table tbody tr, #org-settings-table tr{
+.query-table tbody tr, .metrics-table tbody tr, .org-settings-table tr{
     padding-bottom: 20px;
     /* width: 300px; */
     line-height: 18px;
@@ -1414,8 +1428,21 @@ progress.hidden {
     border-radius: 0 0 10px 0;
 }
 
-.health-stats-value, #org-settings-table td {
+.health-stats-value, .org-settings-table td {
     color: var(--health-stats-value-text-color);
+}
+
+#system-info-table td{
+    width: 530px;
+}
+
+#system-info-table td div{
+    margin: 5px 0px !important;
+}
+
+#system-info-table td div b{
+    width: 75px;
+    display: inline-block;
 }
 
 .index-stats {
@@ -1489,7 +1516,9 @@ progress.hidden {
 .index-data-table tbody tr:last-child td:last-child {
     border-radius: 0 0 10px 0 !important;
 }
-
+div.dts div.dataTables_scrollBody table {
+    z-index: 0 !important;
+}
 
 
 .dataTables_wrapper.no-footer .index-data-table {
@@ -1834,12 +1863,13 @@ progress.hidden {
 
 #delOrgUserBtn, .index-del-btn {
     background-image: url(../assets/dark-delete-icon-regular.svg);
-    height: 20px;
-    width: 18px;
+    height: 16px;
+    width: 15px;
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
     margin-left: 15px;
+    background-size: contain;
 }
 
 #viewbutton {
@@ -1968,7 +1998,7 @@ progress.hidden {
 }
 
 .prompt-text-container {
-    margin-bottom: 30px;
+    margin-bottom: 16px;
 }
 
 #buttons-db-prompt {
@@ -2190,7 +2220,7 @@ div#download-info {
     background: var(--ui-widget-bg-color);
     padding: 13px 0 14px 14px;
     box-sizing: border-box;
-    color: var(--search-bar-text-color-regular-or-hover);
+    color: var(--text-color);
 }
 
 .ui-widget input:focus {
@@ -3392,47 +3422,47 @@ float: right;
 .myOrg-container {
     display: flex;
     flex-direction: column;
+    height: 100%;
 }
 
 .myOrg-inner-container {
     font-size: 14px;
     padding: 20px;
     padding-top: 0px;
+    height: 100%;
 }
 
 .copy-link-container {
     display: flex;
-    height: 45px;
+    height: 32px;
     align-items: center;
-    margin-top: 6px;
 }
 
 .myOrgFormInput {
     flex-grow: 3;
     width: 694px;
-    height: 44px;
-    margin-right: 18px;
+    height: 32px;
+    margin-right: 6px;
     border: none;
     background: var(--myOrg-input);
-    font-size: 18px;
+    font-size: 14px;
     border-radius: 5px;
-    padding: 12px;
     color: var(--timepicker-text-color);
 }
 
 .copy-button {
     background-size: cover;
-    height: 39px;
+    height: 32px;
     background-color: var(--myOrg-input);
     border-radius: 5px;
     color:  var(--timepicker-text-color);
-    width: 38px;
-    margin-right: 18px;
+    width: 32px;
+    margin-right: 8px;
     border: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: 20px;
 }
 
 .copy-button:hover {
@@ -3481,19 +3511,20 @@ float: right;
 
 .api-keys-inner-info {
     display: flex;
-    margin-bottom: 2.5rem;
+    margin-bottom: 16px;
 }
 
 .caption {
     font-size: 16px;
     color: var(--text-color);
+    margin-bottom: 10px;
 }
 
 .inviteBtn {
     width: 106px !important;
     justify-content: center;
     border-radius: 5px;
-    font-size: 16px !important;
+    font-size: 14px !important;
 }
 
 .inviteBtn:disabled, #del-org-btn:disabled, #del-index-btn:disabled {
@@ -3506,27 +3537,27 @@ float: right;
     background-color: var(--purple-1);
     border-radius: 5px;
     color: white;
-    padding: 10px !important;
     line-height: 20px;
-    font-size: 18px;
+    font-size: 14px;
     width: 144px;
-    margin-right: 18px;
 }
 
 .users-header {
     display: flex;
     justify-content: space-between;
+    align-items: baseline;
 }
 
 #inviteForm {
     display: flex;
-    height: 44px;
+    height: 32px;
     align-items: center;
 }
 
 .users-data-table {
-    height: 68vh;
+    height: 90%;
     width: 100%;
+    margin-top: 8px;
 }
 
 .myOrg #panelLogResultsGrid{
@@ -3546,11 +3577,10 @@ float: right;
 
 .allInputs {
     padding: 8px 10px;
-    font-size: 16px;
+    font-size: 14px;
     color: var(--timepicker-text-color);
     border: none;
     background: #F4F4F5;
-    font-size: 16px;
     border-radius: 5px;
     display: flex;
     margin-right: 12px;
@@ -3566,7 +3596,8 @@ float: right;
 }
 
 .myOrg-inner-container label {
-    font-size: 18px;
+    font-size: 14px;
+    margin-bottom: 5px;
 }
 
 .myOrg .main-dropdown{
@@ -3576,7 +3607,7 @@ float: right;
 }
 
 .myOrg .role-inner-dropdown{
-    line-height: 36px;
+    line-height: 28px;
     border-radius: 5px;
     border: 1px solid var(--myOrg-dropdown-border-color);
     padding-left: 10px;
@@ -3586,6 +3617,7 @@ float: right;
     justify-content: space-between;
     align-items: center;
     color: var(--table-or-regular-text-color);
+    position: relative;
 }
 
 .myOrg .roles.selected {
@@ -3620,7 +3652,7 @@ float: right;
     visibility: visible;
 }
 
-.myOrg ul li:hover{  
+.myOrg .dropdown-option li:hover{  
     background: #6347D9;
     color: #fff;
 }
@@ -3650,7 +3682,7 @@ float: right;
 
 .myOrgScreen .ag-root-wrapper {
     padding-left: 0 !important;
-    height: 100vh;
+    height: 100%;
 }
 
 #viewPanel-container {
@@ -3764,17 +3796,14 @@ color: #C8C7CC;
     width: 38vw;
 }
 
-#org-settings-table tr {
+.org-settings-table tr {
     font-weight: var(--fw-500) !important;
 }
 
 #retention-days-value {
-    /* margin-right: 13px; */
     margin: 5px;
     width: 64px;
-    padding: 5px;
-    height: 34px;
-    margin-right: 9px;
+    height: 32px;
 }
 
 #confirm-ret-change-prompt {
@@ -3793,7 +3822,7 @@ color: #C8C7CC;
 
 .buttons-prompt button {
     width: 49%;
-    height: 45px !important;
+    height: 32px !important;
     border-radius: 5px;
     border: none;
 }
@@ -3809,7 +3838,7 @@ color: #C8C7CC;
     border-radius: 5px;
     box-shadow: none !important;
     border: none;
-    font-size: 1rem;
+    font-size: 14px;
 }
 
 #delete-org-container {
@@ -3830,18 +3859,19 @@ color: #C8C7CC;
 .delete-org-btn, #del-index-btn {
     background-color: var(--delete-btn) !important;
     color: var(--button-text-color) !important;
-    padding: 9px 17px;
+    height: 32px;
+    padding: 0 20px;
 }
 
 #confirm-del-org-prompt .header {
     color: var(--text-color);
     margin-bottom: 15px;
     font-weight: bold;
-    font-size: 1em;
+    font-size: 18px;
 }
 
 .prompt-input {
-    height: 40px;
+    height: 32px;
     margin-bottom: 18px;
 }
 
@@ -3855,6 +3885,8 @@ color: #C8C7CC;
 
 #delete-org-inner .header {
     margin-bottom: 10px;
+    font-size: 16px;
+    font-weight: bold;
 }
 
 #confirm-del-org-prompt {
@@ -4046,14 +4078,11 @@ color: #C8C7CC;
 }
 
 
-.org-nav-tab{
+.org-nav-tab, .ingestion-nav-tab{
     display: flex;
     justify-content: space-between;
     margin: 20px;
-    margin-bottom: 20px;
-}
-.api-keys-submit-btn{
-    font-size: 1rem !important;
+    margin-bottom: 10px;
 }
 
 .usage-stats{
@@ -4860,12 +4889,100 @@ input.form-control {
 .live-tail #query-language-btn{
     margin-left: 0px;
 }
-
+.live-tail #views-container{
+    margin-left: 0 !important;
+}
 
 .live-tail-logs-container .ag-theme-mycustomtheme .ag-root-wrapper {
     border: 1px solid var(--border-btn-color);
 }
 
+#logs-view-controls .refresh-container{
+    display: flex;
+    margin-top: 5px;
+}
+
+#logs-view-controls #refresh-picker-btn{
+    margin: 0;
+    text-decoration: none;
+    border: none;
+    height: 30px;
+    line-height: 14px;
+    cursor: pointer;
+    border-radius: 0 5px 5px 0 !important;
+    width: auto;
+    padding: 0 5px;
+    border: 1px solid var(--border-color-regular) !important
+}
+  
+#refresh-picker-btn:hover {
+    background: var(--drop-down-btn-bg-hover);
+}
+  
+#refresh-picker-btn.active {
+    background: var(--drop-down-btn-bg-active) !important;
+    outline: 1px solid var(--drop-down-btn-border-active);
+    outline-offset: -1pt;
+}
+  
+#logs-view-controls .refresh-btn{
+    border-radius: 5px 0 0 5px !important;
+    background-color: var(--drop-down-btn-bg-regular) !important;
+    width: 30px;
+    height: 30px !important;
+    border: 1px solid var(--border-color-regular) !important
+}
+  
+.refresh-picker.show{
+    min-width: 53px !important;
+    height: auto !important;
+    background: var(--timepicker-bg-color);
+    border: 1px solid var(--timepicker-border-color);
+    color: var(--table-or-regular-text-color);
+    border-radius: 5px;
+    left:3px !important;
+    padding: 0.5rem;
+}
+  
+.refresh-range-item.active {
+    background-color: var(--index-drop-down-item-active-bg-color);
+    color: var(--index-drop-down-item-active-text-color);
+}
+
+.refresh-range-item {
+    padding:6px 10px !important;
+    display: flex;
+    align-items: center;
+    border-radius: 5px;
+    line-height: 23px;
+    cursor: pointer;
+}
+  
+.refresh-range-item:hover {
+    color: var(--timepicker-text-color-hover);
+}
+
+.refresh-btn{
+    height: 32px !important;
+    background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
+    background-size: 46% !important;
+}
+
 #delbutton.default-dashboard-delete:hover {
     background-image: url(../assets/dark-delete-icon-regular.svg);
+}
+
+.ingestion-container{
+    margin-top: 16px;
+    width: 70%;
+    font-size: 16px;
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: var(--box-shadow);
+}
+
+.ingestion-container a{
+    color: var(--dashboard-title-color);
 }

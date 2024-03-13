@@ -32,10 +32,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var vTableBaseDir string
-var vTableMappingsDir string
-var vTableTemplatesDir string
-var vTableAliasesDir string
+var VTableBaseDir string
+var VTableMappingsDir string
+var VTableTemplatesDir string
+var VTableAliasesDir string
 
 const VIRTUAL_TAB_FILENAME = "/virtualtablenames"
 const VIRTUAL_TAB_FILE_EXT = ".txt"
@@ -56,18 +56,18 @@ func InitVTable() error {
 	allVirtualTables = make(map[uint64]map[string]bool)
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath() + "ingestnodes/" + config.GetHostID() + "/vtabledata")
-	vTableBaseDir = sb.String()
-	vTableMappingsDir = vTableBaseDir + "/mappings/"
-	vTableTemplatesDir = vTableBaseDir + "/templates/"
-	vTableAliasesDir = vTableBaseDir + "/aliases/"
+	VTableBaseDir = sb.String()
+	VTableMappingsDir = VTableBaseDir + "/mappings/"
+	VTableTemplatesDir = VTableBaseDir + "/templates/"
+	VTableAliasesDir = VTableBaseDir + "/aliases/"
 
 	var sb1 strings.Builder
-	sb1.WriteString(vTableBaseDir)
+	sb1.WriteString(VTableBaseDir)
 	sb1.WriteString(VIRTUAL_TAB_FILENAME)
 
 	vTableBaseFileName = sb1.String()
 
-	err := CreateVirtTableBaseDirs(vTableBaseDir, vTableMappingsDir, vTableTemplatesDir, vTableAliasesDir)
+	err := CreateVirtTableBaseDirs(VTableBaseDir, VTableMappingsDir, VTableTemplatesDir, VTableAliasesDir)
 	if err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func AddVirtualTableAndMapping(tname *string, mapping *string, orgid uint64) err
 
 func AddMapping(tname *string, mapping *string, orgid uint64) error {
 	var sb1 strings.Builder
-	sb1.WriteString(vTableMappingsDir)
+	sb1.WriteString(VTableMappingsDir)
 	if orgid != 0 {
 		sb1.WriteString(strconv.FormatUint(orgid, 10))
 		sb1.WriteString("/")
@@ -353,7 +353,7 @@ func GetAliasesAsArray(indexName string, orgid uint64) ([]string, error) {
 func GetAliases(indexName string, orgid uint64) (map[string]bool, error) {
 
 	var sb1 strings.Builder
-	sb1.WriteString(vTableAliasesDir)
+	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
 		sb1.WriteString(strconv.FormatUint(orgid, 10))
 		sb1.WriteString("/")
@@ -386,7 +386,7 @@ func GetAliases(indexName string, orgid uint64) (map[string]bool, error) {
 func writeAliasFile(indexName *string, allnames map[string]bool, orgid uint64) error {
 
 	var sb1 strings.Builder
-	sb1.WriteString(vTableAliasesDir)
+	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
 		sb1.WriteString(strconv.FormatUint(orgid, 10))
 		sb1.WriteString("/")
@@ -412,9 +412,9 @@ func writeAliasFile(indexName *string, allnames map[string]bool, orgid uint64) e
 }
 
 func initializeAliasToIndexMap() error {
-	dirs, err := os.ReadDir(vTableAliasesDir)
+	dirs, err := os.ReadDir(VTableAliasesDir)
 	if err != nil {
-		log.Errorf("initializeAliasToIndexMap: Failed to readdir vTableAliasesDir=%v, err=%v", vTableAliasesDir, err)
+		log.Errorf("initializeAliasToIndexMap: Failed to readdir vTableAliasesDir=%v, err=%v", VTableAliasesDir, err)
 		return err
 	}
 
@@ -422,14 +422,14 @@ func initializeAliasToIndexMap() error {
 		if dir.IsDir() {
 			orgid := dir.Name()
 			orgIdNumber, _ := strconv.ParseUint(orgid, 10, 64)
-			files, err := os.ReadDir(vTableAliasesDir + dir.Name())
+			files, err := os.ReadDir(VTableAliasesDir + dir.Name())
 			if err != nil {
 				log.Errorf("initializeAliasToIndexMap: Failed to readdir for org =%v, err=%v", orgid, err)
 				return err
 			}
 			for _, f := range files {
 				var sb strings.Builder
-				sb.WriteString(vTableAliasesDir)
+				sb.WriteString(VTableAliasesDir)
 				fname := f.Name()
 
 				if strings.HasSuffix(fname, ".json") {
@@ -552,7 +552,7 @@ func RemoveAliases(indexName string, aliases []string, orgid uint64) error {
 
 func removeAliasFile(indexName *string, orgid uint64) error {
 	var sb1 strings.Builder
-	sb1.WriteString(vTableAliasesDir)
+	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
 		sb1.WriteString(strconv.FormatUint(orgid, 10))
 		sb1.WriteString("/")

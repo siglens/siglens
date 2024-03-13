@@ -130,6 +130,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 	for _, m := range req.MeasureOperations {
 		measureColStr := m.MeasureCol
 		var mFunc utils.AggregateFunctions
+		var overrodeMeasureAgg *structs.MeasureAggregator
 		switch m.MeasureFunc {
 		case utils.Sum:
 			fallthrough
@@ -183,6 +184,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 					continue
 				}
 				mFunc = utils.Sum
+				overrodeMeasureAgg = m
 			}
 		case utils.Cardinality:
 			fallthrough
@@ -207,10 +209,11 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 		allReverseIndex = append(allReverseIndex, idx)
 		colToIdx[measureColStr] = append(colToIdx[measureColStr], idx)
 		allConvertedMeasureOps = append(allConvertedMeasureOps, &structs.MeasureAggregator{
-			MeasureCol:      m.MeasureCol,
-			MeasureFunc:     mFunc,
-			ValueColRequest: m.ValueColRequest,
-			StrEnc:          m.StrEnc,
+			MeasureCol:         m.MeasureCol,
+			MeasureFunc:        mFunc,
+			ValueColRequest:    m.ValueColRequest,
+			StrEnc:             m.StrEnc,
+			OverrodeMeasureAgg: overrodeMeasureAgg,
 		})
 		idx++
 	}

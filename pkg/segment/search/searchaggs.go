@@ -274,12 +274,10 @@ func PerformAggsOnRecs(nodeResult *structs.NodeResult, aggs *structs.QueryAggreg
 
 	nodeResult.RecsAggsProcessedSegments++
 
-	for _, pipeCommandType := range nodeResult.RecsAggsType {
-		if pipeCommandType == structs.GroupByType {
-			return PerformGroupByRequestAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments)
-		} else if pipeCommandType == structs.MeasureAggsType {
-			return PerformMeasureAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments)
-		}
+	if nodeResult.RecsAggsType == structs.GroupByType {
+		return PerformGroupByRequestAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments)
+	} else if nodeResult.RecsAggsType == structs.MeasureAggsType {
+		return PerformMeasureAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments)
 	}
 
 	return nil
@@ -303,7 +301,6 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 				internalMops = append(internalMops, mOp)
 			}
 		}
-
 	}
 
 	measureResults := make([]utils.CValueEnclosure, len(internalMops))
@@ -414,13 +411,31 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 			if mOp.MeasureFunc == utils.Count {
 				recs[recInden][mOp.String()] = bucketCount
 			} else {
-				recs[recInden][mOp.String()] = bucketValues[i].CVal
+				if mOp.OverrodeMeasureAgg != nil && mOp.OverrodeMeasureAgg.MeasureFunc == utils.Avg {
+					floatVal, err := dtu.ConvertToFloat(bucketValues[i].CVal, 64)
+					if err != nil {
+						log.Errorf("PerformGroupByRequestAggsOnRecs: failed to convert to float: %v", err)
+						continue
+					}
+					recs[recInden][mOp.OverrodeMeasureAgg.String()] = (floatVal / float64(bucketCount))
+					finalCols[mOp.OverrodeMeasureAgg.String()] = true
+					if mOp.OverrodeMeasureAgg.String() != mOp.String() {
+						delete(finalCols, mOp.String())
+					}
+				} else {
+					recs[recInden][mOp.String()] = bucketValues[i].CVal
+				}
 			}
 		}
 	}
 
-	return validRecIndens
+	for k := range recs {
+		if _, exists := validRecIndens[k]; !exists {
+			delete(recs, k)
+		}
+	}
 
+	return map[string]bool{"CHECK_NEXT_AGG": true}
 }
 
 func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64) map[string]bool {
@@ -441,6 +456,13 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 			anyCountStat = idx
 			break
 		}
+	}
+
+	firstRecInden := ""
+
+	for recInden := range recs {
+		firstRecInden = recInden
+		break
 	}
 
 	for recInden, record := range recs {
@@ -515,14 +537,11 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 			delete(finalCols, k)
 		}
 
-		nodeResult.RecsRunningEvalStats = make(map[string]utils.CValueEnclosure, 0)
+		finalSegment := make(map[string]interface{}, 0)
 
 		if anyCountStat > -1 {
 			finalCols[nodeResult.MeasureOperations[anyCountStat].String()] = true
-			nodeResult.RecsRunningEvalStats[nodeResult.MeasureOperations[anyCountStat].String()] = utils.CValueEnclosure{
-				Dtype: utils.SS_DT_UNSIGNED_NUM,
-				CVal:  humanize.Comma(int64(nodeResult.TotalRRCCount)),
-			}
+			finalSegment[nodeResult.MeasureOperations[anyCountStat].String()] = humanize.Comma(int64(nodeResult.TotalRRCCount))
 		}
 
 		for colName, value := range searchResults.GetSegmentStatsMeasureResults() {
@@ -532,12 +551,13 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 			} else {
 				value.CVal = humanize.Comma(value.CVal.(int64))
 			}
-
-			nodeResult.RecsRunningEvalStats[colName] = value
+			finalSegment[colName] = value.CVal
 		}
+
+		recs[firstRecInden] = finalSegment
 	}
 
-	return map[string]bool{"SEGMENT_STATS": true}
+	return map[string]bool{"CHECK_NEXT_AGG": true}
 }
 
 // returns all columns in aggs and the timestamp column

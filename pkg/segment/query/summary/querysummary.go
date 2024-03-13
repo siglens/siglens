@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	uStats "github.com/siglens/siglens/pkg/usageStats"
@@ -160,9 +161,15 @@ func (qs *QuerySummary) tickWatcher() {
 		case <-qs.ticker.C:
 			if qs.queryType == LOGS {
 				remainingDQsString := ""
-				if config.IsMultinodeEnabled() {
+				var addDistributedInfo bool
+				if hook := hooks.GlobalHooks.ShouldAddDistributedInfoHook; hook != nil {
+					addDistributedInfo = hook()
+				}
+
+				if addDistributedInfo {
 					remainingDQsString = fmt.Sprintf(", remaining distributed queries: %v", qs.remainingDistributedQueries)
 				}
+
 				log.Infof("qid=%d, still executing. Time Elapsed (%v), files so far: PQS: %v, RAW: %v, STREE: %v%v", qs.qid, time.Since(qs.startTime),
 					len(qs.allQuerySummaries[PQS].searchTimeHistory),
 					len(qs.allQuerySummaries[RAW].searchTimeHistory),
