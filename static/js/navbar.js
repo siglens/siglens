@@ -182,14 +182,18 @@ $(document).ready(function () {
         $(".help-options").slideToggle(200);
     });
 
+    $(document).on("click", function(event) {
+        var helpOptions = $(".help-options");
+        var menu = $(".nav-help");
+        
+        if (!menu.is(event.target) && !helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
+            helpOptions.slideUp(200);
+        }
+    });
+
+    $(".help-options").on("click", "a", function(event) {
+        $(".help-options").slideUp(200);
+    });
 });
 
-$(document).on("click", function(event) {
-    var helpOptions = $(".help-options");
-    var menu = $(".nav-help");
-    
-    if (!menu.is(event.target) && !helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
-        helpOptions.slideUp(200);
-    }
-});
 
