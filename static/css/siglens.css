@@ -410,7 +410,7 @@ body {
 }
 
 .theme-btn-group {
-    width: 58px;
+    width: 48px;
     border-radius: 5px;
     padding: 4px;
     display: flex;
@@ -482,7 +482,6 @@ body {
 
 .icon-myorg,
 .icon-cstats,
-.icon-feedback,
 .icon-search,
 .icon-usq,
 .sslogo,
@@ -492,7 +491,8 @@ body {
 .icon-minion,
 .icon-live,
 .icon-traces,
-.icon-ingest{
+.icon-ingest,
+.icon-help{
     min-height: 42px;
     min-width: 48px;
     background-origin: content-box;
@@ -516,7 +516,7 @@ body {
 }
 
 #app-side-nav .menu {
-    min-height: 42px;
+    min-height: 38px;
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
     border-radius: 0 5px 5px 0;
@@ -572,6 +572,7 @@ body {
     background-image: url("../assets/feedback-icon-inactive.svg");
     height: 18px;
     width: 18px;
+    margin-right: 10px;
 }
 
 .icon-launchdb{
@@ -4985,4 +4986,83 @@ input.form-control {
 
 .ingestion-container a{
     color: var(--dashboard-title-color);
+}
+
+.help-options {
+    display: none;
+    position: absolute;
+    background-color: var(--side-nav-bg-color);
+    min-width: 160px;
+    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+    padding: 2px;
+    z-index: 1;
+    transition: opacity 0.3s ease-in-out;
+    bottom: 12px;
+    left: 158px;
+    border: 1px solid var(--border-btn-color);
+    border-radius: 5px;
+    box-shadow: 0px 2px 8px 0px var(--border-shadow);
+}
+
+.help-options hr{
+    margin: 0;
+    margin-bottom: 0px;
+}
+/* .icon-help, */
+.icon-slack,
+.icon-docs,
+.icon-twitter,
+.icon-linkedin,
+.icon-feedback{
+    min-height: 42px;
+    min-width: 38px;
+    background-origin: content-box;
+    background-repeat: no-repeat;
+    background-size: 18px;
+    background-position: 50%;
+    display: inline-block;
+    border: 0;
+    height: 18px;
+    width: 18px;
+}
+.icon-help {
+    background-image: url("../assets/help-icon-inactive.svg");
+    height: 18px;
+    width: 18px;
+    background-size: 18px;
+}
+.icon-help:hover,
+.menu.nav-help.active .icon-help {
+    background-image: url("../assets/help-icon-active.svg");
+    height: 18px;
+    width: 18px;
+}
+.icon-slack {
+    background-image: url("../assets/slack-icon-inactive.svg");
+}
+.icon-slack:hover,
+.menu.nav-slack.active .icon-slack {
+    background-image: url("../assets/slack-icon-active.svg");
+}
+
+.icon-docs {
+    background-image: url("../assets/docs-icon-inactive.svg");
+}
+.icon-docs:hover,
+.menu.nav-docs.active .icon-docs {
+    background-image: url("../assets/docs-icon-active.svg");
+}
+.icon-twitter {
+    background-image: url("../assets/twitter-icon-inactive.svg");
+}
+.icon-twitter:hover,
+.menu.nav-twitter.active .icon-twitter {
+    background-image: url("../assets/twitter-icon-active.svg");
+}
+.icon-linkedin {
+    background-image: url("../assets/linkedin-icon-inactive.svg");
+}
+.icon-linkedin:hover,
+.menu.nav-linkedin.active .icon-linkedin {
+    background-image: url("../assets/linkedin-icon-active.svg");
 }
