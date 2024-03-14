@@ -292,6 +292,7 @@ input.form-control {
 .custom-code-tab {
     border: 0 !important;
     font-size: 14px;
+    background-color: var(--bg-color);
 }
 
 .ui-tabs .ui-tabs-panel {
@@ -478,15 +479,12 @@ a:visited.ui-button,
     height: auto;
     width: auto;
 }
-.ui-widget-content {
-    background-color: var(--bg-color);
-}
 
 .ui-autocomplete::-webkit-scrollbar {
     width: 0;
 }
 .ui-dialog-title{
-    font-size: 22px;
+    font-size: 18px;
 }
 .completed{
     background-image: var(--complete-bg-img);

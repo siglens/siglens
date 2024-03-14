@@ -81,7 +81,7 @@ func readSavedDashboards(orgid uint64) ([]byte, error) {
 
 func readSavedDefaultDashboards(orgid uint64) ([]byte, error) {
 	var dashboardData []byte
-	allidsFname := getDefaultDashboardFileName(orgid)
+	allidsFname := getDefaultDashboardFileName()
 	_, err := os.Stat(allidsFname)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -127,14 +127,10 @@ func getDashboardFileName(orgid uint64) string {
 	return allidsFname
 }
 
-func getDefaultDashboardFileName(orgid uint64) string {
+func getDefaultDashboardFileName() string {
 	var allidsFname string
 	var defaultDBsAllidsBaseFname string = "defaultDBs/allids"
-	if orgid == 0 {
-		allidsFname = defaultDBsAllidsBaseFname + ".json"
-	} else {
-		allidsFname = defaultDBsAllidsBaseFname + "-" + strconv.FormatUint(orgid, 10) + ".json"
-	}
+	allidsFname = defaultDBsAllidsBaseFname + ".json"
 	return allidsFname
 }
 
@@ -532,14 +528,6 @@ func deleteDashboard(id string, orgid uint64) error {
 	return nil
 }
 
-func setBadMsg(ctx *fasthttp.RequestCtx) {
-	var httpResp utils.HttpServerResponse
-	ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	httpResp.Message = "Bad Request"
-	httpResp.StatusCode = fasthttp.StatusBadRequest
-	utils.WriteResponse(ctx, httpResp)
-}
-
 // method to set conflict message and 409 status code
 func setConflictMsg(ctx *fasthttp.RequestCtx) {
 	var httpResp utils.HttpServerResponse
@@ -553,7 +541,7 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("ProcessCreateDashboardRequest: received empty user query")
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 
@@ -562,7 +550,7 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	err := json.Unmarshal(rawJSON, &dname)
 	if err != nil {
 		log.Errorf("ProcessCreateDashboardRequest: could not unmarshall user query, err=%v", err)
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	dashboardInfo, err := createDashboard(dname, myid)
@@ -573,7 +561,7 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			return
 		} else {
 			log.Errorf("ProcessCreateDashboardRequest: could not create Dashboard=%v, err=%v", dname, err)
-			setBadMsg(ctx)
+			utils.SetBadMsg(ctx, "")
 			return
 		}
 	}
@@ -586,14 +574,14 @@ func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx) {
 	dId := utils.ExtractParamAsString(ctx.UserValue("dashboard-id"))
 	if dId == "" {
 		log.Errorf("ProcessFavoriteRequest: received empty dashboard id")
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 
 	isFavorite, err := toggleFavorite(dId)
 	if err != nil {
 		log.Errorf("ProcessFavoriteRequest: could not toggle favorite status for Dashboard=%v, err=%v", dId, err)
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 
@@ -607,7 +595,7 @@ func ProcessListFavoritesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	if err != nil {
 		log.Errorf("ProcessListFavoritesRequest: could not get favorite dashboard ids, err=%v", err)
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	utils.WriteJsonResponse(ctx, dIds)
@@ -669,7 +657,7 @@ func ProcessListAllRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	if err != nil {
 		log.Errorf("ProcessListAllRequest: could not get dashboard ids, err=%v", err)
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	utils.WriteJsonResponse(ctx, dIds)
@@ -681,7 +669,7 @@ func ProcessListAllDefaultDBRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	if err != nil {
 		log.Errorf("ProcessListAllRequest: could not get dashboard ids, err=%v", err)
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	utils.WriteJsonResponse(ctx, dIds)
@@ -692,7 +680,7 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("ProcessCreateDashboardRequest: received empty user query")
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 
@@ -701,7 +689,7 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	err := json.Unmarshal(rawJSON, &readJSON)
 	if err != nil {
 		log.Errorf("ProcessCreateDashboardRequest: could not unmarshall user query, err=%v", err)
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 
@@ -715,7 +703,7 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			return
 		} else {
 			log.Errorf("ProcessCreateDashboardRequest: could not create Dashboard=%v, err=%v", dId, err)
-			setBadMsg(ctx)
+			utils.SetBadMsg(ctx, "")
 			return
 		}
 	}
@@ -729,7 +717,7 @@ func ProcessGetDashboardRequest(ctx *fasthttp.RequestCtx) {
 	dashboardDetails, err := getDashboard(dId)
 	if err != nil {
 		log.Errorf("ProcessGetDashboardRequest: could not get Dashboard=%v, err=%v", dId, err)
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	utils.WriteJsonResponse(ctx, dashboardDetails)
@@ -741,7 +729,7 @@ func ProcessDeleteDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	err := deleteDashboard(dId, myid)
 	if err != nil {
 		log.Errorf("ProcessDeleteDashboardRequest: Failed to delete dashboard=%v, err=%v", dId, err)
-		setBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 

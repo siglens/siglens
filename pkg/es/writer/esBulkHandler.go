@@ -27,7 +27,6 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	segment "github.com/siglens/siglens/pkg/segment/utils"
 
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -52,8 +51,6 @@ const INDEX_TOP_STR string = "index"
 const CREATE_TOP_STR string = "create"
 const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
-
-var httpResp utils.HttpServerResponse
 
 type kibanaIngHandlerFnDef func(
 	ctx *fasthttp.RequestCtx, request map[string]interface{},
@@ -113,7 +110,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, kiba
 				processedCount++
 				success = true
 				if strings.Contains(indexName, ".kibana") {
-					indexNameConverted := addAndGetRealIndexName(indexName, localIndexMap, myid)
+					indexNameConverted := AddAndGetRealIndexName(indexName, localIndexMap, myid)
 					if idVal == "" {
 						idVal = uuid.New().String()
 					}
@@ -230,7 +227,7 @@ func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
 	return DELETE, "eventType", ""
 }
 
-func addAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string, myid uint64) string {
+func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string, myid uint64) string {
 
 	// first check localCopy of map, if it exists then avoid the lock inside vtables.
 	// note that this map gets reset on every bulk request
@@ -250,7 +247,7 @@ func addAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 
 	err := vtable.AddVirtualTable(&indexNameConverted, myid)
 	if err != nil {
-		log.Errorf("addAndGetRealIndexName: failed to add virtual table, err=%v", err)
+		log.Errorf("AddAndGetRealIndexName: failed to add virtual table, err=%v", err)
 	}
 	return indexNameConverted
 }
@@ -258,7 +255,7 @@ func addAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64) error {
 
-	indexNameConverted := addAndGetRealIndexName(indexNameIn, localIndexMap, myid)
+	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
 	cfgkey := config.GetTimeStampKey()
 
 	var docType segment.SIGNAL_TYPE
@@ -286,13 +283,6 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 		return err
 	}
 	return nil
-}
-
-func setBadMsg(ctx *fasthttp.RequestCtx) {
-	ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	httpResp.Message = "Bad Request"
-	httpResp.StatusCode = fasthttp.StatusBadRequest
-	utils.WriteResponse(ctx, httpResp)
 }
 
 func ProcessPutIndex(ctx *fasthttp.RequestCtx, myid uint64) {
@@ -326,58 +316,4 @@ func PostBulkErrorResponse(ctx *fasthttp.RequestCtx) {
 	responsebody["index"] = error_response
 	responsebody["status"] = 400
 	utils.WriteJsonResponse(ctx, responsebody)
-}
-
-func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
-	inIndexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
-
-	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid)
-
-	if indicesNotFound == len(convertedIndexNames) {
-		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		response := make(map[string]interface{})
-		final := make(map[string]interface{})
-		var items = make([]interface{}, 0)
-		items = append(items, *utils.NewDeleteIndexErrorResponseInfo(inIndexName))
-		final["root_cause"] = items
-		final["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
-		final["status"] = 404
-		response["error"] = final
-		utils.WriteJsonResponse(ctx, response)
-	} else {
-		ctx.SetStatusCode(fasthttp.StatusOK)
-	}
-}
-
-func deleteIndex(inIndexName string, myid uint64) ([]string, int) {
-	convertedIndexNames := vtable.ExpandAndReturnIndexNames(inIndexName, myid, true)
-	indicesNotFound := 0
-	for _, indexName := range convertedIndexNames {
-
-		indexPresent := vtable.IsVirtualTablePresent(&indexName, myid)
-		if !indexPresent {
-			indicesNotFound++
-			continue
-		}
-
-		ok, _ := vtable.IsAlias(indexName, myid)
-		if ok {
-			alias, _ := vtable.GetAliasesAsArray(indexName, myid)
-			error := vtable.RemoveAliases(indexName, alias, myid)
-			if error != nil {
-				log.Errorf("ProcessDeleteIndex : No Aliases removed for indexName = %v, alias: %v ", indexName, alias)
-			}
-		}
-		err := vtable.DeleteVirtualTable(&indexName, myid)
-		if err != nil {
-			log.Errorf("ProcessDeleteIndex : Failed to delete virtual table for indexName = %v err: %v", indexName, err)
-		}
-
-		// TODO: multinode delete index
-		currSegmeta := writer.GetLocalSegmetaFName()
-		writer.DeleteSegmentsForIndex(currSegmeta, indexName)
-		writer.DeleteVirtualTableSegStore(indexName)
-		metadata.DeleteVirtualTable(indexName, myid)
-	}
-	return convertedIndexNames, indicesNotFound
 }

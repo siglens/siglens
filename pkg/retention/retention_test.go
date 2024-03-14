@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_isDirEmpty(t *testing.T) {
+func Test_IsDirEmpty(t *testing.T) {
 	type args struct {
 		name    string
 		dirName string
@@ -60,15 +60,15 @@ func Test_isDirEmpty(t *testing.T) {
 			if err != nil {
 				panic("error creating directory")
 			}
-			if got := isDirEmpty(tt.args.name); got != tt.want {
-				t.Errorf("isDirEmpty() = %v, want %v", got, tt.want)
+			if got := IsDirEmpty(tt.args.name); got != tt.want {
+				t.Errorf("IsDirEmpty() = %v, want %v", got, tt.want)
 			}
 			os.RemoveAll("data")
 		})
 	}
 }
 
-func Test_recursivelyDeleteParentDirectories(t *testing.T) {
+func Test_RecursivelyDeleteParentDirectories(t *testing.T) {
 	config.InitializeDefaultConfig()
 	type args struct {
 		filePath   string
@@ -113,16 +113,16 @@ func Test_recursivelyDeleteParentDirectories(t *testing.T) {
 				err := os.MkdirAll(tt.args.testFile2, 0755)
 				fmt.Println(err)
 			}
-			recursivelyDeleteParentDirectories(tt.args.filePath + "/t.txt")
+			RecursivelyDeleteParentDirectories(tt.args.filePath + "/t.txt")
 			assert.NoDirExists(t, tt.args.fileExists, "Failed to backtrack cleanup")
 			os.RemoveAll("data")
 		})
 	}
 }
 
-func Test_getRetentionTimeMs(t *testing.T) {
+func Test_GetRetentionTimeMs(t *testing.T) {
 	currTime := time.Now()
 	oneHourAgo := time.Now().Add(-time.Duration(time.Hour))
-	retentionInMs := getRetentionTimeMs(1, currTime)
+	retentionInMs := GetRetentionTimeMs(1, currTime)
 	assert.Equal(t, uint64(oneHourAgo.UnixMilli()), retentionInMs)
 }

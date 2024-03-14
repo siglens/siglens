@@ -25,10 +25,10 @@ import (
 
 	"github.com/fasthttp/router"
 	"github.com/oklog/run"
+	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/segment/structs"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -72,18 +72,26 @@ func (hs *queryserverCfg) Close() {
 
 func getMyIds() []uint64 {
 	myids := make([]uint64, 1)
-	myids[0] = 0
-	return myids
-}
-func extractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*structs.SegmentSearchRequest {
-	ssr := make(map[string]*structs.SegmentSearchRequest)
 
-	return ssr
+	alreadyHandled := false
+	if hook := hooks.GlobalHooks.GetIdsConditionHook; hook != nil {
+		alreadyHandled = hook(myids)
+	}
+
+	if !alreadyHandled {
+		myids[0] = 0
+	}
+
+	return myids
 }
 
 func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) error {
 	query.InitQueryMetrics()
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+
+	alertsHandler.InitAlertingService(getMyIds)
+	alertsHandler.InitMinionSearchService(getMyIds)
+
+	err := query.InitQueryNode(getMyIds, server_utils.ExtractKibanaRequests)
 	if err != nil {
 		log.Errorf("Failed to initialize query node: %v", err)
 		return err
@@ -95,13 +103,13 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET("/js/{filename}.js", func(ctx *fasthttp.RequestCtx) {
 		renderJavaScriptTemplate(ctx, textTemplate)
 	})
-	hs.Router.GET(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler(0)))
-	hs.Router.POST(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler(0)))
+	hs.Router.GET(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler()))
+	hs.Router.POST(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/search", hs.Recovery(pipeSearchHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/search/{dbPanel-id}", hs.Recovery(dashboardPipeSearchHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/search/ws", hs.Recovery(pipeSearchWebsocketHandler(0)))
+	hs.Router.GET(server_utils.API_PREFIX+"/search/ws", hs.Recovery(pipeSearchWebsocketHandler()))
 
-	hs.Router.POST(server_utils.API_PREFIX+"/search/ws", hs.Recovery(pipeSearchWebsocketHandler(0)))
+	hs.Router.POST(server_utils.API_PREFIX+"/search/ws", hs.Recovery(pipeSearchWebsocketHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/sampledataset_bulk", hs.Recovery(sampleDatasetBulkHandler()))
 
 	// common routes
@@ -226,8 +234,17 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
 	hs.Router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(esPutIndexHandler()))
 
+	hs.Router.GET(server_utils.API_PREFIX+"/system-info", hs.Recovery(getSystemInfoHandler()))
 	if config.IsDebugMode() {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
+	}
+
+	if hook := hooks.GlobalHooks.ExtraQueryEndpointsHook; hook != nil {
+		err := hook(hs.Router, hs.Recovery)
+		if err != nil {
+			log.Errorf("Run: error in ExtraQueryEndpointsHook: %v", err)
+			return err
+		}
 	}
 
 	if hook := hooks.GlobalHooks.ServeStaticHook; hook != nil {
