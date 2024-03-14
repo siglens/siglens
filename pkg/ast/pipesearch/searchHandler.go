@@ -280,12 +280,10 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 
 		if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 			sizeLimit = 0
-		} else if aggs.HasDedupBlockInChain() {
-			// Dedup needs to see all the matched records before it can return any
+		} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() {
+			// 1. Dedup needs to see all the matched records before it can return any
 			// of them when there's a sortby option.
-			sizeLimit = math.MaxUint64
-		} else if aggs.HasRexBlockInChainWithStats() {
-			// If there's a Rex block in the chain followed by a Stats block, we need to
+			// 2. If there's a Rex block in the chain followed by a Stats block, we need to
 			// see all the matched records before we apply or calculate the stats.
 			sizeLimit = math.MaxUint64
 		}

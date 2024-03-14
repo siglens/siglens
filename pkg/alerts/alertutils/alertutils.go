@@ -40,6 +40,7 @@ type AlertDetails struct {
 	CronJob         gocron.Job          `json:"cron_job" gorm:"embedded"`
 	NodeId          uint64              `json:"node_id"`
 	NotificationID  string              `json:"notification_id" gorm:"foreignKey:NotificationId;"`
+	OrgId           uint64              `json:"org_id"`
 }
 
 func (AlertDetails) TableName() string {
@@ -94,6 +95,7 @@ type Contact struct {
 	Slack       []SlackTokenConfig `json:"slack" gorm:"many2many:slack_contact;auto_preload"`
 	PagerDuty   string             `json:"pager_duty"`
 	Webhook     []string           `json:"webhook" gorm:"type:text[]"`
+	OrgId       uint64             `json:"org_id"`
 }
 
 type SlackTokenConfig struct {
@@ -183,6 +185,7 @@ type MinionSearch struct {
 	LogText         string              `json:"log_text,omitempty"`
 	LogTextHash     string              `json:"log_text_hash,omitempty"`
 	LogLevel        string              `json:"log_level,omitempty"`
+	OrgId           uint64              `json:"org_id"`
 }
 
 func (MinionSearch) TableName() string {
