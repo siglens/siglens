@@ -171,7 +171,9 @@ func Main() {
 		log.Errorf("siglens main: Error in starting server:%v ", err)
 		os.Exit(1)
 	}
-
+	if hook := hooks.GlobalHooks.CheckOrgValidityHook; hook != nil {
+		hook()
+	}
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
@@ -218,9 +220,7 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	queryServer := fmt.Sprint(config.GetQueryListenIP()) + ":" + fmt.Sprintf("%d", config.GetQueryPort())
 
 	if config.IsTlsEnabled() && config.GetQueryPort() != 443 {
-		fmt.Printf("Error starting Query/UI server with TLS, QueryPort should be set to 443 ")
-		log.Errorf("Error starting Query/UI server with TLS, QueryPort should be set to 443 ")
-		return errors.New("error starting Query/UI server with TLS, QueryPort should be set to 443 ")
+		log.Warnf("TLS requires using 443; you will have issues if nothing in your setup configures port 443 to route to the Query/UI port (%d)", config.GetQueryPort())
 	}
 
 	err = vtable.InitVTable()
@@ -282,8 +282,6 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	instrumentation.InitMetrics()
 	querytracker.InitQT()
 
-	alertsHandler.InitAlertingService()
-	alertsHandler.InitMinionSearchService()
 	go tracinghandler.MonitorSpansHealth()
 	go tracinghandler.DependencyGraphThread()
 

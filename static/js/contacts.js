@@ -478,7 +478,7 @@ function displayAllContacts(res){
     $.each(res, function (key, value) {
         let contactType = 
         Object.entries(value)
-        .filter(([k,v]) => v!=null && v.length !== 0 && k !== 'contact_name' && k !== 'contact_id')
+        .filter(([k,v]) => v!=null && v.length !== 0 && k !== 'contact_name' && k !== 'contact_id' && k !== 'org_id')
         .map(([k, v]) => {
             return v.length >1 ? `${capitalize(k)} (${v.length})` : capitalize(k);
         } );

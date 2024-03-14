@@ -146,6 +146,12 @@ type TxnArgs struct {
     argOption string
     arguments *structs.TransactionArguments
 }
+
+type TimechartArgs struct {
+    singleAggExpr *singleAggTemp
+    // Todo: Add eval clause expr.
+    tcOptions     *structs.TcOptions
+}
 }
 
 Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
@@ -232,7 +238,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -403,7 +409,7 @@ SearchTerm <- term:(FieldWithNumberValue / FieldWithBooleanValue / FieldWithStri
 }
 
 // To be finished: add (<eval-expression>) BY <split-by-clause> ) for expr; Limit option ...
-TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExpr) limitExpr:(LimitExpr)? {
+TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(LimitExpr)? {
     aggNode := &structs.QueryAggregators{}
 
     columnsRequest := &structs.ColumnsRequest{}
@@ -413,50 +419,65 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
     timechartExpr := &structs.TimechartExpr{}
     byField := ""
 
-    switch expr.(type) {
-        case *singleAggTemp:
-            singleAgg := &structs.SingleAgg{}
-            aggTemp := expr.(*singleAggTemp)
-
-            for i, agg := range aggTemp.aggregators {
-                measureAggs = append(measureAggs, agg.measureAgg)
-
-                if agg.renameOutputField {
-                    measureAggs[i].StrEnc = agg.outputFieldNewName
-                }
-            }
-
-            singleAgg.MeasureOperations = measureAggs
-            timechartExpr.SingleAgg = singleAgg
-
-            if aggTemp.SplitByClause != nil {
-                byField = aggTemp.SplitByClause.Field
-            }
-        //  case (<eval-expression>) BY <split-by-clause>) to be finished
-        default:
-            return nil, fmt.Errorf("Spl peg: Timechart: either single-agg or eval-expression BY split-by-clause is required")
+    if tcArgs == nil {
+        return nil, fmt.Errorf("spl peg: timechart: either single-agg or eval-expression by split-by-clause is required")
+    }
+    
+    timechartArgs := tcArgs.(*TimechartArgs)
+    
+    // Todo: Should add || timechartArgs.evalExpr == nil
+    if timechartArgs.singleAggExpr == nil {
+        return nil, fmt.Errorf("spl peg: timechart: either single-agg or eval-expression by split-by-clause is required")
     }
 
+    var bOptions *structs.BinOptions
+    
+    if timechartArgs.tcOptions != nil {
+        if timechartArgs.tcOptions.BinOptions != nil {
+            bOptions = timechartArgs.tcOptions.BinOptions
+        }
+    }
+
+    if timechartArgs.singleAggExpr != nil {
+        singleAgg := &structs.SingleAgg{}
+        aggTemp := timechartArgs.singleAggExpr
+
+        for i, agg := range aggTemp.aggregators {
+            measureAggs = append(measureAggs, agg.measureAgg)
+
+            if agg.renameOutputField {
+                measureAggs[i].StrEnc = agg.outputFieldNewName
+            }
+        }
+
+        singleAgg.MeasureOperations = measureAggs
+        timechartExpr.SingleAgg = singleAgg
+
+        if aggTemp.SplitByClause != nil {
+            byField = aggTemp.SplitByClause.Field
+        }
+    }
+
+    // TODO: if timechartArgs.evalExpr != nil {}
+
     aggNode.PipeCommandType = structs.GroupByType
-    aggNode.GroupByRequest = &structs.GroupByRequest {
+    aggNode.GroupByRequest = &structs.GroupByRequest{
         MeasureOperations: measureAggs,
-        GroupByColumns: []string{"timestamp"},
+        GroupByColumns:    []string{"timestamp"},
     }
     aggNode.BucketLimit = query.MAX_GRP_BUCKS
 
-    if binOptions == nil {
-		binOptions = &structs.BinOptions{
-			SpanOptions: &structs.SpanOptions{
-				DefaultSettings: true,
-				SpanLength: &structs.SpanLength{
-					Num: 		 1,
-					TimeScalr: utils.TMMinute,
-				},
-			},
-		}
-	}
-
-    bOptions := binOptions.(*structs.BinOptions)
+    if bOptions == nil {
+        bOptions = &structs.BinOptions{
+            SpanOptions: &structs.SpanOptions{
+                DefaultSettings: true,
+                SpanLength: &structs.SpanLength{
+                    Num: 1,
+                    TimeScalr: utils.TMMinute,
+                },
+            },
+        }
+    }
 
     var limitExprTmp *structs.LimitExpr
     if limitExpr != nil {
@@ -467,7 +488,7 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
     }
 
     timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp, len(measureAggs))
-	aggNode.TimeHistogram = timeBucket
+    aggNode.TimeHistogram = timeBucket
 
     return aggNode, nil
 }
@@ -476,7 +497,40 @@ TimechartBlock <- PIPE CMD_TIMECHART binOptions:(BinOptions)? expr:(SingleAggExp
 // TimechartEvalExpr <- ... BY splitByClause:(SplitByClause) {
 // }
 
-SingleAggExpr <- aggs:AggregationList splitByClause:(SplitByClause)? {
+TimechartArgumentsList <- first:TimechartArgument rest:(SPACE TimechartArgument)* {
+    restSlice := rest.([]any)
+    timechartArgs := &TimechartArgs{}
+
+    numArgs := 1 + len(restSlice)
+
+    for i :=0; i < numArgs; i++ {
+
+        var numArg interface{}
+
+        if i == 0 {
+            numArg = first
+        } else {
+            numArg = restSlice[i - 1].([]any)[1]
+        }
+
+        switch numArg.(type) {
+            case *singleAggTemp:
+                timechartArgs.singleAggExpr = numArg.(*singleAggTemp)
+            case *structs.TcOptions:
+                timechartArgs.tcOptions = numArg.(*structs.TcOptions)
+            default:
+                return nil, fmt.Errorf("Spl peg: Timechart: invalid timechart argument: %v", numArg)
+        }
+    }
+    
+    return timechartArgs, nil
+}
+
+TimechartArgument <- tcArg:(SingleAggExpr / TcOptions) {
+    return tcArg, nil
+}
+
+SingleAggExpr <- aggs:AggregationList splitByClause:SplitByClause? {
     singleAggExpr := &singleAggTemp {
         aggregators: aggs.([]*aggregator),
     }
@@ -490,18 +544,15 @@ SingleAggExpr <- aggs:AggregationList splitByClause:(SplitByClause)? {
 
 // Syntax: <field> (<tc-options>)... [<where-clause>]
 // <where-clause> to be finished
-SplitByClause <- BY field:FieldName tcOptions:(TcOptions)? {
+SplitByClause <- BY field:FieldName {
     splitByClause := &structs.SplitByClause {
         Field: field.(string),
     }
 
-    if tcOptions != nil {
-        splitByClause.TcOptions = tcOptions.(*structs.TcOptions)
-    }
     return splitByClause, nil
 }
 
-TcOptions <- SPACE option:(BinOptions / (TcOption)+) {
+TcOptions <- option:(BinOptions / (TcOption)+) {
     //Default value
     tcOptions := &structs.TcOptions{
         UseNull: true,
@@ -572,7 +623,7 @@ SpanOptions <- CMD_SPAN EQUAL spanLength:SpanLength {
     return spanOptions, nil
 }
 
-SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale SPACE{
+SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale{
     num, err := strconv.Atoi(intAsStr.(string))
     if err != nil {
         return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", intAsStr.(string), err)
@@ -790,7 +841,7 @@ DedupExpr <- limitArr:(SPACE IntegerAsString)? options1:(DedupOptions)? fieldLis
     dedupExpr := &structs.DedupExpr {
         FieldList: fieldList.([]string),
         Limit: 1,
-        DedupCombinations: make(map[string]map[int][]structs.DedupSortValue, 0),
+        DedupCombinations: make(map[string]map[int][]structs.SortValue, 0),
         DedupRecords: make(map[string]map[string]interface{}, 0),
     }
 
@@ -827,7 +878,7 @@ DedupExpr <- limitArr:(SPACE IntegerAsString)? options1:(DedupOptions)? fieldLis
     }
 
     if sortByClause != nil {
-        dedupExpr.DedupSortEles = sortByClause.([]*structs.DedupSortElement)
+        dedupExpr.DedupSortEles = sortByClause.([]*structs.SortElement)
 
         // Make the DedupSortAscending from the DedupSortEles.
         dedupExpr.DedupSortAscending = make([]int, len(dedupExpr.DedupSortEles))
@@ -918,59 +969,59 @@ DedupOptionCMD <- option:("consecutive" / "keepempty" / "keepevents") {
     return optionStr, nil
 }
 
-DedupSortByClause <- CMD_DEDUP_SORTBY dedupSortEles:DedupSortElements {
+DedupSortByClause <- CMD_DEDUP_SORTBY dedupSortEles:SortElements {
     return dedupSortEles, nil
 }
 
 // sortby ( - | + ) <sort-field> [(- | +) <sort_field> ...]
-DedupSortElements <- first:DedupSingleSortElement rest:(SPACE DedupSingleSortElement)* {
+SortElements <- first:SingleSortElement rest:(EMPTY_OR_COMMA SingleSortElement)* {
     restSlice := rest.([]any)
 
     length := 1 + len(restSlice)
-    dedupSortEles := make([]*structs.DedupSortElement, length)
-    dedupSortEles[0] = first.(*structs.DedupSortElement)
+    sortEles := make([]*structs.SortElement, length)
+    sortEles[0] = first.(*structs.SortElement)
 
     for i := 1; i < length; i++ {
         elements := restSlice[i - 1].([]any)
-        dedupSortEles[i] = elements[1].(*structs.DedupSortElement)
+        sortEles[i] = elements[1].(*structs.SortElement)
     }
 
-    return dedupSortEles, nil
+    return sortEles, nil
 }
 
-DedupSingleSortElement <- element:(DedupSingleSortElementWithCast / DedupSingleSortElementWithoutCast) {
+SingleSortElement <- element:(SingleSortElementWithCast / SingleSortElementWithoutCast) {
     return element, nil
 }
 
-DedupSingleSortElementWithoutCast <- sortBySymbol:("+" / "-") field:FieldName {
+SingleSortElementWithoutCast <- sortBySymbol:("+" / "-" / "") field:FieldName {
     sortByAsc := true
 
     symbol := sortBySymbol.([]byte)
-    if(symbol[0] == '-') {
+    if(len(symbol) > 0 && symbol[0] == '-') {
         sortByAsc = false
     }
 
-    return &structs.DedupSortElement {
+    return &structs.SortElement {
         SortByAsc: sortByAsc,
         Op: "",
         Field: field.(string),
     }, nil
 }
 
-DedupSingleSortElementWithCast <- sortBySymbol:("+" / "-") op:("auto" / "str" / "ip" / "num") L_PAREN field:FieldName R_PAREN {
+SingleSortElementWithCast <- sortBySymbol:("+" / "-" / "") op:("auto" / "str" / "ip" / "num") L_PAREN field:FieldName R_PAREN {
     sortByAsc := true
 
     symbol := sortBySymbol.([]byte)
-    if(symbol[0] == '-') {
+    if(len(symbol) > 0 && symbol[0] == '-') {
         sortByAsc = false
     }
 
     opStr, err := transferUint8ToString(op)
     if err != nil {
-        return nil, fmt.Errorf("Spl peg: DedupSingleSortElementWithCast: %v", err)
+        return nil, fmt.Errorf("Spl peg: singleSortElementWithCast: %v", err)
     }
 
-    return &structs.DedupSortElement {
+    return &structs.SortElement {
         SortByAsc: sortByAsc,
         Op: opStr,
         Field: field.(string),
@@ -1040,6 +1091,40 @@ RexBlock <- PIPE CMD_REX "field" EQUAL field:EvalFieldToRead SPACE str:QuotedStr
 
     letColReq := &structs.LetColumnsRequest {
         RexColRequest: rexExpr,
+    }
+
+    root := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    return root, nil
+}
+
+// arguments need to be finished:
+// [<count>], [desc]
+SortBlock <- PIPE CMD_SORT sortByEles:SortElements {
+
+    sortExpr := &structs.SortExpr {
+        SortEles: sortByEles.([]*structs.SortElement),
+        SortRecords: make(map[string]map[string]interface{}, 0),
+    }
+
+    ascendingArr := make([]int, len(sortExpr.SortEles))
+    for i, ele := range sortExpr.SortEles {
+        if ele.SortByAsc {
+            ascendingArr[i] = 1
+        } else {
+            ascendingArr[i] = -1
+        }
+    }
+
+    sortExpr.SortAscending = ascendingArr
+
+    letColReq := &structs.LetColumnsRequest {
+        SortColRequest: sortExpr,
     }
 
     root := &structs.QueryAggregators {
@@ -1861,8 +1946,8 @@ AsField <- AS field: (FieldName / String) {
     }
     
     if fieldStr[0] == '"' && fieldStr[len(fieldStr)-1] == '"' {
-		fieldStr = fieldStr[1 : len(fieldStr)-1]
-	}
+        fieldStr = fieldStr[1 : len(fieldStr)-1]
+    }
 
     return fieldStr, nil
 }
@@ -2411,8 +2496,8 @@ TransactionQuotedStringValue <- str:QuotedStringNoOp {
 }
 
 TransactionSearch <- expr:ClauseLevel1 {
-
-	filterStrExpr := &structs.FilterStringExpr{
+    
+    filterStrExpr := &structs.FilterStringExpr{
        SearchNode: expr.(*ast.Node),
     }
 
@@ -2430,7 +2515,7 @@ TransactionEval <- "eval" EMPTY_OR_SPACE L_PAREN condition:BoolExpr R_PAREN {
 
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -2440,6 +2525,7 @@ CMD_HEAD_NO_SPACE <- "head"
 CMD_HEAD <- CMD_HEAD_NO_SPACE SPACE
 CMD_EVAL <- "eval" SPACE
 CMD_REX <- "rex" SPACE
+CMD_SORT <- "sort" SPACE
 CMD_TOP <- "top"
 CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
@@ -2474,3 +2560,4 @@ EOF <- !.
 SPACE <- (" "? COMMENT " "?) / " "+
 COMMENT <- "```" (!("```") .)* "```"
 EMPTY_OR_SPACE  <- SPACE / ""
+EMPTY_OR_COMMA  <- COMMA / EMPTY_OR_SPACE
