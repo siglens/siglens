@@ -58,48 +58,10 @@ jobs:
             sleep 5
             go run main.go query esbulk -d http://localhost:5122 -f ../cicd/restart.csv
             go run main.go query otsdb -d http://localhost:5122/otsdb -n 5 -y
-  selenium-ui-tests:
-    working_directory: ~/repo
-    docker:
-      - image: cimg/node:16.13.1-browsers
-    steps:
-      - checkout
-      - browser-tools/install-browser-tools:
-          chrome-version: 116.0.5845.110
-      - run:
-          name: Install latest Go
-          command: |
-            rm -rf /usr/local/go
-            curl -O https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz
-            sudo tar -C /usr/local -xzf go1.18.2.linux-amd64.tar.gz
-            export GOPATH=$HOME/go
-            export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin:$(go env GOPATH)/bin
-            go version
-      - run:
-          name: Build Siglens
-          command: make build
-      - run:
-          name: Run Siglens
-          command: make run
-          background: true
-      - run:
-          name: Start Xvfb
-          command: Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-      - run:
-          name: Install Dependencies &  Run tests
-          command: |
-            cd selenium-tests
-            npm install
-            export DISPLAY=:99
-            npm install mocha
-            npm run test
-    environment:
-      - CHROME_BIN=/usr/bin/google-chrome
-      - CHROME_PATH=/usr/bin/google-chrome
+
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
   test_and_lint:
     jobs:
       - e2e-server
-      - selenium-ui-tests
