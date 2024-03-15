@@ -86,14 +86,7 @@ func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint16]s
 	return segmap, recordIndexInFinal
 }
 
-// Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
-func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
-	segEncToKey map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
-
-	sTime := time.Now()
-	nodeRes := GetOrCreateNodeRes(qid)
-	segmap, recordIndexInFinal := buildSegMap(allrrc, segEncToKey)
-
+func prepareOutputTransforms(aggs *structs.QueryAggregators) (map[string]int, map[string]string, bool, bool, []string, map[string]string) {
 	rawIncludeValuesIndicies := make(map[string]int)
 	valuesToLabels := make(map[string]string)
 	logfmtRequest := false
@@ -119,6 +112,18 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		}
 
 	}
+
+	return rawIncludeValuesIndicies, valuesToLabels, logfmtRequest, tableColumnsExist, hardcodedArray, renameHardcodedColumns
+}
+
+// Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
+func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
+	segEncToKey map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
+
+	sTime := time.Now()
+	nodeRes := GetOrCreateNodeRes(qid)
+	segmap, recordIndexInFinal := buildSegMap(allrrc, segEncToKey)
+	rawIncludeValuesIndicies, valuesToLabels, logfmtRequest, tableColumnsExist, hardcodedArray, renameHardcodedColumns := prepareOutputTransforms(aggs)
 
 	allRecords := make([]map[string]interface{}, len(allrrc))
 	finalCols := make(map[string]bool)
