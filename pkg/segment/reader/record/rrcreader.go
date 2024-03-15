@@ -133,6 +133,41 @@ func applyHardcodedColumns(hardcodedArray []string, renameHardcodedColumns map[s
 	return allRecords, finalCols
 }
 
+func finalizeRecords(allRecords []map[string]interface{}, finalCols map[string]bool, numProcessedRecords int, recsAggRecords []map[string]interface{}, transactionArgsExist bool) ([]map[string]interface{}, []string) {
+	colsSlice := make([]string, len(finalCols))
+	idx := 0
+	for colName := range finalCols {
+		colsSlice[idx] = colName
+		idx++
+	}
+
+	// Some commands (like dedup) can remove records from the final result, so
+	// remove the blank records from allRecords to get finalRecords.
+	var finalRecords []map[string]interface{}
+	if transactionArgsExist {
+		finalRecords = recsAggRecords
+	} else if numProcessedRecords == len(allRecords) {
+		finalRecords = allRecords
+	} else {
+		finalRecords = make([]map[string]interface{}, numProcessedRecords)
+		idx = 0
+		for _, record := range allRecords {
+			if idx >= numProcessedRecords {
+				break
+			}
+
+			if record != nil {
+				finalRecords[idx] = record
+				idx++
+			}
+		}
+	}
+
+	sort.Strings(colsSlice)
+
+	return finalRecords, colsSlice
+}
+
 // Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
 func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
 	segEncToKey map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
@@ -299,41 +334,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		delete(nodeResMap, qid)
 	}
 
-	colsSlice := make([]string, len(finalCols))
-	idx := 0
-	for colName := range finalCols {
-		colsSlice[idx] = colName
-		idx++
-	}
-
-	// Some commands (like dedup) can remove records from the final result, so
-	// remove the blank records from allRecords to get finalRecords.
-	var finalRecords []map[string]interface{}
-	if transactionArgsExist {
-		finalRecords = recsAggRecords
-	} else if numProcessedRecords == len(allrrc) {
-		finalRecords = allRecords
-	} else {
-		finalRecords = make([]map[string]interface{}, numProcessedRecords)
-		idx = 0
-		for _, record := range allRecords {
-			if idx >= numProcessedRecords {
-				break
-			}
-
-			if record != nil {
-				finalRecords[idx] = record
-				idx++
-			}
-		}
-	}
-
-	sort.Strings(colsSlice)
+	finalRecords, colsSlice := finalizeRecords(allRecords, finalCols, numProcessedRecords, recsAggRecords, transactionArgsExist)
 	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
-
-	if nodeRes.RecsAggsProcessedSegments == numTotalSegments {
-		delete(nodeResMap, qid)
-	}
 
 	return finalRecords, colsSlice, nil
 }
