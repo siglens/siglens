@@ -116,6 +116,23 @@ func prepareOutputTransforms(aggs *structs.QueryAggregators) (map[string]int, ma
 	return rawIncludeValuesIndicies, valuesToLabels, logfmtRequest, tableColumnsExist, hardcodedArray, renameHardcodedColumns
 }
 
+func applyHardcodedColumns(hardcodedArray []string, renameHardcodedColumns map[string]string, allRecords []map[string]interface{}, finalCols map[string]bool) ([]map[string]interface{}, map[string]bool) {
+	if len(hardcodedArray) > 0 {
+		for key := range renameHardcodedColumns {
+			finalCols[key] = true
+		}
+		record := make(map[string]interface{})
+		for key, val := range renameHardcodedColumns {
+			record[key] = val
+
+		}
+		allRecords[0] = record
+		allRecords = allRecords[:1]
+	}
+
+	return allRecords, finalCols
+}
+
 // Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
 func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
 	segEncToKey map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
@@ -136,7 +153,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	recsAggRecords := make([]map[string]interface{}, 0)
 	var numTotalSegments uint64
 
-	if tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock || transactionArgsExist {
+	if !(tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock || transactionArgsExist) {
+		allRecords, finalCols = applyHardcodedColumns(hardcodedArray, renameHardcodedColumns, allRecords, finalCols)
+	} else {
 		for currSeg, blkIds := range segmap {
 			recs, cols, err := GetRecordsFromSegment(currSeg, blkIds.VirtualTableName, blkIds.BlkRecIndexes,
 				config.GetTimeStampKey(), esResponse, qid, aggs)
@@ -274,19 +293,10 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				}
 			}
 		}
-	} else {
-		if len(hardcodedArray) > 0 {
-			for key := range renameHardcodedColumns {
-				finalCols[key] = true
-			}
-			record := make(map[string]interface{})
-			for key, val := range renameHardcodedColumns {
-				record[key] = val
+	}
 
-			}
-			allRecords[0] = record
-			allRecords = allRecords[:1]
-		}
+	if nodeRes.RecsAggsProcessedSegments == numTotalSegments {
+		delete(nodeResMap, qid)
 	}
 
 	colsSlice := make([]string, len(finalCols))
