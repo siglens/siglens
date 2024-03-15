@@ -53,22 +53,18 @@ func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
 	return nr
 }
 
-// Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
-func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
-	segEncToKey map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
-
-	sTime := time.Now()
+func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint16]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
-	nodeRes := GetOrCreateNodeRes(qid)
+
 	for idx, rrc := range allrrc {
 		if rrc.SegKeyInfo.IsRemote {
-			log.Debugf("GetJsonFromAllRrc: skipping remote segment:%v", rrc.SegKeyInfo.RecordId)
+			log.Debugf("buildSegMap: skipping remote segment:%v", rrc.SegKeyInfo.RecordId)
 			continue
 		}
 		segkey, ok := segEncToKey[rrc.SegKeyInfo.SegKeyEnc]
 		if !ok {
-			log.Errorf("GetJsonFromAllRrc: could not find segenc:%v in map", rrc.SegKeyInfo.SegKeyEnc)
+			log.Errorf("buildSegMap: could not find segenc:%v in map", rrc.SegKeyInfo.SegKeyEnc)
 			continue
 		}
 		blkIdxsCtr, ok := segmap[segkey]
@@ -86,6 +82,17 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		recordIndent := fmt.Sprintf("%s_%d_%d", segkey, rrc.BlockNum, rrc.RecordNum)
 		recordIndexInFinal[recordIndent] = idx
 	}
+
+	return segmap, recordIndexInFinal
+}
+
+// Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
+func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
+	segEncToKey map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
+
+	sTime := time.Now()
+	nodeRes := GetOrCreateNodeRes(qid)
+	segmap, recordIndexInFinal := buildSegMap(allrrc, segEncToKey)
 
 	rawIncludeValuesIndicies := make(map[string]int)
 	valuesToLabels := make(map[string]string)
