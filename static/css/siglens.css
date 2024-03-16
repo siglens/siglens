@@ -462,7 +462,7 @@ body {
 }
 #app-container {
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
     position: relative;
 }
 
@@ -3424,6 +3424,7 @@ float: right;
     display: flex;
     flex-direction: column;
     height: 100%;
+    overflow-y: scroll;
 }
 
 .myOrg-inner-container {
@@ -3901,6 +3902,58 @@ color: #C8C7CC;
 
 
 /*SignUP Form*/
+.email-form input {
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+.email-form input:focus{
+    outline: 1pt solid var(--drop-down-btn-border-active);
+    outline-offset: -1pt;
+    color: var(--text-color);
+}
+.log-in-btn{
+    background-color: var(--purple-1);
+    border: none;
+    color: var(--white) !important;
+    height: 44px;
+    width: 100%;
+    border-radius: 5px;
+    margin-top: 8px;
+    font-weight: 600;
+}
+.log-in-btn:hover{
+    background-color: var(--btn-hover-or-click-bg-color);
+}
+.login-separator{
+    margin-top: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    text-align: center;
+    color: var(--black-4);
+    font-weight: 600;
+}
+.login-separator:before{
+  content:" ";
+  display: block;
+  height: 1.5px;
+  width: 185px;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  background: var(--black-4);
+}
+
+.login-separator:after{
+  content:" ";
+  height: 1.5px;
+  width: 185px;
+  background: var(--black-4);
+  display: block;
+  position: absolute;
+  top: 50%;
+  right: 0;
+}
+
 #login-form {
     width: 100%;
     height: 100vh;
@@ -3911,39 +3964,26 @@ color: #C8C7CC;
 }
 
 .form-box{
-    text-align: center;
-    width: 600px;
-    height: 554px;
+    width: 500px;
     background: var(--black-1);
     border-radius: 5px;
-    padding: 60px 70px;
+    padding: 30px 40px;
     color: var(--white-0);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
 
-.form-box .logo{
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-}
-
 .form-box .sslogo{
-    width: 78px;
-    margin-right: 10px;
-}
-
-.form-box .sslogo-text{
-    width: 206px;
+    width: 200px;
 }
 
 .form-box .tag-line{
     color: #B4A6E6;
-    font-size: 32px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 600;
     margin-top: 10px;
+    margin-bottom: 20px;
 }
 
 .signup-fields {
@@ -3955,41 +3995,39 @@ color: #C8C7CC;
 
 .signup-fields a{
     background: #262038;
-    border: 1px solid #B4A6E6;
     border-radius: 5px;
     text-decoration: none;
-    padding: 13px 0 14px 14px;
-    height: 54px;
+    height: 44px;
     width: 100%;
     margin-bottom: 15px;
-    font-size: 18px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.02em;
     color: var(--white-0);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: 15px;
 }
 
 .signup-fields a:hover,.signup-fields a:focus{
-    border: 1px solid var(--purple-1);
-    background: var(--black-1);
+    /* border: 1px solid var(--purple-1); */
+    background: #352f48;
 }
-.signup-fields a span{
+.signup-fields a span img{
     margin-right: 20px;
-    height: 30px;
+    height: 20px;
 }
 
 .tag-line-toggle p{
     color: #B4A6E6;
-    font-size: 16px;
+    font-size: 14px;
+    margin-top: 10px;
 }
 
 .tag-line-toggle p span{
     margin-left: 5px;
-    font-size: 18px;
-    color: var(--purple-1);
+    font-size: 15px;
+    color: var(--orange-1);
     font-weight: 700;
     cursor: pointer;
 }
