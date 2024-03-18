@@ -40,6 +40,7 @@
     <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+    <script src="./js/log-search.js"></script>
 
     {{ .RunCheck1 | safeHTML }}
 </head>
@@ -60,7 +61,10 @@
                 </ul>
                 <div id = "tabs-1">
                     <div class="query-box">
-                        <input class="form-control query-text" id="query-input" type="text" disabled="disabled">
+                        <div class="position-relative"> <!-- Position relative -->
+                            <input class="form-control query-text" id="query-input" type="text" disabled="disabled">
+                            <button id="clear-query-btn" class="clear-query-btn">x</button> <!-- Added clear button -->
+                        </div>
                         <div class="search-img" id="query-builder-btn"> </div>
                     </div>
                     <div class="filter-info">
