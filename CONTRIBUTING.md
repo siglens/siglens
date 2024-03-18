@@ -59,7 +59,7 @@ that you want to work on it. Something like `"I want to work on this"` is fine.
 
 * **Bug report**: You’ve found a bug with the code, and want to report or track the bug. Show more details, and let us know about an unexpected error, a crash, or an incorrect behavior.
 * **New feature request**: Suggest a new feature. This allows feedback from others before the code is written.
-* **Story**: Clearly describe the task. Break it down as much as you can so it's easier to implement. Link to existing issues if appropriate using #<issue-number>.
+* **Story**: Clearly describe the task. Break it down as much as you can so it's easier to implement. Link to existing issues if appropriate using #issue-number.
 * **Report a security vulnerability**: Review our security policy first and then report a vulnerability.
 
 ## Ask for Help
