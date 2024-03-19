@@ -35,8 +35,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/pprofhandler"
-	"golang.org/x/crypto/acme"
-	"golang.org/x/crypto/acme/autocert"
 )
 
 type queryserverCfg struct {
@@ -288,7 +286,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	}
 	var g run.Group
 
-	if config.IsTlsEnabled() && config.GetTLSCertificatePath() != "" && config.GetTLSPrivateKeyPath() != "" {
+	if config.IsTlsEnabled() {
 		cfg := &tls.Config{
 			Certificates: make([]tls.Certificate, 1),
 		}
@@ -309,27 +307,6 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 			_ = hs.ln.Close()
 		})
 
-	} else if config.IsTlsEnabled() && config.GetTLSACMEDir() != "" && config.GetQueryPort() == uint64(443) {
-
-		m := &autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(config.GetQueryHostname()),
-			Cache:      autocert.DirCache(config.GetTLSACMEDir()),
-		}
-		cfg := &tls.Config{
-			GetCertificate: m.GetCertificate,
-			NextProtos: []string{
-				"http/1.1", acme.ALPNProto,
-			},
-		}
-		hs.lnTls = tls.NewListener(hs.ln, cfg)
-
-		// run fasthttp server
-		g.Add(func() error {
-			return s.Serve(hs.lnTls)
-		}, func(e error) {
-			_ = hs.ln.Close()
-		})
 	} else {
 		// run fasthttp server
 		g.Add(func() error {

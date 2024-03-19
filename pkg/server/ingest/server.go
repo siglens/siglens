@@ -152,7 +152,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	// run fasthttp server
 	var g run.Group
 
-	if config.IsTlsEnabled() && config.GetTLSCertificatePath() != "" && config.GetTLSPrivateKeyPath() != "" {
+	if config.IsTlsEnabled() {
 		g.Add(func() error {
 			return s.ServeTLS(hs.ln, config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
 		}, func(e error) {

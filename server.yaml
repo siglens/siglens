@@ -39,9 +39,9 @@ log:
 
 # TLS configuration
 tls:
-  enabled: false   # Set to true to enable TLS
-  acmeFolder: ""    # Folder for ACME challenge Certificates; Optional. Set this if the port is 443 and you do not have a certificate
+  enabled: true   # Set to true to enable TLS
   certificatePath: ""  # Path to the certificate file
   privateKeyPath: ""   # Path to the private key file
 
+# SigLens server hostname
 queryHostname: ""
