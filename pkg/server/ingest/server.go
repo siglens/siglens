@@ -151,11 +151,20 @@ func (hs *ingestionServerCfg) Run() (err error) {
 
 	// run fasthttp server
 	var g run.Group
-	g.Add(func() error {
-		return s.Serve(hs.ln)
-	}, func(e error) {
-		_ = hs.ln.Close()
-	})
+
+	if config.IsTlsEnabled() {
+		g.Add(func() error {
+			return s.ServeTLS(hs.ln, config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
+		}, func(e error) {
+			_ = hs.ln.Close()
+		})
+	} else {
+		g.Add(func() error {
+			return s.Serve(hs.ln)
+		}, func(e error) {
+			_ = hs.ln.Close()
+		})
+	}
 	return g.Run()
 }
 
