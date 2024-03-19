@@ -266,13 +266,15 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 }
 
 func PerformAggsOnRecs(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, recs map[string]map[string]interface{},
-	finalCols map[string]bool, numTotalSegments uint64, qid uint64) map[string]bool {
+	finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, qid uint64) map[string]bool {
 
 	if !nodeResult.PerformAggsOnRecs {
 		return nil
 	}
 
-	nodeResult.RecsAggsProcessedSegments++
+	if finishesSegment {
+		nodeResult.RecsAggsProcessedSegments++
+	}
 
 	if nodeResult.RecsAggsType == structs.GroupByType {
 		return PerformGroupByRequestAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments)
@@ -366,7 +368,7 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 		blockRes.AddMeasureResultsToKey(currKey, measureResults, "", false, qid)
 	}
 
-	if nodeResult.RecsAggsProcessedSegments == 1 {
+	if nodeResult.RecsAggsBlockResults == nil {
 		nodeResult.RecsAggsBlockResults = blockRes
 	} else {
 		recAggsBlockresults := nodeResult.RecsAggsBlockResults.(*blockresults.BlockResults)

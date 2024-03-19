@@ -188,7 +188,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	recsAggRecords := make([]map[string]interface{}, 0)
 	var numTotalSegments uint64
 
-	processSingleSegment := func(currSeg string, virtualTableName string, blkRecIndexes map[uint16]map[uint16]uint64) {
+	processSingleSegment := func(currSeg string, virtualTableName string, blkRecIndexes map[uint16]map[uint16]uint64, isLastBlk bool) {
 		recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes,
 			config.GetTimeStampKey(), esResponse, qid, aggs)
 		if err != nil {
@@ -233,7 +233,8 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			for {
 				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, recordIndexInFinal, finalCols, numTotalSegments)
 				if nodeRes.PerformAggsOnRecs {
-					resultRecMap = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, qid)
+					finishesSegment := isLastBlk
+					resultRecMap = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, finishesSegment, qid)
 					if len(resultRecMap) > 0 {
 						boolVal, exists := resultRecMap["CHECK_NEXT_AGG"]
 						if exists && boolVal {
@@ -330,7 +331,15 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		allRecords, finalCols = applyHardcodedColumns(hardcodedArray, renameHardcodedColumns, allRecords, finalCols)
 	} else {
 		for currSeg, blkIds := range segmap {
-			processSingleSegment(currSeg, blkIds.VirtualTableName, blkIds.BlkRecIndexes)
+			blkIdsIndex := 0
+			for blkNum, recNums := range blkIds.BlkRecIndexes {
+				blkIdsIndex++
+				isLastBlk := blkIdsIndex == len(blkIds.BlkRecIndexes)
+
+				blkRecIndexes := make(map[uint16]map[uint16]uint64)
+				blkRecIndexes[blkNum] = recNums
+				processSingleSegment(currSeg, blkIds.VirtualTableName, blkRecIndexes, isLastBlk)
+			}
 		}
 	}
 
