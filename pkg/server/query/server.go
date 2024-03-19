@@ -18,6 +18,7 @@ package queryserver
 
 import (
 	"crypto/tls"
+	"fmt"
 	htmltemplate "html/template"
 	"net"
 	texttemplate "text/template"
@@ -295,6 +296,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		cfg.Certificates[0], err = tls.LoadX509KeyPair(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
 
 		if err != nil {
+			fmt.Println("Run: error in loading TLS certificate: ", err)
 			log.Fatalf("Run: error in loading TLS certificate: %v", err)
 		}
 
