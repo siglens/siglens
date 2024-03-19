@@ -39,7 +39,7 @@ log:
 
 # TLS configuration
 tls:
-  enabled: true   # Set to true to enable TLS
+  enabled: false   # Set to true to enable TLS
   certificatePath: ""  # Path to the certificate file
   privateKeyPath: ""   # Path to the private key file
 
