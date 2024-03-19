@@ -36,3 +36,12 @@ log:
 
   ## Compress log file
   # compressLogFile: false
+
+# TLS configuration
+tls:
+  enabled: false   # Set to true to enable TLS
+  acmeFolder: ""    # Folder for ACME challenge Certificates; Optional. Set this if the port is 443 and you do not have a certificate
+  certificatePath: ""  # Path to the certificate file
+  privateKeyPath: ""   # Path to the private key file
+
+queryHostname: ""

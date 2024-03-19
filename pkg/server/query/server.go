@@ -286,7 +286,29 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		Concurrency:        hs.Config.Concurrency,
 	}
 	var g run.Group
-	if config.IsTlsEnabled() && config.GetTLSACMEDir() != "" {
+
+	if config.IsTlsEnabled() && config.GetTLSCertificatePath() != "" && config.GetTLSPrivateKeyPath() != "" {
+		cfg := &tls.Config{
+			Certificates: make([]tls.Certificate, 1),
+		}
+
+		cfg.Certificates[0], err = tls.LoadX509KeyPair(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
+
+		if err != nil {
+			log.Fatalf("Run: error in loading TLS certificate: %v", err)
+		}
+
+		hs.lnTls = tls.NewListener(hs.ln, cfg)
+
+		// run fasthttp server
+		g.Add(func() error {
+			return s.Serve(hs.lnTls)
+		}, func(e error) {
+			_ = hs.ln.Close()
+		})
+
+	} else if config.IsTlsEnabled() && config.GetTLSACMEDir() != "" && config.GetQueryPort() == uint64(443) {
+
 		m := &autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
 			HostPolicy: autocert.HostWhitelist(config.GetQueryHostname()),
@@ -299,6 +321,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 			},
 		}
 		hs.lnTls = tls.NewListener(hs.ln, cfg)
+
 		// run fasthttp server
 		g.Add(func() error {
 			return s.Serve(hs.lnTls)
