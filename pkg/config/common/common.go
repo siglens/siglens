@@ -33,7 +33,7 @@ type LogConfig struct {
 }
 
 type TLSConfig struct {
-	Enabled         bool   `yaml:"enabled"`         // folder to store acme certificates
+	Enabled         bool   `yaml:"enabled"`         // enable/disable tls
 	CertificatePath string `yaml:"certificatePath"` // path to certificate file
 	PrivateKeyPath  string `yaml:"privateKeyPath"`  // path to private key file
 }
