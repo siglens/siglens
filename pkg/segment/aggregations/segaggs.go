@@ -267,11 +267,29 @@ RenamingLoop:
 		return nil
 	}
 	if colReq.ExcludeColumns != nil {
-		return errors.New("performColumnsRequest: processing ColumnsRequest.ExcludeColumns is not implemented")
+		for _, excludeCol := range colReq.ExcludeColumns {
+			if _, exists := finalCols[excludeCol]; exists {
+				finalCols[excludeCol] = false
+			}
+		}
 	}
+
 	if colReq.IncludeColumns != nil {
-		return errors.New("performColumnsRequest: processing ColumnsRequest.IncludeColumns is not implemented")
+		if finalCols == nil {
+			return errors.New("performColumnsRequest: finalCols is nil")
+		}
+
+		// Set everything to false first.
+		for col := range finalCols {
+			delete(finalCols, col)
+		}
+
+		// Set the included columns to true.
+		for _, includeCol := range colReq.IncludeColumns {
+			finalCols[includeCol] = true
+		}
 	}
+
 	if colReq.IncludeValues != nil {
 		return errors.New("performColumnsRequest: processing ColumnsRequest.IncludeValues is not implemented")
 	}
