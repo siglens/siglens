@@ -219,8 +219,9 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	ingestServer := fmt.Sprint(config.GetIngestListenIP()) + ":" + fmt.Sprintf("%d", config.GetIngestPort())
 	queryServer := fmt.Sprint(config.GetQueryListenIP()) + ":" + fmt.Sprintf("%d", config.GetQueryPort())
 
-	if config.IsTlsEnabled() && config.GetQueryPort() != 443 {
-		log.Warnf("TLS requires using 443; you will have issues if nothing in your setup configures port 443 to route to the Query/UI port (%d)", config.GetQueryPort())
+	if config.IsTlsEnabled() && (config.GetTLSCertificatePath() == "" || config.GetTLSPrivateKeyPath() == "") {
+		fmt.Println("TLS is enabled but certificate or private key path is not provided")
+		log.Fatalf("TLS is enabled but certificate or private key path is not provided")
 	}
 
 	err = vtable.InitVTable()
