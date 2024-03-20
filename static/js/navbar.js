@@ -170,7 +170,9 @@ $(document).ready(function () {
         $(".nav-live").addClass("active");
     } else if (currentUrl.includes("service-health.html")|| currentUrl.includes("service-health-overview.html") || currentUrl.includes("dependency-graph.html")|| currentUrl.includes("search-traces.html")) {
         $(".nav-traces").addClass("active");
-        $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
+        if ($('.subsection-navbar').length) {
+            $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
+        }        
     } else if (currentUrl.includes("test-data.html") || currentUrl.includes("logstash-ingestion.html")|| currentUrl.includes("vector-ingestion.html")|| currentUrl.includes("promtail-ingestion.html")|| currentUrl.includes("filebeat-ingestion.html")|| currentUrl.includes("fluentd-ingestion.html")) {
         $(".nav-ingest").addClass("active");
         $('.ingestion-nav-tab').appendOrgNavTabs("Ingestion", ingestionUpperNavTabs);
