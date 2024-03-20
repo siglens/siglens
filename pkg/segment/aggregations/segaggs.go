@@ -191,6 +191,33 @@ func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq 
 		}
 	}
 
+	if colReq.ExcludeColumns != nil {
+		// Remove the specified columns, which may have wildcards.
+		matchingCols := getMatchingColumns(colReq.ExcludeColumns, finalCols)
+		for _, matchingCol := range matchingCols {
+			delete(finalCols, matchingCol)
+		}
+	}
+
+	if colReq.IncludeColumns != nil {
+		// Remove all columns except the specified ones, which may have wildcards.
+		if finalCols == nil {
+			return errors.New("performColumnsRequest: finalCols is nil")
+		}
+
+		matchingCols := getMatchingColumns(colReq.IncludeColumns, finalCols)
+
+		// First remove everything.
+		for col := range finalCols {
+			delete(finalCols, col)
+		}
+
+		// Add the matching columns.
+		for _, matchingCol := range matchingCols {
+			finalCols[matchingCol] = true
+		}
+	}
+
 	return nil
 }
 
@@ -268,32 +295,11 @@ RenamingLoop:
 	}
 
 	if colReq.ExcludeColumns != nil {
-		// Remove the specified columns, which may have wildcards.
-		matchingCols := getMatchingColumns(colReq.ExcludeColumns, finalCols)
-		for _, matchingCol := range matchingCols {
-			delete(finalCols, matchingCol)
-		}
+		return errors.New("performColumnsRequest: processing ColumnsRequest.ExcludeColumns is not implemented")
 	}
-
 	if colReq.IncludeColumns != nil {
-		// Remove all columns except the specified ones, which may have wildcards.
-		if finalCols == nil {
-			return errors.New("performColumnsRequest: finalCols is nil")
-		}
-
-		matchingCols := getMatchingColumns(colReq.IncludeColumns, finalCols)
-
-		// First remove everything.
-		for col := range finalCols {
-			delete(finalCols, col)
-		}
-
-		// Add the matching columns.
-		for _, matchingCol := range matchingCols {
-			finalCols[matchingCol] = true
-		}
+		return errors.New("performColumnsRequest: processing ColumnsRequest.IncludeColumns is not implemented")
 	}
-
 	if colReq.IncludeValues != nil {
 		return errors.New("performColumnsRequest: processing ColumnsRequest.IncludeValues is not implemented")
 	}
