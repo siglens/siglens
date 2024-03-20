@@ -266,11 +266,22 @@ RenamingLoop:
 
 		return nil
 	}
+
 	if colReq.ExcludeColumns != nil {
+		currentCols := make([]string, 0)
+		for col := range finalCols {
+			currentCols = append(currentCols, col)
+		}
+
+		// Handle wildcard matching.
+		matchingCols := make([]string, 0)
 		for _, excludeCol := range colReq.ExcludeColumns {
-			if _, exists := finalCols[excludeCol]; exists {
-				finalCols[excludeCol] = false
-			}
+			matchingCols = append(matchingCols, utils.SelectMatchingStringsWithWildcard(excludeCol, currentCols)...)
+		}
+
+		// Remove the matching columns.
+		for _, matchingCol := range matchingCols {
+			delete(finalCols, matchingCol)
 		}
 	}
 
@@ -279,14 +290,25 @@ RenamingLoop:
 			return errors.New("performColumnsRequest: finalCols is nil")
 		}
 
-		// Set everything to false first.
+		currentCols := make([]string, 0)
+		for col := range finalCols {
+			currentCols = append(currentCols, col)
+		}
+
+		// Handle wildcard matching.
+		matchingCols := make([]string, 0)
+		for _, includeCol := range colReq.IncludeColumns {
+			matchingCols = append(matchingCols, utils.SelectMatchingStringsWithWildcard(includeCol, currentCols)...)
+		}
+
+		// First remove everything.
 		for col := range finalCols {
 			delete(finalCols, col)
 		}
 
-		// Set the included columns to true.
-		for _, includeCol := range colReq.IncludeColumns {
-			finalCols[includeCol] = true
+		// Add the matching columns.
+		for _, matchingCol := range matchingCols {
+			finalCols[matchingCol] = true
 		}
 	}
 
