@@ -20,13 +20,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"sort"
-	"strings"
 
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
-	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
@@ -34,6 +31,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -314,14 +312,14 @@ func applyColNameTransform(allCols map[string]bool, aggs *structs.QueryAggregato
 		retCols = allCols
 	} else {
 		for _, cName := range aggs.OutputTransforms.OutputColumns.IncludeColumns {
-			for _, matchingColumn := range selectMatchingStringsWithWildcard(cName, allColNames) {
+			for _, matchingColumn := range toputils.SelectMatchingStringsWithWildcard(cName, allColNames) {
 				retCols[matchingColumn] = true
 			}
 		}
 	}
 	if len(aggs.OutputTransforms.OutputColumns.ExcludeColumns) != 0 {
 		for _, cName := range aggs.OutputTransforms.OutputColumns.ExcludeColumns {
-			for _, matchingColumn := range selectMatchingStringsWithWildcard(cName, allColNames) {
+			for _, matchingColumn := range toputils.SelectMatchingStringsWithWildcard(cName, allColNames) {
 				delete(retCols, matchingColumn)
 			}
 		}
@@ -331,29 +329,4 @@ func applyColNameTransform(allCols map[string]bool, aggs *structs.QueryAggregato
 		//todo handle rename
 	}
 	return retCols
-}
-
-// Return all strings in `slice` that match `s`, which may have wildcards.
-func selectMatchingStringsWithWildcard(s string, slice []string) []string {
-	if strings.Contains(s, "*") {
-		s = dtypeutils.ReplaceWildcardStarWithRegex(s)
-	}
-
-	// We only want exact matches.
-	s = "^" + s + "$"
-
-	compiledRegex, err := regexp.Compile(s)
-	if err != nil {
-		log.Errorf("selectMatchingStringsWithWildcard: regex compile failed: %v", err)
-		return nil
-	}
-
-	matches := make([]string, 0)
-	for _, potentialMatch := range slice {
-		if compiledRegex.MatchString(potentialMatch) {
-			matches = append(matches, potentialMatch)
-		}
-	}
-
-	return matches
 }
