@@ -268,38 +268,20 @@ RenamingLoop:
 	}
 
 	if colReq.ExcludeColumns != nil {
-		currentCols := make([]string, 0)
-		for col := range finalCols {
-			currentCols = append(currentCols, col)
-		}
-
-		// Handle wildcard matching.
-		matchingCols := make([]string, 0)
-		for _, excludeCol := range colReq.ExcludeColumns {
-			matchingCols = append(matchingCols, utils.SelectMatchingStringsWithWildcard(excludeCol, currentCols)...)
-		}
-
-		// Remove the matching columns.
+		// Remove the specified columns, which may have wildcards.
+		matchingCols := getMatchingColumns(colReq.ExcludeColumns, finalCols)
 		for _, matchingCol := range matchingCols {
 			delete(finalCols, matchingCol)
 		}
 	}
 
 	if colReq.IncludeColumns != nil {
+		// Remove all columns except the specified ones, which may have wildcards.
 		if finalCols == nil {
 			return errors.New("performColumnsRequest: finalCols is nil")
 		}
 
-		currentCols := make([]string, 0)
-		for col := range finalCols {
-			currentCols = append(currentCols, col)
-		}
-
-		// Handle wildcard matching.
-		matchingCols := make([]string, 0)
-		for _, includeCol := range colReq.IncludeColumns {
-			matchingCols = append(matchingCols, utils.SelectMatchingStringsWithWildcard(includeCol, currentCols)...)
-		}
+		matchingCols := getMatchingColumns(colReq.IncludeColumns, finalCols)
 
 		// First remove everything.
 		for col := range finalCols {
@@ -320,6 +302,26 @@ RenamingLoop:
 	}
 
 	return nil
+}
+
+// Return all the columns in finalCols that match any of the wildcardCols,
+// which may or may not contain wildcards.
+// Note that the results may have duplicates if a column in finalCols matches
+// multiple wildcardCols.
+func getMatchingColumns(wildcardCols []string, finalCols map[string]bool) []string {
+	currentCols := make([]string, len(finalCols))
+	i := 0
+	for col := range finalCols {
+		currentCols[i] = col
+		i++
+	}
+
+	matchingCols := make([]string, 0)
+	for _, wildcardCol := range wildcardCols {
+		matchingCols = append(matchingCols, utils.SelectMatchingStringsWithWildcard(wildcardCol, currentCols)...)
+	}
+
+	return matchingCols
 }
 
 func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
