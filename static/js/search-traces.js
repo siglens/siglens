@@ -422,6 +422,7 @@ function showScatterPlot() {
     },
     tooltip: {
       show: true,
+      className: "tooltip-design",
       formatter: function (param) {
         var green = param.value[4];
         var red = param.value[5];
