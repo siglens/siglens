@@ -284,7 +284,7 @@ function initChart(){
 async function getTotalTraces(params) {
   return $.ajax({
       method: "post",
-      url: "http://localhost:5122/api/traces/count",
+      url: "api/traces/count",
       headers: {
           "Content-Type": "application/json; charset=utf-8",
           Accept: "*/*",

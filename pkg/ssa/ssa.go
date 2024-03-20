@@ -19,6 +19,7 @@ package ssa
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"runtime"
@@ -246,7 +247,8 @@ func getBaseInfo() map[string]interface{} {
 }
 
 func populateDeploymentSsa(m map[string]interface{}) {
-	m["uptime_minutes"] = time.Since(utils.GetServerStartTime()).Minutes()
+	m["uptime_minutes"] = math.Round(time.Since(utils.GetServerStartTime()).Minutes())
+	m["retention_hours"] = config.GetRetentionHours()
 	m["company_name"] = "OSS"
 	m["version"] = config.SigLensVersion
 	m["deployment_type"] = getDeploymentType()

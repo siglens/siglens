@@ -99,7 +99,7 @@ func deMorgansLaw(node *ast.Node) {
 	}
 }
 
-// Generate NumericExpr struct for eval functions
+//Generate NumericExpr struct for eval functions
 func createNumericExpr(op string, leftNumericExpr *structs.NumericExpr, rightNumericExpr *structs.NumericExpr, numericExprMode structs.NumericExprMode) (*structs.NumericExpr, error) {
 	if leftNumericExpr == nil {
 		return nil, fmt.Errorf("expr cannot be nil")
