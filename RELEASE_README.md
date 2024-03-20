@@ -8,7 +8,8 @@ SigLens executable should support: `linux/arm64, linux/amd64, darwin/arm64, and 
 
 ## SigLens Release Steps
 
-1. Develop will have a suffix to it for e.g : “0.1.29d”. When you want to do a release, remove the “d” and create a pull request to merge it to main. Main will now have “0.1.29”. 
+1. In the `develop` branch, increment the version number `SigLensVersion` located in `pkg/config/version.go`. The version number in `develop` will have a suffix, for example: “0.1.29d”. 
+2. When you are ready to do a release, remove the “d” suffix and create a pull request to merge these changes into `develop`. After merging, `develop` will now have the updated version number without the "d" suffix, for example: “0.1.29”.
 ***This step is critical. Failure to increment this number will lead to failure in creating a GitHub release.***
 2. Add detailed release notes in the pull request describing the changes, enhancements, and bug fixes in this release.
 3. Merge develop to main using Create a Merge Commit. Do NOT Squash and Merge.
