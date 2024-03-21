@@ -69,6 +69,8 @@ function getServiceDependencyData() {
                 $("#dependency-graph-container").show();
                 $("#error-msg-container").hide();
                 createDependencyMatrix(res);
+                var lastRunTimestamp = new Date(res.timestamp).toLocaleString();
+                $('#last-run-timestamp').text(lastRunTimestamp);
             }
         },
         error: function () {

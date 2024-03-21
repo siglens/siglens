@@ -53,7 +53,11 @@
         <div id="dashboard" class="p-20">
             <div class="subsection-navbar">
             </div>
-            <div id="dependency-graph-container"></div>
+            <div id="dependency-graph-container" class="position-relative "> 
+                <div class="position-absolute" style="top:10px; right:20px;">
+                    Last Run Timestamp:  <span id="last-run-timestamp"></span>
+                </div>
+            </div>
             <div id="error-msg-container">
                 <p>No service dependencies found.</p>
             </div>
