@@ -618,8 +618,10 @@ div.show-record-popup {
 .ag-header-viewport{
     border-bottom: 1px solid var(--panel-table-line-color);
 }
-.stop-search{
+.stop-search {
     background-color: var(--border-btn-color);
+    opacity: 0.5; 
+    cursor: not-allowed; 
 }
 .stop-search:hover{
     background-color: var(--border-btn-color);
