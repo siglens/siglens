@@ -60,5 +60,7 @@ func SelectMatchingStringsWithWildcard(s string, slice []string) []string {
 		}
 	}
 
+	log.Errorf("andrew SelectMatchingStringsWithWildcard: matches: %v", matches)
+
 	return matches
 }

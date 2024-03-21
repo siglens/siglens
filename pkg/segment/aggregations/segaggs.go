@@ -81,6 +81,15 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		applyTimeRangeHistogram(nodeResult, post.TimeHistogram, post.TimeHistogram.AggName)
 	}
 
+	if post == nil {
+		return nodeResult
+	}
+
+	if post.GroupByRequest != nil {
+		nodeResult.GroupByCols = post.GroupByRequest.GroupByColumns
+		nodeResult.GroupByRequest = post.GroupByRequest
+	}
+
 	// For the query without groupby, skip the first aggregator without a QueryAggergatorBlock
 	// For the query that has a groupby, groupby block's aggregation is in the post.Next. Therefore, we should start from the groupby's aggregation.
 	if !post.HasQueryAggergatorBlock() && post.TransactionArguments == nil {
@@ -139,8 +148,6 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	case structs.GroupByType:
 		nodeResult.PerformAggsOnRecs = true
 		nodeResult.RecsAggsType = structs.GroupByType
-		nodeResult.GroupByCols = agg.GroupByRequest.GroupByColumns
-		nodeResult.GroupByRequest = agg.GroupByRequest
 	case structs.MeasureAggsType:
 		nodeResult.PerformAggsOnRecs = true
 		nodeResult.RecsAggsType = structs.MeasureAggsType
@@ -295,7 +302,50 @@ RenamingLoop:
 	}
 
 	if colReq.ExcludeColumns != nil {
-		return errors.New("performColumnsRequest: processing ColumnsRequest.ExcludeColumns is not implemented")
+		log.Errorf("andrew inside EcxludeColumns: %v", colReq.ExcludeColumns)
+
+		groupByColIndicesToRemove := make([]int, 0)
+		groupByColNamesToRemove := make([]string, 0)
+		groupByColIndicesToKeep := make([]int, 0)
+		groupByColNamesToKeep := make([]string, 0)
+
+		for i, groupByCol := range nodeResult.GroupByCols {
+			log.Errorf("andrew: checking groupByCol: %v", groupByCol)
+			keep := true
+			for _, excludeCol := range colReq.ExcludeColumns {
+				if len(utils.SelectMatchingStringsWithWildcard(excludeCol, []string{groupByCol})) > 0 {
+					groupByColIndicesToRemove = append(groupByColIndicesToRemove, i)
+					groupByColNamesToRemove = append(groupByColNamesToRemove, excludeCol)
+					keep = false
+					break
+				}
+			}
+
+			if keep {
+				groupByColIndicesToKeep = append(groupByColIndicesToKeep, i)
+				groupByColNamesToKeep = append(groupByColNamesToKeep, groupByCol)
+			}
+		}
+
+		log.Errorf("andrew: groupByColNamesToRemove: %v", groupByColNamesToRemove)
+		log.Errorf("andrew: groupByColNamesToKeep: %v", groupByColNamesToKeep)
+
+		// Remove the group by columns from Histogram.
+		for _, aggResult := range nodeResult.Histogram {
+			for _, bucketResult := range aggResult.Results {
+				bucketResult.GroupByKeys = groupByColNamesToKeep
+
+				// Update the BucketKey.
+				bucketKeySlice, err := decodeBucketKey(bucketResult.BucketKey)
+				if err != nil {
+					return fmt.Errorf("performColumnsRequest: failed to decode bucket key %v, err=%v", bucketResult.BucketKey, err)
+				}
+				bucketKeySlice = utils.SelectIndicesFromSlice(bucketKeySlice, groupByColIndicesToKeep)
+				bucketResult.BucketKey = encodeBucketKey(bucketKeySlice)
+			}
+		}
+
+		nodeResult.GroupByRequest.GroupByColumns = groupByColNamesToKeep
 	}
 	if colReq.IncludeColumns != nil {
 		return errors.New("performColumnsRequest: processing ColumnsRequest.IncludeColumns is not implemented")
@@ -2610,4 +2660,25 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 	allCols = append(allCols, "event")
 
 	return groupedRecords, allCols, nil
+}
+
+// Decode the bucketKey into a slice of strings.
+func decodeBucketKey(bucketKey interface{}) ([]string, error) {
+	switch castedKey := bucketKey.(type) {
+	case []string:
+		return castedKey, nil
+	case string:
+		return []string{castedKey}, nil
+	default:
+		return nil, fmt.Errorf("decodeBucketKey: unexpected type %T for bucketKey %v", castedKey, bucketKey)
+	}
+}
+
+// Return a string if the slice has length 1, otherwise return the slice.
+func encodeBucketKey(bucketKeySlice []string) interface{} {
+	if len(bucketKeySlice) == 1 {
+		return bucketKeySlice[0]
+	}
+
+	return bucketKeySlice
 }
