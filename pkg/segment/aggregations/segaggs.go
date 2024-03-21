@@ -302,35 +302,11 @@ RenamingLoop:
 	}
 
 	if colReq.ExcludeColumns != nil {
-		log.Errorf("andrew inside EcxludeColumns: %v", colReq.ExcludeColumns)
+		// Find the columns to keep or remove.
+		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumsToKeep(nodeResult.GroupByCols, colReq.ExcludeColumns, false)
+		_, _, measureColNamesToRemove := getColumsToKeep(nodeResult.MeasureFunctions, colReq.ExcludeColumns, false)
 
-		groupByColIndicesToRemove := make([]int, 0)
-		groupByColNamesToRemove := make([]string, 0)
-		groupByColIndicesToKeep := make([]int, 0)
-		groupByColNamesToKeep := make([]string, 0)
-
-		for i, groupByCol := range nodeResult.GroupByCols {
-			log.Errorf("andrew: checking groupByCol: %v", groupByCol)
-			keep := true
-			for _, excludeCol := range colReq.ExcludeColumns {
-				if len(utils.SelectMatchingStringsWithWildcard(excludeCol, []string{groupByCol})) > 0 {
-					groupByColIndicesToRemove = append(groupByColIndicesToRemove, i)
-					groupByColNamesToRemove = append(groupByColNamesToRemove, excludeCol)
-					keep = false
-					break
-				}
-			}
-
-			if keep {
-				groupByColIndicesToKeep = append(groupByColIndicesToKeep, i)
-				groupByColNamesToKeep = append(groupByColNamesToKeep, groupByCol)
-			}
-		}
-
-		log.Errorf("andrew: groupByColNamesToRemove: %v", groupByColNamesToRemove)
-		log.Errorf("andrew: groupByColNamesToKeep: %v", groupByColNamesToKeep)
-
-		// Remove the group by columns from Histogram.
+		// Remove columns from Histogram.
 		for _, aggResult := range nodeResult.Histogram {
 			for _, bucketResult := range aggResult.Results {
 				bucketResult.GroupByKeys = groupByColNamesToKeep
@@ -342,42 +318,22 @@ RenamingLoop:
 				}
 				bucketKeySlice = utils.SelectIndicesFromSlice(bucketKeySlice, groupByColIndicesToKeep)
 				bucketResult.BucketKey = encodeBucketKey(bucketKeySlice)
+
+				// Remove measure columns.
+				for _, bucketResult := range aggResult.Results {
+					for _, measureColName := range measureColNamesToRemove {
+						delete(bucketResult.StatRes, measureColName)
+					}
+				}
 			}
 		}
 
-		// Remove the group by columns from MeasureResults.
+		// Remove columns from MeasureResults.
 		for _, bucketHolder := range nodeResult.MeasureResults {
+			// Remove groupby columns.
 			bucketHolder.GroupByValues = utils.SelectIndicesFromSlice(bucketHolder.GroupByValues, groupByColIndicesToKeep)
-		}
 
-		// Find the measure column names to remove.
-		measureColNamesToRemove := make([]string, 0)
-		measureColNamesToKeep := make([]string, 0)
-		for _, measureCol := range nodeResult.MeasureFunctions {
-			keep := true
-			for _, excludeCol := range colReq.ExcludeColumns {
-				if len(utils.SelectMatchingStringsWithWildcard(excludeCol, []string{measureCol})) > 0 {
-					measureColNamesToRemove = append(measureColNamesToRemove, measureCol)
-					keep = false
-					break
-				}
-			}
-			if keep {
-				measureColNamesToKeep = append(measureColNamesToKeep, measureCol)
-			}
-		}
-
-		// Remove the measure columns from Histogram.
-		for _, aggResult := range nodeResult.Histogram {
-			for _, bucketResult := range aggResult.Results {
-				for _, measureColName := range measureColNamesToRemove {
-					delete(bucketResult.StatRes, measureColName)
-				}
-			}
-		}
-
-		// Remove the measure columns from MeasureResults.
-		for _, bucketHolder := range nodeResult.MeasureResults {
+			// Remove measure columns.
 			for _, measureColName := range measureColNamesToRemove {
 				delete(bucketHolder.MeasureVal, measureColName)
 			}
@@ -416,6 +372,39 @@ func getMatchingColumns(wildcardCols []string, finalCols map[string]bool) []stri
 	}
 
 	return matchingCols
+}
+
+// This function finds which columns in `cols` match any of the wildcardCols,
+// which may or may not contain wildcards. It returns the indices and the names
+// of the columns to keep.
+// When keepMatches is true, a column is kept only if it matches at least one
+// wildcardCol. When keepMatches is false, a column is kept only if it matches
+// no wildcardCol.
+// The results are returned in the same order as the input `cols`.
+func getColumsToKeep(cols []string, wildcardCols []string, keepMatches bool) ([]int, []string, []string) {
+	indicesToKeep := make([]int, 0)
+	colsToKeep := make([]string, 0)
+	colsToRemove := make([]string, 0)
+
+	for i, col := range cols {
+		keep := !keepMatches
+		for _, wildcardCol := range wildcardCols {
+			isMatch := len(utils.SelectMatchingStringsWithWildcard(wildcardCol, []string{col})) > 0
+			if isMatch {
+				keep = keepMatches
+				break
+			}
+		}
+
+		if keep {
+			indicesToKeep = append(indicesToKeep, i)
+			colsToKeep = append(colsToKeep, col)
+		} else {
+			colsToRemove = append(colsToRemove, col)
+		}
+	}
+
+	return indicesToKeep, colsToKeep, colsToRemove
 }
 
 func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
