@@ -47,8 +47,23 @@ $(document).ready(() => {
     svgWidth = $("#dependency-graph-container").width();
     svgHeight = $("#dependency-graph-container").height();
 
-    $("#error-msg-container").hide();
+    $("#error-msg-container, #dependency-info").hide();
     getServiceDependencyData();
+
+    $("#dependency-info").tooltip({
+      delay: { show: 0, hide: 300 },
+      trigger: 'click'
+    });
+  
+    $('#dependency-info').on('click', function (e) {
+      $('#dependency-info').tooltip('show');
+    });
+  
+    $(document).mouseup(function (e) {
+      if ($(e.target).closest(".tooltip-inner").length === 0) {
+        $('#dependency-info').tooltip('hide');
+      }
+    });
 });
 
 function getServiceDependencyData() {
@@ -66,11 +81,12 @@ function getServiceDependencyData() {
                 $("#dependency-graph-container").hide();
                 $("#error-msg-container").show()
             } else {
-                $("#dependency-graph-container").show();
+                $("#dependency-graph-container,#dependency-info").show();
                 $("#error-msg-container").hide();
                 createDependencyMatrix(res);
-                var lastRunTimestamp = new Date(res.timestamp).toLocaleString();
-                $('#last-run-timestamp').text(lastRunTimestamp);
+                var lastRunTimestamp =moment(res.timestamp);
+                var formattedDate = lastRunTimestamp.format("DD-MMM-YYYY hh:mm:ss");
+                $('#last-run-timestamp').text(formattedDate);
             }
         },
         error: function () {
