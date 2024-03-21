@@ -350,6 +350,39 @@ RenamingLoop:
 			bucketHolder.GroupByValues = utils.SelectIndicesFromSlice(bucketHolder.GroupByValues, groupByColIndicesToKeep)
 		}
 
+		// Find the measure column names to remove.
+		measureColNamesToRemove := make([]string, 0)
+		measureColNamesToKeep := make([]string, 0)
+		for _, measureCol := range nodeResult.MeasureFunctions {
+			keep := true
+			for _, excludeCol := range colReq.ExcludeColumns {
+				if len(utils.SelectMatchingStringsWithWildcard(excludeCol, []string{measureCol})) > 0 {
+					measureColNamesToRemove = append(measureColNamesToRemove, measureCol)
+					keep = false
+					break
+				}
+			}
+			if keep {
+				measureColNamesToKeep = append(measureColNamesToKeep, measureCol)
+			}
+		}
+
+		// Remove the measure columns from Histogram.
+		for _, aggResult := range nodeResult.Histogram {
+			for _, bucketResult := range aggResult.Results {
+				for _, measureColName := range measureColNamesToRemove {
+					delete(bucketResult.StatRes, measureColName)
+				}
+			}
+		}
+
+		// Remove the measure columns from MeasureResults.
+		for _, bucketHolder := range nodeResult.MeasureResults {
+			for _, measureColName := range measureColNamesToRemove {
+				delete(bucketHolder.MeasureVal, measureColName)
+			}
+		}
+
 		nodeResult.GroupByRequest.GroupByColumns = groupByColNamesToKeep
 	}
 	if colReq.IncludeColumns != nil {
