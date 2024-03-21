@@ -302,7 +302,11 @@ RenamingLoop:
 	}
 
 	if colReq.ExcludeColumns != nil {
-		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByCols, colReq.ExcludeColumns, false)
+		if nodeResult.GroupByRequest == nil {
+			return errors.New("performColumnsRequest: expected non-nil GroupByRequest while handling ExcludeColumns")
+		}
+
+		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByRequest.GroupByColumns, colReq.ExcludeColumns, false)
 		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.MeasureFunctions, colReq.ExcludeColumns, false)
 
 		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
@@ -311,7 +315,11 @@ RenamingLoop:
 		}
 	}
 	if colReq.IncludeColumns != nil {
-		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByCols, colReq.IncludeColumns, true)
+		if nodeResult.GroupByRequest == nil {
+			return errors.New("performColumnsRequest: expected non-nil GroupByRequest while handling IncludeColumns")
+		}
+
+		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByRequest.GroupByColumns, colReq.IncludeColumns, true)
 		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.MeasureFunctions, colReq.IncludeColumns, true)
 
 		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
@@ -416,7 +424,6 @@ func removeAggColumns(nodeResult *structs.NodeResult, groupByColIndicesToKeep []
 		}
 	}
 
-	nodeResult.GroupByCols = groupByColNamesToKeep
 	if nodeResult.GroupByRequest == nil {
 		return fmt.Errorf("removeAggColumns: expected non-nil GroupByRequest")
 	} else {
