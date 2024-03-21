@@ -166,7 +166,7 @@ function addSystemInfoTable(systemInfo) {
     var diskRow = createRow("Disk Usage", diskInfo);
     var uptime = createRow("Process Uptime", formatUptime(systemInfo.uptime));
 
-    table.append(cpuRow, memoryRow, osRow, diskRow, uptime);
+    table.append(uptime, cpuRow, memoryRow, osRow, diskRow);
 }
 
 function formatUptime(uptimeMinutes) {
