@@ -1436,3 +1436,107 @@ func Test_performValueColRequestWithoutGroupBy_VEMStringExpr(t *testing.T) {
 		assert.Equal(t, country+":-"+city, record["country_city"])
 	}
 }
+
+func Test_getColumnsToKeepAndRemove(t *testing.T) {
+	tests := []struct {
+		name             string
+		cols             []string
+		wildcardCols     []string
+		keepMatches      bool
+		wantIndices      []int
+		wantColsToKeep   []string
+		wantColsToRemove []string
+	}{
+		{
+			name:             "No wildcards, keepMatches true",
+			cols:             []string{"id", "name", "email"},
+			wildcardCols:     []string{},
+			keepMatches:      true,
+			wantIndices:      []int{},
+			wantColsToKeep:   []string{},
+			wantColsToRemove: []string{"id", "name", "email"},
+		},
+		{
+			name:             "No wildcards, keepMatches false",
+			cols:             []string{"id", "name", "email"},
+			wildcardCols:     []string{},
+			keepMatches:      false,
+			wantIndices:      []int{0, 1, 2},
+			wantColsToKeep:   []string{"id", "name", "email"},
+			wantColsToRemove: []string{},
+		},
+		{
+			name:             "Exact match one wildcard, keepMatches true",
+			cols:             []string{"id", "name", "email"},
+			wildcardCols:     []string{"name"},
+			keepMatches:      true,
+			wantIndices:      []int{1},
+			wantColsToKeep:   []string{"name"},
+			wantColsToRemove: []string{"id", "email"},
+		},
+		{
+			name:             "Wildcard matches multiple columns, keepMatches true",
+			cols:             []string{"user_id", "username", "user_email", "age"},
+			wildcardCols:     []string{"user_*"},
+			keepMatches:      true,
+			wantIndices:      []int{0, 2},
+			wantColsToKeep:   []string{"user_id", "user_email"},
+			wantColsToRemove: []string{"username", "age"},
+		},
+		{
+			name:             "Wildcard matches none, keepMatches false",
+			cols:             []string{"id", "name", "email"},
+			wildcardCols:     []string{"user_*"},
+			keepMatches:      false,
+			wantIndices:      []int{0, 1, 2},
+			wantColsToKeep:   []string{"id", "name", "email"},
+			wantColsToRemove: []string{},
+		},
+		{
+			name:             "Multiple wildcards with overlaps, keepMatches true",
+			cols:             []string{"user_id", "admin_id", "username", "email"},
+			wildcardCols:     []string{"user_*", "*_id"},
+			keepMatches:      true,
+			wantIndices:      []int{0, 1},
+			wantColsToKeep:   []string{"user_id", "admin_id"},
+			wantColsToRemove: []string{"username", "email"},
+		},
+		{
+			name:             "Empty cols, keepMatches true",
+			cols:             []string{},
+			wildcardCols:     []string{"user_*"},
+			keepMatches:      true,
+			wantIndices:      []int{},
+			wantColsToKeep:   []string{},
+			wantColsToRemove: []string{},
+		},
+		{
+			name:             "Wildcard matches all, keepMatches false",
+			cols:             []string{"user_id", "user_name", "user_email"},
+			wildcardCols:     []string{"user_*"},
+			keepMatches:      false,
+			wantIndices:      []int{},
+			wantColsToKeep:   []string{},
+			wantColsToRemove: []string{"user_id", "user_name", "user_email"},
+		},
+		{
+			name:             "Complex wildcards, partial matches",
+			cols:             []string{"user_id", "admin_id", "username", "user_profile", "user_email", "age"},
+			wildcardCols:     []string{"user_*", "*name"},
+			keepMatches:      true,
+			wantIndices:      []int{0, 2, 3, 4},
+			wantColsToKeep:   []string{"user_id", "username", "user_profile", "user_email"},
+			wantColsToRemove: []string{"admin_id", "age"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotIndices, gotColsToKeep, gotColsToRemove := getColumnsToKeepAndRemove(tt.cols, tt.wildcardCols, tt.keepMatches)
+
+			assert.Equal(t, tt.wantIndices, gotIndices)
+			assert.Equal(t, tt.wantColsToKeep, gotColsToKeep)
+			assert.Equal(t, tt.wantColsToRemove, gotColsToRemove)
+		})
+	}
+}
