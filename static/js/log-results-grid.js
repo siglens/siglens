@@ -73,7 +73,6 @@ let logsColumnDefs = [
         cellEditorParams:cellEditorParams,
         maxWidth: 216,
         minWidth: 216,
-        sort: "desc"
     },
     {
         field: "logs",
@@ -187,6 +186,11 @@ const myCellRenderer= (params) => {
 let gridDiv = null;
 
 function renderLogsGrid(columnOrder, hits){
+    if (sortByTimestampAtDefault) {
+        logsColumnDefs[0].sort = "desc";
+    }else {
+        logsColumnDefs[0].sort = undefined;
+    }
     if (gridDiv == null){
         gridDiv = document.querySelector('#LogResultsGrid');
         new agGrid.Grid(gridDiv, gridOptions);
