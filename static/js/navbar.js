@@ -125,12 +125,7 @@ let alertsUpperNavTabs = [
 ];
 
 let ingestionUpperNavTabs = [
-    { name: 'Test Data', url: './test-data.html', class : 'test-data' },
-    { name: 'Vector', url: './vector-ingestion.html', class: 'vector-ingestion' },
-    { name: 'Logstash', url: './logstash-ingestion.html', class: 'logstash-ingestion' },
-    { name: 'Fluentd', url: './fluentd-ingestion.html', class: 'fluentd-ingestion' },
-    { name: 'Filebeat', url: './filebeat-ingestion.html', class: 'filebeat-ingestion' },
-    { name: 'Promtail', url: './promtail-ingestion.html', class: 'promtail-ingestion' },
+    { name: 'Log Sources', url: './test-data.html', class : 'test-data' },
 ];
 
 $(document).ready(function () {
@@ -173,7 +168,7 @@ $(document).ready(function () {
         if ($('.subsection-navbar').length) {
             $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
         }        
-    } else if (currentUrl.includes("test-data.html") || currentUrl.includes("logstash-ingestion.html")|| currentUrl.includes("vector-ingestion.html")|| currentUrl.includes("promtail-ingestion.html")|| currentUrl.includes("filebeat-ingestion.html")|| currentUrl.includes("fluentd-ingestion.html")) {
+    } else if (currentUrl.includes("test-data.html")) {
         $(".nav-ingest").addClass("active");
         $('.ingestion-nav-tab').appendOrgNavTabs("Ingestion", ingestionUpperNavTabs);
     }

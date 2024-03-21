@@ -16,6 +16,14 @@ limitations under the License.
 
 package utils
 
+import (
+	"regexp"
+	"strings"
+
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	log "github.com/sirupsen/logrus"
+)
+
 // Converts a string like `This has "quotes"` to `This has \"quotes\"`
 func EscapeQuotes(s string) string {
 	result := ""
@@ -28,4 +36,29 @@ func EscapeQuotes(s string) string {
 	}
 
 	return result
+}
+
+// Return all strings in `slice` that match `s`, which may have wildcards.
+func SelectMatchingStringsWithWildcard(s string, slice []string) []string {
+	if strings.Contains(s, "*") {
+		s = dtypeutils.ReplaceWildcardStarWithRegex(s)
+	}
+
+	// We only want exact matches.
+	s = "^" + s + "$"
+
+	compiledRegex, err := regexp.Compile(s)
+	if err != nil {
+		log.Errorf("SelectMatchingStringsWithWildcard: regex compile failed: %v", err)
+		return nil
+	}
+
+	matches := make([]string, 0)
+	for _, potentialMatch := range slice {
+		if compiledRegex.MatchString(potentialMatch) {
+			matches = append(matches, potentialMatch)
+		}
+	}
+
+	return matches
 }
