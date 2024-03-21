@@ -302,16 +302,22 @@ RenamingLoop:
 	}
 
 	if colReq.ExcludeColumns != nil {
-		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumsToKeep(nodeResult.GroupByCols, colReq.ExcludeColumns, false)
-		_, _, measureColNamesToRemove := getColumsToKeep(nodeResult.MeasureFunctions, colReq.ExcludeColumns, false)
+		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByCols, colReq.ExcludeColumns, false)
+		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.MeasureFunctions, colReq.ExcludeColumns, false)
 
 		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
 		if err != nil {
-			return fmt.Errorf("performColumnsRequest: erorr handling ExcludeColumns: %v", err)
+			return fmt.Errorf("performColumnsRequest: error handling ExcludeColumns: %v", err)
 		}
 	}
 	if colReq.IncludeColumns != nil {
-		return errors.New("performColumnsRequest: processing ColumnsRequest.IncludeColumns is not implemented")
+		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByCols, colReq.IncludeColumns, true)
+		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.MeasureFunctions, colReq.IncludeColumns, true)
+
+		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
+		if err != nil {
+			return fmt.Errorf("performColumnsRequest: error handling IncludeColumns: %v", err)
+		}
 	}
 	if colReq.IncludeValues != nil {
 		return errors.New("performColumnsRequest: processing ColumnsRequest.IncludeValues is not implemented")
@@ -350,7 +356,7 @@ func getMatchingColumns(wildcardCols []string, finalCols map[string]bool) []stri
 // wildcardCol. When keepMatches is false, a column is kept only if it matches
 // no wildcardCol.
 // The results are returned in the same order as the input `cols`.
-func getColumsToKeep(cols []string, wildcardCols []string, keepMatches bool) ([]int, []string, []string) {
+func getColumnsToKeepAndRemove(cols []string, wildcardCols []string, keepMatches bool) ([]int, []string, []string) {
 	indicesToKeep := make([]int, 0)
 	colsToKeep := make([]string, 0)
 	colsToRemove := make([]string, 0)
