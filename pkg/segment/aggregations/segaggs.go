@@ -302,44 +302,13 @@ RenamingLoop:
 	}
 
 	if colReq.ExcludeColumns != nil {
-		// Find the columns to keep or remove.
 		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumsToKeep(nodeResult.GroupByCols, colReq.ExcludeColumns, false)
 		_, _, measureColNamesToRemove := getColumsToKeep(nodeResult.MeasureFunctions, colReq.ExcludeColumns, false)
 
-		// Remove columns from Histogram.
-		for _, aggResult := range nodeResult.Histogram {
-			for _, bucketResult := range aggResult.Results {
-				bucketResult.GroupByKeys = groupByColNamesToKeep
-
-				// Update the BucketKey.
-				bucketKeySlice, err := decodeBucketKey(bucketResult.BucketKey)
-				if err != nil {
-					return fmt.Errorf("performColumnsRequest: failed to decode bucket key %v, err=%v", bucketResult.BucketKey, err)
-				}
-				bucketKeySlice = utils.SelectIndicesFromSlice(bucketKeySlice, groupByColIndicesToKeep)
-				bucketResult.BucketKey = encodeBucketKey(bucketKeySlice)
-
-				// Remove measure columns.
-				for _, bucketResult := range aggResult.Results {
-					for _, measureColName := range measureColNamesToRemove {
-						delete(bucketResult.StatRes, measureColName)
-					}
-				}
-			}
+		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
+		if err != nil {
+			return fmt.Errorf("performColumnsRequest: erorr handling ExcludeColumns: %v", err)
 		}
-
-		// Remove columns from MeasureResults.
-		for _, bucketHolder := range nodeResult.MeasureResults {
-			// Remove groupby columns.
-			bucketHolder.GroupByValues = utils.SelectIndicesFromSlice(bucketHolder.GroupByValues, groupByColIndicesToKeep)
-
-			// Remove measure columns.
-			for _, measureColName := range measureColNamesToRemove {
-				delete(bucketHolder.MeasureVal, measureColName)
-			}
-		}
-
-		nodeResult.GroupByRequest.GroupByColumns = groupByColNamesToKeep
 	}
 	if colReq.IncludeColumns != nil {
 		return errors.New("performColumnsRequest: processing ColumnsRequest.IncludeColumns is not implemented")
@@ -376,7 +345,7 @@ func getMatchingColumns(wildcardCols []string, finalCols map[string]bool) []stri
 
 // This function finds which columns in `cols` match any of the wildcardCols,
 // which may or may not contain wildcards. It returns the indices and the names
-// of the columns to keep.
+// of the columns to keep, as well as the names of the columns to remove.
 // When keepMatches is true, a column is kept only if it matches at least one
 // wildcardCol. When keepMatches is false, a column is kept only if it matches
 // no wildcardCol.
@@ -405,6 +374,49 @@ func getColumsToKeep(cols []string, wildcardCols []string, keepMatches bool) ([]
 	}
 
 	return indicesToKeep, colsToKeep, colsToRemove
+}
+
+func removeAggColumns(nodeResult *structs.NodeResult, groupByColIndicesToKeep []int, groupByColNamesToKeep []string, measureColNamesToRemove []string) error {
+	// Remove columns from Histogram.
+	for _, aggResult := range nodeResult.Histogram {
+		for _, bucketResult := range aggResult.Results {
+			bucketResult.GroupByKeys = groupByColNamesToKeep
+
+			// Update the BucketKey.
+			bucketKeySlice, err := decodeBucketKey(bucketResult.BucketKey)
+			if err != nil {
+				return fmt.Errorf("removeAggColumns: failed to decode bucket key %v, err=%v", bucketResult.BucketKey, err)
+			}
+			bucketKeySlice = utils.SelectIndicesFromSlice(bucketKeySlice, groupByColIndicesToKeep)
+			bucketResult.BucketKey = encodeBucketKey(bucketKeySlice)
+
+			// Remove measure columns.
+			for _, bucketResult := range aggResult.Results {
+				for _, measureColName := range measureColNamesToRemove {
+					delete(bucketResult.StatRes, measureColName)
+				}
+			}
+		}
+	}
+
+	// Remove columns from MeasureResults.
+	for _, bucketHolder := range nodeResult.MeasureResults {
+		// Remove groupby columns.
+		bucketHolder.GroupByValues = utils.SelectIndicesFromSlice(bucketHolder.GroupByValues, groupByColIndicesToKeep)
+
+		// Remove measure columns.
+		for _, measureColName := range measureColNamesToRemove {
+			delete(bucketHolder.MeasureVal, measureColName)
+		}
+	}
+
+	if nodeResult.GroupByRequest == nil {
+		return fmt.Errorf("removeAggColumns: expected non-nil GroupByRequest")
+	} else {
+		nodeResult.GroupByRequest.GroupByColumns = groupByColNamesToKeep
+	}
+
+	return nil
 }
 
 func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
