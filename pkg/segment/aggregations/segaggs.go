@@ -416,6 +416,7 @@ func removeAggColumns(nodeResult *structs.NodeResult, groupByColIndicesToKeep []
 		}
 	}
 
+	nodeResult.GroupByCols = groupByColNamesToKeep
 	if nodeResult.GroupByRequest == nil {
 		return fmt.Errorf("removeAggColumns: expected non-nil GroupByRequest")
 	} else {
