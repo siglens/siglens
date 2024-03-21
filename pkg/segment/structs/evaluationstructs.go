@@ -252,6 +252,11 @@ type TMLimitResult struct {
 	OtherCValArr     []*utils.CValueEnclosure
 }
 
+type TimeDuration struct {
+	Interval  float64
+	TimeScalr utils.TimeUnit
+}
+
 type BoolOperator uint8
 
 const (

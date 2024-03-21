@@ -26,10 +26,10 @@ import (
 	"github.com/siglens/siglens/pkg/ast/spl"
 	"github.com/siglens/siglens/pkg/ast/sql"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/utils"
 
 	segment "github.com/siglens/siglens/pkg/segment"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -78,7 +78,7 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 						return nil, nil, err
 					}
 					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions = spanOptions
-					queryAggs.TimeHistogram.IntervalMillis = aggregations.GetIntervalInMillis(spanOptions.SpanLength.Num, spanOptions.SpanLength.TimeScalr)
+					queryAggs.TimeHistogram.IntervalMillis = utils.GetIntervalInMillis(spanOptions.SpanLength.Num, spanOptions.SpanLength.TimeScalr)
 				}
 				queryAggs.TimeHistogram.StartTime = startEpoch
 				queryAggs.TimeHistogram.EndTime = endEpoch
