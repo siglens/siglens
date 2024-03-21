@@ -311,7 +311,6 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 		Qtype:                    queryType.String(),
 		BucketCount:              bucketCount,
 		IsTimechart:              aggs.UsedByTimechart(),
-		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
 	}
 	searchErrors, err := query.GetUniqueSearchErrors(qid)
 	if err != nil {
@@ -350,6 +349,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 		State:               query.QUERY_UPDATE.String(),
 		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
 		Qtype:               qType.String(),
+		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
 	}
 
 	switch qType {

@@ -62,6 +62,7 @@ let measureFunctions = [];
 let measureInfo = [];
 let isTimechart = false;
 let isQueryBuilderSearch = false;
+let sortByTimestampAtDefault = true;
 
 
 let aggGridOptions = {
