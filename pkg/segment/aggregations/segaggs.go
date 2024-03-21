@@ -345,6 +345,11 @@ RenamingLoop:
 			}
 		}
 
+		// Remove the group by columns from MeasureResults.
+		for _, bucketHolder := range nodeResult.MeasureResults {
+			bucketHolder.GroupByValues = utils.SelectIndicesFromSlice(bucketHolder.GroupByValues, groupByColIndicesToKeep)
+		}
+
 		nodeResult.GroupByRequest.GroupByColumns = groupByColNamesToKeep
 	}
 	if colReq.IncludeColumns != nil {
