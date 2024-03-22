@@ -92,7 +92,7 @@ Download golang version that is defined in `go.mod` and make sure git is install
 
 VS Code is the recomended IDE and offers good extensions and tools that will help developers write code.
 
-To locally run `golinter`, install from https://golangci-lint.run/usage/install/#local-installation
+To run the Go linter locally, install it from [here](https://golangci-lint.run/welcome/install/#local-installation).
 
 Siglens currently support `Linux` and `macOS` for development purposes.
 
