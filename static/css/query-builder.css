@@ -285,6 +285,11 @@ input.form-control {
     color: var(--text-color);
 }
 
+.ui-menu.ui-widget.ui-widget-content.ui-autocomplete.ui-front{
+    width: max-content!important;
+    min-width: 120px;
+}
+
 .ui-tabs-tab {
     border-radius: 10px;
 }
