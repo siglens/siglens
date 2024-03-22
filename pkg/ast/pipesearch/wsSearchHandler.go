@@ -300,18 +300,17 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	}
 	queryType := query.GetQueryType(qid)
 	resp := &PipeSearchCompleteResponse{
-		TotalMatched:             convertQueryCountToTotalResponse(queryC),
-		State:                    query.COMPLETE.String(),
-		TotalEventsSearched:      humanize.Comma(int64(totalEventsSearched)),
-		CanScrollMore:            canScrollMore,
-		TotalRRCCount:            numRRCs,
-		MeasureResults:           aggMeasureRes,
-		MeasureFunctions:         aggMeasureFunctions,
-		GroupByCols:              aggGroupByCols,
-		Qtype:                    queryType.String(),
-		BucketCount:              bucketCount,
-		IsTimechart:              aggs.UsedByTimechart(),
-		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
+		TotalMatched:        convertQueryCountToTotalResponse(queryC),
+		State:               query.COMPLETE.String(),
+		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
+		CanScrollMore:       canScrollMore,
+		TotalRRCCount:       numRRCs,
+		MeasureResults:      aggMeasureRes,
+		MeasureFunctions:    aggMeasureFunctions,
+		GroupByCols:         aggGroupByCols,
+		Qtype:               queryType.String(),
+		BucketCount:         bucketCount,
+		IsTimechart:         aggs.UsedByTimechart(),
 	}
 	searchErrors, err := query.GetUniqueSearchErrors(qid)
 	if err != nil {
@@ -346,10 +345,11 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 
 	qType := query.GetQueryType(qid)
 	wsResponse := &PipeSearchWSUpdateResponse{
-		Completion:          searchPercent,
-		State:               query.QUERY_UPDATE.String(),
-		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
-		Qtype:               qType.String(),
+		Completion:               searchPercent,
+		State:                    query.QUERY_UPDATE.String(),
+		TotalEventsSearched:      humanize.Comma(int64(totalEventsSearched)),
+		Qtype:                    qType.String(),
+		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
 	}
 
 	switch qType {

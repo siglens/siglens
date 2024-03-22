@@ -693,7 +693,10 @@ limitations under the License.
              // make logs the second column
              'logs',
              res.allColumns));
- 
+             
+         // for sort function display
+         sortByTimestampAtDefault = res.sortByTimestampAtDefault; 
+
          renderAvailableFields(columnOrder);
          renderLogsGrid(columnOrder, res.hits.records);
 
