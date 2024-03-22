@@ -76,7 +76,11 @@ func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *str
 // Function to clean up results based on input query aggregations.
 // This will make sure all buckets respect the minCount & is returned in a sorted order
 func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64) *structs.NodeResult {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) *structs.NodeResult {
+	if post == nil {
+		return nodeResult
+	}
+
 	if post.TimeHistogram != nil {
 		applyTimeRangeHistogram(nodeResult, post.TimeHistogram, post.TimeHistogram.AggName)
 	}
@@ -88,9 +92,9 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	}
 
 	for agg := post; agg != nil; agg = agg.Next {
-		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments)
+		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
 
-		if nodeResult.PerformAggsOnRecs && len(recs) > 0 {
+		if (nodeResult.PerformAggsOnRecs || len(nodeResult.TransactionEventRecords) > 0) && len(recs) > 0 {
 			nodeResult.NextQueryAgg = agg
 			return nodeResult
 		}
@@ -105,7 +109,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 }
 
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -146,7 +150,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		nodeResult.RecsAggsType = structs.MeasureAggsType
 		nodeResult.MeasureOperations = agg.MeasureOperations
 	case structs.TransactionType:
-		performTransactionCommandRequest(nodeResult, agg, recs, finalCols)
+		performTransactionCommandRequest(nodeResult, agg, recs, finalCols, numTotalSegments, finishesSegment)
 	default:
 		return errors.New("performAggOnResult: multiple QueryAggregators is currently only supported for OutputTransformType")
 	}
@@ -2101,18 +2105,36 @@ func getAggregationResultFieldValues(fieldToValue map[string]segutils.CValueEncl
 	return nil
 }
 
-func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool) {
+func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) {
+
+	if finishesSegment {
+		nodeResult.RecsAggsProcessedSegments++
+	}
 
 	if recs != nil {
-		records, cols, err := processTransactionsOnRecords(recs, nil, aggs.TransactionArguments)
+
+		if nodeResult.TransactionEventRecords == nil {
+			nodeResult.TransactionEventRecords = make(map[string]map[string]interface{})
+		}
+
+		for k := range recs {
+			nodeResult.TransactionEventRecords[k] = recs[k]
+			delete(recs, k)
+		}
+
+		if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
+			return
+		}
+
+		records, cols, err := processTransactionsOnRecords(nodeResult.TransactionEventRecords, nil, aggs.TransactionArguments)
 		if err != nil {
 			log.Errorf("performTransactionCommandRequest: %v", err)
 			return
 		}
 
-		for k := range recs {
-			delete(recs, k)
-		}
+		nodeResult.TransactionEventRecords = nil // Clear the transaction records
+		nodeResult.TransactionEventRecords = make(map[string]map[string]interface{})
+		nodeResult.TransactionEventRecords["CHECK_NEXT_AGG"] = make(map[string]interface{})
 
 		for i, record := range records {
 			recs[i] = record
@@ -2478,9 +2500,8 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 
 	transactionFields := transactionArgs.Fields
 
-	if transactionFields == nil || (transactionFields != nil && len(transactionFields) == 0) {
-		transactionFields = make([]string, 0)
-		transactionFields = append(transactionFields, "timestamp")
+	if len(transactionFields) == 0 {
+		transactionFields = []string{"timestamp"}
 	}
 
 	transactionStartsWith := transactionArgs.StartsWith
@@ -2506,6 +2527,12 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 		lastRecord := records[len(groupRecords[transactionKey])-1]
 		groupedRecord["duration"] = uint64(lastRecord["timestamp"].(uint64)) - currentState.Timestamp
 		groupedRecord["eventcount"] = len(records)
+		groupedRecord["transactionKey"] = transactionKey
+
+		for _, key := range transactionFields {
+			groupedRecord[key] = lastRecord[key]
+		}
+
 		groupedRecords[currentState.RecInden] = groupedRecord
 	}
 
@@ -2515,6 +2542,7 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 
 		// Generate the transaction key from the record.
 		transactionKey := ""
+
 		for _, field := range transactionFields {
 			if record[field] != nil {
 				transactionKey += "_" + fmt.Sprintf("%v", record[field])
@@ -2608,6 +2636,7 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 	allCols = append(allCols, "duration")
 	allCols = append(allCols, "eventcount")
 	allCols = append(allCols, "event")
+	allCols = append(allCols, transactionFields...)
 
 	return groupedRecords, allCols, nil
 }

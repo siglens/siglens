@@ -1158,7 +1158,7 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 	for index, txnArgs := range allCasesTxnArgs {
 		records := generateTestRecords(500)
 		// Process Transactions
-		performTransactionCommandRequest(&structs.NodeResult{}, &structs.QueryAggregators{TransactionArguments: txnArgs}, records, allCols)
+		performTransactionCommandRequest(&structs.NodeResult{}, &structs.QueryAggregators{TransactionArguments: txnArgs}, records, allCols, 1, true)
 
 		assert.Equal(t, allCols, map[string]bool{"timestamp": true, "duration": true, "eventcount": true, "event": true})
 

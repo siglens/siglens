@@ -281,6 +281,7 @@ type NodeResult struct {
 	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
 	RecsAggsProcessedSegments uint64
 	RecsRunningSegStats       []*SegStats
+	TransactionEventRecords   map[string]map[string]interface{}
 }
 
 type SegStats struct {
