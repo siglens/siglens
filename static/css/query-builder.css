@@ -287,6 +287,7 @@ input.form-control {
 
 .ui-menu.ui-widget.ui-widget-content.ui-autocomplete.ui-front{
     width: max-content!important;
+    min-width: 120px;
 }
 
 .ui-tabs-tab {
