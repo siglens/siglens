@@ -231,9 +231,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			*    adapting dynamically based on the flags set by the PostQueryBucketCleaning and PerformAggsOnRecs functions.
 			 */
 			for {
-				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, recordIndexInFinal, finalCols, numTotalSegments)
+				finishesSegment := isLastBlk
+				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
 				if nodeRes.PerformAggsOnRecs {
-					finishesSegment := isLastBlk
 					resultRecMap = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, finishesSegment, qid)
 					if len(resultRecMap) > 0 {
 						boolVal, exists := resultRecMap["CHECK_NEXT_AGG"]

@@ -76,7 +76,7 @@ func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *str
 // Function to clean up results based on input query aggregations.
 // This will make sure all buckets respect the minCount & is returned in a sorted order
 func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64) *structs.NodeResult {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) *structs.NodeResult {
 	if post.TimeHistogram != nil {
 		applyTimeRangeHistogram(nodeResult, post.TimeHistogram, post.TimeHistogram.AggName)
 	}
@@ -88,7 +88,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	}
 
 	for agg := post; agg != nil; agg = agg.Next {
-		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments)
+		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
 
 		if nodeResult.PerformAggsOnRecs && len(recs) > 0 {
 			nodeResult.NextQueryAgg = agg
@@ -105,7 +105,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 }
 
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -122,7 +122,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		}
 
 		if agg.OutputTransforms.LetColumns != nil {
-			err := performLetColumnsRequest(nodeResult, agg, agg.OutputTransforms.LetColumns, recs, recordIndexInFinal, finalCols, numTotalSegments)
+			err := performLetColumnsRequest(nodeResult, agg, agg.OutputTransforms.LetColumns, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -331,7 +331,7 @@ func getMatchingColumns(wildcardCols []string, finalCols map[string]bool) []stri
 }
 
 func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 
 	if letColReq.NewColName == "" && !aggs.HasQueryAggergatorBlock() && letColReq.StatisticColRequest == nil {
 		return errors.New("performLetColumnsRequest: expected non-empty NewColName")
@@ -359,11 +359,11 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else if letColReq.DedupColRequest != nil {
-		if err := performDedupColRequest(nodeResult, aggs, letColReq, recs, finalCols, numTotalSegments); err != nil {
+		if err := performDedupColRequest(nodeResult, aggs, letColReq, recs, finalCols, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else if letColReq.SortColRequest != nil {
-		if err := performSortColRequest(nodeResult, aggs, letColReq, recs, recordIndexInFinal, finalCols, numTotalSegments); err != nil {
+		if err := performSortColRequest(nodeResult, aggs, letColReq, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else {
@@ -615,10 +615,10 @@ func performRenameColRequestOnMeasureResults(nodeResult *structs.NodeResult, let
 }
 
 func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
-	finalCols map[string]bool, numTotalSegments uint64) error {
+	finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 	// Without following a group by
 	if recs != nil {
-		if err := performDedupColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols, numTotalSegments); err != nil {
+		if err := performDedupColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performDedupColRequest: %v", err)
 		}
 		return nil
@@ -646,11 +646,13 @@ func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 }
 
 func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
-	finalCols map[string]bool, numTotalSegments uint64) error {
+	finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 
 	letColReq.DedupColRequest.ProcessedSegmentsLock.Lock()
 	defer letColReq.DedupColRequest.ProcessedSegmentsLock.Unlock()
-	letColReq.DedupColRequest.NumProcessedSegments++
+	if finishesSegment {
+		letColReq.DedupColRequest.NumProcessedSegments++
+	}
 
 	// Keep track of all the matched records across all segments, and only run
 	// the dedup logic once all the records are gathered.
@@ -662,8 +664,6 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 
 		return nil
 	}
-
-	// log.Error("fjl seg0000:", len(letColReq.DedupColRequest.DedupRecords))
 
 	fieldList := letColReq.DedupColRequest.FieldList
 	combinationSlice := make([]interface{}, len(fieldList))
@@ -1030,10 +1030,10 @@ func combinationPassesDedup(combinationSlice []interface{}, recordIndex int, sor
 }
 
 func performSortColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 	// Without following a group by
 	if recs != nil {
-		if err := performSortColRequestWithoutGroupby(nodeResult, letColReq, recs, recordIndexInFinal, finalCols, numTotalSegments); err != nil {
+		if err := performSortColRequestWithoutGroupby(nodeResult, letColReq, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performSortColRequest: %v", err)
 		}
 		return nil
@@ -1052,11 +1052,13 @@ func performSortColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAg
 }
 
 func performSortColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 
 	letColReq.SortColRequest.ProcessedSegmentsLock.Lock()
 	defer letColReq.SortColRequest.ProcessedSegmentsLock.Unlock()
-	letColReq.SortColRequest.NumProcessedSegments++
+	if finishesSegment {
+		letColReq.SortColRequest.NumProcessedSegments++
+	}
 
 	if letColReq.SortColRequest.NumProcessedSegments < numTotalSegments {
 		for k, v := range recs {
