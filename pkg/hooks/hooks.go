@@ -28,7 +28,7 @@ type Hooks struct {
 	StartSiglensExtrasHook func(nodeID string) error
 
 	// Cluster health
-	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx)
+	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid uint64)
 	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid uint64)
 	SetExtraIngestionStatsHook func(map[string]interface{})
 	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (uint64, error)

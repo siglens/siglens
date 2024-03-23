@@ -119,7 +119,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() {
+	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() {
 		// 1. Dedup needs state information about the previous records, so we can
 		// run into an issue if we show some records, then the user scrolls
 		// down to see more and we run dedup on just the new records and add
@@ -300,18 +300,17 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	}
 	queryType := query.GetQueryType(qid)
 	resp := &PipeSearchCompleteResponse{
-		TotalMatched:             convertQueryCountToTotalResponse(queryC),
-		State:                    query.COMPLETE.String(),
-		TotalEventsSearched:      humanize.Comma(int64(totalEventsSearched)),
-		CanScrollMore:            canScrollMore,
-		TotalRRCCount:            numRRCs,
-		MeasureResults:           aggMeasureRes,
-		MeasureFunctions:         aggMeasureFunctions,
-		GroupByCols:              aggGroupByCols,
-		Qtype:                    queryType.String(),
-		BucketCount:              bucketCount,
-		IsTimechart:              aggs.UsedByTimechart(),
-		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
+		TotalMatched:        convertQueryCountToTotalResponse(queryC),
+		State:               query.COMPLETE.String(),
+		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
+		CanScrollMore:       canScrollMore,
+		TotalRRCCount:       numRRCs,
+		MeasureResults:      aggMeasureRes,
+		MeasureFunctions:    aggMeasureFunctions,
+		GroupByCols:         aggGroupByCols,
+		Qtype:               queryType.String(),
+		BucketCount:         bucketCount,
+		IsTimechart:         aggs.UsedByTimechart(),
 	}
 	searchErrors, err := query.GetUniqueSearchErrors(qid)
 	if err != nil {
@@ -346,10 +345,11 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 
 	qType := query.GetQueryType(qid)
 	wsResponse := &PipeSearchWSUpdateResponse{
-		Completion:          searchPercent,
-		State:               query.QUERY_UPDATE.String(),
-		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
-		Qtype:               qType.String(),
+		Completion:               searchPercent,
+		State:                    query.QUERY_UPDATE.String(),
+		TotalEventsSearched:      humanize.Comma(int64(totalEventsSearched)),
+		Qtype:                    qType.String(),
+		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
 	}
 
 	switch qType {

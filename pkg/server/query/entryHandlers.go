@@ -259,7 +259,7 @@ func getClusterStatsHandler() func(ctx *fasthttp.RequestCtx) {
 		if hook := hooks.GlobalHooks.StatsHandlerHook; hook != nil {
 			hook(ctx, 0)
 		} else {
-			health.ProcessClusterStatsHandler(ctx, 0)
+			serverutils.CallWithOrgIdQuery(health.ProcessClusterStatsHandler, ctx)
 		}
 	}
 }
@@ -267,9 +267,9 @@ func getClusterStatsHandler() func(ctx *fasthttp.RequestCtx) {
 func getClusterIngestStatsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		if hook := hooks.GlobalHooks.IngestStatsHandlerHook; hook != nil {
-			hook(ctx)
+			hook(ctx, 0)
 		} else {
-			health.ProcessClusterIngestStatsHandler(ctx)
+			serverutils.CallWithOrgIdQuery(health.ProcessClusterIngestStatsHandler, ctx)
 		}
 	}
 }
