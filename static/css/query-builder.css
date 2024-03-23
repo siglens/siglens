@@ -708,7 +708,7 @@ div.show-record-popup {
 
     /* Button appearance */
     background-color: transparent;
-    color: rgba(0, 0, 0, 0.6); /* Lighter font color */
+    color: rgb(111, 108, 123); /* R111 G108 B123 */
     font-family: "DINpro", Arial, sans-serif;
     font-weight: lighter;
     font-size: 20px;
