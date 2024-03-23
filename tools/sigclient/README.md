@@ -5,7 +5,7 @@
 ### ES Bulk
 To send ingestion traffic to a server using ES Bulk API:
 ```bash
-$ go run main.go ingest esbulk -n 10_000 -d http://localhost:8081/elastic -p 2
+$ go run main.go ingest esbulk -t 10_000 -d http://localhost:8081/elastic -p 2
 ```
 Options:
 ```

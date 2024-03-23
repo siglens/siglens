@@ -69,6 +69,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 					compiledRegex, err := regexp.Compile(t)
 					if err != nil {
 						log.Errorf("qid=%d, ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", qid, t, err)
+						return nil, fmt.Errorf("Invalid regex: %s", t)
 					}
 					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid)
 					andFilterCondition = append(andFilterCondition, criteria)
@@ -97,6 +98,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 					compiledRegex, err := regexp.Compile(t)
 					if err != nil {
 						log.Errorf("ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", t, err)
+						return nil, fmt.Errorf("Invalid regex: %s", t)
 					}
 					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid)
 					andFilterCondition = append(andFilterCondition, criteria)

@@ -164,7 +164,22 @@ function addSystemInfoTable(systemInfo) {
                     <div><b>Available:</b> ${availableDiskGB} GB</div>
                     <div><b>Used:</b> ${diskUsage}%</div>`;
     var diskRow = createRow("Disk Usage", diskInfo);
+    var uptime = createRow("Process Uptime", formatUptime(systemInfo.uptime));
 
-    table.append(cpuRow, memoryRow, osRow, diskRow);
+    table.append(uptime, cpuRow, memoryRow, osRow, diskRow);
+}
+
+function formatUptime(uptimeMinutes) {
+    if (uptimeMinutes < 60) {
+        return uptimeMinutes + " mins";
+    } else if (uptimeMinutes < 24*60) {
+        return Math.floor(uptimeMinutes / 60) + " hours";
+    } else if (uptimeMinutes < 7*24*60) {
+        return Math.floor(uptimeMinutes / (24*60)) + " days";
+    } else if (uptimeMinutes < 30*24*60) {
+        return Math.floor(uptimeMinutes / (7*24*60)) + " weeks";
+    } else {
+        return Math.floor(uptimeMinutes / (30*24*60)) + " months";
+    }
 }
 

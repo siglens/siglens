@@ -10,7 +10,11 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/valyala/fasthttp"
 
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+
+	"math"
+	"time"
 )
 
 type SystemInfo struct {
@@ -18,6 +22,7 @@ type SystemInfo struct {
 	VCPU   int        `json:"v_cpu"`
 	Memory MemoryInfo `json:"memory"`
 	Disk   DiskInfo   `json:"disk"`
+	Uptime int        `json:"uptime"`
 }
 
 type MemoryInfo struct {
@@ -66,6 +71,8 @@ func GetSystemInfo(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	uptime := math.Round(time.Since(utils.GetServerStartTime()).Minutes())
+
 	systemInfo := SystemInfo{
 		OS:   hostInfo.OS,
 		VCPU: totalCores,
@@ -79,6 +86,7 @@ func GetSystemInfo(ctx *fasthttp.RequestCtx) {
 			Free:        diskInfo.Free,
 			UsedPercent: diskInfo.UsedPercent,
 		},
+		Uptime: int(uptime),
 	}
 
 	response, err := json.Marshal(systemInfo)

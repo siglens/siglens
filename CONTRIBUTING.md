@@ -24,7 +24,6 @@ bug report and let us know!
 
 ## Ways to Contribute
 
-
 We welcome many different types of contributions including:
 
 * New features
@@ -49,8 +48,21 @@ join our slack [SigLens Community](https://www.siglens.com/slack)
 Once you see an issue that you'd like to work on, please post a comment saying
 that you want to work on it. Something like `"I want to work on this"` is fine.
 
-## Ask for Help
+## Open an Issue
 
+### Check for existing Issues
+
+* Before you create a new issue, please search on the [open issues](https://github.com/siglens/siglens/issues) page to see if the issue or feature request has already been filed.
+* If you can not find your issue exists, [choose a specific issue type](https://github.com/siglens/siglens/issues/new/choose) and open a new issue.
+
+### Issue Types
+
+* **Bug report**: You’ve found a bug with the code, and want to report or track the bug. Show more details, and let us know about an unexpected error, a crash, or an incorrect behavior.
+* **New feature request**: Suggest a new feature. This allows feedback from others before the code is written.
+* **Story**: Clearly describe the task. Break it down as much as you can so it's easier to implement. Link to existing issues if appropriate using #issue-number.
+* **Report a security vulnerability**: Review our security policy first and then report a vulnerability.
+
+## Ask for Help
 
 The best way to reach us with a question when contributing is to ask on:
 
@@ -61,10 +73,11 @@ The best way to reach us with a question when contributing is to ask on:
 
 Once you have found the issue to be fixed or feature to be added, you can comment on the issue and put the approach you want to follow to solve the issue. Once we agree upon the approach, you can open a PR.
 
+If its your first time on github, please read [FIRST_TIME_GIT_USERS_GUIDE.md](FIRST_TIME_GIT_USERS_GUIDE.md) to understand terms like `fork`, `clone`, `create a repo`, and others.
+
+Steps to open a PR:
+
 1. Fork Siglens repo and clone it on your local machine.  
-
-If its your first time on github, please read [FIRST_TIME_GIT_USERS_GUIDE.md](FIRST_TIME_GIT_USERS_GUIDE.md) to fork, clone, create a repo.
-
 2. Make your desired code changes
 3. Make sure local tests work. (`make all`)
 4. Make sure go code is formatted correctly. (`make pr`)
@@ -74,21 +87,26 @@ If its your first time on github, please read [FIRST_TIME_GIT_USERS_GUIDE.md](FI
 
 
 ## Development Environment Setup
+
 Download golang version that is defined in `go.mod` and make sure git is installed.
 
 VS Code is the recomended IDE and offers good extensions and tools that will help developers write code.
 
-To locally run `golinter`, install from https://golangci-lint.run/usage/install/#local-installation
+To run the Go linter locally, install it from [here](https://golangci-lint.run/welcome/install/#local-installation).
 
-For Linux systems, the `build-essential` package is necessary. If it's already installed, no action is needed. Otherwise, please execute the following commands:
+Siglens currently support `Linux` and `macOS` for development purposes.
 
- - For Debian/Ubuntu:
+- To setup project locally on macOS please jump to [Start up Siglens](#start-up-siglens) section.
+- For Linux systems, the `build-essential` package is necessary. If it's already installed, no action is needed. Otherwise, please execute the following commands:
+
+    - For Debian/Ubuntu:
 
     ```bash
     sudo apt update
     sudo apt install build-essential
     ```
- - For Fedora/CentOS/RHEL:
+    
+    - For Fedora/CentOS/RHEL:
    ```bash
    sudo yum groupinstall "Development Tools"
    sudo yum install gcc g++ make
@@ -107,7 +125,6 @@ You should be able to access `http://localhost:5122` and see the SigLens UI. If 
 
 
 ### Send Data to SigLens
-
 
 In another terminal, go to the location of sigclient:
 ```
