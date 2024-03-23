@@ -85,6 +85,10 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		applyTimeRangeHistogram(nodeResult, post.TimeHistogram, post.TimeHistogram.AggName)
 	}
 
+	if post.TransactionArguments != nil && len(recs) == 0 {
+		return nodeResult
+	}
+
 	// For the query without groupby, skip the first aggregator without a QueryAggergatorBlock
 	// For the query that has a groupby, groupby block's aggregation is in the post.Next. Therefore, we should start from the groupby's aggregation.
 	if !post.HasQueryAggergatorBlock() && post.TransactionArguments == nil {
@@ -94,7 +98,10 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	for agg := post; agg != nil; agg = agg.Next {
 		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
 
-		if (nodeResult.PerformAggsOnRecs || len(nodeResult.TransactionEventRecords) > 0) && len(recs) > 0 {
+		if len(nodeResult.TransactionEventRecords) > 0 {
+			nodeResult.NextQueryAgg = agg
+			return nodeResult
+		} else if nodeResult.PerformAggsOnRecs && len(recs) > 0 {
 			nodeResult.NextQueryAgg = agg
 			return nodeResult
 		}
@@ -2526,7 +2533,7 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 		groupedRecord["event"] = records
 		lastRecord := records[len(groupRecords[transactionKey])-1]
 		groupedRecord["duration"] = uint64(lastRecord["timestamp"].(uint64)) - currentState.Timestamp
-		groupedRecord["eventcount"] = len(records)
+		groupedRecord["eventcount"] = uint64(len(records))
 		groupedRecord["transactionKey"] = transactionKey
 
 		for _, key := range transactionFields {

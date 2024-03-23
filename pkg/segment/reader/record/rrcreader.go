@@ -241,8 +241,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					if exists {
 						// Reset the TransactionEventRecords and update aggs with NextQueryAgg to loop for next Aggs processing.
 						delete(nodeRes.TransactionEventRecords, "CHECK_NEXT_AGG")
-						aggs = nodeRes.NextQueryAgg.Next
-						// continue
+						aggs = &structs.QueryAggregators{Next: nodeRes.NextQueryAgg.Next}
 					} else {
 						break // Break out of the loop to process next segment.
 					}
@@ -253,7 +252,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 						if exists && boolVal {
 							// Reset the flag to false and update aggs with NextQueryAgg to loop for additional cleaning.
 							nodeRes.PerformAggsOnRecs = false
-							aggs = nodeRes.NextQueryAgg.Next
+							aggs = nodeRes.NextQueryAgg
 						} else {
 							break
 						}
