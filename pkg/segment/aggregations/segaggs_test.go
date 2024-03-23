@@ -1160,7 +1160,13 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 		// Process Transactions
 		performTransactionCommandRequest(&structs.NodeResult{}, &structs.QueryAggregators{TransactionArguments: txnArgs}, records, allCols, 1, true)
 
-		assert.Equal(t, allCols, map[string]bool{"timestamp": true, "duration": true, "eventcount": true, "event": true})
+		expectedCols := map[string]bool{"duration": true, "event": true, "eventcount": true, "timestamp": true}
+
+		for _, field := range txnArgs.Fields {
+			expectedCols[field] = true
+		}
+
+		assert.Equal(t, expectedCols, allCols)
 
 		// Check if the number of records is positive or negative
 		assert.Equal(t, matchesSomeRecords[index+1], len(records) > 0)
