@@ -18,6 +18,7 @@ package queryserver
 
 import (
 	"crypto/tls"
+	"fmt"
 	htmltemplate "html/template"
 	"net"
 	texttemplate "text/template"
@@ -25,17 +26,15 @@ import (
 
 	"github.com/fasthttp/router"
 	"github.com/oklog/run"
+	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/segment/structs"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/pprofhandler"
-	"golang.org/x/crypto/acme"
-	"golang.org/x/crypto/acme/autocert"
 )
 
 type queryserverCfg struct {
@@ -85,15 +84,13 @@ func getMyIds() []uint64 {
 	return myids
 }
 
-func extractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*structs.SegmentSearchRequest {
-	ssr := make(map[string]*structs.SegmentSearchRequest)
-
-	return ssr
-}
-
 func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) error {
 	query.InitQueryMetrics()
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+
+	alertsHandler.InitAlertingService(getMyIds)
+	alertsHandler.InitMinionSearchService(getMyIds)
+
+	err := query.InitQueryNode(getMyIds, server_utils.ExtractKibanaRequests)
 	if err != nil {
 		log.Errorf("Failed to initialize query node: %v", err)
 		return err
@@ -109,9 +106,9 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/search", hs.Recovery(pipeSearchHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/search/{dbPanel-id}", hs.Recovery(dashboardPipeSearchHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/search/ws", hs.Recovery(pipeSearchWebsocketHandler(0)))
+	hs.Router.GET(server_utils.API_PREFIX+"/search/ws", hs.Recovery(pipeSearchWebsocketHandler()))
 
-	hs.Router.POST(server_utils.API_PREFIX+"/search/ws", hs.Recovery(pipeSearchWebsocketHandler(0)))
+	hs.Router.POST(server_utils.API_PREFIX+"/search/ws", hs.Recovery(pipeSearchWebsocketHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/sampledataset_bulk", hs.Recovery(sampleDatasetBulkHandler()))
 
 	// common routes
@@ -236,6 +233,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
 	hs.Router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(esPutIndexHandler()))
 
+	hs.Router.GET(server_utils.API_PREFIX+"/system-info", hs.Recovery(getSystemInfoHandler()))
 	if config.IsDebugMode() {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}
@@ -287,25 +285,28 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		Concurrency:        hs.Config.Concurrency,
 	}
 	var g run.Group
-	if config.IsTlsEnabled() && config.GetTLSACMEDir() != "" {
-		m := &autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(config.GetQueryHostname()),
-			Cache:      autocert.DirCache(config.GetTLSACMEDir()),
-		}
+
+	if config.IsTlsEnabled() {
 		cfg := &tls.Config{
-			GetCertificate: m.GetCertificate,
-			NextProtos: []string{
-				"http/1.1", acme.ALPNProto,
-			},
+			Certificates: make([]tls.Certificate, 1),
 		}
+
+		cfg.Certificates[0], err = tls.LoadX509KeyPair(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
+
+		if err != nil {
+			fmt.Println("Run: error in loading TLS certificate: ", err)
+			log.Fatalf("Run: error in loading TLS certificate: %v", err)
+		}
+
 		hs.lnTls = tls.NewListener(hs.ln, cfg)
+
 		// run fasthttp server
 		g.Add(func() error {
 			return s.Serve(hs.lnTls)
 		}, func(e error) {
 			_ = hs.ln.Close()
 		})
+
 	} else {
 		// run fasthttp server
 		g.Add(func() error {

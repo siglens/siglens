@@ -14,9 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-let selectedTestData = "";
+let selectedLogSource = "";
 
 $(document).ready(function () {
+    $('#data-ingestion,#test-data-btn').hide();
     if (Cookies.get('theme')) {
         theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
@@ -43,14 +44,63 @@ $(document).ready(function () {
             console.log(err)
         });
 
-    $('#logout-btn').on('click', deleteCookie);
-    $('.role-inner-dropdown').on('click', dropdown);
+        $('#source-options').on('click', '.source-option', function() {
+            selectedLogSource = $(this).text().trim();
+            $('.source-option').removeClass("active");
+            $(this).addClass("active");
+            $('#source-selection span').html(selectedLogSource);
+        
+            var showDataIngestion = ['Vector', 'Logstash', 'Fluentd', 'Filebeat', 'Promtail'].includes(selectedLogSource);
+            $('#data-ingestion').toggle(showDataIngestion);
+            $('#test-data-btn').toggle(!showDataIngestion);
+        
+            var curlCommand = 'curl -X POST "localhost:8081/elastic/_bulk" \\\n' +
+                              '-H \'Content-Type: application/json\' \\\n' +
+                              '-d \'{ "index" : { "_index" : "test" } }\n' +
+                              '{ "name" : "john", "age":"23" }\''; 
+            $('#verify-command').text(curlCommand);
+        
+            switch (selectedLogSource) {
+                case 'Vector':
+                case 'Logstash':
+                case 'Fluentd':
+                case 'Filebeat':
+                case 'Promtail':
+                    $('#platform-input').val(selectedLogSource);
+                    $('#source-token-input').val('3yoZAtXwKrjWaSfWxSDmPVGv');
+                    $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/' + selectedLogSource.toLowerCase());
+                    break;
+                case 'Person Profile':
+                    $('#test-data-btn').show();
+                    break;
+                default:
+                    break;
+            }
+        });
+        
 
-    $("ul").on("click", "li", function (e) {
-        $(".select").html($(this).html());
-        selectedTestData = $(this).attr('id');
-        $('.dropdown-option').toggleClass('active');
+    //Copy Handler
+    $('.copyable').each(function() {
+        var copyIcon = $('<span class="copy-icon"></span>');
+        $(this).after(copyIcon);
     });
+
+    $('.copy-icon').on('click', function(event) {
+        var copyIcon = $(this);
+        var inputOrTextarea = copyIcon.prev('.copyable');
+        var inputValue = inputOrTextarea.val();
+        navigator.clipboard.writeText(inputValue)
+            .then(function() {
+                copyIcon.addClass('success');
+                setTimeout(function() {
+                    copyIcon.removeClass('success'); 
+                }, 1000);
+            })
+            .catch(function(err) {
+                console.error('Failed to copy text: ', err);
+            });
+    });
+    {{ .Button1Function }}
 })
 
 function dropdown() {

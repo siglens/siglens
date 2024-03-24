@@ -168,14 +168,19 @@ func GetDataPath() string {
 	return runningConfig.DataPath
 }
 
-// returns the configured acme path
-func GetTLSACMEDir() string {
-	return runningConfig.TLS.ACMEFolder
-}
-
 // returns if tls is enabled
 func IsTlsEnabled() bool {
 	return runningConfig.TLS.Enabled
+}
+
+// returns the configured certificate path
+func GetTLSCertificatePath() string {
+	return runningConfig.TLS.CertificatePath
+}
+
+// returns the configured private key path
+func GetTLSPrivateKeyPath() string {
+	return runningConfig.TLS.PrivateKeyPath
 }
 
 // used by
@@ -349,10 +354,6 @@ func SetDataPath(path string) {
 	runningConfig.DataPath = path
 }
 
-func SetCertsPath(path string) {
-	runningConfig.TLS.ACMEFolder = path
-}
-
 func SetDataDiskThresholdPercent(percent uint64) {
 	runningConfig.DataDiskThresholdPercent = percent
 }
@@ -418,13 +419,16 @@ func InitConfigurationData() error {
 }
 
 /*
-	Use only for testing purpose, DO NOT use externally
-
-To do - Currently we are assigning default value two times.. in InitializeDefaultConfig() for testing and
-ExtractConfigData(). Do this in one time.
+Use only for testing purpose, DO NOT use externally
 */
 func InitializeDefaultConfig() {
+	runningConfig = GetTestConfig()
+	_ = InitDerivedConfig("test-uuid") // This is only used for testing
+}
 
+// To do - Currently we are assigning default value two times.. in InitializeDefaultConfig() for testing and
+// ExtractConfigData(). Do this in one time.
+func GetTestConfig() common.Configuration {
 	// *************************************
 	// THIS IS ONLY USED in TESTS, MAKE SURE:
 	// 1. set the defaults ExtractConfigData
@@ -432,7 +436,7 @@ func InitializeDefaultConfig() {
 	// 3. And Here.
 	// ************************************
 
-	runningConfig = common.Configuration{
+	testConfig := common.Configuration{
 		IngestListenIP:             "0.0.0.0",
 		QueryListenIP:              "0.0.0.0",
 		IngestPort:                 8081,
@@ -466,11 +470,12 @@ func InitializeDefaultConfig() {
 		AgileAggsEnabledConverted:  true,
 		QueryHostname:              "",
 		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
-		TLS:                        common.TLSConfig{Enabled: false, ACMEFolder: "certs/"},
+		TLS:                        common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
 		DatabaseConfig:             common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
+		EmailConfig:                common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
 	}
-	_ = InitDerivedConfig("test-uuid") // This is only used for testing
-	runningConfig.EmailConfig = common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "}
+
+	return testConfig
 }
 
 func InitializeTestingConfig() {
@@ -668,8 +673,13 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	if config.S3IngestBufferSize == 0 {
 		config.S3IngestBufferSize = 1000
 	}
-	if len(config.TLS.ACMEFolder) >= 0 && strings.HasPrefix(config.TLS.ACMEFolder, "./") {
-		config.TLS.ACMEFolder = strings.Trim(config.TLS.ACMEFolder, "./")
+
+	if len(config.TLS.CertificatePath) >= 0 && strings.HasPrefix(config.TLS.CertificatePath, "./") {
+		config.TLS.CertificatePath = strings.Trim(config.TLS.CertificatePath, "./")
+	}
+
+	if len(config.TLS.PrivateKeyPath) >= 0 && strings.HasPrefix(config.TLS.PrivateKeyPath, "./") {
+		config.TLS.PrivateKeyPath = strings.Trim(config.TLS.PrivateKeyPath, "./")
 	}
 
 	return config, nil

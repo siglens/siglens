@@ -75,15 +75,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, err := ParseSearchBody(event, nowTs)
-	if err != nil {
-		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to parse query err=%v", qid, err)
-		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
-		if wErr != nil {
-			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! %+v", qid, wErr)
-		}
-		return
-	}
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(event, nowTs)
 
 	if scrollFrom > 10_000 {
 		processMaxScrollComplete(conn, qid)
@@ -127,16 +119,15 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() {
-		// Dedup needs state information about the previous records, so we can
+	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() {
+		// 1. Dedup needs state information about the previous records, so we can
 		// run into an issue if we show some records, then the user scrolls
 		// down to see more and we run dedup on just the new records and add
 		// them to the existing ones. To get around this, we can run the query
 		// on all of the records initially so that scrolling down doesn't cause
 		// another query to run.
-		sizeLimit = math.MaxUint64
-	} else if aggs.HasRexBlockInChainWithStats() {
-		// If there's a Rex block in the chain followed by a Stats block, we need to
+		// 2. Sort cmd is similar to Dedup cmd; we need to process all the records at once and extract those with top/rare priority based on requirements.
+		// 3. If there's a Rex block in the chain followed by a Stats block, we need to
 		// see all the matched records before we apply or calculate the stats.
 		sizeLimit = math.MaxUint64
 	}
@@ -354,10 +345,11 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 
 	qType := query.GetQueryType(qid)
 	wsResponse := &PipeSearchWSUpdateResponse{
-		Completion:          searchPercent,
-		State:               query.QUERY_UPDATE.String(),
-		TotalEventsSearched: humanize.Comma(int64(totalEventsSearched)),
-		Qtype:               qType.String(),
+		Completion:               searchPercent,
+		State:                    query.QUERY_UPDATE.String(),
+		TotalEventsSearched:      humanize.Comma(int64(totalEventsSearched)),
+		Qtype:                    qType.String(),
+		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
 	}
 
 	switch qType {

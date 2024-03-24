@@ -171,7 +171,9 @@ func Main() {
 		log.Errorf("siglens main: Error in starting server:%v ", err)
 		os.Exit(1)
 	}
-
+	if hook := hooks.GlobalHooks.CheckOrgValidityHook; hook != nil {
+		hook()
+	}
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
@@ -217,10 +219,9 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	ingestServer := fmt.Sprint(config.GetIngestListenIP()) + ":" + fmt.Sprintf("%d", config.GetIngestPort())
 	queryServer := fmt.Sprint(config.GetQueryListenIP()) + ":" + fmt.Sprintf("%d", config.GetQueryPort())
 
-	if config.IsTlsEnabled() && config.GetQueryPort() != 443 {
-		fmt.Printf("Error starting Query/UI server with TLS, QueryPort should be set to 443 ")
-		log.Errorf("Error starting Query/UI server with TLS, QueryPort should be set to 443 ")
-		return errors.New("error starting Query/UI server with TLS, QueryPort should be set to 443 ")
+	if config.IsTlsEnabled() && (config.GetTLSCertificatePath() == "" || config.GetTLSPrivateKeyPath() == "") {
+		fmt.Println("TLS is enabled but certificate or private key path is not provided")
+		log.Fatalf("TLS is enabled but certificate or private key path is not provided")
 	}
 
 	err = vtable.InitVTable()
@@ -282,8 +283,6 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	instrumentation.InitMetrics()
 	querytracker.InitQT()
 
-	alertsHandler.InitAlertingService()
-	alertsHandler.InitMinionSearchService()
 	go tracinghandler.MonitorSpansHealth()
 	go tracinghandler.DependencyGraphThread()
 

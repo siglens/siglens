@@ -181,10 +181,11 @@ type GroupByRequest struct {
 }
 
 type MeasureAggregator struct {
-	MeasureCol      string                   `json:"measureCol,omitempty"`
-	MeasureFunc     utils.AggregateFunctions `json:"measureFunc,omitempty"`
-	StrEnc          string                   `json:"strEnc,omitempty"`
-	ValueColRequest *ValueExpr               `json:"valueColRequest,omitempty"`
+	MeasureCol         string                   `json:"measureCol,omitempty"`
+	MeasureFunc        utils.AggregateFunctions `json:"measureFunc,omitempty"`
+	StrEnc             string                   `json:"strEnc,omitempty"`
+	ValueColRequest    *ValueExpr               `json:"valueColRequest,omitempty"`
+	OverrodeMeasureAgg *MeasureAggregator       `json:"overrideFunc,omitempty"`
 }
 
 type MathEvaluator struct {
@@ -218,6 +219,7 @@ type LetColumnsRequest struct {
 	StatisticColRequest *StatisticExpr
 	RenameColRequest    *RenameExpr
 	DedupColRequest     *DedupExpr
+	SortColRequest      *SortExpr
 	NewColName          string
 }
 
@@ -266,19 +268,20 @@ type NodeResult struct {
 	RenameColumns             map[string]string
 	SegEncToKey               map[uint16]string
 	TotalRRCCount             uint64
-	MeasureFunctions          []string          `json:"measureFunctions,omitempty"`
-	MeasureResults            []*BucketHolder   `json:"measure,omitempty"`
-	GroupByCols               []string          `json:"groupByCols,omitempty"`
-	Qtype                     string            `json:"qtype,omitempty"`
-	BucketCount               int               `json:"bucketCount,omitempty"`
-	PerformAggsOnRecs         bool              // if true, perform aggregations on records that are returned from rrcreader.go
-	RecsAggsType              []PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
+	MeasureFunctions          []string        `json:"measureFunctions,omitempty"`
+	MeasureResults            []*BucketHolder `json:"measure,omitempty"`
+	GroupByCols               []string        `json:"groupByCols,omitempty"`
+	Qtype                     string          `json:"qtype,omitempty"`
+	BucketCount               int             `json:"bucketCount,omitempty"`
+	PerformAggsOnRecs         bool            // if true, perform aggregations on records that are returned from rrcreader.go
+	RecsAggsType              PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
 	GroupByRequest            *GroupByRequest
 	MeasureOperations         []*MeasureAggregator
+	NextQueryAgg              *QueryAggregators
 	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
 	RecsAggsProcessedSegments uint64
 	RecsRunningSegStats       []*SegStats
-	RecsRunningEvalStats      map[string]utils.CValueEnclosure
+	TransactionEventRecords   map[string]map[string]interface{}
 }
 
 type SegStats struct {
@@ -478,7 +481,8 @@ func (qa *QueryAggregators) IsStatisticBlockEmpty() bool {
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
-		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil)
+		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
+			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil)
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
@@ -508,7 +512,29 @@ func (qa *QueryAggregators) HasDedupBlockInChain() bool {
 		return true
 	}
 	if qa.Next != nil {
-		return qa.Next.HasDedupBlock()
+		return qa.Next.HasDedupBlockInChain()
+	}
+	return false
+}
+
+func (qa *QueryAggregators) HasSortBlock() bool {
+	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil {
+		letColumns := qa.OutputTransforms.LetColumns
+
+		if letColumns.SortColRequest != nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (qa *QueryAggregators) HasSortBlockInChain() bool {
+	if qa.HasSortBlock() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasSortBlockInChain()
 	}
 	return false
 }

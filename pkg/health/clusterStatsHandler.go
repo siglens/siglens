@@ -40,7 +40,15 @@ import (
 func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	var httpResp utils.ClusterStatsResponseInfo
-
+	var err error
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		myid, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessClusterStatsHandler: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
 	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes := getIngestionStats(myid)
 	queryCount, totalResponseTime, querieSinceInstall := usageStats.GetQueryStats(myid)
 
@@ -104,8 +112,7 @@ func convertIndexDataToSlice(indexData map[string]utils.ResultPerIndex) []utils.
 	return retVal[:i]
 }
 
-func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx) {
-	var orgId uint64
+func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
 	var err error
 	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
 		orgId, err = hook(ctx)

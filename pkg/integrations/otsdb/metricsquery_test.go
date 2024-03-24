@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
+	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -37,7 +38,7 @@ func Test_MetricsQuery(t *testing.T) {
 	config.InitializeTestingConfig()
 	limit.InitMemoryLimiter()
 	writer.InitWriterNode()
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	assert.Nil(t, err)
 	_ = localstorage.InitLocalStorage()
 	metrics.InitTestingConfig()
@@ -73,7 +74,7 @@ func Test_MetricsQueryMultipleTagValues(t *testing.T) {
 	config.InitializeTestingConfig()
 	limit.InitMemoryLimiter()
 	writer.InitWriterNode()
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	assert.Nil(t, err)
 	_ = localstorage.InitLocalStorage()
 	metrics.InitTestingConfig()

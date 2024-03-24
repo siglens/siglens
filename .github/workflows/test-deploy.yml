@@ -1,0 +1,35 @@
+name: test-deploy-using k3s-helm
+on:
+  push:
+    branches:
+      - 'main'
+jobs:
+    deploy-using-k3s-helm:
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Checkout code
+                uses: actions/checkout@v4
+
+            -   name: Setup golang
+                uses: actions/setup-go@v4
+                with:
+                    go-version: "1.21"
+            -   name: Create a k3s cluster
+                uses: AbsaOSS/k3d-action@v2
+                with:
+                    cluster-name: "siglens"
+            -   name: Deploy the app
+                continue-on-error: false
+                run: |
+                    helm repo add siglens https://siglens.github.io/charts
+                    # create platform namespace
+                    kubectl create ns platform
+
+                    # installing using helm
+                    helm install siglens siglens/siglens -n platform \
+                    --wait \
+                    --timeout 10m0s \
+                    --set siglens.query.service.serviceType=LoadBalancer 
+                    # get pods, services and the container images
+                    kubectl get pods -n platform
+                    kubectl get svc -n platform

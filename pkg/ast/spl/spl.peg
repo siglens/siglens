@@ -238,7 +238,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -841,7 +841,7 @@ DedupExpr <- limitArr:(SPACE IntegerAsString)? options1:(DedupOptions)? fieldLis
     dedupExpr := &structs.DedupExpr {
         FieldList: fieldList.([]string),
         Limit: 1,
-        DedupCombinations: make(map[string]map[int][]structs.DedupSortValue, 0),
+        DedupCombinations: make(map[string]map[int][]structs.SortValue, 0),
         DedupRecords: make(map[string]map[string]interface{}, 0),
     }
 
@@ -878,7 +878,7 @@ DedupExpr <- limitArr:(SPACE IntegerAsString)? options1:(DedupOptions)? fieldLis
     }
 
     if sortByClause != nil {
-        dedupExpr.DedupSortEles = sortByClause.([]*structs.DedupSortElement)
+        dedupExpr.DedupSortEles = sortByClause.([]*structs.SortElement)
 
         // Make the DedupSortAscending from the DedupSortEles.
         dedupExpr.DedupSortAscending = make([]int, len(dedupExpr.DedupSortEles))
@@ -969,59 +969,59 @@ DedupOptionCMD <- option:("consecutive" / "keepempty" / "keepevents") {
     return optionStr, nil
 }
 
-DedupSortByClause <- CMD_DEDUP_SORTBY dedupSortEles:DedupSortElements {
+DedupSortByClause <- CMD_DEDUP_SORTBY dedupSortEles:SortElements {
     return dedupSortEles, nil
 }
 
 // sortby ( - | + ) <sort-field> [(- | +) <sort_field> ...]
-DedupSortElements <- first:DedupSingleSortElement rest:(SPACE DedupSingleSortElement)* {
+SortElements <- first:SingleSortElement rest:(EMPTY_OR_COMMA SingleSortElement)* {
     restSlice := rest.([]any)
 
     length := 1 + len(restSlice)
-    dedupSortEles := make([]*structs.DedupSortElement, length)
-    dedupSortEles[0] = first.(*structs.DedupSortElement)
+    sortEles := make([]*structs.SortElement, length)
+    sortEles[0] = first.(*structs.SortElement)
 
     for i := 1; i < length; i++ {
         elements := restSlice[i - 1].([]any)
-        dedupSortEles[i] = elements[1].(*structs.DedupSortElement)
+        sortEles[i] = elements[1].(*structs.SortElement)
     }
 
-    return dedupSortEles, nil
+    return sortEles, nil
 }
 
-DedupSingleSortElement <- element:(DedupSingleSortElementWithCast / DedupSingleSortElementWithoutCast) {
+SingleSortElement <- element:(SingleSortElementWithCast / SingleSortElementWithoutCast) {
     return element, nil
 }
 
-DedupSingleSortElementWithoutCast <- sortBySymbol:("+" / "-") field:FieldName {
+SingleSortElementWithoutCast <- sortBySymbol:("+" / "-" / "") field:FieldName {
     sortByAsc := true
 
     symbol := sortBySymbol.([]byte)
-    if(symbol[0] == '-') {
+    if(len(symbol) > 0 && symbol[0] == '-') {
         sortByAsc = false
     }
 
-    return &structs.DedupSortElement {
+    return &structs.SortElement {
         SortByAsc: sortByAsc,
         Op: "",
         Field: field.(string),
     }, nil
 }
 
-DedupSingleSortElementWithCast <- sortBySymbol:("+" / "-") op:("auto" / "str" / "ip" / "num") L_PAREN field:FieldName R_PAREN {
+SingleSortElementWithCast <- sortBySymbol:("+" / "-" / "") op:("auto" / "str" / "ip" / "num") L_PAREN field:FieldName R_PAREN {
     sortByAsc := true
 
     symbol := sortBySymbol.([]byte)
-    if(symbol[0] == '-') {
+    if(len(symbol) > 0 && symbol[0] == '-') {
         sortByAsc = false
     }
 
     opStr, err := transferUint8ToString(op)
     if err != nil {
-        return nil, fmt.Errorf("Spl peg: DedupSingleSortElementWithCast: %v", err)
+        return nil, fmt.Errorf("Spl peg: singleSortElementWithCast: %v", err)
     }
 
-    return &structs.DedupSortElement {
+    return &structs.SortElement {
         SortByAsc: sortByAsc,
         Op: opStr,
         Field: field.(string),
@@ -1091,6 +1091,40 @@ RexBlock <- PIPE CMD_REX "field" EQUAL field:EvalFieldToRead SPACE str:QuotedStr
 
     letColReq := &structs.LetColumnsRequest {
         RexColRequest: rexExpr,
+    }
+
+    root := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    return root, nil
+}
+
+// arguments need to be finished:
+// [<count>], [desc]
+SortBlock <- PIPE CMD_SORT sortByEles:SortElements {
+
+    sortExpr := &structs.SortExpr {
+        SortEles: sortByEles.([]*structs.SortElement),
+        SortRecords: make(map[string]map[string]interface{}, 0),
+    }
+
+    ascendingArr := make([]int, len(sortExpr.SortEles))
+    for i, ele := range sortExpr.SortEles {
+        if ele.SortByAsc {
+            ascendingArr[i] = 1
+        } else {
+            ascendingArr[i] = -1
+        }
+    }
+
+    sortExpr.SortAscending = ascendingArr
+
+    letColReq := &structs.LetColumnsRequest {
+        SortColRequest: sortExpr,
     }
 
     root := &structs.QueryAggregators {
@@ -2481,7 +2515,7 @@ TransactionEval <- "eval" EMPTY_OR_SPACE L_PAREN condition:BoolExpr R_PAREN {
 
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -2491,6 +2525,7 @@ CMD_HEAD_NO_SPACE <- "head"
 CMD_HEAD <- CMD_HEAD_NO_SPACE SPACE
 CMD_EVAL <- "eval" SPACE
 CMD_REX <- "rex" SPACE
+CMD_SORT <- "sort" SPACE
 CMD_TOP <- "top"
 CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
@@ -2525,3 +2560,4 @@ EOF <- !.
 SPACE <- (" "? COMMENT " "?) / " "+
 COMMENT <- "```" (!("```") .)* "```"
 EMPTY_OR_SPACE  <- SPACE / ""
+EMPTY_OR_COMMA  <- COMMA / EMPTY_OR_SPACE

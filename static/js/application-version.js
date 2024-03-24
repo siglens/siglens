@@ -8,6 +8,7 @@ $(document).ready(function () {
     }
     $('.theme-btn').on('click', themePickerHandler);
     fetchVersionInfo();
+    {{ .Button1Function }}
 });
 
 function fetchVersionInfo() {

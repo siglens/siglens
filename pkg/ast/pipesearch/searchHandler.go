@@ -54,16 +54,7 @@ Example incomingBody
 
 finalSize = size + from
 */
-func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, error) {
-	for k := range jsonSource {
-		switch k {
-		case "searchText", "indexName", "startEpoch", "endEpoch", "size", "from", "queryLanguage", "scroll", "state":
-		default:
-			log.Errorf("parseSearchBody %s is not expected in search!", k)
-			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: unexpected field %s", k)
-		}
-	}
-
+func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int) {
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
 	var scrollFrom int
@@ -75,8 +66,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case string:
 			searchText = val
 		default:
-			log.Errorf("parseSearchBody unknown type for searchText: %T", sText)
-			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: invalid value for field %s = %v", "searchText", sText)
+			log.Errorf("parseSearchBody searchText is not a string! Val %+v", val)
 		}
 	}
 
@@ -102,8 +92,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			}
 
 		default:
-			log.Errorf("parseSearchBody unknown type for indexName: %T", iText)
-			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: invalid value for field %s = %v", "indexName", iText)
+			log.Errorf("parseSearchBody indexName is not a string! Val %+v, type: %T", val, iText)
 		}
 	}
 
@@ -125,8 +114,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			defValue := nowTs - (15 * 60 * 1000)
 			startEpoch = parseAlphaNumTime(nowTs, string(val), defValue)
 		default:
-			log.Errorf("parseSearchBody unknown type for startEpoch: %T", startE)
-			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: invalid value for field %s = %v", "startEpoch", startE)
+			startEpoch = nowTs - (15 * 60 * 1000)
 		}
 	}
 
@@ -147,8 +135,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case string:
 			endEpoch = parseAlphaNumTime(nowTs, string(val), nowTs)
 		default:
-			log.Errorf("parseSearchBody unknown type for endEpoch: %T", endE)
-			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: invalid value for field %s = %v", "endEpoch", endE)
+			endEpoch = nowTs
 		}
 	}
 
@@ -181,8 +168,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case int:
 			finalSize = uint64(val)
 		default:
-			log.Errorf("parseSearchBody unknown type for size: %T", size)
-			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: invalid value for field %s = %v", "size", size)
+			finalSize = uint64(100)
 		}
 	}
 
@@ -215,13 +201,13 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case int:
 			scrollFrom = val
 		default:
-			log.Errorf("parseSearchBody unknown type for scroll: %T", scroll)
-			return "", 0, 0, 0, "", -1, fmt.Errorf("parseSearchBody: invalid value for field %s = %v", "from", scroll)
+			log.Infof("parseSearchBody: unknown type for scroll=%T", val)
+			scrollFrom = 0
 		}
 	}
 	finalSize = finalSize + uint64(scrollFrom)
 
-	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, nil
+	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom
 }
 
 func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
@@ -256,10 +242,8 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, err := ParseSearchBody(readJSON, nowTs)
-	if err != nil {
-		return -1
-	}
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
+
 	if scrollFrom > 10_000 {
 		return -1
 	}
@@ -280,12 +264,10 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 
 		if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 			sizeLimit = 0
-		} else if aggs.HasDedupBlockInChain() {
-			// Dedup needs to see all the matched records before it can return any
+		} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() {
+			// 1. Dedup needs to see all the matched records before it can return any
 			// of them when there's a sortby option.
-			sizeLimit = math.MaxUint64
-		} else if aggs.HasRexBlockInChainWithStats() {
-			// If there's a Rex block in the chain followed by a Stats block, we need to
+			// 2. If there's a Rex block in the chain followed by a Stats block, we need to
 			// see all the matched records before we apply or calculate the stats.
 			sizeLimit = math.MaxUint64
 		}
@@ -372,20 +354,11 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			log.Errorf("qid=%v, ProcessPipeSearchRequest: could not write error message err=%v", qid, err)
 		}
 		log.Errorf("qid=%v, ProcessPipeSearchRequest: failed to decode search request body! Err=%+v", qid, err)
-		return
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, err := ParseSearchBody(readJSON, nowTs)
-	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("qid=%v, ProcessPipeSearchRequest: could not write error message err=%v", qid, err)
-		}
-		log.Errorf("qid=%v, ProcessPipeSearchRequest: failed to decode search request body! Err=%+v", qid, err)
-		return
-	}
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
+
 	if scrollFrom > 10_000 {
 		processMaxScrollCount(ctx, qid)
 		return

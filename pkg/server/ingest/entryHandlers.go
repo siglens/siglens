@@ -30,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/integrations/splunk"
 	"github.com/siglens/siglens/pkg/otlp"
 	"github.com/siglens/siglens/pkg/sampledataset"
+	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/valyala/fasthttp"
 )
 
@@ -65,26 +66,25 @@ func getSafeHealthHandler() func(ctx *fasthttp.RequestCtx) {
 func splunkHecIngestHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		splunk.ProcessSplunkHecIngestRequest(ctx, 0)
+		serverutils.CallWithOrgIdQuery(splunk.ProcessSplunkHecIngestRequest, ctx)
 	}
 }
 
 func EsPutIndexHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		eswriter.ProcessPutIndex(ctx, 0)
+		serverutils.CallWithOrgId(eswriter.ProcessPutIndex, ctx)
 	}
 }
 
 func otsdbPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		otsdbwriter.PutMetrics(ctx, 0)
-
+		serverutils.CallWithOrgIdQuery(otsdbwriter.PutMetrics, ctx)
 	}
 }
 
 func influxPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		influxwriter.PutMetrics(ctx, 0)
+		serverutils.CallWithOrgIdQuery(influxwriter.PutMetrics, ctx)
 	}
 }
 
@@ -109,7 +109,7 @@ func otlpIngestTracesHandler() func(ctx *fasthttp.RequestCtx) {
 func sampleDatasetBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		sampledataset.ProcessSyntheicDataRequest(ctx, 0)
+		serverutils.CallWithOrgId(sampledataset.ProcessSyntheicDataRequest, ctx)
 	}
 }
 
@@ -134,11 +134,6 @@ func getConfigReloadHandler() func(ctx *fasthttp.RequestCtx) {
 func lokiPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-
-		if hook := hooks.GlobalHooks.LokiPostBulkHandlerInternalHook; hook != nil {
-			hook(ctx)
-		} else {
-			loki.ProcessLokiLogsIngestRequest(ctx, 0)
-		}
+		serverutils.CallWithOrgIdQuery(loki.ProcessLokiLogsIngestRequest, ctx)
 	}
 }

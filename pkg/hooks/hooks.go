@@ -19,6 +19,7 @@ type Hooks struct {
 	ServeStaticHook        func(router *router.Router, htmlTemplate *htmltemplate.Template)
 	ParseTemplatesHook     func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template)
 	CheckLicenseHook       func()
+	CheckOrgValidityHook   func()
 	AfterConfigHook        func(baseLogDir string)
 	ValidateDeploymentHook func() (commonconfig.DeploymentType, error)
 	GetNodeIdHook          func() string
@@ -27,7 +28,7 @@ type Hooks struct {
 	StartSiglensExtrasHook func(nodeID string) error
 
 	// Cluster health
-	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx)
+	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid uint64)
 	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid uint64)
 	SetExtraIngestionStatsHook func(map[string]interface{})
 	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (uint64, error)
@@ -59,12 +60,16 @@ type Hooks struct {
 	GetFileSizeExtrasHook               func(filename string) (bool, uint64)
 	DoesMetaFileExistExtrasHook         func(filename string) (bool, bool, error)
 
+	// Server helpers
+	GetOrgIdHookQuery         func(ctx *fasthttp.RequestCtx) (uint64, error)
+	GetOrgIdHook              func(ctx *fasthttp.RequestCtx) (uint64, error)
+	ExtractKibanaRequestsHook func(kibanaIndices []string, qid uint64) map[string]interface{}
+
 	// Ingest server
-	IngestMiddlewareRecoveryHook    func(ctx *fasthttp.RequestCtx) error
-	KibanaIngestHandlerHook         func(ctx *fasthttp.RequestCtx)
-	LokiPostBulkHandlerInternalHook func(ctx *fasthttp.RequestCtx)
-	GetIdsConditionHook             func(ids []uint64) bool
-	ExtraIngestEndpointsHook        func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
+	IngestMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
+	KibanaIngestHandlerHook      func(ctx *fasthttp.RequestCtx)
+	GetIdsConditionHook          func(ids []uint64) bool
+	ExtraIngestEndpointsHook     func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
 
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
@@ -84,7 +89,6 @@ type HtmlSnippets struct {
 	OrgSettingsOrgName         string
 	OrgSettingsRetentionPeriod string
 	OrgSettingsExtras          string
-	OrgSettingsExtraImports    string
 
 	Constants map[string]interface{}
 }
@@ -98,12 +102,16 @@ type JsSnippets struct {
 	ClusterStatsCallDisplayRows string
 
 	CommonExtraFunctions string
+	Button1Function      string
 
 	SettingsExtraOnReadySetup      string
 	SettingsRetentionDataThenBlock string
 	SettingsExtraFunctions         string
 
 	TestDataSendData string
+
+	OrgUpperNavTabs string
+	OrgUpperNavUrls string
 }
 
 var GlobalHooks = Hooks{

@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"strings"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -107,12 +108,18 @@ func generateTestRecords(numRecords int) map[string]map[string]interface{} {
 		record["gender"] = []string{"male", "female"}[rand.Intn(2)]
 		record["country"] = countries[rand.Intn(len(countries))]
 		record["http_method"] = []string{"GET", "POST", "PUT", "DELETE"}[rand.Intn(4)]
-		record["http_status"] = []int{200, 201, 301, 302, 404}[rand.Intn(5)]
+		record["http_status"] = []int64{200, 201, 301, 302, 404}[rand.Intn(5)]
+		record["latitude"] = rand.Float64() * 180
+		record["longitude"] = rand.Float64() * 180
 
 		records[fmt.Sprint(i)] = record
 	}
 
 	return records
+}
+
+func getFinalColsForGeneratedTestRecords() map[string]bool {
+	return map[string]bool{"timestamp": true, "city": true, "gender": true, "country": true, "http_method": true, "http_status": true, "latitude": true, "longitude": true}
 }
 
 // Test Cases for processTransactionsOnRecords
@@ -1151,9 +1158,15 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 	for index, txnArgs := range allCasesTxnArgs {
 		records := generateTestRecords(500)
 		// Process Transactions
-		performTransactionCommandRequest(&structs.NodeResult{}, &structs.QueryAggregators{TransactionArguments: txnArgs}, records, allCols)
+		performTransactionCommandRequest(&structs.NodeResult{}, &structs.QueryAggregators{TransactionArguments: txnArgs}, records, allCols, 1, true)
 
-		assert.Equal(t, allCols, map[string]bool{"timestamp": true, "duration": true, "eventcount": true, "event": true})
+		expectedCols := map[string]bool{"duration": true, "event": true, "eventcount": true, "timestamp": true}
+
+		for _, field := range txnArgs.Fields {
+			expectedCols[field] = true
+		}
+
+		assert.Equal(t, expectedCols, allCols)
 
 		// Check if the number of records is positive or negative
 		assert.Equal(t, matchesSomeRecords[index+1], len(records) > 0)
@@ -1257,4 +1270,175 @@ func validateSearchExpr(eventMap map[string]interface{}, resultData [][]*SimpleS
 		}
 	}
 	return true
+}
+
+func Test_performValueColRequestWithoutGroupBy_VEMNumericExpr(t *testing.T) {
+
+	// Query 1: * | eval rlatitude=round(latitude, 2)
+	letColReq := &structs.LetColumnsRequest{
+		ValueColRequest: &structs.ValueExpr{
+			ValueExprMode: structs.VEMNumericExpr,
+			NumericExpr: &structs.NumericExpr{
+				NumericExprMode: structs.NEMNumericExpr,
+				Op:              "round",
+				Left: &structs.NumericExpr{
+					NumericExprMode: structs.NEMNumberField,
+					IsTerminal:      true,
+					ValueIsField:    true,
+					Value:           "latitude",
+				},
+				Right: &structs.NumericExpr{
+					NumericExprMode: structs.NEMNumber,
+					IsTerminal:      true,
+					ValueIsField:    false,
+					Value:           "2",
+				},
+			},
+		},
+		NewColName: "rlatitude",
+	}
+
+	records := generateTestRecords(500)
+	finalCols := getFinalColsForGeneratedTestRecords()
+
+	// Perform the value column request
+	err := performValueColRequest(&structs.NodeResult{}, &structs.QueryAggregators{}, letColReq, records, finalCols)
+	assert.Nil(t, err)
+
+	// Check if the new column is added to the records
+	assert.True(t, finalCols["rlatitude"])
+
+	for _, record := range records {
+		assert.True(t, record["rlatitude"] != nil)
+		valueStr := fmt.Sprintf("%.2f", record["latitude"].(float64))
+		splitValue := strings.Split(valueStr, ".")
+		if len(splitValue) > 1 {
+			assert.Equal(t, len(splitValue[1]), 2)
+		}
+	}
+
+}
+
+func Test_performValueColRequestWithoutGroupBy_VEMConditionExpr(t *testing.T) {
+	// Query: * |  eval http_status_mod=if(in(http_status, 400,  500), "Failure", http_status)
+	letColReq := &structs.LetColumnsRequest{
+		ValueColRequest: &structs.ValueExpr{
+			ValueExprMode: structs.VEMConditionExpr,
+			ConditionExpr: &structs.ConditionExpr{
+				Op: "if",
+				BoolExpr: &structs.BoolExpr{
+					IsTerminal: true,
+					LeftValue: &structs.ValueExpr{
+						NumericExpr: &structs.NumericExpr{
+							NumericExprMode: structs.NEMNumberField,
+							IsTerminal:      true,
+							ValueIsField:    true,
+							Value:           "http_status",
+						},
+					},
+					ValueOp: "in",
+					ValueList: []*structs.ValueExpr{
+						{
+							NumericExpr: &structs.NumericExpr{
+								NumericExprMode: structs.NEMNumber,
+								IsTerminal:      true,
+								ValueIsField:    false,
+								Value:           "400",
+							},
+						},
+						{
+							NumericExpr: &structs.NumericExpr{
+								NumericExprMode: structs.NEMNumber,
+								IsTerminal:      true,
+								ValueIsField:    false,
+								Value:           "500",
+							},
+						},
+					},
+				},
+				TrueValue: &structs.ValueExpr{
+					ValueExprMode: structs.VEMStringExpr,
+					StringExpr: &structs.StringExpr{
+						RawString: "Failure",
+					},
+				},
+				FalseValue: &structs.ValueExpr{
+					NumericExpr: &structs.NumericExpr{
+						NumericExprMode: structs.NEMNumberField,
+						IsTerminal:      true,
+						ValueIsField:    true,
+						Value:           "http_status",
+					},
+				},
+			},
+		},
+		NewColName: "http_status_mod",
+	}
+
+	records := generateTestRecords(500)
+	finalCols := getFinalColsForGeneratedTestRecords()
+
+	// Perform the value column request
+	err := performValueColRequest(&structs.NodeResult{}, &structs.QueryAggregators{}, letColReq, records, finalCols)
+	assert.Nil(t, err)
+
+	// Check if the new column is added to the records
+	assert.True(t, finalCols["http_status_mod"])
+
+	for _, record := range records {
+		assert.True(t, record["http_status_mod"] != nil)
+		httpStatus := record["http_status"].(int64)
+		if httpStatus == 400 || httpStatus == 500 {
+			assert.Equal(t, "Failure", record["http_status_mod"])
+		} else {
+			assert.Equal(t, fmt.Sprint(httpStatus), record["http_status_mod"])
+		}
+	}
+}
+
+func Test_performValueColRequestWithoutGroupBy_VEMStringExpr(t *testing.T) {
+	// Query: * | eval country_city=country.":-".city
+	letColReq := &structs.LetColumnsRequest{
+		ValueColRequest: &structs.ValueExpr{
+			ValueExprMode: structs.VEMStringExpr,
+			StringExpr: &structs.StringExpr{
+				StringExprMode: structs.SEMConcatExpr,
+				ConcatExpr: &structs.ConcatExpr{
+					Atoms: []*structs.ConcatAtom{
+						{
+							IsField: true,
+							Value:   "country",
+						},
+						{
+							IsField: false,
+							Value:   ":-",
+						},
+						{
+							IsField: true,
+							Value:   "city",
+						},
+					},
+				},
+			},
+		},
+		NewColName: "country_city",
+	}
+
+	records := generateTestRecords(500)
+	finalCols := getFinalColsForGeneratedTestRecords()
+
+	// Perform the value column request
+	err := performValueColRequest(&structs.NodeResult{}, &structs.QueryAggregators{}, letColReq, records, finalCols)
+
+	assert.Nil(t, err)
+
+	// Check if the new column is added to the records
+	assert.True(t, finalCols["country_city"])
+
+	for _, record := range records {
+		assert.True(t, record["country_city"] != nil)
+		country := record["country"].(string)
+		city := record["city"].(string)
+		assert.Equal(t, country+":-"+city, record["country_city"])
+	}
 }

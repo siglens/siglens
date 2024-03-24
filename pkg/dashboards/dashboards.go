@@ -81,7 +81,7 @@ func readSavedDashboards(orgid uint64) ([]byte, error) {
 
 func readSavedDefaultDashboards(orgid uint64) ([]byte, error) {
 	var dashboardData []byte
-	allidsFname := getDefaultDashboardFileName(orgid)
+	allidsFname := getDefaultDashboardFileName()
 	_, err := os.Stat(allidsFname)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -127,14 +127,10 @@ func getDashboardFileName(orgid uint64) string {
 	return allidsFname
 }
 
-func getDefaultDashboardFileName(orgid uint64) string {
+func getDefaultDashboardFileName() string {
 	var allidsFname string
 	var defaultDBsAllidsBaseFname string = "defaultDBs/allids"
-	if orgid == 0 {
-		allidsFname = defaultDBsAllidsBaseFname + ".json"
-	} else {
-		allidsFname = defaultDBsAllidsBaseFname + "-" + strconv.FormatUint(orgid, 10) + ".json"
-	}
+	allidsFname = defaultDBsAllidsBaseFname + ".json"
 	return allidsFname
 }
 

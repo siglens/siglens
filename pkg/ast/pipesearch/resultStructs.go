@@ -44,16 +44,17 @@ type AggregationResults struct {
 }
 
 type PipeSearchWSUpdateResponse struct {
-	Hits                PipeSearchResponse      `json:"hits,omitempty"`
-	AllPossibleColumns  []string                `json:"allColumns,omitempty"`
-	Completion          float64                 `json:"percent_complete"`
-	State               string                  `json:"state,omitempty"`
-	TotalEventsSearched interface{}             `json:"total_events_searched,omitempty"`
-	MeasureFunctions    []string                `json:"measureFunctions,omitempty"`
-	MeasureResults      []*structs.BucketHolder `json:"measure,omitempty"`
-	GroupByCols         []string                `json:"groupByCols,omitempty"`
-	Qtype               string                  `json:"qtype,omitempty"`
-	BucketCount         int                     `json:"bucketCount,omitempty"`
+	Hits                     PipeSearchResponse      `json:"hits,omitempty"`
+	AllPossibleColumns       []string                `json:"allColumns,omitempty"`
+	Completion               float64                 `json:"percent_complete"`
+	State                    string                  `json:"state,omitempty"`
+	TotalEventsSearched      interface{}             `json:"total_events_searched,omitempty"`
+	MeasureFunctions         []string                `json:"measureFunctions,omitempty"`
+	MeasureResults           []*structs.BucketHolder `json:"measure,omitempty"`
+	GroupByCols              []string                `json:"groupByCols,omitempty"`
+	Qtype                    string                  `json:"qtype,omitempty"`
+	BucketCount              int                     `json:"bucketCount,omitempty"`
+	SortByTimestampAtDefault bool                    `json:"sortByTimestampAtDefault"`
 }
 
 type PipeSearchCompleteResponse struct {
