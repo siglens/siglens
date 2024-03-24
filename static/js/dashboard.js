@@ -1139,7 +1139,6 @@ function handleDbSettings() {
         crossDomain: true,
     }).then(function (res) {
         for (let [key, value] of Object.entries(res)) {
-            console.log(key, value)
             if (key == dbId ){
                 $(".dbSet-dbName").prop('readonly', true);
                 $('.dbSet-dbDescr').prop('readonly', true);
