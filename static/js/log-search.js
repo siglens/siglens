@@ -169,3 +169,32 @@ $("#clearInput").click(function() {
     $("#filter-input").val("").focus();
     $(this).hide();
 });
+
+/*
+Function to clear the query input field, search filter tags, and related elements
+*/
+function clearQueryInput() {
+    // Clear the query input field
+    $("#query-input").val("*").focus();
+
+    // Hide the clear button for the query input field if it's empty
+    if ($("#query-input").val().trim() !== "") {
+        $("#clear-query-btn").show();
+    } else {
+        $("#clear-query-btn").hide();
+    }
+
+    // Clear all search filter tags and related elements
+    $("#tags, #tags-second, #tags-third").empty();
+    firstBoxSet.clear();
+    secondBoxSet.clear();
+    thirdBoxSet.clear();
+
+    // Show the default text for search filters, aggregation attribute, and aggregations
+    $("#search-filter-text, #aggregate-attribute-text, #aggregations").show();
+}
+
+// Event handler for the clear button associated with the query input field
+$("#clear-query-btn").click(function() {
+    clearQueryInput();
+});
