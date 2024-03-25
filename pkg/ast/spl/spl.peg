@@ -2184,7 +2184,7 @@ FieldWithBooleanValue <- key:FieldName op:EqualityOperator value:Boolean {
     return node, nil
 }
 
-FieldWithStringValue <- keyValuePair:(NamedFieldWithStringValue / UnnamedFieldWithStringValue) {
+FieldWithStringValue <- keyValuePair:(NamedFieldWithTimeDurationValue / NamedFieldWithStringValue / UnnamedFieldWithStringValue) {
     return keyValuePair, nil
 }
 
@@ -2195,6 +2195,18 @@ NamedFieldWithStringValue <- key:FieldName op:EqualityOperator value:String {
             Op: op.(string),
             Field: key.(string),
             Values: value,
+        },
+    }
+    return node, nil
+}
+
+NamedFieldWithTimeDurationValue <- key:FieldName op:(EqualityOperator / InequalityOperator) value:TimeDuration {
+    node := &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison:ast.Comparison{
+            Op: op.(string),
+            Field: key.(string),
+            Values: json.Number(fmt.Sprint(utils.GetIntervalInMillis((value.(*structs.TimeDuration)).Interval, (value.(*structs.TimeDuration)).TimeScalr))),
         },
     }
     return node, nil
@@ -2282,6 +2294,24 @@ FloatAsString <- [-+]? [0-9]* "." [0-9]+ {
 // Allow leading zeros and a "+" before the number.
 IntegerAsString <- [-+]? [0-9]+ {
     return string(c.text), nil
+}
+
+TimeDuration <- value:(FloatAsString / IntegerAsString)+ timeUnit:(Subseconds / Second/ Minute) !String EOF? {
+	if timeIntervalInt, err := strconv.Atoi(value.([]interface{})[0].(string)); err == nil {
+		return &structs.TimeDuration{
+			Interval:  float64(timeIntervalInt),
+			TimeScalr: timeUnit.(utils.TimeUnit),
+		}, nil
+	}
+
+	if timeIntervalFloat, err := strconv.ParseFloat(value.([]interface{})[0].(string), 64); err == nil {
+		return &structs.TimeDuration{
+			Interval:  timeIntervalFloat,
+			TimeScalr: timeUnit.(utils.TimeUnit),
+		}, nil
+	}
+
+	return nil, fmt.Errorf("TimeDuration: Invalid time interval (%v)", value.([]interface{})[0])
 }
 
 EqualityOperator <- EMPTY_OR_SPACE op:("=" / "!=") EMPTY_OR_SPACE {

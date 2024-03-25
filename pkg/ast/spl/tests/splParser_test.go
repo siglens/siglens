@@ -605,6 +605,147 @@ func Test_searchFieldGreaterThanOrEqualToNumber(t *testing.T) {
 	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
 }
 
+func Test_searchTimeDurationWithDifferentUnits(t *testing.T) {
+
+	queries := [][]byte{
+		// "seconds" / "second" / "secs" / "sec" / "s"
+		// "minutes" / "minute" / "mins" / "min" / "m"
+		// us" / "ms" / "cs" / "ds"
+		[]byte("search latency<6seconds"),
+		[]byte("search latency<6second"),
+		[]byte("search latency<6secs"),
+		[]byte("search latency<6sec"),
+		[]byte("search latency<6s"),
+		[]byte("search latency<0.1minutes"),
+		[]byte("search latency<0.1minute"),
+		[]byte("search latency<0.1mins"),
+		[]byte("search latency<0.1min"),
+		[]byte("search latency<0.1m"),
+		[]byte("search latency<6000ms"),
+		[]byte("search latency<600cs"),
+		[]byte("search latency<60ds"),
+	}
+
+	for _, query := range queries {
+		res, err := spl.Parse("", query)
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+
+		assert.NotNil(t, filterNode)
+		assert.Equal(t, "<", filterNode.Comparison.Op)
+		assert.Equal(t, "latency", filterNode.Comparison.Field)
+		assert.Equal(t, json.Number("6000"), filterNode.Comparison.Values)
+
+		expressionFilter := extractExpressionFilter(t, filterNode)
+		assert.Equal(t, "latency", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+		assert.Equal(t, utils.LessThan, expressionFilter.FilterOperator)
+		dtype, err := utils.CreateDtypeEnclosure(json.Number("6000"), 0 /* qid */)
+		assert.Nil(t, err)
+		assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
+	}
+
+}
+
+func Test_searchTimeDurationWithInvalidUnits(t *testing.T) {
+
+	queries := [][]byte{
+		[]byte("search latency<6secondss"),
+		[]byte("search latency<6secondd"),
+		[]byte("search latency<6secsa"),
+		[]byte("search latency<6seca"),
+		[]byte("search latency<6sa"),
+		[]byte("search latency<0.1minutesa"),
+		[]byte("search latency<0.1minutea"),
+		[]byte("search latency<0.1minss"),
+		[]byte("search latency<0.1minn"),
+		[]byte("search latency<0.1mm"),
+		[]byte("search latency<6000mss"),
+		[]byte("search latency<600css"),
+		[]byte("search latency<60dss"),
+	}
+
+	for _, query := range queries {
+		_, err := spl.Parse("", query)
+		assert.NotNil(t, err)
+	}
+}
+
+func Test_searchFieldLessThanTimeDuration(t *testing.T) {
+	query := []byte(`search latency<1000s`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "<", filterNode.Comparison.Op)
+	assert.Equal(t, "latency", filterNode.Comparison.Field)
+	assert.Equal(t, json.Number("1000000"), filterNode.Comparison.Values)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "latency", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, utils.LessThan, expressionFilter.FilterOperator)
+	dtype, err := utils.CreateDtypeEnclosure(json.Number("1000000"), 0 /* qid */)
+	assert.Nil(t, err)
+	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
+}
+
+func Test_searchFieldLessThanOrEqualToTimeDuration(t *testing.T) {
+	query := []byte(`search latency<=0.5s`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "<=", filterNode.Comparison.Op)
+	assert.Equal(t, "latency", filterNode.Comparison.Field)
+	assert.Equal(t, json.Number("500"), filterNode.Comparison.Values)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "latency", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, utils.LessThanOrEqualTo, expressionFilter.FilterOperator)
+	dtype, err := utils.CreateDtypeEnclosure(json.Number("500"), 0 /* qid */)
+	assert.Nil(t, err)
+	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
+}
+
+func Test_searchFieldGreaterThanTimeDuration(t *testing.T) {
+	query := []byte(`search latency>3.175s`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, ">", filterNode.Comparison.Op)
+	assert.Equal(t, "latency", filterNode.Comparison.Field)
+	assert.Equal(t, json.Number("3175"), filterNode.Comparison.Values)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "latency", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, utils.GreaterThan, expressionFilter.FilterOperator)
+	dtype, err := utils.CreateDtypeEnclosure(json.Number("3175"), 0 /* qid */)
+	assert.Nil(t, err)
+	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
+}
+
+func Test_searchFieldGreaterThanOrEqualToTimeDuration(t *testing.T) {
+	query := []byte(`search latency>=1200ms`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, ">=", filterNode.Comparison.Op)
+	assert.Equal(t, "latency", filterNode.Comparison.Field)
+	assert.Equal(t, json.Number("1200"), filterNode.Comparison.Values)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "latency", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, utils.GreaterThanOrEqualTo, expressionFilter.FilterOperator)
+	dtype, err := utils.CreateDtypeEnclosure(json.Number("1200"), 0 /* qid */)
+	assert.Nil(t, err)
+	assert.Equal(t, dtype, expressionFilter.RightInput.Expression.LeftInput.ColumnValue)
+}
+
 func Test_searchSimpleAND(t *testing.T) {
 	query := []byte(`search status=ok AND latency<1000`)
 	res, err := spl.Parse("", query)
