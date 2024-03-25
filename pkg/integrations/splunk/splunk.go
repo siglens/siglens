@@ -44,7 +44,7 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		if err != nil {
 			log.Errorf("ProcessSplunkHecIngestRequest: Failed to handle record, err=%v", err)
 			ctx.SetStatusCode(statusCode)
-			responseBody["error"] = err
+			responseBody["error"] = err.Error()
 			utils.WriteJsonResponse(ctx, responseBody)
 			return
 		}
