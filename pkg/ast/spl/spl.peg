@@ -2547,7 +2547,7 @@ MINOR_BREAK <- [/:=@.$#%_] / "-" / "\\"
 NOT <- "NOT" SPACE
 OR <- SPACE "OR" SPACE
 AND <- SPACE "AND" SPACE
-PIPE <- SPACE "|" SPACE
+PIPE <- EMPTY_OR_SPACE "|" EMPTY_OR_SPACE
 AS <- SPACE "AS"i SPACE // Case insensitive
 BY <- SPACE "BY"i SPACE // Case insensitive
 
