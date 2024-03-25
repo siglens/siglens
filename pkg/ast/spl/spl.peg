@@ -2252,7 +2252,7 @@ Boolean <- ("true" / "false") {
     return boolValue, nil
 }
 
-UnquotedString <- ("*" / (!(MAJOR_BREAK / EOF) .))+ {
+UnquotedString <- ("*" / (!(MAJOR_BREAK / "|" / EOF) .))+ {
     // Return the string wrapped in quotes.
     str := "\"" + string(c.text) + "\""
     return str, nil
@@ -2269,7 +2269,7 @@ Number <- number:NumberAsString {
 
 // If a number isn't followed by a space, ")", comma, or EOF, we probably want
 // to fail and parse it as a string instead.
-NumberAsString <- number:(FloatAsString / IntegerAsString) &(SPACE / ")" / "," / EOF) {
+NumberAsString <- number:(FloatAsString / IntegerAsString) &(SPACE / "|" / ")" / "," / EOF) {
     return number, nil
 }
 
