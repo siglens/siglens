@@ -112,8 +112,7 @@ func convertIndexDataToSlice(indexData map[string]utils.ResultPerIndex) []utils.
 	return retVal[:i]
 }
 
-func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx) {
-	var orgId uint64
+func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
 	var err error
 	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
 		orgId, err = hook(ctx)

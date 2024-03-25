@@ -37,6 +37,9 @@ func GenerateTimeRangeBuckets(timeHistogram *structs.TimeBucket) []uint64 {
 // Find correct time range bucket for timestamp
 func FindTimeRangeBucket(timePoints []uint64, timestamp uint64, intervalMillis uint64) uint64 {
 	index := ((timestamp - timePoints[0]) / intervalMillis)
+	if index >= uint64(len(timePoints)) {
+		index = uint64(len(timePoints) - 1)
+	}
 	return timePoints[index]
 }
 
