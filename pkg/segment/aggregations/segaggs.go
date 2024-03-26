@@ -2146,7 +2146,7 @@ func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *stru
 				return aggs.TransactionArguments.SortedRecordsSlice[i]["timestamp"].(uint64) < aggs.TransactionArguments.SortedRecordsSlice[j]["timestamp"].(uint64)
 			})
 
-			cols, err = processTransactionsOnRecords(nodeResult.TransactionEventRecords, nodeResult.TransactionsProcessed, nil, aggs.TransactionArguments)
+			cols, err = processTransactionsOnRecords(nodeResult.TransactionEventRecords, nodeResult.TransactionsProcessed, nil, aggs.TransactionArguments, nodeResult.RecsAggsProcessedSegments == numTotalSegments)
 			if err != nil {
 				log.Errorf("performTransactionCommandRequest: %v", err)
 				return
@@ -2285,7 +2285,7 @@ func conditionMatch(fieldValue interface{}, Op string, searchValue interface{}) 
 	case "=", "eq":
 		return fmt.Sprint(fieldValue) == fmt.Sprint(searchValue)
 	case "!=", "neq":
-		return fieldValue != searchValue
+		return fmt.Sprint(fieldValue) != fmt.Sprint(searchValue)
 	default:
 		fieldValFloat, err := dtypeutils.ConvertToFloat(fieldValue, 64)
 		if err != nil {
@@ -2533,7 +2533,7 @@ func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterString
 }
 
 // Splunk Transaction command based on the TransactionArguments on the JSON records. map[string]map[string]interface{}
-func processTransactionsOnRecords(records map[string]map[string]interface{}, processedTransactions map[string]map[string]interface{}, allCols []string, transactionArgs *structs.TransactionArguments) ([]string, error) {
+func processTransactionsOnRecords(records map[string]map[string]interface{}, processedTransactions map[string]map[string]interface{}, allCols []string, transactionArgs *structs.TransactionArguments, closeAllTransactions bool) ([]string, error) {
 
 	if transactionArgs == nil {
 		return allCols, nil
@@ -2678,7 +2678,7 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, pro
 	// Transaction EndsWith is not given In this case, most or all of the transactionArgs.OpenTransactionEvents will not be appended to the groupedRecords.
 	// Even if we are appending the transactionArgs.OpenTransactionEvents at StartsWith, not all the transactionArgs.OpenTransactionEvents will be appended to the groupedRecords.
 	// So we need to append them here.
-	if transactionEndsWith == nil {
+	if transactionEndsWith == nil && closeAllTransactions {
 		for key := range transactionArgs.OpenTransactionEvents {
 			appendGroupedRecords(transactionArgs.OpenTransactionsState[key], key)
 		}
