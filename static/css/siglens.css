@@ -2091,6 +2091,11 @@ div.dts div.dataTables_scrollBody table {
     white-space: nowrap;
     overflow: visible;
 }
+
+.fields{
+    margin-left: 10px;
+}
+
 .available-fields-dropdown-item.active img {
     display: inline;
 }
@@ -2105,6 +2110,7 @@ div.dts div.dataTables_scrollBody table {
     margin-left: 11px;
     display: flex;
     align-items: center;
+    width:max-content;
 }
 
 .select-unselect-checkbox {
@@ -2687,6 +2693,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     color: var(--text-color) !important;
     font-size: 14px;
     font-weight: bold;
+    user-select: all;
 }
 
 .ag-theme-mycustomtheme .ag-header-cell-resize {
