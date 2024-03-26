@@ -20,4 +20,4 @@ limitations under the License.
 
 package config
 
-const SigLensVersion = "0.1.31d"
+const SigLensVersion = "0.1.31"
