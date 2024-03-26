@@ -22,7 +22,8 @@ $(document).ready(() => {
         theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
     }
-    $('.theme-btn').on('click', themePickerHandler);
+    $(document).on('click', '.theme-btn', themePickerHandler);
+
     setupEventHandlers();
     getSavedQueries();
 });
