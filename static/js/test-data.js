@@ -53,7 +53,7 @@ $(document).ready(function () {
             $(this).addClass("active");
             $('#source-selection span').html(selectedLogSource);
         
-            var showDataIngestion = ['Vector', 'Logstash', 'Fluentd', 'Filebeat', 'Promtail','Elastic Bluk','Splunk HEC'].includes(selectedLogSource);
+            var showDataIngestion = ['Vector', 'Logstash', 'Fluentd', 'Filebeat', 'Promtail','Elastic Bulk','Splunk HEC'].includes(selectedLogSource);
             $('#data-ingestion').toggle(showDataIngestion);
             $('#test-data-btn').toggle(!showDataIngestion);
         
@@ -72,7 +72,7 @@ $(document).ready(function () {
                     $('#platform-input').val(selectedLogSource);
                     $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/' + selectedLogSource.toLowerCase());
                     break;
-                case 'Elastic Bluk':
+                case 'Elastic Bulk':
                     $('#platform-input').val(selectedLogSource);
                     $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/elasticsearch/fluentd');
                     break;
