@@ -2091,6 +2091,11 @@ div.dts div.dataTables_scrollBody table {
     white-space: nowrap;
     overflow: visible;
 }
+
+.fields{
+    margin-left: 10px;
+}
+
 .available-fields-dropdown-item.active img {
     display: inline;
 }
