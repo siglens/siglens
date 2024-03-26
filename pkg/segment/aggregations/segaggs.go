@@ -85,6 +85,15 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		applyTimeRangeHistogram(nodeResult, post.TimeHistogram, post.TimeHistogram.AggName)
 	}
 
+	if post == nil {
+		return nodeResult
+	}
+
+	if post.GroupByRequest != nil {
+		nodeResult.GroupByCols = post.GroupByRequest.GroupByColumns
+		nodeResult.GroupByRequest = post.GroupByRequest
+	}
+
 	if post.TransactionArguments != nil && len(recs) == 0 {
 		return nodeResult
 	}
@@ -150,8 +159,6 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	case structs.GroupByType:
 		nodeResult.PerformAggsOnRecs = true
 		nodeResult.RecsAggsType = structs.GroupByType
-		nodeResult.GroupByCols = agg.GroupByRequest.GroupByColumns
-		nodeResult.GroupByRequest = agg.GroupByRequest
 	case structs.MeasureAggsType:
 		nodeResult.PerformAggsOnRecs = true
 		nodeResult.RecsAggsType = structs.MeasureAggsType
@@ -306,10 +313,30 @@ RenamingLoop:
 	}
 
 	if colReq.ExcludeColumns != nil {
-		return errors.New("performColumnsRequest: processing ColumnsRequest.ExcludeColumns is not implemented")
+		if nodeResult.GroupByRequest == nil {
+			return errors.New("performColumnsRequest: expected non-nil GroupByRequest while handling ExcludeColumns")
+		}
+
+		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByRequest.GroupByColumns, colReq.ExcludeColumns, false)
+		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.MeasureFunctions, colReq.ExcludeColumns, false)
+
+		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
+		if err != nil {
+			return fmt.Errorf("performColumnsRequest: error handling ExcludeColumns: %v", err)
+		}
 	}
 	if colReq.IncludeColumns != nil {
-		return errors.New("performColumnsRequest: processing ColumnsRequest.IncludeColumns is not implemented")
+		if nodeResult.GroupByRequest == nil {
+			return errors.New("performColumnsRequest: expected non-nil GroupByRequest while handling IncludeColumns")
+		}
+
+		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByRequest.GroupByColumns, colReq.IncludeColumns, true)
+		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.MeasureFunctions, colReq.IncludeColumns, true)
+
+		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
+		if err != nil {
+			return fmt.Errorf("performColumnsRequest: error handling IncludeColumns: %v", err)
+		}
 	}
 	if colReq.IncludeValues != nil {
 		return errors.New("performColumnsRequest: processing ColumnsRequest.IncludeValues is not implemented")
@@ -339,6 +366,82 @@ func getMatchingColumns(wildcardCols []string, finalCols map[string]bool) []stri
 	}
 
 	return matchingCols
+}
+
+// This function finds which columns in `cols` match any of the wildcardCols,
+// which may or may not contain wildcards. It returns the indices and the names
+// of the columns to keep, as well as the names of the columns to remove.
+// When keepMatches is true, a column is kept only if it matches at least one
+// wildcardCol. When keepMatches is false, a column is kept only if it matches
+// no wildcardCol.
+// The results are returned in the same order as the input `cols`.
+func getColumnsToKeepAndRemove(cols []string, wildcardCols []string, keepMatches bool) ([]int, []string, []string) {
+	indicesToKeep := make([]int, 0)
+	colsToKeep := make([]string, 0)
+	colsToRemove := make([]string, 0)
+
+	for i, col := range cols {
+		keep := !keepMatches
+		for _, wildcardCol := range wildcardCols {
+			isMatch := len(utils.SelectMatchingStringsWithWildcard(wildcardCol, []string{col})) > 0
+			if isMatch {
+				keep = keepMatches
+				break
+			}
+		}
+
+		if keep {
+			indicesToKeep = append(indicesToKeep, i)
+			colsToKeep = append(colsToKeep, col)
+		} else {
+			colsToRemove = append(colsToRemove, col)
+		}
+	}
+
+	return indicesToKeep, colsToKeep, colsToRemove
+}
+
+func removeAggColumns(nodeResult *structs.NodeResult, groupByColIndicesToKeep []int, groupByColNamesToKeep []string, measureColNamesToRemove []string) error {
+	// Remove columns from Histogram.
+	for _, aggResult := range nodeResult.Histogram {
+		for _, bucketResult := range aggResult.Results {
+			bucketResult.GroupByKeys = groupByColNamesToKeep
+
+			// Update the BucketKey.
+			bucketKeySlice, err := decodeBucketKey(bucketResult.BucketKey)
+			if err != nil {
+				return fmt.Errorf("removeAggColumns: failed to decode bucket key %v, err=%v", bucketResult.BucketKey, err)
+			}
+			bucketKeySlice = utils.SelectIndicesFromSlice(bucketKeySlice, groupByColIndicesToKeep)
+			bucketResult.BucketKey = encodeBucketKey(bucketKeySlice)
+
+			// Remove measure columns.
+			for _, bucketResult := range aggResult.Results {
+				for _, measureColName := range measureColNamesToRemove {
+					delete(bucketResult.StatRes, measureColName)
+				}
+			}
+		}
+	}
+
+	// Remove columns from MeasureResults.
+	for _, bucketHolder := range nodeResult.MeasureResults {
+		// Remove groupby columns.
+		bucketHolder.GroupByValues = utils.SelectIndicesFromSlice(bucketHolder.GroupByValues, groupByColIndicesToKeep)
+
+		// Remove measure columns.
+		for _, measureColName := range measureColNamesToRemove {
+			delete(bucketHolder.MeasureVal, measureColName)
+		}
+	}
+
+	if nodeResult.GroupByRequest == nil {
+		return fmt.Errorf("removeAggColumns: expected non-nil GroupByRequest")
+	} else {
+		nodeResult.GroupByRequest.GroupByColumns = groupByColNamesToKeep
+	}
+
+	return nil
 }
 
 func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
@@ -2646,4 +2749,25 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 	allCols = append(allCols, transactionFields...)
 
 	return groupedRecords, allCols, nil
+}
+
+// Decode the bucketKey into a slice of strings.
+func decodeBucketKey(bucketKey interface{}) ([]string, error) {
+	switch castedKey := bucketKey.(type) {
+	case []string:
+		return castedKey, nil
+	case string:
+		return []string{castedKey}, nil
+	default:
+		return nil, fmt.Errorf("decodeBucketKey: unexpected type %T for bucketKey %v", castedKey, bucketKey)
+	}
+}
+
+// Return a string if the slice has length 1, otherwise return the slice.
+func encodeBucketKey(bucketKeySlice []string) interface{} {
+	if len(bucketKeySlice) == 1 {
+		return bucketKeySlice[0]
+	}
+
+	return bucketKeySlice
 }
