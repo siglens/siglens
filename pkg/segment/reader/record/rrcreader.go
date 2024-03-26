@@ -233,7 +233,20 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			for {
 				finishesSegment := isLastBlk
 				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
-				if nodeRes.PerformAggsOnRecs {
+
+				// If TransactionEventRecords exist, process them first. This implies there might be segments left for TransactionEvent processing.
+				if len(nodeRes.TransactionEventRecords) > 0 {
+
+					_, exists := nodeRes.TransactionEventRecords["CHECK_NEXT_AGG"]
+
+					if exists {
+						// Reset the TransactionEventRecords and update aggs with NextQueryAgg to loop for next Aggs processing.
+						delete(nodeRes.TransactionEventRecords, "CHECK_NEXT_AGG")
+						aggs = &structs.QueryAggregators{Next: nodeRes.NextQueryAgg.Next}
+					} else {
+						break // Break out of the loop to process next segment.
+					}
+				} else if nodeRes.PerformAggsOnRecs {
 					resultRecMap = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, finishesSegment, qid)
 					if len(resultRecMap) > 0 {
 						boolVal, exists := resultRecMap["CHECK_NEXT_AGG"]
@@ -343,7 +356,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		}
 	}
 
-	if nodeRes.RecsAggsProcessedSegments == numTotalSegments {
+	if nodeRes.RecsAggsProcessedSegments >= numTotalSegments {
 		delete(nodeResMap, qid)
 	}
 
