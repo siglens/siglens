@@ -1393,6 +1393,65 @@ func Test_manyChainedSearch(t *testing.T) {
 	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(4))
 }
 
+func Test_manyChainedSearchOptionalPipeSpacing(t *testing.T) {
+	// This should be equivalent to `search A=1 AND (B=2 AND (C=3 AND D=4))`
+	query := []byte(`search A=1| search B=apple|search C=3 |search D=4`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, ast.NodeAnd, filterNode.NodeType)
+	assert.Equal(t, ast.NodeAnd, filterNode.Right.NodeType)
+	assert.Equal(t, ast.NodeAnd, filterNode.Right.Right.NodeType)
+
+	assert.Equal(t, filterNode.Left.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Left.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Left.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Left.Comparison.Values, json.Number("1"))
+
+	assert.Equal(t, filterNode.Right.Left.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Left.Comparison.Field, "B")
+	assert.Equal(t, filterNode.Right.Left.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Left.Comparison.Values, `"apple"`)
+
+	assert.Equal(t, filterNode.Right.Right.Left.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Right.Left.Comparison.Field, "C")
+	assert.Equal(t, filterNode.Right.Right.Left.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Right.Left.Comparison.Values, json.Number("3"))
+
+	assert.Equal(t, filterNode.Right.Right.Right.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Field, "D")
+	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Right.Right.Comparison.Values, json.Number("4"))
+
+	astNode := &structs.ASTNode{}
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
+	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+
+	assert.Len(t, astNode.AndFilterCondition.NestedNodes, 1)
+	andFilter := astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition
+	assert.Len(t, andFilter.FilterCriteria, 1)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "apple")
+
+	assert.Len(t, astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes, 1)
+	andFilter = astNode.AndFilterCondition.NestedNodes[0].AndFilterCondition.NestedNodes[0].AndFilterCondition
+	assert.Len(t, andFilter.FilterCriteria, 2)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "D")
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, andFilter.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(4))
+}
+
 func Test_manyChainedCompoundSearch(t *testing.T) {
 	// This should be equivalent to `search A=1 AND ((B=2 AND C=3) AND ((D=4 OR E=5) AND F=6))`
 	query := []byte(`search A=1 | search B=2 C=3 | search D=4 OR E=5 | search F=6`)

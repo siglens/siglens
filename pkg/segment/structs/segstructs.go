@@ -120,9 +120,12 @@ type FilterStringExpr struct {
 }
 
 type TransactionArguments struct {
-	Fields     []string
-	StartsWith *FilterStringExpr
-	EndsWith   *FilterStringExpr
+	SortedRecordsSlice    []map[string]interface{}
+	OpenTransactionsState map[string]*TransactionGroupState
+	OpenTransactionEvents map[string][]map[string]interface{}
+	Fields                []string
+	StartsWith            *FilterStringExpr
+	EndsWith              *FilterStringExpr
 }
 
 type TransactionGroupState struct {
@@ -281,6 +284,8 @@ type NodeResult struct {
 	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
 	RecsAggsProcessedSegments uint64
 	RecsRunningSegStats       []*SegStats
+	TransactionEventRecords   map[string]map[string]interface{}
+	TransactionsProcessed     map[string]map[string]interface{}
 }
 
 type SegStats struct {

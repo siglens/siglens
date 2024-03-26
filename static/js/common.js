@@ -773,7 +773,7 @@ function showRetDaysUpdateToast(msg) {
 
 function myOrgSendTestData(token) {
     $('#test-data-btn').on('click', (e) => {
-        if (selectedLogSource === 'Person Profile') {
+        if (selectedLogSource === 'Send Test Data') {
             var testDataBtn = document.getElementById("test-data-btn");
             // Disable testDataBtn
             testDataBtn.disabled = true;
