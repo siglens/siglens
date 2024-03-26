@@ -572,7 +572,8 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 	}
 
 	if segsNotSent > 0 {
-		incrementNumFinishedSegments(segsNotSent, queryInfo.qid, recsSearchedSinceLastUpdate, 0, false, nil)
+		doBucketPull := true // This is the last update, so flush the buckets.
+		incrementNumFinishedSegments(segsNotSent, queryInfo.qid, recsSearchedSinceLastUpdate, 0, doBucketPull, nil)
 	}
 
 	if !rrcsCompleted {
