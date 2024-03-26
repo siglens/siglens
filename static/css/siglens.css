@@ -2687,6 +2687,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     color: var(--text-color) !important;
     font-size: 14px;
     font-weight: bold;
+    user-select: all;
 }
 
 .ag-theme-mycustomtheme .ag-header-cell-resize {
