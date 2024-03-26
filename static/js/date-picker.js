@@ -105,9 +105,8 @@ function datePickerHandler(startDate, endDate, label) {
     $('#app-container #date-picker-btn span').html(displayLabel);
     $('#alerting-container #date-picker-btn span').html(displayLabel);
     $('#cstats-time-picker #date-picker-btn span').html(displayLabel);
-    $('#usage-stats-timepicker #date-picker-btn span').html(displayLabel);
     let currentPage=window.location.href
-    if(!(currentPage.includes("cluster-stats.html") || currentPage.includes("usageStats.html"))){
+    if(!(currentPage.includes("cluster-stats.html"))){
         Cookies.set('startEpoch', filterStartDate);
         Cookies.set('endEpoch', filterEndDate);
     }
