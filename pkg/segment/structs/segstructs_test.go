@@ -2,6 +2,8 @@ package structs
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 /*
@@ -13,18 +15,14 @@ import (
 
 // Test_HasTransactionArguments_NilReceiver tests the case where the QueryAggregators receiver is nil.
 func Test_HasTransactionArguments_NilReceiver(t *testing.T) {
-	var qa *QueryAggregators 
-	if qa.HasTransactionArguments() {
-		t.Errorf("Expected false for nil receiver, got true")
-	}
+	var qa *QueryAggregators
+	assert.Equal(t, false, qa.HasTransactionArguments(), "Expected false for nil receiver, got true")
 }
 
 // Test_HasTransactionArguments_NilTransactionArguments tests the case where TransactionArguments is nil.
 func Test_HasTransactionArguments_NilTransactionArguments(t *testing.T) {
 	qa := &QueryAggregators{}
-	if qa.HasTransactionArguments() {
-		t.Errorf("Expected false when TransactionArguments is nil, got true")
-	}
+	assert.Equal(t, false, qa.HasTransactionArguments(), "Expected false when TransactionArguments is nil, got true")
 }
 
 // Test_HasTransactionArguments_NonNilTransactionArguments tests the case where TransactionArguments is not nil.
@@ -37,7 +35,5 @@ func Test_HasTransactionArguments_NonNilTransactionArguments(t *testing.T) {
 	qa := &QueryAggregators{
 		TransactionArguments: &transactionArgs,
 	}
-	if !qa.HasTransactionArguments() {
-		t.Errorf("Expected true when TransactionArguments is not nil, got false")
-	}
+	assert.Equal(t, true, qa.HasTransactionArguments(), "Expected true when TransactionArguments is not nil, got false")
 }
