@@ -2110,6 +2110,7 @@ div.dts div.dataTables_scrollBody table {
     margin-left: 11px;
     display: flex;
     align-items: center;
+    width:max-content;
 }
 
 .select-unselect-checkbox {
