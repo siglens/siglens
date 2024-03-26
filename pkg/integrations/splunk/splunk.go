@@ -57,7 +57,7 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 func handleSingleRecord(record map[string]interface{}, myid uint64) (error, int) {
 	if record["index"] == "" || record["index"] == nil {
-		return fmt.Errorf("Index field is required"), fasthttp.StatusBadRequest
+		record["index"] = "default"
 	}
 
 	indexNameIn, ok := record["index"].(string)
