@@ -245,3 +245,42 @@ func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
 
 	os.RemoveAll(dir)
 }
+
+//Variables are defined below
+type NodeResult struct{}
+
+// Global variables for testing
+var (
+	mapMutex    sync.Mutex
+	nodeResMap  = make(map[uint64]*NodeResult)
+	testNodeRes = &NodeResult{} // Mock NodeResult instance for testing
+)
+//Test case tests GetOrCreateNodeRes method which returns Node
+func Test_GetOrCreateNodeRes{
+	// Test case 1: nodeRes exists in map
+	qid := uint64(1)
+	nodeResMap[qid] = testNodeRes // Add a mock NodeResult to the map
+
+	// Call the function
+	result := GetOrCreateNodeRes(qid)
+
+	// Check if the returned NodeResult matches the expected one
+	if result != testNodeRes {
+		t.Errorf("Expected nodeRes to be %+v, got %+v", testNodeRes, result)
+	}
+
+	// Test case 2: nodeRes does not exist in map
+	qid = uint64(2)
+	delete(nodeResMap, qid) // Remove the mock NodeResult from the map
+
+	// Call the function
+	result = GetOrCreateNodeRes(qid)
+
+	// Check if a new NodeResult was created and added to the map
+	if result == nil {
+		t.Error("Expected a new NodeResult instance, got nil")
+	}
+	if nodeResMap[qid] != result {
+		t.Error("Expected the new NodeResult to be added to the map")
+	}
+}
