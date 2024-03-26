@@ -521,6 +521,22 @@ input.form-control {
     font-size: 13px;
 }
 
+.tooltip-design {
+    color: var(--text-color) !important;
+    background-color: var(--bg-color) !important;
+    padding: 5px !important;
+    border-radius: 5px !important;
+    font-size: 13px !important;
+}
+
 circle:hover{
     cursor: pointer;
+}
+
+.subsection-navbar .dropdown-menu.daterangepicker.show{
+    height: 162px !important;
+    padding: 8px !important;
+}
+.subsection-navbar .inner-range{
+    grid-template-columns: repeat(2, 1fr) !important;
 }

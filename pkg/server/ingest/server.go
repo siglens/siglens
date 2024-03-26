@@ -109,9 +109,9 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	hs.router.POST(server_utils.LOKI_PREFIX+"/api/v1/push", hs.Recovery(lokiPostBulkHandler()))
 
 	// Splunk Handlers
-	hs.router.POST(server_utils.SPLUNK_PREFIX+"/services/collector/event", hs.Recovery(splunkHecIngestHandler()))
-	hs.router.GET(server_utils.SPLUNK_PREFIX+"/services/collector/health", hs.Recovery(getHealthHandler()))
-	hs.router.GET(server_utils.SPLUNK_PREFIX+"/services/collector/health/1.0", hs.Recovery(getHealthHandler()))
+	hs.router.POST("/services/collector/event", hs.Recovery(splunkHecIngestHandler()))
+	hs.router.GET("/services/collector/health", hs.Recovery(getHealthHandler()))
+	hs.router.GET("/services/collector/health/1.0", hs.Recovery(getHealthHandler()))
 
 	// OpenTSDB Handlers
 	hs.router.PUT(server_utils.OTSDB_PREFIX+"/api/put", hs.Recovery(otsdbPutMetricsHandler()))

@@ -165,7 +165,9 @@ $(document).ready(function () {
         $(".nav-live").addClass("active");
     } else if (currentUrl.includes("service-health.html")|| currentUrl.includes("service-health-overview.html") || currentUrl.includes("dependency-graph.html")|| currentUrl.includes("search-traces.html")) {
         $(".nav-traces").addClass("active");
-        $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
+        if ($('.subsection-navbar').length) {
+            $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
+        }        
     } else if (currentUrl.includes("test-data.html")) {
         $(".nav-ingest").addClass("active");
         $('.ingestion-nav-tab').appendOrgNavTabs("Ingestion", ingestionUpperNavTabs);
