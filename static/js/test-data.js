@@ -70,7 +70,7 @@ $(document).ready(function () {
                     $('#source-token-input').val('3yoZAtXwKrjWaSfWxSDmPVGv');
                     $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/' + selectedLogSource.toLowerCase());
                     break;
-                case 'Person Profile':
+                case 'Send Test Data':
                     $('#test-data-btn').show();
                     break;
                 default:
