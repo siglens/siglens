@@ -29,7 +29,6 @@ const INFLUX_PREFIX string = "/influx"
 const PROMQL_PREFIX string = "/promql"
 const OTLP_PREFIX string = "/otlp"
 const API_PREFIX string = "/api"
-const SPLUNK_PREFIX string = "/splunk"
 const LOKI_PREFIX string = "/loki"
 const HEROKU_ADDON_PREFIX string = "/heroku/resources"
 
