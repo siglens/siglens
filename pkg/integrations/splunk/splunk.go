@@ -39,6 +39,14 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	jsonObjects, err := utils.ExtractSeriesOfJsonObjects(body)
+	if err != nil {
+		log.Errorf("ProcessSplunkHecIngestRequest: Unable to extract json objects from request body, err=%v", err)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		responseBody["error"] = "Unable to extract json objects from request body"
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	}
+
 	for _, record := range jsonObjects {
 		err, statusCode := handleSingleRecord(record, myid)
 		if err != nil {
