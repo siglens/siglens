@@ -691,3 +691,29 @@ div.show-record-popup {
     border-radius: 10px;
     background: var(--black1-to-white0)
 }
+
+/* Position-relative container for query-input bar */
+.position-relative {
+    position: relative;
+    width: 100%;
+}
+
+/* Clear query button styles */
+#clear-query-btn {
+    /* Position the button */
+    position: absolute;
+    top: 45%; /* Adjust vertically */
+    right: 10px; /* Adjust horizontally */
+    transform: translateY(-50%);
+
+    /* Button appearance */
+    background-color: transparent;
+    color: rgb(111, 108, 123); /* R111 G108 B123 */
+    font-family: "DINpro", Arial, sans-serif;
+    font-weight: lighter;
+    font-size: 20px;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+}
