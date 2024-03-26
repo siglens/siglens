@@ -449,6 +449,14 @@ func applyKibanaFilterOperator(kibanaIndices []string, allSegFileResults *segres
 	}
 }
 
+func reverseSortedQSRSlice(sortedQSRSlice []*querySegmentRequest) {
+	lenSortedQSRSlice := len(sortedQSRSlice)
+
+	for i := 0; i < lenSortedQSRSlice/2; i++ {
+		sortedQSRSlice[i], sortedQSRSlice[lenSortedQSRSlice-i-1] = sortedQSRSlice[lenSortedQSRSlice-i-1], sortedQSRSlice[i]
+	}
+}
+
 // loops over all inputted querySegmentRequests and apply search for each file. This function may exit early
 func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *queryInformation,
 	allSegFileResults *segresults.SearchResults, qs *summary.QuerySummary) {
@@ -479,6 +487,12 @@ func applyFopAllRequests(sortedQSRSlice []*querySegmentRequest, queryInfo *query
 			log.Errorf("qid=%d, Failed to get empty segments for pqid %+v! Error: %v", queryInfo.qid, sortedQSRSlice[0].pqid, err)
 		}
 	}
+
+	// If we have a Transaction command, we want to search the segments from the oldest to the newest
+	if queryInfo.aggs != nil && queryInfo.aggs.HasTransactionArgumentsInChain() {
+		reverseSortedQSRSlice(sortedQSRSlice)
+	}
+
 	for idx, segReq := range sortedQSRSlice {
 
 		isCancelled, err := checkForCancelledQuery(queryInfo.qid)
