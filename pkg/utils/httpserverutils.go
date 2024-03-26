@@ -823,3 +823,19 @@ func GetSpecificIdentifier() (string, error) {
 
 	return hostname, nil
 }
+
+func GetDecodedBody(ctx *fasthttp.RequestCtx) ([]byte, error) {
+	contentEncoding := string(ctx.Request.Header.Peek("Content-Encoding"))
+	switch contentEncoding {
+	case "":
+		return ctx.Request.Body(), nil
+	case "gzip":
+		return gunzip(ctx.Request.Body())
+	default:
+		return nil, fmt.Errorf("GetDecodedBody: unsupported content encoding: %s", contentEncoding)
+	}
+}
+
+func gunzip(data []byte) ([]byte, error) {
+	return fasthttp.AppendGunzipBytes(nil, data)
+}

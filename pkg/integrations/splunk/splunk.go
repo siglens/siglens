@@ -28,9 +28,18 @@ import (
 )
 
 func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	postBody := make([]map[string]interface{}, 0)
-	err := json.Unmarshal(ctx.PostBody(), &postBody)
 	responseBody := make(map[string]interface{})
+	body, err := utils.GetDecodedBody(ctx)
+	if err != nil {
+		log.Errorf("ProcessSplunkHecIngestRequest: Unable to decode request body, err=%v", err)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		responseBody["error"] = "Unable to decode request body"
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	}
+
+	postBody := make([]map[string]interface{}, 0)
+	err = json.Unmarshal(body, &postBody)
 	if err != nil {
 		log.Errorf("ProcessSplunkHecIngestRequest: Unable to parse JSON request body, err=%v", err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
