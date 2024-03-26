@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -54,10 +55,12 @@ Example incomingBody
 
 finalSize = size + from
 */
-func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int) {
+func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, error) {
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
 	var scrollFrom int
+	var err error
+	err = nil
 	sText, ok := jsonSource["searchText"]
 	if !ok || sText == "" {
 		searchText = "*"
@@ -112,7 +115,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			startEpoch = uint64(val)
 		case string:
 			defValue := nowTs - (15 * 60 * 1000)
-			startEpoch = parseAlphaNumTime(nowTs, string(val), defValue)
+			startEpoch, err = parseAlphaNumTime(nowTs, string(val), defValue)
 		default:
 			startEpoch = nowTs - (15 * 60 * 1000)
 		}
@@ -133,7 +136,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case uint64:
 			endEpoch = uint64(val)
 		case string:
-			endEpoch = parseAlphaNumTime(nowTs, string(val), nowTs)
+			endEpoch, err = parseAlphaNumTime(nowTs, string(val), nowTs)
 		default:
 			endEpoch = nowTs
 		}
@@ -207,7 +210,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 	}
 	finalSize = finalSize + uint64(scrollFrom)
 
-	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom
+	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, err
 }
 
 func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
@@ -242,7 +245,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, err := ParseSearchBody(readJSON, nowTs)
 
 	if scrollFrom > 10_000 {
 		return -1
@@ -357,7 +360,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, err := ParseSearchBody(readJSON, nowTs)
 
 	if scrollFrom > 10_000 {
 		processMaxScrollCount(ctx, qid)
@@ -527,32 +530,51 @@ func convertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
 }
 
 /*
+Function designed to parse Time from a String input.
    Supports "now-[Num][Unit]"
    Num ==> any positive integer
    Unit ==> m(minutes), h(hours), d(days)
 */
 
-func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) uint64 {
+func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) (uint64, error) {
 
+	//removing spaces if any from input
 	sanTime := strings.ReplaceAll(inp, " ", "")
 
+	//to be returned as is if no filters are applied
 	if sanTime == "now" {
-		return nowTs
+		return nowTs, nil
 	}
 
+	//setting return value as default
 	retVal := defValue
 
-	strln := len(sanTime)
-	if strln < 6 {
-		return retVal
+	//regex pattern for "now-[number]" and unit at the end which only accepts 'm', 'h' and 'd'
+	pattern := `^now-\d+[mhd]$`
+	r, patternError := regexp.Compile(pattern)
+	if patternError != nil {
+		log.Errorf("startEpoch/endEpoch Input received is invalid. Value probably modified")
+		return retVal, fmt.Errorf("startEpoch Input received is invalid.")
 	}
 
+	strln := len(sanTime)
+	patternMatch := r.MatchString(sanTime)
+	if !patternMatch {
+		//impossible case reached, return error
+		log.Errorf("startEpoch/endEpoch Input received is invalid. Value probably modified")
+		return retVal, fmt.Errorf("startEpoch Input received is invalid.")
+	}
+
+	//extracting Unit from the string
 	unit := sanTime[strln-1]
 	num, err := strconv.ParseInt(sanTime[4:strln-1], 0, 64)
 	if err != nil {
-		return defValue
+		log.Errorf("startEpoch/endEpoch Printing error below")
+		log.Errorf(err.Error())
+		return defValue, fmt.Errorf("startEpoch Input received is invalid.")
 	}
 
+	//extracting Unit from the time value and calculating difference
 	switch unit {
 	case 'm':
 		retVal = nowTs - MIN_IN_MS*uint64(num)
@@ -560,8 +582,12 @@ func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) uint64 {
 		retVal = nowTs - HOUR_IN_MS*uint64(num)
 	case 'd':
 		retVal = nowTs - DAY_IN_MS*uint64(num)
+	default:
+		//input unit is invalid
+		log.Errorf("input unit for startEpoch/endEpoch is invalid ")
+		return defValue, fmt.Errorf("startEpoch/endEpoch Input unit received is invalid.")
 	}
-	return retVal
+	return retVal, nil
 }
 
 func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid uint64) {
