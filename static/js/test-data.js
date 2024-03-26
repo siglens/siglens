@@ -89,17 +89,20 @@ $(document).ready(function () {
         var copyIcon = $(this);
         var inputOrTextarea = copyIcon.prev('.copyable');
         var inputValue = inputOrTextarea.val();
-        navigator.clipboard.writeText(inputValue)
-            .then(function() {
-                copyIcon.addClass('success');
-                setTimeout(function() {
-                    copyIcon.removeClass('success'); 
-                }, 1000);
-            })
-            .catch(function(err) {
-                console.error('Failed to copy text: ', err);
-            });
+    
+        var tempInput = document.createElement("textarea");
+        tempInput.value = inputValue;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+    
+        copyIcon.addClass('success');
+        setTimeout(function() {
+            copyIcon.removeClass('success'); 
+        }, 1000);
     });
+    
     {{ .Button1Function }}
 })
 
