@@ -53,7 +53,15 @@
         <div id="dashboard" class="p-20">
             <div class="subsection-navbar">
             </div>
-            <div id="dependency-graph-container"></div>
+            <div id="dependency-graph-container" class="position-relative "> 
+                <div class="position-absolute" style="bottom:11px; right:40px;">
+                    Dependency Graph generated at:  <span id="last-run-timestamp"></span>
+                </div>
+                <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="dependency-info" style="bottom:12px; top:auto;"
+                title='The numbers on the edges in a dependency graph show 
+                how frequently one service is calling another service.'>
+                </i>
+            </div>
             <div id="error-msg-container">
                 <p>No service dependencies found.</p>
             </div>
