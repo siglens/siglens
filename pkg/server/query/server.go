@@ -18,6 +18,7 @@ package queryserver
 
 import (
 	"crypto/tls"
+	"fmt"
 	htmltemplate "html/template"
 	"net"
 	texttemplate "text/template"
@@ -34,8 +35,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/pprofhandler"
-	"golang.org/x/crypto/acme"
-	"golang.org/x/crypto/acme/autocert"
 )
 
 type queryserverCfg struct {
@@ -170,8 +169,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.LOKI_PREFIX+"/api/v1/series", hs.Recovery(lokiSeriesHandler()))
 
 	//splunk endpoint
-	hs.Router.GET(server_utils.SPLUNK_PREFIX+"/services/collector/health", hs.Recovery(getHealthHandler()))
-	hs.Router.GET(server_utils.SPLUNK_PREFIX+"/services/collector/health/1.0", hs.Recovery(getHealthHandler()))
+	hs.Router.GET("/services/collector/health", hs.Recovery(getHealthHandler()))
+	hs.Router.GET("/services/collector/health/1.0", hs.Recovery(getHealthHandler()))
 
 	//OTSDB query endpoint
 	hs.Router.GET(server_utils.OTSDB_PREFIX+"/api/query", hs.Recovery(otsdbMetricQueryHandler()))
@@ -286,25 +285,28 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		Concurrency:        hs.Config.Concurrency,
 	}
 	var g run.Group
-	if config.IsTlsEnabled() && config.GetTLSACMEDir() != "" {
-		m := &autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(config.GetQueryHostname()),
-			Cache:      autocert.DirCache(config.GetTLSACMEDir()),
-		}
+
+	if config.IsTlsEnabled() {
 		cfg := &tls.Config{
-			GetCertificate: m.GetCertificate,
-			NextProtos: []string{
-				"http/1.1", acme.ALPNProto,
-			},
+			Certificates: make([]tls.Certificate, 1),
 		}
+
+		cfg.Certificates[0], err = tls.LoadX509KeyPair(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
+
+		if err != nil {
+			fmt.Println("Run: error in loading TLS certificate: ", err)
+			log.Fatalf("Run: error in loading TLS certificate: %v", err)
+		}
+
 		hs.lnTls = tls.NewListener(hs.ln, cfg)
+
 		// run fasthttp server
 		g.Add(func() error {
 			return s.Serve(hs.lnTls)
 		}, func(e error) {
 			_ = hs.ln.Close()
 		})
+
 	} else {
 		// run fasthttp server
 		g.Add(func() error {

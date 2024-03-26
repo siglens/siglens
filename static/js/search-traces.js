@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 'use strict';
-var chart;
+let chart;
 let currList = [];
 let curSpanTraceArray = [],
   curErrorTraceArray = [],
@@ -35,6 +35,8 @@ $(document).ready(() => {
     $("body").attr("data-theme", theme);
   }
   $(".theme-btn").on("click", themePickerHandler);
+  $('.theme-btn').on('click', showScatterPlot);
+
   initPage();
 });
 window.onload = function () {
@@ -284,7 +286,7 @@ function initChart(){
 async function getTotalTraces(params) {
   return $.ajax({
       method: "post",
-      url: "http://localhost:5122/api/traces/count",
+      url: "api/traces/count",
       headers: {
           "Content-Type": "application/json; charset=utf-8",
           Accept: "*/*",
@@ -376,28 +378,51 @@ function showScatterPlot() {
     echarts.dispose(chart);
   }
   chart = echarts.init(chartId);
+  let theme = $('body').attr('data-theme') == "light" ? "light" : "dark";
+  let normalColor = theme == "light" ? "rgba(99, 71, 217, 0.6)" : "rgba(99, 71, 217, 1)";
+  let errorColor = theme == "light" ? "rgba(233, 49, 37, 0.6)" : "rgba(233, 49, 37, 1)";
+  let axisLineColor = theme == "light" ? "#DCDBDF" : "#383148"; 
+  let axisLabelColor = theme == "light" ? "#160F29" : "#FFFFFF"; 
   chart.setOption({
     xAxis: {
       type: "category",
       name: "Time",
+      nameTextStyle: {
+        color: axisLabelColor
+      },
       data: timeList,
       scale: true,
       axisLine: {
-        show: true,
+        lineStyle: {
+          color: axisLineColor 
+        }
+      },
+      axisLabel: {
+        color: axisLabelColor 
       },
       splitLine: { show: false },
     },
     yAxis: {
       type: "value",
       name: "Duration",
+      nameTextStyle: {
+        color: axisLabelColor
+      },
       scale: true,
       axisLine: {
         show: true,
+        lineStyle: {
+          color: axisLineColor 
+        }
+      },
+      axisLabel: {
+        color: axisLabelColor 
       },
       splitLine: { show: false },
     },
     tooltip: {
       show: true,
+      className: "tooltip-design",
       formatter: function (param) {
         var green = param.value[4];
         var red = param.value[5];
@@ -428,7 +453,7 @@ function showScatterPlot() {
           return val[2] < 5 ? 5 : val[2];
         },
         itemStyle: {
-          color: "rgba(99, 71, 217, 0.5)",
+          color: normalColor,
         },
       },
       {
@@ -442,7 +467,7 @@ function showScatterPlot() {
           return val[3] < 5 ? 5 : val[3];
         },
         itemStyle: {
-          color: "rgba(233, 49, 37, 0.5)",
+          color: errorColor,
         },
       },
     ],

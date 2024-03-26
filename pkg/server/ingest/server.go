@@ -109,9 +109,9 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	hs.router.POST(server_utils.LOKI_PREFIX+"/api/v1/push", hs.Recovery(lokiPostBulkHandler()))
 
 	// Splunk Handlers
-	hs.router.POST(server_utils.SPLUNK_PREFIX+"/services/collector/event", hs.Recovery(splunkHecIngestHandler()))
-	hs.router.GET(server_utils.SPLUNK_PREFIX+"/services/collector/health", hs.Recovery(getHealthHandler()))
-	hs.router.GET(server_utils.SPLUNK_PREFIX+"/services/collector/health/1.0", hs.Recovery(getHealthHandler()))
+	hs.router.POST("/services/collector/event", hs.Recovery(splunkHecIngestHandler()))
+	hs.router.GET("/services/collector/health", hs.Recovery(getHealthHandler()))
+	hs.router.GET("/services/collector/health/1.0", hs.Recovery(getHealthHandler()))
 
 	// OpenTSDB Handlers
 	hs.router.PUT(server_utils.OTSDB_PREFIX+"/api/put", hs.Recovery(otsdbPutMetricsHandler()))
@@ -151,11 +151,20 @@ func (hs *ingestionServerCfg) Run() (err error) {
 
 	// run fasthttp server
 	var g run.Group
-	g.Add(func() error {
-		return s.Serve(hs.ln)
-	}, func(e error) {
-		_ = hs.ln.Close()
-	})
+
+	if config.IsTlsEnabled() {
+		g.Add(func() error {
+			return s.ServeTLS(hs.ln, config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
+		}, func(e error) {
+			_ = hs.ln.Close()
+		})
+	} else {
+		g.Add(func() error {
+			return s.Serve(hs.ln)
+		}, func(e error) {
+			_ = hs.ln.Close()
+		})
+	}
 	return g.Run()
 }
 

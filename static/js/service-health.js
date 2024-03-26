@@ -15,12 +15,9 @@ limitations under the License.
 */
 
 'use strict';
-const tenMinutesAgo = new Date(Date.now() - 10 * 60000).toISOString();
+
 let redMetricsData ={
     "indexName":  "red-traces",
-    "startEpoch": tenMinutesAgo,
-    "endEpoch": new Date().toISOString()
-   
 }
 $(document).ready(() => {
     if (Cookies.get("theme")) {
@@ -28,11 +25,35 @@ $(document).ready(() => {
         $("body").attr("data-theme", theme);
     }
     $(".theme-btn").on("click", themePickerHandler);
-    getAllServices()
+
+    let stDate = "now-15m";
+    let endDate = "now";
+    datePickerHandler(stDate, endDate, stDate);
+    $('.range-item').on('click', isServiceHealthDatePickerHandler);
+    let data = getTimeRange();
+    redMetricsData = {... redMetricsData, ... data};
+    getAllServices();
     
     $('.search-input').on('input', filterServicesBySearch);
 });
 
+function isServiceHealthDatePickerHandler(evt) {
+    evt.preventDefault();
+    $.each($(".range-item.active"), function () {
+        $(this).removeClass('active');
+    });
+    $(evt.currentTarget).addClass('active');
+    datePickerHandler($(this).attr('id'), "now", $(this).attr('id'))
+    getAllServices();
+    $('#daterangepicker').hide();
+}
+
+function getTimeRange() {
+    return {
+        'startEpoch': filterStartDate || "now-1h",
+        'endEpoch': filterEndDate || "now",
+    };
+}
 let gridDiv = null;
 let serviceRowData = [];
 const columnDefs=[
@@ -87,6 +108,8 @@ function processRedMetricsData(metricsData) {
 }
 
 function getAllServices(){
+    data = getTimeRange();
+    redMetricsData = {... redMetricsData, ... data}
     $.ajax({
         method: "POST",
         url: "api/search",

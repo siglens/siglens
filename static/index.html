@@ -60,8 +60,11 @@
                 </ul>
                 <div id = "tabs-1">
                     <div class="query-box">
-                        <input class="form-control query-text" id="query-input" type="text" disabled="disabled">
-                        <div class="search-img" id="query-builder-btn"> </div>
+                        <div class="position-relative"> <!-- Position relative -->
+                            <input class="form-control query-text" id="query-input" type="text" disabled="disabled">
+                            <button id="clear-query-btn" class="clear-query-btn">x</button> <!-- Added clear button -->
+                        </div>
+                        <button class="search-img" id="query-builder-btn"></button>
                     </div>
                     <div class="filter-info">
                         <div id="filter-container">
@@ -233,19 +236,19 @@
                 </ul>
                 <div id="logs-view-controls">
                     <div id="save-query-div" class="save-query-div">
-                        <button class="btn saveq-btn below-btn-img" id="saveq-btn"></button>
-                        <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3"></button>
-                        <button class="btn mx-2 alert-from-logs-btn below-btn-img" id="alert-from-logs-btn"></button>
+                        <button class="btn saveq-btn below-btn-img" id="saveq-btn" title="Save Query"></button>
+                        <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3" title="Add panel to dashboard"></button>
+                        <button class="btn mx-2 alert-from-logs-btn below-btn-img" id="alert-from-logs-btn" title="Create Alert"></button>
                         <div class="dropdown download-btn">
                             <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button" data-toggle="dropdown"
-                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
+                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Download Logs">
                             </button>
                             <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn" id="save-query-options">
                                 <li id="csv-block" class="query-language-option">Download as CSV</li>
                                 <li id="json-block" class="query-language-option">Download as JSON</li>
                             </div>
                         </div>
-                        <button class="btn show-record-intro-btn below-btn-img" id="show-record-intro-btn"></button>
+                        <button class="btn show-record-intro-btn below-btn-img" id="show-record-intro-btn"  title="Query Response Information"></button>
                     </div>
                     <div id="views-container">
                         <div class="btn-group" role="group" id="log-view">
