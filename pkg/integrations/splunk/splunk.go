@@ -18,6 +18,7 @@ package splunk
 
 import (
 	"encoding/json"
+	"fmt"
 
 	writer "github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/utils"
@@ -27,59 +28,69 @@ import (
 )
 
 func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	postBody := make(map[string]interface{})
+	postBody := make([]map[string]interface{}, 0)
 	err := json.Unmarshal(ctx.PostBody(), &postBody)
-	responsebody := make(map[string]interface{})
+	responseBody := make(map[string]interface{})
 	if err != nil {
 		log.Errorf("ProcessSplunkHecIngestRequest: Unable to parse JSON request body, err=%v", err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = "Unable to parse JSON request body"
-		utils.WriteJsonResponse(ctx, responsebody)
+		responseBody["error"] = "Unable to parse JSON request body"
+		utils.WriteJsonResponse(ctx, responseBody)
 		return
 	}
-	if postBody["index"] == "" || postBody["index"] == nil {
-		log.Errorf("ProcessSplunkHecIngestRequest: Index field is required")
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = "Index field is required"
-		utils.WriteJsonResponse(ctx, responsebody)
-		return
+
+	for _, record := range postBody {
+		err, statusCode := handleSingleRecord(record, myid)
+		if err != nil {
+			log.Errorf("ProcessSplunkHecIngestRequest: Failed to handle record, err=%v", err)
+			ctx.SetStatusCode(statusCode)
+			responseBody["error"] = err.Error()
+			utils.WriteJsonResponse(ctx, responseBody)
+			return
+		}
 	}
-	indexNameIn, ok := postBody["index"].(string)
+
+	responseBody["status"] = "Success"
+	utils.WriteJsonResponse(ctx, responseBody)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func handleSingleRecord(record map[string]interface{}, myid uint64) (error, int) {
+	if record["index"] == "" || record["index"] == nil {
+		record["index"] = "default"
+	}
+
+	indexNameIn, ok := record["index"].(string)
 	if !ok {
-		log.Errorf("ProcessSplunkHecIngestRequest: Index field should be a string")
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = "Index field should be a string"
-		utils.WriteJsonResponse(ctx, responsebody)
-		return
+		return fmt.Errorf("Index field should be a string"), fasthttp.StatusBadRequest
 	}
+
+	recordAsBytes, err := json.Marshal(record)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal record to string"), fasthttp.StatusBadRequest
+	}
+	recordAsString := string(recordAsBytes)
+
 	tsNow := utils.GetCurrentTimeInMs()
 	if !vtable.IsVirtualTablePresent(&indexNameIn, myid) {
-		log.Infof("ProcessSplunkHecIngestRequest: Index name %v does not exist. Adding virtual table name and mapping.", indexNameIn)
-		body := string(ctx.PostBody())
+		log.Infof("handleSingleRecord: Index name %v does not exist. Adding virtual table name and mapping.", indexNameIn)
+
 		err := vtable.AddVirtualTable(&indexNameIn, myid)
 		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
-			responsebody["error"] = "Failed to add virtual table for index"
-			utils.WriteJsonResponse(ctx, responsebody)
-			return
+			return fmt.Errorf("Failed to add virtual table for index"), fasthttp.StatusServiceUnavailable
 		}
-		err = vtable.AddMappingFromADoc(&indexNameIn, &body, myid)
+
+		err = vtable.AddMappingFromADoc(&indexNameIn, &recordAsString, myid)
 		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
-			responsebody["error"] = "Failed to add mapping from a doc for index"
-			utils.WriteJsonResponse(ctx, responsebody)
-			return
+			return fmt.Errorf("Failed to add mapping from a doc for index"), fasthttp.StatusServiceUnavailable
 		}
 	}
+
 	localIndexMap := make(map[string]string)
-	err = writer.ProcessIndexRequest(ctx.PostBody(), tsNow, indexNameIn, uint64(len(ctx.PostBody())), false, localIndexMap, myid)
+	err = writer.ProcessIndexRequest(recordAsBytes, tsNow, indexNameIn, uint64(len(recordAsString)), false, localIndexMap, myid)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
-		responsebody["error"] = "Failed to add entry to in mem buffer"
-		utils.WriteJsonResponse(ctx, responsebody)
-		return
+		return fmt.Errorf("Failed to add entry to in mem buffer"), fasthttp.StatusServiceUnavailable
 	}
-	responsebody["status"] = "Success"
-	utils.WriteJsonResponse(ctx, responsebody)
-	ctx.SetStatusCode(fasthttp.StatusOK)
+
+	return nil, fasthttp.StatusOK
 }
