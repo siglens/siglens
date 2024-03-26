@@ -43,6 +43,9 @@ $(document).ready(function () {
         .catch((err) => {
             console.log(err)
         });
+        var currentUrl = window.location.href;
+        var url = new URL(currentUrl);
+        var baseUrl = url.protocol + '//' + url.hostname;
 
         $('#source-options').on('click', '.source-option', function() {
             selectedLogSource = $(this).text().trim();
@@ -54,10 +57,10 @@ $(document).ready(function () {
             $('#data-ingestion').toggle(showDataIngestion);
             $('#test-data-btn').toggle(!showDataIngestion);
         
-            var curlCommand = 'curl -X POST "localhost:8081/elastic/_bulk" \\\n' +
-                              '-H \'Content-Type: application/json\' \\\n' +
-                              '-d \'{ "index" : { "_index" : "test" } }\n' +
-                              '{ "name" : "john", "age":"23" }\''; 
+            var curlCommand = 'curl -X POST "' + baseUrl + ':8081/elastic/_bulk" \\\n' +
+                            '-H \'Content-Type: application/json\' \\\n' +
+                            '-d \'{ "index" : { "_index" : "test" } }\n' +
+                            '{ "name" : "john", "age":"23" }\'';
             $('#verify-command').text(curlCommand);
         
             switch (selectedLogSource) {
