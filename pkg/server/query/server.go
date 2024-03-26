@@ -169,8 +169,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.LOKI_PREFIX+"/api/v1/series", hs.Recovery(lokiSeriesHandler()))
 
 	//splunk endpoint
-	hs.Router.GET(server_utils.SPLUNK_PREFIX+"/services/collector/health", hs.Recovery(getHealthHandler()))
-	hs.Router.GET(server_utils.SPLUNK_PREFIX+"/services/collector/health/1.0", hs.Recovery(getHealthHandler()))
+	hs.Router.GET("/services/collector/health", hs.Recovery(getHealthHandler()))
+	hs.Router.GET("/services/collector/health/1.0", hs.Recovery(getHealthHandler()))
 
 	//OTSDB query endpoint
 	hs.Router.GET(server_utils.OTSDB_PREFIX+"/api/query", hs.Recovery(otsdbMetricQueryHandler()))
