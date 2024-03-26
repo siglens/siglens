@@ -233,6 +233,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			for {
 				finishesSegment := isLastBlk
 				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
+
 				// If TransactionEventRecords exist, process them first. This implies there might be segments left for TransactionEvent processing.
 				if len(nodeRes.TransactionEventRecords) > 0 {
 

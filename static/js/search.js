@@ -541,8 +541,8 @@ limitations under the License.
      }
      if (filterValue == "") filterValue = "*";
      $("#query-input").val(filterValue);
-     if(thirdBoxSet && thirdBoxSet.size > 0 && (secondBoxSet == null || secondBoxSet.size == 0)) $("#query-builder-btn").addClass("stop-search");
-     else $("#query-builder-btn").removeClass("stop-search");
+     if(thirdBoxSet && thirdBoxSet.size > 0 && (secondBoxSet == null || secondBoxSet.size == 0)) $("#query-builder-btn").addClass("stop-search").prop('disabled', true);
+     else $("#query-builder-btn").removeClass("stop-search").prop('disabled', false);
    return showError ? "Searches with a Search Criteria must have an Aggregate Attribute" : filterValue;
   }
  function getSearchFilter(skipPushState, scrollingTrigger) {

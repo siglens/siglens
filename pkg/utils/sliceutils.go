@@ -16,12 +16,38 @@ limitations under the License.
 
 package utils
 
+import log "github.com/sirupsen/logrus"
+
 func SliceContainsString(slice []string, s string) bool {
-	for i := range slice {
-		if slice[i] == s {
+	for _, v := range slice {
+		if v == s {
 			return true
 		}
 	}
 
 	return false
+}
+
+func SliceContainsInt(slice []int, x int) bool {
+	for _, v := range slice {
+		if v == x {
+			return true
+		}
+	}
+
+	return false
+}
+
+func SelectIndicesFromSlice(slice []string, indices []int) []string {
+	var result []string
+	for _, v := range indices {
+		if v < 0 || v >= len(slice) {
+			log.Errorf("SelectIndicesFromSlice: index %d out of range for slice of length %v", v, len(slice))
+			continue
+		}
+
+		result = append(result, slice[v])
+	}
+
+	return result
 }
