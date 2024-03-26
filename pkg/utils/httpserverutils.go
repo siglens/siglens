@@ -17,10 +17,12 @@ limitations under the License.
 package utils
 
 import (
+	"bytes"
 	"encoding/base64"
-	jsonEncoding "encoding/json"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -401,7 +403,7 @@ func NewSingleESResponse() *SingleESResponse {
 
 func WriteResponse(ctx *fasthttp.RequestCtx, httpResp HttpServerResponse) {
 	ctx.SetContentType(ContentJson)
-	jval, _ := jsonEncoding.Marshal(httpResp)
+	jval, _ := json.Marshal(httpResp)
 	_, err := ctx.Write(jval)
 	if err != nil {
 		return
@@ -410,7 +412,7 @@ func WriteResponse(ctx *fasthttp.RequestCtx, httpResp HttpServerResponse) {
 
 func WriteJsonResponse(ctx *fasthttp.RequestCtx, httpResp interface{}) {
 	ctx.SetContentType(ContentJson)
-	jval, _ := jsonEncoding.Marshal(httpResp)
+	jval, _ := json.Marshal(httpResp)
 	_, err := ctx.Write(jval)
 	if err != nil {
 		return
@@ -838,4 +840,27 @@ func GetDecodedBody(ctx *fasthttp.RequestCtx) ([]byte, error) {
 
 func gunzip(data []byte) ([]byte, error) {
 	return fasthttp.AppendGunzipBytes(nil, data)
+}
+
+// This takes a group of JSON objects (not inside a JSON array) and splits them
+// into individual JSON objects.
+func ExtractSeriesOfJsonObjects(body []byte) ([]map[string]interface{}, error) {
+	var objects []map[string]interface{}
+	decoder := json.NewDecoder(bytes.NewReader(body))
+
+	for {
+		var obj map[string]interface{}
+		if err := decoder.Decode(&obj); err != nil {
+			// If we reach the end of the input, break the loop.
+			if err == io.EOF {
+				break
+			}
+
+			return nil, fmt.Errorf("ExtractSeriesOfJsonObjects: error decoding JSON: %v", err)
+		}
+
+		objects = append(objects, obj)
+	}
+
+	return objects, nil
 }

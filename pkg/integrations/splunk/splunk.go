@@ -17,7 +17,6 @@ limitations under the License.
 package splunk
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -39,22 +38,9 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	for _, line := range bytes.Split(body, []byte("\n")) {
-		if len(line) == 0 {
-			continue
-		}
-
-		jsonLine := make(map[string]interface{})
-		err = json.Unmarshal(line, &jsonLine)
-		if err != nil {
-			log.Errorf("ProcessSplunkHecIngestRequest: Unable to parse JSON request body, err=%v", err)
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			responseBody["error"] = "Unable to parse JSON request body"
-			utils.WriteJsonResponse(ctx, responseBody)
-			return
-		}
-
-		err, statusCode := handleSingleRecord(jsonLine, myid)
+	jsonObjects, err := utils.ExtractSeriesOfJsonObjects(body)
+	for _, record := range jsonObjects {
+		err, statusCode := handleSingleRecord(record, myid)
 		if err != nil {
 			log.Errorf("ProcessSplunkHecIngestRequest: Failed to handle record, err=%v", err)
 			ctx.SetStatusCode(statusCode)
@@ -63,7 +49,6 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			return
 		}
 	}
-
 
 	responseBody["status"] = "Success"
 	utils.WriteJsonResponse(ctx, responseBody)
