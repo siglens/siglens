@@ -53,7 +53,7 @@ $(document).ready(function () {
             $(this).addClass("active");
             $('#source-selection span').html(selectedLogSource);
         
-            var showDataIngestion = ['Vector', 'Logstash', 'Fluentd', 'Filebeat', 'Promtail'].includes(selectedLogSource);
+            var showDataIngestion = ['Vector', 'Logstash', 'Fluentd', 'Filebeat', 'Promtail','Elastic Bluk','Splunk HEC'].includes(selectedLogSource);
             $('#data-ingestion').toggle(showDataIngestion);
             $('#test-data-btn').toggle(!showDataIngestion);
         
@@ -70,8 +70,20 @@ $(document).ready(function () {
                 case 'Filebeat':
                 case 'Promtail':
                     $('#platform-input').val(selectedLogSource);
-                    $('#source-token-input').val('3yoZAtXwKrjWaSfWxSDmPVGv');
                     $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/' + selectedLogSource.toLowerCase());
+                    break;
+                case 'Elastic Bluk':
+                    $('#platform-input').val(selectedLogSource);
+                    $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/elasticsearch/fluentd');
+                    break;
+                case 'Splunk HEC':
+                    $('#platform-input').val(selectedLogSource);
+                    $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/splunk/fluentd');
+                    curlCommand = 'curl -X POST "' + baseUrl + ':8081/splunk/services/collector/event" \\\n' +
+                            '-H "Authorization: A94A8FE5CCB19BA61C4C08"  \\\n' +
+                            '-d \'{ "index" : { "_index" : "test" } }\n' +
+                            '{ "name" : "john", "age":"23" }\'';
+                    $('#verify-command').text(curlCommand);
                     break;
                 case 'Send Test Data':
                     $('#test-data-btn').show();
