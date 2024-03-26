@@ -395,7 +395,6 @@ function runFilterBtnHandler(evt) {
       doCancel(data);
     }
     $('#daterangepicker').hide();
-    
 }
 
 function filterInputHandler(evt) {
