@@ -26,6 +26,9 @@ jobs:
           SSH_USER: ${{ secrets.PG_SSH_USER }}
           SSH_KEY: ${{ secrets.PG_SSH_PRIVATE_KEY }}
           SSH_HOST: ${{ secrets.PG_HOST }}
+      - name: Check path
+        run: |
+          ssh playground 'echo $PATH'
       - name: Export Environment Variables and Execute Install Script
         run: |
           ssh playground 'export TERM=xterm; export SERVERNAME=${{ secrets.PG_SERVERNAME }}; cd ${{ secrets.PG_DOCKER_INSTALL_PATH }}; curl -L https://siglens.com/install.sh | sh'
