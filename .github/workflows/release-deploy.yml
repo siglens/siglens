@@ -28,11 +28,11 @@ jobs:
           SSH_HOST: ${{ secrets.PG_HOST }}
       - name: Export Environment Variables and Execute Install Script
         run: |
-          ssh -t playground 'export TERM=xterm; export SERVERNAME=${{ secrets.PG_SERVERNAME }}; cd ${{ secrets.PG_DOCKER_INSTALL_PATH }}; curl -L https://siglens.com/install.sh | sh'
+          ssh -T playground 'export TERM=xterm; export SERVERNAME=${{ secrets.PG_SERVERNAME }}; cd ${{ secrets.PG_DOCKER_INSTALL_PATH }}; curl -L https://siglens.com/install.sh | sh'
       - name: Verify Server Start
         run: |
           sleep 5
-          ssh -t playground 'export TERM=xterm; if ! curl --silent http://localhost:5122 | head -n 30; then echo "Server did not start within 5 seconds"; exit 1; fi'
+          ssh -T playground 'export TERM=xterm; if ! curl --silent http://localhost:5122 | head -n 30; then echo "Server did not start within 5 seconds"; exit 1; fi'
       - name: Start Sigclient
         run: |
-          ssh -t playground 'export TERM=xterm; sudo nohup ${{ secrets.PG_LOAD_TEST_PATH }} ingest esbulk -b 1 -d http://localhost:8081/elastic -g dynamic-user -n 1 -c > /dev/null 2>${{ secrets.PG_INGEST_LOG_FILE }} &'
+          ssh -T playground 'export TERM=xterm; sudo nohup ${{ secrets.PG_LOAD_TEST_PATH }} ingest esbulk -b 1 -d http://localhost:8081/elastic -g dynamic-user -n 1 -c > /dev/null 2>${{ secrets.PG_INGEST_LOG_FILE }} &'
