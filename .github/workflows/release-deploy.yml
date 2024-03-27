@@ -31,7 +31,7 @@ jobs:
           ssh playground 'echo $PATH'
       - name: Export Environment Variables and Execute Install Script
         run: |
-          ssh playground 'export TERM=xterm; export SERVERNAME=${{ secrets.PG_SERVERNAME }}; cd ${{ secrets.PG_DOCKER_INSTALL_PATH }}; curl -L https://siglens.com/install.sh | sh'
+          ssh playground 'bash -lc "export TERM=xterm; export SERVERNAME=${{ secrets.PG_SERVERNAME }}; cd ${{ secrets.PG_DOCKER_INSTALL_PATH }}; curl -L https://siglens.com/install.sh | sh"'
       - name: Verify Server Start
         run: |
           sleep 5
