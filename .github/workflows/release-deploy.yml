@@ -3,7 +3,6 @@ name: release-deploy.yml
 on:
   release:
     types: [created]
-  push: 
 
 jobs:
   deploy:
