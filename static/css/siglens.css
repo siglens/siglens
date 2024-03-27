@@ -890,7 +890,7 @@ input.form-control {
     border-radius: 5px;
     transition: none;
     box-shadow: none !important;
-    padding-right: 2rem !important;
+    padding-right: 2rem !important; /* Adjust padding in input bars */
 }
 
 input.form-control:focus {
