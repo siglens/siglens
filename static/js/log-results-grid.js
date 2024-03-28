@@ -153,20 +153,32 @@ const gridOptions = {
             let diff = logsRowData.length - evt.api.getLastDisplayedRow();
             // if we're less than 1 items from the end...fetch more data
             if(diff <= 5) {
+                // Show loading indicator
+                showLoadingIndicator();
+                
                 let scrollingTrigger = true;
                 data = getSearchFilter(false, scrollingTrigger);
                 if (data && data.searchText == "error") {
                   alert("Error");
+                  hideLoadingIndicator(); // Hide loading indicator on error
                   return;
                 }
-                doSearch(data);
+                doSearch(data).then(() => {
+                    hideLoadingIndicator(); // Hide loading indicator once data is fetched
+                });
             }
         }
     },
-    
-      
+    overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
 };
 
+function showLoadingIndicator() {
+    gridOptions.api.showLoadingOverlay();
+}
+
+function hideLoadingIndicator() {
+    gridOptions.api.hideOverlay();
+}
 
 const myCellRenderer= (params) => {
     let logString = '';
