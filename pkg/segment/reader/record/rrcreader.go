@@ -248,7 +248,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					}
 				} else if nodeRes.PerformAggsOnRecs {
 					resultRecMap = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, finishesSegment, qid)
-					// By default set PerformAggsOnRecs, otherwise the execution will immediately return here from PostQueryBucketCleaning;
+					// By default reset PerformAggsOnRecs flag, otherwise the execution will immediately return here from PostQueryBucketCleaning;
 					// Without performing the aggs from the start for the next segment or next bulk.
 					nodeRes.PerformAggsOnRecs = false
 					if len(resultRecMap) > 0 {
