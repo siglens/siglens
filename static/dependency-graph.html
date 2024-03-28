@@ -39,6 +39,10 @@
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script src="./js/lib/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.18.2/cytoscape.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js"></script>
+    
     {{ .RunCheck1 | safeHTML }}
 </head>
 
@@ -54,6 +58,7 @@
             <div class="subsection-navbar">
             </div>
             <div id="dependency-graph-container" class="position-relative "> 
+                <div id="dependency-graph-canvas" class="m-0"></div>
                 <div class="position-absolute" style="bottom:11px; right:40px;">
                     Dependency Graph generated at:  <span id="last-run-timestamp"></span>
                 </div>

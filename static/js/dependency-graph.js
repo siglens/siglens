@@ -33,19 +33,16 @@ const colorArray = [
     "#E55D9A",
     "#597C53",
 ];
-
-let svgWidth;
-let svgHeight;
-
+let colorMap = {};
+let graphData;
 $(document).ready(() => {
     if (Cookies.get("theme")) {
         theme = Cookies.get("theme");
         $("body").attr("data-theme", theme);
     }
     $(".theme-btn").on("click", themePickerHandler);
+    $('.theme-btn').on('click', getServiceDependencyData);
 
-    svgWidth = $("#dependency-graph-container").width();
-    svgHeight = $("#dependency-graph-container").height();
 
     $("#error-msg-container, #dependency-info").hide();
     getServiceDependencyData();
@@ -83,7 +80,8 @@ function getServiceDependencyData() {
             } else {
                 $("#dependency-graph-container,#dependency-info").show();
                 $("#error-msg-container").hide();
-                createDependencyMatrix(res);
+                graphData = res;
+                displayDependencyGraph(graphData);
                 var lastRunTimestamp =moment(res.timestamp);
                 var formattedDate = lastRunTimestamp.format("DD-MMM-YYYY hh:mm:ss");
                 $('#last-run-timestamp').text(formattedDate);
@@ -96,160 +94,120 @@ function getServiceDependencyData() {
     });
 }
 
-function createDependencyMatrix(res) {
-    const data = {};
-    const nodes = [];
-    const links = [];
-
-    for (const key in res) {
-        if (key !== "_index" && key !== "timestamp") {
-            data[key] = res[key];
-        }
+function displayDependencyGraph(data) {
+  let edgeColor, labelColor, labelbgColor;
+  if ($('body').attr('data-theme') == "light") {
+      edgeColor = "#6F6B7B";
+      labelColor = "#262038";
+      labelbgColor = "#FFF";
     }
+    else {
+      edgeColor = "#DCDBDF";
+      labelColor = "#FFF";
+      labelbgColor = "#262038";
+  }
 
-    Object.keys(data).forEach((parentNode) => {
-        if (!nodes.some((node) => node.id === parentNode)) {
-            nodes.push({ id: parentNode });
-        }
-        // Iterate through parent node
-        Object.keys(data[parentNode]).forEach((childNode) => {
-            if (!nodes.some((node) => node.id === childNode)) {
-                nodes.push({ id: childNode });
-            }
-            // Add link
-            links.push({
-                source: parentNode,
-                target: childNode,
-                value: data[parentNode][childNode],
-            });
-        });
-    });
+  let nestedKeys = [];
+  for (let key in data) {
+    if (typeof data[key] === 'object' && key !== '_index' && key !== 'timestamp') {
+      nestedKeys.push(...Object.keys(data[key]));
+    }
+  }
 
-    displayDependencyGraph(nodes, links);
-}
-
-function displayDependencyGraph(nodes, links) {
-  const svg = d3
-    .select("#dependency-graph-container")
-    .append("svg")
-    .attr("width", svgWidth)
-    .attr("height", svgHeight)
-    .call(
-      d3.zoom().on("zoom", (event) => {
-        svg.attr("transform", event.transform);
-      })
-    )
-    .append("g");
-
-  const simulation = d3
-    .forceSimulation(nodes)
-    .force(
-      "link",
-      d3
-        .forceLink(links)
-        .id((d) => d.id)
-        .distance(200)
-        .strength(0.5)
-    )
-    .force("charge", d3.forceManyBody().strength(-300))
-    .force("center", d3.forceCenter(svgWidth / 2, svgHeight))
-    .force(
-      "radial",
-      d3
-        .forceRadial(
-          Math.min(svgWidth, svgHeight) / 2,
-          svgWidth / 2,
-          svgHeight / 2
-        )
-        .strength(0.1)
-    );
-
-  svg
-    .append("defs")
-    .append("marker")
-    .attr("id", "arrowhead")
-    .attr("viewBox", "-0 -5 10 10")
-    .attr("refX", 23)
-    .attr("refY", 0)
-    .attr("orient", "auto")
-    .attr("markerWidth", 12)
-    .attr("markerHeight", 12)
-    .attr("xoverflow", "visible")
-    .append("svg:path")
-    .attr("d", "M 0,-5 L 10 ,0 L 0,5");
-
-  const link = svg
-    .selectAll(".links")
-    .data(links)
-    .enter()
-    .append("line")
-    .attr("class", "links line")
-    .attr("marker-end", "url(#arrowhead)");
-
-  const node = svg
-    .selectAll("circle")
-    .data(nodes)
-    .enter()
-    .append("circle")
-    .attr("r", 20)
-    .attr("fill", (d, i) => colorArray[i % colorArray.length])
-    .call(
-      d3
-        .drag()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended)
-    );
-
-  const label = svg
-    .selectAll(".label")
-    .data(nodes)
-    .enter()
-    .append("text")
-    .text((d) => d.id)
-    .attr("class", "label");
-
-  const linkLabel = svg
-    .selectAll(".link-label")
-    .data(links)
-    .enter()
-    .append("text")
-    .text((d) => d.value)
-    .attr("class", "link-label")
-    .attr("dy", -10)
-    .attr("dx", -10);
-
-  simulation.on("tick", () => {
-    link
-      .attr("x1", (d) => d.source.x)
-      .attr("y1", (d) => d.source.y)
-      .attr("x2", (d) => d.target.x)
-      .attr("y2", (d) => d.target.y);
-
-    node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
-
-    label.attr("x", (d) => d.x - 10).attr("y", (d) => d.y - 25);
-
-    linkLabel
-      .attr("x", (d) => (d.source.x + d.target.x) / 2)
-      .attr("y", (d) => (d.source.y + d.target.y) / 2);
+  // Add missing keys to the main object with empty objects as values
+  nestedKeys.forEach(key => {
+    if (!data.hasOwnProperty(key)) {
+      data[key] = {};
+    }
   });
 
-  function dragstarted(event, d) {
-    if (!event.active) simulation.alphaTarget(0.3).restart();
-    d.fx = d.x;
-    d.fy = d.y;
-  }
+  // Extracting nodes from the data
+  const nodes = Object.keys(data).filter(key => key !== "_index" && key !== "timestamp").map(node => ({ data: { id: node } }));
 
-  function dragged(event, d) {
-    d.fx = event.x;
-    d.fy = event.y;
-  }
+  // Extracting links from the data
+  const links = [];
+  Object.keys(data).forEach(sourceNode => {
+    if (sourceNode !== "_index" && sourceNode !== "timestamp") {
+      Object.keys(data[sourceNode]).forEach(targetNode => {
+        if (sourceNode !== targetNode) {
 
-  function dragended(event, d) {
-    if (!event.active) simulation.alphaTarget(0);
-    d.fx = null;
-    d.fy = null;
-  }
+          if (data[targetNode]) {
+            links.push({
+              data: {
+                id: `${sourceNode}-${targetNode}`,
+                source: sourceNode,
+                target: targetNode,
+                value: data[sourceNode][targetNode]
+              }
+            });
+          }
+        }
+      });
+    }
+  });
+
+  const cy = cytoscape({
+    container: document.getElementById('dependency-graph-canvas'),
+    elements: {
+      nodes: nodes,
+      edges: links
+    },
+
+    layout: {
+      name: 'dagre', // for hierarchical layout
+      rankDir: 'TB',
+      nodeSep: 100, 
+      edgeSep: 30, 
+      rankSep: 50, 
+      padding: 20 
+    },
+
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'label': 'data(id)',
+          'color': labelColor,
+          'text-valign': 'bottom',
+          'text-halign': 'right',
+          'font-weight': 'normal',
+          'font-family': 'DINpro', 
+          'text-margin-y': -10,
+          'background-color': function(ele) {
+            const nodeId = ele.data('id');
+            if (!colorMap.hasOwnProperty(nodeId)) {
+              const color = colorArray[Object.keys(colorMap).length % colorArray.length];
+              colorMap[nodeId] = color;
+            }
+            return colorMap[nodeId];
+          },
+          'text-outline-color': labelbgColor,
+          'text-outline-width': '1px', 
+        }
+      },
+      {
+        selector: 'edge',
+        style: {
+          'width': 1,
+          'line-color': edgeColor,
+          'target-arrow-color': edgeColor,
+          'target-arrow-shape': 'triangle',
+          'label': 'data(value)',
+          'font-size': '14px',
+          'color': labelColor,
+          'text-background-color': labelbgColor,
+          'text-background-opacity': 0.7,
+          'text-background-padding': '1px',
+          'curveStyle': 'bezier',
+          // 'arrow-scale': 0.5 
+        }
+      }
+    ]
+  });
+
+  // Enable dragging
+  cy.nodes().forEach(function(node) {
+    node.grabify();
+  });
 }
 
