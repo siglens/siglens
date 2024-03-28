@@ -380,7 +380,9 @@ function runFilterBtnHandler(evt) {
       $("#run-filter-btn").text() === " " ||
       $("#query-builder-btn").text() === " "
     ) {
-
+      if (chart != null && chart != "" && chart != undefined) {
+        echarts.dispose(chart);
+      }
       resetDashboard();
       logsRowData = [];
       wsState = "query";
