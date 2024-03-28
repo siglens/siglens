@@ -5164,10 +5164,10 @@ input.form-control {
 
 .loading-icon {
     display: block;
-    width: 30px;
-    height: 30px;
-    border: 5px solid #B4A6E6;
-    border-top: 5px solid #6347D9;
+    width: 50px;
+    height: 50px;
+    border: 8px solid #B4A6E6;
+    border-top: 8px solid #6347D9;
     border-radius: 50%;
     animation: spin 2s linear infinite;
     position: absolute;
@@ -5180,4 +5180,17 @@ input.form-control {
 @keyframes spin {
     0% { transform: translate(-50%, -50%) rotate(0deg); }
     100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.ag-overlay-loading-center{
+    position: relative;
+}
+
+.loading-text{
+    position: absolute;
+    font-weight: 600;
+    top: 20px;
+    left: -36px;
+    background-color: var(--bg-color);
+    padding: 8px;
 }

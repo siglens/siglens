@@ -169,7 +169,7 @@ const gridOptions = {
             }
         }
     },
-    overlayLoadingTemplate: '<div class="ag-overlay-loading-center loading-icon"></div>',
+    overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
 };
 
 function showLoadingIndicator() {
