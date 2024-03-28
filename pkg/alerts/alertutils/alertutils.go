@@ -17,6 +17,9 @@ limitations under the License.
 package alertutils
 
 import (
+	"database/sql/driver"
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/go-co-op/gocron"
@@ -94,14 +97,38 @@ type Contact struct {
 	Email       []string           `json:"email" gorm:"type:text[]"`
 	Slack       []SlackTokenConfig `json:"slack" gorm:"many2many:slack_contact;auto_preload"`
 	PagerDuty   string             `json:"pager_duty"`
-	Webhook     []string           `json:"webhook" gorm:"type:text[]"`
+	Webhook     []string `json:"webhook" gorm:"-"`
+	WebhookStr  string             `gorm:"column:webhook" json:"-"`
 	OrgId       uint64             `json:"org_id"`
 }
+
+func (c *Contact) Value() (driver.Value, error) {
+	return strings.Join(c.Webhook, ","), nil
+}
+
+func (c *Contact) Scan(value interface{}) error {
+	if value == nil {
+		c.Webhook = []string{}
+		return nil
+	}
+	s, ok := value.(string)
+	if !ok {
+		return errors.New("unexpected type for webhook")
+	}
+	c.Webhook = strings.Split(s, ",")
+	return nil
+}
+
 
 type SlackTokenConfig struct {
 	ID        uint   `gorm:"primaryKey;autoIncrement:true"`
 	ChannelId string `json:"channel_id"`
 	SlToken   string `json:"slack_token"`
+}
+
+type WebhookTokenConfig struct {
+	ID        uint   `gorm:"primaryKey;autoIncrement:true"`
+	Webhook   string `json:"webhook"`
 }
 
 func (SlackTokenConfig) TableName() string {

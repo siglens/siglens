@@ -99,6 +99,11 @@ $(document).ready(function () {
         initializeContactForm();
     }
 
+    $('#save-contact-btn').on('click', function (e) {
+        e.preventDefault(); // Prevent the default form submission behavior
+        createContactPoint(); 
+    });
+
     const tooltipIds = ["info-slack-channel-id", "info-slack-token"];
 
     tooltipIds.forEach(id => {
