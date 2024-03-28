@@ -3169,6 +3169,8 @@ float: right;
 }
 
 .search-db-input,.metrics-input{
+    padding-left: 1rem;
+    padding-right: 4.4rem;
     height: 32px;
 }
 
