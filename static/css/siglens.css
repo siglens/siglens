@@ -5161,3 +5161,23 @@ input.form-control {
     height: 12px;
     top: 9px;
 }
+
+.loading-icon {
+    display: block;
+    width: 30px;
+    height: 30px;
+    border: 5px solid #B4A6E6;
+    border-top: 5px solid #6347D9;
+    border-radius: 50%;
+    animation: spin 2s linear infinite;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 99;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
