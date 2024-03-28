@@ -118,11 +118,11 @@ function createPanelToNewDashboard() {
             var queryString = "?id=" + Object.keys(res)[0];
             window.location.href = "../dashboard.html" + queryString;
         }).catch(function (updateError) {
-			if (updateError.status === 409) {
-			  $('.error-tip').text('Dashboard name already exists!');
-			  $('.error-tip').addClass('active');
-			}
-		  });
+            if (updateError.status === 409) {
+                $('.error-tip').text('Dashboard name already exists!');
+                $('.error-tip').addClass('active');
+            }
+        });
     }
 }
 
@@ -158,17 +158,17 @@ function displayExistingDashboards() {
                 // Add empty list item when there are no additional dashboards
                 dropdown.html(`<li class="dashboard"></li>`);
             } else {
-            $.each(res, function (id, dashboardName) {
-                // exclude default dashboards
-                if (!defaultDashboardIds.includes(id) && !existingDashboards.includes(id)) {
-                    dropdown.append(`<li class="dashboard" id="${id}">${dashboardName}</li>`);
-                    existingDashboards.push(id);
-                }
-            });
-            dropdown.off("click", ".dashboard");
-            dropdown.on("click", ".dashboard", selectDashboardHandler);
+                $.each(res, function (id, dashboardName) {
+                    // exclude default dashboards
+                    if (!defaultDashboardIds.includes(id) && !existingDashboards.includes(id)) {
+                        dropdown.append(`<li class="dashboard" id="${id}">${dashboardName}</li>`);
+                        existingDashboards.push(id);
+                    }
+                });
+                dropdown.off("click", ".dashboard");
+                dropdown.on("click", ".dashboard", selectDashboardHandler);
+            }
         }
-    }
     });
 }
 
@@ -180,7 +180,7 @@ function selectDashboardHandler() {
     $(this).addClass("active");
     dashboardID = $(this).attr("id");
     let dashboard;
-    
+
     // Get the selected dashboard details
     function createPanelToExistingDashboard() {
         $.ajax({
@@ -281,16 +281,72 @@ function createPanel(panelIndex, startEpoch) {
     return panel;
 }
 
-$('#alert-from-logs-btn').click(function() {
-    var queryParams = {
-        "queryLanguage": data.queryLanguage,
-        "searchText": data.searchText,
-        "startEpoch": data.startEpoch,
-        "endEpoch": data.endEpoch,
-    };
-    var queryString = $.param(queryParams);
+// When the 'alert-from-logs-btn' button is clicked
+$('#alert-from-logs-btn').click(function () {
+    // Remove any existing modal with the same ID
+    $('#createAlertModal').remove();
 
-    // Open the alert.html in a new tab
-    var newTab = window.open("../alert.html" + "?" + queryString, '_blank');
-    newTab.focus();
+    
+
+    // Create the HTML string for the modal
+    var modalHtml = `
+        <div class="modal fade" id="createAlertModal" tabindex="-1" role="dialog" aria-labelledby="createAlertModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="createAlertModalLabel">Create Alert</h5>
+                    </div>
+                    <div class="modal-body">
+                        <form id="alert-form">
+                            <div class="form-group">
+                                <label for="alert-rule-name">Enter alert rule name</label>
+                                <input type="text" class="form-control" id="alert-rule-name-modal" placeholder="Name" required>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="create-alert">Create</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Append the modal HTML to the body
+    $('body').append(modalHtml);
+
+    // Show the modal
+    $('#createAlertModal').modal('show');
+
+    // Event handler for the "Create" button inside the modal
+    $('#create-alert').click(function () {
+        // Retrieve the rule name entered by the user
+        var ruleName = $('#alert-rule-name-modal').val().trim();
+
+        if (ruleName) {
+            // Set the rule name to an input field elsewhere on the page
+            $('#alert-rule-name').val(ruleName);
+
+            // Assuming you want to redirect to a new page, passing the rule name as a query parameter
+            window.location.href = "../alert.html?ruleName=" + encodeURIComponent(ruleName);
+
+            // Close the modal
+            $('#createAlertModal').modal('hide');
+        } else {
+            // Alert the user if the rule name field is empty
+            alert('Please enter a rule name.');
+        }
+    });
+
+    // When the modal is closed, remove it from the DOM to prevent residue
+    $('#createAlertModal').on('hidden.bs.modal', function () {
+        $(this).remove();
+    });
+
+    // Manually handle the closing of the modal with jQuery
+    $(document).on('click', '.btn-secondary', function () {
+        $('#createAlertModal').modal('hide');
+    });
 });
+
