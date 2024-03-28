@@ -48,6 +48,21 @@ $(document).ready(() => {
     });
 });
 
+// Show clear button when there's input
+$("#metrics-input").on("input", function() {
+    if ($(this).val().trim() !== "") {
+        $("#clearMetricsInput").show();
+    } else {
+        $("#clearMetricsInput").hide();
+    }
+});
+
+// Clear input when the clear button is clicked
+$("#clearMetricsInput").click(function() {
+    $("#metrics-input").val("").focus();
+    $(this).hide();
+});
+
 function setupMetricsEventHandlers() {
     $('#filter-metrics-input').on('keyup', filterMetricsInputHandler);
     $('#run-metrics-query-btn').on('click', runMetricsFilterBtnHandler);
