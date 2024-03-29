@@ -863,6 +863,7 @@ func applySegmentStatsUsingDictEncoding(mcr *segread.MultiColSegmentReader, filt
 				case string:
 					stats.AddSegStatsStr(lStats, colName, val, bb, aggColUsage, hasValuesFunc)
 				default:
+					// This means the column is not dict encoded. So add it to the return value
 					retVal[colName] = true
 					log.Errorf("qid=%d, segmentStatsWorker found a non string or non-numeric in a dict encoded segment. CName %+s", qid, colName)
 				}
