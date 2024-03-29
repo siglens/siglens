@@ -117,7 +117,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			defValue := nowTs - (15 * 60 * 1000)
 			startEpoch, err = parseAlphaNumTime(nowTs, string(val), defValue)
 			if err != nil {
-				log.Errorf("parseSearchBody: Error parsing startEpoch value", err)
+				log.Errorf("parseSearchBody: Error parsing startEpoch value. err=%v", err)
 			}
 		default:
 			startEpoch = nowTs - (15 * 60 * 1000)
@@ -141,7 +141,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case string:
 			endEpoch, err = parseAlphaNumTime(nowTs, string(val), nowTs)
 			if err != nil {
-				log.Errorf("parseSearchBody: Error parsing endEpoch value", err)
+				log.Errorf("parseSearchBody: Error parsing endEpoch value. err=%v", err)
 			}
 		default:
 			endEpoch = nowTs
@@ -254,7 +254,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, err := ParseSearchBody(readJSON, nowTs)
 	if err != nil {
-		log.Errorf("ParseSearchBody: Error parsing value", err)
+		log.Errorf("ParseSearchBody: Error parsing value. err=%v", err)
 		return -1
 	}
 
@@ -373,7 +373,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, err := ParseSearchBody(readJSON, nowTs)
 	if err != nil {
-		log.Errorf("ParseSearchBody: Error parsing value", err)
+		log.Errorf("ParseSearchBody: Error parsing value. err=%v", err)
 		return
 	}
 	if scrollFrom > 10_000 {
