@@ -30,8 +30,11 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
-
+	searchText, startEpoch, endEpoch, _, _, _, err := pipesearch.ParseSearchBody(readJSON, nowTs)
+	if err != nil {
+		writeErrMsg(ctx, "ParseSearchBody", "could not parse and validate Search body", err)
+		return
+	}
 	page := 1
 	pageVal, ok := readJSON["page"]
 	if !ok || pageVal == 0 {
