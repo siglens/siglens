@@ -385,6 +385,8 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 				break
 			}
 
+			sizeLimit = uint64(aggs.OutputTransforms.MaxRows)
+
 			useAnySegKey = true
 		}
 
