@@ -570,7 +570,7 @@ func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) (uint64, error
 	strln := len(sanTime)
 	patternMatch := r.MatchString(sanTime)
 	if !patternMatch {
-		return retVal, fmt.Errorf("parseAlphaNumTime: Error parsing time.")
+		return retVal, fmt.Errorf("parseAlphaNumTime: Error parsing time. %v", patternMatch)
 	}
 
 	//extracting Unit from the string
