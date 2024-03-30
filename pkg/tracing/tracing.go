@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
+	traceNoop "go.opentelemetry.io/otel/trace/noop"
 )
 
 type customExporter struct {
@@ -43,6 +44,9 @@ func (ce *customExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnl
 			fmt.Println("Disabling tracing due to repeated export failures.")
 			log.Errorf("Disabling tracing due to repeated export failures.")
 			config.SetTracingEnabled(false)
+
+			// Set the tracer provider to a no-op provider. This will prevent any further spans from being exported.
+			otel.SetTracerProvider(traceNoop.NewTracerProvider())
 
 			// Shut down the custom exporter to clean up resources.
 			if shutdownErr := ce.Shutdown(ctx); shutdownErr != nil {
