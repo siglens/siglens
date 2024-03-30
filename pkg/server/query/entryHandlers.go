@@ -568,6 +568,12 @@ func getDependencyGraphHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func createDependencyGraphHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(tracinghandler.ProcessDepgraphRequest, ctx)
+	}
+}
+
 func ganttChartHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(tracinghandler.ProcessGanttChartRequest, ctx)
