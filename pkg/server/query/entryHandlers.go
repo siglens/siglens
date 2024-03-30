@@ -568,7 +568,7 @@ func getDependencyGraphHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func createDependencyGraphHandler() func(ctx *fasthttp.RequestCtx) {
+func generateDependencyGraphHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(tracinghandler.ProcessDepgraphRequest, ctx)
 	}

@@ -227,7 +227,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	// tracing api endpoints
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/search", hs.Recovery(searchTracesHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/traces/dependencies", hs.Recovery(getDependencyGraphHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/traces/generate-dep-graph", hs.Recovery(createDependencyGraphHandler()))
+	hs.Router.POST(server_utils.API_PREFIX+"/traces/generate-dep-graph", hs.Recovery(generateDependencyGraphHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/ganttChart", hs.Recovery(ganttChartHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/count", hs.Recovery((totalTracesHandler())))
 	// query server should still setup ES APIs for Kibana integration
