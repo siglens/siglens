@@ -38,6 +38,12 @@ type TLSConfig struct {
 	PrivateKeyPath  string `yaml:"privateKeyPath"`  // path to private key file
 }
 
+type TracingConfig struct {
+	Enabled     bool   `yaml:"enabled"`     // enable/disable tracing
+	ServiceName string `yaml:"serviceName"` // service name for tracing
+	Endpoint    string `yaml:"endpoint"`    // endpoint URL for tracing
+}
+
 type AlertConfig struct {
 	Enabled  bool   `yaml:"enabled"`
 	Provider string `yaml:"provider"`
@@ -99,6 +105,7 @@ type Configuration struct {
 	S3                         S3Config       `yaml:"s3"`            // s3 related config
 	Log                        LogConfig      `yaml:"log"`           // Log related config
 	TLS                        TLSConfig      `yaml:"tls"`           // TLS related config
+	Tracing                    TracingConfig  `yaml:"tracing"`       // Tracing related config
 	EmailConfig                EmailConfig    `yaml:"emailConfig"`
 	DatabaseConfig             DatabaseConfig `yaml:"minionSearch"`
 }

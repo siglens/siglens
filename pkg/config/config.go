@@ -188,6 +188,22 @@ func GetQueryHostname() string {
 	return runningConfig.QueryHostname
 }
 
+func SetTracingEnabled(flag bool) {
+	runningConfig.Tracing.Enabled = flag
+}
+
+func IsTracingEnabled() bool {
+	return runningConfig.Tracing.Enabled
+}
+
+func GetTracingServiceName() string {
+	return runningConfig.Tracing.ServiceName
+}
+
+func GetTracingEndpoint() string {
+	return runningConfig.Tracing.Endpoint
+}
+
 // returns SmtpHost, SmtpPort, SenderEmail and GmailAppPassword
 func GetEmailConfig() (string, int, string, string) {
 	return runningConfig.EmailConfig.SmtpHost, runningConfig.EmailConfig.SmtpPort, runningConfig.EmailConfig.SenderEmail, runningConfig.EmailConfig.GmailAppPassword
@@ -471,6 +487,7 @@ func GetTestConfig() common.Configuration {
 		QueryHostname:              "",
 		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 		TLS:                        common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
+		Tracing:                    common.TracingConfig{Enabled: false, ServiceName: "", Endpoint: ""},
 		DatabaseConfig:             common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
 		EmailConfig:                common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
 	}
@@ -680,6 +697,16 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 
 	if len(config.TLS.PrivateKeyPath) >= 0 && strings.HasPrefix(config.TLS.PrivateKeyPath, "./") {
 		config.TLS.PrivateKeyPath = strings.Trim(config.TLS.PrivateKeyPath, "./")
+	}
+
+	if len(config.Tracing.ServiceName) <= 0 {
+		config.Tracing.ServiceName = "siglens"
+	}
+
+	if config.Tracing.Enabled && len(config.Tracing.Endpoint) <= 0 {
+		fmt.Println("Tracing is Enabled but the Tracing Endpoint is not set. Tracing will be disabled. Please set the endpoint in the config file.")
+		log.Errorf("Tracing is Enabled but the Tracing Endpoint is not set. Tracing will be disabled. Please set the endpoint in the config file.")
+		config.Tracing.Enabled = false
 	}
 
 	return config, nil
