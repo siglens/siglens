@@ -3,6 +3,7 @@ package tracing
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/siglens/siglens/pkg/config"
 	log "github.com/sirupsen/logrus"
@@ -15,6 +16,46 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
+
+type customExporter struct {
+	exporter     *otlptrace.Exporter
+	failureCount int
+	lock         sync.Mutex
+}
+
+// Shutdown implements trace.SpanExporter.
+func (ce *customExporter) Shutdown(ctx context.Context) error {
+	log.Info("Shutting down the exporter")
+	return ce.exporter.Shutdown(ctx)
+}
+
+func (ce *customExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
+	err := ce.exporter.ExportSpans(ctx, spans)
+	ce.lock.Lock()
+	defer ce.lock.Unlock()
+
+	if err != nil {
+		ce.failureCount++
+		log.Errorf("Traces export failed: %v", err)
+
+		// Check if the failure threshold is exceeded.
+		if ce.failureCount >= 3 {
+			fmt.Println("Disabling tracing due to repeated export failures.")
+			log.Errorf("Disabling tracing due to repeated export failures.")
+			config.SetTracingEnabled(false)
+
+			// Shut down the custom exporter to clean up resources.
+			if shutdownErr := ce.Shutdown(ctx); shutdownErr != nil {
+				log.Errorf("Failed to shut down the tracer provider: %v", shutdownErr)
+			}
+		}
+	} else {
+		// Reset failure count on a successful export.
+		ce.failureCount = 0
+	}
+
+	return err
+}
 
 // InitTracing initializes the OpenTelemetry tracing.
 func InitTracing(serviceName string) func() {
@@ -47,6 +88,10 @@ func InitTracing(serviceName string) func() {
 		log.Fatalf("Failed to create the trace exporter: %v", err)
 	}
 
+	customExporter := &customExporter{
+		exporter: exporter,
+	}
+
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(serviceName),
@@ -58,7 +103,7 @@ func InitTracing(serviceName string) func() {
 
 	tp := trace.NewTracerProvider(
 		// trace.WithSampler(trace.AlwaysSample()), // Change this to trace.NeverSample() for production
-		trace.WithBatcher(exporter),
+		trace.WithBatcher(customExporter),
 		trace.WithResource(res),
 	)
 
@@ -74,6 +119,11 @@ func InitTracing(serviceName string) func() {
 // traceMiddleware wraps the fasthttp request handler to start and end a tracing span.
 func TraceMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return func(ctx *fasthttp.RequestCtx) {
+		if !config.IsTracingEnabled() {
+			next(ctx)
+			return
+		}
+
 		tracer := otel.GetTracerProvider().Tracer("fasthttp-server")
 		ctxWithSpan, span := tracer.Start(context.Background(), fmt.Sprintf("%s %s", string(ctx.Method()), string(ctx.Path())))
 		defer span.End()
