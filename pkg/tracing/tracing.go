@@ -70,8 +70,8 @@ func InitTracing(serviceName string) func() {
 	}
 
 	if serviceName == "" {
-		log.Errorf("Service name is required to initialize tracing")
-		serviceName = "unknown"
+		log.Errorf("Service name was not provided in config, assuming a default service name as siglens")
+		serviceName = "siglens"
 	}
 
 	if config.GetTracingEndpoint() == "" {
@@ -89,7 +89,7 @@ func InitTracing(serviceName string) func() {
 
 	exporter, err := otlptrace.New(ctx, client)
 	if err != nil {
-		log.Fatalf("Failed to create the trace exporter: %v", err)
+		log.Errorf("Failed to create the trace exporter: %v", err)
 	}
 
 	customExporter := &customExporter{
@@ -102,7 +102,7 @@ func InitTracing(serviceName string) func() {
 		),
 	)
 	if err != nil {
-		log.Fatalf("Failed to create resource: %v", err)
+		log.Errorf("Failed to create resource: %v", err)
 	}
 
 	tp := trace.NewTracerProvider(
@@ -115,7 +115,7 @@ func InitTracing(serviceName string) func() {
 
 	return func() {
 		if err := tp.Shutdown(ctx); err != nil {
-			log.Fatalf("Failed to shut down tracer provider: %v", err)
+			log.Errorf("Failed to shut down tracer provider: %v", err)
 		}
 	}
 }

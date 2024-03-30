@@ -699,6 +699,16 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.TLS.PrivateKeyPath = strings.Trim(config.TLS.PrivateKeyPath, "./")
 	}
 
+	// Check for Tracing Config through environment variables
+	if os.Getenv("TRACING_ENDPOINT") != "" {
+		config.Tracing.Endpoint = os.Getenv("TRACING_ENDPOINT")
+		config.Tracing.Enabled = true
+	}
+
+	if os.Getenv("TRACING_SERVICE_NAME") != "" {
+		config.Tracing.ServiceName = os.Getenv("TRACING_SERVICE_NAME")
+	}
+
 	if len(config.Tracing.ServiceName) <= 0 {
 		config.Tracing.ServiceName = "siglens"
 	}
