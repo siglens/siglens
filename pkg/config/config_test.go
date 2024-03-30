@@ -71,6 +71,10 @@ func Test_ExtractConfigData(t *testing.T) {
  analyticsEnabled: false
  agileAggsEnabled: false
  safeMode: true
+ tracing:
+   enabled: true
+   endpoint: "http://localhost:4317"
+   serviceName: "siglens"
  log:
    logPrefix: "./pkg/ingestor/httpserver/"
  `),
@@ -107,6 +111,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				AgileAggsEnabledConverted:  false,
 				SafeServerStart:            true,
 				Log:                        common.LogConfig{LogPrefix: "./pkg/ingestor/httpserver/", LogFileRotationSizeMB: 100, CompressLogFile: false},
+				Tracing:                    common.TracingConfig{Enabled: true, Endpoint: "http://localhost:4317", ServiceName: "siglens"},
 			},
 		},
 		{ // case 2 - For wrong input type, show error message
@@ -140,6 +145,10 @@ func Test_ExtractConfigData(t *testing.T) {
  PQSEnabled: F
  analyticsEnabled: bad string
  AgileAggsEnabled: bad string
+ tracing:
+   enabled: true
+   endpoint: ""
+   serviceName: ""
  log:
    logPrefix: "./pkg/ingestor/httpserver/"
    logFileRotationSizeMB: 1000
@@ -178,6 +187,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				AgileAggsEnabledConverted:  true,
 				SafeServerStart:            false,
 				Log:                        common.LogConfig{LogPrefix: "./pkg/ingestor/httpserver/", LogFileRotationSizeMB: 1000, CompressLogFile: true},
+				Tracing:                    common.TracingConfig{Enabled: false, Endpoint: "", ServiceName: "siglens"},
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -215,6 +225,7 @@ invalid input, we should error out
 				AgileAggsEnabled:           "true",
 				AgileAggsEnabledConverted:  true,
 				Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
+				Tracing:                    common.TracingConfig{Enabled: false, Endpoint: "", ServiceName: "siglens"},
 			},
 		},
 		{ // case 4 - For no input, pick defaults
@@ -253,6 +264,7 @@ a: b
 				AgileAggsEnabled:           "true",
 				AgileAggsEnabledConverted:  true,
 				Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
+				Tracing:                    common.TracingConfig{Enabled: false, Endpoint: "", ServiceName: "siglens"},
 			},
 		},
 	}
