@@ -2091,6 +2091,11 @@ div.dts div.dataTables_scrollBody table {
     white-space: nowrap;
     overflow: visible;
 }
+
+.fields{
+    margin-left: 10px;
+}
+
 .available-fields-dropdown-item.active img {
     display: inline;
 }
@@ -2105,6 +2110,7 @@ div.dts div.dataTables_scrollBody table {
     margin-left: 11px;
     display: flex;
     align-items: center;
+    width:max-content;
 }
 
 .select-unselect-checkbox {
@@ -2687,6 +2693,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     color: var(--text-color) !important;
     font-size: 14px;
     font-weight: bold;
+    user-select: all;
 }
 
 .ag-theme-mycustomtheme .ag-header-cell-resize {
@@ -3162,6 +3169,8 @@ float: right;
 }
 
 .search-db-input,.metrics-input{
+    padding-left: 1rem;
+    padding-right: 4.4rem;
     height: 32px;
 }
 
@@ -3912,7 +3921,7 @@ color: #C8C7CC;
     background-color: var(--purple-1);
     border: none;
     color: var(--white) !important;
-    height: 44px;
+    height: 36px;
     width: 100%;
     border-radius: 5px;
     margin-top: 8px;
@@ -3936,7 +3945,7 @@ color: #C8C7CC;
   width: 185px;
   position: absolute;
   top: 50%;
-  left: 0;
+  left: 30px;
   background: var(--black-4);
 }
 
@@ -3948,7 +3957,17 @@ color: #C8C7CC;
   display: block;
   position: absolute;
   top: 50%;
-  right: 0;
+  right: 30px;
+}
+
+#login-error-message {
+    background-color: rgba(224, 104, 124, 0.5);
+    border-top: 4px solid rgb(224 104 125 / 1);
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    display: none;
+    font-weight: 600;
 }
 
 #login-form {
@@ -3994,7 +4013,7 @@ color: #C8C7CC;
     background: #262038;
     border-radius: 5px;
     text-decoration: none;
-    height: 44px;
+    height: 36px;
     width: 100%;
     margin-bottom: 15px;
     font-size: 14px;
@@ -5143,4 +5162,37 @@ input.form-control {
     width: 16px;
     height: 12px;
     top: 9px;
+}
+
+.loading-icon {
+    display: block;
+    width: 50px;
+    height: 50px;
+    border: 8px solid #B4A6E6;
+    border-top: 8px solid #6347D9;
+    border-radius: 50%;
+    animation: spin 2s linear infinite;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 99;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.ag-overlay-loading-center{
+    position: relative;
+}
+
+.loading-text{
+    position: absolute;
+    font-weight: 600;
+    top: 20px;
+    left: -36px;
+    background-color: var(--bg-color);
+    padding: 8px;
 }

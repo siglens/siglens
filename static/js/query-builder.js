@@ -422,10 +422,16 @@ function secondFilterComplete(evt) {
 }
 function getSearchText() {
   let filterValue = getQueryBuilderCode();
-  if (filterValue != "") $("#query-input").val(filterValue);
-  if (filterValue == "Searches with a Search Criteria must have an Aggregate Attribute") $("#query-builder-btn").addClass("stop-search");
-  else $("#query-builder-btn").removeClass("stop-search");
+  if (filterValue != "") {
+    $("#query-input").val(filterValue);
+  }
+  if (filterValue === "Searches with a Search Criteria must have an Aggregate Attribute") {
+    $("#query-builder-btn").addClass("stop-search").prop('disabled', true);
+  } else {
+    $("#query-builder-btn").removeClass("stop-search").prop('disabled', false);
+  }
 }
+
 function cancelInfo(evt) {
   evt.preventDefault();
   evt.stopPropagation();
