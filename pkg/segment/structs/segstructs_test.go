@@ -37,3 +37,23 @@ func Test_HasTransactionArguments_NonNilTransactionArguments(t *testing.T) {
 	}
 	assert.Equal(t, true, qa.HasTransactionArguments(), "Expected true when TransactionArguments is not nil, got false")
 }
+
+func Test_HasQueryAggergatorBlock_NilQueryAggergatorBlock(t *testing.T) {
+	qa := &QueryAggregators{}
+
+	assert.Equal(t, false, qa.HasQueryAggergatorBlock(), "Expected false when QueryAggergatorBlock is nil, got true")
+}
+
+func Test_HasQueryAggergatorBlock_NotNilQueryAggergatorBlock(t *testing.T) {
+	ot := &OutputTransforms{
+		HarcodedCol: []string{"test1", "test2"},
+		MaxRows:     2,
+		RowsAdded:   1,
+	}
+
+	qa := &QueryAggregators{
+		OutputTransforms: ot,
+	}
+
+	assert.Equal(t, true, qa.HasQueryAggergatorBlock(), "Expected true when QueryAggergatorBlock is not nil, got false")
+}
