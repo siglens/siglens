@@ -607,7 +607,11 @@ func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 				}
 
 				serviceMap := processedData[service].(map[string]int)
-				serviceMap[dependentService] += int(value.(float64))
+				if value != nil {
+					serviceMap[dependentService] += int(value.(float64))
+				} else {
+					log.Warnf("MakeTracesDependancyGraph: Value is nil, cannot convert to float64")
+				}
 			}
 		}
 	}
