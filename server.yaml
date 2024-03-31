@@ -48,6 +48,5 @@ queryHostname: ""
 
 
 tracing:
-  enabled: false   # Set to true to enable tracing
   serviceName: "siglens"   # Service name for tracing
-  endpoint: ""  # Endpoint URL for tracing
+  endpoint: "http://localhost:8081/otlp/v1/traces"  # Endpoint URL for tracing

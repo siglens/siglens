@@ -41,9 +41,8 @@ func (ce *customExporter) disableTracingTemporarily(ctx context.Context, service
 	time.AfterFunc(1*time.Hour, func() {
 		fmt.Println("Attempting to re-enable tracing...")
 		log.Info("Attempting to re-enable tracing...")
-
-		// Refresh the config to check if there are any changes
-		config.ProcessForceRefreshConfig()
+		// Re-enable tracing
+		config.SetTracingEnabled(true)
 		// Re-initialize tracing
 		InitTracing(serviceName)
 	})

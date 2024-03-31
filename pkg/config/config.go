@@ -430,7 +430,7 @@ func InitConfigurationData() error {
 		return err
 	}
 	configFileLastModified = uint64(fileInfo.ModTime().UTC().Unix())
-	go checkRefreshConfig()
+	go runRefreshConfigLoop()
 	return nil
 }
 
@@ -700,23 +700,24 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	// Check for Tracing Config through environment variables
-	if os.Getenv("TRACING_ENDPOINT") != "" {
-		config.Tracing.Endpoint = os.Getenv("TRACING_ENDPOINT")
-		config.Tracing.Enabled = true
+	if os.Getenv("TRACESTORE_ENDPOINT") != "" {
+		config.Tracing.Endpoint = os.Getenv("TRACESTORE_ENDPOINT")
 	}
 
-	if os.Getenv("TRACING_SERVICE_NAME") != "" {
-		config.Tracing.ServiceName = os.Getenv("TRACING_SERVICE_NAME")
+	if os.Getenv("SIGLENS_TRACING_SERVICE_NAME") != "" {
+		config.Tracing.ServiceName = os.Getenv("SIGLENS_TRACING_SERVICE_NAME")
 	}
 
 	if len(config.Tracing.ServiceName) <= 0 {
 		config.Tracing.ServiceName = "siglens"
 	}
 
-	if config.Tracing.Enabled && len(config.Tracing.Endpoint) <= 0 {
-		fmt.Println("Tracing is Enabled but the Tracing Endpoint is not set. Tracing will be disabled. Please set the endpoint in the config file.")
-		log.Errorf("Tracing is Enabled but the Tracing Endpoint is not set. Tracing will be disabled. Please set the endpoint in the config file.")
+	if len(config.Tracing.Endpoint) <= 0 {
+		log.Info("Tracing will be disabled. Please set the endpoint in the config file.")
 		config.Tracing.Enabled = false
+	} else {
+		log.Info("Tracing is enabled. Tracing Endpoint: ", config.Tracing.Endpoint)
+		config.Tracing.Enabled = true
 	}
 
 	return config, nil
@@ -986,11 +987,7 @@ func refreshConfig() {
 	}
 }
 
-func ProcessForceRefreshConfig() {
-	refreshConfig()
-}
-
-func checkRefreshConfig() {
+func runRefreshConfigLoop() {
 	for {
 		time.Sleep(MINUTES_REREAD_CONFIG * time.Minute)
 		refreshConfig()
