@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/siglens/siglens/pkg/config"
 	log "github.com/sirupsen/logrus"
@@ -24,10 +25,43 @@ type customExporter struct {
 	lock         sync.Mutex
 }
 
+func (ce *customExporter) disableTracingTemporarily(ctx context.Context, serviceName string) {
+	fmt.Println("Disabling tracing due to repeated export failures.")
+	log.Errorf("Disabling tracing due to repeated export failures.")
+
+	// Disable tracing immediately
+	config.SetTracingEnabled(false)
+	otel.SetTracerProvider(traceNoop.NewTracerProvider())
+
+	if shutdownErr := ce.Shutdown(ctx); shutdownErr != nil {
+		log.Errorf("Failed to shut down the tracer provider: %v", shutdownErr)
+	}
+
+	// Start a timer to re-enable tracing after one hour
+	time.AfterFunc(1*time.Hour, func() {
+		fmt.Println("Attempting to re-enable tracing...")
+		log.Info("Attempting to re-enable tracing...")
+
+		// Refresh the config to check if there are any changes
+		config.ProcessForceRefreshConfig()
+		// Re-initialize tracing
+		InitTracing(serviceName)
+	})
+}
+
 // Shutdown implements trace.SpanExporter.
 func (ce *customExporter) Shutdown(ctx context.Context) error {
 	log.Info("Shutting down the exporter")
 	return ce.exporter.Shutdown(ctx)
+}
+
+func getServiceNameFromSpan(span trace.ReadOnlySpan) string {
+	for _, resource := range span.Resource().Attributes() {
+		if resource.Key == "service.name" {
+			return resource.Value.AsString()
+		}
+	}
+	return config.GetTracingServiceName()
 }
 
 func (ce *customExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
@@ -41,17 +75,8 @@ func (ce *customExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnl
 
 		// Check if the failure threshold is exceeded.
 		if ce.failureCount >= 3 {
-			fmt.Println("Disabling tracing due to repeated export failures.")
-			log.Errorf("Disabling tracing due to repeated export failures.")
-			config.SetTracingEnabled(false)
-
-			// Set the tracer provider to a no-op provider. This will prevent any further spans from being exported.
-			otel.SetTracerProvider(traceNoop.NewTracerProvider())
-
-			// Shut down the custom exporter to clean up resources.
-			if shutdownErr := ce.Shutdown(ctx); shutdownErr != nil {
-				log.Errorf("Failed to shut down the tracer provider: %v", shutdownErr)
-			}
+			serviceName := getServiceNameFromSpan(spans[0])
+			ce.disableTracingTemporarily(ctx, serviceName)
 		}
 	} else {
 		// Reset failure count on a successful export.

@@ -430,7 +430,7 @@ func InitConfigurationData() error {
 		return err
 	}
 	configFileLastModified = uint64(fileInfo.ModTime().UTC().Unix())
-	go refreshConfig()
+	go checkRefreshConfig()
 	return nil
 }
 
@@ -968,24 +968,32 @@ func ProcessForceReadConfig(ctx *fasthttp.RequestCtx) {
 }
 
 func refreshConfig() {
-	for {
-		time.Sleep(MINUTES_REREAD_CONFIG * time.Minute)
-		fileInfo, err := os.Stat(configFilePath)
+	fileInfo, err := os.Stat(configFilePath)
+	if err != nil {
+		log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
+		return
+	}
+	modifiedTime := fileInfo.ModTime()
+	modifiedTimeSec := uint64(modifiedTime.UTC().Unix())
+	if modifiedTimeSec > configFileLastModified {
+		newConfig, err := ReadConfigFile(configFilePath)
 		if err != nil {
 			log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
-			continue
+			return
 		}
-		modifiedTime := fileInfo.ModTime()
-		modifiedTimeSec := uint64(modifiedTime.UTC().Unix())
-		if modifiedTimeSec > configFileLastModified {
-			newConfig, err := ReadConfigFile(configFilePath)
-			if err != nil {
-				log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
-				continue
-			}
-			SetConfig(newConfig)
-			configFileLastModified = modifiedTimeSec
-		}
+		SetConfig(newConfig)
+		configFileLastModified = modifiedTimeSec
+	}
+}
+
+func ProcessForceRefreshConfig() {
+	refreshConfig()
+}
+
+func checkRefreshConfig() {
+	for {
+		time.Sleep(MINUTES_REREAD_CONFIG * time.Minute)
+		refreshConfig()
 	}
 }
 
