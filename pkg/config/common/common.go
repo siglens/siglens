@@ -39,7 +39,6 @@ type TLSConfig struct {
 }
 
 type TracingConfig struct {
-	Enabled     bool   // enable/disable tracing. Set to true if TracingConfig.Endpoint != ""
 	ServiceName string `yaml:"serviceName"` // service name for tracing
 	Endpoint    string `yaml:"endpoint"`    // endpoint URL for tracing
 }

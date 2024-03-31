@@ -45,8 +45,3 @@ tls:
 
 # SigLens server hostname
 queryHostname: ""
-
-
-tracing:
-  serviceName: "siglens"   # Service name for tracing
-  endpoint: ""  # Endpoint URL for tracing

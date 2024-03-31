@@ -48,6 +48,8 @@ var configFilePath string
 
 var parallelism int64
 
+var tracingEnabled bool // flag to enable/disable tracing; Set to true if TracingConfig.Endpoint != ""
+
 func init() {
 	parallelism = int64(runtime.GOMAXPROCS(0))
 	if parallelism <= 1 {
@@ -189,11 +191,11 @@ func GetQueryHostname() string {
 }
 
 func SetTracingEnabled(flag bool) {
-	runningConfig.Tracing.Enabled = flag
+	tracingEnabled = flag
 }
 
 func IsTracingEnabled() bool {
-	return runningConfig.Tracing.Enabled
+	return tracingEnabled
 }
 
 func GetTracingServiceName() string {
@@ -487,7 +489,7 @@ func GetTestConfig() common.Configuration {
 		QueryHostname:              "",
 		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 		TLS:                        common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
-		Tracing:                    common.TracingConfig{Enabled: false, ServiceName: "", Endpoint: ""},
+		Tracing:                    common.TracingConfig{ServiceName: "", Endpoint: ""},
 		DatabaseConfig:             common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
 		EmailConfig:                common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
 	}
@@ -714,10 +716,10 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 
 	if len(config.Tracing.Endpoint) <= 0 {
 		log.Info("Tracing is disabled. Please set the endpoint in the config file to enable Tracing.")
-		config.Tracing.Enabled = false
+		SetTracingEnabled(false)
 	} else {
 		log.Info("Tracing is enabled. Tracing Endpoint: ", config.Tracing.Endpoint)
-		config.Tracing.Enabled = true
+		SetTracingEnabled(true)
 	}
 
 	return config, nil
