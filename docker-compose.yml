@@ -15,6 +15,8 @@ services:
       - WORK_DIR=${WORK_DIR}
       - IMAGE_NAME=${IMAGE_NAME}
       - CSI=${CSI}
+      - TRACING_ENDPOINT=${TRACING_ENDPOINT}
+      - TRACING_SERVICE_NAME=${TRACING_SERVICE_NAME}
   hotrod:
     image: jaegertracing/example-hotrod:1.53
     ports:
