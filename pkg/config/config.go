@@ -713,7 +713,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if len(config.Tracing.Endpoint) <= 0 {
-		log.Info("Tracing will be disabled. Please set the endpoint in the config file.")
+		log.Info("Tracing is disabled. Please set the endpoint in the config file to enable Tracing.")
 		config.Tracing.Enabled = false
 	} else {
 		log.Info("Tracing is enabled. Tracing Endpoint: ", config.Tracing.Endpoint)

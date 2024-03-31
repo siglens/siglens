@@ -49,4 +49,4 @@ queryHostname: ""
 
 tracing:
   serviceName: "siglens"   # Service name for tracing
-  endpoint: "http://localhost:8081/otlp/v1/traces"  # Endpoint URL for tracing
+  endpoint: ""  # Endpoint URL for tracing
