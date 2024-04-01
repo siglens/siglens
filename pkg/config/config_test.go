@@ -72,7 +72,6 @@ func Test_ExtractConfigData(t *testing.T) {
  agileAggsEnabled: false
  safeMode: true
  tracing:
-   enabled: true
    endpoint: "http://localhost:4317"
    serviceName: "siglens"
  log:
@@ -146,7 +145,6 @@ func Test_ExtractConfigData(t *testing.T) {
  analyticsEnabled: bad string
  AgileAggsEnabled: bad string
  tracing:
-   enabled: true
    endpoint: ""
    serviceName: ""
  log:
