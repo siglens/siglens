@@ -85,10 +85,6 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		applyTimeRangeHistogram(nodeResult, post.TimeHistogram, post.TimeHistogram.AggName)
 	}
 
-	if post == nil {
-		return nodeResult
-	}
-
 	if post.GroupByRequest != nil {
 		nodeResult.GroupByCols = post.GroupByRequest.GroupByColumns
 		nodeResult.GroupByRequest = post.GroupByRequest
@@ -142,7 +138,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		}
 
 		if agg.OutputTransforms.LetColumns != nil {
-			err := performLetColumnsRequest(nodeResult, agg, agg.OutputTransforms.LetColumns, recs, recordIndexInFinal, finalCols, numTotalSegments)
+			err := performLetColumnsRequest(nodeResult, agg, agg.OutputTransforms.LetColumns, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -156,9 +152,19 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 				return fmt.Errorf("performAggOnResult: %v", err)
 			}
 		}
+
+		if agg.OutputTransforms.MaxRows > 0 {
+			err := performMaxRows(nodeResult, agg, agg.OutputTransforms.MaxRows, recs)
+
+			if err != nil {
+				return fmt.Errorf("performAggOnResult: %v", err)
+			}
+		}
 	case structs.GroupByType:
 		nodeResult.PerformAggsOnRecs = true
 		nodeResult.RecsAggsType = structs.GroupByType
+		nodeResult.GroupByCols = agg.GroupByRequest.GroupByColumns
+		nodeResult.GroupByRequest = agg.GroupByRequest
 	case structs.MeasureAggsType:
 		nodeResult.PerformAggsOnRecs = true
 		nodeResult.RecsAggsType = structs.MeasureAggsType
@@ -167,6 +173,50 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		performTransactionCommandRequest(nodeResult, agg, recs, finalCols, numTotalSegments, finishesSegment)
 	default:
 		return errors.New("performAggOnResult: multiple QueryAggregators is currently only supported for OutputTransformType")
+	}
+
+	return nil
+}
+
+func performMaxRows(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, maxRows uint64, recs map[string]map[string]interface{}) error {
+
+	if maxRows == 0 {
+		return nil
+	}
+
+	if recs != nil {
+		// If the number of records plus the already added Rows is less than the maxRows, we don't need to do anything.
+		if (uint64(len(recs)) + aggs.OutputTransforms.RowsAdded) <= maxRows {
+			aggs.OutputTransforms.RowsAdded += uint64(len(recs))
+			return nil
+		}
+
+		// If the number of records is greater than the maxRows, we need to remove the extra records.
+		for key := range recs {
+			if aggs.OutputTransforms.RowsAdded >= maxRows {
+				delete(recs, key)
+				continue
+			}
+			aggs.OutputTransforms.RowsAdded++
+		}
+
+		return nil
+	}
+
+	// Follow group by
+	if nodeResult.Histogram != nil {
+		for _, aggResult := range nodeResult.Histogram {
+			if (uint64(len(aggResult.Results)) + aggs.OutputTransforms.RowsAdded) <= maxRows {
+				aggs.OutputTransforms.RowsAdded += uint64(len(aggResult.Results))
+				continue
+			}
+
+			// If the number of records is greater than the maxRows, we need to remove the extra records.
+			aggResult.Results = aggResult.Results[:maxRows-aggs.OutputTransforms.RowsAdded]
+			aggs.OutputTransforms.RowsAdded = maxRows
+			break
+		}
+		return nil
 	}
 
 	return nil
@@ -445,7 +495,7 @@ func removeAggColumns(nodeResult *structs.NodeResult, groupByColIndicesToKeep []
 }
 
 func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 
 	if letColReq.NewColName == "" && !aggs.HasQueryAggergatorBlock() && letColReq.StatisticColRequest == nil {
 		return errors.New("performLetColumnsRequest: expected non-empty NewColName")
@@ -473,11 +523,11 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else if letColReq.DedupColRequest != nil {
-		if err := performDedupColRequest(nodeResult, aggs, letColReq, recs, finalCols, numTotalSegments); err != nil {
+		if err := performDedupColRequest(nodeResult, aggs, letColReq, recs, finalCols, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else if letColReq.SortColRequest != nil {
-		if err := performSortColRequest(nodeResult, aggs, letColReq, recs, recordIndexInFinal, finalCols, numTotalSegments); err != nil {
+		if err := performSortColRequest(nodeResult, aggs, letColReq, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else {
@@ -729,10 +779,10 @@ func performRenameColRequestOnMeasureResults(nodeResult *structs.NodeResult, let
 }
 
 func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
-	finalCols map[string]bool, numTotalSegments uint64) error {
+	finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 	// Without following a group by
 	if recs != nil {
-		if err := performDedupColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols, numTotalSegments); err != nil {
+		if err := performDedupColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performDedupColRequest: %v", err)
 		}
 		return nil
@@ -760,11 +810,13 @@ func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 }
 
 func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
-	finalCols map[string]bool, numTotalSegments uint64) error {
+	finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 
 	letColReq.DedupColRequest.ProcessedSegmentsLock.Lock()
 	defer letColReq.DedupColRequest.ProcessedSegmentsLock.Unlock()
-	letColReq.DedupColRequest.NumProcessedSegments++
+	if finishesSegment {
+		letColReq.DedupColRequest.NumProcessedSegments++
+	}
 
 	// Keep track of all the matched records across all segments, and only run
 	// the dedup logic once all the records are gathered.
@@ -776,8 +828,6 @@ func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCol
 
 		return nil
 	}
-
-	// log.Error("fjl seg0000:", len(letColReq.DedupColRequest.DedupRecords))
 
 	fieldList := letColReq.DedupColRequest.FieldList
 	combinationSlice := make([]interface{}, len(fieldList))
@@ -1144,10 +1194,10 @@ func combinationPassesDedup(combinationSlice []interface{}, recordIndex int, sor
 }
 
 func performSortColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 	// Without following a group by
 	if recs != nil {
-		if err := performSortColRequestWithoutGroupby(nodeResult, letColReq, recs, recordIndexInFinal, finalCols, numTotalSegments); err != nil {
+		if err := performSortColRequestWithoutGroupby(nodeResult, letColReq, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performSortColRequest: %v", err)
 		}
 		return nil
@@ -1166,11 +1216,13 @@ func performSortColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAg
 }
 
 func performSortColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 
 	letColReq.SortColRequest.ProcessedSegmentsLock.Lock()
 	defer letColReq.SortColRequest.ProcessedSegmentsLock.Unlock()
-	letColReq.SortColRequest.NumProcessedSegments++
+	if finishesSegment {
+		letColReq.SortColRequest.NumProcessedSegments++
+	}
 
 	if letColReq.SortColRequest.NumProcessedSegments < numTotalSegments {
 		for k, v := range recs {
@@ -2217,46 +2269,80 @@ func getAggregationResultFieldValues(fieldToValue map[string]segutils.CValueEncl
 
 func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, recs map[string]map[string]interface{}, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) {
 
-	if finishesSegment {
-		nodeResult.RecsAggsProcessedSegments++
-	}
-
 	if recs != nil {
 
 		if nodeResult.TransactionEventRecords == nil {
 			nodeResult.TransactionEventRecords = make(map[string]map[string]interface{})
 		}
 
-		for k := range recs {
+		if nodeResult.TransactionsProcessed == nil {
+			nodeResult.TransactionsProcessed = make(map[string]map[string]interface{}, 0)
+		}
+
+		if aggs.TransactionArguments.SortedRecordsSlice == nil {
+			aggs.TransactionArguments.SortedRecordsSlice = make([]map[string]interface{}, 0)
+		}
+
+		for k, v := range recs {
 			nodeResult.TransactionEventRecords[k] = recs[k]
+			aggs.TransactionArguments.SortedRecordsSlice = append(aggs.TransactionArguments.SortedRecordsSlice, map[string]interface{}{"key": k, "timestamp": v["timestamp"]})
 			delete(recs, k)
 		}
 
-		if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
-			return
+		var cols []string
+		var err error
+
+		if finishesSegment {
+			nodeResult.RecsAggsProcessedSegments++
+
+			// Sort the records by timestamp. The records in the segment may not be sorted. We need to sort them before processing.
+			// This method also assumes that all records in the segment will come before the records in the next segment(Segments are Sorted).
+			sort.Slice(aggs.TransactionArguments.SortedRecordsSlice, func(i, j int) bool {
+				return aggs.TransactionArguments.SortedRecordsSlice[i]["timestamp"].(uint64) < aggs.TransactionArguments.SortedRecordsSlice[j]["timestamp"].(uint64)
+			})
+
+			cols, err = processTransactionsOnRecords(nodeResult.TransactionEventRecords, nodeResult.TransactionsProcessed, nil, aggs.TransactionArguments, nodeResult.RecsAggsProcessedSegments == numTotalSegments)
+			if err != nil {
+				log.Errorf("performTransactionCommandRequest: %v", err)
+				return
+			}
+
+			nodeResult.TransactionEventRecords = nil // Clear the transaction records. Release the memory.
+			nodeResult.TransactionEventRecords = make(map[string]map[string]interface{})
+
+			// Creating a single Map after processing the segment.
+			// This tells the PostBucketQueryCleaning function to return to the rrcreader.go to process the further segments.
+			nodeResult.TransactionEventRecords["PROCESSED_SEGMENT_"+fmt.Sprint(nodeResult.RecsAggsProcessedSegments)] = make(map[string]interface{})
+
+			aggs.TransactionArguments.SortedRecordsSlice = nil // Clear the sorted records slice.
 		}
 
-		records, cols, err := processTransactionsOnRecords(nodeResult.TransactionEventRecords, nil, aggs.TransactionArguments)
-		if err != nil {
-			log.Errorf("performTransactionCommandRequest: %v", err)
-			return
+		if nodeResult.RecsAggsProcessedSegments == numTotalSegments {
+			nodeResult.TransactionEventRecords = nil
+			nodeResult.TransactionEventRecords = make(map[string]map[string]interface{})
+			nodeResult.TransactionEventRecords["CHECK_NEXT_AGG"] = make(map[string]interface{}) // All segments have been processed. Check the next aggregation.
+
+			// Clear the Open/Pending Transactions
+			aggs.TransactionArguments.OpenTransactionEvents = nil
+			aggs.TransactionArguments.OpenTransactionsState = nil
+
+			// Assign the final processed transactions to the recs.
+			for i, record := range nodeResult.TransactionsProcessed {
+				recs[i] = record
+				delete(nodeResult.TransactionsProcessed, i)
+			}
+
+			for k := range finalCols {
+				delete(finalCols, k)
+			}
+
+			for _, col := range cols {
+				finalCols[col] = true
+			}
 		}
 
-		nodeResult.TransactionEventRecords = nil // Clear the transaction records
-		nodeResult.TransactionEventRecords = make(map[string]map[string]interface{})
-		nodeResult.TransactionEventRecords["CHECK_NEXT_AGG"] = make(map[string]interface{})
+		return
 
-		for i, record := range records {
-			recs[i] = record
-		}
-
-		for k := range finalCols {
-			delete(finalCols, k)
-		}
-
-		for _, col := range cols {
-			finalCols[col] = true
-		}
 	}
 
 }
@@ -2352,9 +2438,9 @@ func getValuesFromValueExpr(valueExpr *structs.ValueExpr, record map[string]inte
 func conditionMatch(fieldValue interface{}, Op string, searchValue interface{}) bool {
 	switch Op {
 	case "=", "eq":
-		return fieldValue == searchValue
+		return fmt.Sprint(fieldValue) == fmt.Sprint(searchValue)
 	case "!=", "neq":
-		return fieldValue != searchValue
+		return fmt.Sprint(fieldValue) != fmt.Sprint(searchValue)
 	default:
 		fieldValFloat, err := dtypeutils.ConvertToFloat(fieldValue, 64)
 		if err != nil {
@@ -2602,10 +2688,10 @@ func isTransactionMatchedWithTheFliterStringCondition(with *structs.FilterString
 }
 
 // Splunk Transaction command based on the TransactionArguments on the JSON records. map[string]map[string]interface{}
-func processTransactionsOnRecords(records map[string]map[string]interface{}, allCols []string, transactionArgs *structs.TransactionArguments) (map[string]map[string]interface{}, []string, error) {
+func processTransactionsOnRecords(records map[string]map[string]interface{}, processedTransactions map[string]map[string]interface{}, allCols []string, transactionArgs *structs.TransactionArguments, closeAllTransactions bool) ([]string, error) {
 
 	if transactionArgs == nil {
-		return records, allCols, nil
+		return allCols, nil
 	}
 
 	transactionFields := transactionArgs.Fields
@@ -2617,15 +2703,17 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 	transactionStartsWith := transactionArgs.StartsWith
 	transactionEndsWith := transactionArgs.EndsWith
 
-	groupRecords := make(map[string][]map[string]interface{})
+	if transactionArgs.OpenTransactionEvents == nil {
+		transactionArgs.OpenTransactionEvents = make(map[string][]map[string]interface{})
+	}
 
-	groupedRecords := make(map[string]map[string]interface{}, 0)
+	if transactionArgs.OpenTransactionsState == nil {
+		transactionArgs.OpenTransactionsState = make(map[string]*structs.TransactionGroupState)
+	}
 
-	groupState := make(map[string]structs.TransactionGroupState)
+	appendGroupedRecords := func(currentState *structs.TransactionGroupState, transactionKey string) {
 
-	appendGroupedRecords := func(currentState structs.TransactionGroupState, transactionKey string) {
-
-		records, exists := groupRecords[transactionKey]
+		records, exists := transactionArgs.OpenTransactionEvents[transactionKey]
 
 		if !exists || len(records) == 0 {
 			return
@@ -2634,7 +2722,7 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 		groupedRecord := make(map[string]interface{})
 		groupedRecord["timestamp"] = currentState.Timestamp
 		groupedRecord["event"] = records
-		lastRecord := records[len(groupRecords[transactionKey])-1]
+		lastRecord := records[len(transactionArgs.OpenTransactionEvents[transactionKey])-1]
 		groupedRecord["duration"] = uint64(lastRecord["timestamp"].(uint64)) - currentState.Timestamp
 		groupedRecord["eventcount"] = uint64(len(records))
 		groupedRecord["transactionKey"] = transactionKey
@@ -2643,10 +2731,17 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 			groupedRecord[key] = lastRecord[key]
 		}
 
-		groupedRecords[currentState.RecInden] = groupedRecord
+		processedTransactions[currentState.RecInden] = groupedRecord
+
+		// Clear the group records and state
+		delete(transactionArgs.OpenTransactionEvents, transactionKey)
+		delete(transactionArgs.OpenTransactionsState, transactionKey)
 	}
 
-	for recInden, record := range records {
+	for _, sortedRecord := range transactionArgs.SortedRecordsSlice {
+
+		recInden := sortedRecord["key"].(string)
+		record := records[recInden]
 
 		recordMapStr := fmt.Sprintf("%v", record)
 
@@ -2665,8 +2760,8 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 		}
 
 		// Initialize the group state for new transaction keys
-		if _, exists := groupState[transactionKey]; !exists {
-			groupState[transactionKey] = structs.TransactionGroupState{
+		if _, exists := transactionArgs.OpenTransactionsState[transactionKey]; !exists {
+			transactionArgs.OpenTransactionsState[transactionKey] = &structs.TransactionGroupState{
 				Key:       transactionKey,
 				Open:      false,
 				RecInden:  recInden,
@@ -2674,7 +2769,7 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 			}
 		}
 
-		currentState := groupState[transactionKey]
+		currentState := transactionArgs.OpenTransactionsState[transactionKey]
 
 		// If StartsWith is given, then the transaction Should only Open when the record matches the StartsWith. OR
 		// if StartsWith not present, then the transaction should open for all records.
@@ -2691,8 +2786,8 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 				currentState.Open = true
 				currentState.Timestamp = uint64(record["timestamp"].(uint64))
 
-				groupState[transactionKey] = currentState
-				groupRecords[transactionKey] = make([]map[string]interface{}, 0)
+				transactionArgs.OpenTransactionsState[transactionKey] = currentState
+				transactionArgs.OpenTransactionEvents[transactionKey] = make([]map[string]interface{}, 0)
 			}
 
 		} else if currentState.Open && transactionEndsWith == nil && transactionStartsWith != nil {
@@ -2705,16 +2800,18 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 				appendGroupedRecords(currentState, transactionKey)
 
 				currentState.Timestamp = uint64(record["timestamp"].(uint64))
+				currentState.Open = true
+				currentState.RecInden = recInden
 
-				groupState[transactionKey] = currentState
-				groupRecords[transactionKey] = make([]map[string]interface{}, 0)
+				transactionArgs.OpenTransactionsState[transactionKey] = currentState
+				transactionArgs.OpenTransactionEvents[transactionKey] = make([]map[string]interface{}, 0)
 			}
 
 		}
 
 		// If the transaction is open, then append the record to the group.
 		if currentState.Open {
-			groupRecords[transactionKey] = append(groupRecords[transactionKey], record)
+			transactionArgs.OpenTransactionEvents[transactionKey] = append(transactionArgs.OpenTransactionEvents[transactionKey], record)
 		}
 
 		if transactionEndsWith != nil {
@@ -2726,18 +2823,19 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 
 					currentState.Open = false
 					currentState.Timestamp = 0
-					groupState[transactionKey] = currentState
+					currentState.RecInden = recInden
+					transactionArgs.OpenTransactionsState[transactionKey] = currentState
 				}
 			}
 		}
 	}
 
-	// Transaction EndsWith is not given In this case, most or all of the groupRecords will not be appended to the groupedRecords.
-	// Even if we are appending the groupRecords at StartsWith, not all the groupRecords will be appended to the groupedRecords.
+	// Transaction EndsWith is not given In this case, most or all of the transactionArgs.OpenTransactionEvents will not be appended to the groupedRecords.
+	// Even if we are appending the transactionArgs.OpenTransactionEvents at StartsWith, not all the transactionArgs.OpenTransactionEvents will be appended to the groupedRecords.
 	// So we need to append them here.
-	if transactionEndsWith == nil {
-		for key := range groupRecords {
-			appendGroupedRecords(groupState[key], key)
+	if transactionEndsWith == nil && closeAllTransactions {
+		for key := range transactionArgs.OpenTransactionEvents {
+			appendGroupedRecords(transactionArgs.OpenTransactionsState[key], key)
 		}
 	}
 
@@ -2748,7 +2846,7 @@ func processTransactionsOnRecords(records map[string]map[string]interface{}, all
 	allCols = append(allCols, "event")
 	allCols = append(allCols, transactionFields...)
 
-	return groupedRecords, allCols, nil
+	return allCols, nil
 }
 
 // Decode the bucketKey into a slice of strings.
