@@ -108,7 +108,6 @@ func InitTracing(serviceName string) func() {
 
 	client := otlptracehttp.NewClient(
 		otlptracehttp.WithEndpointURL(config.GetTracingEndpoint()), // Your collector endpoint
-		otlptracehttp.WithInsecure(),                               // Use WithInsecure for non-production environments
 	)
 
 	exporter, err := otlptrace.New(ctx, client)
@@ -130,7 +129,7 @@ func InitTracing(serviceName string) func() {
 	}
 
 	tp := trace.NewTracerProvider(
-		// trace.WithSampler(trace.AlwaysSample()), // Change this to trace.NeverSample() for production
+		trace.WithSampler(trace.TraceIDRatioBased(config.GetTraceSamplingPercentage()/100)),
 		trace.WithBatcher(customExporter),
 		trace.WithResource(res),
 	)

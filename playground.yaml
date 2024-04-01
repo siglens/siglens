@@ -40,3 +40,4 @@ log:
 tracing:
   serviceName: "siglens"   # Service name for tracing
   endpoint: "http://pgdebug.siglens.com:4318/v1/traces"  # Endpoint URL for tracing
+  samplingPercentage: 100  # Sampling percentage for tracing

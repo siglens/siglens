@@ -206,6 +206,10 @@ func GetTracingEndpoint() string {
 	return runningConfig.Tracing.Endpoint
 }
 
+func GetTraceSamplingPercentage() float64 {
+	return runningConfig.Tracing.SamplingPercentage
+}
+
 // returns SmtpHost, SmtpPort, SenderEmail and GmailAppPassword
 func GetEmailConfig() (string, int, string, string) {
 	return runningConfig.EmailConfig.SmtpHost, runningConfig.EmailConfig.SmtpPort, runningConfig.EmailConfig.SenderEmail, runningConfig.EmailConfig.GmailAppPassword
@@ -489,7 +493,7 @@ func GetTestConfig() common.Configuration {
 		QueryHostname:              "",
 		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 		TLS:                        common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
-		Tracing:                    common.TracingConfig{ServiceName: "", Endpoint: ""},
+		Tracing:                    common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
 		DatabaseConfig:             common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
 		EmailConfig:                common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
 	}
@@ -710,6 +714,17 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.Tracing.ServiceName = os.Getenv("SIGLENS_TRACING_SERVICE_NAME")
 	}
 
+	if os.Getenv("TRACE_SAMPLING_PRECENTAGE") != "" {
+		samplingPercentage, err := strconv.ParseFloat(os.Getenv("TRACE_SAMPLING_PRECENTAGE"), 64)
+		if err != nil {
+			log.Errorf("Error parsing TRACE_SAMPLING_PRECENTAGE: %v", err)
+			log.Info("Setting Trace Sampling Percentage to 1")
+			config.Tracing.SamplingPercentage = 1
+		} else {
+			config.Tracing.SamplingPercentage = samplingPercentage
+		}
+	}
+
 	if len(config.Tracing.ServiceName) <= 0 {
 		config.Tracing.ServiceName = "siglens"
 	}
@@ -720,6 +735,12 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	} else {
 		log.Info("Tracing is enabled. Tracing Endpoint: ", config.Tracing.Endpoint)
 		SetTracingEnabled(true)
+	}
+
+	if config.Tracing.SamplingPercentage < 0 {
+		config.Tracing.SamplingPercentage = 1
+	} else if config.Tracing.SamplingPercentage > 100 {
+		config.Tracing.SamplingPercentage = 100
 	}
 
 	return config, nil

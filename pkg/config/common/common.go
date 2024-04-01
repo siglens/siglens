@@ -39,8 +39,9 @@ type TLSConfig struct {
 }
 
 type TracingConfig struct {
-	ServiceName string `yaml:"serviceName"` // service name for tracing
-	Endpoint    string `yaml:"endpoint"`    // endpoint URL for tracing
+	ServiceName        string  `yaml:"serviceName"`        // service name for tracing
+	Endpoint           string  `yaml:"endpoint"`           // endpoint URL for tracing
+	SamplingPercentage float64 `yaml:"samplingPercentage"` // sampling percentage for tracing (0-100)
 }
 
 type AlertConfig struct {
