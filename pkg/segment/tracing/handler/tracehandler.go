@@ -587,12 +587,20 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 		return
 	} else {
+		firstHit := true
 		// Loop over all the graphs
 		for _, hit := range dependencyResponseOuter.Hits.Hits {
 			// Process the current graph
 			for key, value := range hit {
-				if key == "_index" || key == "timestamp" {
+				if key == "_index" {
 					processedData[key] = value
+					continue
+				}
+				if key == "timestamp" {
+					if firstHit {
+						processedData[key] = value
+						firstHit = false
+					}
 					continue
 				}
 				keys := strings.Split(key, ".")
