@@ -564,7 +564,13 @@ func totalTracesHandler() func(ctx *fasthttp.RequestCtx) {
 
 func getDependencyGraphHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(tracinghandler.ProcessDependencyRequest, ctx)
+		serverutils.CallWithOrgIdQuery(tracinghandler.ProcessAggregatedDependencyGraphs, ctx)
+	}
+}
+
+func generateDependencyGraphHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(tracinghandler.ProcessGeneratedDepGraph, ctx)
 	}
 }
 
