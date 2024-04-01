@@ -38,6 +38,11 @@ let svgWidth;
 let svgHeight;
 
 $(document).ready(() => {
+  let stDate = "now-1h";
+    let endDate = "now";
+    setupDependencyEventHandlers()
+    datePickerHandler(stDate, endDate, stDate);
+
     if (Cookies.get("theme")) {
         theme = Cookies.get("theme");
         $("body").attr("data-theme", theme);
@@ -66,15 +71,48 @@ $(document).ready(() => {
     });
 });
 
-function getServiceDependencyData() {
+function rangeItemHandler(evt) {
+  console.log('clicked')
+  resetCustomDateRange();
+  $.each($(".range-item.active"), function () {
+      $(this).removeClass('active');
+  });
+  $(evt.currentTarget).addClass('active');
+  const start = $(this).attr('id')
+  const end = "now"
+  const label = $(this).attr('id')
+  datePickerHandler(start, end, label)
+  getServiceDependencyData(start, end)
+}
+
+function setupDependencyEventHandlers(){
+  $('#date-picker-btn').on('show.bs.dropdown', showDatePickerHandler);
+  $('#date-picker-btn').on('hide.bs.dropdown', hideDatePickerHandler);
+  $('#reset-timepicker').on('click', resetDatePickerHandler);
+
+  $('#date-start').on('change', getStartDateHandler);
+  $('#date-end').on('change', getEndDateHandler);
+
+  $('#time-start').on('change', getStartTimeHandler);
+  $('#time-end').on('change', getEndTimeHandler);
+  $('#customrange-btn').on('click', customRangeHandler);
+
+  $('.range-item').on('click', rangeItemHandler)
+}
+
+function getServiceDependencyData(start, end) {
     $.ajax({
-        method: "GET",
+        method: "POST",
         url: "api/traces/dependencies",
         headers: {
             "Content-Type": "application/json; charset=utf-8",
             Accept: "*/*",
         },
         dataType: "json",
+        data: JSON.stringify({
+          startEpoch: start || "now-1h",
+          endEpoch: end || "now"
+        }),
         crossDomain: true,
         success: function (res) {
             if ($.isEmptyObject(res)) {
