@@ -17,6 +17,7 @@ services:
       - CSI=${CSI}
       - TRACESTORE_ENDPOINT=${TRACESTORE_ENDPOINT}
       - SIGLENS_TRACING_SERVICE_NAME=${SIGLENS_TRACING_SERVICE_NAME}
+      - TRACE_SAMPLING_PRECENTAGE=${TRACE_SAMPLING_PRECENTAGE}
   hotrod:
     image: jaegertracing/example-hotrod:1.53
     ports:
