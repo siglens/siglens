@@ -738,7 +738,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if config.Tracing.SamplingPercentage < 0 {
-		config.Tracing.SamplingPercentage = 1
+		config.Tracing.SamplingPercentage = 0
 	} else if config.Tracing.SamplingPercentage > 100 {
 		config.Tracing.SamplingPercentage = 100
 	}
