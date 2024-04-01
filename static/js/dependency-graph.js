@@ -72,7 +72,6 @@ $(document).ready(() => {
 });
 
 function rangeItemHandler(evt) {
-  console.log('clicked')
   resetCustomDateRange();
   $.each($(".range-item.active"), function () {
       $(this).removeClass('active');
