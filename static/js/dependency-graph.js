@@ -40,8 +40,8 @@ let svgHeight;
 $(document).ready(() => {
   let stDate = "now-1h";
     let endDate = "now";
-    setupDependencyEventHandlers()
     datePickerHandler(stDate, endDate, stDate);
+    setupDependencyEventHandlers()
 
     if (Cookies.get("theme")) {
         theme = Cookies.get("theme");
@@ -53,7 +53,7 @@ $(document).ready(() => {
     svgHeight = $("#dependency-graph-container").height();
 
     $("#error-msg-container, #dependency-info").hide();
-    getServiceDependencyData();
+    getServiceDependencyData(stDate, endDate);
 
     $("#dependency-info").tooltip({
       delay: { show: 0, hide: 300 },
@@ -84,19 +84,35 @@ function rangeItemHandler(evt) {
   getServiceDependencyData(start, end)
 }
 
+function resetDatePickerHandler(evt) {
+  evt.stopPropagation();
+  resetCustomDateRange();
+  $.each($(".range-item.active"), function () {
+      $(this).removeClass('active');
+  });
+
+}
+
+function showDatePickerHandler(evt) {
+  evt.stopPropagation();
+  $('#daterangepicker').toggle();
+  $(evt.currentTarget).toggleClass('active');
+}
+
+function hideDatePickerHandler() {
+  $('#daterangepicker').removeClass('active');
+}
+
 function setupDependencyEventHandlers(){
-  $('#date-picker-btn').on('show.bs.dropdown', showDatePickerHandler);
-  $('#date-picker-btn').on('hide.bs.dropdown', hideDatePickerHandler);
-  $('#reset-timepicker').on('click', resetDatePickerHandler);
+    $('#date-picker-btn').on('show.bs.dropdown', showDatePickerHandler);
+    $('#date-picker-btn').on('hide.bs.dropdown', hideDatePickerHandler);
+    $('#reset-timepicker').on('click', resetDatePickerHandler);
 
-  $('#date-start').on('change', getStartDateHandler);
-  $('#date-end').on('change', getEndDateHandler);
+    $('#time-start').on('change', getStartTimeHandler);
+    $('#time-end').on('change', getEndTimeHandler);
+    $('#customrange-btn').on('click', customRangeHandler);
 
-  $('#time-start').on('change', getStartTimeHandler);
-  $('#time-end').on('change', getEndTimeHandler);
-  $('#customrange-btn').on('click', customRangeHandler);
-
-  $('.range-item').on('click', rangeItemHandler)
+    $('.range-item').on('click', rangeItemHandler)
 }
 
 function getServiceDependencyData(start, end) {
