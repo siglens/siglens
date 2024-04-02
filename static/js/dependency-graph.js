@@ -129,10 +129,6 @@ function getServiceDependencyData(start, end) {
           endEpoch: end || "now"
         }),
         crossDomain: true,
-        data: JSON.stringify({
-          startEpoch: "now-3h",
-          endEpoch: "now"
-        }),
         success: function (res) {
             if ($.isEmptyObject(res)) {
                 $("#dependency-graph-container").hide();
