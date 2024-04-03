@@ -84,12 +84,9 @@ func Test_HasQueryAggergatorBlock_HasNoLetColumnsRequest(t *testing.T) {
 }
 
 func Test_HasQueryAggergatorBlock_MaxRowsGreaterThanRowAdded(t *testing.T) {
-	lcr := &LetColumnsRequest{}
-
 	ot := &OutputTransforms{
-		LetColumns: lcr,
-		MaxRows:    12,
-		RowsAdded:  1,
+		MaxRows:   12,
+		RowsAdded: 1,
 	}
 
 	qa := &QueryAggregators{
@@ -100,12 +97,9 @@ func Test_HasQueryAggergatorBlock_MaxRowsGreaterThanRowAdded(t *testing.T) {
 }
 
 func Test_HasQueryAggergatorBlock_MaxRowsLessThanRowAdded(t *testing.T) {
-	lcr := &LetColumnsRequest{}
-
 	ot := &OutputTransforms{
-		LetColumns: lcr,
-		MaxRows:    1,
-		RowsAdded:  9,
+		MaxRows:   1,
+		RowsAdded: 9,
 	}
 
 	qa := &QueryAggregators{
