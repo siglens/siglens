@@ -47,7 +47,7 @@ function getTraceInformation(traceId) {
         },
         data: JSON.stringify({
             "searchText": `trace_id=${traceId}`,
-            "startEpoch": "now-3h",
+            "startEpoch": "now-365d",
             "endEpoch": "now"
         }),
         dataType: 'json',
