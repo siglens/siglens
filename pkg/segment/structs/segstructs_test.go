@@ -38,34 +38,79 @@ func Test_HasTransactionArguments_NonNilTransactionArguments(t *testing.T) {
 	assert.Equal(t, true, qa.HasTransactionArguments(), "Expected true when TransactionArguments is not nil, got false")
 }
 
-func Test_HasQueryAggergatorBlock(t *testing.T) {
+func Test_HasQueryAggergatorBlock_NilQueryAggregators(t *testing.T) {
+	var qa *QueryAggregators
+
+	assert.Equal(t, false, qa.HasQueryAggergatorBlock(), "Expected false when QueryAggregators is nil, got true")
+}
+func Test_HasQueryAggergatorBlock_NilOutputTransforms(t *testing.T) {
+	var ot *OutputTransforms
+
+	qa := &QueryAggregators{
+		OutputTransforms: ot,
+	}
+
+	assert.Equal(t, false, qa.HasQueryAggergatorBlock(), "Expected false when OutputTransforms is nil, got true")
+}
+
+func Test_HasQueryAggergatorBlock_HasLetColumnsRequest(t *testing.T) {
 	lcr := &LetColumnsRequest{
-		RexColRequest:    &RexExpr{},
-		RenameColRequest: &RenameExpr{},
-		DedupColRequest:  &DedupExpr{},
-		ValueColRequest:  &ValueExpr{},
-		SortColRequest:   &SortExpr{},
+		RexColRequest: &RexExpr{},
 	}
 
 	ot := &OutputTransforms{
-		HarcodedCol: []string{"test1", "test2"},
-		MaxRows:     2,
-		RowsAdded:   1,
-		LetColumns:  lcr,
+		LetColumns: lcr,
 	}
 
 	qa := &QueryAggregators{
 		OutputTransforms: ot,
 	}
 
-	assert.NotNil(t, qa)
-	assert.NotNil(t, qa.OutputTransforms)
-	assert.NotNil(t, qa.OutputTransforms.LetColumns)
-	assert.NotNil(t, qa.OutputTransforms.LetColumns.RexColRequest)
-	assert.NotNil(t, qa.OutputTransforms.LetColumns.RenameColRequest)
-	assert.NotNil(t, qa.OutputTransforms.LetColumns.DedupColRequest)
-	assert.NotNil(t, qa.OutputTransforms.LetColumns.ValueColRequest)
-	assert.NotNil(t, qa.OutputTransforms.LetColumns.SortColRequest)
-	assert.Equal(t, true, qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded, "Expected true when MaxRows greater than RowsAdded, got false")
-	assert.Equal(t, true, qa.HasQueryAggergatorBlock(), "Expected true when QueryAggergatorBlock is not nil, got false")
+	assert.Equal(t, true, qa.HasQueryAggergatorBlock(), "Expected true when hasLetColumnsRequest is true, got false")
+}
+
+func Test_HasQueryAggergatorBlock_HasNoLetColumnsRequest(t *testing.T) {
+	lcr := &LetColumnsRequest{}
+
+	ot := &OutputTransforms{
+		LetColumns: lcr,
+	}
+
+	qa := &QueryAggregators{
+		OutputTransforms: ot,
+	}
+
+	assert.Equal(t, false, qa.HasQueryAggergatorBlock(), "Expected false when hasLetColumnsRequest is false, got true")
+}
+
+func Test_HasQueryAggergatorBlock_MaxRowsGreaterThanRowAdded(t *testing.T) {
+	lcr := &LetColumnsRequest{}
+
+	ot := &OutputTransforms{
+		LetColumns: lcr,
+		MaxRows:    12,
+		RowsAdded:  1,
+	}
+
+	qa := &QueryAggregators{
+		OutputTransforms: ot,
+	}
+
+	assert.Equal(t, true, qa.HasQueryAggergatorBlock(), "Expected true when MaxRows is greater than RowsAdded, got false")
+}
+
+func Test_HasQueryAggergatorBlock_MaxRowsLessThanRowAdded(t *testing.T) {
+	lcr := &LetColumnsRequest{}
+
+	ot := &OutputTransforms{
+		LetColumns: lcr,
+		MaxRows:    1,
+		RowsAdded:  9,
+	}
+
+	qa := &QueryAggregators{
+		OutputTransforms: ot,
+	}
+
+	assert.Equal(t, false, qa.HasQueryAggergatorBlock(), "Expected false when MaxRows is less than RowsAdded, got true")
 }
