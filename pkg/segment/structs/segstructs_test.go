@@ -50,7 +50,7 @@ func Test_HasQueryAggergatorBlock(t *testing.T) {
 	ot := &OutputTransforms{
 		HarcodedCol: []string{"test1", "test2"},
 		MaxRows:     2,
-		RowsAdded:   12,
+		RowsAdded:   1,
 		LetColumns:  lcr,
 	}
 
