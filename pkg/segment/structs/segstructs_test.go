@@ -50,7 +50,7 @@ func Test_HasQueryAggergatorBlock(t *testing.T) {
 	ot := &OutputTransforms{
 		HarcodedCol: []string{"test1", "test2"},
 		MaxRows:     2,
-		RowsAdded:   1,
+		RowsAdded:   12,
 		LetColumns:  lcr,
 	}
 
@@ -58,6 +58,7 @@ func Test_HasQueryAggergatorBlock(t *testing.T) {
 		OutputTransforms: ot,
 	}
 
+	assert.NotNil(t, qa)
 	assert.NotNil(t, qa.OutputTransforms)
 	assert.NotNil(t, qa.OutputTransforms.LetColumns)
 	assert.NotNil(t, qa.OutputTransforms.LetColumns.RexColRequest)
@@ -65,6 +66,6 @@ func Test_HasQueryAggergatorBlock(t *testing.T) {
 	assert.NotNil(t, qa.OutputTransforms.LetColumns.DedupColRequest)
 	assert.NotNil(t, qa.OutputTransforms.LetColumns.ValueColRequest)
 	assert.NotNil(t, qa.OutputTransforms.LetColumns.SortColRequest)
-
+	assert.Equal(t, true, qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded, "Expected true when MaxRows greater than RowsAdded, got false")
 	assert.Equal(t, true, qa.HasQueryAggergatorBlock(), "Expected true when QueryAggergatorBlock is not nil, got false")
 }
