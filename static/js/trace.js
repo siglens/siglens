@@ -59,7 +59,7 @@ function getTraceInformation(traceId) {
 }
 
 $(".back-to-search-traces").on("click", function(){
-    window.location.href = "search-traces.html";
+   window.history.back();
 });
 
 function traceDetails(res){
