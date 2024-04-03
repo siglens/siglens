@@ -108,3 +108,21 @@ func Test_HasQueryAggergatorBlock_MaxRowsLessThanRowAdded(t *testing.T) {
 
 	assert.Equal(t, false, qa.HasQueryAggergatorBlock(), "Expected false when MaxRows is less than RowsAdded, got true")
 }
+
+func Test_HasQueryAggergatorBlock(t *testing.T) {
+	lcr := &LetColumnsRequest{
+		RexColRequest: &RexExpr{},
+	}
+
+	ot := &OutputTransforms{
+		LetColumns: lcr,
+		MaxRows:    5,
+		RowsAdded:  1,
+	}
+
+	qa := &QueryAggregators{
+		OutputTransforms: ot,
+	}
+
+	assert.Equal(t, true, qa.HasQueryAggergatorBlock(), "Expected true when HasQueryAggergatorBlock is true, got false")
+}
