@@ -490,9 +490,9 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil)
 }
 
-// To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, MaxRows...
+// To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
-	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded)
+	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.FilterRows != nil || qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded)
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
