@@ -35,14 +35,29 @@ const colorArray = [
 ];
 let colorMap = {};
 let graphData;
+let cy;
+
+const lightStyles = {
+    edgeColor: "#6F6B7B",
+    labelColor: "#262038",
+    labelbgColor: "#FFF"
+};
+
+const darkStyles = {
+    edgeColor: "#DCDBDF",
+    labelColor: "#FFF",
+    labelbgColor: "#262038"
+};
+
 $(document).ready(() => {
     if (Cookies.get("theme")) {
         theme = Cookies.get("theme");
         $("body").attr("data-theme", theme);
     }
     $(".theme-btn").on("click", themePickerHandler);
-    $('.theme-btn').on('click', getServiceDependencyData);
-
+    $('.theme-btn').on('click', function() {
+      updateGraphStyles(theme);
+    });
 
     $("#error-msg-container, #dependency-info").hide();
     getServiceDependencyData();
@@ -95,18 +110,6 @@ function getServiceDependencyData() {
 }
 
 function displayDependencyGraph(data) {
-  let edgeColor, labelColor, labelbgColor;
-  if ($('body').attr('data-theme') == "light") {
-      edgeColor = "#6F6B7B";
-      labelColor = "#262038";
-      labelbgColor = "#FFF";
-    }
-    else {
-      edgeColor = "#DCDBDF";
-      labelColor = "#FFF";
-      labelbgColor = "#262038";
-  }
-
   let nestedKeys = [];
   for (let key in data) {
     if (typeof data[key] === 'object' && key !== '_index' && key !== 'timestamp') {
@@ -146,7 +149,7 @@ function displayDependencyGraph(data) {
     }
   });
 
-  const cy = cytoscape({
+  cy = cytoscape({
     container: document.getElementById('dependency-graph-canvas'),
     elements: {
       nodes: nodes,
@@ -162,52 +165,77 @@ function displayDependencyGraph(data) {
       padding: 20 
     },
 
-    style: [
-      {
-        selector: 'node',
-        style: {
-          'label': 'data(id)',
-          'color': labelColor,
-          'text-valign': 'bottom',
-          'text-halign': 'right',
-          'font-weight': 'normal',
-          'font-family': 'DINpro', 
-          'text-margin-y': -10,
-          'background-color': function(ele) {
-            const nodeId = ele.data('id');
-            if (!colorMap.hasOwnProperty(nodeId)) {
-              const color = colorArray[Object.keys(colorMap).length % colorArray.length];
-              colorMap[nodeId] = color;
-            }
-            return colorMap[nodeId];
-          },
-          'text-outline-color': labelbgColor,
-          'text-outline-width': '1px', 
-        }
-      },
-      {
-        selector: 'edge',
-        style: {
-          'width': 1,
-          'line-color': edgeColor,
-          'target-arrow-color': edgeColor,
-          'target-arrow-shape': 'triangle',
-          'label': 'data(value)',
-          'font-size': '14px',
-          'color': labelColor,
-          'text-background-color': labelbgColor,
-          'text-background-opacity': 0.7,
-          'text-background-padding': '1px',
-          'curveStyle': 'bezier',
-          // 'arrow-scale': 0.5 
-        }
-      }
-    ]
+    style: []
   });
 
   // Enable dragging
   cy.nodes().forEach(function(node) {
     node.grabify();
   });
+
+  updateGraphStyles(theme);
+
+  if (cy) {
+    cy.fit();
+  }
+}
+
+function updateGraphStyles(theme) {
+  let styles;
+  if (theme === "light") {
+      styles = lightStyles;
+  } else {
+      styles = darkStyles;
+  }
+
+  cy.style().fromJson([
+      {
+          selector: 'node',
+          style: {
+              'label': 'data(id)',
+              'color': styles.labelColor,
+              'text-valign': 'bottom',
+              'text-halign': 'right',
+              'font-size': 8,
+              'font-weight': 'normal',
+              'font-family': '"DINpro", Arial, sans-serif', 
+              'text-margin-y': -10,
+              'background-color': function(ele) {
+                  const nodeId = ele.data('id');
+                  if (!colorMap.hasOwnProperty(nodeId)) {
+                      const color = colorArray[Object.keys(colorMap).length % colorArray.length];
+                      colorMap[nodeId] = color;
+                  }
+                  return colorMap[nodeId];
+              },
+              'text-outline-color': styles.labelbgColor,
+              'text-outline-width': '1px', 
+              'text-max-width': 60,
+              'text-wrap': 'wrap',
+              'min-zoomed-font-size': 0.4,
+              'width': 20,
+              'height': 20,
+      
+          }
+      },
+      {
+          selector: 'edge',
+          style: {
+              'width': 1,
+              'line-color': styles.edgeColor,
+              'target-arrow-color': styles.edgeColor,
+              'target-arrow-shape': 'triangle',
+              'label': 'data(value)',
+              'color': styles.labelColor,
+              'text-background-color': styles.labelbgColor,
+              'text-background-opacity': 0.7,
+              'text-background-padding': '1px',
+              'curve-style': 'bezier',
+              'font-family': '"DINpro", Arial, sans-serif;',
+              'font-size': '10px',
+              // 'arrow-scale': 0.5 
+          }
+      }
+  ]).update();
 }
 

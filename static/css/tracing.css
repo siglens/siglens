@@ -94,6 +94,7 @@
     background-color: var(--black1-to-white0);
     border: 1px solid var(--search-input-border);
     border-radius: 10px;
+    padding: 20px;
 }
 
 #error-msg-container p{
