@@ -68,7 +68,7 @@ $(document).ready(() => {
 
 function getServiceDependencyData() {
     $.ajax({
-        method: "GET",
+        method: "POST",
         url: "api/traces/dependencies",
         headers: {
             "Content-Type": "application/json; charset=utf-8",
@@ -76,6 +76,10 @@ function getServiceDependencyData() {
         },
         dataType: "json",
         crossDomain: true,
+        data: JSON.stringify({
+          startEpoch: "now-3h",
+          endEpoch: "now"
+        }),
         success: function (res) {
             if ($.isEmptyObject(res)) {
                 $("#dependency-graph-container").hide();
