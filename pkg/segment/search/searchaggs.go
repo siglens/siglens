@@ -307,9 +307,9 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 	measureResults := make([]utils.CValueEnclosure, len(internalMops))
 
-	columnKeys := make(map[string][]interface{})
-
-	finalRecInden := make(map[string]string)
+	if nodeResult.RecsAggsColumnKeysMap == nil {
+		nodeResult.RecsAggsColumnKeysMap = make(map[string][]interface{})
+	}
 
 	for recInden, record := range recs {
 		colKeyValues := make([]interface{}, 0)
@@ -331,9 +331,8 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 		keyStr := toputils.UnsafeByteSliceToString(currKey.Bytes())
 
-		if _, exists := columnKeys[keyStr]; !exists {
-			columnKeys[keyStr] = colKeyValues
-			finalRecInden[keyStr] = recInden
+		if _, exists := nodeResult.RecsAggsColumnKeysMap[keyStr]; !exists {
+			nodeResult.RecsAggsColumnKeysMap[keyStr] = append(colKeyValues, recInden)
 		}
 
 		for cname, indices := range measureInfo {
@@ -395,12 +394,10 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 	}
 
 	validRecIndens := make(map[string]bool)
+	columnKeys := nodeResult.RecsAggsColumnKeysMap
 
 	for bKey, index := range blockRes.GroupByAggregation.StringBucketIdx {
-		recInden, exists := finalRecInden[bKey]
-		if !exists {
-			continue
-		}
+		recInden := columnKeys[bKey][len(columnKeys[bKey])-1].(string)
 		validRecIndens[recInden] = true
 		bucketValues, bucketCount := blockRes.GroupByAggregation.AllRunningBuckets[index].GetRunningStatsBucketValues()
 
@@ -408,6 +405,11 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 			if index == 0 {
 				finalCols[colName] = true
 			}
+
+			if _, exists := recs[recInden]; !exists {
+				recs[recInden] = make(map[string]interface{})
+			}
+
 			recs[recInden][colName] = columnKeys[bKey][idx]
 		}
 
