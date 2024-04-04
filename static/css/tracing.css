@@ -532,11 +532,3 @@ input.form-control {
 circle:hover{
     cursor: pointer;
 }
-
-.subsection-navbar .dropdown-menu.daterangepicker.show{
-    height: 162px !important;
-    padding: 8px !important;
-}
-.subsection-navbar .inner-range{
-    grid-template-columns: repeat(2, 1fr) !important;
-}
