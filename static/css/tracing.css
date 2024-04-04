@@ -527,6 +527,7 @@ input.form-control {
     padding: 5px !important;
     border-radius: 5px !important;
     font-size: 13px !important;
+    margin-top: -20px;
 }
 
 circle:hover{
