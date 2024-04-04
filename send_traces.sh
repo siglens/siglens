@@ -26,4 +26,7 @@ for api in "${selected_apis[@]}"
 do
     echo "$(date) - Sending GET request to $api" >> ~/scripts/send_traces.log
     curl -X GET $api >> ~/scripts/send_traces.log
+    if [ $? -ne 0 ]; then
+        echo "$(date) - Error when sending GET request to $api" >> ~/scripts/send_traces.log
+    fi
 done
