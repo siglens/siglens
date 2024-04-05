@@ -18,11 +18,11 @@ $(document).ready(() => {
 
    
     const serviceName = getParameterFromUrl('service');
+    const stDate = getParameterFromUrl('startEpoch');
+    const endDate = getParameterFromUrl('endEpoch');
     redMetrics['searchText']="service="  + serviceName + "";
     $('.service-name').text(serviceName);
-    
-    let stDate = "now-1h";
-    let endDate = "now";
+	$('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', isGraphsDatePickerHandler);
     let data = getTimeRange();
@@ -55,8 +55,6 @@ let gridLineColor;
 let tickColor;
 
 function getOneServiceOverview(){
-    let endDate = filterEndDate || "now";
-    let stDate = filterStartDate || "now-1h";
     let data = getTimeRange();
     redMetrics = {... redMetrics, ... data}
     $.ajax({
