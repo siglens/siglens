@@ -47,7 +47,7 @@ function getTraceInformation(traceId) {
         },
         data: JSON.stringify({
             "searchText": `trace_id=${traceId}`,
-            "startEpoch": "now-3h",
+            "startEpoch": "now-365d",
             "endEpoch": "now"
         }),
         dataType: 'json',
@@ -59,7 +59,7 @@ function getTraceInformation(traceId) {
 }
 
 $(".back-to-search-traces").on("click", function(){
-    window.location.href = "search-traces.html";
+   window.history.back();
 });
 
 function traceDetails(res){
