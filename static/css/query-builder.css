@@ -327,6 +327,7 @@ input.form-control {
     background-position: center;
     border-radius: 0 5px 5px 0;
     cursor: pointer;
+    border: none;
 }
 .run-filter-btn {
     background-image: url("../assets/search-img.svg");

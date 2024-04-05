@@ -369,6 +369,11 @@ input.form-control {
     height: 124px;
     margin-top: 20px;
     cursor: pointer;
+    color: var(--text-color);
+}
+
+a.warn-box-anchor {
+    text-decoration: none;
 }
 
 .error-span,
@@ -527,16 +532,9 @@ input.form-control {
     padding: 5px !important;
     border-radius: 5px !important;
     font-size: 13px !important;
+    margin-top: -20px;
 }
 
 circle:hover{
     cursor: pointer;
-}
-
-.subsection-navbar .dropdown-menu.daterangepicker.show{
-    height: 162px !important;
-    padding: 8px !important;
-}
-.subsection-navbar .inner-range{
-    grid-template-columns: repeat(2, 1fr) !important;
 }
