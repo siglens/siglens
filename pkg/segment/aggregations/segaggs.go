@@ -146,7 +146,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		}
 
 		if agg.OutputTransforms.FilterRows != nil {
-			err := performFilterRows(nodeResult, agg.OutputTransforms.FilterRows)
+			err := performFilterRows(nodeResult, agg.OutputTransforms.FilterRows, recs)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -2058,7 +2058,15 @@ func performValueColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 	return nil
 }
 
-func performFilterRows(nodeResult *structs.NodeResult, filterRows *structs.BoolExpr) error {
+func performFilterRows(nodeResult *structs.NodeResult, filterRows *structs.BoolExpr, recs map[string]map[string]interface{}) error {
+
+	if recs != nil {
+		if err := performFilterRowsWithoutGroupBy(filterRows, recs); err != nil {
+			return fmt.Errorf("performFilterRows: %v", err)
+		}
+		return nil
+	}
+
 	// Ensure all referenced columns are valid.
 	for _, field := range filterRows.GetFields() {
 		if !utils.SliceContainsString(nodeResult.GroupByCols, field) &&
@@ -2073,6 +2081,31 @@ func performFilterRows(nodeResult *structs.NodeResult, filterRows *structs.BoolE
 	}
 	if err := performFilterRowsOnMeasureResults(nodeResult, filterRows); err != nil {
 		return fmt.Errorf("performFilterRows: %v", err)
+	}
+
+	return nil
+}
+
+func performFilterRowsWithoutGroupBy(filterRows *structs.BoolExpr, recs map[string]map[string]interface{}) error {
+	fieldsInExpr := filterRows.GetFields()
+
+	for key, record := range recs {
+		fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+		err := getRecordFieldValues(fieldToValue, fieldsInExpr, record)
+		if err != nil {
+			log.Errorf("performFilterRowsWithoutGroupBy: %v", err)
+			continue
+		}
+
+		shouldKeep, err := filterRows.Evaluate(fieldToValue)
+		if err != nil {
+			log.Errorf("performFilterRowsWithoutGroupBy: %v", err)
+			continue
+		}
+
+		if !shouldKeep {
+			delete(recs, key)
+		}
 	}
 
 	return nil
