@@ -480,22 +480,24 @@ function showScatterPlot() {
 function reSort(){
   $(".warn-box").remove();
   for (let i = 0; i < returnResTotal.length; i++) {
-    $("#warn-bottom").append(`<div class="warn-box warn-box-${i}"><div class="warn-head">
-                            <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
-                            <span class = "duration-time" id  = "duration-time-${i}"></span>
-                        </div>
-                        <div class="warn-content">
-                            <div class="spans-box">
-                            <div class = "total-span" id = "total-span-${i}"></div>
-                            <div class = "error-span" id = "error-span-${i}"></div>
-                            </div>
-                            <div> </div>
-                            <div class="warn-content-right">
-                                <span class = "start-time" id = "start-time-${i}"></span>
-                                <span class = "how-long-time" id = "how-long-time-${i}"></span>
-                            </div>
-                        </div></div>`);
     let json = returnResTotal[i];
+    $("#warn-bottom").append(`<a href="../trace.html?trace_id=${json.trace_id}" class="warn-box-anchor">
+      <div class="warn-box warn-box-${i}"><div class="warn-head">
+                              <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
+                              <span class = "duration-time" id  = "duration-time-${i}"></span>
+                          </div>
+                          <div class="warn-content">
+                              <div class="spans-box">
+                              <div class = "total-span" id = "total-span-${i}"></div>
+                              <div class = "error-span" id = "error-span-${i}"></div>
+                              </div>
+                              <div> </div>
+                              <div class="warn-content-right">
+                                  <span class = "start-time" id = "start-time-${i}"></span>
+                                  <span class = "how-long-time" id = "how-long-time-${i}"></span>
+                              </div>
+                          </div></div>
+    </a>`);
     $(`.warn-box-${i}`).attr("id",json.trace_id );
     $(`#span-id-head-${i}`).text(json.service_name + ": " + json.operation_name + "  ");
     $(`#span-id-${i}`).text(json.trace_id.substring(0, 7));
@@ -595,8 +597,3 @@ function getData() {
     }
   }
 }
-
-$("body").on("click", ".warn-box", function() {
-  var traceId = $(this).attr("id");
-  window.location.href = "trace.html?trace_id=" + traceId;
-});

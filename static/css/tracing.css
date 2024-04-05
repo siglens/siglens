@@ -369,6 +369,11 @@ input.form-control {
     height: 124px;
     margin-top: 20px;
     cursor: pointer;
+    color: var(--text-color);
+}
+
+a.warn-box-anchor {
+    text-decoration: none;
 }
 
 .error-span,
