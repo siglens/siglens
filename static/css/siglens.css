@@ -3169,6 +3169,8 @@ float: right;
 }
 
 .search-db-input,.metrics-input{
+    padding-left: 1rem;
+    padding-right: 4.4rem;
     height: 32px;
 }
 
@@ -5160,4 +5162,37 @@ input.form-control {
     width: 16px;
     height: 12px;
     top: 9px;
+}
+
+.loading-icon {
+    display: block;
+    width: 50px;
+    height: 50px;
+    border: 8px solid #B4A6E6;
+    border-top: 8px solid #6347D9;
+    border-radius: 50%;
+    animation: spin 2s linear infinite;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 99;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.ag-overlay-loading-center{
+    position: relative;
+}
+
+.loading-text{
+    position: absolute;
+    font-weight: 600;
+    top: 20px;
+    left: -36px;
+    background-color: var(--bg-color);
+    padding: 8px;
 }

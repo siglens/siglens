@@ -6,6 +6,9 @@ receivers:
           scrape_interval: 60s
           static_configs:
             - targets: ['siglens:2222']
+  otlp: # OTLP receiver to collect traces
+    protocols:
+      http:
 
 processors:
   batch:
@@ -13,9 +16,12 @@ processors:
 exporters:
   logging:
     loglevel: debug
-
   prometheusremotewrite:
     endpoint: 'http://siglens:8081/promql/api/v1/write'
+  otlphttp: # Add an OTLP exporter to send traces to SigLens
+    endpoint: 'http://siglens:8081/otlp' # SigLens trace endpoint
+    tls:
+      insecure: true # Use this only if the connection does not use TLS
 
 service:
   pipelines:
@@ -23,3 +29,7 @@ service:
       receivers: [prometheus]
       processors: [batch]
       exporters: [prometheusremotewrite]
+    traces: # Define a new pipeline for traces
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp]

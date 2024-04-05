@@ -174,6 +174,7 @@ type OutputTransforms struct {
 	LetColumns             *LetColumnsRequest // let columns processing on output columns
 	FilterRows             *BoolExpr          // discard rows failing some condition
 	MaxRows                uint64             // if 0, get all results; else, get at most this many
+	RowsAdded              uint64             // number of rows added to the result. This is used in conjunction with MaxRows.
 }
 
 type GroupByRequest struct {
@@ -483,10 +484,15 @@ func (qa *QueryAggregators) IsStatisticBlockEmpty() bool {
 }
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block...
-func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
+func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil)
+}
+
+// To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
+func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
+	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.FilterRows != nil || qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded)
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {

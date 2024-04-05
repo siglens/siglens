@@ -146,7 +146,15 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		}
 
 		if agg.OutputTransforms.FilterRows != nil {
-			err := performFilterRows(nodeResult, agg.OutputTransforms.FilterRows)
+			err := performFilterRows(nodeResult, agg.OutputTransforms.FilterRows, recs)
+
+			if err != nil {
+				return fmt.Errorf("performAggOnResult: %v", err)
+			}
+		}
+
+		if agg.OutputTransforms.MaxRows > 0 {
+			err := performMaxRows(nodeResult, agg, agg.OutputTransforms.MaxRows, recs)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -155,6 +163,8 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	case structs.GroupByType:
 		nodeResult.PerformAggsOnRecs = true
 		nodeResult.RecsAggsType = structs.GroupByType
+		nodeResult.GroupByCols = agg.GroupByRequest.GroupByColumns
+		nodeResult.GroupByRequest = agg.GroupByRequest
 	case structs.MeasureAggsType:
 		nodeResult.PerformAggsOnRecs = true
 		nodeResult.RecsAggsType = structs.MeasureAggsType
@@ -163,6 +173,50 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		performTransactionCommandRequest(nodeResult, agg, recs, finalCols, numTotalSegments, finishesSegment)
 	default:
 		return errors.New("performAggOnResult: multiple QueryAggregators is currently only supported for OutputTransformType")
+	}
+
+	return nil
+}
+
+func performMaxRows(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, maxRows uint64, recs map[string]map[string]interface{}) error {
+
+	if maxRows == 0 {
+		return nil
+	}
+
+	if recs != nil {
+		// If the number of records plus the already added Rows is less than the maxRows, we don't need to do anything.
+		if (uint64(len(recs)) + aggs.OutputTransforms.RowsAdded) <= maxRows {
+			aggs.OutputTransforms.RowsAdded += uint64(len(recs))
+			return nil
+		}
+
+		// If the number of records is greater than the maxRows, we need to remove the extra records.
+		for key := range recs {
+			if aggs.OutputTransforms.RowsAdded >= maxRows {
+				delete(recs, key)
+				continue
+			}
+			aggs.OutputTransforms.RowsAdded++
+		}
+
+		return nil
+	}
+
+	// Follow group by
+	if nodeResult.Histogram != nil {
+		for _, aggResult := range nodeResult.Histogram {
+			if (uint64(len(aggResult.Results)) + aggs.OutputTransforms.RowsAdded) <= maxRows {
+				aggs.OutputTransforms.RowsAdded += uint64(len(aggResult.Results))
+				continue
+			}
+
+			// If the number of records is greater than the maxRows, we need to remove the extra records.
+			aggResult.Results = aggResult.Results[:maxRows-aggs.OutputTransforms.RowsAdded]
+			aggs.OutputTransforms.RowsAdded = maxRows
+			break
+		}
+		return nil
 	}
 
 	return nil
@@ -2004,7 +2058,15 @@ func performValueColRequestOnMeasureResults(nodeResult *structs.NodeResult, letC
 	return nil
 }
 
-func performFilterRows(nodeResult *structs.NodeResult, filterRows *structs.BoolExpr) error {
+func performFilterRows(nodeResult *structs.NodeResult, filterRows *structs.BoolExpr, recs map[string]map[string]interface{}) error {
+
+	if recs != nil {
+		if err := performFilterRowsWithoutGroupBy(filterRows, recs); err != nil {
+			return fmt.Errorf("performFilterRows: %v", err)
+		}
+		return nil
+	}
+
 	// Ensure all referenced columns are valid.
 	for _, field := range filterRows.GetFields() {
 		if !utils.SliceContainsString(nodeResult.GroupByCols, field) &&
@@ -2019,6 +2081,31 @@ func performFilterRows(nodeResult *structs.NodeResult, filterRows *structs.BoolE
 	}
 	if err := performFilterRowsOnMeasureResults(nodeResult, filterRows); err != nil {
 		return fmt.Errorf("performFilterRows: %v", err)
+	}
+
+	return nil
+}
+
+func performFilterRowsWithoutGroupBy(filterRows *structs.BoolExpr, recs map[string]map[string]interface{}) error {
+	fieldsInExpr := filterRows.GetFields()
+
+	for key, record := range recs {
+		fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+		err := getRecordFieldValues(fieldToValue, fieldsInExpr, record)
+		if err != nil {
+			log.Errorf("performFilterRowsWithoutGroupBy: %v", err)
+			continue
+		}
+
+		shouldKeep, err := filterRows.Evaluate(fieldToValue)
+		if err != nil {
+			log.Errorf("performFilterRowsWithoutGroupBy: %v", err)
+			continue
+		}
+
+		if !shouldKeep {
+			delete(recs, key)
+		}
 	}
 
 	return nil

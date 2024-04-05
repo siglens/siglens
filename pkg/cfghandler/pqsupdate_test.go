@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -23,7 +22,7 @@ func TestSavePQSConfigToRunMod(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("pqsEnabled_%t", tc.pqsEnabled), func(t *testing.T) {
-			tempFile, err := ioutil.TempFile("", "runmodcfg_*.json")
+			tempFile, err := os.CreateTemp("", "runmodcfg_*.json")
 			if err != nil {
 				t.Fatalf("Failed to create temp file: %v", err)
 			}

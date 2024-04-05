@@ -48,6 +48,8 @@ var configFilePath string
 
 var parallelism int64
 
+var tracingEnabled bool // flag to enable/disable tracing; Set to true if TracingConfig.Endpoint != ""
+
 func init() {
 	parallelism = int64(runtime.GOMAXPROCS(0))
 	if parallelism <= 1 {
@@ -186,6 +188,26 @@ func GetTLSPrivateKeyPath() string {
 // used by
 func GetQueryHostname() string {
 	return runningConfig.QueryHostname
+}
+
+func SetTracingEnabled(flag bool) {
+	tracingEnabled = flag
+}
+
+func IsTracingEnabled() bool {
+	return tracingEnabled
+}
+
+func GetTracingServiceName() string {
+	return runningConfig.Tracing.ServiceName
+}
+
+func GetTracingEndpoint() string {
+	return runningConfig.Tracing.Endpoint
+}
+
+func GetTraceSamplingPercentage() float64 {
+	return runningConfig.Tracing.SamplingPercentage
 }
 
 // returns SmtpHost, SmtpPort, SenderEmail and GmailAppPassword
@@ -414,7 +436,7 @@ func InitConfigurationData() error {
 		return err
 	}
 	configFileLastModified = uint64(fileInfo.ModTime().UTC().Unix())
-	go refreshConfig()
+	go runRefreshConfigLoop()
 	return nil
 }
 
@@ -471,6 +493,7 @@ func GetTestConfig() common.Configuration {
 		QueryHostname:              "",
 		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
 		TLS:                        common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
+		Tracing:                    common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
 		DatabaseConfig:             common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
 		EmailConfig:                common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
 	}
@@ -680,6 +703,44 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 
 	if len(config.TLS.PrivateKeyPath) >= 0 && strings.HasPrefix(config.TLS.PrivateKeyPath, "./") {
 		config.TLS.PrivateKeyPath = strings.Trim(config.TLS.PrivateKeyPath, "./")
+	}
+
+	// Check for Tracing Config through environment variables
+	if os.Getenv("TRACESTORE_ENDPOINT") != "" {
+		config.Tracing.Endpoint = os.Getenv("TRACESTORE_ENDPOINT")
+	}
+
+	if os.Getenv("SIGLENS_TRACING_SERVICE_NAME") != "" {
+		config.Tracing.ServiceName = os.Getenv("SIGLENS_TRACING_SERVICE_NAME")
+	}
+
+	if os.Getenv("TRACE_SAMPLING_PRECENTAGE") != "" {
+		samplingPercentage, err := strconv.ParseFloat(os.Getenv("TRACE_SAMPLING_PRECENTAGE"), 64)
+		if err != nil {
+			log.Errorf("Error parsing TRACE_SAMPLING_PRECENTAGE: %v", err)
+			log.Info("Setting Trace Sampling Percentage to 1")
+			config.Tracing.SamplingPercentage = 1
+		} else {
+			config.Tracing.SamplingPercentage = samplingPercentage
+		}
+	}
+
+	if len(config.Tracing.ServiceName) <= 0 {
+		config.Tracing.ServiceName = "siglens"
+	}
+
+	if len(config.Tracing.Endpoint) <= 0 {
+		log.Info("Tracing is disabled. Please set the endpoint in the config file to enable Tracing.")
+		SetTracingEnabled(false)
+	} else {
+		log.Info("Tracing is enabled. Tracing Endpoint: ", config.Tracing.Endpoint)
+		SetTracingEnabled(true)
+	}
+
+	if config.Tracing.SamplingPercentage < 0 {
+		config.Tracing.SamplingPercentage = 0
+	} else if config.Tracing.SamplingPercentage > 100 {
+		config.Tracing.SamplingPercentage = 100
 	}
 
 	return config, nil
@@ -931,24 +992,28 @@ func ProcessForceReadConfig(ctx *fasthttp.RequestCtx) {
 }
 
 func refreshConfig() {
-	for {
-		time.Sleep(MINUTES_REREAD_CONFIG * time.Minute)
-		fileInfo, err := os.Stat(configFilePath)
+	fileInfo, err := os.Stat(configFilePath)
+	if err != nil {
+		log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
+		return
+	}
+	modifiedTime := fileInfo.ModTime()
+	modifiedTimeSec := uint64(modifiedTime.UTC().Unix())
+	if modifiedTimeSec > configFileLastModified {
+		newConfig, err := ReadConfigFile(configFilePath)
 		if err != nil {
 			log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
-			continue
+			return
 		}
-		modifiedTime := fileInfo.ModTime()
-		modifiedTimeSec := uint64(modifiedTime.UTC().Unix())
-		if modifiedTimeSec > configFileLastModified {
-			newConfig, err := ReadConfigFile(configFilePath)
-			if err != nil {
-				log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
-				continue
-			}
-			SetConfig(newConfig)
-			configFileLastModified = modifiedTimeSec
-		}
+		SetConfig(newConfig)
+		configFileLastModified = modifiedTimeSec
+	}
+}
+
+func runRefreshConfigLoop() {
+	for {
+		time.Sleep(MINUTES_REREAD_CONFIG * time.Minute)
+		refreshConfig()
 	}
 }
 
