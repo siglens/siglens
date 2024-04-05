@@ -1564,6 +1564,12 @@ func Test_performArithmeticOperation_Addition(t *testing.T) {
 			want:  float64(8),
 		},
 		{
+			name:  "Add a string and a number",
+			left:  2,
+			right: "3",
+			want:  float64(5),
+		},
+		{
 			name:  "Concatenation of strings",
 			left:  "Hello, ",
 			right: "World!",
@@ -1631,6 +1637,24 @@ func Test_performArithmeticOperation_Subtraction(t *testing.T) {
 			left:  0,
 			right: 5,
 			want:  -5,
+		},
+		{
+			name:  "Subtracting a string(number) from a string(number)",
+			left:  "2",
+			right: "5",
+			want:  -3,
+		},
+		{
+			name:  "Subtracting a number from a string(number)",
+			left:  "2",
+			right: 5,
+			want:  -3,
+		},
+		{
+			name:  "Subtracting a string from a number",
+			left:  5,
+			right: "2",
+			want:  3,
 		},
 		{
 			name:    "Subtracting a number from a string",
