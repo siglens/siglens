@@ -47,6 +47,11 @@ function datePickerHandler(startDate, endDate, label) {
             displayStart = moment().subtract(1, 'hours').valueOf();
             displayLabel = 'Last 1 Hr';
             break;
+        case 'Last 2 Hrs':
+        case 'now-2h':
+            displayStart = moment().subtract(2, 'hours').valueOf();
+            displayLabel = 'Last 2 Hrs';
+            break;
         case 'Last 3 Hrs':
         case 'now-3h':
             displayStart = moment().subtract(3, 'hours').valueOf();

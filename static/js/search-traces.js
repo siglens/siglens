@@ -17,10 +17,8 @@ limitations under the License.
 'use strict';
 let chart;
 let currList = [];
-let curSpanTraceArray = [],
-  curErrorTraceArray = [],
-  timeList = [],
-  returnResTotal = [];
+let returnResTotal = [],
+scatterData = [];
 let pageNumber = 1,
   traceSize = 0,
   params = {};
@@ -221,9 +219,7 @@ function searchTraceHandler(e){
   e.stopPropagation(); 
   e.preventDefault();
   returnResTotal = [];
-  curSpanTraceArray = [];
-  curErrorTraceArray = [];
-  timeList = [];
+  scatterData = [];
   pageNumber = 1;
    traceSize = 0;
     params = {};
@@ -330,17 +326,14 @@ function searchTrace(params){
       if ($("#traces-number").text().trim() === "") {
        await getTotalTraces(params);
       }      
-      timeList = [];
-      for (let i = 0; i < traceSize; i++) {
+      scatterData = [];
+      for (let i = traceSize - 1; i >= 0; i--) {
         let json = returnResTotal[i];
         let milliseconds = Number(json.start_time / 1000000);
         let dataInfo = new Date(milliseconds);
         let dataStr = dataInfo.toLocaleString().toLowerCase();
         let duration = Number((json.end_time - json.start_time) / 1000000);
-        let newArr = [i, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name, json.trace_id];
-        timeList.push(dataStr);
-        if(json.span_errors_count == 0) curSpanTraceArray.push(newArr);
-        else curErrorTraceArray.push(newArr);
+        scatterData.push([dataStr, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name, json.trace_id]);
       }
       showScatterPlot();
       reSort();
@@ -390,7 +383,6 @@ function showScatterPlot() {
       nameTextStyle: {
         color: axisLabelColor
       },
-      data: timeList,
       scale: true,
       axisLine: {
         lineStyle: {
@@ -404,7 +396,7 @@ function showScatterPlot() {
     },
     yAxis: {
       type: "value",
-      name: "Duration",
+      name: "Duration (ms)",
       nameTextStyle: {
         color: axisLabelColor
       },
@@ -448,7 +440,7 @@ function showScatterPlot() {
         rippleEffect: {
           scale: 1,
         },
-        data: curSpanTraceArray,
+        data: scatterData.filter(data => data[3] == 0),
         symbolSize: function (val) {
           return val[2] < 5 ? 5 : val[2];
         },
@@ -462,7 +454,7 @@ function showScatterPlot() {
         rippleEffect: {
           scale: 1,
         },
-        data: curErrorTraceArray,
+        data: scatterData.filter(data => data[3] > 0),
         symbolSize: function (val) {
           return val[3] < 5 ? 5 : val[3];
         },
@@ -480,22 +472,24 @@ function showScatterPlot() {
 function reSort(){
   $(".warn-box").remove();
   for (let i = 0; i < returnResTotal.length; i++) {
-    $("#warn-bottom").append(`<div class="warn-box warn-box-${i}"><div class="warn-head">
-                            <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
-                            <span class = "duration-time" id  = "duration-time-${i}"></span>
-                        </div>
-                        <div class="warn-content">
-                            <div class="spans-box">
-                            <div class = "total-span" id = "total-span-${i}"></div>
-                            <div class = "error-span" id = "error-span-${i}"></div>
-                            </div>
-                            <div> </div>
-                            <div class="warn-content-right">
-                                <span class = "start-time" id = "start-time-${i}"></span>
-                                <span class = "how-long-time" id = "how-long-time-${i}"></span>
-                            </div>
-                        </div></div>`);
     let json = returnResTotal[i];
+    $("#warn-bottom").append(`<a href="../trace.html?trace_id=${json.trace_id}" class="warn-box-anchor">
+      <div class="warn-box warn-box-${i}"><div class="warn-head">
+                              <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
+                              <span class = "duration-time" id  = "duration-time-${i}"></span>
+                          </div>
+                          <div class="warn-content">
+                              <div class="spans-box">
+                              <div class = "total-span" id = "total-span-${i}"></div>
+                              <div class = "error-span" id = "error-span-${i}"></div>
+                              </div>
+                              <div> </div>
+                              <div class="warn-content-right">
+                                  <span class = "start-time" id = "start-time-${i}"></span>
+                                  <span class = "how-long-time" id = "how-long-time-${i}"></span>
+                              </div>
+                          </div></div>
+    </a>`);
     $(`.warn-box-${i}`).attr("id",json.trace_id );
     $(`#span-id-head-${i}`).text(json.service_name + ": " + json.operation_name + "  ");
     $(`#span-id-${i}`).text(json.trace_id.substring(0, 7));
@@ -595,8 +589,3 @@ function getData() {
     }
   }
 }
-
-$("body").on("click", ".warn-box", function() {
-  var traceId = $(this).attr("id");
-  window.location.href = "trace.html?trace_id=" + traceId;
-});
