@@ -2358,7 +2358,7 @@ input[type="submit" i] {
     color: var(--text-color);
 
     width: 330px !important;
-    height: 486px !important;
+    height: 440px !important;
     background: var(--timepicker-bg-color);
     border: 1px solid var(--timepicker-border-color);
     border-radius: 5px;
@@ -2451,7 +2451,7 @@ input[type="submit" i] {
 }
 
 hr {
-    margin: 1rem 0;
+    margin: .5rem 0;
     color: var(--timepicker-hr-color) !important;
     border: 0;
 }
@@ -2487,14 +2487,14 @@ hr {
 }
 
 #daterange-from {
-    margin-top: 20px;
+    margin-top: 12px;
 }
 #dt-from-text {
     margin-left: 12px;
 }
 
 #daterange-to {
-    margin-top: 19px;
+    margin-top: 12px;
 }
 #dt-to-text {
     margin-left: 12px;
@@ -2504,7 +2504,7 @@ hr {
     margin-top: 8px;
     margin-left: 12px;
     width: 147.41px;
-    height: 35px;
+    height: 32px;
 
     border: 1px solid var(--timepicker-border-color);
     border-radius: 4px;
@@ -2527,7 +2527,7 @@ hr {
     margin-top: 8px;
     margin-left: 11px;
     width: 147.41px;
-    height: 35px;
+    height: 32px;
 
     border: 1px solid var(--timepicker-border-color);
     border-radius: 4px;
@@ -2572,11 +2572,11 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 
 .daterangepicker .drp-buttons .btn{
     width: 306px !important;
-    height: 35px !important;
+    height: 32px !important;
     background: var(--btn-regular-bg-color) !important;
     border-radius: 4px;
     font-weight: var(--fw-400);
-    font-size: 18px;
+    font-size: 16px;
     line-height: 23px;
     font-family: "DINpro", Arial, sans-serif !important;
     opacity: 100 !important;
@@ -2749,10 +2749,25 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 .odd-popup-textarea{
     background: var(--datatable-odd-row-bg-color) !important;
     color: var(--text-color) !important;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    box-sizing: border-box;
+    overflow: auto;
+    font-size: 12px;
 }
+
 .even-popup-textarea{
     background: var(--datatable-even-row-bg-color) !important;
     color: var(--text-color) !important;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    box-sizing: border-box;
+    overflow: auto;
+    font-size: 12px;
 }
 
 .fa-sort-alpha-up:before{
