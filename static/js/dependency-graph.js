@@ -50,6 +50,11 @@ const darkStyles = {
 };
 
 $(document).ready(() => {
+  let stDate = "now-1h";
+    let endDate = "now";
+    datePickerHandler(stDate, endDate, stDate);
+    setupDependencyEventHandlers()
+
     if (Cookies.get("theme")) {
         theme = Cookies.get("theme");
         $("body").attr("data-theme", theme);
@@ -60,7 +65,7 @@ $(document).ready(() => {
     });
 
     $("#error-msg-container, #dependency-info").hide();
-    getServiceDependencyData();
+    getServiceDependencyData(stDate, endDate);
 
     $("#dependency-info").tooltip({
       delay: { show: 0, hide: 300 },
@@ -78,7 +83,53 @@ $(document).ready(() => {
     });
 });
 
-function getServiceDependencyData() {
+function rangeItemHandler(evt) {
+  resetCustomDateRange();
+  $.each($(".range-item.active"), function () {
+      $(this).removeClass('active');
+  });
+  $(evt.currentTarget).addClass('active');
+  const start = $(this).attr('id')
+  const end = "now"
+  const label = $(this).attr('id')
+  datePickerHandler(start, end, label)
+  getServiceDependencyData(start, end)
+}
+
+function resetDatePickerHandler(evt) {
+  evt.stopPropagation();
+  resetCustomDateRange();
+  $.each($(".range-item.active"), function () {
+      $(this).removeClass('active');
+  });
+
+}
+
+function showDatePickerHandler(evt) {
+  evt.stopPropagation();
+  $('#daterangepicker').toggle();
+  $(evt.currentTarget).toggleClass('active');
+}
+
+function hideDatePickerHandler() {
+  $('#daterangepicker').removeClass('active');
+}
+
+function setupDependencyEventHandlers(){
+    $('#date-picker-btn').on('show.bs.dropdown', showDatePickerHandler);
+    $('#date-picker-btn').on('hide.bs.dropdown', hideDatePickerHandler);
+    $('#reset-timepicker').on('click', resetDatePickerHandler);
+
+    $('#time-start').on('change', getStartTimeHandler);
+    $('#time-end').on('change', getEndTimeHandler);
+    $('#customrange-btn').on('click', customRangeHandler);
+
+    $('.range-item').on('click', rangeItemHandler)
+}
+
+function getServiceDependencyData(start, end) {
+    d3.select("#dependency-graph-container").selectAll("svg").remove();
+
     $.ajax({
         method: "POST",
         url: "api/traces/dependencies",
@@ -87,11 +138,11 @@ function getServiceDependencyData() {
             Accept: "*/*",
         },
         dataType: "json",
-        crossDomain: true,
         data: JSON.stringify({
-          startEpoch: "now-3h",
-          endEpoch: "now"
+          startEpoch: start || "now-1h",
+          endEpoch: end || "now"
         }),
+        crossDomain: true,
         success: function (res) {
             if ($.isEmptyObject(res)) {
                 $("#dependency-graph-container").hide();

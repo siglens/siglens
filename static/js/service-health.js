@@ -19,15 +19,15 @@ limitations under the License.
 let redMetricsData ={
     "indexName":  "red-traces",
 }
+let stDate = Cookies.get('startEpoch') || "now-3h";
+let endDate = Cookies.get('endEpoch') || "now";
 $(document).ready(() => {
     if (Cookies.get("theme")) {
         theme = Cookies.get("theme");
         $("body").attr("data-theme", theme);
     }
     $(".theme-btn").on("click", themePickerHandler);
-
-    let stDate = "now-15m";
-    let endDate = "now";
+	$('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', isServiceHealthDatePickerHandler);
     let data = getTimeRange();
@@ -109,6 +109,8 @@ function processRedMetricsData(metricsData) {
 
 function getAllServices(){
     data = getTimeRange();
+    stDate = data.startEpoch;
+    endDate = data.endEpoch;
     redMetricsData = {... redMetricsData, ... data}
     $.ajax({
         method: "POST",
@@ -155,7 +157,10 @@ function displayServiceHealthTable(res){
 
 function onRowClicked(event) {
     const serviceName = event.data.service; 
-    window.location.href = 'service-health-overview.html?service=' + encodeURIComponent(serviceName);
+    const url = 'service-health-overview.html?service=' + encodeURIComponent(serviceName) +
+                '&startEpoch=' + encodeURIComponent(stDate) +
+                '&endEpoch=' + encodeURIComponent(endDate);
+    window.location.href = url;
 }
 
 
