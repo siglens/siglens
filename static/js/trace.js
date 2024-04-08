@@ -147,7 +147,7 @@ function displayTimeline(data) {
         .attr("x1", (d) => xScale(d))
         .attr("x2", (d) => xScale(d))
         .attr("y1", 50)
-        .attr("y2", 50 + totalHeight);
+        .attr("y2", 100 + totalHeight);
 
     // Add time labels
     svg.selectAll(".time-label")
@@ -241,5 +241,5 @@ function calculateTotalHeight(node) {
         }
     }
     calculateHeight(node);
-    return totalHeight + 200;
+    return totalHeight + 100;
 }
