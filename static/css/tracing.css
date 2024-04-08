@@ -452,7 +452,7 @@ a.warn-box-anchor {
     padding-bottom: 40px;
     overflow: auto; 
     width: 100%;
-    height: 80vh; 
+    height: 85vh; 
 }
 
 .back-to-search-traces{
@@ -514,6 +514,12 @@ a.warn-box-anchor {
     fill: var(--text-color);
 }
 
+.gantt-chart-heading{
+    font-size: 16px;
+    font-weight: bold;
+    fill: var(--text-color);
+}
+
 .tooltip-gantt {
     position: absolute;
     z-index: 10;
@@ -552,4 +558,35 @@ circle:hover{
 }
 .dep{
     grid-template-columns: repeat(3, 1fr) !important;
+}
+
+.span-details-container{
+    margin-top: 14px;
+    box-shadow: var(--box-shadow);
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 10px;
+    padding-bottom: 40px;
+    overflow: auto;
+    height: 85vh;
+    padding: 20px;
+    margin-left: 10px;
+    min-width: 450px;
+}
+
+.span-details-container .close-btn{
+    background: url(../assets/cross-btn-icon.svg);
+    height: 11px;
+    width: 11px;
+    background-size: cover;
+    cursor: pointer;
+}
+
+.details-container div{
+    margin-bottom: 8px;
+}
+
+.details-container table th,.details-container table td{
+    border: 1px solid var(--timepicker-hr-color);
+    padding: 8px;
 }

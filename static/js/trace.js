@@ -95,7 +95,7 @@ function traceDetails(res){
 }
 
 function nsToMs(ns) {
-    return ns / 1e6;
+    return (ns / 1e6).toFixed(2);
 }
 
 function convertNanosecondsToDateTime(timestamp) {
@@ -131,6 +131,13 @@ function displayTimeline(data) {
             "transform",
             "translate(" + padding.left + "," + padding.top + ")",
         );
+
+    // Add title
+    svg.append("text")
+        .attr("x", 0) 
+        .attr("y", 40) 
+        .attr("class", "gantt-chart-heading")
+        .text("Service and Operation");
 
     const xScale = d3
         .scaleLinear()
@@ -192,8 +199,8 @@ function displayTimeline(data) {
                     .style("display", "block")
                     .html(
                         `
+                        <strong> ${node.service_name} : ${node.operation_name}</strong><br>
                         <strong>SpanId</strong>: ${node.span_id} <br>
-                        <strong>Name</strong>: ${node.service_name} : ${node.operation_name}<br>
                         <strong>Start Time</strong>: ${nsToMs(node.start_time)}ms<br>
                         <strong>End Time</strong>: ${nsToMs(node.end_time)}ms<br>
                         <strong>Duration</strong>: ${nsToMs(node.duration)}ms <br>
@@ -209,8 +216,44 @@ function displayTimeline(data) {
             .on("mouseout", () => {
                 rect.style("cursor", "default");
                 tooltip.style("display", "none");
+            })
+            .on("click", () => {
+                d3.selectAll(".span-details-box").remove();
+                showSpanDetails(node); // Function to show details
             });
-        }
+    
+            function showSpanDetails(node) {
+                let spanDetailsContainer = d3.select(".span-details-container");
+                spanDetailsContainer.style("display", "block");
+                spanDetailsContainer.html(
+                    `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="operation-name"><strong>${node.operation_name}</strong></div>
+                        <div class="close-btn"></div>
+                    </div>
+                    <hr>
+                    <div class="details-container">
+                        <div><strong>SpanId</strong>: ${node.span_id} </div>
+                        <div><strong>Service</strong>: ${node.service_name}</div>
+                        <div><strong>Start Time</strong>: ${nsToMs(node.start_time)}ms  |  <strong>End Time</strong>: ${nsToMs(node.end_time)}ms</div>
+                        <div><strong>Duration</strong>: ${nsToMs(node.duration)}ms </div>
+                        <div><strong>Tags</strong>:</div>
+                        <table style="border-collapse: collapse; width: 100%; margin-top:6px" >
+                          ${Object.entries(node.tags).map(([key, value]) => `
+                            <tr>
+                              <td ><em>${key}</em></td>
+                              <td style="word-break: break-all;"><em>${value}</em></td>
+                            </tr>`).join('')}
+                        </table>
+                    </div>
+                    `
+                );
+
+                spanDetailsContainer.select(".close-btn").on("click", function() {
+                    spanDetailsContainer.style("display", "none");
+                });
+            }                
+    }
 
         colorIndex = (colorIndex + 1) % colorArray.length;
         // Increment y for the next node
