@@ -15,9 +15,27 @@ limitations under the License.
 */
 
 'use strict';
+const colorArray = [
+    "#6347D9",
+    "#01BFB3",
+    "#E9DC6E",
+    "#F2A52B",
+    "#4BAE7F",
+    "#9178C5",
+    "#23A9E2",
+    "#8C706B",
+    "#22589D",
+    "#B33B97",
+    "#9FBF46",
+    "#BF9A68",
+    "#DC756F",
+    "#E55D9A",
+    "#597C53",
+];
 
 let svgWidth;
 let traceId;
+let colorIndex = 0;
 
 $(document).ready(() => {
     $(".theme-btn").on("click", themePickerHandler);
@@ -167,7 +185,7 @@ function displayTimeline(data) {
             .attr("y", y)
             .attr("width", xScale(nsToMs(node.end_time)) - xScale(nsToMs(node.start_time)))
             .attr("height", 20)
-            .attr("fill", "#6449D6")
+            .attr("fill", colorArray[colorIndex])
             .on("mouseover", () => {
                 rect.style("cursor", "pointer");
                 tooltip
@@ -194,6 +212,7 @@ function displayTimeline(data) {
             });
         }
 
+        colorIndex = (colorIndex + 1) % colorArray.length;
         // Increment y for the next node
         y += 50;
 
