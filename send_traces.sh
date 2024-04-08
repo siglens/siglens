@@ -2,7 +2,8 @@
 
 mkdir -p ~/scripts
 
-# List of API endpoints
+# These are the HotRod endpoints available on port 8080
+# HotRod is installed on the playground using install.sh
 apis=(
 "http://playground.sigscalr.io:8080/dispatch?customer=123"
 "http://playground.sigscalr.io:8080/config?customer=123"
