@@ -286,3 +286,48 @@ func Test_HasGroupByOrMeasureAggsInChain_MultipleNodesWithMeasureInMiddle(t *tes
 
 	assert.True(t, qa.HasGroupByOrMeasureAggsInChain(), "Expected true when a middle node in the chain has a measure aggregator block, got false")
 }
+
+func Test_HasGroupByOrMeasureAggsInBlock_NilInstance(t *testing.T) {
+	var qa *QueryAggregators
+
+	assert.False(t, qa.HasGroupByOrMeasureAggsInBlock(), "Expected false when instance is nil, got true")
+}
+
+func Test_HasGroupByOrMeasureAggsInBlock_NoGroupByNoMeasure(t *testing.T) {
+	qa := &QueryAggregators{}
+
+	assert.False(t, qa.HasGroupByOrMeasureAggsInBlock(), "Expected false when there are no group by or measure aggregators, got true")
+}
+
+func Test_HasGroupByOrMeasureAggsInBlock_WithGroupBy(t *testing.T) {
+	qa := &QueryAggregators{
+		GroupByRequest: &GroupByRequest{
+			GroupByColumns: []string{"column1"},
+		},
+	}
+
+	assert.True(t, qa.HasGroupByOrMeasureAggsInBlock(), "Expected true when there is a group by aggregator, got false")
+}
+
+func Test_HasGroupByOrMeasureAggsInBlock_WithMeasure(t *testing.T) {
+	qa := &QueryAggregators{
+		MeasureOperations: []*MeasureAggregator{
+			{MeasureCol: "measure1"},
+		},
+	}
+
+	assert.True(t, qa.HasGroupByOrMeasureAggsInBlock(), "Expected true when there are measure aggregators, got false")
+}
+
+func Test_HasGroupByOrMeasureAggsInBlock_WithBothGroupByAndMeasure(t *testing.T) {
+	qa := &QueryAggregators{
+		GroupByRequest: &GroupByRequest{
+			GroupByColumns: []string{"column1"},
+		},
+		MeasureOperations: []*MeasureAggregator{
+			{MeasureCol: "measure1"},
+		},
+	}
+
+	assert.True(t, qa.HasGroupByOrMeasureAggsInBlock(), "Expected true when there are both group by and measure aggregators, got false")
+}
