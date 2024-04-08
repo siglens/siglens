@@ -188,7 +188,7 @@ func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockAtStart(t *testin
 	assert.True(t, qa.HasQueryAggergatorBlockInChain(), "Expected true when the first node in the chain has a query aggregator block, got false")
 }
 
-func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockInMiddle(t *testing.T) {
+func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockInEnd(t *testing.T) {
 	qa := &QueryAggregators{
 		Next: &QueryAggregators{
 			Next: &QueryAggregators{
@@ -197,6 +197,20 @@ func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockInMiddle(t *testi
 					RowsAdded: 1,
 				},
 			},
+		},
+	}
+
+	assert.True(t, qa.HasQueryAggergatorBlockInChain(), "Expected true when a middle node in the chain has a query aggregator block, got false")
+}
+
+func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockInMiddle(t *testing.T) {
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{
+			OutputTransforms: &OutputTransforms{
+				MaxRows:   10,
+				RowsAdded: 1,
+			},
+			Next: &QueryAggregators{},
 		},
 	}
 
