@@ -128,7 +128,6 @@ function setupDependencyEventHandlers(){
 }
 
 function getServiceDependencyData(start, end) {
-    d3.select("#dependency-graph-container").selectAll("svg").remove();
 
     $.ajax({
         method: "POST",
