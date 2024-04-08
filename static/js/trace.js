@@ -15,9 +15,27 @@ limitations under the License.
 */
 
 'use strict';
+const colorArray = [
+    "#6347D9",
+    "#01BFB3",
+    "#E9DC6E",
+    "#F2A52B",
+    "#4BAE7F",
+    "#9178C5",
+    "#23A9E2",
+    "#8C706B",
+    "#22589D",
+    "#B33B97",
+    "#9FBF46",
+    "#BF9A68",
+    "#DC756F",
+    "#E55D9A",
+    "#597C53",
+];
 
 let svgWidth;
 let traceId;
+let colorIndex = 0;
 
 $(document).ready(() => {
     $(".theme-btn").on("click", themePickerHandler);
@@ -77,7 +95,7 @@ function traceDetails(res){
 }
 
 function nsToMs(ns) {
-    return ns / 1e6;
+    return (ns / 1e6).toFixed(2);
 }
 
 function convertNanosecondsToDateTime(timestamp) {
@@ -114,6 +132,13 @@ function displayTimeline(data) {
             "translate(" + padding.left + "," + padding.top + ")",
         );
 
+    // Add title
+    svg.append("text")
+        .attr("x", 0) 
+        .attr("y", 40) 
+        .attr("class", "gantt-chart-heading")
+        .text("Service and Operation");
+
     const xScale = d3
         .scaleLinear()
         .domain([nsToMs(data.start_time), nsToMs(data.end_time)])
@@ -129,7 +154,7 @@ function displayTimeline(data) {
         .attr("x1", (d) => xScale(d))
         .attr("x2", (d) => xScale(d))
         .attr("y1", 50)
-        .attr("y2", 50 + totalHeight);
+        .attr("y2", 100 + totalHeight);
 
     // Add time labels
     svg.selectAll(".time-label")
@@ -167,15 +192,15 @@ function displayTimeline(data) {
             .attr("y", y)
             .attr("width", xScale(nsToMs(node.end_time)) - xScale(nsToMs(node.start_time)))
             .attr("height", 20)
-            .attr("fill", "#6449D6")
+            .attr("fill", colorArray[colorIndex])
             .on("mouseover", () => {
                 rect.style("cursor", "pointer");
                 tooltip
                     .style("display", "block")
                     .html(
                         `
+                        <strong> ${node.service_name} : ${node.operation_name}</strong><br>
                         <strong>SpanId</strong>: ${node.span_id} <br>
-                        <strong>Name</strong>: ${node.service_name} : ${node.operation_name}<br>
                         <strong>Start Time</strong>: ${nsToMs(node.start_time)}ms<br>
                         <strong>End Time</strong>: ${nsToMs(node.end_time)}ms<br>
                         <strong>Duration</strong>: ${nsToMs(node.duration)}ms <br>
@@ -191,9 +216,46 @@ function displayTimeline(data) {
             .on("mouseout", () => {
                 rect.style("cursor", "default");
                 tooltip.style("display", "none");
+            })
+            .on("click", () => {
+                d3.selectAll(".span-details-box").remove();
+                showSpanDetails(node); // Function to show details
             });
-        }
+    
+            function showSpanDetails(node) {
+                let spanDetailsContainer = d3.select(".span-details-container");
+                spanDetailsContainer.style("display", "block");
+                spanDetailsContainer.html(
+                    `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="operation-name"><strong>${node.operation_name}</strong></div>
+                        <div class="close-btn"></div>
+                    </div>
+                    <hr>
+                    <div class="details-container">
+                        <div><strong>SpanId</strong>: ${node.span_id} </div>
+                        <div><strong>Service</strong>: ${node.service_name}</div>
+                        <div><strong>Start Time</strong>: ${nsToMs(node.start_time)}ms  |  <strong>End Time</strong>: ${nsToMs(node.end_time)}ms</div>
+                        <div><strong>Duration</strong>: ${nsToMs(node.duration)}ms </div>
+                        <div><strong>Tags</strong>:</div>
+                        <table style="border-collapse: collapse; width: 100%; margin-top:6px" >
+                          ${Object.entries(node.tags).map(([key, value]) => `
+                            <tr>
+                              <td ><em>${key}</em></td>
+                              <td style="word-break: break-all;"><em>${value}</em></td>
+                            </tr>`).join('')}
+                        </table>
+                    </div>
+                    `
+                );
 
+                spanDetailsContainer.select(".close-btn").on("click", function() {
+                    spanDetailsContainer.style("display", "none");
+                });
+            }                
+    }
+
+        colorIndex = (colorIndex + 1) % colorArray.length;
         // Increment y for the next node
         y += 50;
 
@@ -222,5 +284,5 @@ function calculateTotalHeight(node) {
         }
     }
     calculateHeight(node);
-    return totalHeight + 200;
+    return totalHeight + 100;
 }
