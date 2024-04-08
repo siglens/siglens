@@ -282,7 +282,8 @@ type NodeResult struct {
 	GroupByRequest            *GroupByRequest
 	MeasureOperations         []*MeasureAggregator
 	NextQueryAgg              *QueryAggregators
-	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
+	RecsAggsBlockResults      interface{}              // Evaluates to *blockresults.BlockResults
+	RecsAggsColumnKeysMap     map[string][]interface{} // map of column name to column keys for GroupBy Recs
 	RecsAggsProcessedSegments uint64
 	RecsRunningSegStats       []*SegStats
 	TransactionEventRecords   map[string]map[string]interface{}
