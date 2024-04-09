@@ -280,6 +280,10 @@ func (m *MatchFilter) SetRegexp(compileRegex *regexp.Regexp) {
 
 func (m *MatchFilter) GetRegexp() (*regexp.Regexp, error) {
 	if m.regexp == nil {
+		if m.RegexpString == "" {
+			return nil, nil
+		}
+
 		re, err := regexp.Compile(m.RegexpString)
 		if err != nil {
 			log.Errorf("MatchFilter.GetRegexp: error compiling regexp: %v, err=%v", m.RegexpString, err)
