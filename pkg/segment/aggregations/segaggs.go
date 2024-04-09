@@ -1315,8 +1315,16 @@ func performSortColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq 
 			return comparisonRes == -1
 		})
 
-		resInOrder := make([]*structs.BucketResult, len(aggregationResult.Results))
+		limit := len(aggregationResult.Results)
+		if letColReq.SortColRequest.Limit < uint64(len(aggregationResult.Results)) {
+			limit = int(letColReq.SortColRequest.Limit)
+		}
+
+		resInOrder := make([]*structs.BucketResult, limit)
 		for index, key := range recKeys {
+			if index >= limit {
+				break
+			}
 			resInOrder[index] = aggregationResult.Results[key]
 		}
 
@@ -1368,8 +1376,16 @@ func performSortColRequestOnMeasureResults(nodeResult *structs.NodeResult, letCo
 		return comparisonRes == -1
 	})
 
-	resInOrder := make([]*structs.BucketHolder, len(nodeResult.MeasureResults))
+	limit := len(nodeResult.MeasureResults)
+	if letColReq.SortColRequest.Limit < uint64(len(nodeResult.MeasureResults)) {
+		limit = int(letColReq.SortColRequest.Limit)
+	}
+
+	resInOrder := make([]*structs.BucketHolder, limit)
 	for index, key := range recKeys {
+		if index >= limit {
+			break
+		}
 		resInOrder[index] = nodeResult.MeasureResults[key]
 	}
 
