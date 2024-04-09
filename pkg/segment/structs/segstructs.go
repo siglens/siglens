@@ -528,6 +528,16 @@ func (qa *QueryAggregators) HasDedupBlockInChain() bool {
 	return false
 }
 
+func (qa *QueryAggregators) GetSortLimit() uint64 {
+	if qa.HasSortBlock() {
+		return qa.OutputTransforms.LetColumns.SortColRequest.Limit
+	}
+	if qa.Next != nil {
+		return qa.Next.GetSortLimit()
+	}
+	return math.MaxUint64
+}
+
 func (qa *QueryAggregators) HasSortBlock() bool {
 	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil {
 		letColumns := qa.OutputTransforms.LetColumns
