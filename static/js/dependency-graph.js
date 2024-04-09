@@ -285,7 +285,6 @@ function updateGraphStyles(theme) {
               'text-background-opacity': 0.7,
               'text-background-padding': '1px',
               'curve-style': 'bezier',
-              'font-family': '"DINpro", Arial, sans-serif;',
               'font-size': '10px',
               // 'arrow-scale': 0.5 
           }
