@@ -55,7 +55,7 @@ function getValuesOfColumn(chooseColumn, spanName) {
   let param = {
     state: "query",
     searchText: searchText,
-    startEpoch: "now-3h",
+    startEpoch: "now-1h",
     endEpoch: filterEndDate,
     indexName: "traces",
     queryLanguage: "SQL",
@@ -113,7 +113,7 @@ function fetchData(chooseColumn) {
     let param = {
       state: "query",
       searchText: searchText,
-      startEpoch: "now-3h",
+      startEpoch: "now-1h",
       endEpoch: filterEndDate,
       indexName: "traces",
       queryLanguage: "SQL",
@@ -149,10 +149,10 @@ function fetchData(chooseColumn) {
   });
 }
 function handleTimePicker(){
-  Cookies.set("startEpoch", "now-3h");
+  Cookies.set("startEpoch", "now-1h");
   Cookies.set("endEpoch", "now");
   $("#lookback").timeTicker({
-    spanName: "Last 3 Hrs",
+    spanName: "Last 1 Hr",
   });
 }
 function handleSort(){
@@ -268,7 +268,7 @@ function initChart(){
   $("#graph-show").removeClass("empty-result-show");
   pageNumber = 1; traceSize = 0;
   returnResTotal = [];
-  let stDate = "now-3h";
+  let stDate = "now-1h";
   let endDate = "now";
   params = {
     searchText: "*",
