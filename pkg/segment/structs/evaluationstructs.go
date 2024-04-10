@@ -112,7 +112,7 @@ type DedupOptions struct {
 
 type SortExpr struct {
 	SortEles []*SortElement
-	// Limit    int // to be finished
+	Limit    uint64
 
 	SortAscending         []int
 	SortRecords           map[string]map[string]interface{}

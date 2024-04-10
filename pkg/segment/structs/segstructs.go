@@ -282,7 +282,8 @@ type NodeResult struct {
 	GroupByRequest            *GroupByRequest
 	MeasureOperations         []*MeasureAggregator
 	NextQueryAgg              *QueryAggregators
-	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
+	RecsAggsBlockResults      interface{}              // Evaluates to *blockresults.BlockResults
+	RecsAggsColumnKeysMap     map[string][]interface{} // map of column name to column keys for GroupBy Recs
 	RecsAggsProcessedSegments uint64
 	RecsRunningSegStats       []*SegStats
 	TransactionEventRecords   map[string]map[string]interface{}
@@ -490,9 +491,9 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil)
 }
 
-// To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, MaxRows...
+// To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
-	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded)
+	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.FilterRows != nil || qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded)
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
@@ -525,6 +526,16 @@ func (qa *QueryAggregators) HasDedupBlockInChain() bool {
 		return qa.Next.HasDedupBlockInChain()
 	}
 	return false
+}
+
+func (qa *QueryAggregators) GetSortLimit() uint64 {
+	if qa.HasSortBlock() {
+		return qa.OutputTransforms.LetColumns.SortColRequest.Limit
+	}
+	if qa.Next != nil {
+		return qa.Next.GetSortLimit()
+	}
+	return math.MaxUint64
 }
 
 func (qa *QueryAggregators) HasSortBlock() bool {

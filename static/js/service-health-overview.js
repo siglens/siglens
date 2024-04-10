@@ -18,11 +18,11 @@ $(document).ready(() => {
 
    
     const serviceName = getParameterFromUrl('service');
+    const stDate = getParameterFromUrl('startEpoch');
+    const endDate = getParameterFromUrl('endEpoch');
     redMetrics['searchText']="service="  + serviceName + "";
     $('.service-name').text(serviceName);
-    
-    let stDate = "now-1h";
-    let endDate = "now";
+	$('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', isGraphsDatePickerHandler);
     let data = getTimeRange();
@@ -55,8 +55,6 @@ let gridLineColor;
 let tickColor;
 
 function getOneServiceOverview(){
-    let endDate = filterEndDate || "now";
-    let stDate = filterStartDate || "now-1h";
     let data = getTimeRange();
     redMetrics = {... redMetrics, ... data}
     $.ajax({
@@ -97,7 +95,7 @@ function rateChart(rateData,gridLineColor,tickColor) {
     let graph_data = []
     for(let data of rateData){
         graph_data.push({
-            x : new Date(data.timestamp).toISOString().split('T').join(" "),
+            x : new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' '),
             y: data.rate
         })
     }
@@ -157,7 +155,7 @@ function rateChart(rateData,gridLineColor,tickColor) {
 function errorChart(errorData,gridLineColor,tickColor) {
     let graph_data_err = []
     for(let data of errorData){
-            let formatted_date = new Date(data.timestamp).toISOString().split('T').join(" ")
+            let formatted_date = new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' ');
             graph_data_err.push({
                 x : formatted_date,
                 y: data.error_rate
@@ -225,7 +223,7 @@ function latenciesChart(latenciesData,gridLineColor,tickColor) {
     };
 
     for (let data of latenciesData) {
-        const timestamp = new Date(data.timestamp).toISOString().split('T').join(" ");
+        const timestamp = new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' ');
         graph_data_latencies.p50.push({ x: timestamp, y: data.p50 });
         graph_data_latencies.p90.push({ x: timestamp, y: data.p90 });
         graph_data_latencies.p99.push({ x: timestamp, y: data.p99 });

@@ -17,38 +17,60 @@ limitations under the License.
 "use strict";
 
 const colorArray = [
-    "#6347D9",
-    "#01BFB3",
-    "#E9DC6E",
-    "#F2A52B",
-    "#4BAE7F",
-    "#9178C5",
-    "#23A9E2",
-    "#8C706B",
-    "#22589D",
-    "#B33B97",
-    "#9FBF46",
-    "#BF9A68",
-    "#DC756F",
-    "#E55D9A",
-    "#597C53",
+  "#6347D9", "#01BFB3", "#E9DC6E", "#F2A52B", "#4BAE7F",
+  "#9178C5", "#23A9E2", "#8C706B", "#22589D", "#B33B97",
+  "#9FBF46", "#BF9A68", "#DC756F", "#E55D9A", "#597C53",
+  "#63b598", "#ce7d78", "#ea9e70", "#a48a9e", "#c6e1e8",
+  "#648177", "#0d5ac1", "#f205e6", "#14a9ad", "#4ca2f9",
+  "#a4e43f", "#d298e2", "#6119d0", "#d2737d", "#c0a43c",
+  "#f2510e", "#651be6", "#61da5e", "#cd2f00", "#9348af",
+  "#01ac53", "#c5a4fb", "#996635", "#b11573", "#75d89e",
+  "#2f3f94", "#2f7b99", "#da967d", "#34891f", "#b0d87b",
+  "#ca4751", "#7e50a8", "#c4d647", "#11dec1", "#566ca0",
+  "#ffdbe1", "#2f1179", "#916988", "#4b5bdc", "#0cd36d",
+  "#cb5bea", "#df514a", "#539397", "#880977", "#f697c1",
+  "#e1cf3b", "#5be4f0", "#d00043", "#a4d17a", "#be608b",
+  "#96b00c", "#088baf", "#e145ba", "#ee91e3", "#05d371",
+  "#802234", "#0971f0", "#8fb413", "#b2b4f0", "#c9a941",
+  "#0023b8", "#986b53", "#f50422", "#983f7a", "#ea24a3",
+  "#79352c", "#521250", "#c79ed2", "#d6dd92", "#e33e52",
+  "#b2be57", "#fa06ec", "#1bb699", "#6b2e5f", "#21538e",
+  "#89d534", "#d36647", "#996c48", "#9ab9b7", "#06e052",
+  "#e3a481", "#fc458e", "#b2db15", "#aa226d", "#c9a945",
 ];
+let colorMap = {};
+let graphData;
+let cy;
 
-let svgWidth;
-let svgHeight;
+const lightStyles = {
+    edgeColor: "#6F6B7B",
+    labelColor: "#262038",
+    labelbgColor: "#FFF"
+};
+
+const darkStyles = {
+    edgeColor: "#DCDBDF",
+    labelColor: "#FFF",
+    labelbgColor: "#262038"
+};
 
 $(document).ready(() => {
+  let stDate = "now-1h";
+    let endDate = "now";
+    datePickerHandler(stDate, endDate, stDate);
+    setupDependencyEventHandlers()
+
     if (Cookies.get("theme")) {
         theme = Cookies.get("theme");
         $("body").attr("data-theme", theme);
     }
     $(".theme-btn").on("click", themePickerHandler);
-
-    svgWidth = $("#dependency-graph-container").width();
-    svgHeight = $("#dependency-graph-container").height();
+    $('.theme-btn').on('click', function() {
+      updateGraphStyles(theme);
+    });
 
     $("#error-msg-container, #dependency-info").hide();
-    getServiceDependencyData();
+    getServiceDependencyData(stDate, endDate);
 
     $("#dependency-info").tooltip({
       delay: { show: 0, hide: 300 },
@@ -66,7 +88,52 @@ $(document).ready(() => {
     });
 });
 
-function getServiceDependencyData() {
+function rangeItemHandler(evt) {
+  resetCustomDateRange();
+  $.each($(".range-item.active"), function () {
+      $(this).removeClass('active');
+  });
+  $(evt.currentTarget).addClass('active');
+  const start = $(this).attr('id')
+  const end = "now"
+  const label = $(this).attr('id')
+  datePickerHandler(start, end, label)
+  getServiceDependencyData(start, end)
+}
+
+function resetDatePickerHandler(evt) {
+  evt.stopPropagation();
+  resetCustomDateRange();
+  $.each($(".range-item.active"), function () {
+      $(this).removeClass('active');
+  });
+
+}
+
+function showDatePickerHandler(evt) {
+  evt.stopPropagation();
+  $('#daterangepicker').toggle();
+  $(evt.currentTarget).toggleClass('active');
+}
+
+function hideDatePickerHandler() {
+  $('#daterangepicker').removeClass('active');
+}
+
+function setupDependencyEventHandlers(){
+    $('#date-picker-btn').on('show.bs.dropdown', showDatePickerHandler);
+    $('#date-picker-btn').on('hide.bs.dropdown', hideDatePickerHandler);
+    $('#reset-timepicker').on('click', resetDatePickerHandler);
+
+    $('#time-start').on('change', getStartTimeHandler);
+    $('#time-end').on('change', getEndTimeHandler);
+    $('#customrange-btn').on('click', customRangeHandler);
+
+    $('.range-item').on('click', rangeItemHandler)
+}
+
+function getServiceDependencyData(start, end) {
+
     $.ajax({
         method: "POST",
         url: "api/traces/dependencies",
@@ -75,11 +142,11 @@ function getServiceDependencyData() {
             Accept: "*/*",
         },
         dataType: "json",
-        crossDomain: true,
         data: JSON.stringify({
-          startEpoch: "now-3h",
-          endEpoch: "now"
+          startEpoch: start || "now-1h",
+          endEpoch: end || "now"
         }),
+        crossDomain: true,
         success: function (res) {
             if ($.isEmptyObject(res)) {
                 $("#dependency-graph-container").hide();
@@ -87,7 +154,8 @@ function getServiceDependencyData() {
             } else {
                 $("#dependency-graph-container,#dependency-info").show();
                 $("#error-msg-container").hide();
-                createDependencyMatrix(res);
+                graphData = res;
+                displayDependencyGraph(graphData);
                 var lastRunTimestamp =moment(res.timestamp);
                 var formattedDate = lastRunTimestamp.format("DD-MMM-YYYY hh:mm:ss");
                 $('#last-run-timestamp').text(formattedDate);
@@ -100,160 +168,132 @@ function getServiceDependencyData() {
     });
 }
 
-function createDependencyMatrix(res) {
-    const data = {};
-    const nodes = [];
-    const links = [];
-
-    for (const key in res) {
-        if (key !== "_index" && key !== "timestamp") {
-            data[key] = res[key];
-        }
+function displayDependencyGraph(data) {
+  let nestedKeys = [];
+  for (let key in data) {
+    if (typeof data[key] === 'object' && key !== '_index' && key !== 'timestamp') {
+      nestedKeys.push(...Object.keys(data[key]));
     }
+  }
 
-    Object.keys(data).forEach((parentNode) => {
-        if (!nodes.some((node) => node.id === parentNode)) {
-            nodes.push({ id: parentNode });
-        }
-        // Iterate through parent node
-        Object.keys(data[parentNode]).forEach((childNode) => {
-            if (!nodes.some((node) => node.id === childNode)) {
-                nodes.push({ id: childNode });
-            }
-            // Add link
-            links.push({
-                source: parentNode,
-                target: childNode,
-                value: data[parentNode][childNode],
-            });
-        });
-    });
-
-    displayDependencyGraph(nodes, links);
-}
-
-function displayDependencyGraph(nodes, links) {
-  const svg = d3
-    .select("#dependency-graph-container")
-    .append("svg")
-    .attr("width", svgWidth)
-    .attr("height", svgHeight)
-    .call(
-      d3.zoom().on("zoom", (event) => {
-        svg.attr("transform", event.transform);
-      })
-    )
-    .append("g");
-
-  const simulation = d3
-    .forceSimulation(nodes)
-    .force(
-      "link",
-      d3
-        .forceLink(links)
-        .id((d) => d.id)
-        .distance(200)
-        .strength(0.5)
-    )
-    .force("charge", d3.forceManyBody().strength(-300))
-    .force("center", d3.forceCenter(svgWidth / 2, svgHeight))
-    .force(
-      "radial",
-      d3
-        .forceRadial(
-          Math.min(svgWidth, svgHeight) / 2,
-          svgWidth / 2,
-          svgHeight / 2
-        )
-        .strength(0.1)
-    );
-
-  svg
-    .append("defs")
-    .append("marker")
-    .attr("id", "arrowhead")
-    .attr("viewBox", "-0 -5 10 10")
-    .attr("refX", 23)
-    .attr("refY", 0)
-    .attr("orient", "auto")
-    .attr("markerWidth", 12)
-    .attr("markerHeight", 12)
-    .attr("xoverflow", "visible")
-    .append("svg:path")
-    .attr("d", "M 0,-5 L 10 ,0 L 0,5");
-
-  const link = svg
-    .selectAll(".links")
-    .data(links)
-    .enter()
-    .append("line")
-    .attr("class", "links line")
-    .attr("marker-end", "url(#arrowhead)");
-
-  const node = svg
-    .selectAll("circle")
-    .data(nodes)
-    .enter()
-    .append("circle")
-    .attr("r", 20)
-    .attr("fill", (d, i) => colorArray[i % colorArray.length])
-    .call(
-      d3
-        .drag()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended)
-    );
-
-  const label = svg
-    .selectAll(".label")
-    .data(nodes)
-    .enter()
-    .append("text")
-    .text((d) => d.id)
-    .attr("class", "label");
-
-  const linkLabel = svg
-    .selectAll(".link-label")
-    .data(links)
-    .enter()
-    .append("text")
-    .text((d) => d.value)
-    .attr("class", "link-label")
-    .attr("dy", -10)
-    .attr("dx", -10);
-
-  simulation.on("tick", () => {
-    link
-      .attr("x1", (d) => d.source.x)
-      .attr("y1", (d) => d.source.y)
-      .attr("x2", (d) => d.target.x)
-      .attr("y2", (d) => d.target.y);
-
-    node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
-
-    label.attr("x", (d) => d.x - 10).attr("y", (d) => d.y - 25);
-
-    linkLabel
-      .attr("x", (d) => (d.source.x + d.target.x) / 2)
-      .attr("y", (d) => (d.source.y + d.target.y) / 2);
+  // Add missing keys to the main object with empty objects as values
+  nestedKeys.forEach(key => {
+    if (!data.hasOwnProperty(key)) {
+      data[key] = {};
+    }
   });
 
-  function dragstarted(event, d) {
-    if (!event.active) simulation.alphaTarget(0.3).restart();
-    d.fx = d.x;
-    d.fy = d.y;
+  // Extracting nodes from the data
+  const nodes = Object.keys(data).filter(key => key !== "_index" && key !== "timestamp").map(node => ({ data: { id: node } }));
+
+  // Extracting links from the data
+  const links = [];
+  Object.keys(data).forEach(sourceNode => {
+    if (sourceNode !== "_index" && sourceNode !== "timestamp") {
+      Object.keys(data[sourceNode]).forEach(targetNode => {
+        if (sourceNode !== targetNode) {
+
+          if (data[targetNode]) {
+            links.push({
+              data: {
+                id: `${sourceNode}-${targetNode}`,
+                source: sourceNode,
+                target: targetNode,
+                value: data[sourceNode][targetNode]
+              }
+            });
+          }
+        }
+      });
+    }
+  });
+
+  cy = cytoscape({
+    container: document.getElementById('dependency-graph-canvas'),
+    elements: {
+      nodes: nodes,
+      edges: links
+    },
+
+    layout: {
+      name: 'dagre', // for hierarchical layout
+      rankDir: 'TB',
+      nodeSep: 100, 
+      edgeSep: 30, 
+      rankSep: 50, 
+      padding: 20 
+    },
+
+    style: []
+  });
+
+  // Enable dragging
+  cy.nodes().forEach(function(node) {
+    node.grabify();
+  });
+
+  updateGraphStyles(theme);
+
+  if (cy) {
+    cy.fit();
+  }
+}
+
+function updateGraphStyles(theme) {
+  let styles;
+  if (theme === "light") {
+      styles = lightStyles;
+  } else {
+      styles = darkStyles;
   }
 
-  function dragged(event, d) {
-    d.fx = event.x;
-    d.fy = event.y;
-  }
-
-  function dragended(event, d) {
-    if (!event.active) simulation.alphaTarget(0);
-    d.fx = null;
-    d.fy = null;
-  }
+  cy.style().fromJson([
+      {
+          selector: 'node',
+          style: {
+              'label': 'data(id)',
+              'color': styles.labelColor,
+              'text-valign': 'bottom',
+              'text-halign': 'right',
+              'font-size': 8,
+              'font-weight': 'normal',
+              'font-family': '"DINpro", Arial, sans-serif', 
+              'text-margin-y': -10,
+              'background-color': function(ele) {
+                  const nodeId = ele.data('id');
+                  if (!colorMap.hasOwnProperty(nodeId)) {
+                      const color = colorArray[Object.keys(colorMap).length % colorArray.length];
+                      colorMap[nodeId] = color;
+                  }
+                  return colorMap[nodeId];
+              },
+              'text-outline-color': styles.labelbgColor,
+              'text-outline-width': '1px', 
+              'text-max-width': 60,
+              'text-wrap': 'wrap',
+              'min-zoomed-font-size': 0.4,
+              'width': 20,
+              'height': 20,
+      
+          }
+      },
+      {
+          selector: 'edge',
+          style: {
+              'width': 1,
+              'line-color': styles.edgeColor,
+              'target-arrow-color': styles.edgeColor,
+              'target-arrow-shape': 'triangle',
+              'label': 'data(value)',
+              'color': styles.labelColor,
+              'text-background-color': styles.labelbgColor,
+              'text-background-opacity': 0.7,
+              'text-background-padding': '1px',
+              'curve-style': 'bezier',
+              'font-size': '10px',
+              // 'arrow-scale': 0.5 
+          }
+      }
+  ]).update();
 }
 
