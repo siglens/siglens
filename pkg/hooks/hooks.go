@@ -77,6 +77,9 @@ type Hooks struct {
 
 	// Query summary
 	ShouldAddDistributedInfoHook func() bool
+
+	// Distributed query
+	InitDistributedQueryServiceHook func(querySummary interface{}, allSegFileResults interface{}) interface{}
 }
 
 type HtmlSnippets struct {
