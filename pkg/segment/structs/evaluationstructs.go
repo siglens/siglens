@@ -101,7 +101,7 @@ type DedupExpr struct {
 
 	DedupRecords          map[string]map[string]interface{}
 	NumProcessedSegments  uint64
-	ProcessedSegmentsLock sync.Mutex
+	processedSegmentsLock sync.Mutex
 }
 
 type DedupOptions struct {
@@ -117,7 +117,7 @@ type SortExpr struct {
 	SortAscending         []int
 	SortRecords           map[string]map[string]interface{}
 	NumProcessedSegments  uint64
-	ProcessedSegmentsLock sync.Mutex
+	processedSegmentsLock sync.Mutex
 }
 
 type SortElement struct {
@@ -309,6 +309,22 @@ const (
 	NEMLenField           // only used when mode is Field (Field can not be evaluated to a float, used for len())
 	NEMNumericExpr        // only used when mode is a NumericExpr
 )
+
+func (self *DedupExpr) AcquireProcessedSegmentsLock() {
+	self.processedSegmentsLock.Lock()
+}
+
+func (self *DedupExpr) ReleaseProcessedSegmentsLock() {
+	self.processedSegmentsLock.Unlock()
+}
+
+func (self *SortExpr) AcquireProcessedSegmentsLock() {
+	self.processedSegmentsLock.Lock()
+}
+
+func (self *SortExpr) ReleaseProcessedSegmentsLock() {
+	self.processedSegmentsLock.Unlock()
+}
 
 // Evaluate this BoolExpr to a boolean, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
