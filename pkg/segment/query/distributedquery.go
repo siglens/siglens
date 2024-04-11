@@ -21,6 +21,12 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 )
 
+type DistributedQueryServiceInterface interface {
+	Wait(qid uint64, querySummary *summary.QuerySummary) error
+	DistributeRotatedRequests(qI *QueryInformation, qsrs []*QuerySegmentRequest) ([]*QuerySegmentRequest, uint64, error)
+	DistributeUnrotatedQuery(qI *QueryInformation) (uint64, error)
+}
+
 type DistributedQueryService struct {
 	isDistributed bool // whether or not this is a distributed query
 }
@@ -42,7 +48,7 @@ func (d *DistributedQueryService) Wait(qid uint64, querySummary *summary.QuerySu
 	return nil
 }
 
-func (d *DistributedQueryService) DistributeRotatedRequests(qI *queryInformation, qsrs []*querySegmentRequest) ([]*querySegmentRequest, uint64, error) {
+func (d *DistributedQueryService) DistributeRotatedRequests(qI *QueryInformation, qsrs []*QuerySegmentRequest) ([]*QuerySegmentRequest, uint64, error) {
 	if d == nil {
 		return qsrs, 0, nil
 	}
@@ -50,7 +56,7 @@ func (d *DistributedQueryService) DistributeRotatedRequests(qI *queryInformation
 	return qsrs, 0, nil
 }
 
-func (d *DistributedQueryService) DistributeUnrotatedQuery(qI *queryInformation) (uint64, error) {
+func (d *DistributedQueryService) DistributeUnrotatedQuery(qI *QueryInformation) (uint64, error) {
 	if d == nil {
 		return 0, nil
 	}

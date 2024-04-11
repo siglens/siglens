@@ -812,8 +812,8 @@ func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 
-	letColReq.DedupColRequest.ProcessedSegmentsLock.Lock()
-	defer letColReq.DedupColRequest.ProcessedSegmentsLock.Unlock()
+	letColReq.DedupColRequest.AcquireProcessedSegmentsLock()
+	defer letColReq.DedupColRequest.ReleaseProcessedSegmentsLock()
 	if finishesSegment {
 		letColReq.DedupColRequest.NumProcessedSegments++
 	}
@@ -1218,8 +1218,8 @@ func performSortColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAg
 func performSortColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 
-	letColReq.SortColRequest.ProcessedSegmentsLock.Lock()
-	defer letColReq.SortColRequest.ProcessedSegmentsLock.Unlock()
+	letColReq.SortColRequest.AcquireProcessedSegmentsLock()
+	defer letColReq.SortColRequest.ReleaseProcessedSegmentsLock()
 	if finishesSegment {
 		letColReq.SortColRequest.NumProcessedSegments++
 	}

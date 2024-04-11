@@ -91,7 +91,7 @@ type RunningQueryState struct {
 	searchHistogram   map[string]*structs.AggregationResult
 	QType             structs.QueryType
 	rqsLock           *sync.Mutex
-	dqs               *DistributedQueryService
+	dqs               DistributedQueryServiceInterface
 	totalSegments     uint64
 	finishedSegments  uint64
 	totalRecsSearched uint64
@@ -159,7 +159,7 @@ func DeleteQuery(qid uint64) {
 	arqMapLock.Unlock()
 }
 
-func associateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs *DistributedQueryService,
+func associateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs DistributedQueryServiceInterface,
 	qType structs.QueryType) error {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
@@ -180,8 +180,8 @@ func associateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, ag
 }
 
 // increments the finished segments. If incr is 0, then the current query is finished and a histogram will be flushed
-func incrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
-	skEnc uint16, doBuckPull bool, sstMap map[string]*structs.SegStats) {
+func IncrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
+	skEnc uint16, remoteId string, doBuckPull bool, sstMap map[string]*structs.SegStats) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
@@ -211,11 +211,22 @@ func incrementNumFinishedSegments(incr int, qid uint64, recsSearched uint64,
 	}
 	rQuery.rqsLock.Unlock()
 	if rQuery.isAsync {
-		rQuery.StateChan <- &QueryStateChanData{StateName: QUERY_UPDATE,
-			QueryUpdate: &QueryUpdate{
+		var queryUpdate QueryUpdate
+		if remoteId != "" {
+			queryUpdate = QueryUpdate{
+				QUpdate:  QUERY_UPDATE_REMOTE,
+				RemoteID: remoteId,
+			}
+		} else {
+			queryUpdate = QueryUpdate{
 				QUpdate:   QUERY_UPDATE_LOCAL,
 				SegKeyEnc: skEnc,
-			},
+			}
+		}
+
+		rQuery.StateChan <- &QueryStateChanData{
+			StateName:       QUERY_UPDATE,
+			QueryUpdate:     &queryUpdate,
 			PercentComplete: perComp}
 	}
 }
