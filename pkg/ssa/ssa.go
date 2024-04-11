@@ -259,6 +259,7 @@ func startSsa() {
 }
 
 func flushSsa() {
+	// Initialize days with a default value of -1
 	days := -1
 	allSsa := getSsa()
 	props := analytics.NewProperties()
