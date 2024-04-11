@@ -382,7 +382,7 @@ func extractSearchQueryFromMatchFilter(match *MatchFilter) *SearchQuery {
 		if err != nil {
 			log.Errorf("extractSearchQueryFromMatchFilter: regexp compile failed, err=%v", err)
 		} else {
-			currQuery.MatchFilter.Regexp = rexpC
+			currQuery.MatchFilter.SetRegexp(rexpC)
 		}
 	}
 
