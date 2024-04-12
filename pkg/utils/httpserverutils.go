@@ -867,6 +867,7 @@ func ExtractSeriesOfJsonObjects(body []byte) ([]map[string]interface{}, error) {
 }
 
 func sendErrorWithStatus(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error, statusCode int) {
+	// Get the caller function name, file name, and line number.
 	pc, _, _, _ := runtime.Caller(2) // Get the caller two levels up.
 	caller := runtime.FuncForPC(pc)
 	callerName := "unknown"
@@ -884,12 +885,14 @@ func sendErrorWithStatus(ctx *fasthttp.RequestCtx, messageToUser string, extraMe
 		callerFile = callerFile[strings.LastIndex(callerFile, "/pkg/")+1:]
 	}
 
+	// Log the error message.
 	if extraMessageToLog == "" {
 		log.Errorf("%s at %s:%d: %v, err=%v", callerName, callerFile, callerLine, messageToUser, err)
 	} else {
 		log.Errorf("%s at %s:%d: %v. %v, err=%v", callerName, callerFile, callerLine, messageToUser, extraMessageToLog, err)
 	}
 
+	// Send the error message to the client.
 	responsebody := make(map[string]interface{})
 	responsebody["error"] = messageToUser
 	ctx.SetStatusCode(statusCode)
