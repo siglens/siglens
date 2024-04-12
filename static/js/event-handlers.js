@@ -336,11 +336,6 @@ function indexOnHideHandler(){
 function indexOnSelectHandler(evt) {
     evt.stopPropagation();
 
-    // If the user chooses any index from dropdown, un-highlight the "*" from the dropdown
-    if ($(this).data("index") !== "*"){
-        $(`.index-dropdown-item[data-index="*"]`).removeClass('active');
-    }
-
     $(evt.currentTarget).toggleClass('active');
     let checkedIndices = [];
 
@@ -348,6 +343,20 @@ function indexOnSelectHandler(evt) {
         checkedIndices.push($(this).data("index"));
     });
     selectedSearchIndex = checkedIndices.join(",");
+    var selectedIndexes = selectedSearchIndex.split(',');
+
+    if (selectedIndexes.length === 1) {
+        // If only one index is selected
+        var indexName = selectedIndexes[0];
+        var displayedIndexName = indexName.length > 15 ? indexName.substring(0, 4) + '...' : indexName;
+        $("#index-btn span").html(displayedIndexName);
+    } else {
+        // If multiple indexes are selected
+        var numIndexes = selectedIndexes.length;
+        var firstIndexName = selectedIndexes[0];
+        var displayedFirstIndexName = firstIndexName.length > 15 ? firstIndexName.substring(0, 4) + '...' : firstIndexName.substring(0, 15);
+        $("#index-btn span").html(displayedFirstIndexName + ' +' + (numIndexes - 1));
+    }
     Cookies.set('IndexList', selectedSearchIndex)
 }
 function runLiveTailBtnHandler(evt) {

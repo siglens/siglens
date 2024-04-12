@@ -35,23 +35,23 @@ function getListIndices() {
 }
 
 function processListIndicesResult(res) {
-    renderIndexDropdown(res)
+    if(res)
+        renderIndexDropdown(res)
     $("body").css("cursor", "default");
 }
 
 function renderIndexDropdown(listIndices) {
+    let sortedListIndices = listIndices.sort((a, b) => parseInt(a.index.split('-')[1]) - parseInt(b.index.split('-')[1]));
     let el = $('#index-listing');
     el.html(``);
-    if (listIndices) {
-        el.append(`<div class="index-dropdown-item" data-index="*">
-                       <span class="indexname-text">*</span>
-                       <img src="/assets/index-selection-check.svg">
-                   </div>`);
-        listIndices.forEach((index) => {
-            el.append(`<div class="index-dropdown-item" data-index="${index.index}">
+    if (sortedListIndices) {
+        sortedListIndices.forEach((index, i) => {
+            const isActive = i === 0 ? 'active' : ''; // Setting First Index Active
+            el.append(`<div class="index-dropdown-item ${isActive}" data-index="${index.index}">
                             <span class="indexname-text">${index.index}</span>
                             <img src="/assets/index-selection-check.svg">
                        </div>`);
         });
     }
+    $("#index-btn span").html(sortedListIndices[0].index);
 }
