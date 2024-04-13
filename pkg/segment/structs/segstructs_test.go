@@ -41,7 +41,7 @@ func Test_HasTransactionArguments_NonNilTransactionArguments(t *testing.T) {
 func Test_HasQueryAggergatorBlock_NilQueryAggregators(t *testing.T) {
 	var qa *QueryAggregators
 
-	assert.Equal(t, false, qa.HasQueryAggergatorBlock(), "Expected false when QueryAggregators is nil, got true")
+	assert.False(t, qa.HasQueryAggergatorBlock())
 }
 func Test_HasQueryAggergatorBlock_NilOutputTransforms(t *testing.T) {
 	var ot *OutputTransforms
@@ -50,7 +50,7 @@ func Test_HasQueryAggergatorBlock_NilOutputTransforms(t *testing.T) {
 		OutputTransforms: ot,
 	}
 
-	assert.Equal(t, false, qa.HasQueryAggergatorBlock(), "Expected false when OutputTransforms is nil, got true")
+	assert.False(t, qa.HasQueryAggergatorBlock())
 }
 
 func Test_HasQueryAggergatorBlock_HasLetColumnsRequest(t *testing.T) {
@@ -66,7 +66,7 @@ func Test_HasQueryAggergatorBlock_HasLetColumnsRequest(t *testing.T) {
 		OutputTransforms: ot,
 	}
 
-	assert.Equal(t, true, qa.HasQueryAggergatorBlock(), "Expected true when hasLetColumnsRequest is true, got false")
+	assert.True(t, qa.HasQueryAggergatorBlock())
 }
 
 func Test_HasQueryAggergatorBlock_HasNoLetColumnsRequest(t *testing.T) {
@@ -80,7 +80,7 @@ func Test_HasQueryAggergatorBlock_HasNoLetColumnsRequest(t *testing.T) {
 		OutputTransforms: ot,
 	}
 
-	assert.Equal(t, false, qa.HasQueryAggergatorBlock(), "Expected false when hasLetColumnsRequest is false, got true")
+	assert.False(t, qa.HasQueryAggergatorBlock())
 }
 
 func Test_HasQueryAggergatorBlock_MaxRowsGreaterThanRowAdded(t *testing.T) {
@@ -93,7 +93,7 @@ func Test_HasQueryAggergatorBlock_MaxRowsGreaterThanRowAdded(t *testing.T) {
 		OutputTransforms: ot,
 	}
 
-	assert.Equal(t, true, qa.HasQueryAggergatorBlock(), "Expected true when MaxRows is greater than RowsAdded, got false")
+	assert.True(t, qa.HasQueryAggergatorBlock())
 }
 
 func Test_HasQueryAggergatorBlock_MaxRowsLessThanRowAdded(t *testing.T) {
@@ -106,7 +106,7 @@ func Test_HasQueryAggergatorBlock_MaxRowsLessThanRowAdded(t *testing.T) {
 		OutputTransforms: ot,
 	}
 
-	assert.Equal(t, false, qa.HasQueryAggergatorBlock(), "Expected false when MaxRows is less than RowsAdded, got true")
+	assert.False(t, qa.HasQueryAggergatorBlock())
 }
 
 func Test_HasQueryAggergatorBlock(t *testing.T) {
@@ -124,7 +124,7 @@ func Test_HasQueryAggergatorBlock(t *testing.T) {
 		OutputTransforms: ot,
 	}
 
-	assert.Equal(t, true, qa.HasQueryAggergatorBlock(), "Expected true when HasQueryAggergatorBlock is true, got false")
+	assert.True(t, qa.HasQueryAggergatorBlock())
 }
 
 func Test_HasDedupBlock_NilQueryAggregators(t *testing.T) {
