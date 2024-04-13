@@ -130,7 +130,7 @@ func Test_HasQueryAggergatorBlock(t *testing.T) {
 func Test_HasDedupBlock_NilQueryAggregators(t *testing.T) {
 	var qa *QueryAggregators
 
-	assert.Equal(t, false, qa.HasDedupBlock(), "Expected false when QueryAggregators is nil, got true")
+	assert.False(t, qa.HasDedupBlock())
 }
 
 func Test_HasDedupBlock_NilOutputTransforms(t *testing.T) {
@@ -140,7 +140,7 @@ func Test_HasDedupBlock_NilOutputTransforms(t *testing.T) {
 		OutputTransforms: ot,
 	}
 
-	assert.Equal(t, false, qa.HasDedupBlock(), "Expencted false when OutputTransforms is nil, got true")
+	assert.False(t, qa.HasDedupBlock())
 }
 
 func Test_HasDedupBlock_NilLetcolumns(t *testing.T) {
@@ -154,7 +154,7 @@ func Test_HasDedupBlock_NilLetcolumns(t *testing.T) {
 		OutputTransforms: ot,
 	}
 
-	assert.Equal(t, false, qa.HasDedupBlock(), "Expected false when LetColumnsRequest is nil, got true")
+	assert.False(t, qa.HasDedupBlock())
 }
 
 func Test_HasDedupBlock_NilDedupColRequest(t *testing.T) {
@@ -172,7 +172,7 @@ func Test_HasDedupBlock_NilDedupColRequest(t *testing.T) {
 		OutputTransforms: ot,
 	}
 
-	assert.Equal(t, false, qa.HasDedupBlock(), "Expected false when DedupColRequest is nil, got true")
+	assert.False(t, qa.HasDedupBlock())
 }
 
 func Test_HasDedupBlock_NonNilDedupColRequest(t *testing.T) {
@@ -190,5 +190,5 @@ func Test_HasDedupBlock_NonNilDedupColRequest(t *testing.T) {
 		OutputTransforms: ot,
 	}
 
-	assert.Equal(t, true, qa.HasDedupBlock(), "Expected true when DedupColRequest is non nil, got false")
+	assert.True(t, qa.HasDedupBlock())
 }
