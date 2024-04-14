@@ -546,7 +546,7 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	if len(mName) > 0 && ts > 0 {
 		return mName, dpVal, ts, nil
 	} else if len(mName) == 0 && err == nil {
-		//comes here when mName = targe_info
+		//comes here when mName = target_info
 		return nil, dpVal, 0, nil
 	} else {
 		return nil, dpVal, 0, fmt.Errorf("failed to find all expected keys")
