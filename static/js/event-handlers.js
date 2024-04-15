@@ -361,7 +361,7 @@ function getDisplayTextForIndex(){
     if (selectedIndexes.length === 1) {
         // If only one index is selected
         var indexName = selectedIndexes[0];
-        var displayedIndexName = indexName.length > 15 ? indexName.substring(0, 4) + '...' : indexName;
+        var displayedIndexName = indexName.trim() === "" ? "Index" : (indexName.length > 15 ? indexName.substring(0, 4) + '...' : indexName);
         $("#index-btn span").html(displayedIndexName);
     } else {
         // If multiple indexes are selected

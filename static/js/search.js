@@ -406,13 +406,7 @@ limitations under the License.
         }
      }
      let sFrom = 0;
-     if(selIndexName!==null){
-         if (selIndexName.length === 0){
-             selIndexName = "*"
-         }
-     }else{
-         selIndexName = "*"
-     }
+
      selIndexName.split(',').forEach(function(searchVal){
          $(`.index-dropdown-item[data-index="${searchVal}"]`).toggleClass('active');
      });
