@@ -579,6 +579,10 @@
   justify-content: flex-end;
 }
 
+.panEdit-navBar #index-btn{
+  justify-content: space-between;
+}
+
 .panEdit-navBar #date-picker-btn, .panEdit-navBar #index-btn , .table-view-toggle-container{
   margin-left: 15px;
 }

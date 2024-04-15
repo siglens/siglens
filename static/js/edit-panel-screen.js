@@ -437,6 +437,19 @@ function editPanelInit(redirectedFromViewScreen) {
 		}
 	}
 	displayQueryToolTip(selectedDataSourceTypeIndex);
+	
+	if (currentPanel.queryData && currentPanel.queryData.indexName) {
+		selectedSearchIndex = currentPanel.queryData.indexName;
+		$(".index-dropdown-item").removeClass('active');
+		let checkedIndices = selectedSearchIndex.split(',');
+		$(".index-dropdown-item").each(function () {
+			if (checkedIndices.includes($(this).data("index"))) {
+				$(this).addClass('active');
+			}
+		});
+		Cookies.set('IndexList', selectedSearchIndex);
+		getDisplayTextForIndex();
+	}
 
 	if ($('.dropDown-dataSource.active').length) handleSourceDropDownClick();
 	if ($('.dropDown-chart.active').length) handleChartDropDownClick();

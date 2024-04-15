@@ -817,9 +817,6 @@ body {
     transform: rotate(180deg);
 }
 
-#available-indexes {
-    width: 300px;
-}
 #associated-alerts {
     width: 300px;
 }
@@ -1654,6 +1651,7 @@ div.dts div.dataTables_scrollBody table {
     background: var(--index-drop-down-box-bg-color);
     overflow: scroll;
     border: 1px solid var(--timepicker-border-color);
+    padding: 0px;
 }
 #associated-alerts {
     width: 265px;
@@ -2925,16 +2923,13 @@ float: right;
 
 /*dashboard*/
 #new-dashboard{
-    padding-left: 10px;
     overflow-x: hidden;
-    overflow-y: hidden;
-    margin-bottom: 12px;
     font-size: 20px;
     color: var(--cstats-header-text-color);
     font-weight: var(--fw-500) !important;
     font-family: "DINpro", Arial, sans-serif;
     font-style: normal;
-    margin: 20px;
+    padding: 20px;
     margin-left: 0;
     display: flex;
     flex-direction: column;
@@ -2945,8 +2940,8 @@ float: right;
 #new-dashboard .header-container{
     display: flex;
     justify-content: space-between;
-    height: 45px;
-    align-items: center;
+    height: 35px;
+    align-items: self-start;
     width: 100%;
 }
 
@@ -3013,7 +3008,6 @@ float: right;
     width: 100%;
     height: 100%;
     position: relative;
-    padding: 0.5em 0; 
     padding-left: 0px;
 }
 
