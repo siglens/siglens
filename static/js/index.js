@@ -17,21 +17,20 @@ limitations under the License.
 'use strict';
 
 function getListIndices() {
-    $('body').css('cursor', 'progress');
-    $.ajax({
-        method: 'get',
-        url: 'api/listIndices',
+    return fetch('api/listIndices', {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             'Accept': '*/*'
         },
-        crossDomain: true,
-        dataType: 'json',
     })
-        .then(processListIndicesResult)
-        .catch(function () {
-            $('body').css('cursor', 'default');
-        });
+    .then(response => {
+        return response.json();
+    })
+    .then(function (res) {
+        processListIndicesResult(res);
+        return res;
+    });
 }
 
 function processListIndicesResult(res) {
@@ -41,7 +40,7 @@ function processListIndicesResult(res) {
 }
 
 function renderIndexDropdown(listIndices) {
-    let sortedListIndices = listIndices.sort((a, b) => parseInt(a.index.split('-')[1]) - parseInt(b.index.split('-')[1]));
+    let sortedListIndices = listIndices.sort();
     let el = $('#index-listing');
     el.html(``);
     if (sortedListIndices) {
@@ -53,5 +52,6 @@ function renderIndexDropdown(listIndices) {
                        </div>`);
         });
     }
+    selectedSearchIndex = $('.index-dropdown-item.active').attr('data-index');
     $("#index-btn span").html(sortedListIndices[0].index);
 }

@@ -336,13 +336,26 @@ function indexOnHideHandler(){
 function indexOnSelectHandler(evt) {
     evt.stopPropagation();
 
-    $(evt.currentTarget).toggleClass('active');
-    let checkedIndices = [];
+    var target = $(evt.currentTarget);
+    var isChecked = target.hasClass('active');
 
-    $.each($(".index-dropdown-item.active"), function () {
+    if ($(".index-dropdown-item.active").length === 1 && isChecked) {
+        // If only one index is selected and it's being clicked again, prevent deselection
+        return;
+    }
+
+    target.toggleClass('active');
+
+    let checkedIndices = [];
+    $(".index-dropdown-item.active").each(function () {
         checkedIndices.push($(this).data("index"));
     });
     selectedSearchIndex = checkedIndices.join(",");
+    getDisplayTextForIndex();
+    Cookies.set('IndexList', selectedSearchIndex)
+}
+
+function getDisplayTextForIndex(){
     var selectedIndexes = selectedSearchIndex.split(',');
 
     if (selectedIndexes.length === 1) {
@@ -357,7 +370,6 @@ function indexOnSelectHandler(evt) {
         var displayedFirstIndexName = firstIndexName.length > 15 ? firstIndexName.substring(0, 4) + '...' : firstIndexName.substring(0, 15);
         $("#index-btn span").html(displayedFirstIndexName + ' +' + (numIndexes - 1));
     }
-    Cookies.set('IndexList', selectedSearchIndex)
 }
 function runLiveTailBtnHandler(evt) {
   $(".popover").hide();
