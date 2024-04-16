@@ -102,8 +102,16 @@ func GetEventTypeKeywords() *[]string {
 	return &runningConfig.EventTypeKeywords
 }
 
-func GetRetentionHours() int {
-	return runningConfig.RetentionHours
+func GetLogRetentionHours() int {
+	return runningConfig.LogRetentionHours
+}
+
+func GetTraceRetentionHours() int {
+	return runningConfig.TraceRetentionHours
+}
+
+func GetMetricRetentionHours() int {
+	return runningConfig.MetricRetentionHours
 }
 
 func IsS3Enabled() bool {
@@ -344,8 +352,16 @@ func SetSegFlushIntervalSecs(val int) {
 	runningConfig.SegFlushIntervalSecs = val
 }
 
-func SetRetention(val int) {
-	runningConfig.RetentionHours = val
+func SetLogRetentionHours(val int) {
+	runningConfig.LogRetentionHours = val
+}
+
+func SetTraceRetentionHours(val int) {
+	runningConfig.TraceRetentionHours = val
+}
+
+func SetMetricRetentionHours(val int) {
+	runningConfig.MetricRetentionHours = val
 }
 
 func SetTimeStampKey(val string) {
@@ -470,7 +486,9 @@ func GetTestConfig() common.Configuration {
 		SegFlushIntervalSecs:       5,
 		DataPath:                   "data/",
 		S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
-		RetentionHours:             24 * 90,
+		LogRetentionHours:          24 * 30,
+		TraceRetentionHours:        24 * 60,
+		MetricRetentionHours:       24 * 90,
 		TimeStampKey:               "timestamp",
 		MaxSegFileSize:             1_073_741_824,
 		LicenseKeyPath:             "./",
@@ -650,9 +668,17 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 
 	}
 
-	if config.RetentionHours == 0 {
+	if config.LogRetentionHours == 0 {
 		log.Infof("Defaulting to 2160hrs (90 days) of retention...")
-		config.RetentionHours = 90 * 24
+		config.LogRetentionHours = 2160
+	}
+	if config.TraceRetentionHours == 0 {
+		log.Infof("Defaulting to 2160hrs (90 days) of retention...")
+		config.TraceRetentionHours = 2160
+	}
+	if config.MetricRetentionHours == 0 {
+		log.Infof("Defaulting to 2160hrs (90 days) of retention...")
+		config.MetricRetentionHours = 2160
 	}
 	if len(config.TimeStampKey) <= 0 {
 		config.TimeStampKey = "timestamp"

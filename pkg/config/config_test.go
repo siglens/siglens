@@ -49,7 +49,9 @@ func Test_ExtractConfigData(t *testing.T) {
   bucketName: "test-1"
   bucketPrefix: ""
   regionName: "us-east-1"
- retentionHours: 90
+ logRetentionHours: 30
+ traceRetentionHours: 60
+ metricRetentionHours: 90
  TimeStampKey: "timestamp"
  maxSegFileSize: 10
  licensekeyPath: "./"
@@ -91,7 +93,9 @@ func Test_ExtractConfigData(t *testing.T) {
 				SegFlushIntervalSecs:       5,
 				DataPath:                   "data/",
 				S3:                         common.S3Config{Enabled: true, BucketName: "test-1", BucketPrefix: "", RegionName: "us-east-1"},
-				RetentionHours:             90,
+				LogRetentionHours:          30,
+				TraceRetentionHours:        60,
+				MetricRetentionHours:       90,
 				TimeStampKey:               "timestamp",
 				MaxSegFileSize:             10,
 				LicenseKeyPath:             "./",
@@ -128,7 +132,9 @@ func Test_ExtractConfigData(t *testing.T) {
  metareaderNode: true
  segFlushIntervalSecs: 1200
  DataPath: "data/"
- retentionHours: 123
+ logRetentionHours: 30
+ traceRetentionHours: 60
+ metricRetentionHours: 90
  TimeStampKey: "timestamp"
  maxSegFileSize: 12345
  licensekeyPath: "./"
@@ -167,7 +173,9 @@ func Test_ExtractConfigData(t *testing.T) {
 				SegFlushIntervalSecs:       1200,
 				DataPath:                   "data/",
 				S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
-				RetentionHours:             123,
+				LogRetentionHours:          30,
+				TraceRetentionHours:        60,
+				MetricRetentionHours:       90,
 				TimeStampKey:               "timestamp",
 				MaxSegFileSize:             12345,
 				LicenseKeyPath:             "./",
@@ -207,7 +215,9 @@ invalid input, we should error out
 				SegFlushIntervalSecs:     30,
 				DataPath:                 "data/",
 				S3:                       common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
-				RetentionHours:           90,
+				LogRetentionHours:        30,
+				TraceRetentionHours:      60,
+				MetricRetentionHours:     90,
 				TimeStampKey:             "timestamp",
 				MaxSegFileSize:           1_073_741_824,
 				LicenseKeyPath:           "./",
@@ -244,7 +254,9 @@ a: b
 				SegFlushIntervalSecs:       5,
 				DataPath:                   "data/",
 				S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
-				RetentionHours:             90 * 24,
+				LogRetentionHours:          30 * 24,
+				TraceRetentionHours:        60 * 24,
+				MetricRetentionHours:       90 * 24,
 				TimeStampKey:               "timestamp",
 				MaxSegFileSize:             1_073_741_824,
 				LicenseKeyPath:             "./",

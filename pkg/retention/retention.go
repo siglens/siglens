@@ -62,7 +62,7 @@ func internalRetentionCleaner() {
 		if hook := hooks.GlobalHooks.InternalRetentionCleanerHook2; hook != nil {
 			hook(hook1Result, deletionWarningCounter)
 		} else {
-			DoRetentionBasedDeletion(config.GetCurrentNodeIngestDir(), config.GetRetentionHours(), 0)
+			DoRetentionBasedDeletion(config.GetCurrentNodeIngestDir(), config.GetLogRetentionHours(), config.GetTraceRetentionHours(), config.GetMetricRetentionHours(), 0)
 		}
 
 		deletionWarningCounter++
@@ -70,9 +70,11 @@ func internalRetentionCleaner() {
 	}
 }
 
-func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid uint64) {
+func DoRetentionBasedDeletion(ingestNodeDir string, logRetentionHours int, traceRetentionHours int, metricRetentionHours int, orgid uint64) {
 	currTime := time.Now()
-	deleteBefore := GetRetentionTimeMs(retentionHours, currTime)
+	logRetentionTime := GetRetentionTimeMs(logRetentionHours, currTime)
+	traceRetentionTime := GetRetentionTimeMs(traceRetentionHours, currTime)
+	metricRetentionTime := GetRetentionTimeMs(metricRetentionHours, currTime)
 
 	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
 	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
@@ -132,14 +134,20 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 	for _, metaEntry := range allEntries {
 		switch entry := metaEntry.(type) {
 		case *structs.MetricsMeta:
-			if uint64(entry.LatestEpochSec)*1000 <= deleteBefore {
+			if uint64(entry.LatestEpochSec)*1000 <= metricRetentionTime {
 				metricSegmentsToDelete[entry.MSegmentDir] = entry
 			}
 			if oldest > uint64(entry.LatestEpochSec)*1000 {
 				oldest = uint64(entry.LatestEpochSec) * 1000
 			}
 		case *structs.SegMeta:
-			if entry.LatestEpochMS <= deleteBefore {
+			var retentionTime uint64
+			if entry.VirtualTableName == "traces" || entry.VirtualTableName == "red-traces" || entry.VirtualTableName == "service-dependency" {
+				retentionTime = traceRetentionTime
+			} else {
+				retentionTime = logRetentionTime
+			}
+			if entry.LatestEpochMS <= retentionTime {
 				segmentsToDelete[entry.SegmentKey] = entry
 			}
 			if oldest > entry.LatestEpochMS {

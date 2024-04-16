@@ -19,7 +19,9 @@ pqsEnabled: false
 esVersion: "7.9.3"
 
 ## Number of hours data will be stored/retained on persistent storage.
-retentionHours: 48
+logRetentionHours: 48
+traceRetentionHours: 48
+metricRetentionHours: 48
 
 ## Percent of available RAM that siglens will occupy
 # memoryThresholdPercent: 80

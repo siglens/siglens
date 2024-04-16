@@ -321,7 +321,9 @@ func getBaseInfo() map[string]interface{} {
 
 func populateDeploymentSsa(m map[string]interface{}) {
 	m["uptime_minutes"] = math.Round(time.Since(utils.GetServerStartTime()).Minutes())
-	m["retention_hours"] = config.GetRetentionHours()
+	m["log_retention_hours"] = config.GetLogRetentionHours()
+	m["trace_retention_hours"] = config.GetTraceRetentionHours()
+	m["metric_retention_hours"] = config.GetMetricRetentionHours()
 	m["company_name"] = "OSS"
 	m["version"] = config.SigLensVersion
 	m["deployment_type"] = getDeploymentType()

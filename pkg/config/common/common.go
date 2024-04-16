@@ -80,7 +80,9 @@ type Configuration struct {
 	IngestNode                 string   `yaml:"ingestNode"`           //Node to enable/disable all ingest endpoints
 	SegFlushIntervalSecs       int      `yaml:"segFlushIntervalSecs"` // Time Interval after which to write to segfile
 	DataPath                   string   `yaml:"dataPath"`
-	RetentionHours             int      `yaml:"retentionHours"`
+	LogRetentionHours          int      `yaml:"logRetentionHours"`
+	TraceRetentionHours        int      `yaml:"traceRetentionHours"`
+	MetricRetentionHours       int      `yaml:"metricRetentionHours"`
 	TimeStampKey               string   `yaml:"timestampKey"`
 	MaxSegFileSize             uint64   `yaml:"maxSegFileSize"` // segment file size (in bytes)
 	LicenseKeyPath             string   `yaml:"licenseKeyPath"`
