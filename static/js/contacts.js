@@ -227,7 +227,10 @@ function setContactForm() {
       } else if (contactType === 'Webhook') {
         let webhookValue = $(this).find('#webhook-id').val();
         if (webhookValue) {
-            contactData.webhook.push(webhookValue);
+            let webhookContact  = {
+                webhook: webhookValue,
+                };
+            contactData.webhook.push(webhookContact);
         }
     }
     });
@@ -540,8 +543,10 @@ function showContactFormForEdit(contactId) {
         if (key === 'webhook') {
             contactContainer.find('.webhook-container').css('display', 'block');
             contactContainer.find('.slack-container').css('display', 'none');
+            contactContainer.find('.webhook-container #webhook-id').val(value.webhook);
+
           }
-        if (key != 'slack'){
+        if (key != 'slack'&& key != 'webhook'){
             contactContainer.find(`.${key}-container .form-control`).val(value);
         }
         contactContainer.appendTo('#main-container');

@@ -87,6 +87,10 @@ func (p *Sqlite) Connect() error {
 	if err != nil {
 		return err
 	}
+	err = dbConnection.AutoMigrate(&alertutils.WebHookConfig{})
+	if err != nil {
+		return err
+	}
 	err = dbConnection.AutoMigrate(&alertutils.MinionSearch{})
 	if err != nil {
 		return err
@@ -328,7 +332,7 @@ func (p Sqlite) CreateContact(newContact *alertutils.Contact) error {
 
 func (p Sqlite) GetAllContactPoints(org_id uint64) ([]alertutils.Contact, error) {
 	contacts := make([]alertutils.Contact, 0)
-	if err := p.db.Preload("Slack").Where("org_id = ?", org_id).Find(&contacts).Error; err != nil {
+	if err := p.db.Preload("Slack").Preload("Webhook").Where("org_id = ?", org_id).Find(&contacts).Error; err != nil {
 		return nil, err
 	}
 
@@ -496,10 +500,10 @@ func (p Sqlite) UpdateAlertStateByAlertID(alert_id string, alertState alertutils
 	return nil
 }
 
-func (p Sqlite) GetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []string, error) {
+func (p Sqlite) GetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []alertutils.WebHookConfig, error) {
 
 	var contact = &alertutils.Contact{}
-	if err := p.db.Preload("Slack").First(&contact).Where("contact_id = ?", contact_id).Error; err != nil {
+	if err := p.db.Preload("Slack").Preload("Webhook").First(&contact).Where("contact_id = ?", contact_id).Error; err != nil {
 		log.Errorf("GetEmailAndChannelID: unable to update contact, err: %+v", err)
 		return nil, nil, nil, err
 	}
