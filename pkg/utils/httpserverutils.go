@@ -25,6 +25,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/cespare/xxhash"
@@ -863,4 +864,45 @@ func ExtractSeriesOfJsonObjects(body []byte) ([]map[string]interface{}, error) {
 	}
 
 	return objects, nil
+}
+
+func sendErrorWithStatus(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error, statusCode int) {
+	// Get the caller function name, file name, and line number.
+	pc, _, _, _ := runtime.Caller(2) // Get the caller two levels up.
+	caller := runtime.FuncForPC(pc)
+	callerName := "unknown"
+	callerFile := "unknown"
+	callerLine := 0
+
+	if caller != nil {
+		callerName = caller.Name()
+		callerFile, callerLine = caller.FileLine(pc)
+
+		// Only take the function name after the last dot.
+		callerName = callerName[strings.LastIndex(callerName, ".")+1:]
+
+		// Only take the /pkg/... part of the file path.
+		callerFile = callerFile[strings.LastIndex(callerFile, "/pkg/")+1:]
+	}
+
+	// Log the error message.
+	if extraMessageToLog == "" {
+		log.Errorf("%s at %s:%d: %v, err=%v", callerName, callerFile, callerLine, messageToUser, err)
+	} else {
+		log.Errorf("%s at %s:%d: %v. %v, err=%v", callerName, callerFile, callerLine, messageToUser, extraMessageToLog, err)
+	}
+
+	// Send the error message to the client.
+	responsebody := make(map[string]interface{})
+	responsebody["error"] = messageToUser
+	ctx.SetStatusCode(statusCode)
+	WriteJsonResponse(ctx, responsebody)
+}
+
+func SendError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
+	sendErrorWithStatus(ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusBadRequest)
+}
+
+func SendInternalError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
+	sendErrorWithStatus(ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusInternalServerError)
 }
