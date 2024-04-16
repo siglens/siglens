@@ -92,7 +92,7 @@ func NotifyAlertHandlerRequest(alertID string) error {
 		for _, webhook := range webhooks {
 			err = sendWebhooks(webhook.Webhook, subject, message)
 			if err != nil {
-				log.Errorf("NotifyAlertHandlerRequest: Error sending Webhook message to webhook- %s for alert id- %s, err=%v", webhook, alertID, err)
+				log.Errorf("NotifyAlertHandlerRequest: Error sending Webhook message to webhook- %s for alert id- %s, err=%v", webhook.Webhook, alertID, err)
 			} else {
 				webhookSent = true
 			}
