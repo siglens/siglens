@@ -90,7 +90,7 @@ func NotifyAlertHandlerRequest(alertID string) error {
 	}
 	if len(webhooks) > 0 {
 		for _, webhook := range webhooks {
-			err = sendWebhooks(webhook, subject, message)
+			err = sendWebhooks(webhook.Webhook, subject, message)
 			if err != nil {
 				log.Errorf("NotifyAlertHandlerRequest: Error sending Webhook message to webhook- %s for alert id- %s, err=%v", webhook, alertID, err)
 			} else {
@@ -250,7 +250,7 @@ func processGetContactDetails(alert_id string) (string, string, string, error) {
 	return id, message, subject, nil
 }
 
-func processGetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []string, error) {
+func processGetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []alertutils.WebHookConfig, error) {
 	emails, slacks, webhook, err := databaseObj.GetEmailAndChannelID(contact_id)
 	if err != nil {
 		log.Errorf("ProcessGetEmailAndChannelID: Error in getting emails and channel_ids for contact_id- %s, err=%v", contact_id, err)

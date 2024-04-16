@@ -94,7 +94,7 @@ type Contact struct {
 	Email       []string           `json:"email" gorm:"type:text[]"`
 	Slack       []SlackTokenConfig `json:"slack" gorm:"many2many:slack_contact;auto_preload"`
 	PagerDuty   string             `json:"pager_duty"`
-	Webhook     []string           `json:"webhook" gorm:"type:text[]"`
+	Webhook     []WebHookConfig    `json:"webhook" gorm:"many2many:webhook_contact;auto_preload"`
 	OrgId       uint64             `json:"org_id"`
 }
 
@@ -106,6 +106,15 @@ type SlackTokenConfig struct {
 
 func (SlackTokenConfig) TableName() string {
 	return "slack_token"
+}
+
+type WebHookConfig struct {
+	ID      uint   `gorm:"primaryKey;autoIncrement:true"`
+	Webhook string `json:"webhook"`
+}
+
+func (WebHookConfig) TableName() string {
+	return "webhook"
 }
 
 type Notification struct {
