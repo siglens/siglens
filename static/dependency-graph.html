@@ -38,7 +38,10 @@
     <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
-    <script src="./js/lib/d3.v7.min.js"></script>
+    <script src="./js/lib/cytoscape.min.js"></script>
+    <script src="./js/lib/dagre.min.js"></script>
+    <script src="./js/lib/cytoscape-dagre.min.js"></script>
+    
     {{ .RunCheck1 | safeHTML }}
 </head>
 
@@ -83,6 +86,7 @@
                 </div>
             </div>
             <div id="dependency-graph-container" class="position-relative "> 
+                <div id="dependency-graph-canvas" class="m-0"></div>
                 <div class="position-absolute" style="bottom:11px; right:40px;">
                     Dependency Graph generated at:  <span id="last-run-timestamp"></span>
                 </div>
@@ -97,7 +101,7 @@
         </div>
 
         <div id="app-footer">
-            2023 &copy; SigLens
+            2024 &copy; SigLens
         </div>
 
     </div>

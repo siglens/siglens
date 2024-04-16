@@ -812,8 +812,8 @@ func performDedupColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 func performDedupColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
 	finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 
-	letColReq.DedupColRequest.ProcessedSegmentsLock.Lock()
-	defer letColReq.DedupColRequest.ProcessedSegmentsLock.Unlock()
+	letColReq.DedupColRequest.AcquireProcessedSegmentsLock()
+	defer letColReq.DedupColRequest.ReleaseProcessedSegmentsLock()
 	if finishesSegment {
 		letColReq.DedupColRequest.NumProcessedSegments++
 	}
@@ -1218,8 +1218,8 @@ func performSortColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAg
 func performSortColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 
-	letColReq.SortColRequest.ProcessedSegmentsLock.Lock()
-	defer letColReq.SortColRequest.ProcessedSegmentsLock.Unlock()
+	letColReq.SortColRequest.AcquireProcessedSegmentsLock()
+	defer letColReq.SortColRequest.ReleaseProcessedSegmentsLock()
 	if finishesSegment {
 		letColReq.SortColRequest.NumProcessedSegments++
 	}
@@ -1315,8 +1315,16 @@ func performSortColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq 
 			return comparisonRes == -1
 		})
 
-		resInOrder := make([]*structs.BucketResult, len(aggregationResult.Results))
+		limit := len(aggregationResult.Results)
+		if letColReq.SortColRequest.Limit < uint64(len(aggregationResult.Results)) {
+			limit = int(letColReq.SortColRequest.Limit)
+		}
+
+		resInOrder := make([]*structs.BucketResult, limit)
 		for index, key := range recKeys {
+			if index >= limit {
+				break
+			}
 			resInOrder[index] = aggregationResult.Results[key]
 		}
 
@@ -1368,8 +1376,16 @@ func performSortColRequestOnMeasureResults(nodeResult *structs.NodeResult, letCo
 		return comparisonRes == -1
 	})
 
-	resInOrder := make([]*structs.BucketHolder, len(nodeResult.MeasureResults))
+	limit := len(nodeResult.MeasureResults)
+	if letColReq.SortColRequest.Limit < uint64(len(nodeResult.MeasureResults)) {
+		limit = int(letColReq.SortColRequest.Limit)
+	}
+
+	resInOrder := make([]*structs.BucketHolder, limit)
 	for index, key := range recKeys {
+		if index >= limit {
+			break
+		}
 		resInOrder[index] = nodeResult.MeasureResults[key]
 	}
 

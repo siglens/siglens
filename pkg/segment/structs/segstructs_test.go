@@ -126,3 +126,208 @@ func Test_HasQueryAggergatorBlock(t *testing.T) {
 
 	assert.Equal(t, true, qa.HasQueryAggergatorBlock(), "Expected true when HasQueryAggergatorBlock is true, got false")
 }
+
+func Test_HasQueryAggergatorBlockInChain_EmptyChain(t *testing.T) {
+	qa := &QueryAggregators{}
+
+	assert.False(t, qa.HasQueryAggergatorBlockInChain(), "Expected false when the chain is empty, got true")
+}
+
+func Test_HasQueryAggergatorBlockInChain_SingleNodeWithBlock(t *testing.T) {
+	qa := &QueryAggregators{
+		OutputTransforms: &OutputTransforms{
+			MaxRows:   10,
+			RowsAdded: 1,
+		},
+	}
+
+	assert.True(t, qa.HasQueryAggergatorBlockInChain(), "Expected true when single node has a query aggregator block, got false")
+}
+
+func Test_HasQueryAggergatorBlockInChain_SingleNodeWithoutBlock(t *testing.T) {
+	qa := &QueryAggregators{
+		OutputTransforms: &OutputTransforms{
+			MaxRows:   1,
+			RowsAdded: 10,
+		},
+	}
+
+	assert.False(t, qa.HasQueryAggergatorBlockInChain(), "Expected false when single node does not have a query aggregator block, got true")
+}
+
+func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockAtEnd(t *testing.T) {
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{
+			OutputTransforms: &OutputTransforms{
+				MaxRows:   10,
+				RowsAdded: 1,
+			},
+		},
+	}
+
+	assert.True(t, qa.HasQueryAggergatorBlockInChain(), "Expected true when a node in the chain has a query aggregator block, got false")
+}
+
+func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithoutBlock(t *testing.T) {
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{},
+	}
+
+	assert.False(t, qa.HasQueryAggergatorBlockInChain(), "Expected false when no nodes in the chain have a query aggregator block, got true")
+}
+
+func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockAtStart(t *testing.T) {
+	qa := &QueryAggregators{
+		OutputTransforms: &OutputTransforms{
+			MaxRows:   10,
+			RowsAdded: 1,
+		},
+		Next: &QueryAggregators{},
+	}
+
+	assert.True(t, qa.HasQueryAggergatorBlockInChain(), "Expected true when the first node in the chain has a query aggregator block, got false")
+}
+
+func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockInEnd(t *testing.T) {
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{
+			Next: &QueryAggregators{
+				OutputTransforms: &OutputTransforms{
+					MaxRows:   10,
+					RowsAdded: 1,
+				},
+			},
+		},
+	}
+
+	assert.True(t, qa.HasQueryAggergatorBlockInChain(), "Expected true when a middle node in the chain has a query aggregator block, got false")
+}
+
+func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockInMiddle(t *testing.T) {
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{
+			OutputTransforms: &OutputTransforms{
+				MaxRows:   10,
+				RowsAdded: 1,
+			},
+			Next: &QueryAggregators{},
+		},
+	}
+
+	assert.True(t, qa.HasQueryAggergatorBlockInChain(), "Expected true when a middle node in the chain has a query aggregator block, got false")
+}
+
+func Test_HasGroupByOrMeasureAggsInChain_EmptyChain(t *testing.T) {
+	qa := &QueryAggregators{}
+
+	assert.False(t, qa.HasGroupByOrMeasureAggsInChain(), "Expected false when the chain is empty, got true")
+}
+
+func Test_HasGroupByOrMeasureAggsInChain_SingleNodeWithGroupBy(t *testing.T) {
+	qa := &QueryAggregators{
+		GroupByRequest: &GroupByRequest{
+			GroupByColumns: []string{"column1"},
+		},
+	}
+
+	assert.True(t, qa.HasGroupByOrMeasureAggsInChain(), "Expected true when single node has a group by aggregator block, got false")
+}
+
+func Test_HasGroupByOrMeasureAggsInChain_SingleNodeWithMeasure(t *testing.T) {
+	qa := &QueryAggregators{
+		MeasureOperations: []*MeasureAggregator{
+			{MeasureCol: "measure1"},
+		},
+	}
+
+	assert.True(t, qa.HasGroupByOrMeasureAggsInChain(), "Expected true when single node has a measure aggregator block, got false")
+}
+
+func Test_HasGroupByOrMeasureAggsInChain_MultipleNodesWithGroupByAtEnd(t *testing.T) {
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{
+			GroupByRequest: &GroupByRequest{
+				GroupByColumns: []string{"column1"},
+			},
+		},
+	}
+
+	assert.True(t, qa.HasGroupByOrMeasureAggsInChain(), "Expected true when a node in the chain has a group by aggregator block, got false")
+}
+
+func Test_HasGroupByOrMeasureAggsInChain_MultipleNodesWithMeasureAtStart(t *testing.T) {
+	qa := &QueryAggregators{
+		MeasureOperations: []*MeasureAggregator{
+			{MeasureCol: "measure1"},
+		},
+		Next: &QueryAggregators{},
+	}
+
+	assert.True(t, qa.HasGroupByOrMeasureAggsInChain(), "Expected true when the first node in the chain has a measure aggregator block, got false")
+}
+
+func Test_HasGroupByOrMeasureAggsInChain_MultipleNodesWithoutAggs(t *testing.T) {
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{},
+	}
+
+	assert.False(t, qa.HasGroupByOrMeasureAggsInChain(), "Expected false when no nodes in the chain have a group by or measure aggregator block, got true")
+}
+
+func Test_HasGroupByOrMeasureAggsInChain_MultipleNodesWithMeasureInMiddle(t *testing.T) {
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{
+			MeasureOperations: []*MeasureAggregator{
+				{MeasureCol: "measure1"},
+			},
+			Next: &QueryAggregators{},
+		},
+	}
+
+	assert.True(t, qa.HasGroupByOrMeasureAggsInChain(), "Expected true when a middle node in the chain has a measure aggregator block, got false")
+}
+
+func Test_HasGroupByOrMeasureAggsInBlock_NilInstance(t *testing.T) {
+	var qa *QueryAggregators
+
+	assert.False(t, qa.HasGroupByOrMeasureAggsInBlock(), "Expected false when instance is nil, got true")
+}
+
+func Test_HasGroupByOrMeasureAggsInBlock_NoGroupByNoMeasure(t *testing.T) {
+	qa := &QueryAggregators{}
+
+	assert.False(t, qa.HasGroupByOrMeasureAggsInBlock(), "Expected false when there are no group by or measure aggregators, got true")
+}
+
+func Test_HasGroupByOrMeasureAggsInBlock_WithGroupBy(t *testing.T) {
+	qa := &QueryAggregators{
+		GroupByRequest: &GroupByRequest{
+			GroupByColumns: []string{"column1"},
+		},
+	}
+
+	assert.True(t, qa.HasGroupByOrMeasureAggsInBlock(), "Expected true when there is a group by aggregator, got false")
+}
+
+func Test_HasGroupByOrMeasureAggsInBlock_WithMeasure(t *testing.T) {
+	qa := &QueryAggregators{
+		MeasureOperations: []*MeasureAggregator{
+			{MeasureCol: "measure1"},
+		},
+	}
+
+	assert.True(t, qa.HasGroupByOrMeasureAggsInBlock(), "Expected true when there are measure aggregators, got false")
+}
+
+func Test_HasGroupByOrMeasureAggsInBlock_WithBothGroupByAndMeasure(t *testing.T) {
+	qa := &QueryAggregators{
+		GroupByRequest: &GroupByRequest{
+			GroupByColumns: []string{"column1"},
+		},
+		MeasureOperations: []*MeasureAggregator{
+			{MeasureCol: "measure1"},
+		},
+	}
+
+	assert.True(t, qa.HasGroupByOrMeasureAggsInBlock(), "Expected true when there are both group by and measure aggregators, got false")
+}

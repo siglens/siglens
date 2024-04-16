@@ -278,6 +278,11 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		}
 
 		numProcessedRecords += len(recs)
+		limit := aggs.GetSortLimit()
+		if uint64(numProcessedRecords) > limit {
+			numProcessedRecords = int(limit)
+		}
+
 		for recInden, record := range recs {
 			for key, val := range renameHardcodedColumns {
 				record[key] = val

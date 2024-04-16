@@ -53,8 +53,14 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error
 	if match.MatchOperator == And {
 		var foundQword bool = true
 		if match.MatchType == MATCH_PHRASE {
-			if match.Regexp != nil {
-				foundQword = match.Regexp.Match(col[idx : idx+clen])
+			regexp, err := match.GetRegexp()
+			if err != nil {
+				log.Errorf("ApplySearchToMatchFilterRawCsg: error getting match regex: %v", err)
+				return false, err
+			}
+
+			if regexp != nil {
+				foundQword = regexp.Match(col[idx : idx+clen])
 			} else {
 				foundQword = utils.IsSubWordPresent(col[idx:idx+clen], match.MatchPhrase)
 			}

@@ -81,19 +81,20 @@
 }
 
 /* Dependency Graph */
-#dependency-graph-container,#error-msg-container {
+#dependency-graph-container,#error-msg-container,#dependency-graph-canvas {
     margin-top: 20px;
     height: 100%; 
     width: 100%;
 }
 
-#dependency-graph-container svg ,#error-msg-container{
+#dependency-graph-container ,#error-msg-container{
     width: 100%;
     height: 100%;
     box-shadow: var(--box-shadow);
     background-color: var(--black1-to-white0);
     border: 1px solid var(--search-input-border);
     border-radius: 10px;
+    padding: 20px;
 }
 
 #error-msg-container p{
@@ -104,29 +105,6 @@
     color: var(--empty-response-text-color);
     margin: auto ;
     margin-top: 50px;
-}
-
-#arrowhead path {
-    fill: var(--graph-link);
-    stroke: none;
-}
-
-.line {
-    stroke: var(--graph-link);
-    stroke-width: 1.2;
-}
-
-.label {
-    text-anchor: end;
-    fill: var(--graph-link);
-    font-size: 16px;
-}
-
-.link-label {
-    text-anchor: middle;
-    fill: var(--link-label);
-    font-weight: bold;
-    font-size: 16px;
 }
 
 /* Service Health  */
@@ -452,7 +430,7 @@ a.warn-box-anchor {
     padding-bottom: 40px;
     overflow: auto; 
     width: 100%;
-    height: 80vh; 
+    height: 85vh; 
 }
 
 .back-to-search-traces{
@@ -514,6 +492,12 @@ a.warn-box-anchor {
     fill: var(--text-color);
 }
 
+.gantt-chart-heading{
+    font-size: 16px;
+    font-weight: bold;
+    fill: var(--text-color);
+}
+
 .tooltip-gantt {
     position: absolute;
     z-index: 10;
@@ -538,18 +522,36 @@ a.warn-box-anchor {
 circle:hover{
     cursor: pointer;
 }
+.dropdown-menu.daterangepicker.dep.show {
+    height: 160px !important;
+}
+.span-details-container{
+    margin-top: 14px;
+    box-shadow: var(--box-shadow);
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 10px;
+    padding-bottom: 40px;
+    overflow: auto;
+    height: 85vh;
+    padding: 20px;
+    margin-left: 10px;
+    min-width: 450px;
+}
 
-.subsection-navbar .dropdown-menu.daterangepicker.show{
-    height: 162px !important;
-    padding: 8px !important;
-}
-.subsection-navbar .inner-range{
-    grid-template-columns: repeat(2, 1fr);
+.span-details-container .close-btn{
+    background: url(../assets/cross-btn-icon.svg);
+    height: 11px;
+    width: 11px;
+    background-size: cover;
+    cursor: pointer;
 }
 
-.dep {
-    height: auto !important;
+.details-container div{
+    margin-bottom: 8px;
 }
-.dep{
-    grid-template-columns: repeat(3, 1fr) !important;
+
+.details-container table th,.details-container table td{
+    border: 1px solid var(--timepicker-hr-color);
+    padding: 8px;
 }

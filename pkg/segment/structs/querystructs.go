@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
+	log "github.com/sirupsen/logrus"
 )
 
 // New struct for passin query params
@@ -70,7 +71,8 @@ type MatchFilter struct {
 	MatchDictArray *MatchDictArrayRequest //array to search for in case of jaeger query
 	MatchType      MatchFilterType
 	NegateMatch    bool
-	Regexp         *regexp.Regexp
+	RegexpString   string // Do not manually set this. Use SetRegexp(). This is only public to allow for GOB encoding MatchFilter.
+	regexp         *regexp.Regexp
 }
 
 type MatchDictArrayRequest struct {
@@ -269,6 +271,29 @@ func (c *Condition) JoinCondition(add *Condition) {
 			c.NestedNodes = append(c.NestedNodes, add.NestedNodes...)
 		}
 	}
+}
+
+func (m *MatchFilter) SetRegexp(compileRegex *regexp.Regexp) {
+	m.regexp = compileRegex
+	m.RegexpString = compileRegex.String()
+}
+
+func (m *MatchFilter) GetRegexp() (*regexp.Regexp, error) {
+	if m.regexp == nil {
+		if m.RegexpString == "" {
+			return nil, nil
+		}
+
+		re, err := regexp.Compile(m.RegexpString)
+		if err != nil {
+			log.Errorf("MatchFilter.GetRegexp: error compiling regexp: %v, err=%v", m.RegexpString, err)
+			return nil, err
+		}
+
+		m.regexp = re
+	}
+
+	return m.regexp, nil
 }
 
 func (f *FilterCriteria) IsTimeRange() bool {
