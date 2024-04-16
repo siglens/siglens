@@ -26,6 +26,15 @@ class ReadOnlyCellEditor {
         cellEditingClass = params.rowIndex%2===0 ? 'even-popup-textarea' : 'odd-popup-textarea'
         this.eInput.classList.add(cellEditingClass);
         this.eInput.readOnly = true;
+
+        // Set styles to ensure the textarea fits within its container
+        this.eInput.style.width = '100%';
+        this.eInput.style.height = '100%';
+        this.eInput.style.maxWidth = '100%';
+        this.eInput.style.maxHeight = '100%';
+        this.eInput.style.boxSizing = 'border-box';
+        this.eInput.style.overflow = 'auto';
+
         this.eInput.cols = params.cols;
         this.eInput.rows = params.rows;
         this.eInput.maxLength = params.maxLength;
