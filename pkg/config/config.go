@@ -29,6 +29,8 @@ import (
 	"time"
 
 	"github.com/pbnjay/memory"
+	"github.com/siglens/siglens/pkg/config/common"
+	"github.com/siglens/siglens/pkg/hooks"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -41,124 +43,12 @@ const RunModFilePath = "data/common/runmod.cfg"
 
 var configFileLastModified uint64
 
-type DeploymentType uint8
-
-const (
-	SingleNode = iota + 1
-	SingleNodeS3
-	DistributedS3
-)
-
-func (d DeploymentType) String() string {
-	return [...]string{"INVALID", "SingleNode", "SingleNodeS3", "DistributedS3"}[d]
-}
-
-type S3Config struct {
-	Enabled      bool   `yaml:"enabled"`
-	BucketName   string `yaml:"bucketName"`
-	BucketPrefix string `yaml:"bucketPrefix"`
-	RegionName   string `yaml:"regionName"`
-}
-
-type EtcdConfig struct {
-	Enabled  bool     `yaml:"enabled"`
-	SeedUrls []string `yaml:"seedUrls"`
-}
-
-type EmailConfig struct {
-	SmtpHost         string `yaml:"smtpHost"`
-	SmtpPort         int    `yaml:"smtpPort"`
-	SenderEmail      string `yaml:"senderEmail"`
-	GmailAppPassword string `yaml:"gmailAppPassword"`
-}
-
-type LogConfig struct {
-	LogPrefix             string `yaml:"logPrefix"`             // Prefix of log file. Can be a directory. if empty will log to stdout
-	LogFileRotationSizeMB int    `yaml:"logFileRotationSizeMB"` //Max size of log file in megabytes
-	CompressLogFile       bool   `yaml:"compressLogFile"`
-}
-
-type TLSConfig struct {
-	Enabled    bool   `yaml:"enabled"`
-	ACMEFolder string `yaml:"acmeFolder"` // folder to store acme certificates
-}
-
-type AlertConfig struct {
-	Enabled  bool   `yaml:"enabled"`
-	Provider string `yaml:"provider"`
-	Host     string `yaml:"host"`
-	Port     uint64 `yaml:"port"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	Dbname   string `yaml:"dbname"`
-}
-
-type DatabaseConfig struct {
-	Enabled  bool   `yaml:"enabled"`
-	Provider string `yaml:"provider"`
-	Host     string `yaml:"host"`
-	Port     uint64 `yaml:"port"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	Dbname   string `yaml:"dbname"`
-}
-
-/*  If you add a new config parameters to the Configuration struct below, make sure to add the default value
-assignment in the following functions
-1) ExtractConfigData function
-2) InitializeDefaultConfig function */
-
-// If you add a new config parameters to the Configuration struct below, make sure to add a descriptive info in server.yaml
-type Configuration struct {
-	IngestListenIP             string   `yaml:"ingestListenIP"`       // Listen IP used for ingestion server
-	QueryListenIP              string   `yaml:"queryListenIP"`        // Listen IP used for query server
-	IngestPort                 uint64   `yaml:"ingestPort"`           // Port for ingestion server
-	QueryPort                  uint64   `yaml:"queryPort"`            // Port used for query server
-	PsqlPort                   uint64   `yaml:"psqlPort"`             // Port used for sql server
-	EventTypeKeywords          []string `yaml:"eventTypeKeywords"`    //Required event type keyword
-	QueryNode                  string   `yaml:"queryNode"`            //Node to enable/disable all query endpoints
-	IngestNode                 string   `yaml:"ingestNode"`           //Node to enable/disable all ingest endpoints
-	SegFlushIntervalSecs       int      `yaml:"segFlushIntervalSecs"` // Time Interval after which to write to segfile
-	DataPath                   string   `yaml:"dataPath"`
-	RetentionHours             int      `yaml:"retentionHours"`
-	TimeStampKey               string   `yaml:"timestampKey"`
-	MaxSegFileSize             uint64   `yaml:"maxSegFileSize"` // segment file size (in bytes)
-	LicenseKeyPath             string   `yaml:"licenseKeyPath"`
-	ESVersion                  string   `yaml:"esVersion"`
-	Debug                      bool     `yaml:"debug"`                  // debug logging
-	MemoryThresholdPercent     uint64   `yaml:"memoryThresholdPercent"` // percent of all available free data allocated for loading micro indices in memory
-	DataDiskThresholdPercent   uint64   `yaml:"dataDiskThresholdPercent"`
-	GRPCPort                   uint64   `yaml:"grpcPort"` // Address to listen for GRPC connections
-	S3IngestQueueName          string   `yaml:"s3IngestQueueName"`
-	S3IngestQueueRegion        string   `yaml:"s3IngestQueueRegion"`
-	S3IngestBufferSize         uint64   `yaml:"s3IngestBufferSize"`
-	MaxParallelS3IngestBuffers uint64   `yaml:"maxParallelS3IngestBuffers"`
-	SSInstanceName             string   `yaml:"ssInstanceName"`
-	PQSEnabled                 string   `yaml:"pqsEnabled"` // is pqs enabled?
-	pqsEnabledConverted        bool     // converted bool value of PQSEnabled yaml
-	SafeServerStart            bool     `yaml:"safeMode"`         // if set to true, siglens will start a mock webserver with a custom health handler. Actual server will NOT be started
-	AnalyticsEnabled           string   `yaml:"analyticsEnabled"` // is analytics enabled?
-	analyticsEnabledConverted  bool
-	AgileAggsEnabled           string `yaml:"agileAggsEnabled"` // should we read/write AgileAggsTrees?
-	AgileAggsEnabledConverted  bool
-	QueryHostname              string         `yaml:"queryHostname"` // hostname of the query server. i.e. if DNS is https://cloud.siglens.com, this should be cloud.siglens.com
-	IngestUrl                  string         `yaml:"ingestUrl"`     // full address of the ingest server, including scheme and port, e.g. https://ingest.siglens.com:8080
-	S3                         S3Config       `yaml:"s3"`            // s3 related config
-	Etcd                       EtcdConfig     `yaml:"etcd"`          // Etcd related config
-	Log                        LogConfig      `yaml:"log"`           // Log related config
-	TLS                        TLSConfig      `yaml:"tls"`           // TLS related config
-	EmailConfig                EmailConfig    `yaml:"emailConfig"`
-	DatabaseConfig             DatabaseConfig `yaml:"minionSearch"`
-}
-
-type RunModConfig struct {
-	PQSEnabled bool `json:"pqsEnabled"`
-}
-
-var runningConfig Configuration
+var runningConfig common.Configuration
 var configFilePath string
 
 var parallelism int64
+
+var tracingEnabled bool // flag to enable/disable tracing; Set to true if TracingConfig.Endpoint != ""
 
 func init() {
 	parallelism = int64(runtime.GOMAXPROCS(0))
@@ -200,13 +90,8 @@ func GetDataDiskThresholdPercent() uint64 {
 	return runningConfig.DataDiskThresholdPercent
 }
 
-func GetRunningConfig() *Configuration {
+func GetRunningConfig() *common.Configuration {
 	return &runningConfig
-}
-
-// Returns :Port
-func GetGRPCPort() string {
-	return ":" + strconv.FormatUint(runningConfig.GRPCPort, 10)
 }
 
 func GetSSInstanceName() string {
@@ -281,21 +166,8 @@ func GetQueryPort() uint64 {
 	return runningConfig.QueryPort
 }
 
-// returns the psql port
-func GetPsqlPort() (uint64, error) {
-	if runningConfig.PsqlPort != 0 {
-		return runningConfig.PsqlPort, nil
-	}
-	return 0, errors.New("Psql port not defined in server.yaml")
-}
-
 func GetDataPath() string {
 	return runningConfig.DataPath
-}
-
-// returns the configured acme path
-func GetTLSACMEDir() string {
-	return runningConfig.TLS.ACMEFolder
 }
 
 // returns if tls is enabled
@@ -303,18 +175,51 @@ func IsTlsEnabled() bool {
 	return runningConfig.TLS.Enabled
 }
 
+// returns the configured certificate path
+func GetTLSCertificatePath() string {
+	return runningConfig.TLS.CertificatePath
+}
+
+// returns the configured private key path
+func GetTLSPrivateKeyPath() string {
+	return runningConfig.TLS.PrivateKeyPath
+}
+
 // used by
 func GetQueryHostname() string {
 	return runningConfig.QueryHostname
 }
 
-func GetEtcdConfig() EtcdConfig {
-	return runningConfig.Etcd
+func SetTracingEnabled(flag bool) {
+	tracingEnabled = flag
+}
+
+func IsTracingEnabled() bool {
+	return tracingEnabled
+}
+
+func GetTracingServiceName() string {
+	return runningConfig.Tracing.ServiceName
+}
+
+func GetTracingEndpoint() string {
+	return runningConfig.Tracing.Endpoint
+}
+
+func GetTraceSamplingPercentage() float64 {
+	return runningConfig.Tracing.SamplingPercentage
 }
 
 // returns SmtpHost, SmtpPort, SenderEmail and GmailAppPassword
 func GetEmailConfig() (string, int, string, string) {
 	return runningConfig.EmailConfig.SmtpHost, runningConfig.EmailConfig.SmtpPort, runningConfig.EmailConfig.SenderEmail, runningConfig.EmailConfig.GmailAppPassword
+}
+
+func SetEmailConfig(smtpHost string, smtpPort int, senderEmail string, gmailAppPassword string) {
+	runningConfig.EmailConfig.SmtpHost = smtpHost
+	runningConfig.EmailConfig.SmtpPort = smtpPort
+	runningConfig.EmailConfig.SenderEmail = senderEmail
+	runningConfig.EmailConfig.GmailAppPassword = gmailAppPassword
 }
 
 func GetUIDomain() string {
@@ -339,7 +244,7 @@ func IsDebugMode() bool {
 }
 
 func IsPQSEnabled() bool {
-	return runningConfig.pqsEnabledConverted
+	return runningConfig.PQSEnabledConverted
 }
 
 func IsAggregationsEnabled() bool {
@@ -352,7 +257,7 @@ func SetAggregationsFlag(enabled bool) {
 }
 
 func IsAnalyticsEnabled() bool {
-	return runningConfig.analyticsEnabledConverted
+	return runningConfig.AnalyticsEnabledConverted
 }
 
 func IsSafeMode() bool {
@@ -471,10 +376,6 @@ func SetDataPath(path string) {
 	runningConfig.DataPath = path
 }
 
-func SetCertsPath(path string) {
-	runningConfig.TLS.ACMEFolder = path
-}
-
 func SetDataDiskThresholdPercent(percent uint64) {
 	runningConfig.DataDiskThresholdPercent = percent
 }
@@ -483,7 +384,7 @@ func SetMaxParallelS3IngestBuffers(maxBuf uint64) {
 	runningConfig.MaxParallelS3IngestBuffers = maxBuf
 }
 func SetPQSEnabled(enabled bool) {
-	runningConfig.pqsEnabledConverted = enabled
+	runningConfig.PQSEnabledConverted = enabled
 	runningConfig.PQSEnabled = strconv.FormatBool(enabled)
 }
 
@@ -491,23 +392,12 @@ func SetQueryPort(value uint64) {
 	runningConfig.QueryPort = value
 }
 
-func IsMultinodeEnabled() bool {
-	return runningConfig.Etcd.Enabled
-}
-
-func ValidateDeployment() (DeploymentType, error) {
-
-	if runningConfig.Etcd.Enabled {
-		if runningConfig.S3.Enabled {
-			return DistributedS3, nil
-		}
-		return 0, fmt.Errorf("etcd must be enabled with S3")
-	}
+func ValidateDeployment() (common.DeploymentType, error) {
 	if IsQueryNode() && IsIngestNode() {
 		if runningConfig.S3.Enabled {
-			return SingleNodeS3, nil
+			return common.SingleNodeS3, nil
 		}
-		return SingleNode, nil
+		return common.SingleNode, nil
 	}
 	return 0, fmt.Errorf("single node deployment must have both query and ingest in the same node")
 }
@@ -535,7 +425,7 @@ func InitConfigurationData() error {
 		return err
 	}
 	runningConfig = config
-	var readConfig RunModConfig
+	var readConfig common.RunModConfig
 	readConfig, err = ReadRunModConfig(RunModFilePath)
 	if err != nil && !os.IsNotExist(err) {
 		log.Errorf("InitConfigurationData: Failed to read runmod config: %v, config: %+v", err, readConfig)
@@ -546,18 +436,21 @@ func InitConfigurationData() error {
 		return err
 	}
 	configFileLastModified = uint64(fileInfo.ModTime().UTC().Unix())
-	go refreshConfig()
+	go runRefreshConfigLoop()
 	return nil
 }
 
 /*
-	Use only for testing purpose, DO NOT use externally
-
-To do - Currently we are assigning default value two times.. in InitializeDefaultConfig() for testing and
-ExtractConfigData(). Do this in one time.
+Use only for testing purpose, DO NOT use externally
 */
 func InitializeDefaultConfig() {
+	runningConfig = GetTestConfig()
+	_ = InitDerivedConfig("test-uuid") // This is only used for testing
+}
 
+// To do - Currently we are assigning default value two times.. in InitializeDefaultConfig() for testing and
+// ExtractConfigData(). Do this in one time.
+func GetTestConfig() common.Configuration {
 	// *************************************
 	// THIS IS ONLY USED in TESTS, MAKE SURE:
 	// 1. set the defaults ExtractConfigData
@@ -565,7 +458,7 @@ func InitializeDefaultConfig() {
 	// 3. And Here.
 	// ************************************
 
-	runningConfig = Configuration{
+	testConfig := common.Configuration{
 		IngestListenIP:             "0.0.0.0",
 		QueryListenIP:              "0.0.0.0",
 		IngestPort:                 8081,
@@ -576,7 +469,7 @@ func InitializeDefaultConfig() {
 		IngestNode:                 "true",
 		SegFlushIntervalSecs:       5,
 		DataPath:                   "data/",
-		S3:                         S3Config{false, "", "", ""},
+		S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
 		RetentionHours:             24 * 90,
 		TimeStampKey:               "timestamp",
 		MaxSegFileSize:             1_073_741_824,
@@ -585,26 +478,27 @@ func InitializeDefaultConfig() {
 		Debug:                      false,
 		MemoryThresholdPercent:     80,
 		DataDiskThresholdPercent:   85,
-		GRPCPort:                   50051,
 		S3IngestQueueName:          "",
 		S3IngestQueueRegion:        "",
 		S3IngestBufferSize:         1000,
 		MaxParallelS3IngestBuffers: 10,
 		SSInstanceName:             "",
 		PQSEnabled:                 "false",
-		pqsEnabledConverted:        false,
+		PQSEnabledConverted:        false,
 		SafeServerStart:            false,
 		AnalyticsEnabled:           "false",
-		analyticsEnabledConverted:  false,
+		AnalyticsEnabledConverted:  false,
 		AgileAggsEnabled:           "true",
 		AgileAggsEnabledConverted:  true,
 		QueryHostname:              "",
-		Log:                        LogConfig{"", 100, false},
-		TLS:                        TLSConfig{false, "certs/"},
-		DatabaseConfig:             DatabaseConfig{Enabled: true, Provider: "sqlite"},
+		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
+		TLS:                        common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
+		Tracing:                    common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
+		DatabaseConfig:             common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
+		EmailConfig:                common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
 	}
-	_ = InitDerivedConfig("test-uuid") // This is only used for testing
-	runningConfig.EmailConfig = EmailConfig{"smtp.gmail.com", 587, "doe1024john@gmail.com", " "}
+
+	return testConfig
 }
 
 func InitializeTestingConfig() {
@@ -613,14 +507,14 @@ func InitializeTestingConfig() {
 	SetDataPath("data/")
 }
 
-func ReadRunModConfig(fileName string) (RunModConfig, error) {
+func ReadRunModConfig(fileName string) (common.RunModConfig, error) {
 	_, err := os.Stat(fileName)
 	if os.IsNotExist(err) {
 		log.Infof("ReadRunModConfig:Config file '%s' does not exist. Awaiting user action to create it.", fileName)
-		return RunModConfig{}, err
+		return common.RunModConfig{}, err
 	} else if err != nil {
 		log.Errorf("ReadRunModConfig:Error accessing config file '%s': %v", fileName, err)
-		return RunModConfig{}, err
+		return common.RunModConfig{}, err
 	}
 
 	jsonData, err := os.ReadFile(fileName)
@@ -630,8 +524,8 @@ func ReadRunModConfig(fileName string) (RunModConfig, error) {
 	return ExtractReadRunModConfig(jsonData)
 }
 
-func ExtractReadRunModConfig(jsonData []byte) (RunModConfig, error) {
-	var runModConfig RunModConfig
+func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
+	var runModConfig common.RunModConfig
 	err := json.Unmarshal(jsonData, &runModConfig)
 	if err != nil {
 		log.Errorf("ExtractReadRunModConfig:Failed to parse runmod.cfg: %v", err)
@@ -642,16 +536,21 @@ func ExtractReadRunModConfig(jsonData []byte) (RunModConfig, error) {
 	return runModConfig, nil
 }
 
-func ReadConfigFile(fileName string) (Configuration, error) {
+func ReadConfigFile(fileName string) (common.Configuration, error) {
 	yamlData, err := os.ReadFile(fileName)
 	if err != nil {
 		log.Errorf("Cannot read input fileName = %v, err=%v", fileName, err)
 	}
-	return ExtractConfigData(yamlData)
+
+	if hook := hooks.GlobalHooks.ExtractConfigHook; hook != nil {
+		return hook(yamlData)
+	} else {
+		return ExtractConfigData(yamlData)
+	}
 }
 
-func ExtractConfigData(yamlData []byte) (Configuration, error) {
-	var config Configuration
+func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
+	var config common.Configuration
 	err := yaml.Unmarshal(yamlData, &config)
 	if err != nil {
 		log.Errorf("Error parsing yaml err=%v", err)
@@ -700,7 +599,7 @@ func ExtractConfigData(yamlData []byte) (Configuration, error) {
 		pqsEnabled = false
 		config.PQSEnabled = "false"
 	}
-	config.pqsEnabledConverted = pqsEnabled
+	config.PQSEnabledConverted = pqsEnabled
 
 	if len(config.AnalyticsEnabled) <= 0 {
 		config.AnalyticsEnabled = "true"
@@ -711,7 +610,7 @@ func ExtractConfigData(yamlData []byte) (Configuration, error) {
 		analyticsEnabled = true
 		config.AnalyticsEnabled = "true"
 	}
-	config.analyticsEnabledConverted = analyticsEnabled
+	config.AnalyticsEnabledConverted = analyticsEnabled
 
 	if len(config.AgileAggsEnabled) <= 0 {
 		config.AgileAggsEnabled = "true"
@@ -783,9 +682,6 @@ func ExtractConfigData(yamlData []byte) (Configuration, error) {
 		config.MemoryThresholdPercent = 80
 	}
 
-	if config.GRPCPort == 0 {
-		config.GRPCPort = 50051
-	}
 	if len(config.S3IngestQueueName) <= 0 {
 		config.S3IngestQueueName = ""
 	}
@@ -800,14 +696,57 @@ func ExtractConfigData(yamlData []byte) (Configuration, error) {
 	if config.S3IngestBufferSize == 0 {
 		config.S3IngestBufferSize = 1000
 	}
-	if len(config.TLS.ACMEFolder) >= 0 && strings.HasPrefix(config.TLS.ACMEFolder, "./") {
-		config.TLS.ACMEFolder = strings.Trim(config.TLS.ACMEFolder, "./")
+
+	if len(config.TLS.CertificatePath) >= 0 && strings.HasPrefix(config.TLS.CertificatePath, "./") {
+		config.TLS.CertificatePath = strings.Trim(config.TLS.CertificatePath, "./")
+	}
+
+	if len(config.TLS.PrivateKeyPath) >= 0 && strings.HasPrefix(config.TLS.PrivateKeyPath, "./") {
+		config.TLS.PrivateKeyPath = strings.Trim(config.TLS.PrivateKeyPath, "./")
+	}
+
+	// Check for Tracing Config through environment variables
+	if os.Getenv("TRACESTORE_ENDPOINT") != "" {
+		config.Tracing.Endpoint = os.Getenv("TRACESTORE_ENDPOINT")
+	}
+
+	if os.Getenv("SIGLENS_TRACING_SERVICE_NAME") != "" {
+		config.Tracing.ServiceName = os.Getenv("SIGLENS_TRACING_SERVICE_NAME")
+	}
+
+	if os.Getenv("TRACE_SAMPLING_PRECENTAGE") != "" {
+		samplingPercentage, err := strconv.ParseFloat(os.Getenv("TRACE_SAMPLING_PRECENTAGE"), 64)
+		if err != nil {
+			log.Errorf("Error parsing TRACE_SAMPLING_PRECENTAGE: %v", err)
+			log.Info("Setting Trace Sampling Percentage to 1")
+			config.Tracing.SamplingPercentage = 1
+		} else {
+			config.Tracing.SamplingPercentage = samplingPercentage
+		}
+	}
+
+	if len(config.Tracing.ServiceName) <= 0 {
+		config.Tracing.ServiceName = "siglens"
+	}
+
+	if len(config.Tracing.Endpoint) <= 0 {
+		log.Info("Tracing is disabled. Please set the endpoint in the config file to enable Tracing.")
+		SetTracingEnabled(false)
+	} else {
+		log.Info("Tracing is enabled. Tracing Endpoint: ", config.Tracing.Endpoint)
+		SetTracingEnabled(true)
+	}
+
+	if config.Tracing.SamplingPercentage < 0 {
+		config.Tracing.SamplingPercentage = 0
+	} else if config.Tracing.SamplingPercentage > 100 {
+		config.Tracing.SamplingPercentage = 100
 	}
 
 	return config, nil
 }
 
-func SetConfig(config Configuration) {
+func SetConfig(config common.Configuration) {
 	runningConfig = config
 }
 
@@ -1053,24 +992,28 @@ func ProcessForceReadConfig(ctx *fasthttp.RequestCtx) {
 }
 
 func refreshConfig() {
-	for {
-		time.Sleep(MINUTES_REREAD_CONFIG * time.Minute)
-		fileInfo, err := os.Stat(configFilePath)
+	fileInfo, err := os.Stat(configFilePath)
+	if err != nil {
+		log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
+		return
+	}
+	modifiedTime := fileInfo.ModTime()
+	modifiedTimeSec := uint64(modifiedTime.UTC().Unix())
+	if modifiedTimeSec > configFileLastModified {
+		newConfig, err := ReadConfigFile(configFilePath)
 		if err != nil {
 			log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
-			continue
+			return
 		}
-		modifiedTime := fileInfo.ModTime()
-		modifiedTimeSec := uint64(modifiedTime.UTC().Unix())
-		if modifiedTimeSec > configFileLastModified {
-			newConfig, err := ReadConfigFile(configFilePath)
-			if err != nil {
-				log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
-				continue
-			}
-			SetConfig(newConfig)
-			configFileLastModified = modifiedTimeSec
-		}
+		SetConfig(newConfig)
+		configFileLastModified = modifiedTimeSec
+	}
+}
+
+func runRefreshConfigLoop() {
+	for {
+		time.Sleep(MINUTES_REREAD_CONFIG * time.Minute)
+		refreshConfig()
 	}
 }
 

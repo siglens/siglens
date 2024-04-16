@@ -285,6 +285,11 @@ input.form-control {
     color: var(--text-color);
 }
 
+.ui-menu.ui-widget.ui-widget-content.ui-autocomplete.ui-front{
+    width: max-content!important;
+    min-width: 120px;
+}
+
 .ui-tabs-tab {
     border-radius: 10px;
 }
@@ -292,6 +297,7 @@ input.form-control {
 .custom-code-tab {
     border: 0 !important;
     font-size: 14px;
+    background-color: var(--bg-color);
 }
 
 .ui-tabs .ui-tabs-panel {
@@ -321,6 +327,7 @@ input.form-control {
     background-position: center;
     border-radius: 0 5px 5px 0;
     cursor: pointer;
+    border: none;
 }
 .run-filter-btn {
     background-image: url("../assets/search-img.svg");
@@ -478,15 +485,12 @@ a:visited.ui-button,
     height: auto;
     width: auto;
 }
-.ui-widget-content {
-    background-color: var(--bg-color);
-}
 
 .ui-autocomplete::-webkit-scrollbar {
     width: 0;
 }
 .ui-dialog-title{
-    font-size: 22px;
+    font-size: 18px;
 }
 .completed{
     background-image: var(--complete-bg-img);
@@ -615,8 +619,10 @@ div.show-record-popup {
 .ag-header-viewport{
     border-bottom: 1px solid var(--panel-table-line-color);
 }
-.stop-search{
+.stop-search {
     background-color: var(--border-btn-color);
+    opacity: 0.5; 
+    cursor: not-allowed; 
 }
 .stop-search:hover{
     background-color: var(--border-btn-color);
@@ -687,4 +693,30 @@ div.show-record-popup {
     box-shadow: var(--box-shadow);
     border-radius: 10px;
     background: var(--black1-to-white0)
+}
+
+/* Position-relative container for query-input bar */
+.position-relative {
+    position: relative;
+    width: 100%;
+}
+
+/* Clear query button styles */
+#clear-query-btn {
+    /* Position the button */
+    position: absolute;
+    top: 45%; /* Adjust vertically */
+    right: 10px; /* Adjust horizontally */
+    transform: translateY(-50%);
+
+    /* Button appearance */
+    background-color: transparent;
+    color: rgb(111, 108, 123); /* R111 G108 B123 */
+    font-family: "DINpro", Arial, sans-serif;
+    font-weight: lighter;
+    font-size: 20px;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
 }

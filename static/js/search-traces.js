@@ -15,12 +15,10 @@ limitations under the License.
 */
 
 'use strict';
-var chart;
+let chart;
 let currList = [];
-let curSpanTraceArray = [],
-  curErrorTraceArray = [],
-  timeList = [],
-  returnResTotal = [];
+let returnResTotal = [],
+scatterData = [];
 let pageNumber = 1,
   traceSize = 0,
   params = {};
@@ -35,6 +33,8 @@ $(document).ready(() => {
     $("body").attr("data-theme", theme);
   }
   $(".theme-btn").on("click", themePickerHandler);
+  $('.theme-btn').on('click', showScatterPlot);
+
   initPage();
 });
 window.onload = function () {
@@ -55,7 +55,7 @@ function getValuesOfColumn(chooseColumn, spanName) {
   let param = {
     state: "query",
     searchText: searchText,
-    startEpoch: "now-3h",
+    startEpoch: "now-1h",
     endEpoch: filterEndDate,
     indexName: "traces",
     queryLanguage: "SQL",
@@ -113,7 +113,7 @@ function fetchData(chooseColumn) {
     let param = {
       state: "query",
       searchText: searchText,
-      startEpoch: "now-3h",
+      startEpoch: "now-1h",
       endEpoch: filterEndDate,
       indexName: "traces",
       queryLanguage: "SQL",
@@ -149,10 +149,10 @@ function fetchData(chooseColumn) {
   });
 }
 function handleTimePicker(){
-  Cookies.set("startEpoch", "now-3h");
+  Cookies.set("startEpoch", "now-1h");
   Cookies.set("endEpoch", "now");
   $("#lookback").timeTicker({
-    spanName: "Last 3 Hrs",
+    spanName: "Last 1 Hr",
   });
 }
 function handleSort(){
@@ -219,9 +219,7 @@ function searchTraceHandler(e){
   e.stopPropagation(); 
   e.preventDefault();
   returnResTotal = [];
-  curSpanTraceArray = [];
-  curErrorTraceArray = [];
-  timeList = [];
+  scatterData = [];
   pageNumber = 1;
    traceSize = 0;
     params = {};
@@ -270,7 +268,7 @@ function initChart(){
   $("#graph-show").removeClass("empty-result-show");
   pageNumber = 1; traceSize = 0;
   returnResTotal = [];
-  let stDate = "now-3h";
+  let stDate = "now-1h";
   let endDate = "now";
   params = {
     searchText: "*",
@@ -284,7 +282,7 @@ function initChart(){
 async function getTotalTraces(params) {
   return $.ajax({
       method: "post",
-      url: "http://localhost:5122/api/traces/count",
+      url: "api/traces/count",
       headers: {
           "Content-Type": "application/json; charset=utf-8",
           Accept: "*/*",
@@ -328,17 +326,14 @@ function searchTrace(params){
       if ($("#traces-number").text().trim() === "") {
        await getTotalTraces(params);
       }      
-      timeList = [];
-      for (let i = 0; i < traceSize; i++) {
+      scatterData = [];
+      for (let i = traceSize - 1; i >= 0; i--) {
         let json = returnResTotal[i];
         let milliseconds = Number(json.start_time / 1000000);
         let dataInfo = new Date(milliseconds);
         let dataStr = dataInfo.toLocaleString().toLowerCase();
         let duration = Number((json.end_time - json.start_time) / 1000000);
-        let newArr = [i, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name, json.trace_id];
-        timeList.push(dataStr);
-        if(json.span_errors_count == 0) curSpanTraceArray.push(newArr);
-        else curErrorTraceArray.push(newArr);
+        scatterData.push([dataStr, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name, json.trace_id]);
       }
       showScatterPlot();
       reSort();
@@ -376,28 +371,50 @@ function showScatterPlot() {
     echarts.dispose(chart);
   }
   chart = echarts.init(chartId);
+  let theme = $('body').attr('data-theme') == "light" ? "light" : "dark";
+  let normalColor = theme == "light" ? "rgba(99, 71, 217, 0.6)" : "rgba(99, 71, 217, 1)";
+  let errorColor = theme == "light" ? "rgba(233, 49, 37, 0.6)" : "rgba(233, 49, 37, 1)";
+  let axisLineColor = theme == "light" ? "#DCDBDF" : "#383148"; 
+  let axisLabelColor = theme == "light" ? "#160F29" : "#FFFFFF"; 
   chart.setOption({
     xAxis: {
       type: "category",
       name: "Time",
-      data: timeList,
+      nameTextStyle: {
+        color: axisLabelColor
+      },
       scale: true,
       axisLine: {
-        show: true,
+        lineStyle: {
+          color: axisLineColor 
+        }
+      },
+      axisLabel: {
+        color: axisLabelColor 
       },
       splitLine: { show: false },
     },
     yAxis: {
       type: "value",
-      name: "Duration",
+      name: "Duration (ms)",
+      nameTextStyle: {
+        color: axisLabelColor
+      },
       scale: true,
       axisLine: {
         show: true,
+        lineStyle: {
+          color: axisLineColor 
+        }
+      },
+      axisLabel: {
+        color: axisLabelColor 
       },
       splitLine: { show: false },
     },
     tooltip: {
       show: true,
+      className: "tooltip-design",
       formatter: function (param) {
         var green = param.value[4];
         var red = param.value[5];
@@ -423,12 +440,12 @@ function showScatterPlot() {
         rippleEffect: {
           scale: 1,
         },
-        data: curSpanTraceArray,
+        data: scatterData.filter(data => data[3] == 0),
         symbolSize: function (val) {
           return val[2] < 5 ? 5 : val[2];
         },
         itemStyle: {
-          color: "rgba(99, 71, 217, 0.5)",
+          color: normalColor,
         },
       },
       {
@@ -437,12 +454,12 @@ function showScatterPlot() {
         rippleEffect: {
           scale: 1,
         },
-        data: curErrorTraceArray,
+        data: scatterData.filter(data => data[3] > 0),
         symbolSize: function (val) {
           return val[3] < 5 ? 5 : val[3];
         },
         itemStyle: {
-          color: "rgba(233, 49, 37, 0.5)",
+          color: errorColor,
         },
       },
     ],
@@ -455,22 +472,24 @@ function showScatterPlot() {
 function reSort(){
   $(".warn-box").remove();
   for (let i = 0; i < returnResTotal.length; i++) {
-    $("#warn-bottom").append(`<div class="warn-box warn-box-${i}"><div class="warn-head">
-                            <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
-                            <span class = "duration-time" id  = "duration-time-${i}"></span>
-                        </div>
-                        <div class="warn-content">
-                            <div class="spans-box">
-                            <div class = "total-span" id = "total-span-${i}"></div>
-                            <div class = "error-span" id = "error-span-${i}"></div>
-                            </div>
-                            <div> </div>
-                            <div class="warn-content-right">
-                                <span class = "start-time" id = "start-time-${i}"></span>
-                                <span class = "how-long-time" id = "how-long-time-${i}"></span>
-                            </div>
-                        </div></div>`);
     let json = returnResTotal[i];
+    $("#warn-bottom").append(`<a href="../trace.html?trace_id=${json.trace_id}" class="warn-box-anchor">
+      <div class="warn-box warn-box-${i}"><div class="warn-head">
+                              <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
+                              <span class = "duration-time" id  = "duration-time-${i}"></span>
+                          </div>
+                          <div class="warn-content">
+                              <div class="spans-box">
+                              <div class = "total-span" id = "total-span-${i}"></div>
+                              <div class = "error-span" id = "error-span-${i}"></div>
+                              </div>
+                              <div> </div>
+                              <div class="warn-content-right">
+                                  <span class = "start-time" id = "start-time-${i}"></span>
+                                  <span class = "how-long-time" id = "how-long-time-${i}"></span>
+                              </div>
+                          </div></div>
+    </a>`);
     $(`.warn-box-${i}`).attr("id",json.trace_id );
     $(`#span-id-head-${i}`).text(json.service_name + ": " + json.operation_name + "  ");
     $(`#span-id-${i}`).text(json.trace_id.substring(0, 7));
@@ -570,8 +589,3 @@ function getData() {
     }
   }
 }
-
-$("body").on("click", ".warn-box", function() {
-  var traceId = $(this).attr("id");
-  window.location.href = "trace.html?trace_id=" + traceId;
-});

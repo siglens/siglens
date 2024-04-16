@@ -81,19 +81,20 @@
 }
 
 /* Dependency Graph */
-#dependency-graph-container,#error-msg-container {
+#dependency-graph-container,#error-msg-container,#dependency-graph-canvas {
     margin-top: 20px;
     height: 100%; 
     width: 100%;
 }
 
-#dependency-graph-container svg ,#error-msg-container{
+#dependency-graph-container ,#error-msg-container{
     width: 100%;
     height: 100%;
     box-shadow: var(--box-shadow);
     background-color: var(--black1-to-white0);
     border: 1px solid var(--search-input-border);
     border-radius: 10px;
+    padding: 20px;
 }
 
 #error-msg-container p{
@@ -104,29 +105,6 @@
     color: var(--empty-response-text-color);
     margin: auto ;
     margin-top: 50px;
-}
-
-#arrowhead path {
-    fill: var(--graph-link);
-    stroke: none;
-}
-
-.line {
-    stroke: var(--graph-link);
-    stroke-width: 1.2;
-}
-
-.label {
-    text-anchor: end;
-    fill: var(--graph-link);
-    font-size: 16px;
-}
-
-.link-label {
-    text-anchor: middle;
-    fill: var(--link-label);
-    font-weight: bold;
-    font-size: 16px;
 }
 
 /* Service Health  */
@@ -369,6 +347,11 @@ input.form-control {
     height: 124px;
     margin-top: 20px;
     cursor: pointer;
+    color: var(--text-color);
+}
+
+a.warn-box-anchor {
+    text-decoration: none;
 }
 
 .error-span,
@@ -447,7 +430,7 @@ input.form-control {
     padding-bottom: 40px;
     overflow: auto; 
     width: 100%;
-    height: 80vh; 
+    height: 85vh; 
 }
 
 .back-to-search-traces{
@@ -509,6 +492,12 @@ input.form-control {
     fill: var(--text-color);
 }
 
+.gantt-chart-heading{
+    font-size: 16px;
+    font-weight: bold;
+    fill: var(--text-color);
+}
+
 .tooltip-gantt {
     position: absolute;
     z-index: 10;
@@ -521,6 +510,48 @@ input.form-control {
     font-size: 13px;
 }
 
+.tooltip-design {
+    color: var(--text-color) !important;
+    background-color: var(--bg-color) !important;
+    padding: 5px !important;
+    border-radius: 5px !important;
+    font-size: 13px !important;
+    margin-top: -20px;
+}
+
 circle:hover{
     cursor: pointer;
+}
+.dropdown-menu.daterangepicker.dep.show {
+    height: 160px !important;
+}
+.span-details-container{
+    margin-top: 14px;
+    box-shadow: var(--box-shadow);
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 10px;
+    padding-bottom: 40px;
+    overflow: auto;
+    height: 85vh;
+    padding: 20px;
+    margin-left: 10px;
+    min-width: 450px;
+}
+
+.span-details-container .close-btn{
+    background: url(../assets/cross-btn-icon.svg);
+    height: 11px;
+    width: 11px;
+    background-size: cover;
+    cursor: pointer;
+}
+
+.details-container div{
+    margin-bottom: 8px;
+}
+
+.details-container table th,.details-container table td{
+    border: 1px solid var(--timepicker-hr-color);
+    padding: 8px;
 }

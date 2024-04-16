@@ -26,6 +26,15 @@ class ReadOnlyCellEditor {
         cellEditingClass = params.rowIndex%2===0 ? 'even-popup-textarea' : 'odd-popup-textarea'
         this.eInput.classList.add(cellEditingClass);
         this.eInput.readOnly = true;
+
+        // Set styles to ensure the textarea fits within its container
+        this.eInput.style.width = '100%';
+        this.eInput.style.height = '100%';
+        this.eInput.style.maxWidth = '100%';
+        this.eInput.style.maxHeight = '100%';
+        this.eInput.style.boxSizing = 'border-box';
+        this.eInput.style.overflow = 'auto';
+
         this.eInput.cols = params.cols;
         this.eInput.rows = params.rows;
         this.eInput.maxLength = params.maxLength;
@@ -73,7 +82,6 @@ let logsColumnDefs = [
         cellEditorParams:cellEditorParams,
         maxWidth: 216,
         minWidth: 216,
-        sort: "desc"
     },
     {
         field: "logs",
@@ -154,20 +162,32 @@ const gridOptions = {
             let diff = logsRowData.length - evt.api.getLastDisplayedRow();
             // if we're less than 1 items from the end...fetch more data
             if(diff <= 5) {
+                // Show loading indicator
+                showLoadingIndicator();
+                
                 let scrollingTrigger = true;
                 data = getSearchFilter(false, scrollingTrigger);
                 if (data && data.searchText == "error") {
                   alert("Error");
+                  hideLoadingIndicator(); // Hide loading indicator on error
                   return;
                 }
-                doSearch(data);
+                doSearch(data).then(() => {
+                    hideLoadingIndicator(); // Hide loading indicator once data is fetched
+                });
             }
         }
     },
-    
-      
+    overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
 };
 
+function showLoadingIndicator() {
+    gridOptions.api.showLoadingOverlay();
+}
+
+function hideLoadingIndicator() {
+    gridOptions.api.hideOverlay();
+}
 
 const myCellRenderer= (params) => {
     let logString = '';
@@ -187,6 +207,11 @@ const myCellRenderer= (params) => {
 let gridDiv = null;
 
 function renderLogsGrid(columnOrder, hits){
+    if (sortByTimestampAtDefault) {
+        logsColumnDefs[0].sort = "desc";
+    }else {
+        logsColumnDefs[0].sort = undefined;
+    }
     if (gridDiv == null){
         gridDiv = document.querySelector('#LogResultsGrid');
         new agGrid.Grid(gridDiv, gridOptions);

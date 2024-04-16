@@ -34,6 +34,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -93,7 +94,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	searchNode := ConvertASTNodeToSearchNode(simpleNode, 0)
 	ti := InitTableInfo("evts", 0, false)
 	queryInfo, err := InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 0, nil, 0)
+		4, 0, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	allQuerySegKeys, rawCount, _, pqsCount, err := getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -130,7 +131,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	}
 	searchNode = ConvertASTNodeToSearchNode(simpleNode, 0)
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 1, nil, 0)
+		4, 1, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -159,7 +160,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	}
 	searchNode = ConvertASTNodeToSearchNode(simpleNode, 0)
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 2, nil, 0)
+		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -203,7 +204,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	}
 	searchNode := ConvertASTNodeToSearchNode(simpleNode, 0)
 	queryInfo, err := InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 2, nil, 0)
+		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	allQuerySegKeys, rawCount, _, pqsCount, err := getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -240,7 +241,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	}
 	searchNode = ConvertASTNodeToSearchNode(simpleNode, 0)
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 2, nil, 0)
+		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -278,7 +279,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	}
 	searchNode = ConvertASTNodeToSearchNode(simpleNode, 0)
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 2, nil, 0)
+		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -352,7 +353,7 @@ func pqsSegQuery(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCoun
 	allSegFileResults, err := segresults.InitSearchResults(sizeLimit, nil, RRCCmd, 4)
 	assert.Nil(t, err, "no error on init")
 	queryInfo, err := InitQueryInformation(searchNode, nil, fullTimeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 2, nil, 0)
+		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	querySegmentRequests, numRawSearchKeys, _, numPQSKeys, err := getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -414,7 +415,7 @@ func Test_segQueryFilter(t *testing.T) {
 	_ = localstorage.InitLocalStorage()
 	config.InitializeTestingConfig()
 	limit.InitMemoryLimiter()
-	err := InitQueryNode(getMyIds, extractKibanaRequests)
+	err := InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		t.Fatalf("Failed to initialize query node: %v", err)
 	}

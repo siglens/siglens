@@ -264,12 +264,10 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 
 		if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 			sizeLimit = 0
-		} else if aggs.HasDedupBlockInChain() {
-			// Dedup needs to see all the matched records before it can return any
+		} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() {
+			// 1. Dedup needs to see all the matched records before it can return any
 			// of them when there's a sortby option.
-			sizeLimit = math.MaxUint64
-		} else if aggs.HasRexBlockInChainWithStats() {
-			// If there's a Rex block in the chain followed by a Stats block, we need to
+			// 2. If there's a Rex block in the chain followed by a Stats block, we need to
 			// see all the matched records before we apply or calculate the stats.
 			sizeLimit = math.MaxUint64
 		}
@@ -339,7 +337,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf(" ProcessPipeSearchRequest: received empty search request body ")
-		SetBadMsg(ctx)
+		utils.SetBadMsg(ctx, "")
 		return
 	}
 	qid := rutils.GetNextQid()
@@ -398,12 +396,10 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() {
-		// Dedup needs to see all the matched records before it can return any
+	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() {
+		// 1. Dedup needs to see all the matched records before it can return any
 		// of them when there's a sortby option.
-		sizeLimit = math.MaxUint64
-	} else if aggs.HasRexBlockInChainWithStats() {
-		// If there's a Stats block in the chain followed by a Rex block, we need to
+		// 2. If there's a Rex block in the chain followed by a Stats block, we need to
 		// see all the matched records before we apply or calculate the stats.
 		sizeLimit = math.MaxUint64
 	}
@@ -526,14 +522,6 @@ func convertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
 	}
 
 	return utils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
-}
-
-func SetBadMsg(ctx *fasthttp.RequestCtx) {
-	var httpResp utils.HttpServerResponse
-	ctx.SetStatusCode(fasthttp.StatusBadRequest)
-	httpResp.Message = "Bad Request"
-	httpResp.StatusCode = fasthttp.StatusBadRequest
-	utils.WriteResponse(ctx, httpResp)
 }
 
 /*

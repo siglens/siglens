@@ -38,7 +38,10 @@
     <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
-    <script src="./js/lib/d3.v7.min.js"></script>
+    <script src="./js/lib/cytoscape.min.js"></script>
+    <script src="./js/lib/dagre.min.js"></script>
+    <script src="./js/lib/cytoscape-dagre.min.js"></script>
+    
     {{ .RunCheck1 | safeHTML }}
 </head>
 
@@ -51,16 +54,54 @@
         </div>
 
         <div id="dashboard" class="p-20">
-            <div class="subsection-navbar">
+            <div class="subsection-navbar align-items-end justify-content-between">
+                <div class="dropdown">
+                    <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
+                        title="Pick the time window">
+                        <span>Time Picker</span>
+                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                    </button>
+                    <div class="dropdown-menu daterangepicker dep" aria-labelledby="index-btn" id="daterangepicker ">
+                        <p class="dt-header">Search the last</p>
+                        <div class="ranges">
+                            <div class="inner-range dep">
+                                <div id="now-1h" class="range-item active">1 Hr</div>
+                                <div id="now-6h" class="range-item">6 Hrs</div>
+                                <div id="now-2d" class="range-item">2 Days</div>
+                            </div>
+                            <div class="inner-range dep">
+                                <div id="now-2h" class="range-item">2 Hrs</div>
+                                <div id="now-12h" class="range-item">12 Hrs</div>
+                                <div id="now-7d" class="range-item">7 Days</div>
+                            </div>
+                            <div class="inner-range dep">
+                                <div id="now-3h" class="range-item">3 Hrs</div>
+                                <div id="now-24h" class="range-item">24 Hrs</div>
+                                <div id="now-30d" class="range-item">30 Days</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div id="dependency-graph-container"></div>
+            <div id="dependency-graph-container" class="position-relative "> 
+                <div id="dependency-graph-canvas" class="m-0"></div>
+                <div class="position-absolute" style="bottom:11px; right:40px;">
+                    Dependency Graph generated at:  <span id="last-run-timestamp"></span>
+                </div>
+                <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="dependency-info" style="bottom:12px; top:auto;"
+                title='The numbers on the edges in a dependency graph show 
+                how frequently one service is calling another service.'>
+                </i>
+            </div>
             <div id="error-msg-container">
                 <p>No service dependencies found.</p>
             </div>
         </div>
 
         <div id="app-footer">
-            2023 &copy; SigLens
+            2024 &copy; SigLens
         </div>
 
     </div>
@@ -68,6 +109,7 @@
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/common.js?cb=1_1_10"></script>
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
+    <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
     <script src="./js/dependency-graph.js?cb=1_1_10"></script>
 

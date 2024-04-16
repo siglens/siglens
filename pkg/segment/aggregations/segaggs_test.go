@@ -18,8 +18,10 @@ package aggregations
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
+	"strings"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -107,12 +109,18 @@ func generateTestRecords(numRecords int) map[string]map[string]interface{} {
 		record["gender"] = []string{"male", "female"}[rand.Intn(2)]
 		record["country"] = countries[rand.Intn(len(countries))]
 		record["http_method"] = []string{"GET", "POST", "PUT", "DELETE"}[rand.Intn(4)]
-		record["http_status"] = []int{200, 201, 301, 302, 404}[rand.Intn(5)]
+		record["http_status"] = []int64{200, 201, 301, 302, 404}[rand.Intn(5)]
+		record["latitude"] = rand.Float64() * 180
+		record["longitude"] = rand.Float64() * 180
 
 		records[fmt.Sprint(i)] = record
 	}
 
 	return records
+}
+
+func getFinalColsForGeneratedTestRecords() map[string]bool {
+	return map[string]bool{"timestamp": true, "city": true, "gender": true, "country": true, "http_method": true, "http_status": true, "latitude": true, "longitude": true}
 }
 
 // Test Cases for processTransactionsOnRecords
@@ -1151,9 +1159,15 @@ func Test_processTransactionsOnRecords(t *testing.T) {
 	for index, txnArgs := range allCasesTxnArgs {
 		records := generateTestRecords(500)
 		// Process Transactions
-		performTransactionCommandRequest(&structs.NodeResult{}, &structs.QueryAggregators{TransactionArguments: txnArgs}, records, allCols)
+		performTransactionCommandRequest(&structs.NodeResult{}, &structs.QueryAggregators{TransactionArguments: txnArgs}, records, allCols, 1, true)
 
-		assert.Equal(t, allCols, map[string]bool{"timestamp": true, "duration": true, "eventcount": true, "event": true})
+		expectedCols := map[string]bool{"duration": true, "event": true, "eventcount": true, "timestamp": true}
+
+		for _, field := range txnArgs.Fields {
+			expectedCols[field] = true
+		}
+
+		assert.Equal(t, expectedCols, allCols)
 
 		// Check if the number of records is positive or negative
 		assert.Equal(t, matchesSomeRecords[index+1], len(records) > 0)
@@ -1257,4 +1271,832 @@ func validateSearchExpr(eventMap map[string]interface{}, resultData [][]*SimpleS
 		}
 	}
 	return true
+}
+
+func Test_performValueColRequestWithoutGroupBy_VEMNumericExpr(t *testing.T) {
+
+	// Query 1: * | eval rlatitude=round(latitude, 2)
+	letColReq := &structs.LetColumnsRequest{
+		ValueColRequest: &structs.ValueExpr{
+			ValueExprMode: structs.VEMNumericExpr,
+			NumericExpr: &structs.NumericExpr{
+				NumericExprMode: structs.NEMNumericExpr,
+				Op:              "round",
+				Left: &structs.NumericExpr{
+					NumericExprMode: structs.NEMNumberField,
+					IsTerminal:      true,
+					ValueIsField:    true,
+					Value:           "latitude",
+				},
+				Right: &structs.NumericExpr{
+					NumericExprMode: structs.NEMNumber,
+					IsTerminal:      true,
+					ValueIsField:    false,
+					Value:           "2",
+				},
+			},
+		},
+		NewColName: "rlatitude",
+	}
+
+	records := generateTestRecords(500)
+	finalCols := getFinalColsForGeneratedTestRecords()
+
+	// Perform the value column request
+	err := performValueColRequest(&structs.NodeResult{}, &structs.QueryAggregators{}, letColReq, records, finalCols)
+	assert.Nil(t, err)
+
+	// Check if the new column is added to the records
+	assert.True(t, finalCols["rlatitude"])
+
+	for _, record := range records {
+		assert.True(t, record["rlatitude"] != nil)
+		valueStr := fmt.Sprintf("%.2f", record["latitude"].(float64))
+		splitValue := strings.Split(valueStr, ".")
+		if len(splitValue) > 1 {
+			assert.Equal(t, len(splitValue[1]), 2)
+		}
+	}
+
+}
+
+func Test_performValueColRequestWithoutGroupBy_VEMConditionExpr(t *testing.T) {
+	// Query: * |  eval http_status_mod=if(in(http_status, 400,  500), "Failure", http_status)
+	letColReq := &structs.LetColumnsRequest{
+		ValueColRequest: &structs.ValueExpr{
+			ValueExprMode: structs.VEMConditionExpr,
+			ConditionExpr: &structs.ConditionExpr{
+				Op: "if",
+				BoolExpr: &structs.BoolExpr{
+					IsTerminal: true,
+					LeftValue: &structs.ValueExpr{
+						NumericExpr: &structs.NumericExpr{
+							NumericExprMode: structs.NEMNumberField,
+							IsTerminal:      true,
+							ValueIsField:    true,
+							Value:           "http_status",
+						},
+					},
+					ValueOp: "in",
+					ValueList: []*structs.ValueExpr{
+						{
+							NumericExpr: &structs.NumericExpr{
+								NumericExprMode: structs.NEMNumber,
+								IsTerminal:      true,
+								ValueIsField:    false,
+								Value:           "400",
+							},
+						},
+						{
+							NumericExpr: &structs.NumericExpr{
+								NumericExprMode: structs.NEMNumber,
+								IsTerminal:      true,
+								ValueIsField:    false,
+								Value:           "500",
+							},
+						},
+					},
+				},
+				TrueValue: &structs.ValueExpr{
+					ValueExprMode: structs.VEMStringExpr,
+					StringExpr: &structs.StringExpr{
+						RawString: "Failure",
+					},
+				},
+				FalseValue: &structs.ValueExpr{
+					NumericExpr: &structs.NumericExpr{
+						NumericExprMode: structs.NEMNumberField,
+						IsTerminal:      true,
+						ValueIsField:    true,
+						Value:           "http_status",
+					},
+				},
+			},
+		},
+		NewColName: "http_status_mod",
+	}
+
+	records := generateTestRecords(500)
+	finalCols := getFinalColsForGeneratedTestRecords()
+
+	// Perform the value column request
+	err := performValueColRequest(&structs.NodeResult{}, &structs.QueryAggregators{}, letColReq, records, finalCols)
+	assert.Nil(t, err)
+
+	// Check if the new column is added to the records
+	assert.True(t, finalCols["http_status_mod"])
+
+	for _, record := range records {
+		assert.True(t, record["http_status_mod"] != nil)
+		httpStatus := record["http_status"].(int64)
+		if httpStatus == 400 || httpStatus == 500 {
+			assert.Equal(t, "Failure", record["http_status_mod"])
+		} else {
+			assert.Equal(t, fmt.Sprint(httpStatus), record["http_status_mod"])
+		}
+	}
+}
+
+func Test_performValueColRequestWithoutGroupBy_VEMStringExpr(t *testing.T) {
+	// Query: * | eval country_city=country.":-".city
+	letColReq := &structs.LetColumnsRequest{
+		ValueColRequest: &structs.ValueExpr{
+			ValueExprMode: structs.VEMStringExpr,
+			StringExpr: &structs.StringExpr{
+				StringExprMode: structs.SEMConcatExpr,
+				ConcatExpr: &structs.ConcatExpr{
+					Atoms: []*structs.ConcatAtom{
+						{
+							IsField: true,
+							Value:   "country",
+						},
+						{
+							IsField: false,
+							Value:   ":-",
+						},
+						{
+							IsField: true,
+							Value:   "city",
+						},
+					},
+				},
+			},
+		},
+		NewColName: "country_city",
+	}
+
+	records := generateTestRecords(500)
+	finalCols := getFinalColsForGeneratedTestRecords()
+
+	// Perform the value column request
+	err := performValueColRequest(&structs.NodeResult{}, &structs.QueryAggregators{}, letColReq, records, finalCols)
+
+	assert.Nil(t, err)
+
+	// Check if the new column is added to the records
+	assert.True(t, finalCols["country_city"])
+
+	for _, record := range records {
+		assert.True(t, record["country_city"] != nil)
+		country := record["country"].(string)
+		city := record["city"].(string)
+		assert.Equal(t, country+":-"+city, record["country_city"])
+	}
+}
+
+func Test_getColumnsToKeepAndRemove(t *testing.T) {
+	tests := []struct {
+		name             string
+		cols             []string
+		wildcardCols     []string
+		keepMatches      bool
+		wantIndices      []int
+		wantColsToKeep   []string
+		wantColsToRemove []string
+	}{
+		{
+			name:             "No wildcards, keepMatches true",
+			cols:             []string{"id", "name", "email"},
+			wildcardCols:     []string{},
+			keepMatches:      true,
+			wantIndices:      []int{},
+			wantColsToKeep:   []string{},
+			wantColsToRemove: []string{"id", "name", "email"},
+		},
+		{
+			name:             "No wildcards, keepMatches false",
+			cols:             []string{"id", "name", "email"},
+			wildcardCols:     []string{},
+			keepMatches:      false,
+			wantIndices:      []int{0, 1, 2},
+			wantColsToKeep:   []string{"id", "name", "email"},
+			wantColsToRemove: []string{},
+		},
+		{
+			name:             "Exact match one wildcard, keepMatches true",
+			cols:             []string{"id", "name", "email"},
+			wildcardCols:     []string{"name"},
+			keepMatches:      true,
+			wantIndices:      []int{1},
+			wantColsToKeep:   []string{"name"},
+			wantColsToRemove: []string{"id", "email"},
+		},
+		{
+			name:             "Wildcard matches multiple columns, keepMatches true",
+			cols:             []string{"user_id", "username", "user_email", "age"},
+			wildcardCols:     []string{"user_*"},
+			keepMatches:      true,
+			wantIndices:      []int{0, 2},
+			wantColsToKeep:   []string{"user_id", "user_email"},
+			wantColsToRemove: []string{"username", "age"},
+		},
+		{
+			name:             "Wildcard matches none, keepMatches false",
+			cols:             []string{"id", "name", "email"},
+			wildcardCols:     []string{"user_*"},
+			keepMatches:      false,
+			wantIndices:      []int{0, 1, 2},
+			wantColsToKeep:   []string{"id", "name", "email"},
+			wantColsToRemove: []string{},
+		},
+		{
+			name:             "Multiple wildcards with overlaps, keepMatches true",
+			cols:             []string{"user_id", "admin_id", "username", "email"},
+			wildcardCols:     []string{"user_*", "*_id"},
+			keepMatches:      true,
+			wantIndices:      []int{0, 1},
+			wantColsToKeep:   []string{"user_id", "admin_id"},
+			wantColsToRemove: []string{"username", "email"},
+		},
+		{
+			name:             "Empty cols, keepMatches true",
+			cols:             []string{},
+			wildcardCols:     []string{"user_*"},
+			keepMatches:      true,
+			wantIndices:      []int{},
+			wantColsToKeep:   []string{},
+			wantColsToRemove: []string{},
+		},
+		{
+			name:             "Wildcard matches all, keepMatches false",
+			cols:             []string{"user_id", "user_name", "user_email"},
+			wildcardCols:     []string{"user_*"},
+			keepMatches:      false,
+			wantIndices:      []int{},
+			wantColsToKeep:   []string{},
+			wantColsToRemove: []string{"user_id", "user_name", "user_email"},
+		},
+		{
+			name:             "Complex wildcards, partial matches",
+			cols:             []string{"user_id", "admin_id", "username", "user_profile", "user_email", "age"},
+			wildcardCols:     []string{"user_*", "*name"},
+			keepMatches:      true,
+			wantIndices:      []int{0, 2, 3, 4},
+			wantColsToKeep:   []string{"user_id", "username", "user_profile", "user_email"},
+			wantColsToRemove: []string{"admin_id", "age"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotIndices, gotColsToKeep, gotColsToRemove := getColumnsToKeepAndRemove(tt.cols, tt.wildcardCols, tt.keepMatches)
+
+			assert.Equal(t, tt.wantIndices, gotIndices)
+			assert.Equal(t, tt.wantColsToKeep, gotColsToKeep)
+			assert.Equal(t, tt.wantColsToRemove, gotColsToRemove)
+		})
+	}
+}
+
+func Test_performArithmeticOperation_Addition(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    interface{}
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "Addition of numbers",
+			left:  5,
+			right: 3,
+			want:  float64(8),
+		},
+		{
+			name:  "Add a string and a number",
+			left:  2,
+			right: "3",
+			want:  float64(5),
+		},
+		{
+			name:  "Concatenation of strings",
+			left:  "Hello, ",
+			right: "World!",
+			want:  "Hello, World!",
+		},
+		{
+			name:    "Adding a string and a number",
+			left:    "Hello, ",
+			right:   3,
+			wantErr: true,
+			errMsg:  "rightValue is not a string",
+		},
+		{
+			name:    "Adding a number and a string",
+			left:    3,
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.Add)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_Subtraction(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    float64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "10-5",
+			left:  10,
+			right: 5,
+			want:  5,
+		},
+		{
+			name:  "-5-(-2)",
+			left:  -5,
+			right: -2,
+			want:  -3,
+		},
+		{
+			name:  "5.5-2.2",
+			left:  5.5,
+			right: 2.2,
+			want:  3.3,
+		},
+		{
+			name:  "0-5",
+			left:  0,
+			right: 5,
+			want:  -5,
+		},
+		{
+			name:  "Subtracting a string(number) from a string(number)",
+			left:  "2",
+			right: "5",
+			want:  -3,
+		},
+		{
+			name:  "Subtracting a number from a string(number)",
+			left:  "2",
+			right: 5,
+			want:  -3,
+		},
+		{
+			name:  "Subtracting a string from a number",
+			left:  5,
+			right: "2",
+			want:  3,
+		},
+		{
+			name:    "Subtracting a number from a string",
+			left:    "Hello,",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Subtracting a string from a number",
+			left:    5,
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Subtracting a string from a string",
+			left:    "Hello,",
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.Subtract)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_Multiplication(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    float64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "3*4",
+			left:  3,
+			right: 4,
+			want:  12,
+		},
+		{
+			name:  "-2*3",
+			left:  -2,
+			right: 3,
+			want:  -6,
+		},
+		{
+			name:  "5.5*2",
+			left:  5.5,
+			right: 2,
+			want:  11,
+		},
+		{
+			name:  "2*(-5)",
+			left:  2,
+			right: -5,
+			want:  -10,
+		},
+		{
+			name:    "Multiplying a string with a number",
+			left:    "Hello,",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Multiplying a number with a string",
+			left:    5,
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Multiplying a string with a string",
+			left:    "Hello,",
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.Multiply)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_Division(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    float64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "10/2",
+			left:  10,
+			right: 2,
+			want:  5,
+		},
+		{
+			name:  "5/(-1)",
+			left:  5,
+			right: -1,
+			want:  -5,
+		},
+		{
+			name:  "(-6)/(-3)",
+			left:  -6,
+			right: -3,
+			want:  2,
+		},
+		{
+			name:  "7.5/2.5",
+			left:  7.5,
+			right: 2.5,
+			want:  3,
+		},
+		{
+			name:    "Dividing by zero",
+			left:    5,
+			right:   0,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: cannot divide by zero",
+		},
+		{
+			name:    "Dividing a string by a number",
+			left:    "Hello,",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Dividing a number by a string",
+			left:    5,
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Dividing a string by a string",
+			left:    "Hello,",
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.Divide)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_Modulo(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    int64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "10%3",
+			left:  10,
+			right: 3,
+			want:  1,
+		},
+		{
+			name:  "18%7",
+			left:  18,
+			right: -7,
+			want:  4,
+		},
+		{
+			name:  "(-4)%3",
+			left:  -4,
+			right: 3,
+			want:  -1,
+		},
+		{
+			name:  "(-4)%(-3)",
+			left:  -4,
+			right: -3,
+			want:  -1,
+		},
+		{
+			name:    "Modulo a string by a number",
+			left:    "Hello,",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Modulo a number by a string",
+			left:    5,
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Modulo a string by a string",
+			left:    "Hello,",
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.Modulo)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_BitwiseAnd(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    int64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "6 & 3, expect 2",
+			left:  6,
+			right: 3,
+			want:  2,
+		},
+		{
+			name:  "10 & 8, expect 8",
+			left:  10,
+			right: 8,
+			want:  8,
+		},
+		{
+			name:    "bitwise a string by a number",
+			left:    "a",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "bitwise a number by a string",
+			left:    5,
+			right:   "b",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "bitwise a string by a string",
+			left:    "a",
+			right:   "b",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.BitwiseAnd)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_BitwiseOr(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    int64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "10|2",
+			left:  10,
+			right: 2,
+			want:  10,
+		},
+		{
+			name:  "1|4",
+			left:  1,
+			right: 4,
+			want:  5,
+		},
+		{
+			name:  "1|2",
+			left:  1,
+			right: 2,
+			want:  3,
+		},
+		{
+			name:    "bitwise or a string by a number",
+			left:    "a",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "bitwise or a number by a string",
+			left:    5,
+			right:   "b",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "bitwise or a string by a string",
+			left:    "a",
+			right:   "b",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.BitwiseOr)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_BitwiseExclusiveOr(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    int64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "10^5",
+			left:  10,
+			right: 5,
+			want:  15,
+		},
+		{
+			name:  "3^4",
+			left:  3,
+			right: 4,
+			want:  7,
+		},
+		{
+			name:  "2^3",
+			left:  2,
+			right: 3,
+			want:  1,
+		},
+		{
+			name:    "bitwise exclusive or a string by a number",
+			left:    "a",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "bitwise exclusive or a number by a string",
+			left:    5,
+			right:   "b",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "bitwise exclusive or a string by a string",
+			left:    "a",
+			right:   "b",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.BitwiseExclusiveOr)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_WrongOp(t *testing.T) {
+	_, err := performArithmeticOperation(5, 3, 100)
+	assert.Equal(t, errors.New("performArithmeticOperation: invalid arithmetic operator"), err)
 }

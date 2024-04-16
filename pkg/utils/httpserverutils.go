@@ -17,12 +17,15 @@ limitations under the License.
 package utils
 
 import (
+	"bytes"
 	"encoding/base64"
-	jsonEncoding "encoding/json"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/cespare/xxhash"
@@ -401,7 +404,7 @@ func NewSingleESResponse() *SingleESResponse {
 
 func WriteResponse(ctx *fasthttp.RequestCtx, httpResp HttpServerResponse) {
 	ctx.SetContentType(ContentJson)
-	jval, _ := jsonEncoding.Marshal(httpResp)
+	jval, _ := json.Marshal(httpResp)
 	_, err := ctx.Write(jval)
 	if err != nil {
 		return
@@ -410,11 +413,22 @@ func WriteResponse(ctx *fasthttp.RequestCtx, httpResp HttpServerResponse) {
 
 func WriteJsonResponse(ctx *fasthttp.RequestCtx, httpResp interface{}) {
 	ctx.SetContentType(ContentJson)
-	jval, _ := jsonEncoding.Marshal(httpResp)
+	jval, _ := json.Marshal(httpResp)
 	_, err := ctx.Write(jval)
 	if err != nil {
 		return
 	}
+}
+
+func SetBadMsg(ctx *fasthttp.RequestCtx, msg string) {
+	if len(msg) == 0 {
+		msg = "Bad Request"
+	}
+	var httpResp HttpServerResponse
+	ctx.SetStatusCode(fasthttp.StatusBadRequest)
+	httpResp.Message = msg
+	httpResp.StatusCode = fasthttp.StatusBadRequest
+	WriteResponse(ctx, httpResp)
 }
 
 func ExtractParamAsString(_interface interface{}) string {
@@ -811,4 +825,84 @@ func GetSpecificIdentifier() (string, error) {
 	}
 
 	return hostname, nil
+}
+
+func GetDecodedBody(ctx *fasthttp.RequestCtx) ([]byte, error) {
+	contentEncoding := string(ctx.Request.Header.Peek("Content-Encoding"))
+	switch contentEncoding {
+	case "":
+		return ctx.Request.Body(), nil
+	case "gzip":
+		return gunzip(ctx.Request.Body())
+	default:
+		return nil, fmt.Errorf("GetDecodedBody: unsupported content encoding: %s", contentEncoding)
+	}
+}
+
+func gunzip(data []byte) ([]byte, error) {
+	return fasthttp.AppendGunzipBytes(nil, data)
+}
+
+// This takes a group of JSON objects (not inside a JSON array) and splits them
+// into individual JSON objects.
+func ExtractSeriesOfJsonObjects(body []byte) ([]map[string]interface{}, error) {
+	var objects []map[string]interface{}
+	decoder := json.NewDecoder(bytes.NewReader(body))
+
+	for {
+		var obj map[string]interface{}
+		if err := decoder.Decode(&obj); err != nil {
+			// If we reach the end of the input, break the loop.
+			if err == io.EOF {
+				break
+			}
+
+			return nil, fmt.Errorf("ExtractSeriesOfJsonObjects: error decoding JSON: %v", err)
+		}
+
+		objects = append(objects, obj)
+	}
+
+	return objects, nil
+}
+
+func sendErrorWithStatus(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error, statusCode int) {
+	// Get the caller function name, file name, and line number.
+	pc, _, _, _ := runtime.Caller(2) // Get the caller two levels up.
+	caller := runtime.FuncForPC(pc)
+	callerName := "unknown"
+	callerFile := "unknown"
+	callerLine := 0
+
+	if caller != nil {
+		callerName = caller.Name()
+		callerFile, callerLine = caller.FileLine(pc)
+
+		// Only take the function name after the last dot.
+		callerName = callerName[strings.LastIndex(callerName, ".")+1:]
+
+		// Only take the /pkg/... part of the file path.
+		callerFile = callerFile[strings.LastIndex(callerFile, "/pkg/")+1:]
+	}
+
+	// Log the error message.
+	if extraMessageToLog == "" {
+		log.Errorf("%s at %s:%d: %v, err=%v", callerName, callerFile, callerLine, messageToUser, err)
+	} else {
+		log.Errorf("%s at %s:%d: %v. %v, err=%v", callerName, callerFile, callerLine, messageToUser, extraMessageToLog, err)
+	}
+
+	// Send the error message to the client.
+	responsebody := make(map[string]interface{})
+	responsebody["error"] = messageToUser
+	ctx.SetStatusCode(statusCode)
+	WriteJsonResponse(ctx, responsebody)
+}
+
+func SendError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
+	sendErrorWithStatus(ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusBadRequest)
+}
+
+func SendInternalError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
+	sendErrorWithStatus(ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusInternalServerError)
 }

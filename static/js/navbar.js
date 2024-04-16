@@ -56,6 +56,10 @@ let navbarComponent = `
             <a href="./cluster-stats.html" class="nav-links"><span class="icon-myorg"></span><span
                     class="nav-link-text">My Org</span></a>
         </div>
+        <div class="menu nav-ingest" title="Ingestion">
+            <a href="./test-data.html" class="nav-links"><span class="icon-ingest"></span><span
+                    class="nav-link-text">Ingestion</span></a>
+        </div>
     </div>
     <div>
         <div>
@@ -70,19 +74,42 @@ let navbarComponent = `
                 </button>
             </div>
         </div>
-        <div class="menu nav-feedback" title="Feedback">
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLSfs_mxeX4LKbjAdX22cOknFaoi2TJcoOGD3OKj2RmZl7evD6A/viewform"
-                target="_blank" class="nav-links">
-                <span class="icon-feedback"></span><span class="nav-link-text feedback">Feedback</span>
-            </a>
+        <div class="position-relative mb-2">
+            <div class="nav-help" title="Help & Support">
+                <a href="#" class="nav-links"><span class="icon-help"> </span>
+
+                    <span class="nav-link-text">Help & Support</span></a>
+            </div>
+            <div class="help-options">
+                <div class="menu nav-docs" title="SigLens Documentation">
+                    <a href="https://www.siglens.com/siglens-docs/" class="nav-links" target="_blank"><span class="icon-docs"></span><span class="nav-link-text">Documentation</span></a>
+                </div>
+                <div class="menu nav-slack" title="Join Slack Community">
+                    <a href="https://www.siglens.com/slack.html" class="nav-links" target="_blank"><span class="icon-slack"></span><span class="nav-link-text">Join Slack Community</span></a>
+                </div>
+                <div class="menu nav-linkedin" title="Share on LinkedIn">
+                    <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://siglens.com" class="nav-links" target="_blank"><span class="icon-linkedin"></span><span class="nav-link-text">Share on LinkedIn</span></a>
+                </div>
+                <div class="menu nav-twitter" title="Share on Twitter">
+                    <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ" 
+                    class="nav-links" target="_blank"><span class="icon-twitter"></span><span class="nav-link-text">Share on Twitter</span></a>
+                </div>
+                <hr>
+                <div class="menu nav-feedback" title="Feedback">
+                    <a href="https://docs.google.com/forms/d/e/1FAIpQLSfs_mxeX4LKbjAdX22cOknFaoi2TJcoOGD3OKj2RmZl7evD6A/viewform"
+                        target="_blank" class="nav-links">
+                        <span class="icon-feedback"></span><span class="nav-link-text feedback">Feedback</span>
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 `
 
 let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
+    {{ .OrgUpperNavTabs}}
     { name: 'Settings', url: './org-settings.html', class : 'org-settings'},
-    { name: 'Test Data', url: './test-data.html', class : 'test-data' },
     { name: 'Version', url: './application-version.html', class: 'application-version'}
 ];
 
@@ -97,6 +124,10 @@ let alertsUpperNavTabs = [
     { name: 'Contact Points', url: './contacts.html', class : 'contacts'},
 ];
 
+let ingestionUpperNavTabs = [
+    { name: 'Log Sources', url: './test-data.html', class : 'test-data' },
+];
+
 $(document).ready(function () {
     $("#app-side-nav").prepend(navbarComponent);
     const currentUrl = window.location.href;
@@ -109,7 +140,8 @@ $(document).ready(function () {
         ".nav-myorg",
         ".nav-minion",
         ".nav-live",
-        ".nav-traces"
+        ".nav-traces",
+        ".nav-ingest",
     ];
     navItems.forEach((item) => $(item).removeClass("active"));
 
@@ -124,7 +156,7 @@ $(document).ready(function () {
     } else if (currentUrl.includes("alerts.html") || currentUrl.includes("alert.html") || currentUrl.includes("alert-details.html")   || currentUrl.includes("contacts.html")){
         $(".nav-alerts").addClass("active");
         $('.alerts-nav-tab').appendOrgNavTabs("Alerting", alertsUpperNavTabs);
-    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("test-data.html") || currentUrl.includes("application-version.html")) {
+    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("application-version.html") {{ .OrgUpperNavUrls}} ) {
         $(".nav-myorg").addClass("active");
         $('.org-nav-tab').appendOrgNavTabs("My Org", orgUpperNavTabs);
     } else if (currentUrl.includes("minion-searches.html")) {
@@ -133,8 +165,32 @@ $(document).ready(function () {
         $(".nav-live").addClass("active");
     } else if (currentUrl.includes("service-health.html")|| currentUrl.includes("service-health-overview.html") || currentUrl.includes("dependency-graph.html")|| currentUrl.includes("search-traces.html")) {
         $(".nav-traces").addClass("active");
-        $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
+        if ($('.subsection-navbar').length) {
+            $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
+        }        
+    } else if (currentUrl.includes("test-data.html")) {
+        $(".nav-ingest").addClass("active");
+        $('.ingestion-nav-tab').appendOrgNavTabs("Ingestion", ingestionUpperNavTabs);
     }
 
+    $(".nav-help").on("click", function(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        $(".help-options").slideToggle(200);
+    });
+
+    $(document).on("click", function(event) {
+        var helpOptions = $(".help-options");
+        var menu = $(".nav-help");
+        
+        if (!menu.is(event.target) && !helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
+            helpOptions.slideUp(200);
+        }
+    });
+
+    $(".help-options").on("click", "a", function(event) {
+        $(".help-options").slideUp(200);
+    });
 });
+
 

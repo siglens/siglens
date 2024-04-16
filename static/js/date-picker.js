@@ -47,6 +47,11 @@ function datePickerHandler(startDate, endDate, label) {
             displayStart = moment().subtract(1, 'hours').valueOf();
             displayLabel = 'Last 1 Hr';
             break;
+        case 'Last 2 Hrs':
+        case 'now-2h':
+            displayStart = moment().subtract(2, 'hours').valueOf();
+            displayLabel = 'Last 2 Hrs';
+            break;
         case 'Last 3 Hrs':
         case 'now-3h':
             displayStart = moment().subtract(3, 'hours').valueOf();
@@ -105,9 +110,8 @@ function datePickerHandler(startDate, endDate, label) {
     $('#app-container #date-picker-btn span').html(displayLabel);
     $('#alerting-container #date-picker-btn span').html(displayLabel);
     $('#cstats-time-picker #date-picker-btn span').html(displayLabel);
-    $('#usage-stats-timepicker #date-picker-btn span').html(displayLabel);
     let currentPage=window.location.href
-    if(!(currentPage.includes("cluster-stats.html") || currentPage.includes("usageStats.html"))){
+    if(!(currentPage.includes("cluster-stats.html"))){
         Cookies.set('startEpoch', filterStartDate);
         Cookies.set('endEpoch', filterEndDate);
     }

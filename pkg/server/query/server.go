@@ -18,6 +18,7 @@ package queryserver
 
 import (
 	"crypto/tls"
+	"fmt"
 	htmltemplate "html/template"
 	"net"
 	texttemplate "text/template"
@@ -25,17 +26,16 @@ import (
 
 	"github.com/fasthttp/router"
 	"github.com/oklog/run"
+	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/segment/structs"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
+	tracing "github.com/siglens/siglens/pkg/tracing"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/pprofhandler"
-	"golang.org/x/crypto/acme"
-	"golang.org/x/crypto/acme/autocert"
 )
 
 type queryserverCfg struct {
@@ -72,18 +72,31 @@ func (hs *queryserverCfg) Close() {
 
 func getMyIds() []uint64 {
 	myids := make([]uint64, 1)
-	myids[0] = 0
-	return myids
-}
-func extractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*structs.SegmentSearchRequest {
-	ssr := make(map[string]*structs.SegmentSearchRequest)
 
-	return ssr
+	alreadyHandled := false
+	if hook := hooks.GlobalHooks.GetIdsConditionHook; hook != nil {
+		alreadyHandled = hook(myids)
+	}
+
+	if !alreadyHandled {
+		myids[0] = 0
+	}
+
+	return myids
 }
 
 func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) error {
+	if config.IsTracingEnabled() {
+		cleanup := tracing.InitTracing(config.GetTracingServiceName() + ":query")
+		defer cleanup()
+	}
+
 	query.InitQueryMetrics()
-	err := query.InitQueryNode(getMyIds, extractKibanaRequests)
+
+	alertsHandler.InitAlertingService(getMyIds)
+	alertsHandler.InitMinionSearchService(getMyIds)
+
+	err := query.InitQueryNode(getMyIds, server_utils.ExtractKibanaRequests)
 	if err != nil {
 		log.Errorf("Failed to initialize query node: %v", err)
 		return err
@@ -95,22 +108,22 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET("/js/{filename}.js", func(ctx *fasthttp.RequestCtx) {
 		renderJavaScriptTemplate(ctx, textTemplate)
 	})
-	hs.Router.GET(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler(0)))
-	hs.Router.POST(server_utils.API_PREFIX+"/search/live_tail", hs.Recovery(liveTailHandler(0)))
-	hs.Router.POST(server_utils.API_PREFIX+"/search", hs.Recovery(pipeSearchHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/search/{dbPanel-id}", hs.Recovery(dashboardPipeSearchHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/search/ws", hs.Recovery(pipeSearchWebsocketHandler(0)))
+	hs.Router.GET(server_utils.API_PREFIX+"/search/live_tail", tracing.TraceMiddleware(hs.Recovery(liveTailHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/search/live_tail", tracing.TraceMiddleware(hs.Recovery(liveTailHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/search", tracing.TraceMiddleware(hs.Recovery(pipeSearchHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/search/{dbPanel-id}", tracing.TraceMiddleware(hs.Recovery(dashboardPipeSearchHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/search/ws", tracing.TraceMiddleware(hs.Recovery(pipeSearchWebsocketHandler())))
 
-	hs.Router.POST(server_utils.API_PREFIX+"/search/ws", hs.Recovery(pipeSearchWebsocketHandler(0)))
-	hs.Router.POST(server_utils.API_PREFIX+"/sampledataset_bulk", hs.Recovery(sampleDatasetBulkHandler()))
+	hs.Router.POST(server_utils.API_PREFIX+"/search/ws", tracing.TraceMiddleware(hs.Recovery(pipeSearchWebsocketHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/sampledataset_bulk", tracing.TraceMiddleware(hs.Recovery(sampleDatasetBulkHandler())))
 
 	// common routes
 
-	hs.Router.GET(server_utils.API_PREFIX+"/health", hs.Recovery(getHealthHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/health", tracing.TraceMiddleware(hs.Recovery(getHealthHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/setconfig/transient", hs.Recovery(postSetconfigHandler(false)))
 	hs.Router.POST(server_utils.API_PREFIX+"/setconfig/persistent", hs.Recovery(postSetconfigHandler(true)))
-	hs.Router.GET(server_utils.API_PREFIX+"/config", hs.Recovery(getConfigHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/config/reload", hs.Recovery(getConfigReloadHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/config", tracing.TraceMiddleware(hs.Recovery(getConfigHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/config/reload", tracing.TraceMiddleware(hs.Recovery(getConfigReloadHandler())))
 
 	//elasticsearch routes - common to both ingest and query
 	hs.Router.GET(server_utils.ELASTIC_PREFIX+"/", hs.Recovery(esGreetHandler()))
@@ -162,8 +175,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.LOKI_PREFIX+"/api/v1/series", hs.Recovery(lokiSeriesHandler()))
 
 	//splunk endpoint
-	hs.Router.GET(server_utils.SPLUNK_PREFIX+"/services/collector/health", hs.Recovery(getHealthHandler()))
-	hs.Router.GET(server_utils.SPLUNK_PREFIX+"/services/collector/health/1.0", hs.Recovery(getHealthHandler()))
+	hs.Router.GET("/services/collector/health", hs.Recovery(getHealthHandler()))
+	hs.Router.GET("/services/collector/health/1.0", hs.Recovery(getHealthHandler()))
 
 	//OTSDB query endpoint
 	hs.Router.GET(server_utils.OTSDB_PREFIX+"/api/query", hs.Recovery(otsdbMetricQueryHandler()))
@@ -176,29 +189,29 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/ui/query", hs.Recovery(uiMetricsSearchHandler()))
 
 	// search api Handlers
-	hs.Router.POST(server_utils.API_PREFIX+"/echo", hs.Recovery(pipeSearchHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/listIndices", hs.Recovery(listIndicesHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/clusterStats", hs.Recovery(getClusterStatsHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/clusterIngestStats", hs.Recovery(getClusterIngestStatsHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/usersavedqueries/save", hs.Recovery(saveUserSavedQueriesHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/getall", hs.Recovery(getUserSavedQueriesAllHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/deleteone/{qname}", hs.Recovery(deleteUserSavedQueryHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/{qname}", hs.Recovery(SearchUserSavedQueryHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/pqs/clear", hs.Recovery(postPqsClearHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/pqs/get", hs.Recovery(getPqsEnabledHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/pqs/aggs", hs.Recovery(postPqsAggColsHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/pqs/update", hs.Recovery(postPqsHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/pqs", hs.Recovery(getPqsHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/pqs/{pqid}", hs.Recovery(getPqsByIdHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/create", hs.Recovery(createDashboardHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/defaultlistall", hs.Recovery(getDefaultDashboardIdsHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/listall", hs.Recovery(getDashboardIdsHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/update", hs.Recovery(updateDashboardHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/{dashboard-id}", hs.Recovery(getDashboardIdHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/delete/{dashboard-id}", hs.Recovery(deleteDashboardHandler()))
-	hs.Router.PUT(server_utils.API_PREFIX+"/dashboards/favorite/{dashboard-id}", hs.Recovery(favoriteDashboardHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/listfavorites", hs.Recovery(getFavoriteDashboardIdsHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/version/info", hs.Recovery(getVersionHandler()))
+	hs.Router.POST(server_utils.API_PREFIX+"/echo", tracing.TraceMiddleware(hs.Recovery(pipeSearchHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/listIndices", tracing.TraceMiddleware(hs.Recovery(listIndicesHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/clusterStats", tracing.TraceMiddleware(hs.Recovery(getClusterStatsHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/clusterIngestStats", tracing.TraceMiddleware(hs.Recovery(getClusterIngestStatsHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/usersavedqueries/save", tracing.TraceMiddleware(hs.Recovery(saveUserSavedQueriesHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/getall", tracing.TraceMiddleware(hs.Recovery(getUserSavedQueriesAllHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/deleteone/{qname}", tracing.TraceMiddleware(hs.Recovery(deleteUserSavedQueryHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/{qname}", tracing.TraceMiddleware(hs.Recovery(SearchUserSavedQueryHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/pqs/clear", tracing.TraceMiddleware(hs.Recovery(postPqsClearHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/pqs/get", tracing.TraceMiddleware(hs.Recovery(getPqsEnabledHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/pqs/aggs", tracing.TraceMiddleware(hs.Recovery(postPqsAggColsHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/pqs/update", tracing.TraceMiddleware(hs.Recovery(postPqsHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/pqs", tracing.TraceMiddleware(hs.Recovery(getPqsHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/pqs/{pqid}", tracing.TraceMiddleware(hs.Recovery(getPqsByIdHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/create", tracing.TraceMiddleware(hs.Recovery(createDashboardHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/defaultlistall", tracing.TraceMiddleware(hs.Recovery(getDefaultDashboardIdsHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/listall", tracing.TraceMiddleware(hs.Recovery(getDashboardIdsHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/update", tracing.TraceMiddleware(hs.Recovery(updateDashboardHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/{dashboard-id}", tracing.TraceMiddleware(hs.Recovery(getDashboardIdHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/delete/{dashboard-id}", tracing.TraceMiddleware(hs.Recovery(deleteDashboardHandler())))
+	hs.Router.PUT(server_utils.API_PREFIX+"/dashboards/favorite/{dashboard-id}", tracing.TraceMiddleware(hs.Recovery(favoriteDashboardHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/listfavorites", tracing.TraceMiddleware(hs.Recovery(getFavoriteDashboardIdsHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/version/info", tracing.TraceMiddleware(hs.Recovery(getVersionHandler())))
 
 	// alerting api endpoints
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/create", hs.Recovery(createAlertHandler()))
@@ -218,16 +231,26 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET(server_utils.API_PREFIX+"/minionsearch/{alertID}", hs.Recovery(getMinionSearchHandler()))
 
 	// tracing api endpoints
-	hs.Router.POST(server_utils.API_PREFIX+"/traces/search", hs.Recovery(searchTracesHandler()))
-	hs.Router.GET(server_utils.API_PREFIX+"/traces/dependencies", hs.Recovery(getDependencyGraphHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/traces/ganttChart", hs.Recovery(ganttChartHandler()))
-	hs.Router.POST(server_utils.API_PREFIX+"/traces/count", hs.Recovery((totalTracesHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/traces/search", tracing.TraceMiddleware(hs.Recovery(searchTracesHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/traces/dependencies", tracing.TraceMiddleware(hs.Recovery(getDependencyGraphHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/traces/generate-dep-graph", hs.Recovery(generateDependencyGraphHandler()))
+	hs.Router.POST(server_utils.API_PREFIX+"/traces/ganttChart", tracing.TraceMiddleware(hs.Recovery(ganttChartHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/traces/count", tracing.TraceMiddleware(hs.Recovery((totalTracesHandler()))))
 	// query server should still setup ES APIs for Kibana integration
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
 	hs.Router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(esPutIndexHandler()))
 
+	hs.Router.GET(server_utils.API_PREFIX+"/system-info", tracing.TraceMiddleware(hs.Recovery(getSystemInfoHandler())))
 	if config.IsDebugMode() {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
+	}
+
+	if hook := hooks.GlobalHooks.ExtraQueryEndpointsHook; hook != nil {
+		err := hook(hs.Router, hs.Recovery)
+		if err != nil {
+			log.Errorf("Run: error in ExtraQueryEndpointsHook: %v", err)
+			return err
+		}
 	}
 
 	if hook := hooks.GlobalHooks.ServeStaticHook; hook != nil {
@@ -269,25 +292,28 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		Concurrency:        hs.Config.Concurrency,
 	}
 	var g run.Group
-	if config.IsTlsEnabled() && config.GetTLSACMEDir() != "" {
-		m := &autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(config.GetQueryHostname()),
-			Cache:      autocert.DirCache(config.GetTLSACMEDir()),
-		}
+
+	if config.IsTlsEnabled() {
 		cfg := &tls.Config{
-			GetCertificate: m.GetCertificate,
-			NextProtos: []string{
-				"http/1.1", acme.ALPNProto,
-			},
+			Certificates: make([]tls.Certificate, 1),
 		}
+
+		cfg.Certificates[0], err = tls.LoadX509KeyPair(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
+
+		if err != nil {
+			fmt.Println("Run: error in loading TLS certificate: ", err)
+			log.Fatalf("Run: error in loading TLS certificate: %v", err)
+		}
+
 		hs.lnTls = tls.NewListener(hs.ln, cfg)
+
 		// run fasthttp server
 		g.Add(func() error {
 			return s.Serve(hs.lnTls)
 		}, func(e error) {
 			_ = hs.ln.Close()
 		})
+
 	} else {
 		// run fasthttp server
 		g.Add(func() error {

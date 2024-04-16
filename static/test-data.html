@@ -45,36 +45,78 @@
 
         <div class="myOrg">
             <div class="myOrg-container">
-                <div class="org-nav-tab">
+                <div class="ingestion-nav-tab">
                 </div>
 
                 <div class="myOrg-inner-container">
                     <div>
                         <div>
-                            <p class="caption">Experiment with a test data set</p>
+                            <p class="caption">Instructions to set up log ingestion</p>
                         </div>
-                        <div id="test-data-container">
-                            <div class="main-dropdown">
-                                <div class="role-inner-dropdown">
-                                    <div class="select">Select Test Data
-                                        <span class="arrow-btn"><img src="./assets/arrow-btn.svg" alt="" /></span>
-                                    </div>
+                        <div class="d-flex">
+                            <div class="dropdown">
+                                <button class="btn dropdown-toggle d-flex justify-content-between align-items-center"
+                                    type="button" id="source-selection" data-toggle="dropdown" aria-haspopup="true"
+                                    aria-expanded="false" data-bs-toggle="dropdown" title="Select Source Type">
+                                    <span>Select Ingestion Source</span>
+                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                    <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                </button>
+                                <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="source-options">
+                                    <li id="option-1" class="source-option">Send Test Data</li>
+                                    <li id="option-2" class="source-option">Vector</li>
+                                    <li id="option-3" class="source-option">Logstash</li>
+                                    <li id="option-4" class="source-option">Fluentd</li>
+                                    <li id="option-5" class="source-option">Filebeat</li>
+                                    <li id="option-6" class="source-option">Promtail</li>
+                                    <li id="option-6" class="source-option">Splunk HEC</li>
+                                    <li id="option-6" class="source-option">Elastic Bulk</li>
                                 </div>
-                                <ul class="list-unstyled dropdown-option">
-                                    <!-- <li class=" roles">Apache access logs</li> -->
-                                    <li class="roles" id="test-dataset-1">Person Profile </li>
-                                </ul>
                             </div>
                             <div><button type="button" class="btn" id="test-data-btn">Send Test Data</button></div>
+                        </div>
+                    </div>
+                    <div id="data-ingestion">
+                        <div class="container mt-4">
+                            <div class="d-flex">
+                                <h5 class="myOrg-heading">Basic Information</h5>
+                                <div class="basic-info">
+                                    <div class="d-flex flex-column">
+                                        <div class="d-flex w-100">
+                                            <div class="w-100" style="margin-right: 20px;">
+                                                <label for="Platform">Platform</label>
+                                                <input type="text" placeholder="" class="form-control"
+                                                    id="platform-input" readonly>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex mt-4">
+                                <h5 class="myOrg-heading">Setup instructions</h5>
+                                <div class="ingestion-container">
+                                    <div>Follow the steps in <a href="" id="setup-instructions-link" target="_blank">Quick start
+                                            guide<span id="open-new-tab-icon"></span></a></div>
+                                </div>
+                            </div>
+                            <div class="d-flex mt-4">
+                                <h5 class="myOrg-heading">Verify data collection</h5>
+                                <div class="ingestion-container">
+                                    <p>Test the pipes by running the following command in your terminal:</p>
+                                    <div class="position-relative">
+                                        <textarea name="" id="verify-command" cols="30" rows="6"
+                                            class="form-control copyable" readonly></textarea>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
     <div id="app-footer">
-        2023 &copy; SigLens
+        2024 &copy; SigLens
     </div>
     </div>
     <script src="./js/navbar.js?cb=1_1_10"></script>

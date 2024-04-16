@@ -15,24 +15,45 @@ limitations under the License.
 */
 
 'use strict';
-const tenMinutesAgo = new Date(Date.now() - 10 * 60000).toISOString();
+
 let redMetricsData ={
     "indexName":  "red-traces",
-    "startEpoch": tenMinutesAgo,
-    "endEpoch": new Date().toISOString()
-   
 }
+let stDate = Cookies.get('startEpoch') || "now-3h";
+let endDate = Cookies.get('endEpoch') || "now";
 $(document).ready(() => {
     if (Cookies.get("theme")) {
         theme = Cookies.get("theme");
         $("body").attr("data-theme", theme);
     }
     $(".theme-btn").on("click", themePickerHandler);
-    getAllServices()
+	$('.inner-range #' + stDate).addClass('active');
+    datePickerHandler(stDate, endDate, stDate);
+    $('.range-item').on('click', isServiceHealthDatePickerHandler);
+    let data = getTimeRange();
+    redMetricsData = {... redMetricsData, ... data};
+    getAllServices();
     
     $('.search-input').on('input', filterServicesBySearch);
 });
 
+function isServiceHealthDatePickerHandler(evt) {
+    evt.preventDefault();
+    $.each($(".range-item.active"), function () {
+        $(this).removeClass('active');
+    });
+    $(evt.currentTarget).addClass('active');
+    datePickerHandler($(this).attr('id'), "now", $(this).attr('id'))
+    getAllServices();
+    $('#daterangepicker').hide();
+}
+
+function getTimeRange() {
+    return {
+        'startEpoch': filterStartDate || "now-1h",
+        'endEpoch': filterEndDate || "now",
+    };
+}
 let gridDiv = null;
 let serviceRowData = [];
 const columnDefs=[
@@ -87,6 +108,10 @@ function processRedMetricsData(metricsData) {
 }
 
 function getAllServices(){
+    data = getTimeRange();
+    stDate = data.startEpoch;
+    endDate = data.endEpoch;
+    redMetricsData = {... redMetricsData, ... data}
     $.ajax({
         method: "POST",
         url: "api/search",
@@ -132,7 +157,10 @@ function displayServiceHealthTable(res){
 
 function onRowClicked(event) {
     const serviceName = event.data.service; 
-    window.location.href = 'service-health-overview.html?service=' + encodeURIComponent(serviceName);
+    const url = 'service-health-overview.html?service=' + encodeURIComponent(serviceName) +
+                '&startEpoch=' + encodeURIComponent(stDate) +
+                '&endEpoch=' + encodeURIComponent(endDate);
+    window.location.href = url;
 }
 
 

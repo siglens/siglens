@@ -28,7 +28,6 @@ import (
 
 var hostName string
 var hostID string
-var hostIP string
 var smrBaseDir string
 
 func GetBaseUploadDir() string {
@@ -79,7 +78,6 @@ func InitDerivedConfig(hostID string) error {
 	} else {
 		hostName = iName
 	}
-	hostIP = getLocalIP()
 	setNodeIdentifier(hostID)
 
 	var sb strings.Builder
@@ -117,13 +115,8 @@ func GetHostIP() string {
 	return hostName + ":" + fmt.Sprintf("%d", GetIngestPort())
 }
 
-// returns <<public ip>>:<grpcport> of the host
-func GetPublicGRPCName() string {
-	return hostIP + ":" + fmt.Sprintf("%d", GetRunningConfig().GRPCPort)
-}
-
 // this function returns the local ip address of the host
-func getLocalIP() string {
+func GetLocalIP() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		log.Errorf("GetLocalIP: failed to get local ip: err=%v", err)

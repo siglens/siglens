@@ -14,9 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-let selectedTestData = "";
+let selectedLogSource = "";
 
 $(document).ready(function () {
+    $('#data-ingestion,#test-data-btn').hide();
     if (Cookies.get('theme')) {
         theme = Cookies.get('theme');
         $('body').attr('data-theme', theme);
@@ -42,15 +43,82 @@ $(document).ready(function () {
         .catch((err) => {
             console.log(err)
         });
+        var currentUrl = window.location.href;
+        var url = new URL(currentUrl);
+        var baseUrl = url.protocol + '//' + url.hostname;
 
-    $('#logout-btn').on('click', deleteCookie);
-    $('.role-inner-dropdown').on('click', dropdown);
+        $('#source-options').on('click', '.source-option', function() {
+            selectedLogSource = $(this).text().trim();
+            $('.source-option').removeClass("active");
+            $(this).addClass("active");
+            $('#source-selection span').html(selectedLogSource);
+        
+            var showDataIngestion = ['Vector', 'Logstash', 'Fluentd', 'Filebeat', 'Promtail','Elastic Bulk','Splunk HEC'].includes(selectedLogSource);
+            $('#data-ingestion').toggle(showDataIngestion);
+            $('#test-data-btn').toggle(!showDataIngestion);
+        
+            var curlCommand = 'curl -X POST "' + baseUrl + ':8081/elastic/_bulk" \\\n' +
+                            '-H \'Content-Type: application/json\' \\\n' +
+                            '-d \'{ "index" : { "_index" : "test" } }\n' +
+                            '{ "name" : "john", "age":"23" }\'';
+            $('#verify-command').text(curlCommand);
+        
+            switch (selectedLogSource) {
+                case 'Vector':
+                case 'Logstash':
+                case 'Fluentd':
+                case 'Filebeat':
+                case 'Promtail':
+                    $('#platform-input').val(selectedLogSource);
+                    $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/' + selectedLogSource.toLowerCase());
+                    break;
+                case 'Elastic Bulk':
+                    $('#platform-input').val(selectedLogSource);
+                    $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/elasticsearch/fluentd');
+                    break;
+                case 'Splunk HEC':
+                    $('#platform-input').val(selectedLogSource);
+                    $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/splunk/fluentd');
+                    curlCommand = 'curl -X POST "' + baseUrl + ':8081/splunk/services/collector/event" \\\n' +
+                            '-H "Authorization: A94A8FE5CCB19BA61C4C08"  \\\n' +
+                            '-d \'{ "index" : { "_index" : "test" } }\n' +
+                            '{ "name" : "john", "age":"23" }\'';
+                    $('#verify-command').text(curlCommand);
+                    break;
+                case 'Send Test Data':
+                    $('#test-data-btn').show();
+                    break;
+                default:
+                    break;
+            }
+        });
+        
 
-    $("ul").on("click", "li", function (e) {
-        $(".select").html($(this).html());
-        selectedTestData = $(this).attr('id');
-        $('.dropdown-option').toggleClass('active');
+    //Copy Handler
+    $('.copyable').each(function() {
+        var copyIcon = $('<span class="copy-icon"></span>');
+        $(this).after(copyIcon);
     });
+
+    $('.copy-icon').on('click', function(event) {
+        var copyIcon = $(this);
+        var inputOrTextarea = copyIcon.prev('.copyable');
+        var inputValue = inputOrTextarea.val();
+    
+        var tempInput = document.createElement("textarea");
+        tempInput.value = inputValue;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+    
+        copyIcon.addClass('success');
+        setTimeout(function() {
+            copyIcon.removeClass('success'); 
+        }, 1000);
+    });
+    
+    {{ .Button1Function }}
 })
 
 function dropdown() {

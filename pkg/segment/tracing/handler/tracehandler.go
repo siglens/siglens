@@ -160,7 +160,7 @@ func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchReque
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("Received empty search request body")
-		pipesearch.SetBadMsg(ctx)
+		putils.SetBadMsg(ctx, "")
 		return nil, nil, errors.New("Received empty search request body")
 	}
 
@@ -469,25 +469,23 @@ func redMetricsToJson(redMetrics structs.RedMetrics, service string) ([]byte, er
 }
 
 func DependencyGraphThread() {
-	time.Sleep(1 * time.Minute) // Initial one-minute wait
-	depMatrix := MakeTracesDependancyGraph()
-	writeDependencyMatrix(depMatrix)
-
 	for {
 		now := time.Now()
 		nextHour := now.Truncate(time.Hour).Add(time.Hour)
 		sleepDuration := time.Until(nextHour)
 
 		time.Sleep(sleepDuration)
-		depMatrix = MakeTracesDependancyGraph()
+
+		// Calculate startEpoch and endEpoch for the last hour
+		endEpoch := time.Now().UnixMilli()
+		startEpoch := time.Now().Add(-time.Hour).UnixMilli()
+
+		depMatrix := MakeTracesDependancyGraph(startEpoch, endEpoch)
 		writeDependencyMatrix(depMatrix)
 	}
 }
 
-func MakeTracesDependancyGraph() map[string]map[string]int {
-	nowTs := putils.GetCurrentTimeInMs()
-	startEpoch := nowTs - OneHourInMs
-	endEpoch := nowTs
+func MakeTracesDependancyGraph(startEpoch int64, endEpoch int64) map[string]map[string]int {
 
 	requestBody := map[string]interface{}{
 		"indexName":     "traces",
@@ -560,12 +558,21 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 	}
 }
 
-func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+// ProcessAggregatedDependencyGraphs handles the /dependencies endpoint.
+// It aggregates already computed dependency graphs based on the provided start and end epochs.
+func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
+	// Extract startEpoch and endEpoch from the request
+	_, readJSON, err := ParseAndValidateRequestBody(ctx)
+	if err != nil {
+		log.Errorf("ProcessDependencyRequest: %v", err)
+		return
+	}
 	searchRequestBody := &structs.SearchRequestBody{}
 	searchRequestBody.QueryLanguage = "Splunk QL"
 	searchRequestBody.IndexName = "service-dependency"
 	searchRequestBody.SearchText = "*"
-
+	searchRequestBody.StartEpoch = readJSON["startEpoch"].(string)
+	searchRequestBody.EndEpoch = readJSON["endEpoch"].(string)
 	dependencyResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 	if err != nil {
 		log.Errorf("ProcessSearchRequest: %v", err)
@@ -573,40 +580,46 @@ func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	processedData := make(map[string]interface{})
 	if dependencyResponseOuter.Hits.Hits == nil || len(dependencyResponseOuter.Hits.Hits) == 0 {
-		depMatrix := MakeTracesDependancyGraph()
-		if len(depMatrix) == 0 {
-			log.Errorf("pipeSearchResponseOuter: received empty response")
-			ctx.SetStatusCode(fasthttp.StatusOK)
-			return
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		_, writeErr := ctx.WriteString("no dependencies graphs have been generated")
+		if writeErr != nil {
+			log.Errorf("ProcessDependencyRequest: Error writing to context: %v", writeErr)
 		}
-		writeDependencyMatrix(depMatrix)
-		for key, value := range depMatrix {
-			for k, v := range value {
-				if processedData[key] == nil {
-					processedData[key] = make(map[string]int)
-				}
-				serviceMap := processedData[key].(map[string]int)
-				serviceMap[k] = v
-			}
-		}
+		return
 	} else {
-		for key, value := range dependencyResponseOuter.Hits.Hits[0] {
-			if key == "_index" || key == "timestamp" {
-				processedData[key] = value
-				continue
-			}
-			keys := strings.Split(key, ".")
-			if len(keys) != 2 {
-				fmt.Printf("Unexpected key format: %s\n", key)
-				continue
-			}
-			service, dependentService := keys[0], keys[1]
-			if processedData[service] == nil {
-				processedData[service] = make(map[string]int)
-			}
+		firstHit := true
+		// Loop over all the graphs
+		for _, hit := range dependencyResponseOuter.Hits.Hits {
+			// Process the current graph
+			for key, value := range hit {
+				if key == "_index" {
+					processedData[key] = value
+					continue
+				}
+				if key == "timestamp" {
+					if firstHit {
+						processedData[key] = value
+						firstHit = false
+					}
+					continue
+				}
+				keys := strings.Split(key, ".")
+				if len(keys) != 2 {
+					fmt.Printf("Unexpected key format: %s\n", key)
+					continue
+				}
+				service, dependentService := keys[0], keys[1]
+				if processedData[service] == nil {
+					processedData[service] = make(map[string]int)
+				}
 
-			serviceMap := processedData[service].(map[string]int)
-			serviceMap[dependentService] = int(value.(float64))
+				serviceMap := processedData[service].(map[string]int)
+				if value != nil {
+					serviceMap[dependentService] += int(value.(float64))
+				} else {
+					log.Warnf("MakeTracesDependancyGraph: Value is nil, cannot convert to float64")
+				}
+			}
 		}
 	}
 
@@ -621,7 +634,50 @@ func ProcessDependencyRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
 
+// ProcessGeneratedDepGraph handles the /generate-dep-graph endpoint.
+// It generates a new dependency graph based on the provided start and end epochs and displays it without storing.
+func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid uint64) {
+	// Extract startEpoch and endEpoch from the request
+	_, readJSON, err := ParseAndValidateRequestBody(ctx)
+	if err != nil {
+		log.Errorf("ProcessDepgraphRequest: %v", err)
+		return
+	}
+
+	nowTs := putils.GetCurrentTimeInMs()
+	_, startEpoch, endEpoch, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+
+	startEpochInt64 := int64(startEpoch)
+	endEpochInt64 := int64(endEpoch)
+
+	// Generate the dependency graph
+	depMatrix := MakeTracesDependancyGraph(startEpochInt64, endEpochInt64)
+
+	processedData := make(map[string]interface{})
+	for key, value := range depMatrix {
+		for k, v := range value {
+			if processedData[key] == nil {
+				processedData[key] = make(map[string]int)
+			}
+			serviceMap := processedData[key].(map[string]int)
+			serviceMap[k] = v
+		}
+	}
+
+	// Display the graph
+	ctx.SetContentType("application/json; charset=utf-8")
+	err = json.NewEncoder(ctx).Encode(processedData)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
+		_, writeErr := ctx.WriteString(fmt.Sprintf("ProcessDepgraphRequest: Error encoding JSON: %s", err.Error()))
+		if writeErr != nil {
+			log.Errorf("ProcessDepgraphRequest: Error writing to context: %v", writeErr)
+		}
+		return
+	}
+	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
 func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
@@ -629,7 +685,7 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("ProcessGanttChartRequest: received empty search request body ")
-		pipesearch.SetBadMsg(ctx)
+		putils.SetBadMsg(ctx, "")
 		return
 	}
 

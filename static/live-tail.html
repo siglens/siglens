@@ -108,6 +108,29 @@
             </div>
 
             <div id="logs-view-controls" class="mb-2 d-flex justify-content-end">
+                <div class="refresh-container">
+                    <button class="btn refresh-btn" title="Refresh dashboard">
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle" type="button" id="refresh-picker-btn"
+                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                            data-bs-toggle="dropdown">
+                            <span>20s</span>
+                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">
+                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg" alt="retract">
+                        </button>
+                        <div class="dropdown-menu refresh-picker" aria-labelledby="index-btn" id="refresh-picker ">
+                            <div class="ranges">
+                                <div id="20s" class="refresh-range-item active">20s</div>
+                                <div id="1m" class="refresh-range-item">1m</div>
+                                <div id="5m" class="refresh-range-item">5m</div>
+                                <div id="30m" class="refresh-range-item">30m</div>
+                                <div id="1h" class="refresh-range-item">1h</div>
+                                <div id="5h" class="refresh-range-item">5h</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div id="views-container">
                     <div class="d-flex justify-content-end">
                         <div class="btn-group mx-3" role="group" id="log-view">
@@ -176,7 +199,7 @@
         </div>
 
         <div id="app-footer">
-            2023 &copy; SigLens
+            2024 &copy; SigLens
         </div>
 
     </div>

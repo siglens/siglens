@@ -28,7 +28,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
+var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency", "metrics"}
 
 func IndicesBody(indexName string) esutils.ResolveIndexEntry {
 	return esutils.ResolveIndexEntry{Name: indexName, Attributes: []string{"open"}}

@@ -88,7 +88,7 @@ type DedupExpr struct {
 	Limit              uint64
 	FieldList          []string // Must have FieldList
 	DedupOptions       *DedupOptions
-	DedupSortEles      []*DedupSortElement
+	DedupSortEles      []*SortElement
 	DedupSortAscending []int // Derived from DedupSortEles.SortByAsc values.
 
 	// DedupCombinations maps combinations to a map mapping the record index
@@ -96,12 +96,12 @@ type DedupExpr struct {
 	// that record. For example, if Limit is 3, each inner map will have at
 	// most 3 entries and will store the index and sort values of the top 3
 	// records for that combination.
-	DedupCombinations map[string]map[int][]DedupSortValue
+	DedupCombinations map[string]map[int][]SortValue
 	PrevCombination   string
 
 	DedupRecords          map[string]map[string]interface{}
 	NumProcessedSegments  uint64
-	ProcessedSegmentsLock sync.Mutex
+	processedSegmentsLock sync.Mutex
 }
 
 type DedupOptions struct {
@@ -110,13 +110,23 @@ type DedupOptions struct {
 	KeepEvents  bool
 }
 
-type DedupSortElement struct {
+type SortExpr struct {
+	SortEles []*SortElement
+	Limit    uint64
+
+	SortAscending         []int
+	SortRecords           map[string]map[string]interface{}
+	NumProcessedSegments  uint64
+	processedSegmentsLock sync.Mutex
+}
+
+type SortElement struct {
 	SortByAsc bool
 	Op        string
 	Field     string
 }
 
-type DedupSortValue struct {
+type SortValue struct {
 	Val         string
 	InterpretAs string // Should be "ip", "num", "str", "auto", or ""
 }
@@ -299,6 +309,22 @@ const (
 	NEMLenField           // only used when mode is Field (Field can not be evaluated to a float, used for len())
 	NEMNumericExpr        // only used when mode is a NumericExpr
 )
+
+func (self *DedupExpr) AcquireProcessedSegmentsLock() {
+	self.processedSegmentsLock.Lock()
+}
+
+func (self *DedupExpr) ReleaseProcessedSegmentsLock() {
+	self.processedSegmentsLock.Unlock()
+}
+
+func (self *SortExpr) AcquireProcessedSegmentsLock() {
+	self.processedSegmentsLock.Lock()
+}
+
+func (self *SortExpr) ReleaseProcessedSegmentsLock() {
+	self.processedSegmentsLock.Unlock()
+}
 
 // Evaluate this BoolExpr to a boolean, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
@@ -1484,20 +1510,20 @@ func getValueAsFloat(fieldToValue map[string]utils.CValueEnclosure, field string
 	return 0, fmt.Errorf("Cannot convert CValueEnclosure %v to float", enclosure)
 }
 
-func (self *DedupSortValue) Compare(other *DedupSortValue) (int, error) {
+func (self *SortValue) Compare(other *SortValue) (int, error) {
 	switch self.InterpretAs {
 	case "ip":
 		selfIP := net.ParseIP(self.Val)
 		otherIP := net.ParseIP(other.Val)
 		if selfIP == nil || otherIP == nil {
-			return 0, fmt.Errorf("DedupSortValue.Compare: cannot parse IP address")
+			return 0, fmt.Errorf("SortValue.Compare: cannot parse IP address")
 		}
 		return bytes.Compare(selfIP, otherIP), nil
 	case "num":
 		selfFloat, selfErr := strconv.ParseFloat(self.Val, 64)
 		otherFloat, otherErr := strconv.ParseFloat(other.Val, 64)
 		if selfErr != nil || otherErr != nil {
-			return 0, fmt.Errorf("DedupSortValue.Compare: cannot parse %v and %v as float", self.Val, other.Val)
+			return 0, fmt.Errorf("SortValue.Compare: cannot parse %v and %v as float", self.Val, other.Val)
 		}
 
 		if selfFloat == otherFloat {
@@ -1530,14 +1556,14 @@ func (self *DedupSortValue) Compare(other *DedupSortValue) (int, error) {
 
 		return strings.Compare(self.Val, other.Val), nil
 	default:
-		return 0, fmt.Errorf("DedupSortValue.Compare: invalid InterpretAs value: %v", self.InterpretAs)
+		return 0, fmt.Errorf("SortValue.Compare: invalid InterpretAs value: %v", self.InterpretAs)
 	}
 }
 
 // The `ascending` slice should have the same length as `a` and `b`. Moreover,
 // each element of `ascending` should be either +1 or -1; +1 means higher
 // values get sorted higher, and -1 means lower values get sorted higher.
-func CompareSortValueSlices(a []DedupSortValue, b []DedupSortValue, ascending []int) (int, error) {
+func CompareSortValueSlices(a []SortValue, b []SortValue, ascending []int) (int, error) {
 	if len(a) != len(b) || len(a) != len(ascending) {
 		return 0, fmt.Errorf("CompareSortValueSlices: slices have different lengths")
 	}
