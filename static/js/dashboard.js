@@ -1142,18 +1142,7 @@ function handleDbSettings() {
             if (key == dbId ){
                 $(".dbSet-dbName").prop('readonly', true);
                 $('.dbSet-dbDescr').prop('readonly', true);
-                
-                // disable changing Db name
-                $('.dbSet-dbName').attr('data-toggle', 'tooltip');
-                $('.dbSet-dbName').attr('data-placement', 'top');
-                $('.dbSet-dbName').attr('title', 'default dashboards cannot be modified');
-                $('.dbSet-dbName').tooltip('toggle');
-
-                // disable changing Db desc
-                $('.dbSet-dbDescr').attr('data-toggle', 'tooltip');
-                $('.dbSet-dbDescr').attr('data-placement', 'top');
-                $('.dbSet-dbDescr').attr('title', 'default dashboards cannot be modified');
-                $('.dbSet-dbDescr').tooltip('toggle');
+		    
                 break
             }
         }
