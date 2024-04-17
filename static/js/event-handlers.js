@@ -357,8 +357,19 @@ function indexOnSelectHandler(evt) {
 
 function getDisplayTextForIndex(){
     var selectedIndexes = selectedSearchIndex.split(',');
+    if (sortedListIndices && sortedListIndices.length > 0) {
+        selectedIndexes = sortedListIndices
+            .filter(item => selectedIndexes.includes(item.index))
+            .map(item => item.index);
+    } else {
+        selectedIndexes = [];
+    }
 
-    if (selectedIndexes.length === 1) {
+    if (selectedIndexes.length === 0){
+        // If only no index is present
+        $("#index-btn span").html("Index");
+    }
+    else if (selectedIndexes.length === 1 ) {
         // If only one index is selected
         var indexName = selectedIndexes[0];
         var displayedIndexName = indexName.trim() === "" ? "Index" : (indexName.length > 15 ? indexName.substring(0, 4) + '...' : indexName);

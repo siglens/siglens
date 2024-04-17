@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 'use strict';
-
+let sortedListIndices;
 function getListIndices() {
     return fetch('api/listIndices', {
         method: 'GET',
@@ -40,18 +40,17 @@ function processListIndicesResult(res) {
 }
 
 function renderIndexDropdown(listIndices) {
-    let sortedListIndices = listIndices.sort();
+    sortedListIndices = listIndices.sort();
     let el = $('#index-listing');
     el.html(``);
     if (sortedListIndices) {
         sortedListIndices.forEach((index, i) => {
-            const isActive = i === 0 ? 'active' : ''; // Setting First Index Active
-            el.append(`<div class="index-dropdown-item ${isActive}" data-index="${index.index}">
+            el.append(`<div class="index-dropdown-item" data-index="${index.index}">
                             <span class="indexname-text">${index.index}</span>
                             <img src="/assets/index-selection-check.svg">
                        </div>`);
         });
     }
-    selectedSearchIndex = $('.index-dropdown-item.active').attr('data-index');
+    selectedSearchIndex = sortedListIndices[0].index;
     $("#index-btn span").html(sortedListIndices[0].index);
 }
