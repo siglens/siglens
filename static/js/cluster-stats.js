@@ -38,10 +38,7 @@ $(document).ready(() => {
     let data = getTimeRange();
     renderClusterStatsTables();
     renderChart();
-    if (Cookies.get('theme')) {
-        theme = Cookies.get('theme');
-        $('body').attr('data-theme', theme);
-    }
+
     {{ .Button1Function }}
 });
 
@@ -84,7 +81,7 @@ function renderChart() {
 function drawStatsChart(res,data) {
     let gridLineColor;
     let tickColor;
-    if ($('body').attr('data-theme') == "light") {
+    if ($('html').attr('data-theme') == "light") {
         gridLineColor = "#DCDBDF";
         tickColor = "#160F29";
     }

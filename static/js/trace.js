@@ -47,10 +47,7 @@ let colorIndex = 0;
 
 $(document).ready(() => {
     $(".theme-btn").on("click", themePickerHandler);
-    if (Cookies.get("theme")) {
-        theme = Cookies.get("theme");
-        $("body").attr("data-theme", theme);
-    }
+
     svgWidth = $("#timeline-container").width();
 
     traceId = getParameterFromUrl('trace_id');

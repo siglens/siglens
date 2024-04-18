@@ -675,7 +675,7 @@ function themePickerHandler(evt) {
         $(evt.currentTarget).addClass('dark-theme');
     }
 
-    $('body').attr('data-theme', theme);
+    $('html').attr('data-theme', theme);
 
 
     Cookies.set('theme', theme,  {expires: 365});

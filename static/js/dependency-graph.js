@@ -63,13 +63,9 @@ $(document).ready(() => {
     datePickerHandler(stDate, endDate, stDate);
     setupDependencyEventHandlers()
 
-    if (Cookies.get("theme")) {
-        theme = Cookies.get("theme");
-        $("body").attr("data-theme", theme);
-    }
     $(".theme-btn").on("click", themePickerHandler);
     $('.theme-btn').on('click', function() {
-      updateGraphStyles(theme);
+      updateGraphStyles();
     });
 
     $("#error-msg-container, #dependency-info").hide();
@@ -235,14 +231,15 @@ function displayDependencyGraph(data) {
     node.grabify();
   });
 
-  updateGraphStyles(theme);
+  updateGraphStyles();
 
   if (cy) {
     cy.fit();
   }
 }
 
-function updateGraphStyles(theme) {
+function updateGraphStyles() {
+  let theme = $('html').attr('data-theme');
   let styles;
   if (theme === "light") {
       styles = lightStyles;

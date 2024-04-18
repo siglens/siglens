@@ -29,10 +29,6 @@ var LatenciesChart;
 $(document).ready(() => {
     setupEventHandlers();
     $(".theme-btn").on("click", themePickerHandler);
-    if (Cookies.get("theme")) {
-        theme = Cookies.get("theme");
-        $("body").attr("data-theme", theme);
-    }
     $('.theme-btn').on('click', getOneServiceOverview);
 
    
@@ -87,7 +83,7 @@ function getOneServiceOverview(){
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        if ($('body').attr('data-theme') == "light") {
+        if ($('html').attr('data-theme') == "light") {
             gridLineColor = "#DCDBDF";
             tickColor = "#160F29";
         }

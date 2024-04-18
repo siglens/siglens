@@ -21,10 +21,6 @@ let selectedLogSource = "";
 
 $(document).ready(function () {
     $('#data-ingestion,#test-data-btn').hide();
-    if (Cookies.get('theme')) {
-        theme = Cookies.get('theme');
-        $('body').attr('data-theme', theme);
-    }
     $('.theme-btn').on('click', themePickerHandler);
     let org_name;
 

@@ -29,10 +29,6 @@ $(document).ready(() => {
 
     setupMetricsEventHandlers();
 
-    if (Cookies.get('theme')) {
-        theme = Cookies.get('theme');
-        $('body').attr('data-theme', theme);
-    }
     $('.theme-btn').on('click', themePickerHandler);
 
     $("#info-icon").tooltip({
@@ -227,7 +223,7 @@ function displayGraph(seriesArray, labels, flag) {
     const colors = createColorsArray();
     let gridLineColor;
     let tickColor;
-    if ($('body').attr('data-theme') == "light") {
+    if ($('html').attr('data-theme') == "light") {
         gridLineColor = "#DCDBDF";
         tickColor = "#160F29";
     }
@@ -497,7 +493,7 @@ function themePickerHandler(evt) {
         newgridLineColor = "#DCDBDF";
         newTickColor = "#160F29";
     }
-    $('body').attr('data-theme', theme);
+    $('html').attr('data-theme', theme);
 
     if (lineChart !== undefined) {
         lineChart.config.options.scales.x.grid.color = newgridLineColor;
