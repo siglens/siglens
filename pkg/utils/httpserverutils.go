@@ -1,18 +1,19 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package utils
 
@@ -25,6 +26,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/cespare/xxhash"
@@ -863,4 +865,45 @@ func ExtractSeriesOfJsonObjects(body []byte) ([]map[string]interface{}, error) {
 	}
 
 	return objects, nil
+}
+
+func sendErrorWithStatus(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error, statusCode int) {
+	// Get the caller function name, file name, and line number.
+	pc, _, _, _ := runtime.Caller(2) // Get the caller two levels up.
+	caller := runtime.FuncForPC(pc)
+	callerName := "unknown"
+	callerFile := "unknown"
+	callerLine := 0
+
+	if caller != nil {
+		callerName = caller.Name()
+		callerFile, callerLine = caller.FileLine(pc)
+
+		// Only take the function name after the last dot.
+		callerName = callerName[strings.LastIndex(callerName, ".")+1:]
+
+		// Only take the /pkg/... part of the file path.
+		callerFile = callerFile[strings.LastIndex(callerFile, "/pkg/")+1:]
+	}
+
+	// Log the error message.
+	if extraMessageToLog == "" {
+		log.Errorf("%s at %s:%d: %v, err=%v", callerName, callerFile, callerLine, messageToUser, err)
+	} else {
+		log.Errorf("%s at %s:%d: %v. %v, err=%v", callerName, callerFile, callerLine, messageToUser, extraMessageToLog, err)
+	}
+
+	// Send the error message to the client.
+	responsebody := make(map[string]interface{})
+	responsebody["error"] = messageToUser
+	ctx.SetStatusCode(statusCode)
+	WriteJsonResponse(ctx, responsebody)
+}
+
+func SendError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
+	sendErrorWithStatus(ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusBadRequest)
+}
+
+func SendInternalError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
+	sendErrorWithStatus(ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusInternalServerError)
 }

@@ -1,18 +1,19 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package query
 
@@ -94,7 +95,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	searchNode := ConvertASTNodeToSearchNode(simpleNode, 0)
 	ti := InitTableInfo("evts", 0, false)
 	queryInfo, err := InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 0, nil, 0)
+		4, 0, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	allQuerySegKeys, rawCount, _, pqsCount, err := getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -131,7 +132,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	}
 	searchNode = ConvertASTNodeToSearchNode(simpleNode, 0)
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 1, nil, 0)
+		4, 1, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -160,7 +161,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	}
 	searchNode = ConvertASTNodeToSearchNode(simpleNode, 0)
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 2, nil, 0)
+		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -204,7 +205,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	}
 	searchNode := ConvertASTNodeToSearchNode(simpleNode, 0)
 	queryInfo, err := InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 2, nil, 0)
+		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	allQuerySegKeys, rawCount, _, pqsCount, err := getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -241,7 +242,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	}
 	searchNode = ConvertASTNodeToSearchNode(simpleNode, 0)
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 2, nil, 0)
+		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -279,7 +280,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	}
 	searchNode = ConvertASTNodeToSearchNode(simpleNode, 0)
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 2, nil, 0)
+		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
@@ -353,7 +354,7 @@ func pqsSegQuery(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCoun
 	allSegFileResults, err := segresults.InitSearchResults(sizeLimit, nil, RRCCmd, 4)
 	assert.Nil(t, err, "no error on init")
 	queryInfo, err := InitQueryInformation(searchNode, nil, fullTimeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
-		4, 2, nil, 0)
+		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
 	querySegmentRequests, numRawSearchKeys, _, numPQSKeys, err := getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
 	assert.NoError(t, err)
