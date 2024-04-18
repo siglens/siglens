@@ -18,43 +18,42 @@
  */
 
 'use strict';
-
+let sortedListIndices;
 function getListIndices() {
-    $('body').css('cursor', 'progress');
-    $.ajax({
-        method: 'get',
-        url: 'api/listIndices',
+    return fetch('api/listIndices', {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             'Accept': '*/*'
         },
-        crossDomain: true,
-        dataType: 'json',
     })
-        .then(processListIndicesResult)
-        .catch(function () {
-            $('body').css('cursor', 'default');
-        });
+    .then(response => {
+        return response.json();
+    })
+    .then(function (res) {
+        processListIndicesResult(res);
+        return res;
+    });
 }
 
 function processListIndicesResult(res) {
-    renderIndexDropdown(res)
+    if(res)
+        renderIndexDropdown(res)
     $("body").css("cursor", "default");
 }
 
 function renderIndexDropdown(listIndices) {
+    sortedListIndices = listIndices.sort();
     let el = $('#index-listing');
     el.html(``);
-    if (listIndices) {
-        el.append(`<div class="index-dropdown-item" data-index="*">
-                       <span class="indexname-text">*</span>
-                       <img src="/assets/index-selection-check.svg">
-                   </div>`);
-        listIndices.forEach((index) => {
+    if (sortedListIndices) {
+        sortedListIndices.forEach((index, i) => {
             el.append(`<div class="index-dropdown-item" data-index="${index.index}">
                             <span class="indexname-text">${index.index}</span>
                             <img src="/assets/index-selection-check.svg">
                        </div>`);
         });
     }
+    selectedSearchIndex = sortedListIndices[0].index;
+    $("#index-btn span").html(sortedListIndices[0].index);
 }

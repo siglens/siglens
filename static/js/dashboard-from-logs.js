@@ -35,7 +35,6 @@ $(document).ready(function () {
     $("#cancel-dbbtn, .popupOverlay").on("click", closePopup);
     $("#selected-dashboard").on("click", displayExistingDashboards);
 
-    let data = getInitialSearchFilter(false, false);
 });
 
 function showNewDashboard() {
