@@ -29,10 +29,7 @@ $(document).ready(() => {
     }else{
         $(".nav-search").addClass("active");
     }
-    if (Cookies.get('theme')){
-        theme = Cookies.get('theme');
-        $('body').attr('data-theme', theme);
-    }
+
     $('.theme-btn').on('click', themePickerHandler);
     let ele = $('#available-fields .select-unselect-header');
 

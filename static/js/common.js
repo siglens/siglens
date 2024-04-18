@@ -597,7 +597,7 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
                 })
                 let gridLineColor;
                 let tickColor;
-                if ($('body').attr('data-theme') == "light") {
+                if ($('html').attr('data-theme') == "light") {
                     gridLineColor = "#DCDBDF";
                     tickColor = "#160F29";
                 }

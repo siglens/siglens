@@ -43,7 +43,7 @@ function loadBarOptions(xAxisData, yAxisData) {
 				rotate: 45, // You can adjust this value to rotate the labels
 				margin: 10, // You can adjust this value to add or reduce spacing between the labels and the axis line
 				color: function () {
-					return $('body').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
+					return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
 				}
 			}
 		},
@@ -51,7 +51,7 @@ function loadBarOptions(xAxisData, yAxisData) {
 			type: 'value',
 			axisLabel: {
 				color: function () {
-					return $('body').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
+					return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
 				}
 			},
 			splitLine: {
@@ -99,7 +99,7 @@ function loadBarOptions(xAxisData, yAxisData) {
 
 		]
 	}
-	if ($('body').attr('data-theme') == "dark") {
+	if ($('html').attr('data-theme') == "dark") {
 		barOptions.xAxis.axisLine.lineStyle.color = gridLineDarkThemeColor;
 		barOptions.yAxis.splitLine.lineStyle.color = gridLineDarkThemeColor;
 	} else {
@@ -161,7 +161,7 @@ function loadPieOptions(xAxisData, yAxisData) {
 			}
 		]
 	}
-	if ($('body').attr('data-theme') == "dark") {
+	if ($('html').attr('data-theme') == "dark") {
 		pieOptions.series[0].label.color = labelDarkThemeColor;
 		pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
 		pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
@@ -446,7 +446,7 @@ function renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartTyp
 	let tickDarkThemeColor = rootStyles.getPropertyValue('--white-0');
 	let tickLightThemeColor = rootStyles.getPropertyValue('--white-6');
 
-	if ($('body').attr('data-theme') == "light") {
+	if ($('html').attr('data-theme') == "light") {
         gridLineColor = gridLineLightThemeColor;
         tickColor = tickLightThemeColor;
     }
@@ -492,24 +492,24 @@ function renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartTyp
                 x: {
                     grid: {
                         color: function () {
-							return $('body').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
+							return $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
 						},
                     },
                     ticks: {
                         color: function () {
-							return $('body').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
+							return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
                     }
                 },
 			},
                 y: {
                     grid: {
                         color: function () {
-							return $('body').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
+							return $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
 						},
                     },
                     ticks: {
                         color: function () {
-							return $('body').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
+							return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
 						},
                 },
             }

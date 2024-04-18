@@ -21,10 +21,6 @@
 
 
 $(document).ready(() => {
-    if (Cookies.get('theme')){
-        theme = Cookies.get('theme');
-        $('body').attr('data-theme', theme);
-    }
     $(document).on('click', '.theme-btn', themePickerHandler);
 
     setupEventHandlers();

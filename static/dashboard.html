@@ -60,10 +60,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script src="./js/lib/echarts.min.js"></script>
+    <script>
+        var defaultTheme = Cookies.get('theme') || 'light';
+        $('html').attr('data-theme', defaultTheme);
+    </script>
     {{ .RunCheck1 | safeHTML }}
 </head>
 
-<body data-theme="light" class="classBody">
+<body class="classBody">
     <div id="app-container">
         <div id="app-side-nav">
         </div>

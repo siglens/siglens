@@ -43,10 +43,7 @@ $(document).ready(function () {
 
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();
-    if (Cookies.get('theme')) {
-        theme = Cookies.get('theme');
-        $('body').attr('data-theme', theme);
-    }
+
     $('.theme-btn').on('click', themePickerHandler);
     setupEventHandlers();
     dbId = getDashboardId();
