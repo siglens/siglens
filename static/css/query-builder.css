@@ -395,7 +395,7 @@ input.form-control {
     position: absolute;
     right: 28px;
     top: 10px;
-    width: 358px;
+    width: 398px;
 }
 
 .tab-li {
@@ -461,7 +461,9 @@ a:visited.ui-button,
 }
 
 #index-btn {
-    width: 89px;
+    width: 119px;
+    padding: 10px;
+    justify-content: space-between;
 }
 
 .completed,

@@ -28,18 +28,12 @@ let curFocus;
 
 $(document).ready(function () {
     getListIndices();
-    var isActive = $('#app-side-nav').hasClass('active');
-    if (isActive) {
-        $('#new-dashboard').css("transform", "translate(87px)")
-        $('#new-dashboard').css("width", "calc(100% - 97px)")
-    }
-    else {
-        $('#new-dashboard').css("transform", "translate(170px)")
-        $('#new-dashboard').css("width", "calc(100% - 180px)")
-    }
+
+    $('#new-dashboard').css("transform", "translate(170px)")
+    $('#new-dashboard').css("width", "calc(100% - 170px)")
 
     panelContainer = document.getElementById('panel-container');
-    panelContainerWidthGlobal = isActive? panelContainer.offsetWidth-97: panelContainer.offsetWidth-215;
+    panelContainerWidthGlobal = panelContainer.offsetWidth-215;
 
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();

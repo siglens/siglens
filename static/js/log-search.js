@@ -21,7 +21,24 @@
 
 $(document).ready(() => {
     setSaveQueriesDialog();
-    getListIndices();
+    getListIndices()
+    .then(function() {
+        if (window.location.search) {
+            data = getInitialSearchFilter(false, false);
+        } else {
+            console.log(`No query string found, using default search filter.`);
+            data = getSearchFilter(false, false);
+        }
+        return data;
+    })
+    .then(function(data) {
+        doSearch(data);
+    })
+    .finally(function() {
+        $('body').css('cursor', 'default');
+        getDisplayTextForIndex()
+    });
+
     const currentUrl = window.location.href;
     if (currentUrl.includes("live-tail.html")) {
         $(".nav-live").addClass("active");
@@ -81,12 +98,6 @@ $(document).ready(() => {
         Cookies.set('IndexList', "*");
     }
 
-    if (window.location.search) {
-        data = getInitialSearchFilter(false, false);
-    } else {
-        console.log(`No query string found, using default search filter.`)
-        data = getSearchFilter(false, false);
-    }
 
 	$("#info-icon-sql").tooltip({
 		delay: { show: 0, hide: 300 },
@@ -133,7 +144,6 @@ $(document).ready(() => {
 		}
 	});
 
-    doSearch(data);
 
     $("#filter-input").focus(function() {
         if ($(this).val() === "*") {
