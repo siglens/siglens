@@ -89,11 +89,7 @@ const contactFormHTML = `
 `;
 
 $(document).ready(function () {
-    if (Cookies.get('theme')) {
-        theme = Cookies.get('theme');
-        $('body').attr('data-theme', theme);
-        
-    }
+
     $('.theme-btn').on('click', themePickerHandler);
     $('#new-contact-point').on('click',initializeContactForm)
     $('#contact-form-container').css('display', 'none');

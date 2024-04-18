@@ -60,11 +60,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/cytoscape.min.js"></script>
     <script src="./js/lib/dagre.min.js"></script>
     <script src="./js/lib/cytoscape-dagre.min.js"></script>
-    
+    <script>
+        var defaultTheme = Cookies.get('theme') || 'light';
+        $('html').attr('data-theme', defaultTheme);
+    </script>
     {{ .RunCheck1 | safeHTML }}
 </head>
 
-<body data-theme="light">
+<body>
     <div class="pop-layer" id="pop-layer">
     </div>
     <div id="app-container">
