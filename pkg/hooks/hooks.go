@@ -15,17 +15,18 @@ type Hooks struct {
 	HtmlSnippets HtmlSnippets
 	JsSnippets   JsSnippets
 
-	// Startup
-	ServeStaticHook        func(router *router.Router, htmlTemplate *htmltemplate.Template)
-	ParseTemplatesHook     func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template)
-	CheckLicenseHook       func()
-	CheckOrgValidityHook   func()
-	AfterConfigHook        func(baseLogDir string)
-	ValidateDeploymentHook func() (commonconfig.DeploymentType, error)
-	GetNodeIdHook          func() string
-	ExtractConfigHook      func(yamlData []byte) (commonconfig.Configuration, error)
-	LogConfigHook          func()
-	StartSiglensExtrasHook func(nodeID string) error
+	// Startup and shutdown
+	ServeStaticHook           func(router *router.Router, htmlTemplate *htmltemplate.Template)
+	ParseTemplatesHook        func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template)
+	CheckLicenseHook          func()
+	CheckOrgValidityHook      func()
+	AfterConfigHook           func(baseLogDir string)
+	ValidateDeploymentHook    func() (commonconfig.DeploymentType, error)
+	GetNodeIdHook             func() string
+	ExtractConfigHook         func(yamlData []byte) (commonconfig.Configuration, error)
+	LogConfigHook             func()
+	StartSiglensExtrasHook    func(nodeID string) error
+	ShutdownSiglensExtrasHook func()
 
 	// Cluster health
 	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid uint64)

@@ -161,7 +161,7 @@ func (ti *TableInfo) String() string {
 	buffer.WriteString("Raw Index: [")
 	buffer.WriteString(ti.rawRequest)
 	buffer.WriteString("] Expanded To ")
-	buffer.WriteString(strconv.FormatInt(int64(len(ti.queryTables)), 10))
+	buffer.WriteString(fmt.Sprintf("%v", ti.queryTables))
 	buffer.WriteString(" Entries. There are: ")
 	buffer.WriteString(strconv.FormatInt(int64(len(ti.kibanaTables)), 10))
 	buffer.WriteString(" Elastic Indices. Sample: ")
