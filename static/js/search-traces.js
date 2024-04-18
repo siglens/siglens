@@ -1,18 +1,21 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+/* 
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 'use strict';
 let chart;
@@ -28,10 +31,6 @@ let allResultsFetched = false;
 let totalTraces = 0;
 $(document).ready(() => {
   allResultsFetched = false;
-  if (Cookies.get("theme")) {
-    theme = Cookies.get("theme");
-    $("body").attr("data-theme", theme);
-  }
   $(".theme-btn").on("click", themePickerHandler);
   $('.theme-btn').on('click', showScatterPlot);
 
@@ -371,7 +370,7 @@ function showScatterPlot() {
     echarts.dispose(chart);
   }
   chart = echarts.init(chartId);
-  let theme = $('body').attr('data-theme') == "light" ? "light" : "dark";
+  let theme = $('html').attr('data-theme') == "light" ? "light" : "dark";
   let normalColor = theme == "light" ? "rgba(99, 71, 217, 0.6)" : "rgba(99, 71, 217, 1)";
   let errorColor = theme == "light" ? "rgba(233, 49, 37, 0.6)" : "rgba(233, 49, 37, 1)";
   let axisLineColor = theme == "light" ? "#DCDBDF" : "#383148"; 
