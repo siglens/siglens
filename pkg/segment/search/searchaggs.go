@@ -1,18 +1,19 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package search
 
@@ -277,15 +278,15 @@ func PerformAggsOnRecs(nodeResult *structs.NodeResult, aggs *structs.QueryAggreg
 	}
 
 	if nodeResult.RecsAggsType == structs.GroupByType {
-		return PerformGroupByRequestAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments)
+		return PerformGroupByRequestAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments, uint64(aggs.Limit))
 	} else if nodeResult.RecsAggsType == structs.MeasureAggsType {
-		return PerformMeasureAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments)
+		return PerformMeasureAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments, uint64(aggs.Limit))
 	}
 
 	return nil
 }
 
-func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64) map[string]bool {
+func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64, sizeLimit uint64) map[string]bool {
 
 	nodeResult.GroupByRequest.BucketCount = 3000
 
@@ -307,9 +308,9 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 	measureResults := make([]utils.CValueEnclosure, len(internalMops))
 
-	columnKeys := make(map[string][]interface{})
-
-	finalRecInden := make(map[string]string)
+	if nodeResult.RecsAggsColumnKeysMap == nil {
+		nodeResult.RecsAggsColumnKeysMap = make(map[string][]interface{})
+	}
 
 	for recInden, record := range recs {
 		colKeyValues := make([]interface{}, 0)
@@ -331,9 +332,8 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 		keyStr := toputils.UnsafeByteSliceToString(currKey.Bytes())
 
-		if _, exists := columnKeys[keyStr]; !exists {
-			columnKeys[keyStr] = colKeyValues
-			finalRecInden[keyStr] = recInden
+		if _, exists := nodeResult.RecsAggsColumnKeysMap[keyStr]; !exists {
+			nodeResult.RecsAggsColumnKeysMap[keyStr] = append(colKeyValues, recInden)
 		}
 
 		for cname, indices := range measureInfo {
@@ -375,13 +375,19 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 		recAggsBlockresults.MergeBuckets(blockRes)
 	}
 
-	if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
+	nodeResult.TotalRRCCount += uint64(len(recs))
+
+	if (nodeResult.RecsAggsProcessedSegments < numTotalSegments) && (sizeLimit == 0 || nodeResult.TotalRRCCount < sizeLimit) {
 		for k := range recs {
 			delete(recs, k)
 		}
 		return nil
 	} else {
 		blockRes = nodeResult.RecsAggsBlockResults.(*blockresults.BlockResults)
+		if sizeLimit > 0 && nodeResult.TotalRRCCount >= sizeLimit {
+			log.Info("PerformGroupByRequestAggsOnRecs: Reached size limit, Returning the Bucket Results.")
+			nodeResult.RecsAggsProcessedSegments = numTotalSegments
+		}
 	}
 
 	for k := range finalCols {
@@ -389,12 +395,10 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 	}
 
 	validRecIndens := make(map[string]bool)
+	columnKeys := nodeResult.RecsAggsColumnKeysMap
 
 	for bKey, index := range blockRes.GroupByAggregation.StringBucketIdx {
-		recInden, exists := finalRecInden[bKey]
-		if !exists {
-			continue
-		}
+		recInden := columnKeys[bKey][len(columnKeys[bKey])-1].(string)
 		validRecIndens[recInden] = true
 		bucketValues, bucketCount := blockRes.GroupByAggregation.AllRunningBuckets[index].GetRunningStatsBucketValues()
 
@@ -402,6 +406,11 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 			if index == 0 {
 				finalCols[colName] = true
 			}
+
+			if _, exists := recs[recInden]; !exists {
+				recs[recInden] = make(map[string]interface{})
+			}
+
 			recs[recInden][colName] = columnKeys[bKey][idx]
 		}
 
@@ -440,7 +449,7 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 	return map[string]bool{"CHECK_NEXT_AGG": true}
 }
 
-func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64) map[string]bool {
+func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64, sizeLimit uint64) map[string]bool {
 
 	searchResults, err := segresults.InitSearchResults(uint64(len(recs)), &structs.QueryAggregators{MeasureOperations: nodeResult.MeasureOperations}, structs.SegmentStatsCmd, qid)
 	if err != nil {
@@ -528,13 +537,9 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 		nodeResult.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
 	}
 
-	if anyCountStat > -1 {
-		nodeResult.TotalRRCCount += uint64(lenRecords)
-	}
+	nodeResult.TotalRRCCount += uint64(lenRecords)
 
-	if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
-		return nil
-	} else {
+	processFinalSegement := func() {
 		for k := range finalCols {
 			delete(finalCols, k)
 		}
@@ -557,6 +562,16 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 		}
 
 		recs[firstRecInden] = finalSegment
+	}
+
+	if sizeLimit > 0 && nodeResult.TotalRRCCount >= sizeLimit {
+		log.Info("PerformMeasureAggsOnRecs: Reached size limit, processing final segment.")
+		nodeResult.RecsAggsProcessedSegments = numTotalSegments
+		processFinalSegement()
+	} else if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
+		return nil
+	} else {
+		processFinalSegement()
 	}
 
 	return map[string]bool{"CHECK_NEXT_AGG": true}

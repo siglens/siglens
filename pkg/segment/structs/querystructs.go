@@ -1,18 +1,19 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package structs
 
@@ -29,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
+	log "github.com/sirupsen/logrus"
 )
 
 // New struct for passin query params
@@ -70,7 +72,8 @@ type MatchFilter struct {
 	MatchDictArray *MatchDictArrayRequest //array to search for in case of jaeger query
 	MatchType      MatchFilterType
 	NegateMatch    bool
-	Regexp         *regexp.Regexp
+	RegexpString   string // Do not manually set this. Use SetRegexp(). This is only public to allow for GOB encoding MatchFilter.
+	regexp         *regexp.Regexp
 }
 
 type MatchDictArrayRequest struct {
@@ -269,6 +272,29 @@ func (c *Condition) JoinCondition(add *Condition) {
 			c.NestedNodes = append(c.NestedNodes, add.NestedNodes...)
 		}
 	}
+}
+
+func (m *MatchFilter) SetRegexp(compileRegex *regexp.Regexp) {
+	m.regexp = compileRegex
+	m.RegexpString = compileRegex.String()
+}
+
+func (m *MatchFilter) GetRegexp() (*regexp.Regexp, error) {
+	if m.regexp == nil {
+		if m.RegexpString == "" {
+			return nil, nil
+		}
+
+		re, err := regexp.Compile(m.RegexpString)
+		if err != nil {
+			log.Errorf("MatchFilter.GetRegexp: error compiling regexp: %v, err=%v", m.RegexpString, err)
+			return nil, err
+		}
+
+		m.regexp = re
+	}
+
+	return m.regexp, nil
 }
 
 func (f *FilterCriteria) IsTimeRange() bool {

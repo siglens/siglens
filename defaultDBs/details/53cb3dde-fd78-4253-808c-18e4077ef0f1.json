@@ -21,7 +21,7 @@
       "queryData": {
         "endEpoch": "now",
         "from": 0,
-        "indexName": "*",
+        "indexName": "test-data, sample-log-dataset",
         "queryLanguage": "Splunk QL",
         "searchText": "app_version!=2.14.2 AND weekday=T*day",
         "startEpoch": "now-1h",
@@ -47,7 +47,7 @@
       "queryData": {
         "endEpoch": "now",
         "from": 0,
-        "indexName": "*",
+        "indexName": "test-data, sample-log-dataset",
         "queryLanguage": "Splunk QL",
         "searchText": "city=Boston | stats count AS Count BY weekday",
         "startEpoch": "now-1h",
@@ -73,7 +73,7 @@
       "queryData": {
         "endEpoch": "now",
         "from": 0,
-        "indexName": "*",
+        "indexName": "test-data, sample-log-dataset",
         "queryLanguage": "Splunk QL",
         "searchText": "city=Boston | stats avg(latency) ",
         "startEpoch": "now-1h",
@@ -99,7 +99,7 @@
       "queryData": {
         "endEpoch": "now",
         "from": 0,
-        "indexName": "*",
+        "indexName": "test-data, sample-log-dataset",
         "queryLanguage": "Splunk QL",
         "searchText": "city=Boston | stats count AS Count BY weekday",
         "startEpoch": "now-1h",

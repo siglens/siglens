@@ -1,26 +1,27 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+/* 
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 'use strict';
 let chart;
 let currList = [];
-let curSpanTraceArray = [],
-  curErrorTraceArray = [],
-  timeList = [],
-  returnResTotal = [];
+let returnResTotal = [],
+scatterData = [];
 let pageNumber = 1,
   traceSize = 0,
   params = {};
@@ -57,7 +58,7 @@ function getValuesOfColumn(chooseColumn, spanName) {
   let param = {
     state: "query",
     searchText: searchText,
-    startEpoch: "now-3h",
+    startEpoch: "now-1h",
     endEpoch: filterEndDate,
     indexName: "traces",
     queryLanguage: "SQL",
@@ -115,7 +116,7 @@ function fetchData(chooseColumn) {
     let param = {
       state: "query",
       searchText: searchText,
-      startEpoch: "now-3h",
+      startEpoch: "now-1h",
       endEpoch: filterEndDate,
       indexName: "traces",
       queryLanguage: "SQL",
@@ -151,10 +152,10 @@ function fetchData(chooseColumn) {
   });
 }
 function handleTimePicker(){
-  Cookies.set("startEpoch", "now-3h");
+  Cookies.set("startEpoch", "now-1h");
   Cookies.set("endEpoch", "now");
   $("#lookback").timeTicker({
-    spanName: "Last 3 Hrs",
+    spanName: "Last 1 Hr",
   });
 }
 function handleSort(){
@@ -221,9 +222,7 @@ function searchTraceHandler(e){
   e.stopPropagation(); 
   e.preventDefault();
   returnResTotal = [];
-  curSpanTraceArray = [];
-  curErrorTraceArray = [];
-  timeList = [];
+  scatterData = [];
   pageNumber = 1;
    traceSize = 0;
     params = {};
@@ -272,7 +271,7 @@ function initChart(){
   $("#graph-show").removeClass("empty-result-show");
   pageNumber = 1; traceSize = 0;
   returnResTotal = [];
-  let stDate = "now-3h";
+  let stDate = "now-1h";
   let endDate = "now";
   params = {
     searchText: "*",
@@ -330,17 +329,14 @@ function searchTrace(params){
       if ($("#traces-number").text().trim() === "") {
        await getTotalTraces(params);
       }      
-      timeList = [];
-      for (let i = 0; i < traceSize; i++) {
+      scatterData = [];
+      for (let i = traceSize - 1; i >= 0; i--) {
         let json = returnResTotal[i];
         let milliseconds = Number(json.start_time / 1000000);
         let dataInfo = new Date(milliseconds);
         let dataStr = dataInfo.toLocaleString().toLowerCase();
         let duration = Number((json.end_time - json.start_time) / 1000000);
-        let newArr = [i, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name, json.trace_id];
-        timeList.push(dataStr);
-        if(json.span_errors_count == 0) curSpanTraceArray.push(newArr);
-        else curErrorTraceArray.push(newArr);
+        scatterData.push([dataStr, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name, json.trace_id]);
       }
       showScatterPlot();
       reSort();
@@ -390,7 +386,6 @@ function showScatterPlot() {
       nameTextStyle: {
         color: axisLabelColor
       },
-      data: timeList,
       scale: true,
       axisLine: {
         lineStyle: {
@@ -404,7 +399,7 @@ function showScatterPlot() {
     },
     yAxis: {
       type: "value",
-      name: "Duration",
+      name: "Duration (ms)",
       nameTextStyle: {
         color: axisLabelColor
       },
@@ -448,7 +443,7 @@ function showScatterPlot() {
         rippleEffect: {
           scale: 1,
         },
-        data: curSpanTraceArray,
+        data: scatterData.filter(data => data[3] == 0),
         symbolSize: function (val) {
           return val[2] < 5 ? 5 : val[2];
         },
@@ -462,7 +457,7 @@ function showScatterPlot() {
         rippleEffect: {
           scale: 1,
         },
-        data: curErrorTraceArray,
+        data: scatterData.filter(data => data[3] > 0),
         symbolSize: function (val) {
           return val[3] < 5 ? 5 : val[3];
         },
@@ -480,22 +475,24 @@ function showScatterPlot() {
 function reSort(){
   $(".warn-box").remove();
   for (let i = 0; i < returnResTotal.length; i++) {
-    $("#warn-bottom").append(`<div class="warn-box warn-box-${i}"><div class="warn-head">
-                            <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
-                            <span class = "duration-time" id  = "duration-time-${i}"></span>
-                        </div>
-                        <div class="warn-content">
-                            <div class="spans-box">
-                            <div class = "total-span" id = "total-span-${i}"></div>
-                            <div class = "error-span" id = "error-span-${i}"></div>
-                            </div>
-                            <div> </div>
-                            <div class="warn-content-right">
-                                <span class = "start-time" id = "start-time-${i}"></span>
-                                <span class = "how-long-time" id = "how-long-time-${i}"></span>
-                            </div>
-                        </div></div>`);
     let json = returnResTotal[i];
+    $("#warn-bottom").append(`<a href="../trace.html?trace_id=${json.trace_id}" class="warn-box-anchor">
+      <div class="warn-box warn-box-${i}"><div class="warn-head">
+                              <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
+                              <span class = "duration-time" id  = "duration-time-${i}"></span>
+                          </div>
+                          <div class="warn-content">
+                              <div class="spans-box">
+                              <div class = "total-span" id = "total-span-${i}"></div>
+                              <div class = "error-span" id = "error-span-${i}"></div>
+                              </div>
+                              <div> </div>
+                              <div class="warn-content-right">
+                                  <span class = "start-time" id = "start-time-${i}"></span>
+                                  <span class = "how-long-time" id = "how-long-time-${i}"></span>
+                              </div>
+                          </div></div>
+    </a>`);
     $(`.warn-box-${i}`).attr("id",json.trace_id );
     $(`#span-id-head-${i}`).text(json.service_name + ": " + json.operation_name + "  ");
     $(`#span-id-${i}`).text(json.trace_id.substring(0, 7));
@@ -595,8 +592,3 @@ function getData() {
     }
   }
 }
-
-$("body").on("click", ".warn-box", function() {
-  var traceId = $(this).attr("id");
-  window.location.href = "trace.html?trace_id=" + traceId;
-});
