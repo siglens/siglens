@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	writer "github.com/siglens/siglens/pkg/es/writer"
+	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
@@ -58,6 +59,8 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
+	//update usage stats
+
 	responseBody["status"] = "Success"
 	utils.WriteJsonResponse(ctx, responseBody)
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -77,6 +80,7 @@ func handleSingleRecord(record map[string]interface{}, myid uint64) (error, int)
 	if err != nil {
 		return fmt.Errorf("Failed to marshal record to string"), fasthttp.StatusBadRequest
 	}
+	numBytes := len(recordAsBytes)
 	recordAsString := string(recordAsBytes)
 
 	tsNow := utils.GetCurrentTimeInMs()
@@ -99,6 +103,7 @@ func handleSingleRecord(record map[string]interface{}, myid uint64) (error, int)
 	if err != nil {
 		return fmt.Errorf("Failed to add entry to in mem buffer"), fasthttp.StatusServiceUnavailable
 	}
+	usageStats.UpdateStats(uint64(numBytes), 1, myid)
 
 	return nil, fasthttp.StatusOK
 }
