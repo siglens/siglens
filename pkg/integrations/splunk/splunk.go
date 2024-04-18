@@ -60,8 +60,6 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
-	//update usage stats
-
 	responseBody["status"] = "Success"
 	utils.WriteJsonResponse(ctx, responseBody)
 	ctx.SetStatusCode(fasthttp.StatusOK)
