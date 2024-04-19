@@ -54,6 +54,10 @@ function renderIndexDropdown(listIndices) {
                        </div>`);
         });
     }
-    selectedSearchIndex = sortedListIndices[0].index;
-    $("#index-btn span").html(sortedListIndices[0].index);
+    if (Cookies.get('IndexList')) {
+        selectedSearchIndex = Cookies.get('IndexList');
+    }else {
+        selectedSearchIndex = sortedListIndices[0].index;
+        $("#index-btn span").html(sortedListIndices[0].index);
+    }
 }

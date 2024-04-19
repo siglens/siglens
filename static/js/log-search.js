@@ -91,11 +91,6 @@ $(document).ready(() => {
         $('#time-end').addClass('active');
     }
 
-    if (!Cookies.get('IndexList')) {
-        Cookies.set('IndexList', "*");
-    }
-
-
 	$("#info-icon-sql").tooltip({
 		delay: { show: 0, hide: 300 },
 		trigger: 'click'
