@@ -25,7 +25,6 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -181,19 +180,19 @@ func InitWriterNode() {
 }
 
 func initSmr() {
+
 	localSegmetaFname = GetLocalSegmetaFName()
 
-	dir := filepath.Dir(localSegmetaFname)
-	err := os.MkdirAll(dir, 0755)
+	fd, err := os.OpenFile(localSegmetaFname, os.O_RDONLY, 0666)
 	if err != nil {
-		log.Errorf("initSmr: failed to create dir=%v: err=%v", dir, err)
-		return
-	}
-
-	// Create the file but don't write anything to it.
-	fd, err := os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
-	if err != nil {
-		log.Errorf("initSmr: failed to open a new filename=%v: err=%v", localSegmetaFname, err)
+		if errors.Is(err, os.ErrNotExist) {
+			// for first time during bootup this will occur
+			_, err := os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+			if err != nil {
+				log.Errorf("initSmr: failed to open a new filename=%v: err=%v", localSegmetaFname, err)
+				return
+			}
+		}
 		return
 	}
 	fd.Close()
