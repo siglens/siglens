@@ -303,6 +303,10 @@ func ShutdownSiglensServer() {
 	ssa.StopSsa()
 	usageStats.ForceFlushStatstoFile()
 	alertsHandler.Disconnect()
+
+	if hook := hooks.GlobalHooks.ShutdownSiglensExtrasHook; hook != nil {
+		hook()
+	}
 }
 
 func startIngestServer(serverAddr string) {
