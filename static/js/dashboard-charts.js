@@ -1,18 +1,21 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+/* 
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 var lineChart;
 var pieOptions, barOptions;
@@ -40,7 +43,7 @@ function loadBarOptions(xAxisData, yAxisData) {
 				rotate: 45, // You can adjust this value to rotate the labels
 				margin: 10, // You can adjust this value to add or reduce spacing between the labels and the axis line
 				color: function () {
-					return $('body').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
+					return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
 				}
 			}
 		},
@@ -48,7 +51,7 @@ function loadBarOptions(xAxisData, yAxisData) {
 			type: 'value',
 			axisLabel: {
 				color: function () {
-					return $('body').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
+					return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
 				}
 			},
 			splitLine: {
@@ -96,7 +99,7 @@ function loadBarOptions(xAxisData, yAxisData) {
 
 		]
 	}
-	if ($('body').attr('data-theme') == "dark") {
+	if ($('html').attr('data-theme') == "dark") {
 		barOptions.xAxis.axisLine.lineStyle.color = gridLineDarkThemeColor;
 		barOptions.yAxis.splitLine.lineStyle.color = gridLineDarkThemeColor;
 	} else {
@@ -158,7 +161,7 @@ function loadPieOptions(xAxisData, yAxisData) {
 			}
 		]
 	}
-	if ($('body').attr('data-theme') == "dark") {
+	if ($('html').attr('data-theme') == "dark") {
 		pieOptions.series[0].label.color = labelDarkThemeColor;
 		pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
 		pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
@@ -443,7 +446,7 @@ function renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartTyp
 	let tickDarkThemeColor = rootStyles.getPropertyValue('--white-0');
 	let tickLightThemeColor = rootStyles.getPropertyValue('--white-6');
 
-	if ($('body').attr('data-theme') == "light") {
+	if ($('html').attr('data-theme') == "light") {
         gridLineColor = gridLineLightThemeColor;
         tickColor = tickLightThemeColor;
     }
@@ -489,24 +492,24 @@ function renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartTyp
                 x: {
                     grid: {
                         color: function () {
-							return $('body').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
+							return $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
 						},
                     },
                     ticks: {
                         color: function () {
-							return $('body').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
+							return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
                     }
                 },
 			},
                 y: {
                     grid: {
                         color: function () {
-							return $('body').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
+							return $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
 						},
                     },
                     ticks: {
                         color: function () {
-							return $('body').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
+							return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
 						},
                 },
             }

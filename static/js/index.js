@@ -1,57 +1,63 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+/* 
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 'use strict';
-
+let sortedListIndices;
 function getListIndices() {
-    $('body').css('cursor', 'progress');
-    $.ajax({
-        method: 'get',
-        url: 'api/listIndices',
+    return fetch('api/listIndices', {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             'Accept': '*/*'
         },
-        crossDomain: true,
-        dataType: 'json',
     })
-        .then(processListIndicesResult)
-        .catch(function () {
-            $('body').css('cursor', 'default');
-        });
+    .then(response => {
+        return response.json();
+    })
+    .then(function (res) {
+        processListIndicesResult(res);
+        return res;
+    });
 }
 
 function processListIndicesResult(res) {
-    renderIndexDropdown(res)
+    if(res)
+        renderIndexDropdown(res)
     $("body").css("cursor", "default");
 }
 
 function renderIndexDropdown(listIndices) {
+    sortedListIndices = listIndices.sort();
     let el = $('#index-listing');
     el.html(``);
-    if (listIndices) {
-        el.append(`<div class="index-dropdown-item" data-index="*">
-                       <span class="indexname-text">*</span>
-                       <img src="/assets/index-selection-check.svg">
-                   </div>`);
-        listIndices.forEach((index) => {
+    if (sortedListIndices) {
+        sortedListIndices.forEach((index, i) => {
             el.append(`<div class="index-dropdown-item" data-index="${index.index}">
                             <span class="indexname-text">${index.index}</span>
                             <img src="/assets/index-selection-check.svg">
                        </div>`);
         });
+    }
+    if (Cookies.get('IndexList')) {
+        selectedSearchIndex = Cookies.get('IndexList');
+    }else {
+        selectedSearchIndex = sortedListIndices[0].index;
+        $("#index-btn span").html(sortedListIndices[0].index);
     }
 }
