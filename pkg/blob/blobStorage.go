@@ -30,8 +30,9 @@ import (
 
 func InitBlobStore() error {
 	if hook := hooks.GlobalHooks.InitBlobStoreExtrasHook; hook != nil {
-		alreadyHandled, err := hook()
-		if alreadyHandled {
+		_, err := hook()
+		if err != nil {
+			log.Errorf("InitBlobStore: error from hook: %v", err)
 			return err
 		}
 	}
@@ -41,8 +42,9 @@ func InitBlobStore() error {
 
 func UploadSegmentFiles(allFiles []string) error {
 	if hook := hooks.GlobalHooks.UploadSegmentFilesExtrasHook; hook != nil {
-		alreadyHandled, err := hook(allFiles)
-		if alreadyHandled {
+		_, err := hook(allFiles)
+		if err != nil {
+			log.Errorf("UploadSegmentFiles: error from hook: %v", err)
 			return err
 		}
 	}
@@ -75,8 +77,9 @@ func UploadQueryNodeDir() error {
 
 func DeleteBlob(filepath string) error {
 	if hook := hooks.GlobalHooks.DeleteBlobExtrasHook; hook != nil {
-		alreadyHandled, err := hook(filepath)
-		if alreadyHandled {
+		_, err := hook(filepath)
+		if err != nil {
+			log.Errorf("DeleteBlob: error from hook: %v", err)
 			return err
 		}
 	}
@@ -117,8 +120,9 @@ func DownloadSegmentBlob(fName string, inUseFlag bool) error {
 	}
 
 	if hook := hooks.GlobalHooks.DownloadSegmentBlobExtrasHook; hook != nil {
-		alreadyHandled, err := hook(fName)
-		if alreadyHandled {
+		_, err := hook(fName)
+		if err != nil {
+			log.Errorf("DownloadSegmentBlob: error from hook: %v", err)
 			return err
 		}
 	}
