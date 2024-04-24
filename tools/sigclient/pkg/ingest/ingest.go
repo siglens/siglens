@@ -70,7 +70,7 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	case ESBulk:
 		requestStr = url + "/_bulk"
 	case OpenTSDB:
-		requestStr = url + "/api/put"
+		requestStr = url + "/otsdb/api/put"
 
 	default:
 		log.Fatalf("unknown ingest type %+v", iType)
@@ -93,10 +93,15 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 		return err
 	}
 	defer resp.Body.Close()
-	_, err = io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Errorf("sendRequest: client.Do ERROR: %v", err)
 		return err
+	}
+	// Check if the Status code is not 200
+	if resp.StatusCode != http.StatusOK {
+		log.Errorf("sendRequest: client.Do ERROR Response: %v", "StatusCode: "+fmt.Sprint(resp.StatusCode)+": "+string(respBody))
+		return fmt.Errorf("sendRequest: client.Do ERROR Response: %v", "StatusCode: "+fmt.Sprint(resp.StatusCode)+": "+string(respBody))
 	}
 	return nil
 }
