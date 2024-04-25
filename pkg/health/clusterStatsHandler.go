@@ -221,7 +221,7 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 }
 func isIndexExcluded(indexName string) bool {
 	for _, value := range excludedInternalIndices {
-		if strings.ReplaceAll(indexName, "*", "") == value {
+		if indexName == value {
 			return true
 		}
 	}
