@@ -1,18 +1,19 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package blob
 
@@ -29,8 +30,9 @@ import (
 
 func InitBlobStore() error {
 	if hook := hooks.GlobalHooks.InitBlobStoreExtrasHook; hook != nil {
-		alreadyHandled, err := hook()
-		if alreadyHandled {
+		_, err := hook()
+		if err != nil {
+			log.Errorf("InitBlobStore: error from hook: %v", err)
 			return err
 		}
 	}
@@ -40,8 +42,9 @@ func InitBlobStore() error {
 
 func UploadSegmentFiles(allFiles []string) error {
 	if hook := hooks.GlobalHooks.UploadSegmentFilesExtrasHook; hook != nil {
-		alreadyHandled, err := hook(allFiles)
-		if alreadyHandled {
+		_, err := hook(allFiles)
+		if err != nil {
+			log.Errorf("UploadSegmentFiles: error from hook: %v", err)
 			return err
 		}
 	}
@@ -74,8 +77,9 @@ func UploadQueryNodeDir() error {
 
 func DeleteBlob(filepath string) error {
 	if hook := hooks.GlobalHooks.DeleteBlobExtrasHook; hook != nil {
-		alreadyHandled, err := hook(filepath)
-		if alreadyHandled {
+		_, err := hook(filepath)
+		if err != nil {
+			log.Errorf("DeleteBlob: error from hook: %v", err)
 			return err
 		}
 	}
@@ -116,8 +120,9 @@ func DownloadSegmentBlob(fName string, inUseFlag bool) error {
 	}
 
 	if hook := hooks.GlobalHooks.DownloadSegmentBlobExtrasHook; hook != nil {
-		alreadyHandled, err := hook(fName)
-		if alreadyHandled {
+		_, err := hook(fName)
+		if err != nil {
+			log.Errorf("DownloadSegmentBlob: error from hook: %v", err)
 			return err
 		}
 	}

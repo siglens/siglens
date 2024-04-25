@@ -1,18 +1,21 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+/* 
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 'use strict';
 
@@ -336,19 +339,51 @@ function indexOnHideHandler(){
 function indexOnSelectHandler(evt) {
     evt.stopPropagation();
 
-    // If the user chooses any index from dropdown, un-highlight the "*" from the dropdown
-    if ($(this).data("index") !== "*"){
-        $(`.index-dropdown-item[data-index="*"]`).removeClass('active');
+    var target = $(evt.currentTarget);
+    var isChecked = target.hasClass('active');
+
+    if ($(".index-dropdown-item.active").length === 1 && isChecked) {
+        // If only one index is selected and it's being clicked again, prevent deselection
+        return;
     }
 
-    $(evt.currentTarget).toggleClass('active');
-    let checkedIndices = [];
+    target.toggleClass('active');
 
-    $.each($(".index-dropdown-item.active"), function () {
+    let checkedIndices = [];
+    $(".index-dropdown-item.active").each(function () {
         checkedIndices.push($(this).data("index"));
     });
     selectedSearchIndex = checkedIndices.join(",");
+    getDisplayTextForIndex();
     Cookies.set('IndexList', selectedSearchIndex)
+}
+
+function getDisplayTextForIndex(){
+    var selectedIndexes = selectedSearchIndex.split(',');
+    if (sortedListIndices && sortedListIndices.length > 0) {
+        selectedIndexes = sortedListIndices
+            .filter(item => selectedIndexes.includes(item.index))
+            .map(item => item.index);
+    } else {
+        selectedIndexes = [];
+    }
+
+    if (selectedIndexes.length === 0){
+        // If only no index is present
+        $("#index-btn span").html("Index");
+    }
+    else if (selectedIndexes.length === 1 ) {
+        // If only one index is selected
+        var indexName = selectedIndexes[0];
+        var displayedIndexName = indexName.trim() === "" ? "Index" : (indexName.length > 15 ? indexName.substring(0, 4) + '...' : indexName);
+        $("#index-btn span").html(displayedIndexName);
+    } else {
+        // If multiple indexes are selected
+        var numIndexes = selectedIndexes.length;
+        var firstIndexName = selectedIndexes[0];
+        var displayedFirstIndexName = firstIndexName.length > 15 ? firstIndexName.substring(0, 4) + '...' : firstIndexName.substring(0, 15);
+        $("#index-btn span").html(displayedFirstIndexName + ' +' + (numIndexes - 1));
+    }
 }
 function runLiveTailBtnHandler(evt) {
   $(".popover").hide();
@@ -640,7 +675,7 @@ function themePickerHandler(evt) {
         $(evt.currentTarget).addClass('dark-theme');
     }
 
-    $('body').attr('data-theme', theme);
+    $('html').attr('data-theme', theme);
 
 
     Cookies.set('theme', theme,  {expires: 365});

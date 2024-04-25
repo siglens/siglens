@@ -1,18 +1,19 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package retention
 
@@ -22,6 +23,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -31,6 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
+	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -63,9 +66,11 @@ func internalRetentionCleaner() {
 			hook(hook1Result, deletionWarningCounter)
 		} else {
 			DoRetentionBasedDeletion(config.GetCurrentNodeIngestDir(), config.GetRetentionHours(), 0)
+			doVolumeBasedDeletion(config.GetCurrentNodeIngestDir(), 4000, deletionWarningCounter)
 		}
-
-		deletionWarningCounter++
+		if deletionWarningCounter <= MAXIMUM_WARNINGS_COUNT {
+			deletionWarningCounter++
+		}
 		time.Sleep(1 * time.Hour)
 	}
 }
@@ -167,6 +172,131 @@ func deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete map[string]*structs.Seg
 			pqsmeta.DeleteSegmentFromPqid(pqid, segmetaEntry.SegmentKey)
 		}
 	}
+}
+
+func doVolumeBasedDeletion(ingestNodeDir string, allowedVolumeGB uint64, deletionWarningCounter int) {
+	allowedVolumeBytes := allowedVolumeGB * 1000 * 1000 * 1000
+	systemVolumeBytes, err := getSystemVolumeBytes()
+	if err != nil {
+		log.Errorf("doVolumeBasedDeletion: Failed to get systemVolumeBytes, err: %v", err)
+		return
+	}
+	if systemVolumeBytes == 0 {
+		return
+	}
+	log.Infof("doVolumeBasedDeletion: System volume(GB) : %v, Allowed volume(GB) : %v, IngestNodeDir: %v",
+		humanize.Comma(int64(systemVolumeBytes/(1000*1000*1000))), humanize.Comma(int64(allowedVolumeBytes/(1000*1000*1000))), ingestNodeDir)
+
+	volumeToDeleteInBytes := uint64(0)
+	if systemVolumeBytes > allowedVolumeBytes {
+		if deletionWarningCounter < MAXIMUM_WARNINGS_COUNT {
+			log.Warnf("Skipping deletion since try %d, System volume(bytes) : %v, Allowed volume(bytes) : %v",
+				deletionWarningCounter, humanize.Comma(int64(systemVolumeBytes)), humanize.Comma(int64(allowedVolumeBytes)))
+			return
+		}
+		volumeToDeleteInBytes = (systemVolumeBytes - allowedVolumeBytes)
+	} else {
+		return
+	}
+
+	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
+	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
+	if err != nil {
+		log.Errorf("doVolumeBasedDeletion: Failed to read segmeta, err: %v", err)
+		return
+	}
+
+	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
+	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)
+	if err != nil {
+		log.Errorf("doVolumeBasedDeletion: Failed to get all metric meta entries, err: %v", err)
+		return
+	}
+
+	allEntries := make([]interface{}, 0, len(allMetricMetas)+len(allSegMetas))
+	for i := range allMetricMetas {
+		allEntries = append(allEntries, allMetricMetas[i])
+	}
+	for i := range allSegMetas {
+		allEntries = append(allEntries, allSegMetas[i])
+	}
+
+	sort.Slice(allEntries, func(i, j int) bool {
+		var timeI uint64
+		if segMeta, ok := allEntries[i].(*structs.SegMeta); ok {
+			timeI = segMeta.LatestEpochMS
+		} else if metricMeta, ok := allEntries[i].(*structs.MetricsMeta); ok {
+			timeI = uint64(metricMeta.LatestEpochSec * 1000) // convert to milliseconds
+		} else {
+			return false
+		}
+
+		var timeJ uint64
+		if segMeta, ok := allEntries[j].(*structs.SegMeta); ok {
+			timeJ = segMeta.LatestEpochMS
+		} else if metricMeta, ok := allEntries[j].(*structs.MetricsMeta); ok {
+			timeJ = uint64(metricMeta.LatestEpochSec * 1000)
+		} else {
+			return false
+		}
+		return timeI < timeJ
+	})
+
+	segmentsToDelete := make(map[string]*structs.SegMeta)
+	metricSegmentsToDelete := make(map[string]*structs.MetricsMeta)
+
+	for _, metaEntry := range allEntries {
+		switch entry := metaEntry.(type) {
+		case *structs.MetricsMeta:
+			if entry.BytesReceivedCount < volumeToDeleteInBytes {
+				metricSegmentsToDelete[entry.MSegmentDir] = entry
+				volumeToDeleteInBytes -= entry.BytesReceivedCount
+			} else {
+				break
+			}
+		case *structs.SegMeta:
+			if entry.BytesReceivedCount < volumeToDeleteInBytes {
+				segmentsToDelete[entry.SegmentKey] = entry
+				volumeToDeleteInBytes -= entry.BytesReceivedCount
+			} else {
+				break
+			}
+		}
+	}
+	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
+	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
+}
+
+func getSystemVolumeBytes() (uint64, error) {
+	currentVolume := uint64(0)
+
+	allVirtualTableNames, err := vtable.GetVirtualTableNames(0)
+	if err != nil {
+		log.Errorf("getSystemVolumeBytes: Error in getting virtual table names, err: %v", err)
+		return currentVolume, err
+	}
+	for indexName := range allVirtualTableNames {
+		if indexName == "" {
+			log.Errorf("getSystemVolumeBytes: skipping an empty index name indexName=%v", indexName)
+			continue
+		}
+		byteCount, _, _ := writer.GetVTableCounts(indexName, 0)
+		unrotatedByteCount, _, _ := writer.GetUnrotatedVTableCounts(indexName, 0)
+
+		totalVolumeForIndex := uint64(byteCount) + uint64(unrotatedByteCount)
+		currentVolume += uint64(totalVolumeForIndex)
+	}
+
+	metricsSegments, err := mmeta.GetLocalMetricsMetaEntries()
+	if err != nil {
+		log.Errorf("doVolumeBasedDeletion: Failed to get all metric meta entries, err: %v", err)
+		return currentVolume, err
+	}
+	for _, segmentEntry := range metricsSegments {
+		currentVolume += segmentEntry.BytesReceivedCount
+	}
+
+	return currentVolume, nil
 }
 
 func DeleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.SegMeta, updateBlob bool) {

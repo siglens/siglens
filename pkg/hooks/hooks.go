@@ -1,3 +1,20 @@
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 package hooks
 
 import (
@@ -15,17 +32,18 @@ type Hooks struct {
 	HtmlSnippets HtmlSnippets
 	JsSnippets   JsSnippets
 
-	// Startup
-	ServeStaticHook        func(router *router.Router, htmlTemplate *htmltemplate.Template)
-	ParseTemplatesHook     func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template)
-	CheckLicenseHook       func()
-	CheckOrgValidityHook   func()
-	AfterConfigHook        func(baseLogDir string)
-	ValidateDeploymentHook func() (commonconfig.DeploymentType, error)
-	GetNodeIdHook          func() string
-	ExtractConfigHook      func(yamlData []byte) (commonconfig.Configuration, error)
-	LogConfigHook          func()
-	StartSiglensExtrasHook func(nodeID string) error
+	// Startup and shutdown
+	ServeStaticHook           func(router *router.Router, htmlTemplate *htmltemplate.Template)
+	ParseTemplatesHook        func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template)
+	CheckLicenseHook          func()
+	CheckOrgValidityHook      func()
+	AfterConfigHook           func(baseLogDir string)
+	ValidateDeploymentHook    func() (commonconfig.DeploymentType, error)
+	GetNodeIdHook             func() string
+	ExtractConfigHook         func(yamlData []byte) (commonconfig.Configuration, error)
+	LogConfigHook             func()
+	StartSiglensExtrasHook    func(nodeID string) error
+	ShutdownSiglensExtrasHook func()
 
 	// Cluster health
 	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid uint64)
@@ -68,7 +86,7 @@ type Hooks struct {
 	// Ingest server
 	IngestMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
 	KibanaIngestHandlerHook      func(ctx *fasthttp.RequestCtx)
-	GetIdsConditionHook          func(ids []uint64) bool
+	GetIdsConditionHook          func() (bool, []uint64)
 	ExtraIngestEndpointsHook     func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
 
 	// Query server
