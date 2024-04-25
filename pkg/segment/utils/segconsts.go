@@ -18,6 +18,8 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"regexp"
@@ -375,6 +377,66 @@ type DtypeEnclosure struct {
 	StringVal      string
 	StringValBytes []byte         // byte slice representation of StringVal
 	rexpCompiled   *regexp.Regexp //  should be unexported to allow for gob encoding
+}
+
+func (dte *DtypeEnclosure) GobEncode() ([]byte, error) {
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+
+	for _, v := range []interface{}{dte.Dtype, dte.BoolVal, dte.UnsignedVal, dte.SignedVal, dte.FloatVal, dte.StringVal, dte.StringValBytes} {
+		err := encoder.Encode(v)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	hasRegexp := dte.rexpCompiled != nil
+	err := encoder.Encode(hasRegexp)
+	if err != nil {
+		return nil, err
+	}
+
+	if hasRegexp {
+		err := encoder.Encode(dte.rexpCompiled.String())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (dte *DtypeEnclosure) GobDecode(data []byte) error {
+	buf := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buf)
+
+	for _, v := range []interface{}{&dte.Dtype, &dte.BoolVal, &dte.UnsignedVal, &dte.SignedVal, &dte.FloatVal, &dte.StringVal, &dte.StringValBytes} {
+		err := decoder.Decode(v)
+		if err != nil {
+			return err
+		}
+	}
+
+	var hasRegexp bool
+	err := decoder.Decode(&hasRegexp)
+	if err != nil {
+		return err
+	}
+
+	if hasRegexp {
+		var rexp string
+		err := decoder.Decode(&rexp)
+		if err != nil {
+			return err
+		}
+
+		dte.rexpCompiled, err = regexp.Compile(rexp)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (dte *DtypeEnclosure) SetRegexp(exp *regexp.Regexp) {
