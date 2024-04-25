@@ -89,7 +89,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.opentelemetry.io/otel/sdk v1.24.0
 	go.opentelemetry.io/otel/trace v1.24.0
-	golang.org/x/sys v0.17.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 )
 
 require (
@@ -98,7 +98,7 @@ require (
 	github.com/go-co-op/gocron v1.31.1
 	github.com/prometheus/common v0.44.0
 	github.com/slack-go/slack v0.12.2
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/net v0.23.0 // indirect
 	gorm.io/driver/sqlite v1.5.4
 	gorm.io/gorm v1.25.5
 )
