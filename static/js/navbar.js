@@ -129,6 +129,8 @@ let alertsUpperNavTabs = [
 
 let ingestionUpperNavTabs = [
     { name: 'Log Sources', url: './test-data.html', class : 'test-data' },
+    { name: 'Metrics Sources', url: './test-metrics-data.html', class : 'test-metrics-data' },
+    { name: 'Traces Sources', url: './test-traces-data.html', class : 'test-traces-data' },
 ];
 
 $(document).ready(function () {
@@ -172,6 +174,12 @@ $(document).ready(function () {
             $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
         }        
     } else if (currentUrl.includes("test-data.html")) {
+        $(".nav-ingest").addClass("active");
+        $('.ingestion-nav-tab').appendOrgNavTabs("Ingestion", ingestionUpperNavTabs);
+    } else if (currentUrl.includes("test-metrics-data.html")) {
+        $(".nav-ingest").addClass("active");
+        $('.ingestion-nav-tab').appendOrgNavTabs("Ingestion", ingestionUpperNavTabs);
+    } else if (currentUrl.includes("test-traces-data.html")) {
         $(".nav-ingest").addClass("active");
         $('.ingestion-nav-tab').appendOrgNavTabs("Ingestion", ingestionUpperNavTabs);
     }
