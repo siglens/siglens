@@ -260,9 +260,10 @@ input:checked + .slider:before {
     cursor: pointer;
 }
 
-#metrics-explorer .ui-widget.ui-widget-content{
+.ui-widget.ui-widget-content{
     list-style-type: none;
     padding: 10px;
+    height: auto;
 }
 .graph-canvas{
     height: 100%;

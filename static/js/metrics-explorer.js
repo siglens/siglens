@@ -1,6 +1,6 @@
 var queryIndex = 0;
 var queries = {};
-
+var lineCharts = {};
 $(document).ready(function() {
     addQueryElement();
 });
@@ -387,7 +387,7 @@ function addVisualizationContainer(queryName, seriesData) {
             label: series.seriesName,
             data: Object.values(series.values),
             borderColor: getRandomColor(), // Choose a different color for each dataset
-            borderWidth: 1,
+            borderWidth: 2,
             fill: false
         };
     });
@@ -426,7 +426,7 @@ function addVisualizationContainer(queryName, seriesData) {
         data: chartData,
         options: chartOptions
     });
-    
+    lineCharts[queryName] = lineChart;
     updateGraphWidth();
 }
 
@@ -440,6 +440,7 @@ function removeVisualizationContainer(queryName) {
     console.log(containerToRemove);
     containerToRemove.remove();
     delete chartDataCollection[queryName];
+    delete lineCharts[queryName];
     updateGraphWidth();
 }
 
@@ -454,18 +455,63 @@ function updateGraphWidth() {
 }
 
  // Options for Display and Color
- var displayOptions = ["Line chart", "Bar chart", "Area chart", "Data table"];
+ var displayOptions = ["Line chart", "Bar chart", "Area chart"];
  var colorOptions = ["Classic", "Cool", "Warm"];
 
- // Autocomplete for Display input
- $("#display-input").autocomplete({
-   source: displayOptions,
-   minLength: 0,
-   select: function(event, ui) {
-    console.log('Selected:', ui.item.value);
-    toggleLineOptions(ui.item.value);
+// Function to toggle between line, area, and bar chart
+function toggleChartType(chartType) {
+    // Convert the selected chart type to the corresponding Chart.js chart type
+    var chartJsType;
+    switch (chartType) {
+        case 'Line chart':
+            chartJsType = 'line';
+            break;
+        case 'Bar chart':
+            chartJsType = 'bar';
+            break;
+        case 'Area chart':
+            chartJsType = 'line'; // Area chart is essentially a line chart with fill
+            break;
+        default:
+            chartJsType = 'line'; // Default to line chart
+    }
+
+    // Loop through each chart data
+    for (var queryName in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(queryName)) {
+            var lineChart = lineCharts[queryName]; // Assuming you have stored chart instances in lineCharts object
+            
+            // Update chart type
+            lineChart.config.type = chartJsType;
+            
+            // Update dataset options for area chart
+            if (chartType === 'Area chart') {
+                lineChart.config.data.datasets.forEach(function(dataset) {
+                    dataset.fill = true; // Fill area under the line
+                });
+            } else {
+                // For other chart types, ensure fill is false
+                lineChart.config.data.datasets.forEach(function(dataset) {
+                    dataset.fill = false;
+                });
+            }
+            
+            lineChart.update(); // Update the chart
+        }
+    }
 }
- }).on('click', function() {
+
+
+// Autocomplete for Display input
+$("#display-input").autocomplete({
+    source: displayOptions,
+    minLength: 0,
+    select: function(event, ui) {
+        console.log('Selected:', ui.item.value);
+        toggleLineOptions(ui.item.value);
+        toggleChartType(ui.item.value);
+    }
+}).on('click', function() {
     if ($(this).autocomplete('widget').is(':visible')) {
         $(this).autocomplete('close');
     } else {
@@ -504,21 +550,65 @@ function updateGraphWidth() {
  var lineStyleOptions = ["Solid", "Dash", "Dotted"];
  var strokeOptions = ["Normal", "Thin", "Thick"];
 
- // Autocomplete for Line Style input
- $("#line-style-input").autocomplete({
-   source: lineStyleOptions,
-   minLength: 0
- }).focus(function() {
-   $(this).autocomplete("search", "");
- });
+// Autocomplete for Line Style input
+$("#line-style-input").autocomplete({
+    source: lineStyleOptions,
+    minLength: 0,
+    select: function(event, ui) {
+        var selectedLineStyle = ui.item.value;
+        var selectedStroke = $("#stroke-input").val(); // Get the currently selected stroke
+        updateLineCharts(selectedLineStyle, selectedStroke);
+    }
+}).on('click', function() {
+    if ($(this).autocomplete('widget').is(':visible')) {
+        $(this).autocomplete('close');
+    } else {
+        $(this).autocomplete('search', '');
+    }
+}).on('click', function() {
+    $(this).select();
+});
 
- // Autocomplete for Stroke input
- $("#stroke-input").autocomplete({
-   source: strokeOptions,
-   minLength: 0
- }).focus(function() {
-   $(this).autocomplete("search", "");
- });
+// Autocomplete for Stroke input
+$("#stroke-input").autocomplete({
+    source: strokeOptions,
+    minLength: 0,
+    select: function(event, ui) {
+        var selectedStroke = ui.item.value;
+        var selectedLineStyle = $("#line-style-input").val(); // Get the currently selected line style
+        updateLineCharts(selectedLineStyle, selectedStroke);
+    }
+}).on('click', function() {
+    if ($(this).autocomplete('widget').is(':visible')) {
+        $(this).autocomplete('close');
+    } else {
+        $(this).autocomplete('search', '');
+    }
+}).on('click', function() {
+    $(this).select();
+});
+
+// Function to update all line charts based on selected line style and stroke
+function updateLineCharts(lineStyle, stroke) {
+    // Loop through each chart data
+    for (var queryName in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(queryName)) {
+            var chartData = chartDataCollection[queryName];
+            // Loop through each dataset in the chart data
+            chartData.datasets.forEach(function(dataset) {
+                // Update dataset properties
+                dataset.borderDash = (lineStyle === "Dash") ? [5, 5] : (lineStyle === "Dotted") ? [1, 3] : [];
+                dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2; // Adjust borderWidth as per stroke
+            });
+
+            // Update the chart with the modified data
+            var lineChart = lineCharts[queryName]; 
+            console.log(lineChart);
+            lineChart.update();
+        }
+    }
+}
+
 
 // Function to merge graphs
 function mergeGraphs() {
