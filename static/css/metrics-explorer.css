@@ -264,3 +264,7 @@ input:checked + .slider:before {
     list-style-type: none;
     padding: 10px;
 }
+.graph-canvas{
+    height: 100%;
+    padding-bottom: 20px;
+}

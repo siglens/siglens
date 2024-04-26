@@ -368,13 +368,14 @@ function addVisualizationContainer(queryName, seriesData) {
     var visualizationContainer = $(`
     <div class="metrics-graph" data-query="${queryName}">
         <div>Metrics query - ${queryName}</div>
+        <div class="graph-canvas"></div>
     </div>`);
 
     $('#metrics-graphs').append(visualizationContainer);
     
     // Create a canvas element for the line chart
     var canvas = $('<canvas></canvas>');
-    visualizationContainer.append(canvas);
+    $('.graph-canvas').append(canvas);
     
     // Get the context of the canvas element
     var ctx = canvas[0].getContext('2d');
