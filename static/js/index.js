@@ -57,7 +57,7 @@ function renderIndexDropdown(listIndices) {
     if (Cookies.get('IndexList')) {
         selectedSearchIndex = Cookies.get('IndexList');
     }else {
-        if(sortedListIndices.length > 1){
+        if(sortedListIndices.length > 0){
             let selected = sortedListIndices[0].index
     
             if(sortedListIndices[0].index === 'default' && sortedListIndices.length >= 2){
