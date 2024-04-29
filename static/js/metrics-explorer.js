@@ -1,6 +1,7 @@
 var queryIndex = 0;
 var queries = {};
 var lineCharts = {};
+let mergedGraph ;
 $(document).ready(function() {
     addQueryElement();
 });
@@ -639,6 +640,13 @@ function updateLineCharts(lineStyle, stroke) {
             lineChart.update();
         }
     }
+    mergedGraph.data.datasets.forEach(function(dataset) {
+        dataset.borderDash = (lineStyle === "Dash") ? [5, 5] : (lineStyle === "Dotted") ? [1, 3] : [];
+        dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2; 
+    });
+
+    mergedGraph.update();
+
 }
 
 
@@ -709,6 +717,7 @@ function mergeGraphs(chartType) {
             }
         }
     });
+    mergedGraph = mergedLineChart;
 }
 
 
