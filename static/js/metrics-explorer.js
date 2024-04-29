@@ -18,7 +18,7 @@ $('#toggle-switch').on('change', function() {
         // If the toggle switch is unchecked, hide individual graph containers and display merged graph container
         $('#metrics-graphs').hide();
         $('#merged-graph-container').show();
-        mergeGraphs();
+        // mergeGraphs();
     }
 });
 
@@ -146,7 +146,6 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         queryDetails.everything = previousQuery.everything.slice();
         queryDetails.aggFunction = previousQuery.aggFunction;
     }
-    console.log(queryDetails);
 
     var availableMetrics = [
         "system.cpu.interrupt",
@@ -177,7 +176,6 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         source: availableMetrics,
         minLength: 0,
         select: function(event, ui) {
-            console.log('Selected:', ui.item.value);
             queryDetails.metrics = ui.item.value;
             $(this).blur(); 
         }
@@ -209,7 +207,6 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
     }).on('change', function() {
         var selectedValue = $(this).val();
         if (!availableMetrics.includes(selectedValue)) {
-            console.log(selectedValue);
             $(this).val(queryDetails.metrics);
         } else {
             queryDetails.metrics = selectedValue;
@@ -284,7 +281,6 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         source: availableOptions.sort(),
         minLength: 0,
         select: function(event, ui) {
-            console.log('Selected:', ui.item.value);
             queryDetails.aggFunction = ui.item.value;
         }
     }).on('click', function() {
@@ -373,7 +369,6 @@ function updateCloseIconVisibility() {
 var chartDataCollection = {};
 
 function addVisualizationContainer(queryName, seriesData) {
-    console.log(queryName);
     // Create a new visualization container with a unique identifier
     var visualizationContainer = $(`
     <div class="metrics-graph" data-query="${queryName}">
@@ -407,51 +402,76 @@ function addVisualizationContainer(queryName, seriesData) {
         labels: labels,
         datasets: datasets
     };
-
+    console.log(chartType);
     // Save chart data to the global variable
     chartDataCollection[queryName] = chartData;
 
-    // Define chart options
-    var chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                align: 'start' // Align legend to the start (left)
-            }
-        },
-        scales: {
-            y: {
-                grid: {
-                    display: false // Hide vertical grid lines
+    var lineChart = new Chart(ctx, {
+        type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    align: 'start' // Align legend to the start (left)
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'X-Axis Label'
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Y-Axis Label'
+                    },
+                    grid: {
+                        display: false // Hide vertical grid lines
+                    }
                 }
             }
         }
-    };
-
-    // Create the line chart using Chart.js
-    var lineChart = new Chart(ctx, {
-        type: 'line',
-        data: chartData,
-        options: chartOptions
     });
+    
+    // Modify the fill property based on the chart type after chart initialization
+    if (chartType === 'Area chart') {
+        lineChart.config.data.datasets.forEach(function(dataset) {
+            dataset.fill = true; // Fill area under the line
+        });
+    } else {
+        // For other chart types, ensure fill is false
+        lineChart.config.data.datasets.forEach(function(dataset) {
+            dataset.fill = false;
+        });
+    }
+    // Update the chart
+    lineChart.update();
+
     lineCharts[queryName] = lineChart;
     updateGraphWidth();
+    mergeGraphs(chartType)
+
+    console.log(chartDataCollection);
 }
 
 
 
 
 function removeVisualizationContainer(queryName) {
-    console.log("removing visualization container", queryName);
     // Remove the visualization container corresponding to the given queryName
     var containerToRemove = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
-    console.log(containerToRemove);
     containerToRemove.remove();
     delete chartDataCollection[queryName];
     delete lineCharts[queryName];
     updateGraphWidth();
+    mergeGraphs(chartType)
 }
 
 
@@ -468,8 +488,8 @@ function updateGraphWidth() {
  var displayOptions = ["Line chart", "Bar chart", "Area chart"];
  var colorOptions = ["Classic", "Cool", "Warm"];
 
-// Function to toggle between line, area, and bar chart
-function toggleChartType(chartType) {
+ let chartType = "Line chart";
+ function toggleChartType(chartType) {
     // Convert the selected chart type to the corresponding Chart.js chart type
     var chartJsType;
     switch (chartType) {
@@ -509,6 +529,9 @@ function toggleChartType(chartType) {
             lineChart.update(); // Update the chart
         }
     }
+
+    // Update merged graph as well
+    mergeGraphs(chartType);
 }
 
 
@@ -517,8 +540,8 @@ $("#display-input").autocomplete({
     source: displayOptions,
     minLength: 0,
     select: function(event, ui) {
-        console.log('Selected:', ui.item.value);
         toggleLineOptions(ui.item.value);
+        chartType = ui.item.value;
         toggleChartType(ui.item.value);
     }
 }).on('click', function() {
@@ -613,15 +636,13 @@ function updateLineCharts(lineStyle, stroke) {
 
             // Update the chart with the modified data
             var lineChart = lineCharts[queryName]; 
-            console.log(lineChart);
             lineChart.update();
         }
     }
 }
 
 
-// Function to merge graphs
-function mergeGraphs() {
+function mergeGraphs(chartType) {
     // Create a canvas element for the merged graph
     var mergedCanvas = $('<canvas></canvas>');
     $('#merged-graph-container').empty().append(mergedCanvas);
@@ -646,18 +667,17 @@ function mergeGraphs() {
                     data: dataset.data,
                     borderColor: dataset.borderColor, // Use dataset border color
                     borderWidth: dataset.borderWidth,
-                    fill: dataset.fill
+                    fill: (chartType === 'Area chart') ? true : false // Update fill based on chart type
                 });
             });
 
             // Update labels
             mergedData.labels = chartDataCollection[queryName].labels;
         }
-    }
+    } 
 
-    // Create the merged line chart using Chart.js
     var mergedLineChart = new Chart(mergedCtx, {
-        type: 'line',
+        type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
         data: mergedData,
         options: {
             responsive: true,
