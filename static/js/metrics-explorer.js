@@ -99,6 +99,15 @@ function addQueryElement() {
     // Add click event handler for the remove button
     queryElement.find('.remove-query').on('click', function() {
         var queryName = queryElement.find('.query-name').text();
+        // Check if the query name exists in any of the formula input fields
+        var queryNameExistsInFormula = $('.formula').toArray().some(function(formulaInput) {
+            return $(formulaInput).val().includes(queryName);
+        });
+
+        // If query name exists in any formula, prevent removal of the query element
+        if (queryNameExistsInFormula) {
+            alert("Cannot remove query element because query name is used in a formula.");
+        } else {
         delete queries[queryName];
         queryElement.remove();
 
@@ -107,6 +116,7 @@ function addQueryElement() {
 
         // Remove corresponding visualization container
         removeVisualizationContainer(queryName);
+    }
     });
 
     // Add click event handler for the alias button
