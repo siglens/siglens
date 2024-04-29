@@ -53,8 +53,13 @@ import (
 )
 
 var otsdb_mname = []byte("metric")
+var metric_name_key = []byte("name")
 var otsdb_timestamp = []byte("timestamp")
 var otsdb_value = []byte("value")
+var metric_value_gauge_keyname = []byte("gauge")
+var metric_value_counter_keyname = []byte("counter")
+var metric_value_histogram_keyname = []byte("histogram")
+var metric_value_summary_keyname = []byte("summary")
 var otsdb_tags = []byte("tags")
 
 var influx_value = "value"
@@ -66,6 +71,16 @@ var TAGS_TREE_FLUSH_SLEEP_DURATION = 60 // 1 min
 const METRICS_BLK_FLUSH_SLEEP_DURATION = 60 // 1 min
 
 const METRICS_BLK_ROTATE_SLEEP_DURATION = 10 // 10 seconds
+
+var dateTimeLayouts = []string{
+	time.RFC3339,
+	time.RFC3339Nano,
+	time.RFC1123,
+	time.RFC1123Z,
+	time.RFC822,
+	time.RFC822Z,
+	time.RFC850,
+}
 
 /*
 A metrics segment represents a 2hr window and consists of many metrics blocks and tagTrees.
@@ -477,7 +492,7 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 
 	handler := func(key []byte, value []byte, valueType jp.ValueType, off int) error {
 		switch {
-		case bytes.Equal(key, otsdb_mname):
+		case bytes.Equal(key, otsdb_mname), bytes.Equal(key, metric_name_key):
 			switch valueType {
 			case jp.String:
 				temp, err := jp.ParseString(value)
@@ -522,6 +537,30 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 						ts = uint32(intVal)
 					}
 				}
+			case jp.String:
+				// First, try to parse the date as a number (seconds or milliseconds since epoch)
+				if t, err := strconv.ParseInt(string(value), 10, 64); err == nil {
+					// Determine if the number is in seconds or milliseconds
+					if toputils.IsTimeInMilli(uint64(t)) {
+						ts = uint32(t / 1000)
+					} else {
+						ts = uint32(t)
+					}
+
+					return nil
+				}
+
+				// Parse the string to time using time.Parse and multiple layouts.
+				for _, layout := range dateTimeLayouts {
+					t, err := time.Parse(layout, string(value))
+					if err == nil {
+						ts = uint32(t.Unix())
+						break
+					}
+				}
+				if ts == 0 {
+					return fmt.Errorf("failed to parse timestamp! Not expected type:%+v", valueType.String())
+				}
 			}
 		case bytes.Equal(key, otsdb_value):
 			if valueType != jp.Number {
@@ -532,8 +571,29 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 				return fmt.Errorf("failed to convert value to float! %+v", err)
 			}
 			dpVal = fltVal
+		case bytes.Equal(key, metric_value_gauge_keyname), bytes.Equal(key, metric_value_counter_keyname),
+			bytes.Equal(key, metric_value_histogram_keyname), bytes.Equal(key, metric_value_summary_keyname):
+			if valueType != jp.Object {
+				return fmt.Errorf("value is not an object")
+			}
+			err = jp.ObjectEach(value, func(key []byte, value []byte, valueType jp.ValueType, off int) error {
+				if bytes.Equal(key, otsdb_value) {
+					if valueType != jp.Number {
+						return fmt.Errorf("value is not a number")
+					}
+					fltVal, err := jp.ParseFloat(value)
+					if err != nil {
+						return fmt.Errorf("failed to convert value to float! %+v", err)
+					}
+					dpVal = fltVal
+				}
+				return nil
+			})
+
+			return err
+
 		default:
-			return fmt.Errorf("unknown keyname %+s", key)
+			log.Warnf("unknown keyname %+s", key)
 		}
 		return nil
 	}
