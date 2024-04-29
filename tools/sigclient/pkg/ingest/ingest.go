@@ -310,11 +310,11 @@ readChannel:
 	log.Printf("Total events ingested:%+d. Event type: %s", totalEvents, iType.String())
 	totalTimeTaken := time.Since(startTime)
 
-	numSeconds := int(totalTimeTaken.Seconds())
+	numSeconds := totalTimeTaken.Seconds()
 	if numSeconds == 0 {
 		log.Printf("Total Time Taken for ingestion %+v", totalTimeTaken)
 	} else {
-		eventsPerSecond := int64(totalEvents / numSeconds)
+		eventsPerSecond := int64(float64(totalEvents) / numSeconds)
 		log.Printf("Total Time Taken for ingestion %s. Average events per second=%+v", totalTimeTaken, humanize.Comma(eventsPerSecond))
 	}
 }
