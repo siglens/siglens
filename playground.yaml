@@ -22,7 +22,7 @@ esVersion: "7.9.3"
 retentionHours: 48
 
 ## Percent of available RAM that siglens will occupy
-# memoryThresholdPercent: 80
+memoryThresholdPercent: 50
 
 ## For ephemeral servers (docker, k8s) set this variable to unique container name to persist data across restarts:
 ssInstanceName: "sigsingle"
