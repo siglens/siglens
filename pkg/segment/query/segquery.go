@@ -405,7 +405,7 @@ func getNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 	reqs []grpc_query.SegkeyRequest, querySummary *summary.QuerySummary, unrotatedOnly bool, orgid uint64) *structs.NodeResult {
 	sortedQSRSlice, numRawSearch, numDistributed := getAllSegmentsInAggs(queryInfo, reqs, queryInfo.aggs, queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(),
 		queryInfo.qid, unrotatedOnly, sTime, orgid)
-	err := setTotalSegmentsToSearch(queryInfo.qid, numRawSearch)
+	err := setTotalSegmentsToSearch(queryInfo.qid, numRawSearch+numDistributed)
 	if err != nil {
 		log.Errorf("qid=%d Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
 	}
