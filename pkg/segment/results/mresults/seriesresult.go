@@ -390,10 +390,12 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 	var ret float64
 	switch fn {
 	case utils.Avg:
+		count := uint64(0)
 		for i := range entries {
 			ret += entries[i].runningVal
+			count += entries[i].runningCount
 		}
-		ret = ret / float64(len(entries))
+		ret = ret / float64(count)
 	case utils.Sum:
 		for i := range entries {
 			ret += entries[i].runningVal
