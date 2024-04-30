@@ -227,6 +227,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
 
     queryElement.find('.everywhere').autocomplete({
         source: function(request, response) {
+            console.log("fdsfasdf");
             var filtered = $.grep(availableEverywhere, function(item) {
                 return item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1;
             });
@@ -259,6 +260,30 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             $(this).autocomplete('close');
         } else {
             $(this).autocomplete('search', '');
+        }
+    }).on('input', function() {
+        let typedValue = $(this).val();
+        
+        // Remove the wildcard option from available options when the input value changes
+        if (!typedValue.includes(':')) {
+            availableEverywhere = availableEverywhere.filter(function(option) {
+                return !option.includes(':*');
+            });
+            queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
+        }
+        
+        // Add the wildcard option if the typed value contains a colon ":"
+        if (typedValue.includes(':')) {
+            var parts = typedValue.split(':');
+            var prefix = parts[0];
+            var suffix = parts[1];
+            var wildcardOption = prefix + ':' + suffix + '*';
+            
+            // Check if the typed value already exists in the available options
+            if (!availableEverywhere.includes(typedValue)) {
+                availableEverywhere.unshift(wildcardOption);
+                queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
+            }
         }
     });
 
@@ -341,10 +366,6 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
                 "left": containerPosition.left,
                 "z-index": 1000
             });
-        },
-        close: function(event, ui) {
-            // Prevent the default behavior of closing the dropdown
-            event.preventDefault();
         }
         }).on('click', function() {
             if ($(this).autocomplete('widget').is(':visible')) {
