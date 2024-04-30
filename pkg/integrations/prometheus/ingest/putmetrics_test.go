@@ -34,10 +34,10 @@ import (
 )
 
 // FixtureSamplePayload returns a Snappy-compressed TimeSeries
-func FixtureSamplePayload() []byte {
+func FixtureSamplePayload(inc int) []byte {
 	nameLabelPair := prompb.Label{Name: model.MetricNameLabel, Value: "mah-test-metric"}
 	stubLabelPair := prompb.Label{Name: "environment", Value: "production"}
-	stubSample := prompb.Sample{Value: 123.45, Timestamp: time.Now().UTC().Unix()}
+	stubSample := prompb.Sample{Value: 123.45, Timestamp: time.Now().UTC().Unix() + int64(inc)}
 	stubTimeSeries := prompb.TimeSeries{
 		Labels:  []prompb.Label{stubLabelPair, nameLabelPair},
 		Samples: []prompb.Sample{stubSample},
@@ -53,11 +53,11 @@ func FixtureSamplePayload() []byte {
 func Test_PutMetrics(t *testing.T) {
 	config.InitializeTestingConfig()
 	writer.InitWriterNode()
-	postData := FixtureSamplePayload()
 
 	sTime := time.Now()
 	totalSuccess := uint64(0)
 	for i := 0; i < 100; i++ {
+		postData := FixtureSamplePayload(i)
 		success, fail, err := HandlePutMetrics(postData)
 		assert.NoError(t, err)
 		assert.Equal(t, success, uint64(1))
