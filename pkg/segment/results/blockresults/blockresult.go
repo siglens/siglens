@@ -771,7 +771,8 @@ func (gb *GroupByBuckets) ConvertToJson() (*GroupByBucketsJSON, error) {
 			}
 		}
 		newBucket.RunningStats = retVals
-		retVal.AllGroupbyBuckets[key] = newBucket
+		base64Key := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%v", key)))
+		retVal.AllGroupbyBuckets[base64Key] = newBucket
 	}
 	return retVal, nil
 }
@@ -834,13 +835,17 @@ func (gb *GroupByBucketsJSON) ToGroupByBucket(req *structs.GroupByRequest) (*Gro
 		maxBuckets:          req.BucketCount,
 	}
 	reverseIndex := 0
-	for key, runningBucket := range gb.AllGroupbyBuckets {
+	for base64Key, runningBucket := range gb.AllGroupbyBuckets {
 		newBucket, err := runningBucket.Convert()
 		if err != nil {
 			return nil, err
 		}
 		retVal.AllRunningBuckets = append(retVal.AllRunningBuckets, newBucket)
-		retVal.StringBucketIdx[key] = reverseIndex
+		key, err := base64.StdEncoding.DecodeString(base64Key)
+		if err != nil {
+			log.Errorf("GroupByBuckets.JSON.ToGroupByBucket: failed to decode base64Key %v: %v", base64Key, err)
+		}
+		retVal.StringBucketIdx[string(key)] = reverseIndex
 		reverseIndex++
 	}
 	return retVal, nil

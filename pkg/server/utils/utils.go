@@ -81,3 +81,14 @@ func ExtractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*struc
 
 	return ssr
 }
+
+func GetMyIds() []uint64 {
+	if hook := hooks.GlobalHooks.GetIdsConditionHook; hook != nil {
+		alreadyHandled, ids := hook()
+		if alreadyHandled {
+			return ids
+		}
+	}
+
+	return []uint64{0}
+}

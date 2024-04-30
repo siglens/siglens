@@ -38,6 +38,8 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+var excludedInternalIndices = [...]string{"red-traces", "service-dependency"}
+
 func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	var httpResp utils.ClusterStatsResponseInfo
@@ -217,7 +219,14 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 	}
 	return pastXhours, granularity
 }
-
+func isIndexExcluded(indexName string) bool {
+	for _, value := range excludedInternalIndices {
+		if indexName == value {
+			return true
+		}
+	}
+	return false
+}
 func getIngestionStats(myid uint64) (map[string]utils.ResultPerIndex, int64, float64, float64) {
 
 	totalIncomingBytes := float64(0)
@@ -229,6 +238,9 @@ func getIngestionStats(myid uint64) (map[string]utils.ResultPerIndex, int64, flo
 	sortedIndices := make([]string, 0, len(allVirtualTableNames))
 
 	for k := range allVirtualTableNames {
+		if isIndexExcluded(k) {
+			continue
+		}
 		sortedIndices = append(sortedIndices, k)
 	}
 	sort.Strings(sortedIndices)

@@ -18,6 +18,8 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"regexp"
@@ -26,6 +28,7 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash"
+	log "github.com/sirupsen/logrus"
 )
 
 // ValType : One-byte that encodes data type of the value field
@@ -375,6 +378,73 @@ type DtypeEnclosure struct {
 	StringVal      string
 	StringValBytes []byte         // byte slice representation of StringVal
 	rexpCompiled   *regexp.Regexp //  should be unexported to allow for gob encoding
+}
+
+func (dte *DtypeEnclosure) GobEncode() ([]byte, error) {
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+
+	for i, v := range []interface{}{dte.Dtype, dte.BoolVal, dte.UnsignedVal, dte.SignedVal, dte.FloatVal, dte.StringVal, dte.StringValBytes} {
+		err := encoder.Encode(v)
+		if err != nil {
+			log.Errorf("DtypeEnclosure.GobEncode: error encoding %v in iteration %d: %v", v, i, err)
+			return nil, err
+		}
+	}
+
+	hasRegexp := dte.rexpCompiled != nil
+	err := encoder.Encode(hasRegexp)
+	if err != nil {
+		log.Errorf("DtypeEnclosure.GobEncode: error encoding hasRegexp: %v", err)
+		return nil, err
+	}
+
+	if hasRegexp {
+		err := encoder.Encode(dte.rexpCompiled.String())
+		if err != nil {
+			log.Errorf("DtypeEnclosure.GobEncode: error encoding rexpCompiled: %v", err)
+			return nil, err
+		}
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (dte *DtypeEnclosure) GobDecode(data []byte) error {
+	buf := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buf)
+
+	for i, v := range []interface{}{&dte.Dtype, &dte.BoolVal, &dte.UnsignedVal, &dte.SignedVal, &dte.FloatVal, &dte.StringVal, &dte.StringValBytes} {
+		err := decoder.Decode(v)
+		if err != nil {
+			log.Errorf("DtypeEnclosure.GobDecode: error decoding %v in iteration %d: %v", v, i, err)
+			return err
+		}
+	}
+
+	var hasRegexp bool
+	err := decoder.Decode(&hasRegexp)
+	if err != nil {
+		log.Errorf("DtypeEnclosure.GobDecode: error decoding hasRegexp: %v", err)
+		return err
+	}
+
+	if hasRegexp {
+		var rexp string
+		err := decoder.Decode(&rexp)
+		if err != nil {
+			log.Errorf("DtypeEnclosure.GobDecode: error decoding rexp: %v", err)
+			return err
+		}
+
+		dte.rexpCompiled, err = regexp.Compile(rexp)
+		if err != nil {
+			log.Errorf("DtypeEnclosure.GobDecode: error compiling rexp %v: %v", rexp, err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (dte *DtypeEnclosure) SetRegexp(exp *regexp.Regexp) {
