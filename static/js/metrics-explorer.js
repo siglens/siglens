@@ -241,6 +241,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
                 availableEverywhere.splice(index, 1);
             }
             $(this).val('');
+            updateAutocompleteSource();
             return false;
         },
         open: function(event, ui) {
@@ -294,6 +295,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             tagContainer.attr('placeholder', '(everywhere)');
             tagContainer.css('width', '100%');
         }
+        updateAutocompleteSource(); 
     });
 
     queryElement.find('.agg-function').autocomplete({
@@ -388,6 +390,17 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             valueContainer.css('width', '100%');
         }
     });
+
+    function updateAutocompleteSource() {
+        var selectedTags = queryDetails.everywhere.map(function(tag) {
+            return tag.split(':')[0];
+        });
+        var filteredOptions = availableEverywhere.filter(function(option) {
+            var optionTag = option.split(':')[0];
+            return !selectedTags.includes(optionTag);
+        });
+        queryElement.find('.everywhere').autocomplete('option', 'source', filteredOptions);
+    }
 
     queries[queryElement.find('.query-name').text()] = queryDetails;
     previousQuery = queryDetails;
