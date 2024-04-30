@@ -269,7 +269,6 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             availableEverywhere = availableEverywhere.filter(function(option) {
                 return !option.includes(':*');
             });
-            queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
         }
         
         // Add the wildcard option if the typed value contains a colon ":"
@@ -279,12 +278,15 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             var suffix = parts[1];
             var wildcardOption = prefix + ':' + suffix + '*';
             
+            availableEverywhere = availableEverywhere.filter(function(option) {
+                return !option.includes('*');
+            });
             // Check if the typed value already exists in the available options
             if (!availableEverywhere.includes(typedValue)) {
                 availableEverywhere.unshift(wildcardOption);
-                queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
             }
         }
+        updateAutocompleteSource();
     });
 
     function addTag(value) {
