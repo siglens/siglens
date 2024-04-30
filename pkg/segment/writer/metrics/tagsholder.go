@@ -154,3 +154,16 @@ func (th *TagsHolder) GetTSID(mName []byte) (uint64, error) {
 func (th *TagsHolder) getEntries() []tagEntry {
 	return th.entries[:th.idx]
 }
+
+func (th *TagsHolder) String() string {
+	buf := bytebufferpool.Get()
+	buf.WriteString("{")
+	for _, val := range th.entries {
+		buf.WriteString(val.tagKey)
+		buf.WriteString(":")
+		buf.Write(val.tagValue)
+		buf.WriteString(",")
+	}
+	buf.WriteString("}")
+	return buf.String()
+}
