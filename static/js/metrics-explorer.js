@@ -19,13 +19,9 @@ $('#toggle-switch').on('change', function() {
         // If the toggle switch is unchecked, hide individual graph containers and display merged graph container
         $('#metrics-graphs').hide();
         $('#merged-graph-container').show();
-        // mergeGraphs();
     }
 });
 
-// $('#run').on('click', function() {
-//     console.log(queries);
-// });
 function addFormulaElement(){
     let formulaElement = $(`
     <div class="metrics-query">
