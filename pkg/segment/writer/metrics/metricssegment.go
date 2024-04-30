@@ -270,7 +270,7 @@ func timeBasedMetricsFlush() {
 				ms.rwLock.Lock()
 				err := ms.mBlock.rotateBlock(ms.metricsKeyBase, ms.Suffix, ms.currBlockNum)
 				if err != nil {
-					log.Errorf("timeBasedMetricsFlush: failed to rotate block %v", err)
+					log.Errorf("timeBasedMetricsFlush: failed to rotate block number: %v due to the error: %v", ms.currBlockNum, err)
 				} else {
 					ms.currBlockNum++
 				}
@@ -651,7 +651,7 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 			if len(whitespace_split) > 2 {
 				tsNano, err := strconv.ParseInt(whitespace_split[2], 10, 64)
 				if err != nil {
-					log.Errorf("ExtractInfluxPayload: failed to parse timestamp! %+v", err)
+					log.Errorf("ExtractInfluxPayload: failed to parse the timestamp: %+v, error: %+v", whitespace_split[2], err)
 				} else {
 					ts = uint32(tsNano / 1_000_000_000)
 				}
