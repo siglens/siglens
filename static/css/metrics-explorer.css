@@ -179,12 +179,19 @@ input:checked + .slider:before {
     display: none !important;
 }
 
-.metrics-query .query-name{
+.metrics-query .query-name.active{
     padding: 12px;
     border-radius: 5px 0 0 5px;
     background-color: var(--purple-2);
     color: var(--white);
     border: none !important;
+    font-weight: bold;
+    cursor: pointer;
+}
+.metrics-query .query-name{
+    background-color: var(--white);
+    border-radius: 5px 0 0 5px;
+    color: var(--black-3);
     font-weight: bold;
     cursor: pointer;
 }

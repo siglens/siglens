@@ -52,7 +52,7 @@ function addQueryElement() {
         queryElement = $(`
     <div class="metrics-query">
         <div class="query-box">
-            <div class="query-name">${String.fromCharCode(97 + queryIndex)}</div>
+            <div class="query-name active">${String.fromCharCode(97 + queryIndex)}</div>
             <input type="text" class="metrics" placeholder="Select a metric">
             <div>from</div>
             <div class="tag-container">
@@ -134,6 +134,26 @@ function addQueryElement() {
         $(this).parent().hide(); // Hide the alias filling box
         $(this).parent().siblings('.as-btn').show(); // Show the "as..." button
     });
+
+    // Add click event handler for the query name toggle
+    queryElement.find('.query-name').on('click', function() {
+        var queryNameElement = $(this);
+        var queryName = queryNameElement.text();
+        var numberOfGraphVisible = $('#metrics-graphs').children('.metrics-graph').filter(':visible').length;
+        var metricsGraph = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
+
+        if (numberOfGraphVisible > 1 || !metricsGraph.is(':visible')) {
+            metricsGraph.toggle();
+            queryNameElement.toggleClass('active');
+        }
+        numberOfGraphVisible = $('#metrics-graphs').children('.metrics-graph').filter(':visible').length;
+        if (numberOfGraphVisible === 1) {
+            $('.metrics-graph').addClass('full-width');
+        } else {
+            $('.metrics-graph').removeClass('full-width');
+        }
+    });
+
 }
 
 function initializeAutocomplete(queryElement, previousQuery = {}) {
