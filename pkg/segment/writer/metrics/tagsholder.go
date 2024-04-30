@@ -157,13 +157,13 @@ func (th *TagsHolder) getEntries() []tagEntry {
 
 func (th *TagsHolder) String() string {
 	buf := bytebufferpool.Get()
-	buf.WriteString("{")
+	_, _ = buf.WriteString("{")
 	for _, val := range th.entries {
-		buf.WriteString(val.tagKey)
-		buf.WriteString(":")
-		buf.Write(val.tagValue)
-		buf.WriteString(",")
+		_, _ = buf.WriteString(val.tagKey)
+		_, _ = buf.WriteString(":")
+		_, _ = buf.Write(val.tagValue)
+		_, _ = buf.WriteString(",")
 	}
-	buf.WriteString("}")
+	_, _ = buf.WriteString("}")
 	return buf.String()
 }

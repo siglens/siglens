@@ -628,6 +628,7 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 
 	var mName []byte
 	var dpVal float64
+	var ts uint32 = uint32(time.Now().Unix())
 	var err error
 
 	reader := csv.NewReader(bytes.NewBuffer(rawCSV))
@@ -647,6 +648,14 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 			whitespace_split := strings.Fields(line)
 			tag_set := strings.Split(whitespace_split[0], ",")
 			field_set := strings.Split(whitespace_split[1], ",")
+			if len(whitespace_split) > 2 {
+				tsNano, err := strconv.ParseInt(whitespace_split[2], 10, 64)
+				if err != nil {
+					log.Errorf("ExtractInfluxPayload: failed to parse timestamp! %+v", err)
+				} else {
+					ts = uint32(tsNano / 1_000_000_000)
+				}
+			}
 			for index, value := range tag_set {
 				if index == 0 {
 					mName = []byte(value)
@@ -677,7 +686,7 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 
 	}
 
-	return mName, dpVal, 0, err
+	return mName, dpVal, ts, err
 
 }
 
