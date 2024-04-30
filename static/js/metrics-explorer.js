@@ -160,9 +160,17 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
     ];
 
     var availableEverywhere = [
-        "disk space",
-        "memory space",
-        "cpu",
+        "device:/dev/disk1s1",
+        "device:/dev/disk1s2",
+        "device:/dev/disk1s3",
+        "device:/dev/disk1s4",
+        "device:/dev/disk1s5",
+        "device:/dev/disk1s6",
+        "device_name:/disk1s1",
+        "device_name:/disk1s2",
+        "device_name:/disk1s3",
+        "device_name:/disk1s4",
+        "host:SonamSigScalr.local",
     ];
 
     var availableEverything = [
@@ -234,6 +242,16 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             }
             $(this).val('');
             return false;
+        },
+        open: function(event, ui) {
+            var containerPosition = $(".tag-container").offset();
+
+            $(this).autocomplete("widget").css({
+                "position": "absolute",
+                "top": containerPosition.top + $(".tag-container").outerHeight(),
+                "left": containerPosition.left,
+                "z-index": 1000
+            });
         }
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
@@ -310,15 +328,29 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
                 availableEverything.splice(index, 1);
             }
             $(this).val('');
-            return false;
+            return false;        
+        },
+        open: function(event, ui) {
+            var containerPosition = $(".value-container").offset();
+
+            $(this).autocomplete("widget").css({
+                "position": "absolute",
+                "top": containerPosition.top + $(".value-container").outerHeight(),
+                "left": containerPosition.left,
+                "z-index": 1000
+            });
+        },
+        close: function(event, ui) {
+            // Prevent the default behavior of closing the dropdown
+            event.preventDefault();
         }
-    }).on('click', function() {
-        if ($(this).autocomplete('widget').is(':visible')) {
-            $(this).autocomplete('close');
-        } else {
-            $(this).autocomplete('search', '');
-        }
-    });
+        }).on('click', function() {
+            if ($(this).autocomplete('widget').is(':visible')) {
+                $(this).autocomplete('close');
+            } else {
+                $(this).autocomplete('search', '');
+            }
+        });
 
     function addValue(value) {
         var valueContainer = queryElement.find('.everything');

@@ -175,7 +175,7 @@ input:checked + .slider:before {
     background-color: #FFFFCC;
 }
 .metrics-query .metrics:focus{
-    background-color: #FFFFCC;
+    background-color: #ECF6FB;
 }
 .metrics-query .agg-function{
     width: 78px !important;
@@ -260,12 +260,74 @@ input:checked + .slider:before {
     cursor: pointer;
 }
 
-.ui-widget.ui-widget-content{
-    list-style-type: none;
-    padding: 10px;
-    height: auto;
-}
 .graph-canvas{
     height: 100%;
     padding-bottom: 20px;
 }
+
+/* JQUERY AUTOCOMpLETE */
+.ui-widget{
+    height: auto !important;
+}
+.ui-widget.ui-widget-content{
+    list-style-type: none;
+    border-radius: 0px !important;
+    width: fit-content;
+    min-width: 233px;
+}
+.ui-autocomplete {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    display: none;
+    float: left;
+    min-width: 160px;
+    padding: 0;
+    margin: 2px 0 0;
+    list-style: none;
+    font-size: 14px;
+    text-align: left;
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    -webkit-box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+    background-clip: padding-box;
+}
+  
+.ui-autocomplete > li > div {
+    display: block;
+    padding: 3px 20px;
+    clear: both;
+    font-weight: normal;
+    height: 34px;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+  
+.ui-state-hover,
+.ui-state-active,
+.ui-state-focus {
+    color: #ffffff;
+    text-decoration: none;
+    background-color: #2D69BC;
+    cursor: pointer;
+    height: 34px;
+}
+  
+.ui-helper-hidden-accessible {
+    border: 0;
+    clip: rect(0 0 0 0);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    width: 1px;
+}
+
+
+  
