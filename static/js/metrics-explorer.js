@@ -29,9 +29,12 @@ $('#toggle-switch').on('change', function() {
 function addFormulaElement(){
     let formulaElement = $(`
     <div class="metrics-query">
-        <input class="formula" placeholder="Formula, eg. 2*a">
         <div>
-            <div class="remove-query">X</div>
+            <div class="formula-arrow">↓</div>
+            <input class="formula" placeholder="Formula, eg. 2*a">
+        </div>
+        <div>
+            <div class="remove-query">×</div>
         </div>
     </div>`);
 
@@ -66,10 +69,10 @@ function addQueryElement() {
                 <div class="alias-filling-box" style="display: none;">
                     <div>as</div>
                     <input type="text" placeholder="alias">
-                    <div> X </div>
+                    <div>×</div>
                 </div>
             </div>
-            <div class="remove-query">X</div>
+            <div class="remove-query">×</div>
         </div>
     </div>`);
     $('#metrics-queries').append(queryElement);
@@ -223,11 +226,8 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         $(this).blur(); 
     });
     
-    
-
     queryElement.find('.everywhere').autocomplete({
         source: function(request, response) {
-            console.log("fdsfasdf");
             var filtered = $.grep(availableEverywhere, function(item) {
                 return item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1;
             });
@@ -262,6 +262,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             $(this).autocomplete('search', '');
         }
     }).on('input', function() {
+        this.style.width = (this.value.length * 8) + 'px'; 
         let typedValue = $(this).val();
         
         // Remove the wildcard option from available options when the input value changes
@@ -375,7 +376,9 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             } else {
                 $(this).autocomplete('search', '');
             }
-        });
+        }).on('input', function() {
+            this.style.width = (this.value.length * 8) + 'px'; 
+        })
 
     function addValue(value) {
         var valueContainer = queryElement.find('.everything');
@@ -493,6 +496,9 @@ function addVisualizationContainer(queryName, seriesData) {
                     title: {
                         display: true,
                         text: 'X-Axis Label'
+                    },
+                    grid: {
+                        display: false // Hide vertical grid lines
                     }
                 },
                 y: {
@@ -500,9 +506,6 @@ function addVisualizationContainer(queryName, seriesData) {
                     title: {
                         display: true,
                         text: 'Y-Axis Label'
-                    },
-                    grid: {
-                        display: false // Hide vertical grid lines
                     }
                 }
             }
@@ -770,6 +773,9 @@ function mergeGraphs(chartType) {
                     title: {
                         display: true,
                         text: 'X-Axis Label'
+                    },
+                    grid: {
+                        display: false // Hide vertical grid lines
                     }
                 },
                 y: {
@@ -777,9 +783,6 @@ function mergeGraphs(chartType) {
                     title: {
                         display: true,
                         text: 'Y-Axis Label'
-                    },
-                    grid: {
-                        display: false // Hide vertical grid lines
                     }
                 }
             }

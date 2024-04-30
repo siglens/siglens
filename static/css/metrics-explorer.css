@@ -86,6 +86,11 @@ input:checked + .slider:before {
     align-items: center;
     height: 30px;
 }
+#metrics-explorer .btn .plus-icon{
+    font-size: 26px;
+    margin-bottom: 4px;
+    margin-right: 6px;
+}
 .metrics-query{
     display: flex;
     align-items: flex-start;
@@ -105,6 +110,19 @@ input:checked + .slider:before {
 
 .metrics-query .formula{
     width: 200px;
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+}
+.formula-arrow{
+    border-radius: 5px 5px 0px 0px;
+    background-color: var(--purple-2);
+    color: var(--white);
+    border: none !important;
+    font-weight: bolder;
+    height: 32px;
+    width: 32px;
+    padding: 8px;
+    transform: rotate(270deg);
 }
 
 .metrics-query input:focus{
@@ -132,19 +150,20 @@ input:checked + .slider:before {
 }
 
 .metrics-query div .tag, .metrics-query div .value{
-    border: 1px solid var(--border-switch);
-    padding: 1px 7px;
-    border-radius: 5px;
-    background-color: var(--filter-color);
     color: var(--text-color);
-    padding: 0px 7px;
-    margin-right: 5px;
+    padding: 4px 28px 4px 7px;
+    margin-right: 8px;
     white-space: nowrap;
+    position: relative;
 }
-
+.metrics-query div .tag{
+    background-color: #ECF6FB;
+}
+.metrics-query div .value{
+    background-color: #FBE7F4;
+}
 .tag-container,.value-container {
-    display: inline-block;
-    border: 1px solid var(--border-btn-color);
+    min-width: 200px;
 }
 
 .everywhere,
@@ -167,6 +186,7 @@ input:checked + .slider:before {
     color: var(--white);
     border: none !important;
     font-weight: bold;
+    cursor: pointer;
 }
 
 .metrics-query .metrics{
@@ -175,7 +195,8 @@ input:checked + .slider:before {
     background-color: #FFFFCC;
 }
 .metrics-query .metrics:focus{
-    background-color: #ECF6FB;
+    background-color: #F6FCFF;
+    outline: 1px solid #2D69BC;
 }
 .metrics-query .agg-function{
     width: 78px !important;
@@ -187,16 +208,23 @@ input:checked + .slider:before {
 }
 
 .metrics-query .remove-query{
-    cursor: pointer;
-    border: 1px solid var(--border-btn-color);
-    border-radius: 5px;
-    height: 32px;
-    width: 32px;
+    border-radius: 18px;
+    height: 18px;
+    width: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 18px;
+    padding-bottom: 2.5px;
+    cursor: pointer;
+    color: #fff;
+    background: #656F76;
+    font-weight: 600;
 }
-
+.metrics-query .remove-query:hover{
+    background: #FF0000;
+    border-radius: 5px;
+}
 .metrics-graph-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(calc(50% - 15px), 1fr));
@@ -231,14 +259,14 @@ input:checked + .slider:before {
 .alias-box{
     margin-right: 10px;
 }
-.alias-box .as-btn{
+.alias-box .as-btn,.metrics-raw-query{
     height: 32px;
     width: 38px;
     display: flex;
     justify-content: center;
     border-radius: 5px;
 }
-.alias-box .as-btn:hover{
+.alias-box .as-btn:hover,.metrics-raw-query:hover{
     background-color: var(--purple-2);
     color: var(--white);
     cursor: pointer;
@@ -258,11 +286,34 @@ input:checked + .slider:before {
 .alias-filling-box div:last-child{
     border-radius: 0 5px 5px 0;
     cursor: pointer;
+    font-size: 26px;
+    padding-bottom: 2px;
 }
 
 .graph-canvas{
     height: 100%;
     padding-bottom: 20px;
+}
+
+
+.metrics-query .query-box .tag-container:focus-within,  .everywhere:focus ,
+.metrics-query .query-box .value-container:focus-within,  .everything:focus  {
+    background: #F6FCFF !important;/* Change background color when input is focused */
+}
+
+.metrics-query .query-box .tag-container:focus-within,
+.metrics-query .query-box .value-container:focus-within{
+    border: 1px solid #2D69BC;
+    background-color: #F6FCFF !important;
+}
+
+.metrics-query .tag .close, .metrics-query .value .close{
+    font-size: 22px;
+    font-weight: bold;
+    position: absolute;
+    top: -3px;
+    right: 8px;
+    cursor: pointer;
 }
 
 /* JQUERY AUTOCOMpLETE */
@@ -329,5 +380,18 @@ input:checked + .slider:before {
     width: 1px;
 }
 
-
-  
+#ui-id-1.ui-widget.ui-widget-content,
+#ui-id-2.ui-widget.ui-widget-content,
+#ui-id-3.ui-widget.ui-widget-content,
+#ui-id-4.ui-widget.ui-widget-content{
+    width: 84px !important;
+    min-width: 84px;
+    font-size: 12px;
+}
+#ui-id-1.ui-autocomplete > li > div,
+#ui-id-2.ui-autocomplete > li > div,
+#ui-id-3.ui-autocomplete > li > div,
+#ui-id-4.ui-autocomplete > li > div{
+    padding: 0px 9px;
+    height: 28px;
+}
