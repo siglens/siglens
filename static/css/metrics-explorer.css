@@ -233,18 +233,21 @@ input:checked + .slider:before {
 }
 
 .metrics-graph, #merged-graph-container {
-    height: 440px;
+    height: 400px;
     border: 1px solid var(--border-btn-color);
     box-sizing: border-box; 
     border-radius: 5px;
     box-shadow: var(--box-shadow);
-    padding: 10px 10px 10px 20px;
 }
 
 .metrics-graph.full-width {
     grid-column: span 2; 
 }
-
+.metrics-graph div:first-child, .merged-graph-name{
+    padding: 10px;
+    border-bottom: 1px solid var(--border-btn-color);
+    font-weight: 600;
+}
 #visualization-options div{
     margin-right: 24px;
     font-size: 12px;
@@ -290,9 +293,9 @@ input:checked + .slider:before {
     padding-bottom: 2px;
 }
 
-.graph-canvas{
+.graph-canvas, .merged-graph{
     height: 100%;
-    padding-bottom: 20px;
+    padding: 20px 10px 50px 20px
 }
 
 

@@ -452,7 +452,7 @@ function addVisualizationContainer(queryName, seriesData) {
     
     // Create a canvas element for the line chart
     var canvas = $('<canvas></canvas>');
-    $('.graph-canvas').append(canvas);
+    $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
     
     // Get the context of the canvas element
     var ctx = canvas[0].getContext('2d');
@@ -474,7 +474,6 @@ function addVisualizationContainer(queryName, seriesData) {
         labels: labels,
         datasets: datasets
     };
-    console.log(chartType);
     // Save chart data to the global variable
     chartDataCollection[queryName] = chartData;
 
@@ -529,8 +528,6 @@ function addVisualizationContainer(queryName, seriesData) {
     lineCharts[queryName] = lineChart;
     updateGraphWidth();
     mergeGraphs(chartType)
-
-    console.log(chartDataCollection);
 }
 
 
@@ -722,9 +719,15 @@ function updateLineCharts(lineStyle, stroke) {
 
 
 function mergeGraphs(chartType) {
-    // Create a canvas element for the merged graph
+    var visualizationContainer = $(`
+        <div class="merged-graph-name"></div>
+        <div class="merged-graph"></div>`);
+
+    $('#merged-graph-container').empty().append(visualizationContainer);
+    
+    // Create a canvas element for the line chart
     var mergedCanvas = $('<canvas></canvas>');
-    $('#merged-graph-container').empty().append(mergedCanvas);
+    $('.merged-graph').empty().append(mergedCanvas);
 
     // Get the context of the canvas element
     var mergedCtx = mergedCanvas[0].getContext('2d');
@@ -734,12 +737,13 @@ function mergeGraphs(chartType) {
         labels: [], // Combine labels from all datasets
         datasets: []
     };
-
+    var graphNames = [];
     // Loop through chartDataCollection to merge datasets
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             // Merge datasets for the current query
             var datasets = chartDataCollection[queryName].datasets;
+            graphNames.push(`Metrics query - ${queryName}`); 
             datasets.forEach(function(dataset) {
                 mergedData.datasets.push({
                     label: dataset.label, // Use dataset label
@@ -754,7 +758,7 @@ function mergeGraphs(chartType) {
             mergedData.labels = chartDataCollection[queryName].labels;
         }
     } 
-
+    $('.merged-graph-name').html(graphNames.join(', '));
     var mergedLineChart = new Chart(mergedCtx, {
         type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
         data: mergedData,
