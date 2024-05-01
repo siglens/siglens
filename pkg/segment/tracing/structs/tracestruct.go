@@ -90,4 +90,5 @@ type GanttChartSpan struct {
 	IsAnomalous     bool                   `json:"is_anomalous"`
 	Tags            map[string]interface{} `json:"tags"`
 	Children        []*GanttChartSpan      `json:"children"`
+	Status          string                 `json:"status"`
 }
