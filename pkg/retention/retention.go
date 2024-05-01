@@ -159,6 +159,39 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 	// Delete all segment data
 	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
 	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
+	DeleteEmptyIndices(ingestNodeDir)
+}
+
+func DeleteEmptyIndices(ingestNodeDir string) {
+	allIndices, err := vtable.GetVirtualTableNames(0)
+	if err != nil {
+		log.Errorf("DeleteEmptyIndices: Error in getting virtual table names, err: %v", err)
+		return
+	}
+
+	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
+
+	segMetaEntries, err := writer.ReadSegmeta(currentSegmeta)
+	if err != nil {
+		log.Errorf("DeleteEmptyIndices: Error in reading segmeta file, err: %v", err)
+		return
+	}
+	// Create a set of virtualTableName values from segMetaEntries
+	virtualTableNames := make(map[string]struct{})
+	for _, entry := range segMetaEntries {
+		virtualTableNames[entry.VirtualTableName] = struct{}{}
+	}
+
+	// Iterate over all indices
+	for indexName := range allIndices {
+		// If an index is not in the set of virtualTableName values from segMetaEntries, delete it
+		if _, exists := virtualTableNames[indexName]; !exists {
+			err := vtable.DeleteVirtualTable(&indexName, 0)
+			if err != nil {
+				log.Errorf("DeleteEmptyIndices: Error in deleting index %s, err: %v", indexName, err)
+			}
+		}
+	}
 }
 
 func GetRetentionTimeMs(retentionHours int, currTime time.Time) uint64 {
