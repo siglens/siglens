@@ -296,3 +296,9 @@ $(".section-button").click(function() {
     $(".section-button").removeClass("active");
     $(this).addClass("active");
 });
+
+$('.max-min-btn').click(function() {
+    $(this).toggleClass('minimized');
+    $('#timeline-container').toggleClass('expanded');
+    $('.span-details-container').toggleClass('expanded');
+});
