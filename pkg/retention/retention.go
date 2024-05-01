@@ -162,8 +162,8 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 	deleteEmptyIndices(ingestNodeDir, 0)
 }
 
-func deleteEmptyIndices(ingestNodeDir string, orgid uint64) {
-	allIndices, err := vtable.GetVirtualTableNames(orgid)
+func deleteEmptyIndices(ingestNodeDir string, myid uint64) {
+	allIndices, err := vtable.GetVirtualTableNames(myid)
 	if err != nil {
 		log.Errorf("DeleteEmptyIndices: Error in getting virtual table names, err: %v", err)
 		return

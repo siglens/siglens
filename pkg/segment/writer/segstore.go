@@ -46,6 +46,8 @@ import (
 	toputils "github.com/siglens/siglens/pkg/utils"
 
 	"github.com/siglens/siglens/pkg/segment/pqmr"
+	vtable "github.com/siglens/siglens/pkg/virtualtable"
+
 	bbp "github.com/valyala/bytebufferpool"
 
 	log "github.com/sirupsen/logrus"
@@ -445,7 +447,10 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			ColumnBlockOffset: make(map[string]int64),
 			ColumnBlockLen:    make(map[string]uint32),
 		}
-
+		// If the virtual table name is not present(possibly due to deletion of indices without segments), then add it back.
+		if !vtable.IsVirtualTablePresent(&segstore.VirtualTableName, segstore.OrgId) {
+			vtable.AddVirtualTable(&segstore.VirtualTableName, segstore.OrgId)
+		}
 		// worst case, each column opens 2 files (.cmi/.csg) and 2 files for segment info (.sid, .bsu)
 		numOpenFDs := int64(len(segstore.wipBlock.colWips)*2 + 2)
 		err := fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(numOpenFDs, 10, segstore.SegmentKey)
