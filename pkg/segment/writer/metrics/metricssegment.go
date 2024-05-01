@@ -1066,7 +1066,6 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 			return err
 		}
 
-		mNamesCount := uint(len(ms.mNamesMap))
 		for k := range ms.mNamesMap {
 			delete(ms.mNamesMap, k)
 		}
@@ -1076,7 +1075,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		ms.highTS = 0
 		ms.lowTS = math.MaxUint32
 		ms.currBlockNum = 0
-		ms.mNamesBloom = bloom.NewWithEstimates(mNamesCount, 0.001) // TODO: dynamic sizing
+		ms.mNamesBloom = bloom.NewWithEstimates(uint(len(ms.mNamesMap)), 0.001) // TODO: dynamic sizing
 		ms.totalEncodedSize = 0
 		ms.datapointCount = 0
 		ms.bytesReceived = 0
@@ -1122,8 +1121,8 @@ func (ms *MetricsSegment) flushMetricNamesBloom() error {
 }
 
 /*
-- Flushes the metrics segment's mNames bloom
-- Todo: Store the Metirc Names in Length and Value format.
+- Flushes the metrics segment's mNamesMap to disk
+- The Metirc Names are stored in the Length and Value format.
 */
 func (ms *MetricsSegment) flushMetricNames() error {
 
