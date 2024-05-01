@@ -19,9 +19,12 @@
 
 var queryIndex = 0;
 var queries = {};
-var lineCharts = {};
+var lineCharts = {}; // Chart details
+var chartDataCollection = {}; // Save label/data for each query
 let mergedGraph ;
+let chartType = "Line chart";
 
+// Theme
 let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
 let purple = ["#dbcdfa", "#c8b3fb", "#a082fa", "#8862eb", "#764cd8", "#5f36ac", "#27064c"]
 let cool =["#cce9be", "#a5d9b6", "#89c4c2", "#6cabc9", "#5491c8", "#4078b1", "#2f5a9f", "#213e7d" ]
@@ -45,13 +48,12 @@ $('#add-query').on('click', addQueryElement);
 
 $('#add-formula').on('click', addFormulaElement);
 
+// Toggle switch between merged graph and single graphs 
 $('#toggle-switch').on('change', function() {
     if ($(this).is(':checked')) {
-        // If the toggle switch is checked, display individual graph containers
         $('#metrics-graphs').show();
         $('#merged-graph-container').hide();
     } else {
-        // If the toggle switch is unchecked, hide individual graph containers and display merged graph container
         $('#metrics-graphs').hide();
         $('#merged-graph-container').show();
     }
@@ -71,11 +73,12 @@ function addFormulaElement(){
 
     $('#metrics-formula').append(formulaElement);
 
-    // Add click event handler for the remove button
+    // Remove the formula element
     formulaElement.find('.remove-query').on('click', function() {
         formulaElement.remove();
     });
 }
+
 function addQueryElement() {
     // Clone the first query element if it exists, otherwise create a new one
     var queryElement;
@@ -106,9 +109,10 @@ function addQueryElement() {
             <div class="remove-query">×</div>
         </div>
     </div>`);
+
     $('#metrics-queries').append(queryElement);
-        // Add visualization container for the query
-        addVisualizationContainer(String.fromCharCode(97 + queryIndex), convertDataForChart(rawData1));
+    addVisualizationContainer(String.fromCharCode(97 + queryIndex), convertDataForChart(rawData1));
+
     } else {
         // Get the last query name
         var lastQueryName = $('#metrics-queries').find('.metrics-query:last .query-name').text();
@@ -117,21 +121,20 @@ function addQueryElement() {
         
         queryElement = $('#metrics-queries').find('.metrics-query').last().clone();
         queryElement.find('.query-name').text(nextQueryName);
-        // Add visualization container for the query
-        $('#metrics-queries').append(queryElement);
 
+        $('#metrics-queries').append(queryElement);
         addVisualizationContainer(nextQueryName,convertDataForChart(rawData3));
     }
-    
 
-    // Show or hide the close icon based on the number of queries
+    // Show or hide the query close icon based on the number of queries
     updateCloseIconVisibility();
+
     // Initialize autocomplete with the details of the previous query if it exists
     initializeAutocomplete(queryElement, queryIndex > 0 ? queries[String.fromCharCode(97 + queryIndex - 1)] : undefined);
 
     queryIndex++;
 
-    // Add click event handler for the remove button
+    // Remove query element
     queryElement.find('.remove-query').on('click', function() {
         var queryName = queryElement.find('.query-name').text();
         // Check if the query name exists in any of the formula input fields
@@ -143,30 +146,28 @@ function addQueryElement() {
         if (queryNameExistsInFormula) {
             alert("Cannot remove query element because query name is used in a formula.");
         } else {
-        delete queries[queryName];
-        queryElement.remove();
+            delete queries[queryName];
+            queryElement.remove();
+            removeVisualizationContainer(queryName);
 
-        // Show or hide the close icon based on the number of queries
-        updateCloseIconVisibility();
-
-        // Remove corresponding visualization container
-        removeVisualizationContainer(queryName);
-    }
+            // Show or hide the close icon based on the number of queries
+            updateCloseIconVisibility();
+        }
     });
 
-    // Add click event handler for the alias button
+    // Alias button
     queryElement.find('.as-btn').on('click', function() {
         $(this).hide(); // Hide the "as..." button
-        $(this).siblings('.alias-filling-box').show(); // Show the alias filling box
+        $(this).siblings('.alias-filling-box').show(); // Show alias input box
     });
 
-    // Add click event handler for the alias close button
+    // Alias close button
     queryElement.find('.alias-filling-box div').last().on('click', function() {
-        $(this).parent().hide(); // Hide the alias filling box
-        $(this).parent().siblings('.as-btn').show(); // Show the "as..." button
+        $(this).parent().hide();
+        $(this).parent().siblings('.as-btn').show();
     });
 
-    // Add click event handler for the query name toggle
+    // Hide or Show query element and graph on click on query name
     queryElement.find('.query-name').on('click', function() {
         var queryNameElement = $(this);
         var queryName = queryNameElement.text();
@@ -184,7 +185,6 @@ function addQueryElement() {
             $('.metrics-graph').removeClass('full-width');
         }
     });
-
 }
 
 function initializeAutocomplete(queryElement, previousQuery = {}) {
@@ -194,6 +194,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         everything: [],
         aggFunction: 'avg by'
     };
+
     // Use details from the previous query if it exists
     if (!jQuery.isEmptyObject(previousQuery)) {
         queryDetails.metrics = previousQuery.metrics;
@@ -235,6 +236,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
 
     var availableOptions = ["max by", "min by", "avg by", "sum by"];
 
+    // Metrics input
     queryElement.find('.metrics').autocomplete({
         source: availableMetrics,
         minLength: 0,
@@ -277,6 +279,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         $(this).blur(); 
     });
     
+    // Everywhere input (tag:value)
     queryElement.find('.everywhere').autocomplete({
         source: function(request, response) {
             var filtered = $.grep(availableEverywhere, function(item) {
@@ -354,7 +357,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             tagContainer.css('width', '5px');
         }
     }
-    // Close tag event handler
+    
     queryElement.on('click', '.tag .close', function() {
         var tagContainer = queryElement.find('.everywhere');
 
@@ -377,6 +380,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         updateAutocompleteSource(); 
     });
 
+    // Aggregation input 
     queryElement.find('.agg-function').autocomplete({
         source: availableOptions.sort(),
         minLength: 0,
@@ -393,6 +397,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         $(this).select();
     });
 
+    // Everything input (value)
     queryElement.find('.everything').autocomplete({
         source: function(request, response) {
             var filtered = $.grep(availableEverything, function(item) {
@@ -445,7 +450,6 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         }
     }
 
-    // Close value event handler
     queryElement.on('click', '.value .close', function() {
         var valueContainer = queryElement.find('.everything');
 
@@ -468,6 +472,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         }
     });
 
+    // Wildcard option
     function updateAutocompleteSource() {
         var selectedTags = queryDetails.everywhere.map(function(tag) {
             return tag.split(':')[0];
@@ -488,11 +493,8 @@ function updateCloseIconVisibility() {
     $('.remove-query').toggle(numQueries > 1);
 }
 
-// Define a global variable to store chart data
-var chartDataCollection = {};
-
 function addVisualizationContainer(queryName, seriesData) {
-    // Create a new visualization container with a unique identifier
+
     var visualizationContainer = $(`
     <div class="metrics-graph" data-query="${queryName}">
         <div>Metrics query - ${queryName}</div>
@@ -501,11 +503,9 @@ function addVisualizationContainer(queryName, seriesData) {
 
     $('#metrics-graphs').append(visualizationContainer);
     
-    // Create a canvas element for the line chart
     var canvas = $('<canvas></canvas>');
     $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
     
-    // Get the context of the canvas element
     var ctx = canvas[0].getContext('2d');
     
     // Extract labels and datasets from seriesData
@@ -521,11 +521,11 @@ function addVisualizationContainer(queryName, seriesData) {
         };
     });
     
-    // Define chart data using extracted labels and datasets
     var chartData = {
         labels: labels,
         datasets: datasets
     };
+
     // Save chart data to the global variable
     chartDataCollection[queryName] = chartData;
 
@@ -538,7 +538,7 @@ function addVisualizationContainer(queryName, seriesData) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    align: 'start' // Align legend to the start (left)
+                    align: 'start'
                 }
             },
             scales: {
@@ -546,17 +546,16 @@ function addVisualizationContainer(queryName, seriesData) {
                     display: true,
                     title: {
                         display: true,
-                        text: 'X-Axis Label'
+                        text: ''
                     },
                     grid: {
-                        display: false // Hide vertical grid lines
+                        display: false
                     }
                 },
                 y: {
                     display: true,
                     title: {
-                        display: true,
-                        text: 'Y-Axis Label'
+                        display: false,
                     }
                 }
             }
@@ -566,15 +565,14 @@ function addVisualizationContainer(queryName, seriesData) {
     // Modify the fill property based on the chart type after chart initialization
     if (chartType === 'Area chart') {
         lineChart.config.data.datasets.forEach(function(dataset) {
-            dataset.fill = true; // Fill area under the line
+            dataset.fill = true;
         });
     } else {
-        // For other chart types, ensure fill is false
         lineChart.config.data.datasets.forEach(function(dataset) {
             dataset.fill = false;
         });
     }
-    // Update the chart
+
     lineChart.update();
 
     lineCharts[queryName] = lineChart;
@@ -582,11 +580,7 @@ function addVisualizationContainer(queryName, seriesData) {
     mergeGraphs(chartType)
 }
 
-
-
-
 function removeVisualizationContainer(queryName) {
-    // Remove the visualization container corresponding to the given queryName
     var containerToRemove = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
     containerToRemove.remove();
     delete chartDataCollection[queryName];
@@ -594,7 +588,6 @@ function removeVisualizationContainer(queryName) {
     updateGraphWidth();
     mergeGraphs(chartType)
 }
-
 
 function updateGraphWidth() {
     var numQueries = $('#metrics-queries').children('.metrics-query').length;
@@ -605,12 +598,37 @@ function updateGraphWidth() {
     }
 }
 
- // Options for Display and Color
- var displayOptions = ["Line chart", "Bar chart", "Area chart"];
- var colorOptions = ["Classic", "Purple", "Cool", "Green", "Warm", "Orange", "Gray", "D2d0"];
+// Function to show/hide Line Style and Stroke based on Display input
+function toggleLineOptions(displayValue) {
+    if (displayValue === "Line chart") {
+        $("#line-style-div").show();
+        $("#stroke-div").show();
+    } else {
+        $("#line-style-div").hide();
+        $("#stroke-div").hide();
+    }
+}
 
- let chartType = "Line chart";
- function toggleChartType(chartType) {
+var displayOptions = ["Line chart", "Bar chart", "Area chart"];
+$("#display-input").autocomplete({
+    source: displayOptions,
+    minLength: 0,
+    select: function(event, ui) {
+        toggleLineOptions(ui.item.value);
+        chartType = ui.item.value;
+        toggleChartType(ui.item.value);
+    }
+}).on('click', function() {
+    if ($(this).autocomplete('widget').is(':visible')) {
+        $(this).autocomplete('close');
+    } else {
+        $(this).autocomplete('search', '');
+    }
+}).on('click', function() {
+    $(this).select();
+});
+
+function toggleChartType(chartType) {
     // Convert the selected chart type to the corresponding Chart.js chart type
     var chartJsType;
     switch (chartType) {
@@ -630,53 +648,30 @@ function updateGraphWidth() {
     // Loop through each chart data
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
-            var lineChart = lineCharts[queryName]; // Assuming you have stored chart instances in lineCharts object
+            var lineChart = lineCharts[queryName];
             
-            // Update chart type
             lineChart.config.type = chartJsType;
             
-            // Update dataset options for area chart
             if (chartType === 'Area chart') {
                 lineChart.config.data.datasets.forEach(function(dataset) {
-                    dataset.fill = true; // Fill area under the line
+                    dataset.fill = true;
                 });
             } else {
-                // For other chart types, ensure fill is false
                 lineChart.config.data.datasets.forEach(function(dataset) {
                     dataset.fill = false;
                 });
             }
             
-            lineChart.update(); // Update the chart
+            lineChart.update();
         }
     }
-
-    // Update merged graph as well
+    
     mergeGraphs(chartType);
 }
 
 
-// Autocomplete for Display input
-$("#display-input").autocomplete({
-    source: displayOptions,
-    minLength: 0,
-    select: function(event, ui) {
-        toggleLineOptions(ui.item.value);
-        chartType = ui.item.value;
-        toggleChartType(ui.item.value);
-    }
-}).on('click', function() {
-    if ($(this).autocomplete('widget').is(':visible')) {
-        $(this).autocomplete('close');
-    } else {
-        $(this).autocomplete('search', '');
-    }
-}).on('click', function() {
-    $(this).select();
-});
-
- // Autocomplete for Color input
- $("#color-input").autocomplete({
+var colorOptions = ["Classic", "Purple", "Cool", "Green", "Warm", "Orange", "Gray", "D2d0"];
+$("#color-input").autocomplete({
    source: colorOptions,
    minLength: 0,
    select: function(event,ui){
@@ -705,58 +700,38 @@ function updateChartTheme(theme) {
         "D2d0": d2d0
     };
 
-    // Use the selected theme to get the color palette
     var selectedPalette = colorPalette[theme] || classic;
 
     // Loop through each chart data
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             var chartData = chartDataCollection[queryName];
-            // Loop through each dataset in the chart data
             chartData.datasets.forEach(function(dataset, index) {
-                // Update dataset properties based on theme
                 dataset.borderColor = selectedPalette[index % selectedPalette.length];
-                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
+                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
             });
 
-            // Update the chart with the modified data
             var lineChart = lineCharts[queryName]; 
             lineChart.update();
         }
     }
 
-    // Update merged graph theme
     mergedGraph.data.datasets.forEach(function(dataset, index) {
         dataset.borderColor = selectedPalette[index % selectedPalette.length];
         dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
     });
-
-    // Finally, update the merged graph
     mergedGraph.update();
 }
 
- // Function to show/hide Line Style and Stroke based on Display input
- function toggleLineOptions(displayValue) {
-   if (displayValue === "Line chart") {
-     $("#line-style-div").show();
-     $("#stroke-div").show();
-   } else {
-     $("#line-style-div").hide();
-     $("#stroke-div").hide();
-   }
- }
+var lineStyleOptions = ["Solid", "Dash", "Dotted"];
+var strokeOptions = ["Normal", "Thin", "Thick"];
 
- // Options for Line Style and Stroke
- var lineStyleOptions = ["Solid", "Dash", "Dotted"];
- var strokeOptions = ["Normal", "Thin", "Thick"];
-
-// Autocomplete for Line Style input
 $("#line-style-input").autocomplete({
     source: lineStyleOptions,
     minLength: 0,
     select: function(event, ui) {
         var selectedLineStyle = ui.item.value;
-        var selectedStroke = $("#stroke-input").val(); // Get the currently selected stroke
+        var selectedStroke = $("#stroke-input").val();
         updateLineCharts(selectedLineStyle, selectedStroke);
     }
 }).on('click', function() {
@@ -769,13 +744,12 @@ $("#line-style-input").autocomplete({
     $(this).select();
 });
 
-// Autocomplete for Stroke input
 $("#stroke-input").autocomplete({
     source: strokeOptions,
     minLength: 0,
     select: function(event, ui) {
         var selectedStroke = ui.item.value;
-        var selectedLineStyle = $("#line-style-input").val(); // Get the currently selected line style
+        var selectedLineStyle = $("#line-style-input").val();
         updateLineCharts(selectedLineStyle, selectedStroke);
     }
 }).on('click', function() {
@@ -798,10 +772,9 @@ function updateLineCharts(lineStyle, stroke) {
             chartData.datasets.forEach(function(dataset) {
                 // Update dataset properties
                 dataset.borderDash = (lineStyle === "Dash") ? [5, 5] : (lineStyle === "Dotted") ? [1, 3] : [];
-                dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2; // Adjust borderWidth as per stroke
+                dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2; 
             });
 
-            // Update the chart with the modified data
             var lineChart = lineCharts[queryName]; 
             lineChart.update();
         }
@@ -812,10 +785,9 @@ function updateLineCharts(lineStyle, stroke) {
     });
 
     mergedGraph.update();
-
 }
 
-
+// Merge Graphs in one
 function mergeGraphs(chartType) {
     var visualizationContainer = $(`
         <div class="merged-graph-name"></div>
@@ -823,19 +795,17 @@ function mergeGraphs(chartType) {
 
     $('#merged-graph-container').empty().append(visualizationContainer);
     
-    // Create a canvas element for the line chart
     var mergedCanvas = $('<canvas></canvas>');
-    $('.merged-graph').empty().append(mergedCanvas);
 
-    // Get the context of the canvas element
+    $('.merged-graph').empty().append(mergedCanvas);
     var mergedCtx = mergedCanvas[0].getContext('2d');
 
-    // Merge chart data into a single dataset
     var mergedData = {
-        labels: [], // Combine labels from all datasets
+        labels: [],
         datasets: []
     };
     var graphNames = [];
+
     // Loop through chartDataCollection to merge datasets
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
@@ -844,15 +814,15 @@ function mergeGraphs(chartType) {
             graphNames.push(`Metrics query - ${queryName}`); 
             datasets.forEach(function(dataset) {
                 mergedData.datasets.push({
-                    label: dataset.label, // Use dataset label
+                    label: dataset.label,
                     data: dataset.data,
-                    borderColor: dataset.borderColor, // Use dataset border color
+                    borderColor: dataset.borderColor,
                     borderWidth: dataset.borderWidth,
-                    fill: (chartType === 'Area chart') ? true : false // Update fill based on chart type
+                    fill: (chartType === 'Area chart') ? true : false 
                 });
             });
 
-            // Update labels
+            // Update labels ( same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
         }
     } 
@@ -866,7 +836,7 @@ function mergeGraphs(chartType) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    align: 'start' // Align legend to the start (left)
+                    align: 'start' 
                 }
             },
             scales: {
@@ -874,17 +844,16 @@ function mergeGraphs(chartType) {
                     display: true,
                     title: {
                         display: true,
-                        text: 'X-Axis Label'
+                        text: ''
                     },
                     grid: {
-                        display: false // Hide vertical grid lines
+                        display: false 
                     }
                 },
                 y: {
                     display: true,
                     title: {
-                        display: true,
-                        text: 'Y-Axis Label'
+                        display: false,
                     }
                 }
             }
@@ -893,6 +862,7 @@ function mergeGraphs(chartType) {
     mergedGraph = mergedLineChart;
 }
 
+// Converting the response in form to use to create graphs
 function convertDataForChart(data) {
     let seriesArray = [];
 
