@@ -111,8 +111,8 @@ type HtmlSnippets struct {
 	OrgSettingsRetentionPeriod string
 	OrgSettingsExtras          string
 	OrgSLOs                    string
-
-	Constants map[string]interface{}
+	SloCss                     string
+	Constants                  map[string]interface{}
 }
 
 type JsSnippets struct {
