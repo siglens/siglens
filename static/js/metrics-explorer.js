@@ -22,6 +22,15 @@ var queries = {};
 var lineCharts = {};
 let mergedGraph ;
 
+let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
+let purple = ["#dbcdfa", "#c8b3fb", "#a082fa", "#8862eb", "#764cd8", "#5f36ac", "#27064c"]
+let cool =["#cce9be", "#a5d9b6", "#89c4c2", "#6cabc9", "#5491c8", "#4078b1", "#2f5a9f", "#213e7d" ]
+let green = ["#d0ebc2", "#c4eab7", "#aed69e", "#87c37d", "#5daa64", "#45884a", "#2e6a34", "#1a431f" ]
+let warm = ["#f7e288", "#fadb84", "#f1b65d", "#ec954d", "#f65630" , "#cf3926", "#aa2827", "#761727" ]
+let orange = ["#f8ddbd", "#f4d2a9", "#f0b077", "#ec934f", "#e0722f", "#c85621", "#9b4116", "#72300e"]
+let gray = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#62636a", "#4c4d57"]
+let d2d0 = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
+
 $(document).ready(function() {
     let stDate = "now-1h";
     let endDate = "now";
@@ -597,7 +606,7 @@ function updateGraphWidth() {
 
  // Options for Display and Color
  var displayOptions = ["Line chart", "Bar chart", "Area chart"];
- var colorOptions = ["Classic", "Cool", "Warm"];
+ var colorOptions = ["Classic", "Purple", "Cool", "Green", "Warm", "Orange", "Gray", "D2d0"];
 
  let chartType = "Line chart";
  function toggleChartType(chartType) {
@@ -668,7 +677,11 @@ $("#display-input").autocomplete({
  // Autocomplete for Color input
  $("#color-input").autocomplete({
    source: colorOptions,
-   minLength: 0
+   minLength: 0,
+   select: function(event,ui){
+        selectedColorTheme = ui.item.value.toLowerCase();
+        updateChartTheme(selectedColorTheme);
+   }
  }).on('click', function() {
     if ($(this).autocomplete('widget').is(':visible')) {
         $(this).autocomplete('close');
@@ -678,6 +691,62 @@ $("#display-input").autocomplete({
 }).on('click', function() {
     $(this).select();
 });
+
+function updateChartTheme(theme) {
+    var colorPalette;
+
+    switch (theme) {
+        case "classic":
+            colorPalette = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"];
+            break;
+        case "purple":
+            colorPalette = ["#dbcdfa", "#c8b3fb", "#a082fa", "#8862eb", "#764cd8", "#5f36ac", "#27064c"];
+            break;
+        case "cool":
+            colorPalette = ["#cce9be", "#a5d9b6", "#89c4c2", "#6cabc9", "#5491c8", "#4078b1", "#2f5a9f", "#213e7d"];
+            break;
+        case "green":
+            colorPalette = ["#d0ebc2", "#c4eab7", "#aed69e", "#87c37d", "#5daa64", "#45884a", "#2e6a34", "#1a431f"];
+            break;
+        case "warm":
+            colorPalette = ["#f7e288", "#fadb84", "#f1b65d", "#ec954d", "#f65630" , "#cf3926", "#aa2827", "#761727"];
+            break;
+        case "orange":
+            colorPalette = ["#f8ddbd", "#f4d2a9", "#f0b077", "#ec934f", "#e0722f", "#c85621", "#9b4116", "#72300e"];
+            break;
+        case "gray":
+            colorPalette = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#62636a", "#4c4d57"];
+            break;
+        case "d2d0":
+            colorPalette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"];
+            break;
+        default:
+            // Default to classic theme if an invalid theme is provided
+            colorPalette = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"];
+            break;
+    }
+
+    for (var queryName in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(queryName)) {
+            var chartData = chartDataCollection[queryName];
+            chartData.datasets.forEach(function(dataset, index) {
+                dataset.borderColor = colorPalette[index % colorPalette.length];
+                dataset.backgroundColor = colorPalette[index % colorPalette.length] + 80;
+            });
+
+            var lineChart = lineCharts[queryName]; 
+            lineChart.update();
+        }
+    }
+
+    mergedGraph.data.datasets.forEach(function(dataset, index) {
+        dataset.borderColor = colorPalette[index % colorPalette.length];
+        dataset.backgroundColor = colorPalette[index % colorPalette.length] + 80;
+    });
+
+    mergedGraph.update();
+}
+
 
  // Function to show/hide Line Style and Stroke based on Display input
  function toggleLineOptions(displayValue) {
