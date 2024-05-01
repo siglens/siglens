@@ -53,8 +53,13 @@ import (
 )
 
 var otsdb_mname = []byte("metric")
+var metric_name_key = []byte("name")
 var otsdb_timestamp = []byte("timestamp")
 var otsdb_value = []byte("value")
+var metric_value_gauge_keyname = []byte("gauge")
+var metric_value_counter_keyname = []byte("counter")
+var metric_value_histogram_keyname = []byte("histogram")
+var metric_value_summary_keyname = []byte("summary")
 var otsdb_tags = []byte("tags")
 
 var influx_value = "value"
@@ -66,6 +71,16 @@ var TAGS_TREE_FLUSH_SLEEP_DURATION = 60 // 1 min
 const METRICS_BLK_FLUSH_SLEEP_DURATION = 60 // 1 min
 
 const METRICS_BLK_ROTATE_SLEEP_DURATION = 10 // 10 seconds
+
+var dateTimeLayouts = []string{
+	time.RFC3339,
+	time.RFC3339Nano,
+	time.RFC1123,
+	time.RFC1123Z,
+	time.RFC822,
+	time.RFC822Z,
+	time.RFC850,
+}
 
 /*
 A metrics segment represents a 2hr window and consists of many metrics blocks and tagTrees.
@@ -120,9 +135,10 @@ type TimeSeries struct {
 	lock        *sync.Mutex
 	rawEncoding *bytes.Buffer
 
-	nEntries   int          // number of ts/dp combinations in this series
-	cFinishFn  func() error // function to call at end of compression, to write the final bytes for the encoded timestamps
-	compressor *compress.Compressor
+	nEntries    int          // number of ts/dp combinations in this series
+	lastKnownTS uint32       // last known timestamp
+	cFinishFn   func() error // function to call at end of compression, to write the final bytes for the encoded timestamps
+	compressor  *compress.Compressor
 }
 
 var orgMetricsAndTagsLock *sync.RWMutex = &sync.RWMutex{}
@@ -248,13 +264,17 @@ func timeBasedMetricsFlush() {
 	for {
 		time.Sleep(METRICS_BLK_FLUSH_SLEEP_DURATION * time.Second)
 		for _, ms := range GetAllMetricsSegments() {
+
 			encSize := atomic.LoadUint64(&ms.mBlock.encodedSize)
 			if encSize > 0 {
 				ms.rwLock.Lock()
-				err := ms.mBlock.flushBlock(ms.metricsKeyBase, ms.Suffix, ms.currBlockNum)
+				err := ms.mBlock.rotateBlock(ms.metricsKeyBase, ms.Suffix, ms.currBlockNum)
 				if err != nil {
-					log.Errorf("timeBasedRotateMetricsBlock: flush block %d for metric segment %s due to time failed", ms.currBlockNum, ms.metricsKeyBase)
+					log.Errorf("timeBasedMetricsFlush: failed to rotate block number: %v due to the error: %v", ms.currBlockNum, err)
+				} else {
+					ms.currBlockNum++
 				}
+
 				ms.rwLock.Unlock()
 			}
 		}
@@ -352,6 +372,8 @@ func initTimeSeries(tsid uint64, dp float64, timestammp uint32) (*TimeSeries, ui
 	}
 	ts.cFinishFn = finish
 	ts.compressor = c
+	ts.nEntries++
+	ts.lastKnownTS = timestammp
 	writtenBytes, err := ts.compressor.Compress(timestammp, dp)
 	if err != nil {
 		return nil, 0, err
@@ -477,7 +499,7 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 
 	handler := func(key []byte, value []byte, valueType jp.ValueType, off int) error {
 		switch {
-		case bytes.Equal(key, otsdb_mname):
+		case bytes.Equal(key, otsdb_mname), bytes.Equal(key, metric_name_key):
 			switch valueType {
 			case jp.String:
 				temp, err := jp.ParseString(value)
@@ -522,6 +544,30 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 						ts = uint32(intVal)
 					}
 				}
+			case jp.String:
+				// First, try to parse the date as a number (seconds or milliseconds since epoch)
+				if t, err := strconv.ParseInt(string(value), 10, 64); err == nil {
+					// Determine if the number is in seconds or milliseconds
+					if toputils.IsTimeInMilli(uint64(t)) {
+						ts = uint32(t / 1000)
+					} else {
+						ts = uint32(t)
+					}
+
+					return nil
+				}
+
+				// Parse the string to time using time.Parse and multiple layouts.
+				for _, layout := range dateTimeLayouts {
+					t, err := time.Parse(layout, string(value))
+					if err == nil {
+						ts = uint32(t.Unix())
+						break
+					}
+				}
+				if ts == 0 {
+					return fmt.Errorf("failed to parse timestamp! Not expected type:%+v", valueType.String())
+				}
 			}
 		case bytes.Equal(key, otsdb_value):
 			if valueType != jp.Number {
@@ -532,8 +578,29 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 				return fmt.Errorf("failed to convert value to float! %+v", err)
 			}
 			dpVal = fltVal
+		case bytes.Equal(key, metric_value_gauge_keyname), bytes.Equal(key, metric_value_counter_keyname),
+			bytes.Equal(key, metric_value_histogram_keyname), bytes.Equal(key, metric_value_summary_keyname):
+			if valueType != jp.Object {
+				return fmt.Errorf("value is not an object")
+			}
+			err = jp.ObjectEach(value, func(key []byte, value []byte, valueType jp.ValueType, off int) error {
+				if bytes.Equal(key, otsdb_value) {
+					if valueType != jp.Number {
+						return fmt.Errorf("value is not a number")
+					}
+					fltVal, err := jp.ParseFloat(value)
+					if err != nil {
+						return fmt.Errorf("failed to convert value to float! %+v", err)
+					}
+					dpVal = fltVal
+				}
+				return nil
+			})
+
+			return err
+
 		default:
-			return fmt.Errorf("unknown keyname %+s", key)
+			log.Warnf("unknown keyname %+s", key)
 		}
 		return nil
 	}
@@ -561,6 +628,7 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 
 	var mName []byte
 	var dpVal float64
+	var ts uint32 = uint32(time.Now().Unix())
 	var err error
 
 	reader := csv.NewReader(bytes.NewBuffer(rawCSV))
@@ -580,6 +648,14 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 			whitespace_split := strings.Fields(line)
 			tag_set := strings.Split(whitespace_split[0], ",")
 			field_set := strings.Split(whitespace_split[1], ",")
+			if len(whitespace_split) > 2 {
+				tsNano, err := strconv.ParseInt(whitespace_split[2], 10, 64)
+				if err != nil {
+					log.Errorf("ExtractInfluxPayload: failed to parse the timestamp: %+v, error: %+v", whitespace_split[2], err)
+				} else {
+					ts = uint32(tsNano / 1_000_000_000)
+				}
+			}
 			for index, value := range tag_set {
 				if index == 0 {
 					mName = []byte(value)
@@ -610,7 +686,7 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 
 	}
 
-	return mName, dpVal, 0, err
+	return mName, dpVal, ts, err
 
 }
 
@@ -731,6 +807,10 @@ func (ts *TimeSeries) AddSingleEntry(dpVal float64, dpTS uint32) (uint64, error)
 			return writtenBytes, err
 		}
 	} else {
+		if ts.lastKnownTS >= dpTS {
+			log.Errorf("timestamp is older than last known timestamp: %d, current: %d", ts.lastKnownTS, dpTS)
+			return writtenBytes, fmt.Errorf("timestamp is older than last known timestamp: %d, current: %d", ts.lastKnownTS, dpTS)
+		}
 		writtenBytes, err = ts.compressor.Compress(dpTS, dpVal)
 		if err != nil {
 			log.Errorf("error encoding timestamp! Error: %+v", err)
@@ -738,6 +818,7 @@ func (ts *TimeSeries) AddSingleEntry(dpVal float64, dpTS uint32) (uint64, error)
 		}
 	}
 	ts.nEntries++
+	ts.lastKnownTS = dpTS
 	return writtenBytes, nil
 }
 
