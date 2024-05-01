@@ -66,21 +66,6 @@ func (hs *ingestionServerCfg) Close() {
 	_ = hs.ln.Close()
 }
 
-func getMyIds() []uint64 {
-	myids := make([]uint64, 1)
-
-	alreadyHandled := false
-	if hook := hooks.GlobalHooks.GetIdsConditionHook; hook != nil {
-		alreadyHandled = hook(myids)
-	}
-
-	if !alreadyHandled {
-		myids[0] = 0
-	}
-
-	return myids
-}
-
 func (hs *ingestionServerCfg) Run() (err error) {
 
 	//Register all the method handlers here
@@ -88,7 +73,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	writer.InitWriterNode()
 
 	if !config.IsQueryNode() && config.IsIngestNode() {
-		go query.InitQueryInfoRefresh(getMyIds)
+		go query.InitQueryInfoRefresh(server_utils.GetMyIds)
 	}
 
 	hs.router.GET(server_utils.API_PREFIX+"/health", hs.Recovery(getHealthHandler()))

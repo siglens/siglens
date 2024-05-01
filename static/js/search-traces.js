@@ -31,10 +31,6 @@ let allResultsFetched = false;
 let totalTraces = 0;
 $(document).ready(() => {
   allResultsFetched = false;
-  if (Cookies.get("theme")) {
-    theme = Cookies.get("theme");
-    $("body").attr("data-theme", theme);
-  }
   $(".theme-btn").on("click", themePickerHandler);
   $('.theme-btn').on('click', showScatterPlot);
 
@@ -374,7 +370,7 @@ function showScatterPlot() {
     echarts.dispose(chart);
   }
   chart = echarts.init(chartId);
-  let theme = $('body').attr('data-theme') == "light" ? "light" : "dark";
+  let theme = $('html').attr('data-theme') == "light" ? "light" : "dark";
   let normalColor = theme == "light" ? "rgba(99, 71, 217, 0.6)" : "rgba(99, 71, 217, 1)";
   let errorColor = theme == "light" ? "rgba(233, 49, 37, 0.6)" : "rgba(233, 49, 37, 1)";
   let axisLineColor = theme == "light" ? "#DCDBDF" : "#383148"; 

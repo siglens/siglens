@@ -54,6 +54,18 @@ function renderIndexDropdown(listIndices) {
                        </div>`);
         });
     }
-    selectedSearchIndex = sortedListIndices[0].index;
-    $("#index-btn span").html(sortedListIndices[0].index);
+    if (Cookies.get('IndexList')) {
+        selectedSearchIndex = Cookies.get('IndexList');
+    }else {
+        if(sortedListIndices.length > 0){
+            let selected = sortedListIndices[0].index
+    
+            if(sortedListIndices[0].index === 'default' && sortedListIndices.length >= 2){
+                selected = sortedListIndices[1].index
+            }
+
+            selectedSearchIndex = selected;
+            $("#index-btn span").html(selected);
+        }
+    }
 }

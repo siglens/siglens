@@ -566,10 +566,6 @@ function showDBNotFoundMsg() {
 let favoriteDBsSet;
 
 $(document).ready(async function () {
-	if (Cookies.get('theme')) {
-		theme = Cookies.get('theme');
-		$('body').attr('data-theme', theme);
-	}
 	$('.theme-btn').on('click', themePickerHandler);
 
 	let normalDBs = await getAllDashboards();

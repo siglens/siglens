@@ -283,7 +283,7 @@ func AddTimeSeriesEntryToInMemBuf(rawJson []byte, signalType SIGNAL_TYPE, orgid 
 		err = metrics.EncodeDatapoint(mName, tagsHolder, dp, ts, uint64(len(rawJson)), orgid)
 		if err != nil {
 			metrics.ReturnTagsHolder(tagsHolder)
-			return err
+			return fmt.Errorf("entry rejected for metric %s %v because of error: %v", mName, tagsHolder, err)
 		}
 		metrics.ReturnTagsHolder(tagsHolder)
 	case SIGNAL_METRICS_INFLUX:

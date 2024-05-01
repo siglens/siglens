@@ -54,11 +54,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script src="./js/lib/d3.v7.min.js"></script>
+    <script>
+        var defaultTheme = Cookies.get('theme') || 'light';
+        $('html').attr('data-theme', defaultTheme);
+    </script>
     {{ .RunCheck1 | safeHTML }}
 
     <title>SigLens</title>
 </head>
-<body data-theme="light">
+<body>
     <div id="app-container">
         <div id="dashboard" class="p-20 pb-0">
             <div class="d-flex justify-content-between mt-2 align-items-center">
@@ -72,6 +76,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <div id="timeline-container">
                 </div>
                 <div class="span-details-container" style="display: none;">
+                </div>
+            </div>
+            <div class="logs-metrics-container">
+                <div class="section-buttons mt-0">
+                    <div class="section-button active" id="search-traces">Logs</div>
+                    <div class="section-button" id="dependency-graph">Metrics</div>
                 </div>
             </div>
         </div>

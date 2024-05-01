@@ -25,10 +25,6 @@ let redMetricsData ={
 let stDate = Cookies.get('startEpoch') || "now-3h";
 let endDate = Cookies.get('endEpoch') || "now";
 $(document).ready(() => {
-    if (Cookies.get("theme")) {
-        theme = Cookies.get("theme");
-        $("body").attr("data-theme", theme);
-    }
     $(".theme-btn").on("click", themePickerHandler);
 	$('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);

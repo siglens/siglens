@@ -46,10 +46,7 @@ $(document).ready(() => {
     }else{
         $(".nav-search").addClass("active");
     }
-    if (Cookies.get('theme')){
-        theme = Cookies.get('theme');
-        $('body').attr('data-theme', theme);
-    }
+
     $('.theme-btn').on('click', themePickerHandler);
     let ele = $('#available-fields .select-unselect-header');
 
@@ -93,11 +90,6 @@ $(document).ready(() => {
         $('#time-end').val(Cookies.get('customEndTime'));
         $('#time-end').addClass('active');
     }
-
-    if (!Cookies.get('IndexList')) {
-        Cookies.set('IndexList', "*");
-    }
-
 
 	$("#info-icon-sql").tooltip({
 		delay: { show: 0, hide: 300 },

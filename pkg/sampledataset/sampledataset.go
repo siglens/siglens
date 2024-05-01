@@ -101,7 +101,7 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			utils.WriteJsonResponse(ctx, responsebody)
 			return
 		}
-		usageStats.UpdateStats(uint64(numBytes), 20000, myid)
+		usageStats.UpdateStats(uint64(numBytes), 1, myid)
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)

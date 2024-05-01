@@ -245,7 +245,7 @@ a: b
 				SegFlushIntervalSecs:       5,
 				DataPath:                   "data/",
 				S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
-				RetentionHours:             90 * 24,
+				RetentionHours:             15 * 24,
 				TimeStampKey:               "timestamp",
 				MaxSegFileSize:             1_073_741_824,
 				LicenseKeyPath:             "./",

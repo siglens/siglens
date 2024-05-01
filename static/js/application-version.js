@@ -18,11 +18,7 @@
  */
 
 $(document).ready(function () {
-    if (Cookies.get('theme')) {
-        theme = Cookies.get('theme');
-        $('body').attr('data-theme', theme);
-        
-    }
+
     $('.theme-btn').on('click', themePickerHandler);
     fetchVersionInfo();
     {{ .Button1Function }}
