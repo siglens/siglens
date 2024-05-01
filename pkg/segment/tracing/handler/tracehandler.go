@@ -650,7 +650,12 @@ func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
-	_, startEpoch, endEpoch, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	_, startEpoch, endEpoch, _, _, _, err:= pipesearch.ParseSearchBody(readJSON, nowTs)
+
+	if err != nil {
+		log.Errorf("ProcessDepgraphRequest: %v", err)
+		return
+	}
 
 	startEpochInt64 := int64(startEpoch)
 	endEpochInt64 := int64(endEpoch)

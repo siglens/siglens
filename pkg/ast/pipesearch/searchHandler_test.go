@@ -83,12 +83,11 @@ func Test_parseAlphaNumTime(t *testing.T) {
 	inp = "now-12345l"
 	expected = nowTs - 12345*60_000
 	actual, err := parseAlphaNumTime(nowTs, inp, defValue)
-	assert.NotNil(t, nil, err, "expected=%v, actual=%v", expected, err)
+	assert.NotNil(t, err)
 
 	//regex Test-2
 	inp = "now15d"
 	expected = nowTs - 12345*60_000
 	actual, err = parseAlphaNumTime(nowTs, inp, defValue)
-	assert.NotNil(t, nil, err, "expected=%v, actual=%v", expected, err)
-
+	assert.NotNil(t, err)
 }
