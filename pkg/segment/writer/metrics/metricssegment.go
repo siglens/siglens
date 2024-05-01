@@ -1146,12 +1146,12 @@ func (ms *MetricsSegment) flushMetricNames() error {
 
 	for mName := range ms.mNamesMap {
 		if _, err = fd.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(mName)))); err != nil {
-			log.Errorf("flushMetricNames: failed to write key length filename=%v: err=%v", filePath, err)
+			log.Errorf("flushMetricNames: failed to write metric length for metric=%+v, filename=%v: err=%v", mName, filePath, err)
 			return err
 		}
 
 		if _, err = fd.Write([]byte(mName)); err != nil {
-			log.Errorf("flushMetricNames: failed to write key filename=%v: err=%v", filePath, err)
+			log.Errorf("flushMetricNames: failed to write metric name=%+v, filename=%v: err=%v", mName, filePath, err)
 			return err
 		}
 	}
