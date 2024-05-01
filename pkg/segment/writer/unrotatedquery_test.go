@@ -30,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -41,6 +42,7 @@ func Test_writePQSFiles(t *testing.T) {
 	numBatch := 10
 	numRec := 100
 	numStreams := 10
+	_ = vtable.InitVTable()
 
 	value1, _ := utils.CreateDtypeEnclosure("batch-0", 0)
 	query := &structs.SearchQuery{
