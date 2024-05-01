@@ -110,6 +110,7 @@ type HtmlSnippets struct {
 	OrgSettingsOrgName         string
 	OrgSettingsRetentionPeriod string
 	OrgSettingsExtras          string
+	OrgSLOs                    string
 
 	Constants map[string]interface{}
 }
@@ -133,6 +134,8 @@ type JsSnippets struct {
 
 	OrgUpperNavTabs string
 	OrgUpperNavUrls string
+
+	OrgAllSlos string
 }
 
 var GlobalHooks = Hooks{

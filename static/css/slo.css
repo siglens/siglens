@@ -1,0 +1,512 @@
+/* 
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+ :root{
+    --db-options-bg-color:var(--black-3);
+    --subsection-border: var(--white-3);
+    --search-input-border: var(--white-4);
+    --graph-link: var(--white-3);
+    --link-label: var(--white-0);
+    --border-shadow: var(--shadow-1);
+    --search-box-input: var(--black-2);
+    --search-box-input-trace: var(--black-2);
+    --sort-box: var(--black-2);
+    --head-trace: var(--black-2);
+    --time-tick:var(--black-3);
+}
+ 
+[data-theme='light']{
+    --db-bg-color: var(--white-0);
+    --db-options-bg-color:var(--white-3);
+    --edit-panel-bg-color:var(--white-0);
+    --panel-table-bg-color:var(--white);
+    --panel-table-line-color: var(--white-3);
+    --edit-panel-border-color:var(--white-3);
+    --edit-panel-option-bg-color:var(--white-2);
+    --edit-panel-dropdown-bg-color-hover:var(--white-2);
+    --color-selector-active:var(--black-1);
+    --edit-panel-input-bg-focus:var(--white-2);
+    --db-setting-option-text-selected:var(--black-1);
+    --number-and-unit-color:var(--purple-1);
+    --db-setting-option-selected:var(--white-8);
+    --db-setting-placeholder:var(--black-6);
+    --db-setting-text:var(--black-4);
+    --legend-element-hover: var(--black-1);
+    --top-setting-btn-bg-img: url("../assets/setting-icon.svg");
+    --top-save-btn-bg-img: url("../assets/save-btn.svg");
+    --top-refresh-btn-bg-img: url("../assets/refreshy-icon.svg");
+    --arrow-dashboard-img: url("../assets/arrow-dashboard-black.svg");
+  }
+  
+  .subsection-navbar {
+    border-bottom: 1px solid var(--search-input-border);
+    padding-bottom: 10px; 
+    /* margin-bottom: 20px;  */
+}
+
+.fleft {
+    width: 70%;
+    /* margin-right: 25px; */
+    display: flex;
+    flex-direction: column;
+    /* padding: 20px; */
+    min-width: 50%;
+    
+}
+
+.fright {
+    width: 30%;
+    display: flex;
+    justify-content: flex-start;
+    flex-direction: column;
+}
+
+.slo-notification-container{
+    display: flex;
+    margin-bottom: 5px;
+    width: 60%;
+}
+
+#metrics-explorer-good .btn{
+    border: 1px solid var(--border-btn-color);
+    margin-right: 8px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height: 30px;
+}
+#metrics-explorer-good .btn .plus-icon{
+    font-size: 26px;
+    margin-bottom: 4px;
+    margin-right: 6px;
+}
+
+#metrics-explorer-total .btn{
+    border: 1px solid var(--border-btn-color);
+    margin-right: 8px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height: 30px;
+}
+#metrics-explorer-total .btn .plus-icon{
+    font-size: 26px;
+    margin-bottom: 4px;
+    margin-right: 6px;
+}
+.metrics-query .remove-query{
+    border-radius: 18px;
+    height: 18px;
+    width: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    padding-bottom: 2.5px;
+    cursor: pointer;
+    color: #fff;
+    background: #656F76;
+    font-weight: 600;
+}
+.metrics-query .remove-query:hover{
+    background: #FF0000;
+    border-radius: 5px;
+}
+
+.metrics-query .query-box div{
+    border: 1px solid var(--border-btn-color);
+    height: 32px;
+    display: flex;
+    align-items: center;
+    padding: 0px 12px;
+}
+
+.metrics-query .query-box div{
+    border: 1px solid var(--border-btn-color);
+    height: 32px;
+    display: flex;
+    align-items: center;
+    padding: 0px 12px;
+}
+
+.metrics-query .metrics-good, .metrics-query .metrics-total{
+    min-width: 230px;
+    width: auto !important;
+    background-color: #FFFFCC;
+}
+.metrics-query .metrics-good:focus,.metrics-query .metrics-total:focus{
+    background-color: #F6FCFF;
+    outline: 1px solid #2D69BC;
+}
+ 
+.metrics-query .formula{
+    width: 200px;
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+}
+.formula-arrow{
+    border-radius: 5px 5px 0px 0px;
+    background-color: var(--purple-2);
+    color: var(--white);
+    border: none !important;
+    font-weight: bolder;
+    height: 32px;
+    width: 32px;
+    padding: 8px;
+    transform: rotate(270deg);
+}
+
+#slo-data-source{
+    max-width: 210px;
+}
+
+.query-container, .evaluation-container, .message-info{
+    margin-top: 5px;
+}
+
+.evaluation-container input, .evaluation-container select{
+    margin-left: 20px;
+    width: 70px;
+    margin-right: 10px;
+}
+
+#label-evaluate-every1 , #for-span{
+    position: relative;
+}
+#slo-data-source{
+    height: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#contact-points-dropdown {
+    background-color: var(--hits-summary-bg-regular);
+}
+
+#slos select{
+    height: 32px;
+}
+
+
+#slos .timepicker .dropdown-toggle{
+    height: 32px !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 210px !important;
+}
+
+#slos .dropdown-menu.daterangepicker.show {
+    height: 216px !important;
+}
+
+#slos #ag-grid .ag-row:hover {
+    background: var(--datatable-even-row-bg-color);
+    cursor: pointer;
+}
+
+
+#slo-form .btn-container {
+    margin-top: 40px;
+} 
+#slo-app-container{
+    overflow-y: scroll;
+    display: flex;
+    height: 100%;
+    position: relative;
+}
+
+
+#alerting #ag-grid, .users-data-table #ag-grid{
+    border: 1px solid var(--search-input-border);
+    box-shadow: var(--box-shadow);
+    border-radius: 5px;
+}
+
+#alerting .ag-header-viewport,
+#alerting .ag-header-cell{
+  background-color: var(--alerting-table-bg-color);
+}
+
+#slos .ag-row-position-absolute::after,.myOrg-inner-container .ag-row-position-absolute::after{
+  content: '';
+  position: absolute;
+  left: 10px;
+  width: 98%;
+  height: 1px;
+  background-color: var(--alerting-table-line-color);
+  bottom: 0;
+}
+
+#slos .ag-theme-mycustomtheme .ag-root-wrapper-body, #slos .ag-theme-mycustomtheme .ag-center-cols-container  {
+    background-color: var(--black1-to-white0) !important;
+}
+
+#slos #ag-grid .ag-row:hover {
+    background: var(--alerting-table-hover);
+    cursor: pointer;
+}
+
+.slo-message-info{
+width: 100%;
+}
+
+.slo-table {
+    width: 100%;
+    
+
+}
+.slo-table th{
+    padding-left: 0px;
+    width: 20%;
+    height: 50px;
+    
+
+}
+.page-block {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+}
+
+
+#dashboard {
+    overflow-y: auto;
+}
+#dashboard {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+.p-20 {
+    padding: 20px;
+}
+
+.slo-metrics-graph-container {
+    border: none;
+}
+
+
+.icon-slos:hover,
+.menu.nav-slos.active .icon-slos{
+    background-image: url("../assets/alerting-icon-active.svg");
+    height: 18px;
+    width: 18px;
+}
+
+select.form-control {
+    background: var(--hits-summary-bg-regular) !important;
+    color: var(--search-bar-text-color-regular-or-hover);
+    font-size: 14px;
+    border-radius: 5px;
+    transition: none;
+    box-shadow: none !important;
+}
+
+
+.slo-form-subsection{
+    background-color: #faf9f9;
+    /* border: 1px solid var(--search-input-border); */
+    padding: 20px;
+
+}
+.slo-form-section{
+    background-color: var(--black1-to-white0);
+    padding: 0px 35px;
+    margin-bottom: 10px;
+    margin-top: 10px;
+    margin-left: 18px;
+    border-left: 2px solid var(--purple-1);
+}
+
+.slo-type-card .header {
+    margin-bottom: 10px;
+    font-size: 16px;
+    font-weight: bold;
+}
+.slo-type-card{
+    width: 60%;
+    margin-bottom:5px;
+    padding: 8px;
+    border: 1px solid;
+    border-color: rgb(246, 206, 175);
+    border-radius: 5px;
+}
+/* .slo-type-card .highlighted{
+    background: rgb(246, 206, 175);
+    border: 2px solid;
+    border-color: var(--orange-1);
+} */
+.slo-type-card:hover{
+    background: rgb(246, 206, 175);
+    border: 2px solid;
+    border-color: var(--orange-1);
+}
+
+#tracing-container #ag-grid{
+    border: 1px solid var(--search-input-border);
+    box-shadow: var(--box-shadow);
+    border-radius: 5px;
+}
+
+#tracing-container .ag-header-viewport,
+#tracing-container .ag-header-cell{
+  background-color: var(--alerting-table-bg-color);
+}
+
+#tracing-container .ag-row-position-absolute::after{
+  content: '';
+  position: absolute;
+  /* left: 10px;
+  width: 98%; */
+  height: 1px;
+  background-color: var(--alerting-table-line-color);
+  bottom: 0;
+}
+
+#tracing-container .ag-theme-mycustomtheme .ag-root-wrapper-body, #tracing-container .ag-theme-mycustomtheme .ag-center-cols-container  {
+    background-color: var(--black1-to-white0) !important;
+}
+
+#tracing-container #ag-grid .ag-row:hover {
+    background: var(--alerting-table-hover);
+    cursor: pointer;
+}
+
+#slos .caption{
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+#new-slo{
+    white-space: nowrap;
+    width: fit-content; 
+}
+
+#cancel-slo-btn{
+    height: 30px;
+    width: 100px;
+    margin-right: 10px;
+    color: var(--button-text-color) !important;
+    background: var(--component-bg-color);
+    padding: 0px 20px;
+}
+
+
+.add-slo-form{
+    width: 100%;
+}
+
+#new-slo,  #save-slo-btn{
+    margin: 0;
+    text-decoration: none;
+    border: none;
+    height: 30px;
+    color: var(--button-text-color) !important;
+    background: var(--btn-regular-bg-color);
+    width: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#slos .circle{
+    height: 36px;
+    width: 36px;
+    border-radius: 50%;
+    background-color: var(--purple-1);
+    color: var(--white-0);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 700;
+
+}
+
+
+#slos{
+    padding: 20px 5px;
+    width: 100%;
+    /* background-color: var(--alert-background); */
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    /* overflow-y: scroll; */
+    font-size: 14px;
+}
+
+#prev{
+    padding: 20px 5px;
+    width: 100%;
+    /* background-color: var(--alert-background); */
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    /* overflow-y: scroll; */
+    font-size: 14px;
+}
+
+#alerting input , #alerting .dropdown-toggle , #alerting textarea ,.add-label-container{
+    border: 1px solid var(--search-input-border);
+    background: var(--alert-background);
+}
+
+#slos .form-container {
+    background-color: var(--black1-to-white0);
+    border-right: 1px solid var(--search-input-border);
+    /* border-radius: 10px; */
+    /* padding: 20px; */
+    /* box-shadow: var(--box-shadow); */
+}
+
+#prev .form-container {
+    background-color: var(--black1-to-white0);
+    /* border: 1px solid var(--search-input-border); */
+    border-radius: 10px;
+    padding: 20px;
+    /* box-shadow: var(--box-shadow); */
+
+}
+
+#slos .section-buttons{
+    box-shadow: var(--box-shadow);
+}
+
+#slos .section-buttons,#slos .section-button{
+    background-color: var(--black1-to-white0);
+}
+
+#slos .section-button.active{
+    background: var(--tab-active-background);
+}
+
+.subsection-heading{
+    display: flex;
+    /* align-items: center; */
+    align-items: flex-start;
+}
+
+.message{
+    background: var(--hits-summary-bg-regular);
+    border: none;
+    color: var(--search-bar-text-color-regular-or-hover);
+    font-size: 14px;
+    border-radius: 5px;
+}
