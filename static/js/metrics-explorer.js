@@ -617,6 +617,7 @@ $("#display-input").autocomplete({
         toggleLineOptions(ui.item.value);
         chartType = ui.item.value;
         toggleChartType(ui.item.value);
+        $(this).blur();
     }
 }).on('click', function() {
     if ($(this).autocomplete('widget').is(':visible')) {
@@ -677,6 +678,7 @@ $("#color-input").autocomplete({
    select: function(event,ui){
         selectedColorTheme = ui.item.value;
         updateChartTheme(selectedColorTheme);
+        $(this).blur();
    }
  }).on('click', function() {
     if ($(this).autocomplete('widget').is(':visible')) {
@@ -733,6 +735,7 @@ $("#line-style-input").autocomplete({
         var selectedLineStyle = ui.item.value;
         var selectedStroke = $("#stroke-input").val();
         updateLineCharts(selectedLineStyle, selectedStroke);
+        $(this).blur();
     }
 }).on('click', function() {
     if ($(this).autocomplete('widget').is(':visible')) {
@@ -751,6 +754,7 @@ $("#stroke-input").autocomplete({
         var selectedStroke = ui.item.value;
         var selectedLineStyle = $("#line-style-input").val();
         updateLineCharts(selectedLineStyle, selectedStroke);
+        $(this).blur();
     }
 }).on('click', function() {
     if ($(this).autocomplete('widget').is(':visible')) {
