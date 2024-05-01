@@ -20,6 +20,7 @@ package meta
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
 	"sync"
@@ -80,6 +81,48 @@ func AddMetricsMetaEntry(entry *structs.MetricsMeta) error {
 	if err != nil {
 		log.Errorf("AddMetricsMetaEntry: failed to sync filename=%v: err=%v", localMetricsMeta, err)
 		return err
+	}
+
+	return nil
+}
+
+func FlushMetricNames(basePath string, suffix uint64, mNamesMap map[string]bool) error {
+
+	if len(mNamesMap) == 0 {
+		log.Warnf("FlushMetricNames: empty mNamesMap")
+		return nil
+	}
+
+	mMetaLock.Lock()
+	defer mMetaLock.Unlock()
+
+	filePath := fmt.Sprintf("%s%d.mnm", basePath, suffix)
+
+	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		log.Errorf("FlushMetricNames: failed to open filename=%v: err=%v", filePath, err)
+		return err
+	}
+
+	defer fd.Close()
+
+	mNamesJson, err := json.Marshal(mNamesMap)
+	if err != nil {
+		log.Errorf("FlushMetricNames: failed to Marshal: err=%v", err)
+		return err
+	}
+
+	if _, err := fd.Write(mNamesJson); err != nil {
+		log.Errorf("FlushMetricNames: failed to write segmeta filename=%v: err=%v", filePath, err)
+		return err
+	}
+
+	err = fd.Sync()
+	if err != nil {
+		log.Errorf("FlushMetricNames: failed to sync filename=%v: err=%v", filePath, err)
+		return err
+	} else {
+		log.Infof("FlushMetricNames: flushed %d metric names to %s", len(mNamesMap), filePath)
 	}
 
 	return nil

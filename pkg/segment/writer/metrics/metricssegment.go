@@ -104,7 +104,8 @@ type MetricsSegment struct {
 	lowTS            uint32             // lowest epoch timestamp seen across this segment
 	mBlock           *MetricsBlock      // current in memory block
 	currBlockNum     uint16             // current block number
-	mNames           *bloom.BloomFilter // all metric names across segment
+	mNamesBloom      *bloom.BloomFilter // all metric names bloom across segment
+	mNamesMap        map[string]bool    // all metric names seen across segment
 	totalEncodedSize uint64             // total size of all metric blocks. TODO: this should include tagsTree & mNames blooms
 	bytesReceived    uint64             // total size of incoming data
 	rwLock           *sync.RWMutex      // read write lock for access
@@ -144,8 +145,8 @@ type TimeSeries struct {
 var orgMetricsAndTagsLock *sync.RWMutex = &sync.RWMutex{}
 
 type MetricsAndTagsHolder struct {
-	Metrics    map[string]*MetricsSegment
-	TagHolders map[string]*TagsTreeHolder
+	MetricSegments map[string]*MetricsSegment
+	TagHolders     map[string]*TagsTreeHolder
 }
 
 var numMetricsSegments uint64
@@ -172,8 +173,8 @@ func initOrgMetrics(orgid uint64) error {
 	orgMetricsAndTagsLock.Lock()
 	if _, ok := OrgMetricsAndTags[orgid]; !ok {
 		OrgMetricsAndTags[orgid] = &MetricsAndTagsHolder{
-			Metrics:    map[string]*MetricsSegment{},
-			TagHolders: map[string]*TagsTreeHolder{},
+			MetricSegments: map[string]*MetricsSegment{},
+			TagHolders:     map[string]*TagsTreeHolder{},
 		}
 	}
 	orgMetricsAndTagsLock.Unlock()
@@ -194,7 +195,7 @@ func initOrgMetrics(orgid uint64) error {
 		}
 
 		orgMetricsAndTagsLock.Lock()
-		OrgMetricsAndTags[orgid].Metrics[fmt.Sprint(i)] = mSeg
+		OrgMetricsAndTags[orgid].MetricSegments[fmt.Sprint(i)] = mSeg
 		OrgMetricsAndTags[orgid].TagHolders[mSeg.Mid], err = InitTagsTreeHolder(mSeg.Mid)
 		if err != nil {
 			log.Errorf("Initialising tags tree holder failed for org: %v, err: %v", orgid, err)
@@ -217,7 +218,7 @@ func GetUnrotatedMetricStats(orgid uint64) (uint64, uint64, uint64) {
 	orgMetricsAndTagsLock.RLock()
 	orgMetrics := map[string]*MetricsSegment{}
 	if metricsAndTags, ok := OrgMetricsAndTags[orgid]; ok {
-		orgMetrics = metricsAndTags.Metrics
+		orgMetrics = metricsAndTags.MetricSegments
 	}
 	orgMetricsAndTagsLock.RUnlock()
 
@@ -309,7 +310,8 @@ func InitMetricsSegment(orgid uint64, mId string) (*MetricsSegment, error) {
 		return nil, err
 	}
 	return &MetricsSegment{
-		mNames:       bloom.NewWithEstimates(10, 0.001), // TODO: dynamic sizing
+		mNamesBloom:  bloom.NewWithEstimates(10, 0.001), // TODO: dynamic sizing
+		mNamesMap:    make(map[string]bool, 0),
 		currBlockNum: 0,
 		mBlock: &MetricsBlock{
 			tsidLookup:  make(map[uint64]int),
@@ -405,9 +407,11 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 		return fmt.Errorf("no segment remaining to be assigned to orgid=%v", orgid)
 	}
 
-	if mSeg.mNames.Test(mName) {
-		mSeg.mNames.Add(mName)
+	if mSeg.mNamesBloom.Test(mName) {
+		mSeg.mNamesBloom.Add(mName)
 	}
+	mSeg.mNamesMap[string(mName)] = true
+
 	mSeg.Orgid = orgid
 	var ts *TimeSeries
 	var seriesExists bool
@@ -719,7 +723,7 @@ func getMetricsSegment(mName []byte, orgid uint64) (*MetricsSegment, *TagsTreeHo
 	orgMetricsAndTagsLock.RLock()
 	metricsAndTagsHolder, ok := OrgMetricsAndTags[orgid]
 	orgMetricsAndTagsLock.RUnlock()
-	if !ok || len(metricsAndTagsHolder.Metrics) == 0 {
+	if !ok || len(metricsAndTagsHolder.MetricSegments) == 0 {
 		err := initOrgMetrics(orgid)
 		if err != nil {
 			log.Errorf("getMetricsSegment: Failed to initialize metrics segments for org %v: %v", orgid, err)
@@ -729,8 +733,8 @@ func getMetricsSegment(mName []byte, orgid uint64) (*MetricsSegment, *TagsTreeHo
 		metricsAndTagsHolder = OrgMetricsAndTags[orgid]
 		orgMetricsAndTagsLock.RUnlock()
 	}
-	mid := fmt.Sprint(xxhash.Sum64(mName) % uint64(len(metricsAndTagsHolder.Metrics)))
-	return metricsAndTagsHolder.Metrics[mid], metricsAndTagsHolder.TagHolders[mid], nil
+	mid := fmt.Sprint(xxhash.Sum64(mName) % uint64(len(metricsAndTagsHolder.MetricSegments)))
+	return metricsAndTagsHolder.MetricSegments[mid], metricsAndTagsHolder.TagHolders[mid], nil
 }
 
 /*
@@ -1015,6 +1019,10 @@ TODO: flush bloom / tags tree / etc
 */
 func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	var err error
+	err = meta.FlushMetricNames(ms.metricsKeyBase, ms.Suffix, ms.mNamesMap)
+	if err != nil {
+		log.Errorf("RotateSegment: failed to flush metric names! Error %+v", err)
+	}
 	finalDir := getFinalMetricsDir(ms.Mid, ms.Suffix)
 	metaEntry := ms.getMetaEntry(finalDir, ms.Suffix)
 	err = os.MkdirAll(path.Dir(path.Dir(finalDir)), 0764)
@@ -1054,12 +1062,17 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 			log.Errorf("Failed to get next base key for %s: %v", ms.Mid, err)
 			return err
 		}
+
+		for k := range ms.mNamesMap {
+			delete(ms.mNamesMap, k)
+		}
+
 		ms.metricsKeyBase = mKey
 		ms.Suffix = nextSuffix
 		ms.highTS = 0
 		ms.lowTS = math.MaxUint32
 		ms.currBlockNum = 0
-		ms.mNames = bloom.NewWithEstimates(10, 0.001) // TODO: dynamic sizing
+		ms.mNamesBloom = bloom.NewWithEstimates(10, 0.001) // TODO: dynamic sizing
 		ms.totalEncodedSize = 0
 		ms.datapointCount = 0
 		ms.bytesReceived = 0
@@ -1259,7 +1272,7 @@ func GetMetricSegments(orgid uint64) []*MetricsSegment {
 	orgMetricsAndTagsLock.RLock()
 	allMetricsSegments := []*MetricsSegment{}
 	if metricsAndTags, ok := OrgMetricsAndTags[orgid]; ok {
-		for _, mSeg := range metricsAndTags.Metrics {
+		for _, mSeg := range metricsAndTags.MetricSegments {
 			allMetricsSegments = append(allMetricsSegments, mSeg)
 		}
 	}
@@ -1271,7 +1284,7 @@ func GetAllMetricsSegments() []*MetricsSegment {
 	orgMetricsAndTagsLock.RLock()
 	allMetricsSegments := []*MetricsSegment{}
 	for _, metricsAndTags := range OrgMetricsAndTags {
-		for _, mSeg := range metricsAndTags.Metrics {
+		for _, mSeg := range metricsAndTags.MetricSegments {
 			allMetricsSegments = append(allMetricsSegments, mSeg)
 		}
 	}
