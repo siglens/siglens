@@ -1,3 +1,22 @@
+/* 
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 'use strict';
 let redMetrics ={
     "indexName":  "red-traces",
@@ -18,11 +37,11 @@ $(document).ready(() => {
 
    
     const serviceName = getParameterFromUrl('service');
+    const stDate = getParameterFromUrl('startEpoch');
+    const endDate = getParameterFromUrl('endEpoch');
     redMetrics['searchText']="service="  + serviceName + "";
     $('.service-name').text(serviceName);
-    
-    let stDate = "now-1h";
-    let endDate = "now";
+	$('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', isGraphsDatePickerHandler);
     let data = getTimeRange();
@@ -55,8 +74,6 @@ let gridLineColor;
 let tickColor;
 
 function getOneServiceOverview(){
-    let endDate = filterEndDate || "now";
-    let stDate = filterStartDate || "now-1h";
     let data = getTimeRange();
     redMetrics = {... redMetrics, ... data}
     $.ajax({
@@ -97,7 +114,7 @@ function rateChart(rateData,gridLineColor,tickColor) {
     let graph_data = []
     for(let data of rateData){
         graph_data.push({
-            x : new Date(data.timestamp).toISOString().split('T').join(" "),
+            x : new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' '),
             y: data.rate
         })
     }
@@ -157,7 +174,7 @@ function rateChart(rateData,gridLineColor,tickColor) {
 function errorChart(errorData,gridLineColor,tickColor) {
     let graph_data_err = []
     for(let data of errorData){
-            let formatted_date = new Date(data.timestamp).toISOString().split('T').join(" ")
+            let formatted_date = new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' ');
             graph_data_err.push({
                 x : formatted_date,
                 y: data.error_rate
@@ -225,7 +242,7 @@ function latenciesChart(latenciesData,gridLineColor,tickColor) {
     };
 
     for (let data of latenciesData) {
-        const timestamp = new Date(data.timestamp).toISOString().split('T').join(" ");
+        const timestamp = new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' ');
         graph_data_latencies.p50.push({ x: timestamp, y: data.p50 });
         graph_data_latencies.p90.push({ x: timestamp, y: data.p90 });
         graph_data_latencies.p99.push({ x: timestamp, y: data.p99 });

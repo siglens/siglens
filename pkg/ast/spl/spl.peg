@@ -1,4 +1,21 @@
 {
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 package spl
 
 import (
@@ -974,7 +991,7 @@ DedupSortByClause <- CMD_DEDUP_SORTBY dedupSortEles:SortElements {
 }
 
 // sortby ( - | + ) <sort-field> [(- | +) <sort_field> ...]
-SortElements <- first:SingleSortElement rest:(EMPTY_OR_COMMA SingleSortElement)* {
+SortElements <- first:SingleSortElement rest:(SPACE_OR_COMMA SingleSortElement)* {
     restSlice := rest.([]any)
 
     length := 1 + len(restSlice)
@@ -1105,11 +1122,16 @@ RexBlock <- PIPE CMD_REX "field" EQUAL field:EvalFieldToRead SPACE str:QuotedStr
 
 // arguments need to be finished:
 // [<count>], [desc]
-SortBlock <- PIPE CMD_SORT sortByEles:SortElements {
+SortBlock <- PIPE CMD_SORT limit:(SortLimit)? sortByEles:SortElements {
 
     sortExpr := &structs.SortExpr {
         SortEles: sortByEles.([]*structs.SortElement),
         SortRecords: make(map[string]map[string]interface{}, 0),
+        Limit: 10000,
+    }
+
+    if limit != nil {
+        sortExpr.Limit = limit.(uint64)
     }
 
     ascendingArr := make([]int, len(sortExpr.SortEles))
@@ -1135,6 +1157,19 @@ SortBlock <- PIPE CMD_SORT sortByEles:SortElements {
     }
 
     return root, nil
+}
+
+SortLimit <- ("limit" EQUAL)? intAsStr:IntegerAsString SPACE {
+    limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
+    }
+
+    if limit == 0 {
+        limit = math.MaxUint64
+    }
+
+    return limit, nil
 }
 
 // Returns *structs.QueryAggregators
@@ -2560,4 +2595,4 @@ EOF <- !.
 SPACE <- (" "? COMMENT " "?) / " "+
 COMMENT <- "```" (!("```") .)* "```"
 EMPTY_OR_SPACE  <- SPACE / ""
-EMPTY_OR_COMMA  <- COMMA / EMPTY_OR_SPACE
+SPACE_OR_COMMA <- COMMA / SPACE

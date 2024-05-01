@@ -1,18 +1,19 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package query
 
@@ -30,7 +31,7 @@ import (
 )
 
 // Holder struct for all query information
-type queryInformation struct {
+type QueryInformation struct {
 	sNode              *structs.SearchNode
 	aggs               *structs.QueryAggregators
 	queryRange         *dtu.TimeRange
@@ -39,7 +40,7 @@ type queryInformation struct {
 	sizeLimit          uint64
 	pqid               string
 	parallelismPerFile int64
-	dqs                *DistributedQueryService
+	dqs                DistributedQueryServiceInterface
 	persistentQuery    bool
 	qid                uint64
 	sNodeType          structs.SearchNodeType
@@ -47,8 +48,8 @@ type queryInformation struct {
 	orgId              uint64
 }
 
-type querySegmentRequest struct {
-	queryInformation
+type QuerySegmentRequest struct {
+	QueryInformation
 	segKey        string
 	segKeyTsRange *dtu.TimeRange
 	tableName     string
@@ -57,25 +58,65 @@ type querySegmentRequest struct {
 	HasMatchedRrc bool
 }
 
+func (qi *QueryInformation) GetSearchNode() *structs.SearchNode {
+	return qi.sNode
+}
+
+func (qi *QueryInformation) GetAggregators() *structs.QueryAggregators {
+	return qi.aggs
+}
+
+func (qi *QueryInformation) GetQueryRangeStartMs() uint64 {
+	return qi.queryRange.StartEpochMs
+}
+
+func (qi *QueryInformation) GetQueryRangeEndMs() uint64 {
+	return qi.queryRange.EndEpochMs
+}
+
+func (qi *QueryInformation) GetIndexInfo() *structs.TableInfo {
+	return qi.indexInfo
+}
+
+func (qi *QueryInformation) GetSizeLimit() uint64 {
+	return qi.sizeLimit
+}
+
+func (qi *QueryInformation) GetQid() uint64 {
+	return qi.qid
+}
+
+func (qi *QueryInformation) GetOrgId() uint64 {
+	return qi.orgId
+}
+
+func (qsr *QuerySegmentRequest) GetSegKey() string {
+	return qsr.segKey
+}
+
+func (qsr *QuerySegmentRequest) GetTableName() string {
+	return qsr.tableName
+}
+
 /*
 Returns a holder struct with query information
 
-# This contains DistributedQueryService, which will be used to send grpcs to other nodes as needed
+# This contains DistributedQueryServiceInterface, which will be used to send grpcs to other nodes as needed
 
 The caller is responsible for calling qs.Wait() to wait for all grpcs to finish
 */
 func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators, queryRange *dtu.TimeRange,
 	indexInfo *structs.TableInfo, sizeLimit uint64, parallelismPerFile int64, qid uint64,
-	dqs *DistributedQueryService, orgid uint64) (*queryInformation, error) {
+	dqs DistributedQueryServiceInterface, orgid uint64) (*QueryInformation, error) {
 	colsToSearch, _, _ := search.GetAggColsAndTimestamp(aggs)
 	isQueryPersistent, err := querytracker.IsQueryPersistent(indexInfo.GetQueryTables(), s)
 	if err != nil {
 		log.Errorf("InitQueryInformation: failed to check if query is persistent! Err %v", err)
-		return &queryInformation{}, err
+		return &QueryInformation{}, err
 	}
 	pqid := querytracker.GetHashForQuery(s)
 	sNodeType, qType := getQueryType(s, aggs)
-	return &queryInformation{
+	return &QueryInformation{
 		sNode:              s,
 		aggs:               aggs,
 		queryRange:         queryRange,
@@ -94,13 +135,13 @@ func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators,
 }
 
 // waits and closes the distributed query service
-func (qi *queryInformation) Wait(querySummary *summary.QuerySummary) error {
+func (qi *QueryInformation) Wait(querySummary *summary.QuerySummary) error {
 	return qi.dqs.Wait(qi.qid, querySummary)
 }
 
 // returns map[table] -> map[segKey] -> blkTracker to pass into MicroIndexCheck and ExtractSSRFromSearchNode
 // Returns error if qsr.blkTracker is nil
-func (qsr *querySegmentRequest) GetMicroIndexFilter() (map[string]map[string]*structs.BlockTracker, error) {
+func (qsr *QuerySegmentRequest) GetMicroIndexFilter() (map[string]map[string]*structs.BlockTracker, error) {
 	if qsr.blkTracker == nil {
 		log.Errorf("GetMicroIndexFilter: qsr.blkTracker is nil! Cannot construct keys & blocks to filter")
 		return nil, fmt.Errorf("GetMicroIndexFilter: qsr.blkTracker is nil! Cannot construct keys & blocks to filter")
@@ -112,7 +153,7 @@ func (qsr *querySegmentRequest) GetMicroIndexFilter() (map[string]map[string]*st
 }
 
 // returns map[table] -> map[segKey] -> entire file block tracker to pass into MicroIndexCheck and ExtractSSRFromSearchNode
-func (qsr *querySegmentRequest) GetEntireFileMicroIndexFilter() map[string]map[string]*structs.BlockTracker {
+func (qsr *QuerySegmentRequest) GetEntireFileMicroIndexFilter() map[string]map[string]*structs.BlockTracker {
 	retVal := make(map[string]map[string]*structs.BlockTracker)
 	retVal[qsr.tableName] = make(map[string]*structs.BlockTracker)
 	retVal[qsr.tableName][qsr.segKey] = structs.InitEntireFileBlockTracker()

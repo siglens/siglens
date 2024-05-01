@@ -1,18 +1,19 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package ssa
 
@@ -22,6 +23,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -32,7 +34,9 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/localnodeid"
+	"github.com/siglens/siglens/pkg/segment/writer"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
+	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/siglens/siglens/pkg/virtualtable"
@@ -119,14 +123,69 @@ func InitSsa() {
 	}
 	ipDetails, err := FetchIPAddressDetails()
 	if err != nil {
-		log.Fatalf("Failed to fetch IP address details: %v", err)
+		log.Errorf("Failed to fetch IP address details: %v", err)
 	}
 
 	IPAddressInfo = ipDetails
 	client = currClient
+
+	timestampFilePath := path.Join(config.GetDataPath(), "install_time.txt")
+	_, err = os.Stat(timestampFilePath)
+	if os.IsNotExist(err) {
+		// If the file does not exist, get the oldest segment epoch
+		oldestSegmentEpoch, err := GetOldestSegmentEpoch(config.GetCurrentNodeIngestDir(), 0)
+		if err != nil || oldestSegmentEpoch == 0 || oldestSegmentEpoch == uint64(math.MaxUint64) {
+			// If there's an error getting the oldest segment epoch or it's 0 or it's MaxUint64, use the current timestamp
+			oldestSegmentEpoch = uint64(time.Now().UnixMilli())
+		}
+
+		// Write the timestamp to the file (Unix time in milliseconds)
+		err = os.WriteFile(timestampFilePath, []byte(strconv.FormatInt(int64(oldestSegmentEpoch), 10)), 0644)
+		if err != nil {
+			log.Errorf("InitSsa: Failed to write timestamp to file: %v", err)
+		}
+	} else if err != nil {
+		log.Errorf("InitSsa: Failed to check if timestamp file exists: %v", err)
+	}
+
 	go waitForInitialEvent()
 }
 
+func GetOldestSegmentEpoch(ingestNodeDir string, orgid uint64) (uint64, error) {
+	// Read segmeta entries
+	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
+	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
+	if err != nil {
+		log.Errorf("GetOldestSegmentEpoch: Failed to read segmeta, err: %v", err)
+		return 0, err
+	}
+
+	// Read metrics meta entries
+	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
+	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)
+	if err != nil {
+		log.Errorf("GetOldestSegmentEpoch: Failed to get all metric meta entries, err: %v", err)
+		return 0, err
+	}
+
+	// Combine metrics and segments
+	oldest := uint64(math.MaxUint64)
+	for _, segMeta := range allSegMetas {
+		if segMeta.OrgId == orgid && segMeta.LatestEpochMS < oldest {
+			oldest = segMeta.LatestEpochMS
+		}
+	}
+
+	// Find the oldest metric meta
+	for _, metricMeta := range allMetricMetas {
+		metricMetaEpochMS := uint64(metricMeta.LatestEpochSec) * 1000 // convert to milliseconds
+		if metricMeta.OrgId == orgid && metricMetaEpochMS < oldest {
+			oldest = metricMetaEpochMS
+		}
+	}
+
+	return oldest, nil
+}
 func waitForInitialEvent() {
 	time.Sleep(2 * time.Minute)
 
@@ -201,7 +260,8 @@ func startSsa() {
 }
 
 func flushSsa() {
-
+	// Initialize days with a default value of -1
+	days := -1
 	allSsa := getSsa()
 	props := analytics.NewProperties()
 	for k, v := range allSsa {
@@ -210,6 +270,20 @@ func flushSsa() {
 	props.Set("runtime_os", runtime.GOOS)
 	props.Set("runtime_arch", runtime.GOARCH)
 	props.Set("id_source", source)
+	timestampFilePath := path.Join(config.GetDataPath(), "install_time.txt")
+	// Read the timestamp from the file (Unix time in milliseconds)
+	data, err := os.ReadFile(timestampFilePath)
+	if err != nil {
+		log.Errorf("Failed to read timestamp from file: %v", err)
+	} else {
+		timestamp, err := strconv.ParseInt(string(data), 10, 64)
+		if err != nil {
+			log.Errorf("Failed to parse timestamp: %v", err)
+		} else {
+			days = int(time.Now().UnixMilli()-timestamp) / (60 * 60 * 24 * 1000)
+		}
+	}
+	props.Set("install_age", days)
 	_ = client.Enqueue(analytics.Track{
 		Event:      "server status",
 		UserId:     userId,

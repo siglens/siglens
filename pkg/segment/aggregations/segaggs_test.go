@@ -1,23 +1,25 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package aggregations
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -1545,4 +1547,557 @@ func Test_getColumnsToKeepAndRemove(t *testing.T) {
 			assert.Equal(t, tt.wantColsToRemove, gotColsToRemove)
 		})
 	}
+}
+
+func Test_performArithmeticOperation_Addition(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    interface{}
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "Addition of numbers",
+			left:  5,
+			right: 3,
+			want:  float64(8),
+		},
+		{
+			name:  "Add a string and a number",
+			left:  2,
+			right: "3",
+			want:  float64(5),
+		},
+		{
+			name:  "Concatenation of strings",
+			left:  "Hello, ",
+			right: "World!",
+			want:  "Hello, World!",
+		},
+		{
+			name:    "Adding a string and a number",
+			left:    "Hello, ",
+			right:   3,
+			wantErr: true,
+			errMsg:  "rightValue is not a string",
+		},
+		{
+			name:    "Adding a number and a string",
+			left:    3,
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.Add)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_Subtraction(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    float64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "10-5",
+			left:  10,
+			right: 5,
+			want:  5,
+		},
+		{
+			name:  "-5-(-2)",
+			left:  -5,
+			right: -2,
+			want:  -3,
+		},
+		{
+			name:  "5.5-2.2",
+			left:  5.5,
+			right: 2.2,
+			want:  3.3,
+		},
+		{
+			name:  "0-5",
+			left:  0,
+			right: 5,
+			want:  -5,
+		},
+		{
+			name:  "Subtracting a string(number) from a string(number)",
+			left:  "2",
+			right: "5",
+			want:  -3,
+		},
+		{
+			name:  "Subtracting a number from a string(number)",
+			left:  "2",
+			right: 5,
+			want:  -3,
+		},
+		{
+			name:  "Subtracting a string from a number",
+			left:  5,
+			right: "2",
+			want:  3,
+		},
+		{
+			name:    "Subtracting a number from a string",
+			left:    "Hello,",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Subtracting a string from a number",
+			left:    5,
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Subtracting a string from a string",
+			left:    "Hello,",
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.Subtract)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_Multiplication(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    float64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "3*4",
+			left:  3,
+			right: 4,
+			want:  12,
+		},
+		{
+			name:  "-2*3",
+			left:  -2,
+			right: 3,
+			want:  -6,
+		},
+		{
+			name:  "5.5*2",
+			left:  5.5,
+			right: 2,
+			want:  11,
+		},
+		{
+			name:  "2*(-5)",
+			left:  2,
+			right: -5,
+			want:  -10,
+		},
+		{
+			name:    "Multiplying a string with a number",
+			left:    "Hello,",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Multiplying a number with a string",
+			left:    5,
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Multiplying a string with a string",
+			left:    "Hello,",
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.Multiply)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_Division(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    float64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "10/2",
+			left:  10,
+			right: 2,
+			want:  5,
+		},
+		{
+			name:  "5/(-1)",
+			left:  5,
+			right: -1,
+			want:  -5,
+		},
+		{
+			name:  "(-6)/(-3)",
+			left:  -6,
+			right: -3,
+			want:  2,
+		},
+		{
+			name:  "7.5/2.5",
+			left:  7.5,
+			right: 2.5,
+			want:  3,
+		},
+		{
+			name:    "Dividing by zero",
+			left:    5,
+			right:   0,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: cannot divide by zero",
+		},
+		{
+			name:    "Dividing a string by a number",
+			left:    "Hello,",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Dividing a number by a string",
+			left:    5,
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Dividing a string by a string",
+			left:    "Hello,",
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.Divide)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_Modulo(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    int64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "10%3",
+			left:  10,
+			right: 3,
+			want:  1,
+		},
+		{
+			name:  "18%7",
+			left:  18,
+			right: -7,
+			want:  4,
+		},
+		{
+			name:  "(-4)%3",
+			left:  -4,
+			right: 3,
+			want:  -1,
+		},
+		{
+			name:  "(-4)%(-3)",
+			left:  -4,
+			right: -3,
+			want:  -1,
+		},
+		{
+			name:    "Modulo a string by a number",
+			left:    "Hello,",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Modulo a number by a string",
+			left:    5,
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "Modulo a string by a string",
+			left:    "Hello,",
+			right:   "World!",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.Modulo)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_BitwiseAnd(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    int64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "6 & 3, expect 2",
+			left:  6,
+			right: 3,
+			want:  2,
+		},
+		{
+			name:  "10 & 8, expect 8",
+			left:  10,
+			right: 8,
+			want:  8,
+		},
+		{
+			name:    "bitwise a string by a number",
+			left:    "a",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "bitwise a number by a string",
+			left:    5,
+			right:   "b",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "bitwise a string by a string",
+			left:    "a",
+			right:   "b",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.BitwiseAnd)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_BitwiseOr(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    int64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "10|2",
+			left:  10,
+			right: 2,
+			want:  10,
+		},
+		{
+			name:  "1|4",
+			left:  1,
+			right: 4,
+			want:  5,
+		},
+		{
+			name:  "1|2",
+			left:  1,
+			right: 2,
+			want:  3,
+		},
+		{
+			name:    "bitwise or a string by a number",
+			left:    "a",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "bitwise or a number by a string",
+			left:    5,
+			right:   "b",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "bitwise or a string by a string",
+			left:    "a",
+			right:   "b",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.BitwiseOr)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_BitwiseExclusiveOr(t *testing.T) {
+	tests := []struct {
+		name    string
+		left    interface{}
+		right   interface{}
+		want    int64
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:  "10^5",
+			left:  10,
+			right: 5,
+			want:  15,
+		},
+		{
+			name:  "3^4",
+			left:  3,
+			right: 4,
+			want:  7,
+		},
+		{
+			name:  "2^3",
+			left:  2,
+			right: 3,
+			want:  1,
+		},
+		{
+			name:    "bitwise exclusive or a string by a number",
+			left:    "a",
+			right:   5,
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "bitwise exclusive or a number by a string",
+			left:    5,
+			right:   "b",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+		{
+			name:    "bitwise exclusive or a string by a string",
+			left:    "a",
+			right:   "b",
+			wantErr: true,
+			errMsg:  "performArithmeticOperation: leftValue or rightValue is not a number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := performArithmeticOperation(tt.left, tt.right, utils.BitwiseExclusiveOr)
+			if !tt.wantErr {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+			if tt.wantErr {
+				assert.Equal(t, tt.errMsg, err.Error())
+			}
+		})
+	}
+}
+
+func Test_performArithmeticOperation_WrongOp(t *testing.T) {
+	_, err := performArithmeticOperation(5, 3, 100)
+	assert.Equal(t, errors.New("performArithmeticOperation: invalid arithmetic operator"), err)
 }

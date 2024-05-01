@@ -1,18 +1,19 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package alertsqlite
 
@@ -84,6 +85,10 @@ func (p *Sqlite) Connect() error {
 		return err
 	}
 	err = dbConnection.AutoMigrate(&alertutils.SlackTokenConfig{})
+	if err != nil {
+		return err
+	}
+	err = dbConnection.AutoMigrate(&alertutils.WebHookConfig{})
 	if err != nil {
 		return err
 	}
@@ -328,7 +333,7 @@ func (p Sqlite) CreateContact(newContact *alertutils.Contact) error {
 
 func (p Sqlite) GetAllContactPoints(org_id uint64) ([]alertutils.Contact, error) {
 	contacts := make([]alertutils.Contact, 0)
-	if err := p.db.Preload("Slack").Where("org_id = ?", org_id).Find(&contacts).Error; err != nil {
+	if err := p.db.Preload("Slack").Preload("Webhook").Where("org_id = ?", org_id).Find(&contacts).Error; err != nil {
 		return nil, err
 	}
 
@@ -496,10 +501,10 @@ func (p Sqlite) UpdateAlertStateByAlertID(alert_id string, alertState alertutils
 	return nil
 }
 
-func (p Sqlite) GetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []string, error) {
+func (p Sqlite) GetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []alertutils.WebHookConfig, error) {
 
 	var contact = &alertutils.Contact{}
-	if err := p.db.Preload("Slack").First(&contact).Where("contact_id = ?", contact_id).Error; err != nil {
+	if err := p.db.Preload("Slack").Preload("Webhook").First(&contact).Where("contact_id = ?", contact_id).Error; err != nil {
 		log.Errorf("GetEmailAndChannelID: unable to update contact, err: %+v", err)
 		return nil, nil, nil, err
 	}

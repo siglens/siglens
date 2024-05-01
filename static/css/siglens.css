@@ -1,3 +1,22 @@
+/* 
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 :root {
     --black: #000;
     --white: #fff;
@@ -817,9 +836,6 @@ body {
     transform: rotate(180deg);
 }
 
-#available-indexes {
-    width: 300px;
-}
 #associated-alerts {
     width: 300px;
 }
@@ -1654,6 +1670,7 @@ div.dts div.dataTables_scrollBody table {
     background: var(--index-drop-down-box-bg-color);
     overflow: scroll;
     border: 1px solid var(--timepicker-border-color);
+    padding: 0px;
 }
 #associated-alerts {
     width: 265px;
@@ -2358,7 +2375,7 @@ input[type="submit" i] {
     color: var(--text-color);
 
     width: 330px !important;
-    height: 486px !important;
+    height: 440px !important;
     background: var(--timepicker-bg-color);
     border: 1px solid var(--timepicker-border-color);
     border-radius: 5px;
@@ -2451,7 +2468,7 @@ input[type="submit" i] {
 }
 
 hr {
-    margin: 1rem 0;
+    margin: .5rem 0;
     color: var(--timepicker-hr-color) !important;
     border: 0;
 }
@@ -2487,14 +2504,14 @@ hr {
 }
 
 #daterange-from {
-    margin-top: 20px;
+    margin-top: 12px;
 }
 #dt-from-text {
     margin-left: 12px;
 }
 
 #daterange-to {
-    margin-top: 19px;
+    margin-top: 12px;
 }
 #dt-to-text {
     margin-left: 12px;
@@ -2504,7 +2521,7 @@ hr {
     margin-top: 8px;
     margin-left: 12px;
     width: 147.41px;
-    height: 35px;
+    height: 32px;
 
     border: 1px solid var(--timepicker-border-color);
     border-radius: 4px;
@@ -2527,7 +2544,7 @@ hr {
     margin-top: 8px;
     margin-left: 11px;
     width: 147.41px;
-    height: 35px;
+    height: 32px;
 
     border: 1px solid var(--timepicker-border-color);
     border-radius: 4px;
@@ -2572,11 +2589,11 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 
 .daterangepicker .drp-buttons .btn{
     width: 306px !important;
-    height: 35px !important;
+    height: 32px !important;
     background: var(--btn-regular-bg-color) !important;
     border-radius: 4px;
     font-weight: var(--fw-400);
-    font-size: 18px;
+    font-size: 16px;
     line-height: 23px;
     font-family: "DINpro", Arial, sans-serif !important;
     opacity: 100 !important;
@@ -2749,10 +2766,25 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 .odd-popup-textarea{
     background: var(--datatable-odd-row-bg-color) !important;
     color: var(--text-color) !important;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    box-sizing: border-box;
+    overflow: auto;
+    font-size: 12px;
 }
+
 .even-popup-textarea{
     background: var(--datatable-even-row-bg-color) !important;
     color: var(--text-color) !important;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    box-sizing: border-box;
+    overflow: auto;
+    font-size: 12px;
 }
 
 .fa-sort-alpha-up:before{
@@ -2910,16 +2942,13 @@ float: right;
 
 /*dashboard*/
 #new-dashboard{
-    padding-left: 10px;
     overflow-x: hidden;
-    overflow-y: hidden;
-    margin-bottom: 12px;
     font-size: 20px;
     color: var(--cstats-header-text-color);
     font-weight: var(--fw-500) !important;
     font-family: "DINpro", Arial, sans-serif;
     font-style: normal;
-    margin: 20px;
+    padding: 20px;
     margin-left: 0;
     display: flex;
     flex-direction: column;
@@ -2930,8 +2959,8 @@ float: right;
 #new-dashboard .header-container{
     display: flex;
     justify-content: space-between;
-    height: 45px;
-    align-items: center;
+    height: 35px;
+    align-items: self-start;
     width: 100%;
 }
 
@@ -2998,7 +3027,6 @@ float: right;
     width: 100%;
     height: 100%;
     position: relative;
-    padding: 0.5em 0; 
     padding-left: 0px;
 }
 
@@ -3543,6 +3571,12 @@ float: right;
     justify-content: center;
     border-radius: 5px;
     font-size: 14px !important;
+    height: 100%;
+    background-size: cover;
+    background-color: var(--purple-1);
+    border-radius: 5px;
+    color: white;
+    margin-left: 10px;
 }
 
 .inviteBtn:disabled, #del-org-btn:disabled, #del-index-btn:disabled {
@@ -3564,6 +3598,7 @@ float: right;
     display: flex;
     justify-content: space-between;
     align-items: baseline;
+    margin: 0px 20px 10px 20px;
 }
 
 #inviteForm {
@@ -3573,9 +3608,8 @@ float: right;
 }
 
 .users-data-table {
-    height: 90%;
+    height: 100%;
     width: 100%;
-    margin-top: 8px;
 }
 
 .myOrg #panelLogResultsGrid{
@@ -3617,7 +3651,17 @@ float: right;
     font-size: 14px;
     margin-bottom: 5px;
 }
-
+#invite-user-role{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--myOrg-dropdown-border-color);
+    height: 32px;
+}
+#invite-user-role,.invite-role-options{
+    min-width: 120px !important;
+    width: 120px !important;
+}
 .myOrg .role-inner-dropdown{
     line-height: 28px;
     border-radius: 5px;
@@ -3629,11 +3673,12 @@ float: right;
     justify-content: space-between;
     align-items: center;
     color: var(--table-or-regular-text-color);
-    position: relative;
+    margin-top: 4px;
+    cursor: pointer;
 }
 
 
-.myOrg .dropdown-option {
+.myOrg .dropdown-option,.invite-role-options {
     background: var(--myOrg-dropdown-options-bg);
     z-index: 99;
     position: relative;
@@ -3645,11 +3690,12 @@ float: right;
     color: var(--table-or-regular-text-color);
 }
 
-.myOrg .dropdown-option li {
+.myOrg .dropdown-option li, .invite-role-options li {
     padding: 5px;
     border-radius: 5px;
     margin-top: 7px;
     background: var(--myOrg-dropdown-bg);
+    cursor: pointer;
 }
 
 .myOrg .dropdown-option{
@@ -3659,14 +3705,14 @@ float: right;
 .myOrg .dropdown-option.active{
     visibility: visible;
 }
-
-.myOrg .dropdown-option li:hover{  
-    background: #6347D9;
-    color: #fff;
+.myOrg .dropdown-option li:hover,.invite-role-options li:hover{
+    background: var(--index-drop-down-item-hover-bg-color);
+    color: var(--index-drop-down-item-hover-text-color);
 }
 
-.arrow-btn {
-    display: none;
+.invite-role-options li.active, .roles.selected{  
+    background: var(--index-drop-down-item-active-bg-color) !important;
+    color: var(--index-drop-down-item-active-text-color) !important;
 }
 
 .myOrg .ag-cell{
@@ -3686,6 +3732,7 @@ float: right;
 
 #receiverEmail {
     width: 407px;
+    border: 1px solid var(--myOrg-dropdown-border-color);
 }
 
 .myOrgScreen .ag-root-wrapper {
@@ -4590,7 +4637,7 @@ color: #C8C7CC;
     margin-left: 20px;
 }
 
-#ag-grid .ag-row:hover {
+#alerting #ag-grid .ag-row:hover {
     background: var(--datatable-even-row-bg-color);
     cursor: pointer;
 }
@@ -4793,7 +4840,7 @@ color: #C8C7CC;
     right: 20px;
 } 
 
-#alerting #ag-grid{
+#alerting #ag-grid, .users-data-table #ag-grid{
     border: 1px solid var(--search-input-border);
     box-shadow: var(--box-shadow);
     border-radius: 5px;
@@ -4804,7 +4851,7 @@ color: #C8C7CC;
   background-color: var(--alerting-table-bg-color);
 }
 
-#alerting .ag-row-position-absolute::after{
+#alerting .ag-row-position-absolute::after,.myOrg-inner-container .ag-row-position-absolute::after{
   content: '';
   position: absolute;
   left: 10px;

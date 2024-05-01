@@ -1,18 +1,19 @@
-/*
-Copyright 2023.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright (c) 2021-2024 SigScalr, Inc.
+//
+// This file is part of SigLens Observability Solution
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package structs
 
@@ -282,7 +283,8 @@ type NodeResult struct {
 	GroupByRequest            *GroupByRequest
 	MeasureOperations         []*MeasureAggregator
 	NextQueryAgg              *QueryAggregators
-	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
+	RecsAggsBlockResults      interface{}              // Evaluates to *blockresults.BlockResults
+	RecsAggsColumnKeysMap     map[string][]interface{} // map of column name to column keys for GroupBy Recs
 	RecsAggsProcessedSegments uint64
 	RecsRunningSegStats       []*SegStats
 	TransactionEventRecords   map[string]map[string]interface{}
@@ -525,6 +527,16 @@ func (qa *QueryAggregators) HasDedupBlockInChain() bool {
 		return qa.Next.HasDedupBlockInChain()
 	}
 	return false
+}
+
+func (qa *QueryAggregators) GetSortLimit() uint64 {
+	if qa.HasSortBlock() {
+		return qa.OutputTransforms.LetColumns.SortColRequest.Limit
+	}
+	if qa.Next != nil {
+		return qa.Next.GetSortLimit()
+	}
+	return math.MaxUint64
 }
 
 func (qa *QueryAggregators) HasSortBlock() bool {
