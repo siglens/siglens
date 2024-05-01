@@ -171,6 +171,9 @@ func DeleteEmptyIndices(ingestNodeDir string) {
 
 	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
 
+	// Delay execution to allow segmeta file to update
+	time.Sleep(time.Second * 10)
+
 	segMetaEntries, err := writer.ReadSegmeta(currentSegmeta)
 	if err != nil {
 		log.Errorf("DeleteEmptyIndices: Error in reading segmeta file, err: %v", err)
