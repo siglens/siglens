@@ -413,7 +413,9 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 			}
 		}
 	case utils.Count:
-		ret += float64(len(entries))
+		for i := range entries {
+			ret += float64(entries[i].runningCount)
+		}
 	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 
