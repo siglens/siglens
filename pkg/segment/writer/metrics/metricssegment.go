@@ -20,6 +20,7 @@ package metrics
 import (
 	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -407,9 +408,7 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 		return fmt.Errorf("no segment remaining to be assigned to orgid=%v", orgid)
 	}
 
-	if mSeg.mNamesBloom.Test(mName) {
-		mSeg.mNamesBloom.Add(mName)
-	}
+	mSeg.mNamesBloom.Add(mName)
 	mSeg.mNamesMap[string(mName)] = true
 
 	mSeg.Orgid = orgid
@@ -1015,39 +1014,42 @@ func (mb *MetricsBlock) rotateBlock(basePath string, suffix uint64, bufId uint16
 Flushes the metrics segment's tags tree, mNames bloom
 
 This function assumes that the prior metricssBlock has alraedy been rotated/reset
-TODO: flush bloom / tags tree / etc
 */
 func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	var err error
-	err = meta.FlushMetricNames(ms.metricsKeyBase, ms.Suffix, ms.mNamesMap)
+	err = ms.flushMetricNamesBloom()
 	if err != nil {
-		log.Errorf("RotateSegment: failed to flush metric names! Error %+v", err)
+		log.Errorf("rotateSegment: failed to flush metric names bloom! Error %+v", err)
+	}
+	err = ms.flushMetricNames()
+	if err != nil {
+		log.Errorf("rotateSegment: failed to flush metric names! Error %+v", err)
 	}
 	finalDir := getFinalMetricsDir(ms.Mid, ms.Suffix)
 	metaEntry := ms.getMetaEntry(finalDir, ms.Suffix)
 	err = os.MkdirAll(path.Dir(path.Dir(finalDir)), 0764)
 	if err != nil {
-		log.Errorf("RotateSegment: failed to create directory %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
+		log.Errorf("rotateSegment: failed to create directory %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
 		return err
 	}
 
 	// Check if final directory already exists
 	if _, err := os.Stat(finalDir); err == nil {
-		log.Infof("RotateSegment: final directory %s already exists, skipping rename operation", finalDir)
+		log.Infof("rotateSegment: final directory %s already exists, skipping rename operation", finalDir)
 		return nil
 
 	}
 
 	// Check if source directory exists
 	if _, err := os.Stat(ms.metricsKeyBase); os.IsNotExist(err) {
-		log.Infof("RotateSegment: source directory %s does not exist, skipping rename operation", ms.metricsKeyBase)
+		log.Infof("rotateSegment: source directory %s does not exist, skipping rename operation", ms.metricsKeyBase)
 		return nil
 	}
 
 	// Rename metricsKeyBase to finalDir
 	err = os.Rename(path.Dir(ms.metricsKeyBase), finalDir)
 	if err != nil {
-		log.Errorf("RotateSegment: failed to rename %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
+		log.Errorf("rotateSegment: failed to rename %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
 		return err
 	}
 	log.Infof("rotating segment of size %v that created %v metrics blocks to %+v", ms.totalEncodedSize, ms.currBlockNum+1, finalDir)
@@ -1059,10 +1061,11 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		}
 		mKey, err := getBaseMetricsKey(nextSuffix, ms.Mid)
 		if err != nil {
-			log.Errorf("Failed to get next base key for %s: %v", ms.Mid, err)
+			log.Errorf("rotateSegment: failed to get next base key for %s: %v", ms.Mid, err)
 			return err
 		}
 
+		mNamesCount := uint(len(ms.mNamesMap))
 		for k := range ms.mNamesMap {
 			delete(ms.mNamesMap, k)
 		}
@@ -1072,7 +1075,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		ms.highTS = 0
 		ms.lowTS = math.MaxUint32
 		ms.currBlockNum = 0
-		ms.mNamesBloom = bloom.NewWithEstimates(10, 0.001) // TODO: dynamic sizing
+		ms.mNamesBloom = bloom.NewWithEstimates(mNamesCount, 0.001) // TODO: dynamic sizing
 		ms.totalEncodedSize = 0
 		ms.datapointCount = 0
 		ms.bytesReceived = 0
@@ -1081,11 +1084,77 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 
 	err = meta.AddMetricsMetaEntry(metaEntry)
 	if err != nil {
-		log.Errorf("RotateSegment: failed to add metrics meta entry! Error %+v", err)
+		log.Errorf("rotateSegment: failed to add metrics meta entry! Error %+v", err)
 		return err
 	}
 
 	return blob.UploadIngestNodeDir()
+}
+
+func (ms *MetricsSegment) flushMetricNamesBloom() error {
+
+	filePath := fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
+
+	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		log.Errorf("flushMetricNamesBloom: failed to open filename=%v: err=%v", filePath, err)
+		return err
+	}
+
+	defer fd.Close()
+
+	// version
+	_, err = fd.Write([]byte{1})
+	if err != nil {
+		log.Errorf("flushMetricNamesBloom: failed to write version err=%v", err)
+		return err
+	}
+
+	// write the blockBloom
+	_, err = ms.mNamesBloom.WriteTo(fd)
+	if err != nil {
+		log.Errorf("flushMetricNamesBloom: write mNames Bloom failed fpath=%v, err=%v", filePath, err)
+		return err
+	}
+
+	return nil
+}
+
+func (ms *MetricsSegment) flushMetricNames() error {
+
+	if len(ms.mNamesMap) == 0 {
+		log.Warnf("flushMetricNames: empty mNamesMap")
+		return nil
+	}
+
+	filePath := fmt.Sprintf("%s%d.mnm", ms.metricsKeyBase, ms.Suffix)
+
+	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		log.Errorf("flushMetricNames: failed to open filename=%v: err=%v", filePath, err)
+		return err
+	}
+
+	defer fd.Close()
+
+	mNamesJson, err := json.Marshal(ms.mNamesMap)
+	if err != nil {
+		log.Errorf("flushMetricNames: failed to Marshal: err=%v", err)
+		return err
+	}
+
+	if _, err := fd.Write(mNamesJson); err != nil {
+		log.Errorf("flushMetricNames: failed to write segmeta filename=%v: err=%v", filePath, err)
+		return err
+	}
+
+	err = fd.Sync()
+	if err != nil {
+		log.Errorf("flushMetricNames: failed to sync filename=%v: err=%v", filePath, err)
+		return err
+	}
+
+	return nil
 }
 
 func (ms *MetricsSegment) updateTimeRange(ts uint32) {
