@@ -424,14 +424,10 @@ func Test_HasDedupBlockInChain_HasDedupBlock(t *testing.T) {
 		},
 	}
 
-	assert.True(t, qa.HasDedupBlock())
+	assert.True(t, qa.HasDedupBlockInChain())
 }
 
 func Test_HasDedupBlockInChain_NotNilNext(t *testing.T) {
-	var dedup *QueryAggregators
-
-	assert.False(t, dedup.HasDedupBlock())
-
 	next := &QueryAggregators{
 		OutputTransforms: &OutputTransforms{
 			LetColumns: &LetColumnsRequest{
@@ -444,21 +440,15 @@ func Test_HasDedupBlockInChain_NotNilNext(t *testing.T) {
 		Next: next,
 	}
 
-	assert.True(t, qa.Next.HasDedupBlock())
+	assert.True(t, qa.HasDedupBlockInChain())
 }
 
-func Test_HasDedupBlockInChain_NilNext(t *testing.T) {
-	next := &QueryAggregators{
-		OutputTransforms: &OutputTransforms{
-			LetColumns: &LetColumnsRequest{
-				DedupColRequest: &DedupExpr{},
-			},
-		},
-	}
+func Test_HasDedupBlockInChain_HasNoDedupBlockAndNilNext(t *testing.T) {
+	var next *QueryAggregators
 
 	qa := &QueryAggregators{
 		Next: next,
 	}
 
-	assert.True(t, qa.Next.HasDedupBlock())
+	assert.False(t, qa.HasDedupBlockInChain())
 }
