@@ -514,7 +514,8 @@ function addVisualizationContainer(queryName, seriesData) {
         return {
             label: series.seriesName,
             data: Object.values(series.values),
-            borderColor: getRandomColor(), // Choose a different color for each dataset
+            borderColor: classic[index % classic.length],
+            backgroundColor : classic[index % classic.length] + 70,
             borderWidth: 2,
             fill: false
         };
@@ -892,17 +893,6 @@ function mergeGraphs(chartType) {
     mergedGraph = mergedLineChart;
 }
 
-
-
-// Helper function to generate random color
-function getRandomColor() {
-    var letters = '0123456789ABCDEF';
-    var color = '#';
-    for (var i = 0; i < 6; i++) {
-        color += letters[Math.floor(Math.random() * 16)];
-    }
-    return color;
-}
 function convertDataForChart(data) {
     let seriesArray = [];
 
