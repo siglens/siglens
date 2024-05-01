@@ -449,7 +449,10 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		}
 		// If the virtual table name is not present(possibly due to deletion of indices without segments), then add it back.
 		if !vtable.IsVirtualTablePresent(&segstore.VirtualTableName, segstore.OrgId) {
-			vtable.AddVirtualTable(&segstore.VirtualTableName, segstore.OrgId)
+			err := vtable.AddVirtualTable(&segstore.VirtualTableName, segstore.OrgId)
+			if err != nil {
+				log.Errorf("AppendWipToSegfile: Failed to add virtual table: %v", err)
+			}
 		}
 		// worst case, each column opens 2 files (.cmi/.csg) and 2 files for segment info (.sid, .bsu)
 		numOpenFDs := int64(len(segstore.wipBlock.colWips)*2 + 2)
