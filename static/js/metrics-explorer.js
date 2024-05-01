@@ -62,9 +62,10 @@ $('#toggle-switch').on('change', function() {
 function addFormulaElement(){
     let formulaElement = $(`
     <div class="metrics-query">
-        <div>
+        <div style="position: relative;">
             <div class="formula-arrow">↓</div>
             <input class="formula" placeholder="Formula, eg. 2*a">
+            <div class="formula-error-message" style="display: none;"><i class="fas fa-exclamation"></i></div>
         </div>
         <div>
             <div class="remove-query">×</div>
@@ -77,6 +78,44 @@ function addFormulaElement(){
     formulaElement.find('.remove-query').on('click', function() {
         formulaElement.remove();
     });
+
+    // Validate formula on input change
+    let input = formulaElement.find('.formula');
+    input.on('input', function() {
+        let formula = input.val().trim();
+        let errorMessage = formulaElement.find('.formula-error-message');
+        if (formula === '') {
+            errorMessage.hide();
+            input.removeClass('error-border');
+            return;
+        }
+        let valid = validateFormula(formula);
+        if (valid) {
+            errorMessage.hide();
+            input.removeClass('error-border');
+        } else {
+            errorMessage.show();
+            input.addClass('error-border');
+        }
+    });
+}
+
+function validateFormula(formula) {
+    let pattern = /^(\w+\s*([-+*/]\s*\w+\s*)*)*$/;
+    let matches = formula.match(pattern);
+    if (!matches) {
+        return false;
+    }
+
+    let queryNames = Object.keys(chartDataCollection);
+    let parts = formula.split(/[-+*/]/);
+    for (let part of parts) {
+        if (!queryNames.includes(part.trim())) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 function addQueryElement() {

@@ -112,6 +112,13 @@ input:checked + .slider:before {
     width: 200px;
     border-radius: 0 5px 5px 0;
 }
+.metrics-query .formula:focus{
+    border-radius: 0 5px 5px 0;
+}
+.metrics-query .formula.error-border{
+    border: 1px solid #EB364B;
+    border-left: none ;
+}
 .formula-arrow{
     cursor: pointer;
     border-radius: 5px 5px 0px 0px;
@@ -404,4 +411,19 @@ input:checked + .slider:before {
 #ui-id-4.ui-autocomplete > li > div{
     padding: 0px 9px;
     height: 28px;
+}
+
+.formula-error-message{
+    display: none;
+    background-color: #EB364B;
+    border-radius: 50%;
+    height: 16px;
+    width: 16px;
+    color: #fff;
+    font-weight: bolder;
+    justify-content: center;
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    border: 1px solid #fff;
 }
