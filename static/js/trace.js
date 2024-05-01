@@ -299,6 +299,7 @@ $(".section-button").click(function() {
 
 $('.max-min-btn').click(function() {
     $(this).toggleClass('minimized');
+    $('.logs-metrics-container').toggleClass('minimized');
     $('#timeline-container').toggleClass('expanded');
     $('.span-details-container').toggleClass('expanded');
 });

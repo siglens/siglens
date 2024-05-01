@@ -592,7 +592,7 @@ circle:hover{
 }
 #timeline-container.expanded,
 .span-details-container.expanded{
-    height: 72vh;
+    height: 75vh;
 }
 .max-min-btn{
     font-size: 17px;
@@ -601,4 +601,7 @@ circle:hover{
 }
 .max-min-btn.minimized{
     transform: rotate(135deg);
+}
+.logs-metrics-container.minimized{
+    height: 50px;
 }
