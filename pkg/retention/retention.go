@@ -62,6 +62,7 @@ func internalRetentionCleaner() {
 
 	deletionWarningCounter := 0
 	for {
+		time.Sleep(1 * time.Hour)
 		if hook := hooks.GlobalHooks.InternalRetentionCleanerHook2; hook != nil {
 			hook(hook1Result, deletionWarningCounter)
 		} else {
@@ -71,7 +72,6 @@ func internalRetentionCleaner() {
 		if deletionWarningCounter <= MAXIMUM_WARNINGS_COUNT {
 			deletionWarningCounter++
 		}
-		time.Sleep(1 * time.Hour)
 	}
 }
 
@@ -170,9 +170,6 @@ func deleteEmptyIndices(ingestNodeDir string, orgid uint64) {
 	}
 
 	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
-
-	// Delay execution to allow segmeta file to update
-	time.Sleep(time.Second * 10)
 
 	segMetaEntries, err := writer.ReadSegmeta(currentSegmeta)
 	if err != nil {
