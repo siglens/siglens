@@ -310,7 +310,7 @@ func InitMetricsSegment(orgid uint64, mId string) (*MetricsSegment, error) {
 		return nil, err
 	}
 	return &MetricsSegment{
-		mNamesBloom:  bloom.NewWithEstimates(10, 0.001), // TODO: dynamic sizing
+		mNamesBloom:  bloom.NewWithEstimates(1000, 0.001),
 		mNamesMap:    make(map[string]bool, 0),
 		currBlockNum: 0,
 		mBlock: &MetricsBlock{
@@ -1068,7 +1068,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 			log.Errorf("rotateSegment: failed to get next base key for %s: %v", ms.Mid, err)
 			return err
 		}
-
+		mNamesCount := uint(len(ms.mNamesMap))
 		for k := range ms.mNamesMap {
 			delete(ms.mNamesMap, k)
 		}
@@ -1078,7 +1078,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		ms.highTS = 0
 		ms.lowTS = math.MaxUint32
 		ms.currBlockNum = 0
-		ms.mNamesBloom = bloom.NewWithEstimates(uint(len(ms.mNamesMap)), 0.001) // TODO: dynamic sizing
+		ms.mNamesBloom = bloom.NewWithEstimates(mNamesCount, 0.001)
 		ms.totalEncodedSize = 0
 		ms.datapointCount = 0
 		ms.bytesReceived = 0
