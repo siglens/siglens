@@ -362,8 +362,8 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				case "quantile":
 					mquery.Aggregator.AggregatorFunction = segutils.Quantile
 				default:
-					log.Infof("convertPqlToMetricsQuery: using sum aggregator by default for AggregateExpr (got %v)", aggFunc)
-					mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Sum}
+					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for AggregateExpr (got %v)", aggFunc)
+					mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
 				}
 			case *pql.VectorSelector:
 				_, grouping := extractGroupsFromPath(path)
@@ -393,8 +393,8 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				case "quantile":
 					mquery.Aggregator.AggregatorFunction = segutils.Quantile
 				default:
-					log.Infof("convertPqlToMetricsQuery: using sum aggregator by default for VectorSelector (got %v)", aggFunc)
-					mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Sum}
+					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for VectorSelector (got %v)", aggFunc)
+					mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
 				}
 			case *pql.NumberLiteral:
 				mquery.Aggregator.FuncConstant = expr.Val
@@ -430,7 +430,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		mquery.HashedMName = xxhash.Sum64String(mquery.MetricName)
 		mquery.OrgId = myid
 		mquery.SelectAllSeries = true
-		agg := structs.Aggreation{AggregatorFunction: segutils.Sum}
+		agg := structs.Aggreation{AggregatorFunction: segutils.Avg}
 		mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: agg}
 		metricQueryRequest := &structs.MetricsQueryRequest{
 			MetricsQuery: mquery,
@@ -500,7 +500,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 	mquery.HashedMName = xxhash.Sum64String(metricName)
 
 	if mquery.Aggregator.AggregatorFunction == 0 && !groupby {
-		mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Sum}
+		mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
 	}
 	mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: mquery.Aggregator}
 	mquery.SelectAllSeries = !groupby // if group by is not present, then we need to select all series
