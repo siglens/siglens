@@ -679,7 +679,7 @@ $("#display-input").autocomplete({
    source: colorOptions,
    minLength: 0,
    select: function(event,ui){
-        selectedColorTheme = ui.item.value.toLowerCase();
+        selectedColorTheme = ui.item.value;
         updateChartTheme(selectedColorTheme);
    }
  }).on('click', function() {
@@ -693,60 +693,46 @@ $("#display-input").autocomplete({
 });
 
 function updateChartTheme(theme) {
-    var colorPalette;
+    var colorPalette = {
+        "Classic": classic,
+        "Purple": purple,
+        "Cool": cool,
+        "Green": green,
+        "Warm": warm,
+        "Orange": orange,
+        "Gray": gray,
+        "D2d0": d2d0
+    };
 
-    switch (theme) {
-        case "classic":
-            colorPalette = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"];
-            break;
-        case "purple":
-            colorPalette = ["#dbcdfa", "#c8b3fb", "#a082fa", "#8862eb", "#764cd8", "#5f36ac", "#27064c"];
-            break;
-        case "cool":
-            colorPalette = ["#cce9be", "#a5d9b6", "#89c4c2", "#6cabc9", "#5491c8", "#4078b1", "#2f5a9f", "#213e7d"];
-            break;
-        case "green":
-            colorPalette = ["#d0ebc2", "#c4eab7", "#aed69e", "#87c37d", "#5daa64", "#45884a", "#2e6a34", "#1a431f"];
-            break;
-        case "warm":
-            colorPalette = ["#f7e288", "#fadb84", "#f1b65d", "#ec954d", "#f65630" , "#cf3926", "#aa2827", "#761727"];
-            break;
-        case "orange":
-            colorPalette = ["#f8ddbd", "#f4d2a9", "#f0b077", "#ec934f", "#e0722f", "#c85621", "#9b4116", "#72300e"];
-            break;
-        case "gray":
-            colorPalette = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#62636a", "#4c4d57"];
-            break;
-        case "d2d0":
-            colorPalette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"];
-            break;
-        default:
-            // Default to classic theme if an invalid theme is provided
-            colorPalette = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"];
-            break;
-    }
+    // Use the selected theme to get the color palette
+    var selectedPalette = colorPalette[theme] || classic;
 
+    // Loop through each chart data
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             var chartData = chartDataCollection[queryName];
+            // Loop through each dataset in the chart data
             chartData.datasets.forEach(function(dataset, index) {
-                dataset.borderColor = colorPalette[index % colorPalette.length];
-                dataset.backgroundColor = colorPalette[index % colorPalette.length] + 80;
+                // Update dataset properties based on theme
+                dataset.borderColor = selectedPalette[index % selectedPalette.length];
+                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
             });
 
+            // Update the chart with the modified data
             var lineChart = lineCharts[queryName]; 
             lineChart.update();
         }
     }
 
+    // Update merged graph theme
     mergedGraph.data.datasets.forEach(function(dataset, index) {
-        dataset.borderColor = colorPalette[index % colorPalette.length];
-        dataset.backgroundColor = colorPalette[index % colorPalette.length] + 80;
+        dataset.borderColor = selectedPalette[index % selectedPalette.length];
+        dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
     });
 
+    // Finally, update the merged graph
     mergedGraph.update();
 }
-
 
  // Function to show/hide Line Style and Stroke based on Display input
  function toggleLineOptions(displayValue) {
