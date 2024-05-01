@@ -165,7 +165,7 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 func deleteEmptyIndices(ingestNodeDir string, myid uint64) {
 	allIndices, err := vtable.GetVirtualTableNames(myid)
 	if err != nil {
-		log.Errorf("DeleteEmptyIndices: Error in getting virtual table names, err: %v", err)
+		log.Errorf("deleteEmptyIndices: Error in getting virtual table names, err: %v", err)
 		return
 	}
 
@@ -173,7 +173,7 @@ func deleteEmptyIndices(ingestNodeDir string, myid uint64) {
 
 	segMetaEntries, err := writer.ReadSegmeta(currentSegmeta)
 	if err != nil {
-		log.Errorf("DeleteEmptyIndices: Error in reading segmeta file, err: %v", err)
+		log.Errorf("deleteEmptyIndices: Error in reading segmeta file, err: %v", err)
 		return
 	}
 	// Create a set of virtualTableName values from segMetaEntries
@@ -186,9 +186,9 @@ func deleteEmptyIndices(ingestNodeDir string, myid uint64) {
 	for indexName := range allIndices {
 		// If an index is not in the set of virtualTableName values from segMetaEntries, delete it
 		if _, exists := virtualTableNames[indexName]; !exists {
-			err := vtable.DeleteVirtualTable(&indexName, 0)
+			err := vtable.DeleteVirtualTable(&indexName, myid)
 			if err != nil {
-				log.Errorf("DeleteEmptyIndices: Error in deleting index %s, err: %v", indexName, err)
+				log.Errorf("deleteEmptyIndices: Error in deleting index %s, err: %v", indexName, err)
 			}
 		}
 	}

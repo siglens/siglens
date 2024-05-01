@@ -451,7 +451,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		if !vtable.IsVirtualTablePresent(&segstore.VirtualTableName, segstore.OrgId) {
 			err := vtable.AddVirtualTable(&segstore.VirtualTableName, segstore.OrgId)
 			if err != nil {
-				log.Errorf("AppendWipToSegfile: Failed to add virtual table: %v", err)
+				log.Errorf("AppendWipToSegfile: Failed to add virtual table %v for orgid %v: %v", segstore.VirtualTableName, segstore.OrgId, err)
 			}
 		}
 		// worst case, each column opens 2 files (.cmi/.csg) and 2 files for segment info (.sid, .bsu)
