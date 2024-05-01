@@ -20,7 +20,6 @@ package metrics
 import (
 	"bytes"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -1020,10 +1019,12 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	err = ms.flushMetricNamesBloom()
 	if err != nil {
 		log.Errorf("rotateSegment: failed to flush metric names bloom! Error %+v", err)
+		return err
 	}
 	err = ms.flushMetricNames()
 	if err != nil {
 		log.Errorf("rotateSegment: failed to flush metric names! Error %+v", err)
+		return err
 	}
 	finalDir := getFinalMetricsDir(ms.Mid, ms.Suffix)
 	metaEntry := ms.getMetaEntry(finalDir, ms.Suffix)
@@ -1120,6 +1121,10 @@ func (ms *MetricsSegment) flushMetricNamesBloom() error {
 	return nil
 }
 
+/*
+- Flushes the metrics segment's mNames bloom
+- Todo: Store the Metirc Names in Length and Value format.
+*/
 func (ms *MetricsSegment) flushMetricNames() error {
 
 	if len(ms.mNamesMap) == 0 {
@@ -1137,15 +1142,16 @@ func (ms *MetricsSegment) flushMetricNames() error {
 
 	defer fd.Close()
 
-	mNamesJson, err := json.Marshal(ms.mNamesMap)
-	if err != nil {
-		log.Errorf("flushMetricNames: failed to Marshal: err=%v", err)
-		return err
-	}
+	for mName := range ms.mNamesMap {
+		if _, err = fd.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(mName)))); err != nil {
+			log.Errorf("flushMetricNames: failed to write key length filename=%v: err=%v", filePath, err)
+			return err
+		}
 
-	if _, err := fd.Write(mNamesJson); err != nil {
-		log.Errorf("flushMetricNames: failed to write segmeta filename=%v: err=%v", filePath, err)
-		return err
+		if _, err = fd.Write([]byte(mName)); err != nil {
+			log.Errorf("flushMetricNames: failed to write key filename=%v: err=%v", filePath, err)
+			return err
+		}
 	}
 
 	err = fd.Sync()
