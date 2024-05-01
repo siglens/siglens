@@ -111,9 +111,9 @@ input:checked + .slider:before {
 .metrics-query .formula{
     width: 200px;
     border-radius: 0 5px 5px 0;
-    cursor: pointer;
 }
 .formula-arrow{
+    cursor: pointer;
     border-radius: 5px 5px 0px 0px;
     background-color: var(--purple-2);
     color: var(--white);
