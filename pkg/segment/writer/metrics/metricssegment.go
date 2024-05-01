@@ -135,9 +135,10 @@ type TimeSeries struct {
 	lock        *sync.Mutex
 	rawEncoding *bytes.Buffer
 
-	nEntries   int          // number of ts/dp combinations in this series
-	cFinishFn  func() error // function to call at end of compression, to write the final bytes for the encoded timestamps
-	compressor *compress.Compressor
+	nEntries    int          // number of ts/dp combinations in this series
+	lastKnownTS uint32       // last known timestamp
+	cFinishFn   func() error // function to call at end of compression, to write the final bytes for the encoded timestamps
+	compressor  *compress.Compressor
 }
 
 var orgMetricsAndTagsLock *sync.RWMutex = &sync.RWMutex{}
@@ -263,13 +264,17 @@ func timeBasedMetricsFlush() {
 	for {
 		time.Sleep(METRICS_BLK_FLUSH_SLEEP_DURATION * time.Second)
 		for _, ms := range GetAllMetricsSegments() {
+
 			encSize := atomic.LoadUint64(&ms.mBlock.encodedSize)
 			if encSize > 0 {
 				ms.rwLock.Lock()
-				err := ms.mBlock.flushBlock(ms.metricsKeyBase, ms.Suffix, ms.currBlockNum)
+				err := ms.mBlock.rotateBlock(ms.metricsKeyBase, ms.Suffix, ms.currBlockNum)
 				if err != nil {
-					log.Errorf("timeBasedRotateMetricsBlock: flush block %d for metric segment %s due to time failed", ms.currBlockNum, ms.metricsKeyBase)
+					log.Errorf("timeBasedMetricsFlush: failed to rotate block number: %v due to the error: %v", ms.currBlockNum, err)
+				} else {
+					ms.currBlockNum++
 				}
+
 				ms.rwLock.Unlock()
 			}
 		}
@@ -367,6 +372,8 @@ func initTimeSeries(tsid uint64, dp float64, timestammp uint32) (*TimeSeries, ui
 	}
 	ts.cFinishFn = finish
 	ts.compressor = c
+	ts.nEntries++
+	ts.lastKnownTS = timestammp
 	writtenBytes, err := ts.compressor.Compress(timestammp, dp)
 	if err != nil {
 		return nil, 0, err
@@ -621,6 +628,7 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 
 	var mName []byte
 	var dpVal float64
+	var ts uint32 = uint32(time.Now().Unix())
 	var err error
 
 	reader := csv.NewReader(bytes.NewBuffer(rawCSV))
@@ -640,6 +648,14 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 			whitespace_split := strings.Fields(line)
 			tag_set := strings.Split(whitespace_split[0], ",")
 			field_set := strings.Split(whitespace_split[1], ",")
+			if len(whitespace_split) > 2 {
+				tsNano, err := strconv.ParseInt(whitespace_split[2], 10, 64)
+				if err != nil {
+					log.Errorf("ExtractInfluxPayload: failed to parse the timestamp: %+v, error: %+v", whitespace_split[2], err)
+				} else {
+					ts = uint32(tsNano / 1_000_000_000)
+				}
+			}
 			for index, value := range tag_set {
 				if index == 0 {
 					mName = []byte(value)
@@ -670,7 +686,7 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 
 	}
 
-	return mName, dpVal, 0, err
+	return mName, dpVal, ts, err
 
 }
 
@@ -791,6 +807,10 @@ func (ts *TimeSeries) AddSingleEntry(dpVal float64, dpTS uint32) (uint64, error)
 			return writtenBytes, err
 		}
 	} else {
+		if ts.lastKnownTS >= dpTS {
+			log.Errorf("timestamp is older than last known timestamp: %d, current: %d", ts.lastKnownTS, dpTS)
+			return writtenBytes, fmt.Errorf("timestamp is older than last known timestamp: %d, current: %d", ts.lastKnownTS, dpTS)
+		}
 		writtenBytes, err = ts.compressor.Compress(dpTS, dpVal)
 		if err != nil {
 			log.Errorf("error encoding timestamp! Error: %+v", err)
@@ -798,6 +818,7 @@ func (ts *TimeSeries) AddSingleEntry(dpVal float64, dpTS uint32) (uint64, error)
 		}
 	}
 	ts.nEntries++
+	ts.lastKnownTS = dpTS
 	return writtenBytes, nil
 }
 
