@@ -159,7 +159,7 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 	// Delete all segment data
 	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
 	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
-	deleteEmptyIndices(ingestNodeDir, 0)
+	deleteEmptyIndices(ingestNodeDir, orgid)
 }
 
 func deleteEmptyIndices(ingestNodeDir string, myid uint64) {
