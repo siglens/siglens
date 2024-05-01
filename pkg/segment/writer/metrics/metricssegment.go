@@ -408,7 +408,10 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 	}
 
 	mSeg.mNamesBloom.Add(mName)
+
+	mSeg.rwLock.Lock()
 	mSeg.mNamesMap[string(mName)] = true
+	mSeg.rwLock.Unlock()
 
 	mSeg.Orgid = orgid
 	var ts *TimeSeries
