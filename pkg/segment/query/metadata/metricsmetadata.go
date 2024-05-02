@@ -220,6 +220,7 @@ func (mm *MetricsSegmentMetadata) ReadMetricNamesBloom(fileName string) error {
 
 	finfo, err := os.Stat(fileName)
 	if err != nil {
+		log.Errorf("ReadMetricNamesBloom: Error getting file info for the Metric Names Bloom file: %s, err: %v", fileName, err)
 		return err
 	}
 
@@ -240,6 +241,7 @@ func (mm *MetricsSegmentMetadata) ReadMetricNamesBloom(fileName string) error {
 		return err
 	}
 
+	// read the version byte
 	bufRdr := bytes.NewReader(data[1:])
 
 	if mm.mNamesBloom == nil {

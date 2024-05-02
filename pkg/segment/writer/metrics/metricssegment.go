@@ -1098,6 +1098,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	return blob.UploadIngestNodeDir()
 }
 
+// This is a mock function and is only used during tests.
 func (ms *MetricsSegment) SetMockMetricSegment() string {
 	ms.mNamesBloom = bloom.NewWithEstimates(100_000, 0.001)
 	ms.metricsKeyBase = "./testMockMetric"
