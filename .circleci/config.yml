@@ -23,9 +23,6 @@ jobs:
           command: ./siglens --config server.yaml
           background: true
       - run:
-          name: Clone sigscalr-client repo
-          command: git clone git@github.com:sigscalr/sigscalr-client.git
-      - run:
           name: Tail logs file
           command: |
             sleep 10
@@ -54,9 +51,9 @@ jobs:
       - run:
           name: Run Restart CI/CD tests
           command: |
-            cd sigscalr-client
+            cd tools/sigclient
             sleep 5
-            go run main.go query esbulk -d http://localhost:5122 -f ../cicd/restart.csv
+            go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/restart.csv
             go run main.go query otsdb -d http://localhost:5122/otsdb -n 5 -y
 
 # Invoke jobs via workflows
