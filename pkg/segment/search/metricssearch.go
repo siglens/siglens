@@ -84,7 +84,7 @@ func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker
 	var wg sync.WaitGroup
 	for i := 0; i < int(req.Parallelism); i++ {
 		wg.Add(1)
-		go blockWorker(i, sharedBlockIterators.TimeSeriesBlockReader[i], blockNumChan, tsidInfo, mQuery, timeRange, res, qid, &wg, querySummary)
+		go blockWorker(i, sharedBlockIterators.TimeSeriesSegmentReader[i], blockNumChan, tsidInfo, mQuery, timeRange, res, qid, &wg, querySummary)
 	}
 	wg.Wait()
 }
