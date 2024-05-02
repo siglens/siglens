@@ -390,7 +390,7 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
-		utils.SendError(ctx, "empty json body received", "ProcessGetMetricTimeSeriesRequest: empty json body received", errors.New("empty json body received"))
+		utils.SendError(ctx, "empty json body received", "", nil)
 		return
 	}
 
@@ -399,25 +399,25 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
 	err := decoder.Decode(&readJSON)
 	if err != nil {
-		utils.SendError(ctx, "Failed to parse request body", "ProcessGetMetricTimeSeriesRequest: Failed to parse JSON body", err)
+		utils.SendError(ctx, "Failed to parse request body", "", err)
 		return
 	}
 
 	start, ok := readJSON["start"].(float64)
 	if !ok {
-		utils.SendError(ctx, "Failed to parse 'start' from request body", fmt.Sprintf("ProcessGetMetricTimeSeriesRequest: Failed to parse 'start' from JSON body with value: %v", readJSON["start"]), errors.New("failed to parse 'start' from JSON body"))
+		utils.SendError(ctx, "Failed to parse 'start' from request body", "", nil)
 		return
 	}
 
 	end, ok := readJSON["end"].(float64)
 	if !ok {
-		utils.SendError(ctx, "Failed to parse 'end' from request body", fmt.Sprintf("ProcessGetMetricTimeSeriesRequest: Failed to parse 'end' from JSON body with value: %v", readJSON["end"]), errors.New("failed to parse 'end' from JSON body"))
+		utils.SendError(ctx, "Failed to parse 'end' from request body", "", nil)
 		return
 	}
 
 	queryInterfaces, ok := readJSON["queries"].([]interface{})
 	if !ok {
-		utils.SendError(ctx, "Failed to parse 'queries' from JSON body", "ProcessGetMetricTimeSeriesRequest: 'queries' not found in JSON body", errors.New("'queries' not found in JSON body"))
+		utils.SendError(ctx, "Failed to parse 'queries' from JSON body", "", nil)
 		return
 	}
 
@@ -425,7 +425,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	for i, qi := range queryInterfaces {
 		queryMap, ok := qi.(map[string]interface{})
 		if !ok {
-			utils.SendError(ctx, "Failed to parse 'query' from JSON body", "ProcessGetMetricTimeSeriesRequest: 'query' not found in JSON body", errors.New("'query' not found in JSON body"))
+			utils.SendError(ctx, "Failed to parse 'query' from JSON body", "", nil)
 			return
 		}
 
@@ -434,15 +434,15 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		_, qlTypeOk := queryMap["qlType"].(string)
 
 		if !nameOk {
-			utils.SendError(ctx, "Failed to parse 'name' from JSON body", "ProcessGetMetricTimeSeriesRequest: 'name' not found in JSON body", errors.New("'name' not found in JSON body"))
+			utils.SendError(ctx, "Failed to parse 'name' from JSON body", "", nil)
 			return
 		}
 		if !queryOk {
-			utils.SendError(ctx, "Failed to parse 'query' from JSON body", "ProcessGetMetricTimeSeriesRequest: 'query' not found in JSON body", errors.New("'query' not found in JSON body"))
+			utils.SendError(ctx, "Failed to parse 'query' from JSON body", "", nil)
 			return
 		}
 		if !qlTypeOk {
-			utils.SendError(ctx, "Failed to parse 'qlType' from JSON body", "ProcessGetMetricTimeSeriesRequest: 'qlType' not found in JSON body", errors.New("'qlType' not found in JSON body"))
+			utils.SendError(ctx, "Failed to parse 'qlType' from JSON body", "", nil)
 			return
 		}
 
@@ -451,7 +451,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	formulaInterfaces, ok := readJSON["formulas"].([]interface{})
 	if !ok {
-		utils.SendError(ctx, "Failed to parse 'formulas' from JSON body", "ProcessGetMetricTimeSeriesRequest: 'formulas' not found in JSON body", errors.New("'formulas' not found in JSON body"))
+		utils.SendError(ctx, "Failed to parse 'formulas' from JSON body", "", nil)
 		return
 	}
 
@@ -460,14 +460,14 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	for i, fi := range formulaInterfaces {
 		formulaMap, ok := fi.(map[string]interface{})
 		if !ok {
-			utils.SendError(ctx, "Failed to parse 'formula' object from JSON body", "ProcessGetMetricTimeSeriesRequest: Failed to parse 'formula' object from JSON body", errors.New("failed to parse 'formula' object from JSON body"))
+			utils.SendError(ctx, "Failed to parse 'formula' object from JSON body", "", nil)
 			return
 		}
 
 		_, formulaOk := formulaMap["formula"].(string)
 
 		if !formulaOk {
-			utils.SendError(ctx, "Failed to parse 'formula' field from 'formula' object in JSON body", "ProcessGetMetricTimeSeriesRequest: 'formula' field not found in 'formula' object", errors.New("'formula' field not found in 'formula' object"))
+			utils.SendError(ctx, "Failed to parse 'formula' field from 'formula' object in JSON body", "", nil)
 			return
 		}
 
