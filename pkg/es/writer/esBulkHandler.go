@@ -320,6 +320,7 @@ func PostBulkErrorResponse(ctx *fasthttp.RequestCtx) {
 	utils.WriteJsonResponse(ctx, responsebody)
 }
 
+// Accepts wildcard index names e.g. "ind-*"
 func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 	inIndexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
 
@@ -327,15 +328,10 @@ func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	if indicesNotFound == len(convertedIndexNames) {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		response := make(map[string]interface{})
-		final := make(map[string]interface{})
-		var items = make([]interface{}, 0)
-		items = append(items, *utils.NewDeleteIndexErrorResponseInfo(inIndexName))
-		final["root_cause"] = items
-		final["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
-		final["status"] = 404
-		response["error"] = final
-		utils.WriteJsonResponse(ctx, response)
+		responseBody := make(map[string]interface{})
+		responseBody["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
 	} else {
 		ctx.SetStatusCode(fasthttp.StatusOK)
 	}
@@ -354,10 +350,10 @@ func deleteIndex(inIndexName string, myid uint64) ([]string, int) {
 
 		ok, _ := vtable.IsAlias(indexName, myid)
 		if ok {
-			alias, _ := vtable.GetAliasesAsArray(indexName, myid)
-			error := vtable.RemoveAliases(indexName, alias, myid)
+			aliases, _ := vtable.GetAliasesAsArray(indexName, myid)
+			error := vtable.RemoveAliases(indexName, aliases, myid)
 			if error != nil {
-				log.Errorf("deleteIndex : No Aliases removed for indexName = %v, alias: %v ", indexName, alias)
+				log.Errorf("deleteIndex : No Aliases removed for indexName = %v, alias: %v ", indexName, aliases)
 			}
 		}
 		err := vtable.DeleteVirtualTable(&indexName, myid)
