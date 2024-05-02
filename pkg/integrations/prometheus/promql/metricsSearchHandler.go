@@ -391,9 +391,9 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	start, end, queries, formulas, err := parseMetricTimeSeriesRequest(rawJSON)
+	start, end, queries, formulas, errorLog, err := parseMetricTimeSeriesRequest(rawJSON)
 	if err != nil {
-		utils.SendError(ctx, err.Error(), "", err)
+		utils.SendError(ctx, err.Error(), errorLog, err)
 		return
 	}
 
@@ -416,7 +416,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queries []map[string]interface{}, formulas []map[string]interface{}, err error) {
+func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queries []map[string]interface{}, formulas []map[string]interface{}, errorLog string, err error) {
 	defer func() {
 		if err != nil {
 			// Set all return values to their zero values
@@ -429,13 +429,15 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queri
 	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
 	err = decoder.Decode(&readJSON)
 	if err != nil {
-		err = errors.New("failed to parse request body")
+		err = fmt.Errorf("failed to parse request body")
+		errorLog = fmt.Sprintf("the request JSON body received is : %v", string(rawJSON))
 		return
 	}
 
 	startFloat, ok := readJSON["start"].(float64)
 	if !ok {
 		err = errors.New("failed to parse 'start' from request body")
+		errorLog = fmt.Sprintf("the start field is either missing or not a float64 in the JSON body: %v", readJSON)
 		return
 	}
 	start = int64(startFloat)
@@ -443,6 +445,7 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queri
 	endFloat, ok := readJSON["end"].(float64)
 	if !ok {
 		err = errors.New("failed to parse 'end' from request body")
+		errorLog = fmt.Sprintf("the end field is either missing or not a float64 in the JSON body: %v", readJSON)
 		return
 	}
 	end = int64(endFloat)
@@ -450,6 +453,7 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queri
 	queryInterfaces, ok := readJSON["queries"].([]interface{})
 	if !ok {
 		err = errors.New("failed to parse 'queries' from JSON body")
+		errorLog = fmt.Sprintf("failed to parse 'queries' from JSON body as []interface{} with value: %v", readJSON["queries"])
 		return
 	}
 
@@ -458,24 +462,27 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queri
 		queryMap, ok := qi.(map[string]interface{})
 		if !ok {
 			err = errors.New("failed to parse 'query' from JSON body")
+			errorLog = fmt.Sprintf("failed to parse 'query' object as a map[string]interface{}, 'query' value: %v", qi)
 			return
 		}
-
 		_, ok = queryMap["name"].(string)
 		if !ok {
 			err = errors.New("failed to parse 'name' from JSON body")
+			errorLog = fmt.Sprintf("name is either missing or not a string in the query object: %v", queryMap)
 			return
 		}
 
 		_, ok = queryMap["query"].(string)
 		if !ok {
-			err = errors.New("failed to parse 'query' from JSON body")
+			err = errors.New("failed to parse 'query' field from 'query' object in JSON body")
+			errorLog = fmt.Sprintf("JSON property 'query' is either missing or not a string in the query object: %v", queryMap)
 			return
 		}
 
 		_, ok = queryMap["qlType"].(string)
 		if !ok {
 			err = errors.New("failed to parse 'qlType' from JSON body")
+			errorLog = fmt.Sprintf("qlType is either missing or not a string in the query object: %v", queryMap)
 			return
 		}
 		queries[i] = queryMap
@@ -484,6 +491,7 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queri
 	formulaInterfaces, ok := readJSON["formulas"].([]interface{})
 	if !ok {
 		err = errors.New("failed to parse 'formulas' from JSON body")
+		errorLog = fmt.Sprintf("failed to parse 'formulas' from JSON body as []interface{} with value: %v", readJSON["formulas"])
 		return
 	}
 
@@ -492,12 +500,14 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queri
 		formulaMap, ok := fi.(map[string]interface{})
 		if !ok {
 			err = errors.New("failed to parse 'formula' object from JSON body")
+			errorLog = fmt.Sprintf("failed to parse 'formula' object as a map[string]interface{}, 'formula' value: %v", fi)
 			return
 		}
 
 		_, ok = formulaMap["formula"].(string)
 		if !ok {
 			err = errors.New("failed to parse 'formula' field from 'formula' object in JSON body")
+			errorLog = fmt.Sprintf("formula is either missing or not a string in the formula object: %v", formulaMap)
 			return
 		}
 

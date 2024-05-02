@@ -8,7 +8,7 @@ import (
 
 func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 	testInvalidInput := func(t *testing.T, invalidJSON string) {
-		start, end, queries, formulas, err := parseMetricTimeSeriesRequest([]byte(invalidJSON))
+		start, end, queries, formulas, _, err := parseMetricTimeSeriesRequest([]byte(invalidJSON))
 		assert.Error(t, err)
 		assert.Equal(t, int64(0), start)
 		assert.Equal(t, int64(0), end)
@@ -29,7 +29,7 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 		]
 	}`
 
-	start, end, queries, formulas, err := parseMetricTimeSeriesRequest([]byte(validJSON))
+	start, end, queries, formulas, _, err := parseMetricTimeSeriesRequest([]byte(validJSON))
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1625248200), start)
 	assert.Equal(t, int64(1625248300), end)
