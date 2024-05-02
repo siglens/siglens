@@ -383,6 +383,10 @@ func initTimeSeries(tsid uint64, dp float64, timestammp uint32) (*TimeSeries, ui
 	return ts, writtenBytes, nil
 }
 
+func (ms *MetricsSegment) AddMNameToBloom(mName []byte) {
+	ms.mNamesBloom.Add(mName)
+}
+
 /*
 For a given metricName, tags, dp, and timestamp, add it to the respective in memory series
 
@@ -407,7 +411,7 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 		return fmt.Errorf("no segment remaining to be assigned to orgid=%v", orgid)
 	}
 
-	mSeg.mNamesBloom.Add(mName)
+	mSeg.AddMNameToBloom(mName)
 
 	mSeg.rwLock.Lock()
 	mSeg.mNamesMap[string(mName)] = true
@@ -1019,7 +1023,7 @@ This function assumes that the prior metricssBlock has alraedy been rotated/rese
 */
 func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	var err error
-	err = ms.flushMetricNamesBloom()
+	err = ms.FlushMetricNamesBloom()
 	if err != nil {
 		log.Errorf("rotateSegment: failed to flush metric names bloom! Error %+v", err)
 		return err
@@ -1094,13 +1098,20 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	return blob.UploadIngestNodeDir()
 }
 
-func (ms *MetricsSegment) flushMetricNamesBloom() error {
+func (ms *MetricsSegment) SetMockMetricSegment() string {
+	ms.mNamesBloom = bloom.NewWithEstimates(100_000, 0.001)
+	ms.metricsKeyBase = "./testMockMetric"
+	ms.Suffix = uint64(0)
+	return fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
+}
+
+func (ms *MetricsSegment) FlushMetricNamesBloom() error {
 
 	filePath := fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
 
 	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		log.Errorf("flushMetricNamesBloom: failed to open filename=%v: err=%v", filePath, err)
+		log.Errorf("FlushMetricNamesBloom: failed to open filename=%v: err=%v", filePath, err)
 		return err
 	}
 
@@ -1109,14 +1120,14 @@ func (ms *MetricsSegment) flushMetricNamesBloom() error {
 	// version
 	_, err = fd.Write([]byte{1})
 	if err != nil {
-		log.Errorf("flushMetricNamesBloom: failed to write version err=%v", err)
+		log.Errorf("FlushMetricNamesBloom: failed to write version err=%v", err)
 		return err
 	}
 
 	// write the blockBloom
 	_, err = ms.mNamesBloom.WriteTo(fd)
 	if err != nil {
-		log.Errorf("flushMetricNamesBloom: write mNames Bloom failed fpath=%v, err=%v", filePath, err)
+		log.Errorf("FlushMetricNamesBloom: write mNames Bloom failed fpath=%v, err=%v", filePath, err)
 		return err
 	}
 

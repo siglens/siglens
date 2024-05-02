@@ -18,11 +18,15 @@
 package metadata
 
 import (
+	"bytes"
 	"fmt"
+	"os"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/bits-and-blooms/bloom/v3"
+	blob "github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -64,6 +68,7 @@ type MetricsSegmentMetadata struct {
 
 type MetricsSegmentSearchMetadata struct {
 	mBlockSummary        []*structs.MBlockSummary
+	mNamesBloom          *bloom.BloomFilter
 	mBlockSize           uint64
 	loadedSearchMetadata bool
 }
@@ -78,6 +83,7 @@ func InitMetricsMicroIndex(mMeta *structs.MetricsMeta) *MetricsSegmentMetadata {
 		MetricsMeta: *mMeta,
 	}
 	mm.loadedSearchMetadata = false
+	mm.mNamesBloom = bloom.NewWithEstimates(1000, 0.001)
 	mm.initMetadataSize()
 	return mm
 }
@@ -195,14 +201,62 @@ func (mm *MetricsSegmentMetadata) LoadSearchMetadata() error {
 		log.Errorf("LoadSearchMetadata: unable to read the metrics block summaries. Error: %v", err)
 		return err
 	}
+	err = mm.ReadMetricNamesBloom(fmt.Sprintf("%s.mbi", mm.MSegmentDir))
+	if err != nil {
+		mm.clearSearchMetadata()
+		log.Errorf("LoadSearchMetadata: unable to read the metric names bloom. Error: %v", err)
+	}
 	mm.loadedSearchMetadata = true
 	mm.mBlockSummary = blockSum
+	return nil
+}
+
+func (mm *MetricsSegmentMetadata) ReadMetricNamesBloom(fileName string) error {
+	err := blob.DownloadSegmentBlob(fileName, false)
+	if err != nil {
+		log.Errorf("ReadMetricNamesBloom: Error downloading metrics block summary file at %s, err: %v", fileName, err)
+		return err
+	}
+
+	finfo, err := os.Stat(fileName)
+	if err != nil {
+		return err
+	}
+
+	fileSize := finfo.Size()
+
+	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
+	if err != nil {
+		log.Infof("ReadMetricNamesBloom: failed to open fileName: %v  Error: %v.", fileName, err)
+		return err
+	}
+
+	defer fd.Close()
+
+	data := make([]byte, fileSize)
+	_, err = fd.Read(data)
+	if err != nil {
+		log.Errorf("ReadMetricNamesBloom: Error reading mbi file: %v, err: %v", fileName, err)
+		return err
+	}
+
+	bufRdr := bytes.NewReader(data[1:])
+
+	_, err = mm.mNamesBloom.ReadFrom(bufRdr)
+	if err != nil {
+		log.Errorf("ReadMetricNamesBloom: Error reading bloom filter from file: %v, err: %v", fileName, err)
+		return err
+	}
+
+	mm.mBlockSize += uint64(fileSize)
+
 	return nil
 }
 
 func (mm *MetricsSegmentMetadata) clearSearchMetadata() {
 	mm.loadedSearchMetadata = false
 	mm.mBlockSummary = nil
+	mm.mNamesBloom = nil
 }
 
 /*
