@@ -61,11 +61,13 @@ $('#toggle-switch').on('change', function() {
 
 function addFormulaElement(){
     let formulaElement = $(`
-    <div class="metrics-query">
-        <div style="position: relative;">
+    <div class="formula-box">
+        <div style="position: relative;" class="d-flex">
             <div class="formula-arrow">↓</div>
             <input class="formula" placeholder="Formula, eg. 2*a">
-            <div class="formula-error-message" style="display: none;"><i class="fas fa-exclamation"></i></div>
+            <div class="formula-error-message" style="display: none;">
+                <div class="d-flex justify-content-center align-items-center "><i class="fas fa-exclamation"></i></div>
+            </div>
         </div>
         <div>
             <div class="remove-query">×</div>
@@ -87,7 +89,8 @@ function addFormulaElement(){
         if (formula === '') {
             errorMessage.hide();
             input.removeClass('error-border');
-            return;
+            disableQueryRemoval();
+            return
         }
         let valid = validateFormula(formula);
         if (valid) {
@@ -97,6 +100,8 @@ function addFormulaElement(){
             errorMessage.show();
             input.addClass('error-border');
         }
+        // Disable remove button if the query name exists in any formula
+        disableQueryRemoval();
     });
 }
 
@@ -116,6 +121,24 @@ function validateFormula(formula) {
     }
 
     return true;
+}
+
+function disableQueryRemoval(){
+    // Loop through each query element
+    $('.metrics-query').each(function() {
+        var queryName = $(this).find('.query-name').text();
+        var removeButton = $(this).find('.remove-query');
+        var queryNameExistsInFormula = $('.formula').toArray().some(function(formulaInput) {
+            return $(formulaInput).val().includes(queryName);
+        });
+
+        // If query name exists in any formula, disable the remove button
+        if (queryNameExistsInFormula) {
+            removeButton.addClass('disabled').css('cursor', 'not-allowed').attr('title', 'Query used in other formulas.');
+        } else {
+            removeButton.removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+        }
+    });
 }
 
 function addQueryElement() {
@@ -160,6 +183,7 @@ function addQueryElement() {
         
         queryElement = $('#metrics-queries').find('.metrics-query').last().clone();
         queryElement.find('.query-name').text(nextQueryName);
+        queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
 
         $('#metrics-queries').append(queryElement);
         addVisualizationContainer(nextQueryName,convertDataForChart(rawData3));
@@ -183,7 +207,7 @@ function addQueryElement() {
 
         // If query name exists in any formula, prevent removal of the query element
         if (queryNameExistsInFormula) {
-            alert("Cannot remove query element because query name is used in a formula.");
+            $(this).addClass('disabled').css('cursor', 'not-allowed').attr('title', 'Query used in other formulas.');
         } else {
             delete queries[queryName];
             queryElement.remove();
