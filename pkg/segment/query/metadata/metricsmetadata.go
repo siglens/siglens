@@ -242,6 +242,10 @@ func (mm *MetricsSegmentMetadata) ReadMetricNamesBloom(fileName string) error {
 
 	bufRdr := bytes.NewReader(data[1:])
 
+	if mm.mNamesBloom == nil {
+		log.Warnf("ReadMetricNamesBloom: Bloom filter is nil, creating a new one")
+		mm.mNamesBloom = bloom.NewWithEstimates(1000, 0.001)
+	}
 	_, err = mm.mNamesBloom.ReadFrom(bufRdr)
 	if err != nil {
 		log.Errorf("ReadMetricNamesBloom: Error reading bloom filter from file: %v, err: %v", fileName, err)
