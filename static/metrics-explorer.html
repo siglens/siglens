@@ -46,6 +46,23 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
     <link rel="stylesheet" href="./css/siglens.css" />
     <link rel="stylesheet" href="./css/metrics-explorer.css" />
+    <style>
+        #ui-id-1.ui-widget.ui-widget-content,
+        #ui-id-2.ui-widget.ui-widget-content,
+        #ui-id-3.ui-widget.ui-widget-content,
+        #ui-id-4.ui-widget.ui-widget-content{
+            width: 84px !important;
+            min-width: 84px;
+            font-size: 12px;
+        }
+        #ui-id-1.ui-autocomplete > li > div,
+        #ui-id-2.ui-autocomplete > li > div,
+        #ui-id-3.ui-autocomplete > li > div,
+        #ui-id-4.ui-autocomplete > li > div{
+            padding: 0px 9px;
+            height: 28px;
+        }
+    </style>
 
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
@@ -175,10 +192,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     </div>
 
     <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/lib/chart.umd.min.js"></script>
-    <script src="./js/search.js?cb=1_1_10"></script>
     <script src="./js/metrics-explorer.js"></script>
 
     {{ .RunCheck2 | safeHTML }}
