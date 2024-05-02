@@ -60,9 +60,9 @@ type TimeSeriesBlockReader struct {
 }
 
 type SharedTimeSeriesSegmentReader struct {
-	TimeSeriesSegmentReader []*TimeSeriesSegmentReader
-	numReaders              int
-	rwLock                  *sync.Mutex
+	TimeSeriesSegmentReadersList []*TimeSeriesSegmentReader
+	numReaders                   int
+	rwLock                       *sync.Mutex
 }
 
 var seriesBufferPool = sync.Pool{
@@ -111,9 +111,9 @@ func (tssr *TimeSeriesSegmentReader) Close() error {
 
 func InitSharedTimeSeriesSegmentReader(mKey string, numReaders int) (*SharedTimeSeriesSegmentReader, error) {
 	sharedTimeSeriesSegmentReader := &SharedTimeSeriesSegmentReader{
-		TimeSeriesSegmentReader: make([]*TimeSeriesSegmentReader, numReaders),
-		numReaders:              numReaders,
-		rwLock:                  &sync.Mutex{},
+		TimeSeriesSegmentReadersList: make([]*TimeSeriesSegmentReader, numReaders),
+		numReaders:                   numReaders,
+		rwLock:                       &sync.Mutex{},
 	}
 
 	for i := 0; i < numReaders; i++ {
@@ -122,13 +122,13 @@ func InitSharedTimeSeriesSegmentReader(mKey string, numReaders int) (*SharedTime
 			sharedTimeSeriesSegmentReader.Close()
 			return sharedTimeSeriesSegmentReader, err
 		}
-		sharedTimeSeriesSegmentReader.TimeSeriesSegmentReader[i] = currReader
+		sharedTimeSeriesSegmentReader.TimeSeriesSegmentReadersList[i] = currReader
 	}
 	return sharedTimeSeriesSegmentReader, nil
 }
 
 func (stssr *SharedTimeSeriesSegmentReader) Close() error {
-	for _, reader := range stssr.TimeSeriesSegmentReader {
+	for _, reader := range stssr.TimeSeriesSegmentReadersList {
 		reader.Close()
 	}
 	return nil
