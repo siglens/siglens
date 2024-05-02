@@ -506,7 +506,7 @@ install_podman_compose() {
     install_python_and_pip
 
     # Install podman-compose with pip
-    $sudo_cmd pip3 install podman-compose || {
+    $sudo_cmd pip3 install podman-compose --break-system-packages || {
         # trying to install podman-compose with pipx
         echo "Failed to install podman-compose using pip. Attempting to install using pipx..."
 
