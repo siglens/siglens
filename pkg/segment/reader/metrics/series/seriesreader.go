@@ -60,9 +60,9 @@ type TimeSeriesBlockReader struct {
 }
 
 type SharedTimeSeriesSegmentReader struct {
-	TimeSeriesBlockReader []*TimeSeriesSegmentReader
-	numReaders            int
-	rwLock                *sync.Mutex
+	TimeSeriesSegmentReadersList []*TimeSeriesSegmentReader
+	numReaders                   int
+	rwLock                       *sync.Mutex
 }
 
 var seriesBufferPool = sync.Pool{
@@ -111,9 +111,9 @@ func (tssr *TimeSeriesSegmentReader) Close() error {
 
 func InitSharedTimeSeriesSegmentReader(mKey string, numReaders int) (*SharedTimeSeriesSegmentReader, error) {
 	sharedTimeSeriesSegmentReader := &SharedTimeSeriesSegmentReader{
-		TimeSeriesBlockReader: make([]*TimeSeriesSegmentReader, numReaders),
-		numReaders:            numReaders,
-		rwLock:                &sync.Mutex{},
+		TimeSeriesSegmentReadersList: make([]*TimeSeriesSegmentReader, numReaders),
+		numReaders:                   numReaders,
+		rwLock:                       &sync.Mutex{},
 	}
 
 	for i := 0; i < numReaders; i++ {
@@ -122,13 +122,13 @@ func InitSharedTimeSeriesSegmentReader(mKey string, numReaders int) (*SharedTime
 			sharedTimeSeriesSegmentReader.Close()
 			return sharedTimeSeriesSegmentReader, err
 		}
-		sharedTimeSeriesSegmentReader.TimeSeriesBlockReader[i] = currReader
+		sharedTimeSeriesSegmentReader.TimeSeriesSegmentReadersList[i] = currReader
 	}
 	return sharedTimeSeriesSegmentReader, nil
 }
 
 func (stssr *SharedTimeSeriesSegmentReader) Close() error {
-	for _, reader := range stssr.TimeSeriesBlockReader {
+	for _, reader := range stssr.TimeSeriesSegmentReadersList {
 		reader.Close()
 	}
 	return nil
@@ -334,6 +334,9 @@ func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string, rbuf []byte) (
 	return rbuf, nil
 }
 
+/*
+TODO: Use the buffer pools for such kinds of memory accesses, it will reduce GC pressures.
+*/
 func (tssr *TimeSeriesSegmentReader) GetAllMetricNames() (map[string]bool, error) {
 
 	filePath := fmt.Sprintf("%s.mnm", tssr.mKey)

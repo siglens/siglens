@@ -18,6 +18,7 @@
 package query
 
 import (
+	"sync"
 	"time"
 
 	"github.com/cespare/xxhash"
@@ -25,6 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
+	"github.com/siglens/siglens/pkg/segment/reader/metrics/series"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/search"
@@ -123,6 +125,72 @@ func mergeRotatedAndUnrotatedRequests(unrotatedMSegments map[string][]*structs.M
 		}
 	}
 	return mSegments
+}
+
+func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid uint64) ([]string, error) {
+	mSgementsMeta := metadata.GetMetricSegmentsOverTheTimeRange(timeRange, orgid)
+
+	// TODO: Get Unrotated Metric Segments
+
+	if len(mSgementsMeta) == 0 {
+		return make([]string, 0), nil
+	}
+
+	resultContainerLock := &sync.RWMutex{}
+	resultContainer := make(map[string]bool)
+	wg := &sync.WaitGroup{}
+	parallelism := int(config.GetParallelism())
+	mSegMetaIndex := 0
+	var gErr error
+
+	for _, mSegMeta := range mSgementsMeta {
+		wg.Add(1)
+		go func(msm *structs.MetricsMeta) {
+			defer wg.Done()
+			tssr, err := series.InitTimeSeriesReader(msm.MSegmentDir)
+			if err != nil {
+				log.Errorf("GetAllMetricNamesOverTheTimeRange: Error initializing time series reader for the MSegmentDir: %+v. Error: %v", msm.MSegmentDir, err)
+				gErr = err
+				return
+			}
+			defer tssr.Close()
+
+			mNamesMap, err := tssr.GetAllMetricNames()
+			if err != nil {
+				gErr = err
+				return
+			}
+
+			for mName := range mNamesMap {
+				resultContainerLock.RLock()
+				_, ok := resultContainer[mName]
+				resultContainerLock.RUnlock()
+				if !ok {
+					resultContainerLock.Lock()
+					resultContainer[mName] = true
+					resultContainerLock.Unlock()
+				}
+			}
+
+		}(mSegMeta)
+
+		if mSegMetaIndex%parallelism == 0 {
+			wg.Wait()
+		}
+		mSegMetaIndex++
+	}
+	wg.Wait()
+
+	if gErr != nil {
+		return nil, gErr
+	}
+
+	result := make([]string, 0, len(resultContainer))
+	for mName := range resultContainer {
+		result = append(result, mName)
+	}
+
+	return result, gErr
 }
 
 func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqests map[string][]*structs.MetricsSearchRequest,
