@@ -433,19 +433,19 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queri
 		return
 	}
 
-	if startFloat, ok := readJSON["start"].(float64); ok {
-		start = int64(startFloat)
-	} else {
+	startFloat, ok := readJSON["start"].(float64)
+	if !ok {
 		err = errors.New("failed to parse 'start' from request body")
 		return
 	}
+	start = int64(startFloat)
 
-	if endFloat, ok := readJSON["end"].(float64); ok {
-		end = int64(endFloat)
-	} else {
+	endFloat, ok := readJSON["end"].(float64)
+	if !ok {
 		err = errors.New("failed to parse 'end' from request body")
 		return
 	}
+	end = int64(endFloat)
 
 	queryInterfaces, ok := readJSON["queries"].([]interface{})
 	if !ok {
