@@ -122,6 +122,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/_search", hs.Recovery(esGetSearchHandler()))
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/_doc/_search", hs.Recovery(esGetSearchHandler()))
 
+	hs.Router.DELETE(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(esDeleteIndexHandler()))
+
 	hs.Router.GET(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/_search", hs.Recovery(esGetSearchHandler()))
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/_search", hs.Recovery(esGetSearchHandler()))
 

@@ -70,6 +70,13 @@ func esGetSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func esDeleteIndexHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(eswriter.ProcessDeleteIndex, ctx)
+	}
+
+}
+
 func listIndicesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(pipesearch.ListIndicesHandler, ctx)

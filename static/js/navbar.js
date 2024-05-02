@@ -36,6 +36,10 @@ let navbarComponent = `
             <a href="./metrics.html" class="nav-links"><span class="icon-metrics"></span><span
                     class="nav-link-text">Metrics</span></a>
         </div>
+        <div class="menu nav-slos" title="SLOs">
+            <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
+                    class="nav-link-text">SLOs</span></a>
+        </div>
         <div class="menu nav-live" title="Live Tail">
             <a href="./live-tail.html" class="nav-links"><span class="icon-live"></span><span
                     class="nav-link-text">Live Tail</span></a>
@@ -139,7 +143,8 @@ $(document).ready(function () {
         ".nav-metrics",
         ".nav-ldb",
         ".nav-usq", 
-        ".nav-alerts", 
+        ".nav-slos", 
+        ".nav-alerts",
         ".nav-myorg",
         ".nav-minion",
         ".nav-live",
@@ -159,6 +164,9 @@ $(document).ready(function () {
     } else if (currentUrl.includes("alerts.html") || currentUrl.includes("alert.html") || currentUrl.includes("alert-details.html")   || currentUrl.includes("contacts.html")){
         $(".nav-alerts").addClass("active");
         $('.alerts-nav-tab').appendOrgNavTabs("Alerting", alertsUpperNavTabs);
+    } else if (currentUrl.includes("all-slos.html")){
+        $(".nav-slos").addClass("active");
+        $('.alerts-nav-tab').appendOrgNavTabs("SLOs",[]);
     } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("application-version.html") {{ .OrgUpperNavUrls}} ) {
         $(".nav-myorg").addClass("active");
         $('.org-nav-tab').appendOrgNavTabs("My Org", orgUpperNavTabs);
