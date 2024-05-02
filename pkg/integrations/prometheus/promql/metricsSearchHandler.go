@@ -345,8 +345,8 @@ func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	response := make(map[string]interface{})
-	response["metricNamesCount"] = len(metricNames)
 	response["metricNames"] = metricNames
+	response["metricNamesCount"] = len(metricNames)
 
 	WriteJsonResponse(ctx, &response)
 	ctx.SetContentType(ContentJson)

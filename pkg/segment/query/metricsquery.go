@@ -147,13 +147,12 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 		wg.Add(1)
 		go func(msm *structs.MetricsMeta) {
 			defer wg.Done()
-			tssr, err := series.InitTimeSeriesReader(mSegMeta.MSegmentDir)
+			tssr, err := series.InitTimeSeriesReader(msm.MSegmentDir)
 			if err != nil {
 				log.Errorf("GetAllMetricNamesOverTheTimeRange: Error initializing time series reader. Error: %v", err)
 				gErr = err
 				return
 			}
-			defer tssr.Close()
 
 			mNamesMap, err := tssr.GetAllMetricNames()
 			if err != nil {
@@ -171,6 +170,8 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 					resultContainerLock.Unlock()
 				}
 			}
+
+			defer tssr.Close()
 
 		}(mSegMeta)
 

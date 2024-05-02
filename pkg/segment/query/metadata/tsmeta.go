@@ -117,7 +117,7 @@ func GetMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid uint6
 		if !tRange.CheckRangeOverLap(mSegMeta.EarliestEpochSec, mSegMeta.LatestEpochSec) || mSegMeta.OrgId != orgid {
 			continue
 		}
-		metricsSegMeta[mSegMeta.TTreeDir] = &mSegMeta.MetricsMeta
+		metricsSegMeta[mSegMeta.MSegmentDir] = &mSegMeta.MetricsMeta
 	}
 
 	return metricsSegMeta
