@@ -331,8 +331,11 @@ func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		utils.SendError(ctx, "Failed to parse 'end' from request body", fmt.Sprintf("ProcessGetAllMetricsRequest: Failed to parse 'end' from JSON body with value: %v", readJSON["end"]), errors.New("failed to parse 'end' from JSON body"))
 		return
 	}
-
-	log.Debugf("ProcessGetAllMetricsRequest: start=%v, end=%v", int64(start), int64(end))
+	timeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: uint32(start),
+		EndEpochSec:   uint32(end),
+	}
+	log.Debugf("ProcessGetAllMetricsRequest: timeRange=%v", timeRange)
 	// TODO: Integrate functionality to get all metric names and remove dummy response
 	dummyResponse := `{"metricNames": ["metric_name1", "metric_name2"]}`
 	ctx.SetBody([]byte(dummyResponse))
