@@ -433,9 +433,6 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queri
 		return
 	}
 
-	var ok bool
-	var queryInterfaces, formulaInterfaces []interface{}
-
 	if startFloat, ok := readJSON["start"].(float64); ok {
 		start = int64(startFloat)
 	} else {
@@ -450,7 +447,8 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queri
 		return
 	}
 
-	if queryInterfaces, ok = readJSON["queries"].([]interface{}); !ok {
+	queryInterfaces, ok := readJSON["queries"].([]interface{})
+	if !ok {
 		err = errors.New("failed to parse 'queries' from JSON body")
 		return
 	}
@@ -483,7 +481,8 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queri
 		queries[i] = queryMap
 	}
 
-	if formulaInterfaces, ok = readJSON["formulas"].([]interface{}); !ok {
+	formulaInterfaces, ok := readJSON["formulas"].([]interface{})
+	if !ok {
 		err = errors.New("failed to parse 'formulas' from JSON body")
 		return
 	}
