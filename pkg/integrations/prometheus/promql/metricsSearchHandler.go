@@ -304,6 +304,86 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	rawJSON := ctx.PostBody()
+	if len(rawJSON) == 0 {
+		utils.SendError(ctx, "empty json body received", "ProcessGetAllMetricNamesRequest: empty json body received", errors.New("empty json body received"))
+		return
+	}
+
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	err := decoder.Decode(&readJSON)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse request body", "ProcessGetAllMetricsRequest: Failed to parse JSON body: %v", err)
+		return
+	}
+
+	start, ok := readJSON["start"].(float64)
+	if !ok {
+		utils.SendError(ctx, "Failed to parse 'start' from request body", fmt.Sprintf("ProcessGetAllMetricsRequest: Failed to parse 'start' from JSON body with value: %v", readJSON["start"]), errors.New("failed to parse 'start' from JSON body"))
+		return
+	}
+
+	end, ok := readJSON["end"].(float64)
+	if !ok {
+		utils.SendError(ctx, "Failed to parse 'end' from request body", fmt.Sprintf("ProcessGetAllMetricsRequest: Failed to parse 'end' from JSON body with value: %v", readJSON["end"]), errors.New("failed to parse 'end' from JSON body"))
+		return
+	}
+
+	log.Debugf("ProcessGetAllMetricsRequest: start=%v, end=%v", int64(start), int64(end))
+	// TODO: Integrate functionality to get all metric names and remove dummy response
+	dummyResponse := `{"metricNames": ["metric_name1", "metric_name2"]}`
+	ctx.SetBody([]byte(dummyResponse))
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	rawJSON := ctx.PostBody()
+	if len(rawJSON) == 0 {
+		utils.SendError(ctx, "empty json body received", "ProcessGetAllMetricTagsRequest: empty json body received", errors.New("empty json body received"))
+		return
+	}
+
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	err := decoder.Decode(&readJSON)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse request body", "ProcessGetAllMetricTagsRequest: Failed to parse JSON request body", err)
+		return
+	}
+
+	start, ok := readJSON["start"].(float64)
+	if !ok {
+		utils.SendError(ctx, "Failed to parse 'start' from JSON body", fmt.Sprintf("ProcessGetAllMetricTagsRequest: Failed to parse 'start' from JSON body with value: %v", readJSON["start"]), errors.New("failed to parse 'start' from JSON body"))
+		return
+	}
+
+	end, ok := readJSON["end"].(float64)
+	if !ok {
+		utils.SendError(ctx, "Failed to parse 'end' from JSON body", fmt.Sprintf("ProcessGetAllMetricTagsRequest: Failed to parse 'end' from JSON body with value: %v", readJSON["end"]), errors.New("failed to parse 'end' from JSON body"))
+		return
+	}
+
+	metricName, ok := readJSON["metric_name"].(string)
+	if !ok {
+		utils.SendError(ctx, "Failed to parse 'metric_name' from JSON body", "ProcessGetAllMetricTagsRequest: 'metric_name' not found in JSON body", errors.New("'metric_name' not found in JSON body"))
+		return
+	}
+	if metricName == "" {
+		utils.SendError(ctx, "Failed to parse 'metric_name' from JSON body", "ProcessGetAllMetricTagsRequest: 'metric_name' is an empty string", errors.New("'metric_name' is an empty string"))
+		return
+	}
+
+	log.Debugf("ProcessGetAllMetricTagsRequest: start=%v, end=%v, metric_name=%v", int64(start), int64(end), metricName)
+	// TODO: Integrate functionality to get all tags for a metric and remove dummy response
+	dummyResponse := `{"metricName": "metric_1", "tags": ["tk1: tv1", "tk2: tv2"]}`
+	ctx.SetBody([]byte(dummyResponse))
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
 func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, pql.ValueType, []structs.QueryArithmetic, error) {
 	// call prometheus promql parser
 	expr, err := pql.ParseExpr(searchText)

@@ -414,3 +414,41 @@ func Test_HasGroupByOrMeasureAggsInBlock_WithBothGroupByAndMeasure(t *testing.T)
 
 	assert.True(t, qa.HasGroupByOrMeasureAggsInBlock(), "Expected true when there are both group by and measure aggregators, got false")
 }
+
+func Test_HasDedupBlockInChain_HasDedupBlock(t *testing.T) {
+	qa := &QueryAggregators{
+		OutputTransforms: &OutputTransforms{
+			LetColumns: &LetColumnsRequest{
+				DedupColRequest: &DedupExpr{},
+			},
+		},
+	}
+
+	assert.True(t, qa.HasDedupBlockInChain())
+}
+
+func Test_HasDedupBlockInChain_NotNilNext(t *testing.T) {
+	next := &QueryAggregators{
+		OutputTransforms: &OutputTransforms{
+			LetColumns: &LetColumnsRequest{
+				DedupColRequest: &DedupExpr{},
+			},
+		},
+	}
+
+	qa := &QueryAggregators{
+		Next: next,
+	}
+
+	assert.True(t, qa.HasDedupBlockInChain())
+}
+
+func Test_HasDedupBlockInChain_HasNoDedupBlockAndNilNext(t *testing.T) {
+	var next *QueryAggregators
+
+	qa := &QueryAggregators{
+		Next: next,
+	}
+
+	assert.False(t, qa.HasDedupBlockInChain())
+}

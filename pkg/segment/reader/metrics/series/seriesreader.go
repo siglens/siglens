@@ -333,3 +333,45 @@ func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string, rbuf []byte) (
 	}
 	return rbuf, nil
 }
+
+func (tssr *TimeSeriesSegmentReader) GetAllMetricNames() (map[string]bool, error) {
+
+	filePath := fmt.Sprintf("%s.mnm", tssr.mKey)
+
+	fd, err := os.OpenFile(filePath, os.O_RDONLY, 0644)
+	if err != nil {
+		log.Errorf("GetAllMetricNames: failed to open fileName: %v  Error: %v", filePath, err)
+		return nil, err
+	}
+
+	defer fd.Close()
+
+	finfo, err := fd.Stat()
+	if err != nil {
+		log.Errorf("GetAllMetricNames: error when trying to stat file=%+v. Error=%+v", filePath, err)
+		return nil, err
+	}
+
+	fileSize := finfo.Size()
+	buf := make([]byte, fileSize)
+
+	_, err = fd.Read(buf)
+	if err != nil {
+		log.Errorf("GetAllMetricNames: Error reading the Metric Names file: %v, err: %v", filePath, err)
+		return nil, err
+	}
+
+	metricNames := make(map[string]bool)
+
+	for i := 0; i < len(buf); {
+		metricNameLen := int(utils.BytesToUint16LittleEndian(buf[i : i+2]))
+		i += 2
+		metricName := string(buf[i : i+metricNameLen])
+		i += metricNameLen
+		metricNames[metricName] = true
+	}
+
+	buf = nil
+
+	return metricNames, nil
+}
