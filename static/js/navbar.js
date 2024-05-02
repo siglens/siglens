@@ -36,9 +36,9 @@ let navbarComponent = `
             <a href="./metrics.html" class="nav-links"><span class="icon-metrics"></span><span
                     class="nav-link-text">Metrics</span></a>
         </div>
-        <div class="menu nav-slos" title="SLO">
+        <div class="menu nav-slos" title="SLOs">
             <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
-                    class="nav-link-text">SLO</span></a>
+                    class="nav-link-text">SLOs</span></a>
         </div>
         <div class="menu nav-live" title="Live Tail">
             <a href="./live-tail.html" class="nav-links"><span class="icon-live"></span><span
