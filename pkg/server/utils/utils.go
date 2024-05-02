@@ -32,6 +32,7 @@ const OTLP_PREFIX string = "/otlp"
 const API_PREFIX string = "/api"
 const LOKI_PREFIX string = "/loki"
 const HEROKU_ADDON_PREFIX string = "/heroku/resources"
+const METRIC_PREFIX string = "/metrics-explorer"
 
 // This function reduces some boilerplate code by handling the logic for
 // injecting orgId if necessary, or using the default.

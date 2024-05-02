@@ -176,6 +176,10 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET(server_utils.PROMQL_PREFIX+"/api/v1/query", hs.Recovery(metricsSearchHandler()))
 	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/ui/query", hs.Recovery(uiMetricsSearchHandler()))
 
+	// metric explorer endpoint
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/metric_names", hs.Recovery(getAllMetricNamesHandler()))
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/all_tags", hs.Recovery(getAllMetricTagsHandler()))
+
 	// search api Handlers
 	hs.Router.POST(server_utils.API_PREFIX+"/echo", tracing.TraceMiddleware(hs.Recovery(pipeSearchHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/listIndices", tracing.TraceMiddleware(hs.Recovery(listIndicesHandler())))
