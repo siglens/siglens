@@ -304,6 +304,55 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	start, err := ctx.QueryArgs().GetUint("start")
+	if err != nil {
+		log.Errorf("ProcessGetAllMetricsRequest: Failed to parse 'start' parameter from query params: %v", err)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return
+	}
+
+	end, err := ctx.QueryArgs().GetUint("end")
+	if err != nil {
+		log.Errorf("ProcessGetAllMetricsRequest: Failed to parse 'end' parameter from query params: %v", err)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return
+	}
+	log.Infof("ProcessGetAllMetricsRequest: start=%v, end=%v", start, end)
+	// TODO: Integrate functionality to get all metric names and remove dummy response
+	dummyResponse := `{"metricNames": ["metric_name1", "metric_name2"]}`
+	ctx.SetBody([]byte(dummyResponse))
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	start, err := ctx.QueryArgs().GetUint("start")
+	if err != nil {
+		log.Errorf("ProcessGetAllMetricsRequest: Failed to parse 'start' parameter from query params: %v", err)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return
+	}
+
+	end, err := ctx.QueryArgs().GetUint("end")
+	if err != nil {
+		log.Errorf("ProcessGetAllMetricsRequest: Failed to parse 'end' parameter from query params: %v", err)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return
+	}
+
+	metricName := string(ctx.QueryArgs().Peek("metric_name"))
+	if metricName == "" {
+		log.Error("ProcessGetAllMetricsRequest: 'metric_name' parameter is missing from query params")
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return
+	}
+	log.Infof("ProcessGetAllTagsRequest: start=%v, end=%v, metric_name=%v", start, end, metricName)
+	// TODO: Integrate functionality to get all tags for a metric and remove dummy response
+	dummyResponse := `{"metricName": "metric_1", "tags": ["tk1: tv1", "tk2: tv2"]}`
+	ctx.SetBody([]byte(dummyResponse))
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
 func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, pql.ValueType, []structs.QueryArithmetic, error) {
 	// call prometheus promql parser
 	expr, err := pql.ParseExpr(searchText)
