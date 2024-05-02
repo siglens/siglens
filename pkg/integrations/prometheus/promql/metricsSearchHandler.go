@@ -391,88 +391,14 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	readJSON := make(map[string]interface{})
-	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
-	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
-	err := decoder.Decode(&readJSON)
+	start, end, queries, formulas, err := parseMetricTimeSeriesRequest(rawJSON)
 	if err != nil {
-		utils.SendError(ctx, "Failed to parse request body", "", err)
+		utils.SendError(ctx, err.Error(), "", err)
 		return
 	}
 
-	start, ok := readJSON["start"].(float64)
-	if !ok {
-		utils.SendError(ctx, "Failed to parse 'start' from request body", "", nil)
-		return
-	}
-
-	end, ok := readJSON["end"].(float64)
-	if !ok {
-		utils.SendError(ctx, "Failed to parse 'end' from request body", "", nil)
-		return
-	}
-
-	queryInterfaces, ok := readJSON["queries"].([]interface{})
-	if !ok {
-		utils.SendError(ctx, "Failed to parse 'queries' from JSON body", "", nil)
-		return
-	}
-
-	queries := make([]map[string]interface{}, len(queryInterfaces))
-	for i, qi := range queryInterfaces {
-		queryMap, ok := qi.(map[string]interface{})
-		if !ok {
-			utils.SendError(ctx, "Failed to parse 'query' from JSON body", "", nil)
-			return
-		}
-
-		_, nameOk := queryMap["name"].(string)
-		_, queryOk := queryMap["query"].(string)
-		_, qlTypeOk := queryMap["qlType"].(string)
-
-		if !nameOk {
-			utils.SendError(ctx, "Failed to parse 'name' from JSON body", "", nil)
-			return
-		}
-		if !queryOk {
-			utils.SendError(ctx, "Failed to parse 'query' from JSON body", "", nil)
-			return
-		}
-		if !qlTypeOk {
-			utils.SendError(ctx, "Failed to parse 'qlType' from JSON body", "", nil)
-			return
-		}
-
-		queries[i] = queryMap
-	}
-
-	formulaInterfaces, ok := readJSON["formulas"].([]interface{})
-	if !ok {
-		utils.SendError(ctx, "Failed to parse 'formulas' from JSON body", "", nil)
-		return
-	}
-
-	formulas := make([]map[string]interface{}, len(formulaInterfaces))
-
-	for i, fi := range formulaInterfaces {
-		formulaMap, ok := fi.(map[string]interface{})
-		if !ok {
-			utils.SendError(ctx, "Failed to parse 'formula' object from JSON body", "", nil)
-			return
-		}
-
-		_, formulaOk := formulaMap["formula"].(string)
-
-		if !formulaOk {
-			utils.SendError(ctx, "Failed to parse 'formula' field from 'formula' object in JSON body", "", nil)
-			return
-		}
-
-		formulas[i] = formulaMap
-	}
-
-	log.Debugf("ProcessGetMetricTimeSeriesRequest: start=%v, end=%v, queries=%v, formulas=%v", int64(start), int64(end), queries, formulas)
-	// TODO: Integrate functionality to get timeseries and remove dummy response
+	log.Debugf("ProcessGetMetricTimeSeriesRequest: start=%v, end=%v, queries=%v, formulas=%v", start, end, queries, formulas)
+	// TODO: Integrate functionality to get metric time series and remove dummy response
 	dummyResponse := `{
 		"aggStats": {
 			"testmetric0": {
@@ -488,6 +414,98 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	`
 	ctx.SetBody([]byte(dummyResponse))
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func parseMetricTimeSeriesRequest(rawJSON []byte) (start int64, end int64, queries []map[string]interface{}, formulas []map[string]interface{}, err error) {
+	defer func() {
+		if err != nil {
+			// Set all return values to their zero values
+			start, end, queries, formulas = 0, 0, nil, nil
+		}
+	}()
+
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	err = decoder.Decode(&readJSON)
+	if err != nil {
+		err = errors.New("failed to parse request body")
+		return
+	}
+
+	var ok bool
+	var queryInterfaces, formulaInterfaces []interface{}
+
+	if startFloat, ok := readJSON["start"].(float64); ok {
+		start = int64(startFloat)
+	} else {
+		err = errors.New("failed to parse 'start' from request body")
+		return
+	}
+
+	if endFloat, ok := readJSON["end"].(float64); ok {
+		end = int64(endFloat)
+	} else {
+		err = errors.New("failed to parse 'end' from request body")
+		return
+	}
+
+	if queryInterfaces, ok = readJSON["queries"].([]interface{}); !ok {
+		err = errors.New("failed to parse 'queries' from JSON body")
+		return
+	}
+
+	queries = make([]map[string]interface{}, len(queryInterfaces))
+	for i, qi := range queryInterfaces {
+		queryMap, ok := qi.(map[string]interface{})
+		if !ok {
+			err = errors.New("failed to parse 'query' from JSON body")
+			return
+		}
+
+		_, ok = queryMap["name"].(string)
+		if !ok {
+			err = errors.New("failed to parse 'name' from JSON body")
+			return
+		}
+
+		_, ok = queryMap["query"].(string)
+		if !ok {
+			err = errors.New("failed to parse 'query' from JSON body")
+			return
+		}
+
+		_, ok = queryMap["qlType"].(string)
+		if !ok {
+			err = errors.New("failed to parse 'qlType' from JSON body")
+			return
+		}
+		queries[i] = queryMap
+	}
+
+	if formulaInterfaces, ok = readJSON["formulas"].([]interface{}); !ok {
+		err = errors.New("failed to parse 'formulas' from JSON body")
+		return
+	}
+
+	formulas = make([]map[string]interface{}, len(formulaInterfaces))
+	for i, fi := range formulaInterfaces {
+		formulaMap, ok := fi.(map[string]interface{})
+		if !ok {
+			err = errors.New("failed to parse 'formula' object from JSON body")
+			return
+		}
+
+		_, ok = formulaMap["formula"].(string)
+		if !ok {
+			err = errors.New("failed to parse 'formula' field from 'formula' object in JSON body")
+			return
+		}
+
+		formulas[i] = formulaMap
+	}
+
+	return
 }
 
 func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, pql.ValueType, []structs.QueryArithmetic, error) {
