@@ -305,48 +305,83 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 }
 
 func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	start, err := ctx.QueryArgs().GetUint("start")
-	if err != nil {
-		log.Errorf("ProcessGetAllMetricsRequest: Failed to parse 'start' parameter from query params: %v", err)
+	rawJSON := ctx.PostBody()
+	if len(rawJSON) == 0 {
+		log.Errorf("ProcessGetAllMetricsRequest: empty json body received")
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return
 	}
 
-	end, err := ctx.QueryArgs().GetUint("end")
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	err := decoder.Decode(&readJSON)
 	if err != nil {
-		log.Errorf("ProcessGetAllMetricsRequest: Failed to parse 'end' parameter from query params: %v", err)
+		log.Errorf("ProcessGetAllMetricsRequest: Failed to parse JSON body: %v", err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return
 	}
-	log.Infof("ProcessGetAllMetricsRequest: start=%v, end=%v", start, end)
+
+	start, ok := readJSON["start"].(float64)
+	if !ok {
+		log.Errorf("ProcessGetAllMetricsRequest: Failed to parse 'start' from JSON body with value %v", readJSON["start"])
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return
+	}
+
+	end, ok := readJSON["end"].(float64)
+	if !ok {
+		log.Errorf("ProcessGetAllMetricsRequest: Failed to parse 'end' from JSON body with value %v", readJSON["end"])
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return
+	}
+
+	log.Infof("ProcessGetAllMetricsRequest: start=%v, end=%v", int64(start), int64(end))
 	// TODO: Integrate functionality to get all metric names and remove dummy response
 	dummyResponse := `{"metricNames": ["metric_name1", "metric_name2"]}`
 	ctx.SetBody([]byte(dummyResponse))
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
-
 func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	start, err := ctx.QueryArgs().GetUint("start")
-	if err != nil {
-		log.Errorf("ProcessGetAllMetricsRequest: Failed to parse 'start' parameter from query params: %v", err)
+	rawJSON := ctx.PostBody()
+	if len(rawJSON) == 0 {
+		log.Errorf("ProcessGetAllMetricTagsRequest: empty json body received")
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return
 	}
 
-	end, err := ctx.QueryArgs().GetUint("end")
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	err := decoder.Decode(&readJSON)
 	if err != nil {
-		log.Errorf("ProcessGetAllMetricsRequest: Failed to parse 'end' parameter from query params: %v", err)
+		log.Errorf("ProcessGetAllMetricTagsRequest: Failed to parse JSON body: %v", err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return
 	}
 
-	metricName := string(ctx.QueryArgs().Peek("metric_name"))
-	if metricName == "" {
-		log.Error("ProcessGetAllMetricsRequest: 'metric_name' parameter is missing from query params")
+	start, ok := readJSON["start"].(float64)
+	if !ok {
+		log.Errorf("ProcessGetAllMetricTagsRequest: Failed to parse 'start' from JSON body with value %v", readJSON["start"])
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		return
 	}
-	log.Infof("ProcessGetAllTagsRequest: start=%v, end=%v, metric_name=%v", start, end, metricName)
+
+	end, ok := readJSON["end"].(float64)
+	if !ok {
+		log.Errorf("ProcessGetAllMetricTagsRequest: Failed to parse 'end' from JSON body with value %v", readJSON["end"])
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return
+	}
+
+	metricName, ok := readJSON["metric_name"].(string)
+	if !ok || metricName == "" {
+		log.Errorf("ProcessGetAllMetricTagsRequest: Failed to parse 'metric_name' from JSON body with value %v", readJSON["metric_name"])
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		return
+	}
+
+	log.Infof("ProcessGetAllTagsRequest: start=%v, end=%v, metric_name=%v", int64(start), int64(end), metricName)
 	// TODO: Integrate functionality to get all tags for a metric and remove dummy response
 	dummyResponse := `{"metricName": "metric_1", "tags": ["tk1: tv1", "tk2: tv2"]}`
 	ctx.SetBody([]byte(dummyResponse))
