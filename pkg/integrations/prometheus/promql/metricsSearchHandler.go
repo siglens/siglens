@@ -336,11 +336,10 @@ func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		StartEpochSec: uint32(start),
 		EndEpochSec:   uint32(end),
 	}
-	log.Debugf("ProcessGetAllMetricsRequest: timeRange=%v", timeRange)
 
 	metricNames, err := query.GetAllMetricNamesOverTheTimeRange(timeRange, myid)
 	if err != nil {
-		utils.SendError(ctx, "Failed to get all metric names", "ProcessGetAllMetricsRequest: Failed to get all metric names: %+v", err)
+		utils.SendError(ctx, "Failed to get all metric names", "", err)
 		return
 	}
 
@@ -351,10 +350,6 @@ func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	WriteJsonResponse(ctx, &response)
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
-
-	delete(response, "metricNames")
-	delete(response, "metricNamesCount")
-	response = nil
 }
 
 func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {

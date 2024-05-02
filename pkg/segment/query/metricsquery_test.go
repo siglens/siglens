@@ -19,6 +19,7 @@ package query
 
 import (
 	"os"
+	"sort"
 	"testing"
 	"time"
 
@@ -44,10 +45,14 @@ func Test_GetAllMetricNamesOverTheTimeRange(t *testing.T) {
 	mNames, err := GetAllMetricNamesOverTheTimeRange(timeRange, 0)
 	assert.Nil(t, err)
 
+	ingestedMetricNames := []string{"test.metric.0", "test.metric.1", "test.metric.2", "test.metric.3"}
+
 	assert.True(t, len(mNames) == 4)
-	for _, mName := range mNames {
-		assert.True(t, mName == "test.metric.0" || mName == "test.metric.1" || mName == "test.metric.2" || mName == "test.metric.3")
-	}
+	sort.Slice(mNames, func(i, j int) bool {
+		return mNames[i] < mNames[j]
+	})
+
+	assert.Equal(t, mNames, ingestedMetricNames)
 
 	// Cleanup
 	_ = os.RemoveAll(config.GetDataPath())

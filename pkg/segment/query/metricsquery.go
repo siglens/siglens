@@ -133,14 +133,14 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 	// TODO: Get Unrotated Metric Segments
 
 	if len(mSgementsMeta) == 0 {
-		return nil, nil
+		return make([]string, 0), nil
 	}
 
 	resultContainerLock := &sync.RWMutex{}
+	resultContainer := make(map[string]bool)
 	wg := &sync.WaitGroup{}
 	parallelism := int(config.GetParallelism())
-	resultContainer := make(map[string]bool)
-	count := uint16(0)
+	mSegMetaIndex := 0
 	var gErr error
 
 	for _, mSegMeta := range mSgementsMeta {
@@ -149,10 +149,11 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 			defer wg.Done()
 			tssr, err := series.InitTimeSeriesReader(msm.MSegmentDir)
 			if err != nil {
-				log.Errorf("GetAllMetricNamesOverTheTimeRange: Error initializing time series reader. Error: %v", err)
+				log.Errorf("GetAllMetricNamesOverTheTimeRange: Error initializing time series reader for the MSegmentDir: %+v. Error: %v", msm.MSegmentDir, err)
 				gErr = err
 				return
 			}
+			defer tssr.Close()
 
 			mNamesMap, err := tssr.GetAllMetricNames()
 			if err != nil {
@@ -171,14 +172,12 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 				}
 			}
 
-			defer tssr.Close()
-
 		}(mSegMeta)
 
-		if int(count)%parallelism == 0 {
+		if mSegMetaIndex%parallelism == 0 {
 			wg.Wait()
 		}
-		count++
+		mSegMetaIndex++
 	}
 	wg.Wait()
 
@@ -189,7 +188,6 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 	result := make([]string, 0, len(resultContainer))
 	for mName := range resultContainer {
 		result = append(result, mName)
-		delete(resultContainer, mName)
 	}
 
 	return result, gErr
