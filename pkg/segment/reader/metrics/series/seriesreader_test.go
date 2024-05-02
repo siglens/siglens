@@ -15,43 +15,45 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package metadata
+package series
 
 import (
 	"fmt"
 	"os"
 	"testing"
 
-	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_ReadMetricNamesBloom(t *testing.T) {
+func Test_GetAllMetricNames(t *testing.T) {
+	// Flush Metric Names to a File.
 	ms := &metrics.MetricsSegment{}
 
-	filePath := ms.SetMockMetricSegmentMNamesBloom()
+	mNamesCount := uint32(1000)
+	mNameBase := "metric_"
 
-	for i := 0; i < 100_000; i++ {
-		ms.AddMNameToBloom([]byte("test" + fmt.Sprint(i)))
-	}
+	filePath := ms.SetMockMetricSegmentMNamesMap(mNamesCount, mNameBase)
 
-	err := ms.FlushMetricNamesBloom()
+	err := ms.FlushMetricNames()
 	assert.Nil(t, err)
 
 	_, err = os.Stat(filePath)
 	assert.Nil(t, err)
 
-	mm := InitMetricsMicroIndex(&structs.MetricsMeta{})
-	err = mm.ReadMetricNamesBloom(filePath)
+	// Read Metric Names from the File.
+	tssr, err := InitTimeSeriesReader(filePath[:len(filePath)-4])
 	assert.Nil(t, err)
 
-	for i := 0; i < 100000; i++ {
-		assert.True(t, mm.mNamesBloom.Test([]byte("test"+fmt.Sprint(i))))
+	mNamesMap, err := tssr.GetAllMetricNames()
+	assert.Nil(t, err)
+
+	assert.Equal(t, len(mNamesMap), int(mNamesCount))
+
+	for i := 0; i < int(mNamesCount); i++ {
+		assert.True(t, mNamesMap[fmt.Sprintf("%s_%d", mNameBase, i)])
 	}
 
-	assert.True(t, mm.mBlockSize > 0)
-
-	// cleanup
+	// Cleanup
 	_ = os.RemoveAll(filePath)
 }
