@@ -404,22 +404,6 @@ input:checked + .slider:before {
     width: 1px;
 }
 
-#ui-id-1.ui-widget.ui-widget-content,
-#ui-id-2.ui-widget.ui-widget-content,
-#ui-id-3.ui-widget.ui-widget-content,
-#ui-id-4.ui-widget.ui-widget-content{
-    width: 84px !important;
-    min-width: 84px;
-    font-size: 12px;
-}
-#ui-id-1.ui-autocomplete > li > div,
-#ui-id-2.ui-autocomplete > li > div,
-#ui-id-3.ui-autocomplete > li > div,
-#ui-id-4.ui-autocomplete > li > div{
-    padding: 0px 9px;
-    height: 28px;
-}
-
 .formula-error-message{
     display: none;
     background-color: #EB364B;
