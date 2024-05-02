@@ -104,7 +104,8 @@ type MetricsSegment struct {
 	lowTS            uint32             // lowest epoch timestamp seen across this segment
 	mBlock           *MetricsBlock      // current in memory block
 	currBlockNum     uint16             // current block number
-	mNames           *bloom.BloomFilter // all metric names across segment
+	mNamesBloom      *bloom.BloomFilter // all metric names bloom across segment
+	mNamesMap        map[string]bool    // all metric names seen across segment
 	totalEncodedSize uint64             // total size of all metric blocks. TODO: this should include tagsTree & mNames blooms
 	bytesReceived    uint64             // total size of incoming data
 	rwLock           *sync.RWMutex      // read write lock for access
@@ -144,8 +145,8 @@ type TimeSeries struct {
 var orgMetricsAndTagsLock *sync.RWMutex = &sync.RWMutex{}
 
 type MetricsAndTagsHolder struct {
-	Metrics    map[string]*MetricsSegment
-	TagHolders map[string]*TagsTreeHolder
+	MetricSegments map[string]*MetricsSegment
+	TagHolders     map[string]*TagsTreeHolder
 }
 
 var numMetricsSegments uint64
@@ -172,8 +173,8 @@ func initOrgMetrics(orgid uint64) error {
 	orgMetricsAndTagsLock.Lock()
 	if _, ok := OrgMetricsAndTags[orgid]; !ok {
 		OrgMetricsAndTags[orgid] = &MetricsAndTagsHolder{
-			Metrics:    map[string]*MetricsSegment{},
-			TagHolders: map[string]*TagsTreeHolder{},
+			MetricSegments: map[string]*MetricsSegment{},
+			TagHolders:     map[string]*TagsTreeHolder{},
 		}
 	}
 	orgMetricsAndTagsLock.Unlock()
@@ -194,7 +195,7 @@ func initOrgMetrics(orgid uint64) error {
 		}
 
 		orgMetricsAndTagsLock.Lock()
-		OrgMetricsAndTags[orgid].Metrics[fmt.Sprint(i)] = mSeg
+		OrgMetricsAndTags[orgid].MetricSegments[fmt.Sprint(i)] = mSeg
 		OrgMetricsAndTags[orgid].TagHolders[mSeg.Mid], err = InitTagsTreeHolder(mSeg.Mid)
 		if err != nil {
 			log.Errorf("Initialising tags tree holder failed for org: %v, err: %v", orgid, err)
@@ -217,7 +218,7 @@ func GetUnrotatedMetricStats(orgid uint64) (uint64, uint64, uint64) {
 	orgMetricsAndTagsLock.RLock()
 	orgMetrics := map[string]*MetricsSegment{}
 	if metricsAndTags, ok := OrgMetricsAndTags[orgid]; ok {
-		orgMetrics = metricsAndTags.Metrics
+		orgMetrics = metricsAndTags.MetricSegments
 	}
 	orgMetricsAndTagsLock.RUnlock()
 
@@ -309,7 +310,8 @@ func InitMetricsSegment(orgid uint64, mId string) (*MetricsSegment, error) {
 		return nil, err
 	}
 	return &MetricsSegment{
-		mNames:       bloom.NewWithEstimates(10, 0.001), // TODO: dynamic sizing
+		mNamesBloom:  bloom.NewWithEstimates(1000, 0.001),
+		mNamesMap:    make(map[string]bool, 0),
 		currBlockNum: 0,
 		mBlock: &MetricsBlock{
 			tsidLookup:  make(map[uint64]int),
@@ -405,9 +407,12 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 		return fmt.Errorf("no segment remaining to be assigned to orgid=%v", orgid)
 	}
 
-	if mSeg.mNames.Test(mName) {
-		mSeg.mNames.Add(mName)
-	}
+	mSeg.mNamesBloom.Add(mName)
+
+	mSeg.rwLock.Lock()
+	mSeg.mNamesMap[string(mName)] = true
+	mSeg.rwLock.Unlock()
+
 	mSeg.Orgid = orgid
 	var ts *TimeSeries
 	var seriesExists bool
@@ -719,7 +724,7 @@ func getMetricsSegment(mName []byte, orgid uint64) (*MetricsSegment, *TagsTreeHo
 	orgMetricsAndTagsLock.RLock()
 	metricsAndTagsHolder, ok := OrgMetricsAndTags[orgid]
 	orgMetricsAndTagsLock.RUnlock()
-	if !ok || len(metricsAndTagsHolder.Metrics) == 0 {
+	if !ok || len(metricsAndTagsHolder.MetricSegments) == 0 {
 		err := initOrgMetrics(orgid)
 		if err != nil {
 			log.Errorf("getMetricsSegment: Failed to initialize metrics segments for org %v: %v", orgid, err)
@@ -729,8 +734,8 @@ func getMetricsSegment(mName []byte, orgid uint64) (*MetricsSegment, *TagsTreeHo
 		metricsAndTagsHolder = OrgMetricsAndTags[orgid]
 		orgMetricsAndTagsLock.RUnlock()
 	}
-	mid := fmt.Sprint(xxhash.Sum64(mName) % uint64(len(metricsAndTagsHolder.Metrics)))
-	return metricsAndTagsHolder.Metrics[mid], metricsAndTagsHolder.TagHolders[mid], nil
+	mid := fmt.Sprint(xxhash.Sum64(mName) % uint64(len(metricsAndTagsHolder.MetricSegments)))
+	return metricsAndTagsHolder.MetricSegments[mid], metricsAndTagsHolder.TagHolders[mid], nil
 }
 
 /*
@@ -1011,35 +1016,44 @@ func (mb *MetricsBlock) rotateBlock(basePath string, suffix uint64, bufId uint16
 Flushes the metrics segment's tags tree, mNames bloom
 
 This function assumes that the prior metricssBlock has alraedy been rotated/reset
-TODO: flush bloom / tags tree / etc
 */
 func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	var err error
+	err = ms.flushMetricNamesBloom()
+	if err != nil {
+		log.Errorf("rotateSegment: failed to flush metric names bloom! Error %+v", err)
+		return err
+	}
+	err = ms.flushMetricNames()
+	if err != nil {
+		log.Errorf("rotateSegment: failed to flush metric names! Error %+v", err)
+		return err
+	}
 	finalDir := getFinalMetricsDir(ms.Mid, ms.Suffix)
 	metaEntry := ms.getMetaEntry(finalDir, ms.Suffix)
 	err = os.MkdirAll(path.Dir(path.Dir(finalDir)), 0764)
 	if err != nil {
-		log.Errorf("RotateSegment: failed to create directory %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
+		log.Errorf("rotateSegment: failed to create directory %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
 		return err
 	}
 
 	// Check if final directory already exists
 	if _, err := os.Stat(finalDir); err == nil {
-		log.Infof("RotateSegment: final directory %s already exists, skipping rename operation", finalDir)
+		log.Infof("rotateSegment: final directory %s already exists, skipping rename operation", finalDir)
 		return nil
 
 	}
 
 	// Check if source directory exists
 	if _, err := os.Stat(ms.metricsKeyBase); os.IsNotExist(err) {
-		log.Infof("RotateSegment: source directory %s does not exist, skipping rename operation", ms.metricsKeyBase)
+		log.Infof("rotateSegment: source directory %s does not exist, skipping rename operation", ms.metricsKeyBase)
 		return nil
 	}
 
 	// Rename metricsKeyBase to finalDir
 	err = os.Rename(path.Dir(ms.metricsKeyBase), finalDir)
 	if err != nil {
-		log.Errorf("RotateSegment: failed to rename %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
+		log.Errorf("rotateSegment: failed to rename %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
 		return err
 	}
 	log.Infof("rotating segment of size %v that created %v metrics blocks to %+v", ms.totalEncodedSize, ms.currBlockNum+1, finalDir)
@@ -1051,15 +1065,20 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		}
 		mKey, err := getBaseMetricsKey(nextSuffix, ms.Mid)
 		if err != nil {
-			log.Errorf("Failed to get next base key for %s: %v", ms.Mid, err)
+			log.Errorf("rotateSegment: failed to get next base key for %s: %v", ms.Mid, err)
 			return err
 		}
+		mNamesCount := uint(len(ms.mNamesMap))
+		for k := range ms.mNamesMap {
+			delete(ms.mNamesMap, k)
+		}
+
 		ms.metricsKeyBase = mKey
 		ms.Suffix = nextSuffix
 		ms.highTS = 0
 		ms.lowTS = math.MaxUint32
 		ms.currBlockNum = 0
-		ms.mNames = bloom.NewWithEstimates(10, 0.001) // TODO: dynamic sizing
+		ms.mNamesBloom = bloom.NewWithEstimates(mNamesCount, 0.001)
 		ms.totalEncodedSize = 0
 		ms.datapointCount = 0
 		ms.bytesReceived = 0
@@ -1068,11 +1087,82 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 
 	err = meta.AddMetricsMetaEntry(metaEntry)
 	if err != nil {
-		log.Errorf("RotateSegment: failed to add metrics meta entry! Error %+v", err)
+		log.Errorf("rotateSegment: failed to add metrics meta entry! Error %+v", err)
 		return err
 	}
 
 	return blob.UploadIngestNodeDir()
+}
+
+func (ms *MetricsSegment) flushMetricNamesBloom() error {
+
+	filePath := fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
+
+	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		log.Errorf("flushMetricNamesBloom: failed to open filename=%v: err=%v", filePath, err)
+		return err
+	}
+
+	defer fd.Close()
+
+	// version
+	_, err = fd.Write([]byte{1})
+	if err != nil {
+		log.Errorf("flushMetricNamesBloom: failed to write version err=%v", err)
+		return err
+	}
+
+	// write the blockBloom
+	_, err = ms.mNamesBloom.WriteTo(fd)
+	if err != nil {
+		log.Errorf("flushMetricNamesBloom: write mNames Bloom failed fpath=%v, err=%v", filePath, err)
+		return err
+	}
+
+	return nil
+}
+
+/*
+- Flushes the metrics segment's mNamesMap to disk
+- The Metirc Names are stored in the Length and Value format.
+*/
+func (ms *MetricsSegment) flushMetricNames() error {
+
+	if len(ms.mNamesMap) == 0 {
+		log.Warnf("flushMetricNames: empty mNamesMap")
+		return nil
+	}
+
+	filePath := fmt.Sprintf("%s%d.mnm", ms.metricsKeyBase, ms.Suffix)
+
+	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		log.Errorf("flushMetricNames: failed to open filename=%v: err=%v", filePath, err)
+		return err
+	}
+
+	defer fd.Close()
+
+	for mName := range ms.mNamesMap {
+		if _, err = fd.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(mName)))); err != nil {
+			log.Errorf("flushMetricNames: failed to write metric length for metric=%+v, filename=%v: err=%v", mName, filePath, err)
+			return err
+		}
+
+		if _, err = fd.Write([]byte(mName)); err != nil {
+			log.Errorf("flushMetricNames: failed to write metric name=%+v, filename=%v: err=%v", mName, filePath, err)
+			return err
+		}
+	}
+
+	err = fd.Sync()
+	if err != nil {
+		log.Errorf("flushMetricNames: failed to sync filename=%v: err=%v", filePath, err)
+		return err
+	}
+
+	return nil
 }
 
 func (ms *MetricsSegment) updateTimeRange(ts uint32) {
@@ -1259,7 +1349,7 @@ func GetMetricSegments(orgid uint64) []*MetricsSegment {
 	orgMetricsAndTagsLock.RLock()
 	allMetricsSegments := []*MetricsSegment{}
 	if metricsAndTags, ok := OrgMetricsAndTags[orgid]; ok {
-		for _, mSeg := range metricsAndTags.Metrics {
+		for _, mSeg := range metricsAndTags.MetricSegments {
 			allMetricsSegments = append(allMetricsSegments, mSeg)
 		}
 	}
@@ -1271,7 +1361,7 @@ func GetAllMetricsSegments() []*MetricsSegment {
 	orgMetricsAndTagsLock.RLock()
 	allMetricsSegments := []*MetricsSegment{}
 	for _, metricsAndTags := range OrgMetricsAndTags {
-		for _, mSeg := range metricsAndTags.Metrics {
+		for _, mSeg := range metricsAndTags.MetricSegments {
 			allMetricsSegments = append(allMetricsSegments, mSeg)
 		}
 	}
