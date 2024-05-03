@@ -210,13 +210,23 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 		sTime := time.Now()
 
 		tsidInfo, err := attr.FindTSIDS(mQuery)
+
 		querySummary.UpdateTimeSearchingTagsTrees(time.Since(sTime))
 		querySummary.IncrementNumTagsTreesSearched(1)
 		if err != nil {
 			mRes.AddError(err)
 			continue
 		}
+
 		querySummary.IncrementNumTSIDsMatched(uint64(tsidInfo.GetNumMatchedTSIDs()))
+		if mQuery.ExitAfterRawSearch {
+			for tsid, tsGroupId := range tsidInfo.GetAllTSIDs() {
+				series := mresults.InitSeriesHolderForTags(mQuery, tsGroupId)
+				mRes.AddSeries(series, tsid, tsGroupId)
+			}
+			continue
+		}
+
 		for _, mSeg := range allMSearchReqs {
 			search.RawSearchMetricsSegment(mQuery, tsidInfo, mSeg, mRes, timeRange, qid, querySummary)
 		}

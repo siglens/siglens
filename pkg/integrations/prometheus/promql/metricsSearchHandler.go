@@ -370,15 +370,14 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	start, ok := readJSON["start"].(float64)
-	if !ok {
-		utils.SendError(ctx, "Failed to parse 'start' from JSON body", fmt.Sprintf("ProcessGetAllMetricTagsRequest: Failed to parse 'start' from JSON body with value: %v", readJSON["start"]), errors.New("failed to parse 'start' from JSON body"))
+	startTime, err := parseTimeStringToUint32(readJSON["start"])
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse 'start' from request body", fmt.Sprintf("ProcessGetAllMetricsRequest: Failed to parse 'start' from JSON body with value: %v", readJSON["start"]), errors.New("failed to parse 'start' from JSON body"))
 		return
 	}
-
-	end, ok := readJSON["end"].(float64)
-	if !ok {
-		utils.SendError(ctx, "Failed to parse 'end' from JSON body", fmt.Sprintf("ProcessGetAllMetricTagsRequest: Failed to parse 'end' from JSON body with value: %v", readJSON["end"]), errors.New("failed to parse 'end' from JSON body"))
+	endTime, err := parseTimeStringToUint32(readJSON["end"])
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse 'end' from request body", fmt.Sprintf("ProcessGetAllMetricsRequest: Failed to parse 'end' from JSON body with value: %v", readJSON["end"]), errors.New("failed to parse 'end' from JSON body"))
 		return
 	}
 
@@ -393,8 +392,8 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	timeRange := &dtu.MetricsTimeRange{
-		StartEpochSec: uint32(start),
-		EndEpochSec:   uint32(end),
+		StartEpochSec: uint32(startTime),
+		EndEpochSec:   uint32(endTime),
 	}
 
 	searchText := fmt.Sprintf("(%v)", metricName)
