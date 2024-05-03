@@ -79,6 +79,7 @@ function addFormulaElement(){
     // Remove the formula element
     formulaElement.find('.remove-query').on('click', function() {
         formulaElement.remove();
+        $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');;
     });
 
     // Validate formula on input change
