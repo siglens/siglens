@@ -886,6 +886,7 @@ function mergeGraphs(chartType) {
                     data: dataset.data,
                     borderColor: dataset.borderColor,
                     borderWidth: dataset.borderWidth,
+                    backgroundColor: dataset.backgroundColor,
                     fill: (chartType === 'Area chart') ? true : false 
                 });
             });
