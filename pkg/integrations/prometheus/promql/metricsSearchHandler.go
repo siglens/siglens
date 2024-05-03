@@ -473,14 +473,14 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	start, err = parseTimeStringToUint32(readJSON["start"])
 	if err != nil {
 		respBodyErr = errors.New("failed to parse startTime from JSON body")
-		errorLog = fmt.Sprintf("failed to parse startTime from JSON body")
+		errorLog = "failed to parse startTime from JSON body"
 		return start, end, queries, formulas, errorLog, respBodyErr
 
 	}
 	end, err = parseTimeStringToUint32(readJSON["end"])
 	if err != nil {
 		respBodyErr = errors.New("failed to parse endTime from JSON body")
-		errorLog = fmt.Sprintf("failed to parse endTime from JSON body")
+		errorLog = "failed to parse endTime from JSON body"
 		return start, end, queries, formulas, errorLog, respBodyErr
 	}
 
