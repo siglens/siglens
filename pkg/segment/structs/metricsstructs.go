@@ -48,7 +48,7 @@ type MetricsQuery struct {
 
 	PqlQueryType        pql.ValueType // promql query type
 	Interval            uint32        // timeseries interval
-	ExitAfterTagsSearch bool          // flag to exit after raw search
+	ExitAfterTagsSearch bool          // flag to exit after raw tags search
 }
 
 type Aggreation struct {
