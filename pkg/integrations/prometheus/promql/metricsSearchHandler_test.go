@@ -47,8 +47,12 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula": "formula2"}
 		]
 	}`
-	_, _, _, _, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	start, end, queries, formulas, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
 	assert.Error(t, err)
+	assert.NotNil(t, start)
+	assert.NotNil(t, end)
+	assert.NotNil(t, queries)
+	assert.NotNil(t, formulas)
 
 	// Case 3: Invalid JSON input (missing 'end')
 	invalidJSON = `{
@@ -62,8 +66,12 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula": "formula2"}
 		]
 	}`
-	_, _, _, _, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	start, end, queries, formulas, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
 	assert.Error(t, err)
+	assert.NotNil(t, start)
+	assert.NotNil(t, end)
+	assert.NotNil(t, queries)
+	assert.NotNil(t, formulas)
 
 	// Case 4: Invalid JSON input (missing 'queries')
 	invalidJSON = `{
@@ -74,8 +82,12 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula": "formula2"}
 		]
 	}`
-	_, _, _, _, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	start, end, queries, formulas, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
 	assert.Error(t, err)
+	assert.NotNil(t, start)
+	assert.NotNil(t, end)
+	assert.NotNil(t, queries)
+	assert.NotNil(t, formulas)
 
 	// Case 5: Invalid JSON input (missing 'formulas')
 	invalidJSON = `{
@@ -86,8 +98,12 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"name": "query2", "query": "SELECT * FROM table", "qlType": "SQL"}
 		]
 	}`
-	_, _, _, _, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	start, end, queries, formulas, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
 	assert.Error(t, err)
+	assert.NotNil(t, start)
+	assert.NotNil(t, end)
+	assert.NotNil(t, queries)
+	assert.NotNil(t, formulas)
 
 	// Case 6: Invalid JSON input (malformed 'queries')
 	invalidJSON = `{
@@ -102,8 +118,12 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula": "formula2"}
 		]
 	}`
-	_, _, _, _, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	start, end, queries, formulas, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
 	assert.Error(t, err)
+	assert.NotNil(t, start)
+	assert.NotNil(t, end)
+	assert.NotNil(t, queries)
+	assert.NotNil(t, formulas)
 
 	// Case 7: Invalid JSON input (malformed 'formulas')
 	invalidJSON = `{
@@ -118,6 +138,10 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula2": "formula2"}
 		]
 	}`
-	_, _, _, _, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	start, end, queries, formulas, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
 	assert.Error(t, err)
+	assert.NotNil(t, start)
+	assert.NotNil(t, end)
+	assert.NotNil(t, queries)
+	assert.NotNil(t, formulas)
 }
