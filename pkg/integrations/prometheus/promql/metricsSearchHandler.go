@@ -359,6 +359,8 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
+	qid := rutils.GetNextQid()
+
 	readJSON := make(map[string]interface{})
 	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
 	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
@@ -390,10 +392,43 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	log.Debugf("ProcessGetAllMetricTagsRequest: start=%v, end=%v, metric_name=%v", int64(start), int64(end), metricName)
-	// TODO: Integrate functionality to get all tags for a metric and remove dummy response
-	dummyResponse := `{"metricName": "metric_1", "tags": ["tk1: tv1", "tk2: tv2"]}`
-	ctx.SetBody([]byte(dummyResponse))
+	timeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: uint32(start),
+		EndEpochSec:   uint32(end),
+	}
+
+	searchText := fmt.Sprintf("(%v)", metricName)
+
+	metricQueryRequest, pqlQuerytype, _, err := convertPqlToMetricsQuery(searchText, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
+	if err != nil {
+		ctx.SetContentType(ContentJson)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		WriteJsonResponse(ctx, nil)
+		log.Errorf("qid=%v, ProcessMetricsSearchRequest: PqlQueryType: %v; Error parsing query err=%+v", qid, pqlQuerytype, err)
+		_, err = ctx.WriteString(err.Error())
+		if err != nil {
+			log.Errorf("qid=%v, ProcessMetricsSearchRequest: could not write error message err=%v", qid, err)
+		}
+		return
+	}
+
+	metricQueryRequest[0].MetricsQuery.ExitAfterRawSearch = true
+
+	segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[0], qid)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
+
+	uinqueTagKeys, tagKeyValueSet, err := res.GetMetricTagsResultSet(&metricQueryRequest[0].MetricsQuery)
+	if err != nil {
+		utils.SendError(ctx, "Failed to get metric tags", fmt.Sprintf("Metric Name: %+v; qid: %v", metricName, qid), err)
+		return
+	}
+
+	response := make(map[string]interface{})
+	response["uniqueTagKeys"] = uinqueTagKeys
+	response["tagKeyValueSet"] = tagKeyValueSet
+
+	WriteJsonResponse(ctx, &response)
+	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 

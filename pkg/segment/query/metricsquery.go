@@ -89,6 +89,9 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 
 	// iterate through all metrics segments, applying search as needed
 	applyMetricsOperatorOnSegments(mQuery, mSegments, mRes, timeRange, qid, querySummary)
+	if mQuery.ExitAfterRawSearch {
+		return mRes
+	}
 	parallelism := int(config.GetParallelism()) * 2
 	errors := mRes.DownsampleResults(mQuery.Downsampler, parallelism)
 	if errors != nil {

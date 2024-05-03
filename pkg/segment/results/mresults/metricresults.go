@@ -375,6 +375,36 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 	return retVal, nil
 }
 
+func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) ([]string, []string, error) {
+	if res.State != SERIES_READING {
+		return nil, nil, errors.New("results is not in Series Reading state")
+	}
+
+	tagKeysMap := make(map[string]bool)
+	uniqueTagKeys := make([]string, 0)
+	for _, tag := range mQuery.TagsFilters {
+		if _, ok := tagKeysMap[tag.TagKey]; !ok {
+			tagKeysMap[tag.TagKey] = true
+			uniqueTagKeys = append(uniqueTagKeys, tag.TagKey)
+		}
+	}
+
+	tagKeyValueSet := make([]string, 0)
+
+	for _, series := range res.AllSeries {
+		tagValues := strings.Split(series.grpID.String(), tsidtracker.TAG_VALUE_DELIMITER_STR)
+		if len(uniqueTagKeys) != len(tagValues)-1 {
+			err := errors.New("GetResults: the length of tag key and tag value pair must match")
+			return nil, nil, err
+		}
+		for index, val := range tagValues[:len(tagValues)-1] {
+			tagKeyValueSet = append(tagKeyValueSet, fmt.Sprintf("%s:%s", uniqueTagKeys[index], val))
+		}
+	}
+
+	return uniqueTagKeys, tagKeyValueSet, nil
+}
+
 func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricsStatsResponseInfo, error) {
 	var httpResp utils.MetricsStatsResponseInfo
 	httpResp.AggStats = make(map[string]map[string]interface{})
