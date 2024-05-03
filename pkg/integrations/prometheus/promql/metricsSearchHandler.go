@@ -419,11 +419,11 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 func parseMetricTimeSeriesRequest(rawJSON []byte) (int64, int64, []map[string]interface{}, []map[string]interface{}, string, error) {
 	var start = int64(0)
 	var end = int64(0)
-	var queries []map[string]interface{}
-	var formulas []map[string]interface{}
-	var errorLog string
-	var err error
-	var respBodyErr error
+	queries := make([]map[string]interface{}, 0)
+	formulas := make([]map[string]interface{}, 0)
+	errorLog := ""
+	var err error = nil
+	var respBodyErr error = nil
 
 	readJSON := make(map[string]interface{})
 	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
