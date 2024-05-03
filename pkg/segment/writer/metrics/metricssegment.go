@@ -387,6 +387,12 @@ func (ms *MetricsSegment) AddMNameToBloom(mName []byte) {
 	ms.mNamesBloom.Add(mName)
 }
 
+func (ms *MetricsSegment) GetMetricNamesMap() map[string]bool {
+	ms.rwLock.RLock()
+	defer ms.rwLock.RUnlock()
+	return ms.mNamesMap
+}
+
 /*
 For a given metricName, tags, dp, and timestamp, add it to the respective in memory series
 
@@ -1322,6 +1328,20 @@ func GetUnrotatedMetricsSegmentRequests(metricName string, tRange *dtu.MetricsTi
 	timeElapsed := time.Since(sTime)
 	querySummary.UpdateTimeGettingUnrotatedSearchRequests(timeElapsed)
 	return retVal, nil
+}
+
+func GetUnrotatedMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid uint64) ([]*MetricsSegment, error) {
+	allMetricsSegments := GetMetricSegments(orgid)
+	resultMetricSegments := make([]*MetricsSegment, 0)
+
+	for _, metricSeg := range allMetricsSegments {
+		if !tRange.CheckRangeOverLap(metricSeg.lowTS, metricSeg.highTS) || metricSeg.Orgid != orgid {
+			continue
+		}
+		resultMetricSegments = append(resultMetricSegments, metricSeg)
+	}
+
+	return resultMetricSegments, nil
 }
 
 func GetTotalEncodedSize() uint64 {
