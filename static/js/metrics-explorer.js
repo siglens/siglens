@@ -23,6 +23,14 @@ var lineCharts = {}; // Chart details
 var chartDataCollection = {}; // Save label/data for each query
 let mergedGraph ;
 let chartType = "Line chart";
+let availableMetrics = [];
+let availableEverywhere = [];
+let availableEverything = [];
+let previousStartEpoch = null;
+let previousEndEpoch = null;
+let rawData1=[];
+let rawData3=[];
+
 
 // Theme
 let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
@@ -32,17 +40,37 @@ let green = ["#d0ebc2", "#c4eab7", "#aed69e", "#87c37d", "#5daa64", "#45884a", "
 let warm = ["#f7e288", "#fadb84", "#f1b65d", "#ec954d", "#f65630" , "#cf3926", "#aa2827", "#761727" ]
 let orange = ["#f8ddbd", "#f4d2a9", "#f0b077", "#ec934f", "#e0722f", "#c85621", "#9b4116", "#72300e"]
 let gray = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#62636a", "#4c4d57"]
-let d2d0 = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
+let palette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
 
 $(document).ready(function() {
     let stDate = "now-1h";
     let endDate = "now";
     datePickerHandler(stDate, endDate, stDate);
-
+    $('.range-item').on('click', metricsExplorerDatePickerHandler);
+    
     $('.theme-btn').on('click', themePickerHandler);
-
+    getInitialMetricNames();
     addQueryElement();
 });
+
+async function getInitialMetricNames(){
+    await getMetricNames();
+    
+}
+
+function metricsExplorerDatePickerHandler(evt) {
+    evt.preventDefault();
+    $.each($(".range-item.active"), function () {
+        $(this).removeClass('active');
+    });
+    $(evt.currentTarget).addClass('active');
+    datePickerHandler($(this).attr('id'), "now", $(this).attr('id'))
+    
+    //get metrics data
+    //select default metric   
+
+    $('#daterangepicker').hide();
+}
 
 $('#add-query').on('click', addQueryElement);
 
@@ -79,6 +107,7 @@ function addFormulaElement(){
     // Remove the formula element
     formulaElement.find('.remove-query').on('click', function() {
         formulaElement.remove();
+        $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');;
     });
 
     // Validate formula on input change
@@ -149,7 +178,7 @@ function addQueryElement() {
     <div class="metrics-query">
         <div class="query-box">
             <div class="query-name active">${String.fromCharCode(97 + queryIndex)}</div>
-            <input type="text" class="metrics" placeholder="Select a metric">
+            <input type="text" class="metrics" placeholder="Select a metric" >
             <div>from</div>
             <div class="tag-container">
                 <input type="text" class="everywhere" placeholder="(everywhere)">
@@ -173,8 +202,8 @@ function addQueryElement() {
     </div>`);
 
     $('#metrics-queries').append(queryElement);
-    addVisualizationContainer(String.fromCharCode(97 + queryIndex), convertDataForChart(rawData1));
-
+    if (rawData1.length > 0)
+        addVisualizationContainer(String.fromCharCode(97 + queryIndex), convertDataForChart(rawData1));
     } else {
         // Get the last query name
         var lastQueryName = $('#metrics-queries').find('.metrics-query:last .query-name').text();
@@ -186,6 +215,7 @@ function addQueryElement() {
         queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
 
         $('#metrics-queries').append(queryElement);
+        if (rawData3.length >0)
         addVisualizationContainer(nextQueryName,convertDataForChart(rawData3));
     }
 
@@ -250,7 +280,7 @@ function addQueryElement() {
     });
 }
 
-function initializeAutocomplete(queryElement, previousQuery = {}) {
+async function initializeAutocomplete(queryElement, previousQuery = {}) {
     var queryDetails = {
         metrics: '',
         everywhere: [],
@@ -266,46 +296,40 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         queryDetails.aggFunction = previousQuery.aggFunction;
     }
 
-    var availableMetrics = [
-        "system.cpu.interrupt",
-        "system.disk.used",
-        "system.cpu.stolen",
-        "system.cpu.num_cores",
-        "system.cpu.stolen",
-        "system.cpu.idle",
-        "system.cpu.guest",
-        "system.cpu.system",
-    ];
-
-    var availableEverywhere = [
-        "device:/dev/disk1s1",
-        "device:/dev/disk1s2",
-        "device:/dev/disk1s3",
-        "device:/dev/disk1s4",
-        "device:/dev/disk1s5",
-        "device:/dev/disk1s6",
-        "device_name:/disk1s1",
-        "device_name:/disk1s2",
-        "device_name:/disk1s3",
-        "device_name:/disk1s4",
-        "host:SonamSigScalr.local",
-    ];
-
-    var availableEverything = [
-        "device",
-        "device_name",
-        "host",
-    ];
 
     var availableOptions = ["max by", "min by", "avg by", "sum by"];
 
     // Metrics input
+    if (
+        availableMetrics.length === 0 
+    ){
+        await getMetricNames();
+    }
     queryElement.find('.metrics').autocomplete({
-        source: availableMetrics,
+        source: availableMetrics.metricNames,
         minLength: 0,
-        select: function(event, ui) {
+        focus: function (event, ui) {
+            $(this).val(ui.item.value);
+            return false;
+        },
+        select: async function(event, ui) {
             queryDetails.metrics = ui.item.value;
+            
+            rawData1=[]
             $(this).blur(); 
+            var currentQueryIndex = $(this).index(".metrics");
+            var currentQueryName = $(this).siblings(".query-name").text();
+            if (
+                rawData1.length === 0 ||
+                filterStartDate !== previousStartEpoch ||
+                filterEndDate !== previousEndEpoch
+            ){
+                await getMetricsData(currentQueryName,ui.item.value)
+                previousStartEpoch = filterStartDate;
+                previousEndEpoch = filterEndDate;
+                let seriesdata = await convertDataForChart(rawData1)
+                addVisualizationContainer(currentQueryName, seriesdata);
+            }
         }
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
@@ -342,6 +366,11 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         $(this).blur(); 
     });
     
+    if (
+        availableEverywhere.length === 0
+    ){        
+        await getTagKeyValue(queryDetails.metrics);
+    }
     // Everywhere input (tag:value)
     queryElement.find('.everywhere').autocomplete({
         source: function(request, response) {
@@ -363,11 +392,11 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             return false;
         },
         open: function(event, ui) {
-            var containerPosition = $(".tag-container").offset();
+            var containerPosition = $(this).closest('.tag-container').offset();
 
             $(this).autocomplete("widget").css({
                 "position": "absolute",
-                "top": containerPosition.top + $(".tag-container").outerHeight(),
+                "top": containerPosition.top + $(this).closest('.tag-container').outerHeight(),
                 "left": containerPosition.left,
                 "z-index": 1000
             });
@@ -460,6 +489,11 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         $(this).select();
     });
 
+    if (
+        availableEverything.length === 0
+    ){
+        await getTag(queryDetails.metrics);
+    }
     // Everything input (value)
     queryElement.find('.everything').autocomplete({
         source: function(request, response) {
@@ -480,11 +514,11 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             return false;        
         },
         open: function(event, ui) {
-            var containerPosition = $(".value-container").offset();
+            var containerPosition = $(this).closest('.value-container').offset();
 
             $(this).autocomplete("widget").css({
                 "position": "absolute",
-                "top": containerPosition.top + $(".value-container").outerHeight(),
+                "top": containerPosition.top + $(this).closest('.value-container').outerHeight(),
                 "left": containerPosition.left,
                 "z-index": 1000
             });
@@ -558,17 +592,22 @@ function updateCloseIconVisibility() {
 
 function addVisualizationContainer(queryName, seriesData) {
 
-    var visualizationContainer = $(`
-    <div class="metrics-graph" data-query="${queryName}">
-        <div>Metrics query - ${queryName}</div>
-        <div class="graph-canvas"></div>
-    </div>`);
+    var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
+    if (existingContainer.length === 0){
+        var visualizationContainer = $(`
+        <div class="metrics-graph" data-query="${queryName}">
+            <div>Metrics query - ${queryName}</div>
+            <div class="graph-canvas"></div>
+        </div>`);
 
-    $('#metrics-graphs').append(visualizationContainer);
-    
-    var canvas = $('<canvas></canvas>');
-    $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
-    
+        $('#metrics-graphs').append(visualizationContainer);
+        
+        var canvas = $('<canvas></canvas>');
+        $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
+    } else{
+        var canvas = $('<canvas></canvas>');
+        $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).empty().append(canvas);
+    }
     var ctx = canvas[0].getContext('2d');
     
     // Extract labels and datasets from seriesData
@@ -885,6 +924,7 @@ function mergeGraphs(chartType) {
                     data: dataset.data,
                     borderColor: dataset.borderColor,
                     borderWidth: dataset.borderWidth,
+                    backgroundColor: dataset.backgroundColor,
                     fill: (chartType === 'Area chart') ? true : false 
                 });
             });
@@ -930,7 +970,7 @@ function mergeGraphs(chartType) {
 }
 
 // Converting the response in form to use to create graphs
-function convertDataForChart(data) {
+async function convertDataForChart(data) {
     let seriesArray = [];
 
     // Iterate over each metric in the data
@@ -955,78 +995,133 @@ function convertDataForChart(data) {
     return seriesArray;
 }
 
-// Example usage:
-let rawData1 = {
-    "aggStats": {
-        "metric1-1": {
-            "2024-04-26T07:06": 10,
-            "2024-04-26T07:07": 20,
-            "2024-04-26T07:08": 30,
-            "2024-04-26T07:09": 10,
-            "2024-04-26T07:10": 40,
-            "2024-04-26T07:11": 20,
-            "2024-04-26T07:12": 30,
-            "2024-04-26T07:13": 28,
-            "2024-04-26T07:14": 18,
-            "2024-04-26T07:15": 38
-        },
-        "metric1-2": {
-            "2024-04-26T07:06": 29,
-            "2024-04-26T07:07": 39,
-            "2024-04-26T07:08": 19,
-            "2024-04-26T07:09": 49,
-            "2024-04-26T07:10": 29,
-            "2024-04-26T07:11": 19,
-            "2024-04-26T07:12": 39,
-            "2024-04-26T07:13": 29,
-            "2024-04-26T07:14": 49,
-            "2024-04-26T07:15": 19
-        }
+
+
+
+
+
+
+
+async function getMetricNames() {
+    const data = {
+      start: filterStartDate,
+      end: filterEndDate,
+    };
+    const res = await $.ajax({
+      method: "post",
+      url: "metrics-explorer/api/v1/metric_names",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "*/*",
+      },
+      crossDomain: true,
+      dataType: "json",
+      data: JSON.stringify(data),
+    });
+  
+    if (res) {
+        availableMetrics=res
     }
 }
 
-let rawData2 = {
-    "aggStats": {
-        "metric2-1": {
-            "2024-04-26T07:06": 11,
-            "2024-04-26T07:07": 12,
-            "2024-04-26T07:08": 13,
-            "2024-04-26T07:09": 10,
-            "2024-04-26T07:10": 4,
-            "2024-04-26T07:11": 21,
-            "2024-04-26T07:12": 32,
-            "2024-04-26T07:13": 2,
-            "2024-04-26T07:14": 10,
-            "2024-04-26T07:15": 3
-        },
-        "metric2-2": {
-            "2024-04-26T07:06": 21,
-            "2024-04-26T07:07": 3,
-            "2024-04-26T07:08": 7,
-            "2024-04-26T07:09": 8,
-            "2024-04-26T07:10": 12,
-            "2024-04-26T07:11": 1,
-            "2024-04-26T07:12": 32,
-            "2024-04-26T07:13": 20,
-            "2024-04-26T07:14": 4,
-            "2024-04-26T07:15": 19
-        }
-    }
+async function getMetricsData(queryName,metricName ) {
+
+    let query={};
+    query.name =queryName
+    query.query='(' + metricName + ')'
+    query.qlType= "promql"
+    let queries = [];
+    queries.push(query)
+
+
+    let formula ={};
+    formula.formula=queryName
+    let formulae = [];
+    formulae.push(formula)
+
+    const data = {
+      start: filterStartDate,
+      end: filterEndDate,
+      queries: queries,
+      formulas: formulae
+
+    };
+    const res = await $.ajax({
+      method: "post",
+      url: "metrics-explorer/api/v1/timeseries",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "*/*",
+      },
+      crossDomain: true,
+      dataType: "json",
+      data: JSON.stringify(data),
+    });
+  
+    if (res) {
+        rawData1=res
+    
+  
+}
 }
 
-let rawData3= {
-    "aggStats": {
-        "metric3-1": {
-            "2024-04-26T07:06": 110,
-            "2024-04-26T07:07": 120,
-            "2024-04-26T07:08": 130,
-            "2024-04-26T07:09": 100,
-            "2024-04-26T07:10": 40,
-            "2024-04-26T07:11": 210,
-            "2024-04-26T07:12": 320,
-            "2024-04-26T07:13": 20,
-            "2024-04-26T07:14": 100,
-            "2024-04-26T07:15": 30
+async function getTagKeyValue(metricName) {
+    let param = {
+        start: filterStartDate,
+        end: filterEndDate,
+        metric_name: metricName
+      };
+      startQueryTime = new Date().getTime();
+      $.ajax({
+        method: "get",
+        url: "metrics-explorer/api/v1/all_tags?start=100&end=200&metric_name=metric_1",
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          Accept: "*/*",
+        },
+        crossDomain: true,
+        dataType: "json",
+        data: JSON.stringify(param),
+      }).then((res) => {
+        availableEverywhere=[]
+        if (res && res.tags ) {
+          for (let i = 0; i < res.tags.length; i++) {
+            let cur = res.tags[i]
+            availableEverywhere.push(cur)
+          }
         }
-    }
+    });
+
+}
+
+async function getTag(metricName) {
+    let param = {
+        start: filterStartDate,
+        end: filterEndDate,
+        metric_name: metricName
+      };
+
+      startQueryTime = new Date().getTime();
+      $.ajax({
+        method: "get",
+        url: "metrics-explorer/api/v1/all_tags?start=100&end=200&metric_name=metric_1",
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          Accept: "*/*",
+        },
+        crossDomain: true,
+        dataType: "json",
+        data: JSON.stringify(param),
+      }).then((res) => {
+        availableEverything=[]
+        if (res && res.tags ) {
+          for (let i = 0; i < res.tags.length; i++) {
+            let cur = res.tags[i]
+            var parts = cur.split(':');
+            var prefix = parts[0];            
+            availableEverything.push(prefix)
+          }
+        }
+    });
+  
 }
