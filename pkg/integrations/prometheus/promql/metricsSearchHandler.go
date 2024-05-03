@@ -422,8 +422,8 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (int64, int64, []map[string]in
 	queries := make([]map[string]interface{}, 0)
 	formulas := make([]map[string]interface{}, 0)
 	errorLog := ""
-	var err error = nil
-	var respBodyErr error = nil
+	var err error
+	var respBodyErr error
 
 	readJSON := make(map[string]interface{})
 	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
