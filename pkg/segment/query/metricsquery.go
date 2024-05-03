@@ -133,18 +133,32 @@ func mergeRotatedAndUnrotatedRequests(unrotatedMSegments map[string][]*structs.M
 func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid uint64) ([]string, error) {
 	mSgementsMeta := metadata.GetMetricSegmentsOverTheTimeRange(timeRange, orgid)
 
-	// TODO: Get Unrotated Metric Segments
+	unrotatedMSegments, err := metrics.GetUnrotatedMetricSegmentsOverTheTimeRange(timeRange, orgid)
+	if err != nil {
+		log.Errorf("GetAllMetricNamesOverTheTimeRange: failed to get unrotated metric segments: %v", err)
+		unrotatedMSegments = make([]*metrics.MetricsSegment, 0)
+	}
 
-	if len(mSgementsMeta) == 0 {
+	if len(mSgementsMeta) == 0 && len(unrotatedMSegments) == 0 {
 		return make([]string, 0), nil
 	}
 
 	resultContainerLock := &sync.RWMutex{}
 	resultContainer := make(map[string]bool)
+	unrotatedResultContainer := make(map[string]bool)
 	wg := &sync.WaitGroup{}
 	parallelism := int(config.GetParallelism())
-	mSegMetaIndex := 0
+	parallelismCounter := 0
 	var gErr error
+
+	parallelismCounter++
+	wg.Add(1)
+	go func(unrotatedMSeg []*metrics.MetricsSegment) {
+		defer wg.Done()
+		for _, mSeg := range unrotatedMSeg {
+			mSeg.LoadMetricNamesIntoMap(unrotatedResultContainer)
+		}
+	}(unrotatedMSegments)
 
 	for _, mSegMeta := range mSgementsMeta {
 		wg.Add(1)
@@ -177,15 +191,22 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 
 		}(mSegMeta)
 
-		if mSegMetaIndex%parallelism == 0 {
+		if parallelismCounter%parallelism == 0 {
 			wg.Wait()
 		}
-		mSegMetaIndex++
+		parallelismCounter++
 	}
 	wg.Wait()
 
 	if gErr != nil {
 		return nil, gErr
+	}
+
+	for mName := range unrotatedResultContainer {
+		_, ok := resultContainer[mName]
+		if !ok {
+			resultContainer[mName] = true
+		}
 	}
 
 	result := make([]string, 0, len(resultContainer))

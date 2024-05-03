@@ -471,7 +471,8 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	res := segment.ExecuteMultipleMetricsQuery(hashedMNamesList, metricQueriesList, queryFormulas, timeRange, qid)
 	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], metricQueriesList[0].PqlQueryType, start, end, metricQueriesList[0].Interval)
 	if err != nil {
-		log.Errorf("ProcessGetMetricTimeSeriesRequest: Failed getting results! qid: %+v, Error: %+v", qid, err)
+		utils.SendError(ctx, "Failed to get metric time series", fmt.Sprintf("qid: %v", qid), err)
+		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
