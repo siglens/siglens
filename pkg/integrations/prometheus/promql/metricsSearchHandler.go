@@ -37,6 +37,7 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
+	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -270,7 +271,7 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	log.Infof("qid=%v, ProcessMetricsSearchRequest:  searchString=[%v] startEpochMs=[%v] endEpochMs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	searchText, startTime, endTime, interval := parseSearchTextForRangeSelection(searchText, startTime, endTime)
+	startTime, endTime, interval := parseSearchTextForRangeSelection(searchText, startTime, endTime)
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
 
 	if err != nil {
@@ -302,6 +303,254 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	rawJSON := ctx.PostBody()
+	if len(rawJSON) == 0 {
+		utils.SendError(ctx, "empty json body received", "ProcessGetAllMetricNamesRequest: empty json body received", errors.New("empty json body received"))
+		return
+	}
+
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	err := decoder.Decode(&readJSON)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse request body", "ProcessGetAllMetricsRequest: Failed to parse JSON body: %v", err)
+		return
+	}
+
+	start, ok := readJSON["start"].(float64)
+	if !ok {
+		utils.SendError(ctx, "Failed to parse 'start' from request body", fmt.Sprintf("ProcessGetAllMetricsRequest: Failed to parse 'start' from JSON body with value: %v", readJSON["start"]), errors.New("failed to parse 'start' from JSON body"))
+		return
+	}
+
+	end, ok := readJSON["end"].(float64)
+	if !ok {
+		utils.SendError(ctx, "Failed to parse 'end' from request body", fmt.Sprintf("ProcessGetAllMetricsRequest: Failed to parse 'end' from JSON body with value: %v", readJSON["end"]), errors.New("failed to parse 'end' from JSON body"))
+		return
+	}
+	timeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: uint32(start),
+		EndEpochSec:   uint32(end),
+	}
+
+	metricNames, err := query.GetAllMetricNamesOverTheTimeRange(timeRange, myid)
+	if err != nil {
+		utils.SendError(ctx, "Failed to get all metric names", "", err)
+		return
+	}
+
+	response := make(map[string]interface{})
+	response["metricNames"] = metricNames
+	response["metricNamesCount"] = len(metricNames)
+
+	WriteJsonResponse(ctx, &response)
+	ctx.SetContentType(ContentJson)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	rawJSON := ctx.PostBody()
+	if len(rawJSON) == 0 {
+		utils.SendError(ctx, "empty json body received", "ProcessGetAllMetricTagsRequest: empty json body received", errors.New("empty json body received"))
+		return
+	}
+
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	err := decoder.Decode(&readJSON)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse request body", "ProcessGetAllMetricTagsRequest: Failed to parse JSON request body", err)
+		return
+	}
+
+	start, ok := readJSON["start"].(float64)
+	if !ok {
+		utils.SendError(ctx, "Failed to parse 'start' from JSON body", fmt.Sprintf("ProcessGetAllMetricTagsRequest: Failed to parse 'start' from JSON body with value: %v", readJSON["start"]), errors.New("failed to parse 'start' from JSON body"))
+		return
+	}
+
+	end, ok := readJSON["end"].(float64)
+	if !ok {
+		utils.SendError(ctx, "Failed to parse 'end' from JSON body", fmt.Sprintf("ProcessGetAllMetricTagsRequest: Failed to parse 'end' from JSON body with value: %v", readJSON["end"]), errors.New("failed to parse 'end' from JSON body"))
+		return
+	}
+
+	metricName, ok := readJSON["metric_name"].(string)
+	if !ok {
+		utils.SendError(ctx, "Failed to parse 'metric_name' from JSON body", "ProcessGetAllMetricTagsRequest: 'metric_name' not found in JSON body", errors.New("'metric_name' not found in JSON body"))
+		return
+	}
+	if metricName == "" {
+		utils.SendError(ctx, "Failed to parse 'metric_name' from JSON body", "ProcessGetAllMetricTagsRequest: 'metric_name' is an empty string", errors.New("'metric_name' is an empty string"))
+		return
+	}
+
+	log.Debugf("ProcessGetAllMetricTagsRequest: start=%v, end=%v, metric_name=%v", int64(start), int64(end), metricName)
+	// TODO: Integrate functionality to get all tags for a metric and remove dummy response
+	dummyResponse := `{"metricName": "metric_1", "tags": ["tk1: tv1", "tk2: tv2"]}`
+	ctx.SetBody([]byte(dummyResponse))
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	rawJSON := ctx.PostBody()
+	if len(rawJSON) == 0 {
+		utils.SendError(ctx, "empty json body received", "", nil)
+		return
+	}
+	qid := rutils.GetNextQid()
+
+	start, end, queries, formulas, errorLog, err := parseMetricTimeSeriesRequest(rawJSON)
+	if err != nil {
+		utils.SendError(ctx, err.Error(), fmt.Sprintf("qid: %v, Error: %+v", qid, errorLog), err)
+		return
+	}
+
+	log.Debugf("ProcessGetMetricTimeSeriesRequest: Need to Parse: formulas=%v", formulas)
+
+	metricQueriesList := make([]*structs.MetricsQuery, 0)
+	var timeRange *dtu.MetricsTimeRange
+	hashedMNamesList := make([]uint64, 0)
+
+	// Todo:
+	// The queryFormulas var should contain the parsed formulas.
+	// Modify the below flow to parse the individual queries, execute the queries and then apply the formulas.
+	var queryFormulas []structs.QueryArithmetic
+	for _, query := range queries {
+		queryStrText := fmt.Sprintf("%v", query["query"])
+		start, end, interval := parseSearchTextForRangeSelection(queryStrText, start, end)
+		metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(queryStrText, start, end, myid)
+		if err != nil {
+			utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, queryStrText), err)
+			return
+		}
+		// The size of the metricQueryRequest might always be 1.
+		for _, metricQuery := range metricQueryRequest {
+			metricQuery.MetricsQuery.PqlQueryType = pqlQuerytype
+			metricQuery.MetricsQuery.Interval = interval
+			hashedMNamesList = append(hashedMNamesList, metricQuery.MetricsQuery.HashedMName)
+			metricQueriesList = append(metricQueriesList, &metricQuery.MetricsQuery)
+			segment.LogMetricsQuery("PromQL metrics query parser", &metricQuery, qid)
+			timeRange = &metricQuery.TimeRange
+		}
+		queryFormulas = queryArithmetic
+	}
+
+	res := segment.ExecuteMultipleMetricsQuery(hashedMNamesList, metricQueriesList, queryFormulas, timeRange, qid)
+	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], metricQueriesList[0].PqlQueryType, start, end, metricQueriesList[0].Interval)
+	if err != nil {
+		log.Errorf("ProcessGetMetricTimeSeriesRequest: Failed getting results! qid: %+v, Error: %+v", qid, err)
+	}
+	WriteJsonResponse(ctx, &mQResponse)
+	ctx.SetContentType(ContentJson)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]interface{}, []map[string]interface{}, string, error) {
+	var start = uint32(0)
+	var end = uint32(0)
+	queries := make([]map[string]interface{}, 0)
+	formulas := make([]map[string]interface{}, 0)
+	errorLog := ""
+	var err error
+	var respBodyErr error
+
+	readJSON := make(map[string]interface{})
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	err = decoder.Decode(&readJSON)
+	if err != nil {
+		respBodyErr = errors.New("failed to parse request body")
+		errorLog = fmt.Sprintf("the request JSON body received is : %v and err: %v", string(rawJSON), err)
+		return start, end, queries, formulas, errorLog, respBodyErr
+	}
+
+	startFloat, ok := readJSON["start"].(float64)
+	if !ok {
+		respBodyErr = errors.New("failed to parse 'start' from request body")
+		errorLog = fmt.Sprintf("the start field is either missing or not a float64 in the JSON body: %v", readJSON)
+		return start, end, queries, formulas, errorLog, respBodyErr
+	}
+	start = uint32(startFloat)
+
+	endFloat, ok := readJSON["end"].(float64)
+	if !ok {
+		respBodyErr = errors.New("failed to parse 'end' from request body")
+		errorLog = fmt.Sprintf("the end field is either missing or not a float64 in the JSON body: %v", readJSON)
+		return start, end, queries, formulas, errorLog, respBodyErr
+	}
+	end = uint32(endFloat)
+
+	queryInterfaces, ok := readJSON["queries"].([]interface{})
+	if !ok {
+		respBodyErr = errors.New("failed to parse 'queries' from JSON body")
+		errorLog = fmt.Sprintf("failed to parse 'queries' from JSON body as []interface{} with value: %v", readJSON["queries"])
+		return start, end, queries, formulas, errorLog, respBodyErr
+	}
+
+	queries = make([]map[string]interface{}, len(queryInterfaces))
+	for i, qi := range queryInterfaces {
+		queryMap, ok := qi.(map[string]interface{})
+		if !ok {
+			respBodyErr = errors.New("failed to parse 'query' from JSON body")
+			errorLog = fmt.Sprintf("failed to parse 'query' object as a map[string]interface{}, 'query' value: %v", qi)
+			return start, end, queries, formulas, errorLog, respBodyErr
+		}
+		_, ok = queryMap["name"].(string)
+		if !ok {
+			respBodyErr = errors.New("failed to parse 'name' from JSON body")
+			errorLog = fmt.Sprintf("name is either missing or not a string in the query object: %v", queryMap)
+			return start, end, queries, formulas, errorLog, respBodyErr
+		}
+
+		_, ok = queryMap["query"].(string)
+		if !ok {
+			respBodyErr = errors.New("failed to parse 'query' field from 'query' object in JSON body")
+			errorLog = fmt.Sprintf("JSON property 'query' is either missing or not a string in the query object: %v", queryMap)
+			return start, end, queries, formulas, errorLog, respBodyErr
+		}
+
+		_, ok = queryMap["qlType"].(string)
+		if !ok {
+			respBodyErr = errors.New("failed to parse 'qlType' from JSON body")
+			errorLog = fmt.Sprintf("qlType is either missing or not a string in the query object: %v", queryMap)
+			return start, end, queries, formulas, errorLog, respBodyErr
+		}
+		queries[i] = queryMap
+	}
+
+	formulaInterfaces, ok := readJSON["formulas"].([]interface{})
+	if !ok {
+		respBodyErr = errors.New("failed to parse 'formulas' from JSON body")
+		errorLog = fmt.Sprintf("failed to parse 'formulas' from JSON body as []interface{} with value: %v", readJSON["formulas"])
+		return start, end, queries, formulas, errorLog, respBodyErr
+	}
+
+	formulas = make([]map[string]interface{}, len(formulaInterfaces))
+	for i, fi := range formulaInterfaces {
+		formulaMap, ok := fi.(map[string]interface{})
+		if !ok {
+			respBodyErr = errors.New("failed to parse 'formula' object from JSON body")
+			errorLog = fmt.Sprintf("failed to parse 'formula' object as a map[string]interface{}, 'formula' value: %v", fi)
+			return start, end, queries, formulas, errorLog, respBodyErr
+		}
+
+		_, ok = formulaMap["formula"].(string)
+		if !ok {
+			respBodyErr = errors.New("failed to parse 'formula' field from 'formula' object in JSON body")
+			errorLog = fmt.Sprintf("formula is either missing or not a string in the formula object: %v", formulaMap)
+			return start, end, queries, formulas, errorLog, respBodyErr
+		}
+
+		formulas[i] = formulaMap
+	}
+
+	return start, end, queries, formulas, errorLog, nil
 }
 
 func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, pql.ValueType, []structs.QueryArithmetic, error) {
@@ -700,7 +949,7 @@ func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) (uint64, usage
 	return retVal, granularity
 }
 
-func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTime uint32) (string, uint32, uint32, uint32) {
+func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTime uint32) (uint32, uint32, uint32) {
 
 	pattern := `\[(.*?)\]`
 
@@ -749,5 +998,5 @@ func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTi
 		startTime = endTime - totalVal
 	}
 
-	return searchText, startTime, endTime, totalVal
+	return startTime, endTime, totalVal
 }

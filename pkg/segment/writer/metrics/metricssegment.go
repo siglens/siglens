@@ -383,6 +383,10 @@ func initTimeSeries(tsid uint64, dp float64, timestammp uint32) (*TimeSeries, ui
 	return ts, writtenBytes, nil
 }
 
+func (ms *MetricsSegment) AddMNameToBloom(mName []byte) {
+	ms.mNamesBloom.Add(mName)
+}
+
 /*
 For a given metricName, tags, dp, and timestamp, add it to the respective in memory series
 
@@ -407,7 +411,7 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 		return fmt.Errorf("no segment remaining to be assigned to orgid=%v", orgid)
 	}
 
-	mSeg.mNamesBloom.Add(mName)
+	mSeg.AddMNameToBloom(mName)
 
 	mSeg.rwLock.Lock()
 	mSeg.mNamesMap[string(mName)] = true
@@ -1019,12 +1023,12 @@ This function assumes that the prior metricssBlock has alraedy been rotated/rese
 */
 func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	var err error
-	err = ms.flushMetricNamesBloom()
+	err = ms.FlushMetricNamesBloom()
 	if err != nil {
 		log.Errorf("rotateSegment: failed to flush metric names bloom! Error %+v", err)
 		return err
 	}
-	err = ms.flushMetricNames()
+	err = ms.FlushMetricNames()
 	if err != nil {
 		log.Errorf("rotateSegment: failed to flush metric names! Error %+v", err)
 		return err
@@ -1094,13 +1098,32 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	return blob.UploadIngestNodeDir()
 }
 
-func (ms *MetricsSegment) flushMetricNamesBloom() error {
+// This is a mock function and is only used during tests.
+func (ms *MetricsSegment) SetMockMetricSegmentMNamesBloom() string {
+	ms.mNamesBloom = bloom.NewWithEstimates(100_000, 0.001)
+	ms.metricsKeyBase = "./testMockMetric"
+	ms.Suffix = uint64(0)
+	return fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
+}
+
+// This is a mock function and is only used during tests.
+func (ms *MetricsSegment) SetMockMetricSegmentMNamesMap(mNamesCount uint32, mNameBase string) string {
+	ms.mNamesMap = make(map[string]bool)
+	ms.metricsKeyBase = "./testMockMetric"
+	ms.Suffix = uint64(0)
+	for i := 0; i < int(mNamesCount); i++ {
+		ms.mNamesMap[fmt.Sprintf("%s_%d", mNameBase, i)] = true
+	}
+	return fmt.Sprintf("%s%d.mnm", ms.metricsKeyBase, ms.Suffix)
+}
+
+func (ms *MetricsSegment) FlushMetricNamesBloom() error {
 
 	filePath := fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
 
 	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		log.Errorf("flushMetricNamesBloom: failed to open filename=%v: err=%v", filePath, err)
+		log.Errorf("FlushMetricNamesBloom: failed to open filename=%v: err=%v", filePath, err)
 		return err
 	}
 
@@ -1109,14 +1132,14 @@ func (ms *MetricsSegment) flushMetricNamesBloom() error {
 	// version
 	_, err = fd.Write([]byte{1})
 	if err != nil {
-		log.Errorf("flushMetricNamesBloom: failed to write version err=%v", err)
+		log.Errorf("FlushMetricNamesBloom: failed to write version err=%v", err)
 		return err
 	}
 
 	// write the blockBloom
 	_, err = ms.mNamesBloom.WriteTo(fd)
 	if err != nil {
-		log.Errorf("flushMetricNamesBloom: write mNames Bloom failed fpath=%v, err=%v", filePath, err)
+		log.Errorf("FlushMetricNamesBloom: write mNames Bloom failed fpath=%v, err=%v", filePath, err)
 		return err
 	}
 
@@ -1127,10 +1150,10 @@ func (ms *MetricsSegment) flushMetricNamesBloom() error {
 - Flushes the metrics segment's mNamesMap to disk
 - The Metirc Names are stored in the Length and Value format.
 */
-func (ms *MetricsSegment) flushMetricNames() error {
+func (ms *MetricsSegment) FlushMetricNames() error {
 
 	if len(ms.mNamesMap) == 0 {
-		log.Warnf("flushMetricNames: empty mNamesMap")
+		log.Warnf("FlushMetricNames: empty mNamesMap")
 		return nil
 	}
 
@@ -1138,7 +1161,7 @@ func (ms *MetricsSegment) flushMetricNames() error {
 
 	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		log.Errorf("flushMetricNames: failed to open filename=%v: err=%v", filePath, err)
+		log.Errorf("FlushMetricNames: failed to open filename=%v: err=%v", filePath, err)
 		return err
 	}
 
@@ -1146,19 +1169,19 @@ func (ms *MetricsSegment) flushMetricNames() error {
 
 	for mName := range ms.mNamesMap {
 		if _, err = fd.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(mName)))); err != nil {
-			log.Errorf("flushMetricNames: failed to write metric length for metric=%+v, filename=%v: err=%v", mName, filePath, err)
+			log.Errorf("FlushMetricNames: failed to write metric length for metric=%+v, filename=%v: err=%v", mName, filePath, err)
 			return err
 		}
 
 		if _, err = fd.Write([]byte(mName)); err != nil {
-			log.Errorf("flushMetricNames: failed to write metric name=%+v, filename=%v: err=%v", mName, filePath, err)
+			log.Errorf("FlushMetricNames: failed to write metric name=%+v, filename=%v: err=%v", mName, filePath, err)
 			return err
 		}
 	}
 
 	err = fd.Sync()
 	if err != nil {
-		log.Errorf("flushMetricNames: failed to sync filename=%v: err=%v", filePath, err)
+		log.Errorf("FlushMetricNames: failed to sync filename=%v: err=%v", filePath, err)
 		return err
 	}
 

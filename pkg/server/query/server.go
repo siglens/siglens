@@ -122,6 +122,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/_search", hs.Recovery(esGetSearchHandler()))
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/_doc/_search", hs.Recovery(esGetSearchHandler()))
 
+	hs.Router.DELETE(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(esDeleteIndexHandler()))
+
 	hs.Router.GET(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/_search", hs.Recovery(esGetSearchHandler()))
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/_search", hs.Recovery(esGetSearchHandler()))
 
@@ -173,6 +175,11 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/v1/query", hs.Recovery(metricsSearchHandler()))
 	hs.Router.GET(server_utils.PROMQL_PREFIX+"/api/v1/query", hs.Recovery(metricsSearchHandler()))
 	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/ui/query", hs.Recovery(uiMetricsSearchHandler()))
+
+	// metric explorer endpoint
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/metric_names", hs.Recovery(getAllMetricNamesHandler()))
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/all_tags", hs.Recovery(getAllMetricTagsHandler()))
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/timeseries", hs.Recovery(getMetricTimeSeriesHandler()))
 
 	// search api Handlers
 	hs.Router.POST(server_utils.API_PREFIX+"/echo", tracing.TraceMiddleware(hs.Recovery(pipeSearchHandler())))

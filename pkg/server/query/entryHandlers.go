@@ -70,6 +70,13 @@ func esGetSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func esDeleteIndexHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(eswriter.ProcessDeleteIndex, ctx)
+	}
+
+}
+
 func listIndicesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(pipesearch.ListIndicesHandler, ctx)
@@ -96,6 +103,24 @@ func metricsSearchHandler() func(ctx *fasthttp.RequestCtx) {
 func uiMetricsSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(prom.ProcessUiMetricsSearchRequest, ctx)
+	}
+}
+
+func getAllMetricNamesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetAllMetricNamesRequest, ctx)
+	}
+}
+
+func getMetricTimeSeriesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetMetricTimeSeriesRequest, ctx)
+	}
+}
+
+func getAllMetricTagsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetAllMetricTagsRequest, ctx)
 	}
 }
 
