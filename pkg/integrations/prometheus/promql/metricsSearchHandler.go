@@ -271,7 +271,7 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	log.Infof("qid=%v, ProcessMetricsSearchRequest:  searchString=[%v] startEpochMs=[%v] endEpochMs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	searchText, startTime, endTime, interval := parseSearchTextForRangeSelection(searchText, startTime, endTime)
+	startTime, endTime, interval := parseSearchTextForRangeSelection(searchText, startTime, endTime)
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
 
 	if err != nil {
@@ -407,7 +407,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	start, end, queries, formulas, errorLog, err := parseMetricTimeSeriesRequest(rawJSON)
 	if err != nil {
-		utils.SendError(ctx, err.Error(), errorLog, err)
+		utils.SendError(ctx, err.Error(), fmt.Sprintf("qid: %v, Error: %+v", qid, errorLog), err)
 		return
 	}
 
@@ -415,24 +415,25 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	metricQueriesList := make([]*structs.MetricsQuery, 0)
 	var timeRange *dtu.MetricsTimeRange
-	hashList := make([]uint64, 0)
+	hashedMNamesList := make([]uint64, 0)
 
 	// Todo:
 	// The queryFormulas var should contain the parsed formulas.
 	// Modify the below flow to parse the individual queries, execute the queries and then apply the formulas.
 	var queryFormulas []structs.QueryArithmetic
 	for _, query := range queries {
-		searchText, start, end, interval := parseSearchTextForRangeSelection(fmt.Sprintf("%v", query["query"]), start, end)
-		metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(searchText, start, end, myid)
+		queryStrText := fmt.Sprintf("%v", query["query"])
+		start, end, interval := parseSearchTextForRangeSelection(queryStrText, start, end)
+		metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(queryStrText, start, end, myid)
 		if err != nil {
-			utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("Metrics Query: %+v", searchText), err)
+			utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, queryStrText), err)
 			return
 		}
 		// The size of the metricQueryRequest might always be 1.
 		for _, metricQuery := range metricQueryRequest {
 			metricQuery.MetricsQuery.PqlQueryType = pqlQuerytype
 			metricQuery.MetricsQuery.Interval = interval
-			hashList = append(hashList, metricQuery.MetricsQuery.HashedMName)
+			hashedMNamesList = append(hashedMNamesList, metricQuery.MetricsQuery.HashedMName)
 			metricQueriesList = append(metricQueriesList, &metricQuery.MetricsQuery)
 			segment.LogMetricsQuery("PromQL metrics query parser", &metricQuery, qid)
 			timeRange = &metricQuery.TimeRange
@@ -440,10 +441,10 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		queryFormulas = queryArithmetic
 	}
 
-	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryFormulas, timeRange, qid)
+	res := segment.ExecuteMultipleMetricsQuery(hashedMNamesList, metricQueriesList, queryFormulas, timeRange, qid)
 	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], metricQueriesList[0].PqlQueryType, start, end, metricQueriesList[0].Interval)
 	if err != nil {
-		log.Errorf("ExecuteAsyncQuery: Error getting results! %+v", err)
+		log.Errorf("ProcessGetMetricTimeSeriesRequest: Failed getting results! qid: %+v, Error: %+v", qid, err)
 	}
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
@@ -948,7 +949,7 @@ func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) (uint64, usage
 	return retVal, granularity
 }
 
-func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTime uint32) (string, uint32, uint32, uint32) {
+func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTime uint32) (uint32, uint32, uint32) {
 
 	pattern := `\[(.*?)\]`
 
@@ -997,5 +998,5 @@ func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTi
 		startTime = endTime - totalVal
 	}
 
-	return searchText, startTime, endTime, totalVal
+	return startTime, endTime, totalVal
 }
