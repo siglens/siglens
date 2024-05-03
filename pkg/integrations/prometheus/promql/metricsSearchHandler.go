@@ -411,8 +411,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	log.Debugf("ProcessGetMetricTimeSeriesRequest: start=%v, end=%v, queries=%v, formulas=%v", start, end, queries, formulas)
-	// TODO: Integrate functionality to get metric time series and remove dummy response
+	log.Debugf("ProcessGetMetricTimeSeriesRequest: Need to Parse: formulas=%v", formulas)
 
 	metricQueriesList := make([]*structs.MetricsQuery, 0)
 	var timeRange *dtu.MetricsTimeRange
