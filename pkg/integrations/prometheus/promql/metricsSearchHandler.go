@@ -399,16 +399,9 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	searchText := fmt.Sprintf("(%v)", metricName)
 
-	metricQueryRequest, pqlQuerytype, _, err := convertPqlToMetricsQuery(searchText, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
+	metricQueryRequest, _, _, err := convertPqlToMetricsQuery(searchText, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
 	if err != nil {
-		ctx.SetContentType(ContentJson)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		WriteJsonResponse(ctx, nil)
-		log.Errorf("qid=%v, ProcessMetricsSearchRequest: PqlQueryType: %v; Error parsing query err=%+v", qid, pqlQuerytype, err)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("qid=%v, ProcessMetricsSearchRequest: could not write error message err=%v", qid, err)
-		}
+		utils.SendError(ctx, "Failed to parse the Metric Name as a Query", fmt.Sprintf("Metric Name: %+v; qid: %v", metricName, qid), err)
 		return
 	}
 

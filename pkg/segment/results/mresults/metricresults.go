@@ -394,7 +394,7 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 	for _, series := range res.AllSeries {
 		tagValues := strings.Split(series.grpID.String(), tsidtracker.TAG_VALUE_DELIMITER_STR)
 		if len(uniqueTagKeys) != len(tagValues)-1 {
-			err := errors.New("GetResults: the length of tag key and tag value pair must match")
+			err := fmt.Errorf("GetResults: the length of tag key and tag value pair must match. UniqueTagKeys length: %v,  TagValues Length: %v", len(uniqueTagKeys), len(tagValues)-1)
 			return nil, nil, err
 		}
 		for index, val := range tagValues[:len(tagValues)-1] {
