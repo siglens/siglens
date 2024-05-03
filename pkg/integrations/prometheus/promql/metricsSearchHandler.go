@@ -271,7 +271,7 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	log.Infof("qid=%v, ProcessMetricsSearchRequest:  searchString=[%v] startEpochMs=[%v] endEpochMs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	searchText, startTime, endTime, interval := parseSearchTextForRangeSelection(searchText, startTime, endTime)
+	startTime, endTime, interval := parseSearchTextForRangeSelection(searchText, startTime, endTime)
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
 
 	if err != nil {
@@ -403,35 +403,57 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		utils.SendError(ctx, "empty json body received", "", nil)
 		return
 	}
+	qid := rutils.GetNextQid()
 
 	start, end, queries, formulas, errorLog, err := parseMetricTimeSeriesRequest(rawJSON)
 	if err != nil {
-		utils.SendError(ctx, err.Error(), errorLog, err)
+		utils.SendError(ctx, err.Error(), fmt.Sprintf("qid: %v, Error: %+v", qid, errorLog), err)
 		return
 	}
 
-	log.Debugf("ProcessGetMetricTimeSeriesRequest: start=%v, end=%v, queries=%v, formulas=%v", start, end, queries, formulas)
-	// TODO: Integrate functionality to get metric time series and remove dummy response
-	dummyResponse := `{
-		"aggStats": {
-			"testmetric0": {
-				"2024-05-01T12:59": 0,
-				"2024-05-01T13:00": 0,
-			},
-			"testmetric1": {
-				"2024-05-01T12:59": 0,
-				"2024-05-01T13:00": 0,
-			},
+	log.Debugf("ProcessGetMetricTimeSeriesRequest: Need to Parse: formulas=%v", formulas)
+
+	metricQueriesList := make([]*structs.MetricsQuery, 0)
+	var timeRange *dtu.MetricsTimeRange
+	hashedMNamesList := make([]uint64, 0)
+
+	// Todo:
+	// The queryFormulas var should contain the parsed formulas.
+	// Modify the below flow to parse the individual queries, execute the queries and then apply the formulas.
+	var queryFormulas []structs.QueryArithmetic
+	for _, query := range queries {
+		queryStrText := fmt.Sprintf("%v", query["query"])
+		start, end, interval := parseSearchTextForRangeSelection(queryStrText, start, end)
+		metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(queryStrText, start, end, myid)
+		if err != nil {
+			utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, queryStrText), err)
+			return
 		}
+		// The size of the metricQueryRequest might always be 1.
+		for _, metricQuery := range metricQueryRequest {
+			metricQuery.MetricsQuery.PqlQueryType = pqlQuerytype
+			metricQuery.MetricsQuery.Interval = interval
+			hashedMNamesList = append(hashedMNamesList, metricQuery.MetricsQuery.HashedMName)
+			metricQueriesList = append(metricQueriesList, &metricQuery.MetricsQuery)
+			segment.LogMetricsQuery("PromQL metrics query parser", &metricQuery, qid)
+			timeRange = &metricQuery.TimeRange
+		}
+		queryFormulas = queryArithmetic
 	}
-	`
-	ctx.SetBody([]byte(dummyResponse))
+
+	res := segment.ExecuteMultipleMetricsQuery(hashedMNamesList, metricQueriesList, queryFormulas, timeRange, qid)
+	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], metricQueriesList[0].PqlQueryType, start, end, metricQueriesList[0].Interval)
+	if err != nil {
+		log.Errorf("ProcessGetMetricTimeSeriesRequest: Failed getting results! qid: %+v, Error: %+v", qid, err)
+	}
+	WriteJsonResponse(ctx, &mQResponse)
+	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func parseMetricTimeSeriesRequest(rawJSON []byte) (int64, int64, []map[string]interface{}, []map[string]interface{}, string, error) {
-	var start = int64(0)
-	var end = int64(0)
+func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]interface{}, []map[string]interface{}, string, error) {
+	var start = uint32(0)
+	var end = uint32(0)
 	queries := make([]map[string]interface{}, 0)
 	formulas := make([]map[string]interface{}, 0)
 	errorLog := ""
@@ -454,7 +476,7 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (int64, int64, []map[string]in
 		errorLog = fmt.Sprintf("the start field is either missing or not a float64 in the JSON body: %v", readJSON)
 		return start, end, queries, formulas, errorLog, respBodyErr
 	}
-	start = int64(startFloat)
+	start = uint32(startFloat)
 
 	endFloat, ok := readJSON["end"].(float64)
 	if !ok {
@@ -462,7 +484,7 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (int64, int64, []map[string]in
 		errorLog = fmt.Sprintf("the end field is either missing or not a float64 in the JSON body: %v", readJSON)
 		return start, end, queries, formulas, errorLog, respBodyErr
 	}
-	end = int64(endFloat)
+	end = uint32(endFloat)
 
 	queryInterfaces, ok := readJSON["queries"].([]interface{})
 	if !ok {
@@ -927,7 +949,7 @@ func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) (uint64, usage
 	return retVal, granularity
 }
 
-func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTime uint32) (string, uint32, uint32, uint32) {
+func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTime uint32) (uint32, uint32, uint32) {
 
 	pattern := `\[(.*?)\]`
 
@@ -976,5 +998,5 @@ func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTi
 		startTime = endTime - totalVal
 	}
 
-	return searchText, startTime, endTime, totalVal
+	return startTime, endTime, totalVal
 }
