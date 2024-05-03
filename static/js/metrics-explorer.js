@@ -29,6 +29,8 @@ let availableEverything = [];
 let previousStartEpoch = null;
 let previousEndEpoch = null;
 let rawData1=[];
+let rawData3=[];
+
 
 // Theme
 let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
@@ -53,7 +55,6 @@ $(document).ready(function() {
 
 async function getInitialMetricNames(){
     await getMetricNames();
-    console.log("Metric names",availableMetrics)
     
 }
 
@@ -317,7 +318,6 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             $(this).blur(); 
             var currentQueryIndex = $(this).index(".metrics");
             var currentQueryName = $(this).siblings(".query-name").text();
-            console.log('metrics selected',ui.item.value,currentQueryIndex,currentQueryName)
             if (
                 rawData1.length === 0 ||
                 filterStartDate !== previousStartEpoch ||
@@ -993,81 +993,11 @@ async function convertDataForChart(data) {
     return seriesArray;
 }
 
-// Example usage:
-let rawData11 = {
-    "aggStats": {
-        "metric1-1": {
-            "2024-04-26T07:06": 10,
-            "2024-04-26T07:07": 20,
-            "2024-04-26T07:08": 30,
-            "2024-04-26T07:09": 10,
-            "2024-04-26T07:10": 40,
-            "2024-04-26T07:11": 20,
-            "2024-04-26T07:12": 30,
-            "2024-04-26T07:13": 28,
-            "2024-04-26T07:14": 18,
-            "2024-04-26T07:15": 38
-        },
-        "metric1-2": {
-            "2024-04-26T07:06": 29,
-            "2024-04-26T07:07": 39,
-            "2024-04-26T07:08": 19,
-            "2024-04-26T07:09": 49,
-            "2024-04-26T07:10": 29,
-            "2024-04-26T07:11": 19,
-            "2024-04-26T07:12": 39,
-            "2024-04-26T07:13": 29,
-            "2024-04-26T07:14": 49,
-            "2024-04-26T07:15": 19
-        }
-    }
-}
 
-let rawData2 = {
-    "aggStats": {
-        "metric2-1": {
-            "2024-04-26T07:06": 11,
-            "2024-04-26T07:07": 12,
-            "2024-04-26T07:08": 13,
-            "2024-04-26T07:09": 10,
-            "2024-04-26T07:10": 4,
-            "2024-04-26T07:11": 21,
-            "2024-04-26T07:12": 32,
-            "2024-04-26T07:13": 2,
-            "2024-04-26T07:14": 10,
-            "2024-04-26T07:15": 3
-        },
-        "metric2-2": {
-            "2024-04-26T07:06": 21,
-            "2024-04-26T07:07": 3,
-            "2024-04-26T07:08": 7,
-            "2024-04-26T07:09": 8,
-            "2024-04-26T07:10": 12,
-            "2024-04-26T07:11": 1,
-            "2024-04-26T07:12": 32,
-            "2024-04-26T07:13": 20,
-            "2024-04-26T07:14": 4,
-            "2024-04-26T07:15": 19
-        }
-    }
-}
 
-let rawData3= {
-    "aggStats": {
-        "metric3-1": {
-            "2024-04-26T07:06": 110,
-            "2024-04-26T07:07": 120,
-            "2024-04-26T07:08": 130,
-            "2024-04-26T07:09": 100,
-            "2024-04-26T07:10": 40,
-            "2024-04-26T07:11": 210,
-            "2024-04-26T07:12": 320,
-            "2024-04-26T07:13": 20,
-            "2024-04-26T07:14": 100,
-            "2024-04-26T07:15": 30
-        }
-    }
-}
+
+
+
 
 
 async function getMetricNames() {
@@ -1163,7 +1093,6 @@ async function getTagKeyValue(metricName) {
 }
 
 async function getTag(metricName) {
-    console.log(metricName)
     let param = {
         start: filterStartDate,
         end: filterEndDate,
@@ -1182,7 +1111,6 @@ async function getTag(metricName) {
         dataType: "json",
         data: JSON.stringify(param),
       }).then((res) => {
-        console.log(res);
         availableEverything=[]
         if (res && res.tags ) {
           for (let i = 0; i < res.tags.length; i++) {
