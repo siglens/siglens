@@ -23,8 +23,8 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 
 	start, end, queries, formulas, _, err := parseMetricTimeSeriesRequest([]byte(validJSON))
 	assert.NoError(t, err)
-	assert.Equal(t, int64(1625248200), start)
-	assert.Equal(t, int64(1625248300), end)
+	assert.Equal(t, uint32(1625248200), start)
+	assert.Equal(t, uint32(1625248300), end)
 	assert.Len(t, queries, 2)
 	assert.Len(t, formulas, 1)
 	assert.Equal(t, "query1", queries[0]["name"])
