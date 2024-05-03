@@ -28,6 +28,7 @@ let availableEverywhere = [];
 let availableEverything = [];
 let previousStartEpoch = null;
 let previousEndEpoch = null;
+let rawData1=[];
 
 // Theme
 let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
@@ -43,11 +44,32 @@ $(document).ready(function() {
     let stDate = "now-1h";
     let endDate = "now";
     datePickerHandler(stDate, endDate, stDate);
-
+    $('.range-item').on('click', metricsExplorerDatePickerHandler);
+    
     $('.theme-btn').on('click', themePickerHandler);
-
+    getInitialMetricNames();
     addQueryElement();
 });
+
+async function getInitialMetricNames(){
+    await getMetricNames();
+    console.log("Metric names",availableMetrics)
+    
+}
+
+function metricsExplorerDatePickerHandler(evt) {
+    evt.preventDefault();
+    $.each($(".range-item.active"), function () {
+        $(this).removeClass('active');
+    });
+    $(evt.currentTarget).addClass('active');
+    datePickerHandler($(this).attr('id'), "now", $(this).attr('id'))
+    
+    //get metrics data
+    //select default metric   
+
+    $('#daterangepicker').hide();
+}
 
 $('#add-query').on('click', addQueryElement);
 
@@ -154,7 +176,7 @@ function addQueryElement() {
     <div class="metrics-query">
         <div class="query-box">
             <div class="query-name active">${String.fromCharCode(97 + queryIndex)}</div>
-            <input type="text" class="metrics" placeholder="Select a metric">
+            <input type="text" class="metrics" placeholder="Select a metric" >
             <div>from</div>
             <div class="tag-container">
                 <input type="text" class="everywhere" placeholder="(everywhere)">
@@ -178,8 +200,8 @@ function addQueryElement() {
     </div>`);
 
     $('#metrics-queries').append(queryElement);
-    addVisualizationContainer(String.fromCharCode(97 + queryIndex), convertDataForChart(rawData1));
-
+    if (rawData1.length > 0)
+        addVisualizationContainer(String.fromCharCode(97 + queryIndex), convertDataForChart(rawData1));
     } else {
         // Get the last query name
         var lastQueryName = $('#metrics-queries').find('.metrics-query:last .query-name').text();
@@ -191,6 +213,7 @@ function addQueryElement() {
         queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
 
         $('#metrics-queries').append(queryElement);
+        if (rawData3.length >0)
         addVisualizationContainer(nextQueryName,convertDataForChart(rawData3));
     }
 
@@ -283,9 +306,29 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     queryElement.find('.metrics').autocomplete({
         source: availableMetrics.metricNames,
         minLength: 0,
-        select: function(event, ui) {
+        focus: function (event, ui) {
+            $(this).val(ui.item.value);
+            return false;
+        },
+        select: async function(event, ui) {
             queryDetails.metrics = ui.item.value;
+            
+            rawData1=[]
             $(this).blur(); 
+            var currentQueryIndex = $(this).index(".metrics");
+            var currentQueryName = $(this).siblings(".query-name").text();
+            console.log('metrics selected',ui.item.value,currentQueryIndex,currentQueryName)
+            if (
+                rawData1.length === 0 ||
+                filterStartDate !== previousStartEpoch ||
+                filterEndDate !== previousEndEpoch
+            ){
+                await getMetricsData(currentQueryName,ui.item.value)
+                previousStartEpoch = filterStartDate;
+                previousEndEpoch = filterEndDate;
+                let seriesdata = await convertDataForChart(rawData1)
+                addVisualizationContainer(currentQueryName, seriesdata);
+            }
         }
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
@@ -548,17 +591,22 @@ function updateCloseIconVisibility() {
 
 function addVisualizationContainer(queryName, seriesData) {
 
-    var visualizationContainer = $(`
-    <div class="metrics-graph" data-query="${queryName}">
-        <div>Metrics query - ${queryName}</div>
-        <div class="graph-canvas"></div>
-    </div>`);
+    var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
+    if (existingContainer.length === 0){
+        var visualizationContainer = $(`
+        <div class="metrics-graph" data-query="${queryName}">
+            <div>Metrics query - ${queryName}</div>
+            <div class="graph-canvas"></div>
+        </div>`);
 
-    $('#metrics-graphs').append(visualizationContainer);
-    
-    var canvas = $('<canvas></canvas>');
-    $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
-    
+        $('#metrics-graphs').append(visualizationContainer);
+        
+        var canvas = $('<canvas></canvas>');
+        $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
+    } else{
+        var canvas = $('<canvas></canvas>');
+        $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).empty().append(canvas);
+    }
     var ctx = canvas[0].getContext('2d');
     
     // Extract labels and datasets from seriesData
@@ -920,7 +968,7 @@ function mergeGraphs(chartType) {
 }
 
 // Converting the response in form to use to create graphs
-function convertDataForChart(data) {
+async function convertDataForChart(data) {
     let seriesArray = [];
 
     // Iterate over each metric in the data
@@ -946,7 +994,7 @@ function convertDataForChart(data) {
 }
 
 // Example usage:
-let rawData1 = {
+let rawData11 = {
     "aggStats": {
         "metric1-1": {
             "2024-04-26T07:06": 10,
@@ -1044,8 +1092,48 @@ async function getMetricNames() {
     }
 }
 
+async function getMetricsData(queryName,metricName ) {
+
+    let query={};
+    query.name =queryName
+    query.query='(' + metricName + ')'
+    query.qlType= "promql"
+    let queries = [];
+    queries.push(query)
+
+
+    let formula ={};
+    formula.formula=queryName
+    let formulae = [];
+    formulae.push(formula)
+
+    const data = {
+      start: filterStartDate,
+      end: filterEndDate,
+      queries: queries,
+      formulas: formulae
+
+    };
+    const res = await $.ajax({
+      method: "post",
+      url: "metrics-explorer/api/v1/timeseries",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "*/*",
+      },
+      crossDomain: true,
+      dataType: "json",
+      data: JSON.stringify(data),
+    });
+  
+    if (res) {
+        rawData1=res
+    
+  
+}
+}
+
 async function getTagKeyValue(metricName) {
-    console.log(metricName)
     let param = {
         start: filterStartDate,
         end: filterEndDate,
@@ -1063,7 +1151,6 @@ async function getTagKeyValue(metricName) {
         dataType: "json",
         data: JSON.stringify(param),
       }).then((res) => {
-        console.log(res);
         availableEverywhere=[]
         if (res && res.tags ) {
           for (let i = 0; i < res.tags.length; i++) {

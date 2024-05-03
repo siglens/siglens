@@ -511,21 +511,65 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 		return start, end, queries, formulas, errorLog, respBodyErr
 	}
 
-	startFloat, ok := readJSON["start"].(float64)
-	if !ok {
-		respBodyErr = errors.New("failed to parse 'start' from request body")
-		errorLog = fmt.Sprintf("the start field is either missing or not a float64 in the JSON body: %v", readJSON)
-		return start, end, queries, formulas, errorLog, respBodyErr
-	}
-	start = uint32(startFloat)
+	var startTimeStr string
+	var startTime, endTime uint32
+	var pastXhours uint64
 
-	endFloat, ok := readJSON["end"].(float64)
-	if !ok {
-		respBodyErr = errors.New("failed to parse 'end' from request body")
-		errorLog = fmt.Sprintf("the end field is either missing or not a float64 in the JSON body: %v", readJSON)
+	switch valtype := readJSON["start"].(type) {
+	case int:
+		startTimeStr = fmt.Sprintf("%d", valtype)
+	case float64:
+		startTimeStr = fmt.Sprintf("%d", int64(valtype))
+	case string:
+		if strings.Contains(readJSON["end"].(string), "now") {
+			nowTs := utils.GetCurrentTimeInMs()
+			defValue := nowTs - (1 * 60 * 1000)
+			pastXhours, _ = parseAlphaNumTime(nowTs, readJSON["start"].(string), defValue)
+			startTimeStr = fmt.Sprintf("%d", pastXhours)
+		} else {
+			startTimeStr = valtype
+		}
+	default:
+		respBodyErr = errors.New("failed to parse request JSON body")
+		errorLog = fmt.Sprintf("failed to parse request JSON body")
 		return start, end, queries, formulas, errorLog, respBodyErr
 	}
-	end = uint32(endFloat)
+	startTime, err = parseTimeFromString(startTimeStr)
+	if err != nil {
+		respBodyErr = errors.New("failed to parse startTime from JSON body")
+		errorLog = fmt.Sprintf("failed to parse startTime from JSON body")
+		return start, end, queries, formulas, errorLog, respBodyErr
+	}
+	start = startTime
+
+	var endTimeStr string
+	switch valtype := readJSON["end"].(type) {
+	case int:
+		endTimeStr = fmt.Sprintf("%d", valtype)
+	case float64:
+		endTimeStr = fmt.Sprintf("%d", int64(valtype))
+	case string:
+		if strings.Contains(readJSON["end"].(string), "now") {
+			nowTs := utils.GetCurrentTimeInMs()
+			defValue := nowTs
+			pastXhours, _ = parseAlphaNumTime(nowTs, readJSON["end"].(string), defValue)
+			endTimeStr = fmt.Sprintf("%d", pastXhours)
+
+		} else {
+			endTimeStr = valtype
+		}
+	default:
+		respBodyErr = errors.New("failed to parse request JSON body")
+		errorLog = fmt.Sprintf("failed to parse request JSON body")
+		return start, end, queries, formulas, errorLog, respBodyErr
+	}
+	endTime, err = parseTimeFromString(endTimeStr)
+	if err != nil {
+		respBodyErr = errors.New("failed to parse endTime from JSON body")
+		errorLog = fmt.Sprintf("failed to parse endTime from JSON body")
+		return start, end, queries, formulas, errorLog, respBodyErr
+	}
+	end = endTime
 
 	queryInterfaces, ok := readJSON["queries"].([]interface{})
 	if !ok {
