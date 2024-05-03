@@ -5243,3 +5243,11 @@ input.form-control {
     background-color: var(--bg-color);
     padding: 8px;
 }
+#all-slos{
+    padding: 20px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    font-size: 14px;
+}
