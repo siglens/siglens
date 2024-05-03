@@ -89,7 +89,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 
 	// iterate through all metrics segments, applying search as needed
 	applyMetricsOperatorOnSegments(mQuery, mSegments, mRes, timeRange, qid, querySummary)
-	if mQuery.ExitAfterRawSearch {
+	if mQuery.ExitAfterTagsSearch {
 		return mRes
 	}
 	parallelism := int(config.GetParallelism()) * 2
@@ -219,7 +219,7 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 		}
 
 		querySummary.IncrementNumTSIDsMatched(uint64(tsidInfo.GetNumMatchedTSIDs()))
-		if mQuery.ExitAfterRawSearch {
+		if mQuery.ExitAfterTagsSearch {
 			for tsid, tsGroupId := range tsidInfo.GetAllTSIDs() {
 				series := mresults.InitSeriesHolderForTags(mQuery, tsGroupId)
 				mRes.AddSeries(series, tsid, tsGroupId)

@@ -372,12 +372,12 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	startTime, err := parseTimeStringToUint32(readJSON["start"])
 	if err != nil {
-		utils.SendError(ctx, "Failed to parse 'start' from request body", fmt.Sprintf("ProcessGetAllMetricsRequest: Failed to parse 'start' from JSON body with value: %v", readJSON["start"]), errors.New("failed to parse 'start' from JSON body"))
+		utils.SendError(ctx, "Failed to parse 'start' from request body", fmt.Sprintf("ProcessGetAllMetricTagsRequest: Failed to parse 'start' from JSON body with value: %v", readJSON["start"]), errors.New("failed to parse 'start' from JSON body"))
 		return
 	}
 	endTime, err := parseTimeStringToUint32(readJSON["end"])
 	if err != nil {
-		utils.SendError(ctx, "Failed to parse 'end' from request body", fmt.Sprintf("ProcessGetAllMetricsRequest: Failed to parse 'end' from JSON body with value: %v", readJSON["end"]), errors.New("failed to parse 'end' from JSON body"))
+		utils.SendError(ctx, "Failed to parse 'end' from request body", fmt.Sprintf("ProcessGetAllMetricTagsRequest: Failed to parse 'end' from JSON body with value: %v", readJSON["end"]), errors.New("failed to parse 'end' from JSON body"))
 		return
 	}
 
@@ -404,19 +404,19 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	metricQueryRequest[0].MetricsQuery.ExitAfterRawSearch = true
+	metricQueryRequest[0].MetricsQuery.ExitAfterTagsSearch = true
 
-	segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[0], qid)
+	segment.LogMetricsQuery("Tags Request PromQL metrics query parser", &metricQueryRequest[0], qid)
 	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
 
-	uinqueTagKeys, tagKeyValueSet, err := res.GetMetricTagsResultSet(&metricQueryRequest[0].MetricsQuery)
+	uniqueTagKeys, tagKeyValueSet, err := res.GetMetricTagsResultSet(&metricQueryRequest[0].MetricsQuery)
 	if err != nil {
 		utils.SendError(ctx, "Failed to get metric tags", fmt.Sprintf("Metric Name: %+v; qid: %v", metricName, qid), err)
 		return
 	}
 
 	response := make(map[string]interface{})
-	response["uniqueTagKeys"] = uinqueTagKeys
+	response["uniqueTagKeys"] = uniqueTagKeys
 	response["tagKeyValueSet"] = tagKeyValueSet
 
 	WriteJsonResponse(ctx, &response)
