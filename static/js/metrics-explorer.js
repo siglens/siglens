@@ -23,6 +23,11 @@ var lineCharts = {}; // Chart details
 var chartDataCollection = {}; // Save label/data for each query
 let mergedGraph ;
 let chartType = "Line chart";
+let availableMetrics = [];
+let availableEverywhere = [];
+let availableEverything = [];
+let previousStartEpoch = null;
+let previousEndEpoch = null;
 
 // Theme
 let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
@@ -250,7 +255,7 @@ function addQueryElement() {
     });
 }
 
-function initializeAutocomplete(queryElement, previousQuery = {}) {
+async function initializeAutocomplete(queryElement, previousQuery = {}) {
     var queryDetails = {
         metrics: '',
         everywhere: [],
@@ -266,42 +271,17 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         queryDetails.aggFunction = previousQuery.aggFunction;
     }
 
-    var availableMetrics = [
-        "system.cpu.interrupt",
-        "system.disk.used",
-        "system.cpu.stolen",
-        "system.cpu.num_cores",
-        "system.cpu.stolen",
-        "system.cpu.idle",
-        "system.cpu.guest",
-        "system.cpu.system",
-    ];
-
-    var availableEverywhere = [
-        "device:/dev/disk1s1",
-        "device:/dev/disk1s2",
-        "device:/dev/disk1s3",
-        "device:/dev/disk1s4",
-        "device:/dev/disk1s5",
-        "device:/dev/disk1s6",
-        "device_name:/disk1s1",
-        "device_name:/disk1s2",
-        "device_name:/disk1s3",
-        "device_name:/disk1s4",
-        "host:SonamSigScalr.local",
-    ];
-
-    var availableEverything = [
-        "device",
-        "device_name",
-        "host",
-    ];
 
     var availableOptions = ["max by", "min by", "avg by", "sum by"];
 
     // Metrics input
+    if (
+        availableMetrics.length === 0 
+    ){
+        await getMetricNames();
+    }
     queryElement.find('.metrics').autocomplete({
-        source: availableMetrics,
+        source: availableMetrics.metricNames,
         minLength: 0,
         select: function(event, ui) {
             queryDetails.metrics = ui.item.value;
@@ -342,6 +322,11 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         $(this).blur(); 
     });
     
+    if (
+        availableEverywhere.length === 0
+    ){        
+        await getTagKeyValue(queryDetails.metrics);
+    }
     // Everywhere input (tag:value)
     queryElement.find('.everywhere').autocomplete({
         source: function(request, response) {
@@ -460,6 +445,11 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         $(this).select();
     });
 
+    if (
+        availableEverything.length === 0
+    ){
+        await getTag(queryDetails.metrics);
+    }
     // Everything input (value)
     queryElement.find('.everything').autocomplete({
         source: function(request, response) {
@@ -1029,4 +1019,92 @@ let rawData3= {
             "2024-04-26T07:15": 30
         }
     }
+}
+
+
+async function getMetricNames() {
+    const data = {
+      start: filterStartDate,
+      end: filterEndDate,
+    };
+    const res = await $.ajax({
+      method: "post",
+      url: "metrics-explorer/api/v1/metric_names",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "*/*",
+      },
+      crossDomain: true,
+      dataType: "json",
+      data: JSON.stringify(data),
+    });
+  
+    if (res) {
+        availableMetrics=res
+    }
+}
+
+async function getTagKeyValue(metricName) {
+    console.log(metricName)
+    let param = {
+        start: filterStartDate,
+        end: filterEndDate,
+        metric_name: metricName
+      };
+      startQueryTime = new Date().getTime();
+      $.ajax({
+        method: "get",
+        url: "metrics-explorer/api/v1/all_tags?start=100&end=200&metric_name=metric_1",
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          Accept: "*/*",
+        },
+        crossDomain: true,
+        dataType: "json",
+        data: JSON.stringify(param),
+      }).then((res) => {
+        console.log(res);
+        availableEverywhere=[]
+        if (res && res.tags ) {
+          for (let i = 0; i < res.tags.length; i++) {
+            let cur = res.tags[i]
+            availableEverywhere.push(cur)
+          }
+        }
+    });
+
+}
+
+async function getTag(metricName) {
+    console.log(metricName)
+    let param = {
+        start: filterStartDate,
+        end: filterEndDate,
+        metric_name: metricName
+      };
+
+      startQueryTime = new Date().getTime();
+      $.ajax({
+        method: "get",
+        url: "metrics-explorer/api/v1/all_tags?start=100&end=200&metric_name=metric_1",
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          Accept: "*/*",
+        },
+        crossDomain: true,
+        dataType: "json",
+        data: JSON.stringify(param),
+      }).then((res) => {
+        console.log(res);
+        availableEverything=[]
+        if (res && res.tags ) {
+          for (let i = 0; i < res.tags.length; i++) {
+            let cur = res.tags[i]
+            var parts = cur.split(':');
+            var prefix = parts[0];            
+            availableEverything.push(prefix)
+          }
+        }
+    });
+  
 }
