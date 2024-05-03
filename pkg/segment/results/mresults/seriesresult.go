@@ -99,6 +99,12 @@ func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.By
 	}
 }
 
+func InitSeriesHolderForTags(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.ByteBuffer) *Series {
+	return &Series{
+		grpID: tsGroupId,
+	}
+}
+
 func (s *Series) GetIdx() int {
 	return s.idx
 }

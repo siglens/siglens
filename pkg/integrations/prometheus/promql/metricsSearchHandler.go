@@ -359,6 +359,8 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
+	qid := rutils.GetNextQid()
+
 	readJSON := make(map[string]interface{})
 	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
 	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
@@ -368,15 +370,14 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	start, ok := readJSON["start"].(float64)
-	if !ok {
-		utils.SendError(ctx, "Failed to parse 'start' from JSON body", fmt.Sprintf("ProcessGetAllMetricTagsRequest: Failed to parse 'start' from JSON body with value: %v", readJSON["start"]), errors.New("failed to parse 'start' from JSON body"))
+	startTime, err := parseTimeStringToUint32(readJSON["start"])
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse 'start' from request body", fmt.Sprintf("ProcessGetAllMetricTagsRequest: Failed to parse 'start' from JSON body with value: %v", readJSON["start"]), errors.New("failed to parse 'start' from JSON body"))
 		return
 	}
-
-	end, ok := readJSON["end"].(float64)
-	if !ok {
-		utils.SendError(ctx, "Failed to parse 'end' from JSON body", fmt.Sprintf("ProcessGetAllMetricTagsRequest: Failed to parse 'end' from JSON body with value: %v", readJSON["end"]), errors.New("failed to parse 'end' from JSON body"))
+	endTime, err := parseTimeStringToUint32(readJSON["end"])
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse 'end' from request body", fmt.Sprintf("ProcessGetAllMetricTagsRequest: Failed to parse 'end' from JSON body with value: %v", readJSON["end"]), errors.New("failed to parse 'end' from JSON body"))
 		return
 	}
 
@@ -390,10 +391,36 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	log.Debugf("ProcessGetAllMetricTagsRequest: start=%v, end=%v, metric_name=%v", int64(start), int64(end), metricName)
-	// TODO: Integrate functionality to get all tags for a metric and remove dummy response
-	dummyResponse := `{"metricName": "metric_1", "tags": ["tk1: tv1", "tk2: tv2"]}`
-	ctx.SetBody([]byte(dummyResponse))
+	timeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: uint32(startTime),
+		EndEpochSec:   uint32(endTime),
+	}
+
+	searchText := fmt.Sprintf("(%v)", metricName)
+
+	metricQueryRequest, _, _, err := convertPqlToMetricsQuery(searchText, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse the Metric Name as a Query", fmt.Sprintf("Metric Name: %+v; qid: %v", metricName, qid), err)
+		return
+	}
+
+	metricQueryRequest[0].MetricsQuery.ExitAfterTagsSearch = true
+
+	segment.LogMetricsQuery("Tags Request PromQL metrics query parser", &metricQueryRequest[0], qid)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
+
+	uniqueTagKeys, tagKeyValueSet, err := res.GetMetricTagsResultSet(&metricQueryRequest[0].MetricsQuery)
+	if err != nil {
+		utils.SendError(ctx, "Failed to get metric tags", fmt.Sprintf("Metric Name: %+v; qid: %v", metricName, qid), err)
+		return
+	}
+
+	response := make(map[string]interface{})
+	response["uniqueTagKeys"] = uniqueTagKeys
+	response["tagKeyValueSet"] = tagKeyValueSet
+
+	WriteJsonResponse(ctx, &response)
+	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
