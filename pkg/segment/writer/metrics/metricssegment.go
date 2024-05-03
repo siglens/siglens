@@ -387,10 +387,16 @@ func (ms *MetricsSegment) AddMNameToBloom(mName []byte) {
 	ms.mNamesBloom.Add(mName)
 }
 
-func (ms *MetricsSegment) GetMetricNamesMap() map[string]bool {
+func (ms *MetricsSegment) LoadMetricNamesIntoMap(resultContainer map[string]bool) {
 	ms.rwLock.RLock()
 	defer ms.rwLock.RUnlock()
-	return ms.mNamesMap
+
+	for mName := range ms.mNamesMap {
+		_, ok := resultContainer[mName]
+		if !ok {
+			resultContainer[mName] = true
+		}
+	}
 }
 
 /*

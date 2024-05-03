@@ -145,6 +145,7 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 
 	resultContainerLock := &sync.RWMutex{}
 	resultContainer := make(map[string]bool)
+	unrotatedResultContainer := make(map[string]bool)
 	wg := &sync.WaitGroup{}
 	parallelism := int(config.GetParallelism())
 	parallelismCounter := 0
@@ -152,19 +153,10 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 
 	parallelismCounter++
 	wg.Add(1)
-	go func(unrotatedMSegments []*metrics.MetricsSegment) {
+	go func(unrotatedMSeg []*metrics.MetricsSegment) {
 		defer wg.Done()
-		for _, mSeg := range unrotatedMSegments {
-			for mName := range mSeg.GetMetricNamesMap() {
-				resultContainerLock.RLock()
-				_, ok := resultContainer[mName]
-				resultContainerLock.RUnlock()
-				if !ok {
-					resultContainerLock.Lock()
-					resultContainer[mName] = true
-					resultContainerLock.Unlock()
-				}
-			}
+		for _, mSeg := range unrotatedMSeg {
+			mSeg.LoadMetricNamesIntoMap(unrotatedResultContainer)
 		}
 	}(unrotatedMSegments)
 
@@ -208,6 +200,13 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 
 	if gErr != nil {
 		return nil, gErr
+	}
+
+	for mName := range unrotatedResultContainer {
+		_, ok := resultContainer[mName]
+		if !ok {
+			resultContainer[mName] = true
+		}
 	}
 
 	result := make([]string, 0, len(resultContainer))
