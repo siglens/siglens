@@ -364,11 +364,11 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             return false;
         },
         open: function(event, ui) {
-            var containerPosition = $(".tag-container").offset();
+            var containerPosition = $(this).closest('.tag-container').offset();
 
             $(this).autocomplete("widget").css({
                 "position": "absolute",
-                "top": containerPosition.top + $(".tag-container").outerHeight(),
+                "top": containerPosition.top + $(this).closest('.tag-container').outerHeight(),
                 "left": containerPosition.left,
                 "z-index": 1000
             });
@@ -481,11 +481,11 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             return false;        
         },
         open: function(event, ui) {
-            var containerPosition = $(".value-container").offset();
+            var containerPosition = $(this).closest('.value-container').offset();
 
             $(this).autocomplete("widget").css({
                 "position": "absolute",
-                "top": containerPosition.top + $(".value-container").outerHeight(),
+                "top": containerPosition.top + $(this).closest('.value-container').outerHeight(),
                 "left": containerPosition.left,
                 "z-index": 1000
             });
