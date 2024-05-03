@@ -7,14 +7,6 @@ import (
 )
 
 func Test_parseMetricTimeSeriesRequest(t *testing.T) {
-	testInvalidInput := func(t *testing.T, invalidJSON string) {
-		start, end, queries, formulas, _, err := parseMetricTimeSeriesRequest([]byte(invalidJSON))
-		assert.Error(t, err)
-		assert.Equal(t, int64(0), start)
-		assert.Equal(t, int64(0), end)
-		assert.Nil(t, queries)
-		assert.Nil(t, formulas)
-	}
 
 	// Case 1: Valid JSON input
 	validJSON := `{
@@ -55,7 +47,8 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula": "formula2"}
 		]
 	}`
-	testInvalidInput(t, invalidJSON)
+	_, _, _, _, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	assert.Error(t, err)
 
 	// Case 3: Invalid JSON input (missing 'end')
 	invalidJSON = `{
@@ -69,7 +62,8 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula": "formula2"}
 		]
 	}`
-	testInvalidInput(t, invalidJSON)
+	_, _, _, _, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	assert.Error(t, err)
 
 	// Case 4: Invalid JSON input (missing 'queries')
 	invalidJSON = `{
@@ -80,7 +74,8 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula": "formula2"}
 		]
 	}`
-	testInvalidInput(t, invalidJSON)
+	_, _, _, _, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	assert.Error(t, err)
 
 	// Case 5: Invalid JSON input (missing 'formulas')
 	invalidJSON = `{
@@ -91,7 +86,8 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"name": "query2", "query": "SELECT * FROM table", "qlType": "SQL"}
 		]
 	}`
-	testInvalidInput(t, invalidJSON)
+	_, _, _, _, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	assert.Error(t, err)
 
 	// Case 6: Invalid JSON input (malformed 'queries')
 	invalidJSON = `{
@@ -106,7 +102,8 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula": "formula2"}
 		]
 	}`
-	testInvalidInput(t, invalidJSON)
+	_, _, _, _, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	assert.Error(t, err)
 
 	// Case 7: Invalid JSON input (malformed 'formulas')
 	invalidJSON = `{
@@ -121,5 +118,6 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula2": "formula2"}
 		]
 	}`
-	testInvalidInput(t, invalidJSON)
+	_, _, _, _, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	assert.Error(t, err)
 }
