@@ -239,6 +239,7 @@ input:checked + .slider:before {
 .metrics-query .remove-query.disabled:hover{
     cursor: not-allowed;
     background: #a0a4a6;
+    border-radius: 18px;
 }
 
 .metrics-query .remove-query:hover,

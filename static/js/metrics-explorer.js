@@ -32,7 +32,7 @@ let green = ["#d0ebc2", "#c4eab7", "#aed69e", "#87c37d", "#5daa64", "#45884a", "
 let warm = ["#f7e288", "#fadb84", "#f1b65d", "#ec954d", "#f65630" , "#cf3926", "#aa2827", "#761727" ]
 let orange = ["#f8ddbd", "#f4d2a9", "#f0b077", "#ec934f", "#e0722f", "#c85621", "#9b4116", "#72300e"]
 let gray = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#62636a", "#4c4d57"]
-let d2d0 = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
+let palette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
 
 $(document).ready(function() {
     let stDate = "now-1h";
@@ -79,6 +79,7 @@ function addFormulaElement(){
     // Remove the formula element
     formulaElement.find('.remove-query').on('click', function() {
         formulaElement.remove();
+        $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');;
     });
 
     // Validate formula on input change
@@ -363,11 +364,11 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             return false;
         },
         open: function(event, ui) {
-            var containerPosition = $(".tag-container").offset();
+            var containerPosition = $(this).closest('.tag-container').offset();
 
             $(this).autocomplete("widget").css({
                 "position": "absolute",
-                "top": containerPosition.top + $(".tag-container").outerHeight(),
+                "top": containerPosition.top + $(this).closest('.tag-container').outerHeight(),
                 "left": containerPosition.left,
                 "z-index": 1000
             });
@@ -480,11 +481,11 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             return false;        
         },
         open: function(event, ui) {
-            var containerPosition = $(".value-container").offset();
+            var containerPosition = $(this).closest('.value-container').offset();
 
             $(this).autocomplete("widget").css({
                 "position": "absolute",
-                "top": containerPosition.top + $(".value-container").outerHeight(),
+                "top": containerPosition.top + $(this).closest('.value-container').outerHeight(),
                 "left": containerPosition.left,
                 "z-index": 1000
             });
@@ -885,6 +886,7 @@ function mergeGraphs(chartType) {
                     data: dataset.data,
                     borderColor: dataset.borderColor,
                     borderWidth: dataset.borderWidth,
+                    backgroundColor: dataset.backgroundColor,
                     fill: (chartType === 'Area chart') ? true : false 
                 });
             });
