@@ -50,7 +50,7 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
-	_, err := tsGroupId.Write([]byte("yellow`"))
+	_, err := tsGroupId.Write([]byte("color:yellow"))
 	assert.NoError(t, err)
 	series := InitSeriesHolder(mQuery, tsGroupId)
 
@@ -119,7 +119,7 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
-	_, err := tsGroupId.Write([]byte("yellow`"))
+	_, err := tsGroupId.Write([]byte("color:yellow"))
 	assert.NoError(t, err)
 	series := InitSeriesHolder(mQuery, tsGroupId)
 
@@ -251,7 +251,7 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
-	_, err := tsGroupId.Write([]byte("yellow`"))
+	_, err := tsGroupId.Write([]byte("color:yellow"))
 	assert.NoError(t, err)
 	series := InitSeriesHolder(mQuery, tsGroupId)
 
@@ -320,7 +320,7 @@ func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
-	_, err := tsGroupId.Write([]byte("yellow`"))
+	_, err := tsGroupId.Write([]byte("color:yellow`"))
 	assert.NoError(t, err)
 	series := InitSeriesHolder(mQuery, tsGroupId)
 

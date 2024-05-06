@@ -362,11 +362,11 @@ tag key. Each of these chunks consists of several blocks, with one block per tag
 value that this (key, metric) combination has a time series for. The format of
 each block is:
   - 8 bytes for the hashed tag value
-  - 1 byte for the type of the tag value (currently, either VALTYPE_ENC_SMALL_STRING or VALTYPE_ENC_FLOAT64)
+  - 1 byte for the type of the tag value (currently, either VALTYPE_ENC_SMALL_STRING or VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64)
   - The raw tag value
     -- If the type is VALTYPE_ENC_SMALL_STRING there's 2 bytes for the size of
     the string, and then N more bytes, where N is the size of the string.
-    -- If the type is VALTYPE_ENC_FLOAT64 there's 8 bytes
+    -- If the type is VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64 there's 8 bytes
   - 2 bytes for the number of matching TSIDs; call this numMatchingTSIDs
   - numMatchingTSIDs 8-byte numbers, each representing a TSID satisfying this (metric, key, value) combination
 */
@@ -412,20 +412,34 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 					id += uint32(len(value))
 				}
 			case jp.Number:
-				if value, err := jp.ParseFloat(tInfo.tagValue); err != nil {
-					return nil, fmt.Errorf("encodeTagsTree: Error in raw tag value conversion %T. Error: %v", tInfo.tagValue, err)
+				var valueType []byte
+				var valueInBytes []byte
+				var value interface{}
+
+				value, err := jp.ParseInt(tInfo.tagValue)
+				if err != nil {
+					value, err = jp.ParseFloat(tInfo.tagValue)
+					if err != nil {
+						return nil, fmt.Errorf("encodeTagsTree: Tag Value json number is neither int64 nor float64:  %T. Error: %v", tInfo.tagValue, err)
+					}
+					valueType = VALTYPE_ENC_FLOAT64
+					valueInBytes = utils.Float64ToBytesLittleEndian(value.(float64))
 				} else {
-					if _, err := tagBuf.Write(VALTYPE_ENC_FLOAT64[:]); err != nil {
-						log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
-						return nil, err
-					}
-					id += 1
-					if _, err := tagBuf.Write(utils.Float64ToBytesLittleEndian(value)); err != nil {
-						log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
-						return nil, err
-					}
-					id += 8
+					valueType = VALTYPE_ENC_INT64
+					valueInBytes = utils.Int64ToBytesLittleEndian(value.(int64))
 				}
+
+				if _, err := tagBuf.Write(valueType[:]); err != nil {
+					log.Errorf("encodeTagsTree: Cannot write tag value type: %+v to buffer. Error: %v", valueType[:], err)
+					return nil, err
+				}
+
+				id += 1
+				if _, err := tagBuf.Write(valueInBytes); err != nil {
+					log.Errorf("encodeTagsTree: Cannot write tag value: %v to buffer. Error: %v", value, err)
+					return nil, err
+				}
+				id += 8
 			default:
 				return nil, fmt.Errorf("encodeTagsTree: Incorrect tag value type %v", tInfo.tagValueType)
 			}
