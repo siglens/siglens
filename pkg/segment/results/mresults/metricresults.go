@@ -389,7 +389,7 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 		}
 	}
 
-	tagKeyValueSet := make([]string, 0)
+	tagKeyValueSet := make(map[string]bool)
 
 	for _, series := range res.AllSeries {
 		tagValues := strings.Split(series.grpID.String(), tsidtracker.TAG_VALUE_DELIMITER_STR)
@@ -398,11 +398,15 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 			return nil, nil, err
 		}
 		for index, val := range tagValues[:len(tagValues)-1] {
-			tagKeyValueSet = append(tagKeyValueSet, fmt.Sprintf("%s:%s", uniqueTagKeys[index], val))
+			tagKeyValueSet[fmt.Sprintf("%s:%s", uniqueTagKeys[index], val)] = true
 		}
 	}
+	uniqueTagKeysSet := make([]string, 0)
+	for key := range tagKeyValueSet {
+		uniqueTagKeysSet = append(uniqueTagKeysSet, key)
+	}
 
-	return uniqueTagKeys, tagKeyValueSet, nil
+	return uniqueTagKeys, uniqueTagKeysSet, nil
 }
 
 func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricsStatsResponseInfo, error) {
