@@ -438,38 +438,40 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	log.Debugf("ProcessGetMetricTimeSeriesRequest: Need to Parse: formulas=%v", formulas)
+	// Todo:
+	// Some of the Formulas are not being executed properly. Need to fix.
+	queryFormulaMap := make(map[string]string)
+
+	for _, query := range queries {
+		queryFormulaMap[fmt.Sprintf("%v", query["name"])] = fmt.Sprintf("%v", query["query"])
+	}
+
+	finalSearchText, err := buildMetricQueryFromFormulaAndQueries(fmt.Sprintf("%v", formulas[0]["formula"]), queryFormulaMap)
+	if err != nil {
+		utils.SendError(ctx, "Error building metrics query", fmt.Sprintf("qid: %v, Error: %+v", qid, err), err)
+		return
+	}
+
+	start, end, interval := parseSearchTextForRangeSelection(finalSearchText, start, end)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(finalSearchText, start, end, myid)
+	if err != nil {
+		utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, finalSearchText), err)
+		return
+	}
 
 	metricQueriesList := make([]*structs.MetricsQuery, 0)
 	var timeRange *dtu.MetricsTimeRange
-	hashedMNamesList := make([]uint64, 0)
-
-	// Todo:
-	// The queryFormulas var should contain the parsed formulas.
-	// Modify the below flow to parse the individual queries, execute the queries and then apply the formulas.
-	var queryFormulas []structs.QueryArithmetic
-	for _, query := range queries {
-		queryStrText := fmt.Sprintf("%v", query["query"])
-		start, end, interval := parseSearchTextForRangeSelection(queryStrText, start, end)
-		metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(queryStrText, start, end, myid)
-		if err != nil {
-			utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, queryStrText), err)
-			return
-		}
-		// The size of the metricQueryRequest might always be 1.
-		for _, metricQuery := range metricQueryRequest {
-			metricQuery.MetricsQuery.PqlQueryType = pqlQuerytype
-			metricQuery.MetricsQuery.Interval = interval
-			hashedMNamesList = append(hashedMNamesList, metricQuery.MetricsQuery.HashedMName)
-			metricQueriesList = append(metricQueriesList, &metricQuery.MetricsQuery)
-			segment.LogMetricsQuery("PromQL metrics query parser", &metricQuery, qid)
-			timeRange = &metricQuery.TimeRange
-		}
-		queryFormulas = queryArithmetic
+	hashList := make([]uint64, 0)
+	for _, metricQuery := range metricQueryRequest {
+		hashList = append(hashList, metricQuery.MetricsQuery.HashedMName)
+		metricQueriesList = append(metricQueriesList, &metricQuery.MetricsQuery)
+		segment.LogMetricsQuery("PromQL metrics query parser", &metricQuery, qid)
+		timeRange = &metricQuery.TimeRange
 	}
-
-	res := segment.ExecuteMultipleMetricsQuery(hashedMNamesList, metricQueriesList, queryFormulas, timeRange, qid)
-	mQResponse, err := res.FetchPromqlMetrics(metricQueriesList[0], metricQueriesList[0].PqlQueryType, start, end, metricQueriesList[0].Interval)
+	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
+	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
+	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, start, end, interval)
+//   	mQResponse, err := res.FetchPromqlMetrics(metricQueriesList[0], metricQueriesList[0].PqlQueryType, start, end, metricQueriesList[0].Interval)
 	if err != nil {
 		utils.SendError(ctx, "Failed to get metric time series", fmt.Sprintf("qid: %v", qid), err)
 		return
@@ -477,6 +479,18 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]string) (string, error) {
+
+	finalSearchText := formula
+	for key, value := range queries {
+		finalSearchText = strings.ReplaceAll(finalSearchText, key, fmt.Sprintf("%v", value))
+	}
+
+	log.Infof("buildMetricQueryFromFormulAndQueries: finalSearchText=%v", finalSearchText)
+
+	return finalSearchText, nil
 }
 
 func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
