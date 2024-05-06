@@ -483,7 +483,10 @@ func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	jsonData := `[{"fn": "abs", "name": "Absolute", "desc": "Returns the absolute value of a metric.", "eg": "abs(avg (system.disk.used{*}))"}, {"fn": "log2", "name": "Logarithm base 2", "desc": "Returns the base-2 logarithm of a metric.", "eg": "log2(avg (system.disk.used{*}))"}]`
 
 	ctx.SetContentType("application/json")
-	ctx.Write([]byte(jsonData))
+	_, err := ctx.Write([]byte(jsonData))
+	if err != nil {
+		log.Errorf("ProcessGetMetricFunctionsRequest: failed to write response, err=%v", err)
+	}
 }
 func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]interface{}, []map[string]interface{}, string, error) {
 	var start = uint32(0)
