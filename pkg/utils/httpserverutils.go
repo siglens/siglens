@@ -384,10 +384,10 @@ type MetricsStatsResponseInfo struct {
 }
 type MetricStatsResponse struct {
 	Series      []string     `json:"series"`
-	Timestamps  []int64      `json:"timestamps"`
+	Timestamps  []uint32     `json:"timestamps"`
 	Values      [][]*float64 `json:"values"`
-	StartTime   int64        `json:"startTime"`
-	IntervalSec int64        `json:"intervalSec"`
+	StartTime   uint32       `json:"startTime"`
+	IntervalSec uint32       `json:"intervalSec"`
 }
 
 type AllSavedQueries map[string]map[string]interface{}

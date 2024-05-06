@@ -496,14 +496,14 @@ func (r *MetricsResult) FetchPromqlMetrics(mQuery *structs.MetricsQuery, pqlQuer
 		}
 	}
 	// Create a map of all unique timestamps across all results.
-	allTimestamps := make(map[int64]bool)
+	allTimestamps := make(map[uint32]bool)
 	for _, results := range r.Results {
 		for ts := range results {
-			allTimestamps[int64(ts)] = true
+			allTimestamps[ts] = true
 		}
 	}
 	// Convert the map of unique timestamps into a sorted slice.
-	httpResp.Timestamps = make([]int64, 0, len(allTimestamps))
+	httpResp.Timestamps = make([]uint32, 0, len(allTimestamps))
 	for ts := range allTimestamps {
 		httpResp.Timestamps = append(httpResp.Timestamps, ts)
 	}
