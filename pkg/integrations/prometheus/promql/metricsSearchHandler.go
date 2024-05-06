@@ -491,7 +491,7 @@ func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			"fn": "rate", 
 			"name": "Rate", 
 			"desc": "Calculates the per-second average rate of increase of the time series in the range vector.", 
-			"eg": "avg(rate(system.disk.used[5m]))"
+			"eg": "rate(avg (system.disk.used[5m]))"
 		}
 	]`
 	ctx.SetContentType("application/json")
