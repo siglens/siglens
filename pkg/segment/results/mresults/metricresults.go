@@ -20,6 +20,7 @@ package mresults
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -470,6 +471,71 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 		}
 	default:
 		return httpResp, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type")
+	}
+
+	return httpResp, nil
+}
+
+func (r *MetricsResult) FetchPromqlMetrics(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricStatsResponse, error) {
+	var httpResp utils.MetricStatsResponse
+	httpResp.Series = make([]string, 0)
+	httpResp.Values = make([][]*float64, 0)
+	httpResp.StartTime = int64(startTime)
+	httpResp.IntervalSec = int64(interval)
+
+	if r.State != AGGREGATED {
+		return utils.MetricStatsResponse{}, errors.New("results is not in aggregated state")
+	}
+
+	uniqueTagKeys := make(map[string]bool)
+	tagKeys := make([]string, 0)
+	for _, tag := range mQuery.TagsFilters {
+		if _, ok := uniqueTagKeys[tag.TagKey]; !ok {
+			uniqueTagKeys[tag.TagKey] = true
+			tagKeys = append(tagKeys, tag.TagKey)
+		}
+	}
+	// Create a map of all unique timestamps across all results.
+	allTimestamps := make(map[int64]bool)
+	for _, results := range r.Results {
+		for ts := range results {
+			allTimestamps[int64(ts)] = true
+		}
+	}
+	// Convert the map of unique timestamps into a sorted slice.
+	httpResp.Timestamps = make([]int64, 0, len(allTimestamps))
+	for ts := range allTimestamps {
+		httpResp.Timestamps = append(httpResp.Timestamps, ts)
+	}
+	sort.Slice(httpResp.Timestamps, func(i, j int) bool { return httpResp.Timestamps[i] < httpResp.Timestamps[j] })
+
+	for grpId, results := range r.Results {
+		tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
+		if len(tagKeys) != len(tagValues)-1 { // Subtract 1 because grpId has a delimiter after the last value
+			err := errors.New("GetResults: the length of tag key and tag value pair must match")
+			return httpResp, err
+		}
+		groupId := mQuery.MetricName + "{"
+		for index, val := range tagValues[:len(tagValues)-1] {
+			groupId += fmt.Sprintf("%v:\"%v\",", tagKeys[index], val)
+		}
+		if last := len(groupId) - 1; last >= 0 && groupId[last] == ',' {
+			groupId = groupId[:last]
+		}
+		groupId += "}"
+		httpResp.Series = append(httpResp.Series, groupId)
+
+		values := make([]*float64, len(httpResp.Timestamps))
+		for i, ts := range httpResp.Timestamps {
+			// Check if there is a value for the current timestamp in results.
+			if v, ok := results[uint32(ts)]; ok {
+				values[i] = &v
+			} else {
+				values[i] = nil
+			}
+		}
+
+		httpResp.Values = append(httpResp.Values, values)
 	}
 
 	return httpResp, nil

@@ -382,6 +382,13 @@ type ClusterStatsResponseInfo struct {
 type MetricsStatsResponseInfo struct {
 	AggStats map[string]map[string]interface{} `json:"aggStats"`
 }
+type MetricStatsResponse struct {
+	Series      []string     `json:"series"`
+	Timestamps  []int64      `json:"timestamps"`
+	Values      [][]*float64 `json:"values"`
+	StartTime   int64        `json:"startTime"`
+	IntervalSec int64        `json:"intervalSec"`
+}
 
 type AllSavedQueries map[string]map[string]interface{}
 
