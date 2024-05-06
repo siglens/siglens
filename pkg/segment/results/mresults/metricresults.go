@@ -380,16 +380,16 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 		return nil, nil, errors.New("results is not in Series Reading state")
 	}
 
-	tagKeysMap := make(map[string]bool)
+	tagKeysMap := make(map[string]struct{})
 	uniqueTagKeys := make([]string, 0)
 	for _, tag := range mQuery.TagsFilters {
 		if _, ok := tagKeysMap[tag.TagKey]; !ok {
-			tagKeysMap[tag.TagKey] = true
+			tagKeysMap[tag.TagKey] = struct{}{}
 			uniqueTagKeys = append(uniqueTagKeys, tag.TagKey)
 		}
 	}
 
-	tagKeyValueSet := make(map[string]bool)
+	tagKeyValueSet := make(map[string]struct{})
 
 	for _, series := range res.AllSeries {
 		tagValues := strings.Split(series.grpID.String(), tsidtracker.TAG_VALUE_DELIMITER_STR)
@@ -398,7 +398,7 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 			return nil, nil, err
 		}
 		for index, val := range tagValues[:len(tagValues)-1] {
-			tagKeyValueSet[fmt.Sprintf("%s:%s", uniqueTagKeys[index], val)] = true
+			tagKeyValueSet[fmt.Sprintf("%s:%s", uniqueTagKeys[index], val)] = struct{}{}
 		}
 	}
 	uniqueTagKeysSet := make([]string, 0)
