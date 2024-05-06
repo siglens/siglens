@@ -321,13 +321,14 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 	for grpId, results := range r.Results {
 		tags := make(map[string]string)
 		tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
-		if len(tagKeys) != len(tagValues)-1 {
+		if len(tagKeys) != len(tagValues) {
 			err := errors.New("GetResults: the length of tag key and tag value pair must match")
 			return nil, err
 		}
 
-		for index, val := range tagValues[:len(tagValues)-1] {
-			tags[tagKeys[index]] = val
+		for _, val := range tagValues {
+			keyValue := strings.Split(val, ":")
+			tags[keyValue[0]] = keyValue[1]
 		}
 		retVal[idx] = &structs.MetricsQueryResponse{
 			MetricName: mQuery.MetricName,
@@ -412,24 +413,21 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 		}
 	}
 
-	tagKeyValueSet := make(map[string]struct{})
+	uniqueTagKeyValues := make(map[string]bool)
+	tagKeyValueSet := make([]string, 0)
 
 	for _, series := range res.AllSeries {
-		tagValues := strings.Split(series.grpID.String(), tsidtracker.TAG_VALUE_DELIMITER_STR)
-		if len(uniqueTagKeys) != len(tagValues)-1 {
-			err := fmt.Errorf("GetMetricTagsResultSet: the length of tag key and tag value pair must match. UniqueTagKeys length: %v,  TagValues Length: %v", len(uniqueTagKeys), len(tagValues)-1)
-			return nil, nil, err
+		tagKeyValues := strings.Split(series.grpID.String(), tsidtracker.TAG_VALUE_DELIMITER_STR)
+
+		for _, tkVal := range tagKeyValues {
+			if _, ok := uniqueTagKeyValues[tkVal]; !ok {
+				uniqueTagKeyValues[tkVal] = true
+				tagKeyValueSet = append(tagKeyValueSet, tkVal)
+			}
 		}
-		for index, val := range tagValues[:len(tagValues)-1] {
-			tagKeyValueSet[fmt.Sprintf("%s:%s", uniqueTagKeys[index], val)] = struct{}{}
-		}
-	}
-	uniqueTagKeysSet := make([]string, 0)
-	for key := range tagKeyValueSet {
-		uniqueTagKeysSet = append(uniqueTagKeysSet, key)
 	}
 
-	return uniqueTagKeys, uniqueTagKeysSet, nil
+	return uniqueTagKeys, tagKeyValueSet, nil
 }
 
 func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricsStatsResponseInfo, error) {
@@ -438,27 +436,10 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	if r.State != AGGREGATED {
 		return utils.MetricsStatsResponseInfo{}, errors.New("results is not in aggregated state")
 	}
-	uniqueTagKeys := make(map[string]bool)
-	tagKeys := make([]string, 0)
-	for _, tag := range mQuery.TagsFilters {
-		if _, ok := uniqueTagKeys[tag.TagKey]; !ok {
-			uniqueTagKeys[tag.TagKey] = true
-			tagKeys = append(tagKeys, tag.TagKey)
-		}
-	}
+
 	for grpId, results := range r.Results {
-		tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
-		if len(tagKeys) != len(tagValues)-1 { // Subtract 1 because grpId has a delimiter after the last value
-			err := errors.New("GetResults: the length of tag key and tag value pair must match")
-			return httpResp, err
-		}
 		groupId := mQuery.MetricName + "{"
-		for index, val := range tagValues[:len(tagValues)-1] {
-			groupId += fmt.Sprintf("%v=\"%v\",", tagKeys[index], val)
-		}
-		if last := len(groupId) - 1; last >= 0 && groupId[last] == ',' {
-			groupId = groupId[:last]
-		}
+		groupId += grpId
 		groupId += "}"
 		httpResp.AggStats[groupId] = make(map[string]interface{}, 1)
 		for ts, v := range results {

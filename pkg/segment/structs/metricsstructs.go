@@ -47,9 +47,7 @@ type MetricsQuery struct {
 	numStarFilters int    // index such that TagsFilters[:numStarFilters] are all star filters
 	OrgId          uint64 // organization id
 
-	PqlQueryType        pql.ValueType // promql query type
-	Interval            uint32        // timeseries interval
-	ExitAfterTagsSearch bool          // flag to exit after raw tags search
+	ExitAfterTagsSearch bool // flag to exit after raw tags search
 }
 
 type Aggreation struct {
