@@ -38,6 +38,7 @@ type MetricsQuery struct {
 	MetricName      string // metric name to query for.
 	HashedMName     uint64
 	Aggregator      Aggreation
+	Function        Function
 	Downsampler     Downsampler
 	TagsFilters     []*TagsFilter // all tags filters to apply
 	SelectAllSeries bool          //flag to select all series - for promQl
@@ -55,6 +56,10 @@ type Aggreation struct {
 	AggregatorFunction utils.AggregateFunctions //aggregator function
 	RangeFunction      utils.RangeFunctions     //range function to apply, only one of these will be non nil
 	FuncConstant       float64
+}
+
+type Function struct {
+	MathFunction utils.MathFunctions
 }
 
 type Downsampler struct {
