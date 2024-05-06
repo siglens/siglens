@@ -480,7 +480,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 }
 
 func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	jsonData := `[
+	metricFunctions := `[
 		{
 			"fn": "abs", 
 			"name": "Absolute", 
@@ -488,14 +488,14 @@ func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			"eg": "abs(avg (system.disk.used{*}))"
 		}, 
 		{
-			"fn": "log2", 
-			"name": "Logarithm base 2", 
-			"desc": "Returns the base-2 logarithm of a metric.", 
-			"eg": "log2(avg (system.disk.used{*}))"
+			"fn": "rate", 
+			"name": "Rate", 
+			"desc": "Calculates the per-second average rate of increase of the time series in the range vector.", 
+			"eg": "avg(rate(system.disk.used[5m]))"
 		}
 	]`
 	ctx.SetContentType("application/json")
-	_, err := ctx.Write([]byte(jsonData))
+	_, err := ctx.Write([]byte(metricFunctions))
 	if err != nil {
 		log.Errorf("ProcessGetMetricFunctionsRequest: failed to write response, err=%v", err)
 	}
