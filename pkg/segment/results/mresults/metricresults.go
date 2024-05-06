@@ -480,8 +480,8 @@ func (r *MetricsResult) FetchPromqlMetrics(mQuery *structs.MetricsQuery, pqlQuer
 	var httpResp utils.MetricStatsResponse
 	httpResp.Series = make([]string, 0)
 	httpResp.Values = make([][]*float64, 0)
-	httpResp.StartTime = int64(startTime)
-	httpResp.IntervalSec = int64(interval)
+	httpResp.StartTime = startTime
+	httpResp.IntervalSec = interval
 
 	if r.State != AGGREGATED {
 		return utils.MetricStatsResponse{}, errors.New("results is not in aggregated state")
