@@ -118,6 +118,12 @@ func getMetricTimeSeriesHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func getMetricFunctionsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetMetricFunctionsRequest, ctx)
+	}
+}
+
 func getAllMetricTagsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(prom.ProcessGetAllMetricTagsRequest, ctx)
