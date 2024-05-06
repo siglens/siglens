@@ -362,11 +362,11 @@ tag key. Each of these chunks consists of several blocks, with one block per tag
 value that this (key, metric) combination has a time series for. The format of
 each block is:
   - 8 bytes for the hashed tag value
-  - 1 byte for the type of the tag value (currently, either VALTYPE_ENC_SMALL_STRING or VALTYPE_ENC_FLOAT64)
+  - 1 byte for the type of the tag value (currently, either VALTYPE_ENC_SMALL_STRING or VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64)
   - The raw tag value
     -- If the type is VALTYPE_ENC_SMALL_STRING there's 2 bytes for the size of
     the string, and then N more bytes, where N is the size of the string.
-    -- If the type is VALTYPE_ENC_FLOAT64 there's 8 bytes
+    -- If the type is VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64 there's 8 bytes
   - 2 bytes for the number of matching TSIDs; call this numMatchingTSIDs
   - numMatchingTSIDs 8-byte numbers, each representing a TSID satisfying this (metric, key, value) combination
 */

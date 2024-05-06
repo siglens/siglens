@@ -162,7 +162,6 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 		tf := mQuery.TagsFilters[i]
 		if tagVal, ok := tf.RawTagValue.(string); ok && tagVal == "*" {
 			itr, mNameExists, err := attr.GetValueIteratorForMetric(mQuery.HashedMName, tf.TagKey)
-			log.Infof("Mani: FindTSIDS: mNameExists %v, tagKey: %v", mNameExists, tf.TagKey)
 			if err != nil {
 				log.Infof("FindTSIDS: failed to get the value iterator for metric name %v and tag key %v. Error: %v. TagVAlH %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue)
 				tagIndicesToRemove[i] = struct{}{}
@@ -177,7 +176,6 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 			rawTagValueToTSIDs := make(map[string]map[uint64]struct{})
 			for {
 				_, tagRawValue, tsids, tagRawValueType, more := itr.Next()
-				log.Infof("Mani: FindTSIDS: tagRawValue %v, tagRawValueType %v, tsids %v", tagRawValue, tagRawValueType, tsids)
 				if !more {
 					break
 				}

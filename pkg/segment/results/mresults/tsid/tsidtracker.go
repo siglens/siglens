@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"sort"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 )
 
@@ -99,7 +98,6 @@ func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]stru
 func (tr *AllMatchedTSIDs) BulkAddStar(rawTagValueToTSIDs map[string]map[uint64]struct{}, tagKey string) error {
 	var err error
 	for tagValue, tsids := range rawTagValueToTSIDs {
-		log.Infof("Mani: BulkAddStar:  tagKey: %+v, tagValue: %+v, tsids: %+v", tagKey, tagValue, tsids)
 		for id := range tsids {
 			buf, ok := tr.allTSIDs[id]
 			if !ok {

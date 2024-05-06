@@ -391,6 +391,7 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 	}
 
 	uniqueTagKeyValues := make(map[string]bool)
+	tagKeyValueSet := make([]string, 0)
 
 	for _, series := range res.AllSeries {
 		tagKeyValues := strings.Split(series.grpID.String(), tsidtracker.TAG_VALUE_DELIMITER_STR)
@@ -398,13 +399,9 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 		for _, tkVal := range tagKeyValues {
 			if _, ok := uniqueTagKeyValues[tkVal]; !ok {
 				uniqueTagKeyValues[tkVal] = true
+				tagKeyValueSet = append(tagKeyValueSet, tkVal)
 			}
 		}
-	}
-
-	tagKeyValueSet := make([]string, 0)
-	for tk := range uniqueTagKeyValues {
-		tagKeyValueSet = append(tagKeyValueSet, tk)
 	}
 
 	return uniqueTagKeys, tagKeyValueSet, nil
