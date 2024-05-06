@@ -615,17 +615,22 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
     var ctx = canvas[0].getContext('2d');
     
     // Extract labels and datasets from seriesData
-    var labels = Object.keys(seriesData[0].values);
-    var datasets = seriesData.map(function(series, index) {
-        return {
-            label: series.seriesName,
-            data: Object.values(series.values),
-            borderColor: classic[index % classic.length],
-            backgroundColor : classic[index % classic.length] + 70,
-            borderWidth: 2,
-            fill: false
-        };
-    });
+    if (seriesData.length > 0) {
+        var labels = Object.keys(seriesData[0].values);
+        var datasets = seriesData.map(function(series, index) {
+            return {
+                label: series.seriesName,
+                data: Object.values(series.values),
+                borderColor: classic[index % classic.length],
+                backgroundColor : classic[index % classic.length] + 70,
+                borderWidth: 2,
+                fill: false
+            };
+        });
+    }else{
+        var labels = [];
+        var datasets = [];
+    }
     
     var chartData = {
         labels: labels,
