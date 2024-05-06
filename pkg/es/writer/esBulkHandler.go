@@ -59,16 +59,16 @@ type kibanaIngHandlerFnDef func(
 	ctx *fasthttp.RequestCtx, request map[string]interface{},
 	indexNameConverted string, updateArg bool, idVal string, tsNow uint64, myid uint64) error
 
-func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, kibanaIngHandlerFn kibanaIngHandlerFnDef) {
+func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) {
 	if hook := hooks.GlobalHooks.OverrideEsBulkIngestRequestHook; hook != nil {
 		log.Errorf("andrew running hook for ingest")
-		alreadyHandled := hook(ctx, myid)
+		alreadyHandled := hook(ctx, myid, useIngestHook)
 		if alreadyHandled {
 			return
 		}
 	}
 
-	processedCount, response, err := HandleBulkBody(ctx.PostBody(), ctx, myid, kibanaIngHandlerFn)
+	processedCount, response, err := HandleBulkBody(ctx.PostBody(), ctx, myid, useIngestHook)
 	if err != nil {
 		PostBulkErrorResponse(ctx)
 		return
@@ -82,7 +82,7 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, kibanaIngHandlerF
 	}
 }
 
-func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, kibanaIngHandlerFn kibanaIngHandlerFnDef) (int, map[string]interface{}, error) {
+func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) (int, map[string]interface{}, error) {
 
 	r := bytes.NewReader(postBody)
 
@@ -132,9 +132,13 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, kiba
 					if err != nil {
 						success = false
 					}
-					err = kibanaIngHandlerFn(ctx, request, indexNameConverted, false, idVal, tsNow, myid)
-					if err != nil {
-						success = false
+					if useIngestHook {
+						if hook := hooks.GlobalHooks.EsBulkIngestInternalHook; hook != nil {
+							err = hook(ctx, request, indexNameConverted, false, idVal, tsNow, myid)
+							if err != nil {
+								success = false
+							}
+						}
 					}
 				} else {
 					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes), false, localIndexMap, myid)

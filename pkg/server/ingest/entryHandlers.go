@@ -47,7 +47,7 @@ func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 		if hook := hooks.GlobalHooks.KibanaIngestHandlerHook; hook != nil {
 			hook(ctx)
 		} else {
-			eswriter.ProcessBulkRequest(ctx, 0, processKibanaIngestRequest)
+			eswriter.ProcessBulkRequest(ctx, 0, false)
 		}
 	}
 }

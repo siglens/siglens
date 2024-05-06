@@ -140,7 +140,7 @@ func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
 
 		handler := func(ctx *fasthttp.RequestCtx, orgId uint64) {
-			eswriter.ProcessBulkRequest(ctx, orgId, processKibanaIngestRequest)
+			eswriter.ProcessBulkRequest(ctx, orgId, false)
 		}
 
 		serverutils.CallWithOrgId(handler, ctx)
