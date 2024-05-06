@@ -480,8 +480,20 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 }
 
 func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	jsonData := `[{"fn": "abs", "name": "Absolute", "desc": "Returns the absolute value of a metric.", "eg": "abs(avg (system.disk.used{*}))"}, {"fn": "log2", "name": "Logarithm base 2", "desc": "Returns the base-2 logarithm of a metric.", "eg": "log2(avg (system.disk.used{*}))"}]`
-
+	jsonData := `[
+		{
+			"fn": "abs", 
+			"name": "Absolute", 
+			"desc": "Returns the absolute value of a metric.", 
+			"eg": "abs(avg (system.disk.used{*}))"
+		}, 
+		{
+			"fn": "log2", 
+			"name": "Logarithm base 2", 
+			"desc": "Returns the base-2 logarithm of a metric.", 
+			"eg": "log2(avg (system.disk.used{*}))"
+		}
+	]`
 	ctx.SetContentType("application/json")
 	_, err := ctx.Write([]byte(jsonData))
 	if err != nil {
