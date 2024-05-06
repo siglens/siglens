@@ -406,12 +406,8 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 	for tk := range uniqueTagKeyValues {
 		tagKeyValueSet = append(tagKeyValueSet, tk)
 	}
-	uniqueTagKeysSet := make([]string, 0)
-	for key := range tagKeyValueSet {
-		uniqueTagKeysSet = append(uniqueTagKeysSet, key)
-	}
 
-	return uniqueTagKeys, uniqueTagKeysSet, nil
+	return uniqueTagKeys, tagKeyValueSet, nil
 }
 
 func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricsStatsResponseInfo, error) {
