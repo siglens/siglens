@@ -412,20 +412,34 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 					id += uint32(len(value))
 				}
 			case jp.Number:
-				if value, err := jp.ParseFloat(tInfo.tagValue); err != nil {
-					return nil, fmt.Errorf("encodeTagsTree: Error in raw tag value conversion %T. Error: %v", tInfo.tagValue, err)
+				if value, err := jp.ParseInt(tInfo.tagValue); err != nil {
+					if value, err := jp.ParseFloat(tInfo.tagValue); err != nil {
+						return nil, fmt.Errorf("encodeTagsTree: Error in raw tag value conversion %T. Error: %v", tInfo.tagValue, err)
+					} else {
+						if _, err := tagBuf.Write(VALTYPE_ENC_FLOAT64[:]); err != nil {
+							log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
+							return nil, err
+						}
+						id += 1
+						if _, err := tagBuf.Write(utils.Float64ToBytesLittleEndian(value)); err != nil {
+							log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
+							return nil, err
+						}
+						id += 8
+					}
 				} else {
-					if _, err := tagBuf.Write(VALTYPE_ENC_FLOAT64[:]); err != nil {
+					if _, err := tagBuf.Write(VALTYPE_ENC_INT64[:]); err != nil {
 						log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
 						return nil, err
 					}
 					id += 1
-					if _, err := tagBuf.Write(utils.Float64ToBytesLittleEndian(value)); err != nil {
+					if _, err := tagBuf.Write(utils.Int64ToBytesLittleEndian(value)); err != nil {
 						log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
 						return nil, err
 					}
 					id += 8
 				}
+
 			default:
 				return nil, fmt.Errorf("encodeTagsTree: Incorrect tag value type %v", tInfo.tagValueType)
 			}
