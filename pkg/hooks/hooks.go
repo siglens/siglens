@@ -84,10 +84,11 @@ type Hooks struct {
 	ExtractKibanaRequestsHook func(kibanaIndices []string, qid uint64) map[string]interface{}
 
 	// Ingest server
-	IngestMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
-	KibanaIngestHandlerHook      func(ctx *fasthttp.RequestCtx)
-	GetIdsConditionHook          func() (bool, []uint64)
-	ExtraIngestEndpointsHook     func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
+	IngestMiddlewareRecoveryHook    func(ctx *fasthttp.RequestCtx) error
+	KibanaIngestHandlerHook         func(ctx *fasthttp.RequestCtx)
+	GetIdsConditionHook             func() (bool, []uint64)
+	ExtraIngestEndpointsHook        func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
+	OverrideEsBulkIngestRequestHook func(ctx *fasthttp.RequestCtx, myid uint64) bool
 
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error

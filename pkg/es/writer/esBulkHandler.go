@@ -28,6 +28,7 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	segment "github.com/siglens/siglens/pkg/segment/utils"
 
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -59,6 +60,13 @@ type kibanaIngHandlerFnDef func(
 	indexNameConverted string, updateArg bool, idVal string, tsNow uint64, myid uint64) error
 
 func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, kibanaIngHandlerFn kibanaIngHandlerFnDef) {
+	if hook := hooks.GlobalHooks.OverrideEsBulkIngestRequestHook; hook != nil {
+		log.Errorf("andrew running hook for ingest")
+		alreadyHandled := hook(ctx, myid)
+		if alreadyHandled {
+			return
+		}
+	}
 
 	processedCount, response, err := HandleBulkBody(ctx.PostBody(), ctx, myid, kibanaIngHandlerFn)
 	if err != nil {
