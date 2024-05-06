@@ -264,10 +264,10 @@ func (r *MetricsResult) ApplyFunctionsToResults(function structs.Function) error
 
 type float64Func func(float64) float64
 
-func evaluate(res map[string]map[uint32]float64, mathFuc float64Func) {
+func evaluate(res map[string]map[uint32]float64, mathFunc float64Func) {
 	for _, timeSeries := range res {
 		for key, val := range timeSeries {
-			timeSeries[key] = mathFuc(val)
+			timeSeries[key] = mathFunc(val)
 		}
 	}
 }
