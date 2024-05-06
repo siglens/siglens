@@ -18,6 +18,7 @@
 package mresults
 
 import (
+	"math"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -228,9 +229,14 @@ func Test_applyMathFunctionsToResults(t *testing.T) {
 	err := metricsResults.ApplyFunctionsToResults(function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
-		for _, val := range timeSeries {
-			if val < 0 {
-				t.Errorf("Expected value to be >= 0, got %v", val)
+		for key, val := range timeSeries {
+			preVal, exists := ts[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != math.Abs(preVal) {
+				t.Errorf("Expected value should be %v, but got %v", math.Abs(preVal), val)
 			}
 		}
 	}
