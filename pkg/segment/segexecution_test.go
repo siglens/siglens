@@ -48,6 +48,7 @@ import (
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
+	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -1531,6 +1532,7 @@ func Test_unrotatedQuery(t *testing.T) {
 	_ = localstorage.InitLocalStorage()
 	numBatch := 10
 	numRec := 100
+	_ = vtable.InitVTable()
 
 	// disable dict encoding globally
 	writer.SetCardinalityLimit(0)

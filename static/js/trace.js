@@ -291,3 +291,8 @@ function calculateTotalHeight(node) {
     calculateHeight(node);
     return totalHeight + 100;
 }
+
+$(".section-button").click(function() {
+    $(".section-button").removeClass("active");
+    $(this).addClass("active");
+});
