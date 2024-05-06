@@ -344,6 +344,8 @@ input:checked + .slider:before {
 /* JQUERY AUTOCOMpLETE */
 .ui-widget{
     height: auto !important;
+    max-height: 260px;
+    overflow: scroll;
 }
 .ui-widget.ui-widget-content{
     list-style-type: none;

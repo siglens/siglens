@@ -24,12 +24,9 @@ var chartDataCollection = {}; // Save label/data for each query
 let mergedGraph ;
 let chartType = "Line chart";
 let availableMetrics = [];
-let availableEverywhere = [];
-let availableEverything = [];
 let previousStartEpoch = null;
 let previousEndEpoch = null;
-let rawData1=[];
-let rawData3=[];
+let rawTimeSeriesData=[];
 
 
 // Theme
@@ -49,14 +46,9 @@ $(document).ready(function() {
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
     
     $('.theme-btn').on('click', themePickerHandler);
-    getInitialMetricNames();
     addQueryElement();
 });
 
-async function getInitialMetricNames(){
-    await getMetricNames();
-    
-}
 
 function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
@@ -170,7 +162,7 @@ function disableQueryRemoval(){
     });
 }
 
-function addQueryElement() {
+async function addQueryElement() {
     // Clone the first query element if it exists, otherwise create a new one
     var queryElement;
     if (queryIndex === 0) {
@@ -202,8 +194,9 @@ function addQueryElement() {
     </div>`);
 
     $('#metrics-queries').append(queryElement);
-    if (rawData1.length > 0)
-        addVisualizationContainer(String.fromCharCode(97 + queryIndex), convertDataForChart(rawData1));
+    const metricNames = await getMetricNames();
+    metricNames.metricNames.sort();
+    queryElement.find('.metrics').val(metricNames.metricNames[0]); // Initialize first query element with first metric name
     } else {
         // Get the last query name
         var lastQueryName = $('#metrics-queries').find('.metrics-query:last .query-name').text();
@@ -215,8 +208,7 @@ function addQueryElement() {
         queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
 
         $('#metrics-queries').append(queryElement);
-        if (rawData3.length >0)
-        addVisualizationContainer(nextQueryName,convertDataForChart(rawData3));
+
     }
 
     // Show or hide the query close icon based on the number of queries
@@ -281,6 +273,9 @@ function addQueryElement() {
 }
 
 async function initializeAutocomplete(queryElement, previousQuery = {}) {
+    let queryName = queryElement.find('.query-name').text();
+    let availableEverywhere = [];
+    let availableEverything = [];
     var queryDetails = {
         metrics: '',
         everywhere: [],
@@ -296,17 +291,29 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         queryDetails.aggFunction = previousQuery.aggFunction;
     }
 
-
     var availableOptions = ["max by", "min by", "avg by", "sum by"];
 
-    // Metrics input
-    if (
-        availableMetrics.length === 0 
-    ){
-        await getMetricNames();
+    var currentMetricsValue = queryElement.find('.metrics').val();
+
+    if (currentMetricsValue) {
+        queryDetails.metrics = currentMetricsValue;
+
+        const tagsAndValue = await getTagKeyValue(currentMetricsValue);
+        availableEverywhere = tagsAndValue.availableEverywhere;
+
+        availableEverything = tagsAndValue.availableEverything[0];
+        // Remove items from availableEverything if they are present in queryDetails.everything
+        queryDetails.everything.forEach(item => {
+            const index = availableEverything.indexOf(item);
+            if (index !== -1) {
+                availableEverything.splice(index, 1);
+            }
+        });
+        getQueryDetails(queryName,queryDetails);
     }
+
     queryElement.find('.metrics').autocomplete({
-        source: availableMetrics.metricNames,
+        source: availableMetrics,
         minLength: 0,
         focus: function (event, ui) {
             $(this).val(ui.item.value);
@@ -314,22 +321,11 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         },
         select: async function(event, ui) {
             queryDetails.metrics = ui.item.value;
-            
-            rawData1=[]
+            getQueryDetails(queryName,queryDetails);
+            const tagsAndValue = await getTagKeyValue(ui.item.value);
+            availableEverything = tagsAndValue.availableEverything[0];
+            availableEverywhere = tagsAndValue.availableEverywhere;
             $(this).blur(); 
-            var currentQueryIndex = $(this).index(".metrics");
-            var currentQueryName = $(this).siblings(".query-name").text();
-            if (
-                rawData1.length === 0 ||
-                filterStartDate !== previousStartEpoch ||
-                filterEndDate !== previousEndEpoch
-            ){
-                await getMetricsData(currentQueryName,ui.item.value)
-                previousStartEpoch = filterStartDate;
-                previousEndEpoch = filterEndDate;
-                let seriesdata = await convertDataForChart(rawData1)
-                addVisualizationContainer(currentQueryName, seriesdata);
-            }
         }
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
@@ -366,23 +362,27 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         $(this).blur(); 
     });
     
-    if (
-        availableEverywhere.length === 0
-    ){        
-        await getTagKeyValue(queryDetails.metrics);
-    }
     // Everywhere input (tag:value)
     queryElement.find('.everywhere').autocomplete({
         source: function(request, response) {
-            var filtered = $.grep(availableEverywhere, function(item) {
-                return item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1;
-            });
-            response(filtered);
-        },
+                var filtered = $.grep(availableEverywhere, function(item) {
+                    // Check if the tag part of item is not present in queryDetails.everywhere
+                    var tag = item.split(':')[0];
+                    return (
+                        item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1 &&
+                        !queryDetails.everywhere.some(function(existingTag) {
+                            return existingTag.startsWith(tag + ':');
+                        })
+                    );
+                });
+                filtered.sort();
+                response(filtered);
+            },
         minLength: 0,
         select: function(event, ui) {
             addTag(ui.item.value);
             queryDetails.everywhere.push(ui.item.value);
+            getQueryDetails(queryName,queryDetails)
             var index = availableEverywhere.indexOf(ui.item.value);
             if (index !== -1) {
                 availableEverywhere.splice(index, 1);
@@ -459,8 +459,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         var index = queryDetails.everywhere.indexOf(tagValue);
         if (index !== -1) {
             queryDetails.everywhere.splice(index, 1);
+            getQueryDetails(queryName,queryDetails);
         }
         availableEverywhere.push(tagValue);
+        availableEverywhere.sort();
         queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
 
         $(this).parent().remove();
@@ -478,6 +480,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         minLength: 0,
         select: function(event, ui) {
             queryDetails.aggFunction = ui.item.value;
+            getQueryDetails(queryName,queryDetails)
         }
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
@@ -489,23 +492,20 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         $(this).select();
     });
 
-    if (
-        availableEverything.length === 0
-    ){
-        await getTag(queryDetails.metrics);
-    }
     // Everything input (value)
     queryElement.find('.everything').autocomplete({
         source: function(request, response) {
             var filtered = $.grep(availableEverything, function(item) {
                 return item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1;
             });
-            response(filtered);
+            var sorted = filtered.sort();
+            response(sorted);
         },
         minLength: 0,
         select: function(event, ui) {
             addValue(ui.item.value);
             queryDetails.everything.push(ui.item.value);
+            getQueryDetails(queryName,queryDetails)
             var index = availableEverything.indexOf(ui.item.value);
             if (index !== -1) {
                 availableEverything.splice(index, 1);
@@ -556,9 +556,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         var index = queryDetails.everything.indexOf(value);
         if (index !== -1) {
             queryDetails.everything.splice(index, 1);
+            getQueryDetails(queryName,queryDetails);
         }
         availableEverything.push(value);
-
+        availableEverything.sort();
         queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
 
         $(this).parent().remove();
@@ -578,6 +579,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             var optionTag = option.split(':')[0];
             return !selectedTags.includes(optionTag);
         });
+        filteredOptions.sort();
         queryElement.find('.everywhere').autocomplete('option', 'source', filteredOptions);
     }
 
@@ -590,13 +592,13 @@ function updateCloseIconVisibility() {
     $('.remove-query').toggle(numQueries > 1);
 }
 
-function addVisualizationContainer(queryName, seriesData) {
+function addVisualizationContainer(queryName, seriesData, queryString) {
 
     var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
     if (existingContainer.length === 0){
         var visualizationContainer = $(`
         <div class="metrics-graph" data-query="${queryName}">
-            <div>Metrics query - ${queryName}</div>
+            <div class="query-string">${queryString}</div>
             <div class="graph-canvas"></div>
         </div>`);
 
@@ -605,6 +607,7 @@ function addVisualizationContainer(queryName, seriesData) {
         var canvas = $('<canvas></canvas>');
         $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
     } else{
+        existingContainer.find('.query-string').text(queryString);
         var canvas = $('<canvas></canvas>');
         $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).empty().append(canvas);
     }
@@ -640,7 +643,12 @@ function addVisualizationContainer(queryName, seriesData) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    align: 'start'
+                    align: 'start',
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 2,
+                        fontSize: 10
+                    }
                 }
             },
             scales: {
@@ -773,7 +781,7 @@ function toggleChartType(chartType) {
 }
 
 
-var colorOptions = ["Classic", "Purple", "Cool", "Green", "Warm", "Orange", "Gray", "D2d0"];
+var colorOptions = ["Classic", "Purple", "Cool", "Green", "Warm", "Orange", "Gray", "Palette"];
 $("#color-input").autocomplete({
    source: colorOptions,
    minLength: 0,
@@ -801,7 +809,7 @@ function updateChartTheme(theme) {
         "Warm": warm,
         "Orange": orange,
         "Gray": gray,
-        "D2d0": d2d0
+        "Palette": palette
     };
 
     var selectedPalette = colorPalette[theme] || classic;
@@ -943,7 +951,12 @@ function mergeGraphs(chartType) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    align: 'start' 
+                    align: 'start',
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 2, 
+                        fontSize: 10 
+                    }
                 }
             },
             scales: {
@@ -995,13 +1008,6 @@ async function convertDataForChart(data) {
     return seriesArray;
 }
 
-
-
-
-
-
-
-
 async function getMetricNames() {
     const data = {
       start: filterStartDate,
@@ -1020,108 +1026,100 @@ async function getMetricNames() {
     });
   
     if (res) {
-        availableMetrics=res
+        availableMetrics = res.metricNames;
     }
-}
-
-async function getMetricsData(queryName,metricName ) {
-
-    let query={};
-    query.name =queryName
-    query.query='(' + metricName + ')'
-    query.qlType= "promql"
-    let queries = [];
-    queries.push(query)
-
-
-    let formula ={};
-    formula.formula=queryName
-    let formulae = [];
-    formulae.push(formula)
-
-    const data = {
-      start: filterStartDate,
-      end: filterEndDate,
-      queries: queries,
-      formulas: formulae
-
-    };
-    const res = await $.ajax({
-      method: "post",
-      url: "metrics-explorer/api/v1/timeseries",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        Accept: "*/*",
-      },
-      crossDomain: true,
-      dataType: "json",
-      data: JSON.stringify(data),
-    });
-  
-    if (res) {
-        rawData1=res
     
-  
-}
+    return res 
 }
 
-async function getTagKeyValue(metricName) {
-    let param = {
-        start: filterStartDate,
-        end: filterEndDate,
-        metric_name: metricName
-      };
-      startQueryTime = new Date().getTime();
-      $.ajax({
-        method: "get",
-        url: "metrics-explorer/api/v1/all_tags?start=100&end=200&metric_name=metric_1",
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-          Accept: "*/*",
-        },
+
+async function getMetricsData(queryName, metricName) {
+    const query = { name: queryName, query: `(${metricName})`, qlType: "promql" };
+    const queries = [query];
+    const formula = { formula: queryName };
+    const formulas = [formula];
+    const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
+
+    const res = await $.ajax({
+        method: "post",
+        url: "metrics-explorer/api/v1/timeseries",
+        headers: { "Content-Type": "application/json; charset=utf-8", Accept: "*/*" },
         crossDomain: true,
         dataType: "json",
-        data: JSON.stringify(param),
-      }).then((res) => {
-        availableEverywhere=[]
-        if (res && res.tags ) {
-          for (let i = 0; i < res.tags.length; i++) {
-            let cur = res.tags[i]
-            availableEverywhere.push(cur)
-          }
-        }
+        data: JSON.stringify(data)
     });
+
+    if (res) {
+        rawTimeSeriesData = res;
+    }
 
 }
 
-async function getTag(metricName) {
-    let param = {
-        start: filterStartDate,
-        end: filterEndDate,
-        metric_name: metricName
-      };
+function getTagKeyValue(metricName) {
+    return new Promise((resolve, reject) => {
+        let param = {
+            start: filterStartDate,
+            end: filterEndDate,
+            metric_name: metricName
+        };
+        startQueryTime = new Date().getTime();
 
-      startQueryTime = new Date().getTime();
-      $.ajax({
-        method: "get",
-        url: "metrics-explorer/api/v1/all_tags?start=100&end=200&metric_name=metric_1",
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-          Accept: "*/*",
-        },
-        crossDomain: true,
-        dataType: "json",
-        data: JSON.stringify(param),
-      }).then((res) => {
-        availableEverything=[]
-        if (res && res.tags ) {
-          for (let i = 0; i < res.tags.length; i++) {
-            let cur = res.tags[i]
-            var parts = cur.split(':');
-            var prefix = parts[0];            
-            availableEverything.push(prefix)
-          }
-        }
+        $.ajax({
+            method: "post",
+            url: "metrics-explorer/api/v1/all_tags",
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                Accept: "*/*",
+            },
+            crossDomain: true,
+            dataType: "json",
+            data: JSON.stringify(param),
+            success: function(res) {
+                const availableEverywhere = [];
+                const availableEverything = [];
+                if (res && res.tagKeyValueSet) {
+                    availableEverything.push(res.uniqueTagKeys);
+                    for (let i = 0; i < res.tagKeyValueSet.length; i++) {
+                        let cur = res.tagKeyValueSet[i];
+                        availableEverywhere.push(cur);
+                    }
+                }
+                resolve({ availableEverywhere, availableEverything });
+            },
+            error: function(xhr, status, error) {
+                reject(error);
+            }
+        });
     });
-  
+}
+
+
+async function getQueryDetails(queryName, queryDetails){
+    const queryString = createQueryString(queryDetails);
+    await getMetricsData(queryName, queryString);
+    const chartData = await convertDataForChart(rawTimeSeriesData)
+    addVisualizationContainer(queryName, chartData, queryString);
+}
+
+function createQueryString(queryObject) {
+    const { metrics, everywhere, everything, aggFunction } = queryObject;
+
+    const everywhereString = everywhere.map(tag => `${tag.split(':')[0]}="${tag.split(':')[1]}"`).join(',');
+    const everythingString = everything.join(',');
+    
+    let queryString = '';
+    if (everything.length > 0) {
+        queryString += `${aggFunction} `;
+    }
+    if (everythingString) {
+        queryString += `(${everythingString}) `;
+    }
+    queryString += `(${metrics}`;
+    if (everywhereString) {
+        queryString += `{${everywhereString}}`;
+    }
+
+    queryString += ')';
+    
+    return queryString;
 }
