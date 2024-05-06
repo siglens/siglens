@@ -446,7 +446,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		queryFormulaMap[fmt.Sprintf("%v", query["name"])] = fmt.Sprintf("%v", query["query"])
 	}
 
-	finalSearchText, err := buildMetricQueryFromFormulAndQueries(fmt.Sprintf("%v", formulas[0]["formula"]), queryFormulaMap)
+	finalSearchText, err := buildMetricQueryFromFormulaAndQueries(fmt.Sprintf("%v", formulas[0]["formula"]), queryFormulaMap)
 	if err != nil {
 		utils.SendError(ctx, "Error building metrics query", fmt.Sprintf("qid: %v, Error: %+v", qid, err), err)
 		return
@@ -480,7 +480,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func buildMetricQueryFromFormulAndQueries(formula string, queries map[string]string) (string, error) {
+func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]string) (string, error) {
 
 	finalSearchText := formula
 	for key, value := range queries {
