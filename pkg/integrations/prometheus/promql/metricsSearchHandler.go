@@ -499,6 +499,27 @@ func buildMetricQueryFromFormulAndQueries(formula string, queries map[string]str
 	return finalSearchText, nil
 }
 
+func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	metricFunctions := `[
+		{
+			"fn": "abs", 
+			"name": "Absolute", 
+			"desc": "Returns the absolute value of a metric.", 
+			"eg": "abs(avg (system.disk.used{*}))"
+		}, 
+		{
+			"fn": "rate", 
+			"name": "Rate", 
+			"desc": "Calculates the per-second average rate of increase of the time series in the range vector.", 
+			"eg": "rate(avg (system.disk.used[5m]))"
+		}
+	]`
+	ctx.SetContentType("application/json")
+	_, err := ctx.Write([]byte(metricFunctions))
+	if err != nil {
+		log.Errorf("ProcessGetMetricFunctionsRequest: failed to write response, err=%v", err)
+	}
+}
 func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]interface{}, []map[string]interface{}, string, error) {
 	var start = uint32(0)
 	var end = uint32(0)

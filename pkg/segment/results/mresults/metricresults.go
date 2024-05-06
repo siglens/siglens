@@ -381,11 +381,11 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 		return nil, nil, errors.New("results is not in Series Reading state")
 	}
 
-	tagKeysMap := make(map[string]bool)
+	tagKeysMap := make(map[string]struct{})
 	uniqueTagKeys := make([]string, 0)
 	for _, tag := range mQuery.TagsFilters {
 		if _, ok := tagKeysMap[tag.TagKey]; !ok {
-			tagKeysMap[tag.TagKey] = true
+			tagKeysMap[tag.TagKey] = struct{}{}
 			uniqueTagKeys = append(uniqueTagKeys, tag.TagKey)
 		}
 	}
@@ -406,8 +406,12 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 	for tk := range uniqueTagKeyValues {
 		tagKeyValueSet = append(tagKeyValueSet, tk)
 	}
+	uniqueTagKeysSet := make([]string, 0)
+	for key := range tagKeyValueSet {
+		uniqueTagKeysSet = append(uniqueTagKeysSet, key)
+	}
 
-	return uniqueTagKeys, tagKeyValueSet, nil
+	return uniqueTagKeys, uniqueTagKeysSet, nil
 }
 
 func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricsStatsResponseInfo, error) {
