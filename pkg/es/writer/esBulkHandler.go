@@ -55,13 +55,8 @@ const CREATE_TOP_STR string = "create"
 const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
 
-type kibanaIngHandlerFnDef func(
-	ctx *fasthttp.RequestCtx, request map[string]interface{},
-	indexNameConverted string, updateArg bool, idVal string, tsNow uint64, myid uint64) error
-
 func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) {
 	if hook := hooks.GlobalHooks.OverrideEsBulkIngestRequestHook; hook != nil {
-		log.Errorf("andrew running hook for ingest")
 		alreadyHandled := hook(ctx, myid, useIngestHook)
 		if alreadyHandled {
 			return
