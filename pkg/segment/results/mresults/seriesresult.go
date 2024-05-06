@@ -99,6 +99,12 @@ func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.By
 	}
 }
 
+func InitSeriesHolderForTags(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.ByteBuffer) *Series {
+	return &Series{
+		grpID: tsGroupId,
+	}
+}
+
 func (s *Series) GetIdx() int {
 	return s.idx
 }
@@ -390,10 +396,12 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 	var ret float64
 	switch fn {
 	case utils.Avg:
+		count := uint64(0)
 		for i := range entries {
 			ret += entries[i].runningVal
+			count += entries[i].runningCount
 		}
-		ret = ret / float64(len(entries))
+		ret = ret / float64(count)
 	case utils.Sum:
 		for i := range entries {
 			ret += entries[i].runningVal
@@ -411,7 +419,9 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 			}
 		}
 	case utils.Count:
-		ret += float64(len(entries))
+		for i := range entries {
+			ret += float64(entries[i].runningCount)
+		}
 	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 

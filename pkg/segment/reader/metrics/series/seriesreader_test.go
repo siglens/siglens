@@ -15,39 +15,45 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package writer
+package series
 
 import (
+	"fmt"
 	"os"
-	"sync/atomic"
 	"testing"
-	"time"
 
-	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/segment/writer"
-	log "github.com/sirupsen/logrus"
+	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/stretchr/testify/assert"
 )
 
-var rawCSV = []byte("measurement,tag1=val1,tag2=val2 value=100 1714511214000000000\nmeasurement,tag1=val1,tag2=val2 value=300 1714511215000000000\n")
+func Test_GetAllMetricNames(t *testing.T) {
+	// Flush Metric Names to a File.
+	ms := &metrics.MetricsSegment{}
 
-func Test_InsertCsv(t *testing.T) {
+	mNamesCount := uint32(1000)
+	mNameBase := "metric_"
 
-	config.InitializeTestingConfig()
-	writer.InitWriterNode()
+	filePath := ms.SetMockMetricSegmentMNamesMap(mNamesCount, mNameBase)
 
-	sTime := time.Now()
-	totalSuccess := uint64(0)
-	for i := 0; i < 1; i++ {
-		success, fail, err := HandlePutMetrics([]byte(rawCSV), 0)
-		assert.NoError(t, err)
-		assert.Equal(t, success, uint64(2))
-		assert.Equal(t, fail, uint64(0))
-		atomic.AddUint64(&totalSuccess, success)
+	err := ms.FlushMetricNames()
+	assert.Nil(t, err)
 
+	_, err = os.Stat(filePath)
+	assert.Nil(t, err)
+
+	// Read Metric Names from the File.
+	tssr, err := InitTimeSeriesReader(filePath[:len(filePath)-4])
+	assert.Nil(t, err)
+
+	mNamesMap, err := tssr.GetAllMetricNames()
+	assert.Nil(t, err)
+
+	assert.Equal(t, len(mNamesMap), int(mNamesCount))
+
+	for i := 0; i < int(mNamesCount); i++ {
+		assert.True(t, mNamesMap[fmt.Sprintf("%s_%d", mNameBase, i)])
 	}
-	log.Infof("Ingested %+v metrics in %+v", totalSuccess, time.Since(sTime))
-	err := os.RemoveAll(config.GetDataPath())
-	assert.NoError(t, err)
 
+	// Cleanup
+	_ = os.RemoveAll(filePath)
 }

@@ -1,22 +1,80 @@
+/* 
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 var queryIndex = 0;
 var queries = {};
-var lineCharts = {};
+var lineCharts = {}; // Chart details
+var chartDataCollection = {}; // Save label/data for each query
 let mergedGraph ;
+let chartType = "Line chart";
+let availableMetrics = [];
+let previousStartEpoch = null;
+let previousEndEpoch = null;
+let rawTimeSeriesData=[];
+
+
+// Theme
+let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
+let purple = ["#dbcdfa", "#c8b3fb", "#a082fa", "#8862eb", "#764cd8", "#5f36ac", "#27064c"]
+let cool =["#cce9be", "#a5d9b6", "#89c4c2", "#6cabc9", "#5491c8", "#4078b1", "#2f5a9f", "#213e7d" ]
+let green = ["#d0ebc2", "#c4eab7", "#aed69e", "#87c37d", "#5daa64", "#45884a", "#2e6a34", "#1a431f" ]
+let warm = ["#f7e288", "#fadb84", "#f1b65d", "#ec954d", "#f65630" , "#cf3926", "#aa2827", "#761727" ]
+let orange = ["#f8ddbd", "#f4d2a9", "#f0b077", "#ec934f", "#e0722f", "#c85621", "#9b4116", "#72300e"]
+let gray = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#62636a", "#4c4d57"]
+let palette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
+
 $(document).ready(function() {
+    let stDate = "now-1h";
+    let endDate = "now";
+    datePickerHandler(stDate, endDate, stDate);
+    $('.range-item').on('click', metricsExplorerDatePickerHandler);
+    
+    $('.theme-btn').on('click', themePickerHandler);
     addQueryElement();
 });
+
+
+function metricsExplorerDatePickerHandler(evt) {
+    evt.preventDefault();
+    $.each($(".range-item.active"), function () {
+        $(this).removeClass('active');
+    });
+    $(evt.currentTarget).addClass('active');
+    datePickerHandler($(this).attr('id'), "now", $(this).attr('id'))
+    // Update graph for each query
+    Object.keys(queries).forEach(async function(queryName) {
+        var queryDetails = queries[queryName];
+        await getQueryDetails(queryName,queryDetails)
+    });
+    $('#daterangepicker').hide();
+}
 
 $('#add-query').on('click', addQueryElement);
 
 $('#add-formula').on('click', addFormulaElement);
 
+// Toggle switch between merged graph and single graphs 
 $('#toggle-switch').on('change', function() {
     if ($(this).is(':checked')) {
-        // If the toggle switch is checked, display individual graph containers
         $('#metrics-graphs').show();
         $('#merged-graph-container').hide();
     } else {
-        // If the toggle switch is unchecked, hide individual graph containers and display merged graph container
         $('#metrics-graphs').hide();
         $('#merged-graph-container').show();
     }
@@ -24,10 +82,13 @@ $('#toggle-switch').on('change', function() {
 
 function addFormulaElement(){
     let formulaElement = $(`
-    <div class="metrics-query">
-        <div>
+    <div class="formula-box">
+        <div style="position: relative;" class="d-flex">
             <div class="formula-arrow">↓</div>
             <input class="formula" placeholder="Formula, eg. 2*a">
+            <div class="formula-error-message" style="display: none;">
+                <div class="d-flex justify-content-center align-items-center "><i class="fas fa-exclamation"></i></div>
+            </div>
         </div>
         <div>
             <div class="remove-query">×</div>
@@ -36,12 +97,73 @@ function addFormulaElement(){
 
     $('#metrics-formula').append(formulaElement);
 
-    // Add click event handler for the remove button
+    // Remove the formula element
     formulaElement.find('.remove-query').on('click', function() {
         formulaElement.remove();
+        $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');;
+    });
+
+    // Validate formula on input change
+    let input = formulaElement.find('.formula');
+    input.on('input', function() {
+        let formula = input.val().trim();
+        let errorMessage = formulaElement.find('.formula-error-message');
+        if (formula === '') {
+            errorMessage.hide();
+            input.removeClass('error-border');
+            disableQueryRemoval();
+            return
+        }
+        let valid = validateFormula(formula);
+        if (valid) {
+            errorMessage.hide();
+            input.removeClass('error-border');
+        } else {
+            errorMessage.show();
+            input.addClass('error-border');
+        }
+        // Disable remove button if the query name exists in any formula
+        disableQueryRemoval();
     });
 }
-function addQueryElement() {
+
+function validateFormula(formula) {
+    let pattern = /^(\w+\s*([-+*/]\s*\w+\s*)*)*$/;
+    let matches = formula.match(pattern);
+    if (!matches) {
+        return false;
+    }
+
+    let queryNames = Object.keys(chartDataCollection);
+    let parts = formula.split(/[-+*/]/);
+    for (let part of parts) {
+        if (!queryNames.includes(part.trim())) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function disableQueryRemoval(){
+    // Loop through each query element
+    $('.metrics-query').each(function() {
+        var queryName = $(this).find('.query-name').text();
+        var removeButton = $(this).find('.remove-query');
+        var queryNameExistsInFormula = $('.formula').toArray().some(function(formulaInput) {
+            return $(formulaInput).val().includes(queryName);
+        });
+
+        // If query name exists in any formula, disable the remove button
+        if (queryNameExistsInFormula) {
+            removeButton.addClass('disabled').css('cursor', 'not-allowed').attr('title', 'Query used in other formulas.');
+        } else {
+            removeButton.removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+        }
+    });
+}
+
+async function addQueryElement() {
     // Clone the first query element if it exists, otherwise create a new one
     var queryElement;
     if (queryIndex === 0) {
@@ -49,7 +171,7 @@ function addQueryElement() {
     <div class="metrics-query">
         <div class="query-box">
             <div class="query-name active">${String.fromCharCode(97 + queryIndex)}</div>
-            <input type="text" class="metrics" placeholder="Select a metric">
+            <input type="text" class="metrics" placeholder="Select a metric" >
             <div>from</div>
             <div class="tag-container">
                 <input type="text" class="everywhere" placeholder="(everywhere)">
@@ -71,9 +193,11 @@ function addQueryElement() {
             <div class="remove-query">×</div>
         </div>
     </div>`);
+
     $('#metrics-queries').append(queryElement);
-        // Add visualization container for the query
-        addVisualizationContainer(String.fromCharCode(97 + queryIndex), convertDataForChart(rawData1));
+    const metricNames = await getMetricNames();
+    metricNames.metricNames.sort();
+    queryElement.find('.metrics').val(metricNames.metricNames[0]); // Initialize first query element with first metric name
     } else {
         // Get the last query name
         var lastQueryName = $('#metrics-queries').find('.metrics-query:last .query-name').text();
@@ -82,21 +206,21 @@ function addQueryElement() {
         
         queryElement = $('#metrics-queries').find('.metrics-query').last().clone();
         queryElement.find('.query-name').text(nextQueryName);
-        // Add visualization container for the query
+        queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+
         $('#metrics-queries').append(queryElement);
 
-        addVisualizationContainer(nextQueryName,convertDataForChart(rawData3));
     }
-    
 
-    // Show or hide the close icon based on the number of queries
+    // Show or hide the query close icon based on the number of queries
     updateCloseIconVisibility();
+
     // Initialize autocomplete with the details of the previous query if it exists
     initializeAutocomplete(queryElement, queryIndex > 0 ? queries[String.fromCharCode(97 + queryIndex - 1)] : undefined);
 
     queryIndex++;
 
-    // Add click event handler for the remove button
+    // Remove query element
     queryElement.find('.remove-query').on('click', function() {
         var queryName = queryElement.find('.query-name').text();
         // Check if the query name exists in any of the formula input fields
@@ -106,32 +230,30 @@ function addQueryElement() {
 
         // If query name exists in any formula, prevent removal of the query element
         if (queryNameExistsInFormula) {
-            alert("Cannot remove query element because query name is used in a formula.");
+            $(this).addClass('disabled').css('cursor', 'not-allowed').attr('title', 'Query used in other formulas.');
         } else {
-        delete queries[queryName];
-        queryElement.remove();
+            delete queries[queryName];
+            queryElement.remove();
+            removeVisualizationContainer(queryName);
 
-        // Show or hide the close icon based on the number of queries
-        updateCloseIconVisibility();
-
-        // Remove corresponding visualization container
-        removeVisualizationContainer(queryName);
-    }
+            // Show or hide the close icon based on the number of queries
+            updateCloseIconVisibility();
+        }
     });
 
-    // Add click event handler for the alias button
+    // Alias button
     queryElement.find('.as-btn').on('click', function() {
         $(this).hide(); // Hide the "as..." button
-        $(this).siblings('.alias-filling-box').show(); // Show the alias filling box
+        $(this).siblings('.alias-filling-box').show(); // Show alias input box
     });
 
-    // Add click event handler for the alias close button
+    // Alias close button
     queryElement.find('.alias-filling-box div').last().on('click', function() {
-        $(this).parent().hide(); // Hide the alias filling box
-        $(this).parent().siblings('.as-btn').show(); // Show the "as..." button
+        $(this).parent().hide();
+        $(this).parent().siblings('.as-btn').show();
     });
 
-    // Add click event handler for the query name toggle
+    // Hide or Show query element and graph on click on query name
     queryElement.find('.query-name').on('click', function() {
         var queryNameElement = $(this);
         var queryName = queryNameElement.text();
@@ -149,16 +271,19 @@ function addQueryElement() {
             $('.metrics-graph').removeClass('full-width');
         }
     });
-
 }
 
-function initializeAutocomplete(queryElement, previousQuery = {}) {
+async function initializeAutocomplete(queryElement, previousQuery = {}) {
+    let queryName = queryElement.find('.query-name').text();
+    let availableEverywhere = [];
+    let availableEverything = [];
     var queryDetails = {
         metrics: '',
         everywhere: [],
         everything: [],
         aggFunction: 'avg by'
     };
+
     // Use details from the previous query if it exists
     if (!jQuery.isEmptyObject(previousQuery)) {
         queryDetails.metrics = previousQuery.metrics;
@@ -167,44 +292,40 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         queryDetails.aggFunction = previousQuery.aggFunction;
     }
 
-    var availableMetrics = [
-        "system.cpu.interrupt",
-        "system.disk.used",
-        "system.cpu.stolen",
-        "system.cpu.num_cores",
-        "system.cpu.stolen",
-        "system.cpu.idle",
-        "system.cpu.guest",
-        "system.cpu.system",
-    ];
-
-    var availableEverywhere = [
-        "device:/dev/disk1s1",
-        "device:/dev/disk1s2",
-        "device:/dev/disk1s3",
-        "device:/dev/disk1s4",
-        "device:/dev/disk1s5",
-        "device:/dev/disk1s6",
-        "device_name:/disk1s1",
-        "device_name:/disk1s2",
-        "device_name:/disk1s3",
-        "device_name:/disk1s4",
-        "host:SonamSigScalr.local",
-    ];
-
-    var availableEverything = [
-        "device",
-        "device_name",
-        "host",
-    ];
-
     var availableOptions = ["max by", "min by", "avg by", "sum by"];
+
+    var currentMetricsValue = queryElement.find('.metrics').val();
+
+    if (currentMetricsValue) {
+        queryDetails.metrics = currentMetricsValue;
+
+        const tagsAndValue = await getTagKeyValue(currentMetricsValue);
+        availableEverywhere = tagsAndValue.availableEverywhere;
+
+        availableEverything = tagsAndValue.availableEverything[0];
+        // Remove items from availableEverything if they are present in queryDetails.everything
+        queryDetails.everything.forEach(item => {
+            const index = availableEverything.indexOf(item);
+            if (index !== -1) {
+                availableEverything.splice(index, 1);
+            }
+        });
+        getQueryDetails(queryName,queryDetails);
+    }
 
     queryElement.find('.metrics').autocomplete({
         source: availableMetrics,
         minLength: 0,
-        select: function(event, ui) {
+        focus: function (event, ui) {
+            $(this).val(ui.item.value);
+            return false;
+        },
+        select: async function(event, ui) {
             queryDetails.metrics = ui.item.value;
+            getQueryDetails(queryName,queryDetails);
+            const tagsAndValue = await getTagKeyValue(ui.item.value);
+            availableEverything = tagsAndValue.availableEverything[0];
+            availableEverywhere = tagsAndValue.availableEverywhere;
             $(this).blur(); 
         }
     }).on('click', function() {
@@ -242,17 +363,27 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         $(this).blur(); 
     });
     
+    // Everywhere input (tag:value)
     queryElement.find('.everywhere').autocomplete({
         source: function(request, response) {
-            var filtered = $.grep(availableEverywhere, function(item) {
-                return item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1;
-            });
-            response(filtered);
-        },
+                var filtered = $.grep(availableEverywhere, function(item) {
+                    // Check if the tag part of item is not present in queryDetails.everywhere
+                    var tag = item.split(':')[0];
+                    return (
+                        item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1 &&
+                        !queryDetails.everywhere.some(function(existingTag) {
+                            return existingTag.startsWith(tag + ':');
+                        })
+                    );
+                });
+                filtered.sort();
+                response(filtered);
+            },
         minLength: 0,
         select: function(event, ui) {
             addTag(ui.item.value);
             queryDetails.everywhere.push(ui.item.value);
+            getQueryDetails(queryName,queryDetails)
             var index = availableEverywhere.indexOf(ui.item.value);
             if (index !== -1) {
                 availableEverywhere.splice(index, 1);
@@ -262,11 +393,11 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             return false;
         },
         open: function(event, ui) {
-            var containerPosition = $(".tag-container").offset();
+            var containerPosition = $(this).closest('.tag-container').offset();
 
             $(this).autocomplete("widget").css({
                 "position": "absolute",
-                "top": containerPosition.top + $(".tag-container").outerHeight(),
+                "top": containerPosition.top + $(this).closest('.tag-container').outerHeight(),
                 "left": containerPosition.left,
                 "z-index": 1000
             });
@@ -319,7 +450,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             tagContainer.css('width', '5px');
         }
     }
-    // Close tag event handler
+    
     queryElement.on('click', '.tag .close', function() {
         var tagContainer = queryElement.find('.everywhere');
 
@@ -329,8 +460,10 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         var index = queryDetails.everywhere.indexOf(tagValue);
         if (index !== -1) {
             queryDetails.everywhere.splice(index, 1);
+            getQueryDetails(queryName,queryDetails);
         }
         availableEverywhere.push(tagValue);
+        availableEverywhere.sort();
         queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
 
         $(this).parent().remove();
@@ -342,11 +475,13 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         updateAutocompleteSource(); 
     });
 
+    // Aggregation input 
     queryElement.find('.agg-function').autocomplete({
         source: availableOptions.sort(),
         minLength: 0,
         select: function(event, ui) {
             queryDetails.aggFunction = ui.item.value;
+            getQueryDetails(queryName,queryDetails)
         }
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
@@ -358,17 +493,20 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         $(this).select();
     });
 
+    // Everything input (value)
     queryElement.find('.everything').autocomplete({
         source: function(request, response) {
             var filtered = $.grep(availableEverything, function(item) {
                 return item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1;
             });
-            response(filtered);
+            var sorted = filtered.sort();
+            response(sorted);
         },
         minLength: 0,
         select: function(event, ui) {
             addValue(ui.item.value);
             queryDetails.everything.push(ui.item.value);
+            getQueryDetails(queryName,queryDetails)
             var index = availableEverything.indexOf(ui.item.value);
             if (index !== -1) {
                 availableEverything.splice(index, 1);
@@ -377,11 +515,11 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             return false;        
         },
         open: function(event, ui) {
-            var containerPosition = $(".value-container").offset();
+            var containerPosition = $(this).closest('.value-container').offset();
 
             $(this).autocomplete("widget").css({
                 "position": "absolute",
-                "top": containerPosition.top + $(".value-container").outerHeight(),
+                "top": containerPosition.top + $(this).closest('.value-container').outerHeight(),
                 "left": containerPosition.left,
                 "z-index": 1000
             });
@@ -410,7 +548,6 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         }
     }
 
-    // Close value event handler
     queryElement.on('click', '.value .close', function() {
         var valueContainer = queryElement.find('.everything');
 
@@ -420,9 +557,10 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         var index = queryDetails.everything.indexOf(value);
         if (index !== -1) {
             queryDetails.everything.splice(index, 1);
+            getQueryDetails(queryName,queryDetails);
         }
         availableEverything.push(value);
-
+        availableEverything.sort();
         queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
 
         $(this).parent().remove();
@@ -433,6 +571,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
         }
     });
 
+    // Wildcard option
     function updateAutocompleteSource() {
         var selectedTags = queryDetails.everywhere.map(function(tag) {
             return tag.split(':')[0];
@@ -441,6 +580,7 @@ function initializeAutocomplete(queryElement, previousQuery = {}) {
             var optionTag = option.split(':')[0];
             return !selectedTags.includes(optionTag);
         });
+        filteredOptions.sort();
         queryElement.find('.everywhere').autocomplete('option', 'source', filteredOptions);
     }
 
@@ -453,43 +593,50 @@ function updateCloseIconVisibility() {
     $('.remove-query').toggle(numQueries > 1);
 }
 
-// Define a global variable to store chart data
-var chartDataCollection = {};
+function addVisualizationContainer(queryName, seriesData, queryString) {
 
-function addVisualizationContainer(queryName, seriesData) {
-    // Create a new visualization container with a unique identifier
-    var visualizationContainer = $(`
-    <div class="metrics-graph" data-query="${queryName}">
-        <div>Metrics query - ${queryName}</div>
-        <div class="graph-canvas"></div>
-    </div>`);
+    var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
+    if (existingContainer.length === 0){
+        var visualizationContainer = $(`
+        <div class="metrics-graph" data-query="${queryName}">
+            <div class="query-string">${queryString}</div>
+            <div class="graph-canvas"></div>
+        </div>`);
 
-    $('#metrics-graphs').append(visualizationContainer);
-    
-    // Create a canvas element for the line chart
-    var canvas = $('<canvas></canvas>');
-    $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
-    
-    // Get the context of the canvas element
+        $('#metrics-graphs').append(visualizationContainer);
+        
+        var canvas = $('<canvas></canvas>');
+        $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
+    } else{
+        existingContainer.find('.query-string').text(queryString);
+        var canvas = $('<canvas></canvas>');
+        $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).empty().append(canvas);
+    }
     var ctx = canvas[0].getContext('2d');
     
     // Extract labels and datasets from seriesData
-    var labels = Object.keys(seriesData[0].values);
-    var datasets = seriesData.map(function(series, index) {
-        return {
-            label: series.seriesName,
-            data: Object.values(series.values),
-            borderColor: getRandomColor(), // Choose a different color for each dataset
-            borderWidth: 2,
-            fill: false
-        };
-    });
+    if (seriesData.length > 0) {
+        var labels = Object.keys(seriesData[0].values);
+        var datasets = seriesData.map(function(series, index) {
+            return {
+                label: series.seriesName,
+                data: Object.values(series.values),
+                borderColor: classic[index % classic.length],
+                backgroundColor : classic[index % classic.length] + 70,
+                borderWidth: 2,
+                fill: false
+            };
+        });
+    }else{
+        var labels = [];
+        var datasets = [];
+    }
     
-    // Define chart data using extracted labels and datasets
     var chartData = {
         labels: labels,
         datasets: datasets
     };
+
     // Save chart data to the global variable
     chartDataCollection[queryName] = chartData;
 
@@ -502,7 +649,12 @@ function addVisualizationContainer(queryName, seriesData) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    align: 'start' // Align legend to the start (left)
+                    align: 'start',
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 2,
+                        fontSize: 10
+                    }
                 }
             },
             scales: {
@@ -510,17 +662,16 @@ function addVisualizationContainer(queryName, seriesData) {
                     display: true,
                     title: {
                         display: true,
-                        text: 'X-Axis Label'
+                        text: ''
                     },
                     grid: {
-                        display: false // Hide vertical grid lines
+                        display: false
                     }
                 },
                 y: {
                     display: true,
                     title: {
-                        display: true,
-                        text: 'Y-Axis Label'
+                        display: false,
                     }
                 }
             }
@@ -530,15 +681,14 @@ function addVisualizationContainer(queryName, seriesData) {
     // Modify the fill property based on the chart type after chart initialization
     if (chartType === 'Area chart') {
         lineChart.config.data.datasets.forEach(function(dataset) {
-            dataset.fill = true; // Fill area under the line
+            dataset.fill = true;
         });
     } else {
-        // For other chart types, ensure fill is false
         lineChart.config.data.datasets.forEach(function(dataset) {
             dataset.fill = false;
         });
     }
-    // Update the chart
+
     lineChart.update();
 
     lineCharts[queryName] = lineChart;
@@ -546,11 +696,7 @@ function addVisualizationContainer(queryName, seriesData) {
     mergeGraphs(chartType)
 }
 
-
-
-
 function removeVisualizationContainer(queryName) {
-    // Remove the visualization container corresponding to the given queryName
     var containerToRemove = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
     containerToRemove.remove();
     delete chartDataCollection[queryName];
@@ -558,7 +704,6 @@ function removeVisualizationContainer(queryName) {
     updateGraphWidth();
     mergeGraphs(chartType)
 }
-
 
 function updateGraphWidth() {
     var numQueries = $('#metrics-queries').children('.metrics-query').length;
@@ -569,12 +714,38 @@ function updateGraphWidth() {
     }
 }
 
- // Options for Display and Color
- var displayOptions = ["Line chart", "Bar chart", "Area chart"];
- var colorOptions = ["Classic", "Cool", "Warm"];
+// Function to show/hide Line Style and Stroke based on Display input
+function toggleLineOptions(displayValue) {
+    if (displayValue === "Line chart") {
+        $("#line-style-div").show();
+        $("#stroke-div").show();
+    } else {
+        $("#line-style-div").hide();
+        $("#stroke-div").hide();
+    }
+}
 
- let chartType = "Line chart";
- function toggleChartType(chartType) {
+var displayOptions = ["Line chart", "Bar chart", "Area chart"];
+$("#display-input").autocomplete({
+    source: displayOptions,
+    minLength: 0,
+    select: function(event, ui) {
+        toggleLineOptions(ui.item.value);
+        chartType = ui.item.value;
+        toggleChartType(ui.item.value);
+        $(this).blur();
+    }
+}).on('click', function() {
+    if ($(this).autocomplete('widget').is(':visible')) {
+        $(this).autocomplete('close');
+    } else {
+        $(this).autocomplete('search', '');
+    }
+}).on('click', function() {
+    $(this).select();
+});
+
+function toggleChartType(chartType) {
     // Convert the selected chart type to the corresponding Chart.js chart type
     var chartJsType;
     switch (chartType) {
@@ -594,55 +765,37 @@ function updateGraphWidth() {
     // Loop through each chart data
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
-            var lineChart = lineCharts[queryName]; // Assuming you have stored chart instances in lineCharts object
+            var lineChart = lineCharts[queryName];
             
-            // Update chart type
             lineChart.config.type = chartJsType;
             
-            // Update dataset options for area chart
             if (chartType === 'Area chart') {
                 lineChart.config.data.datasets.forEach(function(dataset) {
-                    dataset.fill = true; // Fill area under the line
+                    dataset.fill = true;
                 });
             } else {
-                // For other chart types, ensure fill is false
                 lineChart.config.data.datasets.forEach(function(dataset) {
                     dataset.fill = false;
                 });
             }
             
-            lineChart.update(); // Update the chart
+            lineChart.update();
         }
     }
-
-    // Update merged graph as well
+    
     mergeGraphs(chartType);
 }
 
 
-// Autocomplete for Display input
-$("#display-input").autocomplete({
-    source: displayOptions,
-    minLength: 0,
-    select: function(event, ui) {
-        toggleLineOptions(ui.item.value);
-        chartType = ui.item.value;
-        toggleChartType(ui.item.value);
-    }
-}).on('click', function() {
-    if ($(this).autocomplete('widget').is(':visible')) {
-        $(this).autocomplete('close');
-    } else {
-        $(this).autocomplete('search', '');
-    }
-}).on('click', function() {
-    $(this).select();
-});
-
- // Autocomplete for Color input
- $("#color-input").autocomplete({
+var colorOptions = ["Classic", "Purple", "Cool", "Green", "Warm", "Orange", "Gray", "Palette"];
+$("#color-input").autocomplete({
    source: colorOptions,
-   minLength: 0
+   minLength: 0,
+   select: function(event,ui){
+        selectedColorTheme = ui.item.value;
+        updateChartTheme(selectedColorTheme);
+        $(this).blur();
+   }
  }).on('click', function() {
     if ($(this).autocomplete('widget').is(':visible')) {
         $(this).autocomplete('close');
@@ -653,29 +806,52 @@ $("#display-input").autocomplete({
     $(this).select();
 });
 
- // Function to show/hide Line Style and Stroke based on Display input
- function toggleLineOptions(displayValue) {
-   if (displayValue === "Line chart") {
-     $("#line-style-div").show();
-     $("#stroke-div").show();
-   } else {
-     $("#line-style-div").hide();
-     $("#stroke-div").hide();
-   }
- }
+function updateChartTheme(theme) {
+    var colorPalette = {
+        "Classic": classic,
+        "Purple": purple,
+        "Cool": cool,
+        "Green": green,
+        "Warm": warm,
+        "Orange": orange,
+        "Gray": gray,
+        "Palette": palette
+    };
 
- // Options for Line Style and Stroke
- var lineStyleOptions = ["Solid", "Dash", "Dotted"];
- var strokeOptions = ["Normal", "Thin", "Thick"];
+    var selectedPalette = colorPalette[theme] || classic;
 
-// Autocomplete for Line Style input
+    // Loop through each chart data
+    for (var queryName in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(queryName)) {
+            var chartData = chartDataCollection[queryName];
+            chartData.datasets.forEach(function(dataset, index) {
+                dataset.borderColor = selectedPalette[index % selectedPalette.length];
+                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
+            });
+
+            var lineChart = lineCharts[queryName]; 
+            lineChart.update();
+        }
+    }
+
+    mergedGraph.data.datasets.forEach(function(dataset, index) {
+        dataset.borderColor = selectedPalette[index % selectedPalette.length];
+        dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
+    });
+    mergedGraph.update();
+}
+
+var lineStyleOptions = ["Solid", "Dash", "Dotted"];
+var strokeOptions = ["Normal", "Thin", "Thick"];
+
 $("#line-style-input").autocomplete({
     source: lineStyleOptions,
     minLength: 0,
     select: function(event, ui) {
         var selectedLineStyle = ui.item.value;
-        var selectedStroke = $("#stroke-input").val(); // Get the currently selected stroke
+        var selectedStroke = $("#stroke-input").val();
         updateLineCharts(selectedLineStyle, selectedStroke);
+        $(this).blur();
     }
 }).on('click', function() {
     if ($(this).autocomplete('widget').is(':visible')) {
@@ -687,14 +863,14 @@ $("#line-style-input").autocomplete({
     $(this).select();
 });
 
-// Autocomplete for Stroke input
 $("#stroke-input").autocomplete({
     source: strokeOptions,
     minLength: 0,
     select: function(event, ui) {
         var selectedStroke = ui.item.value;
-        var selectedLineStyle = $("#line-style-input").val(); // Get the currently selected line style
+        var selectedLineStyle = $("#line-style-input").val();
         updateLineCharts(selectedLineStyle, selectedStroke);
+        $(this).blur();
     }
 }).on('click', function() {
     if ($(this).autocomplete('widget').is(':visible')) {
@@ -716,10 +892,9 @@ function updateLineCharts(lineStyle, stroke) {
             chartData.datasets.forEach(function(dataset) {
                 // Update dataset properties
                 dataset.borderDash = (lineStyle === "Dash") ? [5, 5] : (lineStyle === "Dotted") ? [1, 3] : [];
-                dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2; // Adjust borderWidth as per stroke
+                dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2; 
             });
 
-            // Update the chart with the modified data
             var lineChart = lineCharts[queryName]; 
             lineChart.update();
         }
@@ -730,10 +905,9 @@ function updateLineCharts(lineStyle, stroke) {
     });
 
     mergedGraph.update();
-
 }
 
-
+// Merge Graphs in one
 function mergeGraphs(chartType) {
     var visualizationContainer = $(`
         <div class="merged-graph-name"></div>
@@ -741,19 +915,17 @@ function mergeGraphs(chartType) {
 
     $('#merged-graph-container').empty().append(visualizationContainer);
     
-    // Create a canvas element for the line chart
     var mergedCanvas = $('<canvas></canvas>');
-    $('.merged-graph').empty().append(mergedCanvas);
 
-    // Get the context of the canvas element
+    $('.merged-graph').empty().append(mergedCanvas);
     var mergedCtx = mergedCanvas[0].getContext('2d');
 
-    // Merge chart data into a single dataset
     var mergedData = {
-        labels: [], // Combine labels from all datasets
+        labels: [],
         datasets: []
     };
     var graphNames = [];
+
     // Loop through chartDataCollection to merge datasets
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
@@ -762,15 +934,16 @@ function mergeGraphs(chartType) {
             graphNames.push(`Metrics query - ${queryName}`); 
             datasets.forEach(function(dataset) {
                 mergedData.datasets.push({
-                    label: dataset.label, // Use dataset label
+                    label: dataset.label,
                     data: dataset.data,
-                    borderColor: dataset.borderColor, // Use dataset border color
+                    borderColor: dataset.borderColor,
                     borderWidth: dataset.borderWidth,
-                    fill: (chartType === 'Area chart') ? true : false // Update fill based on chart type
+                    backgroundColor: dataset.backgroundColor,
+                    fill: (chartType === 'Area chart') ? true : false 
                 });
             });
 
-            // Update labels
+            // Update labels ( same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
         }
     } 
@@ -784,7 +957,12 @@ function mergeGraphs(chartType) {
             plugins: {
                 legend: {
                     position: 'bottom',
-                    align: 'start' // Align legend to the start (left)
+                    align: 'start',
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 2, 
+                        fontSize: 10 
+                    }
                 }
             },
             scales: {
@@ -792,17 +970,16 @@ function mergeGraphs(chartType) {
                     display: true,
                     title: {
                         display: true,
-                        text: 'X-Axis Label'
+                        text: ''
                     },
                     grid: {
-                        display: false // Hide vertical grid lines
+                        display: false 
                     }
                 },
                 y: {
                     display: true,
                     title: {
-                        display: true,
-                        text: 'Y-Axis Label'
+                        display: false,
                     }
                 }
             }
@@ -811,18 +988,8 @@ function mergeGraphs(chartType) {
     mergedGraph = mergedLineChart;
 }
 
-
-
-// Helper function to generate random color
-function getRandomColor() {
-    var letters = '0123456789ABCDEF';
-    var color = '#';
-    for (var i = 0; i < 6; i++) {
-        color += letters[Math.floor(Math.random() * 16)];
-    }
-    return color;
-}
-function convertDataForChart(data) {
+// Converting the response in form to use to create graphs
+async function convertDataForChart(data) {
     let seriesArray = [];
 
     // Iterate over each metric in the data
@@ -847,78 +1014,118 @@ function convertDataForChart(data) {
     return seriesArray;
 }
 
-// Example usage:
-let rawData1 = {
-    "aggStats": {
-        "metric1-1": {
-            "2024-04-26T07:06": 10,
-            "2024-04-26T07:07": 20,
-            "2024-04-26T07:08": 30,
-            "2024-04-26T07:09": 10,
-            "2024-04-26T07:10": 40,
-            "2024-04-26T07:11": 20,
-            "2024-04-26T07:12": 30,
-            "2024-04-26T07:13": 28,
-            "2024-04-26T07:14": 18,
-            "2024-04-26T07:15": 38
-        },
-        "metric1-2": {
-            "2024-04-26T07:06": 29,
-            "2024-04-26T07:07": 39,
-            "2024-04-26T07:08": 19,
-            "2024-04-26T07:09": 49,
-            "2024-04-26T07:10": 29,
-            "2024-04-26T07:11": 19,
-            "2024-04-26T07:12": 39,
-            "2024-04-26T07:13": 29,
-            "2024-04-26T07:14": 49,
-            "2024-04-26T07:15": 19
-        }
+async function getMetricNames() {
+    const data = {
+      start: filterStartDate,
+      end: filterEndDate,
+    };
+    const res = await $.ajax({
+      method: "post",
+      url: "metrics-explorer/api/v1/metric_names",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "*/*",
+      },
+      crossDomain: true,
+      dataType: "json",
+      data: JSON.stringify(data),
+    });
+  
+    if (res) {
+        availableMetrics = res.metricNames;
     }
+    
+    return res 
 }
 
-let rawData2 = {
-    "aggStats": {
-        "metric2-1": {
-            "2024-04-26T07:06": 11,
-            "2024-04-26T07:07": 12,
-            "2024-04-26T07:08": 13,
-            "2024-04-26T07:09": 10,
-            "2024-04-26T07:10": 4,
-            "2024-04-26T07:11": 21,
-            "2024-04-26T07:12": 32,
-            "2024-04-26T07:13": 2,
-            "2024-04-26T07:14": 10,
-            "2024-04-26T07:15": 3
-        },
-        "metric2-2": {
-            "2024-04-26T07:06": 21,
-            "2024-04-26T07:07": 3,
-            "2024-04-26T07:08": 7,
-            "2024-04-26T07:09": 8,
-            "2024-04-26T07:10": 12,
-            "2024-04-26T07:11": 1,
-            "2024-04-26T07:12": 32,
-            "2024-04-26T07:13": 20,
-            "2024-04-26T07:14": 4,
-            "2024-04-26T07:15": 19
-        }
+
+async function getMetricsData(queryName, metricName) {
+    const query = { name: queryName, query: `(${metricName})`, qlType: "promql" };
+    const queries = [query];
+    const formula = { formula: queryName };
+    const formulas = [formula];
+    const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
+
+    const res = await $.ajax({
+        method: "post",
+        url: "metrics-explorer/api/v1/timeseries",
+        headers: { "Content-Type": "application/json; charset=utf-8", Accept: "*/*" },
+        crossDomain: true,
+        dataType: "json",
+        data: JSON.stringify(data)
+    });
+
+    if (res) {
+        rawTimeSeriesData = res;
     }
+
 }
 
-let rawData3= {
-    "aggStats": {
-        "metric3-1": {
-            "2024-04-26T07:06": 110,
-            "2024-04-26T07:07": 120,
-            "2024-04-26T07:08": 130,
-            "2024-04-26T07:09": 100,
-            "2024-04-26T07:10": 40,
-            "2024-04-26T07:11": 210,
-            "2024-04-26T07:12": 320,
-            "2024-04-26T07:13": 20,
-            "2024-04-26T07:14": 100,
-            "2024-04-26T07:15": 30
-        }
+function getTagKeyValue(metricName) {
+    return new Promise((resolve, reject) => {
+        let param = {
+            start: filterStartDate,
+            end: filterEndDate,
+            metric_name: metricName
+        };
+        startQueryTime = new Date().getTime();
+
+        $.ajax({
+            method: "post",
+            url: "metrics-explorer/api/v1/all_tags",
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                Accept: "*/*",
+            },
+            crossDomain: true,
+            dataType: "json",
+            data: JSON.stringify(param),
+            success: function(res) {
+                const availableEverywhere = [];
+                const availableEverything = [];
+                if (res && res.tagKeyValueSet) {
+                    availableEverything.push(res.uniqueTagKeys);
+                    for (let i = 0; i < res.tagKeyValueSet.length; i++) {
+                        let cur = res.tagKeyValueSet[i];
+                        availableEverywhere.push(cur);
+                    }
+                }
+                resolve({ availableEverywhere, availableEverything });
+            },
+            error: function(xhr, status, error) {
+                reject(error);
+            }
+        });
+    });
+}
+
+
+async function getQueryDetails(queryName, queryDetails){
+    const queryString = createQueryString(queryDetails);
+    await getMetricsData(queryName, queryString);
+    const chartData = await convertDataForChart(rawTimeSeriesData)
+    addVisualizationContainer(queryName, chartData, queryString);
+}
+
+function createQueryString(queryObject) {
+    const { metrics, everywhere, everything, aggFunction } = queryObject;
+
+    const everywhereString = everywhere.map(tag => `${tag.split(':')[0]}="${tag.split(':')[1]}"`).join(',');
+    const everythingString = everything.join(',');
+    
+    let queryString = '';
+    if (everything.length > 0) {
+        queryString += `${aggFunction} `;
     }
+    if (everythingString) {
+        queryString += `(${everythingString}) `;
+    }
+    queryString += `(${metrics}`;
+    if (everywhereString) {
+        queryString += `{${everywhereString}}`;
+    }
+
+    queryString += ')';
+    
+    return queryString;
 }

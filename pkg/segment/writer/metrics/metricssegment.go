@@ -104,7 +104,8 @@ type MetricsSegment struct {
 	lowTS            uint32             // lowest epoch timestamp seen across this segment
 	mBlock           *MetricsBlock      // current in memory block
 	currBlockNum     uint16             // current block number
-	mNames           *bloom.BloomFilter // all metric names across segment
+	mNamesBloom      *bloom.BloomFilter // all metric names bloom across segment
+	mNamesMap        map[string]bool    // all metric names seen across segment
 	totalEncodedSize uint64             // total size of all metric blocks. TODO: this should include tagsTree & mNames blooms
 	bytesReceived    uint64             // total size of incoming data
 	rwLock           *sync.RWMutex      // read write lock for access
@@ -135,16 +136,17 @@ type TimeSeries struct {
 	lock        *sync.Mutex
 	rawEncoding *bytes.Buffer
 
-	nEntries   int          // number of ts/dp combinations in this series
-	cFinishFn  func() error // function to call at end of compression, to write the final bytes for the encoded timestamps
-	compressor *compress.Compressor
+	nEntries    int          // number of ts/dp combinations in this series
+	lastKnownTS uint32       // last known timestamp
+	cFinishFn   func() error // function to call at end of compression, to write the final bytes for the encoded timestamps
+	compressor  *compress.Compressor
 }
 
 var orgMetricsAndTagsLock *sync.RWMutex = &sync.RWMutex{}
 
 type MetricsAndTagsHolder struct {
-	Metrics    map[string]*MetricsSegment
-	TagHolders map[string]*TagsTreeHolder
+	MetricSegments map[string]*MetricsSegment
+	TagHolders     map[string]*TagsTreeHolder
 }
 
 var numMetricsSegments uint64
@@ -171,8 +173,8 @@ func initOrgMetrics(orgid uint64) error {
 	orgMetricsAndTagsLock.Lock()
 	if _, ok := OrgMetricsAndTags[orgid]; !ok {
 		OrgMetricsAndTags[orgid] = &MetricsAndTagsHolder{
-			Metrics:    map[string]*MetricsSegment{},
-			TagHolders: map[string]*TagsTreeHolder{},
+			MetricSegments: map[string]*MetricsSegment{},
+			TagHolders:     map[string]*TagsTreeHolder{},
 		}
 	}
 	orgMetricsAndTagsLock.Unlock()
@@ -193,7 +195,7 @@ func initOrgMetrics(orgid uint64) error {
 		}
 
 		orgMetricsAndTagsLock.Lock()
-		OrgMetricsAndTags[orgid].Metrics[fmt.Sprint(i)] = mSeg
+		OrgMetricsAndTags[orgid].MetricSegments[fmt.Sprint(i)] = mSeg
 		OrgMetricsAndTags[orgid].TagHolders[mSeg.Mid], err = InitTagsTreeHolder(mSeg.Mid)
 		if err != nil {
 			log.Errorf("Initialising tags tree holder failed for org: %v, err: %v", orgid, err)
@@ -216,7 +218,7 @@ func GetUnrotatedMetricStats(orgid uint64) (uint64, uint64, uint64) {
 	orgMetricsAndTagsLock.RLock()
 	orgMetrics := map[string]*MetricsSegment{}
 	if metricsAndTags, ok := OrgMetricsAndTags[orgid]; ok {
-		orgMetrics = metricsAndTags.Metrics
+		orgMetrics = metricsAndTags.MetricSegments
 	}
 	orgMetricsAndTagsLock.RUnlock()
 
@@ -263,13 +265,17 @@ func timeBasedMetricsFlush() {
 	for {
 		time.Sleep(METRICS_BLK_FLUSH_SLEEP_DURATION * time.Second)
 		for _, ms := range GetAllMetricsSegments() {
+
 			encSize := atomic.LoadUint64(&ms.mBlock.encodedSize)
 			if encSize > 0 {
 				ms.rwLock.Lock()
-				err := ms.mBlock.flushBlock(ms.metricsKeyBase, ms.Suffix, ms.currBlockNum)
+				err := ms.mBlock.rotateBlock(ms.metricsKeyBase, ms.Suffix, ms.currBlockNum)
 				if err != nil {
-					log.Errorf("timeBasedRotateMetricsBlock: flush block %d for metric segment %s due to time failed", ms.currBlockNum, ms.metricsKeyBase)
+					log.Errorf("timeBasedMetricsFlush: failed to rotate block number: %v due to the error: %v", ms.currBlockNum, err)
+				} else {
+					ms.currBlockNum++
 				}
+
 				ms.rwLock.Unlock()
 			}
 		}
@@ -304,7 +310,8 @@ func InitMetricsSegment(orgid uint64, mId string) (*MetricsSegment, error) {
 		return nil, err
 	}
 	return &MetricsSegment{
-		mNames:       bloom.NewWithEstimates(10, 0.001), // TODO: dynamic sizing
+		mNamesBloom:  bloom.NewWithEstimates(1000, 0.001),
+		mNamesMap:    make(map[string]bool, 0),
 		currBlockNum: 0,
 		mBlock: &MetricsBlock{
 			tsidLookup:  make(map[uint64]int),
@@ -367,11 +374,29 @@ func initTimeSeries(tsid uint64, dp float64, timestammp uint32) (*TimeSeries, ui
 	}
 	ts.cFinishFn = finish
 	ts.compressor = c
+	ts.nEntries++
+	ts.lastKnownTS = timestammp
 	writtenBytes, err := ts.compressor.Compress(timestammp, dp)
 	if err != nil {
 		return nil, 0, err
 	}
 	return ts, writtenBytes, nil
+}
+
+func (ms *MetricsSegment) AddMNameToBloom(mName []byte) {
+	ms.mNamesBloom.Add(mName)
+}
+
+func (ms *MetricsSegment) LoadMetricNamesIntoMap(resultContainer map[string]bool) {
+	ms.rwLock.RLock()
+	defer ms.rwLock.RUnlock()
+
+	for mName := range ms.mNamesMap {
+		_, ok := resultContainer[mName]
+		if !ok {
+			resultContainer[mName] = true
+		}
+	}
 }
 
 /*
@@ -398,9 +423,12 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 		return fmt.Errorf("no segment remaining to be assigned to orgid=%v", orgid)
 	}
 
-	if mSeg.mNames.Test(mName) {
-		mSeg.mNames.Add(mName)
-	}
+	mSeg.AddMNameToBloom(mName)
+
+	mSeg.rwLock.Lock()
+	mSeg.mNamesMap[string(mName)] = true
+	mSeg.rwLock.Unlock()
+
 	mSeg.Orgid = orgid
 	var ts *TimeSeries
 	var seriesExists bool
@@ -621,6 +649,7 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 
 	var mName []byte
 	var dpVal float64
+	var ts uint32 = uint32(time.Now().Unix())
 	var err error
 
 	reader := csv.NewReader(bytes.NewBuffer(rawCSV))
@@ -640,6 +669,14 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 			whitespace_split := strings.Fields(line)
 			tag_set := strings.Split(whitespace_split[0], ",")
 			field_set := strings.Split(whitespace_split[1], ",")
+			if len(whitespace_split) > 2 {
+				tsNano, err := strconv.ParseInt(whitespace_split[2], 10, 64)
+				if err != nil {
+					log.Errorf("ExtractInfluxPayload: failed to parse the timestamp: %+v, error: %+v", whitespace_split[2], err)
+				} else {
+					ts = uint32(tsNano / 1_000_000_000)
+				}
+			}
 			for index, value := range tag_set {
 				if index == 0 {
 					mName = []byte(value)
@@ -670,7 +707,7 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 
 	}
 
-	return mName, dpVal, 0, err
+	return mName, dpVal, ts, err
 
 }
 
@@ -703,7 +740,7 @@ func getMetricsSegment(mName []byte, orgid uint64) (*MetricsSegment, *TagsTreeHo
 	orgMetricsAndTagsLock.RLock()
 	metricsAndTagsHolder, ok := OrgMetricsAndTags[orgid]
 	orgMetricsAndTagsLock.RUnlock()
-	if !ok || len(metricsAndTagsHolder.Metrics) == 0 {
+	if !ok || len(metricsAndTagsHolder.MetricSegments) == 0 {
 		err := initOrgMetrics(orgid)
 		if err != nil {
 			log.Errorf("getMetricsSegment: Failed to initialize metrics segments for org %v: %v", orgid, err)
@@ -713,8 +750,8 @@ func getMetricsSegment(mName []byte, orgid uint64) (*MetricsSegment, *TagsTreeHo
 		metricsAndTagsHolder = OrgMetricsAndTags[orgid]
 		orgMetricsAndTagsLock.RUnlock()
 	}
-	mid := fmt.Sprint(xxhash.Sum64(mName) % uint64(len(metricsAndTagsHolder.Metrics)))
-	return metricsAndTagsHolder.Metrics[mid], metricsAndTagsHolder.TagHolders[mid], nil
+	mid := fmt.Sprint(xxhash.Sum64(mName) % uint64(len(metricsAndTagsHolder.MetricSegments)))
+	return metricsAndTagsHolder.MetricSegments[mid], metricsAndTagsHolder.TagHolders[mid], nil
 }
 
 /*
@@ -791,6 +828,10 @@ func (ts *TimeSeries) AddSingleEntry(dpVal float64, dpTS uint32) (uint64, error)
 			return writtenBytes, err
 		}
 	} else {
+		if ts.lastKnownTS >= dpTS {
+			log.Errorf("timestamp is older than last known timestamp: %d, current: %d", ts.lastKnownTS, dpTS)
+			return writtenBytes, fmt.Errorf("timestamp is older than last known timestamp: %d, current: %d", ts.lastKnownTS, dpTS)
+		}
 		writtenBytes, err = ts.compressor.Compress(dpTS, dpVal)
 		if err != nil {
 			log.Errorf("error encoding timestamp! Error: %+v", err)
@@ -798,6 +839,7 @@ func (ts *TimeSeries) AddSingleEntry(dpVal float64, dpTS uint32) (uint64, error)
 		}
 	}
 	ts.nEntries++
+	ts.lastKnownTS = dpTS
 	return writtenBytes, nil
 }
 
@@ -990,35 +1032,44 @@ func (mb *MetricsBlock) rotateBlock(basePath string, suffix uint64, bufId uint16
 Flushes the metrics segment's tags tree, mNames bloom
 
 This function assumes that the prior metricssBlock has alraedy been rotated/reset
-TODO: flush bloom / tags tree / etc
 */
 func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	var err error
+	err = ms.FlushMetricNamesBloom()
+	if err != nil {
+		log.Errorf("rotateSegment: failed to flush metric names bloom! Error %+v", err)
+		return err
+	}
+	err = ms.FlushMetricNames()
+	if err != nil {
+		log.Errorf("rotateSegment: failed to flush metric names! Error %+v", err)
+		return err
+	}
 	finalDir := getFinalMetricsDir(ms.Mid, ms.Suffix)
 	metaEntry := ms.getMetaEntry(finalDir, ms.Suffix)
 	err = os.MkdirAll(path.Dir(path.Dir(finalDir)), 0764)
 	if err != nil {
-		log.Errorf("RotateSegment: failed to create directory %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
+		log.Errorf("rotateSegment: failed to create directory %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
 		return err
 	}
 
 	// Check if final directory already exists
 	if _, err := os.Stat(finalDir); err == nil {
-		log.Infof("RotateSegment: final directory %s already exists, skipping rename operation", finalDir)
+		log.Infof("rotateSegment: final directory %s already exists, skipping rename operation", finalDir)
 		return nil
 
 	}
 
 	// Check if source directory exists
 	if _, err := os.Stat(ms.metricsKeyBase); os.IsNotExist(err) {
-		log.Infof("RotateSegment: source directory %s does not exist, skipping rename operation", ms.metricsKeyBase)
+		log.Infof("rotateSegment: source directory %s does not exist, skipping rename operation", ms.metricsKeyBase)
 		return nil
 	}
 
 	// Rename metricsKeyBase to finalDir
 	err = os.Rename(path.Dir(ms.metricsKeyBase), finalDir)
 	if err != nil {
-		log.Errorf("RotateSegment: failed to rename %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
+		log.Errorf("rotateSegment: failed to rename %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
 		return err
 	}
 	log.Infof("rotating segment of size %v that created %v metrics blocks to %+v", ms.totalEncodedSize, ms.currBlockNum+1, finalDir)
@@ -1030,15 +1081,20 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		}
 		mKey, err := getBaseMetricsKey(nextSuffix, ms.Mid)
 		if err != nil {
-			log.Errorf("Failed to get next base key for %s: %v", ms.Mid, err)
+			log.Errorf("rotateSegment: failed to get next base key for %s: %v", ms.Mid, err)
 			return err
 		}
+		mNamesCount := uint(len(ms.mNamesMap))
+		for k := range ms.mNamesMap {
+			delete(ms.mNamesMap, k)
+		}
+
 		ms.metricsKeyBase = mKey
 		ms.Suffix = nextSuffix
 		ms.highTS = 0
 		ms.lowTS = math.MaxUint32
 		ms.currBlockNum = 0
-		ms.mNames = bloom.NewWithEstimates(10, 0.001) // TODO: dynamic sizing
+		ms.mNamesBloom = bloom.NewWithEstimates(mNamesCount, 0.001)
 		ms.totalEncodedSize = 0
 		ms.datapointCount = 0
 		ms.bytesReceived = 0
@@ -1047,11 +1103,101 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 
 	err = meta.AddMetricsMetaEntry(metaEntry)
 	if err != nil {
-		log.Errorf("RotateSegment: failed to add metrics meta entry! Error %+v", err)
+		log.Errorf("rotateSegment: failed to add metrics meta entry! Error %+v", err)
 		return err
 	}
 
 	return blob.UploadIngestNodeDir()
+}
+
+// This is a mock function and is only used during tests.
+func (ms *MetricsSegment) SetMockMetricSegmentMNamesBloom() string {
+	ms.mNamesBloom = bloom.NewWithEstimates(100_000, 0.001)
+	ms.metricsKeyBase = "./testMockMetric"
+	ms.Suffix = uint64(0)
+	return fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
+}
+
+// This is a mock function and is only used during tests.
+func (ms *MetricsSegment) SetMockMetricSegmentMNamesMap(mNamesCount uint32, mNameBase string) string {
+	ms.mNamesMap = make(map[string]bool)
+	ms.metricsKeyBase = "./testMockMetric"
+	ms.Suffix = uint64(0)
+	for i := 0; i < int(mNamesCount); i++ {
+		ms.mNamesMap[fmt.Sprintf("%s_%d", mNameBase, i)] = true
+	}
+	return fmt.Sprintf("%s%d.mnm", ms.metricsKeyBase, ms.Suffix)
+}
+
+func (ms *MetricsSegment) FlushMetricNamesBloom() error {
+
+	filePath := fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
+
+	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		log.Errorf("FlushMetricNamesBloom: failed to open filename=%v: err=%v", filePath, err)
+		return err
+	}
+
+	defer fd.Close()
+
+	// version
+	_, err = fd.Write([]byte{1})
+	if err != nil {
+		log.Errorf("FlushMetricNamesBloom: failed to write version err=%v", err)
+		return err
+	}
+
+	// write the blockBloom
+	_, err = ms.mNamesBloom.WriteTo(fd)
+	if err != nil {
+		log.Errorf("FlushMetricNamesBloom: write mNames Bloom failed fpath=%v, err=%v", filePath, err)
+		return err
+	}
+
+	return nil
+}
+
+/*
+- Flushes the metrics segment's mNamesMap to disk
+- The Metirc Names are stored in the Length and Value format.
+*/
+func (ms *MetricsSegment) FlushMetricNames() error {
+
+	if len(ms.mNamesMap) == 0 {
+		log.Warnf("FlushMetricNames: empty mNamesMap")
+		return nil
+	}
+
+	filePath := fmt.Sprintf("%s%d.mnm", ms.metricsKeyBase, ms.Suffix)
+
+	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		log.Errorf("FlushMetricNames: failed to open filename=%v: err=%v", filePath, err)
+		return err
+	}
+
+	defer fd.Close()
+
+	for mName := range ms.mNamesMap {
+		if _, err = fd.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(mName)))); err != nil {
+			log.Errorf("FlushMetricNames: failed to write metric length for metric=%+v, filename=%v: err=%v", mName, filePath, err)
+			return err
+		}
+
+		if _, err = fd.Write([]byte(mName)); err != nil {
+			log.Errorf("FlushMetricNames: failed to write metric name=%+v, filename=%v: err=%v", mName, filePath, err)
+			return err
+		}
+	}
+
+	err = fd.Sync()
+	if err != nil {
+		log.Errorf("FlushMetricNames: failed to sync filename=%v: err=%v", filePath, err)
+		return err
+	}
+
+	return nil
 }
 
 func (ms *MetricsSegment) updateTimeRange(ts uint32) {
@@ -1190,6 +1336,20 @@ func GetUnrotatedMetricsSegmentRequests(metricName string, tRange *dtu.MetricsTi
 	return retVal, nil
 }
 
+func GetUnrotatedMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid uint64) ([]*MetricsSegment, error) {
+	allMetricsSegments := GetMetricSegments(orgid)
+	resultMetricSegments := make([]*MetricsSegment, 0)
+
+	for _, metricSeg := range allMetricsSegments {
+		if !tRange.CheckRangeOverLap(metricSeg.lowTS, metricSeg.highTS) || metricSeg.Orgid != orgid {
+			continue
+		}
+		resultMetricSegments = append(resultMetricSegments, metricSeg)
+	}
+
+	return resultMetricSegments, nil
+}
+
 func GetTotalEncodedSize() uint64 {
 	totalSize := uint64(0)
 	totalTagsTreeSize := uint64(0)
@@ -1238,7 +1398,7 @@ func GetMetricSegments(orgid uint64) []*MetricsSegment {
 	orgMetricsAndTagsLock.RLock()
 	allMetricsSegments := []*MetricsSegment{}
 	if metricsAndTags, ok := OrgMetricsAndTags[orgid]; ok {
-		for _, mSeg := range metricsAndTags.Metrics {
+		for _, mSeg := range metricsAndTags.MetricSegments {
 			allMetricsSegments = append(allMetricsSegments, mSeg)
 		}
 	}
@@ -1250,7 +1410,7 @@ func GetAllMetricsSegments() []*MetricsSegment {
 	orgMetricsAndTagsLock.RLock()
 	allMetricsSegments := []*MetricsSegment{}
 	for _, metricsAndTags := range OrgMetricsAndTags {
-		for _, mSeg := range metricsAndTags.Metrics {
+		for _, mSeg := range metricsAndTags.MetricSegments {
 			allMetricsSegments = append(allMetricsSegments, mSeg)
 		}
 	}
