@@ -28,6 +28,7 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
 	segment "github.com/siglens/siglens/pkg/segment/utils"
 
@@ -56,8 +57,8 @@ const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
 
 func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) {
-	if hook := hooks.GlobalHooks.OverrideEsBulkIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, myid, useIngestHook)
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_ES_BULK, useIngestHook)
 		if alreadyHandled {
 			return
 		}

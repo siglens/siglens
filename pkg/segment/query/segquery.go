@@ -25,7 +25,7 @@ import (
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/grpc/grpc_query"
+	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/querytracker"
@@ -260,7 +260,7 @@ Assumptions:
   - no kibana indices
   - sNode may have regexes that needs to be compiled
 */
-func ApplyRotatedQuery(reqs []grpc_query.SegkeyRequest, sNode *structs.SearchNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
+func ApplyRotatedQuery(reqs []grpc.SegkeyRequest, sNode *structs.SearchNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
 	indexInfo *structs.TableInfo, sizeLimit uint64, qid uint64, orgid uint64) *structs.NodeResult {
 
 	sTime := time.Now()
@@ -319,7 +319,7 @@ func ApplyRotatedQuery(reqs []grpc_query.SegkeyRequest, sNode *structs.SearchNod
 	}
 }
 
-func convertSegKeysToQSR(qI *QueryInformation, segReqs []grpc_query.SegkeyRequest) []*QuerySegmentRequest {
+func convertSegKeysToQSR(qI *QueryInformation, segReqs []grpc.SegkeyRequest) []*QuerySegmentRequest {
 	qsrs := make([]*QuerySegmentRequest, 0, len(segReqs))
 	for _, segReq := range segReqs {
 		qsrs = append(qsrs, &QuerySegmentRequest{
@@ -332,7 +332,7 @@ func convertSegKeysToQSR(qI *QueryInformation, segReqs []grpc_query.SegkeyReques
 	return qsrs
 }
 
-func convertSegStatKeysToQSR(qI *QueryInformation, segReqs []grpc_query.SegkeyRequest) []*QuerySegmentRequest {
+func convertSegStatKeysToQSR(qI *QueryInformation, segReqs []grpc.SegkeyRequest) []*QuerySegmentRequest {
 	qsrs := make([]*QuerySegmentRequest, 0, len(segReqs))
 	for _, segReq := range segReqs {
 		qsrs = append(qsrs, &QuerySegmentRequest{
@@ -402,7 +402,7 @@ func getNodeResultsForRRCCmd(queryInfo *QueryInformation, sTime time.Time, allSe
 }
 
 func getNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Time, allSegFileResults *segresults.SearchResults,
-	reqs []grpc_query.SegkeyRequest, querySummary *summary.QuerySummary, unrotatedOnly bool, orgid uint64) *structs.NodeResult {
+	reqs []grpc.SegkeyRequest, querySummary *summary.QuerySummary, unrotatedOnly bool, orgid uint64) *structs.NodeResult {
 	sortedQSRSlice, numRawSearch, numDistributed := getAllSegmentsInAggs(queryInfo, reqs, queryInfo.aggs, queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(),
 		queryInfo.qid, unrotatedOnly, sTime, orgid)
 	err := setTotalSegmentsToSearch(queryInfo.qid, numRawSearch+numDistributed)
@@ -708,7 +708,7 @@ func getAllUnrotatedSegments(queryInfo *QueryInformation, unrotatedGRPC bool, sT
 }
 
 // returns query segment requests, count of keys to raw search, and distributed query count
-func getAllSegmentsInAggs(queryInfo *QueryInformation, reqs []grpc_query.SegkeyRequest, aggs *structs.QueryAggregators, timeRange *dtu.TimeRange, indexNames []string,
+func getAllSegmentsInAggs(queryInfo *QueryInformation, reqs []grpc.SegkeyRequest, aggs *structs.QueryAggregators, timeRange *dtu.TimeRange, indexNames []string,
 	qid uint64, unrotatedGRPC bool, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, uint64) {
 
 	if len(reqs) != 0 {
