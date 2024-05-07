@@ -23,6 +23,7 @@ import (
 
 	"github.com/fasthttp/router"
 	commonconfig "github.com/siglens/siglens/pkg/config/common"
+	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/valyala/fasthttp"
 )
@@ -84,12 +85,12 @@ type Hooks struct {
 	ExtractKibanaRequestsHook func(kibanaIndices []string, qid uint64) map[string]interface{}
 
 	// Ingest server
-	IngestMiddlewareRecoveryHook    func(ctx *fasthttp.RequestCtx) error
-	KibanaIngestHandlerHook         func(ctx *fasthttp.RequestCtx)
-	EsBulkIngestInternalHook        func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, uint64) error
-	GetIdsConditionHook             func() (bool, []uint64)
-	ExtraIngestEndpointsHook        func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
-	OverrideEsBulkIngestRequestHook func(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) bool
+	IngestMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
+	KibanaIngestHandlerHook      func(ctx *fasthttp.RequestCtx)
+	EsBulkIngestInternalHook     func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, uint64) error
+	GetIdsConditionHook          func() (bool, []uint64)
+	ExtraIngestEndpointsHook     func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
+	OverrideIngestRequestHook    func(ctx *fasthttp.RequestCtx, myid uint64, ingestFunc grpc.IngestFuncEnum, useIngestHook bool) bool
 
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error

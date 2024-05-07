@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package grpc_query
+package grpc
 
 // A single request for a segment key
 type SegkeyRequest interface {
@@ -24,3 +24,10 @@ type SegkeyRequest interface {
 	GetStartEpochMs() uint64
 	GetEndEpochMs() uint64
 }
+
+type IngestFuncEnum uint32
+
+const (
+	INGEST_FUNC_UNKNOWN IngestFuncEnum = iota
+	INGEST_FUNC_ES_BULK
+)
