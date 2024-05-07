@@ -453,6 +453,11 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	start, end, interval := parseSearchTextForRangeSelection(finalSearchText, start, end)
+	// If timerangeSeconds is greater than 10 years reject the request
+	if end-start > 10*365*24*60*60 {
+		utils.SendError(ctx, "Time range is greater than 10 years", fmt.Sprintf("qid: %v, Time range: %v", qid, end-start), errors.New("Time range is greater than 10 years"))
+		return
+	}
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(finalSearchText, start, end, myid)
 	if err != nil {
 		utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, finalSearchText), err)

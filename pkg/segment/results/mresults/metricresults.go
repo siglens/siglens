@@ -43,6 +43,8 @@ const (
 	AGGREGATED
 )
 
+var steps = []uint32{1, 5, 10, 20, 60, 120, 300, 600, 1200, 3600, 7200, 14400, 28800, 57600, 115200, 230400, 460800, 921600}
+
 /*
 Represents the results for a running query
 
@@ -539,19 +541,12 @@ func calculateInterval(timerangeSeconds uint32) (uint32, error) {
 	if timerangeSeconds > 10*365*24*60*60 {
 		return 0, errors.New("timerangeSeconds is greater than 10 years")
 	}
-
-	steps := []uint32{1, 5, 10, 20, 60, 120, 300, 600, 1200, 3600, 7200, 14400}
 	for _, step := range steps {
 		if timerangeSeconds/step <= 360 {
 			return step, nil
 		}
 	}
 
-	// If no suitable step is found, double the last step until a suitable one is found
-	step := steps[len(steps)-1]
-	for timerangeSeconds/step > 360 {
-		step *= 2
-	}
-
-	return step, nil
+	// If no suitable step is found, return an error
+	return 0, errors.New("no suitable step found")
 }
