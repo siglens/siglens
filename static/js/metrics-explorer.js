@@ -302,8 +302,8 @@ async function addQueryElement() {
         if (!isContainerVisible) {
             optionsContainer.show();
             inputField.val('')
-            inputField.focus(); // Focus on the input field
-            inputField.autocomplete('search', ''); // Trigger search event
+            inputField.focus();
+            inputField.autocomplete('search', '');
         } else {
             optionsContainer.hide();
         }
