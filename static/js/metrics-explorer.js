@@ -180,6 +180,9 @@ async function addQueryElement() {
             <div class="value-container">
                 <input class="everything" placeholder="(everything)">
             </div>
+            <div class="metrics-function">
+                <img src="../assets/function-icon.svg" alt="">
+            </div>
         </div>
         <div>
             <div class="alias-box">

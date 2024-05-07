@@ -153,7 +153,6 @@ input:checked + .slider:before {
 
 .metrics-query .value-container{
     border-right: 1px solid var(--border-btn-color) !important;
-    border-radius: 0 5px 5px 0;
 }
 
 .metrics-query div .tag, .metrics-query div .value{
@@ -421,3 +420,24 @@ input:checked + .slider:before {
     right: -6px;
     border: 1px solid #fff;
 }
+.metrics-function{
+    border-right: 1px solid var(--border-btn-color) !important;
+    cursor: pointer;
+    position: relative;
+    margin-left: 7px;
+    border-radius: 0 5px 5px 0;
+}
+.metrics-function img{
+    height: 14px;
+}
+.metrics-function::before{
+    left: -7px;
+    content: "";
+    display: inline-block;
+    position: absolute;
+    top: 50%;
+    margin-top: -2px;
+    border-bottom: 3px solid var(--border-btn-color);
+    width: 7px;
+}
+
