@@ -69,6 +69,9 @@ input:checked + .slider:before {
 .graph-view-container .label{
     margin-left: 10px;
 }
+.metrics-query .query-box .options-container {
+    display: none;
+}
 
 /* Metrics Explorer */
 #metrics-container{
@@ -420,17 +423,22 @@ input:checked + .slider:before {
     right: -6px;
     border: 1px solid #fff;
 }
-.metrics-function{
+.show-functions{
     border-right: 1px solid var(--border-btn-color) !important;
     cursor: pointer;
     position: relative;
-    margin-left: 7px;
     border-radius: 0 5px 5px 0;
 }
-.metrics-function img{
+.show-functions img{
     height: 14px;
 }
-.metrics-function::before{
+
+.functions-container{
+    border :none !important;
+    position: relative;
+}
+
+.functions-container::before {
     left: -7px;
     content: "";
     display: inline-block;
@@ -438,6 +446,28 @@ input:checked + .slider:before {
     top: 50%;
     margin-top: -2px;
     border-bottom: 3px solid var(--border-btn-color);
-    width: 7px;
-}
+    width: 12px;
+    margin-left: 7px;
 
+}
+.selected-function .close{
+    font-size: 22px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-left: 12px;
+    margin-bottom: 3px;
+}
+.position-container ,.all-selected-functions{
+    position: relative;
+    padding: 0px !important;
+    border: none !important;
+}
+.options-container {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 257px;
+    padding: 0 !important;
+    border:none !important;
+    z-index: 999;
+}
