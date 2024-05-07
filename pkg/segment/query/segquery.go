@@ -299,8 +299,8 @@ func ApplyRotatedQuery(sNode *structs.SearchNode, timeRange *dtu.TimeRange, aggs
 	}
 
 	allPossibleKeys, tsPassedCount, totalPossible := metadata.FilterSegmentsByTime(timeRange, indexInfo.GetQueryTables(), orgid)
-	log.Infof("ApplyRotatedQuery: qid=%d, Time filtering returned %v segment keys to search out of %+v", qid, tsPassedCount, totalPossible)
-
+	log.Infof("ApplyRotatedQuery: qid=%d, Rotated query time filtering returned %v segment keys to search out of %+v. query elapsed time: %+v",
+		queryInfo.qid, tsPassedCount, totalPossible, time.Since(sTime))
 	qsrs := convertSegKeysToQueryRequests(queryInfo, allPossibleKeys)
 
 	log.Infof("qid=%d, Extracted node type %v for query. ParallelismPerFile=%v. Starting search...",
