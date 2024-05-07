@@ -18,7 +18,6 @@
 package mresults
 
 import (
-	"fmt"
 	"math"
 	"testing"
 
@@ -374,7 +373,6 @@ func Test_applyMathFunctionRoundWithPrecision1(t *testing.T) {
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
-			fmt.Println("fjl test key1:", key, " val:", val)
 			expectedVal, exists := ans[key]
 			if !exists {
 				t.Errorf("Should not have this key: %v", key)
@@ -407,7 +405,6 @@ func Test_applyMathFunctionRoundWithPrecision2(t *testing.T) {
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
-			fmt.Println("fjl test key2:", key, " val:", val)
 			expectedVal, exists := ans[key]
 			if !exists {
 				t.Errorf("Should not have this key: %v", key)
