@@ -468,19 +468,11 @@ func (r *MetricsResult) FetchPromqlMetrics(mQuery *structs.MetricsQuery, pqlQuer
 		return utils.MetricStatsResponse{}, errors.New("results is not in aggregated state")
 	}
 
-	uniqueTagKeys := make(map[string]bool)
-	tagKeys := make([]string, 0)
-	for _, tag := range mQuery.TagsFilters {
-		if _, ok := uniqueTagKeys[tag.TagKey]; !ok {
-			uniqueTagKeys[tag.TagKey] = true
-			tagKeys = append(tagKeys, tag.TagKey)
-		}
-	}
 	// Create a map of all unique timestamps across all results.
-	allTimestamps := make(map[uint32]bool)
+	allTimestamps := make(map[uint32]struct{})
 	for _, results := range r.Results {
 		for ts := range results {
-			allTimestamps[ts] = true
+			allTimestamps[ts] = struct{}{}
 		}
 	}
 	// Convert the map of unique timestamps into a sorted slice.
@@ -491,18 +483,8 @@ func (r *MetricsResult) FetchPromqlMetrics(mQuery *structs.MetricsQuery, pqlQuer
 	sort.Slice(httpResp.Timestamps, func(i, j int) bool { return httpResp.Timestamps[i] < httpResp.Timestamps[j] })
 
 	for grpId, results := range r.Results {
-		tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
-		if len(tagKeys) != len(tagValues)-1 { // Subtract 1 because grpId has a delimiter after the last value
-			err := errors.New("GetResults: the length of tag key and tag value pair must match")
-			return httpResp, err
-		}
 		groupId := mQuery.MetricName + "{"
-		for index, val := range tagValues[:len(tagValues)-1] {
-			groupId += fmt.Sprintf("%v:\"%v\",", tagKeys[index], val)
-		}
-		if last := len(groupId) - 1; last >= 0 && groupId[last] == ',' {
-			groupId = groupId[:last]
-		}
+		groupId += grpId
 		groupId += "}"
 		httpResp.Series = append(httpResp.Series, groupId)
 
