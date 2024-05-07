@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -474,6 +475,53 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 		}
 	default:
 		return httpResp, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type")
+	}
+
+	return httpResp, nil
+}
+
+func (r *MetricsResult) FetchPromqlMetrics(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricStatsResponse, error) {
+	var httpResp utils.MetricStatsResponse
+	httpResp.Series = make([]string, 0)
+	httpResp.Values = make([][]*float64, 0)
+	httpResp.StartTime = startTime
+	httpResp.IntervalSec = interval
+
+	if r.State != AGGREGATED {
+		return utils.MetricStatsResponse{}, errors.New("results is not in aggregated state")
+	}
+
+	// Create a map of all unique timestamps across all results.
+	allTimestamps := make(map[uint32]struct{})
+	for _, results := range r.Results {
+		for ts := range results {
+			allTimestamps[ts] = struct{}{}
+		}
+	}
+	// Convert the map of unique timestamps into a sorted slice.
+	httpResp.Timestamps = make([]uint32, 0, len(allTimestamps))
+	for ts := range allTimestamps {
+		httpResp.Timestamps = append(httpResp.Timestamps, ts)
+	}
+	sort.Slice(httpResp.Timestamps, func(i, j int) bool { return httpResp.Timestamps[i] < httpResp.Timestamps[j] })
+
+	for grpId, results := range r.Results {
+		groupId := mQuery.MetricName + "{"
+		groupId += grpId
+		groupId += "}"
+		httpResp.Series = append(httpResp.Series, groupId)
+
+		values := make([]*float64, len(httpResp.Timestamps))
+		for i, ts := range httpResp.Timestamps {
+			// Check if there is a value for the current timestamp in results.
+			if v, ok := results[uint32(ts)]; ok {
+				values[i] = &v
+			} else {
+				values[i] = nil
+			}
+		}
+
+		httpResp.Values = append(httpResp.Values, values)
 	}
 
 	return httpResp, nil
