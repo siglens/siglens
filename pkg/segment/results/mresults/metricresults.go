@@ -256,21 +256,24 @@ func (r *MetricsResult) ApplyFunctionsToResults(function structs.Function) error
 	switch function.MathFunction {
 	case segutils.Abs:
 		evaluate(r.Results, math.Abs)
+	case segutils.Ceil:
+		evaluate(r.Results, math.Ceil)
+	case segutils.Floor:
+		evaluate(r.Results, math.Floor)
+	case segutils.Round:
+		if len(function.Value) > 0 {
+			err := evaluateRoundWithPrecision(r.Results, function.Value)
+			if err != nil {
+				return fmt.Errorf("ApplyFunctionsToResults: %v", err)
+			}
+		} else {
+			evaluate(r.Results, math.Round)
+		}
 	default:
 		return fmt.Errorf("ApplyFunctionsToResults: unsupported function type %v", function)
 	}
 
 	return nil
-}
-
-type float64Func func(float64) float64
-
-func evaluate(res map[string]map[uint32]float64, mathFunc float64Func) {
-	for _, timeSeries := range res {
-		for key, val := range timeSeries {
-			timeSeries[key] = mathFunc(val)
-		}
-	}
 }
 
 func (r *MetricsResult) AddError(err error) {

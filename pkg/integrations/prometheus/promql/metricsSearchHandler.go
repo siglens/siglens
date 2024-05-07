@@ -737,6 +737,15 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				switch function {
 				case "abs":
 					mquery.Function = structs.Function{MathFunction: segutils.Abs}
+				case "ceil":
+					mquery.Function = structs.Function{MathFunction: segutils.Ceil}
+				case "round":
+					mquery.Function = structs.Function{MathFunction: segutils.Round}
+					if len(expr.Args) > 1 {
+						mquery.Function.Value = expr.Args[1].String()
+					}
+				case "floor":
+					mquery.Function = structs.Function{MathFunction: segutils.Floor}
 				default:
 					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
 				}

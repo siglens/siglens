@@ -58,6 +58,7 @@ type Aggreation struct {
 
 type Function struct {
 	MathFunction utils.MathFunctions
+	Value        string
 }
 
 type Downsampler struct {
