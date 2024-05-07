@@ -25,7 +25,6 @@ import (
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/querytracker"
@@ -322,33 +321,6 @@ func ApplyRotatedQuery(sNode *structs.SearchNode, timeRange *dtu.TimeRange, aggs
 			ErrList: []error{err},
 		}, 0
 	}
-}
-
-func convertSegKeysToQSR(qI *QueryInformation, segReqs []grpc.SegkeyRequest) []*QuerySegmentRequest {
-	qsrs := make([]*QuerySegmentRequest, 0, len(segReqs))
-	for _, segReq := range segReqs {
-		qsrs = append(qsrs, &QuerySegmentRequest{
-			QueryInformation: *qI,
-			segKey:           segReq.GetSegmentKey(),
-			tableName:        segReq.GetTableName(),
-			segKeyTsRange:    &dtu.TimeRange{StartEpochMs: segReq.GetStartEpochMs(), EndEpochMs: segReq.GetEndEpochMs()},
-		})
-	}
-	return qsrs
-}
-
-func convertSegStatKeysToQSR(qI *QueryInformation, segReqs []grpc.SegkeyRequest) []*QuerySegmentRequest {
-	qsrs := make([]*QuerySegmentRequest, 0, len(segReqs))
-	for _, segReq := range segReqs {
-		qsrs = append(qsrs, &QuerySegmentRequest{
-			QueryInformation: *qI,
-			segKey:           segReq.GetSegmentKey(),
-			tableName:        segReq.GetTableName(),
-			sType:            structs.SEGMENT_STATS_SEARCH,
-			segKeyTsRange:    &dtu.TimeRange{StartEpochMs: segReq.GetStartEpochMs(), EndEpochMs: segReq.GetEndEpochMs()},
-		})
-	}
-	return qsrs
 }
 
 // Base function to apply operators on query segment requests
