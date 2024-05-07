@@ -29,6 +29,8 @@ import (
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/es/writer"
+	"github.com/siglens/siglens/pkg/grpc"
+	"github.com/siglens/siglens/pkg/hooks"
 	lokilog "github.com/siglens/siglens/pkg/integrations/loki/log"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
@@ -88,6 +90,12 @@ func parseLabels(labelsString string) map[string]string {
 //		]
 //	}
 func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_LOKI, false)
+		if alreadyHandled {
+			return
+		}
+	}
 
 	responsebody := make(map[string]interface{})
 	buf, err := snappy.Decode(nil, ctx.PostBody())

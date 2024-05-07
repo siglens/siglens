@@ -23,6 +23,8 @@ import (
 	"fmt"
 
 	writer "github.com/siglens/siglens/pkg/es/writer"
+	"github.com/siglens/siglens/pkg/grpc"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -65,6 +67,12 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 }
 
 func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_FAKE_DATA, false)
+		if alreadyHandled {
+			return
+		}
+	}
 
 	actLines := populateActionLines("", "test-data", 1)
 

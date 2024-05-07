@@ -26,6 +26,8 @@ import (
 	"io"
 
 	"github.com/siglens/siglens/pkg/es/writer"
+	"github.com/siglens/siglens/pkg/grpc"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -37,6 +39,13 @@ import (
 )
 
 func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, 0 /* TODO */, grpc.INGEST_FUNC_OTLP_TRACES, false)
+		if alreadyHandled {
+			return
+		}
+	}
+
 	// All requests and responses should be protobufs.
 	ctx.Response.Header.Set("Content-Type", "application/x-protobuf")
 	if string(ctx.Request.Header.Peek("Content-Type")) != "application/x-protobuf" {

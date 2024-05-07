@@ -24,6 +24,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/siglens/siglens/pkg/grpc"
+	"github.com/siglens/siglens/pkg/hooks"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
@@ -39,6 +41,12 @@ type InfluxPutResp struct {
 }
 
 func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_INFLUX_METRICS, false)
+		if alreadyHandled {
+			return
+		}
+	}
 
 	var processedCount uint64
 	var failedCount uint64
