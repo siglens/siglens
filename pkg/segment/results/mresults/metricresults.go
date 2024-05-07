@@ -483,7 +483,7 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	return httpResp, nil
 }
 
-func (r *MetricsResult) FetchPromqlMetrics(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricStatsResponse, error) {
+func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricStatsResponse, error) {
 	var httpResp utils.MetricStatsResponse
 	httpResp.Series = make([]string, 0)
 	httpResp.Values = make([][]*float64, 0)
