@@ -485,11 +485,18 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 	httpResp.Series = make([]string, 0)
 	httpResp.Values = make([][]*float64, 0)
 	httpResp.StartTime = startTime
-	httpResp.IntervalSec = interval
 
 	if r.State != AGGREGATED {
 		return utils.MetricStatsResponse{}, errors.New("results is not in aggregated state")
 	}
+
+	// Calculate the interval using the start and end times
+	timerangeSeconds := endTime - startTime
+	calculatedInterval, err := calculateInterval(timerangeSeconds)
+	if err != nil {
+		return utils.MetricStatsResponse{}, err
+	}
+	httpResp.IntervalSec = calculatedInterval
 
 	// Create a map of all unique timestamps across all results.
 	allTimestamps := make(map[uint32]struct{})
@@ -525,4 +532,26 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 	}
 
 	return httpResp, nil
+}
+
+func calculateInterval(timerangeSeconds uint32) (uint32, error) {
+	// If timerangeSeconds is greater than 10 years reject the request
+	if timerangeSeconds > 10*365*24*60*60 {
+		return 0, errors.New("timerangeSeconds is greater than 10 years")
+	}
+
+	steps := []uint32{1, 5, 10, 20, 60, 120, 300, 600, 1200, 3600, 7200, 14400}
+	for _, step := range steps {
+		if timerangeSeconds/step <= 360 {
+			return step, nil
+		}
+	}
+
+	// If no suitable step is found, double the last step until a suitable one is found
+	step := steps[len(steps)-1]
+	for timerangeSeconds/step > 360 {
+		step *= 2
+	}
+
+	return step, nil
 }
