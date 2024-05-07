@@ -1098,19 +1098,20 @@ function mergeGraphs(chartType) {
 async function convertDataForChart(data) {
     let seriesArray = [];
 
-    // Iterate over each metric in the data
-    for (let metric in data.aggStats) {
-        if (data.aggStats.hasOwnProperty(metric)) {
+    if (data.hasOwnProperty('series') && data.hasOwnProperty('timestamps') && data.hasOwnProperty('values')) {
+        for (let i = 0; i < data.series.length; i++) {
             let series = {
-                seriesName: metric,
+                seriesName: data.series[i],
                 values: {}
             };
 
-            // Extract timestamp-value pairs for the metric
-            for (let timestamp in data.aggStats[metric]) {
-                if (data.aggStats[metric].hasOwnProperty(timestamp)) {
-                    series.values[timestamp] = data.aggStats[metric][timestamp];
-                }
+            for (let j = 0; j < data.timestamps.length; j++) {
+                // Convert epoch seconds to milliseconds by multiplying by 1000
+                let timestampInMilliseconds = data.timestamps[j] * 1000;
+                let localDate = new Date(timestampInMilliseconds);
+                let formattedDate = localDate.toLocaleString();
+
+                series.values[formattedDate] = data.values[i][j];
             }
 
             seriesArray.push(series);

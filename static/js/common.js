@@ -554,7 +554,7 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
         $(`#panel${panelId} .panEdit-panel`).show();
     }
 
-    if (res.aggStats && Object.keys(res.aggStats).length === 0) {
+    if (res.series && res.series.length === 0) {
         panelProcessEmptyQueryResults("", panelId);
         $('body').css('cursor', 'default');
 	    $(`#panel${panelId} .panel-body #panel-loading`).hide();

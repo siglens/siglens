@@ -470,8 +470,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
-	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, start, end, interval)
-	// mQResponse, err := res.FetchPromqlMetrics(metricQueriesList[0], pqlQuerytype, start, end, interval)
+	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end, interval)
 	if err != nil {
 		utils.SendError(ctx, "Failed to get metric time series", fmt.Sprintf("qid: %v", qid), err)
 		return
