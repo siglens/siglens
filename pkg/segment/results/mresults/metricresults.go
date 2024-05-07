@@ -20,8 +20,8 @@ package mresults
 import (
 	"errors"
 	"fmt"
-	"sort"
 	"math"
+	"sort"
 	"strings"
 	"sync"
 	"time"
