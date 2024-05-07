@@ -227,7 +227,8 @@ async function addQueryElement() {
         queryElement = $('#metrics-queries').find('.metrics-query').last().clone();
         queryElement.find('.query-name').text(nextQueryName);
         queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
-
+        queryElement.find('.query-builder').show();
+        queryElement.find('.raw-query').hide();
         $('#metrics-queries').append(queryElement);
 
     }
