@@ -25,6 +25,8 @@ import (
 	"github.com/golang/snappy"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
+	"github.com/siglens/siglens/pkg/grpc"
+	"github.com/siglens/siglens/pkg/hooks"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
@@ -54,6 +56,13 @@ func decodeWriteRequest(compressed []byte) (*prompb.WriteRequest, error) {
 }
 
 func PutMetrics(ctx *fasthttp.RequestCtx) {
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, 0 /* TODO */, grpc.INGEST_FUNC_PROMETHEUS_METRICS, false)
+		if alreadyHandled {
+			return
+		}
+	}
+
 	var processedCount uint64
 	var failedCount uint64
 	var err error
