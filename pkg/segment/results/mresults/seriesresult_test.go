@@ -213,12 +213,14 @@ func Test_reduceRunningEntries(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func Test_applyMathFunctionsToResults(t *testing.T) {
+func Test_applyMathFunctionAbsToResults(t *testing.T) {
 	result := make(map[string]map[uint32]float64)
 	ts := make(map[uint32]float64)
 	ts[1714880880] = -3
 	ts[1714880881] = 2
 	ts[1714880891] = -1
+
+	result["metric"] = ts
 
 	metricsResults := &MetricsResult{
 		Results: result,
