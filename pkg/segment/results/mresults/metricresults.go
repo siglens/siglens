@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -248,6 +249,28 @@ func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function s
 	r.DsResults = nil
 
 	return nil
+}
+
+func (r *MetricsResult) ApplyFunctionsToResults(function structs.Function) error {
+
+	switch function.MathFunction {
+	case segutils.Abs:
+		evaluate(r.Results, math.Abs)
+	default:
+		return fmt.Errorf("ApplyFunctionsToResults: unsupported function type %v", function)
+	}
+
+	return nil
+}
+
+type float64Func func(float64) float64
+
+func evaluate(res map[string]map[uint32]float64, mathFunc float64Func) {
+	for _, timeSeries := range res {
+		for key, val := range timeSeries {
+			timeSeries[key] = mathFunc(val)
+		}
+	}
 }
 
 func (r *MetricsResult) AddError(err error) {

@@ -732,7 +732,14 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				default:
 					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
 				}
-
+			case *pql.VectorSelector:
+				function := extractFuncFromPath(path)
+				switch function {
+				case "abs":
+					mquery.Function = structs.Function{MathFunction: segutils.Abs}
+				default:
+					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
+				}
 			}
 			return nil
 		})
