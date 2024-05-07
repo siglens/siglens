@@ -51,6 +51,7 @@ import (
 const MIN_IN_MS = 60_000
 const HOUR_IN_MS = 3600_000
 const DAY_IN_MS = 86400_000
+const TEN_YEARS_IN_SECS = 315_360_000
 
 func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32, time.Duration, usageStats.UsageStatsGranularity, error) {
 	searchText := ""
@@ -454,7 +455,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	start, end, interval := parseSearchTextForRangeSelection(finalSearchText, start, end)
 	// If timerangeSeconds is greater than 10 years reject the request
-	if end-start > 10*365*24*60*60 {
+	if end-start > TEN_YEARS_IN_SECS {
 		utils.SendError(ctx, "Time range is greater than 10 years", fmt.Sprintf("qid: %v, Time range: %v", qid, end-start), errors.New("Time range is greater than 10 years"))
 		return
 	}
