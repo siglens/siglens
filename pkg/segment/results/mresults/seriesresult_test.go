@@ -18,9 +18,11 @@
 package mresults
 
 import (
+	"math"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -209,4 +211,34 @@ func Test_reduceRunningEntries(t *testing.T) {
 	// Cardinality is not implemented yet, so this should error.
 	_, err = reduceRunningEntries(entries, segutils.Cardinality, functionConstant)
 	assert.NotNil(t, err)
+}
+
+func Test_applyMathFunctionsToResults(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1714880880] = -3
+	ts[1714880881] = 2
+	ts[1714880891] = -1
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: segutils.Abs}
+
+	err := metricsResults.ApplyFunctionsToResults(function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			preVal, exists := ts[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != math.Abs(preVal) {
+				t.Errorf("Expected value should be %v, but got %v", math.Abs(preVal), val)
+			}
+		}
+	}
+
 }

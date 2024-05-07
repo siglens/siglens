@@ -116,6 +116,11 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		mRes.AddError(err)
 	}
 
+	err = mRes.ApplyFunctionsToResults(mQuery.Function)
+	if err != nil {
+		mRes.AddError(err)
+	}
+
 	return mRes
 }
 

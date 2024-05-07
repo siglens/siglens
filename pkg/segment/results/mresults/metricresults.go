@@ -20,6 +20,8 @@ package mresults
 import (
 	"errors"
 	"fmt"
+	"math"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -249,6 +251,28 @@ func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function s
 	return nil
 }
 
+func (r *MetricsResult) ApplyFunctionsToResults(function structs.Function) error {
+
+	switch function.MathFunction {
+	case segutils.Abs:
+		evaluate(r.Results, math.Abs)
+	default:
+		return fmt.Errorf("ApplyFunctionsToResults: unsupported function type %v", function)
+	}
+
+	return nil
+}
+
+type float64Func func(float64) float64
+
+func evaluate(res map[string]map[uint32]float64, mathFunc float64Func) {
+	for _, timeSeries := range res {
+		for key, val := range timeSeries {
+			timeSeries[key] = mathFunc(val)
+		}
+	}
+}
+
 func (r *MetricsResult) AddError(err error) {
 	r.rwLock.Lock()
 	r.ErrList = append(r.ErrList, err)
@@ -298,13 +322,14 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 	for grpId, results := range r.Results {
 		tags := make(map[string]string)
 		tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
-		if len(tagKeys) != len(tagValues)-1 {
+		if len(tagKeys) != len(tagValues) {
 			err := errors.New("GetResults: the length of tag key and tag value pair must match")
 			return nil, err
 		}
 
-		for index, val := range tagValues[:len(tagValues)-1] {
-			tags[tagKeys[index]] = val
+		for _, val := range tagValues {
+			keyValue := strings.Split(val, ":")
+			tags[keyValue[0]] = keyValue[1]
 		}
 		retVal[idx] = &structs.MetricsQueryResponse{
 			MetricName: mQuery.MetricName,
@@ -389,24 +414,21 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 		}
 	}
 
-	tagKeyValueSet := make(map[string]struct{})
+	uniqueTagKeyValues := make(map[string]bool)
+	tagKeyValueSet := make([]string, 0)
 
 	for _, series := range res.AllSeries {
-		tagValues := strings.Split(series.grpID.String(), tsidtracker.TAG_VALUE_DELIMITER_STR)
-		if len(uniqueTagKeys) != len(tagValues)-1 {
-			err := fmt.Errorf("GetMetricTagsResultSet: the length of tag key and tag value pair must match. UniqueTagKeys length: %v,  TagValues Length: %v", len(uniqueTagKeys), len(tagValues)-1)
-			return nil, nil, err
+		tagKeyValues := strings.Split(series.grpID.String(), tsidtracker.TAG_VALUE_DELIMITER_STR)
+
+		for _, tkVal := range tagKeyValues {
+			if _, ok := uniqueTagKeyValues[tkVal]; !ok {
+				uniqueTagKeyValues[tkVal] = true
+				tagKeyValueSet = append(tagKeyValueSet, tkVal)
+			}
 		}
-		for index, val := range tagValues[:len(tagValues)-1] {
-			tagKeyValueSet[fmt.Sprintf("%s:%s", uniqueTagKeys[index], val)] = struct{}{}
-		}
-	}
-	uniqueTagKeysSet := make([]string, 0)
-	for key := range tagKeyValueSet {
-		uniqueTagKeysSet = append(uniqueTagKeysSet, key)
 	}
 
-	return uniqueTagKeys, uniqueTagKeysSet, nil
+	return uniqueTagKeys, tagKeyValueSet, nil
 }
 
 func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricsStatsResponseInfo, error) {
@@ -415,27 +437,10 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	if r.State != AGGREGATED {
 		return utils.MetricsStatsResponseInfo{}, errors.New("results is not in aggregated state")
 	}
-	uniqueTagKeys := make(map[string]bool)
-	tagKeys := make([]string, 0)
-	for _, tag := range mQuery.TagsFilters {
-		if _, ok := uniqueTagKeys[tag.TagKey]; !ok {
-			uniqueTagKeys[tag.TagKey] = true
-			tagKeys = append(tagKeys, tag.TagKey)
-		}
-	}
+
 	for grpId, results := range r.Results {
-		tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
-		if len(tagKeys) != len(tagValues)-1 { // Subtract 1 because grpId has a delimiter after the last value
-			err := errors.New("GetResults: the length of tag key and tag value pair must match")
-			return httpResp, err
-		}
 		groupId := mQuery.MetricName + "{"
-		for index, val := range tagValues[:len(tagValues)-1] {
-			groupId += fmt.Sprintf("%v=\"%v\",", tagKeys[index], val)
-		}
-		if last := len(groupId) - 1; last >= 0 && groupId[last] == ',' {
-			groupId = groupId[:last]
-		}
+		groupId += grpId
 		groupId += "}"
 		httpResp.AggStats[groupId] = make(map[string]interface{}, 1)
 		for ts, v := range results {
@@ -470,6 +475,53 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 		}
 	default:
 		return httpResp, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type")
+	}
+
+	return httpResp, nil
+}
+
+func (r *MetricsResult) FetchPromqlMetrics(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricStatsResponse, error) {
+	var httpResp utils.MetricStatsResponse
+	httpResp.Series = make([]string, 0)
+	httpResp.Values = make([][]*float64, 0)
+	httpResp.StartTime = startTime
+	httpResp.IntervalSec = interval
+
+	if r.State != AGGREGATED {
+		return utils.MetricStatsResponse{}, errors.New("results is not in aggregated state")
+	}
+
+	// Create a map of all unique timestamps across all results.
+	allTimestamps := make(map[uint32]struct{})
+	for _, results := range r.Results {
+		for ts := range results {
+			allTimestamps[ts] = struct{}{}
+		}
+	}
+	// Convert the map of unique timestamps into a sorted slice.
+	httpResp.Timestamps = make([]uint32, 0, len(allTimestamps))
+	for ts := range allTimestamps {
+		httpResp.Timestamps = append(httpResp.Timestamps, ts)
+	}
+	sort.Slice(httpResp.Timestamps, func(i, j int) bool { return httpResp.Timestamps[i] < httpResp.Timestamps[j] })
+
+	for grpId, results := range r.Results {
+		groupId := mQuery.MetricName + "{"
+		groupId += grpId
+		groupId += "}"
+		httpResp.Series = append(httpResp.Series, groupId)
+
+		values := make([]*float64, len(httpResp.Timestamps))
+		for i, ts := range httpResp.Timestamps {
+			// Check if there is a value for the current timestamp in results.
+			if v, ok := results[uint32(ts)]; ok {
+				values[i] = &v
+			} else {
+				values[i] = nil
+			}
+		}
+
+		httpResp.Values = append(httpResp.Values, values)
 	}
 
 	return httpResp, nil

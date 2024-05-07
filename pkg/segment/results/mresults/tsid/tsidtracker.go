@@ -18,14 +18,15 @@
 package tsidtracker
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/valyala/bytebufferpool"
 )
 
-var TAG_VALUE_DELIMITER_BYTE = []byte("`")
+var TAG_VALUE_DELIMITER_BYTE = []byte(",")
 
-var TAG_VALUE_DELIMITER_STR = ("`")
+var TAG_VALUE_DELIMITER_STR = (",")
 
 /*
 Holder struct to track all matched TSIDs
@@ -48,19 +49,16 @@ func InitTSIDTracker(numTagFilters int) (*AllMatchedTSIDs, error) {
 
 // If first time, add all tsids to map
 // Else, intersect with existing tsids
-func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]struct{}) error {
+func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]struct{}, tagKey string) error {
 	if tr.first {
 		for tagValue, tsids := range rawTagValueToTSIDs {
 			for id := range tsids {
 				buff := bytebufferpool.Get()
-				_, err := buff.WriteString(tagValue)
+				_, err := buff.WriteString(fmt.Sprintf("%+v:%+v", tagKey, tagValue))
 				if err != nil {
 					return err
 				}
-				_, err = buff.Write(TAG_VALUE_DELIMITER_BYTE)
-				if err != nil {
-					return err
-				}
+
 				tr.allTSIDs[id] = buff
 			}
 		}
@@ -73,11 +71,12 @@ func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]stru
 					shouldKeep = true
 					valid++
 
-					_, err := tsidInfo.WriteString(tagValue)
+					_, err := tsidInfo.Write(TAG_VALUE_DELIMITER_BYTE)
 					if err != nil {
 						return err
 					}
-					_, err = tsidInfo.Write(TAG_VALUE_DELIMITER_BYTE)
+
+					_, err = tsidInfo.WriteString(fmt.Sprintf("%+v:%+v", tagKey, tagValue))
 					if err != nil {
 						return err
 					}
@@ -96,7 +95,7 @@ func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]stru
 }
 
 // For all incoming tsids, always add tsid and groupid to stored tsids
-func (tr *AllMatchedTSIDs) BulkAddStar(rawTagValueToTSIDs map[string]map[uint64]struct{}) error {
+func (tr *AllMatchedTSIDs) BulkAddStar(rawTagValueToTSIDs map[string]map[uint64]struct{}, tagKey string) error {
 	var err error
 	for tagValue, tsids := range rawTagValueToTSIDs {
 		for id := range tsids {
@@ -104,12 +103,13 @@ func (tr *AllMatchedTSIDs) BulkAddStar(rawTagValueToTSIDs map[string]map[uint64]
 			if !ok {
 				buf = bytebufferpool.Get()
 				tr.allTSIDs[id] = buf
+			} else {
+				_, err = buf.Write(TAG_VALUE_DELIMITER_BYTE)
+				if err != nil {
+					return err
+				}
 			}
-			_, err = buf.WriteString(tagValue)
-			if err != nil {
-				return err
-			}
-			_, err = buf.Write(TAG_VALUE_DELIMITER_BYTE)
+			_, err = buf.WriteString(fmt.Sprintf("%+v:%+v", tagKey, tagValue))
 			if err != nil {
 				return err
 			}
