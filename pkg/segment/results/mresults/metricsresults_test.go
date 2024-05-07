@@ -396,12 +396,11 @@ func TestCalculateInterval(t *testing.T) {
 			expectedStep = steps[i]
 		}
 		interval, err := calculateInterval(tr)
-
-		if i < len(steps) {
+		if timerangeSeconds[i] > 315360000 { // 10 years in seconds
+			assert.Error(t, err)
+		} else {
 			assert.NoError(t, err)
 			assert.Equal(t, expectedStep, interval)
-		} else {
-			assert.Error(t, err)
 		}
 	}
 }
