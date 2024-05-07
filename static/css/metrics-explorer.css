@@ -100,9 +100,16 @@ input:checked + .slider:before {
     justify-content: space-between;
     margin-top: 10px;
 }
-
+.metrics-query{
+    width: 100%;
+}
 .metrics-query .query-box{
+    align-items: flex-start;
+    width: 100%;
+}
+.metrics-query .query-box .query-builder{
     flex-wrap: wrap;
+    height: auto;
 }
 
 .metrics-query input,.formula-box input{
@@ -115,7 +122,7 @@ input:checked + .slider:before {
     width: 200px;
     border-radius: 0 5px 5px 0;
 }
-.formula-box .formula:focus{
+.formula-box .formula:focus,.raw-query input{
     border-radius: 0 5px 5px 0;
 }
 .formula-box .formula.error-border{
@@ -286,14 +293,16 @@ input:checked + .slider:before {
 .alias-box{
     margin-right: 10px;
 }
-.alias-box .as-btn,.metrics-raw-query{
+.alias-box .as-btn,.metrics-raw-query,
+.raw-query-btn{
     height: 32px;
     width: 38px;
     display: flex;
     justify-content: center;
     border-radius: 5px;
 }
-.alias-box .as-btn:hover,.metrics-raw-query:hover{
+.alias-box .as-btn:hover,.metrics-raw-query:hover,
+.raw-query-btn:hover{
     background-color: var(--purple-2);
     color: var(--white);
     cursor: pointer;
@@ -301,7 +310,7 @@ input:checked + .slider:before {
 
 .alias-filling-box div{
     border: 1px solid var(--border-btn-color);
-    height: 32px;
+    height: 30px;
     width: 46px;
     display: flex;
     justify-content: center;
@@ -457,7 +466,7 @@ input:checked + .slider:before {
     margin-left: 12px;
     margin-bottom: 3px;
 }
-.position-container ,.all-selected-functions{
+.position-container ,.all-selected-functions,.query-builder,.raw-query{
     position: relative;
     padding: 0px !important;
     border: none !important;
@@ -470,4 +479,8 @@ input:checked + .slider:before {
     padding: 0 !important;
     border:none !important;
     z-index: 999;
+}
+.raw-query{
+    width: 80%;
+    
 }

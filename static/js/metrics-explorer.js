@@ -173,29 +173,35 @@ async function addQueryElement() {
     <div class="metrics-query">
         <div class="query-box">
             <div class="query-name active">${String.fromCharCode(97 + queryIndex)}</div>
-            <input type="text" class="metrics" placeholder="Select a metric" >
-            <div>from</div>
-            <div class="tag-container">
-                <input type="text" class="everywhere" placeholder="(everywhere)">
-            </div>
-            <input class="agg-function" value="avg by">
-            <div class="value-container">
-                <input class="everything" placeholder="(everything)">
-            </div>
-            <div class="functions-container">
-                <div class="all-selected-functions">
+            <div class="query-builder">
+                <input type="text" class="metrics" placeholder="Select a metric" >
+                <div>from</div>
+                <div class="tag-container">
+                    <input type="text" class="everywhere" placeholder="(everywhere)">
                 </div>
-                <div class="position-container">
-                    <div class="show-functions">
-                        <img src="../assets/function-icon.svg" alt="">
+                <input class="agg-function" value="avg by">
+                <div class="value-container">
+                    <input class="everything" placeholder="(everything)">
+                </div>
+                <div class="functions-container">
+                    <div class="all-selected-functions">
                     </div>
-                    <div class="options-container">
-                        <input type="text" id="functions-search-box" class="search-box" placeholder="Search...">
+                    <div class="position-container">
+                        <div class="show-functions">
+                            <img src="../assets/function-icon.svg" alt="">
+                        </div>
+                        <div class="options-container">
+                            <input type="text" id="functions-search-box" class="search-box" placeholder="Search...">
+                        </div>
                     </div>
                 </div>
+            </div>
+            <div class="raw-query" style="display: none;">
+                <input type="text" readonly class="raw-query-input">
             </div>
         </div>
         <div>
+            <div class="raw-query-btn">&lt;/&gt;</div>
             <div class="alias-box">
                 <div class="as-btn">as...</div>
                 <div class="alias-filling-box" style="display: none;">
@@ -310,6 +316,14 @@ async function addQueryElement() {
         if (!$(event.target).closest(optionsContainer).length && !$(event.target).is(showFunctionsButton)) {
             optionsContainer.hide(); // Hide the options container if clicked outside of it
         }
+    });
+
+    queryElement.find('.raw-query-btn').on('click', function() {
+        queryElement.find('.query-builder').toggle();
+        queryElement.find('.raw-query').toggle();
+        var queryName = queryElement.find('.query-name').text();
+        const queryString = createQueryString(queries[queryName]);
+        queryElement.find('.raw-query input').val(queryString);
     });
 }
 
@@ -1193,14 +1207,6 @@ function getTagKeyValue(metricName) {
 
 async function getQueryDetails(queryName, queryDetails){
     const queryString = createQueryString(queryDetails);
-    if (queryDetails.hasOwnProperty('queryString')) {
-        queryDetails.queryString = queryString;
-    } else {
-        queryDetails= {
-            ...queryDetails,
-            queryString: queryString
-        };
-    }
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData)
     addVisualizationContainer(queryName, chartData, queryString);
