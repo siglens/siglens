@@ -46,6 +46,7 @@ type QueryInformation struct {
 	sNodeType          structs.SearchNodeType
 	qType              structs.QueryType
 	orgId              uint64
+	alreadyDistributed bool
 }
 
 type QuerySegmentRequest struct {
@@ -88,6 +89,14 @@ func (qi *QueryInformation) GetQid() uint64 {
 
 func (qi *QueryInformation) GetOrgId() uint64 {
 	return qi.orgId
+}
+
+func (qi *QueryInformation) IsAlreadyDistributed() bool {
+	return qi.alreadyDistributed
+}
+
+func (qi *QueryInformation) SetAlreadyDistributed() {
+	qi.alreadyDistributed = true
 }
 
 func (qsr *QuerySegmentRequest) GetSegKey() string {

@@ -287,6 +287,7 @@ func ApplyRotatedQuery(sNode *structs.SearchNode, timeRange *dtu.TimeRange, aggs
 
 	queryInfo, err := InitQueryInformation(sNode, aggs, timeRange, indexInfo,
 		sizeLimit, parallelismPerFile, qid, dqs, orgid)
+	queryInfo.SetAlreadyDistributed()
 	defer querySummary.LogSummaryAndEmitMetrics(qid, queryInfo.pqid, false, orgid)
 	if err != nil {
 		return &structs.NodeResult{
