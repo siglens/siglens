@@ -18,6 +18,7 @@
 package mresults
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -243,4 +244,178 @@ func Test_applyMathFunctionAbsToResults(t *testing.T) {
 		}
 	}
 
+}
+
+func Test_applyMathFunctionFloor(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1] = -0.255
+	ts[2] = 0.6
+	ts[3] = 11.2465
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	ans[1] = -1
+	ans[2] = 0
+	ans[3] = 11
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: segutils.Floor, Value: ""}
+	err := metricsResults.ApplyFunctionsToResults(function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
+func Test_applyMathFunctionCeil(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1] = -0.255
+	ts[2] = 0.6
+	ts[3] = 11.2465
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	ans[1] = 0
+	ans[2] = 1
+	ans[3] = 12
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: segutils.Ceil, Value: ""}
+	err := metricsResults.ApplyFunctionsToResults(function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+
+}
+
+func Test_applyMathFunctionRoundWithoutPrecision(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1] = -0.255
+	ts[2] = 0.6
+	ts[3] = 11.6465
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	ans[1] = 0
+	ans[2] = 1
+	ans[3] = 12
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: segutils.Round, Value: ""}
+	err := metricsResults.ApplyFunctionsToResults(function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
+func Test_applyMathFunctionRoundWithPrecision1(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1] = -0.255
+	ts[2] = 0.6
+	ts[3] = 11.6465
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	ans[1] = -0.3
+	ans[2] = 0.6
+	ans[3] = 11.7
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: segutils.Round, Value: "0.3"}
+	err := metricsResults.ApplyFunctionsToResults(function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			fmt.Println("fjl test key1:", key, " val:", val)
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+
+}
+
+func Test_applyMathFunctionRoundWithPrecision2(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	result["metric"] = ts
+
+	ans := make(map[uint32]float64)
+	ans[1] = -0.5
+	ans[2] = 0.5
+	ans[3] = 11.5
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: segutils.Round, Value: "1 / 2"}
+	err := metricsResults.ApplyFunctionsToResults(function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			fmt.Println("fjl test key2:", key, " val:", val)
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
 }
