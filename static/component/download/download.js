@@ -170,13 +170,13 @@ $("#cancel-loading").on("click", cancelDownload);
   // Function to convert JSON data to XML format
   function convertToXML(json) {
     const items = JSON.parse(json);
-    let xmlString = '<root>';
+    let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n<root>\n';
     items.forEach(item => {
-      xmlString += '<item>';
+      xmlString += '  <item>\n';
       Object.keys(item).forEach(key => {
-        xmlString += `<${key}>${item[key]}</${key}>`;
+        xmlString += `    <${key}>${item[key]}</${key}>\n`;
       });
-      xmlString += '</item>';
+      xmlString += '  </item>\n';
     });
     xmlString += '</root>';
     return xmlString;
