@@ -533,20 +533,17 @@ func areAllRRCsFound(sr *segresults.SearchResults, qsrs []*QuerySegmentRequest, 
 }
 
 // Returns query segment requests, count of keys to raw search, count of distributed queries, count of keys in PQS
-func getAllUnrotatedSegments(queryInfo *QueryInformation, getUnrotated bool, getRotated bool, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, uint64, uint64, error) {
+func getAllUnrotatedSegments(queryInfo *QueryInformation, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, uint64, uint64, error) {
 	allUnrotatedKeys, totalChecked, totalCount := writer.FilterUnrotatedSegmentsInQuery(queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(), orgid)
 	log.Infof("qid=%d, Unrotated query time filtering returned %v segment keys to search out of %+v. query elapsed time: %+v", queryInfo.qid, totalCount,
 		totalChecked, time.Since(sTime))
 
-	var distCount uint64
-	var err error
-	if getRotated {
-		distCount, err = queryInfo.dqs.DistributeUnrotatedQuery(queryInfo)
-		if err != nil {
-			log.Errorf("qid=%d, Failed to send unrotated query request! Error: %v", queryInfo.qid, err)
-			return nil, 0, 0, 0, err
-		}
+	distCount, err := queryInfo.dqs.DistributeUnrotatedQuery(queryInfo)
+	if err != nil {
+		log.Errorf("qid=%d, Failed to send unrotated query request! Error: %v", queryInfo.qid, err)
+		return nil, 0, 0, 0, err
 	}
+
 	qsr, raw, pqs := filterUnrotatedSegKeysToQueryRequests(queryInfo, allUnrotatedKeys)
 	return qsr, raw, distCount, pqs, nil
 }
@@ -564,7 +561,7 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 	numDistributed := uint64(0)
 
 	if getUnrotated {
-		unrotatedQSR, unrotatedRawCount, unrotatedDistQueries := getAllUnrotatedSegmentsInAggs(queryInfo, aggs, timeRange, indexNames, qid, sTime, orgid, getUnrotated, getRotated)
+		unrotatedQSR, unrotatedRawCount, unrotatedDistQueries := getAllUnrotatedSegmentsInAggs(queryInfo, aggs, timeRange, indexNames, qid, sTime, orgid)
 		finalQsrs = append(finalQsrs, unrotatedQSR...)
 		numRawSearch += unrotatedRawCount
 		numDistributed += unrotatedDistQueries
@@ -581,19 +578,17 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 }
 
 func getAllUnrotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.QueryAggregators, timeRange *dtu.TimeRange, indexNames []string,
-	qid uint64, sTime time.Time, orgid uint64, getUnrotated bool, getRotated bool) ([]*QuerySegmentRequest, uint64, uint64) {
+	qid uint64, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, uint64) {
 	allUnrotatedKeys, totalChecked, totalCount := writer.FilterUnrotatedSegmentsInQuery(timeRange, indexNames, orgid)
 	log.Infof("qid=%d, Unrotated query time filtering returned %v segment keys to search out of %+v. query elapsed time: %+v", qid, totalCount,
 		totalChecked, time.Since(sTime))
-	var distCount uint64
-	var err error
-	if getRotated {
-		distCount, err = queryInfo.dqs.DistributeUnrotatedQuery(queryInfo)
-		if err != nil {
-			log.Errorf("qid=%d, Failed to send unrotated query request! Error: %v", queryInfo.qid, err)
-			return nil, 0, 0
-		}
+
+	distCount, err := queryInfo.dqs.DistributeUnrotatedQuery(queryInfo)
+	if err != nil {
+		log.Errorf("qid=%d, Failed to send unrotated query request! Error: %v", queryInfo.qid, err)
+		return nil, 0, 0
 	}
+
 	qsrs, rawSearch := FilterAggSegKeysToQueryResults(queryInfo, allUnrotatedKeys, aggs, structs.UNROTATED_SEGMENT_STATS_SEARCH)
 	return qsrs, rawSearch, distCount
 }
@@ -699,7 +694,7 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, getUnrotated bool, getRo
 	numPQS := uint64(0)
 
 	if getUnrotated {
-		unrotatedQSR, unrotatedRawCount, unrotatedDistQueries, unrotatedPQSCount, err := getAllUnrotatedSegments(queryInfo, getUnrotated, getRotated, sTime, orgid)
+		unrotatedQSR, unrotatedRawCount, unrotatedDistQueries, unrotatedPQSCount, err := getAllUnrotatedSegments(queryInfo, sTime, orgid)
 		if err != nil {
 			return nil, 0, 0, 0, err
 		}
@@ -726,8 +721,6 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, getUnrotated bool, getRo
 	sortedQSRSlice := getSortedQSRResult(queryInfo.aggs, unsortedQsrs)
 
 	return sortedQSRSlice, numRawSearch, numDistributed, numPQS, nil
-
-	// return sortedQSRSlice, rotatedRawCount + unrotatedRawCount, unrotatedDistQueries + rotatedDistQueries, unrotatedPQSCount + rotatedPQS, nil
 }
 
 // returns sorted order of querySegmentRequests, count of keys to raw search, count of distributed queries, and count of pqs keys to raw search
