@@ -19,8 +19,13 @@ package mresults
 
 import (
 	"fmt"
+	"math"
+	"regexp"
 	"sort"
+	"strconv"
+	"strings"
 
+	"github.com/nethruster/go-fraction"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -473,4 +478,64 @@ func evaluateLogFunc(res map[string]map[uint32]float64, mathFunc float64Func) er
 		}
 	}
 	return nil
+}
+
+func evaluateRoundWithPrecision(res map[string]map[uint32]float64, toNearestStr string) error {
+	toNearestStr = strings.ReplaceAll(toNearestStr, " ", "")
+	toNearest, err := convertStrToFloat64(toNearestStr)
+	if err != nil {
+		return fmt.Errorf("evaluateRoundWithPrecision: %v", err)
+	}
+
+	for _, timeSeries := range res {
+		for key, val := range timeSeries {
+			timeSeries[key] = roundToNearest(val, toNearest)
+		}
+	}
+
+	return nil
+}
+
+func roundToNearest(val float64, toNearest float64) float64 {
+	if toNearest == 0 {
+		return val
+	}
+
+	factor := math.Pow(10, 14)
+	rounded := math.Round(val/toNearest) * toNearest
+
+	// Correct precision errors by rounding to the 14th decimal place
+	return math.Round(rounded*factor) / factor
+}
+
+// Str could be a fraction/num with decimal
+// Try to convert the string into a fraction first, then try to convert it into a number after failing
+func convertStrToFloat64(toNearestStr string) (float64, error) {
+	regex, err := regexp.Compile(`^(\d+)/(\d+)$`)
+	if err != nil {
+		return 0, fmt.Errorf("convertStrToFloat64: There are some errors in the pattern: %v", err)
+	}
+
+	matches := regex.FindStringSubmatch(toNearestStr)
+	if matches != nil {
+		numerator, _ := strconv.Atoi(matches[1])
+		denominator, _ := strconv.Atoi(matches[2])
+
+		frac, err := fraction.New(numerator, denominator)
+		if err != nil {
+			return 0, fmt.Errorf("convertStrToFloat64: Can not convert fraction: %v to a float64 value: %v", toNearestStr, err)
+		}
+
+		return frac.Float64(), nil
+	} else {
+		float64Val, err := strconv.ParseFloat(toNearestStr, 64)
+		if err != nil {
+			return 0, fmt.Errorf("convertStrToFloat64: Can not convert toNearestStr: %v to a float64 value: %v", toNearestStr, err)
+		}
+		if float64Val == 0 {
+			return 0, fmt.Errorf("toNearest value cannot be zero")
+		}
+
+		return float64Val, nil
+	}
 }

@@ -19,6 +19,7 @@ package utils
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -58,7 +59,7 @@ func (mg *MetricsGenerator) GetRawLog() (map[string]interface{}, error) {
 	retVal["metric"] = mName
 	retVal["timestamp"] = time.Now().Unix()
 	if fastrand.Uint32n(1_000)%2 == 0 {
-		mg.val = float64(fastrand.Uint32n(1_000)) - 500
+		mg.val = float64(fastrand.Uint32n(1_000)) - 500 + rand.Float64()
 	}
 	retVal["value"] = mg.val
 

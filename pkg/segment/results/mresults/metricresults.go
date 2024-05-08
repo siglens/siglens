@@ -265,6 +265,19 @@ func (r *MetricsResult) ApplyFunctionsToResults(function structs.Function) error
 	switch function.MathFunction {
 	case segutils.Abs:
 		evaluate(r.Results, math.Abs)
+	case segutils.Ceil:
+		evaluate(r.Results, math.Ceil)
+	case segutils.Floor:
+		evaluate(r.Results, math.Floor)
+	case segutils.Round:
+		if len(function.Value) > 0 {
+			err := evaluateRoundWithPrecision(r.Results, function.Value)
+			if err != nil {
+				return fmt.Errorf("ApplyFunctionsToResults: %v", err)
+			}
+		} else {
+			evaluate(r.Results, math.Round)
+		}
 	case segutils.Ln:
 		err = evaluateLogFunc(r.Results, math.Log)
 	case segutils.Log2:
