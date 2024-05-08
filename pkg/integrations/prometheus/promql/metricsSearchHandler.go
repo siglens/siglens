@@ -511,6 +511,24 @@ func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			"eg": "abs(avg (system.disk.used{*}))"
 		}, 
 		{
+			"fn": "ln", 
+			"name": "Natural logarithm", 
+			"desc": "Calculates the natural logarithm for all elements in v.", 
+			"eg": "ln(avg (system.disk.used))"
+		},
+		{
+			"fn": "log2", 
+			"name": "Binary logarithm", 
+			"desc": "Calculates the binary logarithm for all elements in v.", 
+			"eg": "log2(avg (system.disk.used))"
+		},
+		{
+			"fn": "log10", 
+			"name": "Decimal logarithm", 
+			"desc": "Calculates the decimal logarithm for all elements in v.", 
+			"eg": "log10(avg (system.disk.used))"
+		},
+		{
 			"fn": "rate", 
 			"name": "Rate", 
 			"desc": "Calculates the per-second average rate of increase of the time series in the range vector.", 
