@@ -43,9 +43,10 @@ type MetricsQuery struct {
 	TagsFilters     []*TagsFilter // all tags filters to apply
 	SelectAllSeries bool          //flag to select all series - for promQl
 
-	reordered      bool   // if the tags filters have been reordered
-	numStarFilters int    // index such that TagsFilters[:numStarFilters] are all star filters
-	OrgId          uint64 // organization id
+	reordered       bool   // if the tags filters have been reordered
+	numStarFilters  int    // index such that TagsFilters[:numStarFilters] are all star filters
+	numValueFilters uint32 // number of value filters
+	OrgId           uint64 // organization id
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
 }
@@ -200,30 +201,66 @@ func (mbs *MBlockSummary) Reset() {
 
 /*
 Fixes the order of tags filters to be in the following order:
-1. * tag filters
-2. other tag filters
+1. other tag filters
+2. * tag filters
 */
 func (mq *MetricsQuery) ReorderTagFilters() {
 	if mq.reordered {
 		return
 	}
+
+	type TagValueType string
+
+	// Values for TagValueType
+	const (
+		StarValue   TagValueType = "*"
+		ValueString TagValueType = "string"
+	)
+
+	type TagValueIndex struct {
+		tagValueType TagValueType
+		index        int
+	}
+
+	uniqueTagKeys := make(map[string]TagValueIndex, len(mq.TagsFilters))
+
 	starTags := make([]*TagsFilter, 0, len(mq.TagsFilters))
 	otherTags := make([]*TagsFilter, 0, len(mq.TagsFilters))
 	for _, tf := range mq.TagsFilters {
 		if tagVal, ok := tf.RawTagValue.(string); ok && tagVal == "*" {
+			if _, ok := uniqueTagKeys[tf.TagKey]; ok {
+				continue
+			}
 			starTags = append(starTags, tf)
+			uniqueTagKeys[tf.TagKey] = TagValueIndex{tagValueType: StarValue, index: len(starTags) - 1}
 		} else {
+			tagValInd, ok := uniqueTagKeys[tf.TagKey]
+			if ok {
+				if tagValInd.tagValueType == StarValue {
+					// Remove the star tag filter
+					starTags = append(starTags[:tagValInd.index], starTags[tagValInd.index+1:]...)
+				} else {
+					// Only one value filter per tag key is allowed
+					continue
+				}
+			}
 			otherTags = append(otherTags, tf)
+			uniqueTagKeys[tf.TagKey] = TagValueIndex{tagValueType: ValueString, index: len(otherTags) - 1}
 		}
 	}
-	mq.TagsFilters = append(starTags, otherTags...)
+	mq.TagsFilters = append(otherTags, starTags...)
 	mq.reordered = true
 	mq.numStarFilters = len(starTags)
+	mq.numValueFilters = uint32(len(otherTags))
 }
 
 func (mq *MetricsQuery) GetNumStarFilters() int {
 	mq.ReorderTagFilters()
 	return mq.numStarFilters
+}
+
+func (mq *MetricsQuery) GetNumValueFilters() uint32 {
+	return mq.numValueFilters
 }
 
 const SIZE_OF_MBSUM = 10 // 2 + 4 + 4

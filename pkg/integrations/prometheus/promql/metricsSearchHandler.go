@@ -471,17 +471,16 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
-	// Temp Fix: This error handling should be there. But it is failing for some cases. Need to handle those errors in a better way.
 
-	// if len(res.ErrList) > 0 {
-	// 	var errorMessages []string
-	// 	for _, err := range res.ErrList {
-	// 		errorMessages = append(errorMessages, err.Error())
-	// 	}
-	// 	allErrors := strings.Join(errorMessages, "; ")
-	// 	utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid: %v", qid), fmt.Errorf(allErrors))
-	// 	return
-	// }
+	if len(res.ErrList) > 0 {
+		var errorMessages []string
+		for _, err := range res.ErrList {
+			errorMessages = append(errorMessages, err.Error())
+		}
+		allErrors := strings.Join(errorMessages, "; ")
+		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid: %v", qid), fmt.Errorf(allErrors))
+		return
+	}
 
 	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
 	if err != nil {
@@ -762,6 +761,12 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		mquery.SelectAllSeries = true
 		agg := structs.Aggreation{AggregatorFunction: segutils.Avg}
 		mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: agg}
+
+		log.Infof("Mani: convertPqlToMetricsQuery: mquery.TagsFilters=%+v", mquery.TagsFilters)
+		if len(mquery.TagsFilters) > 0 {
+			mquery.SelectAllSeries = false
+		}
+
 		metricQueryRequest := &structs.MetricsQueryRequest{
 			MetricsQuery: mquery,
 			TimeRange: dtu.MetricsTimeRange{
@@ -833,7 +838,11 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
 	}
 	mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: mquery.Aggregator}
-	mquery.SelectAllSeries = !groupby // if group by is not present, then we need to select all series
+	log.Infof("Mani: convertPqlToMetricsQuery: At before groupby mquery.TagsFilters=%+v", mquery.TagsFilters)
+	if len(mquery.TagsFilters) > 0 {
+		mquery.SelectAllSeries = false
+	}
+	// mquery.SelectAllSeries = !groupby // if group by is not present, then we need to select all series
 	mquery.OrgId = myid
 	metricQueryRequest := &structs.MetricsQueryRequest{
 		MetricsQuery: mquery,
