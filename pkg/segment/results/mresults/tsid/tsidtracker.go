@@ -47,14 +47,49 @@ func InitTSIDTracker(numTagFilters int) (*AllMatchedTSIDs, error) {
 	}, nil
 }
 
+func (tr *AllMatchedTSIDs) AddTSID(tsid uint64, groupIdStr string, tagKey string, addToBuf bool) error {
+	buff, ok := tr.allTSIDs[tsid]
+	if !ok {
+		buff = bytebufferpool.Get()
+		_, err := buff.WriteString(fmt.Sprintf("%v{", groupIdStr))
+		if err != nil {
+			return err
+		}
+		tr.allTSIDs[tsid] = buff
+	} else {
+		if addToBuf {
+			_, err := buff.Write(TAG_VALUE_DELIMITER_BYTE)
+			if err != nil {
+				return err
+			}
+			_, err = buff.WriteString(fmt.Sprintf("%+v:%+v", tagKey, groupIdStr))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // If first time, add all tsids to map
 // Else, intersect with existing tsids
-func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]struct{}, tagKey string) error {
+func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]struct{}, metricName string, tagKey string) error {
 	if tr.first {
 		for tagValue, tsids := range rawTagValueToTSIDs {
 			for id := range tsids {
 				buff := bytebufferpool.Get()
-				_, err := buff.WriteString(fmt.Sprintf("%+v:%+v", tagKey, tagValue))
+				_, err := buff.WriteString(fmt.Sprintf("%v{", metricName))
+				if err != nil {
+					return err
+				}
+
+				_, err = buff.WriteString(fmt.Sprintf("%+v:%+v", tagKey, tagValue))
+				if err != nil {
+					return err
+				}
+
+				_, err = buff.Write(TAG_VALUE_DELIMITER_BYTE)
 				if err != nil {
 					return err
 				}
@@ -71,12 +106,12 @@ func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]stru
 					shouldKeep = true
 					valid++
 
-					_, err := tsidInfo.Write(TAG_VALUE_DELIMITER_BYTE)
+					_, err := tsidInfo.WriteString(fmt.Sprintf("%+v:%+v", tagKey, tagValue))
 					if err != nil {
 						return err
 					}
 
-					_, err = tsidInfo.WriteString(fmt.Sprintf("%+v:%+v", tagKey, tagValue))
+					_, err = tsidInfo.Write(TAG_VALUE_DELIMITER_BYTE)
 					if err != nil {
 						return err
 					}
@@ -95,21 +130,25 @@ func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]stru
 }
 
 // For all incoming tsids, always add tsid and groupid to stored tsids
-func (tr *AllMatchedTSIDs) BulkAddStar(rawTagValueToTSIDs map[string]map[uint64]struct{}, tagKey string) error {
+func (tr *AllMatchedTSIDs) BulkAddStar(rawTagValueToTSIDs map[string]map[uint64]struct{}, initMetricName string, tagKey string) error {
 	var err error
 	for tagValue, tsids := range rawTagValueToTSIDs {
 		for id := range tsids {
 			buf, ok := tr.allTSIDs[id]
 			if !ok {
 				buf = bytebufferpool.Get()
-				tr.allTSIDs[id] = buf
-			} else {
-				_, err = buf.Write(TAG_VALUE_DELIMITER_BYTE)
+				_, err = buf.WriteString(initMetricName)
 				if err != nil {
 					return err
 				}
+				tr.allTSIDs[id] = buf
 			}
 			_, err = buf.WriteString(fmt.Sprintf("%+v:%+v", tagKey, tagValue))
+			if err != nil {
+				return err
+			}
+
+			_, err = buf.Write(TAG_VALUE_DELIMITER_BYTE)
 			if err != nil {
 				return err
 			}
