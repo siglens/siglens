@@ -249,7 +249,6 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 	qsrs []*QuerySegmentRequest, querySummary *summary.QuerySummary, getUnrotated bool, getRotated bool, orgid uint64) *structs.NodeResult {
 	sortedQSRSlice, numRawSearch, numDistributed := getAllSegmentsInAggs(queryInfo, qsrs, queryInfo.aggs, queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(),
 		queryInfo.qid, getUnrotated, getRotated, sTime, orgid)
-	log.Errorf("andrew inside GetNodeResultsForSegmentStatsCmd with qsrs: %+v, sortedQSRSlice: %+v", qsrs, sortedQSRSlice)
 	err := setTotalSegmentsToSearch(queryInfo.qid, numRawSearch+numDistributed)
 	if err != nil {
 		log.Errorf("qid=%d Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
@@ -366,7 +365,6 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 		reverseSortedQSRSlice(sortedQSRSlice)
 	}
 
-	log.Errorf("andrew inside applyFopAllRequests; looping over %v sqrs", len(sortedQSRSlice))
 	for idx, segReq := range sortedQSRSlice {
 
 		isCancelled, err := checkForCancelledQuery(queryInfo.qid)
@@ -558,7 +556,6 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 	qid uint64, getUnrotated bool, getRotated bool, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, uint64) {
 
 	if len(qsrs) != 0 {
-		log.Errorf("andrew getAllSegmentsInAggs: early return 1 with qsrs: %+v", qsrs)
 		return qsrs, uint64(len(qsrs)), 0
 	}
 
@@ -581,14 +578,6 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 	}
 
 	return finalQsrs, numRawSearch, numDistributed
-
-	//// Do rotated time & index name filtering
-	//rotatedQSR, rotatedRawCount, rotatedDistQueries := getAllRotatedSegmentsInAggs(queryInfo, aggs, timeRange, indexNames, qid, sTime, orgid)
-	//unrotatedQSR, unrotatedRawCount, unrotatedDistQueries := getAllUnrotatedSegmentsInAggs(queryInfo, aggs, timeRange, indexNames, qid, sTime, orgid, getUnrotated)
-	//allSegRequests := append(rotatedQSR, unrotatedQSR...)
-	//log.Errorf("andrew getAllSegmentsInAggs: returning with unrotatedQSR: %+v, rotatedQSR: %+v", unrotatedQSR, rotatedQSR)
-	////get seg stats for allPossibleKeys
-	//return allSegRequests, rotatedRawCount + unrotatedRawCount, rotatedDistQueries + unrotatedDistQueries
 }
 
 func getAllUnrotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.QueryAggregators, timeRange *dtu.TimeRange, indexNames []string,
@@ -630,7 +619,6 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 	// Use a global variable to store data that meets the conditions during the process of traversing segments
 	runningEvalStats := make(map[string]interface{}, 0)
 	//assuming we will allow 100 measure Operations
-	log.Errorf("andrew inside applyAggOpOnSegments; looping over %v sqrs", len(sortedQSRSlice))
 	for _, segReq := range sortedQSRSlice {
 		isCancelled, err := checkForCancelledQuery(qid)
 		if err != nil {
