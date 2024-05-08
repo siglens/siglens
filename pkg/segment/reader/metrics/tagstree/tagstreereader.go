@@ -175,20 +175,46 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 
 			rawTagValueToTSIDs := make(map[string]map[uint64]struct{})
 			for {
-				_, grpID, tsids, more := itr.Next()
+				_, tagRawValue, tsids, tagRawValueType, more := itr.Next()
 				if !more {
+					if !mQuery.SelectAllSeries || mQuery.ExitAfterTagsSearch {
+						var initMetricName string
+						if mQuery.ExitAfterTagsSearch {
+							initMetricName = ""
+						} else {
+							initMetricName = fmt.Sprintf("%v{", mQuery.MetricName)
+						}
+						err = tracker.BulkAddStar(rawTagValueToTSIDs, initMetricName, tf.TagKey)
+						if err != nil {
+							log.Errorf("FindTSIDS: failed to bulk add tsids to tracker for the tag Key: %v! Error %+v", tf.TagKey, err)
+							return nil, err
+						}
+					}
 					break
 				}
-				grpIDStr := string(grpID)
-				rawTagValueToTSIDs[grpIDStr] = make(map[uint64]struct{})
-				for tsid := range tsids {
-					rawTagValueToTSIDs[grpIDStr][tsid] = struct{}{}
+				var grpIDStr string
+				if mQuery.SelectAllSeries && !mQuery.ExitAfterTagsSearch {
+					for tsid := range tsids {
+						err := tracker.AddTSID(tsid, mQuery.MetricName, tf.TagKey, false)
+						if err != nil {
+							log.Errorf("FindTSIDS: failed to add tsid %v to tracker for the tag key: %v! Error %+v", tsid, tf.TagKey, err)
+							return nil, err
+						}
+					}
+				} else {
+					if tagRawValueType[0] == segutils.VALTYPE_ENC_FLOAT64[0] {
+						grpIDStr = fmt.Sprintf("%f", utils.BytesToFloat64LittleEndian(tagRawValue))
+					} else if tagRawValueType[0] == segutils.VALTYPE_ENC_INT64[0] {
+						grpIDStr = fmt.Sprintf("%d", utils.BytesToInt64LittleEndian(tagRawValue))
+					} else {
+						grpIDStr = string(tagRawValue)
+					}
+
+					rawTagValueToTSIDs[grpIDStr] = make(map[uint64]struct{})
+					for tsid := range tsids {
+						rawTagValueToTSIDs[grpIDStr][tsid] = struct{}{}
+					}
 				}
-			}
-			err = tracker.BulkAddStar(rawTagValueToTSIDs)
-			if err != nil {
-				log.Errorf("FindTSIDS: failed to build add tsids to tracker! Error %+v", err)
-				return nil, err
 			}
 			err = tracker.FinishBlock()
 			if err != nil {
@@ -205,7 +231,7 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 				tagIndicesToRemove[i] = struct{}{}
 				continue
 			}
-			err = tracker.BulkAdd(rawTagValueToTSIDs)
+			err = tracker.BulkAdd(rawTagValueToTSIDs, mQuery.MetricName, tf.TagKey)
 			if err != nil {
 				log.Errorf("FindTSIDS: failed to build add tsids to tracker! Error %+v", err)
 				return nil, err
@@ -394,13 +420,13 @@ func (ttr *TagTreeReader) GetValueIteratorForMetric(mName uint64) (*TagValueIter
 Returns next tag value, all matching tsids, and bool indicating if more values exist
 If bool=false, the returned tagvalue/rawvalue/matching tsids will be empty
 */
-func (tvi *TagValueIterator) Next() (uint64, []byte, map[uint64]struct{}, bool) {
+func (tvi *TagValueIterator) Next() (uint64, []byte, map[uint64]struct{}, []byte, bool) {
 	var tagValue []byte
 	var matchingTSIDs map[uint64]struct{} = map[uint64]struct{}{}
 	for tvi.treeOffset < uint32(len(tvi.tagTreeBuf)) {
 		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < 10 {
 			// not enough bytes left in tagTreeBuf for a full tag tree entry
-			return 0, nil, nil, false
+			return 0, nil, nil, nil, false
 		}
 		tagHashValue := utils.BytesToUint64LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8])
 		tvi.treeOffset += 8
@@ -414,12 +440,17 @@ func (tvi *TagValueIterator) Next() (uint64, []byte, map[uint64]struct{}, bool) 
 		} else if tagRawValueType[0] == segutils.VALTYPE_ENC_FLOAT64[0] {
 			tagValue = tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8]
 			tvi.treeOffset += 8
+		} else if tagRawValueType[0] == segutils.VALTYPE_ENC_INT64[0] {
+			tagValue = tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8]
+			tvi.treeOffset += 8
+		} else {
+			log.Errorf("TagValueIterator.Next: unknown value type: %v", tagRawValueType)
 		}
 		tsidCount := utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2])
 		tvi.treeOffset += 2
 		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < uint32(tsidCount*8) {
 			// not enough bytes left in tagTreeBuf for all TSIDs
-			return 0, nil, nil, false
+			return 0, nil, nil, nil, false
 		}
 		for i := uint16(0); i < tsidCount; i++ {
 			tsid := utils.BytesToUint64LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8])
@@ -428,10 +459,10 @@ func (tvi *TagValueIterator) Next() (uint64, []byte, map[uint64]struct{}, bool) 
 			tvi.matchingTSIDs[tsid] = struct{}{}
 		}
 		if len(matchingTSIDs) > 0 {
-			return tagHashValue, tagValue, matchingTSIDs, true
+			return tagHashValue, tagValue, matchingTSIDs, tagRawValueType, true
 		}
 	}
-	return 0, nil, nil, false
+	return 0, nil, nil, nil, false
 }
 
 // Returns two bools; first is true if it matches this value, second is true if it might match a different value.

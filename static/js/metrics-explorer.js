@@ -27,6 +27,7 @@ let availableMetrics = [];
 let previousStartEpoch = null;
 let previousEndEpoch = null;
 let rawTimeSeriesData=[];
+let allFunctions;
 
 
 // Theme
@@ -47,6 +48,7 @@ $(document).ready(function() {
     
     $('.theme-btn').on('click', themePickerHandler);
     addQueryElement();
+    getFunctions();
 });
 
 
@@ -171,17 +173,35 @@ async function addQueryElement() {
     <div class="metrics-query">
         <div class="query-box">
             <div class="query-name active">${String.fromCharCode(97 + queryIndex)}</div>
-            <input type="text" class="metrics" placeholder="Select a metric" >
-            <div>from</div>
-            <div class="tag-container">
-                <input type="text" class="everywhere" placeholder="(everywhere)">
+            <div class="query-builder">
+                <input type="text" class="metrics" placeholder="Select a metric" >
+                <div>from</div>
+                <div class="tag-container">
+                    <input type="text" class="everywhere" placeholder="(everywhere)">
+                </div>
+                <input class="agg-function" value="avg by">
+                <div class="value-container">
+                    <input class="everything" placeholder="(everything)">
+                </div>
+                <div class="functions-container">
+                    <div class="all-selected-functions">
+                    </div>
+                    <div class="position-container">
+                        <div class="show-functions">
+                            <img src="../assets/function-icon.svg" alt="">
+                        </div>
+                        <div class="options-container">
+                            <input type="text" id="functions-search-box" class="search-box" placeholder="Search...">
+                        </div>
+                    </div>
+                </div>
             </div>
-            <input class="agg-function" value="avg by">
-            <div class="value-container">
-                <input class="everything" placeholder="(everything)">
+            <div class="raw-query" style="display: none;">
+                <input type="text" readonly class="raw-query-input">
             </div>
         </div>
         <div>
+            <div class="raw-query-btn">&lt;/&gt;</div>
             <div class="alias-box">
                 <div class="as-btn">as...</div>
                 <div class="alias-filling-box" style="display: none;">
@@ -207,7 +227,8 @@ async function addQueryElement() {
         queryElement = $('#metrics-queries').find('.metrics-query').last().clone();
         queryElement.find('.query-name').text(nextQueryName);
         queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
-
+        queryElement.find('.query-builder').show();
+        queryElement.find('.raw-query').hide();
         $('#metrics-queries').append(queryElement);
 
     }
@@ -271,6 +292,40 @@ async function addQueryElement() {
             $('.metrics-graph').removeClass('full-width');
         }
     });
+
+    queryElement.find('.show-functions').on('click', function() {
+        event.stopPropagation();
+        var inputField = queryElement.find('#functions-search-box');
+        var optionsContainer = queryElement.find('.options-container');
+        var isContainerVisible = optionsContainer.is(':visible');
+    
+        if (!isContainerVisible) {
+            optionsContainer.show();
+            inputField.val('')
+            inputField.focus();
+            inputField.autocomplete('search', '');
+        } else {
+            optionsContainer.hide();
+        }
+    });
+    
+    $('body').on('click', function(event) {
+        var optionsContainer = queryElement.find('.options-container');
+        var showFunctionsButton = queryElement.find('.show-functions');
+    
+        // Check if the clicked element is not part of the options container or the show-functions button
+        if (!$(event.target).closest(optionsContainer).length && !$(event.target).is(showFunctionsButton)) {
+            optionsContainer.hide(); // Hide the options container if clicked outside of it
+        }
+    });
+
+    queryElement.find('.raw-query-btn').on('click', function() {
+        queryElement.find('.query-builder').toggle();
+        queryElement.find('.raw-query').toggle();
+        var queryName = queryElement.find('.query-name').text();
+        const queryString = createQueryString(queries[queryName]);
+        queryElement.find('.raw-query input').val(queryString);
+    });
 }
 
 async function initializeAutocomplete(queryElement, previousQuery = {}) {
@@ -281,15 +336,16 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         metrics: '',
         everywhere: [],
         everything: [],
-        aggFunction: 'avg by'
+        aggFunction: 'avg by',
+        functions: []
     };
-
     // Use details from the previous query if it exists
     if (!jQuery.isEmptyObject(previousQuery)) {
         queryDetails.metrics = previousQuery.metrics;
         queryDetails.everywhere = previousQuery.everywhere.slice();
         queryDetails.everything = previousQuery.everything.slice();
         queryDetails.aggFunction = previousQuery.aggFunction;
+        queryDetails.functions = previousQuery.functions.slice(); 
     }
 
     var availableOptions = ["max by", "min by", "avg by", "sum by"];
@@ -571,6 +627,56 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         }
     });
 
+    queryElement.find('#functions-search-box').autocomplete({
+        source: allFunctions.map(function(item) {
+            return item.name;
+        }),
+        minLength: 0,
+        select: function(event, ui) {
+            var selectedItem = allFunctions.find(function(item) {
+                return item.name === ui.item.value;
+            });
+            // Check if the selected function is already in queryDetails.functions
+            var indexToRemove = queryDetails.functions.indexOf(selectedItem.fn);
+            if (indexToRemove !== -1) {
+                queryDetails.functions.splice(indexToRemove, 1); // Remove it
+                $(this).closest('.metrics-query').find('.selected-function:contains(' + selectedItem.fn + ')').remove();
+            }
+
+            queryDetails.functions.push(selectedItem.fn);
+            appendFunctionDiv(selectedItem.fn);
+            getQueryDetails(queryName,queryDetails);
+    
+            queryElement.find('.options-container').hide();
+            $(this).val('');
+        }
+    }).on('click', function() {
+        if ($(this).autocomplete('widget').is(':visible')) {
+            $(this).autocomplete('close');
+        } else {
+            $(this).autocomplete('search', '');
+        }
+    }).on('click', function() {
+        $(this).select();
+    });
+
+    function appendFunctionDiv(fnName) {
+        var newDiv = $('<div class="selected-function">' + fnName + '<span class="close">×</span></div>');
+        queryElement.find('.all-selected-functions').append(newDiv);
+    }
+
+    $('.all-selected-functions').on('click', '.selected-function .close', function() {
+        var fnToRemove = $(this).parent('.selected-function').contents().filter(function() {
+            return this.nodeType === 3;
+        }).text().trim();
+        var indexToRemove = queryDetails.functions.indexOf(fnToRemove);
+        if (indexToRemove !== -1) {
+            queryDetails.functions.splice(indexToRemove, 1);
+            getQueryDetails(queryName,queryDetails);
+        }
+        $(this).parent('.selected-function').remove();
+    });
+  
     // Wildcard option
     function updateAutocompleteSource() {
         var selectedTags = queryDetails.everywhere.map(function(tag) {
@@ -992,19 +1098,20 @@ function mergeGraphs(chartType) {
 async function convertDataForChart(data) {
     let seriesArray = [];
 
-    // Iterate over each metric in the data
-    for (let metric in data.aggStats) {
-        if (data.aggStats.hasOwnProperty(metric)) {
+    if (data.hasOwnProperty('series') && data.hasOwnProperty('timestamps') && data.hasOwnProperty('values')) {
+        for (let i = 0; i < data.series.length; i++) {
             let series = {
-                seriesName: metric,
+                seriesName: data.series[i],
                 values: {}
             };
 
-            // Extract timestamp-value pairs for the metric
-            for (let timestamp in data.aggStats[metric]) {
-                if (data.aggStats[metric].hasOwnProperty(timestamp)) {
-                    series.values[timestamp] = data.aggStats[metric][timestamp];
-                }
+            for (let j = 0; j < data.timestamps.length; j++) {
+                // Convert epoch seconds to milliseconds by multiplying by 1000
+                let timestampInMilliseconds = data.timestamps[j] * 1000;
+                let localDate = new Date(timestampInMilliseconds);
+                let formattedDate = localDate.toLocaleString();
+
+                series.values[formattedDate] = data.values[i][j];
             }
 
             seriesArray.push(series);
@@ -1108,7 +1215,7 @@ async function getQueryDetails(queryName, queryDetails){
 }
 
 function createQueryString(queryObject) {
-    const { metrics, everywhere, everything, aggFunction } = queryObject;
+    const { metrics, everywhere, everything, aggFunction, functions } = queryObject;
 
     const everywhereString = everywhere.map(tag => `${tag.split(':')[0]}="${tag.split(':')[1]}"`).join(',');
     const everythingString = everything.join(',');
@@ -1125,7 +1232,32 @@ function createQueryString(queryObject) {
         queryString += `{${everywhereString}}`;
     }
 
+    if (functions && functions.length > 0) {
+        functions.forEach(fn => {
+            queryString = `${fn}(${queryString})`;
+        });
+    }
+
     queryString += ')';
     
     return queryString;
 }
+
+function getFunctions() {
+    $.ajax({
+      method: "get",
+      url: "metrics-explorer/api/v1/functions",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Accept: "*/*",
+      },
+      crossDomain: true,
+      dataType: "json",
+    }).then((res)=>{
+        if (res) {
+            allFunctions = res
+        }
+    })
+}
+
+

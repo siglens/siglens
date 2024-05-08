@@ -294,9 +294,13 @@ type MathFunctions int
 const (
 	Round MathFunctions = iota + 1
 	Ceil
+	Floor
 	Abs
 	Sqrt
 	Exp
+	Ln
+	Log2
+	Log10
 )
 
 type RangeFunctions int

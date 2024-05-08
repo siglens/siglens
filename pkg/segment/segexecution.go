@@ -254,3 +254,8 @@ func LogQueryContext(qc *structs.QueryContext, qid uint64) {
 	fullQueryContextJSON, _ := json.Marshal(qc)
 	log.Infof("qid=%d,Query context: %v", qid, string(fullQueryContextJSON))
 }
+
+func LogMetricsQueryOps(prefix string, queryOps []structs.QueryArithmetic, qid uint64) {
+	queryOpsJSON, _ := json.Marshal(queryOps)
+	log.Infof("qid=%d, QueryOps for %v: %v", qid, prefix, string(queryOpsJSON))
+}

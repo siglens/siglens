@@ -125,7 +125,7 @@ func Test_ReadWriteTagsTree(t *testing.T) {
 	assert.True(t, found)
 	count := 0
 	for {
-		_, filterByteSlice, _, more := itr.Next()
+		_, filterByteSlice, _, _, more := itr.Next()
 		if !more {
 			break
 		}

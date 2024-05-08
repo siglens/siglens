@@ -1,6 +1,8 @@
 package promql
 
 import (
+	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -144,4 +146,27 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 	assert.NotNil(t, end)
 	assert.NotNil(t, queries)
 	assert.NotNil(t, formulas)
+}
+
+func Test_metricsFuncPromptJson(t *testing.T) {
+	type Function struct {
+		Fn   string `json:"fn"`
+		Name string `json:"name"`
+		Desc string `json:"desc"`
+		Eg   string `json:"eg"`
+	}
+
+	var functions []Function
+	err := json.Unmarshal([]byte(metricFunctions), &functions)
+
+	assert.Nil(t, err, "The metrics function prompt should be valid JSON: %v", err)
+
+	for _, function := range functions {
+		val := reflect.ValueOf(function)
+		for i := 0; i < val.NumField(); i++ {
+			field := val.Type().Field(i)
+			valueField := val.Field(i)
+			assert.False(t, valueField.IsZero(), "Missing Field: %s", field.Name)
+		}
+	}
 }

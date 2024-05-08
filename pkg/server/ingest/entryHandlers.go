@@ -35,11 +35,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func processKibanaIngestRequest(ctx *fasthttp.RequestCtx, request map[string]interface{},
-	indexNameConverted string, updateArg bool, idVal string, tsNow uint64, myid uint64) error {
-	return nil
-}
-
 func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
@@ -47,7 +42,7 @@ func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 		if hook := hooks.GlobalHooks.KibanaIngestHandlerHook; hook != nil {
 			hook(ctx)
 		} else {
-			eswriter.ProcessBulkRequest(ctx, 0, processKibanaIngestRequest)
+			eswriter.ProcessBulkRequest(ctx, 0, false)
 		}
 	}
 }

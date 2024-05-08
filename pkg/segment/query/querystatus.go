@@ -160,7 +160,7 @@ func DeleteQuery(qid uint64) {
 	arqMapLock.Unlock()
 }
 
-func associateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs DistributedQueryServiceInterface,
+func AssociateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs DistributedQueryServiceInterface,
 	qType structs.QueryType) error {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
