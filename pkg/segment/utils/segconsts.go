@@ -294,6 +294,7 @@ type MathFunctions int
 const (
 	Round MathFunctions = iota + 1
 	Ceil
+	Floor
 	Abs
 	Sqrt
 	Exp

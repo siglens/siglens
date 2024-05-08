@@ -43,6 +43,10 @@ const (
 	AGGREGATED
 )
 
+var steps = []uint32{1, 5, 10, 20, 60, 120, 300, 600, 1200, 3600, 7200, 14400, 28800, 57600, 115200, 230400, 460800, 921600}
+
+const TEN_YEARS_IN_SECS = 315_360_000
+
 /*
 Represents the results for a running query
 
@@ -256,21 +260,24 @@ func (r *MetricsResult) ApplyFunctionsToResults(function structs.Function) error
 	switch function.MathFunction {
 	case segutils.Abs:
 		evaluate(r.Results, math.Abs)
+	case segutils.Ceil:
+		evaluate(r.Results, math.Ceil)
+	case segutils.Floor:
+		evaluate(r.Results, math.Floor)
+	case segutils.Round:
+		if len(function.Value) > 0 {
+			err := evaluateRoundWithPrecision(r.Results, function.Value)
+			if err != nil {
+				return fmt.Errorf("ApplyFunctionsToResults: %v", err)
+			}
+		} else {
+			evaluate(r.Results, math.Round)
+		}
 	default:
 		return fmt.Errorf("ApplyFunctionsToResults: unsupported function type %v", function)
 	}
 
 	return nil
-}
-
-type float64Func func(float64) float64
-
-func evaluate(res map[string]map[uint32]float64, mathFunc float64Func) {
-	for _, timeSeries := range res {
-		for key, val := range timeSeries {
-			timeSeries[key] = mathFunc(val)
-		}
-	}
 }
 
 func (r *MetricsResult) AddError(err error) {
@@ -480,16 +487,23 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	return httpResp, nil
 }
 
-func (r *MetricsResult) FetchPromqlMetrics(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricStatsResponse, error) {
+func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricStatsResponse, error) {
 	var httpResp utils.MetricStatsResponse
 	httpResp.Series = make([]string, 0)
 	httpResp.Values = make([][]*float64, 0)
 	httpResp.StartTime = startTime
-	httpResp.IntervalSec = interval
 
 	if r.State != AGGREGATED {
 		return utils.MetricStatsResponse{}, errors.New("results is not in aggregated state")
 	}
+
+	// Calculate the interval using the start and end times
+	timerangeSeconds := endTime - startTime
+	calculatedInterval, err := calculateInterval(timerangeSeconds)
+	if err != nil {
+		return utils.MetricStatsResponse{}, err
+	}
+	httpResp.IntervalSec = calculatedInterval
 
 	// Create a map of all unique timestamps across all results.
 	allTimestamps := make(map[uint32]struct{})
@@ -525,4 +539,19 @@ func (r *MetricsResult) FetchPromqlMetrics(mQuery *structs.MetricsQuery, pqlQuer
 	}
 
 	return httpResp, nil
+}
+
+func calculateInterval(timerangeSeconds uint32) (uint32, error) {
+	// If timerangeSeconds is greater than 10 years reject the request
+	if timerangeSeconds > TEN_YEARS_IN_SECS {
+		return 0, errors.New("timerangeSeconds is greater than 10 years")
+	}
+	for _, step := range steps {
+		if timerangeSeconds/step <= 360 {
+			return step, nil
+		}
+	}
+
+	// If no suitable step is found, return an error
+	return 0, errors.New("no suitable step found")
 }

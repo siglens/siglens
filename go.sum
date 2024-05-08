@@ -130,6 +130,8 @@ github.com/modern-go/reflect2 v1.0.1/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3Rllmb
 github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9Gz0M=
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
+github.com/nethruster/go-fraction v0.0.0-20221224165113-1b5f693330ad h1:HtuO+7iVoOXFaZouOdlIgT8gjN3lhk8Gfa2Eah34qSw=
+github.com/nethruster/go-fraction v0.0.0-20221224165113-1b5f693330ad/go.mod h1:pyvrvZatpiWIxRlZpeEU0DD6SKOxgLMqZV/AU4Yz6V8=
 github.com/nqd/flat v0.1.1 h1:sKa3CZipbb7WYD9tORSJD6Ylm/00f6D9Wse7+UkSa+4=
 github.com/nqd/flat v0.1.1/go.mod h1:FOuslZmNY082wVfVUUb7qAGWKl8z8Nor9FMg+Xj2Nss=
 github.com/oklog/run v1.1.0 h1:GEenZ1cK0+q0+wsJew9qUg/DyD8k3JzYsZAi5gYi2mA=

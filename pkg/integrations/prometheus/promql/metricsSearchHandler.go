@@ -51,6 +51,7 @@ import (
 const MIN_IN_MS = 60_000
 const HOUR_IN_MS = 3600_000
 const DAY_IN_MS = 86400_000
+const TEN_YEARS_IN_SECS = 315_360_000
 
 func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32, time.Duration, usageStats.UsageStatsGranularity, error) {
 	searchText := ""
@@ -453,6 +454,11 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	start, end, interval := parseSearchTextForRangeSelection(finalSearchText, start, end)
+	// If timerangeSeconds is greater than 10 years reject the request
+	if end-start > TEN_YEARS_IN_SECS {
+		utils.SendError(ctx, "Time range is greater than 10 years", fmt.Sprintf("qid: %v, Time range: %v", qid, end-start), errors.New("Time range is greater than 10 years"))
+		return
+	}
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(finalSearchText, start, end, myid)
 	if err != nil {
 		utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, finalSearchText), err)
@@ -470,8 +476,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
-	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, start, end, interval)
-	// mQResponse, err := res.FetchPromqlMetrics(metricQueriesList[0], pqlQuerytype, start, end, interval)
+	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end, interval)
 	if err != nil {
 		utils.SendError(ctx, "Failed to get metric time series", fmt.Sprintf("qid: %v", qid), err)
 		return
@@ -498,15 +503,27 @@ func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		{
 			"fn": "abs", 
 			"name": "Absolute", 
-			"desc": "Returns the absolute value of a metric.", 
+			"desc": "Returns the input vector with all datapoint values converted to their absolute value.", 
 			"eg": "abs(avg (system.disk.used{*}))"
 		}, 
 		{
-			"fn": "rate", 
-			"name": "Rate", 
-			"desc": "Calculates the per-second average rate of increase of the time series in the range vector.", 
-			"eg": "rate(avg (system.disk.used[5m]))"
-		}
+			"fn": "ceil", 
+			"name": "Ceil", 
+			"desc": "Rounds the datapoint values of all elements in v up to the nearest integer.", 
+			"eg": "ceil(avg (system.disk.used))"
+		},
+		{
+			"fn": "floor", 
+			"name": "Floor", 
+			"desc": "Rounds the datapoint values of all elements in v down to the nearest integer.", 
+			"eg": "floor(avg (system.disk.used))"
+		},
+		{
+			"fn": "round", 
+			"name": "Round", 
+			"desc": "Rounds the datapoint values of all elements in v to the nearest integer.", 
+			"eg": "round(avg (system.disk.used)), round(avg (system.disk.used, 1/2))"
+		},
 	]`
 	ctx.SetContentType("application/json")
 	_, err := ctx.Write([]byte(metricFunctions))
@@ -737,6 +754,15 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				switch function {
 				case "abs":
 					mquery.Function = structs.Function{MathFunction: segutils.Abs}
+				case "ceil":
+					mquery.Function = structs.Function{MathFunction: segutils.Ceil}
+				case "round":
+					mquery.Function = structs.Function{MathFunction: segutils.Round}
+					if len(expr.Args) > 1 {
+						mquery.Function.Value = expr.Args[1].String()
+					}
+				case "floor":
+					mquery.Function = structs.Function{MathFunction: segutils.Floor}
 				default:
 					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
 				}
