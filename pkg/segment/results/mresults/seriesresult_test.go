@@ -242,3 +242,41 @@ func Test_applyMathFunctionsToResults(t *testing.T) {
 	}
 
 }
+
+func Test_applyMathFunctionLog(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1] = 2
+	ts[2] = 8
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	ans[1] = 1
+	ans[2] = 3
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: segutils.Log2}
+	err := metricsResults.ApplyFunctionsToResults(function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+
+	ts[3] = -1
+	result["metric"] = ts
+	metricsResults.Results = result
+	err = metricsResults.ApplyFunctionsToResults(function)
+	assert.NotNil(t, err)
+}
