@@ -220,7 +220,7 @@ func (r *MetricsResult) AggregateResults(parallelism int) []error {
 /*
 Apply function to results for series sharing a groupid.
 */
-func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function structs.Function) error {
+func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function structs.Function) []error {
 
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
@@ -249,7 +249,13 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	}
 
 	wg.Wait()
+
+	if len(errList) > 0 {
+		return errList
+	}
+
 	r.DsResults = nil
+
 	return nil
 }
 
