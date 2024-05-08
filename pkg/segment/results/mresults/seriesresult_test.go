@@ -213,7 +213,7 @@ func Test_reduceRunningEntries(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func Test_applyMathFunctionAbsToResults(t *testing.T) {
+func Test_applyMathFunctionAbs(t *testing.T) {
 	result := make(map[string]map[uint32]float64)
 	ts := make(map[uint32]float64)
 	ts[1714880880] = -3
@@ -415,4 +415,118 @@ func Test_applyMathFunctionRoundWithPrecision2(t *testing.T) {
 			}
 		}
 	}
+}
+
+func Test_applyMathFunctionLog2(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1] = 2
+	ts[2] = 8
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	ans[1] = 1
+	ans[2] = 3
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: segutils.Log2}
+	err := metricsResults.ApplyFunctionsToResults(function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+
+	ts[3] = -1
+	result["metric"] = ts
+	metricsResults.Results = result
+	err = metricsResults.ApplyFunctionsToResults(function)
+	assert.NotNil(t, err)
+}
+
+func Test_applyMathFunctionLog10(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1] = 10
+	ts[2] = 10000
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	ans[1] = 1
+	ans[2] = 4
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: segutils.Log10}
+	err := metricsResults.ApplyFunctionsToResults(function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+
+	ts[3] = -1
+	result["metric"] = ts
+	metricsResults.Results = result
+	err = metricsResults.ApplyFunctionsToResults(function)
+	assert.NotNil(t, err)
+}
+
+func Test_applyMathFunctionLn(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1] = math.E
+	ts[2] = 7.38905609893065
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	ans[1] = 1
+	ans[2] = 2
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: segutils.Ln}
+	err := metricsResults.ApplyFunctionsToResults(function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+
+	ts[3] = -1
+	result["metric"] = ts
+	metricsResults.Results = result
+	err = metricsResults.ApplyFunctionsToResults(function)
+	assert.NotNil(t, err)
 }
