@@ -177,25 +177,44 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 			for {
 				_, tagRawValue, tsids, tagRawValueType, more := itr.Next()
 				if !more {
+					if !mQuery.SelectAllSeries || mQuery.ExitAfterTagsSearch {
+						var initMetricName string
+						if mQuery.ExitAfterTagsSearch {
+							initMetricName = ""
+						} else {
+							initMetricName = fmt.Sprintf("%v{", mQuery.MetricName)
+						}
+						err = tracker.BulkAddStar(rawTagValueToTSIDs, initMetricName, tf.TagKey)
+						if err != nil {
+							log.Errorf("FindTSIDS: failed to build add tsids to tracker! Error %+v", err)
+							return nil, err
+						}
+					}
 					break
 				}
 				var grpIDStr string
-				if tagRawValueType[0] == segutils.VALTYPE_ENC_FLOAT64[0] {
-					grpIDStr = fmt.Sprintf("%f", utils.BytesToFloat64LittleEndian(tagRawValue))
-				} else if tagRawValueType[0] == segutils.VALTYPE_ENC_INT64[0] {
-					grpIDStr = fmt.Sprintf("%d", utils.BytesToInt64LittleEndian(tagRawValue))
+				if mQuery.SelectAllSeries && !mQuery.ExitAfterTagsSearch {
+					for tsid := range tsids {
+						err := tracker.AddTSID(tsid, mQuery.MetricName, tf.TagKey, false)
+						if err != nil {
+							log.Errorf("FindTSIDS: failed to add tsid %v to tracker! Error %+v", tsid, err)
+							return nil, err
+						}
+					}
 				} else {
-					grpIDStr = string(tagRawValue)
+					if tagRawValueType[0] == segutils.VALTYPE_ENC_FLOAT64[0] {
+						grpIDStr = fmt.Sprintf("%f", utils.BytesToFloat64LittleEndian(tagRawValue))
+					} else if tagRawValueType[0] == segutils.VALTYPE_ENC_INT64[0] {
+						grpIDStr = fmt.Sprintf("%d", utils.BytesToInt64LittleEndian(tagRawValue))
+					} else {
+						grpIDStr = string(tagRawValue)
+					}
+
+					rawTagValueToTSIDs[grpIDStr] = make(map[uint64]struct{})
+					for tsid := range tsids {
+						rawTagValueToTSIDs[grpIDStr][tsid] = struct{}{}
+					}
 				}
-				rawTagValueToTSIDs[grpIDStr] = make(map[uint64]struct{})
-				for tsid := range tsids {
-					rawTagValueToTSIDs[grpIDStr][tsid] = struct{}{}
-				}
-			}
-			err = tracker.BulkAddStar(rawTagValueToTSIDs, tf.TagKey)
-			if err != nil {
-				log.Errorf("FindTSIDS: failed to build add tsids to tracker! Error %+v", err)
-				return nil, err
 			}
 			err = tracker.FinishBlock()
 			if err != nil {
@@ -212,7 +231,7 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 				tagIndicesToRemove[i] = struct{}{}
 				continue
 			}
-			err = tracker.BulkAdd(rawTagValueToTSIDs, tf.TagKey)
+			err = tracker.BulkAdd(rawTagValueToTSIDs, mQuery.MetricName, tf.TagKey)
 			if err != nil {
 				log.Errorf("FindTSIDS: failed to build add tsids to tracker! Error %+v", err)
 				return nil, err
