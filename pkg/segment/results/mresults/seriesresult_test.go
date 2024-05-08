@@ -228,7 +228,7 @@ func Test_applyMathFunctionAbs(t *testing.T) {
 
 	function := structs.Function{MathFunction: segutils.Abs}
 
-	err := metricsResults.ApplyFunctionsToResults(function)
+	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -263,7 +263,7 @@ func Test_applyMathFunctionFloor(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Floor, Value: ""}
-	err := metricsResults.ApplyFunctionsToResults(function)
+	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -298,7 +298,7 @@ func Test_applyMathFunctionCeil(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Ceil, Value: ""}
-	err := metricsResults.ApplyFunctionsToResults(function)
+	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -334,7 +334,7 @@ func Test_applyMathFunctionRoundWithoutPrecision(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Round, Value: ""}
-	err := metricsResults.ApplyFunctionsToResults(function)
+	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -369,7 +369,7 @@ func Test_applyMathFunctionRoundWithPrecision1(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Round, Value: "0.3"}
-	err := metricsResults.ApplyFunctionsToResults(function)
+	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -401,7 +401,7 @@ func Test_applyMathFunctionRoundWithPrecision2(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Round, Value: "1 / 2"}
-	err := metricsResults.ApplyFunctionsToResults(function)
+	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -433,7 +433,7 @@ func Test_applyMathFunctionLog2(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Log2}
-	err := metricsResults.ApplyFunctionsToResults(function)
+	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -451,7 +451,7 @@ func Test_applyMathFunctionLog2(t *testing.T) {
 	ts[3] = -1
 	result["metric"] = ts
 	metricsResults.Results = result
-	err = metricsResults.ApplyFunctionsToResults(function)
+	err = metricsResults.ApplyFunctionsToResults(8, function)
 	assert.NotNil(t, err)
 }
 
@@ -471,7 +471,7 @@ func Test_applyMathFunctionLog10(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Log10}
-	err := metricsResults.ApplyFunctionsToResults(function)
+	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -489,7 +489,7 @@ func Test_applyMathFunctionLog10(t *testing.T) {
 	ts[3] = -1
 	result["metric"] = ts
 	metricsResults.Results = result
-	err = metricsResults.ApplyFunctionsToResults(function)
+	err = metricsResults.ApplyFunctionsToResults(8, function)
 	assert.NotNil(t, err)
 }
 
@@ -509,7 +509,7 @@ func Test_applyMathFunctionLn(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Ln}
-	err := metricsResults.ApplyFunctionsToResults(function)
+	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -527,6 +527,6 @@ func Test_applyMathFunctionLn(t *testing.T) {
 	ts[3] = -1
 	result["metric"] = ts
 	metricsResults.Results = result
-	err = metricsResults.ApplyFunctionsToResults(function)
+	err = metricsResults.ApplyFunctionsToResults(8, function)
 	assert.NotNil(t, err)
 }

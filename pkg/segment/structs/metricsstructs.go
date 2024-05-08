@@ -52,13 +52,13 @@ type MetricsQuery struct {
 
 type Aggreation struct {
 	AggregatorFunction utils.AggregateFunctions //aggregator function
-	RangeFunction      utils.RangeFunctions     //range function to apply, only one of these will be non nil
 	FuncConstant       float64
 }
 
 type Function struct {
-	MathFunction utils.MathFunctions
-	Value        string
+	MathFunction  utils.MathFunctions
+	RangeFunction utils.RangeFunctions //range function to apply, only one of these will be non nil
+	Value         string
 }
 
 type Downsampler struct {

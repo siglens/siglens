@@ -239,6 +239,53 @@ func (dss *DownsampleSeries) Aggregate() (map[uint32]float64, error) {
 	return retVal, nil
 }
 
+func ApplyFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
+	if function.RangeFunction > 0 {
+		return ApplyRangeFunction(ts, function.RangeFunction)
+	}
+
+	if function.MathFunction > 0 {
+		return ApplyMathFunction(ts, function)
+	}
+
+	return ts, nil
+}
+
+func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
+	var err error
+	switch function.MathFunction {
+	case segutils.Abs:
+		evaluate(ts, math.Abs)
+	case segutils.Ceil:
+		evaluate(ts, math.Ceil)
+	case segutils.Floor:
+		evaluate(ts, math.Floor)
+	case segutils.Round:
+		if len(function.Value) > 0 {
+			err := evaluateRoundWithPrecision(ts, function.Value)
+			if err != nil {
+				return ts, fmt.Errorf("ApplyMathFunction: %v", err)
+			}
+		} else {
+			evaluate(ts, math.Round)
+		}
+	case segutils.Ln:
+		err = evaluateLogFunc(ts, math.Log)
+	case segutils.Log2:
+		err = evaluateLogFunc(ts, math.Log2)
+	case segutils.Log10:
+		err = evaluateLogFunc(ts, math.Log10)
+	default:
+		return ts, fmt.Errorf("ApplyMathFunction: unsupported function type %v", function)
+	}
+
+	if err != nil {
+		return ts, fmt.Errorf("ApplyMathFunction: %v", err)
+	}
+
+	return ts, nil
+}
+
 func ApplyRangeFunction(ts map[uint32]float64, function segutils.RangeFunctions) (map[uint32]float64, error) {
 	// Convert ts to a sorted list of Entry's
 	sortedTimeSeries := make([]Entry, 0, len(ts))
@@ -282,7 +329,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function segutils.RangeFunctions)
 			}
 
 			if len(x) < 2 {
-				log.Errorf("ApplyFunctions: %v does not have enough sample points", function)
+				log.Errorf("ApplyRangeFunction: %v does not have enough sample points", function)
 				continue
 			}
 
@@ -329,7 +376,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function segutils.RangeFunctions)
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
 	default:
-		return ts, fmt.Errorf("ApplyFunctions: Unknown function type")
+		return ts, fmt.Errorf("ApplyRangeFunction: Unknown function type")
 	}
 }
 
@@ -460,37 +507,31 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 
 type float64Func func(float64) float64
 
-func evaluate(res map[string]map[uint32]float64, mathFunc float64Func) {
-	for _, timeSeries := range res {
-		for key, val := range timeSeries {
-			timeSeries[key] = mathFunc(val)
-		}
+func evaluate(ts map[uint32]float64, mathFunc float64Func) {
+	for key, val := range ts {
+		ts[key] = mathFunc(val)
 	}
 }
 
-func evaluateLogFunc(res map[string]map[uint32]float64, mathFunc float64Func) error {
-	for _, timeSeries := range res {
-		for key, val := range timeSeries {
-			if val <= 0 {
-				return fmt.Errorf("evaluateLogFunc: log function cannot evaluate non-positive numbers: %v", val)
-			}
-			timeSeries[key] = mathFunc(val)
+func evaluateLogFunc(ts map[uint32]float64, mathFunc float64Func) error {
+	for key, val := range ts {
+		if val <= 0 {
+			return fmt.Errorf("evaluateLogFunc: log function cannot evaluate non-positive numbers: %v", val)
 		}
+		ts[key] = mathFunc(val)
 	}
 	return nil
 }
 
-func evaluateRoundWithPrecision(res map[string]map[uint32]float64, toNearestStr string) error {
+func evaluateRoundWithPrecision(ts map[uint32]float64, toNearestStr string) error {
 	toNearestStr = strings.ReplaceAll(toNearestStr, " ", "")
 	toNearest, err := convertStrToFloat64(toNearestStr)
 	if err != nil {
 		return fmt.Errorf("evaluateRoundWithPrecision: %v", err)
 	}
 
-	for _, timeSeries := range res {
-		for key, val := range timeSeries {
-			timeSeries[key] = roundToNearest(val, toNearest)
-		}
+	for key, val := range ts {
+		ts[key] = roundToNearest(val, toNearest)
 	}
 
 	return nil
