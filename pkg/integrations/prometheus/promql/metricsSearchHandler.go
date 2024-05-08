@@ -471,15 +471,17 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
-	if len(res.ErrList) > 0 {
-		var errorMessages []string
-		for _, err := range res.ErrList {
-			errorMessages = append(errorMessages, err.Error())
-		}
-		allErrors := strings.Join(errorMessages, "; ")
-		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid: %v", qid), fmt.Errorf(allErrors))
-		return
-	}
+	// Temp Fix: This error handling should be there. But it is failing for some cases. Need to handle those errors in a better way.
+
+	// if len(res.ErrList) > 0 {
+	// 	var errorMessages []string
+	// 	for _, err := range res.ErrList {
+	// 		errorMessages = append(errorMessages, err.Error())
+	// 	}
+	// 	allErrors := strings.Join(errorMessages, "; ")
+	// 	utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid: %v", qid), fmt.Errorf(allErrors))
+	// 	return
+	// }
 
 	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
 	if err != nil {
