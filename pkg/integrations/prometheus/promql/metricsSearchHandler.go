@@ -552,6 +552,18 @@ func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			"desc": "Calculates the decimal logarithm for all elements in v.", 
 			"eg": "log10(avg (system.disk.used))"
 		},
+		{
+			"fn": "rate", 
+			"name": "Rate", 
+			"desc": "Calculates the per-second average rate of increase of the time series in the range vector.", 
+			"eg": "rate(avg (system.disk.used[5m]))"
+		},
+		{
+			"fn": "deriv", 
+			"name": "Derivative", 
+			"desc": "Calculates the per-second derivative of the time series in a range vector v, using simple linear regression", 
+			"eg": "deriv(avg (system.disk.used[5m]))"
+		}
 	]`
 	ctx.SetContentType("application/json")
 	_, err := ctx.Write([]byte(metricFunctions))
