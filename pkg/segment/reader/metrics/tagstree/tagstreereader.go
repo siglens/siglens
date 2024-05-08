@@ -186,7 +186,7 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 						}
 						err = tracker.BulkAddStar(rawTagValueToTSIDs, initMetricName, tf.TagKey)
 						if err != nil {
-							log.Errorf("FindTSIDS: failed to build add tsids to tracker! Error %+v", err)
+							log.Errorf("FindTSIDS: failed to bulk add tsids to tracker for the tag Key: %v! Error %+v", tf.TagKey, err)
 							return nil, err
 						}
 					}
@@ -197,7 +197,7 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 					for tsid := range tsids {
 						err := tracker.AddTSID(tsid, mQuery.MetricName, tf.TagKey, false)
 						if err != nil {
-							log.Errorf("FindTSIDS: failed to add tsid %v to tracker! Error %+v", tsid, err)
+							log.Errorf("FindTSIDS: failed to add tsid %v to tracker for the tag key: %v! Error %+v", tsid, tf.TagKey, err)
 							return nil, err
 						}
 					}

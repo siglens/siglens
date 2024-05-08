@@ -310,6 +310,8 @@ func (r *MetricsResult) Merge(localRes *MetricsResult) error {
 	return nil
 }
 
+// The groupID string should be in the format of "metricName{tk1:tv1,tk2:tv2,..."
+// As per the flow, there would be no trailing "}" in the groupID string
 func removeMetricNameFromGroupID(groupID string) string {
 	stringVals := strings.Split(groupID, "{")
 	if len(stringVals) != 2 {
