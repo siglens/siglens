@@ -497,15 +497,39 @@ func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		{
 			"fn": "abs", 
 			"name": "Absolute", 
-			"desc": "Returns the absolute value of a metric.", 
+			"desc": "Returns the input vector with all sample values converted to their absolute value.", 
 			"eg": "abs(avg (system.disk.used{*}))"
 		}, 
+		{
+			"fn": "ceil", 
+			"name": "Ceil", 
+			"desc": "Rounds the sample values of all elements in v up to the nearest integer.", 
+			"eg": "ceil(avg (system.disk.used))"
+		},
+		{
+			"fn": "floor", 
+			"name": "Floor", 
+			"desc": "Rounds the sample values of all elements in v down to the nearest integer.", 
+			"eg": "floor(avg (system.disk.used))"
+		},
+		{
+			"fn": "round", 
+			"name": "Round", 
+			"desc": "Rounds the sample values of all elements in v to the nearest integer.", 
+			"eg": "round(avg (system.disk.used)), round(avg (system.disk.used, 1/2))"
+		},
 		{
 			"fn": "rate", 
 			"name": "Rate", 
 			"desc": "Calculates the per-second average rate of increase of the time series in the range vector.", 
 			"eg": "rate(avg (system.disk.used[5m]))"
-		}
+		},
+		{
+			"fn": "deriv", 
+			"name": "Derivative", 
+			"desc": "Calculates the per-second derivative of the time series in a range vector v, using simple linear regression", 
+			"eg": "deriv(avg (system.disk.used[5m]))"
+		},
 	]`
 	ctx.SetContentType("application/json")
 	_, err := ctx.Write([]byte(metricFunctions))
