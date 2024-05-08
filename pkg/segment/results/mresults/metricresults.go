@@ -226,6 +226,9 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	wg := &sync.WaitGroup{}
 	errList := []error{} // Thread-safe list of errors
 
+	// Use a temporary map to record the results modified by goroutines, thus resolving concurrency issues caused by modifying a map during iteration.
+	results := make(map[string]map[uint32]float64, len(r.Results))
+
 	var idx int
 	for grpID, timeSeries := range r.Results {
 		wg.Add(1)
@@ -239,7 +242,7 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 				return
 			}
 			lock.Lock()
-			r.Results[grp] = grpVal
+			results[grp] = grpVal
 			lock.Unlock()
 		}(grpID, timeSeries, function)
 		idx++
@@ -249,6 +252,7 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	}
 
 	wg.Wait()
+	r.Results = results
 
 	if len(errList) > 0 {
 		return errList
