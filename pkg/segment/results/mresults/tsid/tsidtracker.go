@@ -130,14 +130,14 @@ func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]stru
 }
 
 // For all incoming tsids, always add tsid and groupid to stored tsids
-func (tr *AllMatchedTSIDs) BulkAddStar(rawTagValueToTSIDs map[string]map[uint64]struct{}, initMetricName string, tagKey string, shouldBeInExistingTsids bool) error {
+func (tr *AllMatchedTSIDs) BulkAddStar(rawTagValueToTSIDs map[string]map[uint64]struct{}, initMetricName string, tagKey string, numValueFiltersNonZero bool) error {
 	var err error
 	for tagValue, tsids := range rawTagValueToTSIDs {
 		for id := range tsids {
 			buf, ok := tr.allTSIDs[id]
 			if !ok {
 
-				if shouldBeInExistingTsids {
+				if numValueFiltersNonZero {
 					continue
 				}
 

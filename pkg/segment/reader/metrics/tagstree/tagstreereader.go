@@ -68,7 +68,6 @@ func (attr *AllTagTreeReaders) getTagTreeFileInfoForTagKey(tagKey string) (bool,
 	fName := attr.baseDir + tagKey
 	finfo, err := os.Stat(fName)
 	if err != nil {
-		log.Warnf("getTagTreeFileInfoForTagKey: error when trying to stat file=%+v. Error=%+v", fName, err)
 		return false, nil
 	}
 	return true, finfo
@@ -193,8 +192,8 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 						} else {
 							initMetricName = fmt.Sprintf("%v{", mQuery.MetricName)
 						}
-						shouldBeInExistingTsids := mQuery.GetNumValueFilters() > 0
-						err = tracker.BulkAddStar(rawTagValueToTSIDs, initMetricName, tf.TagKey, shouldBeInExistingTsids)
+						numValueFiltersNonZero := mQuery.GetNumValueFilters() > 0
+						err = tracker.BulkAddStar(rawTagValueToTSIDs, initMetricName, tf.TagKey, numValueFiltersNonZero)
 						if err != nil {
 							log.Errorf("FindTSIDS: failed to bulk add tsids to tracker for the tag Key: %v! Error %+v", tf.TagKey, err)
 							return nil, err
@@ -242,7 +241,6 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 				continue
 			}
 			if !tagValueExists {
-				log.Infof("FindTSIDS: tag value %v does not exist for metric %v and tag key: %v", tf.RawTagValue, tf.TagKey, mQuery.MetricName)
 				continue
 			}
 			err = tracker.BulkAdd(rawTagValueToTSIDs, mQuery.MetricName, tf.TagKey)

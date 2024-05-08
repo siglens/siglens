@@ -199,6 +199,19 @@ func (mbs *MBlockSummary) Reset() {
 	mbs.LowTs = math.MaxUint32
 }
 
+type TagValueType string
+
+// Values for TagValueType
+const (
+	StarValue   TagValueType = "*"
+	ValueString TagValueType = "string"
+)
+
+type TagValueIndex struct {
+	tagValueType TagValueType
+	index        int
+}
+
 /*
 Fixes the order of tags filters to be in the following order:
 1. other tag filters
@@ -209,49 +222,54 @@ func (mq *MetricsQuery) ReorderTagFilters() {
 		return
 	}
 
-	type TagValueType string
-
-	// Values for TagValueType
-	const (
-		StarValue   TagValueType = "*"
-		ValueString TagValueType = "string"
-	)
-
-	type TagValueIndex struct {
-		tagValueType TagValueType
-		index        int
-	}
-
-	uniqueTagKeys := make(map[string]TagValueIndex, len(mq.TagsFilters))
+	queriedTagKeys := make(map[string]TagValueIndex, len(mq.TagsFilters))
 
 	starTags := make([]*TagsFilter, 0, len(mq.TagsFilters))
 	otherTags := make([]*TagsFilter, 0, len(mq.TagsFilters))
+
 	for _, tf := range mq.TagsFilters {
-		if tagVal, ok := tf.RawTagValue.(string); ok && tagVal == "*" {
-			if _, ok := uniqueTagKeys[tf.TagKey]; ok {
-				continue
-			}
-			starTags = append(starTags, tf)
-			uniqueTagKeys[tf.TagKey] = TagValueIndex{tagValueType: StarValue, index: len(starTags) - 1}
+		if isStarValue(tf) {
+			handleStarTag(tf, queriedTagKeys, &starTags)
 		} else {
-			tagValInd, ok := uniqueTagKeys[tf.TagKey]
-			if ok {
-				if tagValInd.tagValueType == StarValue {
-					// Remove the star tag filter
-					starTags = append(starTags[:tagValInd.index], starTags[tagValInd.index+1:]...)
-				} else {
-					// Only one value filter per tag key is allowed
-					continue
-				}
-			}
-			otherTags = append(otherTags, tf)
-			uniqueTagKeys[tf.TagKey] = TagValueIndex{tagValueType: ValueString, index: len(otherTags) - 1}
+			handleValueTag(tf, queriedTagKeys, &otherTags, &starTags)
 		}
 	}
+
 	mq.TagsFilters = append(otherTags, starTags...)
 	mq.reordered = true
 	mq.numStarFilters = len(starTags)
 	mq.numValueFilters = uint32(len(otherTags))
+}
+
+// Checks if the tag filter value is a star
+func isStarValue(tf *TagsFilter) bool {
+	tagVal, ok := tf.RawTagValue.(string)
+	return ok && tagVal == "*"
+}
+
+// Handles star tags logic
+func handleStarTag(tf *TagsFilter, queriedTagKeys map[string]TagValueIndex, starTags *[]*TagsFilter) {
+	if _, exists := queriedTagKeys[tf.TagKey]; !exists {
+		*starTags = append(*starTags, tf)
+		queriedTagKeys[tf.TagKey] = TagValueIndex{tagValueType: StarValue, index: len(*starTags) - 1}
+	}
+}
+
+// Handles other tag values logic
+func handleValueTag(tf *TagsFilter, queriedTagKeys map[string]TagValueIndex, otherTags, starTags *[]*TagsFilter) {
+	tagValInd, exists := queriedTagKeys[tf.TagKey]
+	if exists {
+		if tagValInd.tagValueType == StarValue {
+			// Remove the star tag filter
+			*starTags = append((*starTags)[:tagValInd.index], (*starTags)[tagValInd.index+1:]...)
+			// Once removed, continue to add this tf below to otherTags
+		} else {
+			// Skip adding if already exists and is not a star
+			return
+		}
+	}
+	*otherTags = append(*otherTags, tf)
+	queriedTagKeys[tf.TagKey] = TagValueIndex{tagValueType: ValueString, index: len(*otherTags) - 1}
 }
 
 func (mq *MetricsQuery) GetNumStarFilters() int {
