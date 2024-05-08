@@ -252,25 +252,30 @@ func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function s
 }
 
 func (r *MetricsResult) ApplyFunctionsToResults(function structs.Function) error {
+	// Not using any math functions
+	if function.MathFunction == 0 {
+		return nil
+	}
 
+	var err error
 	switch function.MathFunction {
 	case segutils.Abs:
 		evaluate(r.Results, math.Abs)
+	case segutils.Ln:
+		err = evaluateLogFunc(r.Results, math.Log)
+	case segutils.Log2:
+		err = evaluateLogFunc(r.Results, math.Log2)
+	case segutils.Log10:
+		err = evaluateLogFunc(r.Results, math.Log10)
 	default:
 		return fmt.Errorf("ApplyFunctionsToResults: unsupported function type %v", function)
 	}
 
-	return nil
-}
-
-type float64Func func(float64) float64
-
-func evaluate(res map[string]map[uint32]float64, mathFunc float64Func) {
-	for _, timeSeries := range res {
-		for key, val := range timeSeries {
-			timeSeries[key] = mathFunc(val)
-		}
+	if err != nil {
+		return fmt.Errorf("ApplyFunctionsToResults: %v", err)
 	}
+
+	return nil
 }
 
 func (r *MetricsResult) AddError(err error) {

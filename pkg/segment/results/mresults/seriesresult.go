@@ -452,3 +452,25 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 
 	return ret, nil
 }
+
+type float64Func func(float64) float64
+
+func evaluate(res map[string]map[uint32]float64, mathFunc float64Func) {
+	for _, timeSeries := range res {
+		for key, val := range timeSeries {
+			timeSeries[key] = mathFunc(val)
+		}
+	}
+}
+
+func evaluateLogFunc(res map[string]map[uint32]float64, mathFunc float64Func) error {
+	for _, timeSeries := range res {
+		for key, val := range timeSeries {
+			if val <= 0 {
+				return fmt.Errorf("evaluateLogFunc: log function cannot evaluate non-positive numbers: %v", val)
+			}
+			timeSeries[key] = mathFunc(val)
+		}
+	}
+	return nil
+}
