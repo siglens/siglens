@@ -476,9 +476,19 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
+	if len(res.ErrList) > 0 {
+		var errorMessages []string
+		for _, err := range res.ErrList {
+			errorMessages = append(errorMessages, err.Error())
+		}
+		allErrors := strings.Join(errorMessages, "; ")
+		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid: %v", qid), fmt.Errorf(allErrors))
+		return
+	}
+
 	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end, interval)
 	if err != nil {
-		utils.SendError(ctx, "Failed to get metric time series", fmt.Sprintf("qid: %v", qid), err)
+		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid: %v", qid), err)
 		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
@@ -523,6 +533,24 @@ func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			"name": "Round", 
 			"desc": "Rounds the datapoint values of all elements in v to the nearest integer.", 
 			"eg": "round(avg (system.disk.used)), round(avg (system.disk.used, 1/2))"
+		},
+		{
+			"fn": "ln", 
+			"name": "Natural logarithm", 
+			"desc": "Calculates the natural logarithm for all elements in v.", 
+			"eg": "ln(avg (system.disk.used))"
+		},
+		{
+			"fn": "log2", 
+			"name": "Binary logarithm", 
+			"desc": "Calculates the binary logarithm for all elements in v.", 
+			"eg": "log2(avg (system.disk.used))"
+		},
+		{
+			"fn": "log10", 
+			"name": "Decimal logarithm", 
+			"desc": "Calculates the decimal logarithm for all elements in v.", 
+			"eg": "log10(avg (system.disk.used))"
 		},
 	]`
 	ctx.SetContentType("application/json")
@@ -763,6 +791,12 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					}
 				case "floor":
 					mquery.Function = structs.Function{MathFunction: segutils.Floor}
+				case "ln":
+					mquery.Function = structs.Function{MathFunction: segutils.Ln}
+				case "log2":
+					mquery.Function = structs.Function{MathFunction: segutils.Log2}
+				case "log10":
+					mquery.Function = structs.Function{MathFunction: segutils.Log10}
 				default:
 					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
 				}
