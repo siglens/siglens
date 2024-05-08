@@ -83,6 +83,14 @@ func (qi *QueryInformation) GetSizeLimit() uint64 {
 	return qi.sizeLimit
 }
 
+func (qi *QueryInformation) GetPqid() string {
+	return qi.pqid
+}
+
+func (qi *QueryInformation) GetQueryType() structs.QueryType {
+	return qi.qType
+}
+
 func (qi *QueryInformation) GetQid() uint64 {
 	return qi.qid
 }
@@ -124,7 +132,7 @@ func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators,
 		return &QueryInformation{}, err
 	}
 	pqid := querytracker.GetHashForQuery(s)
-	sNodeType, qType := getQueryType(s, aggs)
+	sNodeType, qType := GetNodeAndQueryTypes(s, aggs)
 	return &QueryInformation{
 		sNode:              s,
 		aggs:               aggs,
