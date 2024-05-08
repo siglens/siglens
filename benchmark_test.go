@@ -43,7 +43,6 @@ import (
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
 )
 
 var json = jsoniter.ConfigFastest
@@ -228,11 +227,6 @@ func Benchmark_RRCToJson(b *testing.B) {
 
 }
 
-func processKibanaIngestRequest(ctx *fasthttp.RequestCtx, request map[string]interface{},
-	indexNameConverted string, updateArg bool, idVal string, tsNow uint64, myid uint64) error {
-	return nil
-}
-
 func Benchmark_esBulkIngest(b *testing.B) {
 	config.InitializeDefaultConfig()
 	_ = vtable.InitVTable()
@@ -250,7 +244,7 @@ func Benchmark_esBulkIngest(b *testing.B) {
 	b.ResetTimer()
 	b.SetParallelism(2)
 	for i := 0; i < b.N; i++ {
-		processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, processKibanaIngestRequest)
+		processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, false)
 		if err != nil {
 			log.Errorf("ERROR: err=%v", err)
 			break
@@ -343,7 +337,7 @@ func Benchmark_agileTreeIngest(b *testing.B) {
 	b.ResetTimer()
 	b.SetParallelism(2)
 	for i := 0; i < b.N; i++ {
-		processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, processKibanaIngestRequest)
+		processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, false)
 		if err != nil {
 			log.Errorf("ERROR: err=%v", err)
 			break

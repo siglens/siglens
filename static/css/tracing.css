@@ -510,6 +510,10 @@ a.warn-box-anchor {
     fill: var(--text-color);
 }
 
+.error-node {
+    fill: red;
+}
+
 .gantt-chart-heading{
     font-size: 16px;
     font-weight: bold;

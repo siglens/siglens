@@ -118,6 +118,12 @@ func getMetricTimeSeriesHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func getMetricFunctionsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetMetricFunctionsRequest, ctx)
+	}
+}
+
 func getAllMetricTagsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(prom.ProcessGetAllMetricTagsRequest, ctx)
@@ -130,17 +136,12 @@ func esGreetHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func processKibanaIngestRequest(ctx *fasthttp.RequestCtx, request map[string]interface{},
-	indexNameConverted string, updateArg bool, idVal string, tsNow uint64, myid uint64) error {
-	return nil
-}
-
 func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
 
 		handler := func(ctx *fasthttp.RequestCtx, orgId uint64) {
-			eswriter.ProcessBulkRequest(ctx, orgId, processKibanaIngestRequest)
+			eswriter.ProcessBulkRequest(ctx, orgId, false)
 		}
 
 		serverutils.CallWithOrgId(handler, ctx)

@@ -21,6 +21,8 @@ import (
 	"encoding/json"
 
 	jp "github.com/buger/jsonparser"
+	"github.com/siglens/siglens/pkg/grpc"
+	"github.com/siglens/siglens/pkg/hooks"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
@@ -38,6 +40,13 @@ type OtsdbPutResp struct {
 }
 
 func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_OTSDB_METRICS, false)
+		if alreadyHandled {
+			return
+		}
+	}
+
 	var processedCount uint64
 	var failedCount uint64
 	var err error
