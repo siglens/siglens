@@ -163,8 +163,6 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 	tagIndicesToRemove := make(map[int]struct{})
 	for i := 0; i < len(mQuery.TagsFilters); i++ {
 		tf := mQuery.TagsFilters[i]
-		log.Infof("Mani: tag key %v, tag value %v", tf.TagKey, tf.RawTagValue)
-
 		//  Check if the tag key exists in the tag tree
 		fileExists, fInfo := attr.getTagTreeFileInfoForTagKey(tf.TagKey)
 		if !fileExists {

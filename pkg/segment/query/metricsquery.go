@@ -70,13 +70,9 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 
 	if mQuery.SelectAllSeries {
-		log.Infof("Mani: Applying SelectAllSeries Before Delete: TagKeys: %+v", allTagKeys)
 		for _, v := range mQuery.TagsFilters {
 			delete(allTagKeys, v.TagKey)
 		}
-		log.Infof("Mani: Applying SelectAllSeries After Delete: TagKeys: %+v", allTagKeys)
-
-		log.Infof("Mani: Applying SelectAllSeries Before Adding: TagFilters: %+v", mQuery.TagsFilters)
 		for tkey, present := range allTagKeys {
 			if present {
 				mQuery.TagsFilters = append(mQuery.TagsFilters, &structs.TagsFilter{
@@ -88,7 +84,6 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 				})
 			}
 		}
-		log.Infof("Mani: Applying SelectAllSeries After Adding: TagFilters: %+v", mQuery.TagsFilters)
 	}
 	mQuery.ReorderTagFilters()
 

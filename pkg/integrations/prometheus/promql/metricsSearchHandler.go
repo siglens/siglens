@@ -762,7 +762,6 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		agg := structs.Aggreation{AggregatorFunction: segutils.Avg}
 		mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: agg}
 
-		log.Infof("Mani: convertPqlToMetricsQuery: mquery.TagsFilters=%+v", mquery.TagsFilters)
 		if len(mquery.TagsFilters) > 0 {
 			mquery.SelectAllSeries = false
 		}
@@ -838,11 +837,9 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
 	}
 	mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: mquery.Aggregator}
-	log.Infof("Mani: convertPqlToMetricsQuery: At before groupby mquery.TagsFilters=%+v", mquery.TagsFilters)
 	if len(mquery.TagsFilters) > 0 {
 		mquery.SelectAllSeries = false
 	}
-	// mquery.SelectAllSeries = !groupby // if group by is not present, then we need to select all series
 	mquery.OrgId = myid
 	metricQueryRequest := &structs.MetricsQueryRequest{
 		MetricsQuery: mquery,
