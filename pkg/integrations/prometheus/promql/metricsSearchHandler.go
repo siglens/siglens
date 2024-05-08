@@ -48,11 +48,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const MIN_IN_MS = 60_000
-const HOUR_IN_MS = 3600_000
-const DAY_IN_MS = 86400_000
-const TEN_YEARS_IN_SECS = 315_360_000
-
 func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32, time.Duration, usageStats.UsageStatsGranularity, error) {
 	searchText := ""
 	var err error
@@ -476,9 +471,19 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
+	if len(res.ErrList) > 0 {
+		var errorMessages []string
+		for _, err := range res.ErrList {
+			errorMessages = append(errorMessages, err.Error())
+		}
+		allErrors := strings.Join(errorMessages, "; ")
+		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid: %v", qid), fmt.Errorf(allErrors))
+		return
+	}
+
 	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
 	if err != nil {
-		utils.SendError(ctx, "Failed to get metric time series", fmt.Sprintf("qid: %v", qid), err)
+		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid: %v", qid), err)
 		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
@@ -499,32 +504,6 @@ func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]st
 }
 
 func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	metricFunctions := `[
-		{
-			"fn": "abs", 
-			"name": "Absolute", 
-			"desc": "Returns the input vector with all datapoint values converted to their absolute value.", 
-			"eg": "abs(avg (system.disk.used{*}))"
-		}, 
-		{
-			"fn": "ceil", 
-			"name": "Ceil", 
-			"desc": "Rounds the datapoint values of all elements in v up to the nearest integer.", 
-			"eg": "ceil(avg (system.disk.used))"
-		},
-		{
-			"fn": "floor", 
-			"name": "Floor", 
-			"desc": "Rounds the datapoint values of all elements in v down to the nearest integer.", 
-			"eg": "floor(avg (system.disk.used))"
-		},
-		{
-			"fn": "round", 
-			"name": "Round", 
-			"desc": "Rounds the datapoint values of all elements in v to the nearest integer.", 
-			"eg": "round(avg (system.disk.used)), round(avg (system.disk.used, 1/2))"
-		},
-	]`
 	ctx.SetContentType("application/json")
 	_, err := ctx.Write([]byte(metricFunctions))
 	if err != nil {
@@ -763,6 +742,12 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					}
 				case "floor":
 					mquery.Function = structs.Function{MathFunction: segutils.Floor}
+				case "ln":
+					mquery.Function = structs.Function{MathFunction: segutils.Ln}
+				case "log2":
+					mquery.Function = structs.Function{MathFunction: segutils.Log2}
+				case "log10":
+					mquery.Function = structs.Function{MathFunction: segutils.Log10}
 				default:
 					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
 				}
