@@ -71,18 +71,17 @@
 /* PANEL EDITOR PAGE */
 
 .panelEditorLeft {
-  width: 70%;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  /* align-items: center; */
   justify-content: flex-start;
-  padding-right: 2%;
 }
 
 /* PANEL-OPTIONS */
 
 .panelEditorRight {
-  width: 30%;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -90,7 +89,7 @@
 }
 
 
-.panelEditorRightTop {
+/* .panelEditorRightTop {
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -99,7 +98,7 @@
   border-radius: 5px;
   border: 1px solid var(--border-color-regular);
   box-shadow: 0px 2px 8px 0px #00000029;
-}
+} */
 
 .submitBtn-container {
   justify-self: center;
@@ -122,11 +121,6 @@
   align-items: center;
   font-size: 22px;
   margin-bottom: 15px;
-}
-
-.panEdit-nameChange,
-.panEdit-descrChange {
-  width: 85%;
 }
 
 .panEdit-nameChange {
@@ -439,12 +433,7 @@
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  margin-top: 26px;
   align-items: flex-start;
-}
-
-.dropDown-container {
-  width: 18%;
 }
 
 .dropDown {
@@ -458,12 +447,8 @@
 }
 
 .queryInput-container {
-  width: 82%;
-  display: flex;
-  flex-direction: column;
   margin-left: 10px;
-  justify-content: space-between;
-  max-height: 100px;
+  width: 100%;
 }
 
 .queryInput-InnerContainer{
@@ -472,7 +457,7 @@
 }
 
 .dropDown-dataSource {
-  width: 100%;
+  width: 120px;
   height: 32px;
 }
 
@@ -480,7 +465,7 @@
   height: 32px;
   font-size: 14px;
   width: 100%;
-  color: var(--search-bar-text-color-regular-or-hover);
+  color: var(--text-color);
   background: var(--search-bar-bg);
   outline: none;
   border-radius: 5px;
@@ -501,8 +486,8 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  min-height: 55vh;
-  height: max-content;
+  height: 30vh;
+  min-height: 170px;
   justify-content: center;
   border-radius: 5px;
   position: relative;
@@ -548,18 +533,18 @@
 
 .btn-runQuery {
   background: var(--btn-regular-bg-color) !important;
-  margin: 0;
   padding: 0px 12px;
   text-decoration: none;
   border: none;
   height: 32px;
   line-height: 7px;
-  margin-top: 10px;
   align-self: flex-end;
   border-radius: 5px;
   box-shadow: none !important;
   font-size: 14px;
   color: white !important;
+  width: 120px;
+  margin-left: 10px;
 }
 
 .btn-runQuery:hover {
@@ -572,11 +557,18 @@
 
 .panelEditor-container {
   display: flex;
-  flex-direction: row;
-  width: 100%;
-  min-height: 100vh;
+  flex-direction: column;
+  width: 96vw;
+  height: 96vh;
   background-color: var(--db-bg-color);
   padding: 1.5%;
+  position: absolute;
+  top: 50%;
+  z-index: 999;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 8px;
+  overflow-y: scroll;
 }
 
 /* PANEL EDIT NAV BAR */
@@ -636,11 +628,6 @@
   box-shadow: none !important;
   font-size: 14px;
   border: 1px solid var(--border-color-regular) !important;
-}
-
-
-.panEdit-btn:last-child {
-  margin-right: 0;
 }
 
 .panelEditorRight .dropdown{
@@ -742,7 +729,7 @@
   align-items: center;
   color: var(--orange-1);
   font-size: 8vmax;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--number-and-unit-color);
 }
 
@@ -751,10 +738,9 @@
   justify-content: center;
   align-items: flex-end;
   position: relative;
-  bottom: 28px;
   margin-left: 16px;
-  font-size: 85px;
-  font-weight: 500;
+  font-size: 8vmax;
+  font-weight: 600;
   color: var(--number-and-unit-color);
 }
 
@@ -1024,10 +1010,6 @@
 }
 
 /* Line chart */
-.panEdit-panel .line-chart-canvas{
-  height: 50vh !important;
-  margin: 8px;
-}
 #app-container .line-chart-canvas{
   height: 100% !important;
   margin: 6px
@@ -1159,6 +1141,7 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   border: 1px solid var(--border-color-regular);
+  margin-right: 15px;
 }
 
 .label-table-view{
@@ -1278,8 +1261,8 @@ input:checked + .slider:before {
   background-size: 46% !important;
 }
 .chart-display{
-  width: 30px;
-  height: 30px;
+  width: 16px;
+  /* height: 30px; */
 }
 .panEdit-discard{
   width: 80px;
@@ -1392,9 +1375,11 @@ input:checked + .slider:before {
 .chart-options{
   color: var(--text-color-regular);
 }
-.chart-options.selected,
+.chart-options.selected{
+  background-color: var(--edit-panel-option-bg-color) !important;
+  color: var(--text-color-regular);
+}
 .chart-options:hover {
-  border: 1px solid var(--purple-1) !important;
   background-color: var(--edit-panel-option-bg-color) !important;
   color: var(--text-color-regular);
 }
@@ -1416,4 +1401,49 @@ input:checked + .slider:before {
   background: var(--myOrg-input);
   color: var(--text-color);
   width: 100px;
+}
+.circle {
+  height: 26px;
+  width: 26px;
+  border-radius: 50%;
+  background-color: var(--purple-1);
+  color: var(--white-0);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 700;
+}
+.subsection-heading div:nth-child(2) {
+  margin-left: 16px !important;
+}
+.section-content{
+  padding-left: 42px;
+  padding-top: 8px;
+}
+.section{
+  margin-top: 24px;
+}
+.editPanelMenu-chart{
+  display: flex;
+  flex-wrap: wrap;
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+.chart-options{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  border-radius: 8px;
+  padding: 4.5px 8px;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 20px;
+  cursor: pointer;
+}
+.chart-options li{
+  margin-left:  6px;
+}
+.graph-customization{
+  width: ;
 }

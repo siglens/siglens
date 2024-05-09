@@ -273,6 +273,7 @@ $(document).ready(function () {
 })
 
 function editPanelInit(redirectedFromViewScreen) {
+	resetOptions();
 	$('.panelDisplay #empty-response').empty();
 	$('.panelDisplay #corner-popup').empty();
 	$('.panelDisplay #corner-popup').hide();
@@ -455,7 +456,7 @@ function editPanelInit(redirectedFromViewScreen) {
 	getDisplayTextForIndex();
 
 	if ($('.dropDown-dataSource.active').length) handleSourceDropDownClick();
-	if ($('.dropDown-chart.active').length) handleChartDropDownClick();
+	// if ($('.dropDown-chart.active').length) handleChartDropDownClick();
 	if ($('.dropDown-color.active').length) handleColorDropDownClick();
 	if ($('.dropDown-unit.active').length) handleUnitDropDownClick();
 	if ($('.dropDown-logLinesView.active').length) handleLogLinesViewDropDownClick();
@@ -466,8 +467,8 @@ function editPanelInit(redirectedFromViewScreen) {
 	$('.panelDisplay .panEdit-panel').show();
 	$(".panEdit-apply").unbind("click");
 	$('.panEdit-apply').on('click', () => applyChangesToPanel(redirectedFromViewScreen))
-	$(".panEdit-goToDB").unbind("click");
-	$('.panEdit-goToDB').on("click", () => handleGoToDBArrowClick(redirectedFromViewScreen))
+	// $(".panEdit-goToDB").unbind("click");
+	// $('.panEdit-goToDB').on("click", () => handleGoToDBArrowClick(redirectedFromViewScreen))
 	setTimePicker();
 	pauseRefreshInterval();
 	if(currentPanel.queryRes){
@@ -499,7 +500,7 @@ $('#panEdit-descrChangeInput').on("focus", function () {
 })
 
 $('.dropDown-dataSource').on('click', handleSourceDropDownClick)
-$('.dropDown-chart').on('click', handleChartDropDownClick)
+// $('.dropDown-chart').on('click', handleChartDropDownClick)
 $('.dropDown-color').on('click', handleColorDropDownClick)
 $('.dropDown-unit').on('click', handleUnitDropDownClick)
 
@@ -523,12 +524,12 @@ function handleSourceDropDownClick() {
 	$('.dropDown-dataSource.active .caret').css("rotate", "360deg");
 }
 
-function handleChartDropDownClick() {
-	$('.dropDown-chart').toggleClass("active")
-	$('.editPanelMenu-chart').slideToggle();
-	$('.dropDown-chart .caret').css("rotate", "180deg");
-	$('.dropDown-chart.active .caret').css("rotate", "360deg");
-}
+// function handleChartDropDownClick() {
+// 	$('.dropDown-chart').toggleClass("active")
+// 	$('.editPanelMenu-chart').slideToggle();
+// 	$('.dropDown-chart .caret').css("rotate", "180deg");
+// 	$('.dropDown-chart.active .caret').css("rotate", "360deg");
+// }
 
 function handleColorDropDownClick() {
 	$('.dropDown-color').toggleClass("active")
@@ -777,7 +778,7 @@ $(".editPanelMenu-dataSource .editPanelMenu-options").on('click', function () {
 	refreshDataSourceMenuOptions();
 });
 
-$(".editPanelMenu-chart .editPanelMenu-options").on('click', function () {
+$(".editPanelMenu-chart #chart-type-options").on('click', function () {
 	selectedChartTypeIndex = $(this).data('index');
 	currentPanel.chartType = mapIndexToChartType.get(selectedChartTypeIndex);
 	if (selectedChartTypeIndex === 4) {
@@ -806,6 +807,7 @@ $(".editPanelMenu-chart .editPanelMenu-options").on('click', function () {
 	$('.editPanelMenu-inner-options').css('display',"none");
 	$('.horizontalCaret').css('rotate','90deg');
 	refreshChartMenuOptions();
+	runQueryBtnHandler();
 });
 
 $(".colorCircle").on("click", function () {
@@ -1075,14 +1077,14 @@ function refreshDataSourceMenuOptions() {
 }
 
 function refreshChartMenuOptions() {
-	let chartTypeMenuItems = $('.editPanelMenu-chart .editPanelMenu-options');
+	let chartTypeMenuItems = $('.editPanelMenu-chart #chart-type-options');
 	chartTypeMenuItems.each(function (index, item) {
 		item.classList.remove("selected");
 	})
 	chartTypeMenuItems[selectedChartTypeIndex].classList.add("selected");
 	let chartType = mapIndexToChartType.get(selectedChartTypeIndex);
 	chartType = chartType.charAt(0).toUpperCase() + chartType.slice(1);
-	$('.dropDown-chart span').html(chartType);
+	// $('.dropDown-chart span').html(chartType);
 }
 
 function refreshUnitMenuOptions() {
@@ -1110,6 +1112,8 @@ function refreshLogLinesViewMenuOptions(){
 }
 
 function applyChangesToPanel(redirectedFromViewScreen) {
+	console.log("applyChangesToPanel",currentPanel);
+	// addPanelAfterSaving(currentPanel)
 	flagDBSaved = false;
 	// update current panel with new time values
 	if(currentPanel && currentPanel.queryData) {
@@ -1139,42 +1143,42 @@ function applyChangesToPanel(redirectedFromViewScreen) {
 	}
 }
 
-function handleGoToDBArrowClick(redirectedFromViewScreen) {
-	if (!checkUnsavedChages()) {
-		showPrompt(redirectedFromViewScreen)
-	} else {
-		goToDashboard(redirectedFromViewScreen);
-	}
+// function handleGoToDBArrowClick(redirectedFromViewScreen) {
+// 	if (!checkUnsavedChages()) {
+// 		showPrompt(redirectedFromViewScreen)
+// 	} else {
+// 		goToDashboard(redirectedFromViewScreen);
+// 	}
 	
-	function checkUnsavedChages() {
-		let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
-		return (currentPanel.chartType === serverPanel.chartType
-			&& currentPanel.dataType === serverPanel.dataType
-			&& currentPanel.description === serverPanel.description
-			&& currentPanel.name === serverPanel.name
-			&& currentPanel.queryType === serverPanel.queryType
-			&& currentPanel.unit === serverPanel.unit
-			&& currentPanel.panelIndex === serverPanel.panelIndex
+// 	function checkUnsavedChages() {
+// 		let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
+// 		return (currentPanel.chartType === serverPanel.chartType
+// 			&& currentPanel.dataType === serverPanel.dataType
+// 			&& currentPanel.description === serverPanel.description
+// 			&& currentPanel.name === serverPanel.name
+// 			&& currentPanel.queryType === serverPanel.queryType
+// 			&& currentPanel.unit === serverPanel.unit
+// 			&& currentPanel.panelIndex === serverPanel.panelIndex
 			
-			&& currentPanel.queryData?.endEpoch === serverPanel.queryData?.endEpoch
-			&& currentPanel.queryData?.indexName === serverPanel.queryData?.indexName
-			&& currentPanel.queryData?.queryLanguage === serverPanel.queryData?.queryLanguage
-			&& currentPanel.queryData?.searchText === serverPanel.queryData?.searchText
-			&& currentPanel.queryData?.startEpoch === serverPanel.queryData?.startEpoch
-			&& currentPanel.queryData?.state === serverPanel.queryData?.state);
-	}
+// 			&& currentPanel.queryData?.endEpoch === serverPanel.queryData?.endEpoch
+// 			&& currentPanel.queryData?.indexName === serverPanel.queryData?.indexName
+// 			&& currentPanel.queryData?.queryLanguage === serverPanel.queryData?.queryLanguage
+// 			&& currentPanel.queryData?.searchText === serverPanel.queryData?.searchText
+// 			&& currentPanel.queryData?.startEpoch === serverPanel.queryData?.startEpoch
+// 			&& currentPanel.queryData?.state === serverPanel.queryData?.state);
+// 	}
 	
-	function showPrompt(redirectedFromViewScreen) {
-		$('.popupOverlay, .popupContent').addClass('active');
-		$('#exit-btn-panel').on("click", function () {
-			$('.popupOverlay, .popupContent').removeClass('active');
-			goToDashboard(redirectedFromViewScreen);
-		});
-		$('#cancel-btn-panel, .popupOverlay').on("click", function () {
-			$('.popupOverlay, .popupContent').removeClass('active');
-		});
-	}
-}
+// 	function showPrompt(redirectedFromViewScreen) {
+// 		$('.popupOverlay, .popupContent').addClass('active');
+// 		$('#exit-btn-panel').on("click", function () {
+// 			$('.popupOverlay, .popupContent').removeClass('active');
+// 			goToDashboard(redirectedFromViewScreen);
+// 		});
+// 		$('#cancel-btn-panel, .popupOverlay').on("click", function () {
+// 			$('.popupOverlay, .popupContent').removeClass('active');
+// 		});
+// 	}
+// }
 
 function goToViewScreen(panelIndex) {
 	currentPanel = undefined;
@@ -1208,6 +1212,7 @@ function goToDashboard(redirectedFromViewScreen) {
 	}
 	else {
 		$('.panelEditor-container').hide();
+        $('.popupOverlay').removeClass('active');
 		$('#app-container').show();
 		$('#viewPanel-container').hide();
 		if(localPanels !== undefined) {
@@ -1248,7 +1253,7 @@ function resetPanelTimeRanges() {
 function resetEditPanelScreen() {
 	resetEditPanel();
 	$('.dropDown-dataSource span').html("Data Source")
-	$('.dropDown-chart span').html("Chart Type")
+	// $('.dropDown-chart span').html("Chart Type")
 	$('.dropDown-unit span').html("Unit")
 	$('.dropDown-logLinesView span').html("Single line display view")
 	$("#index-btn").css('display', 'none');
@@ -1263,7 +1268,8 @@ function resetEditPanel() {
 	$('.panelDisplay .panEdit-panel').remove();
 	const panEditEl = `<div id="panEdit-panel" class="panEdit-panel"></div>`
 	$('.panelDisplay').append(panEditEl);
-
+}
+function resetOptions(){
 	selectedChartTypeIndex = -1;
 	selectedDataSourceTypeIndex = -1;
 	selectedLogLinesViewTypeIndex = -1;
@@ -1273,7 +1279,7 @@ function resetEditPanel() {
 		item.classList.remove("selected");
 	})
 
-	let chartTypeMenuItems = $('.editPanelMenu-chart .editPanelMenu-options');
+	let chartTypeMenuItems = $('.editPanelMenu-chart #chart-type-options');
 	chartTypeMenuItems.each(function (index, item) {
 		item.classList.remove("selected");
 	})
@@ -1295,7 +1301,6 @@ function resetEditPanel() {
 		}
 	})
 }
-
 function getMetricsQData() {
 	let filterValue = queryStr;
 	let endDate = filterEndDate || "now";
@@ -1359,10 +1364,10 @@ $(document).on('click', function(event) {
 		$('.dropDown-dataSource').removeClass("active");
 	}
 
-	if (!$(event.target).closest('.dropDown-chart').length) {
-		$('.editPanelMenu-chart').slideUp();
-		$('.dropDown-chart').removeClass("active");
-	}
+	// if (!$(event.target).closest('.dropDown-chart').length) {
+	// 	$('.editPanelMenu-chart').slideUp();
+	// 	$('.dropDown-chart').removeClass("active");
+	// }
 
 	if (!$(event.target).closest('.dropDown-color').length) {
 			$('.editPanelMenu-color').slideUp();

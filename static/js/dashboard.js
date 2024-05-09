@@ -215,7 +215,8 @@ function handlePanelEdit() {
             editPanelInit();
         }
         $('.panelEditor-container').show();
-        $('#app-container').hide();
+        $('.popupOverlay').addClass('active');
+        // $('#app-container').hide();
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
@@ -1050,7 +1051,8 @@ function addPanel(panelToDuplicate) {
     if (!panelToDuplicate) {        
         editPanelInit(panelIndex);
         $('.panelEditor-container').show();
-        $('#app-container').hide();
+        $('.popupOverlay').addClass('active');
+        // $('#app-container').hide();
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
