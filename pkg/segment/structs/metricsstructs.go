@@ -60,6 +60,7 @@ type Function struct {
 	MathFunction  utils.MathFunctions
 	RangeFunction utils.RangeFunctions //range function to apply, only one of these will be non nil
 	Value         string
+	TimeWindow    float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
 }
 
 type Downsampler struct {
