@@ -234,7 +234,7 @@ function handlePanelRemove(panelId) {
             deletePanel(panelId);
             $('.popupOverlay, .popupContent').removeClass('active');
         });
-        $('#cancel-btn-panel, .popupOverlay').on("click", function () {
+        $('#cancel-btn-panel').on("click", function () {
             $('.popupOverlay, .popupContent').removeClass('active');
         });
     }
