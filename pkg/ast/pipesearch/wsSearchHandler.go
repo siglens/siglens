@@ -158,7 +158,8 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 			case query.RUNNING:
 				processRunningUpdate(conn, qid)
 			case query.QUERY_UPDATE:
-				processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs)
+				numRrcsAdded := processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs)
+				scrollFrom += int(numRrcsAdded)
 			case query.TIMEOUT:
 				processTimeoutUpdate(conn, qid)
 				return
@@ -244,7 +245,7 @@ func processRunningUpdate(conn *websocket.Conn, qid uint64) {
 }
 
 func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scrollFrom int, qscd *query.QueryStateChanData,
-	aggs *structs.QueryAggregators) {
+	aggs *structs.QueryAggregators) uint64 {
 	searchPercent := qscd.PercentComplete
 	totalEventsSearched, err := query.GetTotalsRecsSearchedForQid(qid)
 	if err != nil {
@@ -253,7 +254,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 		if wErr != nil {
 			log.Errorf("qid=%d, processQueryUpdate: failed to write error response to websocket! %+v", qid, wErr)
 		}
-		return
+		return 0
 	}
 
 	var wsResponse *PipeSearchWSUpdateResponse
@@ -263,22 +264,24 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 		if wErr != nil {
 			log.Errorf("qid=%d, processQueryUpdate: failed to write RRC response to websocket! %+v", qid, wErr)
 		}
-		return
+		return 0
 	}
 
-	wsResponse, err = createRecsWsResp(qid, sizeLimit, searchPercent, scrollFrom, totalEventsSearched, qscd.QueryUpdate, aggs)
+	wsResponse, numRrcsAdded, err := createRecsWsResp(qid, sizeLimit, searchPercent, scrollFrom, totalEventsSearched, qscd.QueryUpdate, aggs)
 	if err != nil {
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
 			log.Errorf("qid=%d, processQueryUpdate: failed to write RRC response to websocket! %+v", qid, wErr)
 		}
-		return
+		return 0
 	}
 
 	wErr := conn.WriteJSON(wsResponse)
 	if wErr != nil {
 		log.Errorf("qid=%d, processQueryUpdate: failed to write update response to websocket! %+v", qid, wErr)
 	}
+
+	return numRrcsAdded
 }
 
 func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *structs.QueryAggregators) {
@@ -342,7 +345,7 @@ func processMaxScrollComplete(conn *websocket.Conn, qid uint64) {
 }
 
 func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrollFrom int,
-	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators) (*PipeSearchWSUpdateResponse, error) {
+	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators) (*PipeSearchWSUpdateResponse, uint64, error) {
 
 	qType := query.GetQueryType(qid)
 	wsResponse := &PipeSearchWSUpdateResponse{
@@ -352,6 +355,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 		Qtype:                    qType.String(),
 		SortByTimestampAtDefault: !aggs.HasSortBlockInChain(),
 	}
+	numRrcsAdded := uint64(0)
 
 	switch qType {
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
@@ -386,7 +390,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 		inrrcs, qc, segencmap, err := query.GetRawRecordInfoForQid(scrollFrom, qid)
 		if err != nil {
 			log.Errorf("qid=%d, createRecsWsResp: failed to get rrcs %v", qid, err)
-			return nil, err
+			return nil, 0, err
 		}
 
 		// filter out the rrcs that don't match the segkey
@@ -397,20 +401,22 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 			allJson, allCols, err = query.GetRemoteRawLogInfo(qUpdate.RemoteID, inrrcs, qid)
 			if err != nil {
 				log.Errorf("qid=%d, createRecsWsResp: failed to get remote raw logs and columns: %+v", qid, err)
-				return nil, err
+				return nil, 0, err
 			}
 		} else {
 			// handle local
 			allJson, allCols, err = getRawLogsAndColumns(inrrcs, qUpdate.SegKeyEnc, useAnySegKey, sizeLimit, segencmap, aggs, qid)
 			if err != nil {
 				log.Errorf("qid=%d, createRecsWsResp: failed to get raw logs and columns: %+v", qid, err)
-				return nil, err
+				return nil, 0, err
 			}
 		}
 		if err != nil {
 			log.Errorf("qid=%d, createRecsWsResp: failed to convert rrcs to json: %+v", qid, err)
-			return nil, err
+			return nil, 0, err
 		}
+
+		numRrcsAdded = uint64(len(allJson))
 
 		wsResponse.Hits = PipeSearchResponse{
 			Hits:         allJson,
@@ -419,7 +425,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 		wsResponse.AllPossibleColumns = allCols
 		wsResponse.Qtype = qType.String()
 	}
-	return wsResponse, nil
+	return wsResponse, numRrcsAdded, nil
 }
 
 func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint16, anySegKey bool, sizeLimit uint64,
