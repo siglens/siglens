@@ -29,15 +29,15 @@ import (
 
 func Test_applyRangeFunctionRate(t *testing.T) {
 	timeSeries := map[uint32]float64{
-		0: 2.0,
-		1: 3.0,
-		2: 4.0,
-		3: 0.0,
-		8: 2.5,
-		9: 1.0,
+		1000: 2.0,
+		1003: 3.0,
+		1008: 4.0,
+		1012: 18.0,
+		1020: 2.5,
+		1025: 6.5,
 	}
 
-	rate, err := ApplyRangeFunction(timeSeries, segutils.Rate)
+	rate, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Rate, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	// There's six timestamps in the series, but we need two points to calculate
@@ -48,26 +48,71 @@ func Test_applyRangeFunctionRate(t *testing.T) {
 	var val float64
 	var ok bool
 
-	val, ok = rate[1]
+	val, ok = rate[1003]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (3.0-2.0)/(3-0)))
+
+	val, ok = rate[1008]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (4.0-2.0)/(8-0)))
+
+	val, ok = rate[1012]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (18.0-3.0)/(12-3)))
+
+	val, ok = rate[1020]
+	assert.True(t, ok)
+	// Since the value here is smaller than at the last timestamp, the value was
+	// reset since the last timestamp. So the increase is just this value, not
+	// this value minus the previous value.
+	assert.True(t, dtypeutils.AlmostEquals(val, (2.5)/(20-12)))
+
+	val, ok = rate[1025]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (6.5-2.5)/(25-20)))
+}
+
+func Test_applyRangeFunctionIRate(t *testing.T) {
+	timeSeries := map[uint32]float64{
+		1000: 2.0,
+		1001: 3.0,
+		1002: 4.0,
+		1003: 0.0,
+		1008: 2.5,
+		1009: 1.0,
+	}
+
+	rate, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.IRate, TimeWindow: 10})
+	assert.Nil(t, err)
+
+	// There's six timestamps in the series, but we need two points to calculate
+	// the rate, so we can't calculate it on the first point. So we should have
+	// 5 elements in the result.
+	assert.Len(t, rate, 5)
+
+	var val float64
+	var ok bool
+
+	val, ok = rate[1001]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, (3.0-2.0)/(1-0)))
 
-	val, ok = rate[2]
+	val, ok = rate[1002]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, (4.0-3.0)/(2-1)))
 
-	val, ok = rate[3]
+	val, ok = rate[1003]
 	assert.True(t, ok)
 	// Since the value here is smaller than at the last timestamp, the value was
 	// reset since the last timestamp. So the increase is just this value, not
 	// this value minus the previous value.
 	assert.True(t, dtypeutils.AlmostEquals(val, 0.0))
 
-	val, ok = rate[8]
+	val, ok = rate[1008]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 2.5/(8-3)))
 
-	val, ok = rate[9]
+	val, ok = rate[1009]
 	assert.True(t, ok)
 	// Since the value here is smaller than at the last timestamp, the value was
 	// reset since the last timestamp. So the increase is just this value, not
