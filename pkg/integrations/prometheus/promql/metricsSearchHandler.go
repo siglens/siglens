@@ -839,6 +839,8 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 	mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: mquery.Aggregator}
 	if len(mquery.TagsFilters) > 0 {
 		mquery.SelectAllSeries = false
+	} else {
+		mquery.SelectAllSeries = true
 	}
 	mquery.OrgId = myid
 	metricQueryRequest := &structs.MetricsQueryRequest{

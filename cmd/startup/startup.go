@@ -356,6 +356,10 @@ func startQueryServer(serverAddr string) {
 				"safeHTML": func(htmlContent string) htmltemplate.HTML {
 					return htmltemplate.HTML(htmlContent)
 				},
+				"EntMsg": func(htmlContent string) htmltemplate.HTML {
+					emptyHtmlContent := "<div id=\"empty-response\">This feature is available in Enterprise version</div>"
+					return htmltemplate.HTML(emptyHtmlContent)
+				},
 			})
 			textTemplate := texttemplate.New("other")
 
