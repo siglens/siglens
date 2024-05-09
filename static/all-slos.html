@@ -71,9 +71,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         <div id="all-slos">
             <h1 class="myOrg-heading">SLOs</h1>
-            {{ .OrgSLOs | safeHTML }}
-            
-            
+            {{ .OrgSLOs | EntMsg }}
         </div>
 
         <div id="app-footer">
