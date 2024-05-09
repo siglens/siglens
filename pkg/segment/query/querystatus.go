@@ -382,7 +382,7 @@ func GetRemoteRawLogInfo(remoteID string, inrrcs []*utils.RecordResultContainer,
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	if !ok {
-		log.Errorf("GetQueryType: qid %+v does not exist!", qid)
+		log.Errorf("GetRemoteRawLogInfo: qid %+v does not exist!", qid)
 		arqMapLock.RUnlock()
 		return nil, nil, fmt.Errorf("qid does not exist")
 	}
