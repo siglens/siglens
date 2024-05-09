@@ -298,6 +298,9 @@ const (
 	Abs
 	Sqrt
 	Exp
+	Ln
+	Log2
+	Log10
 )
 
 type RangeFunctions int

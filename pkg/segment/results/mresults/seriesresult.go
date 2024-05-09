@@ -468,6 +468,18 @@ func evaluate(res map[string]map[uint32]float64, mathFunc float64Func) {
 	}
 }
 
+func evaluateLogFunc(res map[string]map[uint32]float64, mathFunc float64Func) error {
+	for _, timeSeries := range res {
+		for key, val := range timeSeries {
+			if val <= 0 {
+				return fmt.Errorf("evaluateLogFunc: log function cannot evaluate non-positive numbers: %v", val)
+			}
+			timeSeries[key] = mathFunc(val)
+		}
+	}
+	return nil
+}
+
 func evaluateRoundWithPrecision(res map[string]map[uint32]float64, toNearestStr string) error {
 	toNearestStr = strings.ReplaceAll(toNearestStr, " ", "")
 	toNearest, err := convertStrToFloat64(toNearestStr)
