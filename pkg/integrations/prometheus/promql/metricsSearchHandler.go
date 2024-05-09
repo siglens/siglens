@@ -48,11 +48,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const MIN_IN_MS = 60_000
-const HOUR_IN_MS = 3600_000
-const DAY_IN_MS = 86400_000
-const TEN_YEARS_IN_SECS = 315_360_000
-
 func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32, time.Duration, usageStats.UsageStatsGranularity, error) {
 	searchText := ""
 	var err error
@@ -272,7 +267,7 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	log.Infof("qid=%v, ProcessMetricsSearchRequest:  searchString=[%v] startEpochMs=[%v] endEpochMs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	startTime, endTime, interval := parseSearchTextForRangeSelection(searchText, startTime, endTime)
+	startTime, endTime = parseSearchTextForRangeSelection(searchText, startTime, endTime)
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
 
 	if err != nil {
@@ -297,7 +292,7 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		timeRange = &metricQuery.TimeRange
 	}
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
-	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, startTime, endTime, interval)
+	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, startTime, endTime)
 	if err != nil {
 		log.Errorf("ExecuteAsyncQuery: Error getting results! %+v", err)
 	}
@@ -453,7 +448,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	start, end, interval := parseSearchTextForRangeSelection(finalSearchText, start, end)
+	start, end = parseSearchTextForRangeSelection(finalSearchText, start, end)
 	// If timerangeSeconds is greater than 10 years reject the request
 	if end-start > TEN_YEARS_IN_SECS {
 		utils.SendError(ctx, "Time range is greater than 10 years", fmt.Sprintf("qid: %v, Time range: %v", qid, end-start), errors.New("Time range is greater than 10 years"))
@@ -476,6 +471,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
+
 	if len(res.ErrList) > 0 {
 		var errorMessages []string
 		for _, err := range res.ErrList {
@@ -486,7 +482,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end, interval)
+	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
 	if err != nil {
 		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid: %v", qid), err)
 		return
@@ -509,50 +505,6 @@ func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]st
 }
 
 func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	metricFunctions := `[
-		{
-			"fn": "abs", 
-			"name": "Absolute", 
-			"desc": "Returns the input vector with all datapoint values converted to their absolute value.", 
-			"eg": "abs(avg (system.disk.used{*}))"
-		}, 
-		{
-			"fn": "ceil", 
-			"name": "Ceil", 
-			"desc": "Rounds the datapoint values of all elements in v up to the nearest integer.", 
-			"eg": "ceil(avg (system.disk.used))"
-		},
-		{
-			"fn": "floor", 
-			"name": "Floor", 
-			"desc": "Rounds the datapoint values of all elements in v down to the nearest integer.", 
-			"eg": "floor(avg (system.disk.used))"
-		},
-		{
-			"fn": "round", 
-			"name": "Round", 
-			"desc": "Rounds the datapoint values of all elements in v to the nearest integer.", 
-			"eg": "round(avg (system.disk.used)), round(avg (system.disk.used, 1/2))"
-		},
-		{
-			"fn": "ln", 
-			"name": "Natural logarithm", 
-			"desc": "Calculates the natural logarithm for all elements in v.", 
-			"eg": "ln(avg (system.disk.used))"
-		},
-		{
-			"fn": "log2", 
-			"name": "Binary logarithm", 
-			"desc": "Calculates the binary logarithm for all elements in v.", 
-			"eg": "log2(avg (system.disk.used))"
-		},
-		{
-			"fn": "log10", 
-			"name": "Decimal logarithm", 
-			"desc": "Calculates the decimal logarithm for all elements in v.", 
-			"eg": "log10(avg (system.disk.used))"
-		},
-	]`
 	ctx.SetContentType("application/json")
 	_, err := ctx.Write([]byte(metricFunctions))
 	if err != nil {
@@ -809,6 +761,11 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		mquery.SelectAllSeries = true
 		agg := structs.Aggreation{AggregatorFunction: segutils.Avg}
 		mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: agg}
+
+		if len(mquery.TagsFilters) > 0 {
+			mquery.SelectAllSeries = false
+		}
+
 		metricQueryRequest := &structs.MetricsQueryRequest{
 			MetricsQuery: mquery,
 			TimeRange: dtu.MetricsTimeRange{
@@ -880,7 +837,9 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
 	}
 	mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: mquery.Aggregator}
-	mquery.SelectAllSeries = !groupby // if group by is not present, then we need to select all series
+	if len(mquery.TagsFilters) > 0 {
+		mquery.SelectAllSeries = false
+	}
 	mquery.OrgId = myid
 	metricQueryRequest := &structs.MetricsQueryRequest{
 		MetricsQuery: mquery,
@@ -1077,7 +1036,7 @@ func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) (uint64, usage
 	return retVal, granularity
 }
 
-func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTime uint32) (uint32, uint32, uint32) {
+func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTime uint32) (uint32, uint32) {
 
 	pattern := `\[(.*?)\]`
 
@@ -1126,7 +1085,7 @@ func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTi
 		startTime = endTime - totalVal
 	}
 
-	return startTime, endTime, totalVal
+	return startTime, endTime
 }
 
 func parseTimeStringToUint32(s interface{}) (uint32, error) {
