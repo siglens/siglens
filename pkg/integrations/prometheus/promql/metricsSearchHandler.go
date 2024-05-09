@@ -22,11 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/cespare/xxhash"
 	pql "github.com/influxdata/promql/v2"
@@ -267,7 +265,6 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	log.Infof("qid=%v, ProcessMetricsSearchRequest:  searchString=[%v] startEpochMs=[%v] endEpochMs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	startTime, endTime = parseSearchTextForRangeSelection(searchText, startTime, endTime)
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
 
 	if err != nil {
@@ -448,12 +445,6 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	start, end = parseSearchTextForRangeSelection(finalSearchText, start, end)
-	// If timerangeSeconds is greater than 10 years reject the request
-	if end-start > TEN_YEARS_IN_SECS {
-		utils.SendError(ctx, "Time range is greater than 10 years", fmt.Sprintf("qid: %v, Time range: %v", qid, end-start), errors.New("Time range is greater than 10 years"))
-		return
-	}
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(finalSearchText, start, end, myid)
 	if err != nil {
 		utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, finalSearchText), err)
@@ -721,11 +712,18 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				if mquery.TagsFilters != nil {
 					groupby = true
 				}
+
+				timeWindow, err := extractTimeWindow(expr.Args)
+				if err != nil {
+					return fmt.Errorf("pql.Inspect: can not extract time window from a range vector: %v", err)
+				}
 				switch function {
 				case "deriv":
-					mquery.Aggregator = structs.Aggreation{RangeFunction: segutils.Derivative}
+					mquery.Function = structs.Function{RangeFunction: segutils.Derivative, TimeWindow: timeWindow}
 				case "rate":
-					mquery.Aggregator = structs.Aggreation{RangeFunction: segutils.Rate}
+					mquery.Function = structs.Function{RangeFunction: segutils.Rate, TimeWindow: timeWindow}
+				case "irate":
+					mquery.Function = structs.Function{RangeFunction: segutils.IRate, TimeWindow: timeWindow}
 				default:
 					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
 				}
@@ -1038,58 +1036,6 @@ func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) (uint64, usage
 	return retVal, granularity
 }
 
-func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTime uint32) (uint32, uint32) {
-
-	pattern := `\[(.*?)\]`
-
-	regex := regexp.MustCompile(pattern)
-
-	matches := regex.FindAllStringSubmatch(searchText, -1)
-
-	var timeRange string
-
-	for _, match := range matches {
-		timeRange = match[1]
-	}
-
-	var totalVal uint32 = 0
-	var curVal uint32 = 0
-	var curDimension string = ""
-	var dimensionVal uint32 = 0
-
-	for _, ch := range timeRange {
-		if unicode.IsDigit(ch) {
-			if curDimension == "" {
-				curVal = curVal*10 + uint32(ch-'0')
-			} else {
-				totalVal += curVal * dimensionVal
-				curDimension = ""
-				curVal = uint32(ch - '0')
-			}
-		} else {
-			curDimension += curDimension + string(ch)
-			if curDimension == "s" || curDimension == "S" {
-				dimensionVal = 1
-			} else if curDimension == "m" || curDimension == "M" {
-				dimensionVal = 60
-			} else if curDimension == "h" || curDimension == "H" {
-				dimensionVal = 3600
-			} else if curDimension == "d" || curDimension == "D" {
-				dimensionVal = 24 * 3600
-			} else if curDimension == "w" || curDimension == "W" {
-				dimensionVal = 7 * 24 * 3600
-			}
-		}
-	}
-	totalVal += curVal * dimensionVal
-
-	if totalVal > 0 {
-		startTime = endTime - totalVal
-	}
-
-	return startTime, endTime
-}
-
 func parseTimeStringToUint32(s interface{}) (uint32, error) {
 	var startTimeStr string
 	var timeVal uint32
@@ -1116,4 +1062,16 @@ func parseTimeStringToUint32(s interface{}) (uint32, error) {
 		return timeVal, err
 	}
 	return timeVal, nil
+}
+
+func extractTimeWindow(args pql.Expressions) (float64, error) {
+	if len(args) > 0 {
+		if ms, ok := args[0].(*pql.MatrixSelector); ok {
+			return ms.Range.Seconds(), nil
+		} else {
+			return 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
+		}
+	} else {
+		return 0, fmt.Errorf("extractTimeWindow: can not extract time window")
+	}
 }

@@ -20,7 +20,6 @@ package mresults
 import (
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -219,20 +218,23 @@ func (r *MetricsResult) AggregateResults(parallelism int) []error {
 }
 
 /*
-Apply range function to results for series sharing a groupid.
+Apply function to results for series sharing a groupid.
 */
-func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function segutils.RangeFunctions) error {
+func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function structs.Function) []error {
 
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 	errList := []error{} // Thread-safe list of errors
 
+	// Use a temporary map to record the results modified by goroutines, thus resolving concurrency issues caused by modifying a map during iteration.
+	results := make(map[string]map[uint32]float64, len(r.Results))
+
 	var idx int
 	for grpID, timeSeries := range r.Results {
 		wg.Add(1)
-		go func(grp string, ts map[uint32]float64, function segutils.RangeFunctions) {
+		go func(grp string, ts map[uint32]float64, function structs.Function) {
 			defer wg.Done()
-			grpVal, err := ApplyRangeFunction(ts, function)
+			grpVal, err := ApplyFunction(ts, function)
 			if err != nil {
 				lock.Lock()
 				errList = append(errList, err)
@@ -240,7 +242,7 @@ func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function s
 				return
 			}
 			lock.Lock()
-			r.Results[grp] = grpVal
+			results[grp] = grpVal
 			lock.Unlock()
 		}(grpID, timeSeries, function)
 		idx++
@@ -250,47 +252,13 @@ func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function s
 	}
 
 	wg.Wait()
+	r.Results = results
+
+	if len(errList) > 0 {
+		return errList
+	}
+
 	r.DsResults = nil
-
-	return nil
-}
-
-func (r *MetricsResult) ApplyFunctionsToResults(function structs.Function) error {
-	// Not using any math functions
-	if function.MathFunction == 0 {
-		return nil
-	}
-
-	var err error
-	switch function.MathFunction {
-	case segutils.Abs:
-		evaluate(r.Results, math.Abs)
-	case segutils.Ceil:
-		evaluate(r.Results, math.Ceil)
-	case segutils.Floor:
-		evaluate(r.Results, math.Floor)
-	case segutils.Round:
-		if len(function.Value) > 0 {
-			err := evaluateRoundWithPrecision(r.Results, function.Value)
-			if err != nil {
-				return fmt.Errorf("ApplyFunctionsToResults: %v", err)
-			}
-		} else {
-			evaluate(r.Results, math.Round)
-		}
-	case segutils.Ln:
-		err = evaluateLogFunc(r.Results, math.Log)
-	case segutils.Log2:
-		err = evaluateLogFunc(r.Results, math.Log2)
-	case segutils.Log10:
-		err = evaluateLogFunc(r.Results, math.Log10)
-	default:
-		return fmt.Errorf("ApplyFunctionsToResults: unsupported function type %v", function)
-	}
-
-	if err != nil {
-		return fmt.Errorf("ApplyFunctionsToResults: %v", err)
-	}
 
 	return nil
 }

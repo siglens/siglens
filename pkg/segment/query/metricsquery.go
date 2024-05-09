@@ -111,14 +111,13 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 
-	err = mRes.ApplyRangeFunctionsToResults(parallelism, mQuery.Aggregator.RangeFunction)
-	if err != nil {
-		mRes.AddError(err)
-	}
+	errors = mRes.ApplyFunctionsToResults(parallelism, mQuery.Function)
+	if errors != nil {
+		for _, err := range errors {
+			mRes.AddError(err)
+		}
 
-	err = mRes.ApplyFunctionsToResults(mQuery.Function)
-	if err != nil {
-		mRes.AddError(err)
+		return mRes
 	}
 
 	return mRes

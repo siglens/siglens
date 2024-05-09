@@ -150,10 +150,19 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 
 func Test_metricsFuncPromptJson(t *testing.T) {
 	type Function struct {
-		Fn   string `json:"fn"`
-		Name string `json:"name"`
-		Desc string `json:"desc"`
-		Eg   string `json:"eg"`
+		Fn              string `json:"fn"`
+		Name            string `json:"name"`
+		Desc            string `json:"desc"`
+		Eg              string `json:"eg"`
+		IsTimeRangeFunc bool   `json:"isTimeRangeFunc"`
+	}
+
+	attrMap := map[string]string{
+		"Fn":              "string",
+		"Name":            "string",
+		"Desc":            "string",
+		"Eg":              "string",
+		"IsTimeRangeFunc": "bool",
 	}
 
 	var functions []Function
@@ -165,8 +174,10 @@ func Test_metricsFuncPromptJson(t *testing.T) {
 		val := reflect.ValueOf(function)
 		for i := 0; i < val.NumField(); i++ {
 			field := val.Type().Field(i)
-			valueField := val.Field(i)
-			assert.False(t, valueField.IsZero(), "Missing Field: %s", field.Name)
+
+			fieldType, exists := attrMap[field.Name]
+			assert.True(t, exists, "Missing Field: %s", field.Name)
+			assert.Equal(t, fieldType, field.Type.Kind().String())
 		}
 	}
 }
