@@ -480,13 +480,14 @@ $('#panelLogResultsGrid').empty();
 $('#panelLogResultsGrid').hide();
 
 $('.panEdit-discard').on("click", goToDashboard)
-$('.panEdit-save').on("click", function(){
+$('.panEdit-save').on("click",async function(redirectedFromViewScreen){
 	 if (!currentPanel.queryData && currentPanel.chartType ==='Data Table' && currentPanel.queryType ==='logs') {
         currentPanel.chartType = "";
         currentPanel.queryType = "";
     }
 	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
-	updateDashboard();
+	await updateDashboard();
+	applyChangesToPanel(redirectedFromViewScreen)
 });
 
 $('#panEdit-nameChangeInput').on('change keyup paste', updatePanelName)
@@ -1112,10 +1113,6 @@ function refreshLogLinesViewMenuOptions(){
 }
 
 function applyChangesToPanel(redirectedFromViewScreen) {
-	console.log("applyChangesToPanel",currentPanel);
-	// addPanelAfterSaving(currentPanel)
-	flagDBSaved = false;
-	// update current panel with new time values
 	if(currentPanel && currentPanel.queryData) {
 		if(currentPanel.chartType === 'Line Chart') {
 			currentPanel.queryData.start = filterStartDate
@@ -1188,6 +1185,15 @@ function goToViewScreen(panelIndex) {
 }
 
 function goToDashboard(redirectedFromViewScreen) {
+	// Don't add panel if cancel is clicked.
+	let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
+	if (!flagDBSaved) {
+		if (serverPanel.panelIndex !== undefined) {
+			if (serverPanel.queryRes === undefined) {
+				localPanels = localPanels.filter(panel => panel.panelIndex !== panelIndex);
+			}
+		}
+	}
 	setTimePicker();
 	resetNestedUnitMenuOptions(selectedUnitTypeIndex);
 	currentPanel = undefined;

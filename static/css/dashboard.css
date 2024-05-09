@@ -1271,11 +1271,12 @@ input:checked + .slider:before {
 }
 .panEdit-save{
   width: 60px;
-  color: var(--text-color-regular) !important;
+  color: white !important;
+  background-color: var(--purple-1) !important;
 }
-#save-btn:hover{
+/* #save-btn:hover{
   background-color: var(--drop-down-btn-bg-hover) !important;
-}
+} */
 .panEdit-discard:hover{
   background-color: var(--drop-down-btn-bg-hover) !important;
 }
@@ -1320,9 +1321,9 @@ input:checked + .slider:before {
 .logs-options{
   padding: 0;
 }
-#save-btn{
+/* #save-btn{
   background-color: var(--drop-down-btn-bg-regular) !important;
-}
+} */
 #save-db-btn{
   background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
   background-size: 45% !important;
@@ -1445,5 +1446,5 @@ input:checked + .slider:before {
   margin-left:  6px;
 }
 .graph-customization{
-  width: ;
+  width: 320px;
 }

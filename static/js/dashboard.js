@@ -116,7 +116,7 @@ $('.panView-goToDB').on("click", goToDashboardFromView)
 $('.refresh-range-item').on('click', refreshRangeItemHandler);
 
 
-function updateDashboard() {
+async function updateDashboard() {
     timeRange = $('#date-picker-btn').text().trim().replace(/\s+/g, ' ');
     resetPanelTimeRanges();
     flagDBSaved = true;
