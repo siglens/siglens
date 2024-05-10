@@ -181,3 +181,9 @@ func Test_metricsFuncPromptJson(t *testing.T) {
 		}
 	}
 }
+
+func Test_PromQLBuildInfoJson(t *testing.T) {
+	var js interface{}
+	err := json.Unmarshal([]byte(PromQLBuildInfo), &js)
+	assert.Nil(t, err, "The PromQL build info should be valid JSON: %v", err)
+}
