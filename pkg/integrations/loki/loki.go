@@ -459,9 +459,9 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			timeStamp, ok := row["timestamp"].(uint64)
 			if !ok {
 				responsebody := make(map[string]interface{})
-				log.Errorf("ProcessLokiLogsIngestRequest: Unable to convert line to string")
+				log.Errorf("ProcessQueryRequest: Unable to find the timestamp in the row: %v", row)
 				ctx.SetStatusCode(fasthttp.StatusBadRequest)
-				responsebody["error"] = "ProcessLokiLogsIngestRequest: Unable to convert line to string"
+				responsebody["error"] = "Unable to parse/fetch the timestamp from the row"
 				utils.WriteJsonResponse(ctx, responsebody)
 			}
 			valuesRow = append(valuesRow, fmt.Sprintf("%v", timeStamp*MsToNanoConversion), line)
