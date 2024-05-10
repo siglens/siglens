@@ -297,7 +297,7 @@ func fetchColumnNamesFromAllIndexes(orgid uint64) []string {
 	allColsNamesMap := map[string]struct{}{}
 	indexNamesRetrieved := vtable.ExpandAndReturnIndexNames(LOKIINDEX_STAR, orgid, false)
 	for _, indexName := range indexNamesRetrieved {
-		indexColNames := remove(metadata.GetAllColNames([]string{indexName}), "line")
+		indexColNames := metadata.GetAllColNames([]string{indexName})
 		for _, colName := range indexColNames {
 			_, ok := allColsNamesMap[colName]
 			if !ok {
@@ -308,6 +308,9 @@ func fetchColumnNamesFromAllIndexes(orgid uint64) []string {
 
 	colNames := make([]string, 0, len(allColsNamesMap))
 	for colName := range allColsNamesMap {
+		if colName == "line" {
+			continue
+		}
 		colNames = append(colNames, colName)
 	}
 
