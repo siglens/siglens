@@ -181,3 +181,42 @@ func Test_metricsFuncPromptJson(t *testing.T) {
 		}
 	}
 }
+
+func Test_PromQLBuildInfoJson(t *testing.T) {
+	type Data struct {
+		Version   string `json:"version"`
+		Revision  string `json:"revision"`
+		Branch    string `json:"branch"`
+		BuildUser string `json:"buildUser"`
+		BuildDate string `json:"buildDate"`
+		GoVersion string `json:"goVersion"`
+	}
+
+	type BuildInfo struct {
+		Status string `json:"status"`
+		Data   Data   `json:"data"`
+	}
+
+	attrMap := map[string]string{
+		"Version":   "string",
+		"Revision":  "string",
+		"Branch":    "string",
+		"BuildUser": "string",
+		"BuildDate": "string",
+		"GoVersion": "string",
+	}
+
+	var buildInfo BuildInfo
+	err := json.Unmarshal([]byte(PromQLBuildInfo), &buildInfo)
+
+	assert.Nil(t, err, "The PromQL build info should be valid JSON: %v", err)
+
+	val := reflect.ValueOf(buildInfo.Data)
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Type().Field(i)
+
+		fieldType, exists := attrMap[field.Name]
+		assert.True(t, exists, "Missing Field: %s", field.Name)
+		assert.Equal(t, fieldType, field.Type.Kind().String())
+	}
+}
