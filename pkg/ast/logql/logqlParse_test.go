@@ -166,3 +166,124 @@ func Test_RangeMetrics(t *testing.T) {
 	assert.Equal(t, queryJson.Comparison.Values, "\"male\"")
 	assert.Equal(t, queryJson.Comparison.Op, "=")
 }
+
+func Test_ParseVectorArithmetciExprBasic(t *testing.T) {
+	query := []byte(`vector(1) + vector(2)`)
+	res, err := Parse("", query)
+	assert.Nil(t, err)
+	queryJson := res.(ast.QueryStruct).SearchFilter
+	assert.Nil(t, queryJson)
+	aggs := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, aggs)
+	assert.Equal(t, aggs.PipeCommandType, structs.VectorArithmeticExprType)
+
+	vectorArthExpr := aggs.VectorArithmeticExpr
+	assert.NotNil(t, vectorArthExpr)
+	assert.Equal(t, vectorArthExpr.Left.Value, "1")
+	assert.Equal(t, vectorArthExpr.Right.Value, "2")
+	assert.Equal(t, vectorArthExpr.Op, "+")
+
+	query = []byte(`vector(1) - vector(2)`)
+	res, err = Parse("", query)
+	assert.Nil(t, err)
+	queryJson = res.(ast.QueryStruct).SearchFilter
+	assert.Nil(t, queryJson)
+	aggs = res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, aggs)
+	assert.Equal(t, aggs.PipeCommandType, structs.VectorArithmeticExprType)
+
+	vectorArthExpr = aggs.VectorArithmeticExpr
+	assert.NotNil(t, vectorArthExpr)
+	assert.Equal(t, vectorArthExpr.Left.Value, "1")
+	assert.Equal(t, vectorArthExpr.Right.Value, "2")
+	assert.Equal(t, vectorArthExpr.Op, "-")
+
+	query = []byte(`vector(1) * vector(2)`)
+	res, err = Parse("", query)
+	assert.Nil(t, err)
+	queryJson = res.(ast.QueryStruct).SearchFilter
+	assert.Nil(t, queryJson)
+	aggs = res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, aggs)
+	assert.Equal(t, aggs.PipeCommandType, structs.VectorArithmeticExprType)
+
+	vectorArthExpr = aggs.VectorArithmeticExpr
+	assert.NotNil(t, vectorArthExpr)
+	assert.Equal(t, vectorArthExpr.Left.Value, "1")
+	assert.Equal(t, vectorArthExpr.Right.Value, "2")
+	assert.Equal(t, vectorArthExpr.Op, "*")
+
+	query = []byte(`vector(1) / vector(2)`)
+	res, err = Parse("", query)
+	assert.Nil(t, err)
+	queryJson = res.(ast.QueryStruct).SearchFilter
+	assert.Nil(t, queryJson)
+	aggs = res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, aggs)
+	assert.Equal(t, aggs.PipeCommandType, structs.VectorArithmeticExprType)
+
+	vectorArthExpr = aggs.VectorArithmeticExpr
+	assert.NotNil(t, vectorArthExpr)
+	assert.Equal(t, vectorArthExpr.Left.Value, "1")
+	assert.Equal(t, vectorArthExpr.Right.Value, "2")
+	assert.Equal(t, vectorArthExpr.Op, "/")
+
+	query = []byte(`vector(1) % vector(2)`)
+	res, err = Parse("", query)
+	assert.Nil(t, err)
+	queryJson = res.(ast.QueryStruct).SearchFilter
+	assert.Nil(t, queryJson)
+	aggs = res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, aggs)
+	assert.Equal(t, aggs.PipeCommandType, structs.VectorArithmeticExprType)
+
+	vectorArthExpr = aggs.VectorArithmeticExpr
+	assert.NotNil(t, vectorArthExpr)
+	assert.Equal(t, vectorArthExpr.Left.Value, "1")
+	assert.Equal(t, vectorArthExpr.Right.Value, "2")
+	assert.Equal(t, vectorArthExpr.Op, "%")
+}
+
+func Test_ParseVectorArithmeticExprNested(t *testing.T) {
+	query := []byte(`vector(1) + vector(2) * vector(3)`)
+	res, err := Parse("", query)
+	assert.Nil(t, err)
+	queryJson := res.(ast.QueryStruct).SearchFilter
+	assert.Nil(t, queryJson)
+	aggs := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, aggs)
+	assert.Equal(t, aggs.PipeCommandType, structs.VectorArithmeticExprType)
+
+	vectorArthExpr := aggs.VectorArithmeticExpr
+	assert.NotNil(t, vectorArthExpr)
+	assert.Equal(t, vectorArthExpr.Left.Value, "1")
+	assert.Equal(t, vectorArthExpr.Op, "+")
+
+	rightExpr := vectorArthExpr.Right
+	assert.NotNil(t, rightExpr)
+	assert.Equal(t, rightExpr.Op, "*")
+	assert.Equal(t, rightExpr.Left.Value, "2")
+	assert.Equal(t, rightExpr.Right.Value, "3")
+
+	query = []byte(`vector(1) + vector(2) * vector(3) / vector(4)`)
+	res, err = Parse("", query)
+	assert.Nil(t, err)
+	queryJson = res.(ast.QueryStruct).SearchFilter
+	assert.Nil(t, queryJson)
+	aggs = res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, aggs)
+	assert.Equal(t, aggs.PipeCommandType, structs.VectorArithmeticExprType)
+
+	vectorArthExpr = aggs.VectorArithmeticExpr
+	assert.NotNil(t, vectorArthExpr)
+	assert.Equal(t, vectorArthExpr.Left.Value, "1")
+	assert.Equal(t, vectorArthExpr.Op, "+")
+
+	rightExpr = vectorArthExpr.Right
+	assert.NotNil(t, rightExpr)
+	assert.Equal(t, rightExpr.Op, "/")
+	assert.Equal(t, rightExpr.Left.Op, "*")
+	assert.Equal(t, rightExpr.Left.Left.Value, "2")
+	assert.Equal(t, rightExpr.Left.Right.Value, "3")
+	assert.Equal(t, rightExpr.Right.Value, "4")
+}

@@ -97,6 +97,7 @@ const (
 	MeasureAggsType
 	GroupByType
 	TransactionType
+	VectorArithmeticExprType
 )
 
 type QueryType uint8
@@ -141,6 +142,7 @@ type QueryAggregators struct {
 	OutputTransforms     *OutputTransforms
 	MeasureOperations    []*MeasureAggregator
 	MathOperations       []*MathEvaluator
+	VectorArithmeticExpr *NumericExpr
 	TimeHistogram        *TimeBucket     // Request for time histograms
 	GroupByRequest       *GroupByRequest // groupby aggregation request
 	Sort                 *SortRequest    // how to sort resulting data
@@ -270,6 +272,7 @@ type NodeResult struct {
 	ErrList                   []error
 	Histogram                 map[string]*AggregationResult
 	TotalResults              *QueryCount
+	VectorResultValue         float64
 	RenameColumns             map[string]string
 	SegEncToKey               map[uint16]string
 	TotalRRCCount             uint64
@@ -498,6 +501,10 @@ func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
+	if qa == nil {
+		return false
+	}
+
 	if qa.HasQueryAggergatorBlock() {
 		return true
 	}
@@ -566,6 +573,10 @@ func (qa *QueryAggregators) HasTransactionArguments() bool {
 }
 
 func (qa *QueryAggregators) HasTransactionArgumentsInChain() bool {
+	if qa == nil {
+		return false
+	}
+
 	if qa.HasTransactionArguments() {
 		return true
 	}

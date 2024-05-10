@@ -619,9 +619,6 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 			})
 
 			return err
-
-		default:
-			log.Warnf("unknown keyname %+s", key)
 		}
 		return nil
 	}
