@@ -20,7 +20,6 @@ package mresults
 import (
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -219,20 +218,23 @@ func (r *MetricsResult) AggregateResults(parallelism int) []error {
 }
 
 /*
-Apply range function to results for series sharing a groupid.
+Apply function to results for series sharing a groupid.
 */
-func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function segutils.RangeFunctions) error {
+func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function structs.Function) []error {
 
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 	errList := []error{} // Thread-safe list of errors
 
+	// Use a temporary map to record the results modified by goroutines, thus resolving concurrency issues caused by modifying a map during iteration.
+	results := make(map[string]map[uint32]float64, len(r.Results))
+
 	var idx int
 	for grpID, timeSeries := range r.Results {
 		wg.Add(1)
-		go func(grp string, ts map[uint32]float64, function segutils.RangeFunctions) {
+		go func(grp string, ts map[uint32]float64, function structs.Function) {
 			defer wg.Done()
-			grpVal, err := ApplyRangeFunction(ts, function)
+			grpVal, err := ApplyFunction(ts, function)
 			if err != nil {
 				lock.Lock()
 				errList = append(errList, err)
@@ -240,7 +242,7 @@ func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function s
 				return
 			}
 			lock.Lock()
-			r.Results[grp] = grpVal
+			results[grp] = grpVal
 			lock.Unlock()
 		}(grpID, timeSeries, function)
 		idx++
@@ -250,32 +252,13 @@ func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function s
 	}
 
 	wg.Wait()
-	r.DsResults = nil
+	r.Results = results
 
-	return nil
-}
-
-func (r *MetricsResult) ApplyFunctionsToResults(function structs.Function) error {
-
-	switch function.MathFunction {
-	case segutils.Abs:
-		evaluate(r.Results, math.Abs)
-	case segutils.Ceil:
-		evaluate(r.Results, math.Ceil)
-	case segutils.Floor:
-		evaluate(r.Results, math.Floor)
-	case segutils.Round:
-		if len(function.Value) > 0 {
-			err := evaluateRoundWithPrecision(r.Results, function.Value)
-			if err != nil {
-				return fmt.Errorf("ApplyFunctionsToResults: %v", err)
-			}
-		} else {
-			evaluate(r.Results, math.Round)
-		}
-	default:
-		return fmt.Errorf("ApplyFunctionsToResults: unsupported function type %v", function)
+	if len(errList) > 0 {
+		return errList
 	}
+
+	r.DsResults = nil
 
 	return nil
 }
@@ -310,6 +293,17 @@ func (r *MetricsResult) Merge(localRes *MetricsResult) error {
 	return nil
 }
 
+// The groupID string should be in the format of "metricName{tk1:tv1,tk2:tv2,..."
+// As per the flow, there would be no trailing "}" in the groupID string
+func removeMetricNameFromGroupID(groupID string) string {
+	stringVals := strings.Split(groupID, "{")
+	if len(stringVals) != 2 {
+		return groupID
+	} else {
+		return stringVals[1]
+	}
+}
+
 func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*structs.MetricsQueryResponse, error) {
 	if r.State != AGGREGATED {
 		return nil, errors.New("results is not in aggregated state")
@@ -328,14 +322,14 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 
 	for grpId, results := range r.Results {
 		tags := make(map[string]string)
-		tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
+		tagValues := strings.Split(removeTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
 		if len(tagKeys) != len(tagValues) {
 			err := errors.New("GetResults: the length of tag key and tag value pair must match")
 			return nil, err
 		}
 
 		for _, val := range tagValues {
-			keyValue := strings.Split(val, ":")
+			keyValue := strings.Split(removeMetricNameFromGroupID(val), ":")
 			tags[keyValue[0]] = keyValue[1]
 		}
 		retVal[idx] = &structs.MetricsQueryResponse{
@@ -425,7 +419,8 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 	tagKeyValueSet := make([]string, 0)
 
 	for _, series := range res.AllSeries {
-		tagKeyValues := strings.Split(series.grpID.String(), tsidtracker.TAG_VALUE_DELIMITER_STR)
+		seriesStr := removeTrailingComma(series.grpID.String())
+		tagKeyValues := strings.Split(seriesStr, tsidtracker.TAG_VALUE_DELIMITER_STR)
 
 		for _, tkVal := range tagKeyValues {
 			if _, ok := uniqueTagKeyValues[tkVal]; !ok {
@@ -438,7 +433,7 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 	return uniqueTagKeys, tagKeyValueSet, nil
 }
 
-func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricsStatsResponseInfo, error) {
+func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime uint32) (utils.MetricsStatsResponseInfo, error) {
 	var httpResp utils.MetricsStatsResponseInfo
 	httpResp.AggStats = make(map[string]map[string]interface{})
 	if r.State != AGGREGATED {
@@ -487,7 +482,11 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	return httpResp, nil
 }
 
-func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricStatsResponse, error) {
+func removeTrailingComma(s string) string {
+	return strings.TrimSuffix(s, ",")
+}
+
+func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime uint32) (utils.MetricStatsResponse, error) {
 	var httpResp utils.MetricStatsResponse
 	httpResp.Series = make([]string, 0)
 	httpResp.Values = make([][]*float64, 0)
@@ -520,8 +519,8 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 	sort.Slice(httpResp.Timestamps, func(i, j int) bool { return httpResp.Timestamps[i] < httpResp.Timestamps[j] })
 
 	for grpId, results := range r.Results {
-		groupId := mQuery.MetricName + "{"
-		groupId += grpId
+		groupId := grpId
+		groupId = removeTrailingComma(groupId)
 		groupId += "}"
 		httpResp.Series = append(httpResp.Series, groupId)
 

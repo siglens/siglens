@@ -97,7 +97,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	queryInfo, err := InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 0, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
-	allQuerySegKeys, rawCount, _, pqsCount, err := getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
+	allQuerySegKeys, rawCount, _, pqsCount, err := getAllSegmentsInQuery(queryInfo, true, true, time.Now(), 0)
 	assert.NoError(t, err)
 	assert.Len(t, allQuerySegKeys, fileCount)
 	assert.Equal(t, rawCount, uint64(fileCount))
@@ -134,7 +134,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 1, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
-	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
+	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, true, true, time.Now(), 0)
 	assert.NoError(t, err)
 	assert.Len(t, allQuerySegKeys, fileCount)
 	assert.Equal(t, rawCount, uint64(fileCount))
@@ -163,7 +163,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
-	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
+	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, true, true, time.Now(), 0)
 	assert.NoError(t, err)
 	assert.Len(t, allQuerySegKeys, fileCount)
 	assert.Equal(t, rawCount, uint64(fileCount))
@@ -207,7 +207,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	queryInfo, err := InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
-	allQuerySegKeys, rawCount, _, pqsCount, err := getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
+	allQuerySegKeys, rawCount, _, pqsCount, err := getAllSegmentsInQuery(queryInfo, true, true, time.Now(), 0)
 	assert.NoError(t, err)
 	assert.Len(t, allQuerySegKeys, fileCount)
 	assert.Equal(t, rawCount, uint64(fileCount))
@@ -244,7 +244,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
-	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
+	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, true, true, time.Now(), 0)
 	assert.NoError(t, err)
 	assert.Len(t, allQuerySegKeys, fileCount)
 	assert.Equal(t, rawCount, uint64(fileCount))
@@ -282,7 +282,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 	queryInfo, err = InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
-	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
+	allQuerySegKeys, rawCount, _, pqsCount, err = getAllSegmentsInQuery(queryInfo, true, true, time.Now(), 0)
 	assert.NoError(t, err)
 	assert.Len(t, allQuerySegKeys, fileCount)
 	assert.Equal(t, rawCount, uint64(fileCount))
@@ -356,7 +356,7 @@ func pqsSegQuery(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCoun
 	queryInfo, err := InitQueryInformation(searchNode, nil, fullTimeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 2, &DistributedQueryService{}, 0)
 	assert.NoError(t, err)
-	querySegmentRequests, numRawSearchKeys, _, numPQSKeys, err := getAllSegmentsInQuery(queryInfo, false, time.Now(), 0)
+	querySegmentRequests, numRawSearchKeys, _, numPQSKeys, err := getAllSegmentsInQuery(queryInfo, true, true, time.Now(), 0)
 	assert.NoError(t, err)
 	assert.Len(t, querySegmentRequests, fileCount, "each file has a query segment request")
 	assert.Equal(t, uint64(0), numRawSearchKeys)

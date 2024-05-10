@@ -22,11 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/cespare/xxhash"
 	pql "github.com/influxdata/promql/v2"
@@ -47,11 +45,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
-
-const MIN_IN_MS = 60_000
-const HOUR_IN_MS = 3600_000
-const DAY_IN_MS = 86400_000
-const TEN_YEARS_IN_SECS = 315_360_000
 
 func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32, time.Duration, usageStats.UsageStatsGranularity, error) {
 	searchText := ""
@@ -272,7 +265,6 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	log.Infof("qid=%v, ProcessMetricsSearchRequest:  searchString=[%v] startEpochMs=[%v] endEpochMs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	startTime, endTime, interval := parseSearchTextForRangeSelection(searchText, startTime, endTime)
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
 
 	if err != nil {
@@ -297,7 +289,7 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		timeRange = &metricQuery.TimeRange
 	}
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
-	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, startTime, endTime, interval)
+	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, startTime, endTime)
 	if err != nil {
 		log.Errorf("ExecuteAsyncQuery: Error getting results! %+v", err)
 	}
@@ -453,12 +445,6 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	start, end, interval := parseSearchTextForRangeSelection(finalSearchText, start, end)
-	// If timerangeSeconds is greater than 10 years reject the request
-	if end-start > TEN_YEARS_IN_SECS {
-		utils.SendError(ctx, "Time range is greater than 10 years", fmt.Sprintf("qid: %v, Time range: %v", qid, end-start), errors.New("Time range is greater than 10 years"))
-		return
-	}
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(finalSearchText, start, end, myid)
 	if err != nil {
 		utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, finalSearchText), err)
@@ -476,9 +462,20 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
-	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end, interval)
+
+	if len(res.ErrList) > 0 {
+		var errorMessages []string
+		for _, err := range res.ErrList {
+			errorMessages = append(errorMessages, err.Error())
+		}
+		allErrors := strings.Join(errorMessages, "; ")
+		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid: %v", qid), fmt.Errorf(allErrors))
+		return
+	}
+
+	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
 	if err != nil {
-		utils.SendError(ctx, "Failed to get metric time series", fmt.Sprintf("qid: %v", qid), err)
+		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid: %v", qid), err)
 		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
@@ -499,32 +496,6 @@ func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]st
 }
 
 func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	metricFunctions := `[
-		{
-			"fn": "abs", 
-			"name": "Absolute", 
-			"desc": "Returns the input vector with all datapoint values converted to their absolute value.", 
-			"eg": "abs(avg (system.disk.used{*}))"
-		}, 
-		{
-			"fn": "ceil", 
-			"name": "Ceil", 
-			"desc": "Rounds the datapoint values of all elements in v up to the nearest integer.", 
-			"eg": "ceil(avg (system.disk.used))"
-		},
-		{
-			"fn": "floor", 
-			"name": "Floor", 
-			"desc": "Rounds the datapoint values of all elements in v down to the nearest integer.", 
-			"eg": "floor(avg (system.disk.used))"
-		},
-		{
-			"fn": "round", 
-			"name": "Round", 
-			"desc": "Rounds the datapoint values of all elements in v to the nearest integer.", 
-			"eg": "round(avg (system.disk.used)), round(avg (system.disk.used, 1/2))"
-		},
-	]`
 	ctx.SetContentType("application/json")
 	_, err := ctx.Write([]byte(metricFunctions))
 	if err != nil {
@@ -741,11 +712,18 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				if mquery.TagsFilters != nil {
 					groupby = true
 				}
+
+				timeWindow, err := extractTimeWindow(expr.Args)
+				if err != nil {
+					return fmt.Errorf("pql.Inspect: can not extract time window from a range vector: %v", err)
+				}
 				switch function {
 				case "deriv":
-					mquery.Aggregator = structs.Aggreation{RangeFunction: segutils.Derivative}
+					mquery.Function = structs.Function{RangeFunction: segutils.Derivative, TimeWindow: timeWindow}
 				case "rate":
-					mquery.Aggregator = structs.Aggreation{RangeFunction: segutils.Rate}
+					mquery.Function = structs.Function{RangeFunction: segutils.Rate, TimeWindow: timeWindow}
+				case "irate":
+					mquery.Function = structs.Function{RangeFunction: segutils.IRate, TimeWindow: timeWindow}
 				default:
 					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
 				}
@@ -763,6 +741,12 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					}
 				case "floor":
 					mquery.Function = structs.Function{MathFunction: segutils.Floor}
+				case "ln":
+					mquery.Function = structs.Function{MathFunction: segutils.Ln}
+				case "log2":
+					mquery.Function = structs.Function{MathFunction: segutils.Log2}
+				case "log10":
+					mquery.Function = structs.Function{MathFunction: segutils.Log10}
 				default:
 					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
 				}
@@ -775,6 +759,11 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		mquery.SelectAllSeries = true
 		agg := structs.Aggreation{AggregatorFunction: segutils.Avg}
 		mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: agg}
+
+		if len(mquery.TagsFilters) > 0 {
+			mquery.SelectAllSeries = false
+		}
+
 		metricQueryRequest := &structs.MetricsQueryRequest{
 			MetricsQuery: mquery,
 			TimeRange: dtu.MetricsTimeRange{
@@ -846,7 +835,11 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
 	}
 	mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: mquery.Aggregator}
-	mquery.SelectAllSeries = !groupby // if group by is not present, then we need to select all series
+	if len(mquery.TagsFilters) > 0 {
+		mquery.SelectAllSeries = false
+	} else {
+		mquery.SelectAllSeries = true
+	}
 	mquery.OrgId = myid
 	metricQueryRequest := &structs.MetricsQueryRequest{
 		MetricsQuery: mquery,
@@ -1043,58 +1036,6 @@ func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) (uint64, usage
 	return retVal, granularity
 }
 
-func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTime uint32) (uint32, uint32, uint32) {
-
-	pattern := `\[(.*?)\]`
-
-	regex := regexp.MustCompile(pattern)
-
-	matches := regex.FindAllStringSubmatch(searchText, -1)
-
-	var timeRange string
-
-	for _, match := range matches {
-		timeRange = match[1]
-	}
-
-	var totalVal uint32 = 0
-	var curVal uint32 = 0
-	var curDimension string = ""
-	var dimensionVal uint32 = 0
-
-	for _, ch := range timeRange {
-		if unicode.IsDigit(ch) {
-			if curDimension == "" {
-				curVal = curVal*10 + uint32(ch-'0')
-			} else {
-				totalVal += curVal * dimensionVal
-				curDimension = ""
-				curVal = uint32(ch - '0')
-			}
-		} else {
-			curDimension += curDimension + string(ch)
-			if curDimension == "s" || curDimension == "S" {
-				dimensionVal = 1
-			} else if curDimension == "m" || curDimension == "M" {
-				dimensionVal = 60
-			} else if curDimension == "h" || curDimension == "H" {
-				dimensionVal = 3600
-			} else if curDimension == "d" || curDimension == "D" {
-				dimensionVal = 24 * 3600
-			} else if curDimension == "w" || curDimension == "W" {
-				dimensionVal = 7 * 24 * 3600
-			}
-		}
-	}
-	totalVal += curVal * dimensionVal
-
-	if totalVal > 0 {
-		startTime = endTime - totalVal
-	}
-
-	return startTime, endTime, totalVal
-}
-
 func parseTimeStringToUint32(s interface{}) (uint32, error) {
 	var startTimeStr string
 	var timeVal uint32
@@ -1121,4 +1062,16 @@ func parseTimeStringToUint32(s interface{}) (uint32, error) {
 		return timeVal, err
 	}
 	return timeVal, nil
+}
+
+func extractTimeWindow(args pql.Expressions) (float64, error) {
+	if len(args) > 0 {
+		if ms, ok := args[0].(*pql.MatrixSelector); ok {
+			return ms.Range.Seconds(), nil
+		} else {
+			return 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
+		}
+	} else {
+		return 0, fmt.Errorf("extractTimeWindow: can not extract time window")
+	}
 }
