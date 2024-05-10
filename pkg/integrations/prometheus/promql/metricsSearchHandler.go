@@ -643,6 +643,9 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 
 		mquery.Aggregator = structs.Aggreation{}
 		pql.Inspect(es.Expr, func(node pql.Node, path []pql.Node) error {
+			if node == nil {
+				return nil
+			}
 			switch expr := node.(type) {
 			case *pql.AggregateExpr:
 				aggFunc := extractFuncFromPath(path)
@@ -704,7 +707,14 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 			return nil
 		})
 	case *pql.Call:
+		// E.g: rate(http_requests_total[5m]), So, the process of the Inspect method calling node is as follows:
+		// promql.Call:"rate(http_requests_total[5m])" -> promql.Expressions[0] -> promql.MatrixSelector:"http_requests_total[5m]"
+		// Since we currently handle evaluation logic only in sub-elements like MatrixSelector or VectorSelector, if we add a default case in the switch statement,
+		// traversal would stop prematurely due to an error being returned before reaching sub-nodes such as MatrixSelector
 		pql.Inspect(expr, func(node pql.Node, path []pql.Node) error {
+			if node == nil {
+				return nil
+			}
 			switch node.(type) {
 			case *pql.MatrixSelector:
 				function := extractFuncFromPath(path)
