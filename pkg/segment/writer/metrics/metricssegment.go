@@ -1349,6 +1349,24 @@ func GetUnrotatedMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, or
 
 	return resultMetricSegments, nil
 }
+func GetUniqueTagKeysForUnrotated(tRange *dtu.MetricsTimeRange, orgid uint64) (map[string]struct{}, error) {
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, orgid)
+	if err != nil {
+		return nil, err
+	}
+
+	uniqueTagKeys := make(map[string]struct{})
+
+	// Iterate over the segments and extract unique tag keys
+	for _, segment := range unrotatedMetricSegments {
+		allTrees := GetTagsTreeHolder(orgid, segment.Mid).allTrees
+		for k := range allTrees {
+			uniqueTagKeys[k] = struct{}{}
+		}
+	}
+
+	return uniqueTagKeys, nil
+}
 
 func GetTotalEncodedSize() uint64 {
 	totalSize := uint64(0)
