@@ -63,6 +63,13 @@ const metricFunctions = `[
 		"isTimeRangeFunc": true
 	},
 	{
+		"fn": "irate", 
+		"name": "Instant Rate", 
+		"desc": "Calculates the per-second instant rate of increase of the time series in the range vector", 
+		"eg": "irate(http_requests_total[5m])",
+		"isTimeRangeFunc": true
+	},
+	{
 		"fn": "deriv", 
 		"name": "Derivative", 
 		"desc": "Calculates the per-second derivative of the time series in a range vector v, using simple linear regression", 
@@ -70,3 +77,15 @@ const metricFunctions = `[
 		"isTimeRangeFunc": true
 	}
 ]`
+
+const PromQLBuildInfo = `{
+    "status": "success",
+    "data": {
+        "version": "2.23.1",
+        "revision": "cb7cbad5f9a2823a622aaa668833ca04f50a0ea7",
+        "branch": "master",
+        "buildUser": "julius@desktop",
+        "buildDate": "20060102-15:04:05",
+        "goVersion": "go1.22.2"
+    }
+}`

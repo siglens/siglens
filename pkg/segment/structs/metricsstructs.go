@@ -93,7 +93,7 @@ type Label struct {
 
 type Data struct {
 	ResultType pql.ValueType `json:"resultType"`
-	Result     []pql.Series  `json:"series,omitempty"`
+	Result     []pql.Series  `json:"result,omitempty"`
 }
 type MetricsQueryResponsePromQl struct {
 	Status    string   `json:"status"` //success/error
