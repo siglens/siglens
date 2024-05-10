@@ -122,3 +122,18 @@ func GetMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid uint6
 
 	return metricsSegMeta
 }
+
+func GetUniqueTagKeysForRotated(tRange *dtu.MetricsTimeRange, myid uint64) (map[string]struct{}, error) {
+	mSegmentsMeta := GetMetricSegmentsOverTheTimeRange(tRange, myid)
+
+	uniqueTagKeys := make(map[string]struct{})
+
+	// Iterate over the metadata and extract unique tag keys
+	for _, meta := range mSegmentsMeta {
+		for key := range meta.TagKeys {
+			uniqueTagKeys[key] = struct{}{}
+		}
+	}
+
+	return uniqueTagKeys, nil
+}
