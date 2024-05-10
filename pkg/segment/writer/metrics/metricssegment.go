@@ -1359,9 +1359,11 @@ func GetUniqueTagKeysForUnrotated(tRange *dtu.MetricsTimeRange, orgid uint64) (m
 
 	// Iterate over the segments and extract unique tag keys
 	for _, segment := range unrotatedMetricSegments {
-		allTrees := GetTagsTreeHolder(orgid, segment.Mid).allTrees
-		for k := range allTrees {
-			uniqueTagKeys[k] = struct{}{}
+		tagsTreeHolder := GetTagsTreeHolder(orgid, segment.Mid)
+		if tagsTreeHolder != nil {
+			for k := range tagsTreeHolder.allTrees {
+				uniqueTagKeys[k] = struct{}{}
+			}
 		}
 	}
 

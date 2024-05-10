@@ -336,17 +336,14 @@ func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		log.Errorf("ProcessGetLabelsRequest: Error getting unique tag keys for unrotated, err:%v", err)
 		return
 	}
-	uniqueTagKeysRotated, err := metadata.GetUniqueTagKeysForRotated(timeRange, myid)
+
+	uniqueTagKeys, err := metadata.GetUniqueTagKeysForRotated(timeRange, myid)
 	if err != nil {
 		log.Errorf("ProcessGetLabelsRequest: Error getting unique tag keys for rotated, err:%v", err)
 		return
 	}
 
-	uniqueTagKeys := make(map[string]struct{})
 	for key := range uniqueTagKeysUnrotated {
-		uniqueTagKeys[key] = struct{}{}
-	}
-	for key := range uniqueTagKeysRotated {
 		uniqueTagKeys[key] = struct{}{}
 	}
 
