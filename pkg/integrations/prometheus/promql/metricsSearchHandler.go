@@ -36,9 +36,11 @@ import (
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	. "github.com/siglens/siglens/pkg/utils"
@@ -299,10 +301,42 @@ func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			log.Errorf("ProcessGetLabelsRequest: Error parsing end time parameter, err:%v", err)
 			return
 		}
+	} else {
+		endTime = uint32(time.Now().Unix())
 	}
-	log.Printf("startTime: %v, local time: %v", startTime, time.Unix(int64(startTime), 0).Local())
-	log.Printf("endTime: %v, local time: %v", endTime, time.Unix(int64(endTime), 0).Local())
-	// TODO: Implement the logic to get the labels
+	timeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: startTime,
+		EndEpochSec:   endTime,
+	}
+	uniqueTagKeysUnrotated, err := metrics.GetUniqueTagKeysForUnrotated(timeRange, myid)
+	if err != nil {
+		log.Errorf("ProcessGetLabelsRequest: Error getting unique tag keys for unrotated, err:%v", err)
+		return
+	}
+
+	uniqueTagKeys, err := metadata.GetUniqueTagKeysForRotated(timeRange, myid)
+	if err != nil {
+		log.Errorf("ProcessGetLabelsRequest: Error getting unique tag keys for rotated, err:%v", err)
+		return
+	}
+
+	for key := range uniqueTagKeysUnrotated {
+		uniqueTagKeys[key] = struct{}{}
+	}
+
+	keys := make([]string, 0, len(uniqueTagKeys))
+	for key := range uniqueTagKeys {
+		keys = append(keys, key)
+	}
+
+	response := map[string]interface{}{
+		"status": "success",
+		"data":   keys,
+	}
+
+	WriteJsonResponse(ctx, &response)
+	ctx.SetContentType("application/json")
+	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	labelName := utils.ExtractParamAsString(ctx.UserValue("labelName"))
