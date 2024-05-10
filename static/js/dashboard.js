@@ -42,7 +42,17 @@ $(document).ready(function () {
     setupEventHandlers();
     dbId = getDashboardId();
 
-    $("#add-panel-btn").click(() => addPanel());
+    $("#add-panel-btn, .close-widget-popup").click(() => {
+        $('#add-widget-options').toggle();
+        $('.add-icon').toggleClass('rotate-icon');
+        $('#add-panel-btn').toggleClass('active');        
+    });
+    
+    $('.widget-option').on('click', (event) => {
+        let dataIndex = $(event.currentTarget).data('index');
+        addPanel(dataIndex);
+    });
+    
     $(".all-dashboards").click(function () {
         window.location.href = "../dashboards-home.html";
     })
@@ -116,7 +126,7 @@ $('.panView-goToDB').on("click", goToDashboardFromView)
 $('.refresh-range-item').on('click', refreshRangeItemHandler);
 
 
-function updateDashboard() {
+async function updateDashboard() {
     timeRange = $('#date-picker-btn').text().trim().replace(/\s+/g, ' ');
     resetPanelTimeRanges();
     flagDBSaved = true;
@@ -215,7 +225,8 @@ function handlePanelEdit() {
             editPanelInit();
         }
         $('.panelEditor-container').show();
-        $('#app-container').hide();
+        $('.popupOverlay').addClass('active');
+        // $('#app-container').hide();
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
@@ -233,7 +244,7 @@ function handlePanelRemove(panelId) {
             deletePanel(panelId);
             $('.popupOverlay, .popupContent').removeClass('active');
         });
-        $('#cancel-btn-panel, .popupOverlay').on("click", function () {
+        $('#cancel-btn-panel').on("click", function () {
             $('.popupOverlay, .popupContent').removeClass('active');
         });
     }
@@ -360,7 +371,7 @@ function handlePanelDuplicate() {
     $(".panel-dupl-li").on("click", function () {
         flagDBSaved = false;
         let duplicatedPanelIndex = $(this).closest(".panel").attr("panel-index");
-        addPanel(JSON.parse(JSON.stringify(localPanels[duplicatedPanelIndex])));
+        addDuplicatePanel(JSON.parse(JSON.stringify(localPanels[duplicatedPanelIndex])));
         renderDuplicatePanel(duplicatedPanelIndex);
     })
 }
@@ -970,7 +981,173 @@ function checkForAddigInTopRow() {
     else return [false, null, null];
 }
 
-function addPanel(panelToDuplicate) {
+function addPanel(chartIndex) {
+    flagDBSaved = false;
+    panelIndex = localPanels.length;
+    let idpanel = uuidv4();
+    let panel = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", panelIndex);
+    $("#panel-container").append(panel);
+    $(`#panel${idpanel} .panel-header p`).html(`panel${panelIndex}`);
+    $("#panel" + idpanel + " .panel-header").click(function () {
+        $("#panel" + idpanel + " .dropdown-btn").toggleClass("active")
+        $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
+    });
+    $("#panel" + idpanel + " .dropdown-btn").click(function (e) {
+        e.stopPropagation();
+        $("#panel" + idpanel + " .dropdown-btn").toggleClass("active")
+        $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
+    });
+    $(`#panel${idpanel} .panel-info-corner`).hide();
+    let marginTop = 0;
+
+    localPanels.forEach((localPanel) => {
+        let val = localPanel.gridpos.y + localPanel.gridpos.h;
+        if (val > marginTop) marginTop = val;
+    });
+
+    let panelElement = document.getElementById(`panel${idpanel}`);
+    let panelHeight = panelElement.offsetHeight;
+    let panelWidth =  panelElement.offsetWidth;
+    let panelTop = marginTop + 20;
+    let panelLeft =  panelElement.offsetLeft;
+    let panelWidthPercentage = panelWidth / panelContainerWidthGlobal;
+
+    let [shouldAddInTopRow, rightBoundary, topmostY] = checkForAddigInTopRow();
+    if (shouldAddInTopRow) {
+        panelLeft = rightBoundary == 0 ? rightBoundary : rightBoundary + 20;
+        panelTop = topmostY == 0 ? topmostY + 10 : topmostY;
+    }
+
+    panelElement.style.position = "absolute";
+    panelElement.style.top = panelTop + "px";
+    panelElement.style.left = panelLeft + "px";
+
+    let chartType = "";
+    let queryType = "";
+    let queryData = {};
+    let logLinesViewType = "";
+    let unit = "";
+
+    switch (chartIndex) {
+        case 0: // Line chart
+            chartType = "Line Chart";
+            queryType = "metrics";
+            queryData = {
+                start: "now-1h",
+                end: "now",
+                query: "testmetric0"
+            };
+            break;
+        case 1: // Bar chart
+            chartType = "Bar Chart";
+            queryType = "logs";
+            queryData = {
+                state: "query",
+                searchText: "city=Boston | stats count AS Count BY weekday",
+                startEpoch: "now-24h",
+                endEpoch: "now",
+                indexName: "test-data",
+                from: 0,
+                queryLanguage: "Splunk QL"
+            };
+            break;
+        case 2: // Pie chart
+            chartType = "Pie Chart";
+            queryType = "logs";
+            queryData = {
+                state: "query",
+                searchText: "city=Boston | stats count AS Count BY http_status",
+                startEpoch: "now-24h",
+                endEpoch: "now",
+                indexName: "test-data",
+                from: 0,
+                queryLanguage: "Splunk QL"
+            };
+            break;
+        case 3: // Data Table
+            chartType = "Data Table";
+            queryType = "logs";
+            queryData = {
+                state: "query",
+                searchText: "*",
+                startEpoch: "now-24h",
+                endEpoch: "now",
+                indexName: "test-data",
+                from: 0,
+                queryLanguage: "Splunk QL"
+            };
+            break;
+        case 4: // Number
+            chartType = "number";
+            queryType = "logs";
+            queryData = {
+                state: "query",
+                searchText: "city=Boston | stats avg(latency)",
+                startEpoch: "now-24h",
+                endEpoch: "now",
+                indexName: "test-data",
+                from: 0,
+                queryLanguage: "Splunk QL"
+            };
+            unit = "misc";
+            break;
+        case 5: // Log Lines
+            chartType = "loglines";
+            queryType = "logs";
+            queryData = {
+                state: "query",
+                searchText: "*",
+                startEpoch: "now-24h",
+                endEpoch: "now",
+                indexName: "test-data",
+                from: 0,
+                queryLanguage: "Splunk QL"
+            };
+            logLinesViewType = "Single line display view";
+            break;
+    }
+
+    localPanels.push({
+        "name": `panel${panelIndex}`,
+        "panelIndex": panelIndex,
+        "panelId": idpanel,
+        "description": "",
+        "chartType": chartType,
+        "unit": "",
+        "dataType": "",
+        "gridpos": {
+            "h": panelHeight,
+            "w": panelWidth,
+            "x": panelLeft,
+            "y": panelTop,
+            "wPercent": panelWidthPercentage,
+        },
+        "queryType": queryType,
+        "queryData": queryData,
+        "logLinesViewType": logLinesViewType,
+        "unit": unit,
+    });
+
+    editPanelInit(panelIndex);
+    $('.panelEditor-container').show();
+    $('.popupOverlay').addClass('active');
+    $('.panelDisplay #panelLogResultsGrid').empty();
+    $('.panelDisplay .big-number-display-container').hide();
+    $('.panelDisplay #empty-response').hide();
+    resetPanelContainerHeight();
+
+    handlePanelView();
+    handlePanelEdit();
+    handlePanelRemove(idpanel);
+    handlePanelDuplicate();
+    handleDrag(idpanel);
+    handleResize(idpanel);
+    $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: 'smooth' });
+
+}
+
+
+function addDuplicatePanel(panelToDuplicate) {
     flagDBSaved = false;
     panelIndex = localPanels.length;
     let idpanel = uuidv4();
@@ -995,68 +1172,30 @@ function addPanel(panelToDuplicate) {
     })
 
     let panelElement = document.getElementById(`panel${idpanel}`);
-    let panelHeight = panelToDuplicate ? panelToDuplicate.gridpos.h : panelElement.offsetHeight;
-    let panelWidth = panelToDuplicate ? panelToDuplicate.gridpos.w : panelElement.offsetWidth;
-    let panelTop = panelToDuplicate ? panelToDuplicate.gridpos.y + panelToDuplicate.gridpos.h + 20 : marginTop + 20;
-    let panelLeft = panelToDuplicate ? panelToDuplicate.gridpos.x : panelElement.offsetLeft;
+    let panelHeight = panelToDuplicate.gridpos.h;
+    let panelWidth = panelToDuplicate.gridpos.w;
+    let panelTop = panelToDuplicate.gridpos.y + panelToDuplicate.gridpos.h + 20;
+    let panelLeft = panelToDuplicate.gridpos.x;
     let panelWidthPercentage = panelWidth / panelContainerWidthGlobal;
-
-    if (panelToDuplicate == undefined) { // means a new panel is being added
-        let [shouldAddInTopRow, rightBoundary, topmostY] = checkForAddigInTopRow();
-        if (shouldAddInTopRow) {
-            panelLeft = rightBoundary == 0 ? rightBoundary : rightBoundary + 20;
-            panelTop = topmostY == 0 ? topmostY + 10 : topmostY;
-        }
-    }
 
     panelElement.style.position = "absolute"
     panelElement.style.top = panelTop + "px"
     panelElement.style.left = panelLeft + "px"
 
-    if (panelToDuplicate) {
-        panelToDuplicate.panelId = idpanel;
-        panelToDuplicate.name += "Copy";
-        panelToDuplicate.panelIndex = panelIndex;
-        panelToDuplicate.gridpos.x = panelLeft;
-        panelToDuplicate.gridpos.y = panelTop;
-        panelToDuplicate.gridpos.h = panelHeight;
-        panelToDuplicate.gridpos.w = panelWidth;
-        if (panelToDuplicate.description){
-            handleDescriptionTooltip(panelToDuplicate.panelId,panelToDuplicate.description)
-        }
+    panelToDuplicate.panelId = idpanel;
+    panelToDuplicate.name += "Copy";
+    panelToDuplicate.panelIndex = panelIndex;
+    panelToDuplicate.gridpos.x = panelLeft;
+    panelToDuplicate.gridpos.y = panelTop;
+    panelToDuplicate.gridpos.h = panelHeight;
+    panelToDuplicate.gridpos.w = panelWidth;
+    if (panelToDuplicate.description){
+        handleDescriptionTooltip(panelToDuplicate.panelId,panelToDuplicate.description)
     }
 
-    panelToDuplicate
-        ?
-        localPanels.push(JSON.parse(JSON.stringify(panelToDuplicate)))
-        :
-        localPanels.push({
-            "name": `panel${panelIndex}`,
-            "panelIndex": panelIndex,
-            "panelId": idpanel,
-            "description": "",
-            "chartType": "",
-            "unit": "",
-            "dataType": "",
-            "gridpos": {
-                "h": panelHeight,
-                "w": panelWidth,
-                "x": panelLeft,
-                "y": panelTop,
-                "wPercent": panelWidthPercentage,
-            },
-            "queryType": "",
-        });
-    if (!panelToDuplicate) {        
-        editPanelInit(panelIndex);
-        $('.panelEditor-container').show();
-        $('#app-container').hide();
-        $('.panelDisplay #panelLogResultsGrid').empty();
-        $('.panelDisplay .big-number-display-container').hide();
-        $('.panelDisplay #empty-response').hide();
-    }
+    localPanels.push(JSON.parse(JSON.stringify(panelToDuplicate)))
+
     resetPanelContainerHeight();
-
     handlePanelView();
     handlePanelEdit();
     handlePanelRemove(idpanel);
@@ -1064,7 +1203,6 @@ function addPanel(panelToDuplicate) {
     handleDrag(idpanel);
     handleResize(idpanel);
     $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: 'smooth' });
-
 }
 
 function resetPanelContainerHeight() {
