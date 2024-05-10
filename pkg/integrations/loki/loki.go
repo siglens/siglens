@@ -367,7 +367,7 @@ func ProcessLokiLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	indexName := []string{LOKIINDEX}
 	responsebody := make(map[string]interface{})
 	colNames := remove(metadata.GetAllColNames(indexName), "line")
-	// Checked with default Loki Index, if not present, then fetch from all indexes
+	// Check with default Loki Index, if not present, then fetch from all indexes
 	if len(colNames) == 0 {
 		colNames = fetchColumnNamesFromAllIndexes(myid)
 	}
@@ -458,7 +458,6 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	if sortOrder == "ASC" {
-		log.Infof("ProcessQueryRequest: Adding Asc sort to query aggs of LogQL Request")
 		aggs = addAscSortColRequestToQueryAggs(aggs, sizeLimit)
 	}
 
