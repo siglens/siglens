@@ -207,6 +207,11 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 		return
 	}
+	if len(metricQueryRequest) == 0 {
+		ctx.SetContentType(ContentJson)
+		WriteJsonResponse(ctx, map[string]interface{}{})
+		return
+	}
 	segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[0], qid)
 	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
 
