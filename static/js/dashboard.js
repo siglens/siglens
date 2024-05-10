@@ -1146,6 +1146,65 @@ function addPanel(chartIndex) {
 
 }
 
+
+function addDuplicatePanel(panelToDuplicate) {
+    flagDBSaved = false;
+    panelIndex = localPanels.length;
+    let idpanel = uuidv4();
+    let panel = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", panelIndex);
+    $("#panel-container").append(panel);
+    $(`#panel${idpanel} .panel-header p`).html(`panel${panelIndex}`);
+    $("#panel" + idpanel + " .panel-header").click(function () {
+        $("#panel" + idpanel + " .dropdown-btn").toggleClass("active")
+        $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
+    })
+    $("#panel" + idpanel + " .dropdown-btn").click(function (e) {
+        e.stopPropagation();
+        $("#panel" + idpanel + " .dropdown-btn").toggleClass("active")
+        $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
+    });
+    $(`#panel${idpanel} .panel-info-corner`).hide();
+    let marginTop = 0;
+
+    localPanels.map((localPanel) => {
+        let val = localPanel.gridpos.y + localPanel.gridpos.h;
+        if (val > marginTop) marginTop = val;
+    })
+
+    let panelElement = document.getElementById(`panel${idpanel}`);
+    let panelHeight = panelToDuplicate.gridpos.h;
+    let panelWidth = panelToDuplicate.gridpos.w;
+    let panelTop = panelToDuplicate.gridpos.y + panelToDuplicate.gridpos.h + 20;
+    let panelLeft = panelToDuplicate.gridpos.x;
+    let panelWidthPercentage = panelWidth / panelContainerWidthGlobal;
+
+    panelElement.style.position = "absolute"
+    panelElement.style.top = panelTop + "px"
+    panelElement.style.left = panelLeft + "px"
+
+    panelToDuplicate.panelId = idpanel;
+    panelToDuplicate.name += "Copy";
+    panelToDuplicate.panelIndex = panelIndex;
+    panelToDuplicate.gridpos.x = panelLeft;
+    panelToDuplicate.gridpos.y = panelTop;
+    panelToDuplicate.gridpos.h = panelHeight;
+    panelToDuplicate.gridpos.w = panelWidth;
+    if (panelToDuplicate.description){
+        handleDescriptionTooltip(panelToDuplicate.panelId,panelToDuplicate.description)
+    }
+
+    localPanels.push(JSON.parse(JSON.stringify(panelToDuplicate)))
+
+    resetPanelContainerHeight();
+    handlePanelView();
+    handlePanelEdit();
+    handlePanelRemove(idpanel);
+    handlePanelDuplicate();
+    handleDrag(idpanel);
+    handleResize(idpanel);
+    $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: 'smooth' });
+}
+
 function resetPanelContainerHeight() {
     let panelContainerMinHeight = 0;
     localPanels.map((localPanel, index) => {
