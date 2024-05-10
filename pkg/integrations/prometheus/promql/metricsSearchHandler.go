@@ -19,11 +19,9 @@ package promql
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -160,17 +158,14 @@ func parseTimeForPromQL(timeParam string) (uint32, error) {
 	}
 	var timeValue int64
 
-	if timeParam != "" {
-		if parsedInt, err := strconv.ParseInt(timeParam, 10, 64); err == nil {
-			// If timeParam can be parsed as an integer, use it as the time value
-			timeValue = parsedInt
-
-		} else if parsedTime, err := time.Parse(time.RFC3339, timeParam); err == nil {
-			// If timeParam can be parsed as an RFC3339 time, use it as the time value
-			timeValue = parsedTime.Unix()
-		} else {
-			return 0, err
-		}
+	if parsedInt, err := strconv.ParseInt(timeParam, 10, 64); err == nil {
+		// If timeParam can be parsed as an integer, use it as the time value
+		timeValue = parsedInt
+	} else if parsedTime, err := time.Parse(time.RFC3339, timeParam); err == nil {
+		// If timeParam can be parsed as an RFC3339 time, use it as the time value
+		timeValue = parsedTime.Unix()
+	} else {
+		return 0, err
 	}
 
 	return uint32(timeValue), nil
@@ -184,7 +179,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var err error
 
 	if searchText == "" {
-		log.Errorf("ProcessMetricsSearchRequest: no query parameter provided")
+		log.Errorf("ProcessPromqlMetricsSearchRequest: no query parameter provided")
 		utils.SetBadMsg(ctx, "query is required")
 		return
 	}
@@ -199,17 +194,16 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			return
 		}
 	}
-	log.Infof("qid=%v, ProcessMetricsSearchRequest:  searchString=[%v] startEpochs=[%v] endEpochs=[%v]", qid, searchText, endTime-1, endTime)
 
-	metricQueryRequest, pqlQuerytype, _, err := convertPqlToMetricsQuery(searchText, endTime-108000, endTime, myid)
+	metricQueryRequest, pqlQuerytype, _, err := convertPqlToMetricsQuery(searchText, endTime-1, endTime, myid)
 	if err != nil {
 		ctx.SetContentType(ContentJson)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		WriteJsonResponse(ctx, nil)
-		log.Errorf("qid=%v, ProcessMetricsSearchRequest: Error parsing query err=%+v", qid, err)
+		log.Errorf("qid=%v, ProcessPromqlMetricsSearchRequest: Error parsing query err=%+v", qid, err)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf("qid=%v, ProcessMetricsSearchRequest: could not write error message err=%v", qid, err)
+			log.Errorf("qid=%v, ProcessPromqlMetricsSearchRequest: could not write error message err=%v", qid, err)
 		}
 		return
 	}
@@ -218,7 +212,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
 	if err != nil {
-		log.Errorf("ExecuteAsyncQuery: Error getting results! %+v", err)
+		log.Errorf("ProcessPromqlMetricsSearchRequest: Error getting results! %+v", err)
 	}
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
@@ -237,7 +231,7 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 	var err error
 
 	if searchText == "" {
-		log.Errorf("ProcessMetricsSearchRequest: missing query parameter")
+		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: missing query parameter")
 		utils.SetBadMsg(ctx, "query parameter is required")
 		return
 	}
@@ -266,17 +260,17 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 		return
 	}
 
-	log.Infof("qid=%v, ProcessMetricsSearchRequest:  searchString=[%v] startEpochs=[%v] endEpochs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
+	log.Infof("qid=%v, ProcessPromqlMetricsRangeSearchRequest:  searchString=[%v] startEpochs=[%v] endEpochs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
 	metricQueryRequest, pqlQuerytype, _, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
 		ctx.SetContentType(ContentJson)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		WriteJsonResponse(ctx, nil)
-		log.Errorf("qid=%v, ProcessMetricsSearchRequest: Error parsing query err=%+v", qid, err)
+		log.Errorf("qid=%v, ProcessPromqlMetricsRangeSearchRequest: Error parsing query err=%+v", qid, err)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf("qid=%v, ProcessMetricsSearchRequest: could not write error message err=%v", qid, err)
+			log.Errorf("qid=%v, ProcessPromqlMetricsRangeSearchRequest: could not write error message err=%v", qid, err)
 		}
 		return
 	}
@@ -285,7 +279,7 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 
 	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
 	if err != nil {
-		log.Errorf("ExecuteAsyncQuery: Error getting results! %+v", err)
+		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error getting results! %+v", err)
 	}
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
@@ -293,26 +287,8 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 
 }
 func ProcessPromqlBuildInfoRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	buildInfo := map[string]interface{}{
-		"status": "success",
-		"data": map[string]string{
-			"version":   "2.23.1",
-			"revision":  "cb7cbad5f9a2823a622aaa668833ca04f50a0ea7",
-			"branch":    "master",
-			"buildUser": "julius@desktop",
-			"buildDate": time.Now().Format("20060102-15:04:05"),
-			"goVersion": runtime.Version(),
-		},
-	}
-
-	jsonData, err := json.Marshal(buildInfo)
-	if err != nil {
-		log.Errorf("ProcessPromqlBuildInfoRequest: failed to marshal response, err=%v", err)
-		return
-	}
-
 	ctx.SetContentType("application/json")
-	_, err = ctx.WriteString(string(jsonData))
+	_, err := ctx.Write([]byte(PromQLBuildInfo))
 	if err != nil {
 		log.Errorf("ProcessPromqlBuildInfoRequest: failed to write response, err=%v", err)
 	}
@@ -321,31 +297,52 @@ func ProcessPromqlBuildInfoRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
-	startTime, err := parseTimeForPromQL(startParam)
-	if err != nil {
-		log.Errorf("ProcessPromqlMetricsSearchRequest: Error parsing time parameter, err:%v", err)
-	}
-	endTime, err := parseTimeForPromQL(endParam)
-	if err != nil {
-		log.Errorf("ProcessPromqlMetricsSearchRequest: Error parsing time parameter, err:%v", err)
+
+	var startTime, endTime uint32
+	var err error
+
+	// If startParam exists, parse it
+	if startParam != "" {
+		startTime, err = parseTimeForPromQL(startParam)
+		if err != nil {
+			log.Errorf("ProcessGetLabelsRequest: Error parsing start time parameter, err:%v", err)
+			return
+		}
 	}
 
+	// If endParam exists, parse it
+	if endParam != "" {
+		endTime, err = parseTimeForPromQL(endParam)
+		if err != nil {
+			log.Errorf("ProcessGetLabelsRequest: Error parsing end time parameter, err:%v", err)
+			return
+		}
+	}
 	log.Printf("startTime: %v, local time: %v", startTime, time.Unix(int64(startTime), 0).Local())
 	log.Printf("endTime: %v, local time: %v", endTime, time.Unix(int64(endTime), 0).Local())
 	// TODO: Implement the logic to get the labels
 }
-
 func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	labelName := utils.ExtractParamAsString(ctx.UserValue("labelName"))
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
-	startTime, err := parseTimeForPromQL(startParam)
-	if err != nil {
-		log.Errorf("ProcessPromqlMetricsSearchRequest: Error parsing start time parameter, err:%v", err)
+
+	var startTime, endTime uint32
+	var err error
+
+	if startParam != "" {
+		startTime, err = parseTimeForPromQL(startParam)
+		if err != nil {
+			log.Errorf("ProcessGetLabelValuesRequest: Error parsing start time parameter, err:%v", err)
+			return
+		}
 	}
-	endTime, err := parseTimeForPromQL(endParam)
-	if err != nil {
-		log.Errorf("ProcessPromqlMetricsSearchRequest: Error parsing end time parameter, err:%v", err)
+	if endParam != "" {
+		endTime, err = parseTimeForPromQL(endParam)
+		if err != nil {
+			log.Errorf("ProcessGetLabelValuesRequest: Error parsing end time parameter, err:%v", err)
+			return
+		}
 	}
 
 	log.Printf("startTime: %v, local time: %v", startTime, time.Unix(int64(startTime), 0).Local())
