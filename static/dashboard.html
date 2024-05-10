@@ -154,9 +154,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
                         </div>
                     </div>
-                    <button class="btn" id="add-panel-btn" title="Add panel">
+                    <button class="btn active" id="add-panel-btn" title="Add panel">
                         <span>
-                            <img src="./assets/add-icon.svg" class="add-icon" alt="add icon"/> </span>Add Panel
+                            <img src="./assets/add-icon.svg" class="add-icon rotate-icon" alt="add icon "/> </span>Add Panel
                     </button>
                 </div>
             </div>
@@ -165,6 +165,41 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
 
             <div id="viewPanel-container">
+            </div>
+
+            <div id="add-widget-options">
+                <ul class="editPanelMenu">
+                    <div class="d-flex justify-content-between w-100 align-items-baseline">
+                        <div>
+                            <h6 class="widgets-text">Widgets</h6>
+                        </div>
+                        <div class="close-widget-popup">×</div>
+                    </div>
+                    <div class="editPanelMenu-options widget-option" data-index="0">
+                        <img src="./assets/line-chart.svg" alt="line chart icon" class="chart-display" />
+                        <li>Line Chart</li>
+                    </div>
+                    <div class="editPanelMenu-options widget-option" data-index="1">
+                        <img src="./assets/bar-chart.svg" alt="bar chart icon" class="chart-display"/>
+                        <li>Bar Chart</li>
+                    </div>
+                    <div class="editPanelMenu-options widget-option" data-index="2">
+                        <img src="./assets/pie-chart.svg" alt="pie chart icon" class="chart-display"/>
+                        <li>Pie Chart</li>
+                    </div>
+                    <div class="editPanelMenu-options widget-option" data-index="3">
+                        <img src="./assets/data-table.svg" alt="data table icon" class="chart-display"/>
+                        <li>Data Table</li>
+                    </div>
+                    <div class="editPanelMenu-options widget-option" data-index="4">
+                        <img src="./assets/number-chart.svg" alt="number chart icon" class="chart-display" />
+                        <li>Number</li>
+                    </div>
+                    <div class="editPanelMenu-options widget-option" data-index="5">
+                        <img src="./assets/log-lines.svg" alt="log lines icon" class="chart-display" />
+                        <li>Log Lines</li>
+                    </div>
+                </ul>
             </div>
         </div>
         <div class="popupOverlay">

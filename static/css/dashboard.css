@@ -1333,7 +1333,7 @@ input:checked + .slider:before {
 #query-language-btn{
   height: 32px !important;
 }
-#add-panel-btn:hover {
+#add-panel-btn:hover,#add-panel-btn.active {
   background: var(--btn-hover-or-click-bg-color) !important;
 }
 .info-icon{
@@ -1447,4 +1447,42 @@ input:checked + .slider:before {
 }
 .graph-customization{
   width: 320px;
+}
+#add-widget-options .editPanelMenu{
+    width: 20%;
+    padding: 10px 10px;
+    position: absolute;
+    right: 20px;
+    top: 50px;
+    cursor: default;
+    box-shadow: var(--box-shadow);
+}
+
+#add-widget-options .editPanelMenu-options{
+  background-color: var(--edit-panel-bg-color) !important;
+  color: var(--text-color-regular);
+  width: 100%;
+  padding: 4px 10px;
+  margin: 0px;
+  cursor: pointer;
+  margin-top: 5px;
+}
+
+#add-widget-options .editPanelMenu-options:hover{
+  background-color: var(--edit-panel-option-bg-color) !important;
+  color: var(--text-color-regular);
+}
+.widgets-text{
+  font-size: 14px;
+  font-weight: 700;
+  border-bottom: 2px solid var(--purple-1);
+  margin-left: 8px;
+}
+.close-widget-popup{
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rotate-icon {
+  transform: rotate(45deg);
 }
