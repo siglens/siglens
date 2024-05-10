@@ -149,7 +149,7 @@ func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32,
 
 // Helper function that parses a time parameter for use in PromQL.
 // The time parameter can be in either epoch time format or RFC3339 format.
-// If the time parameter is an empty string, the function returns the error.
+// If the time parameter is an empty string, the function returns an error.
 // The function returns the parsed time as a uint32 Unix timestamp and an error if the parsing fails.
 func parseTimeForPromQL(timeParam string) (uint32, error) {
 	if timeParam == "" {
