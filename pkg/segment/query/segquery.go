@@ -112,6 +112,32 @@ func GetNodeAndQueryTypes(sNode *structs.SearchNode, aggs *structs.QueryAggregat
 	return sNode.NodeType, structs.RRCCmd
 }
 
+func ApplyVectorArithmetic(aggs *structs.QueryAggregators, qid uint64) *structs.NodeResult {
+	nodeRes := &structs.NodeResult{}
+
+	if aggs.PipeCommandType != structs.VectorArithmeticExprType {
+		nodeRes.ErrList = []error{errors.New("the query does not have a vector arithmetic expression")}
+		return nodeRes
+	}
+
+	if aggs.VectorArithmeticExpr == nil {
+		nodeRes.ErrList = []error{errors.New("the query does not have a vector arithmetic expression")}
+		return nodeRes
+	}
+
+	vectorExpr := aggs.VectorArithmeticExpr
+
+	result, err := vectorExpr.Evaluate(map[string]segutils.CValueEnclosure{})
+	if err != nil {
+		nodeRes.ErrList = []error{err}
+		return nodeRes
+	}
+
+	nodeRes.VectorResultValue = result
+	nodeRes.Qtype = "VectorArithmeticExprType"
+	return nodeRes
+}
+
 func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
 	qid uint64, qc *structs.QueryContext) *structs.NodeResult {
 

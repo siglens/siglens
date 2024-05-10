@@ -1225,6 +1225,10 @@ func performSortColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColR
 		letColReq.SortColRequest.NumProcessedSegments++
 	}
 
+	if letColReq.SortColRequest.SortRecords == nil {
+		letColReq.SortColRequest.SortRecords = make(map[string]map[string]interface{}, 0)
+	}
+
 	if letColReq.SortColRequest.NumProcessedSegments < numTotalSegments {
 		for k, v := range recs {
 			letColReq.SortColRequest.SortRecords[k] = v

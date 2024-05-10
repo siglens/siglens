@@ -112,6 +112,11 @@ type StreamValue struct {
 	Values [][]string             `json:"values"`
 }
 
+type VectorValue struct {
+	Metric map[string]interface{} `json:"metric"`
+	Values [][]interface{}        `json:"values"`
+}
+
 type Stats struct {
 	Ingester Ingester `json:"ingester"`
 	Store    Store    `json:"store"`

@@ -453,7 +453,7 @@ func sampleDatasetBulkHandler() func(ctx *fasthttp.RequestCtx) {
 
 func lokiLabelsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		loki.ProcessLokiLabelRequest(ctx)
+		serverutils.CallWithOrgIdQuery(loki.ProcessLokiLabelRequest, ctx)
 	}
 }
 

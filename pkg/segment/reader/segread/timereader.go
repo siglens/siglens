@@ -163,7 +163,7 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 	}
 
 	blockMeta, ok := trr.timeMetadata[blockNum]
-	if !ok {
+	if !ok || blockMeta == nil {
 		log.Errorf("readAllTimestampsForBlock: failed to find block %d in all block metadata %+v", blockNum, trr.timeMetadata)
 		return errors.New("requested blockNum does not exist")
 	}
