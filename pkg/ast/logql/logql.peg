@@ -87,6 +87,13 @@ Start <- query:Stream? jf:JSONFilter? fs:FilterStream? EOF {
     q.PipeCommands = aggs
     q.PipeCommands.PipeCommandType = structs.GroupByType
     return q, nil
+} / expr: VectorArithmeticExpr {
+    var q ast.QueryStruct
+    aggs := &structs.QueryAggregators{}
+    aggs.VectorArithmeticExpr = expr.(*structs.NumericExpr)
+    q.PipeCommands = aggs
+    q.PipeCommands.PipeCommandType = structs.VectorArithmeticExprType
+    return q, nil
 }
 
 Stream <- Delimiter q1:Query rest:(Query)* Delimiter space?{
@@ -248,6 +255,56 @@ Duration <- "[" val:Integer timeUnit:TIME_UNIT "]" {
 	}
 }
 
+// Top-level expression rule
+VectorArithmeticExpr <- _ expr:ArithmeticExpr _ {
+    return expr, nil
+}
+
+// Handling arithmetic expressions
+ArithmeticExpr <- head:Term tail:(_ (Add / Subtract) _ Term)* {
+    result := head
+    tailSlice :=  tail.([]any)
+    for _, op := range tailSlice {
+        opSlice := op.([]any)
+        result = &structs.NumericExpr {
+            IsTerminal: false,
+            Op: opSlice[1].(string),
+            Left: result.(*structs.NumericExpr),
+            Right: opSlice[3].(*structs.NumericExpr),
+            NumericExprMode: structs.NEMNumericExpr,
+        }
+    }
+    return result, nil
+}
+
+// Terms handle multiplication, division, and modulo operations
+Term <- head:VectorExpr tail:(_ (Multiply / Divide / Modulo) _ VectorExpr)* {
+    result := head
+    tailSlice := tail.([]any)
+    for _, op := range tailSlice {
+        opSlice := op.([]any)
+        result = &structs.NumericExpr{
+            IsTerminal: false,
+            Op: opSlice[1].(string),
+            Left: result.(*structs.NumericExpr),
+            Right: opSlice[3].(*structs.NumericExpr),
+            NumericExprMode: structs.NEMNumericExpr,
+        }
+    }
+    return result, nil
+}
+
+// Vector function calls
+VectorExpr <- "vector" _ "(" _ value:(Float / Integer) _ ")" {
+    expr := &structs.NumericExpr {
+        IsTerminal: true,
+        ValueIsField: false,
+        Value: fmt.Sprintf("%v", value),
+        NumericExprMode: structs.NEMNumber,
+    }
+    return expr, nil
+}
+
 TIME_UNIT <- "ms" {
     return uint64(1), nil
 } / "s" {
@@ -351,9 +408,18 @@ LetIdentifier <- '-'? Float {
     return &dte, nil
 }
 
+// Arithmetic operations as strings
+Add <- "+"      { return "+", nil }
+Subtract <- "-" { return "-", nil }
+Multiply <- "*" { return "*", nil }
+Divide <- "/"   { return "/", nil }
+Modulo <- "%"   { return "%", nil }
+
 BoolValue <- "false" / "true"
 
 COUNT_OVER_TIME <- "count_over_time" 
+
+VECTOR <- "vector"
 
 Field <- Value / pieces:FieldPiece {
     if pieces == nil {
@@ -415,6 +481,8 @@ WHITESPACE AND TERMINAL
 EOF = !.
 
 _ "whitespace" <- [ \n\t\r]*
+
+_ <- [ \t]*
 
 space <- [ \n\t\r]+
 
