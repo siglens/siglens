@@ -300,9 +300,9 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func fetchColumnNamesFromAllIndexes(orgid uint64) []string {
+func fetchColumnNamesFromAllIndexes(myid uint64) []string {
 	allColsNamesMap := map[string]struct{}{}
-	indexNamesRetrieved := vtable.ExpandAndReturnIndexNames(LOKIINDEX_STAR, orgid, false)
+	indexNamesRetrieved := vtable.ExpandAndReturnIndexNames(LOKIINDEX_STAR, myid, false)
 	for _, indexName := range indexNamesRetrieved {
 		indexColNames := metadata.GetAllColNames([]string{indexName})
 		for _, colName := range indexColNames {
@@ -363,13 +363,13 @@ func addAscSortColRequestToQueryAggs(queryAggs *structs.QueryAggregators, sizeLi
 	return queryAggs
 }
 
-func ProcessLokiLabelRequest(ctx *fasthttp.RequestCtx, orgid uint64) {
+func ProcessLokiLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	indexName := []string{LOKIINDEX}
 	responsebody := make(map[string]interface{})
 	colNames := remove(metadata.GetAllColNames(indexName), "line")
 	// Checked with default Loki Index, if not present, then fetch from all indexes
 	if len(colNames) == 0 {
-		colNames = fetchColumnNamesFromAllIndexes(orgid)
+		colNames = fetchColumnNamesFromAllIndexes(myid)
 	}
 	responsebody["data"] = colNames
 	responsebody["status"] = "Success"
