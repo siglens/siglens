@@ -251,12 +251,12 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 
 	startTime, err := parseTimeForPromQL(startParam)
 	if err != nil {
-		log.Errorf("ProcessPromqlMetricsSearchRequest: Error parsing start parameter, err:%v", err)
+		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error parsing start parameter, err:%v", err)
 		return
 	}
 	endTime, err := parseTimeForPromQL(endParam)
 	if err != nil {
-		log.Errorf("ProcessPromqlMetricsSearchRequest: Error parsing end parameter, err:%v", err)
+		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error parsing end parameter, err:%v", err)
 		return
 	}
 
