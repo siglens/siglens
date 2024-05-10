@@ -70,6 +70,27 @@ const metricFunctions = `[
 		"isTimeRangeFunc": true
 	},
 	{
+		"fn": "increase", 
+		"name": "Increase", 
+		"desc": "Calculates the increase in the time series in the range vector",
+		"eg": "increase(http_requests_total[5m])",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "delta", 
+		"name": "Delta", 
+		"desc": "Calculates the difference between the first and last value of each time series element in a range vector v",
+		"eg": "delta(cpu_temp_celsius[2h])",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "idelta", 
+		"name": "Instant Delta", 
+		"desc": "Calculates the difference between the last two samples in the range vector v",
+		"eg": "idelta(cpu_temp_celsius[2h])",
+		"isTimeRangeFunc": true
+	},
+	{
 		"fn": "deriv", 
 		"name": "Derivative", 
 		"desc": "Calculates the per-second derivative of the time series in a range vector v, using simple linear regression", 
