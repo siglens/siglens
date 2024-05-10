@@ -480,7 +480,7 @@ WHITESPACE AND TERMINAL
 ***********************/
 EOF = !.
 
-_ "whitespace" <- [ \n\t\r]*
+whitespace <- [ \n\t\r]*
 
 _ <- [ \t]*
 
