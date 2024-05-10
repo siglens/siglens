@@ -239,7 +239,59 @@ func (dss *DownsampleSeries) Aggregate() (map[uint32]float64, error) {
 	return retVal, nil
 }
 
-func ApplyRangeFunction(ts map[uint32]float64, function segutils.RangeFunctions) (map[uint32]float64, error) {
+func ApplyFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
+	if function.RangeFunction > 0 {
+		return ApplyRangeFunction(ts, function)
+	}
+
+	if function.MathFunction > 0 {
+		return ApplyMathFunction(ts, function)
+	}
+
+	return ts, nil
+}
+
+func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
+	var err error
+	switch function.MathFunction {
+	case segutils.Abs:
+		evaluate(ts, math.Abs)
+	case segutils.Ceil:
+		evaluate(ts, math.Ceil)
+	case segutils.Floor:
+		evaluate(ts, math.Floor)
+	case segutils.Round:
+		if len(function.Value) > 0 {
+			err := evaluateRoundWithPrecision(ts, function.Value)
+			if err != nil {
+				return ts, fmt.Errorf("ApplyMathFunction: %v", err)
+			}
+		} else {
+			evaluate(ts, math.Round)
+		}
+	case segutils.Ln:
+		err = evaluateLogFunc(ts, math.Log)
+	case segutils.Log2:
+		err = evaluateLogFunc(ts, math.Log2)
+	case segutils.Log10:
+		err = evaluateLogFunc(ts, math.Log10)
+	default:
+		return ts, fmt.Errorf("ApplyMathFunction: unsupported function type %v", function)
+	}
+
+	if err != nil {
+		return ts, fmt.Errorf("ApplyMathFunction: %v", err)
+	}
+
+	return ts, nil
+}
+
+func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
+
+	if len(ts) == 0 {
+		return ts, nil
+	}
+
 	// Convert ts to a sorted list of Entry's
 	sortedTimeSeries := make([]Entry, 0, len(ts))
 	for time, value := range ts {
@@ -254,10 +306,15 @@ func ApplyRangeFunction(ts map[uint32]float64, function segutils.RangeFunctions)
 		return sortedTimeSeries[i].downsampledTime < sortedTimeSeries[k].downsampledTime
 	})
 
+	timeWindow := uint32(function.TimeWindow)
+	if sortedTimeSeries[0].downsampledTime <= timeWindow {
+		return ts, fmt.Errorf("ApplyRangeFunction: time window is too large: %v", timeWindow)
+	}
+
 	// ts is a time series mapping timestamps to values
-	switch function {
+	switch function.RangeFunction {
 	case segutils.Derivative:
-		// Calculate the derivative at each timestamp and store it in the resulting map
+		// Use those points which within the time window to calculate the derivative
 		var timestamps []uint32
 		var values []float64
 
@@ -266,7 +323,17 @@ func ApplyRangeFunction(ts map[uint32]float64, function segutils.RangeFunctions)
 			values = append(values, value)
 		}
 
-		for i := 0; i < len(timestamps); i++ {
+		for i := 1; i < len(timestamps); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				delete(ts, sortedTimeSeries[i].downsampledTime)
+				continue
+			}
+
 			timestamp := timestamps[i]
 
 			// Find neighboring data points for linear regression
@@ -274,16 +341,9 @@ func ApplyRangeFunction(ts map[uint32]float64, function segutils.RangeFunctions)
 			var y []float64
 
 			// Collect data points for linear regression
-			for j := i - 1; j <= i+1; j++ {
-				if j >= 0 && j < len(timestamps) {
-					x = append(x, float64(timestamps[j]))
-					y = append(y, values[j])
-				}
-			}
-
-			if len(x) < 2 {
-				log.Errorf("ApplyFunctions: %v does not have enough sample points", function)
-				continue
+			for j := preIndex; j <= i; j++ {
+				x = append(x, float64(timestamps[j]))
+				y = append(y, values[j])
 			}
 
 			var sumX, sumY, sumXY, sumX2 float64
@@ -298,21 +358,71 @@ func ApplyRangeFunction(ts map[uint32]float64, function segutils.RangeFunctions)
 			ts[timestamp] = slope
 		}
 		// derivtives at edges do not exist
-		delete(ts, timestamps[len(timestamps)-1])
 		delete(ts, timestamps[0])
 		return ts, nil
 	case segutils.Rate:
-		// Calculate the rate (per-second rate) for each timestamp and store it in the resulting map
+		// Calculate the average rate (per-second rate) for each timestamp. E.g: to determine the rate for the current point with its timestamp,
+		// find the earliest point within the time window: [timestamp - time window, timestamp]
+		// Then, calculate the rate between that point and the current point
 		if len(sortedTimeSeries) == 0 {
 			return nil, nil
 		}
 
 		var dx, dt float64
-		prevVal := sortedTimeSeries[0].dpVal
+		resetIndex := -1
 		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				delete(ts, sortedTimeSeries[i].downsampledTime)
+				continue
+			}
+
+			if resetIndex > preIndex {
+				preIndex = resetIndex
+			}
+
 			// Calculate the time difference between consecutive data points
-			dt = float64(sortedTimeSeries[i].downsampledTime - sortedTimeSeries[i-1].downsampledTime)
+			dt = float64(sortedTimeSeries[i].downsampledTime - sortedTimeSeries[preIndex].downsampledTime)
 			curVal := sortedTimeSeries[i].dpVal
+			preVal := sortedTimeSeries[preIndex].dpVal
+
+			if curVal > preVal {
+				dx = curVal - preVal
+			} else {
+				// This metric was reset.
+				dx = curVal
+				resetIndex = i
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = dx / dt
+		}
+
+		// Rate at edge does not exist.
+		delete(ts, sortedTimeSeries[0].downsampledTime)
+		return ts, nil
+	case segutils.IRate:
+		// Calculate the instant rate (per-second rate) for each timestamp, based on the last two data points within the timewindow
+		// If the previous point is outside the time window, we still need to use it to calculate the current point's rate, unless its value is greater than the value of the current point
+		if len(sortedTimeSeries) == 0 {
+			return nil, nil
+		}
+
+		var dx, dt float64
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeDff := sortedTimeSeries[i].downsampledTime - sortedTimeSeries[i-1].downsampledTime
+			if timeDff > timeWindow {
+				delete(ts, sortedTimeSeries[i].downsampledTime)
+				continue
+			}
+
+			// Calculate the time difference between consecutive data points
+			dt = float64(timeDff)
+			curVal := sortedTimeSeries[i].dpVal
+			prevVal := sortedTimeSeries[i-1].dpVal
 
 			if curVal > prevVal {
 				dx = curVal - prevVal
@@ -322,14 +432,13 @@ func ApplyRangeFunction(ts map[uint32]float64, function segutils.RangeFunctions)
 			}
 
 			ts[sortedTimeSeries[i].downsampledTime] = dx / dt
-			prevVal = curVal
 		}
 
 		// Rate at edge does not exist.
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
 	default:
-		return ts, fmt.Errorf("ApplyFunctions: Unknown function type")
+		return ts, fmt.Errorf("ApplyRangeFunction: Unknown function type")
 	}
 }
 
@@ -460,37 +569,31 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 
 type float64Func func(float64) float64
 
-func evaluate(res map[string]map[uint32]float64, mathFunc float64Func) {
-	for _, timeSeries := range res {
-		for key, val := range timeSeries {
-			timeSeries[key] = mathFunc(val)
-		}
+func evaluate(ts map[uint32]float64, mathFunc float64Func) {
+	for key, val := range ts {
+		ts[key] = mathFunc(val)
 	}
 }
 
-func evaluateLogFunc(res map[string]map[uint32]float64, mathFunc float64Func) error {
-	for _, timeSeries := range res {
-		for key, val := range timeSeries {
-			if val <= 0 {
-				return fmt.Errorf("evaluateLogFunc: log function cannot evaluate non-positive numbers: %v", val)
-			}
-			timeSeries[key] = mathFunc(val)
+func evaluateLogFunc(ts map[uint32]float64, mathFunc float64Func) error {
+	for key, val := range ts {
+		if val <= 0 {
+			return fmt.Errorf("evaluateLogFunc: log function cannot evaluate non-positive numbers: %v", val)
 		}
+		ts[key] = mathFunc(val)
 	}
 	return nil
 }
 
-func evaluateRoundWithPrecision(res map[string]map[uint32]float64, toNearestStr string) error {
+func evaluateRoundWithPrecision(ts map[uint32]float64, toNearestStr string) error {
 	toNearestStr = strings.ReplaceAll(toNearestStr, " ", "")
 	toNearest, err := convertStrToFloat64(toNearestStr)
 	if err != nil {
 		return fmt.Errorf("evaluateRoundWithPrecision: %v", err)
 	}
 
-	for _, timeSeries := range res {
-		for key, val := range timeSeries {
-			timeSeries[key] = roundToNearest(val, toNearest)
-		}
+	for key, val := range ts {
+		ts[key] = roundToNearest(val, toNearest)
 	}
 
 	return nil
