@@ -295,12 +295,11 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 }
 
 func fetchColumnNamesFromAllIndexes(orgid uint64) []string {
-	colNames := make([]string, 0)
 	allColsNamesMap := map[string]struct{}{}
 	indexNamesRetrieved := vtable.ExpandAndReturnIndexNames(LOKIINDEX_STAR, orgid, false)
 	for _, indexName := range indexNamesRetrieved {
-		colNames = remove(metadata.GetAllColNames([]string{indexName}), "line")
-		for _, colName := range colNames {
+		indexColNames := remove(metadata.GetAllColNames([]string{indexName}), "line")
+		for _, colName := range indexColNames {
 			_, ok := allColsNamesMap[colName]
 			if !ok {
 				allColsNamesMap[colName] = struct{}{}
@@ -308,7 +307,7 @@ func fetchColumnNamesFromAllIndexes(orgid uint64) []string {
 		}
 	}
 
-	colNames = make([]string, 0, len(allColsNamesMap))
+	colNames := make([]string, 0, len(allColsNamesMap))
 	for colName := range allColsNamesMap {
 		colNames = append(colNames, colName)
 	}
