@@ -354,6 +354,31 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	// TODO: Implement the logic to get the label values
 }
 
+func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	matches := make([]string, 0)
+	ctx.QueryArgs().VisitAll(func(key []byte, value []byte) {
+		if string(key) == "match[]" {
+			matches = append(matches, string(value))
+		}
+	})
+
+	startParam := string(ctx.FormValue("start"))
+	endParam := string(ctx.FormValue("end"))
+
+	startTime, err := parseTimeForPromQL(startParam)
+	if err != nil {
+		log.Errorf("ProcessGetSeriesByLabelRequest: Error parsing 'start' parameter, err:%v", err)
+	}
+	endTime, err := parseTimeForPromQL(endParam)
+	if err != nil {
+		log.Errorf("ProcessGetSeriesByLabelRequest: Error parsing 'end' parameter, err:%v", err)
+	}
+
+	log.Printf("startTime: %v, local time: %v", startTime, time.Unix(int64(startTime), 0).Local())
+	log.Printf("endTime: %v, local time: %v", endTime, time.Unix(int64(endTime), 0).Local())
+	log.Printf("matches: %v", matches)
+}
+
 func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {

@@ -181,6 +181,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET(server_utils.PROMQL_PREFIX+"/api/v1/labels", hs.Recovery(promqlGetLabelsHandler()))
 	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/v1/labels", hs.Recovery(promqlGetLabelsHandler()))
 	hs.Router.GET(server_utils.PROMQL_PREFIX+"/api/v1/label/{labelName}/values", hs.Recovery(promqlGetLabelValuesHandler()))
+	hs.Router.GET(server_utils.PROMQL_PREFIX+"/api/v1/series", hs.Recovery(promqlGetSeriesByLabelHandler()))
+	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/v1/series", hs.Recovery(promqlGetSeriesByLabelHandler()))
 
 	// metric explorer endpoint
 	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/metric_names", hs.Recovery(getAllMetricNamesHandler()))

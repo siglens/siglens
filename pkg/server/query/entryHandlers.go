@@ -124,6 +124,12 @@ func promqlGetLabelValuesHandler() func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(prom.ProcessGetLabelValuesRequest, ctx)
 	}
 }
+
+func promqlGetSeriesByLabelHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetSeriesByLabelRequest, ctx)
+	}
+}
 func uiMetricsSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(prom.ProcessUiMetricsSearchRequest, ctx)
