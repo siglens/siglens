@@ -95,9 +95,33 @@ func otsdbMetricQueryExpHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func metricsSearchHandler() func(ctx *fasthttp.RequestCtx) {
+func promqlMetricsInstantQueryHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessMetricsSearchRequest, ctx)
+		serverutils.CallWithOrgIdQuery(prom.ProcessPromqlMetricsSearchRequest, ctx)
+	}
+}
+
+func promqlMetricsRangeQueryHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessPromqlMetricsRangeSearchRequest, ctx)
+	}
+}
+
+func promqlBuildInfoHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessPromqlBuildInfoRequest, ctx)
+	}
+}
+
+func promqlGetLabelsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetLabelsRequest, ctx)
+	}
+}
+
+func promqlGetLabelValuesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetLabelValuesRequest, ctx)
 	}
 }
 func uiMetricsSearchHandler() func(ctx *fasthttp.RequestCtx) {

@@ -172,9 +172,15 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.OTSDB_PREFIX+"/api/v1/query/exp", hs.Recovery(otsdbMetricQueryExpHandler()))
 
 	//prometheus query endpoint
-	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/v1/query", hs.Recovery(metricsSearchHandler()))
-	hs.Router.GET(server_utils.PROMQL_PREFIX+"/api/v1/query", hs.Recovery(metricsSearchHandler()))
+	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/v1/query", hs.Recovery(promqlMetricsInstantQueryHandler()))
+	hs.Router.GET(server_utils.PROMQL_PREFIX+"/api/v1/query", hs.Recovery(promqlMetricsInstantQueryHandler()))
 	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/ui/query", hs.Recovery(uiMetricsSearchHandler()))
+	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/v1/query_range", hs.Recovery(promqlMetricsRangeQueryHandler()))
+	hs.Router.GET(server_utils.PROMQL_PREFIX+"/api/v1/query_range", hs.Recovery(promqlMetricsRangeQueryHandler()))
+	hs.Router.GET(server_utils.PROMQL_PREFIX+"/api/v1/status/buildinfo", hs.Recovery(promqlBuildInfoHandler()))
+	hs.Router.GET(server_utils.PROMQL_PREFIX+"/api/v1/labels", hs.Recovery(promqlGetLabelsHandler()))
+	hs.Router.POST(server_utils.PROMQL_PREFIX+"/api/v1/labels", hs.Recovery(promqlGetLabelsHandler()))
+	hs.Router.GET(server_utils.PROMQL_PREFIX+"/api/v1/label/{labelName}/values", hs.Recovery(promqlGetLabelValuesHandler()))
 
 	// metric explorer endpoint
 	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/metric_names", hs.Recovery(getAllMetricNamesHandler()))
