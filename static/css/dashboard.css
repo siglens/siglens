@@ -74,31 +74,10 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  /* align-items: center; */
   justify-content: flex-start;
 }
 
 /* PANEL-OPTIONS */
-
-.panelEditorRight {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-}
-
-
-/* .panelEditorRightTop {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
-  border-radius: 5px;
-  border: 1px solid var(--border-color-regular);
-  box-shadow: 0px 2px 8px 0px #00000029;
-} */
 
 .submitBtn-container {
   justify-self: center;
@@ -111,16 +90,6 @@
   bottom: 30px;
   right: 30px;
   padding-bottom: 30px;
-}
-
-.title1 {
-  width: 85%;
-  margin-top: 16px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  font-size: 22px;
-  margin-bottom: 15px;
 }
 
 .panEdit-nameChange {
@@ -213,7 +182,7 @@
   background-color: var(--edit-panel-dropdown-bg-color-hover);
 }
 
-.dropDown-color, .dropDown-unit , .dropDown-logLinesView{
+.dropDown-unit , .dropDown-logLinesView{
   margin-top: 15px;
 }
 .editPanelMenu-logLinesView .editPanelMenu-options{
@@ -343,90 +312,6 @@
   color: var(--white-0);
 }
 
-
-
-
-/* COLOR PALETTE */
-.colorCircle {
-  width: 25px;
-  height: 25px;
-  border-radius: 50%;
-  border: 1.5px solid var(--white-0);
-}
-
-.colorCircle:not(:first-child) {
-  margin-left: 14px;
-}
-
-.colorCircle.selected {
-  border: 1.5px solid var(--color-selector-active);
-}
-
-.colorCircle-1 {
-  background-color: var(--lavender-1);
-  border: 1.5px solid var(--lavender-1);
-}
-
-.colorCircle-2 {
-  background-color: var(--purple-1);
-  border: 1.5px solid var(--purple-1);
-}
-
-.colorCircle-3 {
-  background-color: var(--orange-1);
-  border: 1.5px solid var(--orange-1);
-}
-
-.colorCircles {
-  display: flex;
-  flex-direction: row;
-  justify-content: flex-start;
-  align-items: center;
-  margin-top: 6px;
-}
-
-.editPanelMenu-color {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding-left: 12px;
-
-  font-size: 14px;
-  padding-bottom: 13px;
-  color: var(--black-5);
-}
-
-
-.colorLine {
-  width: 95%;
-  height: 9px;
-  border-radius: 20px;
-  margin-left: 2px;
-  margin-top: 5px;
-}
-
-.colorLine-gyr {
-  background: linear-gradient(270deg, #F24B5B 0%, #EDDB30 50.31%, #68AA5F 100%);
-}
-
-.colorLine-bg {
-  background: linear-gradient(270deg, #4BF266 0%, #30E2ED 50.31%, #2262C3 100%);
-}
-
-.editPanelMenu-color span {
-  height: 20px;
-  display: flex;
-  align-items: center;
-}
-
-.span-colorCircles {
-  margin-top: 5x;
-}
-
-.span-colorLine {
-  margin-top: 12px;
-}
-
 /* QUERY INPUT SECTION - BOTTOM LEFT */
 .queryInputs {
   width: 100%;
@@ -477,7 +362,6 @@
 .edit-panel-corner-popup {
   top: 100px;
 }
-
 
 /* PANEL DISPLAY */
 
@@ -598,7 +482,7 @@
   margin-left: 15px;
 }
 
-.panEdit-goToDB, .panView-goToDB {
+.panView-goToDB {
   cursor: pointer;
   padding: 0.25rem 0.5rem;
   color: var(--purple-1);
@@ -628,11 +512,6 @@
   box-shadow: none !important;
   font-size: 14px;
   border: 1px solid var(--border-color-regular) !important;
-}
-
-.panelEditorRight .dropdown{
-  display: flex;
-  flex-direction: row;
 }
 
 /* DASHBOARD.HTML */
@@ -1274,21 +1153,11 @@ input:checked + .slider:before {
   color: white !important;
   background-color: var(--purple-1) !important;
 }
-/* #save-btn:hover{
-  background-color: var(--drop-down-btn-bg-hover) !important;
-} */
+
 .panEdit-discard:hover{
   background-color: var(--drop-down-btn-bg-hover) !important;
 }
-.panEdit-apply{
-  width: 68px;
-  background-color: var(--purple-1) !important;
-  color: white !important;
-  border: 0 !important;
-}
-.panEdit-apply:hover{
-  background: var(--btn-hover-or-click-bg-color) !important;
-}
+
 .settings-btn:hover{
   background: var(--top-setting-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
   background-size: 50% !important;
@@ -1321,9 +1190,7 @@ input:checked + .slider:before {
 .logs-options{
   padding: 0;
 }
-/* #save-btn{
-  background-color: var(--drop-down-btn-bg-regular) !important;
-} */
+
 #save-db-btn{
   background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
   background-size: 45% !important;

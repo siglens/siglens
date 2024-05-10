@@ -220,7 +220,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <div class="panelEditorLeft">
             <div class="panEdit-navBar">
                 <div>
-                    <!-- <span class="panEdit-goToDB" title="Go back">&#8592</span> -->
                     <span class="panEdit-dbName over-title">DBName</span>
                     <span class="over-title"> / </span>
                     <span class="panelTitle over-title">Panel 1</span>
@@ -632,6 +631,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div class="panEdit-nameChange">
                         <input type="text" id="panEdit-nameChangeInput">
                     </div>
+                    <div class="panEdit-descrChange">
+                        <textarea name="" id="panEdit-descrChangeInput" rows="4"></textarea>
+                    </div>
                 </div>
             </div>
             <div class="section">
@@ -639,256 +641,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <button class="panEdit-btn panEdit-discard" id="discard-btn" title="Undo all changes">Cancel</button>
                     <button class="panEdit-btn panEdit-save" id="save-btn"
                         title="Apply changes and save dashboard">Save</button>
-                    <!-- <button class="panEdit-btn panEdit-apply" id="apply-btn"
-                        title="Apply changes and go to dashboard">Apply</button> -->
                 </div>
-            </div>
-        </div>
-        <!-- <div class="panelEditorRight">
-            <div class="panEdit-navBtns">
-                <button class="btn settings-btn panEdit-btn" title="Open dashboard settings">
-                </button>
-                <button class="panEdit-btn panEdit-discard" id="discard-btn" title="Undo all changes">Discard</button>
-                <button class="panEdit-btn panEdit-save" id="save-btn"
-                    title="Apply changes and save dashboard">Save</button>
-                <button class="panEdit-btn panEdit-apply" id="apply-btn"
-                    title="Apply changes and go to dashboard">Apply</button>
-            </div>
-            <div class="panelEditorRightTop">
-                <h3 class="title1">Panel Options</h3>
-                <div class="panEdit-nameChange">
-                    <input type="text" id="panEdit-nameChangeInput">
-                </div>
-                <div class="panEdit-descrChange">
-                    <textarea name="" id="panEdit-descrChangeInput" rows="4"></textarea>
-                </div>
-                <div class="dropDownTitle dropDown-chart active" title="Click to change the chart type">
-                    <span>Chart Type</span>
-                    <div class="caret"></div>
-                </div>
-                <ul class="editPanelMenu editPanelMenu-chart">
-                    <div class="editPanelMenu-options chart-options" id="chart-type-options" data-index="0">
-                        <img src="./assets/line-chart.svg" alt="line chart icon" class="chart-display" />
-                        <li>Line Chart</li>
-                    </div>
-                    <div class="editPanelMenu-options chart-options" id="chart-type-options" data-index="1">
-                        <img src="./assets/bar-chart.svg" alt="bar chart icon" class="chart-display"/>
-                        <li>Bar Chart</li>
-                    </div>
-                    <div class="editPanelMenu-options chart-options" id="chart-type-options" data-index="2">
-                        <img src="./assets/pie-chart.svg" alt="pie chart icon" class="chart-display"/>
-                        <li>Pie Chart</li>
-                    </div>
-                    <div class="editPanelMenu-options chart-options" id="chart-type-options" data-index="3">
-                        <img src="./assets/data-table.svg" alt="data table icon" class="chart-display"/>
-                        <li>Data Table</li>
-                    </div>
-                    <div class="editPanelMenu-options chart-options" id="chart-type-options" data-index="4">
-                        <img src="./assets/number-chart.svg" alt="number chart icon" class="chart-display" />
-                        <li>Number</li>
-                    </div>
-                    <div class="editPanelMenu-options chart-options" id="chart-type-options" data-index="5">
-                        <img src="./assets/log-lines.svg" alt="log lines icon" class="chart-display" />
-                        <li>Log Lines</li>
-                    </div>
-                </ul>
-                <div class="dropDownTitle dropDown-color active">
-                    <span>Color Palette</span>
-                    <div class="caret"></div>
-                </div>
-                <div class="editPanelMenu editPanelMenu-color">
-                    <span class="span-colorCircles">Classic</span>
-                    <div class="colorCircles">
-                        <div class="colorCircle colorCircle-1"></div>
-                        <div class="colorCircle colorCircle-2"></div>
-                        <div class="colorCircle colorCircle-3"></div>
-                    </div>
-                    <span class="span-colorLine">Green-Yellow-Red [by Value]</span>
-                    <div class="colorLine colorLine-gyr"></div>
-                    <span class="span-colorLine">Blue-Green [by Value]</span>
-                    <div class="colorLine colorLine-bg"></div>
-                </div>
-                <div class="dropDownTitle dropDown-unit active">
-                    <span>Unit</span>
-                    <div class="caret"></div>
-                </div>
-                <div id="nestedDropDownContainer">
-                    <ul class="editPanelMenu editPanelMenu-unit">
-                        <div class="editPanelMenu-unit-options" id="nestedMiscDropDown" data-index="0">
-                            <li class="dropDown-misc-options">
-                                <span>Misc</span>
-                            </li>
-                            <div class="horizontalCaret"></div>
-                        </div>
-                        <div class="editPanelMenu-unit-options" id="nestedDataDropDown" data-index="1">
-                            <li class="dropDown-data-options">
-                                <span>Data</span>
-                            </li>
-                            <div class="horizontalCaret"></div>
-                        </div>
-                        <div class="editPanelMenu-unit-options" id="nestedThroughputDropDown" data-index="2">
-                            <li class="dropDown-throughput-options">
-                                <span>Throughput</span>
-                            </li>
-                            <div class="horizontalCaret"></div>
-                        </div>
-                        <div class="editPanelMenu-unit-options" id="nestedTimeDropDown" data-index="3">
-                            <li class="dropDown-time-options">
-                                <span>Time</span>
-                            </li>
-                            <div class="horizontalCaret"></div>
-                        </div>
-                        <div class="editPanelMenu-unit-options" id="nestedDataRateDropDown" data-index="4">
-                            <li class="dropDown-data-rate-options">
-                                <span>Data Rate</span>
-                            </li>
-                            <div class="horizontalCaret"></div>
-                        </div>
-                    </ul>
-                    <ul class="editPanelMenu editPanelMenu-inner-options" id="miscOptionsDropDown">
-                        <div class="misc-options inner-options" data-index="0">
-                            <li>none</li>
-                        </div>
-                        <div class="misc-options inner-options" data-index="1">
-                            <li>percent(0-100)</li>
-                        </div>
-                    </ul>
-                    <ul class="editPanelMenu editPanelMenu-inner-options" id="dataOptionsDropDown">
-                        <div class="data-options inner-options" data-index="0">
-                            <li>Bytes</li>
-                        </div>
-                        <div class="data-options inner-options" data-index="1">
-                            <li>kB</li>
-                        </div>
-                        <div class="data-options inner-options" data-index="2">
-                            <li>MB</li>
-                        </div>
-                        <div class="data-options inner-options" data-index="3">
-                            <li>GB</li>
-                        </div>
-                        <div class="data-options inner-options" data-index="4">
-                            <li>TB</li>
-                        </div>
-                        <div class="data-options inner-options" data-index="5">
-                            <li>PB</li>
-                        </div>
-                        <div class="data-options inner-options" data-index="6">
-                            <li>EB</li>
-                        </div>
-                        <div class="data-options inner-options" data-index="7">
-                            <li>ZB</li>
-                        </div>
-                        <div class="data-options inner-options" data-index="8">
-                            <li>YB</li>
-                        </div>
-                    </ul>
-                    <ul class="editPanelMenu editPanelMenu-inner-options" id="throughputOptionsDropDown">
-                        <div class="throughput-options inner-options" data-index="0">
-                            <li>counts/sec</li>
-                        </div>
-                        <div class="throughput-options inner-options" data-index="1">
-                            <li>writes/sec</li>
-                        </div>
-                        <div class="throughput-options inner-options" data-index="2">
-                            <li>reads/sec</li>
-                        </div>
-                        <div class="throughput-options inner-options" data-index="3">
-                            <li>requests/sec</li>
-                        </div>
-                        <div class="throughput-options inner-options" data-index="4">
-                            <li>ops/sec</li>
-                        </div>
-                    </ul>
-                    <ul class="editPanelMenu editPanelMenu-inner-options" id="timeOptionsDropDown">
-                        <div class="time-options inner-options" data-index="0">
-                            <li>hertz(1/s)</li>
-                        </div>
-                        <div class="time-options inner-options" data-index="1">
-                            <li>nanoseconds(ns)</li>
-                        </div>
-                        <div class="time-options inner-options" data-index="2">
-                            <li>microsecond(µs)</li>
-                        </div>
-                        <div class="time-options inner-options" data-index="3">
-                            <li>milliseconds(ms)</li>
-                        </div>
-                        <div class="time-options inner-options" data-index="4">
-                            <li>seconds(s)</li>
-                        </div>
-                        <div class="time-options inner-options" data-index="5">
-                            <li>minutes(m)</li>
-                        </div>
-                        <div class="time-options inner-options" data-index="6">
-                            <li>hours(h)</li>
-                        </div>
-                        <div class="time-options inner-options" data-index="7">
-                            <li>days(d)</li>
-                        </div>
-                    </ul>
-                    <ul class="editPanelMenu editPanelMenu-inner-options" id="dataRateOptionsDropDown">
-                        <div class="data-rate-options inner-options" data-index="0">
-                            <li>packets/sec</li>
-                        </div>
-                        <div class="data-rate-options inner-options" data-index="1">
-                            <li>bytes/sec</li>
-                        </div>
-                        <div class="data-rate-options inner-options" data-index="2">
-                            <li>bits/sec</li>
-                        </div>
-                        <div class="data-rate-options inner-options" data-index="3">
-                            <li>kilobytes/sec</li>
-                        </div>
-                        <div class="data-rate-options inner-options" data-index="4">
-                            <li>kilobits/sec</li>
-                        </div>
-                        <div class="data-rate-options inner-options" data-index="5">
-                            <li>megabytes/sec</li>
-                        </div>
-                        <div class="data-rate-options inner-options" data-index="6">
-                            <li>megabits/sec</li>
-                        </div>
-                        <div class="data-rate-options inner-options" data-index="7">
-                            <li>gigabytes/sec</li>
-                        </div>
-                        <div class="data-rate-options inner-options" data-index="8">
-                            <li>gigabits/sec</li>
-                        </div>
-                        <div class="data-rate-options inner-options" data-index="9">
-                            <li>terabytes/sec</li>
-                        </div>
-                        <div class="data-rate-options inner-options" data-index="10">
-                            <li>terabits/sec</li>
-                        </div>
-                        <div class="data-rate-options inner-options" data-index="11">
-                            <li>petabytes/sec</li>
-                        </div>
-                        <div class="data-rate-options inner-options" data-index="12">
-                            <li>petabits/sec</li>
-                        </div>
-                    </ul>
-                </div>
-                <div class="dropDownTitle dropDown-logLinesView active">
-                    <span>Single line display view</span>
-                    <div class="caret"></div>
-                </div>
-                <ul class="editPanelMenu editPanelMenu-logLinesView" id="editPanelMenu-logLinesView">
-                    <div class="editPanelMenu-options" id="logLinesView-options" data-index="0">
-                        <li>Single line display view</li>
-                    </div>
-                    <div class="editPanelMenu-options" id="logLinesView-options" data-index="1">
-                        <li>Multi line display view</li>
-                    </div>
-                </ul>
-            </div>
-        </div> -->
-        <div id="panel-edit-prompt" class="popupContent">
-            <h3 class="header">Confirmation</h3>
-            <div class="prompt-text-container">
-                <div class="edit-db-text">You have unsaved changes. Are you sure you want to exit?</div>
-            </div>
-            <div id="buttons-db-prompt">
-                <button type="button" id="cancel-btn-panel">Cancel</button>
-                <button type="button" id="exit-btn-panel">Discard and Exit</button>
             </div>
         </div>
     </div>
@@ -919,15 +672,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <label for="dbSet-dbName">Name</label>
                         <input type="text" class="dbSet-dbName" placeholder="Name">
                     </div>
-<!-- PopupOverlay elements -->
-<div class="popupOverlay"></div>
-<div class="popupContent" id="error-message-popup">
-    <h3 class="header">Error</h3>
-    <p id="error-message"></p>
-    <div id="buttons-popupContent">
-        <button type="button" id="error-ok-btn">OK</button>
-    </div>
-</div>
+                    <!-- PopupOverlay elements -->
+                    <div class="popupOverlay"></div>
+                    <div class="popupContent" id="error-message-popup">
+                        <h3 class="header">Error</h3>
+                        <p id="error-message"></p>
+                        <div id="buttons-popupContent">
+                            <button type="button" id="error-ok-btn">OK</button>
+                        </div>
+                    </div>
 
                     <div class="dbSet-inputContainer" id="dbSet-descrContainer">
                         <label for="dbSet-dbDescr">Description</label>

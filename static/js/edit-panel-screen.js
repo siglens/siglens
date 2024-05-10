@@ -456,8 +456,6 @@ function editPanelInit(redirectedFromViewScreen) {
 	getDisplayTextForIndex();
 
 	if ($('.dropDown-dataSource.active').length) handleSourceDropDownClick();
-	// if ($('.dropDown-chart.active').length) handleChartDropDownClick();
-	if ($('.dropDown-color.active').length) handleColorDropDownClick();
 	if ($('.dropDown-unit.active').length) handleUnitDropDownClick();
 	if ($('.dropDown-logLinesView.active').length) handleLogLinesViewDropDownClick();
 	$( ".editPanelMenu-inner-options" ).slideUp();
@@ -465,10 +463,6 @@ function editPanelInit(redirectedFromViewScreen) {
 	$('.panelDisplay #empty-response').empty();
 	$('.panelDisplay #empty-response').hide();
 	$('.panelDisplay .panEdit-panel').show();
-	$(".panEdit-apply").unbind("click");
-	$('.panEdit-apply').on('click', () => applyChangesToPanel(redirectedFromViewScreen))
-	// $(".panEdit-goToDB").unbind("click");
-	// $('.panEdit-goToDB').on("click", () => handleGoToDBArrowClick(redirectedFromViewScreen))
 	setTimePicker();
 	pauseRefreshInterval();
 	runQueryBtnHandler();
@@ -499,8 +493,6 @@ $('#panEdit-descrChangeInput').on("focus", function () {
 })
 
 $('.dropDown-dataSource').on('click', handleSourceDropDownClick)
-// $('.dropDown-chart').on('click', handleChartDropDownClick)
-$('.dropDown-color').on('click', handleColorDropDownClick)
 $('.dropDown-unit').on('click', handleUnitDropDownClick)
 
 $('.dropDown-logLinesView').on('click', handleLogLinesViewDropDownClick);
@@ -521,20 +513,6 @@ function handleSourceDropDownClick() {
 	$('.editPanelMenu-dataSource').slideToggle();
 	$('.dropDown-dataSource .caret').css("rotate", "180deg");
 	$('.dropDown-dataSource.active .caret').css("rotate", "360deg");
-}
-
-// function handleChartDropDownClick() {
-// 	$('.dropDown-chart').toggleClass("active")
-// 	$('.editPanelMenu-chart').slideToggle();
-// 	$('.dropDown-chart .caret').css("rotate", "180deg");
-// 	$('.dropDown-chart.active .caret').css("rotate", "360deg");
-// }
-
-function handleColorDropDownClick() {
-	$('.dropDown-color').toggleClass("active")
-	$('.editPanelMenu-color').slideToggle();
-	$('.dropDown-color .caret').css("rotate", "180deg");
-	$('.dropDown-color.active .caret').css("rotate", "360deg");
 }
 
 function handleUnitDropDownClick(e) {
@@ -1366,16 +1344,6 @@ $(document).on('click', function(event) {
 	if (!$(event.target).closest('.dropDown-dataSource').length) {
 		$('.editPanelMenu-dataSource').slideUp();
 		$('.dropDown-dataSource').removeClass("active");
-	}
-
-	// if (!$(event.target).closest('.dropDown-chart').length) {
-	// 	$('.editPanelMenu-chart').slideUp();
-	// 	$('.dropDown-chart').removeClass("active");
-	// }
-
-	if (!$(event.target).closest('.dropDown-color').length) {
-			$('.editPanelMenu-color').slideUp();
-			$('.dropDown-color').removeClass("active");
 	}
 
 	if (!$(event.target).closest('.dropDown-logLinesView').length) {
