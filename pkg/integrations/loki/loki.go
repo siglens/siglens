@@ -161,7 +161,6 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			return
 		}
 	}
-	log.Infof("ProcessLokiLogsIngestRequest: received request body: %v", string(ctx.PostBody()))
 	responsebody := make(map[string]interface{})
 	buf, err := snappy.Decode(nil, ctx.PostBody())
 	if err != nil {
