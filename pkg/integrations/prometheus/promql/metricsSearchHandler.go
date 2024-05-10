@@ -147,29 +147,6 @@ func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32,
 	return searchText, startTime, endTime, 0, granularity, nil
 }
 
-// Helper function that parses a time parameter for use in PromQL.
-// The time parameter can be in either epoch time format or RFC3339 format.
-// If the time parameter is an empty string, the function returns an error.
-// The function returns the parsed time as a uint32 Unix timestamp and an error if the parsing fails.
-func parseTimeForPromQL(timeParam string) (uint32, error) {
-	if timeParam == "" {
-		log.Errorf("parseTimeForPromQL: time parameter is empty")
-		return 0, errors.New("time parameter is empty")
-	}
-	var timeValue int64
-
-	if parsedInt, err := strconv.ParseInt(timeParam, 10, 64); err == nil {
-		// If timeParam can be parsed as an integer, use it as the time value
-		timeValue = parsedInt
-	} else if parsedTime, err := time.Parse(time.RFC3339, timeParam); err == nil {
-		// If timeParam can be parsed as an RFC3339 time, use it as the time value
-		timeValue = parsedTime.Unix()
-	} else {
-		return 0, err
-	}
-
-	return uint32(timeValue), nil
-}
 func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	qid := rutils.GetNextQid()
 	searchText := string(ctx.FormValue("query"))
@@ -188,7 +165,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		// If timeParam doesn't exist, assume the current time in epoch seconds as endTime
 		endTime = uint32(time.Now().Unix())
 	} else {
-		endTime, err = parseTimeForPromQL(timeParam)
+		endTime, err = utils.ParseTimeForPromQL(timeParam)
 		if err != nil {
 			log.Errorf("ProcessPromqlMetricsSearchRequest: Error parsing time parameter, err:%v", err)
 			return
@@ -254,12 +231,12 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 		step = time.Duration(stepFloat * float64(time.Second))
 	}
 
-	startTime, err := parseTimeForPromQL(startParam)
+	startTime, err := utils.ParseTimeForPromQL(startParam)
 	if err != nil {
 		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error parsing start parameter, err:%v", err)
 		return
 	}
-	endTime, err := parseTimeForPromQL(endParam)
+	endTime, err := utils.ParseTimeForPromQL(endParam)
 	if err != nil {
 		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error parsing end parameter, err:%v", err)
 		return
@@ -308,7 +285,7 @@ func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	// If startParam exists, parse it
 	if startParam != "" {
-		startTime, err = parseTimeForPromQL(startParam)
+		startTime, err = utils.ParseTimeForPromQL(startParam)
 		if err != nil {
 			log.Errorf("ProcessGetLabelsRequest: Error parsing start time parameter, err:%v", err)
 			return
@@ -317,7 +294,7 @@ func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	// If endParam exists, parse it
 	if endParam != "" {
-		endTime, err = parseTimeForPromQL(endParam)
+		endTime, err = utils.ParseTimeForPromQL(endParam)
 		if err != nil {
 			log.Errorf("ProcessGetLabelsRequest: Error parsing end time parameter, err:%v", err)
 			return
@@ -336,14 +313,14 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var err error
 
 	if startParam != "" {
-		startTime, err = parseTimeForPromQL(startParam)
+		startTime, err = utils.ParseTimeForPromQL(startParam)
 		if err != nil {
 			log.Errorf("ProcessGetLabelValuesRequest: Error parsing start time parameter, err:%v", err)
 			return
 		}
 	}
 	if endParam != "" {
-		endTime, err = parseTimeForPromQL(endParam)
+		endTime, err = utils.ParseTimeForPromQL(endParam)
 		if err != nil {
 			log.Errorf("ProcessGetLabelValuesRequest: Error parsing end time parameter, err:%v", err)
 			return
@@ -367,11 +344,11 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
 
-	startTime, err := parseTimeForPromQL(startParam)
+	startTime, err := utils.ParseTimeForPromQL(startParam)
 	if err != nil {
 		log.Errorf("ProcessGetSeriesByLabelRequest: Error parsing 'start' parameter, err:%v", err)
 	}
-	endTime, err := parseTimeForPromQL(endParam)
+	endTime, err := utils.ParseTimeForPromQL(endParam)
 	if err != nil {
 		log.Errorf("ProcessGetSeriesByLabelRequest: Error parsing 'end' parameter, err:%v", err)
 	}

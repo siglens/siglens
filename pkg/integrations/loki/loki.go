@@ -76,34 +76,41 @@ func parseLabels(labelsString string) map[string]string {
 	return labels
 }
 
-func parseTimeToMSFromNano(timeNano string) (uint64, error) {
-	timeNanoInt, err := strconv.ParseUint(timeNano, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return timeNanoInt / MsToNanoConversion, nil
-}
-
+// If startTime and endTime are not given:
+// But time is given, then that is used.
+// If time is not given, then the last 24 hours is used.
+// If endTime is not given, then the current time is used.
+// If startTime is not given, then the last 24 hours is used.
 func parseTimeRangeInMS(ctx *fasthttp.RequestCtx) (uint64, uint64, error) {
 	startTime := string(ctx.QueryArgs().Peek("start"))
 	endTime := string(ctx.QueryArgs().Peek("end"))
+	time := string(ctx.QueryArgs().Peek("time"))
 
 	var startTimeMs, endTimeMs uint64
 
 	if startTime == "" && endTime == "" {
+		if time != "" {
+			timeInMS, err := utils.ConvertTimestampToMillis(time)
+			if err != nil {
+				return 0, 0, err
+			}
+			endTimeMs = timeInMS
+			startTimeMs = endTimeMs - 90*DAY_IN_MS
+
+			return startTimeMs, endTimeMs, nil
+		}
 		endTimeMs := utils.GetCurrentTimeInMs()
 		startTimeMs := endTimeMs - DAY_IN_MS
 		return startTimeMs, endTimeMs, nil
 	} else if startTime == "" {
-		endTimeMs, err := parseTimeToMSFromNano(endTime)
+		endTimeMs, err := utils.ConvertTimestampToMillis(endTime)
 		if err != nil {
 			return 0, 0, err
 		}
 		startTimeMs = endTimeMs - DAY_IN_MS
 		return startTimeMs, endTimeMs, nil
 	} else if endTime == "" {
-		startTimeMs, err := parseTimeToMSFromNano(startTime)
+		startTimeMs, err := utils.ConvertTimestampToMillis(startTime)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -111,12 +118,12 @@ func parseTimeRangeInMS(ctx *fasthttp.RequestCtx) (uint64, uint64, error) {
 		return startTimeMs, endTimeMs, nil
 	}
 
-	startTimeMs, err := parseTimeToMSFromNano(startTime)
+	startTimeMs, err := utils.ConvertTimestampToMillis(startTime)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	endTimeMs, err = parseTimeToMSFromNano(endTime)
+	endTimeMs, err = utils.ConvertTimestampToMillis(endTime)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -317,6 +324,45 @@ func fetchColumnNamesFromAllIndexes(orgid uint64) []string {
 	return colNames
 }
 
+func addAscSortColRequestToQueryAggs(queryAggs *structs.QueryAggregators, sizeLimit uint64) *structs.QueryAggregators {
+
+	sortAggs := &structs.QueryAggregators{
+		PipeCommandType: structs.OutputTransformType,
+		OutputTransforms: &structs.OutputTransforms{
+			LetColumns: &structs.LetColumnsRequest{},
+		},
+	}
+
+	sortAggs.OutputTransforms.LetColumns.SortColRequest = &structs.SortExpr{}
+
+	sortElement := &structs.SortElement{
+		SortByAsc: true,
+		Field:     "timestamp",
+	}
+
+	sortEles := make([]*structs.SortElement, 0)
+	sortEles = append(sortEles, sortElement)
+
+	sortAggs.OutputTransforms.LetColumns.SortColRequest.SortEles = sortEles
+	sortAggs.OutputTransforms.LetColumns.SortColRequest.Limit = sizeLimit
+	sortAggs.OutputTransforms.LetColumns.SortColRequest.SortAscending = []int{1}
+	sortAggs.OutputTransforms.LetColumns.SortColRequest.SortRecords = make(map[string]map[string]interface{})
+
+	if queryAggs == nil {
+		return sortAggs
+	}
+
+	tempQueryAggs := queryAggs
+
+	for tempQueryAggs.Next != nil {
+		tempQueryAggs = tempQueryAggs.Next
+	}
+
+	tempQueryAggs.Next = sortAggs
+
+	return queryAggs
+}
+
 func ProcessLokiLabelRequest(ctx *fasthttp.RequestCtx, orgid uint64) {
 	indexName := []string{LOKIINDEX}
 	responsebody := make(map[string]interface{})
@@ -378,6 +424,15 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
+	var sortOrder string
+
+	direction := string(ctx.QueryArgs().Peek("direction"))
+	if direction == "forward" {
+		sortOrder = "ASC"
+	} else {
+		sortOrder = "DESC"
+	}
+
 	qid := rutils.GetNextQid()
 
 	ti := structs.InitTableInfo(LOKIINDEX_STAR, myid, false)
@@ -400,6 +455,11 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	if aggs != nil && aggs.GroupByRequest != nil {
 		aggs.GroupByRequest.GroupByColumns = remove(aggs.GroupByRequest.GroupByColumns, "line")
+	}
+
+	if sortOrder == "ASC" {
+		log.Infof("ProcessQueryRequest: Adding Asc sort to query aggs of LogQL Request")
+		aggs = addAscSortColRequestToQueryAggs(aggs, sizeLimit)
 	}
 
 	sizeLimit = pipesearch.GetFinalSizelimit(aggs, sizeLimit)
