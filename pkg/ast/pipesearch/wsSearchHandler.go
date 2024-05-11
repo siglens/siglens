@@ -19,7 +19,6 @@ package pipesearch
 
 import (
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -118,26 +117,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		ti = structs.InitTableInfo(indexNameIn, orgid, false) // Re-initialize ti with the updated indexNameIn
 	}
 
-	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
-		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() {
-		// 1. Dedup needs state information about the previous records, so we can
-		// run into an issue if we show some records, then the user scrolls
-		// down to see more and we run dedup on just the new records and add
-		// them to the existing ones. To get around this, we can run the query
-		// on all of the records initially so that scrolling down doesn't cause
-		// another query to run.
-		// 2. Sort cmd is similar to Dedup cmd; we need to process all the records at once and extract those with top/rare priority based on requirements.
-		// 3. If there's a Rex block in the chain followed by a Stats block, we need to
-		// see all the matched records before we apply or calculate the stats.
-		sizeLimit = math.MaxUint64
-	}
-
-	// If MaxRows is used to limit the number of returned results, set `sizeLimit`
-	// to it. Currently MaxRows is only valid as the root QueryAggregators.
-	if aggs != nil && aggs.Limit != 0 {
-		sizeLimit = uint64(aggs.Limit)
-	}
+	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
 	eventC, err := segment.ExecuteAsyncQuery(simpleNode, aggs, qid, qc)
