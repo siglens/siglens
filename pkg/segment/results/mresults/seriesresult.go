@@ -361,56 +361,10 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 		delete(ts, timestamps[0])
 		return ts, nil
 	case segutils.Rate:
-		// Calculate the average rate (per-second rate) for each timestamp. E.g: to determine the rate for the current point with its timestamp,
-		// find the earliest point within the time window: [timestamp - time window, timestamp]
-		// Then, calculate the rate between that point and the current point
-		if len(sortedTimeSeries) == 0 {
-			return nil, nil
-		}
-
-		var dx, dt float64
-		resetIndex := -1
-		for i := 1; i < len(sortedTimeSeries); i++ {
-			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
-			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
-			})
-
-			if i <= preIndex { // Can not find the second point within the time window
-				delete(ts, sortedTimeSeries[i].downsampledTime)
-				continue
-			}
-
-			if resetIndex > preIndex {
-				preIndex = resetIndex
-			}
-
-			// Calculate the time difference between consecutive data points
-			dt = float64(sortedTimeSeries[i].downsampledTime - sortedTimeSeries[preIndex].downsampledTime)
-			curVal := sortedTimeSeries[i].dpVal
-			preVal := sortedTimeSeries[preIndex].dpVal
-
-			if curVal > preVal {
-				dx = curVal - preVal
-			} else {
-				// This metric was reset.
-				dx = curVal
-				resetIndex = i
-			}
-
-			ts[sortedTimeSeries[i].downsampledTime] = dx / dt
-		}
-
-		// Rate at edge does not exist.
-		delete(ts, sortedTimeSeries[0].downsampledTime)
-		return ts, nil
+		return evaluateRate(sortedTimeSeries, ts, timeWindow), nil
 	case segutils.IRate:
 		// Calculate the instant rate (per-second rate) for each timestamp, based on the last two data points within the timewindow
 		// If the previous point is outside the time window, we still need to use it to calculate the current point's rate, unless its value is greater than the value of the current point
-		if len(sortedTimeSeries) == 0 {
-			return nil, nil
-		}
-
 		var dx, dt float64
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeDff := sortedTimeSeries[i].downsampledTime - sortedTimeSeries[i-1].downsampledTime
@@ -435,6 +389,44 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 		}
 
 		// Rate at edge does not exist.
+		delete(ts, sortedTimeSeries[0].downsampledTime)
+		return ts, nil
+	case segutils.Increase:
+		// Increase is extrapolated to cover the full time range as specified in the range vector selector. (increse = avg rate * timewindow)
+		ts := evaluateRate(sortedTimeSeries, ts, timeWindow)
+		for key, rateVal := range ts {
+			ts[key] = rateVal * float64(timeWindow)
+		}
+		return ts, nil
+	case segutils.Delta:
+		// Calculates the difference between the first and last value of each time series element within the timewindow
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				delete(ts, sortedTimeSeries[i].downsampledTime)
+				continue
+			}
+			ts[sortedTimeSeries[i].downsampledTime] = sortedTimeSeries[i].dpVal - sortedTimeSeries[preIndex].dpVal
+		}
+
+		// Delta at left edge does not exist.
+		delete(ts, sortedTimeSeries[0].downsampledTime)
+		return ts, nil
+	case segutils.IDelta:
+		// Calculate the instant delta for each timestamp, based on the last two data points within the timewindow
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeDff := sortedTimeSeries[i].downsampledTime - sortedTimeSeries[i-1].downsampledTime
+			if timeDff > timeWindow {
+				delete(ts, sortedTimeSeries[i].downsampledTime)
+				continue
+			}
+			ts[sortedTimeSeries[i].downsampledTime] = sortedTimeSeries[i].dpVal - sortedTimeSeries[i-1].dpVal
+		}
+		// IDelta at left edge does not exist.
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
 	default:
@@ -641,4 +633,45 @@ func convertStrToFloat64(toNearestStr string) (float64, error) {
 
 		return float64Val, nil
 	}
+}
+
+// Calculate the average rate (per-second rate) for each timestamp. E.g: to determine the rate for the current point with its timestamp,
+// find the earliest point within the time window: [timestamp - time window, timestamp]
+// Then, calculate the rate between that point and the current point
+func evaluateRate(sortedTimeSeries []Entry, ts map[uint32]float64, timeWindow uint32) map[uint32]float64 {
+	var dx, dt float64
+	resetIndex := -1
+	for i := 1; i < len(sortedTimeSeries); i++ {
+		timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+		preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+			return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+		})
+
+		if i <= preIndex { // Can not find the second point within the time window
+			delete(ts, sortedTimeSeries[i].downsampledTime)
+			continue
+		}
+
+		if sortedTimeSeries[i].dpVal < sortedTimeSeries[i-1].dpVal {
+			// This metric was reset.
+			dx = sortedTimeSeries[i].dpVal
+			dt = float64(sortedTimeSeries[i].downsampledTime - sortedTimeSeries[i-1].downsampledTime)
+			ts[sortedTimeSeries[i].downsampledTime] = dx / dt
+			resetIndex = i
+			continue
+		}
+
+		if resetIndex > preIndex {
+			preIndex = resetIndex
+		}
+
+		// Calculate the time difference between consecutive data points
+		dx = sortedTimeSeries[i].dpVal - sortedTimeSeries[preIndex].dpVal
+		dt = float64(sortedTimeSeries[i].downsampledTime - sortedTimeSeries[preIndex].downsampledTime)
+		ts[sortedTimeSeries[i].downsampledTime] = dx / dt
+	}
+
+	// Rate at edge does not exist.
+	delete(ts, sortedTimeSeries[0].downsampledTime)
+	return ts
 }
