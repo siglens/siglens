@@ -382,10 +382,10 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 	metricQueryRequest[0].MetricsQuery.TagValueSearchOnly = true
-	segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[0], qid)
+	segment.LogMetricsQuery("PromQL Label Values request", &metricQueryRequest[0], qid)
 	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
 
-	tagValues := make([]string, 0)
+	tagValues := make([]string, 0, len(res.TagValues))
 	for _, innerMap := range res.TagValues {
 		for tagValue := range innerMap {
 			tagValues = append(tagValues, tagValue)
