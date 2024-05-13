@@ -159,25 +159,21 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 		return nil, err
 	}
 
-	tagIndicesToRemove := make(map[int]struct{})
 	for i := 0; i < len(mQuery.TagsFilters); i++ {
 		tf := mQuery.TagsFilters[i]
 		//  Check if the tag key exists in the tag tree
 		fileExists, fInfo := attr.getTagTreeFileInfoForTagKey(tf.TagKey)
 		if !fileExists {
-			tagIndicesToRemove[i] = struct{}{}
 			continue
 		}
 		if tagVal, ok := tf.RawTagValue.(string); ok && tagVal == "*" {
 			itr, mNameExists, err := attr.GetValueIteratorForMetric(mQuery.HashedMName, tf.TagKey, fInfo)
 			if err != nil {
 				log.Infof("FindTSIDS: failed to get the value iterator for metric name %v and tag key %v. Error: %v. TagVAlH %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue)
-				tagIndicesToRemove[i] = struct{}{}
 				continue
 			}
 
 			if !mNameExists {
-				tagIndicesToRemove[i] = struct{}{}
 				continue
 			}
 
@@ -189,6 +185,11 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 						var initMetricName string
 						if mQuery.ExitAfterTagsSearch {
 							initMetricName = ""
+							// Update the tag indices to keep Map; This is only required in this case
+							// Because for other cases and normal query flow we do not need to track the tag indices i.e. Tag Filters
+							if _, indexExists := mQuery.TagIndicesToKeep[i]; !indexExists {
+								mQuery.TagIndicesToKeep[i] = struct{}{}
+							}
 						} else {
 							initMetricName = fmt.Sprintf("%v{", mQuery.MetricName)
 						}
@@ -237,7 +238,6 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 				return nil, err
 			}
 			if !mNameExists {
-				tagIndicesToRemove[i] = struct{}{}
 				continue
 			}
 			if !tagValueExists {
@@ -257,17 +257,6 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 		}
 	}
 	tracker.FinishAllMatches()
-
-	// Remove tags where this metric doesn't have the specified keys.
-	if len(tagIndicesToRemove) < len(mQuery.TagsFilters) {
-		newTags := make([]*structs.TagsFilter, 0)
-		for i, tag := range mQuery.TagsFilters {
-			if _, ok := tagIndicesToRemove[i]; !ok {
-				newTags = append(newTags, tag)
-			}
-		}
-		mQuery.TagsFilters = newTags
-	}
 
 	return tracker, nil
 }
