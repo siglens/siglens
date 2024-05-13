@@ -75,6 +75,7 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  padding: 1.5%;
 }
 
 /* PANEL-OPTIONS */
@@ -445,7 +446,6 @@
   width: 96vw;
   height: 96vh;
   background-color: var(--db-bg-color);
-  padding: 1.5%;
   position: absolute;
   top: 50%;
   z-index: 999;
@@ -453,6 +453,7 @@
   transform: translate(-50%, -50%);
   border-radius: 8px;
   overflow-y: scroll;
+  justify-content: space-between;
 }
 
 /* PANEL EDIT NAV BAR */
@@ -499,7 +500,7 @@
   align-items: center;
   width: 100%;
   justify-content: flex-end;
-  margin-bottom: 12px;
+  padding: 14px 0px;
 }
 
 .panEdit-btn {
@@ -1353,4 +1354,7 @@ input:checked + .slider:before {
 }
 .rotate-icon {
   transform: rotate(45deg);
+}
+.button-section{
+  border-top: 1px solid var(--alerting-table-line-color);
 }

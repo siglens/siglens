@@ -1228,6 +1228,8 @@ let editPanelFlag = false;
 function handleDbSettings() {
     if ($('.panelEditor-container').css('display') !== 'none') {
         $('.panelEditor-container').hide();
+        $('#app-container').hide();
+        $('.popupOverlay').removeClass('active');
         editPanelFlag =true;
     } else {
         $('#app-container').hide();
@@ -1335,6 +1337,7 @@ $('#error-ok-btn').click(function () {
 function discardDbSetting() {
     if(editPanelFlag){
         $('.panelEditor-container').show();
+        $('.popupOverlay').addClass('active');
         editPanelFlag=false;
     }else{
         $('#app-container').show();
