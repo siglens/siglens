@@ -1580,7 +1580,11 @@ func performStatisticColRequestOnMeasureResults(nodeResult *structs.NodeResult, 
 	resTotal := uint64(0)
 	if letColReq.StatisticColRequest.StatisticOptions.ShowPerc {
 		for _, bucketHolder := range nodeResult.MeasureResults {
-			resTotal += bucketHolder.MeasureVal[countName].(uint64)
+			value, exists := bucketHolder.MeasureVal[countName]
+			if !exists {
+				continue
+			}
+			resTotal += value.(uint64)
 		}
 	}
 
