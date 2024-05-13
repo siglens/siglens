@@ -699,7 +699,7 @@ function updateCloseIconVisibility() {
     $('.remove-query').toggle(numQueries > 1);
 }
 
-function addVisualizationContainer(queryName, seriesData, queryString) {
+function addVisualizationContainer(queryName, seriesData, queryString, labels) {
 
     var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
     if (existingContainer.length === 0){
@@ -720,10 +720,12 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
     }
     var ctx = canvas[0].getContext('2d');
     
+    // var labels = []
+    var datasets = []
+
     // Extract labels and datasets from seriesData
     if (seriesData.length > 0) {
-        var labels = Object.keys(seriesData[0].values);
-        var datasets = seriesData.map(function(series, index) {
+       datasets = seriesData.map(function(series, index) {
             return {
                 label: series.seriesName,
                 data: Object.values(series.values),
@@ -734,8 +736,7 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
             };
         });
     }else{
-        var labels = [];
-        var datasets = [];
+        datasets = [];
     }
     
     var chartData = {
@@ -1104,15 +1105,20 @@ async function convertDataForChart(data) {
                 seriesName: data.series[i],
                 values: {}
             };
+            const intervalSec = data.timestamps.length > 1 ? data.timestamps[1] - data.timestamps[0] : 1;
 
-            for (let j = 0; j < data.timestamps.length; j++) {
-                // Convert epoch seconds to milliseconds by multiplying by 1000
-                let timestampInMilliseconds = data.timestamps[j] * 1000;
-                let localDate = new Date(timestampInMilliseconds);
-                let formattedDate = localDate.toLocaleString();
+            let currentTime = data.startTime * 1000;
 
-                series.values[formattedDate] = data.values[i][j];
+           // Iterate over each timestamp within the range
+           for (let j = 0; j < data.timestamps.length; j++) {
+            const timestamp = data.timestamps[j];
+            // Check if there is a value for the current timestamp
+            const valueIndex = data.timestamps.indexOf(timestamp);
+            if (valueIndex !== -1) {
+                const value = data.values[i][valueIndex];
+                series.values[timestamp * 1000] = value; // Convert timestamp to milliseconds
             }
+        }
 
             seriesArray.push(series);
         }
@@ -1210,8 +1216,74 @@ function getTagKeyValue(metricName) {
 async function getQueryDetails(queryName, queryDetails){
     const queryString = createQueryString(queryDetails);
     await getMetricsData(queryName, queryString);
+
+    // days
+    // const rawTimeSeriesData ={
+    //     intervalSec: 86400,
+    //     "series": ["testmetric3{color:green, method:put}", "testmetric3{color:yellow, method:get}", "testmetric3{color:red, method:get}"],
+    //     "timestamps": [1715588829, 1715675229, 1715761629, 1715848029, ],
+    //     "values": [
+    //       [1, 2, 3, 4],
+    //       [11, 12, 15, 16],
+    //       [31, 32, 35, 36],
+    //     ],
+    //     "startTime": 1714724829,
+    // }
+
+    // seconds
+    const rawTimeSeriesData ={
+        intervalSec: 10,
+        "series": ["testmetric3{color:green, method:put}", "testmetric3{color:yellow, method:get}", "testmetric3{color:red, method:get}"],
+        "timestamps": [1715588829, 1715588849, 1715588869, 1715588889],
+        "values": [
+          [1, 2, 3, 4],
+          [11, 12, 15, 16],
+          [31, 32, 35, 36],
+        ],
+        "startTime": 1715588829,
+    }
+    
     const chartData = await convertDataForChart(rawTimeSeriesData)
-    addVisualizationContainer(queryName, chartData, queryString);
+    const startTime  = rawTimeSeriesData.startTime * 1000
+    const currentTime = Date.now()
+    const labels = [];
+    let currentLabel = null; // Variable to keep track of the current label
+
+    for (let i = startTime; i < currentTime; i += rawTimeSeriesData.intervalSec * 1000) {
+        // Convert the timestamp to human-readable format
+            const date = new Date(i);
+        let label = '';
+
+        // Check if the intervalSec is less than a day (86400 seconds)
+        if (rawTimeSeriesData.intervalSec < 86400) {
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            label = `${hours}:${minutes}`;
+        } else {
+            const day = date.getDate();
+            const month = date.getMonth();
+            const year = date.getFullYear();
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+            // Check if the intervalSec is of year
+            if (rawTimeSeriesData.intervalSec >= 31536000) {
+                label = year.toString();
+            } else if (rawTimeSeriesData.intervalSec >= 2592000) { // Check if the intervalSec is of month
+                label = monthNames[month];
+            } else { // Default case: intervalSec is of day
+                const suffix = ['th', 'st', 'nd', 'rd'][((day - 20) % 10)] || 'th';
+                label = `${day}${suffix} ${monthNames[month]}`;
+            }
+        }
+
+        // Check if the label has changed
+        if (label !== currentLabel) {
+            labels.push(label);
+            currentLabel = label;
+        }
+    }
+
+    addVisualizationContainer(queryName, chartData, queryString, labels);
 }
 
 function createQueryString(queryObject) {
