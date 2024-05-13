@@ -135,7 +135,7 @@ func ProcessSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	if simpleNode == nil && scrollRecord == nil {
 		// we construct a "match_all" node
-		simpleNode, _ = query.GetMatchAllASTNode(qid)
+		simpleNode, _ = query.GetMatchAllASTNode(qid, nil)
 	}
 	segment.LogASTNode("ProcessSearchRequest", simpleNode, qid)
 	segment.LogQueryAggsNode("ProcessSearchRequest", aggs, qid)

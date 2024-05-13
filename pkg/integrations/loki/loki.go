@@ -55,7 +55,8 @@ const (
 	Index              = "_index"
 	DefaultLimit       = 100
 	MsToNanoConversion = 1_000_000
-	DAY_IN_MS          = 86400000
+	DAY_IN_MS          = 86_400_000
+	HOUR_IN_MS         = 3_600_000
 )
 
 func parseLabels(labelsString string) map[string]string {
@@ -81,12 +82,24 @@ func parseLabels(labelsString string) map[string]string {
 // If time is not given, then the last 24 hours is used.
 // If endTime is not given, then the current time is used.
 // If startTime is not given, then the last 24 hours is used.
-func parseTimeRangeInMS(ctx *fasthttp.RequestCtx) (uint64, uint64, error) {
+// If since is given, then that is used as the delta between startTime and endTime.
+// But if startTime is given, then since is ignored.
+func parseTimeRangeInMS(ctx *fasthttp.RequestCtx, defaultDelta uint64) (uint64, uint64, error) {
 	startTime := string(ctx.QueryArgs().Peek("start"))
 	endTime := string(ctx.QueryArgs().Peek("end"))
 	time := string(ctx.QueryArgs().Peek("time"))
+	since := string(ctx.QueryArgs().Peek("since"))
 
 	var startTimeMs, endTimeMs uint64
+	var err error
+
+	if since != "" && startTime == "" {
+		defaultDeltaNano, err := strconv.ParseUint(since, 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("error parsing since value: %v. Error: %v", since, err)
+		}
+		defaultDelta = defaultDeltaNano / MsToNanoConversion
+	}
 
 	if startTime == "" && endTime == "" {
 		if time != "" {
@@ -99,18 +112,20 @@ func parseTimeRangeInMS(ctx *fasthttp.RequestCtx) (uint64, uint64, error) {
 
 			return startTimeMs, endTimeMs, nil
 		}
-		endTimeMs := utils.GetCurrentTimeInMs()
-		startTimeMs := endTimeMs - DAY_IN_MS
+
+		endTimeMs = utils.GetCurrentTimeInMs()
+		startTimeMs = endTimeMs - defaultDelta
 		return startTimeMs, endTimeMs, nil
 	} else if startTime == "" {
-		endTimeMs, err := utils.ConvertTimestampToMillis(endTime)
+		endTimeMs, err = utils.ConvertTimestampToMillis(endTime)
 		if err != nil {
 			return 0, 0, err
 		}
-		startTimeMs = endTimeMs - DAY_IN_MS
+
+		startTimeMs = endTimeMs - defaultDelta
 		return startTimeMs, endTimeMs, nil
 	} else if endTime == "" {
-		startTimeMs, err := utils.ConvertTimestampToMillis(startTime)
+		startTimeMs, err = utils.ConvertTimestampToMillis(startTime)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -118,7 +133,7 @@ func parseTimeRangeInMS(ctx *fasthttp.RequestCtx) (uint64, uint64, error) {
 		return startTimeMs, endTimeMs, nil
 	}
 
-	startTimeMs, err := utils.ConvertTimestampToMillis(startTime)
+	startTimeMs, err = utils.ConvertTimestampToMillis(startTime)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -383,7 +398,27 @@ func ProcessLokiLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	labelName := utils.ExtractParamAsString(ctx.UserValue("labelName"))
 	indexName := LOKIINDEX_STAR
 	qid := rutils.GetNextQid()
-	colVals, err := ast.GetColValues(labelName, indexName, qid, myid)
+
+	var astNode *structs.ASTNode
+	var aggNode *structs.QueryAggregators
+
+	startTimeMs, endTimeMs, err := parseTimeRangeInMS(ctx, uint64(6*HOUR_IN_MS))
+	if err != nil {
+		utils.SendError(ctx, "Error parsing time range", fmt.Sprintf("Request Args: %v", ctx.QueryArgs()), err)
+		return
+	}
+	timeRange := &dtu.TimeRange{StartEpochMs: startTimeMs, EndEpochMs: endTimeMs}
+
+	query := string(ctx.QueryArgs().Peek("query"))
+	if query != "" {
+		astNode, aggNode, err = pipesearch.ParseRequest(query, timeRange.StartEpochMs, timeRange.EndEpochMs, qid, "Log QL", indexName)
+		if err != nil {
+			utils.SendError(ctx, "Error parsing query", fmt.Sprintf("qid: %v, QUERY: %v", qid, query), err)
+			return
+		}
+	}
+
+	colVals, err := ast.GetColValues(labelName, indexName, astNode, aggNode, timeRange, qid, myid)
 
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
@@ -436,7 +471,7 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	qid := rutils.GetNextQid()
 
 	ti := structs.InitTableInfo(LOKIINDEX_STAR, myid, false)
-	startTimeMs, endTimeMs, err := parseTimeRangeInMS(ctx)
+	startTimeMs, endTimeMs, err := parseTimeRangeInMS(ctx, uint64(HOUR_IN_MS))
 	if err != nil {
 		responsebody := make(map[string]interface{})
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
