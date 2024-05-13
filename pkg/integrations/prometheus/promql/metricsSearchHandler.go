@@ -27,11 +27,11 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash"
-	pql "github.com/influxdata/promql/v2"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/prometheus/common/model"
 
-	"github.com/influxdata/promql/v2/pkg/labels"
+	"github.com/prometheus/prometheus/model/labels"
+	"github.com/prometheus/prometheus/promql/parser"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
@@ -776,9 +776,9 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	return start, end, queries, formulas, errorLog, nil
 }
 
-func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, pql.ValueType, []structs.QueryArithmetic, error) {
+func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
 	// call prometheus promql parser
-	expr, err := pql.ParseExpr(searchText)
+	expr, err := parser.ParseExpr(searchText)
 	if err != nil {
 		return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
 	}
@@ -806,8 +806,8 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 
 	var groupby bool
 	switch expr := expr.(type) {
-	case *pql.AggregateExpr:
-		es := &pql.EvalStmt{
+	case *parser.AggregateExpr:
+		es := &parser.EvalStmt{
 			Expr:     expr,
 			Start:    time.Now().Add(time.Duration(-5) * time.Minute),
 			End:      time.Now(),
@@ -816,12 +816,12 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		}
 
 		mquery.Aggregator = structs.Aggreation{}
-		pql.Inspect(es.Expr, func(node pql.Node, path []pql.Node) error {
+		parser.Inspect(es.Expr, func(node parser.Node, path []parser.Node) error {
 			if node == nil {
 				return nil
 			}
 			switch expr := node.(type) {
-			case *pql.AggregateExpr:
+			case *parser.AggregateExpr:
 				aggFunc := extractFuncFromPath(path)
 				switch aggFunc {
 				case "avg":
@@ -840,7 +840,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for AggregateExpr (got %v)", aggFunc)
 					mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
 				}
-			case *pql.VectorSelector:
+			case *parser.VectorSelector:
 				_, grouping := extractGroupsFromPath(path)
 				aggFunc := extractFuncFromPath(path)
 				for _, grp := range grouping {
@@ -871,26 +871,26 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for VectorSelector (got %v)", aggFunc)
 					mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
 				}
-			case *pql.NumberLiteral:
+			case *parser.NumberLiteral:
 				mquery.Aggregator.FuncConstant = expr.Val
 			default:
-				err := fmt.Errorf("pql.Inspect: Unsupported node type %T", node)
+				err := fmt.Errorf("parser.Inspect: Unsupported node type %T", node)
 				log.Errorf("%v", err)
 				return err
 			}
 			return nil
 		})
-	case *pql.Call:
+	case *parser.Call:
 		// E.g: rate(http_requests_total[5m]), So, the process of the Inspect method calling node is as follows:
 		// promql.Call:"rate(http_requests_total[5m])" -> promql.Expressions[0] -> promql.MatrixSelector:"http_requests_total[5m]"
 		// Since we currently handle evaluation logic only in sub-elements like MatrixSelector or VectorSelector, if we add a default case in the switch statement,
 		// traversal would stop prematurely due to an error being returned before reaching sub-nodes such as MatrixSelector
-		pql.Inspect(expr, func(node pql.Node, path []pql.Node) error {
+		parser.Inspect(expr, func(node parser.Node, path []parser.Node) error {
 			if node == nil {
 				return nil
 			}
 			switch node.(type) {
-			case *pql.MatrixSelector:
+			case *parser.MatrixSelector:
 				function := extractFuncFromPath(path)
 
 				if mquery.TagsFilters != nil {
@@ -899,7 +899,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 
 				timeWindow, err := extractTimeWindow(expr.Args)
 				if err != nil {
-					return fmt.Errorf("pql.Inspect: can not extract time window from a range vector: %v", err)
+					return fmt.Errorf("parser.Inspect: can not extract time window from a range vector: %v", err)
 				}
 				switch function {
 				case "deriv":
@@ -915,9 +915,9 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				case "increase":
 					mquery.Function = structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow}
 				default:
-					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
+					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
 				}
-			case *pql.VectorSelector:
+			case *parser.VectorSelector:
 				function := extractFuncFromPath(path)
 				switch function {
 				case "abs":
@@ -938,12 +938,12 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				case "log10":
 					mquery.Function = structs.Function{MathFunction: segutils.Log10}
 				default:
-					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
+					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
 				}
 			}
 			return nil
 		})
-	case *pql.VectorSelector:
+	case *parser.VectorSelector:
 		mquery.HashedMName = xxhash.Sum64String(mquery.MetricName)
 		mquery.OrgId = myid
 		mquery.SelectAllSeries = true
@@ -962,11 +962,11 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 			},
 		}
 		return []structs.MetricsQueryRequest{*metricQueryRequest}, pqlQuerytype, []structs.QueryArithmetic{}, nil
-	case *pql.BinaryExpr:
+	case *parser.BinaryExpr:
 		arithmeticOperation := structs.QueryArithmetic{}
-		var lhsValType, rhsValType pql.ValueType
+		var lhsValType, rhsValType parser.ValueType
 		var lhsRequest, rhsRequest []structs.MetricsQueryRequest
-		if constant, ok := expr.LHS.(*pql.NumberLiteral); ok {
+		if constant, ok := expr.LHS.(*parser.NumberLiteral); ok {
 			arithmeticOperation.ConstantOp = true
 			arithmeticOperation.Constant = constant.Val
 		} else {
@@ -978,7 +978,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 
 		}
 
-		if constant, ok := expr.RHS.(*pql.NumberLiteral); ok {
+		if constant, ok := expr.RHS.(*parser.NumberLiteral); ok {
 			arithmeticOperation.ConstantOp = true
 			arithmeticOperation.Constant = constant.Val
 		} else {
@@ -990,11 +990,11 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 
 		}
 		arithmeticOperation.Operation = getArithmeticOperation(expr.Op)
-		if rhsValType == pql.ValueTypeVector {
-			lhsValType = pql.ValueTypeVector
+		if rhsValType == parser.ValueTypeVector {
+			lhsValType = parser.ValueTypeVector
 		}
 		return append(lhsRequest, rhsRequest...), lhsValType, []structs.QueryArithmetic{arithmeticOperation}, nil
-	case *pql.ParenExpr:
+	case *parser.ParenExpr:
 		return convertPqlToMetricsQuery(expr.Expr.String(), startTime, endTime, myid)
 	default:
 		return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, fmt.Errorf("convertPqlToMetricsQuery: Unsupported query type %T", expr)
@@ -1041,15 +1041,15 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 	return []structs.MetricsQueryRequest{*metricQueryRequest}, pqlQuerytype, []structs.QueryArithmetic{}, nil
 }
 
-func getArithmeticOperation(op pql.ItemType) segutils.ArithmeticOperator {
+func getArithmeticOperation(op parser.ItemType) segutils.ArithmeticOperator {
 	switch op {
-	case pql.ItemADD:
+	case parser.ADD:
 		return segutils.Add
-	case pql.ItemSUB:
+	case parser.SUB:
 		return segutils.Subtract
-	case pql.ItemMUL:
+	case parser.MUL:
 		return segutils.Multiply
-	case pql.ItemDIV:
+	case parser.DIV:
 		return segutils.Divide
 	default:
 		log.Errorf("getArithmeticOperation: unexpected op: %v", op)
@@ -1088,21 +1088,27 @@ func parseTimeFromString(timeStr string) (uint32, error) {
 	return uint32(t.Unix()), nil
 }
 
-func extractSelectors(expr pql.Expr) [][]*labels.Matcher {
+func extractSelectors(expr parser.Expr) [][]*labels.Matcher {
 	var selectors [][]*labels.Matcher
-	pql.Inspect(expr, func(node pql.Node, _ []pql.Node) error {
+	parser.Inspect(expr, func(node parser.Node, _ []parser.Node) error {
 		var vs interface{}
-		vs, ok := node.(*pql.VectorSelector)
+		vs, ok := node.(*parser.VectorSelector)
 		if ok {
-			selectors = append(selectors, vs.(*pql.VectorSelector).LabelMatchers)
+			selectors = append(selectors, vs.(*parser.VectorSelector).LabelMatchers)
 		}
-		vs, ok = node.(pql.Expressions)
+		vs, ok = node.(parser.Expressions)
 		if ok {
-			for _, entry := range vs.(pql.Expressions) {
-				expr, ok := entry.(*pql.MatrixSelector)
-				if ok {
-					selectors = append(selectors, expr.LabelMatchers)
+			for _, entry := range vs.(parser.Expressions) {
+				expr, ok := entry.(*parser.MatrixSelector)
+				if !ok {
+					continue
 				}
+				vectorSelector, ok := expr.VectorSelector.(*parser.VectorSelector)
+				if !ok {
+					continue
+				}
+
+				selectors = append(selectors, vectorSelector.LabelMatchers)
 			}
 		}
 		return nil
@@ -1111,24 +1117,32 @@ func extractSelectors(expr pql.Expr) [][]*labels.Matcher {
 }
 
 // extractGroupsFromPath parses vector outer function and extracts grouping information if by or without was used.
-func extractGroupsFromPath(p []pql.Node) (bool, []string) {
+func extractGroupsFromPath(p []parser.Node) (bool, []string) {
 	if len(p) == 0 {
 		return false, nil
 	}
 	switch n := p[len(p)-1].(type) {
-	case *pql.AggregateExpr:
+	case *parser.AggregateExpr:
 		return !n.Without, n.Grouping
-	case pql.Expressions:
+	case parser.Expressions:
 		groupByVals := make([]string, 0)
 		for _, entry := range n {
-			expr, ok := entry.(*pql.MatrixSelector)
-			if ok {
-				for _, labels := range expr.LabelMatchers {
-					if labels.Name != "__name__" {
-						groupByVals = append(groupByVals, labels.Name)
-					}
+			expr, ok := entry.(*parser.MatrixSelector)
+			if !ok {
+				continue
+			}
+
+			vectorSelector, ok := expr.VectorSelector.(*parser.VectorSelector)
+			if !ok {
+				continue
+			}
+
+			for _, labels := range vectorSelector.LabelMatchers {
+				if labels.Name != "__name__" {
+					groupByVals = append(groupByVals, labels.Name)
 				}
 			}
+
 		}
 		return false, groupByVals
 	default:
@@ -1138,16 +1152,16 @@ func extractGroupsFromPath(p []pql.Node) (bool, []string) {
 
 // extractFuncFromPath walks up the path and searches for the first instance of
 // a function or aggregation.
-func extractFuncFromPath(p []pql.Node) string {
+func extractFuncFromPath(p []parser.Node) string {
 	if len(p) == 0 {
 		return ""
 	}
 	switch n := p[len(p)-1].(type) {
-	case *pql.AggregateExpr:
+	case *parser.AggregateExpr:
 		return n.Op.String()
-	case *pql.Call:
+	case *parser.Call:
 		return n.Func.Name
-	case *pql.BinaryExpr:
+	case *parser.BinaryExpr:
 		// If we hit a binary expression we terminate since we only care about functions
 		// or aggregations over a single metric.
 		return ""
@@ -1254,9 +1268,9 @@ func parseTimeStringToUint32(s interface{}) (uint32, error) {
 	return timeVal, nil
 }
 
-func extractTimeWindow(args pql.Expressions) (float64, error) {
+func extractTimeWindow(args parser.Expressions) (float64, error) {
 	if len(args) > 0 {
-		if ms, ok := args[0].(*pql.MatrixSelector); ok {
+		if ms, ok := args[0].(*parser.MatrixSelector); ok {
 			return ms.Range.Seconds(), nil
 		} else {
 			return 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
