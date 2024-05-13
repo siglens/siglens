@@ -1217,7 +1217,12 @@ async function getQueryDetails(queryName, queryDetails){
 function createQueryString(queryObject) {
     const { metrics, everywhere, everything, aggFunction, functions } = queryObject;
 
-    const everywhereString = everywhere.map(tag => `${tag.split(':')[0]}="${tag.split(':')[1]}"`).join(',');
+    const everywhereString = everywhere.map(tag => {
+        const parts = tag.split(':');
+        const tagPart = parts.shift(); // Get the first part as the tag
+        const valuePart = parts.join(':'); // Join the remaining parts as the value
+        return `${tagPart}="${valuePart}"`;
+    }).join(',');
     const everythingString = everything.join(',');
     
     let queryString = '';
