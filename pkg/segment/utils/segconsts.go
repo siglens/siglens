@@ -309,6 +309,9 @@ const (
 	Derivative RangeFunctions = iota + 1
 	Rate
 	IRate
+	Increase
+	Delta
+	IDelta
 )
 
 // For columns used by aggs with eval statements, we should keep their raw values because we need to evaluate them

@@ -120,6 +120,108 @@ func Test_applyRangeFunctionIRate(t *testing.T) {
 	assert.True(t, dtypeutils.AlmostEquals(val, 1.0/(9-8)))
 }
 
+func Test_applyRangeFunctionIncrease(t *testing.T) {
+	timeSeries := map[uint32]float64{
+		1000: 0.0,
+		1008: 8.0,
+		1010: 14.0,
+		1012: 10.0,
+		1020: 18.0,
+	}
+
+	timeWindow := float64(10)
+	increase, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow})
+	assert.Nil(t, err)
+
+	assert.Len(t, increase, 4)
+
+	var val float64
+	var ok bool
+
+	val, ok = increase[1008]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, timeWindow*(8.0-0.0)/(8-0)))
+
+	val, ok = increase[1010]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, timeWindow*(14.0-0.0)/(10-0)))
+
+	// Reset val
+	val, ok = increase[1012]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, timeWindow*(10.0)/(12-10)))
+
+	val, ok = increase[1020]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, timeWindow*(18.0-10.0)/(20-12)))
+}
+
+func Test_applyRangeFunctionDelta(t *testing.T) {
+	timeSeries := map[uint32]float64{
+		1000: 2.0,
+		1001: 3.0,
+		1002: 5.0,
+		1013: 10.0,
+		1018: 2.5,
+	}
+
+	rate, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Delta, TimeWindow: 10})
+	assert.Nil(t, err)
+
+	assert.Len(t, rate, 3)
+
+	var val float64
+	var ok bool
+
+	val, ok = rate[1001]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 3.0-2.0))
+
+	val, ok = rate[1002]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 5.0-2.0))
+
+	_, ok = rate[1013]
+	assert.False(t, ok)
+
+	val, ok = rate[1018]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.5-10.0))
+}
+
+func Test_applyRangeFunctionIDelta(t *testing.T) {
+	timeSeries := map[uint32]float64{
+		1000: 2.0,
+		1001: 3.0,
+		1002: 5.0,
+		1013: 10.0,
+		1018: 2.5,
+	}
+
+	rate, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.IDelta, TimeWindow: 10})
+	assert.Nil(t, err)
+
+	assert.Len(t, rate, 3)
+
+	var val float64
+	var ok bool
+
+	val, ok = rate[1001]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 3.0-2.0))
+
+	val, ok = rate[1002]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 5.0-3.0))
+
+	_, ok = rate[1013]
+	assert.False(t, ok)
+
+	val, ok = rate[1018]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.5-10.0))
+}
+
 func Test_reduceEntries(t *testing.T) {
 	entries := []Entry{
 		Entry{downsampledTime: 0, dpVal: 4.3},

@@ -449,6 +449,7 @@ a.warn-box-anchor {
     overflow: auto; 
     width: 100%;
     height: 50vh; 
+    transition: height 0.3s ease; 
 }
 
 .back-to-search-traces{
@@ -559,6 +560,7 @@ circle:hover{
     padding: 20px;
     margin-left: 10px;
     min-width: 450px;
+    transition: height 0.3s ease; 
 }
 
 .span-details-container .close-btn{
@@ -579,16 +581,31 @@ circle:hover{
 }
 
 .logs-metrics-container{
-    margin-top: 14px;
+    margin-top: auto;
     box-shadow: var(--box-shadow);
     background-color: var(--black1-to-white0);
     border: 1px solid var(--search-input-border);
     border-radius: 10px;
     padding-bottom: 40px;
     overflow: auto;
-    height: 33vh;
+    height: 100%;
     padding: 10px;
 }
-.logs-metrics-container .section-button{
+.logs-metrics-container .section-button,.max-min-btn {
     cursor: pointer;
+}
+#timeline-container.expanded,
+.span-details-container.expanded{
+    height: 75vh;
+}
+.max-min-btn{
+    font-size: 17px;
+    font-weight: bolder;
+    transform: rotate(-45deg);
+}
+.max-min-btn.minimized{
+    transform: rotate(135deg);
+}
+.logs-metrics-container.minimized{
+    height: 50px;
 }

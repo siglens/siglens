@@ -36,9 +36,11 @@ import (
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	. "github.com/siglens/siglens/pkg/utils"
@@ -147,62 +149,112 @@ func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32,
 	return searchText, startTime, endTime, 0, granularity, nil
 }
 
-func ProcessMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	rawJSON := ctx.PostBody()
-	if rawJSON == nil {
-		log.Errorf(" ProcessMetricsSearchRequest: received empty search request body ")
-		utils.SetBadMsg(ctx, "")
+func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	qid := rutils.GetNextQid()
+	searchText := string(ctx.FormValue("query"))
+	timeParam := string(ctx.FormValue("time"))
+
+	var endTime uint32
+	var err error
+
+	if searchText == "" {
+		log.Errorf("ProcessPromqlMetricsSearchRequest: no query parameter provided")
+		utils.SetBadMsg(ctx, "query is required")
 		return
 	}
-	qid := rutils.GetNextQid()
 
-	readJSON := make(map[string]interface{})
-	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
-	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
-	decoder.UseNumber()
-	err := decoder.Decode(&readJSON)
+	if timeParam == "" {
+		// If timeParam doesn't exist, assume the current time in epoch seconds as endTime
+		endTime = uint32(time.Now().Unix())
+	} else {
+		endTime, err = utils.ParseTimeForPromQL(timeParam)
+		if err != nil {
+			log.Errorf("ProcessPromqlMetricsSearchRequest: Error parsing time parameter, err:%v", err)
+			return
+		}
+	}
+
+	metricQueryRequest, pqlQuerytype, _, err := convertPqlToMetricsQuery(searchText, endTime-1, endTime, myid)
 	if err != nil {
 		ctx.SetContentType(ContentJson)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		WriteJsonResponse(ctx, nil)
+		log.Errorf("qid=%v, ProcessPromqlMetricsSearchRequest: Error parsing query err=%+v", qid, err)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf("qid=%v, ProcessMetricsSearchRequest: could not write error message err=%v", qid, err)
+			log.Errorf("qid=%v, ProcessPromqlMetricsSearchRequest: could not write error message err=%v", qid, err)
 		}
-		log.Errorf("qid=%v, ProcessMetricsSearchRequest: failed to decode search request body! Err=%+v", qid, err)
 		return
 	}
-
-	searchText, startTime, endTime, step, _, err := parseSearchBody(readJSON)
-	if err != nil {
+	if len(metricQueryRequest) == 0 {
 		ctx.SetContentType(ContentJson)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("qid=%v, ProcessMetricsSearchRequest: could not write error message err=%v", qid, err)
-		}
-
-		log.Errorf("qid=%v, ProcessMetricsSearchRequest: parseSearchBody , err=%v", qid, err)
+		WriteJsonResponse(ctx, map[string]interface{}{})
 		return
 	}
-	if endTime == 0 {
-		endTime = uint32(time.Now().Unix())
+	segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[0], qid)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
+
+	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
+	if err != nil {
+		log.Errorf("ProcessPromqlMetricsSearchRequest: Error getting results! %+v", err)
 	}
-	if startTime == 0 {
-		startTime = uint32(time.Now().Add(time.Duration(-5) * time.Minute).Unix())
+	WriteJsonResponse(ctx, &mQResponse)
+	ctx.SetContentType(ContentJson)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	qid := rutils.GetNextQid()
+	searchText := string(ctx.FormValue("query"))
+	startParam := string(ctx.FormValue("start"))
+	endParam := string(ctx.FormValue("end"))
+	stepValue := string(ctx.FormValue("step"))
+
+	var step time.Duration
+	var stepFloat float64
+	var err error
+
+	if searchText == "" {
+		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: missing query parameter")
+		utils.SetBadMsg(ctx, "query parameter is required")
+		return
 	}
 
-	log.Infof("qid=%v, ProcessMetricsSearchRequest:  searchString=[%v] startEpochMs=[%v] endEpochMs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
+	// Try to parse step as a duration
+	step, err = time.ParseDuration(stepValue)
+	if err != nil {
+		// If parsing as a duration fails, try to parse as a float
+		stepFloat, err = strconv.ParseFloat(stepValue, 64)
+		if err != nil {
+			log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error parsing step, err:%v", err)
+			return
+		}
+		// Convert float to duration in seconds
+		step = time.Duration(stepFloat * float64(time.Second))
+	}
+
+	startTime, err := utils.ParseTimeForPromQL(startParam)
+	if err != nil {
+		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error parsing start parameter, err:%v", err)
+		return
+	}
+	endTime, err := utils.ParseTimeForPromQL(endParam)
+	if err != nil {
+		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error parsing end parameter, err:%v", err)
+		return
+	}
+
+	log.Infof("qid=%v, ProcessPromqlMetricsRangeSearchRequest:  searchString=[%v] startEpochs=[%v] endEpochs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
 	metricQueryRequest, pqlQuerytype, _, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
 		ctx.SetContentType(ContentJson)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		WriteJsonResponse(ctx, nil)
-		log.Errorf("qid=%v, ProcessMetricsSearchRequest: Error parsing query err=%+v", qid, err)
+		log.Errorf("qid=%v, ProcessPromqlMetricsRangeSearchRequest: Error parsing query err=%+v", qid, err)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf("qid=%v, ProcessMetricsSearchRequest: could not write error message err=%v", qid, err)
+			log.Errorf("qid=%v, ProcessPromqlMetricsRangeSearchRequest: could not write error message err=%v", qid, err)
 		}
 		return
 	}
@@ -211,11 +263,133 @@ func ProcessMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
 	if err != nil {
-		log.Errorf("ExecuteAsyncQuery: Error getting results! %+v", err)
+		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error getting results! %+v", err)
 	}
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+
+}
+func ProcessPromqlBuildInfoRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	ctx.SetContentType("application/json")
+	_, err := ctx.Write([]byte(PromQLBuildInfo))
+	if err != nil {
+		log.Errorf("ProcessPromqlBuildInfoRequest: failed to write response, err=%v", err)
+	}
+}
+
+func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	startParam := string(ctx.FormValue("start"))
+	endParam := string(ctx.FormValue("end"))
+
+	var startTime, endTime uint32
+	var err error
+
+	// If startParam exists, parse it
+	if startParam != "" {
+		startTime, err = utils.ParseTimeForPromQL(startParam)
+		if err != nil {
+			log.Errorf("ProcessGetLabelsRequest: Error parsing start time parameter, err:%v", err)
+			return
+		}
+	}
+
+	// If endParam exists, parse it
+	if endParam != "" {
+		endTime, err = utils.ParseTimeForPromQL(endParam)
+		if err != nil {
+			log.Errorf("ProcessGetLabelsRequest: Error parsing end time parameter, err:%v", err)
+			return
+		}
+	} else {
+		endTime = uint32(time.Now().Unix())
+	}
+	timeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: startTime,
+		EndEpochSec:   endTime,
+	}
+	uniqueTagKeysUnrotated, err := metrics.GetUniqueTagKeysForUnrotated(timeRange, myid)
+	if err != nil {
+		log.Errorf("ProcessGetLabelsRequest: Error getting unique tag keys for unrotated, err:%v", err)
+		return
+	}
+
+	uniqueTagKeys, err := metadata.GetUniqueTagKeysForRotated(timeRange, myid)
+	if err != nil {
+		log.Errorf("ProcessGetLabelsRequest: Error getting unique tag keys for rotated, err:%v", err)
+		return
+	}
+
+	for key := range uniqueTagKeysUnrotated {
+		uniqueTagKeys[key] = struct{}{}
+	}
+
+	keys := make([]string, 0, len(uniqueTagKeys))
+	for key := range uniqueTagKeys {
+		keys = append(keys, key)
+	}
+
+	response := map[string]interface{}{
+		"status": "success",
+		"data":   keys,
+	}
+
+	WriteJsonResponse(ctx, &response)
+	ctx.SetContentType("application/json")
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	labelName := utils.ExtractParamAsString(ctx.UserValue("labelName"))
+	startParam := string(ctx.FormValue("start"))
+	endParam := string(ctx.FormValue("end"))
+
+	var startTime, endTime uint32
+	var err error
+
+	if startParam != "" {
+		startTime, err = utils.ParseTimeForPromQL(startParam)
+		if err != nil {
+			log.Errorf("ProcessGetLabelValuesRequest: Error parsing start time parameter, err:%v", err)
+			return
+		}
+	}
+	if endParam != "" {
+		endTime, err = utils.ParseTimeForPromQL(endParam)
+		if err != nil {
+			log.Errorf("ProcessGetLabelValuesRequest: Error parsing end time parameter, err:%v", err)
+			return
+		}
+	}
+
+	log.Printf("startTime: %v, local time: %v", startTime, time.Unix(int64(startTime), 0).Local())
+	log.Printf("endTime: %v, local time: %v", endTime, time.Unix(int64(endTime), 0).Local())
+	log.Printf("labelName: %v", labelName)
+	// TODO: Implement the logic to get the label values
+}
+
+func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	matches := make([]string, 0)
+	ctx.QueryArgs().VisitAll(func(key []byte, value []byte) {
+		if string(key) == "match[]" {
+			matches = append(matches, string(value))
+		}
+	})
+
+	startParam := string(ctx.FormValue("start"))
+	endParam := string(ctx.FormValue("end"))
+
+	startTime, err := utils.ParseTimeForPromQL(startParam)
+	if err != nil {
+		log.Errorf("ProcessGetSeriesByLabelRequest: Error parsing 'start' parameter, err:%v", err)
+	}
+	endTime, err := utils.ParseTimeForPromQL(endParam)
+	if err != nil {
+		log.Errorf("ProcessGetSeriesByLabelRequest: Error parsing 'end' parameter, err:%v", err)
+	}
+
+	log.Printf("startTime: %v, local time: %v", startTime, time.Unix(int64(startTime), 0).Local())
+	log.Printf("endTime: %v, local time: %v", endTime, time.Unix(int64(endTime), 0).Local())
+	log.Printf("matches: %v", matches)
 }
 
 func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
@@ -643,6 +817,9 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 
 		mquery.Aggregator = structs.Aggreation{}
 		pql.Inspect(es.Expr, func(node pql.Node, path []pql.Node) error {
+			if node == nil {
+				return nil
+			}
 			switch expr := node.(type) {
 			case *pql.AggregateExpr:
 				aggFunc := extractFuncFromPath(path)
@@ -704,7 +881,14 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 			return nil
 		})
 	case *pql.Call:
+		// E.g: rate(http_requests_total[5m]), So, the process of the Inspect method calling node is as follows:
+		// promql.Call:"rate(http_requests_total[5m])" -> promql.Expressions[0] -> promql.MatrixSelector:"http_requests_total[5m]"
+		// Since we currently handle evaluation logic only in sub-elements like MatrixSelector or VectorSelector, if we add a default case in the switch statement,
+		// traversal would stop prematurely due to an error being returned before reaching sub-nodes such as MatrixSelector
 		pql.Inspect(expr, func(node pql.Node, path []pql.Node) error {
+			if node == nil {
+				return nil
+			}
 			switch node.(type) {
 			case *pql.MatrixSelector:
 				function := extractFuncFromPath(path)
@@ -720,10 +904,16 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				switch function {
 				case "deriv":
 					mquery.Function = structs.Function{RangeFunction: segutils.Derivative, TimeWindow: timeWindow}
+				case "delta":
+					mquery.Function = structs.Function{RangeFunction: segutils.Delta, TimeWindow: timeWindow}
+				case "idelta":
+					mquery.Function = structs.Function{RangeFunction: segutils.IDelta, TimeWindow: timeWindow}
 				case "rate":
 					mquery.Function = structs.Function{RangeFunction: segutils.Rate, TimeWindow: timeWindow}
 				case "irate":
 					mquery.Function = structs.Function{RangeFunction: segutils.IRate, TimeWindow: timeWindow}
+				case "increase":
+					mquery.Function = structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow}
 				default:
 					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
 				}
