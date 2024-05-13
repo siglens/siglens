@@ -35,13 +35,14 @@ import (
 Struct to represent a single metrics query request.
 */
 type MetricsQuery struct {
-	MetricName      string // metric name to query for.
-	HashedMName     uint64
-	Aggregator      Aggreation
-	Function        Function
-	Downsampler     Downsampler
-	TagsFilters     []*TagsFilter // all tags filters to apply
-	SelectAllSeries bool          //flag to select all series - for promQl
+	MetricName       string // metric name to query for.
+	HashedMName      uint64
+	Aggregator       Aggreation
+	Function         Function
+	Downsampler      Downsampler
+	TagsFilters      []*TagsFilter    // all tags filters to apply
+	TagIndicesToKeep map[int]struct{} // indices of tags to keep in the result
+	SelectAllSeries  bool             //flag to select all series - for promQl
 
 	reordered       bool   // if the tags filters have been reordered
 	numStarFilters  int    // index such that TagsFilters[:numStarFilters] are all star filters
