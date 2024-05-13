@@ -1107,7 +1107,6 @@ func extractSelectors(expr parser.Expr) [][]*labels.Matcher {
 				if !ok {
 					continue
 				}
-
 				selectors = append(selectors, vectorSelector.LabelMatchers)
 			}
 		}
