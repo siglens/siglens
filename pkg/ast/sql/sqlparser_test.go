@@ -39,7 +39,7 @@ func Test_ParseSelect(t *testing.T) {
 	testGroupBy.MeasureOperations = append(testGroupBy.MeasureOperations, &structs.MeasureAggregator{
 		MeasureCol: "latency", MeasureFunc: utils.Count,
 	})
-	_, err = query.GetMatchAllASTNode(0)
+	_, err = query.GetMatchAllASTNode(0, nil)
 
 	assert.Nil(t, err)
 	assert.Equal(t, aggs.GroupByRequest, testGroupBy)
