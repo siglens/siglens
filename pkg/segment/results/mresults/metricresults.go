@@ -407,11 +407,11 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 		return nil, nil, errors.New("results is not in Series Reading state")
 	}
 
-	tagKeysMap := make(map[string]struct{})
+	// The Tag Keys in the TagFilters will be unique,
+	// as they will be cleaned up in the mQuery.ReorderTagFilters()
 	uniqueTagKeys := make([]string, 0)
-	for _, tag := range mQuery.TagsFilters {
-		if _, ok := tagKeysMap[tag.TagKey]; !ok {
-			tagKeysMap[tag.TagKey] = struct{}{}
+	for i, tag := range mQuery.TagsFilters {
+		if _, exists := mQuery.TagIndicesToKeep[i]; exists {
 			uniqueTagKeys = append(uniqueTagKeys, tag.TagKey)
 		}
 	}

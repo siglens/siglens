@@ -572,6 +572,7 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	metricQueryRequest[0].MetricsQuery.ExitAfterTagsSearch = true
+	metricQueryRequest[0].MetricsQuery.TagIndicesToKeep = make(map[int]struct{})
 
 	segment.LogMetricsQuery("Tags Request PromQL metrics query parser", &metricQueryRequest[0], qid)
 	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
