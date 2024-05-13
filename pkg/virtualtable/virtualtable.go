@@ -218,6 +218,7 @@ func AddVirtualTableAndMapping(tname *string, mapping *string, orgid uint64) err
 
 	//todo for dupe entries, write a goroutine that wakes up once per day (random time) and reads the
 	// central place of virtualtablenames.txt and de-dupes the table names by creating a lock
+
 	err := AddVirtualTable(tname, orgid)
 	if err != nil {
 		return err
