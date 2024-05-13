@@ -55,8 +55,8 @@ const (
 	Index              = "_index"
 	DefaultLimit       = 100
 	MsToNanoConversion = 1_000_000
-	DAY_IN_MS          = 86400000
-	HOUR_IN_MS         = 3600000
+	DAY_IN_MS          = 86_400_000
+	HOUR_IN_MS         = 3_600_000
 )
 
 func parseLabels(labelsString string) map[string]string {

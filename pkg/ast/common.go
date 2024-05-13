@@ -239,7 +239,6 @@ func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, ag
 	aggNode.OutputTransforms.OutputColumns.IncludeColumns = append(make([]string, 0), cname)
 
 	ti := structs.InitTableInfo(indexNameIn, orgid, false)
-	log.Infof("qid=%v, GetColValues: table info %+v", qid, ti.GetQueryTables())
 	qc := structs.InitQueryContextWithTableInfo(ti, segquery.MAX_GRP_BUCKS, 0, orgid, false)
 	queryResult := segment.ExecuteQuery(astNode, aggNode, qid, qc)
 	allJsons, _, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggNode)

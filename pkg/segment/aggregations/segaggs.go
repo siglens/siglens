@@ -1582,6 +1582,7 @@ func performStatisticColRequestOnMeasureResults(nodeResult *structs.NodeResult, 
 		for _, bucketHolder := range nodeResult.MeasureResults {
 			value, exists := bucketHolder.MeasureVal[countName]
 			if !exists {
+				bucketHolder.MeasureVal[countName] = uint64(0)
 				continue
 			}
 			resTotal += value.(uint64)
