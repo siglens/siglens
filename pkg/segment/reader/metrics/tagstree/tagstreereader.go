@@ -496,3 +496,146 @@ func tagValueMatches(actualValue uint64, pattern uint64, tagOperator segutils.Ta
 
 	return matchesThis, mightMatchOtherValue
 }
+
+
+func (attr *AllTagTreeReaders) FindTagValuesOnly(mQuery *structs.MetricsQuery,
+	rawTagValues map[string]map[string]struct{}) (error) {
+
+	defer func() {
+		for _, ttr := range attr.tagTrees {
+			ttr.Close()
+		}
+	}()
+
+	for i := 0; i < len(mQuery.TagsFilters); i++ {
+		tf := mQuery.TagsFilters[i]
+		//  Check if the tag key exists in the tag tree
+		fileExists, fInfo := attr.getTagTreeFileInfoForTagKey(tf.TagKey)
+		if !fileExists {
+			continue
+		}
+
+		err := attr.readTagValuesOnly(tf.TagKey, fInfo, rawTagValues)
+		if err != nil {
+			log.Infof("FindTagValuesOnly: failed to get the value iterator for tag key %v. Error: %v. TagVAlH %+v", tf.TagKey, err, tf.HashTagValue)
+			continue
+		}
+	}
+	return nil
+}
+
+
+/*
+Returns *TagValueIterator a boolean indicating if the metric name was found, or any errors encountered
+*/
+func (attr *AllTagTreeReaders) readTagValuesOnly(tagKey string, fInfo fs.FileInfo,
+	rawTagValues map[string]map[string]struct{}) (error) {
+
+	ttr, ok := attr.tagTrees[tagKey]
+	if !ok {
+		ttr, err := attr.InitTagsTreeReader(tagKey, fInfo)
+		if err != nil {
+			return nil, false, fmt.Errorf("readTagValuesOnly: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
+		} else {
+			return ttr.readTagValuesOnly(tagKey, rawTagValues)
+		}
+	}
+	return ttr.readTagValuesOnly(tagKey, rawTagValues)
+}
+
+func (ttr *TagTreeReader) readTagValuesOnly(tagKey string,
+	rawTagValues map[string]map[string]struct{}) (error) {
+	var startOff, endOff uint32
+	id := uint32(0)
+
+	currTvMap, ok := rawTagValues[tagKey]
+	if !ok {
+		currTvMap = make(map[string]struct{})
+		rawTagValues[tf.TagKey] = currTvMap
+	}
+
+	for id < uint32(len(ttr.metadataBuf)) {
+		id += 8 // for hashedMetricName
+
+		startOff = utils.BytesToUint32LittleEndian(ttr.metadataBuf[id : id+4])
+		id += 4
+		endOff = utils.BytesToUint32LittleEndian(ttr.metadataBuf[id : id+4])
+		tagTreeBuf := make([]byte, endOff-startOff)
+		_, err := ttr.fd.ReadAt(tagTreeBuf, int64(startOff))
+		if err != nil {
+			log.Errorf("GetValueIteratorForMetric: failed to read tagtree buffer at %d! Err %+v", startOff, err)
+			return err
+		}
+		tvi := &TagValueIterator{
+			tagTreeBuf:    tagTreeBuf,
+			treeOffset:    0,
+			matchingTSIDs: make(map[uint64]struct{}),
+		}
+		tvi.loopThroughTagValues(currTvMap)
+	}
+	return nil
+}
+
+
+func (tvi *TagValueIterator) loopThroughTagValues(currTvMap map[string]struct{}) {
+
+	for {
+		_, tagRawValue, tagRawValueType, more := tvi.NextTagValue()
+		if !more {
+			break
+		}
+		var tagvStr string
+		if tagRawValueType[0] == segutils.VALTYPE_ENC_FLOAT64[0] {
+			tagvStr = fmt.Sprintf("%f", utils.BytesToFloat64LittleEndian(tagRawValue))
+		} else if tagRawValueType[0] == segutils.VALTYPE_ENC_INT64[0] {
+			tagvStr = fmt.Sprintf("%d", utils.BytesToInt64LittleEndian(tagRawValue))
+		} else {
+			tagvStr = string(tagRawValue)
+		}
+		currTvMap[tagvStr]=struct{}
+	}
+}
+
+
+/*
+Returns next tag value,  tag valueType, bool indicating if more values exist
+*/
+func (tvi *TagValueIterator) NextTagValue() ([]byte, []byte, bool) {
+	var tagValue []byte
+	for tvi.treeOffset < uint32(len(tvi.tagTreeBuf)) {
+		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < 10 {
+			// not enough bytes left in tagTreeBuf for a full tag tree entry
+			return 0, nil, nil, nil, false
+		}
+		tvi.treeOffset += 8 // for tagHashValue
+		tagRawValueType := tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+1]
+		tvi.treeOffset += 1
+		if tagRawValueType[0] == segutils.VALTYPE_ENC_SMALL_STRING[0] {
+			tagValueLen := utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2])
+			tvi.treeOffset += 2
+			tagValue = tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+uint32(tagValueLen)]
+			tvi.treeOffset += uint32(tagValueLen)
+		} else if tagRawValueType[0] == segutils.VALTYPE_ENC_FLOAT64[0] {
+			tagValue = tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8]
+			tvi.treeOffset += 8
+		} else if tagRawValueType[0] == segutils.VALTYPE_ENC_INT64[0] {
+			tagValue = tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8]
+			tvi.treeOffset += 8
+		} else {
+			log.Errorf("TagValueIterator.Next: unknown value type: %v", tagRawValueType)
+		}
+		tsidCount := utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2])
+		tvi.treeOffset += 2
+		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < uint32(tsidCount*8) {
+			// not enough bytes left in tagTreeBuf for all TSIDs
+			return nil, nil, false
+		}
+
+		// we don't need the tsids
+		tvi.treeOffset += (8 * tsidCount)
+		if tsidCount > 0 {
+			return tagValue, tagRawValueType, true
+		}
+	}
+	return nil, nil, false
+}
