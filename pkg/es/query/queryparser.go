@@ -806,10 +806,14 @@ func parseMatchall(json_body interface{}, qid uint64) (*ASTNode, error) {
 	return rootNode, err
 }
 
-func GetMatchAllASTNode(qid uint64) (*ASTNode, error) {
+func GetMatchAllASTNode(qid uint64, timeRange *dtu.TimeRange) (*ASTNode, error) {
 	rootNode := &ASTNode{}
 	//set timeRange
-	rootNode.TimeRange = rutils.GetESDefaultQueryTimeRange()
+	if timeRange != nil {
+		rootNode.TimeRange = timeRange
+	} else {
+		rootNode.TimeRange = rutils.GetESDefaultQueryTimeRange()
+	}
 	colName := "*"
 	colValue := "*"
 

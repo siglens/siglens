@@ -202,18 +202,44 @@ func CreateTermFilterCriteria(k string, v interface{}, opr FilterOperator, qid u
 	return &criteria
 }
 
-// Executes simple query to return a single column values in a given table
-func GetColValues(cname string, table string, qid uint64, orgid uint64) ([]interface{}, error) {
+func getDefaultAstAndAggNode(qid uint64, timeRange *dtu.TimeRange) (*structs.ASTNode, *structs.QueryAggregators, error) {
 	aggNode := structs.InitDefaultQueryAggregations()
-	astNode, err := query.GetMatchAllASTNode(qid)
+	astNode, err := query.GetMatchAllASTNode(qid, timeRange)
 	if err != nil {
 		log.Errorf("qid=%v, GetColValues: match all ast node failed! %+v", qid, err)
-		return nil, err
+		return nil, nil, err
 	}
 	aggNode.OutputTransforms = &structs.OutputTransforms{OutputColumns: &structs.ColumnsRequest{}}
+
+	return astNode, aggNode, nil
+}
+
+// Executes simple query to return a single column values in a given table
+func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, aggNode *structs.QueryAggregators, timeRange *dtu.TimeRange, qid uint64, orgid uint64) ([]interface{}, error) {
+	var err error
+
+	if astNode == nil {
+		astNode, aggNode, err = getDefaultAstAndAggNode(qid, timeRange)
+		if err != nil {
+			log.Errorf("qid=%v, GetColValues: default ast node failed! %+v", qid, err)
+			return nil, err
+		}
+	} else {
+		if aggNode == nil {
+			aggNode = structs.InitDefaultQueryAggregations()
+		}
+		if aggNode.OutputTransforms == nil {
+			aggNode.OutputTransforms = &structs.OutputTransforms{OutputColumns: &structs.ColumnsRequest{}}
+		}
+		if aggNode.OutputTransforms.OutputColumns == nil {
+			aggNode.OutputTransforms.OutputColumns = &structs.ColumnsRequest{}
+		}
+	}
+
 	aggNode.OutputTransforms.OutputColumns.IncludeColumns = append(make([]string, 0), cname)
 
-	ti := structs.InitTableInfo(table, orgid, false)
+	ti := structs.InitTableInfo(indexNameIn, orgid, false)
+	log.Infof("qid=%v, GetColValues: table info %+v", qid, ti.GetQueryTables())
 	qc := structs.InitQueryContextWithTableInfo(ti, segquery.MAX_GRP_BUCKS, 0, orgid, false)
 	queryResult := segment.ExecuteQuery(astNode, aggNode, qid, qc)
 	allJsons, _, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggNode)
