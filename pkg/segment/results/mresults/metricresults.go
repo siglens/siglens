@@ -25,8 +25,9 @@ import (
 	"sync"
 	"time"
 
-	pql "github.com/influxdata/promql/v2"
-	"github.com/influxdata/promql/v2/pkg/labels"
+	"github.com/prometheus/prometheus/model/labels"
+	pql "github.com/prometheus/prometheus/promql"
+	parser "github.com/prometheus/prometheus/promql/parser"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -341,7 +342,7 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 	}
 	return retVal, nil
 }
-func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType) ([]*structs.MetricsQueryResponsePromQl, error) {
+func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType) ([]*structs.MetricsQueryResponsePromQl, error) {
 	if r.State != AGGREGATED {
 		return nil, errors.New("results is not in aggregated state")
 	}
@@ -360,8 +361,8 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 		}
 	}
 	switch pqlQuerytype {
-	case pql.ValueTypeVector:
-		pqldata.ResultType = pql.ValueType("vector")
+	case parser.ValueTypeVector:
+		pqldata.ResultType = parser.ValueType("vector")
 		for grpId, results := range r.Results {
 			tags := make(map[string]string)
 			tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
@@ -380,10 +381,10 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 			label.Value = mQuery.MetricName
 			series.Metric = append(series.Metric, labels.Label(label))
 			for k, v := range results {
-				var point pql.Point
+				var point pql.FPoint
 				point.T = int64(k)
-				point.V = v
-				series.Points = append(series.Points, point)
+				point.F = v
+				series.Floats = append(series.Floats, point)
 			}
 			pqldata.Result = append(pqldata.Result, series)
 
@@ -433,7 +434,7 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 	return uniqueTagKeys, tagKeyValueSet, nil
 }
 
-func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime uint32) (utils.MetricsStatsResponseInfo, error) {
+func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType, startTime, endTime uint32) (utils.MetricsStatsResponseInfo, error) {
 	var httpResp utils.MetricsStatsResponseInfo
 	httpResp.AggStats = make(map[string]map[string]interface{})
 	if r.State != AGGREGATED {
@@ -459,7 +460,7 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	var startDuration, endDuration int64
 
 	switch pqlQuerytype {
-	case pql.ValueTypeVector:
+	case parser.ValueTypeVector:
 		for groupId := range httpResp.AggStats {
 			startDuration = (startEpoch.UnixMilli() / segutils.MS_IN_MIN) * segutils.MS_IN_MIN
 			endDuration = (endEpoch.UnixMilli() / segutils.MS_IN_MIN) * segutils.MS_IN_MIN
@@ -486,7 +487,7 @@ func removeTrailingComma(s string) string {
 	return strings.TrimSuffix(s, ",")
 }
 
-func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime uint32) (utils.MetricStatsResponse, error) {
+func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType, startTime, endTime uint32) (utils.MetricStatsResponse, error) {
 	var httpResp utils.MetricStatsResponse
 	httpResp.Series = make([]string, 0)
 	httpResp.Values = make([][]*float64, 0)
