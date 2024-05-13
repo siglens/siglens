@@ -217,7 +217,12 @@ func performMaxRows(nodeResult *structs.NodeResult, aggs *structs.QueryAggregato
 			aggs.OutputTransforms.RowsAdded = maxRows
 			break
 		}
-		return nil
+		// return nil
+	}
+
+	if nodeResult.MeasureResults != nil && uint64(len(nodeResult.MeasureResults)) > maxRows {
+		nodeResult.MeasureResults = nodeResult.MeasureResults[:maxRows]
+		aggs.OutputTransforms.RowsAdded = maxRows
 	}
 
 	return nil
