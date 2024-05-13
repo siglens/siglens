@@ -105,3 +105,35 @@ func GetMetricsSegmentRequests(mName string, tRange *dtu.MetricsTimeRange, query
 	querySummary.UpdateTimeGettingRotatedSearchRequests(timeElapsed)
 	return retVal, gErr
 }
+
+func GetMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid uint64) map[string]*structs.MetricsMeta {
+
+	globalMetricsMetadata.updateLock.Lock()
+	defer globalMetricsMetadata.updateLock.Unlock()
+
+	metricsSegMeta := make(map[string]*structs.MetricsMeta)
+
+	for _, mSegMeta := range globalMetricsMetadata.sortedMetricsSegmentMeta {
+		if !tRange.CheckRangeOverLap(mSegMeta.EarliestEpochSec, mSegMeta.LatestEpochSec) || mSegMeta.OrgId != orgid {
+			continue
+		}
+		metricsSegMeta[mSegMeta.MSegmentDir] = &mSegMeta.MetricsMeta
+	}
+
+	return metricsSegMeta
+}
+
+func GetUniqueTagKeysForRotated(tRange *dtu.MetricsTimeRange, myid uint64) (map[string]struct{}, error) {
+	mSegmentsMeta := GetMetricSegmentsOverTheTimeRange(tRange, myid)
+
+	uniqueTagKeys := make(map[string]struct{})
+
+	// Iterate over the metadata and extract unique tag keys
+	for _, meta := range mSegmentsMeta {
+		for key := range meta.TagKeys {
+			uniqueTagKeys[key] = struct{}{}
+		}
+	}
+
+	return uniqueTagKeys, nil
+}

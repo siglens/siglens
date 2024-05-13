@@ -160,7 +160,7 @@ func DeleteQuery(qid uint64) {
 	arqMapLock.Unlock()
 }
 
-func associateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs DistributedQueryServiceInterface,
+func AssociateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs DistributedQueryServiceInterface,
 	qType structs.QueryType) error {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
@@ -382,7 +382,7 @@ func GetRemoteRawLogInfo(remoteID string, inrrcs []*utils.RecordResultContainer,
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	if !ok {
-		log.Errorf("GetQueryType: qid %+v does not exist!", qid)
+		log.Errorf("GetRemoteRawLogInfo: qid %+v does not exist!", qid)
 		arqMapLock.RUnlock()
 		return nil, nil, fmt.Errorf("qid does not exist")
 	}

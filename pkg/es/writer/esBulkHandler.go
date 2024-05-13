@@ -28,6 +28,8 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/grpc"
+	"github.com/siglens/siglens/pkg/hooks"
 	segment "github.com/siglens/siglens/pkg/segment/utils"
 
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -36,6 +38,7 @@ import (
 
 	// segstructs "github.com/siglens/siglens/pkg/segment/structs"
 
+	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -53,13 +56,15 @@ const CREATE_TOP_STR string = "create"
 const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
 
-type kibanaIngHandlerFnDef func(
-	ctx *fasthttp.RequestCtx, request map[string]interface{},
-	indexNameConverted string, updateArg bool, idVal string, tsNow uint64, myid uint64) error
+func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) {
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_ES_BULK, useIngestHook)
+		if alreadyHandled {
+			return
+		}
+	}
 
-func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, kibanaIngHandlerFn kibanaIngHandlerFnDef) {
-
-	processedCount, response, err := HandleBulkBody(ctx.PostBody(), ctx, myid, kibanaIngHandlerFn)
+	processedCount, response, err := HandleBulkBody(ctx.PostBody(), ctx, myid, useIngestHook)
 	if err != nil {
 		PostBulkErrorResponse(ctx)
 		return
@@ -73,7 +78,7 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, kibanaIngHandlerF
 	}
 }
 
-func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, kibanaIngHandlerFn kibanaIngHandlerFnDef) (int, map[string]interface{}, error) {
+func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) (int, map[string]interface{}, error) {
 
 	r := bytes.NewReader(postBody)
 
@@ -123,9 +128,13 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, kiba
 					if err != nil {
 						success = false
 					}
-					err = kibanaIngHandlerFn(ctx, request, indexNameConverted, false, idVal, tsNow, myid)
-					if err != nil {
-						success = false
+					if useIngestHook {
+						if hook := hooks.GlobalHooks.EsBulkIngestInternalHook; hook != nil {
+							err = hook(ctx, request, indexNameConverted, false, idVal, tsNow, myid)
+							if err != nil {
+								success = false
+							}
+						}
 					}
 				} else {
 					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes), false, localIndexMap, myid)
@@ -317,4 +326,53 @@ func PostBulkErrorResponse(ctx *fasthttp.RequestCtx) {
 	responsebody["index"] = error_response
 	responsebody["status"] = 400
 	utils.WriteJsonResponse(ctx, responsebody)
+}
+
+// Accepts wildcard index names e.g. "ind-*"
+func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
+	inIndexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
+
+	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid)
+
+	if indicesNotFound == len(convertedIndexNames) {
+		ctx.SetStatusCode(fasthttp.StatusNotFound)
+		responseBody := make(map[string]interface{})
+		responseBody["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	} else {
+		ctx.SetStatusCode(fasthttp.StatusOK)
+	}
+}
+
+func deleteIndex(inIndexName string, myid uint64) ([]string, int) {
+	convertedIndexNames := vtable.ExpandAndReturnIndexNames(inIndexName, myid, true)
+	indicesNotFound := 0
+	for _, indexName := range convertedIndexNames {
+
+		indexPresent := vtable.IsVirtualTablePresent(&indexName, myid)
+		if !indexPresent {
+			indicesNotFound++
+			continue
+		}
+
+		ok, _ := vtable.IsAlias(indexName, myid)
+		if ok {
+			aliases, _ := vtable.GetAliasesAsArray(indexName, myid)
+			error := vtable.RemoveAliases(indexName, aliases, myid)
+			if error != nil {
+				log.Errorf("deleteIndex : No Aliases removed for indexName = %v, alias: %v ", indexName, aliases)
+			}
+		}
+		err := vtable.DeleteVirtualTable(&indexName, myid)
+		if err != nil {
+			log.Errorf("deleteIndex : Failed to delete virtual table for indexName = %v err: %v", indexName, err)
+		}
+
+		currSegmeta := writer.GetLocalSegmetaFName()
+		writer.DeleteSegmentsForIndex(currSegmeta, indexName)
+		writer.DeleteVirtualTableSegStore(indexName)
+		metadata.DeleteVirtualTable(indexName, myid)
+	}
+	return convertedIndexNames, indicesNotFound
 }

@@ -88,8 +88,8 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 	}
 	qInfo, err := InitQueryInformation(sn, nil, tRange, ti, uint64(numBlocks*numEntriesInBlock*fileCount), 5, 1, nil, 0)
 	assert.NoError(t, err)
-	qsrs := convertSegKeysToQueryRequests(qInfo, allFiles)
-	keysToRawSearch, _, _ := filterSegKeysToQueryResults(qInfo, qsrs)
+	qsrs := ConvertSegKeysToQueryRequests(qInfo, allFiles)
+	keysToRawSearch, _, _ := FilterSegKeysToQueryResults(qInfo, qsrs)
 
 	_, _, isRange := baseQuery.ExtractRangeFilterFromQuery(1)
 	assert.False(t, isRange)
@@ -170,8 +170,8 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		SearchType: SimpleExpression,
 	}
 	allFiles, _, _ = metadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
-	qsrs = convertSegKeysToQueryRequests(qInfo, allFiles)
-	keysToRawSearch, _, _ = filterSegKeysToQueryResults(qInfo, qsrs)
+	qsrs = ConvertSegKeysToQueryRequests(qInfo, allFiles)
+	keysToRawSearch, _, _ = FilterSegKeysToQueryResults(qInfo, qsrs)
 
 	blockbloomKeywords, wildcard, blockOp = batchQuery.GetAllBlockBloomKeysToSearch()
 	assert.False(t, wildcard)
@@ -256,8 +256,8 @@ func testRangeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 	}
 	qInfo, err := InitQueryInformation(sn, nil, tRange, ti, uint64(numBlocks*numEntriesInBlock*fileCount), 5, 1, nil, 0)
 	assert.NoError(t, err)
-	qsrs := convertSegKeysToQueryRequests(qInfo, allFiles)
-	keysToRawSearch, _, _ := filterSegKeysToQueryResults(qInfo, qsrs)
+	qsrs := ConvertSegKeysToQueryRequests(qInfo, allFiles)
+	keysToRawSearch, _, _ := FilterSegKeysToQueryResults(qInfo, qsrs)
 	rangeFilter, rangeOp, isRange := rangeQuery.ExtractRangeFilterFromQuery(1)
 	log.Infof("Extracting range query. Filter %+v, RangeOp %+v", rangeFilter, rangeOp)
 	assert.True(t, isRange)

@@ -192,8 +192,9 @@ function compare(property, method) {
     else return value1 - value2;
   };
 }
+
 function handleDownload(){
-  let currList = ["Download as CSV", "Download as JSON"];
+  let currList = ["Download as CSV", "Download as JSON", "Download as XML", "Download as SQL"];
   $("#download-dropdown").singleBox({
     fillIn: false,
     spanName: "Download Result",
@@ -209,10 +210,21 @@ function handleDownload(){
           data: returnResTotal,
           downloadMethod: ".json",
         });
+      } else if (e == "Download as XML") {
+        $("#download-trace").download({
+          data: returnResTotal,
+          downloadMethod: ".xml",
+        });
+      } else if (e == "Download as SQL") {
+        $("#download-trace").download({
+          data: returnResTotal,
+          downloadMethod: ".sql",
+        });
       }
-    },
+    }
   });
 }
+
 let requestFlag = 0;
 function searchTraceHandler(e){
   e.stopPropagation(); 

@@ -187,7 +187,8 @@ function displayTimeline(data) {
         .text(`${node.service_name}:${node.operation_name}`)
         .attr("class", "node-label")
         .classed("anomalous-node", node.is_anomalous)
-        .classed("normal-node", !node.is_anomalous);
+        .classed("normal-node", !node.is_anomalous)
+        .classed("error-node", node.status === "STATUS_CODE_ERROR")
 
 
         if (!node.is_anomalous){

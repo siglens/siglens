@@ -46,6 +46,7 @@ type QueryInformation struct {
 	sNodeType          structs.SearchNodeType
 	qType              structs.QueryType
 	orgId              uint64
+	alreadyDistributed bool
 }
 
 type QuerySegmentRequest struct {
@@ -82,12 +83,28 @@ func (qi *QueryInformation) GetSizeLimit() uint64 {
 	return qi.sizeLimit
 }
 
+func (qi *QueryInformation) GetPqid() string {
+	return qi.pqid
+}
+
+func (qi *QueryInformation) GetQueryType() structs.QueryType {
+	return qi.qType
+}
+
 func (qi *QueryInformation) GetQid() uint64 {
 	return qi.qid
 }
 
 func (qi *QueryInformation) GetOrgId() uint64 {
 	return qi.orgId
+}
+
+func (qi *QueryInformation) IsAlreadyDistributed() bool {
+	return qi.alreadyDistributed
+}
+
+func (qi *QueryInformation) SetAlreadyDistributed() {
+	qi.alreadyDistributed = true
 }
 
 func (qsr *QuerySegmentRequest) GetSegKey() string {
@@ -115,7 +132,7 @@ func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators,
 		return &QueryInformation{}, err
 	}
 	pqid := querytracker.GetHashForQuery(s)
-	sNodeType, qType := getQueryType(s, aggs)
+	sNodeType, qType := GetNodeAndQueryTypes(s, aggs)
 	return &QueryInformation{
 		sNode:              s,
 		aggs:               aggs,

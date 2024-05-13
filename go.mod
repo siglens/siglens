@@ -20,6 +20,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/klauspost/compress v1.16.3
 	github.com/lithammer/shortuuid/v4 v4.0.0
+	github.com/nethruster/go-fraction v0.0.0-20221224165113-1b5f693330ad
 	github.com/nqd/flat v0.1.1
 	github.com/oklog/run v1.1.0
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58

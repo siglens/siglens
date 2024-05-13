@@ -21,7 +21,8 @@
   $.fn.download = function (options) {
     var defaults = {
       data: [],
-      downloadMethod: ".cvs"
+      downloadMethod: ".csv", // Default to CSV
+      supportedFormats: [".json", ".csv", ".xml", ".sql"] // Added ".xml" to supported formats
     };
     let setting = $.extend(defaults, options || {});
     this.html(``);
@@ -165,6 +166,65 @@ $("#cancel-loading").on("click", cancelDownload);
     downloadLink.click();
     document.body.removeChild(downloadLink);
   }
+
+  // Function to convert JSON data to XML format
+  function convertToXML(json) {
+    const items = JSON.parse(json);
+    let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n<root>\n';
+    items.forEach(item => {
+      xmlString += '  <item>\n';
+      Object.keys(item).forEach(key => {
+        xmlString += `    <${key}>${item[key]}</${key}>\n`;
+      });
+      xmlString += '  </item>\n';
+    });
+    xmlString += '</root>';
+    return xmlString;
+  }
+
+  // Function to download XML data as a file
+  function downloadXml(xmlData, fileName) {
+    const blob = new Blob([xmlData], { type: "text/xml" });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
+    downloadLink.href = url;
+    downloadLink.download = fileName;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  }
+
+    // Function to download SQL data as a file
+  function downloadSQL(sqlData, fileName) {
+    const blob = new Blob([sqlData], { type: "text/sql" }); // Change type to "text/sql"
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
+    downloadLink.href = url;
+    downloadLink.download = fileName;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  }
+
+  // Function to download SQL data as a file
+  function convertToSQL(json) {
+    const data = JSON.parse(json);
+    const tableName = 'SQL_Table'; 
+    const columns = Object.keys(data[0]); 
+    
+    // Generate SQL INSERT statements for each object in the data array
+    const sqlStatements = data.map(item => {
+      const values = columns.map(col => {
+        // Escape single quotes in string values and wrap in quotes
+        const value = typeof item[col] === 'string' ? `'${item[col].replace(/'/g, "''")}'` : item[col];
+        return value;
+      }).join(', '); // Join column values with commas
+  
+      return `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${values});`;
+    });
+    return sqlStatements.join('\n');
+  }
+
     function download() {
       confirmDownload = true;
       let valid = true;
@@ -211,10 +271,17 @@ $("#cancel-loading").on("click", cancelDownload);
           setting.data.length > 0
         ) {
           let json = JSON.stringify(setting.data);
-          if (setting.downloadMethod == ".json") downloadJson(name, json);
-          else {
+          if (setting.downloadMethod == ".json") {
+            downloadJson(name, json);
+          } else if (setting.downloadMethod == ".csv") {
             const csvData = convertToCSV(json);
             downloadCsv(csvData, name);
+          } else if (setting.downloadMethod == ".xml") { // Handle XML format
+            const xmlData = convertToXML(json);
+            downloadXml(xmlData, name);
+          } else if (setting.downloadMethod == ".sql") { // Handle SQL format
+            const sqlData = convertToSQL(json);
+            downloadSQL(sqlData, name);
           }
         } else {
           alert("no data available");

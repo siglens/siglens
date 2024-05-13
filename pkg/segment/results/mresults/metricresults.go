@@ -20,6 +20,7 @@ package mresults
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -40,6 +41,10 @@ const (
 	DOWNSAMPLING
 	AGGREGATED
 )
+
+var steps = []uint32{1, 5, 10, 20, 60, 120, 300, 600, 1200, 3600, 7200, 14400, 28800, 57600, 115200, 230400, 460800, 921600}
+
+const TEN_YEARS_IN_SECS = 315_360_000
 
 /*
 Represents the results for a running query
@@ -213,20 +218,23 @@ func (r *MetricsResult) AggregateResults(parallelism int) []error {
 }
 
 /*
-Apply range function to results for series sharing a groupid.
+Apply function to results for series sharing a groupid.
 */
-func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function segutils.RangeFunctions) error {
+func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function structs.Function) []error {
 
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 	errList := []error{} // Thread-safe list of errors
 
+	// Use a temporary map to record the results modified by goroutines, thus resolving concurrency issues caused by modifying a map during iteration.
+	results := make(map[string]map[uint32]float64, len(r.Results))
+
 	var idx int
 	for grpID, timeSeries := range r.Results {
 		wg.Add(1)
-		go func(grp string, ts map[uint32]float64, function segutils.RangeFunctions) {
+		go func(grp string, ts map[uint32]float64, function structs.Function) {
 			defer wg.Done()
-			grpVal, err := ApplyRangeFunction(ts, function)
+			grpVal, err := ApplyFunction(ts, function)
 			if err != nil {
 				lock.Lock()
 				errList = append(errList, err)
@@ -234,7 +242,7 @@ func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function s
 				return
 			}
 			lock.Lock()
-			r.Results[grp] = grpVal
+			results[grp] = grpVal
 			lock.Unlock()
 		}(grpID, timeSeries, function)
 		idx++
@@ -244,6 +252,12 @@ func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function s
 	}
 
 	wg.Wait()
+	r.Results = results
+
+	if len(errList) > 0 {
+		return errList
+	}
+
 	r.DsResults = nil
 
 	return nil
@@ -279,6 +293,17 @@ func (r *MetricsResult) Merge(localRes *MetricsResult) error {
 	return nil
 }
 
+// The groupID string should be in the format of "metricName{tk1:tv1,tk2:tv2,..."
+// As per the flow, there would be no trailing "}" in the groupID string
+func removeMetricNameFromGroupID(groupID string) string {
+	stringVals := strings.Split(groupID, "{")
+	if len(stringVals) != 2 {
+		return groupID
+	} else {
+		return stringVals[1]
+	}
+}
+
 func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*structs.MetricsQueryResponse, error) {
 	if r.State != AGGREGATED {
 		return nil, errors.New("results is not in aggregated state")
@@ -297,14 +322,15 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 
 	for grpId, results := range r.Results {
 		tags := make(map[string]string)
-		tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
-		if len(tagKeys) != len(tagValues)-1 {
+		tagValues := strings.Split(removeTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
+		if len(tagKeys) != len(tagValues) {
 			err := errors.New("GetResults: the length of tag key and tag value pair must match")
 			return nil, err
 		}
 
-		for index, val := range tagValues[:len(tagValues)-1] {
-			tags[tagKeys[index]] = val
+		for _, val := range tagValues {
+			keyValue := strings.Split(removeMetricNameFromGroupID(val), ":")
+			tags[keyValue[0]] = keyValue[1]
 		}
 		retVal[idx] = &structs.MetricsQueryResponse{
 			MetricName: mQuery.MetricName,
@@ -375,33 +401,48 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 	return retVal, nil
 }
 
-func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime, interval uint32) (utils.MetricsStatsResponseInfo, error) {
+func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) ([]string, []string, error) {
+	if res.State != SERIES_READING {
+		return nil, nil, errors.New("results is not in Series Reading state")
+	}
+
+	tagKeysMap := make(map[string]struct{})
+	uniqueTagKeys := make([]string, 0)
+	for _, tag := range mQuery.TagsFilters {
+		if _, ok := tagKeysMap[tag.TagKey]; !ok {
+			tagKeysMap[tag.TagKey] = struct{}{}
+			uniqueTagKeys = append(uniqueTagKeys, tag.TagKey)
+		}
+	}
+
+	uniqueTagKeyValues := make(map[string]bool)
+	tagKeyValueSet := make([]string, 0)
+
+	for _, series := range res.AllSeries {
+		seriesStr := removeTrailingComma(series.grpID.String())
+		tagKeyValues := strings.Split(seriesStr, tsidtracker.TAG_VALUE_DELIMITER_STR)
+
+		for _, tkVal := range tagKeyValues {
+			if _, ok := uniqueTagKeyValues[tkVal]; !ok {
+				uniqueTagKeyValues[tkVal] = true
+				tagKeyValueSet = append(tagKeyValueSet, tkVal)
+			}
+		}
+	}
+
+	return uniqueTagKeys, tagKeyValueSet, nil
+}
+
+func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime uint32) (utils.MetricsStatsResponseInfo, error) {
 	var httpResp utils.MetricsStatsResponseInfo
 	httpResp.AggStats = make(map[string]map[string]interface{})
 	if r.State != AGGREGATED {
 		return utils.MetricsStatsResponseInfo{}, errors.New("results is not in aggregated state")
 	}
-	uniqueTagKeys := make(map[string]bool)
-	tagKeys := make([]string, 0)
-	for _, tag := range mQuery.TagsFilters {
-		if _, ok := uniqueTagKeys[tag.TagKey]; !ok {
-			uniqueTagKeys[tag.TagKey] = true
-			tagKeys = append(tagKeys, tag.TagKey)
-		}
-	}
+
 	for grpId, results := range r.Results {
-		tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
-		if len(tagKeys) != len(tagValues)-1 { // Subtract 1 because grpId has a delimiter after the last value
-			err := errors.New("GetResults: the length of tag key and tag value pair must match")
-			return httpResp, err
-		}
 		groupId := mQuery.MetricName + "{"
-		for index, val := range tagValues[:len(tagValues)-1] {
-			groupId += fmt.Sprintf("%v=\"%v\",", tagKeys[index], val)
-		}
-		if last := len(groupId) - 1; last >= 0 && groupId[last] == ',' {
-			groupId = groupId[:last]
-		}
+		groupId += grpId
 		groupId += "}"
 		httpResp.AggStats[groupId] = make(map[string]interface{}, 1)
 		for ts, v := range results {
@@ -439,4 +480,77 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	}
 
 	return httpResp, nil
+}
+
+func removeTrailingComma(s string) string {
+	return strings.TrimSuffix(s, ",")
+}
+
+func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime uint32) (utils.MetricStatsResponse, error) {
+	var httpResp utils.MetricStatsResponse
+	httpResp.Series = make([]string, 0)
+	httpResp.Values = make([][]*float64, 0)
+	httpResp.StartTime = startTime
+
+	if r.State != AGGREGATED {
+		return utils.MetricStatsResponse{}, errors.New("results is not in aggregated state")
+	}
+
+	// Calculate the interval using the start and end times
+	timerangeSeconds := endTime - startTime
+	calculatedInterval, err := calculateInterval(timerangeSeconds)
+	if err != nil {
+		return utils.MetricStatsResponse{}, err
+	}
+	httpResp.IntervalSec = calculatedInterval
+
+	// Create a map of all unique timestamps across all results.
+	allTimestamps := make(map[uint32]struct{})
+	for _, results := range r.Results {
+		for ts := range results {
+			allTimestamps[ts] = struct{}{}
+		}
+	}
+	// Convert the map of unique timestamps into a sorted slice.
+	httpResp.Timestamps = make([]uint32, 0, len(allTimestamps))
+	for ts := range allTimestamps {
+		httpResp.Timestamps = append(httpResp.Timestamps, ts)
+	}
+	sort.Slice(httpResp.Timestamps, func(i, j int) bool { return httpResp.Timestamps[i] < httpResp.Timestamps[j] })
+
+	for grpId, results := range r.Results {
+		groupId := grpId
+		groupId = removeTrailingComma(groupId)
+		groupId += "}"
+		httpResp.Series = append(httpResp.Series, groupId)
+
+		values := make([]*float64, len(httpResp.Timestamps))
+		for i, ts := range httpResp.Timestamps {
+			// Check if there is a value for the current timestamp in results.
+			if v, ok := results[uint32(ts)]; ok {
+				values[i] = &v
+			} else {
+				values[i] = nil
+			}
+		}
+
+		httpResp.Values = append(httpResp.Values, values)
+	}
+
+	return httpResp, nil
+}
+
+func calculateInterval(timerangeSeconds uint32) (uint32, error) {
+	// If timerangeSeconds is greater than 10 years reject the request
+	if timerangeSeconds > TEN_YEARS_IN_SECS {
+		return 0, errors.New("timerangeSeconds is greater than 10 years")
+	}
+	for _, step := range steps {
+		if timerangeSeconds/step <= 360 {
+			return step, nil
+		}
+	}
+
+	// If no suitable step is found, return an error
+	return 0, errors.New("no suitable step found")
 }

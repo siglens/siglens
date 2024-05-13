@@ -71,35 +71,13 @@
 /* PANEL EDITOR PAGE */
 
 .panelEditorLeft {
-  width: 70%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding-right: 2%;
-}
-
-/* PANEL-OPTIONS */
-
-.panelEditorRight {
-  width: 30%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-}
-
-
-.panelEditorRightTop {
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  height: 100%;
-  border-radius: 5px;
-  border: 1px solid var(--border-color-regular);
-  box-shadow: 0px 2px 8px 0px #00000029;
+  justify-content: flex-start;
 }
+
+/* PANEL-OPTIONS */
 
 .submitBtn-container {
   justify-self: center;
@@ -112,21 +90,6 @@
   bottom: 30px;
   right: 30px;
   padding-bottom: 30px;
-}
-
-.title1 {
-  width: 85%;
-  margin-top: 16px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  font-size: 22px;
-  margin-bottom: 15px;
-}
-
-.panEdit-nameChange,
-.panEdit-descrChange {
-  width: 85%;
 }
 
 .panEdit-nameChange {
@@ -219,7 +182,7 @@
   background-color: var(--edit-panel-dropdown-bg-color-hover);
 }
 
-.dropDown-color, .dropDown-unit , .dropDown-logLinesView{
+.dropDown-unit , .dropDown-logLinesView{
   margin-top: 15px;
 }
 .editPanelMenu-logLinesView .editPanelMenu-options{
@@ -349,102 +312,13 @@
   color: var(--white-0);
 }
 
-
-
-
-/* COLOR PALETTE */
-.colorCircle {
-  width: 25px;
-  height: 25px;
-  border-radius: 50%;
-  border: 1.5px solid var(--white-0);
-}
-
-.colorCircle:not(:first-child) {
-  margin-left: 14px;
-}
-
-.colorCircle.selected {
-  border: 1.5px solid var(--color-selector-active);
-}
-
-.colorCircle-1 {
-  background-color: var(--lavender-1);
-  border: 1.5px solid var(--lavender-1);
-}
-
-.colorCircle-2 {
-  background-color: var(--purple-1);
-  border: 1.5px solid var(--purple-1);
-}
-
-.colorCircle-3 {
-  background-color: var(--orange-1);
-  border: 1.5px solid var(--orange-1);
-}
-
-.colorCircles {
-  display: flex;
-  flex-direction: row;
-  justify-content: flex-start;
-  align-items: center;
-  margin-top: 6px;
-}
-
-.editPanelMenu-color {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding-left: 12px;
-
-  font-size: 14px;
-  padding-bottom: 13px;
-  color: var(--black-5);
-}
-
-
-.colorLine {
-  width: 95%;
-  height: 9px;
-  border-radius: 20px;
-  margin-left: 2px;
-  margin-top: 5px;
-}
-
-.colorLine-gyr {
-  background: linear-gradient(270deg, #F24B5B 0%, #EDDB30 50.31%, #68AA5F 100%);
-}
-
-.colorLine-bg {
-  background: linear-gradient(270deg, #4BF266 0%, #30E2ED 50.31%, #2262C3 100%);
-}
-
-.editPanelMenu-color span {
-  height: 20px;
-  display: flex;
-  align-items: center;
-}
-
-.span-colorCircles {
-  margin-top: 5x;
-}
-
-.span-colorLine {
-  margin-top: 12px;
-}
-
 /* QUERY INPUT SECTION - BOTTOM LEFT */
 .queryInputs {
   width: 100%;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  margin-top: 26px;
   align-items: flex-start;
-}
-
-.dropDown-container {
-  width: 18%;
 }
 
 .dropDown {
@@ -458,12 +332,8 @@
 }
 
 .queryInput-container {
-  width: 82%;
-  display: flex;
-  flex-direction: column;
   margin-left: 10px;
-  justify-content: space-between;
-  max-height: 100px;
+  width: 100%;
 }
 
 .queryInput-InnerContainer{
@@ -472,7 +342,7 @@
 }
 
 .dropDown-dataSource {
-  width: 100%;
+  width: 120px;
   height: 32px;
 }
 
@@ -480,7 +350,7 @@
   height: 32px;
   font-size: 14px;
   width: 100%;
-  color: var(--search-bar-text-color-regular-or-hover);
+  color: var(--text-color);
   background: var(--search-bar-bg);
   outline: none;
   border-radius: 5px;
@@ -493,7 +363,6 @@
   top: 100px;
 }
 
-
 /* PANEL DISPLAY */
 
 .panelDisplay {
@@ -501,8 +370,8 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  min-height: 55vh;
-  height: max-content;
+  height: 30vh;
+  min-height: 170px;
   justify-content: center;
   border-radius: 5px;
   position: relative;
@@ -548,18 +417,18 @@
 
 .btn-runQuery {
   background: var(--btn-regular-bg-color) !important;
-  margin: 0;
   padding: 0px 12px;
   text-decoration: none;
   border: none;
   height: 32px;
   line-height: 7px;
-  margin-top: 10px;
   align-self: flex-end;
   border-radius: 5px;
   box-shadow: none !important;
   font-size: 14px;
   color: white !important;
+  width: 120px;
+  margin-left: 10px;
 }
 
 .btn-runQuery:hover {
@@ -572,11 +441,18 @@
 
 .panelEditor-container {
   display: flex;
-  flex-direction: row;
-  width: 100%;
-  min-height: 100vh;
+  flex-direction: column;
+  width: 96vw;
+  height: 96vh;
   background-color: var(--db-bg-color);
   padding: 1.5%;
+  position: absolute;
+  top: 50%;
+  z-index: 999;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 8px;
+  overflow-y: scroll;
 }
 
 /* PANEL EDIT NAV BAR */
@@ -606,7 +482,7 @@
   margin-left: 15px;
 }
 
-.panEdit-goToDB, .panView-goToDB {
+.panView-goToDB {
   cursor: pointer;
   padding: 0.25rem 0.5rem;
   color: var(--purple-1);
@@ -636,16 +512,6 @@
   box-shadow: none !important;
   font-size: 14px;
   border: 1px solid var(--border-color-regular) !important;
-}
-
-
-.panEdit-btn:last-child {
-  margin-right: 0;
-}
-
-.panelEditorRight .dropdown{
-  display: flex;
-  flex-direction: row;
 }
 
 /* DASHBOARD.HTML */
@@ -742,7 +608,7 @@
   align-items: center;
   color: var(--orange-1);
   font-size: 8vmax;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--number-and-unit-color);
 }
 
@@ -751,10 +617,9 @@
   justify-content: center;
   align-items: flex-end;
   position: relative;
-  bottom: 28px;
   margin-left: 16px;
-  font-size: 85px;
-  font-weight: 500;
+  font-size: 8vmax;
+  font-weight: 600;
   color: var(--number-and-unit-color);
 }
 
@@ -1024,10 +889,6 @@
 }
 
 /* Line chart */
-.panEdit-panel .line-chart-canvas{
-  height: 50vh !important;
-  margin: 8px;
-}
 #app-container .line-chart-canvas{
   height: 100% !important;
   margin: 6px
@@ -1159,6 +1020,7 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   border: 1px solid var(--border-color-regular);
+  margin-right: 15px;
 }
 
 .label-table-view{
@@ -1278,8 +1140,8 @@ input:checked + .slider:before {
   background-size: 46% !important;
 }
 .chart-display{
-  width: 30px;
-  height: 30px;
+  width: 16px;
+  /* height: 30px; */
 }
 .panEdit-discard{
   width: 80px;
@@ -1288,23 +1150,14 @@ input:checked + .slider:before {
 }
 .panEdit-save{
   width: 60px;
-  color: var(--text-color-regular) !important;
+  color: white !important;
+  background-color: var(--purple-1) !important;
 }
-#save-btn:hover{
-  background-color: var(--drop-down-btn-bg-hover) !important;
-}
+
 .panEdit-discard:hover{
   background-color: var(--drop-down-btn-bg-hover) !important;
 }
-.panEdit-apply{
-  width: 68px;
-  background-color: var(--purple-1) !important;
-  color: white !important;
-  border: 0 !important;
-}
-.panEdit-apply:hover{
-  background: var(--btn-hover-or-click-bg-color) !important;
-}
+
 .settings-btn:hover{
   background: var(--top-setting-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
   background-size: 50% !important;
@@ -1337,9 +1190,7 @@ input:checked + .slider:before {
 .logs-options{
   padding: 0;
 }
-#save-btn{
-  background-color: var(--drop-down-btn-bg-regular) !important;
-}
+
 #save-db-btn{
   background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
   background-size: 45% !important;
@@ -1349,7 +1200,7 @@ input:checked + .slider:before {
 #query-language-btn{
   height: 32px !important;
 }
-#add-panel-btn:hover {
+#add-panel-btn:hover,#add-panel-btn.active {
   background: var(--btn-hover-or-click-bg-color) !important;
 }
 .info-icon{
@@ -1392,9 +1243,11 @@ input:checked + .slider:before {
 .chart-options{
   color: var(--text-color-regular);
 }
-.chart-options.selected,
+.chart-options.selected{
+  background-color: var(--edit-panel-option-bg-color) !important;
+  color: var(--text-color-regular);
+}
 .chart-options:hover {
-  border: 1px solid var(--purple-1) !important;
   background-color: var(--edit-panel-option-bg-color) !important;
   color: var(--text-color-regular);
 }
@@ -1416,4 +1269,88 @@ input:checked + .slider:before {
   background: var(--myOrg-input);
   color: var(--text-color);
   width: 100px;
+}
+.circle {
+  height: 26px;
+  width: 26px;
+  border-radius: 50%;
+  background-color: var(--purple-1);
+  color: var(--white-0);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 700;
+}
+.subsection-heading div:nth-child(2) {
+  margin-left: 16px !important;
+}
+.section-content{
+  padding-left: 42px;
+  padding-top: 8px;
+}
+.section{
+  margin-top: 24px;
+}
+.editPanelMenu-chart{
+  display: flex;
+  flex-wrap: wrap;
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+.chart-options{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  border-radius: 8px;
+  padding: 4.5px 8px;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 20px;
+  cursor: pointer;
+}
+.chart-options li{
+  margin-left:  6px;
+}
+.graph-customization{
+  width: 320px;
+}
+#add-widget-options .editPanelMenu{
+    width: 20%;
+    padding: 10px 10px;
+    position: absolute;
+    right: 20px;
+    top: 50px;
+    cursor: default;
+    box-shadow: var(--box-shadow);
+    z-index: 99;
+}
+
+#add-widget-options .editPanelMenu-options{
+  background-color: var(--edit-panel-bg-color) !important;
+  color: var(--text-color-regular);
+  width: 100%;
+  padding: 4px 10px;
+  margin: 0px;
+  cursor: pointer;
+  margin-top: 5px;
+}
+
+#add-widget-options .editPanelMenu-options:hover{
+  background-color: var(--edit-panel-option-bg-color) !important;
+  color: var(--text-color-regular);
+}
+.widgets-text{
+  font-size: 14px;
+  font-weight: 700;
+  border-bottom: 2px solid var(--purple-1);
+  margin-left: 8px;
+}
+.close-widget-popup{
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rotate-icon {
+  transform: rotate(45deg);
 }

@@ -50,7 +50,7 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
-	_, err := tsGroupId.Write([]byte("yellow`"))
+	_, err := tsGroupId.Write([]byte("color:yellow"))
 	assert.NoError(t, err)
 	series := InitSeriesHolder(mQuery, tsGroupId)
 
@@ -119,7 +119,7 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
-	_, err := tsGroupId.Write([]byte("yellow`"))
+	_, err := tsGroupId.Write([]byte("color:yellow"))
 	assert.NoError(t, err)
 	series := InitSeriesHolder(mQuery, tsGroupId)
 
@@ -251,7 +251,7 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
-	_, err := tsGroupId.Write([]byte("yellow`"))
+	_, err := tsGroupId.Write([]byte("color:yellow"))
 	assert.NoError(t, err)
 	series := InitSeriesHolder(mQuery, tsGroupId)
 
@@ -320,7 +320,7 @@ func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
-	_, err := tsGroupId.Write([]byte("yellow`"))
+	_, err := tsGroupId.Write([]byte("color:yellow`"))
 	assert.NoError(t, err)
 	series := InitSeriesHolder(mQuery, tsGroupId)
 
@@ -363,5 +363,44 @@ func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 	assert.Equal(t, 1, len(mQResponse[0].Dps))
 	for _, val := range mQResponse[0].Dps {
 		assert.True(t, dtypeutils.AlmostEquals(val, float64(2.7)))
+	}
+}
+
+func TestCalculateInterval(t *testing.T) {
+	var steps = []uint32{1, 5, 10, 20, 60, 120, 300, 600, 1200, 3600, 7200, 14400, 28800, 57600, 115200, 230400, 460800, 921600}
+	var timerangeSeconds = []uint32{
+		360,       // 6 minutes
+		1800,      // 30 minutes
+		3600,      // 1 hour
+		7200,      // 2 hours
+		21600,     // 6 hours
+		43200,     // 12 hours
+		108000,    // 30 hours
+		216000,    // 60 hours
+		432000,    // 5 days
+		1296000,   // 15 days
+		2592000,   // 30 days
+		5184000,   // 60 days
+		10368000,  // 120 days
+		20736000,  // 240 days
+		41472000,  // 480 days
+		82944000,  // 960 days
+		165888000, // 1920 days
+		315360000, // 10 years
+		315360001, // 10 years + 1 second
+	}
+
+	for i, tr := range timerangeSeconds {
+		expectedInterval := uint32(0)
+		if i < len(steps) {
+			expectedInterval = steps[i]
+		}
+		actualInterval, err := calculateInterval(tr)
+		if timerangeSeconds[i] > 315360000 { // 10 years in seconds
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			assert.Equal(t, expectedInterval, actualInterval)
+		}
 	}
 }

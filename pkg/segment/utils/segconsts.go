@@ -294,9 +294,13 @@ type MathFunctions int
 const (
 	Round MathFunctions = iota + 1
 	Ceil
+	Floor
 	Abs
 	Sqrt
 	Exp
+	Ln
+	Log2
+	Log10
 )
 
 type RangeFunctions int
@@ -304,6 +308,10 @@ type RangeFunctions int
 const (
 	Derivative RangeFunctions = iota + 1
 	Rate
+	IRate
+	Increase
+	Delta
+	IDelta
 )
 
 // For columns used by aggs with eval statements, we should keep their raw values because we need to evaluate them
