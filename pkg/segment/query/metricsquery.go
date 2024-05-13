@@ -87,6 +87,12 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 	mQuery.ReorderTagFilters()
 
+	// todo: set this value to true in the API handler when we create mQuery
+	if mQuery.TagValueSearchOnly {
+		applyTagValuesSearchOnlyOnSegments(mQuery, mSegments, mRes, timeRange, qid, querySummary)
+		return mRes
+	}
+
 	// iterate through all metrics segments, applying search as needed
 	applyMetricsOperatorOnSegments(mQuery, mSegments, mRes, timeRange, qid, querySummary)
 	if mQuery.ExitAfterTagsSearch {
@@ -219,6 +225,34 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 	}
 
 	return result, gErr
+}
+
+func applyTagValuesSearchOnlyOnSegments(mQuery *structs.MetricsQuery, allSearchReqests map[string][]*structs.MetricsSearchRequest,
+	mRes *mresults.MetricsResult, timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) {
+
+	tagValuesRes := make(map[string]map[string]struct{})
+
+	for baseDir := range allSearchReqests {
+		attr, err := tagstree.InitAllTagsTreeReader(baseDir)
+		if err != nil {
+			mRes.AddError(err)
+			continue
+		}
+		sTime := time.Now()
+		err = attr.FindTagValuesOnly(mQuery, tagValuesRes)
+
+		querySummary.UpdateTimeSearchingTagsTrees(time.Since(sTime))
+		querySummary.IncrementNumTagsTreesSearched(1)
+
+		if err != nil {
+			mRes.AddError(err)
+			continue
+		}
+	}
+	mRes.TagValues = make(map[string]map[string]struct{})
+	for tk, tvalues := range tagValuesRes {
+		mRes.TagValues[tk] = tvalues
+	}
 }
 
 func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqests map[string][]*structs.MetricsSearchRequest,
