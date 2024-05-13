@@ -342,7 +342,7 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	labelName := utils.ExtractParamAsString(ctx.UserValue("labelName"))
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
-
+	qid := rutils.GetNextQid()
 	var startTime, endTime uint32
 	var err error
 
@@ -359,12 +359,46 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			log.Errorf("ProcessGetLabelValuesRequest: Error parsing end time parameter, err:%v", err)
 			return
 		}
+	} else {
+		endTime = uint32(time.Now().Unix())
 	}
 
-	log.Printf("startTime: %v, local time: %v", startTime, time.Unix(int64(startTime), 0).Local())
-	log.Printf("endTime: %v, local time: %v", endTime, time.Unix(int64(endTime), 0).Local())
-	log.Printf("labelName: %v", labelName)
-	// TODO: Implement the logic to get the label values
+	searchText := fmt.Sprintf(`(default_metric{%s="*"})`, labelName)
+	metricQueryRequest, _, _, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
+	if err != nil {
+		ctx.SetContentType(ContentJson)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		WriteJsonResponse(ctx, nil)
+		log.Errorf("qid=%v, ProcessGetLabelsRequest: Error parsing query err=%+v", qid, err)
+		_, err = ctx.WriteString(err.Error())
+		if err != nil {
+			log.Errorf("qid=%v, ProcessGetLabelsRequest: could not write error message err=%v", qid, err)
+		}
+		return
+	}
+	if len(metricQueryRequest) == 0 {
+		ctx.SetContentType(ContentJson)
+		WriteJsonResponse(ctx, map[string]interface{}{})
+		return
+	}
+	metricQueryRequest[0].MetricsQuery.TagValueSearchOnly = true
+	segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[0], qid)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
+
+	tagValues := make([]string, 0)
+	for _, innerMap := range res.TagValues {
+		for tagValue := range innerMap {
+			tagValues = append(tagValues, tagValue)
+		}
+	}
+
+	response := map[string]interface{}{
+		"status": "success",
+		"data":   tagValues,
+	}
+	WriteJsonResponse(ctx, &response)
+	ctx.SetContentType(ContentJson)
+	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
 func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
