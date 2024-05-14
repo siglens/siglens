@@ -1,3 +1,4 @@
+
 <!-- 
 Copyright (c) 2021-2024 SigScalr, Inc.
 
@@ -40,17 +41,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="manifest" href="assets/site.webmanifest" />
     <link rel="mask-icon" href="assets/safari-pinned-tab.svg" color="#5bbad5" />
     <meta name="msapplication-TileColor" content="#da532c" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@2.0.2/dist/gridstack.min.css" />
+
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
     <link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css" />
     <link rel="stylesheet" href="./css/dashboard.css" />
     <link rel="stylesheet" href="./css/siglens.css" />
-    
-    
+
+
     <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gridstack@2.0.2/dist/gridstack.all.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -162,10 +162,45 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 </div>
             </div>
 
-            <div id="panel-container" class="grid-stack">
+            <div id="panel-container">
             </div>
 
             <div id="viewPanel-container">
+            </div>
+
+            <div id="add-widget-options">
+                <ul class="editPanelMenu">
+                    <div class="d-flex justify-content-between w-100 align-items-baseline">
+                        <div>
+                            <h6 class="widgets-text">Panel Type</h6>
+                        </div>
+                        <div class="close-widget-popup">×</div>
+                    </div>
+                    <div class="editPanelMenu-options widget-option" data-index="0">
+                        <img src="./assets/line-chart.svg" alt="line chart icon" class="chart-display" />
+                        <li>Line Chart</li>
+                    </div>
+                    <div class="editPanelMenu-options widget-option" data-index="1">
+                        <img src="./assets/bar-chart.svg" alt="bar chart icon" class="chart-display"/>
+                        <li>Bar Chart</li>
+                    </div>
+                    <div class="editPanelMenu-options widget-option" data-index="2">
+                        <img src="./assets/pie-chart.svg" alt="pie chart icon" class="chart-display"/>
+                        <li>Pie Chart</li>
+                    </div>
+                    <div class="editPanelMenu-options widget-option" data-index="3">
+                        <img src="./assets/data-table.svg" alt="data table icon" class="chart-display"/>
+                        <li>Data Table</li>
+                    </div>
+                    <div class="editPanelMenu-options widget-option" data-index="4">
+                        <img src="./assets/number-chart.svg" alt="number chart icon" class="chart-display" />
+                        <li>Number</li>
+                    </div>
+                    <div class="editPanelMenu-options widget-option" data-index="5">
+                        <img src="./assets/log-lines.svg" alt="log lines icon" class="chart-display" />
+                        <li>Log Lines</li>
+                    </div>
+                </ul>
             </div>
         </div>
         <div class="popupOverlay">
@@ -181,41 +216,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
         </div>
         <div id="app-footer">2024 &copy; SigLens</div>
-
-        <div id="add-widget-options">
-            <ul class="editPanelMenu">
-                <div class="d-flex justify-content-between w-100 align-items-baseline">
-                    <div>
-                        <h6 class="widgets-text">Panel Type</h6>
-                    </div>
-                    <div class="close-widget-popup">×</div>
-                </div>
-                <div class="editPanelMenu-options widget-option" data-index="0">
-                    <img src="./assets/line-chart.svg" alt="line chart icon" class="chart-display" />
-                    <li>Line Chart</li>
-                </div>
-                <div class="editPanelMenu-options widget-option" data-index="1">
-                    <img src="./assets/bar-chart.svg" alt="bar chart icon" class="chart-display"/>
-                    <li>Bar Chart</li>
-                </div>
-                <div class="editPanelMenu-options widget-option" data-index="2">
-                    <img src="./assets/pie-chart.svg" alt="pie chart icon" class="chart-display"/>
-                    <li>Pie Chart</li>
-                </div>
-                <div class="editPanelMenu-options widget-option" data-index="3">
-                    <img src="./assets/data-table.svg" alt="data table icon" class="chart-display"/>
-                    <li>Data Table</li>
-                </div>
-                <div class="editPanelMenu-options widget-option" data-index="4">
-                    <img src="./assets/number-chart.svg" alt="number chart icon" class="chart-display" />
-                    <li>Number</li>
-                </div>
-                <div class="editPanelMenu-options widget-option" data-index="5">
-                    <img src="./assets/log-lines.svg" alt="log lines icon" class="chart-display" />
-                    <li>Log Lines</li>
-                </div>
-            </ul>
-        </div>
     </div>
     <div class="panelEditor-container">
         <div class="panelEditorLeft">

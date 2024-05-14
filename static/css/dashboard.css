@@ -1358,3 +1358,42 @@ input:checked + .slider:before {
 .button-section{
   border-top: 1px solid var(--alerting-table-line-color);
 }
+.add-panel-div{
+  border: 2px solid var(--lavender-2);
+  height: 92%;
+  width: 100%;
+  border-radius: 10px;
+  background-color: rgba(100, 71, 217, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor:pointer;
+}
+.add-panel-div:hover{
+  background-color: rgba(100, 71, 217, 0.3);
+}
+.add-panel-div .plus-icon{
+  font-size: 40px;
+  color: var(--lavender-2);
+  display: none;
+}
+.add-panel-div .text{
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lavender-2);
+}
+.default-item.active .add-panel-div{
+  border-style: dashed;
+  cursor: default;
+}
+.default-item.active .add-panel-div:hover{
+  background-color: rgba(100, 71, 217, 0.1);
+}
+.default-item{
+  margin-top: 10px;
+}
+.grid-stack .grid-stack-placeholder > .placeholder-content {
+  border: 1px dashed var(--border-color-regular);
+  background-color: rgba(100, 71, 217, 0.1);
+}

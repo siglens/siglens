@@ -43,15 +43,60 @@ $(document).ready(function () {
     dbId = getDashboardId();
 
     $("#add-panel-btn, .close-widget-popup").click(() => {
+      
         $('#add-widget-options').toggle();
         $('.add-icon').toggleClass('rotate-icon');
-        $('#add-panel-btn').toggleClass('active');        
+        $('#add-panel-btn').toggleClass('active'); 
+        $('.plus-icon').toggle();
+        $('.default-item').toggleClass('active');
+    
+        // Check if .add-panel-div is active and update text accordingly
+        if ($('.default-item').hasClass('active')) {
+            $('.add-panel-div .text').text('Select the panel type');
+            $('.add-panel-div .plus-icon').hide();
+        } else {
+            $('.add-panel-div .text').text('Add Panel');
+            $('.add-panel-div .plus-icon').show();
+        }
     });
+    
     
     $('.widget-option').on('click', (event) => {
         let dataIndex = $(event.currentTarget).data('index');
         addPanel(dataIndex);
     });
+
+    // Event handler for add-panel-div click
+    $(document).on('click', '.default-item', function() {
+        if ($(this).hasClass('active')) {
+            return;
+        } else {
+            $(this).addClass('active');
+            $('#add-widget-options').toggle();
+            $('.add-icon').toggleClass('rotate-icon');
+            $('#add-panel-btn').toggleClass('active'); 
+            $(this).find('.text').text('Select the panel type');
+            $('.plus-icon').hide();
+        }
+    });
+
+    // // Event handler to remove active class when clicking outside
+    $('#new-dashboard').on('click', function(event) {
+        if (
+            !$(event.target).closest('.default-item').length &&
+            !$(event.target).closest('#add-widget-options').length &&
+            !$(event.target).closest('#add-panel-btn').length &&
+            !$(event.target).closest('.grid-items').length
+        ) {
+            $('.default-item').removeClass('active');
+            $('.add-panel-div .text').text('Add Panel');
+            $('.plus-icon').show();
+            $('#add-widget-options').hide();
+            $('.add-icon').removeClass('rotate-icon');
+            $('#add-panel-btn').removeClass('active'); 
+        }
+    });
+
     
     $(".all-dashboards").click(function () {
         window.location.href = "../dashboards-home.html";
@@ -60,7 +105,7 @@ $(document).ready(function () {
     displayDashboardName();
 
     $("#theme-btn").click(() => displayPanels());
-
+    displayPanels()
     getDashboardData();
 
     setTimePicker();
@@ -70,6 +115,19 @@ $(document).ready(function () {
         trigger: 'hover'
     });
 })
+
+// Initialize Gridstack
+var options = {
+    resizable: {
+        handles: 'e, se, s, sw, w'
+    },
+    draggable: {
+        handle: '.grid-stack-item-content'
+    }
+};
+var grid = GridStack.init(options, '#panel-container');
+
+
 $(document).mouseup(function (e) {
   var popWindows = $("#panel-dropdown-modal");
   let panelHead = $(".panel-header");
@@ -87,14 +145,14 @@ $(document).mouseup(function (e) {
     $(curFocus + " .dropdown-style").toggleClass("hidden");
   }
 });
-window.addEventListener('resize', function (event) {
-    if ($('.panelEditor-container').css('display') === 'none'){
-        panelContainerWidthGlobal = panelContainer.offsetWidth-97;
-        recalculatePanelWidths();
-        displayPanels();
-        resetPanelLocationsHorizontally();
-    }
-});
+// window.addEventListener('resize', function (event) {
+//     if ($('.panelEditor-container').css('display') === 'none'){
+//         panelContainerWidthGlobal = panelContainer.offsetWidth-97;
+//         recalculatePanelWidths();
+//         displayPanels();
+//         resetPanelLocationsHorizontally();
+//     }
+// });
 $(`.dbSet-textareaContainer .copy`).click(function() {
     $(this).tooltip('dispose');
     $(this).attr('title', 'Copied!').tooltip('show');
@@ -475,12 +533,14 @@ async function getDashboardData() {
         localPanels = JSON.parse(JSON.stringify(dbData.panels));
     } else localPanels = [];
     if (localPanels != undefined) {
-        updateTimeRangeForPanels();
-        recalculatePanelWidths();
-        resetPanelLocationsHorizontally();
-        setRefreshItemHandler();
-        refreshDashboardHandler();
+        displayPanels()
     }
+    //     updateTimeRangeForPanels();
+    //     recalculatePanelWidths();
+    //     resetPanelLocationsHorizontally();
+    //     setRefreshItemHandler();
+    //     refreshDashboardHandler();
+    // }
 }
 
 function updateTimeRangeForPanels() {
@@ -516,17 +576,74 @@ function updateTimeRangeForPanel(panelIndex) {
 }
 
 
+// Event listener for Gridstack resize and drag events
+grid.on('change', function(event, items) {
+    items.forEach(function(item) {
+        // Find the panel in localPanels array using its ID
+        let panelIndex = localPanels.findIndex(panel => panel.panelId === item.el.id);
+        if (panelIndex !== -1) {
+            // Update the position and size of the panel in localPanels array
+            localPanels[panelIndex].gridpos.x = item.y;
+            localPanels[panelIndex].gridpos.y = item.x;
+            localPanels[panelIndex].gridpos.w = item.width;
+            localPanels[panelIndex].gridpos.h = item.height;
+        }
+    });
+});
+grid.on('dragstart', function(event, items) {
+    // Hide the default-item when dragging starts
+    $('.default-item').hide();
+});
+
+grid.on('resizestart', function(event, items) {
+    // Hide the default-item when resizing starts
+    $('.default-item').hide();
+});
+
+grid.on('dragstop', function(event, items) {
+    // Show the default-item when dragging stops
+    $('.default-item').show();
+});
+
+grid.on('resizestop', function(event, items) {
+    // Show the default-item when resizing stops
+    $('.default-item').show();
+});
 function displayPanels() {
+
     allResultsDisplayed = localPanels.length;
-    $('#panel-container .panel').remove();
+    grid.removeAll();
     let panelContainerMinHeight = 0;
     $('body').css('cursor', 'progress');
-    localPanels.map((localPanel) => {
+
+    // Variable to store the maximum coordinates of existing panels
+    let maxCoord = { x: 0, y: 0 };
+
+    // Loop through existing panels to find the maximum coordinates
+    localPanels.forEach((localPanel) => {
+        let panelEndX = localPanel.gridpos.x + localPanel.gridpos.w;
+        let panelEndY = localPanel.gridpos.y + localPanel.gridpos.h;
+        if (panelEndX > maxCoord.x) maxCoord.x = panelEndX;
+        if (panelEndY > maxCoord.y) maxCoord.y = panelEndY;
+    });
+
+    localPanels.forEach((localPanel) => {
         let idpanel = localPanel.panelId;
-        let panel = $("<div>").append(panelLayout).addClass("panel").attr("id", `panel${idpanel}`).attr("panel-index", localPanel.panelIndex);
-        $("#panel-container").append(panel);
-        handleDrag(idpanel);
-        handleResize(idpanel);
+        
+        var newItem = grid.addWidget(`<div class="grid-stack-item" id="${idpanel}"><div class="grid-stack-item-content"></div></div>`, {
+            width: parseInt(localPanel.gridpos.w),
+            height: parseInt(localPanel.gridpos.h),
+            x: parseInt(localPanel.gridpos.y),
+            y: parseInt(localPanel.gridpos.x)
+        });
+        
+        // Append panel layout to the new grid-stack-item
+        var panelDiv = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", panelIndex);
+        newItem.firstChild.appendChild(panelDiv[0]);
+
+        // Rest of your code for handling panel interactions
+        // handleDrag(idpanel);
+        // handleResize(idpanel);
         $("#panel" + idpanel + " .panel-header").click(function () {
             curFocus = "#panel" + idpanel;
             $("#panel" + idpanel + " .dropdown-btn").toggleClass("active")
@@ -538,21 +655,14 @@ function displayPanels() {
             $("#panel" + idpanel + " .dropdown-btn").toggleClass("active");
             $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
         });
-        $(`#panel${idpanel} .panel-header p`).html(localPanel.name);
+        
+        $(`.grid-stack-item .grid-stack-item-content #panel${idpanel} .panel-header p`).html(localPanel.name);
 
         if (localPanel.description || (localPanel.queryData && localPanel.queryData.searchText)) {
             handleDescriptionTooltip(idpanel, localPanel.description, localPanel.queryData ? localPanel.queryData.searchText : '');
         } else {
             $(`#panel${idpanel} .panel-info-corner`).hide();
         }
-
-        let panelElement = document.getElementById(`panel${idpanel}`);
-        panelElement.style.position = "absolute";
-        panelElement.style.height = localPanel.gridpos.h + "px";
-        panelElement.style.width = localPanel.gridpos.w + "px";
-        panelElement.style.top = localPanel.gridpos.y + "px";
-        panelElement.style.left = localPanel.gridpos.x + "px";
-
         let val = localPanel.gridpos.y + localPanel.gridpos.h;
         if (val > panelContainerMinHeight) panelContainerMinHeight = val;
 
@@ -627,11 +737,94 @@ function displayPanels() {
     if(allResultsDisplayed === 0) {
         $('body').css('cursor', 'default');
     }
-    handlePanelView();
-    handlePanelEdit();
-    handlePanelDuplicate();
-    resetPanelContainerHeight();
-}
+    
+    var defaultItem = grid.addWidget(`<div class="grid-stack-item default-item active"><div class="add-panel-div">
+    <div class="plus-icon">+</div>
+    <div class="text">Select the Panel Type</div>
+    </div></div>`, {width: 4,height:2,  noResize: true,
+        // Disable dragging for the default item
+        noMove: true});
+}   
+
+
+    //     let val = localPanel.gridpos.y + localPanel.gridpos.h;
+    //     if (val > panelContainerMinHeight) panelContainerMinHeight = val;
+
+    //     handlePanelRemove(idpanel)
+
+    //     if (localPanel.chartType == 'Data Table'||localPanel.chartType == 'loglines') {
+    //         let panEl = $(`#panel${idpanel} .panel-body`)
+    //         let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
+    //         <div id="empty-response"></div></div><div id="corner-popup"></div>
+    //         <div id="panel-loading"></div>`
+    //         panEl.append(responseDiv)
+
+    //         $("#panelLogResultsGrid").show();
+    //         if (localPanel.queryRes)
+    //             runPanelLogsQuery(localPanel.queryData, idpanel,localPanel, localPanel.queryRes);
+    //         else
+    //             runPanelLogsQuery(localPanel.queryData, idpanel,localPanel);
+    //     } else if (localPanel.chartType == 'Line Chart') {
+    //         let panEl = $(`#panel${idpanel} .panel-body`)
+    //         let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>
+    //         <div id="panel-loading"></div>`
+    //         panEl.append(responseDiv)
+    //         if (localPanel.queryRes){
+    //             runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
+    //         }
+    //         else {
+    //             //remove startEpoch from from localPanel.queryData
+    //             delete localPanel.queryData.startEpoch
+    //             delete localPanel.queryData.endEpoch
+    //             runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+    //         }
+    //     } else if (localPanel.chartType == 'number') {
+    //         let panEl = $(`#panel${idpanel} .panel-body`)
+    //         let responseDiv = `<div class="big-number-display-container"></div>
+    //         <div id="empty-response"></div><div id="corner-popup"></div>
+    //         <div id="panel-loading"></div>`
+    //         panEl.append(responseDiv)
+
+    //         $('.big-number-display-container').show();
+    //         if (localPanel.queryType === "metrics"){
+
+    //             if (localPanel.queryRes){
+    //                 delete localPanel.queryData.startEpoch
+    //                 delete localPanel.queryData.endEpoch
+    //                 runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
+    //             }
+    //             else {
+    //                 //remove startEpoch from from localPanel.queryData
+    //                 delete localPanel.queryData.startEpoch
+    //                 delete localPanel.queryData.endEpoch
+    //                 runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+    //             }
+    //         }else {
+    //             if (localPanel.queryRes)
+    //                 runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
+    //             else
+    //                 runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+    //         }
+    //     } else if (localPanel.chartType == 'Bar Chart' || localPanel.chartType == 'Pie Chart') {
+    //         // generic for both bar and pie chartTypes.
+    //         let panEl = $(`#panel${idpanel} .panel-body`)
+    //         let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>
+    //         <div id="panel-loading"></div>`
+    //         panEl.append(responseDiv)
+    //         if (localPanel.queryRes)
+    //             runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
+    //         else
+    //             runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+    //     } else
+    //         allResultsDisplayed--;
+    // })
+    // if(allResultsDisplayed === 0) {
+    // }
+    // handlePanelView();
+    // handlePanelEdit();
+    // handlePanelDuplicate();
+    // resetPanelContainerHeight();
+// }
 
 function displayPanelView(panelIndex) {
     let localPanel = localPanels[panelIndex];
@@ -823,23 +1016,23 @@ function getDashboardId() {
     return uniq;
 }
 
-function handleResize(panelId) {
-    $(`#panel${panelId}`).resizable(
-        { containment: "parent" }
-    );
-    $(`#panel${panelId}`).on("resizestop", function (event, ui) {
-        flagDBSaved = false;
-        panelIndex = $(this).attr("panel-index");
-        localPanels[panelIndex].gridpos.w = ui.size.width;
-        localPanels[panelIndex].gridpos.wPercent = ui.size.width / panelContainerWidthGlobal;
-        localPanels[panelIndex].gridpos.h = ui.size.height;
-        displayPanel(panelIndex);
-        resetPanelLocationsHorizontally();
-        resetPanelLocationsVertically();
-        resetPanelContainerHeight();
-        displayPanelsWithoutRefreshing();
-    })
-};
+// function handleResize(panelId) {
+//     $(`#panel${panelId}`).resizable(
+//         { containment: "parent" }
+//     );
+//     $(`#panel${panelId}`).on("resizestop", function (event, ui) {
+//         flagDBSaved = false;
+//         panelIndex = $(this).attr("panel-index");
+//         localPanels[panelIndex].gridpos.w = ui.size.width;
+//         localPanels[panelIndex].gridpos.wPercent = ui.size.width / panelContainerWidthGlobal;
+//         localPanels[panelIndex].gridpos.h = ui.size.height;
+//         displayPanel(panelIndex);
+//         resetPanelLocationsHorizontally();
+//         resetPanelLocationsVertically();
+//         resetPanelContainerHeight();
+//         displayPanelsWithoutRefreshing();
+//     })
+// };
 
 function resizePanelFontSize(panelIndex, panelId) {
     if (panelIndex !== -1) {
@@ -984,6 +1177,9 @@ function checkForAddigInTopRow() {
 function addPanel(chartIndex) {
     flagDBSaved = false;
     panelIndex = localPanels.length;
+    var defaultWidget = $('.default-item').get(0); // Get the DOM element
+    // Remove the default widget from the grid
+    grid.removeWidget(defaultWidget);
     let idpanel = uuidv4();
     let panel = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", panelIndex);
     $("#panel-container").append(panel);
@@ -998,30 +1194,15 @@ function addPanel(chartIndex) {
         $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
     });
     $(`#panel${idpanel} .panel-info-corner`).hide();
-    let marginTop = 0;
+    var newItem = grid.addWidget(`<div class="grid-stack-item" id="${idpanel}"><div class="grid-stack-item-content"></div></div>`, { width: 4, height: 2 });
 
-    localPanels.forEach((localPanel) => {
-        let val = localPanel.gridpos.y + localPanel.gridpos.h;
-        if (val > marginTop) marginTop = val;
-    });
+    // Insert panel content into grid-stack-item-content
+    newItem.firstChild.appendChild(panel[0]);
 
-    let panelElement = document.getElementById(`panel${idpanel}`);
-    let panelHeight = panelElement.offsetHeight;
-    let panelWidth =  panelElement.offsetWidth;
-    let panelTop = marginTop + 20;
-    let panelLeft =  panelElement.offsetLeft;
-    let panelWidthPercentage = panelWidth / panelContainerWidthGlobal;
-
-    let [shouldAddInTopRow, rightBoundary, topmostY] = checkForAddigInTopRow();
-    if (shouldAddInTopRow) {
-        panelLeft = rightBoundary == 0 ? rightBoundary : rightBoundary + 20;
-        panelTop = topmostY == 0 ? topmostY + 10 : topmostY;
-    }
-
-    panelElement.style.position = "absolute";
-    panelElement.style.top = panelTop + "px";
-    panelElement.style.left = panelLeft + "px";
-
+    let panelTop = newItem.getAttribute('data-gs-x');
+    let panelLeft = newItem.getAttribute('data-gs-y');
+    let panelWidth = newItem.getAttribute('data-gs-width');
+    let panelHeight = newItem.getAttribute('data-gs-height')
     let chartType = "";
     let queryType = "";
     let queryData = {};
@@ -1120,7 +1301,7 @@ function addPanel(chartIndex) {
             "w": panelWidth,
             "x": panelLeft,
             "y": panelTop,
-            "wPercent": panelWidthPercentage,
+            // "wPercent": panelWidthPercentage,
         },
         "queryType": queryType,
         "queryData": queryData,
@@ -1131,18 +1312,18 @@ function addPanel(chartIndex) {
     editPanelInit(panelIndex);
     $('.panelEditor-container').show();
     $('.popupOverlay').addClass('active');
-    $('.panelDisplay #panelLogResultsGrid').empty();
-    $('.panelDisplay .big-number-display-container').hide();
-    $('.panelDisplay #empty-response').hide();
-    resetPanelContainerHeight();
+    // $('.panelDisplay #panelLogResultsGrid').empty();
+    // $('.panelDisplay .big-number-display-container').hide();
+    // $('.panelDisplay #empty-response').hide();
+    // resetPanelContainerHeight();
 
-    handlePanelView();
-    handlePanelEdit();
-    handlePanelRemove(idpanel);
-    handlePanelDuplicate();
-    handleDrag(idpanel);
-    handleResize(idpanel);
-    $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: 'smooth' });
+    // handlePanelView();
+    // handlePanelEdit();
+    // handlePanelRemove(idpanel);
+    // handlePanelDuplicate();
+    // handleDrag(idpanel);
+    // handleResize(idpanel);
+    // $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: 'smooth' });
 
 }
 
