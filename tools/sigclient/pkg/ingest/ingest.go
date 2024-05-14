@@ -56,7 +56,6 @@ func (q IngestType) String() string {
 }
 
 const PRINT_FREQ = 100_000
-const RETRY_COUNT = 10
 
 // returns any errors encountered. It is the caller's responsibility to attempt retries
 func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) error {
@@ -192,14 +191,22 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			}
 			return
 		}
+		startTime := time.Now()
+		maxDuration := 2 * time.Hour
 		var reqErr error
-		for i := 0; i < RETRY_COUNT; i++ {
+		for {
 			reqErr = sendRequest(iType, client, payload, url, bearerToken)
 			if reqErr == nil {
 				break
 			}
+			elapsed := time.Since(startTime)
+			if elapsed >= maxDuration {
+				log.Infof("Error sending request. Exceeded maximum retry duration of %v hr. Exiting.", int(maxDuration.Hours()))
+				break
+			}
 			sleepTime := time.Second * time.Duration(5*(i+1))
-			log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v before retrying.", i+1, sleepTime.String())
+			log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v before retrying.", i, sleepTime.String())
+			i++
 			time.Sleep(sleepTime)
 		}
 
@@ -207,7 +214,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			bytebufferpool.Put(bb)
 		}
 		if reqErr != nil {
-			log.Fatalf("Error sending request after %d attempts! %v", RETRY_COUNT, reqErr)
+			log.Fatalf("Error sending request after %v hr ! %v", int(maxDuration.Hours()), reqErr)
 			return
 		}
 		eventCounter += recsInBatch

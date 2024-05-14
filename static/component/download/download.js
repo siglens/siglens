@@ -231,7 +231,7 @@ $("#cancel-loading").on("click", cancelDownload);
       allFields.removeClass("ui-state-error");
       tips.removeClass("ui-state-highlight");
       tips.text("");
-      valid = valid && checkLength(qname, "download name", 3, 16);
+      valid = valid && checkLength(qname, "download name", 1, 254);
       valid =
         valid &&
         checkRegexp(
