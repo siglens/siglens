@@ -219,7 +219,7 @@ function setDownloadLogsDialog() {
     allFields.removeClass("ui-state-error");
     tips.removeClass("ui-state-highlight");
     tips.text("");
-    valid = valid && checkLength(qname, "download name", 3, 16);
+    valid = valid && checkLength(qname, "download name", 1, 254);
     valid = valid && checkRegexp(
       qname,
       /^[a-zA-Z0-9_.-]+$/i,
