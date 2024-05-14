@@ -983,7 +983,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				case "round":
 					mquery.Function = structs.Function{MathFunction: segutils.Round}
 					if len(expr.Args) > 1 {
-						mquery.Function.Value = expr.Args[1].String()
+						mquery.Function.ValueList = []string{expr.Args[1].String()}
 					}
 				case "floor":
 					mquery.Function = structs.Function{MathFunction: segutils.Floor}
@@ -993,6 +993,21 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Function = structs.Function{MathFunction: segutils.Log2}
 				case "log10":
 					mquery.Function = structs.Function{MathFunction: segutils.Log10}
+				case "clamp":
+					if len(expr.Args) != 3 {
+						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp function", expr.Args.String())
+					}
+					mquery.Function = structs.Function{MathFunction: segutils.Clamp, ValueList: []string{expr.Args[1].String(), expr.Args[2].String()}}
+				case "clamp_max":
+					if len(expr.Args) != 2 {
+						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp_max function", expr.Args.String())
+					}
+					mquery.Function = structs.Function{MathFunction: segutils.Clamp_Max, ValueList: []string{expr.Args[1].String()}}
+				case "clamp_min":
+					if len(expr.Args) != 2 {
+						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp_min function", expr.Args.String())
+					}
+					mquery.Function = structs.Function{MathFunction: segutils.Clamp_Min, ValueList: []string{expr.Args[1].String()}}
 				default:
 					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
 				}
