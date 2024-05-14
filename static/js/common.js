@@ -262,30 +262,7 @@ function runPanelLogsQuery(data, panelId,currentPanel,queryRes) {
             renderChartByChartType(data,queryRes,panelId,currentPanel)
         }
         else {
-            $.ajax({
-                method: 'post',
-                url: 'api/search/' + panelId,
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    'Accept': '*/*'
-                },
-                crossDomain: true,
-                dataType: 'json',
-                data: JSON.stringify(data)
-            })
-                .then((res) => {
-                    resetQueryResAttr(res, panelId);
-                    renderChartByChartType(data,res,panelId,currentPanel);
-                    resolve();
-                })
-                .catch(function (xhr, err) {
-                    if (xhr.status === 400) {
-                        panelProcessSearchError(xhr, panelId);
-                    }currentPanel
-                    $('body').css('cursor', 'default');
-                    $(`#panel${panelId} .panel-body #panel-loading`).hide();
-                    reject();
-                })
+            doSearch(data,panelId,currentPanel)
         }
     })
 }
@@ -462,7 +439,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
                 resultVal = Object.values(res.measure[0].MeasureVal)[0];
             }
 
-            if ((chartType === "Pie Chart" || chartType === "Bar Chart") && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
+            if ((chartType === "Pie Chart" || chartType === "Bar Chart") && (res.totalMatched === 0 || res.totalMatched.value === 0)) {
                 panelProcessEmptyQueryResults("", panelId);
             } else if (chartType === "number" && (resultVal === undefined || resultVal === null)) {
                 panelProcessEmptyQueryResults("", panelId);

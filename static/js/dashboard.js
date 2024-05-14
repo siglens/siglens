@@ -1420,3 +1420,170 @@ function parseInterval(interval) {
             throw new Error("Invalid interval unit");
     }
 }
+
+function wsURL(path) {
+    var protocol = (location.protocol === 'https:') ? 'wss://' : 'ws://';
+    var url = protocol + location.host;
+    return url + path;
+}
+function doSearch(data,panelId,currentPanel) {
+    startQueryTime = (new Date()).getTime();
+    newUri = wsURL("/api/search/ws");
+    socket = new WebSocket(newUri);
+    let timeToFirstByte = 0;
+    let firstQUpdate = true;
+    socket.onopen = function (e) {
+        console.time("socket timing");
+        $('body').css('cursor', 'progress');
+        socket.send(JSON.stringify(data));
+    };
+
+    socket.onmessage = function (event) {
+        let jsonEvent = JSON.parse(event.data);
+        let eventType = jsonEvent.state;
+        let totalEventsSearched = jsonEvent.total_events_searched
+        let totalTime = (new Date()).getTime() - startQueryTime;
+        switch (eventType) {
+            case "RUNNING":
+                console.time("RUNNING");
+                console.timeEnd("RUNNING");
+                break;
+            case "QUERY_UPDATE":
+                console.time("QUERY_UPDATE");
+                if (timeToFirstByte === 0) {
+                    timeToFirstByte = Number(totalTime).toLocaleString();
+                }
+                let totalHits;
+                processQueryUpdate(jsonEvent, totalHits);
+                console.timeEnd("QUERY_UPDATE");
+                firstQUpdate = false
+                break;
+            case "COMPLETE":
+                let eqRel = "eq";
+                if (jsonEvent.totalMatched != null && jsonEvent.totalMatched.relation != null) {
+                    eqRel = jsonEvent.totalMatched.relation;
+                }
+                console.time("COMPLETE");
+                canScrollMore = jsonEvent.can_scroll_more;
+                scrollFrom = jsonEvent.total_rrc_count;
+                processCompleteUpdate(jsonEvent, panelId,currentPanel);
+                console.timeEnd("COMPLETE");
+                socket.close(1000);
+                break;
+            case "TIMEOUT":
+                console.time("TIMEOUT");
+                console.log(`[message] Timeout state received from server: ${jsonEvent}`);
+                processTimeoutUpdate(jsonEvent);
+                console.timeEnd("TIMEOUT");
+                break;
+            case "ERROR":
+                console.time("ERROR");
+                console.log(`[message] Error state received from server: ${jsonEvent}`);
+                processErrorUpdate(jsonEvent);
+                console.timeEnd("ERROR");
+                break;
+            default:
+                console.log(`[message] Unknown state received from server: `+ JSON.stringify(jsonEvent));
+                if (jsonEvent.message.includes("expected")){
+                   jsonEvent.message = "Your query contains syntax error"
+                } else if (jsonEvent.message.includes("not present")){
+                   jsonEvent['no_data_err'] = "No data found for the query"
+                }
+                processSearchErrorLog(jsonEvent);
+        }
+    };
+
+    socket.onclose = function (event) {
+        if (event.wasClean) {
+            console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+        } else {
+            console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
+        }
+        console.timeEnd("socket timing");
+    };
+
+    socket.addEventListener('error', (event) => {
+        console.log('WebSocket error: ', event);
+    });
+}
+
+function processCompleteUpdate(res,panelId,currentPanel) {
+    let columnOrder =[]
+    if (res.measureFunctions && res.measureFunctions.length > 0) {
+      measureFunctions = res.measureFunctions;
+    }
+    if (res.measure) {
+        measureInfo = res.measure;
+        if (res.groupByCols) {
+            columnOrder = _.uniq(_.concat(
+                res.groupByCols));
+        }
+        if (res.measureFunctions) {
+            columnOrder = _.uniq(_.concat(
+                columnOrder,res.measureFunctions));
+        }
+        
+        aggsColumnDefs=[];
+        segStatsRowData=[];
+        resetQueryResAttr(res, panelId);
+        renderChartByChartType(data,res,panelId,currentPanel);
+        if ((res.qtype ==="aggs-query" || res.qtype === "segstats-query") && res.bucketCount){
+            totalHits = res.bucketCount;
+        }
+    }else{
+     measureInfo = [];
+    }
+   
+    
+    wsState = 'query'
+    if (canScrollMore === false){
+        scrollFrom = 0;
+    }
+}
+function processQueryUpdate(res,  totalHits) {
+    if (res.hits && res.hits.records!== null && res.hits.records.length >= 1 && res.qtype === "logs-query") {
+        let columnOrder = _.uniq(_.concat(
+            // make timestamp the first column
+            'timestamp',
+            // make logs the second column
+            'logs',
+            res.allColumns));
+            
+        // for sort function display
+        sortByTimestampAtDefault = res.sortByTimestampAtDefault; 
+
+        renderAvailableFields(columnOrder);
+        renderLogsGrid(columnOrder, res.hits.records);
+
+       $("#logs-result-container").show();
+       $("#agg-result-container").hide();
+        
+        if (res && res.hits && res.hits.totalMatched) {
+            totalHits = res.hits.totalMatched
+        }
+    } else if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
+        if (res.groupByCols ) {
+            columnOrder = _.uniq(_.concat(
+                res.groupByCols));
+        }
+        let columnOrder =[]
+        if (res.measureFunctions ) {
+            columnOrder = _.uniq(_.concat(
+                columnOrder,res.measureFunctions));
+        }
+
+        aggsColumnDefs=[];
+        segStatsRowData=[]; 
+        renderMeasuresGrid(columnOrder, res.measure);
+
+    }
+    $('body').css('cursor', 'default');
+}
+
+function processTimeoutUpdate(res) {
+    showError(`Query ${res.qid} reached the timeout limit of ${res.timeoutSeconds} seconds`);
+}
+
+function processErrorUpdate(res) {
+    showError(`Message: ${res.message}`);
+}
