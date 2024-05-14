@@ -1,10 +1,6 @@
 // https://pkg.go.dev/container/heap#example-package-PriorityQueue
 package utils
 
-import (
-	"container/heap"
-)
-
 // Max Heap
 // An Item is something we manage in a priority queue.
 type Item struct {
@@ -45,11 +41,4 @@ func (pq *PriorityQueue) Pop() any {
 	item.Index = -1 // for safety
 	*pq = old[0 : n-1]
 	return item
-}
-
-// update modifies the priority and value of an Item in the queue.
-func (pq *PriorityQueue) update(item *Item, value string, priority int) {
-	item.Value = value
-	item.Priority = priority
-	heap.Fix(pq, item.Index)
 }
