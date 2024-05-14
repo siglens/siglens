@@ -365,7 +365,9 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 				} else {
 					keyValue = strings.Split(val, ":")
 				}
-				result.Metric[keyValue[0]] = keyValue[1]
+				if len(keyValue) > 1 {
+					result.Metric[keyValue[0]] = keyValue[1]
+				}
 			}
 			for k, v := range results {
 				result.Value = []interface{}{int64(k), fmt.Sprintf("%v", v)}
