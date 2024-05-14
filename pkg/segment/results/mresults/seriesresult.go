@@ -261,8 +261,8 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Floor:
 		evaluate(ts, math.Floor)
 	case segutils.Round:
-		if len(function.Value) > 0 {
-			err := evaluateRoundWithPrecision(ts, function.Value)
+		if len(function.ValueList) > 0 && len(function.ValueList[0]) > 0 {
+			err := evaluateRoundWithPrecision(ts, function.ValueList[0])
 			if err != nil {
 				return ts, fmt.Errorf("ApplyMathFunction: %v", err)
 			}
@@ -275,6 +275,37 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 		err = evaluateLogFunc(ts, math.Log2)
 	case segutils.Log10:
 		err = evaluateLogFunc(ts, math.Log10)
+	case segutils.Clamp:
+		if len(function.ValueList) != 2 {
+			return ts, fmt.Errorf("ApplyMathFunction: clamp has incorrect parameters: %v", function.ValueList)
+		}
+		minVal, err1 := strconv.ParseFloat(function.ValueList[0], 64)
+		maxVal, err2 := strconv.ParseFloat(function.ValueList[1], 64)
+		if err1 != nil || err2 != nil {
+			return ts, fmt.Errorf("ApplyMathFunction: clamp has incorrect parameters: %v", function.ValueList)
+		}
+		if minVal > maxVal {
+			return make(map[uint32]float64), nil
+		}
+		evaluateClamp(ts, minVal, maxVal)
+	case segutils.Clamp_Max:
+		if len(function.ValueList) != 1 {
+			return ts, fmt.Errorf("ApplyMathFunction: clamp_max has incorrect parameters: %v", function.ValueList)
+		}
+		maxVal, err := strconv.ParseFloat(function.ValueList[0], 64)
+		if err != nil {
+			return ts, fmt.Errorf("ApplyMathFunction: clamp_max has incorrect parameters: %v", function.ValueList)
+		}
+		evaluateClamp(ts, -1.7976931348623157e+308, maxVal)
+	case segutils.Clamp_Min:
+		if len(function.ValueList) != 1 {
+			return ts, fmt.Errorf("ApplyMathFunction: clamp_min has incorrect parameters: %v", function.ValueList)
+		}
+		minVal, err := strconv.ParseFloat(function.ValueList[0], 64)
+		if err != nil {
+			return ts, fmt.Errorf("ApplyMathFunction: clamp_min has incorrect parameters: %v", function.ValueList)
+		}
+		evaluateClamp(ts, minVal, math.MaxFloat64)
 	default:
 		return ts, fmt.Errorf("ApplyMathFunction: unsupported function type %v", function)
 	}
@@ -674,4 +705,18 @@ func evaluateRate(sortedTimeSeries []Entry, ts map[uint32]float64, timeWindow ui
 	// Rate at edge does not exist.
 	delete(ts, sortedTimeSeries[0].downsampledTime)
 	return ts
+}
+
+func evaluateClamp(ts map[uint32]float64, minVal float64, maxVal float64) {
+
+	for key, val := range ts {
+		if val < minVal {
+			ts[key] = minVal
+			continue
+		}
+
+		if val > maxVal {
+			ts[key] = maxVal
+		}
+	}
 }

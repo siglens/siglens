@@ -301,6 +301,9 @@ const (
 	Ln
 	Log2
 	Log10
+	Clamp
+	Clamp_Max
+	Clamp_Min
 )
 
 type RangeFunctions int
