@@ -347,32 +347,25 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 	}
 	var pqldata structs.Data
 
-	uniqueTagKeys := make(map[string]bool)
-	tagKeys := make([]string, 0)
-	for _, tag := range mQuery.TagsFilters {
-		if _, ok := uniqueTagKeys[tag.TagKey]; !ok {
-			uniqueTagKeys[tag.TagKey] = true
-			tagKeys = append(tagKeys, tag.TagKey)
-		}
-	}
 	switch pqlQuerytype {
 	case parser.ValueTypeVector:
 		pqldata.ResultType = parser.ValueType("vector")
 		for grpId, results := range r.Results {
-			tags := make(map[string]string)
-			tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
 
-			if len(tagKeys) != len(tagValues)-1 {
-				err := errors.New("GetResultsPromQl: the length of tag key and tag value pair must match")
-				return nil, err
-			}
+			tagValues := strings.Split(removeTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
+
 			var result structs.Result
+			var keyValue []string
 			result.Metric = make(map[string]string)
-			for index, val := range tagValues[:len(tagValues)-1] {
-				tags[tagKeys[index]] = val
-				result.Metric[tagKeys[index]] = val
-			}
 			result.Metric["__name__"] = mQuery.MetricName
+			for idx, val := range tagValues {
+				if idx == 0 {
+					keyValue = strings.Split(removeMetricNameFromGroupID(val), ":")
+				} else {
+					keyValue = strings.Split(val, ":")
+				}
+				result.Metric[keyValue[0]] = keyValue[1]
+			}
 			for k, v := range results {
 				result.Value = []interface{}{int64(k), fmt.Sprintf("%v", v)}
 			}
