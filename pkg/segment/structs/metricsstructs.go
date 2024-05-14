@@ -23,7 +23,6 @@ import (
 	"path"
 	"sync/atomic"
 
-	pql "github.com/prometheus/prometheus/promql"
 	parser "github.com/prometheus/prometheus/promql/parser"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -94,9 +93,14 @@ type Label struct {
 	Name, Value string
 }
 
+type Result struct {
+	Metric map[string]string `json:"metric"`
+	Value  []interface{}     `json:"value"`
+}
+
 type Data struct {
 	ResultType parser.ValueType `json:"resultType"`
-	Result     []pql.Series     `json:"result,omitempty"`
+	Result     []Result         `json:"result,omitempty"`
 }
 type MetricsQueryResponsePromQl struct {
 	Status    string   `json:"status"` //success/error

@@ -25,8 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/prometheus/prometheus/model/labels"
-	pql "github.com/prometheus/prometheus/promql"
 	parser "github.com/prometheus/prometheus/promql/parser"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -343,66 +341,45 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 	}
 	return retVal, nil
 }
-func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType) ([]*structs.MetricsQueryResponsePromQl, error) {
+
+func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType) (*structs.MetricsQueryResponsePromQl, error) {
 	if r.State != AGGREGATED {
 		return nil, errors.New("results is not in aggregated state")
 	}
 	var pqldata structs.Data
-	var series pql.Series
-	var label structs.Label
 
-	retVal := make([]*structs.MetricsQueryResponsePromQl, len(r.Results))
-	idx := 0
-	uniqueTagKeys := make(map[string]bool)
-	tagKeys := make([]string, 0)
-	for _, tag := range mQuery.TagsFilters {
-		if _, ok := uniqueTagKeys[tag.TagKey]; !ok {
-			uniqueTagKeys[tag.TagKey] = true
-			tagKeys = append(tagKeys, tag.TagKey)
-		}
-	}
 	switch pqlQuerytype {
 	case parser.ValueTypeVector:
 		pqldata.ResultType = parser.ValueType("vector")
 		for grpId, results := range r.Results {
-			tags := make(map[string]string)
-			tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
 
-			if len(tagKeys) != len(tagValues)-1 {
-				err := errors.New("GetResultsPromQl: the length of tag key and tag value pair must match")
-				return nil, err
+			tagValues := strings.Split(removeTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
+
+			var result structs.Result
+			var keyValue []string
+			result.Metric = make(map[string]string)
+			result.Metric["__name__"] = mQuery.MetricName
+			for idx, val := range tagValues {
+				if idx == 0 {
+					keyValue = strings.Split(removeMetricNameFromGroupID(val), ":")
+				} else {
+					keyValue = strings.Split(val, ":")
+				}
+				result.Metric[keyValue[0]] = keyValue[1]
 			}
-			for index, val := range tagValues[:len(tagValues)-1] {
-				tags[tagKeys[index]] = val
-				label.Name = tagKeys[index]
-				label.Value = val
-				series.Metric = append(series.Metric, labels.Label(label))
-			}
-			label.Name = "__name__"
-			label.Value = mQuery.MetricName
-			series.Metric = append(series.Metric, labels.Label(label))
 			for k, v := range results {
-				var point pql.FPoint
-				point.T = int64(k)
-				point.F = v
-				series.Floats = append(series.Floats, point)
+				result.Value = []interface{}{int64(k), fmt.Sprintf("%v", v)}
 			}
-			pqldata.Result = append(pqldata.Result, series)
-
-			retVal[idx] = &structs.MetricsQueryResponsePromQl{
-				Status: "success",
-				Data:   pqldata,
-			}
-			pqldata.Result = nil
-			series = pql.Series{}
-			idx++
+			pqldata.Result = append(pqldata.Result, result)
 		}
 	default:
-		return retVal, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type")
+		return nil, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type")
 	}
-	return retVal, nil
+	return &structs.MetricsQueryResponsePromQl{
+		Status: "success",
+		Data:   pqldata,
+	}, nil
 }
-
 func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) ([]string, []string, error) {
 	if res.State != SERIES_READING {
 		return nil, nil, errors.New("results is not in Series Reading state")
