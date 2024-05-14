@@ -208,7 +208,7 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
         panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId);
         return;
     }
-    if(res.hits){
+    if(res){
         if (panelId == -1) { // for panel on the editPanelScreen page
             $(".panelDisplay #panelLogResultsGrid").show();
             $(".panelDisplay #empty-response").empty();
@@ -235,8 +235,8 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
             }
             renderPanelAggsGrid(columnOrder, res.measure,panelId)
         }//for logs-query
-        else if(res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
-            renderPanelLogsGrid(res.allColumns, res.hits.records, panelId, logLinesViewType);
+        else if(res && res.records !== null && res.records.length >= 1) {
+            renderPanelLogsGrid(res.allColumns, res.records, panelId, logLinesViewType);
         }
         allResultsDisplayed--;
         if(allResultsDisplayed <= 0 || panelId === -1) {
@@ -245,7 +245,7 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
     }
     canScrollMore = res.can_scroll_more;
     scrollFrom = res.total_rrc_count;
-    if (res.hits.totalMatched.value === 0 || (!res.bucketCount &&  (res.qtype === "aggs-query" || res.qtype === "segstats-query"))) {
+    if (res.totalMatched.value === 0 || (!res.bucketCount &&  (res.qtype === "aggs-query" || res.qtype === "segstats-query"))) {
         panelProcessEmptyQueryResults("", panelId);
     }
 
@@ -262,7 +262,7 @@ function runPanelLogsQuery(data, panelId,currentPanel,queryRes) {
             renderChartByChartType(data,queryRes,panelId,currentPanel)
         }
         else {
-            doSearch(data,panelId,currentPanel)
+            doSearchDashboard(data,panelId,currentPanel)
         }
     })
 }
@@ -439,7 +439,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
                 resultVal = Object.values(res.measure[0].MeasureVal)[0];
             }
 
-            if ((chartType === "Pie Chart" || chartType === "Bar Chart") && (res.totalMatched === 0 || res.totalMatched.value === 0)) {
+            if ((chartType === "Pie Chart" || chartType === "Bar Chart") && (res.totalMatched === 0 )) {
                 panelProcessEmptyQueryResults("", panelId);
             } else if (chartType === "number" && (resultVal === undefined || resultVal === null)) {
                 panelProcessEmptyQueryResults("", panelId);
@@ -463,28 +463,10 @@ function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, query
     if (queryRes) {
         renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, queryRes)
     } else {
-        $.ajax({
-            method: 'post',
-            url: 'api/search/' + panelId,
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept': '*/*'
-            },
-            crossDomain: true,
-            dataType: 'json',
-            data: JSON.stringify(data)
-        })
-            .then(function (res) {
-                renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res)
-            })
-            .catch(function (xhr, err) {
-                if (xhr.status === 400) {
-                    panelProcessSearchError(xhr, panelId);
-                }
-                $('body').css('cursor', 'default');
-            })
+        doSearchDashboard(data,panelId,chartType,dataType,panelIndex)
     }
 }
+
 
 function runMetricsQuery(data, panelId, currentPanel, queryRes) {
     $('body').css('cursor', 'progress');

@@ -1426,7 +1426,7 @@ function wsURL(path) {
     var url = protocol + location.host;
     return url + path;
 }
-function doSearch(data,panelId,currentPanel) {
+function doSearchDashboard(data,panelId,currentPanel) {
     startQueryTime = (new Date()).getTime();
     newUri = wsURL("/api/search/ws");
     socket = new WebSocket(newUri);
@@ -1509,6 +1509,7 @@ function doSearch(data,panelId,currentPanel) {
 
 function processCompleteUpdate(res,panelId,currentPanel) {
     let columnOrder =[]
+    let totalHits = 0  
     if (res.measureFunctions && res.measureFunctions.length > 0) {
       measureFunctions = res.measureFunctions;
     }
