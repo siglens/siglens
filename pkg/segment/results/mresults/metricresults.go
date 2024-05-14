@@ -64,9 +64,8 @@ type MetricsResult struct {
 
 	State bucketState
 
-	rwLock    *sync.RWMutex
-	ErrList   []error
-	TagValues map[string]map[string]struct{}
+	rwLock  *sync.RWMutex
+	ErrList []error
 }
 
 /*

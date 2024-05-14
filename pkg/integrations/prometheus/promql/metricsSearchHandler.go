@@ -342,10 +342,9 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	labelName := utils.ExtractParamAsString(ctx.UserValue("labelName"))
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
-	qid := rutils.GetNextQid()
+
 	var startTime, endTime uint32
 	var err error
-	var responseValues []string
 
 	if startParam != "" {
 		startTime, err = utils.ParseTimeForPromQL(startParam)
@@ -360,68 +359,14 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			log.Errorf("ProcessGetLabelValuesRequest: Error parsing end time parameter, err:%v", err)
 			return
 		}
-	} else {
-		endTime = uint32(time.Now().Unix())
 	}
 
-	if labelName == "__name__" {
-		timeRange := &dtu.MetricsTimeRange{
-			StartEpochSec: startTime,
-			EndEpochSec:   endTime,
-		}
-		responseValues, err = query.GetAllMetricNamesOverTheTimeRange(timeRange, myid)
-		if err != nil {
-			utils.SendError(ctx, "Failed to get all metric names", "", err)
-			return
-		}
-
-		response := map[string]interface{}{
-			"status": "success",
-			"data":   responseValues,
-		}
-		WriteJsonResponse(ctx, &response)
-		ctx.SetContentType(ContentJson)
-		ctx.SetStatusCode(fasthttp.StatusOK)
-		return
-	}
-
-	searchText := fmt.Sprintf(`(fake_metricname{%s="*"})`, labelName)
-	metricQueryRequest, _, _, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
-	if err != nil {
-		ctx.SetContentType(ContentJson)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		WriteJsonResponse(ctx, nil)
-		log.Errorf("qid=%v, ProcessGetLabelValuesRequest: Error parsing query err=%+v", qid, err)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("qid=%v, ProcessGetLabelValuesRequest: could not write error message err=%v", qid, err)
-		}
-		return
-	}
-	if len(metricQueryRequest) == 0 {
-		ctx.SetContentType(ContentJson)
-		WriteJsonResponse(ctx, map[string]interface{}{})
-		return
-	}
-	metricQueryRequest[0].MetricsQuery.TagValueSearchOnly = true
-	segment.LogMetricsQuery("PromQL Label Values request", &metricQueryRequest[0], qid)
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
-
-	responseValues = make([]string, 0, len(res.TagValues))
-	for _, innerMap := range res.TagValues {
-		for tagValue := range innerMap {
-			responseValues = append(responseValues, tagValue)
-		}
-	}
-
-	response := map[string]interface{}{
-		"status": "success",
-		"data":   responseValues,
-	}
-	WriteJsonResponse(ctx, &response)
-	ctx.SetContentType(ContentJson)
-	ctx.SetStatusCode(fasthttp.StatusOK)
+	log.Printf("startTime: %v, local time: %v", startTime, time.Unix(int64(startTime), 0).Local())
+	log.Printf("endTime: %v, local time: %v", endTime, time.Unix(int64(endTime), 0).Local())
+	log.Printf("labelName: %v", labelName)
+	// TODO: Implement the logic to get the label values
 }
+
 func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	matches := make([]string, 0)
 	ctx.QueryArgs().VisitAll(func(key []byte, value []byte) {

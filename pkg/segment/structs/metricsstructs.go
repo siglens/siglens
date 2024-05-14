@@ -50,7 +50,6 @@ type MetricsQuery struct {
 	OrgId           uint64 // organization id
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
-	TagValueSearchOnly  bool // flag to search only tag values
 }
 
 type Aggreation struct {
