@@ -41,7 +41,7 @@ import (
 // If esResponse is false, _id and _type will not be added to any record
 func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint16]map[uint16]uint64,
 	tsKey string, esQuery bool, qid uint64,
-	aggs *structs.QueryAggregators) (map[string]map[string]interface{}, map[string]bool, error) {
+	aggs *structs.QueryAggregators, colsIndexMap map[string]int) (map[string]map[string]interface{}, map[string]bool, error) {
 
 	var err error
 	segKey, err = checkRecentlyRotatedKey(segKey)
@@ -58,7 +58,7 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 			return nil, allCols, errors.New("failed to get column names for segkey in rotated and unrotated files")
 		}
 	}
-	allCols = applyColNameTransform(allCols, aggs, qid)
+	allCols = applyColNameTransform(allCols, aggs, colsIndexMap, qid)
 	numOpenFds := int64(len(allCols))
 	err = fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(numOpenFds, 10, fmt.Sprintf("GetRecordsFromSegment.qid=%d", qid))
 	if err != nil {
@@ -292,7 +292,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockIdx uint16, segReader *segr
 	return results
 }
 
-func applyColNameTransform(allCols map[string]bool, aggs *structs.QueryAggregators, qid uint64) map[string]bool {
+func applyColNameTransform(allCols map[string]bool, aggs *structs.QueryAggregators, colsIndexMap map[string]int, qid uint64) map[string]bool {
 	retCols := make(map[string]bool)
 	if aggs == nil || aggs.OutputTransforms == nil {
 		return allCols
@@ -312,9 +312,12 @@ func applyColNameTransform(allCols map[string]bool, aggs *structs.QueryAggregato
 	if aggs.OutputTransforms.OutputColumns.IncludeColumns == nil {
 		retCols = allCols
 	} else {
+		index := 0
 		for _, cName := range aggs.OutputTransforms.OutputColumns.IncludeColumns {
 			for _, matchingColumn := range toputils.SelectMatchingStringsWithWildcard(cName, allColNames) {
 				retCols[matchingColumn] = true
+				colsIndexMap[matchingColumn] = index
+				index++
 			}
 		}
 	}
