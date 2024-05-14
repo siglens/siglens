@@ -892,7 +892,6 @@ func (sr *StatsResults) GetSegStats() map[string]*structs.SegStats {
 	return retVal
 }
 
-
 func CreateMeasResultsFromAggResults(limit int,
 	aggRes map[string]*structs.AggregationResult) ([]*structs.BucketHolder, []string, int) {
 
