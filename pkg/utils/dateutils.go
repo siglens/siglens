@@ -19,6 +19,7 @@ package utils
 
 import (
 	"errors"
+	"math"
 	"strconv"
 	"time"
 
@@ -177,17 +178,25 @@ func ParseTimeForPromQL(timeParam string) (uint32, error) {
 		log.Errorf("parseTimeForPromQL: time parameter is empty")
 		return 0, errors.New("time parameter is empty")
 	}
-	var timeValue int64
 
-	if parsedInt, err := strconv.ParseInt(timeParam, 10, 64); err == nil {
-		// If timeParam can be parsed as an integer, use it as the time value
-		timeValue = parsedInt
-	} else if parsedTime, err := time.Parse(time.RFC3339, timeParam); err == nil {
-		// If timeParam can be parsed as an RFC3339 time, use it as the time value
-		timeValue = parsedTime.Unix()
-	} else {
-		return 0, err
+	// Try to parse as integer (Unix timestamp)
+	parsedInt, err := strconv.ParseInt(timeParam, 10, 64)
+	if err == nil {
+		return uint32(parsedInt), nil
 	}
 
-	return uint32(timeValue), nil
+	// Try to parse as float (Unix timestamp)
+	parsedFloat, err := strconv.ParseFloat(timeParam, 64)
+	if err == nil {
+		return uint32(math.Round(parsedFloat)), nil
+	}
+
+	// Try to parse as RFC3339 timestamp
+	parsedTime, err := time.Parse(time.RFC3339, timeParam)
+	if err == nil {
+		return uint32(parsedTime.Unix()), nil
+	}
+
+	// If all parsing attempts failed, return an error
+	return 0, errors.New("failed to parse time parameter as Unix timestamp or RFC3339 timestamp")
 }
