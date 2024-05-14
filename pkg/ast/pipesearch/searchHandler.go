@@ -31,6 +31,7 @@ import (
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
+	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
@@ -434,6 +435,9 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 			httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
 		}
 	}
+
+	allMeasRes, _, _ := segresults.CreateMeasResultsFromAggResults(aggs.BucketLimit, nodeResult.Histogram)
+
 	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid, nodeResult.SegEncToKey, aggs)
 	if err != nil {
 		httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
@@ -454,7 +458,7 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 	httpRespOuter.CanScrollMore = canScrollMore
 	httpRespOuter.TotalRRCCount = numRRCs
 	httpRespOuter.MeasureFunctions = nodeResult.MeasureFunctions
-	httpRespOuter.MeasureResults = nodeResult.MeasureResults
+	httpRespOuter.MeasureResults = allMeasRes
 	httpRespOuter.GroupByCols = nodeResult.GroupByCols
 	httpRespOuter.BucketCount = nodeResult.BucketCount
 	httpRespOuter.DashboardPanelId = dbPanelId
