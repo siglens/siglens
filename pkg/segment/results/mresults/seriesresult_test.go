@@ -409,7 +409,7 @@ func Test_applyMathFunctionFloor(t *testing.T) {
 		Results: result,
 	}
 
-	function := structs.Function{MathFunction: segutils.Floor, Value: ""}
+	function := structs.Function{MathFunction: segutils.Floor, ValueList: []string{""}}
 	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
@@ -444,7 +444,7 @@ func Test_applyMathFunctionCeil(t *testing.T) {
 		Results: result,
 	}
 
-	function := structs.Function{MathFunction: segutils.Ceil, Value: ""}
+	function := structs.Function{MathFunction: segutils.Ceil, ValueList: []string{""}}
 	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
@@ -480,7 +480,7 @@ func Test_applyMathFunctionRoundWithoutPrecision(t *testing.T) {
 		Results: result,
 	}
 
-	function := structs.Function{MathFunction: segutils.Round, Value: ""}
+	function := structs.Function{MathFunction: segutils.Round, ValueList: []string{""}}
 	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
@@ -515,7 +515,7 @@ func Test_applyMathFunctionRoundWithPrecision1(t *testing.T) {
 		Results: result,
 	}
 
-	function := structs.Function{MathFunction: segutils.Round, Value: "0.3"}
+	function := structs.Function{MathFunction: segutils.Round, ValueList: []string{"0.3"}}
 	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
@@ -547,7 +547,7 @@ func Test_applyMathFunctionRoundWithPrecision2(t *testing.T) {
 		Results: result,
 	}
 
-	function := structs.Function{MathFunction: segutils.Round, Value: "1 / 2"}
+	function := structs.Function{MathFunction: segutils.Round, ValueList: []string{"1 /2"}}
 	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
