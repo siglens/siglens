@@ -212,6 +212,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			log.Errorf("GetJsonFromAllRrc: failed to read recs from segfile=%v, err=%v", currSeg, err)
 			return
 		}
+		nodeRes.ColumnsOrder = colsIndexMap
 		for cName := range cols {
 			finalCols[cName] = true
 		}
@@ -249,7 +250,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			 */
 			for {
 				finishesSegment := isLastBlk
-				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, recordIndexInFinal, finalCols, colsIndexMap, numTotalSegments, finishesSegment)
+				agg.PostQueryBucketCleaning(nodeRes, aggs, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
 
 				// If TransactionEventRecords exist, process them first. This implies there might be segments left for TransactionEvent processing.
 				if len(nodeRes.TransactionEventRecords) > 0 {
