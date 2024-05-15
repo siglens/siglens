@@ -33,6 +33,7 @@ type PipeSearchResponseOuter struct {
 	TotalRRCCount      interface{}                   `json:"total_rrc_count,omitempty"`
 	BucketCount        int                           `json:"bucketCount,omitempty"`
 	DashboardPanelId   string                        `json:"dashboardPanelId"`
+	ColumnsOrder       []string                      `json:"columnsOrder"`
 }
 
 type PipeSearchResponse struct {

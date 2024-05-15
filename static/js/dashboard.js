@@ -25,10 +25,14 @@ let dbRefresh ="";
 let panelContainer;
 let panelContainerWidthGlobal;
 let curFocus;
-
-$(document).ready(function () {
-    getListIndices();
-
+let originalIndexValues = [];
+let indexValues = [];
+$(document).ready(async function () {
+    let indexes = await getListIndices();
+    originalIndexValues = indexes.map(item => item.index);
+    indexValues = [...originalIndexValues];
+    initializeIndexAutocomplete();
+    
     $('#new-dashboard').css("transform", "translate(170px)")
     $('#new-dashboard').css("width", "calc(100% - 170px)")
 
@@ -1044,9 +1048,9 @@ function addPanel(chartIndex) {
             queryData = {
                 state: "query",
                 searchText: "city=Boston | stats count AS Count BY weekday",
-                startEpoch: "now-24h",
-                endEpoch: "now",
-                indexName: "test-data",
+                startEpoch: filterStartDate,
+                endEpoch: filterEndDate,
+                indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: "Splunk QL"
             };
@@ -1057,9 +1061,9 @@ function addPanel(chartIndex) {
             queryData = {
                 state: "query",
                 searchText: "city=Boston | stats count AS Count BY http_status",
-                startEpoch: "now-24h",
-                endEpoch: "now",
-                indexName: "test-data",
+                startEpoch: filterStartDate,
+                endEpoch: filterEndDate,
+                indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: "Splunk QL"
             };
@@ -1070,9 +1074,9 @@ function addPanel(chartIndex) {
             queryData = {
                 state: "query",
                 searchText: "*",
-                startEpoch: "now-24h",
-                endEpoch: "now",
-                indexName: "test-data",
+                startEpoch: filterStartDate,
+                endEpoch: filterEndDate,
+                indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: "Splunk QL"
             };
@@ -1083,9 +1087,9 @@ function addPanel(chartIndex) {
             queryData = {
                 state: "query",
                 searchText: "city=Boston | stats avg(latency)",
-                startEpoch: "now-24h",
-                endEpoch: "now",
-                indexName: "test-data",
+                startEpoch: filterStartDate,
+                endEpoch: filterEndDate,
+                indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: "Splunk QL"
             };
@@ -1097,9 +1101,9 @@ function addPanel(chartIndex) {
             queryData = {
                 state: "query",
                 searchText: "*",
-                startEpoch: "now-24h",
-                endEpoch: "now",
-                indexName: "test-data",
+                startEpoch: filterStartDate,
+                endEpoch: filterEndDate,
+                indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: "Splunk QL"
             };
