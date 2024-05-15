@@ -147,7 +147,6 @@ async function initializeIndexAutocomplete() {
         }
         $(this).autocomplete("option", "source", filteredIndexValues);
     }).on('change', function() {
-        console.log("close");
         // Clear the input field if the typed value does not match any options
         let typedValue = $(this).val();
         if (!indexValues.includes(typedValue)) {

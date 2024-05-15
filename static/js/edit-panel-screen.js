@@ -446,7 +446,6 @@ function editPanelInit(redirectedFromViewScreen) {
 		selectedSearchIndex = currentPanel.queryData.indexName;
 	}
 	if (selectedSearchIndex) {
-		console.log(selectedSearchIndex);
 		// Remove all existing selected indexes
 		$(".index-container .selected-index").remove();
 		const selectedIndexes = selectedSearchIndex.split(',');
