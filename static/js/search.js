@@ -671,7 +671,7 @@
 
       aggsColumnDefs = [];
       segStatsRowData = [];
-      renderMeasuresGrid(columnOrder, res.measure);
+      renderMeasuresGrid(columnOrder, res.measure,res.groupByCols);
     }
     let totalTime = new Date().getTime() - startQueryTime;
     let percentComplete = res.percent_complete;
@@ -736,7 +736,7 @@
  
          aggsColumnDefs=[];
          segStatsRowData=[]; 
-         renderMeasuresGrid(columnOrder, res.measure);
+         renderMeasuresGrid(columnOrder, res.measure, res.groupByCols);
  
      }
      let totalTime = (new Date()).getTime() - startQueryTime;
@@ -791,7 +791,7 @@
       $("#agg-result-container").show();
       aggsColumnDefs = [];
       segStatsRowData = [];
-      renderMeasuresGrid(columnOrder, res.measure);
+      renderMeasuresGrid(columnOrder, res.measure,res.groupByCols);
       if (
         (res.qtype === "aggs-query" || res.qtype === "segstats-query") &&
         res.bucketCount
@@ -855,7 +855,7 @@
          $("#agg-result-container").show();
          aggsColumnDefs=[];
          segStatsRowData=[];
-         renderMeasuresGrid(columnOrder, res.measure);
+         renderMeasuresGrid(columnOrder, res.measure, res.groupByCols);
          if ((res.qtype ==="aggs-query" || res.qtype === "segstats-query") && res.bucketCount){
              totalHits = res.bucketCount;
          }
