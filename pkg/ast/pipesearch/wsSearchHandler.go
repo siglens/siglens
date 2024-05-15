@@ -345,12 +345,13 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 			if qUpdate.RemoteID != "" {
 				doPull = true
 			}
-			aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := query.GetMeasureResultsForQid(qid, doPull, qUpdate.SegKeyEnc, aggs.BucketLimit)
+			aggMeasureRes, aggMeasureFunctions, aggGroupByCols, columnsOrder, bucketCount := query.GetMeasureResultsForQid(qid, doPull, qUpdate.SegKeyEnc, aggs.BucketLimit)
 			wsResponse.MeasureResults = aggMeasureRes
 			wsResponse.MeasureFunctions = aggMeasureFunctions
 			wsResponse.GroupByCols = aggGroupByCols
 			wsResponse.Qtype = qType.String()
 			wsResponse.BucketCount = bucketCount
+			wsResponse.ColumnsOrder = columnsOrder
 		}
 	case structs.RRCCmd:
 		useAnySegKey := false
@@ -405,6 +406,8 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 		}
 		wsResponse.AllPossibleColumns = allCols
 		wsResponse.Qtype = qType.String()
+
+		wsResponse.ColumnsOrder = allCols
 	}
 	return wsResponse, numRrcsAdded, nil
 }
