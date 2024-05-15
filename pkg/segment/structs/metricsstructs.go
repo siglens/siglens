@@ -23,7 +23,6 @@ import (
 	"path"
 	"sync/atomic"
 
-	pql "github.com/prometheus/prometheus/promql"
 	parser "github.com/prometheus/prometheus/promql/parser"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -51,6 +50,7 @@ type MetricsQuery struct {
 	OrgId           uint64 // organization id
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
+	TagValueSearchOnly  bool // flag to search only tag values
 }
 
 type Aggreation struct {
@@ -61,7 +61,7 @@ type Aggreation struct {
 type Function struct {
 	MathFunction  utils.MathFunctions
 	RangeFunction utils.RangeFunctions //range function to apply, only one of these will be non nil
-	Value         string
+	ValueList     []string
 	TimeWindow    float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
 }
 
@@ -93,9 +93,14 @@ type Label struct {
 	Name, Value string
 }
 
+type Result struct {
+	Metric map[string]string `json:"metric"`
+	Value  []interface{}     `json:"value"`
+}
+
 type Data struct {
 	ResultType parser.ValueType `json:"resultType"`
-	Result     []pql.Series     `json:"result,omitempty"`
+	Result     []Result         `json:"result,omitempty"`
 }
 type MetricsQueryResponsePromQl struct {
 	Status    string   `json:"status"` //success/error
