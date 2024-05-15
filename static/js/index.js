@@ -118,7 +118,7 @@ async function initializeIndexAutocomplete() {
     }).on('input', function() {
         let typedValue = $(this).val();
         const minWidth = 3; 
-        const inputWidth = Math.max(typedValue.length * 8, minWidth);
+        const inputWidth = Math.max(typedValue.length * 10, minWidth);
         this.style.width = inputWidth + 'px'; 
     
         // Check if the typed value matches any index exactly
@@ -146,6 +146,23 @@ async function initializeIndexAutocomplete() {
             filteredIndexValues.unshift(wildcardOption); // Add the option with "*" to the beginning of the array
         }
         $(this).autocomplete("option", "source", filteredIndexValues);
+    }).on('change', function() {
+        console.log("close");
+        // Clear the input field if the typed value does not match any options
+        let typedValue = $(this).val();
+        if (!indexValues.includes(typedValue)) {
+            $(this).val('');
+            this.style.width = '5px';
+        }
+    }).on('keypress', function(event) {
+        // Clear the input field if the typed value does not match any options when Enter is pressed
+        if (event.keyCode === 13) {
+            let typedValue = $(this).val();
+            if (!indexValues.includes(typedValue)) {
+                $(this).val('');
+                this.style.width = '5px';
+            }
+        }
     });
 }
 
