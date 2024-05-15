@@ -1324,7 +1324,7 @@ input:checked + .slider:before {
     top: 50px;
     cursor: default;
     box-shadow: var(--box-shadow);
-    z-index: 99;
+    z-index: 1;
 }
 
 #add-widget-options .editPanelMenu-options{

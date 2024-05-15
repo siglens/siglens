@@ -308,7 +308,7 @@ function handlePanelRemove(panelId) {
         });
     }
 
-    function deletePanel(panelId) {
+    async function deletePanel(panelId) {
         flagDBSaved = false;
     
         // Remove the panel element
@@ -326,6 +326,8 @@ function handlePanelRemove(panelId) {
         localPanels = localPanels.filter(function (el) {
             return el.panelIndex != panelIndex;
         });
+
+        await updateDashboard();
 }
 }
 
@@ -430,12 +432,13 @@ function handleDescriptionTooltip(panelId,description,searchText) {
 
 function handlePanelDuplicate() {
     $(".panel-dupl-li").unbind("click");
-    $(".panel-dupl-li").on("click", function () {
+    $(".panel-dupl-li").on("click", async function () {
         flagDBSaved = false;
         let duplicatedPanelIndex = $(this).closest(".panel").attr("panel-index");
         console.log(duplicatedPanelIndex);
         addDuplicatePanel(JSON.parse(JSON.stringify(localPanels[duplicatedPanelIndex])));
         renderDuplicatePanel(duplicatedPanelIndex);
+        await updateDashboard();
     })
 }
 

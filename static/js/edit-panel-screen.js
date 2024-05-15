@@ -473,12 +473,12 @@ $('#panelLogResultsGrid').hide();
 
 $('.panEdit-discard').on("click", goToDashboard)
 $('.panEdit-save').on("click",async function(redirectedFromViewScreen){
-	//  if (!currentPanel.queryData && currentPanel.chartType ==='Data Table' && currentPanel.queryType ==='logs') {
-    //     currentPanel.chartType = "";
-    //     currentPanel.queryType = "";
-    // }
-	// localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
-	// await updateDashboard();
+	 if (!currentPanel.queryData && currentPanel.chartType ==='Data Table' && currentPanel.queryType ==='logs') {
+        currentPanel.chartType = "";
+        currentPanel.queryType = "";
+    }
+	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
+	await updateDashboard();
 	// applyChangesToPanel(redirectedFromViewScreen)
 	$('.panelEditor-container').hide();
 	$('.popupOverlay').removeClass('active');
