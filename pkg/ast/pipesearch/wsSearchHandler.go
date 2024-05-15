@@ -275,7 +275,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 		log.Errorf("qid=%d, processCompleteUpdate: failed to get number of RRCs for qid! Error: %v", qid, err)
 	}
 
-	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, bucketCount := query.GetMeasureResultsForQid(qid, true, 0, aggs.BucketLimit) //aggs.BucketLimit
+	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, columnsOrder, bucketCount := query.GetMeasureResultsForQid(qid, true, 0, aggs.BucketLimit) //aggs.BucketLimit
 
 	var canScrollMore bool
 	if numRRCs == sizeLimit {
@@ -295,6 +295,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 		Qtype:               queryType.String(),
 		BucketCount:         bucketCount,
 		IsTimechart:         aggs.UsedByTimechart(),
+		ColumnsOrder:        columnsOrder,
 	}
 	searchErrors, err := query.GetUniqueSearchErrors(qid)
 	if err != nil {
@@ -344,12 +345,13 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 			if qUpdate.RemoteID != "" {
 				doPull = true
 			}
-			aggMeasureRes, aggMeasureFunctions, aggGroupByCols, bucketCount := query.GetMeasureResultsForQid(qid, doPull, qUpdate.SegKeyEnc, aggs.BucketLimit)
+			aggMeasureRes, aggMeasureFunctions, aggGroupByCols, columnsOrder, bucketCount := query.GetMeasureResultsForQid(qid, doPull, qUpdate.SegKeyEnc, aggs.BucketLimit)
 			wsResponse.MeasureResults = aggMeasureRes
 			wsResponse.MeasureFunctions = aggMeasureFunctions
 			wsResponse.GroupByCols = aggGroupByCols
 			wsResponse.Qtype = qType.String()
 			wsResponse.BucketCount = bucketCount
+			wsResponse.ColumnsOrder = columnsOrder
 		}
 	case structs.RRCCmd:
 		useAnySegKey := false
@@ -404,6 +406,8 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 		}
 		wsResponse.AllPossibleColumns = allCols
 		wsResponse.Qtype = qType.String()
+
+		wsResponse.ColumnsOrder = allCols
 	}
 	return wsResponse, numRrcsAdded, nil
 }

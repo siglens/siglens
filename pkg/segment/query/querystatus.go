@@ -18,6 +18,7 @@
 package query
 
 import (
+	"container/heap"
 	"fmt"
 	"math"
 	"sync"
@@ -27,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -320,19 +322,19 @@ func SetFinalStatsForQid(qid uint64, nodeResult *structs.NodeResult) error {
 
 // gets the measure results for the running query.
 // if the query is segment stats, it will delete the input segkeyenc
-func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit int) ([]*structs.BucketHolder, []string, []string, int) {
+func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit int) ([]*structs.BucketHolder, []string, []string, []string, int) {
 
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	if !ok {
 		log.Errorf("GetMeasureResultsForQid: qid %+v does not exist!", qid)
 		arqMapLock.RUnlock()
-		return nil, nil, nil, 0
+		return nil, nil, nil, nil, 0
 	}
 	defer arqMapLock.RUnlock()
 
 	if rQuery.searchRes == nil {
-		return nil, nil, nil, 0
+		return nil, nil, nil, nil, 0
 	}
 	switch rQuery.QType {
 	case structs.SegmentStatsCmd:
@@ -345,7 +347,7 @@ func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit 
 			}
 
 			// If after stats block's group by there is a statistic block's group by, we should only keep the groupby cols of the statistic block
-			bucketHolderArr, retMFuns, aggGroupByCols, added := rQuery.searchRes.GetGroupyByBuckets(rowCnt)
+			bucketHolderArr, retMFuns, aggGroupByCols, columnsOrder, added := rQuery.searchRes.GetGroupyByBuckets(rowCnt)
 
 			statisticGroupByCols := rQuery.searchRes.GetStatisticGroupByCols()
 			// If there is only one group by in the agg, we do not need to change groupbycols
@@ -355,12 +357,13 @@ func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit 
 
 			// Remove unused columns for Rename block
 			aggGroupByCols = rQuery.searchRes.RemoveUnusedGroupByCols(aggGroupByCols)
-			return bucketHolderArr, retMFuns, aggGroupByCols, added
+
+			return bucketHolderArr, retMFuns, aggGroupByCols, GetFinalColsOrder(columnsOrder), added
 		} else {
-			return nil, nil, nil, 0
+			return nil, nil, nil, nil, 0
 		}
 	default:
-		return nil, nil, nil, 0
+		return nil, nil, nil, nil, 0
 	}
 }
 
@@ -608,4 +611,31 @@ func GetUniqueSearchErrors(qid uint64) (string, error) {
 		}
 	}
 	return result, nil
+}
+
+// The colIndex within this map may be larger than the length of the map
+func GetFinalColsOrder(columnsOrder map[string]int) []string {
+	if columnsOrder == nil {
+		return []string{}
+	}
+
+	pq := make(putils.PriorityQueue, len(columnsOrder))
+	i := 0
+	for colName, colIndex := range columnsOrder {
+		pq[i] = &putils.Item{
+			Value:    colName,
+			Priority: -colIndex,
+			Index:    i,
+		}
+		i++
+	}
+
+	heap.Init(&pq)
+	colsArr := make([]string, 0)
+	for pq.Len() > 0 {
+		item := heap.Pop(&pq).(*putils.Item)
+		colsArr = append(colsArr, item.Value)
+	}
+	return colsArr
+
 }
