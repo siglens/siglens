@@ -463,6 +463,12 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 	httpRespOuter.BucketCount = nodeResult.BucketCount
 	httpRespOuter.DashboardPanelId = dbPanelId
 
+	httpRespOuter.ColumnsOrder = allCols
+	// The length of AllCols is 0, which means it is not a async query
+	if len(allCols) == 0 {
+		httpRespOuter.ColumnsOrder = query.GetFinalColsOrder(nodeResult.ColumnsOrder)
+	}
+
 	log.Infof("qid=%d, Query Took %+v ms", qid, httpRespOuter.ElapedTimeMS)
 
 	return httpRespOuter
