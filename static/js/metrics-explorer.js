@@ -27,7 +27,7 @@ let availableMetrics = [];
 let previousStartEpoch = null;
 let previousEndEpoch = null;
 let rawTimeSeriesData=[];
-let allFunctions;
+let allFunctions=[];
 
 
 // Theme
@@ -57,12 +57,14 @@ function metricsExplorerDatePickerHandler(evt) {
     $.each($(".range-item.active"), function () {
         $(this).removeClass('active');
     });
+    var selectedId = $(evt.currentTarget).attr('id'); // Capture the value of $(this).attr('id')
     $(evt.currentTarget).addClass('active');
-    datePickerHandler($(this).attr('id'), "now", $(this).attr('id'))
+    datePickerHandler(selectedId, "now", selectedId);
     // Update graph for each query
     Object.keys(queries).forEach(async function(queryName) {
         var queryDetails = queries[queryName];
-        await getQueryDetails(queryName,queryDetails)
+        console.log('get: ', selectedId); // Use selectedId here
+        await getQueryDetails(queryName, queryDetails, selectedId); // Use selectedId here
     });
     $('#daterangepicker').hide();
 }
@@ -700,7 +702,7 @@ function updateCloseIconVisibility() {
 }
 
 function addVisualizationContainer(queryName, seriesData, queryString, labels) {
-
+    console.log('labels: ', labels)
     var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
     if (existingContainer.length === 0){
         var visualizationContainer = $(`
@@ -720,12 +722,10 @@ function addVisualizationContainer(queryName, seriesData, queryString, labels) {
     }
     var ctx = canvas[0].getContext('2d');
     
-    // var labels = []
-    var datasets = []
-
     // Extract labels and datasets from seriesData
     if (seriesData.length > 0) {
-       datasets = seriesData.map(function(series, index) {
+        var labels = labels;
+        var datasets = seriesData.map(function(series, index) {
             return {
                 label: series.seriesName,
                 data: Object.values(series.values),
@@ -736,7 +736,8 @@ function addVisualizationContainer(queryName, seriesData, queryString, labels) {
             };
         });
     }else{
-        datasets = [];
+        var labels = [];
+        var datasets = [];
     }
     
     var chartData = {
@@ -753,6 +754,7 @@ function addVisualizationContainer(queryName, seriesData, queryString, labels) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            spanGaps: true,
             plugins: {
                 legend: {
                     position: 'bottom',
@@ -771,9 +773,6 @@ function addVisualizationContainer(queryName, seriesData, queryString, labels) {
                         display: true,
                         text: ''
                     },
-                    grid: {
-                        display: false
-                    }
                 },
                 y: {
                     display: true,
@@ -1105,20 +1104,12 @@ async function convertDataForChart(data) {
                 seriesName: data.series[i],
                 values: {}
             };
-            const intervalSec = data.timestamps.length > 1 ? data.timestamps[1] - data.timestamps[0] : 1;
 
-            let currentTime = data.startTime * 1000;
-
-           // Iterate over each timestamp within the range
-           for (let j = 0; j < data.timestamps.length; j++) {
-            const timestamp = data.timestamps[j];
-            // Check if there is a value for the current timestamp
-            const valueIndex = data.timestamps.indexOf(timestamp);
-            if (valueIndex !== -1) {
-                const value = data.values[i][valueIndex];
-                series.values[timestamp * 1000] = value; // Convert timestamp to milliseconds
+            for (let j = 0; j < data.timestamps.length; j++) {
+                // Convert epoch seconds to milliseconds by multiplying by 1000
+                let timestampInMilliseconds = data.timestamps[j] * 1000;
+                series.values[timestampInMilliseconds] = data.values[i][j];
             }
-        }
 
             seriesArray.push(series);
         }
@@ -1212,77 +1203,274 @@ function getTagKeyValue(metricName) {
     });
 }
 
+function roundTimeDown(milliseconds, roundingParam) {
+    let roundedMilliseconds;
 
-async function getQueryDetails(queryName, queryDetails){
-    const queryString = createQueryString(queryDetails);
-    await getMetricsData(queryName, queryString);
+    if(roundingParam === "5m" || roundingParam === "30m"){
+    // Convert milliseconds to minutes
+    var totalMinutes = Math.floor(milliseconds / (1000 * 60));
+    
+    // Round down to the nearest 5 minutes
+    var roundedMinutes 
 
-    // days
-    // const rawTimeSeriesData ={
-    //     intervalSec: 86400,
-    //     "series": ["testmetric3{color:green, method:put}", "testmetric3{color:yellow, method:get}", "testmetric3{color:red, method:get}"],
-    //     "timestamps": [1715588829, 1715675229, 1715761629, 1715848029, ],
-    //     "values": [
-    //       [1, 2, 3, 4],
-    //       [11, 12, 15, 16],
-    //       [31, 32, 35, 36],
-    //     ],
-    //     "startTime": 1714724829,
-    // }
-
-    // seconds
-    const rawTimeSeriesData ={
-        intervalSec: 10,
-        "series": ["testmetric3{color:green, method:put}", "testmetric3{color:yellow, method:get}", "testmetric3{color:red, method:get}"],
-        "timestamps": [1715588829, 1715588849, 1715588869, 1715588889],
-        "values": [
-          [1, 2, 3, 4],
-          [11, 12, 15, 16],
-          [31, 32, 35, 36],
-        ],
-        "startTime": 1715588829,
+    if(roundingParam === "5m"){
+        roundedMinutes=  Math.floor(totalMinutes / 5) * 5;
+    }
+    else if(roundingParam === "30m"){
+        roundedMinutes=  Math.floor(totalMinutes / 30) * 30;
     }
     
-    const chartData = await convertDataForChart(rawTimeSeriesData)
-    const startTime  = rawTimeSeriesData.startTime * 1000
+    // Convert the rounded minutes back to milliseconds
+    roundedMilliseconds = roundedMinutes * 60 * 1000;
+
+    }
+    if(roundingParam === "3h"){
+        // Convert milliseconds to hours
+        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
+        
+        // Round down to the nearest 3 hours
+        var roundedHours = Math.floor(totalHours / 3) * 3;
+        
+        // Convert the rounded hours back to milliseconds
+        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
+    }
+    if(roundingParam === "6h"){
+        // Convert milliseconds to hours
+        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
+
+        // Round down to the nearest 6 hours
+        var roundedHours = Math.floor(totalHours / 6) * 6;
+
+        // Convert the rounded hours back to milliseconds
+        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
+    }
+    if(roundingParam === "12h"){
+        // Convert milliseconds to hours
+        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
+        
+        // Round down to the nearest 12 hours
+        var roundedHours = Math.floor(totalHours / 12) * 12;
+        
+        // Convert the rounded hours back to milliseconds
+        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
+    }
+    if(roundingParam === "24h"){
+        // Convert milliseconds to hours
+        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
+        
+        // Round down to the nearest 24 hours
+        var roundedHours = Math.floor(totalHours / 24) * 24;
+        
+        // Convert the rounded hours back to milliseconds
+        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
+    }
+    
+    return roundedMilliseconds;
+}
+
+function getLabels(startTimeEpoch, endTime){
+    const startTime = startTimeEpoch * 1000;
     const currentTime = Date.now()
     const labels = [];
-    let currentLabel = null; // Variable to keep track of the current label
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    for (let i = startTime; i < currentTime; i += rawTimeSeriesData.intervalSec * 1000) {
-        // Convert the timestamp to human-readable format
+
+    if(endTime === "now-5m"){
+        let index = 0;
+
+        for (let i = startTime; i < currentTime; i += 60000 ) {
             const date = new Date(i);
-        let label = '';
-
-        // Check if the intervalSec is less than a day (86400 seconds)
-        if (rawTimeSeriesData.intervalSec < 86400) {
             const hours = date.getHours().toString().padStart(2, '0');
             const minutes = date.getMinutes().toString().padStart(2, '0');
-            label = `${hours}:${minutes}`;
-        } else {
+            const label = `${hours}:${minutes}`;
+
+            // if(index % 2 === 0){
+            //     labels.push(label);
+            // }
+            // else{
+            //     labels.push(' ')
+            // }
+            labels.push(label);
+            index+=1
+        }
+    }
+    else if(endTime === "now-15m"){
+        for (let i = startTime; i < currentTime; i += 60000 ) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const label = `${hours}:${minutes}`;
+
+            labels.push(label);
+        }
+    }
+    else if(endTime === "now-30m"){
+        const roundedStartTime = roundTimeDown(startTime, "5m");
+
+        for (let i = roundedStartTime; i < currentTime; i += 300000 ) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const label = `${hours}:${minutes}`;
+
+            labels.push(label);
+        }
+    }
+    else if(endTime === "now-1h"){
+        const roundedStartTime = roundTimeDown(startTime, "5m");
+        
+        for (let i = roundedStartTime; i < currentTime; i += 300000 ) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const label = `${hours}:${minutes}`;
+
+            labels.push(label);
+        }
+    }
+    else if(endTime === "now-3h"){
+        const roundedStartTime = roundTimeDown(startTime, "30m");
+
+        for (let i = roundedStartTime; i < currentTime; i += 1800000 ) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const label = `${hours}:${minutes}`;
+
+            labels.push(label);
+        }
+    }
+    else if(endTime === "now-6h"){
+        const roundedStartTime = roundTimeDown(startTime, "30m");
+
+        for (let i = roundedStartTime; i < currentTime; i += 1800000 ) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const label = `${hours}:${minutes}`;
+
+            labels.push(label);
+        }
+    }
+    else if(endTime === "now-12h"){
+        const roundedStartTime = roundTimeDown(startTime, "30m");
+
+        for (let i = roundedStartTime; i < currentTime; i += 1800000 ) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const label = `${hours}:${minutes}`;
+
+            labels.push(label);
+        }
+    }
+    else if(endTime === "now-24h"){
+        const roundedStartTime = roundTimeDown(startTime, "3h");
+        let currentDay = new Date(roundedStartTime).getDate()
+
+        for (let i = roundedStartTime; i < currentTime; i += 10800000 ) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
             const day = date.getDate();
             const month = date.getMonth();
-            const year = date.getFullYear();
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-            // Check if the intervalSec is of year
-            if (rawTimeSeriesData.intervalSec >= 31536000) {
-                label = year.toString();
-            } else if (rawTimeSeriesData.intervalSec >= 2592000) { // Check if the intervalSec is of month
-                label = monthNames[month];
-            } else { // Default case: intervalSec is of day
-                const suffix = ['th', 'st', 'nd', 'rd'][((day - 20) % 10)] || 'th';
-                label = `${day}${suffix} ${monthNames[month]}`;
+            let label = ''
+            
+            if(day > currentDay){
+                if(hours !== "00"){
+                    labels.push(`${daysOfWeek[date.getDay()]} ${day}`);
+                }
+                else{
+                    label = `${daysOfWeek[date.getDay()]} ${day}`
+                }
+                currentDay = day
             }
-        }
+            else{
+                label = `${hours}:${minutes}`;
+            }
 
-        // Check if the label has changed
-        if (label !== currentLabel) {
+            if(label){
+                labels.push(label);
+            }
+
+        }
+    }
+    else if(endTime === "now-2d"){
+        const roundedStartTime = roundTimeDown(startTime, "6h");
+
+        for (let i = roundedStartTime; i < currentTime; i += 21600000 ) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+            const month = date.getMonth();
+            let label = ''
+            
+            if(hours === "24"){
+                const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                label = `${daysOfWeek[date.getDay()]} ${day}`;
+            }
+            else{
+                 label = `${hours}:${minutes}`;
+            }
+
             labels.push(label);
-            currentLabel = label;
+        }
+    }
+    else if(endTime === "now-7d"){
+        const roundedStartTime = roundTimeDown(startTime, "12h");
+
+        for (let i = roundedStartTime; i < currentTime; i += 43200000 ) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+            const month = date.getMonth();
+            let label = ''
+            
+            if(hours === "24"){
+                const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                label = `${daysOfWeek[date.getDay()]} ${day}`;
+            }
+            else{
+                 label = `${hours}:${minutes}`;
+            }
+            
+            labels.push(label);
+        }
+    }
+    else if(endTime === "now-30d"){
+        const roundedStartTime = roundTimeDown(startTime, "24h");
+
+        for (let i = roundedStartTime; i < currentTime; i += 172800000 ) {
+            const date = new Date(i);
+            let label = ''
+
+            const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            label = `${daysOfWeek[date.getDay()]} ${day}`;
+
+            // when the month end comes, write "May" "June"
+            if(date.getDate() === 1){
+                label = `${monthNames[date.getMonth()]} ${date.getDate()}`;
+            }
+
+            labels.push(label);
         }
     }
 
+    console.log('labels: ', labels)
+
+    return labels
+}
+
+async function getQueryDetails(queryName, queryDetails, endTime="now-1h"){
+    console.log('end: ', endTime)
+    const queryString = createQueryString(queryDetails);
+    await getMetricsData(queryName, queryString);
+    const labels = getLabels(rawTimeSeriesData.startTime, endTime)
+    const chartData = await convertDataForChart(rawTimeSeriesData)
+    console.log('chartData ', chartData)
     addVisualizationContainer(queryName, chartData, queryString, labels);
 }
 
@@ -1336,5 +1524,4 @@ function getFunctions() {
         }
     })
 }
-
 
