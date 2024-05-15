@@ -227,7 +227,6 @@ function panelLogOptionTableHandler(panelGridOptions,panelLogsColumnDefs) {
 
 
 function renderPanelAggsGrid(columnOrder, hits,panelId, groupByCols) {
-    console.log(columnOrder, hits, panelId, groupByCols)
     let aggsColumnDefs = [];
     let segStatsRowData=[];
     const aggGridOptions = {
