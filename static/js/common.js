@@ -225,28 +225,18 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
         //for aggs-query and segstats-query
         if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
             let columnOrder = []
-            if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
-                columnOrder = res.columnsOrder
-            }else{
-                if (res.groupByCols) {
-                    columnOrder = _.uniq(_.concat(
-                        res.groupByCols));
-                }
-                if (res.measureFunctions) {
-                    columnOrder = _.uniq(_.concat(
-                        columnOrder, res.measureFunctions));
-                }
+            if (res.groupByCols) {
+                columnOrder = _.uniq(_.concat(
+                    res.groupByCols));
             }
-            renderPanelAggsGrid(columnOrder, res.measure,panelId,res.groupByCols)
+            if (res.measureFunctions) {
+                columnOrder = _.uniq(_.concat(
+                    columnOrder, res.measureFunctions));
+            }
+            renderPanelAggsGrid(columnOrder, res.measure,panelId)
         }//for logs-query
         else if(res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
-            let columnOrder = []
-            if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
-                columnOrder = res.columnsOrder
-            }else{
-                columnOrder = res.allColumns
-            }
-            renderPanelLogsGrid(columnOrder, res.hits.records, panelId, logLinesViewType);
+            renderPanelLogsGrid(res.allColumns, res.hits.records, panelId, logLinesViewType);
         }
         allResultsDisplayed--;
         if(allResultsDisplayed <= 0 || panelId === -1) {
@@ -454,18 +444,16 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
         }
 
         let columnOrder = []
-        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder
-        }else{
-            if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(
-                    res.groupByCols));
-            }
-            if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(
-                    columnOrder, res.measureFunctions));
-            }
+        if (res.groupByCols) {
+            columnOrder = _.uniq(_.concat(
+                res.groupByCols));
         }
+
+        if (res.measureFunctions) {
+            columnOrder = _.uniq(_.concat(
+                columnOrder, res.measureFunctions));
+        }
+
         if (res.errors) {
             panelProcessEmptyQueryResults(res.errors[0], panelId);
         } else {
@@ -481,7 +469,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             } else {
                 // for number, bar and pie charts
                 if(panelId ===-1)
-                    renderPanelAggsGrid(columnOrder, res.measure,panelId,res.groupByCols);
+                    renderPanelAggsGrid(columnOrder, res.measure,panelId);
 
                 panelChart = renderBarChart(columnOrder, res.measure, panelId, chartType, dataType, panelIndex);
             }
@@ -851,15 +839,4 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
             }
             break;
     }
-}
-
-// Function to find the index of a column in the Map
-function findColumnIndex(columnsMap, columnName) {
-    // Iterate over the Map entries
-    for (const [ index,name] of columnsMap.entries()) {
-        if (name === columnName) {
-            return index; // Return the index if the column name matches
-        }
-    }
-    return -1; // Return -1 if the column name is not found
 }
