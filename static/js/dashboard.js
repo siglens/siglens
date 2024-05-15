@@ -32,8 +32,8 @@ $(document).ready(function () {
     $('#new-dashboard').css("transform", "translate(170px)")
     $('#new-dashboard').css("width", "calc(100% - 170px)")
 
-    panelContainer = document.getElementById('panel-container');
-    panelContainerWidthGlobal = panelContainer.offsetWidth-215;
+    // panelContainer = document.getElementById('panel-container');
+    // panelContainerWidthGlobal = panelContainer.offsetWidth-215;
 
     $('.panelEditor-container').hide();
     $('.dbSet-container').hide();
@@ -86,7 +86,7 @@ $(document).ready(function () {
             !$(event.target).closest('.default-item').length &&
             !$(event.target).closest('#add-widget-options').length &&
             !$(event.target).closest('#add-panel-btn').length &&
-            !$(event.target).closest('.grid-items').length
+            !$(event.target).closest('.grid-stack-item').length
         ) {
             $('.default-item').removeClass('active');
             $('.add-panel-div .text').text('Add Panel');
@@ -168,11 +168,11 @@ $(`.dbSet-textareaContainer .copy`).click(function() {
         })
 });
 
-function recalculatePanelWidths(){
-    localPanels.map(localPanel => {
-        localPanel.gridpos.w = localPanel.gridpos.wPercent * panelContainerWidthGlobal;
-    })
-}
+// function recalculatePanelWidths(){
+//     localPanels.map(localPanel => {
+//         localPanel.gridpos.w = localPanel.gridpos.wPercent * panelContainerWidthGlobal;
+//     })
+// }
 
 $('#save-db-btn').on("click", updateDashboard);
 $('.refresh-btn').on("click", refreshDashboardHandler);
@@ -238,6 +238,7 @@ function refreshDashboardHandler() {
 }
 
 function handlePanelView() {
+    console.log("Handle panel view");
     $(".panel-view-li").unbind("click");
     $(".panel-view-li").on("click", function () {
         panelIndex = $(this).closest(".panel").attr("panel-index");
@@ -309,20 +310,23 @@ function handlePanelRemove(panelId) {
 
     function deletePanel(panelId) {
         flagDBSaved = false;
+    
+        // Remove the panel element
         const panel = $(`#panel${panelId}`);
+        panel.remove();
+    
+        // Remove the corresponding grid-stack-item
+        const gridItem = $(`#${panelId}`);
+        if (gridItem.length > 0) {
+            grid.removeWidget(gridItem.get(0));
+        }
+    
+        // Remove the panel data from the localPanels array
         let panelIndex = panel.attr("panel-index");
-
         localPanels = localPanels.filter(function (el) {
             return el.panelIndex != panelIndex;
         });
-        panel.remove();
-
-        resetPanelIndices();
-        resetPanelLocationsHorizontally();
-        resetPanelLocationsVertically();
-        resetPanelContainerHeight();
-        displayPanels();
-    }
+}
 }
 
 function handleDescriptionTooltip(panelId,description,searchText) {
@@ -355,96 +359,97 @@ function handleDescriptionTooltip(panelId,description,searchText) {
     function () {panelDescIcon.tooltip('hide');});
 }
 
-function resetPanelLocationsHorizontally() {
-    let temp = [];
-    for (let i = 0; i < localPanels.length; i++) {
-        let x = localPanels[i].gridpos.x;
-        temp.push([x, i]);
-    }
-    temp.sort((a, b) => a[0] - b[0]);
-    let indices = [];
-    for (let i = 0; i < temp.length; i++)
-        indices.push(temp[i][1])
+// function resetPanelLocationsHorizontally() {
+//     let temp = [];
+//     for (let i = 0; i < localPanels.length; i++) {
+//         let x = localPanels[i].gridpos.x;
+//         temp.push([x, i]);
+//     }
+//     temp.sort((a, b) => a[0] - b[0]);
+//     let indices = [];
+//     for (let i = 0; i < temp.length; i++)
+//         indices.push(temp[i][1])
 
-    for (let i = 0; i < indices.length; i++) {
-        let hRight = localPanels[indices[i]].gridpos.h;
-        let wRight = localPanels[indices[i]].gridpos.wPercent * panelContainerWidthGlobal;
-        let xRight = localPanels[indices[i]].gridpos.x;
-        let yRight = localPanels[indices[i]].gridpos.y;
+//     for (let i = 0; i < indices.length; i++) {
+//         let hRight = localPanels[indices[i]].gridpos.h;
+//         let wRight = localPanels[indices[i]].gridpos.wPercent * panelContainerWidthGlobal;
+//         let xRight = localPanels[indices[i]].gridpos.x;
+//         let yRight = localPanels[indices[i]].gridpos.y;
 
-        let xmax = 0;
-        for (let j = 0; j < i; j++) {
-            let hLeft = localPanels[indices[j]].gridpos.h;
-            let wLeft = localPanels[indices[j]].gridpos.w;
-            let xLeft = localPanels[indices[j]].gridpos.x;
-            let yLeft = localPanels[indices[j]].gridpos.y;
+//         let xmax = 0;
+//         for (let j = 0; j < i; j++) {
+//             let hLeft = localPanels[indices[j]].gridpos.h;
+//             let wLeft = localPanels[indices[j]].gridpos.w;
+//             let xLeft = localPanels[indices[j]].gridpos.x;
+//             let yLeft = localPanels[indices[j]].gridpos.y;
 
-            if ((yLeft >= yRight && yLeft <= yRight + hRight) || (yLeft + hLeft >= yRight && yLeft + hLeft <= yRight + hRight) || (yLeft <= yRight && yLeft + hLeft >= yRight + hRight)) {
-                xmax = Math.max(xmax, xLeft + wLeft);
-            }
-        }
+//             if ((yLeft >= yRight && yLeft <= yRight + hRight) || (yLeft + hLeft >= yRight && yLeft + hLeft <= yRight + hRight) || (yLeft <= yRight && yLeft + hLeft >= yRight + hRight)) {
+//                 xmax = Math.max(xmax, xLeft + wLeft);
+//             }
+//         }
 
-        if ((xmax + wRight) < ($('#panel-container')[0].offsetWidth + $('#panel-container')[0].offsetLeft - 20)) {
-            localPanels[indices[i]].gridpos.x = xmax + 10;
-        }
-    }
-}
+//         if ((xmax + wRight) < ($('#panel-container')[0].offsetWidth + $('#panel-container')[0].offsetLeft - 20)) {
+//             localPanels[indices[i]].gridpos.x = xmax + 10;
+//         }
+//     }
+// }
 
-function resetPanelLocationsVertically() {
-    let temp = [];
+// function resetPanelLocationsVertically() {
+//     let temp = [];
 
-    for (let i = 0; i < localPanels.length; i++) {
-        let y = localPanels[i].gridpos.y;
-        temp.push([y, i]);
-    }
-    temp.sort((a, b) => a[0] - b[0]);
-    let indices = [];
-    for (let i = 0; i < temp.length; i++)
-        indices.push(temp[i][1])
+//     for (let i = 0; i < localPanels.length; i++) {
+//         let y = localPanels[i].gridpos.y;
+//         temp.push([y, i]);
+//     }
+//     temp.sort((a, b) => a[0] - b[0]);
+//     let indices = [];
+//     for (let i = 0; i < temp.length; i++)
+//         indices.push(temp[i][1])
 
-    for (let i = 0; i < indices.length; i++) {
-        let hDown = localPanels[indices[i]].gridpos.h;
-        let wDown = localPanels[indices[i]].gridpos.w;
-        let xDown = localPanels[indices[i]].gridpos.x;
-        let yDown = localPanels[indices[i]].gridpos.y;
+//     for (let i = 0; i < indices.length; i++) {
+//         let hDown = localPanels[indices[i]].gridpos.h;
+//         let wDown = localPanels[indices[i]].gridpos.w;
+//         let xDown = localPanels[indices[i]].gridpos.x;
+//         let yDown = localPanels[indices[i]].gridpos.y;
 
-        let ymax = 10;
-        for (let j = 0; j < i; j++) {
-            let hTop = localPanels[indices[j]].gridpos.h;
-            let wTop = localPanels[indices[j]].gridpos.w;
-            let xTop = localPanels[indices[j]].gridpos.x;
-            let yTop = localPanels[indices[j]].gridpos.y;
+//         let ymax = 10;
+//         for (let j = 0; j < i; j++) {
+//             let hTop = localPanels[indices[j]].gridpos.h;
+//             let wTop = localPanels[indices[j]].gridpos.w;
+//             let xTop = localPanels[indices[j]].gridpos.x;
+//             let yTop = localPanels[indices[j]].gridpos.y;
 
-            if ((xTop >= xDown && xTop <= xDown + wDown) || (xTop + wTop >= xDown && xTop + wTop <= xDown + wDown) || (xTop <= xDown && xTop + wTop >= xDown + wDown)) {
-                ymax = Math.max(ymax, yTop + hTop);
-            }
-        }
+//             if ((xTop >= xDown && xTop <= xDown + wDown) || (xTop + wTop >= xDown && xTop + wTop <= xDown + wDown) || (xTop <= xDown && xTop + wTop >= xDown + wDown)) {
+//                 ymax = Math.max(ymax, yTop + hTop);
+//             }
+//         }
 
-        localPanels[indices[i]].gridpos.y = ymax + 10;
-    }
-}
+//         localPanels[indices[i]].gridpos.y = ymax + 10;
+//     }
+// }
 
 function handlePanelDuplicate() {
     $(".panel-dupl-li").unbind("click");
     $(".panel-dupl-li").on("click", function () {
         flagDBSaved = false;
         let duplicatedPanelIndex = $(this).closest(".panel").attr("panel-index");
+        console.log(duplicatedPanelIndex);
         addDuplicatePanel(JSON.parse(JSON.stringify(localPanels[duplicatedPanelIndex])));
         renderDuplicatePanel(duplicatedPanelIndex);
     })
 }
 
 function renderDuplicatePanel(duplicatedPanelIndex) {
-    let boundaryY = localPanels[duplicatedPanelIndex].gridpos.y + localPanels[duplicatedPanelIndex].gridpos.h;
-    for (let i = 0; i < localPanels.length; i++) {
-        if (localPanels[i].panelIndex == localPanels.length - 1) continue; // this is the newly created duplicate panel.
-        if (localPanels[i].gridpos.y >= boundaryY) // if any panel starts after the ending Y-cordinate of the duplicated panel, then it should be shifted downwards
-            localPanels[i].gridpos.y += localPanels[duplicatedPanelIndex].gridpos.h + 20;
-    }
-    resetPanelLocationsVertically();
-    resetPanelLocationsHorizontally();
-    resetPanelContainerHeight();
-    displayPanelsWithoutRefreshing();
+    // let boundaryY = localPanels[duplicatedPanelIndex].gridpos.y + localPanels[duplicatedPanelIndex].gridpos.h;
+    // for (let i = 0; i < localPanels.length; i++) {
+    //     if (localPanels[i].panelIndex == localPanels.length - 1) continue; // this is the newly created duplicate panel.
+    //     if (localPanels[i].gridpos.y >= boundaryY) // if any panel starts after the ending Y-cordinate of the duplicated panel, then it should be shifted downwards
+    //         localPanels[i].gridpos.y += localPanels[duplicatedPanelIndex].gridpos.h + 20;
+    // }
+    // resetPanelLocationsVertically();
+    // resetPanelLocationsHorizontally();
+    // resetPanelContainerHeight();
+    // displayPanelsWithoutRefreshing();
     let localPanel = localPanels[localPanels.length - 1];
     let panelId = localPanels[localPanels.length - 1].panelId;
     // only render the duplicated panel
@@ -610,7 +615,7 @@ grid.on('resizestop', function(event, items) {
     $('.default-item').show();
 });
 function displayPanels() {
-
+    console.log(localPanels);
     allResultsDisplayed = localPanels.length;
     grid.removeAll();
     let panelContainerMinHeight = 0;
@@ -638,7 +643,7 @@ function displayPanels() {
         });
         
         // Append panel layout to the new grid-stack-item
-        var panelDiv = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", panelIndex);
+        var panelDiv = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", localPanel.panelIndex);
         newItem.firstChild.appendChild(panelDiv[0]);
 
         // Rest of your code for handling panel interactions
@@ -731,19 +736,20 @@ function displayPanels() {
                 runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
             else
                 runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
-        } else
+        } else{
             allResultsDisplayed--;
+        }
+            handlePanelEdit();
+            handlePanelView();
+            handlePanelRemove(idpanel);
+    handlePanelDuplicate();
+
     })
     if(allResultsDisplayed === 0) {
         $('body').css('cursor', 'default');
     }
     
-    var defaultItem = grid.addWidget(`<div class="grid-stack-item default-item active"><div class="add-panel-div">
-    <div class="plus-icon">+</div>
-    <div class="text">Select the Panel Type</div>
-    </div></div>`, {width: 4,height:2,  noResize: true,
-        // Disable dragging for the default item
-        noMove: true});
+    addDefaultPanel();
 }   
 
 
@@ -820,9 +826,6 @@ function displayPanels() {
     // })
     // if(allResultsDisplayed === 0) {
     // }
-    // handlePanelView();
-    // handlePanelEdit();
-    // handlePanelDuplicate();
     // resetPanelContainerHeight();
 // }
 
@@ -1318,9 +1321,9 @@ function addPanel(chartIndex) {
     // resetPanelContainerHeight();
 
     // handlePanelView();
-    // handlePanelEdit();
-    // handlePanelRemove(idpanel);
-    // handlePanelDuplicate();
+    handlePanelEdit();
+    handlePanelRemove(idpanel);
+    handlePanelDuplicate();
     // handleDrag(idpanel);
     // handleResize(idpanel);
     // $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: 'smooth' });
@@ -1329,8 +1332,13 @@ function addPanel(chartIndex) {
 
 
 function addDuplicatePanel(panelToDuplicate) {
+    // console.log("panelToDuplicate", panelToDuplicate);
+    console.log(localPanels[panelToDuplicate])
     flagDBSaved = false;
     panelIndex = localPanels.length;
+    var defaultWidget = $('.default-item').get(0); // Get the DOM element
+    // Remove the default widget from the grid
+    grid.removeWidget(defaultWidget);
     let idpanel = uuidv4();
     let panel = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", panelIndex);
     $("#panel-container").append(panel);
@@ -1345,23 +1353,16 @@ function addDuplicatePanel(panelToDuplicate) {
         $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
     });
     $(`#panel${idpanel} .panel-info-corner`).hide();
-    let marginTop = 0;
+    var newItem = grid.addWidget(`<div class="grid-stack-item" id="${idpanel}"><div class="grid-stack-item-content"></div></div>`, { width: panelToDuplicate.gridpos.w, height: panelToDuplicate.gridpos.h });
 
-    localPanels.map((localPanel) => {
-        let val = localPanel.gridpos.y + localPanel.gridpos.h;
-        if (val > marginTop) marginTop = val;
-    })
+    // Insert panel content into grid-stack-item-content
+    newItem.firstChild.appendChild(panel[0]);
 
-    let panelElement = document.getElementById(`panel${idpanel}`);
-    let panelHeight = panelToDuplicate.gridpos.h;
-    let panelWidth = panelToDuplicate.gridpos.w;
-    let panelTop = panelToDuplicate.gridpos.y + panelToDuplicate.gridpos.h + 20;
-    let panelLeft = panelToDuplicate.gridpos.x;
-    let panelWidthPercentage = panelWidth / panelContainerWidthGlobal;
+    let panelTop = newItem.getAttribute('data-gs-x');
+    let panelLeft = newItem.getAttribute('data-gs-y');
+    let panelWidth = newItem.getAttribute('data-gs-width');
+    let panelHeight = newItem.getAttribute('data-gs-height')
 
-    panelElement.style.position = "absolute"
-    panelElement.style.top = panelTop + "px"
-    panelElement.style.left = panelLeft + "px"
 
     panelToDuplicate.panelId = idpanel;
     panelToDuplicate.name += "Copy";
@@ -1373,35 +1374,41 @@ function addDuplicatePanel(panelToDuplicate) {
     if (panelToDuplicate.description){
         handleDescriptionTooltip(panelToDuplicate.panelId,panelToDuplicate.description)
     }
-
     localPanels.push(JSON.parse(JSON.stringify(panelToDuplicate)))
-
-    resetPanelContainerHeight();
     handlePanelView();
     handlePanelEdit();
     handlePanelRemove(idpanel);
     handlePanelDuplicate();
-    handleDrag(idpanel);
-    handleResize(idpanel);
     $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: 'smooth' });
-}
+    console.log(localPanels);
 
-function resetPanelContainerHeight() {
-    let panelContainerMinHeight = 0;
-    localPanels.map((localPanel, index) => {
-        let val = localPanel.gridpos.y + localPanel.gridpos.h;
-        if (val > panelContainerMinHeight) panelContainerMinHeight = val;
-    })
-    let panelContainer = document.getElementById('panel-container');
-    panelContainer.style.minHeight = panelContainerMinHeight + 50 + "px";
+    addDefaultPanel();
 }
+function addDefaultPanel(){
+    var defaultItem = grid.addWidget(`<div class="grid-stack-item default-item active"><div class="add-panel-div">
+    <div class="plus-icon">+</div>
+    <div class="text">Select the Panel Type</div>
+    </div></div>`, {width: 4,height:2,  noResize: true,
+        // Disable dragging for the default item
+        noMove: true});
 
-window.onbeforeunload = function () {
-    if (!flagDBSaved) {
-        return "Unsaved panel changes will be lost if you leave the page, are you sure?";
-    }
-    else return;
-};
+}
+// function resetPanelContainerHeight() {
+//     let panelContainerMinHeight = 0;
+//     localPanels.map((localPanel, index) => {
+//         let val = localPanel.gridpos.y + localPanel.gridpos.h;
+//         if (val > panelContainerMinHeight) panelContainerMinHeight = val;
+//     })
+//     let panelContainer = document.getElementById('panel-container');
+//     panelContainer.style.minHeight = panelContainerMinHeight + 50 + "px";
+// }
+
+// window.onbeforeunload = function () {
+//     if (!flagDBSaved) {
+//         return "Unsaved panel changes will be lost if you leave the page, are you sure?";
+//     }
+//     else return;
+// };
 
 
 // DASHBOARD SETTINGS PAGE
