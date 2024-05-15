@@ -436,7 +436,12 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 		}
 	}
 
-	allMeasRes, measFuncs, _ := segresults.CreateMeasResultsFromAggResults(aggs.BucketLimit, nodeResult.Histogram)
+	allMeasRes, measFuncs, added := segresults.CreateMeasResultsFromAggResults(aggs.BucketLimit, nodeResult.Histogram)
+
+	if added == 0 {
+		allMeasRes = nodeResult.MeasureResults
+		measFuncs= nodeResult.MeasureFunctions
+	}
 
 	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid, nodeResult.SegEncToKey, aggs)
 	if err != nil {
