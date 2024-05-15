@@ -107,8 +107,8 @@ func parseTimeRangeInMS(ctx *fasthttp.RequestCtx, defaultDelta uint64) (uint64, 
 			if err != nil {
 				return 0, 0, err
 			}
-			endTimeMs = timeInMS
-			startTimeMs = endTimeMs - 90*DAY_IN_MS
+			startTimeMs = timeInMS - 1*1000 // subtract 1 second
+			endTimeMs = timeInMS + 1*1000   // add 1  second
 
 			return startTimeMs, endTimeMs, nil
 		}
