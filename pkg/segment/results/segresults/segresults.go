@@ -90,6 +90,7 @@ type SearchResults struct {
 	SegKeyToEnc      map[string]uint16
 	SegEncToKey      map[uint16]string
 	MaxSegKeyEnc     uint16
+	ColumnsOrder     map[string]int
 
 	statsAreFinal bool // If true, segStatsResults and convertedBuckets must not change.
 }
@@ -486,12 +487,12 @@ func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordRe
 	return finalLogs, allCols, nil
 }
 
-func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.BucketHolder, []string, []string, int) {
+func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.BucketHolder, []string, []string, []string, int) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 
 	if sr.segStatsResults == nil {
-		return nil, nil, nil, 0
+		return nil, nil, nil, nil, 0
 	}
 	delete(sr.allSSTS, skEnc)
 	bucketHolder := &structs.BucketHolder{}
@@ -508,7 +509,7 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.Bucket
 		}
 	}
 	aggMeasureResult := []*structs.BucketHolder{bucketHolder}
-	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, len(sr.segStatsResults.measureResults)
+	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, nil, len(sr.segStatsResults.measureResults)
 }
 
 func (sr *SearchResults) GetSegmentStatsMeasureResults() map[string]utils.CValueEnclosure {
@@ -523,7 +524,7 @@ func (sr *SearchResults) GetSegmentRunningStats() []*structs.SegStats {
 	return sr.runningSegStat
 }
 
-func (sr *SearchResults) GetGroupyByBuckets(limit int) ([]*structs.BucketHolder, []string, []string, int) {
+func (sr *SearchResults) GetGroupyByBuckets(limit int) ([]*structs.BucketHolder, []string, []string, map[string]int, int) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 
@@ -535,9 +536,9 @@ func (sr *SearchResults) GetGroupyByBuckets(limit int) ([]*structs.BucketHolder,
 		sr.convertedBuckets)
 
 	if sr.sAggs == nil || sr.sAggs.GroupByRequest == nil {
-		return bucketHolderArr, retMFuns, nil, added
+		return bucketHolderArr, retMFuns, nil, make(map[string]int), added
 	} else {
-		return bucketHolderArr, retMFuns, sr.sAggs.GroupByRequest.GroupByColumns, added
+		return bucketHolderArr, retMFuns, sr.sAggs.GroupByRequest.GroupByColumns, sr.ColumnsOrder, added
 	}
 }
 
@@ -657,6 +658,7 @@ func (sr *SearchResults) SetFinalStatsFromNodeResult(nodeResult *structs.NodeRes
 		return fmt.Errorf("SetFinalStatsFromNodeResult: stats are already final")
 	}
 
+	sr.ColumnsOrder = nodeResult.ColumnsOrder
 	if len(nodeResult.GroupByCols) > 0 {
 		sr.convertedBuckets = nodeResult.Histogram
 	} else {
