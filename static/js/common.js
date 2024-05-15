@@ -225,18 +225,24 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
         //for aggs-query and segstats-query
         if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
             let columnOrder = []
-            if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(
-                    res.groupByCols));
+            if (res.allColumns !=undefined && res.allColumns.length > 0) {
+                columnOrder = res.allColumns
+            }else{
+                if (res.groupByCols) {
+                    columnOrder = _.uniq(_.concat(
+                        res.groupByCols));
+                }
             }
-            if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(
-                    columnOrder, res.measureFunctions));
-            }
-            renderPanelAggsGrid(columnOrder, res.measure,panelId)
+            renderPanelAggsGrid(columnOrder, res.measure,panelId,res.groupByCols)
         }//for logs-query
         else if(res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
-            renderPanelLogsGrid(res.allColumns, res.hits.records, panelId, logLinesViewType);
+            let columnOrder = []
+            if (res.allColumns !=undefined && res.allColumns.length > 0) {
+                columnOrder = res.allColumns
+            }else{
+                columnOrder = res.allColumns
+            }
+            renderPanelLogsGrid(columnOrder, res.hits.records, panelId, logLinesViewType);
         }
         allResultsDisplayed--;
         if(allResultsDisplayed <= 0 || panelId === -1) {
@@ -444,16 +450,18 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
         }
 
         let columnOrder = []
-        if (res.groupByCols) {
-            columnOrder = _.uniq(_.concat(
-                res.groupByCols));
+        if (res.allColumns !=undefined && res.allColumns.length > 0) {
+            columnOrder = res.allColumns
+        }else{
+            if (res.groupByCols) {
+                columnOrder = _.uniq(_.concat(
+                    res.groupByCols));
+            }
+            if (res.measureFunctions) {
+                columnOrder = _.uniq(_.concat(
+                    columnOrder, res.measureFunctions));
+            }
         }
-
-        if (res.measureFunctions) {
-            columnOrder = _.uniq(_.concat(
-                columnOrder, res.measureFunctions));
-        }
-
         if (res.errors) {
             panelProcessEmptyQueryResults(res.errors[0], panelId);
         } else {
@@ -469,7 +477,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             } else {
                 // for number, bar and pie charts
                 if(panelId ===-1)
-                    renderPanelAggsGrid(columnOrder, res.measure,panelId);
+                    renderPanelAggsGrid(columnOrder, res.measure,panelId,res.groupByCols);
 
                 panelChart = renderBarChart(columnOrder, res.measure, panelId, chartType, dataType, panelIndex);
             }

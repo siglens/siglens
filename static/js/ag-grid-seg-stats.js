@@ -21,7 +21,7 @@
 
  let eGridDiv = null;
  
- function renderMeasuresGrid(columnOrder, hits) {
+ function renderMeasuresGrid(columnOrder, hits, groupByCols) {
      if (eGridDiv === null) {
          eGridDiv = document.querySelector('#measureAggGrid');
          new agGrid.Grid(eGridDiv, aggGridOptions);
@@ -46,8 +46,11 @@
      $.each(hits, function (key, resMap) {
         newRow.set("id", 0)
         columnOrder.map((colName, index) => {
-            if (resMap.GroupByValues!=null && resMap.GroupByValues[index]!="*" && index< (resMap.GroupByValues).length){
-                newRow.set(colName, resMap.GroupByValues[index])
+            let ind = -1;
+            if (groupByCols != undefined && groupByCols.length > 0)
+                ind = findColumnIndex(groupByCols, colName)
+            if (resMap.GroupByValues!=null && resMap.GroupByValues[ind]!="*" &&  ind< (resMap.GroupByValues).length && ind != -1){
+                newRow.set(colName, resMap.GroupByValues[ind])
             }else{
                 // Check if MeasureVal is undefined or null and set it to 0
                 if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {
@@ -55,7 +58,7 @@
                 } else {
                     newRow.set(colName, resMap.MeasureVal[colName]);
                 }
-            }
+            }            
         })
          segStatsRowData = _.concat(segStatsRowData, Object.fromEntries(newRow));
      })
@@ -71,3 +74,14 @@
     let metrics = context.measureText(text);
     return metrics.width;
   }
+
+  // Function to find the index of a column in the Map
+function findColumnIndex(columnsMap, columnName) {
+    // Iterate over the Map entries
+    for (const [ index,name] of columnsMap.entries()) {
+        if (name === columnName) {
+            return index; // Return the index if the column name matches
+        }
+    }
+    return -1; // Return -1 if the column name is not found
+}
