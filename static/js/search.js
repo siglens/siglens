@@ -691,7 +691,12 @@
      if (res.hits && res.hits.records!== null && res.hits.records.length >= 1 && res.qtype === "logs-query") {
       let columnOrder = []
       if (res.columnsOrder !=undefined && res.columnsOrder.length >0){
-        columnOrder = res.columnsOrder
+        columnOrder = _.uniq(_.concat(
+          // make timestamp the first column
+          'timestamp',
+          // make logs the second column
+          'logs',
+          res.columnsOrder));
       }else{
         columnOrder = _.uniq(_.concat(
           // make timestamp the first column
