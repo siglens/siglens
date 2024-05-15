@@ -930,7 +930,7 @@ func CreateMeasResultsFromAggResults(limit int,
 				groupByValues = append(groupByValues, bKey)
 				added++
 			default:
-				log.Errorf("Received an unknown type for bucket key! %+v", bKey)
+				log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", bKey)
 			}
 			bucketHolder := &structs.BucketHolder{
 				GroupByValues: groupByValues,
