@@ -236,7 +236,7 @@ func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Qu
 			bucketLimit = queryInfo.aggs.BucketLimit
 		}
 	}
-	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, bucketCount := allSegFileResults.GetGroupyByBuckets(bucketLimit)
+	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetGroupyByBuckets(bucketLimit)
 	return &structs.NodeResult{
 		AllRecords:       allSegFileResults.GetResults(),
 		ErrList:          allSegFileResults.GetAllErrors(),
@@ -288,7 +288,7 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 	}
 	querySummary.UpdateQueryTotalTime(time.Since(sTime), allSegFileResults.GetNumBuckets())
 	queryType := GetQueryType(queryInfo.qid)
-	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, bucketCount := allSegFileResults.GetSegmentStatsResults(0)
+	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetSegmentStatsResults(0)
 	err = queryInfo.Wait(querySummary)
 	if err != nil {
 		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
