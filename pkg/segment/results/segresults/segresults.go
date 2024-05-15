@@ -90,6 +90,7 @@ type SearchResults struct {
 	SegKeyToEnc      map[string]uint16
 	SegEncToKey      map[uint16]string
 	MaxSegKeyEnc     uint16
+	ColumnsOrder     map[string]int
 
 	statsAreFinal bool // If true, segStatsResults and convertedBuckets must not change.
 }
@@ -486,12 +487,12 @@ func (sr *SearchResults) GetRemoteInfo(remoteID string, inrrcs []*utils.RecordRe
 	return finalLogs, allCols, nil
 }
 
-func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.BucketHolder, []string, []string, int) {
+func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.BucketHolder, []string, []string, []string, int) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 
 	if sr.segStatsResults == nil {
-		return nil, nil, nil, 0
+		return nil, nil, nil, nil, 0
 	}
 	delete(sr.allSSTS, skEnc)
 	bucketHolder := &structs.BucketHolder{}
@@ -508,7 +509,7 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint16) ([]*structs.Bucket
 		}
 	}
 	aggMeasureResult := []*structs.BucketHolder{bucketHolder}
-	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, len(sr.segStatsResults.measureResults)
+	return aggMeasureResult, sr.segStatsResults.measureFunctions, sr.segStatsResults.groupByCols, nil, len(sr.segStatsResults.measureResults)
 }
 
 func (sr *SearchResults) GetSegmentStatsMeasureResults() map[string]utils.CValueEnclosure {
@@ -523,69 +524,21 @@ func (sr *SearchResults) GetSegmentRunningStats() []*structs.SegStats {
 	return sr.runningSegStat
 }
 
-func (sr *SearchResults) GetGroupyByBuckets(limit int) ([]*structs.BucketHolder, []string, []string, int) {
+func (sr *SearchResults) GetGroupyByBuckets(limit int) ([]*structs.BucketHolder, []string, []string, map[string]int, int) {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
 
 	if sr.convertedBuckets != nil && !sr.statsAreFinal {
 		sr.loadBucketsInternal()
 	}
-	bucketHolderArr := make([]*structs.BucketHolder, 0)
-	added := int(0)
-	internalMFuncs := make(map[string]bool)
-	for _, agg := range sr.convertedBuckets {
-		for _, aggVal := range agg.Results {
-			measureVal := make(map[string]interface{})
-			groupByValues := make([]string, 0)
-			for mName, mVal := range aggVal.StatRes {
-				rawVal, err := mVal.GetValue()
-				if err != nil {
-					log.Errorf("GetGroupyByBuckets: failed to get raw value for measurement %+v", err)
-					continue
-				}
-				internalMFuncs[mName] = true
-				measureVal[mName] = rawVal
 
-			}
-			if added >= limit {
-				break
-			}
-			switch bKey := aggVal.BucketKey.(type) {
-			case float64, uint64, int64:
-				bKeyConv := fmt.Sprintf("%+v", bKey)
-				groupByValues = append(groupByValues, bKeyConv)
-				added++
-			case []string:
-
-				for _, bk := range aggVal.BucketKey.([]string) {
-					groupByValues = append(groupByValues, bk)
-					added++
-				}
-			case string:
-				groupByValues = append(groupByValues, bKey)
-				added++
-			default:
-				log.Errorf("Received an unknown type for bucket key! %+v", bKey)
-			}
-			bucketHolder := &structs.BucketHolder{
-				GroupByValues: groupByValues,
-				MeasureVal:    measureVal,
-			}
-			bucketHolderArr = append(bucketHolderArr, bucketHolder)
-		}
-	}
-
-	retMFuns := make([]string, len(internalMFuncs))
-	idx := 0
-	for mName := range internalMFuncs {
-		retMFuns[idx] = mName
-		idx++
-	}
+	bucketHolderArr, retMFuns, added := CreateMeasResultsFromAggResults(limit,
+		sr.convertedBuckets)
 
 	if sr.sAggs == nil || sr.sAggs.GroupByRequest == nil {
-		return bucketHolderArr, retMFuns, nil, added
+		return bucketHolderArr, retMFuns, nil, make(map[string]int), added
 	} else {
-		return bucketHolderArr, retMFuns, sr.sAggs.GroupByRequest.GroupByColumns, added
+		return bucketHolderArr, retMFuns, sr.sAggs.GroupByRequest.GroupByColumns, sr.ColumnsOrder, added
 	}
 }
 
@@ -705,6 +658,7 @@ func (sr *SearchResults) SetFinalStatsFromNodeResult(nodeResult *structs.NodeRes
 		return fmt.Errorf("SetFinalStatsFromNodeResult: stats are already final")
 	}
 
+	sr.ColumnsOrder = nodeResult.ColumnsOrder
 	if len(nodeResult.GroupByCols) > 0 {
 		sr.convertedBuckets = nodeResult.Histogram
 	} else {
@@ -938,4 +892,62 @@ func (sr *StatsResults) GetSegStats() map[string]*structs.SegStats {
 	retVal := sr.ssStats
 	sr.rwLock.Unlock()
 	return retVal
+}
+
+func CreateMeasResultsFromAggResults(limit int,
+	aggRes map[string]*structs.AggregationResult) ([]*structs.BucketHolder, []string, int) {
+
+	bucketHolderArr := make([]*structs.BucketHolder, 0)
+	added := int(0)
+	internalMFuncs := make(map[string]bool)
+	for _, agg := range aggRes {
+		for _, aggVal := range agg.Results {
+			measureVal := make(map[string]interface{})
+			groupByValues := make([]string, 0)
+			for mName, mVal := range aggVal.StatRes {
+				rawVal, err := mVal.GetValue()
+				if err != nil {
+					log.Errorf("CreateMeasResultsFromAggResults: failed to get raw value for measurement %+v", err)
+					continue
+				}
+				internalMFuncs[mName] = true
+				measureVal[mName] = rawVal
+
+			}
+			if added >= limit {
+				break
+			}
+			switch bKey := aggVal.BucketKey.(type) {
+			case float64, uint64, int64:
+				bKeyConv := fmt.Sprintf("%+v", bKey)
+				groupByValues = append(groupByValues, bKeyConv)
+				added++
+			case []string:
+
+				for _, bk := range aggVal.BucketKey.([]string) {
+					groupByValues = append(groupByValues, bk)
+					added++
+				}
+			case string:
+				groupByValues = append(groupByValues, bKey)
+				added++
+			default:
+				log.Errorf("CreateMeasResultsFromAggResults: Received an unknown type for bucket keyType! %T", bKey)
+			}
+			bucketHolder := &structs.BucketHolder{
+				GroupByValues: groupByValues,
+				MeasureVal:    measureVal,
+			}
+			bucketHolderArr = append(bucketHolderArr, bucketHolder)
+		}
+	}
+
+	retMFuns := make([]string, len(internalMFuncs))
+	idx := 0
+	for mName := range internalMFuncs {
+		retMFuns[idx] = mName
+		idx++
+	}
+
+	return bucketHolderArr, retMFuns, added
 }

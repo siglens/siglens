@@ -20,14 +20,12 @@ package mresults
 import (
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	pql "github.com/influxdata/promql/v2"
-	"github.com/influxdata/promql/v2/pkg/labels"
+	parser "github.com/prometheus/prometheus/promql/parser"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -66,8 +64,9 @@ type MetricsResult struct {
 
 	State bucketState
 
-	rwLock  *sync.RWMutex
-	ErrList []error
+	rwLock    *sync.RWMutex
+	ErrList   []error
+	TagValues map[string]map[string]struct{}
 }
 
 /*
@@ -219,20 +218,23 @@ func (r *MetricsResult) AggregateResults(parallelism int) []error {
 }
 
 /*
-Apply range function to results for series sharing a groupid.
+Apply function to results for series sharing a groupid.
 */
-func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function segutils.RangeFunctions) error {
+func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function structs.Function) []error {
 
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 	errList := []error{} // Thread-safe list of errors
 
+	// Use a temporary map to record the results modified by goroutines, thus resolving concurrency issues caused by modifying a map during iteration.
+	results := make(map[string]map[uint32]float64, len(r.Results))
+
 	var idx int
 	for grpID, timeSeries := range r.Results {
 		wg.Add(1)
-		go func(grp string, ts map[uint32]float64, function segutils.RangeFunctions) {
+		go func(grp string, ts map[uint32]float64, function structs.Function) {
 			defer wg.Done()
-			grpVal, err := ApplyRangeFunction(ts, function)
+			grpVal, err := ApplyFunction(ts, function)
 			if err != nil {
 				lock.Lock()
 				errList = append(errList, err)
@@ -240,7 +242,7 @@ func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function s
 				return
 			}
 			lock.Lock()
-			r.Results[grp] = grpVal
+			results[grp] = grpVal
 			lock.Unlock()
 		}(grpID, timeSeries, function)
 		idx++
@@ -250,47 +252,13 @@ func (r *MetricsResult) ApplyRangeFunctionsToResults(parallelism int, function s
 	}
 
 	wg.Wait()
+	r.Results = results
+
+	if len(errList) > 0 {
+		return errList
+	}
+
 	r.DsResults = nil
-
-	return nil
-}
-
-func (r *MetricsResult) ApplyFunctionsToResults(function structs.Function) error {
-	// Not using any math functions
-	if function.MathFunction == 0 {
-		return nil
-	}
-
-	var err error
-	switch function.MathFunction {
-	case segutils.Abs:
-		evaluate(r.Results, math.Abs)
-	case segutils.Ceil:
-		evaluate(r.Results, math.Ceil)
-	case segutils.Floor:
-		evaluate(r.Results, math.Floor)
-	case segutils.Round:
-		if len(function.Value) > 0 {
-			err := evaluateRoundWithPrecision(r.Results, function.Value)
-			if err != nil {
-				return fmt.Errorf("ApplyFunctionsToResults: %v", err)
-			}
-		} else {
-			evaluate(r.Results, math.Round)
-		}
-	case segutils.Ln:
-		err = evaluateLogFunc(r.Results, math.Log)
-	case segutils.Log2:
-		err = evaluateLogFunc(r.Results, math.Log2)
-	case segutils.Log10:
-		err = evaluateLogFunc(r.Results, math.Log10)
-	default:
-		return fmt.Errorf("ApplyFunctionsToResults: unsupported function type %v", function)
-	}
-
-	if err != nil {
-		return fmt.Errorf("ApplyFunctionsToResults: %v", err)
-	}
 
 	return nil
 }
@@ -373,76 +341,57 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 	}
 	return retVal, nil
 }
-func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType) ([]*structs.MetricsQueryResponsePromQl, error) {
+
+func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType) (*structs.MetricsQueryResponsePromQl, error) {
 	if r.State != AGGREGATED {
 		return nil, errors.New("results is not in aggregated state")
 	}
 	var pqldata structs.Data
-	var series pql.Series
-	var label structs.Label
 
-	retVal := make([]*structs.MetricsQueryResponsePromQl, len(r.Results))
-	idx := 0
-	uniqueTagKeys := make(map[string]bool)
-	tagKeys := make([]string, 0)
-	for _, tag := range mQuery.TagsFilters {
-		if _, ok := uniqueTagKeys[tag.TagKey]; !ok {
-			uniqueTagKeys[tag.TagKey] = true
-			tagKeys = append(tagKeys, tag.TagKey)
-		}
-	}
 	switch pqlQuerytype {
-	case pql.ValueTypeVector:
-		pqldata.ResultType = pql.ValueType("vector")
+	case parser.ValueTypeVector:
+		pqldata.ResultType = parser.ValueType("vector")
 		for grpId, results := range r.Results {
-			tags := make(map[string]string)
-			tagValues := strings.Split(grpId, tsidtracker.TAG_VALUE_DELIMITER_STR)
 
-			if len(tagKeys) != len(tagValues)-1 {
-				err := errors.New("GetResultsPromQl: the length of tag key and tag value pair must match")
-				return nil, err
+			tagValues := strings.Split(removeTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
+
+			var result structs.Result
+			var keyValue []string
+			result.Metric = make(map[string]string)
+			result.Metric["__name__"] = mQuery.MetricName
+			for idx, val := range tagValues {
+				if idx == 0 {
+					keyValue = strings.Split(removeMetricNameFromGroupID(val), ":")
+				} else {
+					keyValue = strings.Split(val, ":")
+				}
+				if len(keyValue) > 1 {
+					result.Metric[keyValue[0]] = keyValue[1]
+				}
 			}
-			for index, val := range tagValues[:len(tagValues)-1] {
-				tags[tagKeys[index]] = val
-				label.Name = tagKeys[index]
-				label.Value = val
-				series.Metric = append(series.Metric, labels.Label(label))
-			}
-			label.Name = "__name__"
-			label.Value = mQuery.MetricName
-			series.Metric = append(series.Metric, labels.Label(label))
 			for k, v := range results {
-				var point pql.Point
-				point.T = int64(k)
-				point.V = v
-				series.Points = append(series.Points, point)
+				result.Value = []interface{}{int64(k), fmt.Sprintf("%v", v)}
 			}
-			pqldata.Result = append(pqldata.Result, series)
-
-			retVal[idx] = &structs.MetricsQueryResponsePromQl{
-				Status: "success",
-				Data:   pqldata,
-			}
-			pqldata.Result = nil
-			series = pql.Series{}
-			idx++
+			pqldata.Result = append(pqldata.Result, result)
 		}
 	default:
-		return retVal, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type")
+		return nil, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type")
 	}
-	return retVal, nil
+	return &structs.MetricsQueryResponsePromQl{
+		Status: "success",
+		Data:   pqldata,
+	}, nil
 }
-
 func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) ([]string, []string, error) {
 	if res.State != SERIES_READING {
 		return nil, nil, errors.New("results is not in Series Reading state")
 	}
 
-	tagKeysMap := make(map[string]struct{})
+	// The Tag Keys in the TagFilters will be unique,
+	// as they will be cleaned up in the mQuery.ReorderTagFilters()
 	uniqueTagKeys := make([]string, 0)
-	for _, tag := range mQuery.TagsFilters {
-		if _, ok := tagKeysMap[tag.TagKey]; !ok {
-			tagKeysMap[tag.TagKey] = struct{}{}
+	for i, tag := range mQuery.TagsFilters {
+		if _, exists := mQuery.TagIndicesToKeep[i]; exists {
 			uniqueTagKeys = append(uniqueTagKeys, tag.TagKey)
 		}
 	}
@@ -465,7 +414,7 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 	return uniqueTagKeys, tagKeyValueSet, nil
 }
 
-func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime uint32) (utils.MetricsStatsResponseInfo, error) {
+func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType, startTime, endTime uint32) (utils.MetricsStatsResponseInfo, error) {
 	var httpResp utils.MetricsStatsResponseInfo
 	httpResp.AggStats = make(map[string]map[string]interface{})
 	if r.State != AGGREGATED {
@@ -491,7 +440,7 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	var startDuration, endDuration int64
 
 	switch pqlQuerytype {
-	case pql.ValueTypeVector:
+	case parser.ValueTypeVector:
 		for groupId := range httpResp.AggStats {
 			startDuration = (startEpoch.UnixMilli() / segutils.MS_IN_MIN) * segutils.MS_IN_MIN
 			endDuration = (endEpoch.UnixMilli() / segutils.MS_IN_MIN) * segutils.MS_IN_MIN
@@ -518,7 +467,7 @@ func removeTrailingComma(s string) string {
 	return strings.TrimSuffix(s, ",")
 }
 
-func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pqlQuerytype pql.ValueType, startTime, endTime uint32) (utils.MetricStatsResponse, error) {
+func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType, startTime, endTime uint32) (utils.MetricStatsResponse, error) {
 	var httpResp utils.MetricStatsResponse
 	httpResp.Series = make([]string, 0)
 	httpResp.Values = make([][]*float64, 0)

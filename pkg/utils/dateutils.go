@@ -19,7 +19,11 @@ package utils
 
 import (
 	"errors"
+	"math"
+	"strconv"
+	"time"
 
+	jp "github.com/buger/jsonparser"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -66,4 +70,133 @@ func SanitizeHistogramInterval(startEpochMs uint64, endEpochMs uint64,
 
 	log.Infof("SanitizeHistogramInterval: returning really long 20y HT interval, should not have happened")
 	return HT_STEPS[len(HT_STEPS)-1], nil
+}
+
+func IsTimeInMilli(tval uint64) bool {
+	if tval >= 99999999999 {
+		return true
+	} else {
+		return false
+	}
+}
+
+/**
+* Check if the time value is in nano seconds
+* Time in Seconds: 1e9
+* Time in Milli Seconds: 1e12
+* Time in Micro Seconds: 1e15
+* Time in Nano Seconds: 1e18
+ */
+func IsTimeInNano(tval uint64) bool {
+	return tval >= 1e18
+}
+
+func GetCurrentTimeInMs() uint64 {
+	return uint64(time.Now().UTC().UnixNano()) / uint64(time.Millisecond)
+}
+
+// This function will extract the timestamp from the raw body. This will assume the timestamp key exists at the root level
+func ExtractTimeStamp(raw []byte, timestampKey *string) uint64 {
+	rawVal, dType, _, err := jp.Get(raw, *timestampKey)
+	if err != nil {
+		// timestamp key does not exist in doc
+		return 0
+	}
+	switch dType {
+	case jp.String:
+		tsStr, err := jp.ParseString(rawVal)
+		if err != nil {
+			log.Errorf("Failed to parse timestamp of raw string val: %v. Error: %v", rawVal, err)
+			return 0
+		}
+		ts_millis, err := ConvertTimestampToMillis(tsStr)
+		if err != nil {
+			ts_millis = GetCurrentTimeInMs()
+			log.Errorf("ExtractTimeStamp: Setting timestamp to current time in milli sec as parsing timestamp failed, err = %v", err)
+		}
+		return ts_millis
+	case jp.Number:
+		var ts_millis uint64
+		val, err := jp.ParseInt(rawVal)
+		if err != nil {
+			val, err := jp.ParseFloat(rawVal)
+			if err != nil {
+				log.Errorf("Failed to parse timestamp of float val: %v. Error: %v", rawVal, err)
+				return 0
+			}
+			ts_millis = uint64(val)
+		} else {
+			ts_millis = uint64(val)
+		}
+
+		if !IsTimeInMilli(ts_millis) {
+			ts_millis *= 1000
+		}
+		return ts_millis
+	default:
+		return 0
+	}
+}
+
+func ConvertTimestampToMillis(value string) (uint64, error) {
+	parsed_value, err := strconv.ParseUint(string(value), 10, 64)
+	if err == nil {
+
+		if IsTimeInNano(parsed_value) {
+			parsed_value /= 1000000
+		}
+
+		if !IsTimeInMilli(parsed_value) {
+			parsed_value *= 1000
+		}
+		return parsed_value, nil
+	}
+
+	timeFormats := []string{
+		time.RFC3339,
+		time.RFC3339Nano,
+		"2006-01-02T15:04:05Z",
+		"2006-01-02T15:04:05.999Z",
+		"2006-01-02T15:04:05.999-07:00"}
+
+	for _, timeFormat := range timeFormats {
+		parsed_value, err := time.Parse(timeFormat, value)
+		if err != nil {
+			continue
+		}
+		return uint64(parsed_value.UTC().UnixNano() / 1000000), nil
+	}
+	return 0, errors.New("couldn't find matching time format")
+}
+
+// Helper function that parses a time parameter for use in PromQL.
+// The time parameter can be in either epoch time format or RFC3339 format.
+// If the time parameter is an empty string, the function returns an error.
+// The function returns the parsed time as a uint32 Unix timestamp and an error if the parsing fails.
+func ParseTimeForPromQL(timeParam string) (uint32, error) {
+	if timeParam == "" {
+		log.Errorf("parseTimeForPromQL: time parameter is empty")
+		return 0, errors.New("time parameter is empty")
+	}
+
+	// Try to parse as integer (Unix timestamp)
+	parsedInt, err := strconv.ParseInt(timeParam, 10, 64)
+	if err == nil {
+		return uint32(parsedInt), nil
+	}
+
+	// Try to parse as float (Unix timestamp)
+	parsedFloat, err := strconv.ParseFloat(timeParam, 64)
+	if err == nil {
+		return uint32(math.Round(parsedFloat)), nil
+	}
+
+	// Try to parse as RFC3339 timestamp
+	parsedTime, err := time.Parse(time.RFC3339, timeParam)
+	if err == nil {
+		return uint32(parsedTime.Unix()), nil
+	}
+
+	// If all parsing attempts failed, return an error
+	return 0, errors.New("failed to parse time parameter as Unix timestamp or RFC3339 timestamp")
 }

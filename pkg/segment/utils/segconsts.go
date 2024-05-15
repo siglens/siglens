@@ -301,6 +301,9 @@ const (
 	Ln
 	Log2
 	Log10
+	Clamp
+	Clamp_Max
+	Clamp_Min
 )
 
 type RangeFunctions int
@@ -308,6 +311,10 @@ type RangeFunctions int
 const (
 	Derivative RangeFunctions = iota + 1
 	Rate
+	IRate
+	Increase
+	Delta
+	IDelta
 )
 
 // For columns used by aggs with eval statements, we should keep their raw values because we need to evaluate them

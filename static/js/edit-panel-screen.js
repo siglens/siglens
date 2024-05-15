@@ -273,6 +273,7 @@ $(document).ready(function () {
 })
 
 function editPanelInit(redirectedFromViewScreen) {
+	resetOptions();
 	$('.panelDisplay #empty-response').empty();
 	$('.panelDisplay #corner-popup').empty();
 	$('.panelDisplay #corner-popup').hide();
@@ -382,7 +383,7 @@ function editPanelInit(redirectedFromViewScreen) {
 	if (selectedDataSourceTypeIndex != -1 && selectedDataSourceTypeIndex !== undefined) {
 		
 		if(selectedDataSourceTypeIndex == 1) {
-			$("#index-btn").css('display', 'inline-flex');
+			$(".index-container").css('display', 'inline-flex');
 			$("#query-language-btn").css('display', 'inline-flex');
 			$("#metrics-query-language-btn").css('display', 'none');
 			if(selectedChartTypeIndex=== -1){
@@ -392,11 +393,11 @@ function editPanelInit(redirectedFromViewScreen) {
 			}
 		} else if (selectedDataSourceTypeIndex==0){
 			$("#metrics-query-language-btn").css('display', 'inline-block');
-			$("#index-btn").css('display', 'none');
+			$(".index-container").css('display', 'none');
 			$("#query-language-btn").css('display', 'none');
 		}
 		else{
-			$("#index-btn").css('display', 'none');
+			$(".index-container").css('display', 'none');
 			$("#query-language-btn").css('display', 'none');
 			$("#metrics-query-language-btn").css('display', 'none');
 		}
@@ -444,19 +445,29 @@ function editPanelInit(redirectedFromViewScreen) {
 	if (currentPanel.queryData && currentPanel.queryData.indexName) {
 		selectedSearchIndex = currentPanel.queryData.indexName;
 	}
-	let checkedIndices = selectedSearchIndex.split(',');
-	$(".index-dropdown-item").removeClass('active');
-	$(".index-dropdown-item").each(function () {
-		if (checkedIndices.includes($(this).data("index"))) {
-			$(this).addClass('active');
-		}
-	});
-	Cookies.set('IndexList', selectedSearchIndex);
-	getDisplayTextForIndex();
+	if (selectedSearchIndex) {
+		// Remove all existing selected indexes
+		$(".index-container .selected-index").remove();
+		const selectedIndexes = selectedSearchIndex.split(',');
+		selectedIndexes.forEach(function(index) {
+			addSelectedIndex(index);
+			// Remove the selectedSearchIndex from indexValues
+			const indexIndex = indexValues.indexOf(index);
+			if (indexIndex !== -1) {
+				indexValues.splice(indexIndex, 1);
+			}
+			if (index.endsWith('*')) {
+				const prefix = index.slice(0, -1); // Remove the '*'
+				const filteredIndexValues = indexValues.filter(function(option) {
+					return !option.startsWith(prefix);
+				});
+				indexValues = filteredIndexValues;
+				$("#index-listing").autocomplete("option", "source", filteredIndexValues);
+			}
+		});
+	}
 
 	if ($('.dropDown-dataSource.active').length) handleSourceDropDownClick();
-	if ($('.dropDown-chart.active').length) handleChartDropDownClick();
-	if ($('.dropDown-color.active').length) handleColorDropDownClick();
 	if ($('.dropDown-unit.active').length) handleUnitDropDownClick();
 	if ($('.dropDown-logLinesView.active').length) handleLogLinesViewDropDownClick();
 	$( ".editPanelMenu-inner-options" ).slideUp();
@@ -464,28 +475,23 @@ function editPanelInit(redirectedFromViewScreen) {
 	$('.panelDisplay #empty-response').empty();
 	$('.panelDisplay #empty-response').hide();
 	$('.panelDisplay .panEdit-panel').show();
-	$(".panEdit-apply").unbind("click");
-	$('.panEdit-apply').on('click', () => applyChangesToPanel(redirectedFromViewScreen))
-	$(".panEdit-goToDB").unbind("click");
-	$('.panEdit-goToDB').on("click", () => handleGoToDBArrowClick(redirectedFromViewScreen))
 	setTimePicker();
 	pauseRefreshInterval();
-	if(currentPanel.queryRes){
-		runQueryBtnHandler();
-	}
+	runQueryBtnHandler();
 }
 
 $('#panelLogResultsGrid').empty();
 $('#panelLogResultsGrid').hide();
 
 $('.panEdit-discard').on("click", goToDashboard)
-$('.panEdit-save').on("click", function(){
+$('.panEdit-save').on("click",async function(redirectedFromViewScreen){
 	 if (!currentPanel.queryData && currentPanel.chartType ==='Data Table' && currentPanel.queryType ==='logs') {
         currentPanel.chartType = "";
         currentPanel.queryType = "";
     }
 	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
-	updateDashboard();
+	await updateDashboard();
+	applyChangesToPanel(redirectedFromViewScreen)
 });
 
 $('#panEdit-nameChangeInput').on('change keyup paste', updatePanelName)
@@ -499,8 +505,6 @@ $('#panEdit-descrChangeInput').on("focus", function () {
 })
 
 $('.dropDown-dataSource').on('click', handleSourceDropDownClick)
-$('.dropDown-chart').on('click', handleChartDropDownClick)
-$('.dropDown-color').on('click', handleColorDropDownClick)
 $('.dropDown-unit').on('click', handleUnitDropDownClick)
 
 $('.dropDown-logLinesView').on('click', handleLogLinesViewDropDownClick);
@@ -521,20 +525,6 @@ function handleSourceDropDownClick() {
 	$('.editPanelMenu-dataSource').slideToggle();
 	$('.dropDown-dataSource .caret').css("rotate", "180deg");
 	$('.dropDown-dataSource.active .caret').css("rotate", "360deg");
-}
-
-function handleChartDropDownClick() {
-	$('.dropDown-chart').toggleClass("active")
-	$('.editPanelMenu-chart').slideToggle();
-	$('.dropDown-chart .caret').css("rotate", "180deg");
-	$('.dropDown-chart.active .caret').css("rotate", "360deg");
-}
-
-function handleColorDropDownClick() {
-	$('.dropDown-color').toggleClass("active")
-	$('.editPanelMenu-color').slideToggle();
-	$('.dropDown-color .caret').css("rotate", "180deg");
-	$('.dropDown-color.active .caret').css("rotate", "360deg");
 }
 
 function handleUnitDropDownClick(e) {
@@ -760,16 +750,16 @@ $(".editPanelMenu-dataSource .editPanelMenu-options").on('click', function () {
 	selectedDataSourceTypeIndex = $(this).data('index');
 	displayQueryToolTip(selectedDataSourceTypeIndex);
 	if(selectedDataSourceTypeIndex == 1) {
-		$("#index-btn").css('display', 'inline-flex');
+		$(".index-container").css('display', 'inline-flex');
 		$("#query-language-btn").css('display', 'inline-flex');
 		$("#metrics-query-language-btn").css('display', 'none');
 	} else if (selectedDataSourceTypeIndex==0){
 		$("#metrics-query-language-btn").css('display', 'inline-block');
-		$("#index-btn").css('display', 'none');
+		$(".index-container").css('display', 'none');
 		$("#query-language-btn").css('display', 'none');
 	}
 	else{
-		$("#index-btn").css('display', 'none');
+		$(".index-container").css('display', 'none');
 		$("#query-language-btn").css('display', 'none');
 		$("#metrics-query-language-btn").css('display', 'none');
 	}
@@ -777,7 +767,7 @@ $(".editPanelMenu-dataSource .editPanelMenu-options").on('click', function () {
 	refreshDataSourceMenuOptions();
 });
 
-$(".editPanelMenu-chart .editPanelMenu-options").on('click', function () {
+$(".editPanelMenu-chart #chart-type-options").on('click', function () {
 	selectedChartTypeIndex = $(this).data('index');
 	currentPanel.chartType = mapIndexToChartType.get(selectedChartTypeIndex);
 	if (selectedChartTypeIndex === 4) {
@@ -806,6 +796,7 @@ $(".editPanelMenu-chart .editPanelMenu-options").on('click', function () {
 	$('.editPanelMenu-inner-options').css('display',"none");
 	$('.horizontalCaret').css('rotate','90deg');
 	refreshChartMenuOptions();
+	runQueryBtnHandler();
 });
 
 $(".colorCircle").on("click", function () {
@@ -1075,14 +1066,14 @@ function refreshDataSourceMenuOptions() {
 }
 
 function refreshChartMenuOptions() {
-	let chartTypeMenuItems = $('.editPanelMenu-chart .editPanelMenu-options');
+	let chartTypeMenuItems = $('.editPanelMenu-chart #chart-type-options');
 	chartTypeMenuItems.each(function (index, item) {
 		item.classList.remove("selected");
 	})
 	chartTypeMenuItems[selectedChartTypeIndex].classList.add("selected");
 	let chartType = mapIndexToChartType.get(selectedChartTypeIndex);
 	chartType = chartType.charAt(0).toUpperCase() + chartType.slice(1);
-	$('.dropDown-chart span').html(chartType);
+	// $('.dropDown-chart span').html(chartType);
 }
 
 function refreshUnitMenuOptions() {
@@ -1110,8 +1101,6 @@ function refreshLogLinesViewMenuOptions(){
 }
 
 function applyChangesToPanel(redirectedFromViewScreen) {
-	flagDBSaved = false;
-	// update current panel with new time values
 	if(currentPanel && currentPanel.queryData) {
 		if(currentPanel.chartType === 'Line Chart') {
 			currentPanel.queryData.start = filterStartDate
@@ -1139,43 +1128,6 @@ function applyChangesToPanel(redirectedFromViewScreen) {
 	}
 }
 
-function handleGoToDBArrowClick(redirectedFromViewScreen) {
-	if (!checkUnsavedChages()) {
-		showPrompt(redirectedFromViewScreen)
-	} else {
-		goToDashboard(redirectedFromViewScreen);
-	}
-	
-	function checkUnsavedChages() {
-		let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
-		return (currentPanel.chartType === serverPanel.chartType
-			&& currentPanel.dataType === serverPanel.dataType
-			&& currentPanel.description === serverPanel.description
-			&& currentPanel.name === serverPanel.name
-			&& currentPanel.queryType === serverPanel.queryType
-			&& currentPanel.unit === serverPanel.unit
-			&& currentPanel.panelIndex === serverPanel.panelIndex
-			
-			&& currentPanel.queryData?.endEpoch === serverPanel.queryData?.endEpoch
-			&& currentPanel.queryData?.indexName === serverPanel.queryData?.indexName
-			&& currentPanel.queryData?.queryLanguage === serverPanel.queryData?.queryLanguage
-			&& currentPanel.queryData?.searchText === serverPanel.queryData?.searchText
-			&& currentPanel.queryData?.startEpoch === serverPanel.queryData?.startEpoch
-			&& currentPanel.queryData?.state === serverPanel.queryData?.state);
-	}
-	
-	function showPrompt(redirectedFromViewScreen) {
-		$('.popupOverlay, .popupContent').addClass('active');
-		$('#exit-btn-panel').on("click", function () {
-			$('.popupOverlay, .popupContent').removeClass('active');
-			goToDashboard(redirectedFromViewScreen);
-		});
-		$('#cancel-btn-panel, .popupOverlay').on("click", function () {
-			$('.popupOverlay, .popupContent').removeClass('active');
-		});
-	}
-}
-
 function goToViewScreen(panelIndex) {
 	currentPanel = undefined;
 	resetEditPanelScreen();
@@ -1184,6 +1136,15 @@ function goToViewScreen(panelIndex) {
 }
 
 function goToDashboard(redirectedFromViewScreen) {
+	// Don't add panel if cancel is clicked.
+	let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
+	if (!flagDBSaved) {
+		if (serverPanel.panelIndex !== undefined) {
+			if (serverPanel.queryRes === undefined) {
+				localPanels = localPanels.filter(panel => panel.panelIndex !== panelIndex);
+			}
+		}
+	}
 	setTimePicker();
 	resetNestedUnitMenuOptions(selectedUnitTypeIndex);
 	currentPanel = undefined;
@@ -1208,6 +1169,7 @@ function goToDashboard(redirectedFromViewScreen) {
 	}
 	else {
 		$('.panelEditor-container').hide();
+        $('.popupOverlay').removeClass('active');
 		$('#app-container').show();
 		$('#viewPanel-container').hide();
 		if(localPanels !== undefined) {
@@ -1248,10 +1210,10 @@ function resetPanelTimeRanges() {
 function resetEditPanelScreen() {
 	resetEditPanel();
 	$('.dropDown-dataSource span').html("Data Source")
-	$('.dropDown-chart span').html("Chart Type")
+	// $('.dropDown-chart span').html("Chart Type")
 	$('.dropDown-unit span').html("Unit")
 	$('.dropDown-logLinesView span').html("Single line display view")
-	$("#index-btn").css('display', 'none');
+	$(".index-container").css('display', 'none');
 	$("#query-language-btn").css('display', 'none');
 	$("#metrics-query-language-btn").css('display', 'none');
 	$('.query-language-option').removeClass('active');
@@ -1263,7 +1225,8 @@ function resetEditPanel() {
 	$('.panelDisplay .panEdit-panel').remove();
 	const panEditEl = `<div id="panEdit-panel" class="panEdit-panel"></div>`
 	$('.panelDisplay').append(panEditEl);
-
+}
+function resetOptions(){
 	selectedChartTypeIndex = -1;
 	selectedDataSourceTypeIndex = -1;
 	selectedLogLinesViewTypeIndex = -1;
@@ -1273,7 +1236,7 @@ function resetEditPanel() {
 		item.classList.remove("selected");
 	})
 
-	let chartTypeMenuItems = $('.editPanelMenu-chart .editPanelMenu-options');
+	let chartTypeMenuItems = $('.editPanelMenu-chart #chart-type-options');
 	chartTypeMenuItems.each(function (index, item) {
 		item.classList.remove("selected");
 	})
@@ -1295,7 +1258,6 @@ function resetEditPanel() {
 		}
 	})
 }
-
 function getMetricsQData() {
 	let filterValue = queryStr;
 	let endDate = filterEndDate || "now";
@@ -1357,16 +1319,6 @@ $(document).on('click', function(event) {
 	if (!$(event.target).closest('.dropDown-dataSource').length) {
 		$('.editPanelMenu-dataSource').slideUp();
 		$('.dropDown-dataSource').removeClass("active");
-	}
-
-	if (!$(event.target).closest('.dropDown-chart').length) {
-		$('.editPanelMenu-chart').slideUp();
-		$('.dropDown-chart').removeClass("active");
-	}
-
-	if (!$(event.target).closest('.dropDown-color').length) {
-			$('.editPanelMenu-color').slideUp();
-			$('.dropDown-color').removeClass("active");
 	}
 
 	if (!$(event.target).closest('.dropDown-logLinesView').length) {

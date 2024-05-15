@@ -223,7 +223,8 @@ func performMaxRows(nodeResult *structs.NodeResult, aggs *structs.QueryAggregato
 	return nil
 }
 
-func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq *structs.ColumnsRequest, recs map[string]map[string]interface{},
+	finalCols map[string]bool) error {
 	if colReq.RenameAggregationColumns != nil {
 		for oldCName, newCName := range colReq.RenameAggregationColumns {
 			if _, exists := finalCols[oldCName]; !exists {
@@ -232,6 +233,11 @@ func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq 
 			}
 			finalCols[newCName] = true
 			delete(finalCols, oldCName)
+
+			if colIndex, exists := nodeResult.ColumnsOrder[oldCName]; exists {
+				nodeResult.ColumnsOrder[newCName] = colIndex
+				delete(nodeResult.ColumnsOrder, oldCName)
+			}
 
 			for _, record := range recs {
 				if val, exists := record[oldCName]; exists {
@@ -282,8 +288,9 @@ func performColumnsRequestWithoutGroupby(nodeResult *structs.NodeResult, colReq 
 		}
 
 		// Add the matching columns.
-		for _, matchingCol := range matchingCols {
+		for index, matchingCol := range matchingCols {
 			finalCols[matchingCol] = true
+			nodeResult.ColumnsOrder[matchingCol] = index
 		}
 	}
 
@@ -383,6 +390,7 @@ RenamingLoop:
 
 		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByRequest.GroupByColumns, colReq.IncludeColumns, true)
 		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.MeasureFunctions, colReq.IncludeColumns, true)
+		nodeResult.ColumnsOrder = getColumnsInOrder(nodeResult.GroupByRequest.GroupByColumns, nodeResult.MeasureFunctions, colReq.IncludeColumns)
 
 		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
 		if err != nil {
@@ -450,6 +458,34 @@ func getColumnsToKeepAndRemove(cols []string, wildcardCols []string, keepMatches
 	}
 
 	return indicesToKeep, colsToKeep, colsToRemove
+}
+
+// Maintain fields cmd columns order
+func getColumnsInOrder(groupByCols []string, measureFunctions []string, wildcardCols []string) map[string]int {
+	columnsOrder := make(map[string]int)
+
+	idx := 0
+	for _, wildcardCol := range wildcardCols {
+		for _, col := range groupByCols {
+			isMatch := len(utils.SelectMatchingStringsWithWildcard(wildcardCol, []string{col})) > 0
+			_, exists := columnsOrder[col]
+			if isMatch && !exists {
+				columnsOrder[col] = idx
+				idx++
+			}
+		}
+
+		for _, col := range measureFunctions {
+			isMatch := len(utils.SelectMatchingStringsWithWildcard(wildcardCol, []string{col})) > 0
+			_, exists := columnsOrder[col]
+			if isMatch && !exists {
+				columnsOrder[col] = idx
+				idx++
+			}
+		}
+	}
+
+	return columnsOrder
 }
 
 func removeAggColumns(nodeResult *structs.NodeResult, groupByColIndicesToKeep []int, groupByColNamesToKeep []string, measureColNamesToRemove []string) error {
@@ -538,13 +574,39 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 	return nil
 }
 
-func performRenameColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+func performRenameColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
+	finalCols map[string]bool) error {
 	//Without following group by
 	if recs != nil {
 		if err := performRenameColRequestWithoutGroupby(nodeResult, letColReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performRenameColRequest: %v", err)
 		}
 		return nil
+	}
+
+	switch letColReq.RenameColRequest.RenameExprMode {
+	case structs.REMPhrase:
+		fallthrough
+	case structs.REMOverride:
+		colIndex, exists := nodeResult.ColumnsOrder[letColReq.RenameColRequest.OriginalPattern]
+		if exists {
+			delete(nodeResult.ColumnsOrder, letColReq.RenameColRequest.OriginalPattern)
+			nodeResult.ColumnsOrder[letColReq.RenameColRequest.NewPattern] = colIndex
+		}
+	case structs.REMRegex:
+		for colName, index := range nodeResult.ColumnsOrder {
+			newColName, err := letColReq.RenameColRequest.ProcessRenameRegexExpression(colName)
+			if err != nil {
+				return fmt.Errorf("performRenameColRequest: %v", err)
+			}
+
+			if colName == newColName || len(newColName) == 0 {
+				continue
+			}
+
+			delete(nodeResult.ColumnsOrder, colName)
+			nodeResult.ColumnsOrder[newColName] = index
+		}
 	}
 
 	//Follow group by
@@ -558,7 +620,8 @@ func performRenameColRequest(nodeResult *structs.NodeResult, aggs *structs.Query
 	return nil
 }
 
-func performRenameColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+func performRenameColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
+	finalCols map[string]bool) error {
 
 	fieldsToAdd := make([]string, 0)
 	fieldsToRemove := make([]string, 0)
@@ -603,6 +666,12 @@ func performRenameColRequestWithoutGroupby(nodeResult *structs.NodeResult, letCo
 	for index, newColName := range fieldsToAdd {
 		finalCols[newColName] = true
 		delete(finalCols, fieldsToRemove[index])
+
+		colIndex, exists := nodeResult.ColumnsOrder[fieldsToRemove[index]]
+		if exists {
+			delete(nodeResult.ColumnsOrder, fieldsToRemove[index])
+			nodeResult.ColumnsOrder[newColName] = colIndex
+		}
 	}
 
 	return nil
@@ -1225,6 +1294,10 @@ func performSortColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColR
 		letColReq.SortColRequest.NumProcessedSegments++
 	}
 
+	if letColReq.SortColRequest.SortRecords == nil {
+		letColReq.SortColRequest.SortRecords = make(map[string]map[string]interface{}, 0)
+	}
+
 	if letColReq.SortColRequest.NumProcessedSegments < numTotalSegments {
 		for k, v := range recs {
 			letColReq.SortColRequest.SortRecords[k] = v
@@ -1576,7 +1649,12 @@ func performStatisticColRequestOnMeasureResults(nodeResult *structs.NodeResult, 
 	resTotal := uint64(0)
 	if letColReq.StatisticColRequest.StatisticOptions.ShowPerc {
 		for _, bucketHolder := range nodeResult.MeasureResults {
-			resTotal += bucketHolder.MeasureVal[countName].(uint64)
+			value, exists := bucketHolder.MeasureVal[countName]
+			if !exists {
+				bucketHolder.MeasureVal[countName] = uint64(0)
+				continue
+			}
+			resTotal += value.(uint64)
 		}
 	}
 
