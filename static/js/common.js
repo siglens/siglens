@@ -225,20 +225,24 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
         //for aggs-query and segstats-query
         if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
             let columnOrder = []
-            if (res.allColumns !=undefined && res.allColumns.length > 0) {
-                columnOrder = res.allColumns
+            if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+                columnOrder = res.columnsOrder
             }else{
                 if (res.groupByCols) {
                     columnOrder = _.uniq(_.concat(
                         res.groupByCols));
+                }
+                if (res.measureFunctions) {
+                    columnOrder = _.uniq(_.concat(
+                        columnOrder, res.measureFunctions));
                 }
             }
             renderPanelAggsGrid(columnOrder, res.measure,panelId,res.groupByCols)
         }//for logs-query
         else if(res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
             let columnOrder = []
-            if (res.allColumns !=undefined && res.allColumns.length > 0) {
-                columnOrder = res.allColumns
+            if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+                columnOrder = res.columnsOrder
             }else{
                 columnOrder = res.allColumns
             }
@@ -450,8 +454,8 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
         }
 
         let columnOrder = []
-        if (res.allColumns !=undefined && res.allColumns.length > 0) {
-            columnOrder = res.allColumns
+        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+            columnOrder = res.columnsOrder
         }else{
             if (res.groupByCols) {
                 columnOrder = _.uniq(_.concat(
@@ -847,4 +851,15 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
             }
             break;
     }
+}
+
+// Function to find the index of a column in the Map
+function findColumnIndex(columnsMap, columnName) {
+    // Iterate over the Map entries
+    for (const [ index,name] of columnsMap.entries()) {
+        if (name === columnName) {
+            return index; // Return the index if the column name matches
+        }
+    }
+    return -1; // Return -1 if the column name is not found
 }

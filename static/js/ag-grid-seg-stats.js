@@ -75,13 +75,4 @@
     return metrics.width;
   }
 
-  // Function to find the index of a column in the Map
-function findColumnIndex(columnsMap, columnName) {
-    // Iterate over the Map entries
-    for (const [ index,name] of columnsMap.entries()) {
-        if (name === columnName) {
-            return index; // Return the index if the column name matches
-        }
-    }
-    return -1; // Return -1 if the column name is not found
-}
+  
