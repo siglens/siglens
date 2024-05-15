@@ -276,11 +276,10 @@ function renderPanelAggsGrid(columnOrder, hits,panelId, groupByCols) {
     $.each(hits, function (key, resMap) {
        newRow.set("id", 0)
        columnOrder.map((colName, index) => {
-            let ind = -1;
-            if (groupByCols != undefined && groupByCols.length > 0)
-                ind = findColumnIndex(groupByCols, colName)
-            if (resMap.GroupByValues!=null && resMap.GroupByValues[ind]!="*" &&  ind< (resMap.GroupByValues).length && ind != -1){
-                newRow.set(colName, resMap.GroupByValues[ind])
+            if (groupByCols != undefined && groupByCols.length > 0 && resMap.GroupByValues.length >1)
+                index = findColumnIndex(groupByCols, colName)
+            if (resMap.GroupByValues!=null && resMap.GroupByValues[index]!="*" &&  index< (resMap.GroupByValues).length && index != -1 ){
+                newRow.set(colName, resMap.GroupByValues[index])
             }else{
                 // Check if MeasureVal is undefined or null and set it to 0
                 if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {
