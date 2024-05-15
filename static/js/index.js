@@ -157,12 +157,31 @@ async function initializeIndexAutocomplete() {
         // Clear the input field if the typed value does not match any options when Enter is pressed
         if (event.keyCode === 13) {
             let typedValue = $(this).val();
-            if (!indexValues.includes(typedValue)) {
+            if (indexValues.includes(typedValue)) {
+                addSelectedIndex(typedValue);
+                $(this).val('');
+                this.style.width = '5px';
+                runQueryBtnHandler();
+                
+                // Remove the selected value from indexValues
+                const index = indexValues.indexOf(typedValue);
+                if (index !== -1) {
+                    indexValues.splice(index, 1);
+                    $(this).autocomplete("option", "source", indexValues);
+                }
+            } else {
                 $(this).val('');
                 this.style.width = '5px';
             }
+            
+            if ($(this).autocomplete('widget').is(':visible')) {
+                $(this).autocomplete('close');
+            } else {
+                $(this).autocomplete('search', '');
+            }
         }
     });
+    
 }
 
 // Remove selected index from container when remove icon is clicked
