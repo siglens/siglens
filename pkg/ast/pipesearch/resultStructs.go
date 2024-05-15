@@ -57,6 +57,7 @@ type PipeSearchWSUpdateResponse struct {
 	Qtype                    string                  `json:"qtype,omitempty"`
 	BucketCount              int                     `json:"bucketCount,omitempty"`
 	SortByTimestampAtDefault bool                    `json:"sortByTimestampAtDefault"`
+	ColumnsOrder             []string                `json:"columnsOrder,omitempty"`
 }
 
 type PipeSearchCompleteResponse struct {
@@ -71,5 +72,5 @@ type PipeSearchCompleteResponse struct {
 	Qtype               string                  `json:"qtype,omitempty"`
 	BucketCount         int                     `json:"bucketCount,omitempty"`
 	IsTimechart         bool                    `json:"isTimechart"`
-	ColumnsOrder        []string                `json:"columnsOrder"`
+	ColumnsOrder        []string                `json:"columnsOrder,omitempty"`
 }
