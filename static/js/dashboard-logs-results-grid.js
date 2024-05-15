@@ -226,7 +226,7 @@ function panelLogOptionTableHandler(panelGridOptions,panelLogsColumnDefs) {
 }
 
 
-function renderPanelAggsGrid(columnOrder, hits,panelId, groupByCols) {
+function renderPanelAggsGrid(columnOrder, hits,panelId) {
     let aggsColumnDefs = [];
     let segStatsRowData=[];
     const aggGridOptions = {
@@ -276,20 +276,12 @@ function renderPanelAggsGrid(columnOrder, hits,panelId, groupByCols) {
     $.each(hits, function (key, resMap) {
        newRow.set("id", 0)
        columnOrder.map((colName, index) => {
-            let ind = -1;
-            if (groupByCols != undefined && groupByCols.length > 0)
-                ind = findColumnIndex(groupByCols, colName)
-            if (resMap.GroupByValues!=null && resMap.GroupByValues[ind]!="*" &&  ind< (resMap.GroupByValues).length && ind != -1){
-                newRow.set(colName, resMap.GroupByValues[ind])
-            }else{
-                // Check if MeasureVal is undefined or null and set it to 0
-                if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {
-                    newRow.set(colName, "0");
-                } else {
-                    newRow.set(colName, resMap.MeasureVal[colName]);
-                }
-            }            
-        })
+           if (resMap.GroupByValues!=null && resMap.GroupByValues[index]!="*" && index< (resMap.GroupByValues).length){
+               newRow.set(colName, resMap.GroupByValues[index])
+           }else{
+               newRow.set(colName, resMap.MeasureVal[colName])
+           }
+       })
         segStatsRowData = _.concat(segStatsRowData, Object.fromEntries(newRow));
     })
     aggGridOptions.api.setRowData(segStatsRowData);

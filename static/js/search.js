@@ -656,22 +656,17 @@
       res.measure &&
       (res.qtype === "aggs-query" || res.qtype === "segstats-query")
     ) {
+      if (res.groupByCols) {
+        columnOrder = _.uniq(_.concat(res.groupByCols));
+      }
       let columnOrder = [];
-      if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
-        columnOrder = res.columnsOrder
-      }else{
-        if (res.groupByCols) {
-          columnOrder = _.uniq(_.concat(res.groupByCols));
-        }
-        
-        if (res.measureFunctions) {
-          columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
-        }
+      if (res.measureFunctions) {
+        columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
       }
 
       aggsColumnDefs = [];
       segStatsRowData = [];
-      renderMeasuresGrid(columnOrder, res.measure,res.groupByCols);
+      renderMeasuresGrid(columnOrder, res.measure);
     }
     let totalTime = new Date().getTime() - startQueryTime;
     let percentComplete = res.percent_complete;
@@ -689,22 +684,12 @@
   }
  function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte, totalHits) {
      if (res.hits && res.hits.records!== null && res.hits.records.length >= 1 && res.qtype === "logs-query") {
-      let columnOrder = []
-      if (res.columnsOrder !=undefined && res.columnsOrder.length >0){
-        columnOrder = _.uniq(_.concat(
-          // make timestamp the first column
-          'timestamp',
-          // make logs the second column
-          'logs',
-          res.columnsOrder));
-      }else{
-        columnOrder = _.uniq(_.concat(
-          // make timestamp the first column
-          'timestamp',
-          // make logs the second column
-          'logs',
-          res.allColumns));
-      }
+         let columnOrder = _.uniq(_.concat(
+             // make timestamp the first column
+             'timestamp',
+             // make logs the second column
+             'logs',
+             res.allColumns));
              
          // for sort function display
          sortByTimestampAtDefault = res.sortByTimestampAtDefault; 
@@ -719,24 +704,19 @@
              totalHits = res.hits.totalMatched
          }
      } else if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
-        let columnOrder =[]
-        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
-          columnOrder = res.columnsOrder
-        } else{
-          if (res.groupByCols ) {
-              columnOrder = _.uniq(_.concat(
-                  res.groupByCols));
-          }
-          
-          if (res.measureFunctions ) {
-              columnOrder = _.uniq(_.concat(
-                  columnOrder,res.measureFunctions));
-          }
-        }
+         if (res.groupByCols ) {
+             columnOrder = _.uniq(_.concat(
+                 res.groupByCols));
+         }
+         let columnOrder =[]
+         if (res.measureFunctions ) {
+             columnOrder = _.uniq(_.concat(
+                 columnOrder,res.measureFunctions));
+         }
  
          aggsColumnDefs=[];
          segStatsRowData=[]; 
-         renderMeasuresGrid(columnOrder, res.measure, res.groupByCols);
+         renderMeasuresGrid(columnOrder, res.measure);
  
      }
      let totalTime = (new Date()).getTime() - startQueryTime;
@@ -775,15 +755,11 @@
       processEmptyQueryResults();
     }
     if (res.measure) {
-      if (res.columnsOrder !=undefined && res.columnOrder.length >0){
-        columnOrder = res.columnOrder
-      }else{
-        if (res.groupByCols) {
-          columnOrder = _.uniq(_.concat(res.groupByCols));
-        }
-        if (res.measureFunctions) {
-          columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
-        }
+      if (res.groupByCols) {
+        columnOrder = _.uniq(_.concat(res.groupByCols));
+      }
+      if (res.measureFunctions) {
+        columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
       }
       resetDashboard();
       $("#logs-result-container").hide();
@@ -791,7 +767,7 @@
       $("#agg-result-container").show();
       aggsColumnDefs = [];
       segStatsRowData = [];
-      renderMeasuresGrid(columnOrder, res.measure,res.groupByCols);
+      renderMeasuresGrid(columnOrder, res.measure);
       if (
         (res.qtype === "aggs-query" || res.qtype === "segstats-query") &&
         res.bucketCount
@@ -836,10 +812,7 @@
        measureFunctions = res.measureFunctions;
      }
      if (res.measure) {
-        measureInfo = res.measure;
-        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
-          columnOrder = res.columnsOrder
-        }else{
+         measureInfo = res.measure;
          if (res.groupByCols) {
              columnOrder = _.uniq(_.concat(
                  res.groupByCols));
@@ -848,14 +821,13 @@
              columnOrder = _.uniq(_.concat(
                  columnOrder,res.measureFunctions));
          }
-        }
          resetDashboard();
          $("#logs-result-container").hide();
          $("#custom-chart-tab").show();
          $("#agg-result-container").show();
          aggsColumnDefs=[];
          segStatsRowData=[];
-         renderMeasuresGrid(columnOrder, res.measure, res.groupByCols);
+         renderMeasuresGrid(columnOrder, res.measure);
          if ((res.qtype ==="aggs-query" || res.qtype === "segstats-query") && res.bucketCount){
              totalHits = res.bucketCount;
          }

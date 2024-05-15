@@ -21,7 +21,7 @@
 
  let eGridDiv = null;
  
- function renderMeasuresGrid(columnOrder, hits, groupByCols) {
+ function renderMeasuresGrid(columnOrder, hits) {
      if (eGridDiv === null) {
          eGridDiv = document.querySelector('#measureAggGrid');
          new agGrid.Grid(eGridDiv, aggGridOptions);
@@ -46,11 +46,8 @@
      $.each(hits, function (key, resMap) {
         newRow.set("id", 0)
         columnOrder.map((colName, index) => {
-            let ind = -1;
-            if (groupByCols != undefined && groupByCols.length > 0)
-                ind = findColumnIndex(groupByCols, colName)
-            if (resMap.GroupByValues!=null && resMap.GroupByValues[ind]!="*" &&  ind< (resMap.GroupByValues).length && ind != -1){
-                newRow.set(colName, resMap.GroupByValues[ind])
+            if (resMap.GroupByValues!=null && resMap.GroupByValues[index]!="*" && index< (resMap.GroupByValues).length){
+                newRow.set(colName, resMap.GroupByValues[index])
             }else{
                 // Check if MeasureVal is undefined or null and set it to 0
                 if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {
@@ -58,7 +55,7 @@
                 } else {
                     newRow.set(colName, resMap.MeasureVal[colName]);
                 }
-            }            
+            }
         })
          segStatsRowData = _.concat(segStatsRowData, Object.fromEntries(newRow));
      })
@@ -74,5 +71,3 @@
     let metrics = context.measureText(text);
     return metrics.width;
   }
-
-  
