@@ -74,8 +74,9 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
   padding: 1.5%;
+  justify-content: space-between;
+  height: 100%;
 }
 
 /* PANEL-OPTIONS */
@@ -441,8 +442,7 @@
 }
 
 .panelEditor-container {
-  display: flex;
-  flex-direction: column;
+  display: none;
   width: 96vw;
   height: 96vh;
   background-color: var(--db-bg-color);
@@ -453,7 +453,6 @@
   transform: translate(-50%, -50%);
   border-radius: 8px;
   overflow-y: scroll;
-  justify-content: space-between;
 }
 
 /* PANEL EDIT NAV BAR */
@@ -497,7 +496,7 @@
   align-items: center;
   width: 100%;
   justify-content: flex-end;
-  padding: 14px 0px;
+  padding: 14px 0px 0px 0px;
 }
 
 .panEdit-btn {
