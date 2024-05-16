@@ -228,6 +228,7 @@ function dashboardRangeItemHandler(evt){
                 currentPanel.queryData.startEpoch = filterStartDate
                 currentPanel.queryData.endEpoch = filterEndDate
             }
+            runQueryBtnHandler();
         }
     } else if($(`#viewPanel-container`).css('display').toLowerCase() !== 'none') {
             // if user is on view panel screen
