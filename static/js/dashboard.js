@@ -106,8 +106,6 @@ $(document).ready(async function () {
         window.location.href = "../dashboards-home.html";
     })
 
-    displayDashboardName();
-
     $("#theme-btn").click(() => displayPanels());
     displayPanels()
     getDashboardData();
@@ -118,6 +116,7 @@ $(document).ready(async function () {
         delay: { show: 0, hide: 300 },
         trigger: 'hover'
     });
+    $('#favbutton').on('click',toggleFavorite);
 })
 
 // Initialize Gridstack
@@ -217,7 +216,7 @@ async function updateDashboard() {
                 throw new Error('Dashboard name already exists');
             }    
             if (res.status == 200) {
-                displayDashboardName();
+                $(".name-dashboard").text(dbName);
                 showToast('Dashboard Updated Successfully');
                 return true;
             }
@@ -515,21 +514,6 @@ function resetPanelIndices() {
     }
 }
 
-function displayDashboardName() {
-    $.ajax({
-        method: "get",
-        url: "api/dashboards/" + dbId,
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
-        },
-        dataType: 'json',
-        crossDomain: true,
-    }).then(function (res) {
-        $(".name-dashboard").text(res.name);
-    })
-}
-
 async function getDashboardData() {
     await fetch(`/api/dashboards/${dbId}`)
         .then(res => {
@@ -538,6 +522,7 @@ async function getDashboardData() {
         .then(data => {
             dbData = data;
         })
+    $(".name-dashboard").text(dbData.name);
     dbName = dbData.name;
     dbDescr = dbData.description;
     dbRefresh = dbData.refresh;
@@ -547,6 +532,7 @@ async function getDashboardData() {
     if (localPanels != undefined) {
         displayPanels()
     }
+    setFavoriteValue(dbData.isFavorite)
     //     updateTimeRangeForPanels();
     //     recalculatePanelWidths();
     //     resetPanelLocationsHorizontally();
@@ -1044,45 +1030,45 @@ function getDashboardId() {
 //     })
 // };
 
-function resizePanelFontSize(panelIndex, panelId) {
-    if (panelIndex !== -1) {
-        let bigNumText = $(`#panel${panelId} .big-number`);
-        let unit = $(`#panel${panelId} .unit`);
-        let panelHeight = parseFloat((localPanels[panelIndex].gridpos.h));
+// function resizePanelFontSize(panelIndex, panelId) {
+//     if (panelIndex !== -1) {
+//         let bigNumText = $(`#panel${panelId} .big-number`);
+//         let unit = $(`#panel${panelId} .unit`);
+//         let panelHeight = parseFloat((localPanels[panelIndex].gridpos.h));
 
-        let numFontSize = panelHeight / 2;
-        let panelWidth = parseFloat((localPanels[panelIndex].gridpos.w));
+//         let numFontSize = panelHeight / 2;
+//         let panelWidth = parseFloat((localPanels[panelIndex].gridpos.w));
 
-        if (numFontSize > 170)
-            numFontSize = 170;
-        $(bigNumText).css('font-size', `${numFontSize}px`);
+//         if (numFontSize > 170)
+//             numFontSize = 170;
+//         $(bigNumText).css('font-size', `${numFontSize}px`);
 
-        panelWidth = parseFloat((localPanels[panelIndex].gridpos.w));
+//         panelWidth = parseFloat((localPanels[panelIndex].gridpos.w));
 
-        if (bigNumText.width() + $(`#panel${panelId} .unit`).width() >= panelWidth) {
-            numFontSize -= (bigNumText.width()  + $(`#panel${panelId} .unit`).width() - panelWidth) / 3.5;
-        }
-        if (numFontSize < 140 && numFontSize > 50){
-            $('.unit').css('bottom','18px')
-        }
+//         if (bigNumText.width() + $(`#panel${panelId} .unit`).width() >= panelWidth) {
+//             numFontSize -= (bigNumText.width()  + $(`#panel${panelId} .unit`).width() - panelWidth) / 3.5;
+//         }
+//         if (numFontSize < 140 && numFontSize > 50){
+//             $('.unit').css('bottom','18px')
+//         }
 
-        if (numFontSize < 50)
-            numFontSize = 50;
-        $(bigNumText).css('font-size', `${numFontSize}px`);
-        let unitSize = numFontSize > 10 ? numFontSize - 40 : 12;
-        if (unitSize < 25) {
-            unitSize = 25;
-            $(unit).css('bottom', `10px`);
-            $(unit).css('margin-left', `8px`);
+//         if (numFontSize < 50)
+//             numFontSize = 50;
+//         $(bigNumText).css('font-size', `${numFontSize}px`);
+//         let unitSize = numFontSize > 10 ? numFontSize - 40 : 12;
+//         if (unitSize < 25) {
+//             unitSize = 25;
+//             $(unit).css('bottom', `10px`);
+//             $(unit).css('margin-left', `8px`);
 
-        }
-        if (unitSize > 85)
-            unitSize = 85;
-        $(unit).css('font-size', `${unitSize}px`);
-    } else {
-        $('.big-number-display-container .big-number').css('font-size', `180px`);
-    }
-}
+//         }
+//         if (unitSize > 85)
+//             unitSize = 85;
+//         $(unit).css('font-size', `${unitSize}px`);
+//     } else {
+//         $('.big-number-display-container .big-number').css('font-size', `180px`);
+//     }
+// }
 
 function handleDrag(panelId) {
     $(`#panel${panelId}`).draggable({
@@ -1615,3 +1601,28 @@ function parseInterval(interval) {
             throw new Error("Invalid interval unit");
     }
 }
+
+function toggleFavorite() {
+    console.log("Toggle Favorite");
+    $.ajax({
+        method: 'put',
+        url: 'api/dashboards/favorite/' + dbId,
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': '*/*',
+        },
+        crossDomain: true,
+    }).then((response) => {
+        setFavoriteValue(response.isFavorite);
+    });
+}
+
+function setFavoriteValue(isFavorite) {
+    if(isFavorite) {
+        $('#favbutton').addClass('active');
+    } else {
+        $('#favbutton').removeClass('active');
+    }	
+}
+
+

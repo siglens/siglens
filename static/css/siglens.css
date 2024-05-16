@@ -1926,6 +1926,9 @@ div.dts div.dataTables_scrollBody table {
     border-width: 0;
     margin-left: 15px;
 }
+#favbutton.active{
+    background-image: url(../assets/star-filled.svg);
+}
 
 #delbutton:hover {
     background-image: url(../assets/dark-delete-icon-hover.svg);
@@ -3043,6 +3046,7 @@ float: right;
     position: relative;
     font-size: 16px;
     justify-content: center;
+    height: 30px;
 }
 .panel div.panel-header p{
     color: var(--white-1);
@@ -3079,14 +3083,16 @@ float: right;
     height: 100%;
     background-color: var(--datatable-bg-color);
     border-radius: 5px;
+    display: flex;
+    flex-direction: column;
 }
 
 .panel-body{
-  height: 87%;
-  display: flex;
-  justify-content: center;
-  /* justify-content: space-between; */
-  align-items: center;
+    flex-grow: 1; 
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .panel-body #corner-popup {
