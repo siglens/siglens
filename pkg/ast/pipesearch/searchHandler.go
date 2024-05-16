@@ -549,6 +549,7 @@ func convertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
 func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) uint64 {
 
 	sanTime := strings.ReplaceAll(inp, " ", "")
+	nowPrefix := "now-"
 
 	if sanTime == "now" {
 		return nowTs
@@ -557,13 +558,23 @@ func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) uint64 {
 	retVal := defValue
 
 	strln := len(sanTime)
-	if strln < 6 {
-		return retVal
+	if strln < len(nowPrefix)+2 {
+		return defValue
 	}
 
+	// check for prefix 'now-' in the input string
+	if !strings.HasPrefix(sanTime, nowPrefix) {
+		return defValue
+	}
+
+	// check for invalid time units
 	unit := sanTime[strln-1]
-	num, err := strconv.ParseInt(sanTime[4:strln-1], 0, 64)
-	if err != nil {
+	if unit != 'm' && unit != 'h' && unit != 'd' {
+		return defValue
+	}
+
+	num, err := strconv.ParseInt(sanTime[len(nowPrefix):strln-1], 10, 64)
+	if err != nil || num < 0 {
 		return defValue
 	}
 

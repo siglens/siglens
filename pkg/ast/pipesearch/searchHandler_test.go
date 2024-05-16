@@ -79,4 +79,19 @@ func Test_parseAlphaNumTime(t *testing.T) {
 	actual = parseAlphaNumTime(nowTs, inp, defValue)
 	assert.Equal(t, expected, actual, "expected=%v, actual=%v", expected, actual)
 
+	inp = "invalidTimeString"
+	expected = 12345
+	actual = parseAlphaNumTime(nowTs, inp, defValue)
+	assert.Equal(t, expected, actual, "expected=%v, actual=%v", expected, actual)
+
+	inp = "now-365x"
+	expected = 12345
+	actual = parseAlphaNumTime(nowTs, inp, defValue)
+	assert.Equal(t, expected, actual, "expected=%v, actual=%v", expected, actual)
+
+	inp = "now-5xm"
+	expected = 12345
+	actual = parseAlphaNumTime(nowTs, inp, defValue)
+	assert.Equal(t, expected, actual, "expected=%v, actual=%v", expected, actual)
+
 }
