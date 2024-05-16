@@ -383,7 +383,7 @@ function editPanelInit(redirectedFromViewScreen) {
 	if (selectedDataSourceTypeIndex != -1 && selectedDataSourceTypeIndex !== undefined) {
 		
 		if(selectedDataSourceTypeIndex == 1) {
-			$("#index-btn").css('display', 'inline-flex');
+			$(".index-container").css('display', 'inline-flex');
 			$("#query-language-btn").css('display', 'inline-flex');
 			$("#metrics-query-language-btn").css('display', 'none');
 			if(selectedChartTypeIndex=== -1){
@@ -393,11 +393,11 @@ function editPanelInit(redirectedFromViewScreen) {
 			}
 		} else if (selectedDataSourceTypeIndex==0){
 			$("#metrics-query-language-btn").css('display', 'inline-block');
-			$("#index-btn").css('display', 'none');
+			$(".index-container").css('display', 'none');
 			$("#query-language-btn").css('display', 'none');
 		}
 		else{
-			$("#index-btn").css('display', 'none');
+			$(".index-container").css('display', 'none');
 			$("#query-language-btn").css('display', 'none');
 			$("#metrics-query-language-btn").css('display', 'none');
 		}
@@ -445,15 +445,27 @@ function editPanelInit(redirectedFromViewScreen) {
 	if (currentPanel.queryData && currentPanel.queryData.indexName) {
 		selectedSearchIndex = currentPanel.queryData.indexName;
 	}
-	let checkedIndices = selectedSearchIndex.split(',');
-	$(".index-dropdown-item").removeClass('active');
-	$(".index-dropdown-item").each(function () {
-		if (checkedIndices.includes($(this).data("index"))) {
-			$(this).addClass('active');
-		}
-	});
-	Cookies.set('IndexList', selectedSearchIndex);
-	getDisplayTextForIndex();
+	if (selectedSearchIndex) {
+		// Remove all existing selected indexes
+		$(".index-container .selected-index").remove();
+		const selectedIndexes = selectedSearchIndex.split(',');
+		selectedIndexes.forEach(function(index) {
+			addSelectedIndex(index);
+			// Remove the selectedSearchIndex from indexValues
+			const indexIndex = indexValues.indexOf(index);
+			if (indexIndex !== -1) {
+				indexValues.splice(indexIndex, 1);
+			}
+			if (index.endsWith('*')) {
+				const prefix = index.slice(0, -1); // Remove the '*'
+				const filteredIndexValues = indexValues.filter(function(option) {
+					return !option.startsWith(prefix);
+				});
+				indexValues = filteredIndexValues;
+				$("#index-listing").autocomplete("option", "source", filteredIndexValues);
+			}
+		});
+	}
 
 	if ($('.dropDown-dataSource.active').length) handleSourceDropDownClick();
 	if ($('.dropDown-unit.active').length) handleUnitDropDownClick();
@@ -742,16 +754,16 @@ $(".editPanelMenu-dataSource .editPanelMenu-options").on('click', function () {
 	selectedDataSourceTypeIndex = $(this).data('index');
 	displayQueryToolTip(selectedDataSourceTypeIndex);
 	if(selectedDataSourceTypeIndex == 1) {
-		$("#index-btn").css('display', 'inline-flex');
+		$(".index-container").css('display', 'inline-flex');
 		$("#query-language-btn").css('display', 'inline-flex');
 		$("#metrics-query-language-btn").css('display', 'none');
 	} else if (selectedDataSourceTypeIndex==0){
 		$("#metrics-query-language-btn").css('display', 'inline-block');
-		$("#index-btn").css('display', 'none');
+		$(".index-container").css('display', 'none');
 		$("#query-language-btn").css('display', 'none');
 	}
 	else{
-		$("#index-btn").css('display', 'none');
+		$(".index-container").css('display', 'none');
 		$("#query-language-btn").css('display', 'none');
 		$("#metrics-query-language-btn").css('display', 'none');
 	}
@@ -1205,7 +1217,7 @@ function resetEditPanelScreen() {
 	// $('.dropDown-chart span').html("Chart Type")
 	$('.dropDown-unit span').html("Unit")
 	$('.dropDown-logLinesView span').html("Single line display view")
-	$("#index-btn").css('display', 'none');
+	$(".index-container").css('display', 'none');
 	$("#query-language-btn").css('display', 'none');
 	$("#metrics-query-language-btn").css('display', 'none');
 	$('.query-language-option').removeClass('active');

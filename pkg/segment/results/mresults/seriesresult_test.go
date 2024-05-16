@@ -409,7 +409,7 @@ func Test_applyMathFunctionFloor(t *testing.T) {
 		Results: result,
 	}
 
-	function := structs.Function{MathFunction: segutils.Floor, Value: ""}
+	function := structs.Function{MathFunction: segutils.Floor, ValueList: []string{""}}
 	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
@@ -444,7 +444,7 @@ func Test_applyMathFunctionCeil(t *testing.T) {
 		Results: result,
 	}
 
-	function := structs.Function{MathFunction: segutils.Ceil, Value: ""}
+	function := structs.Function{MathFunction: segutils.Ceil, ValueList: []string{""}}
 	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
@@ -480,7 +480,7 @@ func Test_applyMathFunctionRoundWithoutPrecision(t *testing.T) {
 		Results: result,
 	}
 
-	function := structs.Function{MathFunction: segutils.Round, Value: ""}
+	function := structs.Function{MathFunction: segutils.Round, ValueList: []string{""}}
 	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
@@ -515,7 +515,7 @@ func Test_applyMathFunctionRoundWithPrecision1(t *testing.T) {
 		Results: result,
 	}
 
-	function := structs.Function{MathFunction: segutils.Round, Value: "0.3"}
+	function := structs.Function{MathFunction: segutils.Round, ValueList: []string{"0.3"}}
 	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
@@ -547,7 +547,7 @@ func Test_applyMathFunctionRoundWithPrecision2(t *testing.T) {
 		Results: result,
 	}
 
-	function := structs.Function{MathFunction: segutils.Round, Value: "1 / 2"}
+	function := structs.Function{MathFunction: segutils.Round, ValueList: []string{"1 /2"}}
 	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
@@ -676,4 +676,118 @@ func Test_applyMathFunctionLn(t *testing.T) {
 	metricsResults.Results = result
 	err = metricsResults.ApplyFunctionsToResults(8, function)
 	assert.NotNil(t, err)
+}
+
+func Test_applyMathFunctionClamp(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1714880880] = -30.2
+	ts[1714880881] = 22
+	ts[1714880891] = -10
+	ts[1714880892] = 5.5
+
+	result["metric"] = ts
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	ans := make(map[uint32]float64)
+	ans[1714880880] = 1
+	ans[1714880881] = 10
+	ans[1714880891] = 1
+	ans[1714880892] = 5.5
+
+	function := structs.Function{MathFunction: segutils.Clamp, ValueList: []string{"1", "10"}}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
+func Test_applyMathFunctionClampMin(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1714880880] = -30.2
+	ts[1714880881] = 22
+	ts[1714880891] = -10
+	ts[1714880892] = 5.5
+
+	result["metric"] = ts
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	ans := make(map[uint32]float64)
+	ans[1714880880] = 1
+	ans[1714880881] = 22
+	ans[1714880891] = 1
+	ans[1714880892] = 5.5
+
+	function := structs.Function{MathFunction: segutils.Clamp_Min, ValueList: []string{"1"}}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
+func Test_applyMathFunctionClampMax(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1714880880] = -30.2
+	ts[1714880881] = 22
+	ts[1714880891] = -10
+	ts[1714880892] = 5.5
+
+	result["metric"] = ts
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	ans := make(map[uint32]float64)
+	ans[1714880880] = -30.2
+	ans[1714880881] = 4
+	ans[1714880891] = -10
+	ans[1714880892] = 4
+
+	function := structs.Function{MathFunction: segutils.Clamp_Max, ValueList: []string{"4"}}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
 }

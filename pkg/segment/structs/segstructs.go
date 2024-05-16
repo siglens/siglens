@@ -292,6 +292,7 @@ type NodeResult struct {
 	RecsRunningSegStats       []*SegStats
 	TransactionEventRecords   map[string]map[string]interface{}
 	TransactionsProcessed     map[string]map[string]interface{}
+	ColumnsOrder              map[string]int
 }
 
 type SegStats struct {

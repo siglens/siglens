@@ -33,6 +33,7 @@ type PipeSearchResponseOuter struct {
 	TotalRRCCount      interface{}                   `json:"total_rrc_count,omitempty"`
 	BucketCount        int                           `json:"bucketCount,omitempty"`
 	DashboardPanelId   string                        `json:"dashboardPanelId"`
+	ColumnsOrder       []string                      `json:"columnsOrder"`
 }
 
 type PipeSearchResponse struct {
@@ -56,6 +57,7 @@ type PipeSearchWSUpdateResponse struct {
 	Qtype                    string                  `json:"qtype,omitempty"`
 	BucketCount              int                     `json:"bucketCount,omitempty"`
 	SortByTimestampAtDefault bool                    `json:"sortByTimestampAtDefault"`
+	ColumnsOrder             []string                `json:"columnsOrder,omitempty"`
 }
 
 type PipeSearchCompleteResponse struct {
@@ -70,4 +72,5 @@ type PipeSearchCompleteResponse struct {
 	Qtype               string                  `json:"qtype,omitempty"`
 	BucketCount         int                     `json:"bucketCount,omitempty"`
 	IsTimechart         bool                    `json:"isTimechart"`
+	ColumnsOrder        []string                `json:"columnsOrder,omitempty"`
 }

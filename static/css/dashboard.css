@@ -475,11 +475,8 @@
   justify-content: flex-end;
 }
 
-.panEdit-navBar #index-btn{
-  justify-content: space-between;
-}
 
-.panEdit-navBar #date-picker-btn, .panEdit-navBar #index-btn , .table-view-toggle-container{
+.panEdit-navBar #date-picker-btn, .table-view-toggle-container{
   margin-left: 15px;
 }
 
@@ -1357,6 +1354,108 @@ input:checked + .slider:before {
 }
 .button-section{
   border-top: 1px solid var(--alerting-table-line-color);
+}
+.ui-widget.ui-widget-content{
+  z-index: 999;
+}
+.index-container{
+  border: 1px solid var(--border-btn-color);
+  border-radius: 5px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0px 12px;
+  font-size: 14px;
+}
+.index-container .selected-index{
+  color: var(--text-color);
+  padding: 4px 28px 4px 7px;
+  margin-right: 8px;
+  white-space: nowrap;
+  position: relative;
+  background-color: #ECF6FB;
+}
+.index-container .selected-index .remove-icon {
+  font-size: 22px;
+  font-weight: bold;
+  position: absolute;
+  top: -3px;
+  right: 8px;
+  cursor: pointer;
+}
+#index-listing{
+  border: none;
+  height: 28px;
+  padding: 0px !important;
+}
+#index-listing:focus{
+  outline: none;
+  background: var(--ui-widget-bg-color);
+}
+/* JQUERY AUTOCOMpLETE */
+.ui-widget{
+  height: auto !important;
+  max-height: 260px;
+  overflow: scroll;
+}
+.ui-widget.ui-widget-content{
+  list-style-type: none;
+  border-radius: 0px !important;
+  width: fit-content;
+  min-width: 233px;
+}
+.ui-autocomplete {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  display: none;
+  float: left;
+  min-width: 160px;
+  padding: 0;
+  margin: 2px 0 0;
+  list-style: none;
+  font-size: 14px;
+  text-align: left;
+  background-color: #ffffff;
+  border: 1px solid #cccccc;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  -webkit-box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+  background-clip: padding-box;
+}
+
+.ui-autocomplete > li > div {
+  display: block;
+  padding: 3px 20px;
+  clear: both;
+  font-weight: normal;
+  height: 34px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+
+.ui-state-hover,
+.ui-state-active,
+.ui-state-focus {
+  color: #ffffff;
+  text-decoration: none;
+  background-color: #2D69BC;
+  cursor: pointer;
+  height: 34px;
+}
+
+.ui-helper-hidden-accessible {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
 }
 .add-panel-div{
   border: 2px solid var(--lavender-2);

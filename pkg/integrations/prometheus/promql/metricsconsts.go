@@ -56,6 +56,27 @@ const metricFunctions = `[
 		"isTimeRangeFunc": false
 	},
 	{
+		"fn": "clamp",
+		"name": "Clamp",
+		"desc": "Clamps the sample values of all elements in v to have a lower limit of min and an upper limit of max.",
+		"eg": "clamp(avg (system.disk.used), 0, 99)",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "clamp_max",
+		"name": "Clamp Max",
+		"desc": "Clamps the sample values of all elements in v to have an upper limit of max.",
+		"eg": "clamp_max(avg (system.disk.used), 99)",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "clamp_min",
+		"name": "Clamp Min",
+		"desc": "Clamps the sample values of all elements in v to have a lower limit of min.",
+		"eg": "clamp_min(avg (system.disk.used), 0)",
+		"isTimeRangeFunc": false
+	},
+	{
 		"fn": "rate", 
 		"name": "Rate", 
 		"desc": "Calculates the per-second average rate of increase of the time series in the range vector.", 
