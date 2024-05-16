@@ -212,6 +212,9 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 	}
 
 	for mName := range unrotatedResultContainer {
+		if mName == "" {
+			continue
+		}
 		_, ok := resultContainer[mName]
 		if !ok {
 			resultContainer[mName] = true

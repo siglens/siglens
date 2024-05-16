@@ -408,6 +408,9 @@ If it cannot find the series or no space exists in the metrics segment, it will 
 Return number of bytes written and any error encountered
 */
 func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint32, nBytes uint64, orgid uint64) error {
+	if len(mName) == 0 {
+		return fmt.Errorf("metric name is empty")
+	}
 	tsid, err := tags.GetTSID(mName)
 	if err != nil {
 		return err
