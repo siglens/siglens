@@ -416,19 +416,10 @@ func (sr *SearchResults) GetTotalCount() uint64 {
 	return sr.resultCount
 }
 
-func (sr *SearchResults) GetAggs() (*structs.QueryAggregators, error) {
+func (sr *SearchResults) GetAggs() *structs.QueryAggregators {
 	sr.updateLock.Lock()
 	defer sr.updateLock.Unlock()
-	aggsBytes, err := json.Marshal(sr.sAggs)
-	if err != nil {
-		return nil, fmt.Errorf("GetAggs: unable to get a copy of aggs: %v", err)
-	}
-
-	var aggsCopy structs.QueryAggregators
-	if err := json.Unmarshal(aggsBytes, &aggsCopy); err != nil {
-		return nil, fmt.Errorf("GetAggs: unable to get a copy of aggs: %v", err)
-	}
-	return &aggsCopy, nil
+	return sr.sAggs
 }
 
 // Adds remote rrc results to the search results

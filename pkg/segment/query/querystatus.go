@@ -356,12 +356,7 @@ func GetMeasureResultsForQid(qid uint64, pullGrpBucks bool, skenc uint16, limit 
 			}
 
 			// Remove unused columns for Rename block
-			aggs, err := rQuery.searchRes.GetAggs()
-			if err != nil {
-				log.Errorf("GetMeasureResultsForQid: %v", err)
-			} else {
-				aggGroupByCols = structs.RemoveUnusedGroupByCols(aggs, aggGroupByCols)
-			}
+			aggGroupByCols = structs.RemoveUnusedGroupByCols(rQuery.searchRes.GetAggs(), aggGroupByCols)
 
 			return bucketHolderArr, retMFuns, aggGroupByCols, GetFinalColsOrder(columnsOrder), added
 		} else {
