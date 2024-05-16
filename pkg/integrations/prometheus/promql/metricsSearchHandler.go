@@ -19,7 +19,6 @@ package promql
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -39,6 +38,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
+	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
@@ -444,13 +444,12 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		log.Errorf("ProcessGetSeriesByLabelRequest: Error parsing 'end' parameter, err:%v", err)
 	}
 
+	allSeriesResults := make(map[uint64]*mresults.Series, 0)
+
 	timeRange := &dtu.MetricsTimeRange{
 		StartEpochSec: uint32(startTime),
 		EndEpochSec:   uint32(endTime),
 	}
-
-	allResults := make([]map[string]string, 0)
-	uniqueResults := make(map[string]struct{})
 
 	for _, match := range matches {
 
@@ -473,24 +472,25 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		segment.LogMetricsQuery("PromQL series by label request", &metricQueryRequest[0], qid)
 		res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
 
-		result, err := res.GetSeriesByLabel(&metricQueryRequest[0].MetricsQuery)
-		if err != nil {
-			utils.SendError(ctx, "Failed to get series", fmt.Sprintf("Metric Name: %+v; qid: %v", match, qid), err)
-			continue
+		for tsid, series := range res.AllSeries {
+			allSeriesResults[tsid] = series
+			series.SetMetricName(metricQueryRequest[0].MetricsQuery.MetricName)
 		}
+	}
 
-		for _, r := range result {
-			str, _ := json.Marshal(r)
-			if _, ok := uniqueResults[string(str)]; !ok {
-				uniqueResults[string(str)] = struct{}{}
-				allResults = append(allResults, r)
-			}
-		}
+	metricsResult := &mresults.MetricsResult{
+		AllSeries: allSeriesResults,
+	}
+
+	result, err := metricsResult.GetSeriesByLabel()
+	if err != nil {
+		utils.SendError(ctx, "Failed to get series", fmt.Sprintf("qid: %v, Matches: %+v", qid, matches), err)
+		return
 	}
 
 	response := map[string]interface{}{
 		"status": "success",
-		"data":   allResults,
+		"data":   result,
 	}
 	WriteJsonResponse(ctx, &response)
 	ctx.SetContentType(ContentJson)

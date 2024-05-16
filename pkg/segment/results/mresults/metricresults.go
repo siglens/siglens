@@ -414,7 +414,7 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 	return uniqueTagKeys, tagKeyValueSet, nil
 }
 
-func (res *MetricsResult) GetSeriesByLabel(mQuery *structs.MetricsQuery) ([]map[string]string, error) {
+func (res *MetricsResult) GetSeriesByLabel() ([]map[string]string, error) {
 	if res.State != SERIES_READING {
 		return nil, errors.New("results is not in Series Reading state")
 	}
@@ -427,7 +427,7 @@ func (res *MetricsResult) GetSeriesByLabel(mQuery *structs.MetricsQuery) ([]map[
 		var parts []string
 
 		tagMap := make(map[string]string)
-		tagMap["__name__"] = mQuery.MetricName
+		tagMap["__name__"] = series.GetMetricName()
 
 		for idx, tkVal := range tagKeyValues {
 			if idx == 0 {
