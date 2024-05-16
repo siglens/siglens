@@ -301,6 +301,9 @@ const (
 	Ln
 	Log2
 	Log10
+	Sgn
+	Deg
+	Rad
 	Clamp
 	Clamp_Max
 	Clamp_Min

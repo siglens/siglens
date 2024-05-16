@@ -143,6 +143,7 @@ func HandlePutMetrics(compressed []byte) (uint64, uint64, error) {
 								if ok {
 									metricName = valString
 								}
+								continue // skip metric __name__ as tag
 							}
 							valString, ok := v.(string)
 							if ok {
@@ -152,11 +153,16 @@ func HandlePutMetrics(compressed []byte) (uint64, uint64, error) {
 					}
 				}
 			}
-			tags += `"metric"` + `:"` + metricName + `",`
 			if tags[len(tags)-1] == ',' {
 				tags = tags[:len(tags)-1]
 			}
 			tags += "}"
+
+			if metricName == "" {
+				failedCount++
+				log.Errorf("HandlePutMetrics: the Metric name is empty. json data payload: %+v", dataJson)
+				continue
+			}
 
 			modifiedData := `{"metric":"` + metricName + `","tags":` + tags + `,"timestamp":` + strconv.FormatInt(s.Timestamp, 10) + `,"value":` + strconv.FormatFloat(s.Value, 'f', -1, 64) + `}`
 

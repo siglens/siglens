@@ -12,7 +12,14 @@ const metricFunctions = `[
 		"desc": "Returns the input vector with all datapoint values converted to their absolute value.",
 		"eg": "abs(avg (system.disk.used{*}))",
 		"isTimeRangeFunc": false
-	}, 
+	},
+	{
+		"fn": "sqrt",
+		"name": "Square root",
+		"desc": "calculates the square root of all elements in v.",
+		"eg": "sqrt(avg (system.disk.used{*}))",
+		"isTimeRangeFunc": false
+	},
 	{
 		"fn": "ceil",
 		"name": "Ceil",
@@ -35,6 +42,13 @@ const metricFunctions = `[
 		"isTimeRangeFunc": false
 	},
 	{
+		"fn": "exp",
+		"name": "Exponential",
+		"desc": "Calculates the exponential function for all elements in v.",
+		"eg": "exp(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
 		"fn": "ln",
 		"name": "Natural logarithm",
 		"desc": "Calculates the natural logarithm for all elements in v.",
@@ -53,6 +67,27 @@ const metricFunctions = `[
 		"name": "Decimal logarithm",
 		"desc": "Calculates the decimal logarithm for all elements in v.",
 		"eg": "log10(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "sgn",
+		"name": "Sign",
+		"desc": "Returns a vector with all sample values converted to their sign, defined as this: 1 if v is positive, -1 if v is negative and 0 if v is equal to zero.",
+		"eg": "sgn(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "deg",
+		"name": "Degree",
+		"desc": "Converts radians to degrees for all elements in v.",
+		"eg": "deg(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "rad",
+		"name": "Radian",
+		"desc": "converts degrees to radians for all elements in v.",
+		"eg": "rad(avg (system.disk.used))",
 		"isTimeRangeFunc": false
 	},
 	{
