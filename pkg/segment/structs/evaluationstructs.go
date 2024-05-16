@@ -1103,6 +1103,62 @@ func (self *RenameExpr) RemoveBucketHolderGroupByColumnsByIndex(bucketHolder *Bu
 
 }
 
+// For Rename or top/rare block, we may need to delete some groupby columns while processing them
+func RemoveUnusedGroupByCols(aggs *QueryAggregators, aggGroupByCols []string) []string {
+	for agg := aggs; agg != nil; agg = agg.Next {
+		// Rename block
+		aggGroupByCols = GetRenameGroupByCols(aggGroupByCols, agg)
+		// Statistic block: to be finished
+	}
+	return aggGroupByCols
+}
+
+// Rename field A to field B. If A and B are groupby columns, field B should be removed from groupby columns, and rename A to B
+func GetRenameGroupByCols(aggGroupByCols []string, agg *QueryAggregators) []string {
+	if agg.OutputTransforms != nil && agg.OutputTransforms.LetColumns != nil && agg.OutputTransforms.LetColumns.RenameColRequest != nil {
+
+		// Except for regex, other RenameExprModes will only rename one column
+		renameIndex := -1
+		indexToRemove := make([]int, 0)
+
+		for index, groupByCol := range aggGroupByCols {
+			switch agg.OutputTransforms.LetColumns.RenameColRequest.RenameExprMode {
+			case REMPhrase:
+				fallthrough
+			case REMOverride:
+
+				if groupByCol == agg.OutputTransforms.LetColumns.RenameColRequest.OriginalPattern {
+					renameIndex = index
+				}
+				if groupByCol == agg.OutputTransforms.LetColumns.RenameColRequest.NewPattern {
+					indexToRemove = append(indexToRemove, index)
+				}
+
+			case REMRegex:
+				newColName, err := agg.OutputTransforms.LetColumns.RenameColRequest.ProcessRenameRegexExpression(groupByCol)
+				if err != nil {
+					return []string{}
+				}
+				if len(newColName) == 0 {
+					continue
+				}
+				for i, colName := range aggGroupByCols {
+					if colName == newColName {
+						indexToRemove = append(indexToRemove, i)
+						break
+					}
+				}
+				aggGroupByCols[index] = newColName
+			}
+		}
+		if renameIndex != -1 {
+			aggGroupByCols[renameIndex] = agg.OutputTransforms.LetColumns.RenameColRequest.NewPattern
+		}
+		aggGroupByCols = agg.OutputTransforms.LetColumns.RenameColRequest.RemoveColsByIndex(aggGroupByCols, indexToRemove)
+	}
+	return aggGroupByCols
+}
+
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
