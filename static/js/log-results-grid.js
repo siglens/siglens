@@ -256,7 +256,7 @@ function renderLogsGrid(columnOrder, hits){
         }
             
     }
-    logsColumnDefs = _.chain(logsColumnDefs).concat(cols).uniqBy('field').value();
+    logsColumnDefs = cols
     gridOptions.api.setColumnDefs(logsColumnDefs);
 
     const allColumnIds = [];
