@@ -126,7 +126,8 @@ var options = {
     },
     draggable: {
         handle: '.grid-stack-item-content'
-    }
+    },
+    animate: false 
 };
 var grid = GridStack.init(options, '#panel-container');
 
@@ -1381,9 +1382,12 @@ function addDefaultPanel(){
     var defaultItem = grid.addWidget(`<div class="grid-stack-item default-item active"><div class="add-panel-div">
     <div class="plus-icon">+</div>
     <div class="text">Select the Panel Type</div>
-    </div></div>`, {width: 4,height:2,  noResize: true,
-        // Disable dragging for the default item
-        noMove: true});
+    </div></div>`, 
+    {   width: 4, 
+        height:2,  
+        noResize: true,
+        noMove: true,
+    });
 
 }
 // function resetPanelContainerHeight() {
