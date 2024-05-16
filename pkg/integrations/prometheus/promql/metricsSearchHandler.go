@@ -1028,6 +1028,8 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				switch function {
 				case "abs":
 					mquery.Function = structs.Function{MathFunction: segutils.Abs}
+				case "sqrt":
+					mquery.Function = structs.Function{MathFunction: segutils.Sqrt}
 				case "ceil":
 					mquery.Function = structs.Function{MathFunction: segutils.Ceil}
 				case "round":
@@ -1037,12 +1039,20 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					}
 				case "floor":
 					mquery.Function = structs.Function{MathFunction: segutils.Floor}
+				case "exp":
+					mquery.Function = structs.Function{MathFunction: segutils.Exp}
 				case "ln":
 					mquery.Function = structs.Function{MathFunction: segutils.Ln}
 				case "log2":
 					mquery.Function = structs.Function{MathFunction: segutils.Log2}
 				case "log10":
 					mquery.Function = structs.Function{MathFunction: segutils.Log10}
+				case "sgn":
+					mquery.Function = structs.Function{MathFunction: segutils.Sgn}
+				case "deg":
+					mquery.Function = structs.Function{MathFunction: segutils.Deg}
+				case "rad":
+					mquery.Function = structs.Function{MathFunction: segutils.Rad}
 				case "clamp":
 					if len(expr.Args) != 3 {
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp function", expr.Args.String())
