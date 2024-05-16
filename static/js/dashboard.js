@@ -271,7 +271,6 @@ function goToDashboardFromView() {
     $('#add-panel-btn').show();
     $('#viewPanel-container .panel .panel-info-corner').empty();
     updateTimeRangeForPanels();
-    displayPanels();
     if(dbRefresh){
 		startRefreshInterval(dbRefresh)
 	}
@@ -574,6 +573,7 @@ function updateTimeRangeForPanel(panelIndex) {
 
 // Event listener for Gridstack resize and drag events
 grid.on('change', function(event, items) {
+    console.log("CHANGE event fired-------------------");
     items.forEach(function(item) {
         // Find the panel in localPanels array using its ID
         let panelIndex = localPanels.findIndex(panel => panel.panelId === item.el.id);
@@ -585,8 +585,8 @@ grid.on('change', function(event, items) {
             localPanels[panelIndex].gridpos.h = item.height;
         }
     });
-    updateDashboard();
 });
+
 grid.on('dragstart', function(event, items) {
     // Hide the default-item when dragging starts
     $('.default-item').hide();
@@ -1343,8 +1343,6 @@ function addPanel(chartIndex) {
 
 
 function addDuplicatePanel(panelToDuplicate) {
-    // console.log("panelToDuplicate", panelToDuplicate);
-    console.log(localPanels[panelToDuplicate])
     flagDBSaved = false;
     panelIndex = localPanels.length;
     var defaultWidget = $('.default-item').get(0); // Get the DOM element
@@ -1650,6 +1648,17 @@ function setFavoriteValue(isFavorite) {
 
 $(window).on('resize', function() {
     setTimeout(resizeCharts, 100);
+    var windowWidth = window.innerWidth;
+
+    // If window width is less than a certain threshold, disable resizing and dragging
+    if (windowWidth < 978) { // Adjust the threshold as needed
+        grid.movable('.grid-stack-item', false);
+        grid.resizable('.grid-stack-item', false);
+    } else {
+        // Enable resizing and dragging
+        grid.movable('.grid-stack-item', true);
+        grid.resizable('.grid-stack-item', true);
+    }
 });
 
 function resizeCharts() {
