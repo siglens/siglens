@@ -534,12 +534,9 @@ async function getDashboardData() {
         displayPanels()
     }
     setFavoriteValue(dbData.isFavorite)
-    //     updateTimeRangeForPanels();
-    //     recalculatePanelWidths();
-    //     resetPanelLocationsHorizontally();
-    //     setRefreshItemHandler();
-    //     refreshDashboardHandler();
-    // }
+    updateTimeRangeForPanels();
+    setRefreshItemHandler();
+    refreshDashboardHandler();
 }
 
 function updateTimeRangeForPanels() {
@@ -588,6 +585,7 @@ grid.on('change', function(event, items) {
             localPanels[panelIndex].gridpos.h = item.height;
         }
     });
+    updateDashboard();
 });
 grid.on('dragstart', function(event, items) {
     // Hide the default-item when dragging starts
@@ -604,7 +602,26 @@ grid.on('dragstop', function(event, items) {
     $('.default-item').show();
 });
 
-grid.on('resizestop', function(event, items) {
+grid.on('resizestop', function(event, ui) {
+    var gridStackItemId = ui.id;
+    var panelIndex = $('#' + gridStackItemId).find('.panel').attr('panel-index');
+    const panelChartType = localPanels[panelIndex].chartType;
+    switch (panelChartType) {
+        case 'number' : 
+            var newSize = $('#' + gridStackItemId).width() / 8;
+            $('#' + gridStackItemId).find('.big-number, .unit').css('font-size', newSize + 'px');
+            break;
+        case 'Bar Chart' :
+        case 'Pie Chart' :
+            var echartsInstanceId = $('#' + gridStackItemId).find('.panEdit-panel').attr('_echarts_instance_');
+            if (echartsInstanceId) {
+                var echartsInstance = echarts.getInstanceById(echartsInstanceId);
+                if (echartsInstance) {
+                    echartsInstance.resize();
+                }
+            }
+            break;
+    }
     // Show the default-item when resizing stops
     $('.default-item').show();
 });
@@ -1629,27 +1646,7 @@ function setFavoriteValue(isFavorite) {
     }	
 }
 
-grid.on('resizestop', function(event, ui) {
-    var gridStackItemId = ui.id;
-    var panelIndex = $('#' + gridStackItemId).find('.panel').attr('panel-index');
-    const panelChartType = localPanels[panelIndex].chartType;
-    switch (panelChartType) {
-        case 'number' : 
-            var newSize = $('#' + gridStackItemId).width() / 8;
-            $('#' + gridStackItemId).find('.big-number').css('font-size', newSize + 'px');
-            break;
-        case 'Bar Chart' :
-        case 'Pie Chart' :
-            var echartsInstanceId = $('#' + gridStackItemId).find('.panEdit-panel').attr('_echarts_instance_');
-            if (echartsInstanceId) {
-                var echartsInstance = echarts.getInstanceById(echartsInstanceId);
-                if (echartsInstance) {
-                    echartsInstance.resize();
-                }
-            }
-            break;
-    }
-});
+
 
 $(window).on('resize', function() {
     setTimeout(resizeCharts, 100);
