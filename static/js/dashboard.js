@@ -1625,4 +1625,41 @@ function setFavoriteValue(isFavorite) {
     }	
 }
 
+grid.on('resizestop', function(event, ui) {
+    var gridStackItemId = ui.id;
+    var panelIndex = $('#' + gridStackItemId).find('.panel').attr('panel-index');
+    const panelChartType = localPanels[panelIndex].chartType;
+    switch (panelChartType) {
+        case 'number' : 
+            var newSize = $('#' + gridStackItemId).width() / 8;
+            $('#' + gridStackItemId).find('.big-number').css('font-size', newSize + 'px');
+            break;
+        case 'Bar Chart' :
+        case 'Pie Chart' :
+            var echartsInstanceId = $('#' + gridStackItemId).find('.panEdit-panel').attr('_echarts_instance_');
+            if (echartsInstanceId) {
+                var echartsInstance = echarts.getInstanceById(echartsInstanceId);
+                if (echartsInstance) {
+                    echartsInstance.resize();
+                }
+            }
+            break;
+    }
+});
+
+$(window).on('resize', function() {
+    setTimeout(resizeCharts, 100);
+});
+
+function resizeCharts() {
+    $('.grid-stack-item-content .panEdit-panel').each(function() {
+        var echartsInstanceId = $(this).attr('_echarts_instance_');
+        if (echartsInstanceId) {
+            var echartsInstance = echarts.getInstanceById(echartsInstanceId);
+            if (echartsInstance) {
+                echartsInstance.resize();
+            }
+        }
+    });
+}
 

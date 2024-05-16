@@ -605,7 +605,7 @@
   justify-content: center;
   align-items: center;
   color: var(--orange-1);
-  font-size: 8vmax;
+  font-size: 6vmax;
   font-weight: 600;
   color: var(--number-and-unit-color);
 }
@@ -616,7 +616,7 @@
   align-items: flex-end;
   position: relative;
   margin-left: 16px;
-  font-size: 8vmax;
+  font-size: 6vmax;
   font-weight: 600;
   color: var(--number-and-unit-color);
 }
@@ -1495,4 +1495,7 @@ input:checked + .slider:before {
 .grid-stack .grid-stack-placeholder > .placeholder-content {
   border: 1px dashed var(--border-color-regular);
   background-color: rgba(100, 71, 217, 0.1);
+}
+.grid-stack>.grid-stack-item>.grid-stack-item-content{
+  overflow-y: hidden;
 }
