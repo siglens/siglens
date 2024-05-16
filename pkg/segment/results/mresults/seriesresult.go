@@ -256,25 +256,36 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	switch function.MathFunction {
 	case segutils.Abs:
 		evaluate(ts, math.Abs)
+	case segutils.Sqrt:
+		err = applyFuncToNonNegativeValues(ts, math.Sqrt)
 	case segutils.Ceil:
 		evaluate(ts, math.Ceil)
 	case segutils.Floor:
 		evaluate(ts, math.Floor)
 	case segutils.Round:
 		if len(function.ValueList) > 0 && len(function.ValueList[0]) > 0 {
-			err := evaluateRoundWithPrecision(ts, function.ValueList[0])
-			if err != nil {
-				return ts, fmt.Errorf("ApplyMathFunction: %v", err)
-			}
+			err = evaluateRoundWithPrecision(ts, function.ValueList[0])
 		} else {
 			evaluate(ts, math.Round)
 		}
+	case segutils.Exp:
+		evaluate(ts, math.Exp)
 	case segutils.Ln:
-		err = evaluateLogFunc(ts, math.Log)
+		err = applyFuncToNonNegativeValues(ts, math.Log)
 	case segutils.Log2:
-		err = evaluateLogFunc(ts, math.Log2)
+		err = applyFuncToNonNegativeValues(ts, math.Log2)
 	case segutils.Log10:
-		err = evaluateLogFunc(ts, math.Log10)
+		err = applyFuncToNonNegativeValues(ts, math.Log10)
+	case segutils.Sgn:
+		evaluate(ts, calculateSgn)
+	case segutils.Deg:
+		evaluate(ts, func(val float64) float64 {
+			return val * 180 / math.Pi
+		})
+	case segutils.Rad:
+		evaluate(ts, func(val float64) float64 {
+			return val * math.Pi / 180
+		})
 	case segutils.Clamp:
 		if len(function.ValueList) != 2 {
 			return ts, fmt.Errorf("ApplyMathFunction: clamp has incorrect parameters: %v", function.ValueList)
@@ -598,14 +609,24 @@ func evaluate(ts map[uint32]float64, mathFunc float64Func) {
 	}
 }
 
-func evaluateLogFunc(ts map[uint32]float64, mathFunc float64Func) error {
+func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) error {
 	for key, val := range ts {
-		if val <= 0 {
-			return fmt.Errorf("evaluateLogFunc: log function cannot evaluate non-positive numbers: %v", val)
+		if val < 0 {
+			return fmt.Errorf("applyFuncToNonNegativeValues: negative param not allowed: %v", val)
 		}
 		ts[key] = mathFunc(val)
 	}
 	return nil
+}
+
+func calculateSgn(val float64) float64 {
+	if val > 0 {
+		return 1
+	} else if val < 0 {
+		return -1
+	} else {
+		return 0
+	}
 }
 
 func evaluateRoundWithPrecision(ts map[uint32]float64, toNearestStr string) error {
