@@ -239,15 +239,24 @@ function renderLogsGrid(columnOrder, hits){
                 hideCol = false;
             }
         }
-        return {
-            field: colName,
-            hide: hideCol,
-            headerName: colName,
-            cellRenderer: myCellRenderer,
-            cellRendererParams : {
-                colName: colName
-             }
-        };
+        if (colName === "timestamp"){
+            return {
+                field: colName,
+                hide: hideCol,
+                headerName: colName,
+                cellRenderer:function(params) {
+                        return moment(params.value).format(timestampDateFmt);
+                    }
+            }
+        }else{
+            return {
+                field: colName,
+                hide: hideCol,
+                headerName: colName,
+                cellRenderer: myCellRenderer,
+                cellRendererParams : {colName: colName}
+            };
+        }
     });
     if(hits.length != 0){
         logsRowData = _.concat(hits, logsRowData);
@@ -256,7 +265,7 @@ function renderLogsGrid(columnOrder, hits){
         }
             
     }
-    logsColumnDefs = _.chain(logsColumnDefs).concat(cols).uniqBy('field').value();
+    logsColumnDefs = cols
     gridOptions.api.setColumnDefs(logsColumnDefs);
 
     const allColumnIds = [];
