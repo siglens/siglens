@@ -55,19 +55,39 @@ Example incomingBody
 
 finalSize = size + from
 */
-func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int) {
+func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, error) {
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
 	var scrollFrom int
+	var errorMessage string
+
+	knownFields := map[string]bool{
+		"searchText": true,
+		"indexName":  true,
+		"startEpoch": true,
+		"endEpoch":   true,
+		"size":       true,
+		"scroll":     true,
+		"from":       true,
+	}
+
+	for key := range jsonSource {
+		if !knownFields[key] {
+			errorMessage = "parseSearchBody unexpected field: %s in JSON"
+			log.Errorf(errorMessage, key)
+			return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, key)
+		}
+	}
+
 	sText, ok := jsonSource["searchText"]
 	if !ok || sText == "" {
 		searchText = "*"
 	} else {
-		switch val := sText.(type) {
-		case string:
-			searchText = val
-		default:
-			log.Errorf("parseSearchBody searchText is not a string! Val %+v", val)
+		searchText, ok = sText.(string)
+		if !ok {
+			errorMessage = "parseSearchBody searchText is not a string! Val %+v"
+			log.Errorf(errorMessage, sText)
+			return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, sText)
 		}
 	}
 
@@ -81,10 +101,15 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case []string:
 			indexName = strings.Join(val[:], ",")
 		case []interface{}:
-
 			valLen := len(val)
 			indexName = ""
 			for idx, indVal := range val {
+				_, ok := indVal.(string)
+				if !ok {
+					errorMessage = "parseSearchBody indexName should be a string array, got %T in array"
+					log.Errorf(errorMessage, indVal)
+					return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, indVal)
+				}
 				if idx == valLen-1 {
 					indexName += fmt.Sprintf("%v", indVal)
 				} else {
@@ -93,7 +118,9 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			}
 
 		default:
-			log.Errorf("parseSearchBody indexName is not a string! Val %+v, type: %T", val, iText)
+			errorMessage = "parseSearchBody indexName is not a string! Val %+v, type: %T"
+			log.Errorf(errorMessage, val, iText)
+			return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, val, iText)
 		}
 	}
 
@@ -103,7 +130,13 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 	} else {
 		switch val := startE.(type) {
 		case json.Number:
-			temp, _ := val.Int64()
+			temp, err := val.Int64()
+			if err != nil {
+				errorMessage = "parseSearchBody error converting field 'startEpoch': %v"
+				log.Errorf(errorMessage, err)
+				return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, err)
+
+			}
 			startEpoch = uint64(temp)
 		case float64:
 			startEpoch = uint64(val)
@@ -115,6 +148,8 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			defValue := nowTs - (15 * 60 * 1000)
 			startEpoch = parseAlphaNumTime(nowTs, string(val), defValue)
 		default:
+			errorMessage = "parseSearchBody startEpoch should be a number or string, got %T"
+			log.Errorf(errorMessage, startE)
 			startEpoch = nowTs - (15 * 60 * 1000)
 		}
 	}
@@ -125,7 +160,12 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 	} else {
 		switch val := endE.(type) {
 		case json.Number:
-			temp, _ := val.Int64()
+			temp, err := val.Int64()
+			if err != nil {
+				errorMessage = "parseSearchBody error converting field 'endEpoch': %v"
+				log.Errorf(errorMessage, err)
+				return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, err)
+			}
 			endEpoch = uint64(temp)
 		case float64:
 			endEpoch = uint64(val)
@@ -136,6 +176,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case string:
 			endEpoch = parseAlphaNumTime(nowTs, string(val), nowTs)
 		default:
+			log.Errorf("parseSearchBody endEpoch should be a number or string, got %T", endE)
 			endEpoch = nowTs
 		}
 	}
@@ -146,7 +187,12 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 	} else {
 		switch val := size.(type) {
 		case json.Number:
-			temp, _ := val.Int64()
+			temp, err := val.Int64()
+			if err != nil {
+				errorMessage = "parseSearchBody error converting field 'size': %v"
+				log.Errorf(errorMessage, err)
+				return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, err)
+			}
 			finalSize = uint64(temp)
 		case float64:
 			finalSize = uint64(val)
@@ -169,6 +215,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case int:
 			finalSize = uint64(val)
 		default:
+			log.Errorf("parseSearchBody size should be a number, got %T", size)
 			finalSize = uint64(100)
 		}
 	}
@@ -179,7 +226,12 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 	} else {
 		switch val := scroll.(type) {
 		case json.Number:
-			temp, _ := val.Int64()
+			temp, err := val.Int64()
+			if err != nil {
+				errorMessage = "parseSearchBody error converting field 'scroll': %v"
+				log.Errorf(errorMessage, err)
+				return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, err)
+			}
 			scrollFrom = int(temp)
 		case float64:
 			scrollFrom = int(val)
@@ -208,7 +260,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 	}
 	finalSize = finalSize + uint64(scrollFrom)
 
-	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom
+	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, nil
 }
 
 func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
@@ -243,7 +295,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, _ := ParseSearchBody(readJSON, nowTs)
 
 	if scrollFrom > 10_000 {
 		return -1
@@ -350,7 +402,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, _ := ParseSearchBody(readJSON, nowTs)
 
 	if scrollFrom > 10_000 {
 		processMaxScrollCount(ctx, qid)
