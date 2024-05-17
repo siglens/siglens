@@ -49,24 +49,21 @@ function renderMeasuresGrid(columnOrder, hits) {
         .uniqBy("field").value();
     aggGridOptions.api.setColumnDefs(aggsColumnDefs);
     let newRow = new Map();
-    $.each(hits.measure, function (_, resMap) {
+    $.each(hits.measure, function (key, resMap) {
         newRow.set("id", 0);
-        columnOrder.map(function (colName) {
+        columnOrder.map((colName, index) => {
             let ind = -1;
-            if (hits.groupByCols !== undefined && hits.groupByCols.length > 0) {
+            if (hits.groupByCols !=undefined && hits.groupByCols.length > 0) {
                 ind = findColumnIndex(hits.groupByCols, colName);
             }
             //group by col
-            if (ind !== -1 && resMap.GroupByValues.length !== 1
-                    && resMap.GroupByValues[ind] !== "*") {
+            if (ind !== -1  && resMap.GroupByValues.length !== 1 && resMap.GroupByValues[ind] !== "*") {
                 newRow.set(colName, resMap.GroupByValues[ind]);
-            } else if (ind !== -1 && resMap.GroupByValues.length === 1
-                    && resMap.GroupByValues[0] !== "*") {
+            } else if (ind !== -1 && resMap.GroupByValues.length === 1 && resMap.GroupByValues[0] !== "*") {
                 newRow.set(colName, resMap.GroupByValues[0]);
             } else {
                 // Check if MeasureVal is undefined or null and set it to 0
-                if (resMap.MeasureVal[colName] === undefined ||
-                        resMap.MeasureVal[colName] === null) {
+                if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {
                     newRow.set(colName, "0");
                 } else {
                     newRow.set(colName, resMap.MeasureVal[colName]);
