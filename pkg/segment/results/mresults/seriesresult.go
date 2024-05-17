@@ -486,9 +486,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			}
 		}
 
-		if len(ts) > 0 {
-			ts[sortedTimeSeries[0].downsampledTime] = 0
-		}
+		ts[sortedTimeSeries[0].downsampledTime] = 0
 
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
@@ -516,9 +514,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			}
 		}
 
-		if len(ts) > 0 {
-			ts[sortedTimeSeries[0].downsampledTime] = 0
-		}
+		ts[sortedTimeSeries[0].downsampledTime] = 0
 
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
