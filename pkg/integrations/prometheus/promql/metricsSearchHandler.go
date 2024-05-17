@@ -424,6 +424,7 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	qid := rutils.GetNextQid()
 	matches := make([]string, 0)
 	ctx.QueryArgs().VisitAll(func(key []byte, value []byte) {
 		if string(key) == "match[]" {
@@ -443,9 +444,57 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		log.Errorf("ProcessGetSeriesByLabelRequest: Error parsing 'end' parameter, err:%v", err)
 	}
 
-	log.Printf("startTime: %v, local time: %v", startTime, time.Unix(int64(startTime), 0).Local())
-	log.Printf("endTime: %v, local time: %v", endTime, time.Unix(int64(endTime), 0).Local())
-	log.Printf("matches: %v", matches)
+	allSeriesResults := make(map[uint64]*mresults.Series, 0)
+
+	timeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: uint32(startTime),
+		EndEpochSec:   uint32(endTime),
+	}
+
+	for _, match := range matches {
+
+		metricQueryRequest, _, _, err := convertPqlToMetricsQuery(match, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
+		if err != nil {
+			ctx.SetContentType(ContentJson)
+			ctx.SetStatusCode(fasthttp.StatusBadRequest)
+			WriteJsonResponse(ctx, nil)
+			log.Errorf("qid=%v, ProcessGetSeriesByLabelRequest: Error parsing query err=%+v", qid, err)
+			_, err = ctx.WriteString(err.Error())
+			if err != nil {
+				log.Errorf("qid=%v, ProcessGetSeriesByLabelRequest: could not write error message err=%v", qid, err)
+			}
+			return
+		}
+
+		metricQueryRequest[0].MetricsQuery.ExitAfterTagsSearch = true
+		metricQueryRequest[0].MetricsQuery.TagIndicesToKeep = make(map[int]struct{})
+		metricQueryRequest[0].MetricsQuery.SelectAllSeries = true
+		segment.LogMetricsQuery("PromQL series by label request", &metricQueryRequest[0], qid)
+		res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
+
+		for tsid, series := range res.AllSeries {
+			allSeriesResults[tsid] = series
+			series.SetMetricName(metricQueryRequest[0].MetricsQuery.MetricName)
+		}
+	}
+
+	metricsResult := &mresults.MetricsResult{
+		AllSeries: allSeriesResults,
+	}
+
+	result, err := metricsResult.GetSeriesByLabel()
+	if err != nil {
+		utils.SendError(ctx, "Failed to get series", fmt.Sprintf("qid: %v, Matches: %+v", qid, matches), err)
+		return
+	}
+
+	response := map[string]interface{}{
+		"status": "success",
+		"data":   result,
+	}
+	WriteJsonResponse(ctx, &response)
+	ctx.SetContentType(ContentJson)
+	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
 func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
