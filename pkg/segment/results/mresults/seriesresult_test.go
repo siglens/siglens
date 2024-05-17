@@ -222,6 +222,221 @@ func Test_applyRangeFunctionIDelta(t *testing.T) {
 	assert.True(t, dtypeutils.AlmostEquals(val, 2.5-10.0))
 }
 
+func Test_applyRangeFunctionAvg(t *testing.T) {
+	timeSeries := map[uint32]float64{
+		1000: 2.0,
+		1003: 3.0,
+		1008: 4.0,
+		1012: 18.0,
+		1020: 2.5,
+		1035: 6.5,
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Avg_Over_time, TimeWindow: 10})
+	assert.Nil(t, err)
+
+	assert.Len(t, res, 6)
+
+	var val float64
+	var ok bool
+
+	val, ok = res[1000]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
+
+	val, ok = res[1003]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (3.0+2.0)/(2)))
+
+	val, ok = res[1008]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (4.0+3.0+2.0)/(3)))
+
+	val, ok = res[1012]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (18.0+4.0+3.0)/(3)))
+
+	val, ok = res[1020]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (2.5+18.0)/(2)))
+
+	val, ok = res[1035]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 6.5))
+}
+
+func Test_applyRangeFunctionMin(t *testing.T) {
+	timeSeries := map[uint32]float64{
+		1000: 2.0,
+		1003: 3.0,
+		1008: 1.0,
+		1012: 18.0,
+		1023: 2.5,
+		1025: 6.5,
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Min_Over_time, TimeWindow: 10})
+	assert.Nil(t, err)
+
+	assert.Len(t, res, 6)
+
+	var val float64
+	var ok bool
+
+	val, ok = res[1000]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
+
+	val, ok = res[1003]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
+
+	val, ok = res[1008]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 1.0))
+
+	val, ok = res[1012]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 1.0))
+
+	val, ok = res[1023]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.5))
+
+	val, ok = res[1025]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.5))
+}
+
+func Test_applyRangeFunctionMax(t *testing.T) {
+	timeSeries := map[uint32]float64{
+		1000: 2.0,
+		1003: 3.0,
+		1008: 1.0,
+		1012: 18.0,
+		1023: 2.5,
+		1025: 6.5,
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Max_Over_time, TimeWindow: 10})
+	assert.Nil(t, err)
+
+	assert.Len(t, res, 6)
+
+	var val float64
+	var ok bool
+
+	val, ok = res[1000]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
+
+	val, ok = res[1003]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 3.0))
+
+	val, ok = res[1008]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 3.0))
+
+	val, ok = res[1012]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 18.0))
+
+	val, ok = res[1023]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.5))
+
+	val, ok = res[1025]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 6.5))
+}
+
+func Test_applyRangeFunctionSum(t *testing.T) {
+	timeSeries := map[uint32]float64{
+		1000: 2.0,
+		1003: 3.0,
+		1008: 4.0,
+		1012: 18.0,
+		1020: 2.5,
+		1025: 6.5,
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Sum_Over_time, TimeWindow: 10})
+	assert.Nil(t, err)
+
+	assert.Len(t, res, 6)
+
+	var val float64
+	var ok bool
+
+	val, ok = res[1000]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
+
+	val, ok = res[1003]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (3.0+2.0)))
+
+	val, ok = res[1008]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (4.0+3.0+2.0)))
+
+	val, ok = res[1012]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (18.0+4.0+3.0)))
+
+	val, ok = res[1020]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (2.5+18.0)))
+
+	val, ok = res[1025]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, (6.5+2.5)))
+}
+
+func Test_applyRangeFunctionCount(t *testing.T) {
+	timeSeries := map[uint32]float64{
+		1000: 2.0,
+		1003: 3.0,
+		1008: 4.0,
+		1012: 18.0,
+		1020: 2.5,
+		1025: 6.5,
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Count_Over_time, TimeWindow: 10})
+	assert.Nil(t, err)
+
+	assert.Len(t, res, 6)
+
+	var val float64
+	var ok bool
+
+	val, ok = res[1000]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 1))
+
+	val, ok = res[1003]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2))
+
+	val, ok = res[1008]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 3))
+
+	val, ok = res[1012]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 3))
+
+	val, ok = res[1020]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2))
+
+	val, ok = res[1025]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2))
+}
+
 func Test_reduceEntries(t *testing.T) {
 	entries := []Entry{
 		Entry{downsampledTime: 0, dpVal: 4.3},
