@@ -21,31 +21,31 @@ var queryIndex = 0;
 var queries = {};
 var lineCharts = {}; // Chart details
 var chartDataCollection = {}; // Save label/data for each query
-let mergedGraph ;
+let mergedGraph;
 let chartType = "Line chart";
 let availableMetrics = [];
 let previousStartEpoch = null;
 let previousEndEpoch = null;
-let rawTimeSeriesData=[];
-let allFunctions=[];
+let rawTimeSeriesData = [];
+let allFunctions = [];
 
 
 // Theme
 let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
 let purple = ["#dbcdfa", "#c8b3fb", "#a082fa", "#8862eb", "#764cd8", "#5f36ac", "#27064c"]
-let cool =["#cce9be", "#a5d9b6", "#89c4c2", "#6cabc9", "#5491c8", "#4078b1", "#2f5a9f", "#213e7d" ]
-let green = ["#d0ebc2", "#c4eab7", "#aed69e", "#87c37d", "#5daa64", "#45884a", "#2e6a34", "#1a431f" ]
-let warm = ["#f7e288", "#fadb84", "#f1b65d", "#ec954d", "#f65630" , "#cf3926", "#aa2827", "#761727" ]
+let cool = ["#cce9be", "#a5d9b6", "#89c4c2", "#6cabc9", "#5491c8", "#4078b1", "#2f5a9f", "#213e7d"]
+let green = ["#d0ebc2", "#c4eab7", "#aed69e", "#87c37d", "#5daa64", "#45884a", "#2e6a34", "#1a431f"]
+let warm = ["#f7e288", "#fadb84", "#f1b65d", "#ec954d", "#f65630", "#cf3926", "#aa2827", "#761727"]
 let orange = ["#f8ddbd", "#f4d2a9", "#f0b077", "#ec934f", "#e0722f", "#c85621", "#9b4116", "#72300e"]
 let gray = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#62636a", "#4c4d57"]
 let palette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
 
-$(document).ready(function() {
+$(document).ready(function () {
     let stDate = "now-1h";
     let endDate = "now";
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
-    
+
     $('.theme-btn').on('click', themePickerHandler);
     addQueryElement();
     getFunctions();
@@ -61,7 +61,7 @@ function metricsExplorerDatePickerHandler(evt) {
     $(evt.currentTarget).addClass('active');
     datePickerHandler(selectedId, "now", selectedId);
     // Update graph for each query
-    Object.keys(queries).forEach(async function(queryName) {
+    Object.keys(queries).forEach(async function (queryName) {
         var queryDetails = queries[queryName];
         console.log('get: ', selectedId); // Use selectedId here
         await getQueryDetails(queryName, queryDetails, selectedId); // Use selectedId here
@@ -74,7 +74,7 @@ $('#add-query').on('click', addQueryElement);
 $('#add-formula').on('click', addFormulaElement);
 
 // Toggle switch between merged graph and single graphs 
-$('#toggle-switch').on('change', function() {
+$('#toggle-switch').on('change', function () {
     if ($(this).is(':checked')) {
         $('#metrics-graphs').show();
         $('#merged-graph-container').hide();
@@ -84,7 +84,7 @@ $('#toggle-switch').on('change', function() {
     }
 });
 
-function addFormulaElement(){
+function addFormulaElement() {
     let formulaElement = $(`
     <div class="formula-box">
         <div style="position: relative;" class="d-flex">
@@ -102,14 +102,14 @@ function addFormulaElement(){
     $('#metrics-formula').append(formulaElement);
 
     // Remove the formula element
-    formulaElement.find('.remove-query').on('click', function() {
+    formulaElement.find('.remove-query').on('click', function () {
         formulaElement.remove();
         $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');;
     });
 
     // Validate formula on input change
     let input = formulaElement.find('.formula');
-    input.on('input', function() {
+    input.on('input', function () {
         let formula = input.val().trim();
         let errorMessage = formulaElement.find('.formula-error-message');
         if (formula === '') {
@@ -149,12 +149,12 @@ function validateFormula(formula) {
     return true;
 }
 
-function disableQueryRemoval(){
+function disableQueryRemoval() {
     // Loop through each query element
-    $('.metrics-query').each(function() {
+    $('.metrics-query').each(function () {
         var queryName = $(this).find('.query-name').text();
         var removeButton = $(this).find('.remove-query');
-        var queryNameExistsInFormula = $('.formula').toArray().some(function(formulaInput) {
+        var queryNameExistsInFormula = $('.formula').toArray().some(function (formulaInput) {
             return $(formulaInput).val().includes(queryName);
         });
 
@@ -216,16 +216,16 @@ async function addQueryElement() {
         </div>
     </div>`);
 
-    $('#metrics-queries').append(queryElement);
-    const metricNames = await getMetricNames();
-    metricNames.metricNames.sort();
-    queryElement.find('.metrics').val(metricNames.metricNames[0]); // Initialize first query element with first metric name
+        $('#metrics-queries').append(queryElement);
+        const metricNames = await getMetricNames();
+        metricNames.metricNames.sort();
+        queryElement.find('.metrics').val(metricNames.metricNames[0]); // Initialize first query element with first metric name
     } else {
         // Get the last query name
         var lastQueryName = $('#metrics-queries').find('.metrics-query:last .query-name').text();
         // Determine the next query name based on the last query name
         var nextQueryName = String.fromCharCode(lastQueryName.charCodeAt(0) + 1);
-        
+
         queryElement = $('#metrics-queries').find('.metrics-query').last().clone();
         queryElement.find('.query-name').text(nextQueryName);
         queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
@@ -244,10 +244,10 @@ async function addQueryElement() {
     queryIndex++;
 
     // Remove query element
-    queryElement.find('.remove-query').on('click', function() {
+    queryElement.find('.remove-query').on('click', function () {
         var queryName = queryElement.find('.query-name').text();
         // Check if the query name exists in any of the formula input fields
-        var queryNameExistsInFormula = $('.formula').toArray().some(function(formulaInput) {
+        var queryNameExistsInFormula = $('.formula').toArray().some(function (formulaInput) {
             return $(formulaInput).val().includes(queryName);
         });
 
@@ -265,19 +265,19 @@ async function addQueryElement() {
     });
 
     // Alias button
-    queryElement.find('.as-btn').on('click', function() {
+    queryElement.find('.as-btn').on('click', function () {
         $(this).hide(); // Hide the "as..." button
         $(this).siblings('.alias-filling-box').show(); // Show alias input box
     });
 
     // Alias close button
-    queryElement.find('.alias-filling-box div').last().on('click', function() {
+    queryElement.find('.alias-filling-box div').last().on('click', function () {
         $(this).parent().hide();
         $(this).parent().siblings('.as-btn').show();
     });
 
     // Hide or Show query element and graph on click on query name
-    queryElement.find('.query-name').on('click', function() {
+    queryElement.find('.query-name').on('click', function () {
         var queryNameElement = $(this);
         var queryName = queryNameElement.text();
         var numberOfGraphVisible = $('#metrics-graphs').children('.metrics-graph').filter(':visible').length;
@@ -295,12 +295,12 @@ async function addQueryElement() {
         }
     });
 
-    queryElement.find('.show-functions').on('click', function() {
+    queryElement.find('.show-functions').on('click', function () {
         event.stopPropagation();
         var inputField = queryElement.find('#functions-search-box');
         var optionsContainer = queryElement.find('.options-container');
         var isContainerVisible = optionsContainer.is(':visible');
-    
+
         if (!isContainerVisible) {
             optionsContainer.show();
             inputField.val('')
@@ -310,18 +310,18 @@ async function addQueryElement() {
             optionsContainer.hide();
         }
     });
-    
-    $('body').on('click', function(event) {
+
+    $('body').on('click', function (event) {
         var optionsContainer = queryElement.find('.options-container');
         var showFunctionsButton = queryElement.find('.show-functions');
-    
+
         // Check if the clicked element is not part of the options container or the show-functions button
         if (!$(event.target).closest(optionsContainer).length && !$(event.target).is(showFunctionsButton)) {
             optionsContainer.hide(); // Hide the options container if clicked outside of it
         }
     });
 
-    queryElement.find('.raw-query-btn').on('click', function() {
+    queryElement.find('.raw-query-btn').on('click', function () {
         queryElement.find('.query-builder').toggle();
         queryElement.find('.raw-query').toggle();
         var queryName = queryElement.find('.query-name').text();
@@ -347,7 +347,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         queryDetails.everywhere = previousQuery.everywhere.slice();
         queryDetails.everything = previousQuery.everything.slice();
         queryDetails.aggFunction = previousQuery.aggFunction;
-        queryDetails.functions = previousQuery.functions.slice(); 
+        queryDetails.functions = previousQuery.functions.slice();
     }
 
     var availableOptions = ["max by", "min by", "avg by", "sum by"];
@@ -368,7 +368,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 availableEverything.splice(index, 1);
             }
         });
-        getQueryDetails(queryName,queryDetails);
+        getQueryDetails(queryName, queryDetails);
     }
 
     queryElement.find('.metrics').autocomplete({
@@ -378,70 +378,70 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             $(this).val(ui.item.value);
             return false;
         },
-        select: async function(event, ui) {
+        select: async function (event, ui) {
             queryDetails.metrics = ui.item.value;
-            getQueryDetails(queryName,queryDetails);
+            getQueryDetails(queryName, queryDetails);
             const tagsAndValue = await getTagKeyValue(ui.item.value);
             availableEverything = tagsAndValue.availableEverything[0];
             availableEverywhere = tagsAndValue.availableEverywhere;
-            $(this).blur(); 
+            $(this).blur();
         }
-    }).on('click', function() {
+    }).on('click', function () {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
         } else {
             $(this).autocomplete('search', '');
         }
-    }).on('click', function() {
+    }).on('click', function () {
         $(this).select();
-    }).on('close', function(event) {
+    }).on('close', function (event) {
         var selectedValue = $(this).val();
         if (selectedValue === '') {
             $(this).val(queryDetails.metrics);
         }
-    }).on('keydown', function(event) {
+    }).on('keydown', function (event) {
         if (event.keyCode === 27) { // For the Escape key
             var selectedValue = $(this).val();
             if (selectedValue === '') {
                 $(this).val(queryDetails.metrics);
-            }else if (!availableMetrics.includes(selectedValue)) {
+            } else if (!availableMetrics.includes(selectedValue)) {
                 $(this).val(queryDetails.metrics);
             } else {
                 queryDetails.metrics = selectedValue;
             }
-            $(this).blur(); 
+            $(this).blur();
         }
-    }).on('change', function() {
+    }).on('change', function () {
         var selectedValue = $(this).val();
         if (!availableMetrics.includes(selectedValue)) {
             $(this).val(queryDetails.metrics);
         } else {
             queryDetails.metrics = selectedValue;
         }
-        $(this).blur(); 
+        $(this).blur();
     });
-    
+
     // Everywhere input (tag:value)
     queryElement.find('.everywhere').autocomplete({
-        source: function(request, response) {
-                var filtered = $.grep(availableEverywhere, function(item) {
-                    // Check if the tag part of item is not present in queryDetails.everywhere
-                    var tag = item.split(':')[0];
-                    return (
-                        item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1 &&
-                        !queryDetails.everywhere.some(function(existingTag) {
-                            return existingTag.startsWith(tag + ':');
-                        })
-                    );
-                });
-                filtered.sort();
-                response(filtered);
-            },
+        source: function (request, response) {
+            var filtered = $.grep(availableEverywhere, function (item) {
+                // Check if the tag part of item is not present in queryDetails.everywhere
+                var tag = item.split(':')[0];
+                return (
+                    item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1 &&
+                    !queryDetails.everywhere.some(function (existingTag) {
+                        return existingTag.startsWith(tag + ':');
+                    })
+                );
+            });
+            filtered.sort();
+            response(filtered);
+        },
         minLength: 0,
-        select: function(event, ui) {
+        select: function (event, ui) {
             addTag(ui.item.value);
             queryDetails.everywhere.push(ui.item.value);
-            getQueryDetails(queryName,queryDetails)
+            getQueryDetails(queryName, queryDetails)
             var index = availableEverywhere.indexOf(ui.item.value);
             if (index !== -1) {
                 availableEverywhere.splice(index, 1);
@@ -450,7 +450,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             updateAutocompleteSource();
             return false;
         },
-        open: function(event, ui) {
+        open: function (event, ui) {
             var containerPosition = $(this).closest('.tag-container').offset();
 
             $(this).autocomplete("widget").css({
@@ -460,31 +460,31 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 "z-index": 1000
             });
         }
-    }).on('click', function() {
+    }).on('click', function () {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
         } else {
             $(this).autocomplete('search', '');
         }
-    }).on('input', function() {
-        this.style.width = (this.value.length * 8) + 'px'; 
+    }).on('input', function () {
+        this.style.width = (this.value.length * 8) + 'px';
         let typedValue = $(this).val();
-        
+
         // Remove the wildcard option from available options when the input value changes
         if (!typedValue.includes(':')) {
-            availableEverywhere = availableEverywhere.filter(function(option) {
+            availableEverywhere = availableEverywhere.filter(function (option) {
                 return !option.includes(':*');
             });
         }
-        
+
         // Add the wildcard option if the typed value contains a colon ":"
         if (typedValue.includes(':')) {
             var parts = typedValue.split(':');
             var prefix = parts[0];
             var suffix = parts[1];
             var wildcardOption = prefix + ':' + suffix + '*';
-            
-            availableEverywhere = availableEverywhere.filter(function(option) {
+
+            availableEverywhere = availableEverywhere.filter(function (option) {
                 return !option.includes('*');
             });
             // Check if the typed value already exists in the available options
@@ -508,17 +508,17 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             tagContainer.css('width', '5px');
         }
     }
-    
-    queryElement.on('click', '.tag .close', function() {
+
+    queryElement.on('click', '.tag .close', function () {
         var tagContainer = queryElement.find('.everywhere');
 
-        var tagValue = $(this).parent().contents().filter(function() {
+        var tagValue = $(this).parent().contents().filter(function () {
             return this.nodeType === 3;
         }).text().trim();
         var index = queryDetails.everywhere.indexOf(tagValue);
         if (index !== -1) {
             queryDetails.everywhere.splice(index, 1);
-            getQueryDetails(queryName,queryDetails);
+            getQueryDetails(queryName, queryDetails);
         }
         availableEverywhere.push(tagValue);
         availableEverywhere.sort();
@@ -530,49 +530,49 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             tagContainer.attr('placeholder', '(everywhere)');
             tagContainer.css('width', '100%');
         }
-        updateAutocompleteSource(); 
+        updateAutocompleteSource();
     });
 
     // Aggregation input 
     queryElement.find('.agg-function').autocomplete({
         source: availableOptions.sort(),
         minLength: 0,
-        select: function(event, ui) {
+        select: function (event, ui) {
             queryDetails.aggFunction = ui.item.value;
-            getQueryDetails(queryName,queryDetails)
+            getQueryDetails(queryName, queryDetails)
         }
-    }).on('click', function() {
+    }).on('click', function () {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
         } else {
             $(this).autocomplete('search', '');
         }
-    }).on('click', function() {
+    }).on('click', function () {
         $(this).select();
     });
 
     // Everything input (value)
     queryElement.find('.everything').autocomplete({
-        source: function(request, response) {
-            var filtered = $.grep(availableEverything, function(item) {
+        source: function (request, response) {
+            var filtered = $.grep(availableEverything, function (item) {
                 return item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1;
             });
             var sorted = filtered.sort();
             response(sorted);
         },
         minLength: 0,
-        select: function(event, ui) {
+        select: function (event, ui) {
             addValue(ui.item.value);
             queryDetails.everything.push(ui.item.value);
-            getQueryDetails(queryName,queryDetails)
+            getQueryDetails(queryName, queryDetails)
             var index = availableEverything.indexOf(ui.item.value);
             if (index !== -1) {
                 availableEverything.splice(index, 1);
             }
             $(this).val('');
-            return false;        
+            return false;
         },
-        open: function(event, ui) {
+        open: function (event, ui) {
             var containerPosition = $(this).closest('.value-container').offset();
 
             $(this).autocomplete("widget").css({
@@ -582,15 +582,15 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 "z-index": 1000
             });
         }
-        }).on('click', function() {
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
-            } else {
-                $(this).autocomplete('search', '');
-            }
-        }).on('input', function() {
-            this.style.width = (this.value.length * 8) + 'px'; 
-        })
+    }).on('click', function () {
+        if ($(this).autocomplete('widget').is(':visible')) {
+            $(this).autocomplete('close');
+        } else {
+            $(this).autocomplete('search', '');
+        }
+    }).on('input', function () {
+        this.style.width = (this.value.length * 8) + 'px';
+    })
 
     function addValue(value) {
         var valueContainer = queryElement.find('.everything');
@@ -606,16 +606,16 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         }
     }
 
-    queryElement.on('click', '.value .close', function() {
+    queryElement.on('click', '.value .close', function () {
         var valueContainer = queryElement.find('.everything');
 
-        var value = $(this).parent().contents().filter(function() {
+        var value = $(this).parent().contents().filter(function () {
             return this.nodeType === 3;
         }).text().trim();
         var index = queryDetails.everything.indexOf(value);
         if (index !== -1) {
             queryDetails.everything.splice(index, 1);
-            getQueryDetails(queryName,queryDetails);
+            getQueryDetails(queryName, queryDetails);
         }
         availableEverything.push(value);
         availableEverything.sort();
@@ -630,12 +630,12 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     });
 
     queryElement.find('#functions-search-box').autocomplete({
-        source: allFunctions.map(function(item) {
+        source: allFunctions.map(function (item) {
             return item.name;
         }),
         minLength: 0,
-        select: function(event, ui) {
-            var selectedItem = allFunctions.find(function(item) {
+        select: function (event, ui) {
+            var selectedItem = allFunctions.find(function (item) {
                 return item.name === ui.item.value;
             });
             // Check if the selected function is already in queryDetails.functions
@@ -647,18 +647,18 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
 
             queryDetails.functions.push(selectedItem.fn);
             appendFunctionDiv(selectedItem.fn);
-            getQueryDetails(queryName,queryDetails);
-    
+            getQueryDetails(queryName, queryDetails);
+
             queryElement.find('.options-container').hide();
             $(this).val('');
         }
-    }).on('click', function() {
+    }).on('click', function () {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
         } else {
             $(this).autocomplete('search', '');
         }
-    }).on('click', function() {
+    }).on('click', function () {
         $(this).select();
     });
 
@@ -667,24 +667,24 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         queryElement.find('.all-selected-functions').append(newDiv);
     }
 
-    $('.all-selected-functions').on('click', '.selected-function .close', function() {
-        var fnToRemove = $(this).parent('.selected-function').contents().filter(function() {
+    $('.all-selected-functions').on('click', '.selected-function .close', function () {
+        var fnToRemove = $(this).parent('.selected-function').contents().filter(function () {
             return this.nodeType === 3;
         }).text().trim();
         var indexToRemove = queryDetails.functions.indexOf(fnToRemove);
         if (indexToRemove !== -1) {
             queryDetails.functions.splice(indexToRemove, 1);
-            getQueryDetails(queryName,queryDetails);
+            getQueryDetails(queryName, queryDetails);
         }
         $(this).parent('.selected-function').remove();
     });
-  
+
     // Wildcard option
     function updateAutocompleteSource() {
-        var selectedTags = queryDetails.everywhere.map(function(tag) {
+        var selectedTags = queryDetails.everywhere.map(function (tag) {
             return tag.split(':')[0];
         });
-        var filteredOptions = availableEverywhere.filter(function(option) {
+        var filteredOptions = availableEverywhere.filter(function (option) {
             var optionTag = option.split(':')[0];
             return !selectedTags.includes(optionTag);
         });
@@ -701,10 +701,563 @@ function updateCloseIconVisibility() {
     $('.remove-query').toggle(numQueries > 1);
 }
 
-function addVisualizationContainer(queryName, seriesData, queryString, labels) {
-    console.log('labels: ', labels)
+function roundTimeDown(milliseconds, roundingParam) {
+    let roundedMilliseconds;
+
+    if (roundingParam === "5m" || roundingParam === "30m") {
+        // Convert milliseconds to minutes
+        var totalMinutes = Math.floor(milliseconds / (1000 * 60));
+
+        // Round down to the nearest 5 minutes
+        var roundedMinutes
+
+        if (roundingParam === "5m") {
+            roundedMinutes = Math.floor(totalMinutes / 5) * 5;
+        }
+        else if (roundingParam === "30m") {
+            roundedMinutes = Math.floor(totalMinutes / 30) * 30;
+        }
+
+        // Convert the rounded minutes back to milliseconds
+        roundedMilliseconds = roundedMinutes * 60 * 1000;
+
+    }
+    if (roundingParam === "1h") {
+        // Convert milliseconds to hours
+        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
+
+        // Round down to the nearest 3 hours
+        var roundedHours = Math.floor(totalHours / 1) * 1;
+
+        // Convert the rounded hours back to milliseconds
+        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
+    }
+    if (roundingParam === "3h") {
+        // Convert milliseconds to hours
+        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
+
+        // Round down to the nearest 3 hours
+        var roundedHours = Math.floor(totalHours / 3) * 3;
+
+        // Convert the rounded hours back to milliseconds
+        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
+    }
+    if (roundingParam === "6h") {
+        // Convert milliseconds to hours
+        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
+
+        // Round down to the nearest 6 hours
+        var roundedHours = Math.floor(totalHours / 6) * 6;
+
+        // Convert the rounded hours back to milliseconds
+        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
+    }
+    if (roundingParam === "12h") {
+        // Convert milliseconds to hours
+        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
+
+        // Round down to the nearest 12 hours
+        var roundedHours = Math.floor(totalHours / 12) * 12;
+
+        // Convert the rounded hours back to milliseconds
+        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
+    }
+    if (roundingParam === "24h") {
+        // Convert milliseconds to hours
+        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
+
+        // Round down to the nearest 24 hours
+        var roundedHours = Math.floor(totalHours / 24) * 24;
+
+        // Convert the rounded hours back to milliseconds
+        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
+    }
+    if (roundingParam === "36h") {
+        // Convert milliseconds to hours
+        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
+
+        // Round down to the nearest 36 hours
+        var roundedHours = Math.floor(totalHours / 36) * 36;
+
+        // Convert the rounded hours back to milliseconds
+        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
+    }
+
+    return roundedMilliseconds;
+}
+
+function getRoundedStartTime(startTime, endTime) {
+    if (endTime === "now-5m" || endTime === "now-15m") {
+        return startTime
+    }
+    if (endTime === "now-30m" || endTime === "now-1h") {
+        return roundTimeDown(startTime, "5m")
+    }
+    if (endTime === "now-3h" || endTime === "now-6h") {
+        return roundTimeDown(startTime, "30m")
+    }
+    if (endTime === "now-12h") {
+        return roundTimeDown(startTime, "1h")
+    }
+    if (endTime === "now-24h") {
+        return roundTimeDown(startTime, "3h")
+    }
+    if (endTime === "now-2d") {
+        return roundTimeDown(startTime, "6h")
+    }
+    if (endTime === "now-7d") {
+        return roundTimeDown(startTime, "12h")
+    }
+    if (endTime === "now-30d") {
+        return roundTimeDown(startTime, "36h")
+    }
+}
+
+function generateLabels(startTimeEpoch, intervalSec, endTime) {
+    const startTime = getRoundedStartTime(startTimeEpoch * 1000, endTime);
+    const currentTime = Date.now()
+    const labels = [];
+
+    for (let i = startTime; i < currentTime; i += intervalSec * 1000) {
+        labels.push(i)
+    }
+
+    return labels;
+}
+
+function getDivisor(endTime) {
+    if (endTime === "now-5m" || endTime === "now-15m") {
+        return (1 * 60 * 1000)
+    }
+    if (endTime === "now-30m") {
+        return (5 * 60 * 1000)
+    }
+    if (endTime === "now-1h") {
+        return (5 * 60 * 1000)
+    }
+    if (endTime === "now-3h") {
+        return (30 * 60 * 1000)
+    }
+    if (endTime === "now-6h") {
+        return (30 * 60 * 1000)
+    }
+    if (endTime === "now-12h") {
+        return (60 * 60 * 1000)
+    }
+    if (endTime === "now-24h") {
+        return (3 * 60 * 60 * 1000)
+    }
+    if (endTime === "now-2d") {
+        return (6 * 60 * 60 * 1000)
+    }
+    if (endTime === "now-7d") {
+        return (12 * 60 * 60 * 1000)
+    }
+    if (endTime === "now-30d") {
+        return (7 * 24 * 60 * 60 * 1000)
+    }
+}
+
+function convertLabels(labels, endTime) {
+    const updatedLabels = []
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const startTimestamp = labels[0];
+    let currentDay = new Date(startTimestamp).getDate()
+
+    labels.forEach((_label) => {
+        const date = new Date(_label);
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const day = date.getDate();
+
+        var label = ''
+        var interval = _label % getDivisor(endTime) === 0;
+
+        if (interval) {
+            if (day > currentDay) {
+                if (hours !== "00") {
+                    updatedLabels.push(`${daysOfWeek[date.getDay()]} ${day}`);
+                }
+                else {
+                    label = `${daysOfWeek[date.getDay()]} ${day}`
+                }
+
+                currentDay = day
+            }
+            else {
+                label = `${hours}:${minutes}`;
+            }
+
+            if (label) {
+                updatedLabels.push(label);
+            }
+        }
+        else {
+            updatedLabels.push('')
+        }
+    })
+
+
+    console.log('udpated: ', updatedLabels)
+    return updatedLabels;
+}
+
+function getLabels(startTimeEpoch, endTime, timestamps) {
+    const startTime = startTimeEpoch * 1000;
+    const currentTime = Date.now()
+    const labels = [];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    if (endTime === "now-5m") {
+        let index = 0;
+        let currentDay = new Date(startTime).getDate()
+
+        for (let i = startTime; i < currentTime; i += 60000) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+
+            let label = ``;
+
+            // if(index % 2 === 0){
+            //     labels.push(label);
+            // }
+            // else{
+            //     labels.push(' ')
+            // }
+            if (day > currentDay) {
+                if (hours !== "00") {
+                    labels.push(`${daysOfWeek[date.getDay()]} ${day}`);
+                }
+                else {
+                    label = `${daysOfWeek[date.getDay()]} ${day}`
+                }
+                currentDay = day
+            }
+            else {
+                label = `${hours}:${minutes}`;
+            }
+
+            if (label) {
+                labels.push(label);
+            }
+
+            index += 1
+        }
+    }
+    else if (endTime === "now-15m") {
+        let currentDay = new Date(startTime).getDate()
+
+        for (let i = startTime; i < currentTime; i += 60000) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+
+            let label = ``;
+
+            if (day > currentDay) {
+                if (hours !== "00") {
+                    labels.push(`${daysOfWeek[date.getDay()]} ${day}`);
+                }
+                else {
+                    label = `${daysOfWeek[date.getDay()]} ${day}`
+                }
+                currentDay = day
+            }
+            else {
+                label = `${hours}:${minutes}`;
+            }
+
+            if (label) {
+                labels.push(label);
+            }
+        }
+    }
+    else if (endTime === "now-30m") {
+        const roundedStartTime = roundTimeDown(startTime, "5m");
+        let currentDay = new Date(roundedStartTime).getDate()
+
+        for (let i = roundedStartTime; i < currentTime; i += 300000) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+
+            let label = ``;
+
+            if (day > currentDay) {
+                if (hours !== "00") {
+                    labels.push(`${daysOfWeek[date.getDay()]} ${day}`);
+                }
+                else {
+                    label = `${daysOfWeek[date.getDay()]} ${day}`
+                }
+                currentDay = day
+            }
+            else {
+                label = `${hours}:${minutes}`;
+            }
+
+            if (label) {
+                labels.push(label);
+            }
+        }
+    }
+    else if (endTime === "now-1h") {
+        const roundedStartTime = roundTimeDown(startTime, "5m");
+        let currentDay = new Date(roundedStartTime).getDate()
+
+        for (let i = roundedStartTime; i < currentTime; i += 300000) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+
+            let label = ``;
+
+            if (day > currentDay) {
+                if (hours !== "00") {
+                    labels.push(`${daysOfWeek[date.getDay()]} ${day}`);
+                }
+                else {
+                    label = `${daysOfWeek[date.getDay()]} ${day}`
+                }
+                currentDay = day
+            }
+            else {
+                label = `${hours}:${minutes}`;
+            }
+
+            if (label) {
+                labels.push(label);
+            }
+        }
+    }
+    else if (endTime === "now-3h") {
+        const roundedStartTime = roundTimeDown(startTime, "30m");
+        let currentDay = new Date(roundedStartTime).getDate()
+
+        for (let i = roundedStartTime; i < currentTime; i += 1800000) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+
+            let label = ``;
+
+            if (day > currentDay) {
+                if (hours !== "00") {
+                    labels.push(`${daysOfWeek[date.getDay()]} ${day}`);
+                }
+                else {
+                    label = `${daysOfWeek[date.getDay()]} ${day}`
+                }
+                currentDay = day
+            }
+            else {
+                label = `${hours}:${minutes}`;
+            }
+
+            if (label) {
+                labels.push(label);
+            }
+        }
+    }
+    else if (endTime === "now-6h") {
+        const roundedStartTime = roundTimeDown(startTime, "30m");
+        let currentDay = new Date(roundedStartTime).getDate()
+
+        for (let i = roundedStartTime; i < currentTime; i += 1800000) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+
+            let label = ``;
+
+            if (day > currentDay) {
+                if (hours !== "00") {
+                    labels.push(`${daysOfWeek[date.getDay()]} ${day}`);
+                }
+                else {
+                    label = `${daysOfWeek[date.getDay()]} ${day}`
+                }
+                currentDay = day
+            }
+            else {
+                label = `${hours}:${minutes}`;
+            }
+
+            if (label) {
+                labels.push(label);
+            }
+        }
+    }
+    else if (endTime === "now-12h") {
+        const roundedStartTime = roundTimeDown(startTime, "1h");
+        let currentDay = new Date(roundedStartTime).getDate()
+
+        for (let i = roundedStartTime; i < currentTime; i += 3600000) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+            let label = ``;
+
+            if (day > currentDay) {
+                if (hours !== "00") {
+                    labels.push(`${daysOfWeek[date.getDay()]} ${day}`);
+                }
+                else {
+                    label = `${daysOfWeek[date.getDay()]} ${day}`
+                }
+                currentDay = day
+            }
+            else {
+                label = `${hours}:${minutes}`;
+            }
+
+            if (label) {
+                labels.push(label);
+            }
+        }
+    }
+    else if (endTime === "now-24h") {
+        const roundedStartTime = roundTimeDown(startTime, "3h");
+        let currentDay = new Date(roundedStartTime).getDate()
+
+        for (let i = roundedStartTime; i < currentTime; i += 10800000) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+            const month = date.getMonth();
+            let label = ''
+
+            if (day > currentDay) {
+                if (hours !== "00") {
+                    labels.push(`${daysOfWeek[date.getDay()]} ${day}`);
+                }
+                else {
+                    label = `${daysOfWeek[date.getDay()]} ${day}`
+                }
+                currentDay = day
+            }
+            else {
+                label = `${hours}:${minutes}`;
+            }
+
+            if (label) {
+                labels.push(label);
+            }
+
+        }
+    }
+    else if (endTime === "now-2d") {
+        const roundedStartTime = roundTimeDown(startTime, "6h");
+        let currentDay = new Date(roundedStartTime).getDate()
+
+        for (let i = roundedStartTime; i < currentTime; i += 21600000) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+            const month = date.getMonth();
+            let label = ''
+
+            if (day > currentDay) {
+                if (hours !== "00") {
+                    labels.push(`${daysOfWeek[date.getDay()]} ${day}`);
+                }
+                else {
+                    label = `${daysOfWeek[date.getDay()]} ${day}`
+                }
+                currentDay = day
+            }
+            else {
+                label = `${hours}:${minutes}`;
+            }
+
+            if (label) {
+                labels.push(label);
+            }
+        }
+    }
+    else if (endTime === "now-7d") {
+        const roundedStartTime = roundTimeDown(startTime, "12h");
+        let currentDay = new Date(roundedStartTime).getDate()
+
+        for (let i = roundedStartTime; i < currentTime; i += 43200000) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+            const month = date.getMonth();
+            let label = ''
+
+            if (day > currentDay) {
+                if (hours !== "00") {
+                    labels.push(`${daysOfWeek[date.getDay()]} ${day}`);
+                }
+                else {
+                    label = `${daysOfWeek[date.getDay()]} ${day}`
+                }
+                currentDay = day
+            }
+            else {
+                label = `${hours}:${minutes}`;
+            }
+
+            if (label) {
+                labels.push(label);
+            }
+        }
+    }
+    else if (endTime === "now-30d") {
+        const roundedStartTime = roundTimeDown(startTime, "36h");
+        const currentMonth = new Date(roundedStartTime).getMonth()
+
+        for (let i = roundedStartTime; i < currentTime; i += 129600000) {
+            const date = new Date(i);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const day = date.getDate();
+            const month = date.getMonth();
+            let label = ''
+
+            if (month > currentMonth) {
+                if (day !== 1) {
+                    labels.push(`${monthNames[month]}`);
+                }
+                else {
+                    label = `${monthNames[month]}`
+                }
+
+                currentMonth = month
+            }
+            else {
+                label = `${daysOfWeek[date.getDay()]} ${day}`;
+            }
+
+            if (label) {
+                labels.push(label);
+            }
+
+
+            labels.push(label);
+        }
+    }
+
+    return labels
+}
+
+function addVisualizationContainer(queryName, seriesData, queryString, labels, endTime) {
     var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
-    if (existingContainer.length === 0){
+    if (existingContainer.length === 0) {
         var visualizationContainer = $(`
         <div class="metrics-graph" data-query="${queryName}">
             <div class="query-string">${queryString}</div>
@@ -712,34 +1265,55 @@ function addVisualizationContainer(queryName, seriesData, queryString, labels) {
         </div>`);
 
         $('#metrics-graphs').append(visualizationContainer);
-        
+
         var canvas = $('<canvas></canvas>');
         $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
-    } else{
+    } else {
         existingContainer.find('.query-string').text(queryString);
         var canvas = $('<canvas></canvas>');
         $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).empty().append(canvas);
     }
     var ctx = canvas[0].getContext('2d');
-    
+    var datasets = []
+
+    labels.sort((a, b) => a - b)
+
     // Extract labels and datasets from seriesData
     if (seriesData.length > 0) {
-        var labels = labels;
-        var datasets = seriesData.map(function(series, index) {
+        seriesData.forEach(function (series, index) {
+            Object.keys(series.values).forEach((value) => {
+                labels.push(parseInt(value))
+            })
+        }
+        )
+
+        labels.sort((a, b) => a - b)
+
+        datasets = seriesData.map(function (series, index) {
+            const data = []
+
+            labels.forEach((label) => {
+                if (label in series.values) {
+                    data.push(series.values[label])
+                }
+                else {
+                    data.push(null)
+                }
+            })
+
             return {
                 label: series.seriesName,
-                data: Object.values(series.values),
+                data: data,
                 borderColor: classic[index % classic.length],
-                backgroundColor : classic[index % classic.length] + 70,
+                backgroundColor: classic[index % classic.length] + 70,
                 borderWidth: 2,
                 fill: false
             };
         });
-    }else{
-        var labels = [];
-        var datasets = [];
     }
-    
+
+    labels = convertLabels(labels, endTime)
+
     var chartData = {
         labels: labels,
         datasets: datasets
@@ -773,6 +1347,8 @@ function addVisualizationContainer(queryName, seriesData, queryString, labels) {
                         display: true,
                         text: ''
                     },
+                    autoSkip: false,
+                    maxRotation: 0
                 },
                 y: {
                     display: true,
@@ -783,14 +1359,14 @@ function addVisualizationContainer(queryName, seriesData, queryString, labels) {
             }
         }
     });
-    
+
     // Modify the fill property based on the chart type after chart initialization
     if (chartType === 'Area chart') {
-        lineChart.config.data.datasets.forEach(function(dataset) {
+        lineChart.config.data.datasets.forEach(function (dataset) {
             dataset.fill = true;
         });
     } else {
-        lineChart.config.data.datasets.forEach(function(dataset) {
+        lineChart.config.data.datasets.forEach(function (dataset) {
             dataset.fill = false;
         });
     }
@@ -835,19 +1411,19 @@ var displayOptions = ["Line chart", "Bar chart", "Area chart"];
 $("#display-input").autocomplete({
     source: displayOptions,
     minLength: 0,
-    select: function(event, ui) {
+    select: function (event, ui) {
         toggleLineOptions(ui.item.value);
         chartType = ui.item.value;
         toggleChartType(ui.item.value);
         $(this).blur();
     }
-}).on('click', function() {
+}).on('click', function () {
     if ($(this).autocomplete('widget').is(':visible')) {
         $(this).autocomplete('close');
     } else {
         $(this).autocomplete('search', '');
     }
-}).on('click', function() {
+}).on('click', function () {
     $(this).select();
 });
 
@@ -872,43 +1448,43 @@ function toggleChartType(chartType) {
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             var lineChart = lineCharts[queryName];
-            
+
             lineChart.config.type = chartJsType;
-            
+
             if (chartType === 'Area chart') {
-                lineChart.config.data.datasets.forEach(function(dataset) {
+                lineChart.config.data.datasets.forEach(function (dataset) {
                     dataset.fill = true;
                 });
             } else {
-                lineChart.config.data.datasets.forEach(function(dataset) {
+                lineChart.config.data.datasets.forEach(function (dataset) {
                     dataset.fill = false;
                 });
             }
-            
+
             lineChart.update();
         }
     }
-    
+
     mergeGraphs(chartType);
 }
 
 
 var colorOptions = ["Classic", "Purple", "Cool", "Green", "Warm", "Orange", "Gray", "Palette"];
 $("#color-input").autocomplete({
-   source: colorOptions,
-   minLength: 0,
-   select: function(event,ui){
+    source: colorOptions,
+    minLength: 0,
+    select: function (event, ui) {
         selectedColorTheme = ui.item.value;
         updateChartTheme(selectedColorTheme);
         $(this).blur();
-   }
- }).on('click', function() {
+    }
+}).on('click', function () {
     if ($(this).autocomplete('widget').is(':visible')) {
         $(this).autocomplete('close');
     } else {
         $(this).autocomplete('search', '');
     }
-}).on('click', function() {
+}).on('click', function () {
     $(this).select();
 });
 
@@ -930,17 +1506,17 @@ function updateChartTheme(theme) {
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             var chartData = chartDataCollection[queryName];
-            chartData.datasets.forEach(function(dataset, index) {
+            chartData.datasets.forEach(function (dataset, index) {
                 dataset.borderColor = selectedPalette[index % selectedPalette.length];
                 dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
             });
 
-            var lineChart = lineCharts[queryName]; 
+            var lineChart = lineCharts[queryName];
             lineChart.update();
         }
     }
 
-    mergedGraph.data.datasets.forEach(function(dataset, index) {
+    mergedGraph.data.datasets.forEach(function (dataset, index) {
         dataset.borderColor = selectedPalette[index % selectedPalette.length];
         dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
     });
@@ -953,38 +1529,38 @@ var strokeOptions = ["Normal", "Thin", "Thick"];
 $("#line-style-input").autocomplete({
     source: lineStyleOptions,
     minLength: 0,
-    select: function(event, ui) {
+    select: function (event, ui) {
         var selectedLineStyle = ui.item.value;
         var selectedStroke = $("#stroke-input").val();
         updateLineCharts(selectedLineStyle, selectedStroke);
         $(this).blur();
     }
-}).on('click', function() {
+}).on('click', function () {
     if ($(this).autocomplete('widget').is(':visible')) {
         $(this).autocomplete('close');
     } else {
         $(this).autocomplete('search', '');
     }
-}).on('click', function() {
+}).on('click', function () {
     $(this).select();
 });
 
 $("#stroke-input").autocomplete({
     source: strokeOptions,
     minLength: 0,
-    select: function(event, ui) {
+    select: function (event, ui) {
         var selectedStroke = ui.item.value;
         var selectedLineStyle = $("#line-style-input").val();
         updateLineCharts(selectedLineStyle, selectedStroke);
         $(this).blur();
     }
-}).on('click', function() {
+}).on('click', function () {
     if ($(this).autocomplete('widget').is(':visible')) {
         $(this).autocomplete('close');
     } else {
         $(this).autocomplete('search', '');
     }
-}).on('click', function() {
+}).on('click', function () {
     $(this).select();
 });
 
@@ -995,19 +1571,19 @@ function updateLineCharts(lineStyle, stroke) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             var chartData = chartDataCollection[queryName];
             // Loop through each dataset in the chart data
-            chartData.datasets.forEach(function(dataset) {
+            chartData.datasets.forEach(function (dataset) {
                 // Update dataset properties
                 dataset.borderDash = (lineStyle === "Dash") ? [5, 5] : (lineStyle === "Dotted") ? [1, 3] : [];
-                dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2; 
+                dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2;
             });
 
-            var lineChart = lineCharts[queryName]; 
+            var lineChart = lineCharts[queryName];
             lineChart.update();
         }
     }
-    mergedGraph.data.datasets.forEach(function(dataset) {
+    mergedGraph.data.datasets.forEach(function (dataset) {
         dataset.borderDash = (lineStyle === "Dash") ? [5, 5] : (lineStyle === "Dotted") ? [1, 3] : [];
-        dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2; 
+        dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2;
     });
 
     mergedGraph.update();
@@ -1020,7 +1596,7 @@ function mergeGraphs(chartType) {
         <div class="merged-graph"></div>`);
 
     $('#merged-graph-container').empty().append(visualizationContainer);
-    
+
     var mergedCanvas = $('<canvas></canvas>');
 
     $('.merged-graph').empty().append(mergedCanvas);
@@ -1037,22 +1613,22 @@ function mergeGraphs(chartType) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             // Merge datasets for the current query
             var datasets = chartDataCollection[queryName].datasets;
-            graphNames.push(`Metrics query - ${queryName}`); 
-            datasets.forEach(function(dataset) {
+            graphNames.push(`Metrics query - ${queryName}`);
+            datasets.forEach(function (dataset) {
                 mergedData.datasets.push({
                     label: dataset.label,
                     data: dataset.data,
                     borderColor: dataset.borderColor,
                     borderWidth: dataset.borderWidth,
                     backgroundColor: dataset.backgroundColor,
-                    fill: (chartType === 'Area chart') ? true : false 
+                    fill: (chartType === 'Area chart') ? true : false
                 });
             });
 
             // Update labels ( same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
         }
-    } 
+    }
     $('.merged-graph-name').html(graphNames.join(', '));
     var mergedLineChart = new Chart(mergedCtx, {
         type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
@@ -1066,8 +1642,8 @@ function mergeGraphs(chartType) {
                     align: 'start',
                     labels: {
                         boxWidth: 10,
-                        boxHeight: 2, 
-                        fontSize: 10 
+                        boxHeight: 2,
+                        fontSize: 10
                     }
                 }
             },
@@ -1079,7 +1655,7 @@ function mergeGraphs(chartType) {
                         text: ''
                     },
                     grid: {
-                        display: false 
+                        display: false
                     }
                 },
                 y: {
@@ -1120,26 +1696,26 @@ async function convertDataForChart(data) {
 
 async function getMetricNames() {
     const data = {
-      start: filterStartDate,
-      end: filterEndDate,
+        start: filterStartDate,
+        end: filterEndDate,
     };
     const res = await $.ajax({
-      method: "post",
-      url: "metrics-explorer/api/v1/metric_names",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        Accept: "*/*",
-      },
-      crossDomain: true,
-      dataType: "json",
-      data: JSON.stringify(data),
+        method: "post",
+        url: "metrics-explorer/api/v1/metric_names",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            Accept: "*/*",
+        },
+        crossDomain: true,
+        dataType: "json",
+        data: JSON.stringify(data),
     });
-  
+
     if (res) {
         availableMetrics = res.metricNames;
     }
-    
-    return res 
+
+    return res
 }
 
 
@@ -1184,7 +1760,7 @@ function getTagKeyValue(metricName) {
             crossDomain: true,
             dataType: "json",
             data: JSON.stringify(param),
-            success: function(res) {
+            success: function (res) {
                 const availableEverywhere = [];
                 const availableEverything = [];
                 if (res && res.tagKeyValueSet) {
@@ -1196,282 +1772,21 @@ function getTagKeyValue(metricName) {
                 }
                 resolve({ availableEverywhere, availableEverything });
             },
-            error: function(xhr, status, error) {
+            error: function (xhr, status, error) {
                 reject(error);
             }
         });
     });
 }
 
-function roundTimeDown(milliseconds, roundingParam) {
-    let roundedMilliseconds;
 
-    if(roundingParam === "5m" || roundingParam === "30m"){
-    // Convert milliseconds to minutes
-    var totalMinutes = Math.floor(milliseconds / (1000 * 60));
-    
-    // Round down to the nearest 5 minutes
-    var roundedMinutes 
-
-    if(roundingParam === "5m"){
-        roundedMinutes=  Math.floor(totalMinutes / 5) * 5;
-    }
-    else if(roundingParam === "30m"){
-        roundedMinutes=  Math.floor(totalMinutes / 30) * 30;
-    }
-    
-    // Convert the rounded minutes back to milliseconds
-    roundedMilliseconds = roundedMinutes * 60 * 1000;
-
-    }
-    if(roundingParam === "3h"){
-        // Convert milliseconds to hours
-        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
-        
-        // Round down to the nearest 3 hours
-        var roundedHours = Math.floor(totalHours / 3) * 3;
-        
-        // Convert the rounded hours back to milliseconds
-        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
-    }
-    if(roundingParam === "6h"){
-        // Convert milliseconds to hours
-        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
-
-        // Round down to the nearest 6 hours
-        var roundedHours = Math.floor(totalHours / 6) * 6;
-
-        // Convert the rounded hours back to milliseconds
-        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
-    }
-    if(roundingParam === "12h"){
-        // Convert milliseconds to hours
-        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
-        
-        // Round down to the nearest 12 hours
-        var roundedHours = Math.floor(totalHours / 12) * 12;
-        
-        // Convert the rounded hours back to milliseconds
-        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
-    }
-    if(roundingParam === "24h"){
-        // Convert milliseconds to hours
-        var totalHours = Math.floor(milliseconds / (1000 * 60 * 60));
-        
-        // Round down to the nearest 24 hours
-        var roundedHours = Math.floor(totalHours / 24) * 24;
-        
-        // Convert the rounded hours back to milliseconds
-        roundedMilliseconds = roundedHours * 60 * 60 * 1000;
-    }
-    
-    return roundedMilliseconds;
-}
-
-function getLabels(startTimeEpoch, endTime){
-    const startTime = startTimeEpoch * 1000;
-    const currentTime = Date.now()
-    const labels = [];
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-
-    if(endTime === "now-5m"){
-        let index = 0;
-
-        for (let i = startTime; i < currentTime; i += 60000 ) {
-            const date = new Date(i);
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            const label = `${hours}:${minutes}`;
-
-            // if(index % 2 === 0){
-            //     labels.push(label);
-            // }
-            // else{
-            //     labels.push(' ')
-            // }
-            labels.push(label);
-            index+=1
-        }
-    }
-    else if(endTime === "now-15m"){
-        for (let i = startTime; i < currentTime; i += 60000 ) {
-            const date = new Date(i);
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            const label = `${hours}:${minutes}`;
-
-            labels.push(label);
-        }
-    }
-    else if(endTime === "now-30m"){
-        const roundedStartTime = roundTimeDown(startTime, "5m");
-
-        for (let i = roundedStartTime; i < currentTime; i += 300000 ) {
-            const date = new Date(i);
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            const label = `${hours}:${minutes}`;
-
-            labels.push(label);
-        }
-    }
-    else if(endTime === "now-1h"){
-        const roundedStartTime = roundTimeDown(startTime, "5m");
-        
-        for (let i = roundedStartTime; i < currentTime; i += 300000 ) {
-            const date = new Date(i);
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            const label = `${hours}:${minutes}`;
-
-            labels.push(label);
-        }
-    }
-    else if(endTime === "now-3h"){
-        const roundedStartTime = roundTimeDown(startTime, "30m");
-
-        for (let i = roundedStartTime; i < currentTime; i += 1800000 ) {
-            const date = new Date(i);
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            const label = `${hours}:${minutes}`;
-
-            labels.push(label);
-        }
-    }
-    else if(endTime === "now-6h"){
-        const roundedStartTime = roundTimeDown(startTime, "30m");
-
-        for (let i = roundedStartTime; i < currentTime; i += 1800000 ) {
-            const date = new Date(i);
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            const label = `${hours}:${minutes}`;
-
-            labels.push(label);
-        }
-    }
-    else if(endTime === "now-12h"){
-        const roundedStartTime = roundTimeDown(startTime, "30m");
-
-        for (let i = roundedStartTime; i < currentTime; i += 1800000 ) {
-            const date = new Date(i);
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            const label = `${hours}:${minutes}`;
-
-            labels.push(label);
-        }
-    }
-    else if(endTime === "now-24h"){
-        const roundedStartTime = roundTimeDown(startTime, "3h");
-        let currentDay = new Date(roundedStartTime).getDate()
-
-        for (let i = roundedStartTime; i < currentTime; i += 10800000 ) {
-            const date = new Date(i);
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            const day = date.getDate();
-            const month = date.getMonth();
-            let label = ''
-            
-            if(day > currentDay){
-                if(hours !== "00"){
-                    labels.push(`${daysOfWeek[date.getDay()]} ${day}`);
-                }
-                else{
-                    label = `${daysOfWeek[date.getDay()]} ${day}`
-                }
-                currentDay = day
-            }
-            else{
-                label = `${hours}:${minutes}`;
-            }
-
-            if(label){
-                labels.push(label);
-            }
-
-        }
-    }
-    else if(endTime === "now-2d"){
-        const roundedStartTime = roundTimeDown(startTime, "6h");
-
-        for (let i = roundedStartTime; i < currentTime; i += 21600000 ) {
-            const date = new Date(i);
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            const day = date.getDate();
-            const month = date.getMonth();
-            let label = ''
-            
-            if(hours === "24"){
-                const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                label = `${daysOfWeek[date.getDay()]} ${day}`;
-            }
-            else{
-                 label = `${hours}:${minutes}`;
-            }
-
-            labels.push(label);
-        }
-    }
-    else if(endTime === "now-7d"){
-        const roundedStartTime = roundTimeDown(startTime, "12h");
-
-        for (let i = roundedStartTime; i < currentTime; i += 43200000 ) {
-            const date = new Date(i);
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            const day = date.getDate();
-            const month = date.getMonth();
-            let label = ''
-            
-            if(hours === "24"){
-                const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                label = `${daysOfWeek[date.getDay()]} ${day}`;
-            }
-            else{
-                 label = `${hours}:${minutes}`;
-            }
-            
-            labels.push(label);
-        }
-    }
-    else if(endTime === "now-30d"){
-        const roundedStartTime = roundTimeDown(startTime, "24h");
-
-        for (let i = roundedStartTime; i < currentTime; i += 172800000 ) {
-            const date = new Date(i);
-            let label = ''
-
-            const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            label = `${daysOfWeek[date.getDay()]} ${day}`;
-
-            // when the month end comes, write "May" "June"
-            if(date.getDate() === 1){
-                label = `${monthNames[date.getMonth()]} ${date.getDate()}`;
-            }
-
-            labels.push(label);
-        }
-    }
-
-    console.log('labels: ', labels)
-
-    return labels
-}
-
-async function getQueryDetails(queryName, queryDetails, endTime="now-1h"){
-    console.log('end: ', endTime)
+async function getQueryDetails(queryName, queryDetails, endTime = "now-1h") {
     const queryString = createQueryString(queryDetails);
     await getMetricsData(queryName, queryString);
-    const labels = getLabels(rawTimeSeriesData.startTime, endTime)
+    const labels = getLabels(rawTimeSeriesData.startTime, endTime, rawTimeSeriesData.timestamps)
+    const _labels = generateLabels(rawTimeSeriesData.startTime, rawTimeSeriesData.intervalSec, endTime)
     const chartData = await convertDataForChart(rawTimeSeriesData)
-    console.log('chartData ', chartData)
-    addVisualizationContainer(queryName, chartData, queryString, labels);
+    addVisualizationContainer(queryName, chartData, queryString, _labels, endTime);
 }
 
 function createQueryString(queryObject) {
@@ -1484,7 +1799,7 @@ function createQueryString(queryObject) {
         return `${tagPart}="${valuePart}"`;
     }).join(',');
     const everythingString = everything.join(',');
-    
+
     let queryString = '';
     if (everything.length > 0) {
         queryString += `${aggFunction} `;
@@ -1504,21 +1819,21 @@ function createQueryString(queryObject) {
     }
 
     queryString += ')';
-    
+
     return queryString;
 }
 
 function getFunctions() {
     $.ajax({
-      method: "get",
-      url: "metrics-explorer/api/v1/functions",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        Accept: "*/*",
-      },
-      crossDomain: true,
-      dataType: "json",
-    }).then((res)=>{
+        method: "get",
+        url: "metrics-explorer/api/v1/functions",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            Accept: "*/*",
+        },
+        crossDomain: true,
+        dataType: "json",
+    }).then((res) => {
         if (res) {
             allFunctions = res
         }
