@@ -319,6 +319,11 @@ const (
 	Increase
 	Delta
 	IDelta
+	Avg_Over_time
+	Min_Over_time
+	Max_Over_time
+	Sum_Over_time
+	Count_Over_time
 	Changes
 	Resets
 )

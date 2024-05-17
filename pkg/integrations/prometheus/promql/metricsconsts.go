@@ -173,6 +173,41 @@ const metricFunctions = `[
 		"desc": "returns the number of counter resets within the provided time range as an instant vector.", 
 		"eg": "resets(avg (system.disk.used[5m]))",
 		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "avg_over_time", 
+		"name": "Average Over Time", 
+		"desc": "The average value of all points in the specified interval.", 
+		"eg": "avg_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "min_over_time", 
+		"name": "Minimum Over Time", 
+		"desc": "The minimum value of all points in the specified interval.", 
+		"eg": "min_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "max_over_time", 
+		"name": "Maximum Over Time", 
+		"desc": "The maximum value of all points in the specified interval.", 
+		"eg": "max_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "sum_over_time", 
+		"name": "Sum Over Time", 
+		"desc": "The sum of all values in the specified interval.", 
+		"eg": "sum_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "count_over_time", 
+		"name": "Count Over Time", 
+		"desc": "The count of all values in the specified interval.", 
+		"eg": "count_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
 	}
 ]`
 
