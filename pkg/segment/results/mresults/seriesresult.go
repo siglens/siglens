@@ -479,6 +479,92 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 		// IDelta at left edge does not exist.
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
+	case segutils.Avg_Over_time:
+		prefixSum := make([]float64, len(sortedTimeSeries)+1)
+		prefixSum[1] = sortedTimeSeries[0].dpVal
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			prefixSum[i+1] = (prefixSum[i] + sortedTimeSeries[i].dpVal)
+		}
+
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				continue
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = (prefixSum[i+1] - prefixSum[preIndex]) / float64(i-preIndex+1)
+		}
+		return ts, nil
+	case segutils.Min_Over_time:
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			min := math.MaxFloat64
+			for j := preIndex; j <= i; j++ {
+				min = math.Min(min, sortedTimeSeries[j].dpVal)
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = min
+		}
+		return ts, nil
+	case segutils.Max_Over_time:
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			max := -1.7976931348623157e+308
+			for j := preIndex; j <= i; j++ {
+				max = math.Max(max, sortedTimeSeries[j].dpVal)
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = max
+		}
+		return ts, nil
+	case segutils.Sum_Over_time:
+		prefixSum := make([]float64, len(sortedTimeSeries)+1)
+		prefixSum[1] = sortedTimeSeries[0].dpVal
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			prefixSum[i+1] = (prefixSum[i] + sortedTimeSeries[i].dpVal)
+		}
+
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				continue
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i+1] - prefixSum[preIndex]
+		}
+		return ts, nil
+	case segutils.Count_Over_time:
+		ts[sortedTimeSeries[0].downsampledTime] = 1
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				ts[sortedTimeSeries[i].downsampledTime] = 1
+				continue
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = float64(i - preIndex + 1)
+		}
+		return ts, nil
 	default:
 		return ts, fmt.Errorf("ApplyRangeFunction: Unknown function type")
 	}
