@@ -284,7 +284,8 @@ func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
 
-	var startTime, endTime uint32
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - TEN_YEARS_IN_SECS
 	var err error
 
 	// If startParam exists, parse it
@@ -345,7 +346,8 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
 	qid := rutils.GetNextQid()
-	var startTime, endTime uint32
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - TEN_YEARS_IN_SECS
 	var err error
 	var responseValues []string
 
@@ -362,8 +364,6 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			log.Errorf("ProcessGetLabelValuesRequest: Error parsing end time parameter, err:%v", err)
 			return
 		}
-	} else {
-		endTime = uint32(time.Now().Unix())
 	}
 
 	if labelName == "__name__" {
