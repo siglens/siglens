@@ -910,6 +910,11 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		}
 	}
 
+	intervalSeconds, err := mresults.CalculateInterval(endTime - startTime)
+	if err != nil {
+		return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
+	}
+
 	var groupby bool
 	switch expr := expr.(type) {
 	case *parser.AggregateExpr:
@@ -1079,7 +1084,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		mquery.OrgId = myid
 		mquery.SelectAllSeries = true
 		agg := structs.Aggreation{AggregatorFunction: segutils.Avg}
-		mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: agg}
+		mquery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
 
 		if len(mquery.TagsFilters) > 0 {
 			mquery.SelectAllSeries = false
@@ -1155,7 +1160,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 	if mquery.Aggregator.AggregatorFunction == 0 && !groupby {
 		mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
 	}
-	mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: mquery.Aggregator}
+	mquery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: mquery.Aggregator}
 	if len(mquery.TagsFilters) > 0 {
 		mquery.SelectAllSeries = false
 	} else {
