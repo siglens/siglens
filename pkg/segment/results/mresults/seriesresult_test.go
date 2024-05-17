@@ -37,37 +37,37 @@ func Test_applyRangeFunctionRate(t *testing.T) {
 		1025: 6.5,
 	}
 
-	rate, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Rate, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Rate, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	// There's six timestamps in the series, but we need two points to calculate
 	// the rate, so we can't calculate it on the first point. So we should have
 	// 5 elements in the result.
-	assert.Len(t, rate, 5)
+	assert.Len(t, res, 5)
 
 	var val float64
 	var ok bool
 
-	val, ok = rate[1003]
+	val, ok = res[1003]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, (3.0-2.0)/(3-0)))
 
-	val, ok = rate[1008]
+	val, ok = res[1008]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, (4.0-2.0)/(8-0)))
 
-	val, ok = rate[1012]
+	val, ok = res[1012]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, (18.0-3.0)/(12-3)))
 
-	val, ok = rate[1020]
+	val, ok = res[1020]
 	assert.True(t, ok)
 	// Since the value here is smaller than at the last timestamp, the value was
 	// reset since the last timestamp. So the increase is just this value, not
 	// this value minus the previous value.
 	assert.True(t, dtypeutils.AlmostEquals(val, (2.5)/(20-12)))
 
-	val, ok = rate[1025]
+	val, ok = res[1025]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, (6.5-2.5)/(25-20)))
 }
@@ -82,37 +82,37 @@ func Test_applyRangeFunctionIRate(t *testing.T) {
 		1009: 1.0,
 	}
 
-	rate, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.IRate, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.IRate, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	// There's six timestamps in the series, but we need two points to calculate
 	// the rate, so we can't calculate it on the first point. So we should have
 	// 5 elements in the result.
-	assert.Len(t, rate, 5)
+	assert.Len(t, res, 5)
 
 	var val float64
 	var ok bool
 
-	val, ok = rate[1001]
+	val, ok = res[1001]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, (3.0-2.0)/(1-0)))
 
-	val, ok = rate[1002]
+	val, ok = res[1002]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, (4.0-3.0)/(2-1)))
 
-	val, ok = rate[1003]
+	val, ok = res[1003]
 	assert.True(t, ok)
 	// Since the value here is smaller than at the last timestamp, the value was
 	// reset since the last timestamp. So the increase is just this value, not
 	// this value minus the previous value.
 	assert.True(t, dtypeutils.AlmostEquals(val, 0.0))
 
-	val, ok = rate[1008]
+	val, ok = res[1008]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 2.5/(8-3)))
 
-	val, ok = rate[1009]
+	val, ok = res[1009]
 	assert.True(t, ok)
 	// Since the value here is smaller than at the last timestamp, the value was
 	// reset since the last timestamp. So the increase is just this value, not
@@ -165,26 +165,26 @@ func Test_applyRangeFunctionDelta(t *testing.T) {
 		1018: 2.5,
 	}
 
-	rate, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Delta, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Delta, TimeWindow: 10})
 	assert.Nil(t, err)
 
-	assert.Len(t, rate, 3)
+	assert.Len(t, res, 3)
 
 	var val float64
 	var ok bool
 
-	val, ok = rate[1001]
+	val, ok = res[1001]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 3.0-2.0))
 
-	val, ok = rate[1002]
+	val, ok = res[1002]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 5.0-2.0))
 
-	_, ok = rate[1013]
+	_, ok = res[1013]
 	assert.False(t, ok)
 
-	val, ok = rate[1018]
+	val, ok = res[1018]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 2.5-10.0))
 }
@@ -198,26 +198,26 @@ func Test_applyRangeFunctionIDelta(t *testing.T) {
 		1018: 2.5,
 	}
 
-	rate, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.IDelta, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.IDelta, TimeWindow: 10})
 	assert.Nil(t, err)
 
-	assert.Len(t, rate, 3)
+	assert.Len(t, res, 3)
 
 	var val float64
 	var ok bool
 
-	val, ok = rate[1001]
+	val, ok = res[1001]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 3.0-2.0))
 
-	val, ok = rate[1002]
+	val, ok = res[1002]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 5.0-3.0))
 
-	_, ok = rate[1013]
+	_, ok = res[1013]
 	assert.False(t, ok)
 
-	val, ok = rate[1018]
+	val, ok = res[1018]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 2.5-10.0))
 }
@@ -232,35 +232,35 @@ func Test_applyRangeFunctionChanges(t *testing.T) {
 		1025: 2.5,
 	}
 
-	rate, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Changes, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Changes, TimeWindow: 10})
 	assert.Nil(t, err)
 
-	assert.Len(t, rate, 6)
+	assert.Len(t, res, 6)
 
 	var val float64
 	var ok bool
 
-	val, ok = rate[1000]
+	val, ok = res[1000]
 	assert.True(t, ok)
 	assert.Equal(t, float64(0), val)
 
-	val, ok = rate[1001]
+	val, ok = res[1001]
 	assert.True(t, ok)
 	assert.Equal(t, float64(1), val)
 
-	val, ok = rate[1002]
+	val, ok = res[1002]
 	assert.True(t, ok)
 	assert.Equal(t, float64(2), val)
 
-	val, ok = rate[1013]
+	val, ok = res[1013]
 	assert.True(t, ok)
 	assert.Equal(t, float64(0), val)
 
-	val, ok = rate[1018]
+	val, ok = res[1018]
 	assert.True(t, ok)
 	assert.Equal(t, float64(1), val)
 
-	val, ok = rate[1025]
+	val, ok = res[1025]
 	assert.True(t, ok)
 	assert.Equal(t, float64(0), val)
 }
@@ -275,35 +275,35 @@ func Test_applyRangeFunctionResets(t *testing.T) {
 		1025: 2.8,
 	}
 
-	rate, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Resets, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Resets, TimeWindow: 10})
 	assert.Nil(t, err)
 
-	assert.Len(t, rate, 6)
+	assert.Len(t, res, 6)
 
 	var val float64
 	var ok bool
 
-	val, ok = rate[1000]
+	val, ok = res[1000]
 	assert.True(t, ok)
 	assert.Equal(t, float64(0), val)
 
-	val, ok = rate[1001]
+	val, ok = res[1001]
 	assert.True(t, ok)
 	assert.Equal(t, float64(0), val)
 
-	val, ok = rate[1002]
+	val, ok = res[1002]
 	assert.True(t, ok)
 	assert.Equal(t, float64(1), val)
 
-	val, ok = rate[1008]
+	val, ok = res[1008]
 	assert.True(t, ok)
 	assert.Equal(t, float64(2), val)
 
-	val, ok = rate[1019]
+	val, ok = res[1019]
 	assert.True(t, ok)
 	assert.Equal(t, float64(0), val)
 
-	val, ok = rate[1025]
+	val, ok = res[1025]
 	assert.True(t, ok)
 	assert.Equal(t, float64(0), val)
 }
