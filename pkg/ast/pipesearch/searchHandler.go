@@ -75,7 +75,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		if !knownFields[key] {
 			errorMessage = "parseSearchBody unexpected field: %s in JSON"
 			log.Errorf(errorMessage, key)
-			return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, key)
+			return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, fmt.Errorf(errorMessage, key)
 		}
 	}
 
@@ -87,7 +87,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		if !ok {
 			errorMessage = "parseSearchBody searchText is not a string! Val %+v"
 			log.Errorf(errorMessage, sText)
-			return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, sText)
+			return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, fmt.Errorf(errorMessage, sText)
 		}
 	}
 
@@ -108,7 +108,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 				if !ok {
 					errorMessage = "parseSearchBody indexName elements should have string value, got %T in array"
 					log.Errorf(errorMessage, indVal)
-					return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, indVal)
+					return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, fmt.Errorf(errorMessage, indVal)
 				}
 				if idx == valLen-1 {
 					indexName += fmt.Sprintf("%v", indVal)
@@ -120,7 +120,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		default:
 			errorMessage = "parseSearchBody indexName is not a string! Val %+v, type: %T"
 			log.Errorf(errorMessage, val, iText)
-			return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, val, iText)
+			return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, fmt.Errorf(errorMessage, val, iText)
 		}
 	}
 
@@ -134,7 +134,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			if err != nil {
 				errorMessage = "parseSearchBody error converting field 'startEpoch': %v"
 				log.Errorf(errorMessage, err)
-				return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, err)
+				return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, fmt.Errorf(errorMessage, err)
 
 			}
 			startEpoch = uint64(temp)
@@ -164,7 +164,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			if err != nil {
 				errorMessage = "parseSearchBody error converting field 'endEpoch': %v"
 				log.Errorf(errorMessage, err)
-				return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, err)
+				return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, fmt.Errorf(errorMessage, err)
 			}
 			endEpoch = uint64(temp)
 		case float64:
@@ -191,7 +191,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			if err != nil {
 				errorMessage = "parseSearchBody error converting field 'size': %v"
 				log.Errorf(errorMessage, err)
-				return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, err)
+				return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, fmt.Errorf(errorMessage, err)
 			}
 			finalSize = uint64(temp)
 		case float64:
@@ -230,7 +230,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			if err != nil {
 				errorMessage = "parseSearchBody error converting field 'scroll': %v"
 				log.Errorf(errorMessage, err)
-				return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, err)
+				return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, fmt.Errorf(errorMessage, err)
 			}
 			scrollFrom = int(temp)
 		case float64:
