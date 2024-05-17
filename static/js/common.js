@@ -17,20 +17,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
+"use strict";
 
 // @todo - get rid of these global variables
 
-let timestampDateFmt = 'MMM Do, YYYY @ HH:mm:ss';
+let timestampDateFmt = "MMM Do, YYYY @ HH:mm:ss";
 let defaultColumnCount = 2;
 let dataTable = null;
 let aggsDataTable = null;
 let shouldCloseAllDetails = false;
 let filterStartDate = "now-15m";
 let filterEndDate = "now";
-let displayStart = moment().subtract(15, 'minutes').valueOf();
+let displayStart = moment().subtract(15, "minutes").valueOf();
 let displayEnd = moment().valueOf();
-let selectedSearchIndex = '';
+let selectedSearchIndex = "";
 let canScrollMore = true;
 let scrollFrom = 0;
 let totalRrcCount = 0;
@@ -39,18 +39,18 @@ let scrollPageNo = 1;
 let availColNames = [];
 let startQueryTime;
 let renderTime = 0;
-let wsState = 'query';
+let wsState = "query";
 let newUri = null;
 let socket = null;
 let myUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
 let data = null;
-let theme = 'light';
+let theme = "light";
 let selectedFieldsList = [];
 let updatedSelFieldList = false;
 let aggsColumnDefs = [];
 let segStatsRowData = [];
 let GBCountChart, LogLinesCountChart, TotalVolumeChart;
-let queryStr = '*';
+let queryStr = "*";
 let panelChart;
 let metricsDatasets;
 let liveTailState = false;
@@ -80,7 +80,7 @@ let aggGridOptions = {
             sortAscending: '<i class="fa fa-sort-alpha-up"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
         },
-        cellRenderer: params => params.value ? params.value : 'null',
+        cellRenderer: params => params.value ? params.value : "null",
     },
     icons: {
         sortAscending: '<i class="fa fa-sort-alpha-up"/>',
@@ -94,75 +94,75 @@ function showError(errorMsg) {
     $("#logs-result-container").hide();
     $("#agg-result-container").hide();
     $("#data-row-container").hide();
-    $('#empty-response').hide();
+    $("#empty-response").hide();
     let currentTab = $("#custom-chart-tab").tabs("option", "active");
-    if (currentTab == 0) {
-      $("#logs-view-controls").show();
+    if(currentTab == 0) {
+        $("#logs-view-controls").show();
     } else {
-      $("#logs-view-controls").hide();
+        $("#logs-view-controls").hide();
     }
     $("#custom-chart-tab").show();
-    $('#corner-popup .corner-text').html(errorMsg);
-    $('#corner-popup').show();
-    $('body').css('cursor', 'default');
-    $('#run-filter-btn').html(' ');
+    $("#corner-popup .corner-text").html(errorMsg);
+    $("#corner-popup").show();
+    $("body").css("cursor", "default");
+    $("#run-filter-btn").html(" ");
     $("#run-filter-btn").removeClass("cancel-search");
-    $('#run-filter-btn').removeClass('active');
-     $("#query-builder-btn").html(" ");
-     $("#query-builder-btn").removeClass("cancel-search");
-     $("#query-builder-btn").removeClass("active");
-    $("#live-tail-btn").html("Live Tail");
-    $("#live-tail-btn").removeClass("active");
-    $('#run-metrics-query-btn').removeClass('active');
-
-    wsState = 'query';
-}
-
-function showInfo(infoMsg) {
-    $('#corner-popup .corner-text').html(infoMsg);
-    $('#corner-popup').show();
-    $('#corner-popup').css('position', 'absolute');
-    $('#corner-popup').css('bottom', '3rem');
-    $('body').css('cursor', 'default');
-    $('#run-filter-btn').html(' ');
-    $("#run-filter-btn").removeClass("cancel-search");
-    $('#run-filter-btn').removeClass('active');
+    $("#run-filter-btn").removeClass("active");
     $("#query-builder-btn").html(" ");
     $("#query-builder-btn").removeClass("cancel-search");
     $("#query-builder-btn").removeClass("active");
     $("#live-tail-btn").html("Live Tail");
     $("#live-tail-btn").removeClass("active");
-    wsState = 'query';
+    $("#run-metrics-query-btn").removeClass("active");
+
+    wsState = "query";
+}
+
+function showInfo(infoMsg) {
+    $("#corner-popup .corner-text").html(infoMsg);
+    $("#corner-popup").show();
+    $("#corner-popup").css("position", "absolute");
+    $("#corner-popup").css("bottom", "3rem");
+    $("body").css("cursor", "default");
+    $("#run-filter-btn").html(" ");
+    $("#run-filter-btn").removeClass("cancel-search");
+    $("#run-filter-btn").removeClass("active");
+    $("#query-builder-btn").html(" ");
+    $("#query-builder-btn").removeClass("cancel-search");
+    $("#query-builder-btn").removeClass("active");
+    $("#live-tail-btn").html("Live Tail");
+    $("#live-tail-btn").removeClass("active");
+    wsState = "query";
 }
 
 function hideError() {
-    $('#corner-popup').hide();
+    $("#corner-popup").hide();
 }
 
 function decodeJwt(token) {
     let base64Payload = token.split(".")[1];
     let payload = decodeURIComponent(
         atob(base64Payload)
-            .split("")
-            .map(function (c) {
-                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-            })
-            .join("")
+        .split("")
+        .map(function(c) {
+            return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+        })
+        .join("")
     );
     return JSON.parse(payload);
 }
 
 function resetDashboard() {
     resetAvailableFields();
-    $("#LogResultsGrid").html('');
-    $("#measureAggGrid").html('');
+    $("#LogResultsGrid").html("");
+    $("#measureAggGrid").html("");
     gridDiv = null;
     eGridDiv = null;
 }
 
 function string2Hex(tmp) {
-    let str = '';
-    for (let i = 0; i < tmp.length; i++) {
+    let str = "";
+    for(let i = 0; i < tmp.length; i++) {
         str += tmp[i].charCodeAt(0).toString(16);
     }
     return str;
@@ -178,10 +178,10 @@ function addQSParm(name, value) {
     function change() {
         myUrl = myUrl.replace(re, "$1" + encodeURIComponent(value));
     }
-    if (myUrl.indexOf("?") === -1) {
+    if(myUrl.indexOf("?") === -1) {
         add("?");
     } else {
-        if (re.test(myUrl)) {
+        if(re.test(myUrl)) {
             change();
         } else {
             add("&");
@@ -189,12 +189,12 @@ function addQSParm(name, value) {
     }
 }
 
-function resetQueryResAttr(res, panelId){
-    if (panelId == -1 && currentPanel) // if the query has been made from the editPanelScreen
+function resetQueryResAttr(res, panelId) {
+    if(panelId == -1 && currentPanel) // if the query has been made from the editPanelScreen
         currentPanel.queryRes = res;
     else {
-        for (let i = 0; i < localPanels.length; i++) {
-            if (localPanels[i].panelId == panelId) {
+        for(let i = 0; i < localPanels.length; i++) {
+            if(localPanels[i].panelId == panelId) {
                 localPanels[i].queryRes = res;
                 break;
             }
@@ -204,17 +204,17 @@ function resetQueryResAttr(res, panelId){
 
 function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
     //if data source is metrics
-      if(!res.qtype) {
-        panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId);
+    if(!res.qtype) {
+        panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.", panelId);
         return;
     }
-    if(res.hits){
-        if (panelId == -1) { // for panel on the editPanelScreen page
+    if(res.hits) {
+        if(panelId == -1) { // for panel on the editPanelScreen page
             $(".panelDisplay #panelLogResultsGrid").show();
             $(".panelDisplay #empty-response").empty();
-            $('.panelDisplay #corner-popup').hide();
+            $(".panelDisplay #corner-popup").hide();
             $(".panelDisplay #empty-response").hide();
-            $('.panelDisplay .panEdit-panel').hide();
+            $(".panelDisplay .panEdit-panel").hide();
         } else { // for panels on the dashboard page
             $(`#panel${panelId} #panelLogResultsGrid`).show();
             $(`#panel${panelId} #empty-response`).empty();
@@ -223,76 +223,76 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
             $(`#panel${panelId} .panEdit-panel`).hide();
         }
         //for aggs-query and segstats-query
-        if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
+        if(res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
             let columnOrder = []
-            if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+            if(res.columnsOrder != undefined && res.columnsOrder.length > 0) {
                 columnOrder = res.columnsOrder
-            }else{
-                if (res.groupByCols) {
+            } else {
+                if(res.groupByCols) {
                     columnOrder = _.uniq(_.concat(
                         res.groupByCols));
                 }
-                if (res.measureFunctions) {
+                if(res.measureFunctions) {
                     columnOrder = _.uniq(_.concat(
                         columnOrder, res.measureFunctions));
                 }
             }
-            renderPanelAggsGrid(columnOrder, res ,panelId)
-        }//for logs-query
+            renderPanelAggsGrid(columnOrder, res, panelId)
+        } //for logs-query
         else if(res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
             let columnOrder = []
-            if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+            if(res.columnsOrder != undefined && res.columnsOrder.length > 0) {
                 columnOrder = res.columnsOrder
-            }else{
+            } else {
                 columnOrder = res.allColumns
             }
             renderPanelLogsGrid(columnOrder, res.hits.records, panelId, logLinesViewType);
         }
         allResultsDisplayed--;
         if(allResultsDisplayed <= 0 || panelId === -1) {
-            $('body').css('cursor', 'default');
+            $("body").css("cursor", "default");
         }
     }
     canScrollMore = res.can_scroll_more;
     scrollFrom = res.total_rrc_count;
-    if (res.hits.totalMatched.value === 0 || (!res.bucketCount &&  (res.qtype === "aggs-query" || res.qtype === "segstats-query"))) {
+    if(res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === "aggs-query" || res.qtype === "segstats-query"))) {
         panelProcessEmptyQueryResults("", panelId);
     }
 
-    wsState = 'query'
-    if (canScrollMore === false) {
+    wsState = "query"
+    if(canScrollMore === false) {
         scrollFrom = 0;
     }
 }
 
-function runPanelLogsQuery(data, panelId,currentPanel,queryRes) {
+function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
     return new Promise(function(resolve, reject) {
-        $('body').css('cursor', 'progress');
-        if (queryRes) {
-            renderChartByChartType(data,queryRes,panelId,currentPanel)
-        }
-        else {
+        $("body").css("cursor", "progress");
+        if(queryRes) {
+            renderChartByChartType(data, queryRes, panelId, currentPanel)
+        } else {
             $.ajax({
-                method: 'post',
-                url: 'api/search/' + panelId,
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    'Accept': '*/*'
-                },
-                crossDomain: true,
-                dataType: 'json',
-                data: JSON.stringify(data)
-            })
+                    method: "post",
+                    url: 'api/search/' + panelId,
+                    headers: {
+                        "Content-Type": "application/json; charset=utf-8",
+                        "Accept": '*/*'
+                    },
+                    crossDomain: true,
+                    dataType: "json",
+                    data: JSON.stringify(data)
+                })
                 .then((res) => {
                     resetQueryResAttr(res, panelId);
-                    renderChartByChartType(data,res,panelId,currentPanel);
+                    renderChartByChartType(data, res, panelId, currentPanel);
                     resolve();
                 })
-                .catch(function (xhr, err) {
-                    if (xhr.status === 400) {
+                .catch(function(xhr, err) {
+                    if(xhr.status === 400) {
                         panelProcessSearchError(xhr, panelId);
-                    }currentPanel
-                    $('body').css('cursor', 'default');
+                    }
+                    currentPanel
+                    $("body").css("cursor", "default");
                     $(`#panel${panelId} .panel-body #panel-loading`).hide();
                     reject();
                 })
@@ -302,20 +302,20 @@ function runPanelLogsQuery(data, panelId,currentPanel,queryRes) {
 
 function panelProcessEmptyQueryResults(errorMsg, panelId) {
     let msg;
-    if (errorMsg !== "") {
+    if(errorMsg !== "") {
         msg = errorMsg;
     } else {
         msg = "Your query returned no data, adjust your query.";
     }
-    if (panelId == -1) {
+    if(panelId == -1) {
         $(`.panelDisplay .big-number-display-container`).hide();
         $(`.panelDisplay .big-number-display-container`).empty();
-        $('.panelDisplay .panEdit-panel').hide();
-        $('#corner-popup').hide();
-        $('.panelDisplay #panelLogResultsGrid').hide();
-        $('.panelDisplay #empty-response').show();
-        let el = $('.panelDisplay #empty-response');
-        $('.panelDisplay #empty-response').empty();
+        $(".panelDisplay .panEdit-panel").hide();
+        $("#corner-popup").hide();
+        $(".panelDisplay #panelLogResultsGrid").hide();
+        $(".panelDisplay #empty-response").show();
+        let el = $(".panelDisplay #empty-response");
+        $(".panelDisplay #empty-response").empty();
 
         el.append(`<span>${msg}</span>`);
     } else {
@@ -329,24 +329,24 @@ function panelProcessEmptyQueryResults(errorMsg, panelId) {
         $(`#panel${panelId} #empty-response`).empty();
         el.append(`<span>${msg}</span>`);
     }
-    $('body').css('cursor', 'default');
+    $("body").css("cursor", "default");
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
 }
 
 function panelProcessSearchError(res, panelId) {
-    if (res.can_scroll_more === false) {
+    if(res.can_scroll_more === false) {
         showPanelInfo(`You've reached maximum scroll limit (10,000).`);
     }
 
-    if (panelId == -1) {
+    if(panelId == -1) {
         $(`.panelDisplay .big-number-display-container`).hide();
         $(`.panelDisplay .big-number-display-container`).empty();
-        $('.panelDisplay .panEdit-panel').hide();
-        $('.panelDisplay #corner-popup').show();
-        $('.panelDisplay #panelLogResultsGrid').hide();
-        $('.panelDisplay #empty-response').hide();
-        let el = $('.panelDisplay #corner-popup');
-        $('.panelDisplay #corner-popup').empty();
+        $(`.panelDisplay .panEdit-panel`).hide();
+        $(`.panelDisplay #corner-popup`).show();
+        $(`.panelDisplay #panelLogResultsGrid`).hide();
+        $(`.panelDisplay #empty-response`).hide();
+        let el = $(`.panelDisplay #corner-popup`);
+        $(`.panelDisplay #corner-popup`).empty();
 
         el.append(`<span>${res.responseText}</span>`);
     } else {
@@ -360,14 +360,14 @@ function panelProcessSearchError(res, panelId) {
         $(`#panel${panelId} #corner-popup`).empty();
         el.append(`<span>${res.responseText}</span>`);
     }
-    wsState = 'query';
+    wsState = "query";
 
 }
 
 function resetPanelContainer(firstQUpdate) {
-    if (firstQUpdate) {
-        $('#empty-response').hide();
-        $('#panelLogResultsGrid').show();
+    if(firstQUpdate) {
+        $(`#empty-response`).hide();
+        $(`#panelLogResultsGrid`).show();
         $(`.panelDisplay .big-number-display-container`).hide();
 
         hideError();
@@ -380,30 +380,30 @@ function resetPanelGrid() {
 }
 
 function showPanelInfo(infoMsg) {
-    $('#corner-popup .corner-text').html(infoMsg);
-    $('#corner-popup').show();
-    $('#corner-popup').css('position', 'absolute');
-    $('#corner-popup').css('bottom', '3rem');
-    $('body').css('cursor', 'default');
+    $(`#corner-popup .corner-text`).html(infoMsg);
+    $(`#corner-popup`).show();
+    $(`#corner-popup`).css(`position`, `absolute`);
+    $(`#corner-popup`).css(`bottom`, `3rem`);
+    $(`body`).css(`cursor`, `default`);
 
-    wsState = 'query';
+    wsState = "query";
 }
 
 function getQueryParamsData(scrollingTrigger) {
     let sFrom = 0;
-    let queryLanguage = $('.queryInput-container #query-language-btn span').html();
+    let queryLanguage = $(`.queryInput-container #query-language-btn span`).html();
 
-    if (scrollingTrigger) {
+    if(scrollingTrigger) {
         sFrom = scrollFrom;
     }
     let data = {
-        'state': wsState,
-        'searchText': queryStr,
-        'startEpoch': filterStartDate,
-        'endEpoch': filterEndDate,
-        'indexName': selectedSearchIndex,
-        'from': sFrom,
-        'queryLanguage' : queryLanguage,
+        "state": wsState,
+        "searchText": queryStr,
+        "startEpoch": filterStartDate,
+        "endEpoch": filterEndDate,
+        "indexName": selectedSearchIndex,
+        "from": sFrom,
+        "queryLanguage": queryLanguage
     }
     return data;
 }
@@ -411,13 +411,13 @@ function getQueryParamsData(scrollingTrigger) {
 function getCookie(cname) {
     let name = cname + "=";
     let decodedCookie = decodeURIComponent(document.cookie);
-    let ca = decodedCookie.split(';');
-    for (let i = 0; i < ca.length; i++) {
+    let ca = decodedCookie.split(";");
+    for(let i = 0; i < ca.length; i++) {
         let c = ca[i];
-        while (c.charAt(0) == ' ') {
+        while(c.charAt(0) == "" ) {
             c = c.substring(1);
         }
-        if (c.indexOf(name) == 0) {
+        if(c.indexOf(name) == 0) {
             return c.substring(name.length, c.length);
         }
     }
@@ -428,21 +428,21 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
     resetQueryResAttr(res, panelId);
     //if data source is metrics
     if(!res.qtype && chartType != "number") {
-        panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId)
+        panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.", panelId)
     }
-    if (res.qtype === "logs-query") {
+    if(res.qtype === "logs-query") {
         panelProcessEmptyQueryResults("", panelId);
     }
-    
-    if (res.qtype === "aggs-query" || res.qtype === "segstats-query") {
-        if (panelId == -1) { // for panel on the editPanelScreen page
+
+    if(res.qtype === "aggs-query" || res.qtype === "segstats-query") {
+        if(panelId == -1) { // for panel on the editPanelScreen page
             $(".panelDisplay #panelLogResultsGrid").hide();
             $(".panelDisplay #empty-response").empty();
-            $('.panelDisplay #corner-popup').hide();
+            $(`.panelDisplay #corner-popup`).hide();
             $(".panelDisplay #empty-response").hide();
-            $('.panelDisplay .panEdit-panel').show();
+            $(`.panelDisplay .panEdit-panel`).show();
             $(`.panelDisplay .big-number-display-container`).empty();
-	        $(`.panelDisplay .big-number-display-container`).hide();
+            $(`.panelDisplay .big-number-display-container`).hide();
         } else { // for panels on the dashboard page
             $(`#panel${panelId} #panelLogResultsGrid`).hide();
             $(`#panel${panelId} #empty-response`).empty();
@@ -450,37 +450,37 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             $(`#panel${panelId} #empty-response`).hide();
             $(`#panel${panelId} .panEdit-panel`).show();
             $(`.panelDisplay .big-number-display-container`).empty();
-	        $(`.panelDisplay .big-number-display-container`).hide();
+            $(`.panelDisplay .big-number-display-container`).hide();
         }
 
         let columnOrder = []
-        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+        if(res.columnsOrder != undefined && res.columnsOrder.length > 0) {
             columnOrder = res.columnsOrder
-        }else{
-            if (res.groupByCols) {
+        } else {
+            if(res.groupByCols) {
                 columnOrder = _.uniq(_.concat(
                     res.groupByCols));
             }
-            if (res.measureFunctions) {
+            if(res.measureFunctions) {
                 columnOrder = _.uniq(_.concat(
                     columnOrder, res.measureFunctions));
             }
         }
-        if (res.errors) {
+        if(res.errors) {
             panelProcessEmptyQueryResults(res.errors[0], panelId);
         } else {
             let resultVal;
-            if (chartType === "number") {
+            if(chartType === "number") {
                 resultVal = Object.values(res.measure[0].MeasureVal)[0];
             }
 
-            if ((chartType === "Pie Chart" || chartType === "Bar Chart") && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
+            if((chartType === "Pie Chart" || chartType === "Bar Chart") && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
                 panelProcessEmptyQueryResults("", panelId);
-            } else if (chartType === "number" && (resultVal === undefined || resultVal === null)) {
+            } else if(chartType === "number" && (resultVal === undefined || resultVal === null)) {
                 panelProcessEmptyQueryResults("", panelId);
             } else {
                 // for number, bar and pie charts
-                if(panelId ===-1)
+                if(panelId === -1)
                     renderPanelAggsGrid(columnOrder, res, panelId);
 
                 panelChart = renderBarChart(columnOrder, res.measure, panelId, chartType, dataType, panelIndex);
@@ -488,76 +488,76 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
         }
         allResultsDisplayed--;
         if(allResultsDisplayed <= 0 || panelId === -1) {
-            $('body').css('cursor', 'default');
+            $("body").css("cursor", "default");
         }
     }
 }
 
 function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, queryRes) {
-    $('body').css('cursor', 'progress');
-    if (queryRes) {
+    $("body").css("cursor", "progress");
+    if(queryRes) {
         renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, queryRes)
     } else {
         $.ajax({
-            method: 'post',
-            url: 'api/search/' + panelId,
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept': '*/*'
-            },
-            crossDomain: true,
-            dataType: 'json',
-            data: JSON.stringify(data)
-        })
-            .then(function (res) {
+                method: "post",
+                url: 'api/search/' + panelId,
+                headers: {
+                    "Content-Type": "application/json; charset=utf-8",
+                    "Accept": '*/*'
+                },
+                crossDomain: true,
+                dataType: "json",
+                data: JSON.stringify(data)
+            })
+            .then(function(res) {
                 renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res)
             })
-            .catch(function (xhr, err) {
-                if (xhr.status === 400) {
+            .catch(function(xhr, err) {
+                if(xhr.status === 400) {
                     panelProcessSearchError(xhr, panelId);
                 }
-                $('body').css('cursor', 'default');
+                $("body").css("cursor", "default");
             })
     }
 }
 
 function runMetricsQuery(data, panelId, currentPanel, queryRes) {
-    $('body').css('cursor', 'progress');
-    if (queryRes) {
-        renderChartByChartType(data,queryRes,panelId,currentPanel)
+    $("body").css("cursor", "progress");
+    if(queryRes) {
+        renderChartByChartType(data, queryRes, panelId, currentPanel)
     } else {
         $.ajax({
-            method: 'post',
-            url: 'promql/api/ui/query',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept': '*/*'
-            },
-            crossDomain: true,
-            dataType: 'json',
-            data: JSON.stringify(data)
-        })
-            .then((res) => {
-                renderChartByChartType(data,res,panelId,currentPanel)
+                method: "post",
+                url: "promql/api/ui/query",
+                headers: {
+                    "Content-Type": "application/json; charset=utf-8",
+                    "Accept": '*/*'
+                },
+                crossDomain: true,
+                dataType: "json",
+                data: JSON.stringify(data)
             })
-            .catch(function (xhr, err) {
-                if (xhr.status === 400) {
+            .then((res) => {
+                renderChartByChartType(data, res, panelId, currentPanel)
+            })
+            .catch(function(xhr, err) {
+                if(xhr.status === 400) {
                     panelProcessSearchError(xhr, panelId);
                 }
-                $('body').css('cursor', 'default')
+                $("body").css("cursor", "default")
             })
-    }  
+    }
 }
 
-function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex,dataType) {
+function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex, dataType) {
     resetQueryResAttr(res, panelId);
     let bigNumVal = null;
-    if (panelId == -1) { // for panel on the editPanelScreen page
+    if(panelId == -1) { // for panel on the editPanelScreen page
         $(".panelDisplay #panelLogResultsGrid").hide();
         $(".panelDisplay #empty-response").empty();
-        $('.panelDisplay #corner-popup').hide();
+        $(".panelDisplay #corner-popup").hide();
         $(".panelDisplay #empty-response").hide();
-        $('.panelDisplay .panEdit-panel').show();
+        $(".panelDisplay .panEdit-panel").show();
     } else { // for panels on the dashboard page
         $(`#panel${panelId} #panelLogResultsGrid`).hide();
         $(`#panel${panelId} #empty-response`).empty();
@@ -566,54 +566,56 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
         $(`#panel${panelId} .panEdit-panel`).show();
     }
 
-    if (res.series && res.series.length === 0) {
+    if(res.series && res.series.length === 0) {
         panelProcessEmptyQueryResults("", panelId);
-        $('body').css('cursor', 'default');
-	    $(`#panel${panelId} .panel-body #panel-loading`).hide();
+        $("body").css("cursor", "default");
+        $(`#panel${panelId} .panel-body #panel-loading`).hide();
     } else {
-        if (chartType === 'number'){
-            $.each(res, function (key, value) {
+        if(chartType === "number") {
+            $.each(res, function(key, value) {
                 var series = value;
-                $.each(series, function (key, value) {
+                $.each(series, function(key, value) {
                     var tsmap = value
-                    $.each(tsmap, function (key, value) {
-                        if (value > 0){
+                    $.each(tsmap, function(key, value) {
+                        if(value > 0) {
                             bigNumVal = value
                         }
                     })
-                })         
-            });   
-            if(bigNumVal === undefined || bigNumVal === null){
+                })
+            });
+            if(bigNumVal === undefined || bigNumVal === null) {
                 panelProcessEmptyQueryResults("", panelId);
-            }else{
+            } else {
                 displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
                 allResultsDisplayed--;
                 if(allResultsDisplayed <= 0 || panelId === -1) {
-                    $('body').css('cursor', 'default');
+                    $("body").css("cursor", "default");
                 }
-                $(`#panel${panelId} .panel-body #panel-loading`).hide();   
-            } 
+                $(`#panel${panelId} .panel-body #panel-loading`).hide();
+            }
         } else {
             hideError();
             const colors = createMetricsColorsArray();
             let seriesArray = [];
             let label = [];
-            $.each(res, function (key, value) {
+            $.each(res, function(key, value) {
                 var series = value;
-                $.each(series, function (key, value) {
-                    seriesArray.push({ seriesName: key, values: value });
+                $.each(series, function(key, value) {
+                    seriesArray.push({
+                        seriesName: key,
+                        values: value
+                    });
                     label = [];
-                    $.each(value, function (k, v) {
+                    $.each(value, function(k, v) {
                         label.push(k);
                     })
                 })
                 let gridLineColor;
                 let tickColor;
-                if ($('html').attr('data-theme') == "light") {
+                if($("html").attr("data-theme") == "light") {
                     gridLineColor = "#DCDBDF";
                     tickColor = "#160F29";
-                }
-                else {
+                } else {
                     gridLineColor = "#383148";
                     tickColor = "#FFFFFF"
                 }
@@ -625,26 +627,26 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
                         lineStyle: {
                             color: colors[i],
                             width: 2,
-                            type: 'solid',
+                            type: "solid",
                             backgroundColor: colors[i],
                             borderColor: colors[i],
-                        }, itemStyle: {
+                        },
+                        itemStyle: {
                             color: colors[i],
                             width: 2,
-                            type: 'solid',
+                            type: "solid",
                             backgroundColor: colors[i],
                             borderColor: colors[i],
                         },
                     }
-                }
-                );
+                });
             })
             let labels = label;
 
             renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, -1);
             allResultsDisplayed--;
             if(allResultsDisplayed <= 0 || panelId === -1) {
-                $('body').css('cursor', 'default');
+                $("body").css("cursor", "default");
             }
         }
     }
@@ -655,10 +657,10 @@ function processMetricsSearchError() {
 }
 
 function createMetricsColorsArray() {
-    let root = document.querySelector(':root');
+    let root = document.querySelector(":root");
     let rootStyles = getComputedStyle(root);
     let colorArray = [];
-    for (let i = 1; i <= 20; i++) {
+    for(let i = 1; i <= 20; i++) {
         colorArray.push(rootStyles.getPropertyValue(`--graph-line-color-${i}`));
     }
     return colorArray;
@@ -666,53 +668,55 @@ function createMetricsColorsArray() {
 
 function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
     let dateVal = new Date(startEpoch);
-    $('#date-start').val(dateVal.toISOString().substring(0,10));
-    $('#date-start').addClass('active');
-    $('.panelEditor-container #date-start').val(dateVal.toISOString().substring(0,10));
-    $('.panelEditor-container #date-start').addClass('active');
+    $("#date-start").val(dateVal.toISOString().substring(0, 10));
+    $("#date-start").addClass("active");
+    $(".panelEditor-container #date-start").val(dateVal.toISOString().substring(0, 10));
+    $(".panelEditor-container #date-start").addClass("active");
     let hours = addZero(dateVal.getUTCHours());
     let mins = addZero(dateVal.getUTCMinutes());
-    $('#time-start').val(hours+':'+mins);
-    $('#time-start').addClass('active');
-    $('.panelEditor-container #time-start').val(hours+':'+mins);
-    $('.panelEditor-container #time-start').addClass('active');
+    $("#time-start").val(hours + ":" + mins);
+    $("#time-start").addClass("active");
+    $(".panelEditor-container #time-start").val(hours + ":" + mins);
+    $(".panelEditor-container #time-start").addClass("active");
 
     dateVal = new Date(endEpoch);
-    $('#date-end').val(dateVal.toISOString().substring(0,10));
-    $('#date-end').addClass('active');
-    $('.panelEditor-container #date-end').val(dateVal.toISOString().substring(0,10));
-    $('.panelEditor-container #date-end').addClass('active');
+    $("#date-end").val(dateVal.toISOString().substring(0, 10));
+    $("#date-end").addClass("active");
+    $(".panelEditor-container #date-end").val(dateVal.toISOString().substring(0, 10));
+    $(".panelEditor-container #date-end").addClass("active");
     hours = addZero(dateVal.getUTCHours());
     mins = addZero(dateVal.getUTCMinutes());
-    $('#time-end').val(hours+':'+mins);
-    $('#time-end').addClass('active');
-    $('.panelEditor-container #time-end').val(hours+':'+mins);
-    $('.panelEditor-container #time-end').addClass('active');
+    $("#time-end").val(hours + ":" + mins);
+    $("#time-end").addClass("active");
+    $(".panelEditor-container #time-end").val(hours + ":" + mins);
+    $(".panelEditor-container #time-end").addClass("active");
 }
 
 function addZero(i) {
-    if (i < 10) {i = "0" + i}
+    if(i < 10) {
+        i = "0" + i
+    }
     return i;
 }
 
 function setTimePicker() {
     // set time picker of next page with updated time
-    let stDate = Cookies.get('startEpoch') || "now-1h";
-    let endDate = Cookies.get('endEpoch') || "now";
-    if (stDate && endDate) {
+    let stDate = Cookies.get("startEpoch") || "now-1h";
+    let endDate = Cookies.get("endEpoch") || "now";
+    if(stDate && endDate) {
         if(endDate === "now") {
             filterStartDate = stDate;
-            filterEndDate =  endDate;
-            $('.inner-range #' + filterStartDate).addClass('active');
+            filterEndDate = endDate;
+            $(".inner-range #" + filterStartDate).addClass("active");
             datePickerHandler(filterStartDate, filterEndDate, filterStartDate)
         } else {
-            if (!isNaN(stDate)) {
+            if(!isNaN(stDate)) {
                 stDate = Number(stDate);
                 endDate = Number(endDate);
                 datePickerHandler(stDate, endDate, "custom");
                 loadCustomDateTimeFromEpoch(stDate, endDate);
                 filterStartDate = stDate;
-                filterEndDate =  endDate;
+                filterEndDate = endDate;
             }
         }
     }
@@ -725,8 +729,8 @@ function showToastMyOrgPage(msg) {
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
     <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
+    $("body").prepend(toast);
+    $(".toast-close").on("click", removeToast);
     setTimeout(removeToast, 3000);
 }
 
@@ -736,8 +740,8 @@ function showSendTestDataUpdateToast(msg) {
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
     <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
+    $("body").prepend(toast);
+    $(".toast-close").on("click", removeToast);
     setTimeout(removeToast, 3000);
 }
 
@@ -747,16 +751,16 @@ function showSendTestDataUpdateToast(msg) {
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
     <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
+    $("body").prepend(toast);
+    $(".toast-close").on("click", removeToast);
     setTimeout(removeToast, 3000);
 }
 
 function removeToast() {
-    $('.div-toast').remove();
-    $('.test-data-toast').remove();
-    $('.ret-days-toast').remove();
-    $('.usage-stats-toast').remove();
+    $(".div-toast").remove();
+    $(".test-data-toast").remove();
+    $(".ret-days-toast").remove();
+    $(".usage-stats-toast").remove();
 }
 
 function showDeleteIndexToast(msg) {
@@ -765,8 +769,8 @@ function showDeleteIndexToast(msg) {
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
     <div>`
-    $('.index-header').append(toast);
-    $('.toast-close').on('click', removeToast);
+    $(".index-header").append(toast);
+    $(".toast-close").on("click", removeToast);
     setTimeout(removeToast, 3000);
 }
 
@@ -776,25 +780,23 @@ function showRetDaysUpdateToast(msg) {
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
     <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
+    $("body").prepend(toast);
+    $(".toast-close").on("click", removeToast);
     setTimeout(removeToast, 3000);
 }
 
 
 
 
-
 function myOrgSendTestData(token) {
-    $('#test-data-btn').on('click', (e) => {
-        if (selectedLogSource === 'Send Test Data') {
+    $("#test-data-btn").on("click", (e) => {
+        if(selectedLogSource === "Send Test Data") {
             var testDataBtn = document.getElementById("test-data-btn");
             // Disable testDataBtn
             testDataBtn.disabled = true;
             sendTestData(e, token);
-        }
-        else {
-            showSendTestDataUpdateToast('Select Test Data');
+        } else {
+            showSendTestDataUpdateToast("Select Test Data");
         }
     })
 }
@@ -802,32 +804,32 @@ function myOrgSendTestData(token) {
 function getIngestUrl() {
     return new Promise((resolve, reject) => {
         $.ajax({
-            method: 'get',
-            url: '/api/config',
-            crossDomain: true,
-            dataType: 'json',
-            credentials: 'include'
-        })
-        .then((res) => {
-            resolve(res.IngestUrl);
-        })
-        .catch((err) => {
-            console.log(err);
-            reject(err);
-        });
+                method: "get",
+                url: "/api/config",
+                crossDomain: true,
+                dataType: "json",
+                credentials: "include"
+            })
+            .then((res) => {
+                resolve(res.IngestUrl);
+            })
+            .catch((err) => {
+                console.log(err);
+                reject(err);
+            });
     });
 }
 
 //renders the response from logs or metrics query to respective selected chart type
-function renderChartByChartType(data,queryRes,panelId,currentPanel){
-    if(!currentPanel.chartType){
-        panelProcessEmptyQueryResults("Please select a suitable chart type.",panelId)
+function renderChartByChartType(data, queryRes, panelId, currentPanel) {
+    if(!currentPanel.chartType) {
+        panelProcessEmptyQueryResults("Please select a suitable chart type.", panelId)
     }
-    switch (currentPanel.chartType) {
+    switch(currentPanel.chartType) {
         case "Data Table":
         case "loglines":
-            $('.panelDisplay .panEdit-panel').hide();
-            renderPanelLogsQueryRes(data, panelId,currentPanel.logLinesViewType,queryRes);
+            $(".panelDisplay .panEdit-panel").hide();
+            renderPanelLogsQueryRes(data, panelId, currentPanel.logLinesViewType, queryRes);
             break;
         case "Bar Chart":
         case "Pie Chart":
@@ -835,18 +837,17 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
             break;
         case "Line Chart":
             let startTime = (new Date()).getTime();
-            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,"")
+            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex, "")
             break;
         case "number":
-            
-            if (currentPanel.unit === "" || currentPanel.dataType === "none" || currentPanel.dataType === ""){
+            if(currentPanel.unit === "" || currentPanel.dataType === "none" || currentPanel.dataType === "") {
                 currentPanel.unit = "misc"
                 currentPanel.dataType = "none"
             }
-            if (currentPanel.queryType == 'metrics'){
+            if(currentPanel.queryType == "metrics") {
                 let startTime = (new Date()).getTime();
-                processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,currentPanel.dataType)
-            }else{
+                processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex, currentPanel.dataType)
+            } else {
                 renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
             }
             break;
@@ -855,8 +856,8 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
 
 function findColumnIndex(columnsMap, columnName) {
     // Iterate over the Map entries
-    for (const [ index,name] of columnsMap.entries()) {
-        if (name === columnName) {
+    for(const [index, name] of columnsMap.entries()) {
+        if(name === columnName) {
             return index; // Return the index if the column name matches
         }
     }
