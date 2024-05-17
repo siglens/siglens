@@ -409,7 +409,7 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 
 	for _, tsidInfo := range res.AllSeriesTagsOnlyMap {
 		for tagKey, tagValue := range tsidInfo.TagKeyTagValue {
-			tagKeyValue := fmt.Sprintf("%s: %s", tagKey, tagValue)
+			tagKeyValue := fmt.Sprintf("%s:%s", tagKey, tagValue)
 			if _, ok := uniqueTagKeyValues[tagKeyValue]; !ok {
 				uniqueTagKeyValues[tagKeyValue] = true
 				tagKeyValueSet = append(tagKeyValueSet, tagKeyValue)
