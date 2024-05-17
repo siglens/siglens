@@ -414,6 +414,37 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 	return uniqueTagKeys, tagKeyValueSet, nil
 }
 
+func (res *MetricsResult) GetSeriesByLabel() ([]map[string]string, error) {
+	if res.State != SERIES_READING {
+		return nil, errors.New("results is not in Series Reading state")
+	}
+
+	data := make([]map[string]string, 0)
+
+	for _, series := range res.AllSeries {
+		seriesStr := removeTrailingComma(series.grpID.String())
+		tagKeyValues := strings.Split(seriesStr, tsidtracker.TAG_VALUE_DELIMITER_STR)
+		var parts []string
+
+		tagMap := make(map[string]string)
+		tagMap["__name__"] = series.GetMetricName()
+
+		for idx, tkVal := range tagKeyValues {
+			if idx == 0 {
+				parts = strings.Split(removeMetricNameFromGroupID(tkVal), ":")
+			} else {
+				parts = strings.Split(tkVal, ":")
+			}
+			if len(parts) > 1 {
+				tagMap[parts[0]] = parts[1]
+			}
+		}
+
+		data = append(data, tagMap)
+	}
+	return data, nil
+}
+
 func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType, startTime, endTime uint32) (utils.MetricsStatsResponseInfo, error) {
 	var httpResp utils.MetricsStatsResponseInfo
 	httpResp.AggStats = make(map[string]map[string]interface{})
