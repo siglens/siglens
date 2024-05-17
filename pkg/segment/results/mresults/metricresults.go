@@ -479,7 +479,7 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 
 	// Calculate the interval using the start and end times
 	timerangeSeconds := endTime - startTime
-	calculatedInterval, err := calculateInterval(timerangeSeconds)
+	calculatedInterval, err := CalculateInterval(timerangeSeconds)
 	if err != nil {
 		return utils.MetricStatsResponse{}, err
 	}
@@ -521,7 +521,7 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 	return httpResp, nil
 }
 
-func calculateInterval(timerangeSeconds uint32) (uint32, error) {
+func CalculateInterval(timerangeSeconds uint32) (uint32, error) {
 	// If timerangeSeconds is greater than 10 years reject the request
 	if timerangeSeconds > TEN_YEARS_IN_SECS {
 		return 0, errors.New("timerangeSeconds is greater than 10 years")
