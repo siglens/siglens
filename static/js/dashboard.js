@@ -17,11 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
+"use strict";
 
 let localPanels = [], dbData, dbName, dbDescr, dbId, panelIndex, flagDBSaved = true, allResultsDisplayed = 0;
 let timeRange = "Last 1 Hr";
-let dbRefresh ="";
+let dbRefresh = "";
 let panelContainer;
 let panelContainerWidthGlobal;
 let curFocus;
@@ -29,34 +29,33 @@ let originalIndexValues = [];
 let indexValues = [];
 $(document).ready(async function () {
     let indexes = await getListIndices();
-    originalIndexValues = indexes.map(item => item.index);
+    originalIndexValues = indexes.map((item) => item.index);
     indexValues = [...originalIndexValues];
     initializeIndexAutocomplete();
-    
-    $('#new-dashboard').css("transform", "translate(170px)")
-    $('#new-dashboard').css("width", "calc(100% - 170px)")
+    $("#new-dashboard").css("transform", "translate(170px)");
+    $("#new-dashboard").css("width", "calc(100% - 170px)");
 
-    panelContainer = document.getElementById('panel-container');
-    panelContainerWidthGlobal = panelContainer.offsetWidth-215;
+    panelContainer = document.getElementById("panel-container");
+    panelContainerWidthGlobal = panelContainer.offsetWidth - 215;
 
-    $('.panelEditor-container').hide();
-    $('.dbSet-container').hide();
+    $(".panelEditor-container").hide();
+    $(".dbSet-container").hide();
 
-    $('.theme-btn').on('click', themePickerHandler);
+    $(".theme-btn").on("click", themePickerHandler);
     setupEventHandlers();
     dbId = getDashboardId();
 
     $("#add-panel-btn, .close-widget-popup").click(() => {
-        $('#add-widget-options').toggle();
-        $('.add-icon').toggleClass('rotate-icon');
-        $('#add-panel-btn').toggleClass('active');        
+        $("#add-widget-options").toggle();
+        $(".add-icon").toggleClass("rotate-icon");
+        $("#add-panel-btn").toggleClass("active");
     });
-    
-    $('.widget-option').on('click', (event) => {
-        let dataIndex = $(event.currentTarget).data('index');
+
+    $(".widget-option").on("click", (event) => {
+        let dataIndex = $(event.currentTarget).data("index");
         addPanel(dataIndex);
     });
-    
+
     $(".all-dashboards").click(function () {
         window.location.href = "../dashboards-home.html";
     })
@@ -71,67 +70,67 @@ $(document).ready(async function () {
 
     $(`.dbSet-textareaContainer .copy`).tooltip({
         delay: { show: 0, hide: 300 },
-        trigger: 'hover'
+        trigger: "hover"
     });
 })
 $(document).mouseup(function (e) {
-  var popWindows = $("#panel-dropdown-modal");
-  let panelHead = $(".panel-header");
-  let j1 = !popWindows.is(e.target);
-  let j2 = !panelHead.is(e.target);
-  let j3 = !$(curFocus + " .dropdown-style").hasClass("hidden");
-  if (
-    !popWindows.is(e.target) &&
-    popWindows.has(e.target).length === 0 &&
-    !panelHead.is(e.target) &&
-    panelHead.has(e.target).length === 0 &&
-    !$(curFocus + " .dropdown-style").hasClass("hidden")
-  ) {
-    $(curFocus + " .dropdown-btn").toggleClass("active");
-    $(curFocus + " .dropdown-style").toggleClass("hidden");
-  }
+    var popWindows = $("#panel-dropdown-modal");
+    let panelHead = $(".panel-header");
+    let j1 = !popWindows.is(e.target);
+    let j2 = !panelHead.is(e.target);
+    let j3 = !$(curFocus + " .dropdown-style").hasClass("hidden");
+    if (
+        !popWindows.is(e.target) &&
+        popWindows.has(e.target).length === 0 &&
+        !panelHead.is(e.target) &&
+        panelHead.has(e.target).length === 0 &&
+        !$(curFocus + " .dropdown-style").hasClass("hidden")
+    ) {
+        $(curFocus + " .dropdown-btn").toggleClass("active");
+        $(curFocus + " .dropdown-style").toggleClass("hidden");
+    }
 });
-window.addEventListener('resize', function (event) {
-    if ($('.panelEditor-container').css('display') === 'none'){
-        panelContainerWidthGlobal = panelContainer.offsetWidth-97;
+window.addEventListener("resize", function (event) {
+    if ($(".panelEditor-container").css("display") === "none") {
+        panelContainerWidthGlobal = panelContainer.offsetWidth - 97;
         recalculatePanelWidths();
         displayPanels();
         resetPanelLocationsHorizontally();
     }
 });
-$(`.dbSet-textareaContainer .copy`).click(function() {
-    $(this).tooltip('dispose');
-    $(this).attr('title', 'Copied!').tooltip('show');
+$(`.dbSet-textareaContainer .copy`).click(function () {
+    $(this).tooltip("dispose");
+    $(this).attr("title", "Copied!").tooltip("show");
     navigator.clipboard.writeText($(`.dbSet-jsonModelData`).val())
-        .then(() => {
+        .then(function() {
             setTimeout(() => {
-                $(this).tooltip('dispose');
-                $(this).attr('title', 'Copy').tooltip({
+                $(this).tooltip("dispose");
+                $(this).attr("title", "Copy").tooltip({
                     delay: { show: 0, hide: 300 },
-                    trigger: 'hover',
-                  });
+                    trigger: "hover"
+                });
             }, 1000);
-        })
+        });
 });
 
-function recalculatePanelWidths(){
+function recalculatePanelWidths() {
     localPanels.map(localPanel => {
         localPanel.gridpos.w = localPanel.gridpos.wPercent * panelContainerWidthGlobal;
     })
 }
 
-$('#save-db-btn').on("click", updateDashboard);
-$('.refresh-btn').on("click", refreshDashboardHandler);
-$('.settings-btn').on('click', handleDbSettings);
-$('#dbSet-save').on('click', saveDbSetting);
-$('#dbSet-discard').on('click', discardDbSetting);
-$('.dbSet-goToDB').on('click', discardDbSetting);
-$('.panView-goToDB').on("click", goToDashboardFromView)
-$('.refresh-range-item').on('click', refreshRangeItemHandler);
+$("#save-db-btn").on("click", updateDashboard);
+$(".refresh-btn").on("click", refreshDashboardHandler);
+$(".settings-btn").on("click", handleDbSettings);
+$("#dbSet-save").on("click", saveDbSetting);
+$("#dbSet-discard").on("click", discardDbSetting);
+$(".dbSet-goToDB").on("click", discardDbSetting);
+$(".panView-goToDB").on("click", goToDashboardFromView)
+$(".refresh-range-item").on("click", refreshRangeItemHandler);
 
 
 async function updateDashboard() {
-    timeRange = $('#date-picker-btn').text().trim().replace(/\s+/g, ' ');
+    timeRange = $("#date-picker-btn").text().trim().replace(/\s+/g, " ");
     resetPanelTimeRanges();
     flagDBSaved = true;
     let tempPanels = JSON.parse(JSON.stringify(localPanels));
@@ -139,7 +138,7 @@ async function updateDashboard() {
         delete tempPanels[i].queryRes;
     return fetch('/api/dashboards/update',
         {
-            method: 'POST',
+            method: "POST",
             body: JSON.stringify({
                 "id": dbId,
                 "name": dbName,
@@ -155,12 +154,12 @@ async function updateDashboard() {
     )
         .then(res => {
             if (res.status === 409) {
-                showToast('Dashboard name already exists');
-                throw new Error('Dashboard name already exists');
-            }    
+                showToast("Dashboard name already exists");
+                throw new Error("Dashboard name already exists");
+            }
             if (res.status == 200) {
                 displayDashboardName();
-                showToast('Dashboard Updated Successfully');
+                showToast("Dashboard Updated Successfully");
                 return true;
             }
             return res.json();
@@ -172,7 +171,7 @@ async function updateDashboard() {
 }
 
 function refreshDashboardHandler() {
-    if ($('#viewPanel-container').css('display') !== 'none') {
+    if ($("#viewPanel-container").css("display") !== "none") {
         displayPanelView(panelIndex);
     }
     else {
@@ -194,28 +193,28 @@ function handlePanelView() {
 }
 
 function viewPanelInit() {
-    $('#app-container').show();
-    $('.panView-goToDB').css('display', 'block');
-    $('#viewPanel-container').show();
-    $('#panel-container').hide();
-    $('.panelEditor-container').hide();
-    $('#add-panel-btn').hide();
-    $('#viewPanel-container').css('display', 'flex');
-    $('#viewPanel-container').css('height', '100%');
+    $("#app-container").show();
+    $(".panView-goToDB").css("display", "block");
+    $("#viewPanel-container").show();
+    $("#panel-container").hide();
+    $(".panelEditor-container").hide();
+    $("#add-panel-btn").hide();
+    $("#viewPanel-container").css("display", "flex");
+    $("#viewPanel-container").css("height", '100%');
     setTimePicker();
 }
 
 function goToDashboardFromView() {
-    $('#viewPanel-container').hide();
-    $('#panel-container').show();
-    $('.panView-goToDB').css('display', 'none');
-    $('#add-panel-btn').show();
+    $("#viewPanel-container").hide();
+    $("#panel-container").show();
+    $(".panView-goToDB").css("display", "none");
+    $("#add-panel-btn").show();
     $('#viewPanel-container .panel .panel-info-corner').empty();
     updateTimeRangeForPanels();
     displayPanels();
-    if(dbRefresh){
-		startRefreshInterval(dbRefresh)
-	}
+    if (dbRefresh) {
+        startRefreshInterval(dbRefresh)
+    }
 }
 
 function handlePanelEdit() {
@@ -223,14 +222,14 @@ function handlePanelEdit() {
     $(".panel-edit-li").on("click", function () {
         panelIndex = $(this).closest(".panel").attr("panel-index");
 
-        if ($('#viewPanel-container').css('display') !== 'none') {
+        if ($("#viewPanel-container").css("display") !== "none") {
             editPanelInit(-1);
         } else {
             editPanelInit();
         }
-        $('.panelEditor-container').show();
-        $('.popupOverlay').addClass('active');
-        // $('#app-container').hide();
+        $(".panelEditor-container").show();
+        $(".popupOverlay").addClass("active");
+        // $("#app-container").hide();
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
@@ -243,13 +242,13 @@ function handlePanelRemove(panelId) {
     });
 
     function showPrompt(panelId) {
-        $('.popupOverlay, .popupContent').addClass('active');
-        $('#delete-btn-panel').on("click", function () {
+        $('.popupOverlay, .popupContent').addClass("active");
+        $("#delete-btn-panel").on("click", function () {
             deletePanel(panelId);
-            $('.popupOverlay, .popupContent').removeClass('active');
+            $('.popupOverlay, .popupContent').removeClass("active");
         });
-        $('#cancel-btn-panel').on("click", function () {
-            $('.popupOverlay, .popupContent').removeClass('active');
+        $("#cancel-btn-panel").on("click", function () {
+            $('.popupOverlay, .popupContent').removeClass("active");
         });
     }
 
@@ -271,11 +270,11 @@ function handlePanelRemove(panelId) {
     }
 }
 
-function handleDescriptionTooltip(panelId,description,searchText) {
+function handleDescriptionTooltip(panelId, description, searchText) {
     const panelInfoCorner = $(`#panel${panelId} .panel-info-corner`);
     const panelDescIcon = $(`#panel${panelId} .panel-info-corner #panel-desc-info`);
     panelInfoCorner.show();
-    let tooltipText = '';
+    let tooltipText = "";
 
     // Check if description is provided
     if (description) {
@@ -292,13 +291,14 @@ function handleDescriptionTooltip(panelId,description,searchText) {
         tooltipText += `Query: ${searchText}`;
     }
 
-    panelDescIcon.attr('title', tooltipText);
+    panelDescIcon.attr("title", tooltipText);
 
     panelDescIcon.tooltip({
         delay: { show: 0, hide: 300 },
-        trigger: 'hover'});
-    panelInfoCorner.hover(function () {panelDescIcon.tooltip('show');},
-    function () {panelDescIcon.tooltip('hide');});
+        trigger: "hover"
+    });
+    panelInfoCorner.hover(function () { panelDescIcon.tooltip("show"); },
+        function () { panelDescIcon.tooltip("hide"); });
 }
 
 function resetPanelLocationsHorizontally() {
@@ -330,7 +330,7 @@ function resetPanelLocationsHorizontally() {
             }
         }
 
-        if ((xmax + wRight) < ($('#panel-container')[0].offsetWidth + $('#panel-container')[0].offsetLeft - 20)) {
+        if ((xmax + wRight) < ($("#panel-container")[0].offsetWidth + $("#panel-container")[0].offsetLeft - 20)) {
             localPanels[indices[i]].gridpos.x = xmax + 10;
         }
     }
@@ -396,7 +396,7 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
     // only render the duplicated panel
     $(`#panel${localPanels[localPanels.length - 1].panelId} .panel-header p`).html(localPanels[duplicatedPanelIndex].name + "Copy");
 
-    if (localPanel.chartType == 'Data Table' || localPanel.chartType == 'loglines') {
+    if (localPanel.chartType == "Data Table" || localPanel.chartType == "loglines") {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
         <div id="empty-response"></div>`
@@ -404,10 +404,10 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
         $("#panelLogResultsGrid").show();
 
         if (localPanel.queryRes)
-            runPanelLogsQuery(localPanel.queryData, panelId,localPanel, localPanel.queryRes);
+            runPanelLogsQuery(localPanel.queryData, panelId, localPanel, localPanel.queryRes);
         else
-            runPanelLogsQuery(localPanel.queryData, panelId,localPanel);
-    } else if (localPanel.chartType == 'Line Chart') {
+            runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
+    } else if (localPanel.chartType == "Line Chart") {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`
         panEl.append(responseDiv)
@@ -415,23 +415,23 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
             runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
         else
             runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
-    } else if (localPanel.chartType == 'number') {
+    } else if (localPanel.chartType == "number") {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div class="big-number-display-container"></div>
         <div id="empty-response"></div><div id="corner-popup"></div>`
         panEl.append(responseDiv)
-        if(localPanel.queryType ==='metrics') {
+        if (localPanel.queryType === "metrics") {
             if (localPanel.queryRes)
                 runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
             else
                 runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
-        }else{
+        } else {
             if (localPanel.queryRes)
                 runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
             else
                 runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
         }
-        } else if (localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'Bar Chart') {
+    } else if (localPanel.chartType == "Pie Chart" || localPanel.chartType == "Bar Chart") {
         // generic for both bar and pie chartTypes.
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`
@@ -454,10 +454,10 @@ function displayDashboardName() {
         method: "get",
         url: "api/dashboards/" + dbId,
         headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": '*/*'
         },
-        dataType: 'json',
+        dataType: "json",
         crossDomain: true,
     }).then(function (res) {
         $(".name-dashboard").text(res.name);
@@ -490,31 +490,31 @@ async function getDashboardData() {
 function updateTimeRangeForPanels() {
     localPanels.forEach(panel => {
         delete panel.queryRes;
-        if(panel.queryData) {
-            if(panel.chartType === "Line Chart" || panel.queryType === "metrics") {
-                datePickerHandler(panel.queryData.start, panel.queryData.end, panel.queryData.start)
+        if (panel.queryData) {
+            if (panel.chartType === "Line Chart" || panel.queryType === "metrics") {
+                datePickerHandler(panel.queryData.start, panel.queryData.end, panel.queryData.start);
                 panel.queryData.start = filterStartDate.toString();
                 panel.queryData.end = filterEndDate.toString();
             } else {
-                datePickerHandler(panel.queryData.startEpoch, panel.queryData.endEpoch, panel.queryData.startEpoch)
-                panel.queryData.startEpoch = filterStartDate
-                panel.queryData.endEpoch = filterEndDate
+                datePickerHandler(panel.queryData.startEpoch, panel.queryData.endEpoch, panel.queryData.startEpoch);
+                panel.queryData.startEpoch = filterStartDate;
+                panel.queryData.endEpoch = filterEndDate;
             }
-            $('.inner-range .db-range-item').removeClass('active');
-            $('.inner-range #' + filterStartDate).addClass('active');
+            $('.inner-range .db-range-item').removeClass("active");
+            $('.inner-range #' + filterStartDate).addClass("active");
         }
     })
 }
 
 function updateTimeRangeForPanel(panelIndex) {
     delete localPanels[panelIndex].queryRes;
-    if(localPanels[panelIndex].queryData) {
-        if(localPanels[panelIndex].chartType === "Line Chart" && localPanels[panelIndex].queryType === "metrics") {
+    if (localPanels[panelIndex].queryData) {
+        if (localPanels[panelIndex].chartType === "Line Chart" && localPanels[panelIndex].queryType === "metrics") {
             localPanels[panelIndex].queryData.start = filterStartDate.toString();
             localPanels[panelIndex].queryData.end = filterEndDate.toString();
         } else {
-            localPanels[panelIndex].queryData.startEpoch = filterStartDate
-            localPanels[panelIndex].queryData.endEpoch = filterEndDate
+            localPanels[panelIndex].queryData.startEpoch = filterStartDate;
+            localPanels[panelIndex].queryData.endEpoch = filterEndDate;
         }
     }
 }
@@ -524,7 +524,7 @@ function displayPanels() {
     allResultsDisplayed = localPanels.length;
     $('#panel-container .panel').remove();
     let panelContainerMinHeight = 0;
-    $('body').css('cursor', 'progress');
+    $("body").css("cursor", "progress");
     localPanels.map((localPanel) => {
         let idpanel = localPanel.panelId;
         let panel = $("<div>").append(panelLayout).addClass("panel").attr("id", `panel${idpanel}`).attr("panel-index", localPanel.panelIndex);
@@ -545,7 +545,7 @@ function displayPanels() {
         $(`#panel${idpanel} .panel-header p`).html(localPanel.name);
 
         if (localPanel.description || (localPanel.queryData && localPanel.queryData.searchText)) {
-            handleDescriptionTooltip(idpanel, localPanel.description, localPanel.queryData ? localPanel.queryData.searchText : '');
+            handleDescriptionTooltip(idpanel, localPanel.description, localPanel.queryData ? localPanel.queryData.searchText : "");
         } else {
             $(`#panel${idpanel} .panel-info-corner`).hide();
         }
@@ -562,7 +562,7 @@ function displayPanels() {
 
         handlePanelRemove(idpanel)
 
-        if (localPanel.chartType == 'Data Table'||localPanel.chartType == 'loglines') {
+        if (localPanel.chartType == "Data Table" || localPanel.chartType == "loglines") {
             let panEl = $(`#panel${idpanel} .panel-body`)
             let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
             <div id="empty-response"></div></div><div id="corner-popup"></div>
@@ -571,15 +571,15 @@ function displayPanels() {
 
             $("#panelLogResultsGrid").show();
             if (localPanel.queryRes)
-                runPanelLogsQuery(localPanel.queryData, idpanel,localPanel, localPanel.queryRes);
+                runPanelLogsQuery(localPanel.queryData, idpanel, localPanel, localPanel.queryRes);
             else
-                runPanelLogsQuery(localPanel.queryData, idpanel,localPanel);
-        } else if (localPanel.chartType == 'Line Chart') {
+                runPanelLogsQuery(localPanel.queryData, idpanel, localPanel);
+        } else if (localPanel.chartType == "Line Chart") {
             let panEl = $(`#panel${idpanel} .panel-body`)
             let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>
             <div id="panel-loading"></div>`
             panEl.append(responseDiv)
-            if (localPanel.queryRes){
+            if (localPanel.queryRes) {
                 runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
             }
             else {
@@ -588,17 +588,17 @@ function displayPanels() {
                 delete localPanel.queryData.endEpoch
                 runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
             }
-        } else if (localPanel.chartType == 'number') {
+        } else if (localPanel.chartType == "number") {
             let panEl = $(`#panel${idpanel} .panel-body`)
             let responseDiv = `<div class="big-number-display-container"></div>
             <div id="empty-response"></div><div id="corner-popup"></div>
             <div id="panel-loading"></div>`
             panEl.append(responseDiv)
 
-            $('.big-number-display-container').show();
-            if (localPanel.queryType === "metrics"){
+            $(".big-number-display-container").show();
+            if (localPanel.queryType === "metrics") {
 
-                if (localPanel.queryRes){
+                if (localPanel.queryRes) {
                     delete localPanel.queryData.startEpoch
                     delete localPanel.queryData.endEpoch
                     runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
@@ -609,13 +609,13 @@ function displayPanels() {
                     delete localPanel.queryData.endEpoch
                     runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
                 }
-            }else {
+            } else {
                 if (localPanel.queryRes)
                     runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
                 else
                     runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
             }
-        } else if (localPanel.chartType == 'Bar Chart' || localPanel.chartType == 'Pie Chart') {
+        } else if (localPanel.chartType == "Bar Chart" || localPanel.chartType == "Pie Chart") {
             // generic for both bar and pie chartTypes.
             let panEl = $(`#panel${idpanel} .panel-body`)
             let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>
@@ -628,8 +628,8 @@ function displayPanels() {
         } else
             allResultsDisplayed--;
     })
-    if(allResultsDisplayed === 0) {
-        $('body').css('cursor', 'default');
+    if (allResultsDisplayed === 0) {
+        $("body").css("cursor", "default");
     }
     handlePanelView();
     handlePanelEdit();
@@ -663,13 +663,13 @@ function displayPanelView(panelIndex) {
     panelElement.style.width = "100%";
 
     handlePanelRemove(localPanel.panelId);
-    if (localPanel.description||localPanel.queryData?.searchText) {
-        handleDescriptionTooltip(localPanel.panelId,localPanel.description,localPanel.queryData.searchText);
+    if (localPanel.description || localPanel.queryData?.searchText) {
+        handleDescriptionTooltip(localPanel.panelId, localPanel.description, localPanel.queryData.searchText);
     } else {
         $(`#panel${panelId} .panel-info-corner`).hide();
     }
 
-    if (localPanel.chartType == 'Data Table'| localPanel.chartType == 'loglines') {
+    if (localPanel.chartType == "Data Table" | localPanel.chartType == "loglines") {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
         <div id="empty-response"></div>`
@@ -677,10 +677,10 @@ function displayPanelView(panelIndex) {
         $("#panelLogResultsGrid").show();
 
         if (localPanel.queryRes)
-            runPanelLogsQuery(localPanel.queryData, panelId,localPanel, localPanel.queryRes);
+            runPanelLogsQuery(localPanel.queryData, panelId, localPanel, localPanel.queryRes);
         else
-            runPanelLogsQuery(localPanel.queryData, panelId,localPanel);
-    } else if (localPanel.chartType == 'Line Chart') {
+            runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
+    } else if (localPanel.chartType == "Line Chart") {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`
         panEl.append(responseDiv)
@@ -688,7 +688,7 @@ function displayPanelView(panelIndex) {
             runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
         else
             runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
-    } else if (localPanel.chartType == 'number') {
+    } else if (localPanel.chartType == "number") {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div class="big-number-display-container"></div>
         <div id="empty-response"></div><div id="corner-popup"></div>`
@@ -698,7 +698,7 @@ function displayPanelView(panelIndex) {
             runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
         else
             runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
-    } else if (localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'Bar Chart') {
+    } else if (localPanel.chartType == "Pie Chart" || localPanel.chartType == "Bar Chart") {
         // generic for both bar and pie chartTypes.
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`
@@ -733,8 +733,8 @@ function displayPanel(panelIndex) {
         $("#" + `panel${panelId}` + " .dropdown-style").toggleClass("hidden");
     });
     $(`#panel${panelId} .panel-header p`).html(localPanel.name);
-    if (localPanel.description||localPanel.queryData.searchText) {
-        handleDescriptionTooltip(panelId,localPanel.description,localPanel.queryData.searchText)
+    if (localPanel.description || localPanel.queryData.searchText) {
+        handleDescriptionTooltip(panelId, localPanel.description, localPanel.queryData.searchText)
     } else {
         $(`#panel${panelId} .panel-info-corner`).hide();
     }
@@ -748,7 +748,7 @@ function displayPanel(panelIndex) {
     panelElement.style.left = localPanel.gridpos.x + "px";
     handlePanelRemove(localPanel.panelId)
 
-    if (localPanel.chartType == 'Data Table'|| localPanel.chartType =='loglines') {
+    if (localPanel.chartType == "Data Table" || localPanel.chartType == "loglines") {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
         <div id="empty-response"></div>`
@@ -756,10 +756,10 @@ function displayPanel(panelIndex) {
         $("#panelLogResultsGrid").show();
 
         if (localPanel.queryRes)
-            runPanelLogsQuery(localPanel.queryData, panelId,localPanel, localPanel.queryRes);
+            runPanelLogsQuery(localPanel.queryData, panelId, localPanel, localPanel.queryRes);
         else
-            runPanelLogsQuery(localPanel.queryData, panelId,localPanel);
-    } else if (localPanel.chartType == 'Line Chart') {
+            runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
+    } else if (localPanel.chartType == "Line Chart") {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`
         panEl.append(responseDiv)
@@ -767,7 +767,7 @@ function displayPanel(panelIndex) {
             runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
         else
             runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
-    } else if (localPanel.chartType == 'number') {
+    } else if (localPanel.chartType == "number") {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div class="big-number-display-container"></div>
         <div id="empty-response"></div><div id="corner-popup"></div>`
@@ -777,7 +777,7 @@ function displayPanel(panelIndex) {
             runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
         else
             runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
-    } else if (localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'Bar Chart') {
+    } else if (localPanel.chartType == "Pie Chart" || localPanel.chartType == "Bar Chart") {
         // generic for both bar and pie chartTypes.
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`
@@ -811,13 +811,13 @@ function showToast(msg) {
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
     <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast)
+    $("body").prepend(toast);
+    $(".toast-close").on("click", removeToast)
     setTimeout(removeToast, 1000);
 }
 
 function removeToast() {
-    $('.div-toast').remove();
+    $(".div-toast").remove();
 }
 
 function getDashboardId() {
@@ -856,39 +856,39 @@ function resizePanelFontSize(panelIndex, panelId) {
 
         if (numFontSize > 170)
             numFontSize = 170;
-        $(bigNumText).css('font-size', `${numFontSize}px`);
+        $(bigNumText).css("font-size", `${numFontSize}px`);
 
         panelWidth = parseFloat((localPanels[panelIndex].gridpos.w));
 
         if (bigNumText.width() + $(`#panel${panelId} .unit`).width() >= panelWidth) {
-            numFontSize -= (bigNumText.width()  + $(`#panel${panelId} .unit`).width() - panelWidth) / 3.5;
+            numFontSize -= (bigNumText.width() + $(`#panel${panelId} .unit`).width() - panelWidth) / 3.5;
         }
-        if (numFontSize < 140 && numFontSize > 50){
-            $('.unit').css('bottom','18px')
+        if (numFontSize < 140 && numFontSize > 50) {
+            $(".unit").css("bottom", "18px")
         }
 
         if (numFontSize < 50)
             numFontSize = 50;
-        $(bigNumText).css('font-size', `${numFontSize}px`);
+        $(bigNumText).css("font-size", `${numFontSize}px`);
         let unitSize = numFontSize > 10 ? numFontSize - 40 : 12;
         if (unitSize < 25) {
             unitSize = 25;
-            $(unit).css('bottom', `10px`);
-            $(unit).css('margin-left', `8px`);
+            $(unit).css("bottom", `10px`);
+            $(unit).css("margin-left", `8px`);
 
         }
         if (unitSize > 85)
             unitSize = 85;
-        $(unit).css('font-size', `${unitSize}px`);
+        $(unit).css("font-size", `${unitSize}px`);
     } else {
-        $('.big-number-display-container .big-number').css('font-size', `180px`);
+        $('.big-number-display-container .big-number').css("font-size", `180px`);
     }
 }
 
 function handleDrag(panelId) {
     $(`#panel${panelId}`).draggable({
         start: function (event, ui) {
-            $(this).removeClass('temp');
+            $(this).removeClass("temp");
         },
         obstacle: ".temp",
         preventCollision: true,
@@ -897,10 +897,10 @@ function handleDrag(panelId) {
 
     $(`#panel${panelId}`).on("dragstop", function (event, ui) {
         flagDBSaved = false;
-        $(this).addClass('temp')
+        $(this).addClass("temp")
         panelIndex = $(this).attr("panel-index");
 
-        if ((ui.position.left + $(this).width()) < ($('#panel-container')[0].offsetWidth + $('#panel-container')[0].offsetLeft)) {
+        if ((ui.position.left + $(this).width()) < ($("#panel-container")[0].offsetWidth + $("#panel-container")[0].offsetLeft)) {
             localPanels[panelIndex].gridpos.x = ui.position.left;
             localPanels[panelIndex].gridpos.y = ui.position.top;
             if (checkForVertical(ui.position)) {
@@ -980,7 +980,7 @@ function checkForAddigInTopRow() {
     }
 
 
-    let panelContainerWidth = $('#panel-container').width();
+    let panelContainerWidth = $("#panel-container").width();
     if (rightBoundary <= panelContainerWidth * 0.49 + 10) return [true, rightBoundary, topmostY];
     else return [false, null, null];
 }
@@ -1011,9 +1011,9 @@ function addPanel(chartIndex) {
 
     let panelElement = document.getElementById(`panel${idpanel}`);
     let panelHeight = panelElement.offsetHeight;
-    let panelWidth =  panelElement.offsetWidth;
+    let panelWidth = panelElement.offsetWidth;
     let panelTop = marginTop + 20;
-    let panelLeft =  panelElement.offsetLeft;
+    let panelLeft = panelElement.offsetLeft;
     let panelWidthPercentage = panelWidth / panelContainerWidthGlobal;
 
     let [shouldAddInTopRow, rightBoundary, topmostY] = checkForAddigInTopRow();
@@ -1133,8 +1133,8 @@ function addPanel(chartIndex) {
     });
 
     editPanelInit(panelIndex);
-    $('.panelEditor-container').show();
-    $('.popupOverlay').addClass('active');
+    $(".panelEditor-container").show();
+    $(".popupOverlay").addClass("active");
     $('.panelDisplay #panelLogResultsGrid').empty();
     $('.panelDisplay .big-number-display-container').hide();
     $('.panelDisplay #empty-response').hide();
@@ -1146,7 +1146,7 @@ function addPanel(chartIndex) {
     handlePanelDuplicate();
     handleDrag(idpanel);
     handleResize(idpanel);
-    $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: 'smooth' });
+    $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: "smooth" });
 
 }
 
@@ -1193,8 +1193,8 @@ function addDuplicatePanel(panelToDuplicate) {
     panelToDuplicate.gridpos.y = panelTop;
     panelToDuplicate.gridpos.h = panelHeight;
     panelToDuplicate.gridpos.w = panelWidth;
-    if (panelToDuplicate.description){
-        handleDescriptionTooltip(panelToDuplicate.panelId,panelToDuplicate.description)
+    if (panelToDuplicate.description) {
+        handleDescriptionTooltip(panelToDuplicate.panelId, panelToDuplicate.description)
     }
 
     localPanels.push(JSON.parse(JSON.stringify(panelToDuplicate)))
@@ -1206,7 +1206,7 @@ function addDuplicatePanel(panelToDuplicate) {
     handlePanelDuplicate();
     handleDrag(idpanel);
     handleResize(idpanel);
-    $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: 'smooth' });
+    $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: "smooth" });
 }
 
 function resetPanelContainerHeight() {
@@ -1215,7 +1215,7 @@ function resetPanelContainerHeight() {
         let val = localPanel.gridpos.y + localPanel.gridpos.h;
         if (val > panelContainerMinHeight) panelContainerMinHeight = val;
     })
-    let panelContainer = document.getElementById('panel-container');
+    let panelContainer = document.getElementById("panel-container");
     panelContainer.style.minHeight = panelContainerMinHeight + 50 + "px";
 }
 
@@ -1230,34 +1230,34 @@ window.onbeforeunload = function () {
 // DASHBOARD SETTINGS PAGE
 let editPanelFlag = false;
 function handleDbSettings() {
-    if ($('.panelEditor-container').css('display') !== 'none') {
-        $('.panelEditor-container').hide();
-        $('#app-container').hide();
-        $('.popupOverlay').removeClass('active');
-        editPanelFlag =true;
+    if ($(".panelEditor-container").css("display") !== "none") {
+        $(".panelEditor-container").hide();
+        $("#app-container").hide();
+        $(".popupOverlay").removeClass("active");
+        editPanelFlag = true;
     } else {
-        $('#app-container').hide();
+        $("#app-container").hide();
     }
-    $('.dbSet-container').show();
+    $(".dbSet-container").show();
 
-    $('.dbSet-name').html(dbName)
-    $('.dbSet-dbName').val(dbName)
-    $('.dbSet-dbDescr').val(dbDescr)
-    $('.dbSet-jsonModelData').val(JSON.stringify(JSON.unflatten({
+    $(".dbSet-name").html(dbName)
+    $(".dbSet-dbName").val(dbName)
+    $(".dbSet-dbDescr").val(dbDescr)
+    $(".dbSet-jsonModelData").val(JSON.stringify(JSON.unflatten({
         description: dbDescr,
         name: dbName,
         timeRange: timeRange,
         panels: localPanels,
         refresh: dbRefresh,
     }), null, 2))
-    $('.dbSet-dbName').on("change keyup paste", function () {
-        dbName = $('.dbSet-dbName').val()
-        $('.dbSet-name').html(dbName)
+    $(".dbSet-dbName").on("change keyup paste", function () {
+        dbName = $(".dbSet-dbName").val()
+        $(".dbSet-name").html(dbName)
     })
-    $('.dbSet-dbDescr').on("change keyup paste", function () {
-        dbDescr = $('.dbSet-dbDescr').val()
-        $('.dbSet-dbDescr').html(dbDescr)
-        $('.dbSet-jsonModelData').val(JSON.stringify(JSON.unflatten({
+    $(".dbSet-dbDescr").on("change keyup paste", function () {
+        dbDescr = $(".dbSet-dbDescr").val()
+        $(".dbSet-dbDescr").html(dbDescr)
+        $(".dbSet-jsonModelData").val(JSON.stringify(JSON.unflatten({
             description: dbDescr,
             name: dbName,
             timeRange: timeRange,
@@ -1271,16 +1271,16 @@ function handleDbSettings() {
         method: "get",
         url: "api/dashboards/" + dbId,
         headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": '*/*'
         },
-        dataType: 'json',
+        dataType: "json",
         crossDomain: true,
     }).then(function (res) {
         console.log(JSON.stringify(res))
         $(".dbSet-dbName").val(res.name);
         $(".dbSet-dbDescr").val(res.description);
-        $('.dbSet-jsonModelData').val(JSON.stringify(JSON.unflatten(res), null, 2))
+        $(".dbSet-jsonModelData").val(JSON.stringify(JSON.unflatten(res), null, 2))
     })
 
     showGeneralDbSettings();
@@ -1288,34 +1288,34 @@ function handleDbSettings() {
 }
 
 function showGeneralDbSettings() {
-    $('.dbSet-general').addClass('selected')
-    $('.dbSet-generalHTML').removeClass('hide');
+    $(".dbSet-general").addClass("selected")
+    $(".dbSet-generalHTML").removeClass("hide");
 
-    $('.dbSet-jsonModel').removeClass('selected');
-    $('.dbSet-jsonModelHTML').addClass('hide')
+    $(".dbSet-jsonModel").removeClass("selected");
+    $(".dbSet-jsonModelHTML").addClass("hide")
 }
 
 function showJsonModelDbSettings() {
-    $('.dbSet-general').removeClass('selected')
-    $('.dbSet-generalHTML').addClass('hide');
+    $(".dbSet-general").removeClass("selected")
+    $(".dbSet-generalHTML").addClass("hide");
 
-    $('.dbSet-jsonModel').addClass('selected');
-    $('.dbSet-jsonModelHTML').removeClass('hide')
+    $(".dbSet-jsonModel").addClass("selected");
+    $(".dbSet-jsonModelHTML").removeClass("hide")
 }
 
 function addDbSettingsEventListeners() {
-    $('.dbSet-general').on('click', showGeneralDbSettings);
-    $('.dbSet-jsonModel').on('click', showJsonModelDbSettings)
+    $(".dbSet-general").on("click", showGeneralDbSettings);
+    $(".dbSet-jsonModel").on("click", showJsonModelDbSettings)
 }
 
 function saveDbSetting() {
-    let trimmedDbName = $('.dbSet-dbName').val().trim();
+    let trimmedDbName = $(".dbSet-dbName").val().trim();
     let trimmedDbDescription = $(".dbSet-dbDescr").val().trim();
     if (!trimmedDbName) {
         // Show error message using error-tip and popupOverlay
-        $('.error-tip').addClass('active');
-        $('.popupOverlay, .popupContent').addClass('active');
-        $('#error-message').text('Dashboard name cannot be empty.');
+        $(".error-tip").addClass("active");
+        $('.popupOverlay, .popupContent').addClass("active");
+        $("#error-message").text('Dashboard name cannot be empty.');
         return;
     }
 
@@ -1325,57 +1325,57 @@ function saveDbSetting() {
 
 
     updateDashboard()
-    .then(updateSuccessful => {
-        if (updateSuccessful) {
-            $('#app-container').show();
-            $('.dbSet-container').hide();
-        }
-    })
+        .then(updateSuccessful => {
+            if (updateSuccessful) {
+                $("#app-container").show();
+                $(".dbSet-container").hide();
+            }
+        })
 }
 
-$('#error-ok-btn').click(function () {
-    $('.popupOverlay, .popupContent').removeClass('active');
-    $('.error-tip').removeClass('active');
+$("#error-ok-btn").click(function () {
+    $('.popupOverlay, .popupContent').removeClass("active");
+    $(".error-tip").removeClass("active");
 });
 
 function discardDbSetting() {
-    if(editPanelFlag){
-        $('.panelEditor-container').show();
-        $('.popupOverlay').addClass('active');
-        editPanelFlag=false;
-    }else{
-        $('#app-container').show();
+    if (editPanelFlag) {
+        $(".panelEditor-container").show();
+        $(".popupOverlay").addClass("active");
+        editPanelFlag = false;
+    } else {
+        $("#app-container").show();
     }
-    $('.dbSet-dbName').val("");
-    $('.dbSet-dbDescr').val("");
-    $('.dbSet-jsonModelData').val("");
-    $('.dbSet-container').hide();
+    $(".dbSet-dbName").val("");
+    $(".dbSet-dbDescr").val("");
+    $(".dbSet-jsonModelData").val("");
+    $(".dbSet-container").hide();
     dbName = dbData.name;
     dbDescr = dbData.description;
 }
 
-function setRefreshItemHandler(){
+function setRefreshItemHandler() {
     $(".refresh-range-item").removeClass("active");
-    if(dbRefresh){
+    if (dbRefresh) {
         $(`.refresh-range-item:contains('${dbRefresh}')`).addClass("active");
         $('.refresh-container #refresh-picker-btn span').text(dbRefresh);
         startRefreshInterval(dbRefresh)
-    }else{
+    } else {
         $('.refresh-container #refresh-picker-btn span').text("");
-        $(`.refresh-range-item:contains('Off')`).addClass("active");
+        $(`.refresh-range-item:contains("Off")`).addClass("active");
     }
 }
 
-function refreshRangeItemHandler(evt){
+function refreshRangeItemHandler(evt) {
     $.each($(".refresh-range-item.active"), function () {
-        $(this).removeClass('active');
+        $(this).removeClass("active");
     });
-    $(evt.currentTarget).addClass('active');
-    let refreshInterval = $(evt.currentTarget).attr('id');
-    if(refreshInterval==="0"){
+    $(evt.currentTarget).addClass("active");
+    let refreshInterval = $(evt.currentTarget).attr("id");
+    if (refreshInterval === "0") {
         dbRefresh = "";
         $('.refresh-container #refresh-picker-btn span').html("");
-    }else{
+    } else {
         dbRefresh = refreshInterval;
         $('.refresh-container #refresh-picker-btn span').html(refreshInterval);
     }
@@ -1388,11 +1388,11 @@ function startRefreshInterval(refreshInterval) {
     let parsedRefreshInterval = parseInterval(refreshInterval);
     clearInterval(intervalId);
     if (parsedRefreshInterval > 0) {
-            intervalId = setInterval(function () {
-                refreshDashboardHandler();
-            }, parsedRefreshInterval);
+        intervalId = setInterval(function () {
+            refreshDashboardHandler();
+        }, parsedRefreshInterval);
 
-    }else{
+    } else {
         pauseRefreshInterval();
     }
 }
@@ -1404,7 +1404,7 @@ function pauseRefreshInterval() {
 }
 
 function parseInterval(interval) {
-    if(interval==="0"){
+    if (interval === "0") {
         pauseRefreshInterval();
         return;
     }
@@ -1414,11 +1414,11 @@ function parseInterval(interval) {
     const unit = match[2];
 
     switch (unit) {
-        case 'm':
+        case "m":
             return value * 60 * 1000;
-        case 'h':
+        case "h":
             return value * 60 * 60 * 1000;
-        case 'd':
+        case "d":
             return value * 24 * 60 * 60 * 1000;
         default:
             throw new Error("Invalid interval unit");
