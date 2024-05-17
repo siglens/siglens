@@ -970,6 +970,10 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Function = structs.Function{RangeFunction: segutils.IRate, TimeWindow: timeWindow}
 				case "increase":
 					mquery.Function = structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow}
+				case "changes":
+					mquery.Function = structs.Function{RangeFunction: segutils.Changes, TimeWindow: timeWindow}
+				case "resets":
+					mquery.Function = structs.Function{RangeFunction: segutils.Resets, TimeWindow: timeWindow}
 				default:
 					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
 				}
@@ -1018,6 +1022,8 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp_min function", expr.Args.String())
 					}
 					mquery.Function = structs.Function{MathFunction: segutils.Clamp_Min, ValueList: []string{expr.Args[1].String()}}
+				case "timestamp":
+					mquery.Function = structs.Function{MathFunction: segutils.Timestamp}
 				default:
 					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
 				}
