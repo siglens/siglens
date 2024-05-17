@@ -222,6 +222,92 @@ func Test_applyRangeFunctionIDelta(t *testing.T) {
 	assert.True(t, dtypeutils.AlmostEquals(val, 2.5-10.0))
 }
 
+func Test_applyRangeFunctionChanges(t *testing.T) {
+	timeSeries := map[uint32]float64{
+		1000: 2.0,
+		1001: 3.0,
+		1002: 5.0,
+		1013: 10.0,
+		1018: 2.5,
+		1025: 2.5,
+	}
+
+	rate, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Changes, TimeWindow: 10})
+	assert.Nil(t, err)
+
+	assert.Len(t, rate, 6)
+
+	var val float64
+	var ok bool
+
+	val, ok = rate[1000]
+	assert.True(t, ok)
+	assert.Equal(t, float64(0), val)
+
+	val, ok = rate[1001]
+	assert.True(t, ok)
+	assert.Equal(t, float64(1), val)
+
+	val, ok = rate[1002]
+	assert.True(t, ok)
+	assert.Equal(t, float64(2), val)
+
+	val, ok = rate[1013]
+	assert.True(t, ok)
+	assert.Equal(t, float64(0), val)
+
+	val, ok = rate[1018]
+	assert.True(t, ok)
+	assert.Equal(t, float64(1), val)
+
+	val, ok = rate[1025]
+	assert.True(t, ok)
+	assert.Equal(t, float64(0), val)
+}
+
+func Test_applyRangeFunctionResets(t *testing.T) {
+	timeSeries := map[uint32]float64{
+		1000: 5.0,
+		1001: 8.0,
+		1002: 5.0,
+		1008: 3.0,
+		1019: 2.5,
+		1025: 2.8,
+	}
+
+	rate, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Resets, TimeWindow: 10})
+	assert.Nil(t, err)
+
+	assert.Len(t, rate, 6)
+
+	var val float64
+	var ok bool
+
+	val, ok = rate[1000]
+	assert.True(t, ok)
+	assert.Equal(t, float64(0), val)
+
+	val, ok = rate[1001]
+	assert.True(t, ok)
+	assert.Equal(t, float64(0), val)
+
+	val, ok = rate[1002]
+	assert.True(t, ok)
+	assert.Equal(t, float64(1), val)
+
+	val, ok = rate[1008]
+	assert.True(t, ok)
+	assert.Equal(t, float64(2), val)
+
+	val, ok = rate[1019]
+	assert.True(t, ok)
+	assert.Equal(t, float64(0), val)
+
+	val, ok = rate[1025]
+	assert.True(t, ok)
+	assert.Equal(t, float64(0), val)
+}
+
 func Test_applyRangeFunctionAvg(t *testing.T) {
 	timeSeries := map[uint32]float64{
 		1000: 2.0,
@@ -1172,6 +1258,44 @@ func Test_applyMathFunctionClampMax(t *testing.T) {
 	ans[1714880892] = 4
 
 	function := structs.Function{MathFunction: segutils.Clamp_Max, ValueList: []string{"4"}}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
+func Test_applyMathFunctionTimestamp(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1714880880] = -30.2
+	ts[1714880881] = 22
+	ts[1714880891] = -10
+	ts[1714880892] = 5.5
+
+	result["metric"] = ts
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	ans := make(map[uint32]float64)
+	ans[1714880880] = 1714880880
+	ans[1714880881] = 1714880881
+	ans[1714880891] = 1714880891
+	ans[1714880892] = 1714880892
+
+	function := structs.Function{MathFunction: segutils.Timestamp}
 
 	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)

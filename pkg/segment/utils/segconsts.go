@@ -307,6 +307,7 @@ const (
 	Clamp
 	Clamp_Max
 	Clamp_Min
+	Timestamp
 )
 
 type RangeFunctions int
@@ -323,6 +324,8 @@ const (
 	Max_Over_time
 	Sum_Over_time
 	Count_Over_time
+	Changes
+	Resets
 )
 
 // For columns used by aggs with eval statements, we should keep their raw values because we need to evaluate them

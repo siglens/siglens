@@ -112,6 +112,13 @@ const metricFunctions = `[
 		"isTimeRangeFunc": false
 	},
 	{
+		"fn": "timestamp",
+		"name": "Timestamp",
+		"desc": "Returns the timestamp of each of the samples of the given vector as the number of seconds since January 1, 1970 UTC.",
+		"eg": "timestamp(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
 		"fn": "rate", 
 		"name": "Rate", 
 		"desc": "Calculates the per-second average rate of increase of the time series in the range vector.", 
@@ -151,6 +158,20 @@ const metricFunctions = `[
 		"name": "Derivative", 
 		"desc": "Calculates the per-second derivative of the time series in a range vector v, using simple linear regression", 
 		"eg": "deriv(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "changes", 
+		"name": "Changes", 
+		"desc": "Returns the number of times its value has changed within the provided time range as an instant vector.", 
+		"eg": "changes(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "resets", 
+		"name": "Resets", 
+		"desc": "returns the number of counter resets within the provided time range as an instant vector.", 
+		"eg": "resets(avg (system.disk.used[5m]))",
 		"isTimeRangeFunc": true
 	},
 	{
