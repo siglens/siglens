@@ -34,6 +34,8 @@ func Test_parseSearchBody(t *testing.T) {
 	jssrc["endEpoch"] = "now"
 	jssrc["scroll"] = 0
 
+	var err error
+
 	stext, sepoch, eepoch, fsize, idxname, scroll, _ := ParseSearchBody(jssrc, nowTs)
 	assert.Equal(t, "abc def", stext)
 	assert.Equal(t, nowTs-15*60_000, sepoch, "expected=%v, actual=%v", nowTs-15*60_000, sepoch)
@@ -46,6 +48,51 @@ func Test_parseSearchBody(t *testing.T) {
 	_, _, _, finalSize, _, scroll, _ := ParseSearchBody(jssrc, nowTs)
 	assert.Equal(t, uint64(700), finalSize, "expected=%v, actual=%v", 700, scroll)
 	assert.Equal(t, 500, scroll, "expected=%v, actual=%v", 500, scroll)
+
+	jssrc["unknownField"] = "abc"
+	stext, sepoch, eepoch, fsize, idxname, scroll, err = ParseSearchBody(jssrc, nowTs)
+	assert.Errorf(t, err, "parseSearchBody unexpected field: %s in JSON", "abc")
+	assert.Equal(t, "", stext, "expected=%v, actual=%v", "", stext)
+	assert.Equal(t, uint64(0), sepoch, "expected=%v, actual=%v", uint64(0), sepoch)
+	assert.Equal(t, uint64(0), eepoch, "expected=%v, actual=%v", uint64(0), eepoch)
+	assert.Equal(t, uint64(0), fsize, "expected=%v, actual=%v", uint64(0), fsize)
+	assert.Equal(t, "", idxname, "expected=%v, actual=%v", "", idxname)
+	assert.Equal(t, 0, scroll, "expected=%v, actual=%v", 0, scroll)
+
+	delete(jssrc, "unknownField")
+	jssrc["searchText"] = 123
+	_, _, _, _, _, _, err = ParseSearchBody(jssrc, nowTs)
+	assert.ErrorContains(t, err, "parseSearchBody searchText is not a string! Val 123")
+
+	delete(jssrc, "searchText")
+	jssrc["indexName"] = []interface{}{"svc1", "svc-2", 1}
+	_, _, _, _, _, _, err = ParseSearchBody(jssrc, nowTs)
+	assert.ErrorContains(t, err, "parseSearchBody indexName elements should have string value, got int in array")
+
+	delete(jssrc, "indexName")
+	jssrc["indexName"] = float32(3.14)
+	_, _, _, _, _, _, err = ParseSearchBody(jssrc, nowTs)
+	assert.ErrorContains(t, err, "parseSearchBody indexName is not a string! Val 3.14, type: float32")
+
+	delete(jssrc, "indexName")
+	jssrc["startEpoch"] = uint(92233738276)
+	_, sepoch, _, _, _, _, _ = ParseSearchBody(jssrc, nowTs)
+	assert.Equal(t, nowTs-(15*60*1000), sepoch, "expected=%v, actual=%v", uint64(0), sepoch)
+
+	delete(jssrc, "startEpoch")
+	jssrc["endEpoch"] = uint(92233738276)
+	_, _, eepoch, _, _, _, _ = ParseSearchBody(jssrc, nowTs)
+	assert.Equal(t, nowTs, eepoch, "expected=%v, actual=%v", nowTs, eepoch)
+
+	delete(jssrc, "endEpoch")
+	jssrc["size"] = "str"
+	_, _, _, fsize, _, _, _ = ParseSearchBody(jssrc, nowTs)
+	assert.Equal(t, uint64(600), fsize, "expected=%v, actual=%v", uint64(600), fsize)
+
+	delete(jssrc, "from")
+	jssrc["from"] = "str"
+	_, _, _, _, _, scroll, _ = ParseSearchBody(jssrc, nowTs)
+	assert.Equal(t, 0, scroll, "expected=%v, actual=%v", 0, scroll)
 }
 
 func Test_parseAlphaNumTime(t *testing.T) {

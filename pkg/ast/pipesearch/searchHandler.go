@@ -106,7 +106,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			for idx, indVal := range val {
 				_, ok := indVal.(string)
 				if !ok {
-					errorMessage = "parseSearchBody indexName should be a string array, got %T in array"
+					errorMessage = "parseSearchBody indexName elements should have string value, got %T in array"
 					log.Errorf(errorMessage, indVal)
 					return "", 0, 0, 0, "", 0, fmt.Errorf(errorMessage, indVal)
 				}
