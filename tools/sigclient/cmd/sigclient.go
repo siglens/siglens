@@ -80,13 +80,15 @@ var metricsIngestCmd = &cobra.Command{
 		batchSize, _ := cmd.Flags().GetInt("batchSize")
 		nMetrics, _ := cmd.Flags().GetInt("metrics")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+		generatorType, _ := cmd.Flags().GetString("generator")
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("totalEvents : %+v. Continuous: %+v\n", totalEvents, continuous)
 		log.Infof("batchSize : %+v. Num metrics: %+v\n", batchSize, nMetrics)
 		log.Infof("bearerToken : %+v\n", bearerToken)
-		ingest.StartIngestion(ingest.OpenTSDB, "", "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken)
+		log.Infof("generatorType : %+v.\n", generatorType)
+		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken)
 	},
 }
 
@@ -142,20 +144,26 @@ var metricsQueryCmd = &cobra.Command{
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		continuous, _ := cmd.Flags().GetBool("continuous")
 		validateMetricsOutput, _ := cmd.Flags().GetBool("validateMetricsOutput")
+		filepath, _ := cmd.Flags().GetString("filePath")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
 		log.Infof("verbose : %+v\n", verbose)
 		log.Infof("continuous : %+v\n", continuous)
 		log.Infof("validateMetricsOutput : %+v\n", validateMetricsOutput)
-		resTS := query.StartMetricsQuery(dest, numIterations, continuous, verbose, validateMetricsOutput)
-		for k, v := range resTS {
-			if !v {
-				log.Errorf("metrics query has no results for query type: %s", k)
-				return fmt.Errorf("metrics query has no results for query type: %s", k)
+		log.Infof("filePath : %+v\n", filepath)
+
+		if filepath != "" {
+			query.RunMetricQueryFromFile(dest, filepath)
+		} else {
+			resTS := query.StartMetricsQuery(dest, numIterations, continuous, verbose, validateMetricsOutput)
+			for k, v := range resTS {
+				if !v {
+					log.Errorf("metrics query has no results for query type: %s", k)
+					return fmt.Errorf("metrics query has no results for query type: %s", k)
+				}
 			}
 		}
-
 		return nil
 	}),
 }
@@ -200,6 +208,7 @@ func init() {
 	esBulkCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
+	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
