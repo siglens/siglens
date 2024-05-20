@@ -420,9 +420,10 @@ function displayBigNumber(value, panelId, dataType, panelIndex) {
 			$(".unit").css("font-size","55px");
 		}
 	}
-	// if(panelId !== -1) {
-	// 	resizePanelFontSize(panelIndex, panelId);
-	// }
+	if(panelId !== -1) {
+		var newSize = $('#' + panelId).width() / 8;
+		$('#' + panelId).find('.big-number, .unit').css('font-size', newSize + 'px');
+	}
 }
 
 function createColorsArray() {
