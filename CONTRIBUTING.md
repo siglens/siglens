@@ -150,30 +150,19 @@ go run main.go query -d http://localhost:5122/elastic -n 10 -v
 
 ## How to work with PEG
 
-To contribute to PEG related stories, it's important to first understand PEG and pigeon. 
+To contribute to PEG related stories, it's important to first understand PEG and pigeon. Pigeon is a PEG parser generator for Go. It takes a PEG grammar file and generates a parser written in Go.
 
-Pigeon is a PEG parser generator for Go. It takes a PEG grammar file and generates a parser written in Go.
+For information on the PEG syntax, you can refer to the [official PEG syntax documentation](https://pkg.go.dev/github.com/mna/pigeon#hdr-PEG_syntax). For a deeper understanding of PEG parsing, you can read this [series of articles](https://medium.com/@gvanrossum_83706/peg-parsing-series-de5d41b2ed60).
 
-For information on the PEG syntax, you can refer to the [official PEG syntax documentation](https://pkg.go.dev/github.com/mna/pigeon#hdr-PEG_syntax).
+Once you have an understanding of PEG and pigeon, you can then update the `.peg` files as needed. After updating the `.peg` files, you need to convert these PEG files to Go files. 
 
-For a deeper understanding of PEG parsing, you can read this [series of articles](https://medium.com/@gvanrossum_83706/peg-parsing-series-de5d41b2ed60).
-
-Once you have an understanding of PEG and pigeon, you can then update the `.peg` files as needed.
-
-After updating the `.peg` files, you need to convert these PEG files to Go files. 
-
-First, install pigeon using the following command:
+First, install `pigeon` and convert a Parsing Expression Grammar (PEG) file to a Go file using the following commands:
 
 ```bash
 go get -u github.com/mna/pigeon
-```
-
-Then, you can convert a PEG file to a Go file using the following command:
-
-```bash
 ~/go/bin/pigeon -o <path_to_your_go_file> <path_to_your_peg_file>
 ```
-Please replace `<path_to_your_go_file>` and `<path_to_your_peg_file>` with the actual paths to your Go and PEG files.
+Replace `<path_to_your_go_file>` and `<path_to_your_peg_file>` with the actual paths to your Go and PEG files. 
 
 For example, if you are working with the files `./pkg/ast/spl/spl.peg` and `./pkg/ast/spl/spl.go`, the command would be:
 
