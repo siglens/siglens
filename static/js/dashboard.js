@@ -1343,7 +1343,7 @@ function addDefaultPanel(){
         noResize: true,
         noMove: true,
     });
-
+    $('#add-widget-options').show();
 }
 // function resetPanelContainerHeight() {
 //     let panelContainerMinHeight = 0;

@@ -291,7 +291,7 @@ $(document).ready(function () {
 
 function editPanelInit(redirectedFromViewScreen) {
 	console.log("redirectedFromViewScreen",redirectedFromViewScreen);
-	if(redirectedFromViewScreen){
+	if(redirectedFromViewScreen === -1){
 		$('#panel-editor-left').hide();
         $('#viewPanel-container').show();
 		$('#edit-button').removeClass('active');
