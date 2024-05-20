@@ -9,6 +9,7 @@
     - [Start up Siglens](#start-up-siglens)
     - [Send Data to SigLens](#send-data-to-siglens)
     - [Send Queries on Siglens](#send-queries-on-siglens)
+  - [How to work with PEG](#how-to-work-with-peg)
   - [Pull Request Checklist](#pull-request-checklist)
 
 Hello there! We are glad that you want to contribute to our project! 💖
