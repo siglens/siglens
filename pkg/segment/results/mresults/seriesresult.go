@@ -256,25 +256,36 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	switch function.MathFunction {
 	case segutils.Abs:
 		evaluate(ts, math.Abs)
+	case segutils.Sqrt:
+		err = applyFuncToNonNegativeValues(ts, math.Sqrt)
 	case segutils.Ceil:
 		evaluate(ts, math.Ceil)
 	case segutils.Floor:
 		evaluate(ts, math.Floor)
 	case segutils.Round:
 		if len(function.ValueList) > 0 && len(function.ValueList[0]) > 0 {
-			err := evaluateRoundWithPrecision(ts, function.ValueList[0])
-			if err != nil {
-				return ts, fmt.Errorf("ApplyMathFunction: %v", err)
-			}
+			err = evaluateRoundWithPrecision(ts, function.ValueList[0])
 		} else {
 			evaluate(ts, math.Round)
 		}
+	case segutils.Exp:
+		evaluate(ts, math.Exp)
 	case segutils.Ln:
-		err = evaluateLogFunc(ts, math.Log)
+		err = applyFuncToNonNegativeValues(ts, math.Log)
 	case segutils.Log2:
-		err = evaluateLogFunc(ts, math.Log2)
+		err = applyFuncToNonNegativeValues(ts, math.Log2)
 	case segutils.Log10:
-		err = evaluateLogFunc(ts, math.Log10)
+		err = applyFuncToNonNegativeValues(ts, math.Log10)
+	case segutils.Sgn:
+		evaluate(ts, calculateSgn)
+	case segutils.Deg:
+		evaluate(ts, func(val float64) float64 {
+			return val * 180 / math.Pi
+		})
+	case segutils.Rad:
+		evaluate(ts, func(val float64) float64 {
+			return val * math.Pi / 180
+		})
 	case segutils.Clamp:
 		if len(function.ValueList) != 2 {
 			return ts, fmt.Errorf("ApplyMathFunction: clamp has incorrect parameters: %v", function.ValueList)
@@ -306,6 +317,10 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 			return ts, fmt.Errorf("ApplyMathFunction: clamp_min has incorrect parameters: %v", function.ValueList)
 		}
 		evaluateClamp(ts, minVal, math.MaxFloat64)
+	case segutils.Timestamp:
+		for timestamp := range ts {
+			ts[timestamp] = float64(timestamp)
+		}
 	default:
 		return ts, fmt.Errorf("ApplyMathFunction: unsupported function type %v", function)
 	}
@@ -448,7 +463,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
 	case segutils.IDelta:
-		// Calculate the instant delta for each timestamp, based on the last two data points within the timewindow
+		// Calculates the instant delta for each timestamp, based on the last two data points within the time window
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeDff := sortedTimeSeries[i].downsampledTime - sortedTimeSeries[i-1].downsampledTime
 			if timeDff > timeWindow {
@@ -459,6 +474,147 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 		}
 		// IDelta at left edge does not exist.
 		delete(ts, sortedTimeSeries[0].downsampledTime)
+		return ts, nil
+	case segutils.Changes:
+		// Calculates the number of times its value has changed within the provided time window
+		prefixSum := make([]float64, len(sortedTimeSeries))
+		prefixSum[0] = 0
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			prefixSum[i] = prefixSum[i-1]
+			if sortedTimeSeries[i].dpVal != sortedTimeSeries[i-1].dpVal {
+				prefixSum[i]++
+			}
+		}
+
+		ts[sortedTimeSeries[0].downsampledTime] = 0
+
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				ts[sortedTimeSeries[i].downsampledTime] = 0
+				continue
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i] - prefixSum[preIndex]
+		}
+		return ts, nil
+	case segutils.Resets:
+		// Any decrease in the value between two consecutive float samples is interpreted as a counter reset.
+		prefixSum := make([]float64, len(sortedTimeSeries))
+		prefixSum[0] = 0
+
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			prefixSum[i] = prefixSum[i-1]
+			if sortedTimeSeries[i].dpVal < sortedTimeSeries[i-1].dpVal {
+				prefixSum[i]++
+			}
+		}
+
+		ts[sortedTimeSeries[0].downsampledTime] = 0
+
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				ts[sortedTimeSeries[i].downsampledTime] = 0
+				continue
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i] - prefixSum[preIndex]
+		}
+		return ts, nil
+	case segutils.Avg_Over_time:
+		prefixSum := make([]float64, len(sortedTimeSeries)+1)
+		prefixSum[1] = sortedTimeSeries[0].dpVal
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			prefixSum[i+1] = (prefixSum[i] + sortedTimeSeries[i].dpVal)
+		}
+
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				continue
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = (prefixSum[i+1] - prefixSum[preIndex]) / float64(i-preIndex+1)
+		}
+		return ts, nil
+	case segutils.Min_Over_time:
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			min := math.MaxFloat64
+			for j := preIndex; j <= i; j++ {
+				min = math.Min(min, sortedTimeSeries[j].dpVal)
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = min
+		}
+		return ts, nil
+	case segutils.Max_Over_time:
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			max := -1.7976931348623157e+308
+			for j := preIndex; j <= i; j++ {
+				max = math.Max(max, sortedTimeSeries[j].dpVal)
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = max
+		}
+		return ts, nil
+	case segutils.Sum_Over_time:
+		prefixSum := make([]float64, len(sortedTimeSeries)+1)
+		prefixSum[1] = sortedTimeSeries[0].dpVal
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			prefixSum[i+1] = (prefixSum[i] + sortedTimeSeries[i].dpVal)
+		}
+
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				continue
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i+1] - prefixSum[preIndex]
+		}
+		return ts, nil
+	case segutils.Count_Over_time:
+		ts[sortedTimeSeries[0].downsampledTime] = 1
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				ts[sortedTimeSeries[i].downsampledTime] = 1
+				continue
+			}
+
+			ts[sortedTimeSeries[i].downsampledTime] = float64(i - preIndex + 1)
+		}
 		return ts, nil
 	default:
 		return ts, fmt.Errorf("ApplyRangeFunction: Unknown function type")
@@ -598,14 +754,24 @@ func evaluate(ts map[uint32]float64, mathFunc float64Func) {
 	}
 }
 
-func evaluateLogFunc(ts map[uint32]float64, mathFunc float64Func) error {
+func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) error {
 	for key, val := range ts {
-		if val <= 0 {
-			return fmt.Errorf("evaluateLogFunc: log function cannot evaluate non-positive numbers: %v", val)
+		if val < 0 {
+			return fmt.Errorf("applyFuncToNonNegativeValues: negative param not allowed: %v", val)
 		}
 		ts[key] = mathFunc(val)
 	}
 	return nil
+}
+
+func calculateSgn(val float64) float64 {
+	if val > 0 {
+		return 1
+	} else if val < 0 {
+		return -1
+	} else {
+		return 0
+	}
 }
 
 func evaluateRoundWithPrecision(ts map[uint32]float64, toNearestStr string) error {

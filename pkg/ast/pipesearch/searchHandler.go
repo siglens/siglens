@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -264,15 +263,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 			return -1
 		}
 
-		if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
-			sizeLimit = 0
-		} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() {
-			// 1. Dedup needs to see all the matched records before it can return any
-			// of them when there's a sortby option.
-			// 2. If there's a Rex block in the chain followed by a Stats block, we need to
-			// see all the matched records before we apply or calculate the stats.
-			sizeLimit = math.MaxUint64
-		}
+		sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
 		qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
 		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId)
@@ -396,15 +387,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
-		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() {
-		// 1. Dedup needs to see all the matched records before it can return any
-		// of them when there's a sortby option.
-		// 2. If there's a Rex block in the chain followed by a Stats block, we need to
-		// see all the matched records before we apply or calculate the stats.
-		sizeLimit = math.MaxUint64
-	}
+	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
 
 	// If MaxRows is used to limit the number of returned results, set `sizeLimit`
 	// to it. Currently MaxRows is only valid as the root QueryAggregators.

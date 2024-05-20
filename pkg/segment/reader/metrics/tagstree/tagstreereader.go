@@ -182,19 +182,20 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 				_, tagRawValue, tsids, tagRawValueType, more := itr.Next()
 				if !more {
 					if !mQuery.SelectAllSeries || mQuery.ExitAfterTagsSearch {
+						numValueFiltersNonZero := mQuery.GetNumValueFilters() > 0
 						var initMetricName string
 						if mQuery.ExitAfterTagsSearch {
-							initMetricName = ""
+							initMetricName = mQuery.MetricName
 							// Update the tag indices to keep Map; This is only required in this case
 							// Because for other cases and normal query flow we do not need to track the tag indices i.e. Tag Filters
 							if _, indexExists := mQuery.TagIndicesToKeep[i]; !indexExists {
 								mQuery.TagIndicesToKeep[i] = struct{}{}
 							}
+							err = tracker.BulkAddStarTagsOnly(rawTagValueToTSIDs, initMetricName, tf.TagKey, numValueFiltersNonZero)
 						} else {
 							initMetricName = fmt.Sprintf("%v{", mQuery.MetricName)
+							err = tracker.BulkAddStar(rawTagValueToTSIDs, initMetricName, tf.TagKey, numValueFiltersNonZero)
 						}
-						numValueFiltersNonZero := mQuery.GetNumValueFilters() > 0
-						err = tracker.BulkAddStar(rawTagValueToTSIDs, initMetricName, tf.TagKey, numValueFiltersNonZero)
 						if err != nil {
 							log.Errorf("FindTSIDS: failed to bulk add tsids to tracker for the tag Key: %v! Error %+v", tf.TagKey, err)
 							return nil, err
@@ -243,7 +244,11 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 			if !tagValueExists {
 				continue
 			}
-			err = tracker.BulkAdd(rawTagValueToTSIDs, mQuery.MetricName, tf.TagKey)
+			if mQuery.ExitAfterTagsSearch {
+				err = tracker.BulkAddTagsOnly(rawTagValueToTSIDs, mQuery.MetricName, tf.TagKey)
+			} else {
+				err = tracker.BulkAdd(rawTagValueToTSIDs, mQuery.MetricName, tf.TagKey)
+			}
 			if err != nil {
 				log.Errorf("FindTSIDS: failed to build add tsids to tracker! Error %+v", err)
 				return nil, err

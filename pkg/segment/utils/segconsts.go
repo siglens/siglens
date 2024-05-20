@@ -301,9 +301,13 @@ const (
 	Ln
 	Log2
 	Log10
+	Sgn
+	Deg
+	Rad
 	Clamp
 	Clamp_Max
 	Clamp_Min
+	Timestamp
 )
 
 type RangeFunctions int
@@ -315,6 +319,13 @@ const (
 	Increase
 	Delta
 	IDelta
+	Avg_Over_time
+	Min_Over_time
+	Max_Over_time
+	Sum_Over_time
+	Count_Over_time
+	Changes
+	Resets
 )
 
 // For columns used by aggs with eval statements, we should keep their raw values because we need to evaluate them
