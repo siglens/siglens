@@ -133,7 +133,6 @@ Once a PEG file is converted into a Go file, you can then utilize the parsed var
 For more information on PEG syntax, you can refer to the [official PEG syntax documentation](https://pkg.go.dev/github.com/mna/pigeon#hdr-PEG_syntax).
 
 For a deeper understanding of PEG parsing, you can read this [series of articles](https://medium.com/@gvanrossum_83706/peg-parsing-series-de5d41b2ed60).
-```
 
 ### Start up Siglens
 
