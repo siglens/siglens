@@ -48,7 +48,6 @@ type Series struct {
 	// if original Downsampler Aggregator is `Avg`, convertedDownsampleAggFn is equal to `Sum` else equal to original Downsampler Aggregator
 	convertedDownsampleAggFn utils.AggregateFunctions
 	aggregationConstant      float64
-	metricName               string
 }
 
 type DownsampleSeries struct {
@@ -113,13 +112,6 @@ func InitSeriesHolderForTags(mQuery *structs.MetricsQuery, tsGroupId *bytebuffer
 
 func (s *Series) GetIdx() int {
 	return s.idx
-}
-func (s *Series) GetMetricName() string {
-	return s.metricName
-}
-
-func (s *Series) SetMetricName(metricName string) {
-	s.metricName = metricName
 }
 
 func (s *Series) AddEntry(ts uint32, dp float64) {

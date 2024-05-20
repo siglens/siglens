@@ -382,6 +382,8 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             const tagsAndValue = await getTagKeyValue(ui.item.value);
             availableEverything = tagsAndValue.availableEverything[0];
             availableEverywhere = tagsAndValue.availableEverywhere;
+            queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
+            queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
             $(this).blur(); 
         }
     }).on('click', function() {

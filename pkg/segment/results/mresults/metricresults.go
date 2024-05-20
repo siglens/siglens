@@ -64,9 +64,10 @@ type MetricsResult struct {
 
 	State bucketState
 
-	rwLock    *sync.RWMutex
-	ErrList   []error
-	TagValues map[string]map[string]struct{}
+	rwLock               *sync.RWMutex
+	ErrList              []error
+	TagValues            map[string]map[string]struct{}
+	AllSeriesTagsOnlyMap map[uint64]*tsidtracker.AllMatchedTSIDsInfo
 }
 
 /*
@@ -76,9 +77,10 @@ TODO: depending on metrics query, have different cases on how to resolve dps
 */
 func InitMetricResults(mQuery *structs.MetricsQuery, qid uint64) *MetricsResult {
 	return &MetricsResult{
-		AllSeries: make(map[uint64]*Series),
-		rwLock:    &sync.RWMutex{},
-		ErrList:   make([]error, 0),
+		AllSeries:            make(map[uint64]*Series),
+		rwLock:               &sync.RWMutex{},
+		ErrList:              make([]error, 0),
+		AllSeriesTagsOnlyMap: make(map[uint64]*tsidtracker.AllMatchedTSIDsInfo, 0),
 	}
 }
 
@@ -95,6 +97,12 @@ func (r *MetricsResult) AddSeries(series *Series, tsid uint64, tsGroupId *bytebu
 		return
 	}
 	currSeries.Merge(series)
+}
+
+func (r *MetricsResult) AddAllSeriesTagsOnlyMap(tsidInfoMap map[uint64]*tsidtracker.AllMatchedTSIDsInfo) {
+	for tsid, tsidInfo := range tsidInfoMap {
+		r.AllSeriesTagsOnlyMap[tsid] = tsidInfo
+	}
 }
 
 /*
@@ -399,14 +407,12 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 	uniqueTagKeyValues := make(map[string]bool)
 	tagKeyValueSet := make([]string, 0)
 
-	for _, series := range res.AllSeries {
-		seriesStr := removeTrailingComma(series.grpID.String())
-		tagKeyValues := strings.Split(seriesStr, tsidtracker.TAG_VALUE_DELIMITER_STR)
-
-		for _, tkVal := range tagKeyValues {
-			if _, ok := uniqueTagKeyValues[tkVal]; !ok {
-				uniqueTagKeyValues[tkVal] = true
-				tagKeyValueSet = append(tagKeyValueSet, tkVal)
+	for _, tsidInfo := range res.AllSeriesTagsOnlyMap {
+		for tagKey, tagValue := range tsidInfo.TagKeyTagValue {
+			tagKeyValue := fmt.Sprintf("%s:%s", tagKey, tagValue)
+			if _, ok := uniqueTagKeyValues[tagKeyValue]; !ok {
+				uniqueTagKeyValues[tagKeyValue] = true
+				tagKeyValueSet = append(tagKeyValueSet, tagKeyValue)
 			}
 		}
 	}
@@ -414,30 +420,19 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 	return uniqueTagKeys, tagKeyValueSet, nil
 }
 
-func (res *MetricsResult) GetSeriesByLabel() ([]map[string]string, error) {
+func (res *MetricsResult) GetSeriesByLabel() ([]map[string]interface{}, error) {
 	if res.State != SERIES_READING {
 		return nil, errors.New("results is not in Series Reading state")
 	}
 
-	data := make([]map[string]string, 0)
+	data := make([]map[string]interface{}, 0)
 
-	for _, series := range res.AllSeries {
-		seriesStr := removeTrailingComma(series.grpID.String())
-		tagKeyValues := strings.Split(seriesStr, tsidtracker.TAG_VALUE_DELIMITER_STR)
-		var parts []string
+	for _, tsidInfo := range res.AllSeriesTagsOnlyMap {
+		tagMap := make(map[string]interface{})
+		tagMap["__name__"] = tsidInfo.MetricName
 
-		tagMap := make(map[string]string)
-		tagMap["__name__"] = series.GetMetricName()
-
-		for idx, tkVal := range tagKeyValues {
-			if idx == 0 {
-				parts = strings.Split(removeMetricNameFromGroupID(tkVal), ":")
-			} else {
-				parts = strings.Split(tkVal, ":")
-			}
-			if len(parts) > 1 {
-				tagMap[parts[0]] = parts[1]
-			}
+		for tagKey, tagValue := range tsidInfo.TagKeyTagValue {
+			tagMap[tagKey] = tagValue
 		}
 
 		data = append(data, tagMap)
