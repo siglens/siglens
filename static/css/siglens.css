@@ -2962,9 +2962,12 @@ float: right;
 #new-dashboard .header-container{
     display: flex;
     justify-content: space-between;
-    height: 35px;
-    align-items: self-start;
+    height: 55px;
+    align-items: center;
     width: 100%;
+    padding: 20px;
+    border-bottom: 1px solid var(--alerting-table-line-color);
+    background-color: var(--db-bg-color);
 }
 
 #new-dashboard .dashboard-names{
@@ -3030,7 +3033,7 @@ float: right;
     width: 100%;
     height: 100%;
     position: relative;
-    padding-left: 0px;
+    background-color: #F9FAFB;
 }
 
 .panel div.panel-header {
@@ -3046,6 +3049,7 @@ float: right;
     justify-content: space-between;
     height: 30px;
     border-bottom: 1px solid var(--border-color-regular);
+    background-color: var(--db-bg-color);
 }
 .panel div.panel-header p{
     color: var(--white-1);
@@ -3095,6 +3099,7 @@ float: right;
     display: flex;
     justify-content: center;
     align-items: center;
+    background-color: var(--db-bg-color);
 }
 
 .panel-body #corner-popup {

@@ -401,7 +401,7 @@
 .panelDisplay .panEdit-panel{
   height: 100%;
   width: 100%;
-  background-color: var(--drop-down-btn-bg-regular);
+  background-color: var(--db-bg-color);
   overflow: hidden;
   margin: 0;
   border-radius: 5px;
@@ -1207,8 +1207,8 @@ input:checked + .slider:before {
   color: var(--datatable-header-text-color) !important;
 }
 #new-dashboard{
-  padding-left: 20px !important;
-  padding-right: 20px;
+  padding: 0px  !important;
+  background-color: #F9FAFB !important;
 }
 .panel{
   border: 1px solid var(--border-color-regular) !important;
@@ -1462,7 +1462,8 @@ input:checked + .slider:before {
 .add-panel-div{
   border: 2px solid var(--lavender-2);
   height: 92%;
-  width: 100%;
+  width: 92%;
+  margin: auto;
   border-radius: 10px;
   background-color: rgba(100, 71, 217, 0.1);
   display: flex;
