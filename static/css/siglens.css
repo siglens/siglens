@@ -539,7 +539,16 @@ body {
 }
 
 #app-side-nav .menu {
-    min-height: 38px;
+    min-height: 30px;
+    /* border-left: 5px solid transparent; */
+    border-right: 5px solid transparent;
+    border-radius: 0 5px 5px 0;
+    margin-bottom: 2px;
+    margin-right: 8px;
+}
+
+.menu-summary {
+    /* min-height: 15px; */
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
     border-radius: 0 5px 5px 0;
@@ -3305,6 +3314,15 @@ float: right;
       transition-delay: 0.3s;
 }
 
+.nav-summary-text{
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navbar-link-text);
+    white-space: nowrap;
+    transition-delay: 0.3s;
+    padding-left: 50px;
+}
+
 .nav-link-text.feedback{
     line-height: 23px;
     text-decoration-line: underline;
@@ -3646,6 +3664,7 @@ float: right;
     font-size: 18px;
     color: var(--datatable-header-text-color);
 }
+
 
 .myOrg-inner-container label {
     font-size: 14px;
@@ -5121,6 +5140,30 @@ input.form-control {
     box-shadow: 0px 2px 8px 0px var(--border-shadow);
 }
 
+
+.help-options-new {
+    position: absolute;
+    top: 0;
+    left: -200px; 
+    width: 180px;
+    background-color: var(--side-nav-bg-color);
+    transition: left 0.3s ease; 
+
+    box-shadow: 0px 2px 8px 0px var(--border-shadow);
+    border-radius: 5px;
+    border: 1px solid var(--border-btn-color);
+    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+    padding: 2px;
+    z-index: 1;
+
+
+}
+
+.help-options-new.active {
+    left: 160px; 
+}
+
+
 .help-options hr{
     margin: 0;
     margin-bottom: 0px;
@@ -5154,6 +5197,20 @@ input.form-control {
     height: 18px;
     width: 18px;
 }
+
+.icon-help-new {
+    background-image: url("../assets/help-icon-inactive.svg");
+    height: 18px;
+    width: 18px;
+    background-size: 18px;
+}
+.icon-help-new:hover,
+.menu.nav-help-new.active .icon-help-new {
+    background-image: url("../assets/help-icon-active.svg");
+    height: 18px;
+    width: 18px;
+}
+
 .icon-slack {
     background-image: url("../assets/slack-icon-inactive.svg");
 }

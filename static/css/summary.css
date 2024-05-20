@@ -1,0 +1,131 @@
+.drop-down {
+    height: 30px;
+    width: 90px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    line-height: 0;
+    white-space: normal;
+    margin-right: 1000px !important;
+    font-family: NotoSans, Lucida Grande, Lucida Sans Unicode, sans-serif;
+}
+
+.summary_layout_grid_area {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--grid-gap);
+    padding-top: 20px;
+}
+
+.summary_layout_grid {
+    --grid-template-areas: none;
+    --grid-columns-count: auto-fit;
+    --grid-min-width: 0;
+    --grid-width: 1fr;
+    --grid-template-columns: repeat(var(--grid-columns-count), minmax(var(--grid-min-width), var(--grid-width)));
+    --grid-auto-rows: auto;
+    --grid-justify-items: initial;
+    --grid-align-content: initial;
+    --grid-align-items: initial;
+    position: relative;
+    grid-template-areas: var(--grid-template-areas);
+    grid-template-columns: var(--grid-template-columns);
+    grid-gap: var(--grid-gap);
+    grid-auto-rows: var(--grid-auto-rows);
+    justify-items: var(--grid-justify-items);
+    justify-content: var(--grid-justify-content);
+    align-content: var(--grid-align-content);
+    align-items: var(--grid-align-items);
+}
+
+.summary_form_input_text {
+    border: 1px solid lightgrey;
+    background-color: var(--form-background);
+    display: inline-flex;
+    align-items: center;
+    font-family: NotoSans, Lucida Grande, Lucida Sans Unicode, sans-serif;
+    line-height: 1.45;
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border-radius: 0px;
+    margin-right: 20px;
+}
+
+
+.summary-search-metrics {
+    border-radius: unset;
+    outline-color: gray;
+}
+
+.input-container {
+    display: flex;
+}
+
+.input-container input {
+    flex: 1;
+    border: 1px solid #000;
+    box-sizing: border-box;
+}
+
+.input-label {
+    margin-bottom: 4px;
+    font-family: NotoSans, Lucida Grande, Lucida Sans Unicode, sans-serif;
+}
+
+.tag {
+    border: 1px solid;
+    height: 32px;
+    border-radius: var(--_ui-lockup--tl, var(--ui-border-radius)) var(--_ui-lockup--tr, var(--ui-border-radius)) var(--_ui-lockup--br, var(--ui-border-radius)) var(--_ui-lockup--bl, var(--ui-border-radius));
+    color: var(--ui-text-secondary);
+    padding: 0 8px;
+    line-height: 36px;
+    font-size: 15px;
+    display: inline-flex;
+    align-items: center;
+    font-family: NotoSans, Lucida Grande, Lucida Sans Unicode, sans-serif;
+}
+
+.buttons-summary {
+    padding-top: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.show-controls {
+    border-style: none;
+    background-color: white;
+    text-align: center;
+    margin-right: 20px;
+    cursor: pointer;
+    font-family: NotoSans, Lucida Grande, Lucida Sans Unicode, sans-serif;
+    font-size: medium;
+}
+
+.right-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border: 1px solid;
+    text-align: center;
+    font-family: NotoSans, Lucida Grande, Lucida Sans Unicode, sans-serif;
+
+}
+
+.btn:hover {
+    box-shadow: 10px 15px 20px rgba(0, 0, 0, .4);
+}
+
+#wgtmsr{
+    width:100px;   
+   }
+   
+#wgtmsr option{
+    width:150px;   
+   }

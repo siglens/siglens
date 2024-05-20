@@ -45,7 +45,7 @@ $(document).ready(function() {
     let endDate = "now";
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
-    
+
     $('.theme-btn').on('click', themePickerHandler);
     addQueryElement();
     getFunctions();
@@ -203,9 +203,7 @@ async function addQueryElement() {
         <div>
             <div class="raw-query-btn">&lt;/&gt;</div>
             <div class="alias-box">
-                <div class="as-btn">as...</div>
                 <div class="alias-filling-box" style="display: none;">
-                    <div>as</div>
                     <input type="text" placeholder="alias">
                     <div>×</div>
                 </div>
@@ -214,16 +212,16 @@ async function addQueryElement() {
         </div>
     </div>`);
 
-    $('#metrics-queries').append(queryElement);
-    const metricNames = await getMetricNames();
-    metricNames.metricNames.sort();
-    queryElement.find('.metrics').val(metricNames.metricNames[0]); // Initialize first query element with first metric name
+        $('#metrics-queries').append(queryElement);
+        const metricNames = await getMetricNames();
+        metricNames.metricNames.sort();
+        queryElement.find('.metrics').val(metricNames.metricNames[0]); // Initialize first query element with first metric name
     } else {
         // Get the last query name
         var lastQueryName = $('#metrics-queries').find('.metrics-query:last .query-name').text();
         // Determine the next query name based on the last query name
         var nextQueryName = String.fromCharCode(lastQueryName.charCodeAt(0) + 1);
-        
+
         queryElement = $('#metrics-queries').find('.metrics-query').last().clone();
         queryElement.find('.query-name').text(nextQueryName);
         queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
@@ -298,7 +296,7 @@ async function addQueryElement() {
         var inputField = queryElement.find('#functions-search-box');
         var optionsContainer = queryElement.find('.options-container');
         var isContainerVisible = optionsContainer.is(':visible');
-    
+
         if (!isContainerVisible) {
             optionsContainer.show();
             inputField.val('')
@@ -308,11 +306,11 @@ async function addQueryElement() {
             optionsContainer.hide();
         }
     });
-    
+
     $('body').on('click', function(event) {
         var optionsContainer = queryElement.find('.options-container');
         var showFunctionsButton = queryElement.find('.show-functions');
-    
+
         // Check if the clicked element is not part of the options container or the show-functions button
         if (!$(event.target).closest(optionsContainer).length && !$(event.target).is(showFunctionsButton)) {
             optionsContainer.hide(); // Hide the options container if clicked outside of it
@@ -345,7 +343,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         queryDetails.everywhere = previousQuery.everywhere.slice();
         queryDetails.everything = previousQuery.everything.slice();
         queryDetails.aggFunction = previousQuery.aggFunction;
-        queryDetails.functions = previousQuery.functions.slice(); 
+        queryDetails.functions = previousQuery.functions.slice();
     }
 
     var availableOptions = ["max by", "min by", "avg by", "sum by"];
@@ -382,7 +380,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             const tagsAndValue = await getTagKeyValue(ui.item.value);
             availableEverything = tagsAndValue.availableEverything[0];
             availableEverywhere = tagsAndValue.availableEverywhere;
-            $(this).blur(); 
+            $(this).blur();
         }
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
@@ -407,7 +405,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             } else {
                 queryDetails.metrics = selectedValue;
             }
-            $(this).blur(); 
+            $(this).blur();
         }
     }).on('change', function() {
         var selectedValue = $(this).val();
@@ -416,25 +414,25 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         } else {
             queryDetails.metrics = selectedValue;
         }
-        $(this).blur(); 
+        $(this).blur();
     });
-    
+
     // Everywhere input (tag:value)
     queryElement.find('.everywhere').autocomplete({
         source: function(request, response) {
-                var filtered = $.grep(availableEverywhere, function(item) {
-                    // Check if the tag part of item is not present in queryDetails.everywhere
-                    var tag = item.split(':')[0];
-                    return (
-                        item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1 &&
-                        !queryDetails.everywhere.some(function(existingTag) {
-                            return existingTag.startsWith(tag + ':');
-                        })
-                    );
-                });
-                filtered.sort();
-                response(filtered);
-            },
+            var filtered = $.grep(availableEverywhere, function(item) {
+                // Check if the tag part of item is not present in queryDetails.everywhere
+                var tag = item.split(':')[0];
+                return (
+                    item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1 &&
+                    !queryDetails.everywhere.some(function(existingTag) {
+                        return existingTag.startsWith(tag + ':');
+                    })
+                );
+            });
+            filtered.sort();
+            response(filtered);
+        },
         minLength: 0,
         select: function(event, ui) {
             addTag(ui.item.value);
@@ -465,23 +463,23 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             $(this).autocomplete('search', '');
         }
     }).on('input', function() {
-        this.style.width = (this.value.length * 8) + 'px'; 
+        this.style.width = (this.value.length * 8) + 'px';
         let typedValue = $(this).val();
-        
+
         // Remove the wildcard option from available options when the input value changes
         if (!typedValue.includes(':')) {
             availableEverywhere = availableEverywhere.filter(function(option) {
                 return !option.includes(':*');
             });
         }
-        
+
         // Add the wildcard option if the typed value contains a colon ":"
         if (typedValue.includes(':')) {
             var parts = typedValue.split(':');
             var prefix = parts[0];
             var suffix = parts[1];
             var wildcardOption = prefix + ':' + suffix + '*';
-            
+
             availableEverywhere = availableEverywhere.filter(function(option) {
                 return !option.includes('*');
             });
@@ -506,7 +504,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             tagContainer.css('width', '5px');
         }
     }
-    
+
     queryElement.on('click', '.tag .close', function() {
         var tagContainer = queryElement.find('.everywhere');
 
@@ -528,7 +526,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             tagContainer.attr('placeholder', '(everywhere)');
             tagContainer.css('width', '100%');
         }
-        updateAutocompleteSource(); 
+        updateAutocompleteSource();
     });
 
     // Aggregation input 
@@ -568,7 +566,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 availableEverything.splice(index, 1);
             }
             $(this).val('');
-            return false;        
+            return false;
         },
         open: function(event, ui) {
             var containerPosition = $(this).closest('.value-container').offset();
@@ -580,15 +578,15 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 "z-index": 1000
             });
         }
-        }).on('click', function() {
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
-            } else {
-                $(this).autocomplete('search', '');
-            }
-        }).on('input', function() {
-            this.style.width = (this.value.length * 8) + 'px'; 
-        })
+    }).on('click', function() {
+        if ($(this).autocomplete('widget').is(':visible')) {
+            $(this).autocomplete('close');
+        } else {
+            $(this).autocomplete('search', '');
+        }
+    }).on('input', function() {
+        this.style.width = (this.value.length * 8) + 'px';
+    })
 
     function addValue(value) {
         var valueContainer = queryElement.find('.everything');
@@ -646,7 +644,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             queryDetails.functions.push(selectedItem.fn);
             appendFunctionDiv(selectedItem.fn);
             getQueryDetails(queryName,queryDetails);
-    
+
             queryElement.find('.options-container').hide();
             $(this).val('');
         }
@@ -676,7 +674,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         }
         $(this).parent('.selected-function').remove();
     });
-  
+
     // Wildcard option
     function updateAutocompleteSource() {
         var selectedTags = queryDetails.everywhere.map(function(tag) {
@@ -710,7 +708,7 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
         </div>`);
 
         $('#metrics-graphs').append(visualizationContainer);
-        
+
         var canvas = $('<canvas></canvas>');
         $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
     } else{
@@ -719,7 +717,7 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
         $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).empty().append(canvas);
     }
     var ctx = canvas[0].getContext('2d');
-    
+
     // Extract labels and datasets from seriesData
     if (seriesData.length > 0) {
         var labels = Object.keys(seriesData[0].values);
@@ -737,7 +735,7 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
         var labels = [];
         var datasets = [];
     }
-    
+
     var chartData = {
         labels: labels,
         datasets: datasets
@@ -783,7 +781,7 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
             }
         }
     });
-    
+
     // Modify the fill property based on the chart type after chart initialization
     if (chartType === 'Area chart') {
         lineChart.config.data.datasets.forEach(function(dataset) {
@@ -872,9 +870,9 @@ function toggleChartType(chartType) {
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             var lineChart = lineCharts[queryName];
-            
+
             lineChart.config.type = chartJsType;
-            
+
             if (chartType === 'Area chart') {
                 lineChart.config.data.datasets.forEach(function(dataset) {
                     dataset.fill = true;
@@ -884,25 +882,25 @@ function toggleChartType(chartType) {
                     dataset.fill = false;
                 });
             }
-            
+
             lineChart.update();
         }
     }
-    
+
     mergeGraphs(chartType);
 }
 
 
 var colorOptions = ["Classic", "Purple", "Cool", "Green", "Warm", "Orange", "Gray", "Palette"];
 $("#color-input").autocomplete({
-   source: colorOptions,
-   minLength: 0,
-   select: function(event,ui){
+    source: colorOptions,
+    minLength: 0,
+    select: function(event,ui){
         selectedColorTheme = ui.item.value;
         updateChartTheme(selectedColorTheme);
         $(this).blur();
-   }
- }).on('click', function() {
+    }
+}).on('click', function() {
     if ($(this).autocomplete('widget').is(':visible')) {
         $(this).autocomplete('close');
     } else {
@@ -935,7 +933,7 @@ function updateChartTheme(theme) {
                 dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
             });
 
-            var lineChart = lineCharts[queryName]; 
+            var lineChart = lineCharts[queryName];
             lineChart.update();
         }
     }
@@ -998,16 +996,16 @@ function updateLineCharts(lineStyle, stroke) {
             chartData.datasets.forEach(function(dataset) {
                 // Update dataset properties
                 dataset.borderDash = (lineStyle === "Dash") ? [5, 5] : (lineStyle === "Dotted") ? [1, 3] : [];
-                dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2; 
+                dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2;
             });
 
-            var lineChart = lineCharts[queryName]; 
+            var lineChart = lineCharts[queryName];
             lineChart.update();
         }
     }
     mergedGraph.data.datasets.forEach(function(dataset) {
         dataset.borderDash = (lineStyle === "Dash") ? [5, 5] : (lineStyle === "Dotted") ? [1, 3] : [];
-        dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2; 
+        dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2;
     });
 
     mergedGraph.update();
@@ -1020,7 +1018,7 @@ function mergeGraphs(chartType) {
         <div class="merged-graph"></div>`);
 
     $('#merged-graph-container').empty().append(visualizationContainer);
-    
+
     var mergedCanvas = $('<canvas></canvas>');
 
     $('.merged-graph').empty().append(mergedCanvas);
@@ -1037,7 +1035,7 @@ function mergeGraphs(chartType) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             // Merge datasets for the current query
             var datasets = chartDataCollection[queryName].datasets;
-            graphNames.push(`Metrics query - ${queryName}`); 
+            graphNames.push(`Metrics query - ${queryName}`);
             datasets.forEach(function(dataset) {
                 mergedData.datasets.push({
                     label: dataset.label,
@@ -1045,14 +1043,14 @@ function mergeGraphs(chartType) {
                     borderColor: dataset.borderColor,
                     borderWidth: dataset.borderWidth,
                     backgroundColor: dataset.backgroundColor,
-                    fill: (chartType === 'Area chart') ? true : false 
+                    fill: (chartType === 'Area chart') ? true : false
                 });
             });
 
             // Update labels ( same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
         }
-    } 
+    }
     $('.merged-graph-name').html(graphNames.join(', '));
     var mergedLineChart = new Chart(mergedCtx, {
         type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
@@ -1066,8 +1064,8 @@ function mergeGraphs(chartType) {
                     align: 'start',
                     labels: {
                         boxWidth: 10,
-                        boxHeight: 2, 
-                        fontSize: 10 
+                        boxHeight: 2,
+                        fontSize: 10
                     }
                 }
             },
@@ -1079,7 +1077,7 @@ function mergeGraphs(chartType) {
                         text: ''
                     },
                     grid: {
-                        display: false 
+                        display: false
                     }
                 },
                 y: {
@@ -1123,26 +1121,26 @@ async function convertDataForChart(data) {
 
 async function getMetricNames() {
     const data = {
-      start: filterStartDate,
-      end: filterEndDate,
+        start: filterStartDate,
+        end: filterEndDate,
     };
     const res = await $.ajax({
-      method: "post",
-      url: "metrics-explorer/api/v1/metric_names",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        Accept: "*/*",
-      },
-      crossDomain: true,
-      dataType: "json",
-      data: JSON.stringify(data),
+        method: "post",
+        url: "http://playground.siglens.com:5122/metrics-explorer/api/v1/metric_names",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            Accept: "*/*",
+        },
+        crossDomain: true,
+        dataType: "json",
+        data: JSON.stringify(data),
     });
-  
+
     if (res) {
         availableMetrics = res.metricNames;
     }
-    
-    return res 
+
+    return res
 }
 
 
@@ -1224,7 +1222,7 @@ function createQueryString(queryObject) {
         return `${tagPart}="${valuePart}"`;
     }).join(',');
     const everythingString = everything.join(',');
-    
+
     let queryString = '';
     if (everything.length > 0) {
         queryString += `${aggFunction} `;
@@ -1244,20 +1242,20 @@ function createQueryString(queryObject) {
     }
 
     queryString += ')';
-    
+
     return queryString;
 }
 
 function getFunctions() {
     $.ajax({
-      method: "get",
-      url: "metrics-explorer/api/v1/functions",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        Accept: "*/*",
-      },
-      crossDomain: true,
-      dataType: "json",
+        method: "get",
+        url: "metrics-explorer/api/v1/functions",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            Accept: "*/*",
+        },
+        crossDomain: true,
+        dataType: "json",
     }).then((res)=>{
         if (res) {
             allFunctions = res

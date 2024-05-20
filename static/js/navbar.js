@@ -32,10 +32,23 @@ let navbarComponent = `
             <a href="./service-health.html" class="nav-links"><span class="icon-traces"></span><span
                     class="nav-link-text">Tracing</span></a>
          </div>
-        <div class="menu nav-metrics" title="Metrics">
-            <a href="./metrics-explorer.html" class="nav-links"><span class="icon-metrics"></span><span
-                    class="nav-link-text">Metrics</span></a>
+        <div class="menu position-relative mb-2">
+        <div class="menu nav-help-new" title="Metrics">
+            <a href="#" class="nav-links">
+            <span class="icon-metrics"></span>
+            <span class="nav-link-text">
+            Metrics</span>
+            </a>
         </div>
+        <div class="help-options-new">
+            <div class="menu menu" title="Metrics Explorer">
+                <a href="./metrics-explorer.html" class="nav-links"><span class="icon-metrics"></span><span class="nav-link-text">Explorer</span></a>
+            </div>
+            <div class="menu menu-summary" title="Summary">
+                <a href="./summary.html" class="nav-links"><span class="icon-search"></span><span class="nav-link-text">Summary</span></a>
+            </div>
+        </div>
+    </div>   
         <div class="menu nav-slos" title="SLOs">
             <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
                     class="nav-link-text">SLOs</span></a>
@@ -110,7 +123,7 @@ let navbarComponent = `
                 </div>
             </div>
         </div>
-    </div>
+</div>
 `
 
 let orgUpperNavTabs = [
@@ -150,13 +163,14 @@ $(document).ready(function () {
         ".nav-live",
         ".nav-traces",
         ".nav-ingest",
+        ".nav-help-new",
     ];
     navItems.forEach((item) => $(item).removeClass("active"));
 
     if (currentUrl.includes("index.html")) {
         $(".nav-search").addClass("active");
     } else if (currentUrl.includes("metrics-explorer.html")) {
-        $(".nav-metrics").addClass("active");
+        $(".nav-metrics").addClass("active");  
     } else if (currentUrl.includes("dashboards-home.html") || currentUrl.includes("dashboard.html")) {
         $(".nav-ldb").addClass("active");
     } else if (currentUrl.includes("saved-queries.html")) {
@@ -201,6 +215,28 @@ $(document).ready(function () {
 
     $(".help-options").on("click", "a", function(event) {
         $(".help-options").slideUp(200);
+    });
+    
+
+    //new
+
+    $(".nav-help-new").on("click", function(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        $(".help-options-new").toggleClass("active");
+    });
+    
+    $(document).on("click", function(event) {
+        var helpOptions = $(".help-options-new");
+        var menu = $(".nav-help-new");
+        
+        if (!menu.is(event.target) && !helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
+            helpOptions.removeClass("active");
+        }
+    });
+    
+    $(".help-options-new").on("click", "a", function(event) {
+        $(".help-options-new").removeClass("active");
     });
 });
 
