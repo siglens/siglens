@@ -84,6 +84,17 @@ func influxPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func influxQueryGetHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgId(influxwriter.GetQueryHandler, ctx)
+	}
+}
+
+func influxQueryPostHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgId(influxwriter.PostQueryHandler, ctx)
+	}
+}
 func esGreetHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		esutils.ProcessGreetHandler(ctx)
