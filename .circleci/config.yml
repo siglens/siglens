@@ -34,10 +34,11 @@ jobs:
           command: |
             cd tools/sigclient
             go run main.go ingest esbulk -n 10 -g benchmark -d http://localhost:8081/elastic -t 100_000
-            go run main.go ingest metrics -d http://localhost:8081 -t 1_000 -m 5 -p 10 -b 10_000
+            go run main.go ingest metrics -d http://localhost:8081 -t 10_00 -m 5 -p 1 -b 10_000 -g benchmark
             sleep 40
             go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/ingest.csv
             go run main.go query otsdb -d http://localhost:5122/otsdb -n 5 -y
+            go run main.go query otsdb -d http://localhost:5122/metrics-explorer/api/v1/timeseries -f ../../cicd/metrics_test.csv
       - run:
           name: Kill Siglens
           command: |
