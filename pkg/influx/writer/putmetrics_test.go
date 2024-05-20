@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var rawCSV = []byte("measurement,tag1=val1,tag2=val2 value=100 1714511214000000000\nmeasurement,tag1=val1,tag2=val2 value=300 1714511215000000000\n")
+var rawCSV = []byte("measurement,tag1=val1,tag2=val2 metric_1=100,metric_2=20 1714511214000000000\nmeasurement,tag1=val1,tag2=val2 metric_1=300,metric_2=20 1714511215000000000\n")
 
 func Test_InsertCsv(t *testing.T) {
 

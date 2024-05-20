@@ -142,6 +142,12 @@ type TimeSeries struct {
 	compressor  *compress.Compressor
 }
 
+type MetricIngestPayload struct {
+	MetricName []byte
+	Timestamp  uint32
+	Value      float64
+}
+
 var orgMetricsAndTagsLock *sync.RWMutex = &sync.RWMutex{}
 
 type MetricsAndTagsHolder struct {
@@ -642,15 +648,15 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	}
 }
 
-// for an input raw csv row []byte, return the metric name, datapoint value, timestamp (ignored), all tags, and any errors occurred
+// for an input raw csv row []byte, return the metric name, datapoint value, timestamp, all tags, and any errors occurred
 // The metric name is returned as a raw []byte
 // The tags
-func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uint32, error) {
+func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]*MetricIngestPayload, []error) {
 
-	var mName []byte
-	var dpVal float64
 	var ts uint32 = uint32(time.Now().Unix())
-	var err error
+
+	metricsPayload := []*MetricIngestPayload{}
+	errors := make([]error, 0)
 
 	reader := csv.NewReader(bytes.NewBuffer(rawCSV))
 	inserted_tags := ""
@@ -662,7 +668,8 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 			if err == io.EOF {
 				break // End of file
 			}
-			return nil, 0, 0, err
+			errors = append(errors, err)
+			return nil, errors
 
 		} else {
 			line := strings.Join(record, ",")
@@ -679,7 +686,7 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 			}
 			for index, value := range tag_set {
 				if index == 0 {
-					mName = []byte(value)
+					continue
 				} else {
 					kvPair := strings.Split(value, "=")
 					key := kvPair[0]
@@ -694,21 +701,54 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 				kvPair := strings.Split(value, "=")
 				key := kvPair[0]
 				value = kvPair[1]
-				if key == influx_value {
-					fltVal, err := strconv.ParseFloat(value, 64)
-					if err != nil {
-						return nil, 0, 0, fmt.Errorf("failed to convert value to float! %+v", err)
-					}
-					dpVal = fltVal
+
+				parsedVal, err := parseInfluxValue(value)
+				if err != nil {
+					errors = append(errors, err)
+					continue
 				}
+
+				metricPayload := &MetricIngestPayload{
+					MetricName: []byte(key),
+					Timestamp:  ts,
+					Value:      parsedVal,
+				}
+
+				metricsPayload = append(metricsPayload, metricPayload)
 			}
 
 		}
 
 	}
 
-	return mName, dpVal, ts, err
+	return metricsPayload, errors
 
+}
+
+func parseInfluxValue(value string) (float64, error) {
+	fltVal, err := strconv.ParseFloat(value, 64)
+	if err == nil {
+		return fltVal, nil
+	}
+
+	// parse the value as a integer.
+	lastChar := value[len(value)-1:]
+	if lastChar == "i" || lastChar == "u" {
+		intVal, err := strconv.ParseInt(value[:len(value)-1], 10, 64)
+		if err == nil {
+			return float64(intVal), nil
+		}
+	}
+
+	// parse the value as a boolean.
+	tempVal := strings.ToLower(value)
+	if tempVal == "t" || tempVal == "true" {
+		return 1, nil
+	} else if tempVal == "f" || tempVal == "false" {
+		return 0, nil
+	}
+
+	return 0, fmt.Errorf("the value is not a valid float, int, or bool. value: %s", value)
 }
 
 // extracts raw []byte from the read tags objects and returns it as []*tagsHolder

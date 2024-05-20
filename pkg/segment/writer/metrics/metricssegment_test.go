@@ -259,3 +259,30 @@ func writeToTimeSeries(mb *MetricsBlock, index int) []data {
 	}
 	return series
 }
+
+func Test_ExtractInfluxPayload(t *testing.T) {
+
+	rawCSV := []byte("measurement,tag1=val1,tag2=val2 metric_1=100,metric_2=20 1714511214000000000\n")
+
+	tags := GetTagsHolder()
+	metricsIngestPayload, err := ExtractInfluxPayload(rawCSV, tags)
+	assert.Equal(t, len(err), 0)
+
+	assert.Equal(t, len(tags.entries), 10)
+	assert.Equal(t, tags.entries[0].tagKey, "tag1")
+	assert.Equal(t, tags.entries[0].tagValue, []byte("val1"))
+	assert.Equal(t, tags.entries[1].tagKey, "tag2")
+	assert.Equal(t, tags.entries[1].tagValue, []byte("val2"))
+
+	assert.Equal(t, len(metricsIngestPayload), 2)
+
+	metricPayload := metricsIngestPayload[0]
+	assert.Equal(t, metricPayload.MetricName, []byte("metric_1"))
+	assert.Equal(t, metricPayload.Value, 100.0)
+	assert.Equal(t, metricPayload.Timestamp, uint32(1714511214000000000/1_000_000_000))
+
+	metricPayload = metricsIngestPayload[1]
+	assert.Equal(t, metricPayload.MetricName, []byte("metric_2"))
+	assert.Equal(t, metricPayload.Value, 20.0)
+	assert.Equal(t, metricPayload.Timestamp, uint32(1714511214000000000/1_000_000_000))
+}
