@@ -62,8 +62,6 @@ var metric_value_histogram_keyname = []byte("histogram")
 var metric_value_summary_keyname = []byte("summary")
 var otsdb_tags = []byte("tags")
 
-var influx_value = "value"
-
 var tags_separator = []byte("__")
 
 var TAGS_TREE_FLUSH_SLEEP_DURATION = 60 // 1 min
