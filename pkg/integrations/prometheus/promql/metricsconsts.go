@@ -12,7 +12,14 @@ const metricFunctions = `[
 		"desc": "Returns the input vector with all datapoint values converted to their absolute value.",
 		"eg": "abs(avg (system.disk.used{*}))",
 		"isTimeRangeFunc": false
-	}, 
+	},
+	{
+		"fn": "sqrt",
+		"name": "Square root",
+		"desc": "calculates the square root of all elements in v.",
+		"eg": "sqrt(avg (system.disk.used{*}))",
+		"isTimeRangeFunc": false
+	},
 	{
 		"fn": "ceil",
 		"name": "Ceil",
@@ -32,6 +39,13 @@ const metricFunctions = `[
 		"name": "Round",
 		"desc": "Rounds the datapoint values of all elements in v to the nearest integer.",
 		"eg": "round(avg (system.disk.used)), round(avg (system.disk.used, 1/2))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "exp",
+		"name": "Exponential",
+		"desc": "Calculates the exponential function for all elements in v.",
+		"eg": "exp(avg (system.disk.used))",
 		"isTimeRangeFunc": false
 	},
 	{
@@ -56,6 +70,27 @@ const metricFunctions = `[
 		"isTimeRangeFunc": false
 	},
 	{
+		"fn": "sgn",
+		"name": "Sign",
+		"desc": "Returns a vector with all sample values converted to their sign, defined as this: 1 if v is positive, -1 if v is negative and 0 if v is equal to zero.",
+		"eg": "sgn(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "deg",
+		"name": "Degree",
+		"desc": "Converts radians to degrees for all elements in v.",
+		"eg": "deg(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "rad",
+		"name": "Radian",
+		"desc": "converts degrees to radians for all elements in v.",
+		"eg": "rad(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
 		"fn": "clamp",
 		"name": "Clamp",
 		"desc": "Clamps the sample values of all elements in v to have a lower limit of min and an upper limit of max.",
@@ -74,6 +109,13 @@ const metricFunctions = `[
 		"name": "Clamp Min",
 		"desc": "Clamps the sample values of all elements in v to have a lower limit of min.",
 		"eg": "clamp_min(avg (system.disk.used), 0)",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "timestamp",
+		"name": "Timestamp",
+		"desc": "Returns the timestamp of each of the samples of the given vector as the number of seconds since January 1, 1970 UTC.",
+		"eg": "timestamp(avg (system.disk.used))",
 		"isTimeRangeFunc": false
 	},
 	{
@@ -116,6 +158,55 @@ const metricFunctions = `[
 		"name": "Derivative", 
 		"desc": "Calculates the per-second derivative of the time series in a range vector v, using simple linear regression", 
 		"eg": "deriv(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "changes", 
+		"name": "Changes", 
+		"desc": "Returns the number of times its value has changed within the provided time range as an instant vector.", 
+		"eg": "changes(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "resets", 
+		"name": "Resets", 
+		"desc": "returns the number of counter resets within the provided time range as an instant vector.", 
+		"eg": "resets(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "avg_over_time", 
+		"name": "Average Over Time", 
+		"desc": "The average value of all points in the specified interval.", 
+		"eg": "avg_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "min_over_time", 
+		"name": "Minimum Over Time", 
+		"desc": "The minimum value of all points in the specified interval.", 
+		"eg": "min_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "max_over_time", 
+		"name": "Maximum Over Time", 
+		"desc": "The maximum value of all points in the specified interval.", 
+		"eg": "max_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "sum_over_time", 
+		"name": "Sum Over Time", 
+		"desc": "The sum of all values in the specified interval.", 
+		"eg": "sum_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "count_over_time", 
+		"name": "Count Over Time", 
+		"desc": "The count of all values in the specified interval.", 
+		"eg": "count_over_time(avg (system.disk.used[5m]))",
 		"isTimeRangeFunc": true
 	}
 ]`

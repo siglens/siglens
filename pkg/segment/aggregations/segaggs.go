@@ -617,6 +617,9 @@ func performRenameColRequest(nodeResult *structs.NodeResult, aggs *structs.Query
 		return fmt.Errorf("performRenameColRequest: %v", err)
 	}
 
+	// Modify the nodeResults.groupByCols
+	nodeResult.GroupByCols = structs.GetRenameGroupByCols(nodeResult.GroupByCols, aggs)
+
 	return nil
 }
 

@@ -212,6 +212,9 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 	}
 
 	for mName := range unrotatedResultContainer {
+		if mName == "" {
+			continue
+		}
 		_, ok := resultContainer[mName]
 		if !ok {
 			resultContainer[mName] = true
@@ -274,10 +277,7 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 
 		querySummary.IncrementNumTSIDsMatched(uint64(tsidInfo.GetNumMatchedTSIDs()))
 		if mQuery.ExitAfterTagsSearch {
-			for tsid, tsGroupId := range tsidInfo.GetAllTSIDs() {
-				series := mresults.InitSeriesHolderForTags(mQuery, tsGroupId)
-				mRes.AddSeries(series, tsid, tsGroupId)
-			}
+			mRes.AddAllSeriesTagsOnlyMap(tsidInfo.GetTSIDInfoMap())
 			continue
 		}
 
