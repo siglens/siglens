@@ -290,7 +290,6 @@ $(document).ready(function () {
 })
 
 function editPanelInit(redirectedFromViewScreen) {
-	console.log("redirectedFromViewScreen",redirectedFromViewScreen);
 	if(redirectedFromViewScreen === -1){
 		$('#panel-editor-left').hide();
         $('#viewPanel-container').show();
@@ -520,7 +519,6 @@ $('.panEdit-save').on("click",async function(redirectedFromViewScreen){
     }
 	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
 	await updateDashboard();
-	// applyChangesToPanel(redirectedFromViewScreen)
 	$('.panelEditor-container').hide();
 	$('.popupOverlay').removeClass('active');
 	$('#app-container').show();
@@ -1106,7 +1104,6 @@ function refreshChartMenuOptions() {
 	chartTypeMenuItems[selectedChartTypeIndex].classList.add("selected");
 	let chartType = mapIndexToChartType.get(selectedChartTypeIndex);
 	chartType = chartType.charAt(0).toUpperCase() + chartType.slice(1);
-	// $('.dropDown-chart span').html(chartType);
 }
 
 function refreshUnitMenuOptions() {
@@ -1243,7 +1240,6 @@ function resetPanelTimeRanges() {
 function resetEditPanelScreen() {
 	resetEditPanel();
 	$('.dropDown-dataSource span').html("Data Source")
-	// $('.dropDown-chart span').html("Chart Type")
 	$('.dropDown-unit span').html("Unit")
 	$('.dropDown-logLinesView span').html("Single line display view")
 	$(".index-container").css('display', 'none');

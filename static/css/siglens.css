@@ -59,6 +59,7 @@
     --white-6: #160F29;
     --white-7: #453F54;
     --white-8: #9C99A3;
+    --white-9: #F9FAFB;
 
     /* Metrics UI Graph Line Colors */
     --graph-line-color-1: #FF0000;
@@ -3033,7 +3034,6 @@ float: right;
     width: 100%;
     height: 100%;
     position: relative;
-    background-color: #F9FAFB;
 }
 
 .panel div.panel-header {
@@ -3062,7 +3062,6 @@ float: right;
 
 
 .panel div.panel-header .dropdown-btn{
-    /* background-image: url(../assets/up-arrow-btn-dark-theme.svg); */
     width: 3px;
     height: 11px;
     margin-left: 10px;
@@ -3072,14 +3071,6 @@ float: right;
     background-size: cover;
 }
 
-/* [data-theme='dark'] .panel div.panel-header .dropdown-btn{
-    background-image: url(../assets/up-arrow-btn-dark-theme.svg);
-} */
-
-/* .panel div.panel-header .dropdown-btn.active{
-    transform: rotate(180deg);
-} */
-
 .panel div.panel-header .hidden{
     visibility: hidden;
 }
@@ -3087,7 +3078,6 @@ float: right;
 .panel {
     width: 100%;
     height: 100%;
-    /* background-color: var(--datatable-bg-color); */
     border-radius: 1px;
     display: flex;
     flex-direction: column;
@@ -3758,7 +3748,7 @@ float: right;
     display: none;
     flex-direction: column;
     width: 100%;
-    height: 100%;
+    height: ;
     position: relative;
     padding: 20px;
 }
