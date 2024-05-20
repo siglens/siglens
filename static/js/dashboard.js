@@ -24,7 +24,7 @@ let timeRange = "Last 1 Hr";
 let dbRefresh ="";
 let panelContainer;
 let panelContainerWidthGlobal;
-let curFocus;
+// let curFocus;
 let originalIndexValues = [];
 let indexValues = [];
 $(document).ready(async function () {
@@ -129,25 +129,6 @@ var options = {
 };
 var grid = GridStack.init(options, '#panel-container');
 
-
-$(document).mouseup(function (e) {
-  var popWindows = $("#panel-dropdown-modal");
-  let panelHead = $(".panel-header");
-  let j1 = !popWindows.is(e.target);
-  let j2 = !panelHead.is(e.target);
-  let j3 = !$(curFocus + " .dropdown-style").hasClass("hidden");
-  if (
-    !popWindows.is(e.target) &&
-    popWindows.has(e.target).length === 0 &&
-    !panelHead.is(e.target) &&
-    panelHead.has(e.target).length === 0 &&
-    !$(curFocus + " .dropdown-style").hasClass("hidden")
-  ) {
-    $(curFocus + " .dropdown-btn").toggleClass("active");
-    $(curFocus + " .dropdown-style").toggleClass("hidden");
-  }
-});
-
 $(`.dbSet-textareaContainer .copy`).click(function() {
     $(this).tooltip('dispose');
     $(this).attr('title', 'Copied!').tooltip('show');
@@ -162,12 +143,6 @@ $(`.dbSet-textareaContainer .copy`).click(function() {
             }, 1000);
         })
 });
-
-// function recalculatePanelWidths(){
-//     localPanels.map(localPanel => {
-//         localPanel.gridpos.w = localPanel.gridpos.wPercent * panelContainerWidthGlobal;
-//     })
-// }
 
 $('#save-db-btn').on("click", updateDashboard);
 $('.refresh-btn').on("click", refreshDashboardHandler);
@@ -351,7 +326,6 @@ function handlePanelDuplicate() {
     $(".panel-dupl-li").on("click", async function () {
         flagDBSaved = false;
         let duplicatedPanelIndex = $(this).closest(".panel").attr("panel-index");
-        console.log(duplicatedPanelIndex);
         addDuplicatePanel(JSON.parse(JSON.stringify(localPanels[duplicatedPanelIndex])));
         renderDuplicatePanel(duplicatedPanelIndex);
         await updateDashboard();
@@ -526,7 +500,6 @@ grid.on('resizestop', function(event, ui) {
 });
 
 function displayPanels() {
-    console.log(localPanels);
     allResultsDisplayed = localPanels.length;
     grid.removeAll();
     let panelContainerMinHeight = 0;
@@ -566,7 +539,6 @@ function displayPanels() {
         });
         $("#panel" + idpanel + " .dropdown-btn").click(function (e) {
             e.stopPropagation();
-            curFocus = "#panel" + idpanel;
             $("#panel" + idpanel + " .dropdown-btn").toggleClass("active");
             $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
         });
@@ -987,7 +959,6 @@ function addDuplicatePanel(panelToDuplicate) {
     handlePanelRemove(idpanel);
     handlePanelDuplicate();
     $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: 'smooth' });
-    console.log(localPanels);
 
     addDefaultPanel();
 }
@@ -1133,6 +1104,8 @@ function discardDbSetting() {
     dbDescr = dbData.description;
 }
 
+// Refresh handler
+
 function setRefreshItemHandler(){
     $(".refresh-range-item").removeClass("active");
     if(dbRefresh){
@@ -1204,8 +1177,8 @@ function parseInterval(interval) {
     }
 }
 
+// Favorite Handler
 function toggleFavorite() {
-    console.log("Toggle Favorite");
     $.ajax({
         method: 'put',
         url: 'api/dashboards/favorite/' + dbId,
@@ -1227,7 +1200,7 @@ function setFavoriteValue(isFavorite) {
     }	
 }
 
-
+// Resizing handler
 $(window).on('resize', function() {
     setTimeout(resizeCharts, 100);
     var windowWidth = window.innerWidth;
