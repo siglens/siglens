@@ -270,9 +270,38 @@ $(document).ready(function () {
 			$('#info-icon-spl').tooltip('hide');
 		}
 	});
+
+	$('#edit-button').click(function() {
+        $('#panel-editor-left').show();
+        $('#viewPanel-container').hide();
+		$('#edit-button').addClass('active');
+		$('#overview-button').removeClass('active');
+		runQueryBtnHandler();
+    });
+
+    $('#overview-button').click(function() {
+        $('#panel-editor-left').hide();
+        $('#viewPanel-container').show();
+		$('#edit-button').removeClass('active');
+		$('#overview-button').addClass('active');
+		displayPanelView(panelIndex)
+
+    });
 })
 
 function editPanelInit(redirectedFromViewScreen) {
+	console.log("redirectedFromViewScreen",redirectedFromViewScreen);
+	if(redirectedFromViewScreen){
+		$('#panel-editor-left').hide();
+        $('#viewPanel-container').show();
+		$('#edit-button').removeClass('active');
+		$('#overview-button').addClass('active');
+		displayPanelView(panelIndex)
+	}else{
+		$('#panel-editor-left').show();
+		$('#edit-button').addClass('active');
+		$('#overview-button').removeClass('active');
+	}
 	resetOptions();
 	$('.panelDisplay #empty-response').empty();
 	$('.panelDisplay #corner-popup').empty();
@@ -1387,3 +1416,47 @@ function toggleTableView() {
 		}
 	}
 };
+
+
+function displayPanelView(panelIndex) {
+	currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));	
+	var panelLayout =`<div class="panel-body">
+    <div class="panEdit-panel"></div>
+    </div>
+	`;
+
+    let localPanel = currentPanel;
+    let panelId = localPanel.panelId;
+    $(`#panel-container #panel${panelId}`).remove();
+    $(`#viewPanel-container`).empty();
+
+    let panel = $("<div>").append(panelLayout).addClass("panel").attr("id", `panel${panelId}`).attr("panel-index", localPanel.panelIndex);
+	$("#viewPanel-container").append(`<div class="view-panel-name">${localPanel.name}</div>`)
+    $("#viewPanel-container").append(panel);
+
+    if (localPanel.chartType == 'Data Table'| localPanel.chartType == 'loglines') {
+        let panEl = $(`#panel${panelId} .panel-body`)
+        let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
+        <div id="empty-response"></div>`
+        panEl.append(responseDiv)
+        $("#panelLogResultsGrid").show();
+		runPanelLogsQuery(localPanel.queryData, panelId,localPanel);
+    } else if (localPanel.chartType == 'Line Chart') {
+        let panEl = $(`#panel${panelId} .panel-body`)
+        let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`
+        panEl.append(responseDiv)
+		runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+    } else if (localPanel.chartType == 'number') {
+        let panEl = $(`#panel${panelId} .panel-body`)
+        let responseDiv = `<div class="big-number-display-container"></div>
+        <div id="empty-response"></div><div id="corner-popup"></div>`
+        panEl.append(responseDiv)
+		runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+    } else if (localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'Bar Chart') {
+        // generic for both bar and pie chartTypes.
+        let panEl = $(`#panel${panelId} .panel-body`)
+        let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`
+        panEl.append(responseDiv)
+         runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+    }
+}

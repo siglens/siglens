@@ -90,7 +90,8 @@ $(document).ready(async function () {
             !$(event.target).closest('.default-item').length &&
             !$(event.target).closest('#add-widget-options').length &&
             !$(event.target).closest('#add-panel-btn').length &&
-            !$(event.target).closest('.grid-stack-item').length
+            !$(event.target).closest('.grid-stack-item').length &&
+            !$(event.target).closest('.panel-view-li').length 
         ) {
             $('.default-item').removeClass('active');
             $('.add-panel-div .text').text('Add Panel');
@@ -98,6 +99,7 @@ $(document).ready(async function () {
             $('#add-widget-options').hide();
             $('.add-icon').removeClass('rotate-icon');
             $('#add-panel-btn').removeClass('active'); 
+            console.log("Remove ----------");
         }
     });
 
@@ -253,14 +255,17 @@ function handlePanelView() {
 }
 
 function viewPanelInit() {
-    $('#app-container').show();
-    $('.panView-goToDB').css('display', 'block');
-    $('#viewPanel-container').show();
-    $('#panel-container').hide();
-    $('.panelEditor-container').hide();
-    $('#add-panel-btn').hide();
-    $('#viewPanel-container').css('display', 'flex');
-    $('#viewPanel-container').css('height', '100%');
+    // $('#app-container').show();
+    // $('.panView-goToDB').css('display', 'block');
+    // $('#viewPanel-container').show();
+    // $('#panel-container').hide();
+    $('.panelEditor-container').show();
+    $('.popupOverlay').addClass('active');
+    // $('#app-container').hide();
+    $('.panelDisplay #panelLogResultsGrid').empty();
+    $('.panelDisplay .big-number-display-container').hide();
+    $('.panelDisplay #empty-response').hide();
+    editPanelInit(-1);
     setTimePicker();
 }
 
@@ -280,12 +285,7 @@ function handlePanelEdit() {
     $(".panel-edit-li").unbind("click");
     $(".panel-edit-li").on("click", function () {
         panelIndex = $(this).closest(".panel").attr("panel-index");
-
-        if ($('#viewPanel-container').css('display') !== 'none') {
-            editPanelInit(-1);
-        } else {
-            editPanelInit();
-        }
+        editPanelInit();
         $('.panelEditor-container').show();
         $('.popupOverlay').addClass('active');
         // $('#app-container').hide();
@@ -755,8 +755,7 @@ function displayPanels() {
             handlePanelEdit();
             handlePanelView();
             handlePanelRemove(idpanel);
-    handlePanelDuplicate();
-
+            handlePanelDuplicate();
     })
     if(allResultsDisplayed === 0) {
         $('body').css('cursor', 'default');
@@ -842,81 +841,6 @@ function displayPanels() {
     // resetPanelContainerHeight();
 // }
 
-function displayPanelView(panelIndex) {
-    let localPanel = localPanels[panelIndex];
-    let panelId = localPanel.panelId;
-    $(`#panel-container #panel${panelId}`).remove();
-    $(`#viewPanel-container`).empty();
-
-    let panel = $("<div>").append(panelLayout).addClass("panel").attr("id", `panel${panelId}`).attr("panel-index", localPanel.panelIndex);
-    $("#viewPanel-container").append(panel);
-    $("#panel" + panelId + " .panel-header").click(function () {
-        $("#panel" + panelId + " .dropdown-btn").toggleClass("active")
-        $("#panel" + panelId + " .dropdown-style").toggleClass("hidden");
-    })
-    $("#" + `panel${panelId}` + " .dropdown-btn").click(function (e) {
-        e.stopPropagation();
-        $("#" + `panel${panelId}` + " .dropdown-btn").toggleClass("active")
-        $("#" + `panel${panelId}` + " .dropdown-style").toggleClass("hidden");
-    });
-    $(`#panel${panelId} .panel-header p`).html(localPanel.name);
-
-    let panelElement = document.getElementById(`panel${panelId}`);
-    panelElement.style.position = "absolute";
-
-    panelElement.style.height = "100%";
-    panelElement.style.width = "100%";
-
-    handlePanelRemove(localPanel.panelId);
-    if (localPanel.description||localPanel.queryData?.searchText) {
-        handleDescriptionTooltip(localPanel.panelId,localPanel.description,localPanel.queryData.searchText);
-    } else {
-        $(`#panel${panelId} .panel-info-corner`).hide();
-    }
-
-    if (localPanel.chartType == 'Data Table'| localPanel.chartType == 'loglines') {
-        let panEl = $(`#panel${panelId} .panel-body`)
-        let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
-        <div id="empty-response"></div>`
-        panEl.append(responseDiv)
-        $("#panelLogResultsGrid").show();
-
-        if (localPanel.queryRes)
-            runPanelLogsQuery(localPanel.queryData, panelId,localPanel, localPanel.queryRes);
-        else
-            runPanelLogsQuery(localPanel.queryData, panelId,localPanel);
-    } else if (localPanel.chartType == 'Line Chart') {
-        let panEl = $(`#panel${panelId} .panel-body`)
-        let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`
-        panEl.append(responseDiv)
-        if (localPanel.queryRes)
-            runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
-        else
-            runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
-    } else if (localPanel.chartType == 'number') {
-        let panEl = $(`#panel${panelId} .panel-body`)
-        let responseDiv = `<div class="big-number-display-container"></div>
-        <div id="empty-response"></div><div id="corner-popup"></div>`
-        panEl.append(responseDiv)
-
-        if (localPanel.queryRes)
-            runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
-        else
-            runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
-    } else if (localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'Bar Chart') {
-        // generic for both bar and pie chartTypes.
-        let panEl = $(`#panel${panelId} .panel-body`)
-        let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`
-        panEl.append(responseDiv)
-        if (localPanel.queryRes)
-            runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
-        else
-            runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
-    }
-
-    handlePanelView();
-    handlePanelEdit();
-}
 
 function displayPanel(panelIndex) {
     let localPanel = localPanels[panelIndex];

@@ -165,8 +165,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div id="panel-container" class="grid-stack">
             </div>
 
-            <div id="viewPanel-container">
-            </div>
+
         </div>
         <div class="popupOverlay">
         </div>
@@ -218,423 +217,435 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
     </div>
     <div class="panelEditor-container">
-        <div class="panelEditorLeft">
-            <div>
-                <div class="panEdit-navBar">
-                    <div>
-                        <span class="panEdit-dbName over-title">DBName</span>
-                        <span class="over-title"> / </span>
-                        <span class="panelTitle over-title">Panel 1</span>
-                    </div>
-                    <div class="navbar-options">
-                        <div class="index-container">
-                            <input type="text" name="" id="index-listing">
-                        </div>
-                        <div class="dropdown">
-                            <button class="btn dropdown-toggle btn-top" type="button" id="date-picker-btn" data-toggle="dropdown"
-                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
-                                title="Pick the time window">
-                                <span>Time Picker</span>
-                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">
-                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg" alt="retract">
-                            </button>
-                            <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
-                                <p class="dt-header">Search the last</p>
-                                <div class="ranges">
-                                    <div class="inner-range">
-                                        <div id="now-5m" class="db-range-item">5 Mins</div>
-                                        <div id="now-3h" class="db-range-item">3 Hrs</div>
-                                        <div id="now-2d" class="db-range-item">2 Days</div>
-                                    </div>
-                                    <div class="inner-range">
-                                        <div id="now-15m" class="db-range-item">15 Mins</div>
-                                        <div id="now-6h" class="db-range-item">6 Hrs</div>
-                                        <div id="now-7d" class="db-range-item">7 Days</div>
-                                    </div>
-                                    <div class="inner-range">
-                                        <div id="now-30m" class="db-range-item">30 Mins</div>
-                                        <div id="now-12h" class="db-range-item">12 Hrs</div>
-                                        <div id="now-30d" class="db-range-item">30 Days</div>
-                                    </div>
-                                    <div class="inner-range">
-                                        <div id="now-1h" class="db-range-item">1 Hr</div>
-                                        <div id="now-24h" class="db-range-item">24 Hrs</div>
-                                        <div id="now-90d" class="db-range-item">90 Days</div>
-                                    </div>
-                                    <hr>
-                                    </hr>
-                                    <div class="dt-header">Custom Search <span id="reset-timepicker"
-                                            type="reset">Reset</span></div>
-                                    <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
-                                        <input type="date" id="date-start" />
-                                        <input type="time" id="time-start" value="00:00" />
-                                    </div>
-                                    <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
-                                        <input type="date" id="date-end">
-                                        <input type="time" id="time-end" value="00:00">
-                                    </div>
-                                    <div class="drp-buttons">
-                                        <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn"
-                                            type="button">Apply</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="table-view-toggle-container btn">
-                            <label class="label-table-view">Table view</label>
-                            <label class="switch">
-                                <input type="checkbox" id="toggle-switch">
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
+        <div class="top-buttons">
+            <div class="toggle-buttons d-flex">
+                <div id="edit-button">Edit</div>
+                <div id="overview-button">Overview</div>
+            </div>
+            <div class="panEdit-btn panEdit-discard" title="Undo all changes">×</div>
+        </div>
+        <div>
+            <div class="panelEditorLeft" id="panel-editor-left">
+                <div>
+                    <div class="panEdit-navBar">
                         <div>
-                            <button class="btn settings-btn panEdit-btn" title="Open dashboard settings"></button>
+                            <span class="panEdit-dbName over-title">DBName</span>
+                            <span class="over-title"> / </span>
+                            <span class="panelTitle over-title">Panel 1</span>
                         </div>
-                    </div>
-                </div>
-                <div class="panelDisplay">
-                    <div id="panEdit-panel" class="panEdit-panel"></div>
-                    <div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
-                    <div id="empty-response"></div>
-                    <div class="big-number-display-container"></div>
-                    <div id="corner-popup">
-                        <div class="corner-container">
-                            <div class="corner-text"></div>
-                        </div>
-                    </div>
-                    <div class="panel-info-corner"><i class="fa fa-info" aria-hidden="true" id="panel-desc-info"></i></div>
-                </div>
-                <div class="section">
-                    <div class="subsection-heading">
-                        <div class="circle">1</div>
-                        <div>Select your visualization</div>
-                    </div>
-                    <div class="section-content">
-                        <ul class="editPanelMenu-chart">
-                            <div class="chart-options" id="chart-type-options" data-index="0">
-                                <img src="./assets/line-chart.svg" alt="line chart icon" class="chart-display">
-                                <li>Line Chart</li>
+                        <div class="navbar-options">
+                            <div class="index-container">
+                                <input type="text" name="" id="index-listing">
                             </div>
-                            <div class="chart-options" id="chart-type-options" data-index="1">
-                                <img src="./assets/bar-chart.svg" alt="bar chart icon" class="chart-display">
-                                <li>Bar Chart</li>
-                            </div>
-                            <div class="chart-options" id="chart-type-options" data-index="2">
-                                <img src="./assets/pie-chart.svg" alt="pie chart icon" class="chart-display">
-                                <li>Pie Chart</li>
-                            </div>
-                            <div class="chart-options" id="chart-type-options" data-index="3">
-                                <img src="./assets/data-table.svg" alt="data table icon" class="chart-display">
-                                <li>Data Table</li>
-                            </div>
-                            <div class="chart-options" id="chart-type-options" data-index="4">
-                                <img src="./assets/number-chart.svg" alt="number chart icon" class="chart-display">
-                                <li>Number</li>
-                            </div>
-                            <div class="chart-options" id="chart-type-options" data-index="5">
-                                <img src="./assets/log-lines.svg" alt="log lines icon" class="chart-display">
-                                <li>Log Lines</li>
-                            </div>
-                        </ul>
-                    </div>
-                </div>
-                <div class="section">
-                    <div class="subsection-heading">
-                        <div class="circle">2</div>
-                        <div>Graph your data</div>
-                    </div>
-                    <div class="section-content">
-                        <div class="queryInputs">
-                            <div class="dropDown-container">
-                                <div class="dropDownTitle dropDown-dataSource active">
-                                    <span>Data Source</span>
-                                    <div class="caret"></div>
-                                </div>
-                                <ul class="editPanelMenu editPanelMenu-dataSource">
-                                    <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="0">
-                                        <li data-value="Metrics">Metrics</li>
-                                    </div>
-                                    <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="1">
-                                        <li data-value="Logs">Logs</li>
-                                    </div>
-                                    <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="2">
-                                        <li data-value="Traces">Traces</li>
-                                    </div>
-                                </ul>
-                            </div>
-                            <div class="queryInput-container">
-                                <div class="queryInput-InnerContainer">
-                                    <input type="text" name="" id="query-input-box" class="queryInput"
-                                        placeholder="Query Input Box">
-                                    <div class="position-relative search-bar-container">
-                                        <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
-                                            id="info-icon-metrics" style="display: none;" title="avg by (color) (testmetric0)
-                                            max by (car_type) (testmetric0)
-                                            min by (model) (testmetric0)
-                                            rate(testmetric0{color=&quot;blue&quot;}[6h])
-                                            deriv(testmetric0{color=&quot;green&quot;}[6h])
-                                            deriv(testmetric0[7d])">
-                                        </i>
-                                        <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-sql"
-                                            style="display: none;" title=' SELECT MAX(latency), COUNT(city) FROM `*` GROUP BY country, gender LIMIT 10
-                                            SELECT * FROM `ind-0`
-                                            SELECT * FROM `ind-0` ORDER BY latency ASC
-                                            SELECT first_name AS firstnames, country AS origincountry FROM `ind-0`
-                                            SELECT MAX(latency), COUNT(city) FROM `*` WHERE gender = male GROUP BY country LIMIT 10
-                                            SELECT * FROM `*` WHERE app_name = Wheataccount AND gender = male LIMIT 10'></i>
-                                        <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-logQL"
-                                            style="display: none;" title=' {app="mysql",name="mysql-backup"}
-                                                {job="mysql"} |= "error"
-                                                {name="cassandra"} |~ error=\w+
-                                                {job="mysql"} |= "error" != "timeout"
-                                                {job="mysql"} |= "error" | json | line_format "&lbrace;{.err}&rbrace;"
-                                    '></i>
-                                        <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-spl"
-                                            style="display: none;" title=' app_version!=2.14.2 AND weekday=T*day
-                                        city=Boston | stats count, avg(latency) BY weekday, http_method
-                                        city=Boston | stats avg(latency) AS Avg BY weekday | eval Millis=Avg / 1000, Millis=Millis . " ms"
-                                        city=Boston | ```This is a comment``` fields http*
-                                        http_method=POST | regex city="^[a-zA-Z]+\s[a-zA-Z]+$" | fields city
-                                        city=Boston | stats count AS Count BY weekday | where Count / 2 > 6 OR weekday = "Saturday"
-                                    '></i>
-                                    </div>
-                                    <div>
-                                        <button class="btn dropdown-toggle" type="button" id="query-language-btn"
-                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                                            data-bs-toggle="dropdown" title="Select Query Type" style="display: none;">
-                                            <span>Splunk QL</span>
-                                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">
-                                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg" alt="retract">
-                                        </button>
-                                        <div class="dropdown-menu box-shadow" aria-labelledby="index-btn"
-                                            id="query-language-options">
-                                            <li id="option-1" class="panEdit-query-language-option">SQL</li>
-                                            <li id="option-2" class="panEdit-query-language-option">Log QL</li>
-                                            <li id="option-3" class="panEdit-query-language-option active">Splunk QL</li>
+                            <div class="dropdown">
+                                <button class="btn dropdown-toggle btn-top" type="button" id="date-picker-btn" data-toggle="dropdown"
+                                    aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
+                                    title="Pick the time window">
+                                    <span>Time Picker</span>
+                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">
+                                    <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg" alt="retract">
+                                </button>
+                                <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
+                                    <p class="dt-header">Search the last</p>
+                                    <div class="ranges">
+                                        <div class="inner-range">
+                                            <div id="now-5m" class="db-range-item">5 Mins</div>
+                                            <div id="now-3h" class="db-range-item">3 Hrs</div>
+                                            <div id="now-2d" class="db-range-item">2 Days</div>
                                         </div>
-                                    </div>
-                                    <div>
-                                        <button class="btn dropdown-toggle" type="button" id="metrics-query-language-btn"
-                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                                            data-bs-toggle="dropdown" title="Select Query Type" style="display: none;">
-                                            <span>PromQL</span>
-                                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">
-                                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg" alt="retract">
-                                        </button>
-                                        <div class="dropdown-menu box-shadow" aria-labelledby="index-btn"
-                                            id="query-language-options">
-                                            <li id="option-0" class="panEdit-query-language-option active">PromQL</li>
+                                        <div class="inner-range">
+                                            <div id="now-15m" class="db-range-item">15 Mins</div>
+                                            <div id="now-6h" class="db-range-item">6 Hrs</div>
+                                            <div id="now-7d" class="db-range-item">7 Days</div>
+                                        </div>
+                                        <div class="inner-range">
+                                            <div id="now-30m" class="db-range-item">30 Mins</div>
+                                            <div id="now-12h" class="db-range-item">12 Hrs</div>
+                                            <div id="now-30d" class="db-range-item">30 Days</div>
+                                        </div>
+                                        <div class="inner-range">
+                                            <div id="now-1h" class="db-range-item">1 Hr</div>
+                                            <div id="now-24h" class="db-range-item">24 Hrs</div>
+                                            <div id="now-90d" class="db-range-item">90 Days</div>
+                                        </div>
+                                        <hr>
+                                        </hr>
+                                        <div class="dt-header">Custom Search <span id="reset-timepicker"
+                                                type="reset">Reset</span></div>
+                                        <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
+                                            <input type="date" id="date-start" />
+                                            <input type="time" id="time-start" value="00:00" />
+                                        </div>
+                                        <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
+                                            <input type="date" id="date-end">
+                                            <input type="time" id="time-end" value="00:00">
+                                        </div>
+                                        <div class="drp-buttons">
+                                            <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn"
+                                                type="button">Apply</button>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="table-view-toggle-container btn">
+                                <label class="label-table-view">Table view</label>
+                                <label class="switch">
+                                    <input type="checkbox" id="toggle-switch">
+                                    <span class="slider round"></span>
+                                </label>
                             </div>
                             <div>
-                                <button type="submit" id="run-query-btn" class="btn-runQuery">Run Query</button>
+                                <button class="btn settings-btn panEdit-btn" title="Open dashboard settings"></button>
                             </div>
                         </div>
                     </div>
-                    <div class="section-content graph-customization">
-                        <div>
-                            <div class="dropDownTitle dropDown-unit active">
-                                <span>Unit</span>
-                                <div class="caret"></div>
-                            </div>
-                            <div id="nestedDropDownContainer">
-                                <ul class="editPanelMenu editPanelMenu-unit">
-                                    <div class="editPanelMenu-unit-options" id="nestedMiscDropDown" data-index="0">
-                                        <li class="dropDown-misc-options">
-                                            <span>Misc</span>
-                                        </li>
-                                        <div class="horizontalCaret"></div>
-                                    </div>
-                                    <div class="editPanelMenu-unit-options" id="nestedDataDropDown" data-index="1">
-                                        <li class="dropDown-data-options">
-                                            <span>Data</span>
-                                        </li>
-                                        <div class="horizontalCaret"></div>
-                                    </div>
-                                    <div class="editPanelMenu-unit-options" id="nestedThroughputDropDown" data-index="2">
-                                        <li class="dropDown-throughput-options">
-                                            <span>Throughput</span>
-                                        </li>
-                                        <div class="horizontalCaret"></div>
-                                    </div>
-                                    <div class="editPanelMenu-unit-options" id="nestedTimeDropDown" data-index="3">
-                                        <li class="dropDown-time-options">
-                                            <span>Time</span>
-                                        </li>
-                                        <div class="horizontalCaret"></div>
-                                    </div>
-                                    <div class="editPanelMenu-unit-options" id="nestedDataRateDropDown" data-index="4">
-                                        <li class="dropDown-data-rate-options">
-                                            <span>Data Rate</span>
-                                        </li>
-                                        <div class="horizontalCaret"></div>
-                                    </div>
-                                </ul>
-                                <ul class="editPanelMenu editPanelMenu-inner-options" id="miscOptionsDropDown">
-                                    <div class="misc-options inner-options" data-index="0">
-                                        <li>none</li>
-                                    </div>
-                                    <div class="misc-options inner-options" data-index="1">
-                                        <li>percent(0-100)</li>
-                                    </div>
-                                </ul>
-                                <ul class="editPanelMenu editPanelMenu-inner-options" id="dataOptionsDropDown">
-                                    <div class="data-options inner-options" data-index="0">
-                                        <li>Bytes</li>
-                                    </div>
-                                    <div class="data-options inner-options" data-index="1">
-                                        <li>kB</li>
-                                    </div>
-                                    <div class="data-options inner-options" data-index="2">
-                                        <li>MB</li>
-                                    </div>
-                                    <div class="data-options inner-options" data-index="3">
-                                        <li>GB</li>
-                                    </div>
-                                    <div class="data-options inner-options" data-index="4">
-                                        <li>TB</li>
-                                    </div>
-                                    <div class="data-options inner-options" data-index="5">
-                                        <li>PB</li>
-                                    </div>
-                                    <div class="data-options inner-options" data-index="6">
-                                        <li>EB</li>
-                                    </div>
-                                    <div class="data-options inner-options" data-index="7">
-                                        <li>ZB</li>
-                                    </div>
-                                    <div class="data-options inner-options" data-index="8">
-                                        <li>YB</li>
-                                    </div>
-                                </ul>
-                                <ul class="editPanelMenu editPanelMenu-inner-options" id="throughputOptionsDropDown">
-                                    <div class="throughput-options inner-options" data-index="0">
-                                        <li>counts/sec</li>
-                                    </div>
-                                    <div class="throughput-options inner-options" data-index="1">
-                                        <li>writes/sec</li>
-                                    </div>
-                                    <div class="throughput-options inner-options" data-index="2">
-                                        <li>reads/sec</li>
-                                    </div>
-                                    <div class="throughput-options inner-options" data-index="3">
-                                        <li>requests/sec</li>
-                                    </div>
-                                    <div class="throughput-options inner-options" data-index="4">
-                                        <li>ops/sec</li>
-                                    </div>
-                                </ul>
-                                <ul class="editPanelMenu editPanelMenu-inner-options" id="timeOptionsDropDown">
-                                    <div class="time-options inner-options" data-index="0">
-                                        <li>hertz(1/s)</li>
-                                    </div>
-                                    <div class="time-options inner-options" data-index="1">
-                                        <li>nanoseconds(ns)</li>
-                                    </div>
-                                    <div class="time-options inner-options" data-index="2">
-                                        <li>microsecond(µs)</li>
-                                    </div>
-                                    <div class="time-options inner-options" data-index="3">
-                                        <li>milliseconds(ms)</li>
-                                    </div>
-                                    <div class="time-options inner-options" data-index="4">
-                                        <li>seconds(s)</li>
-                                    </div>
-                                    <div class="time-options inner-options" data-index="5">
-                                        <li>minutes(m)</li>
-                                    </div>
-                                    <div class="time-options inner-options" data-index="6">
-                                        <li>hours(h)</li>
-                                    </div>
-                                    <div class="time-options inner-options" data-index="7">
-                                        <li>days(d)</li>
-                                    </div>
-                                </ul>
-                                <ul class="editPanelMenu editPanelMenu-inner-options" id="dataRateOptionsDropDown">
-                                    <div class="data-rate-options inner-options" data-index="0">
-                                        <li>packets/sec</li>
-                                    </div>
-                                    <div class="data-rate-options inner-options" data-index="1">
-                                        <li>bytes/sec</li>
-                                    </div>
-                                    <div class="data-rate-options inner-options" data-index="2">
-                                        <li>bits/sec</li>
-                                    </div>
-                                    <div class="data-rate-options inner-options" data-index="3">
-                                        <li>kilobytes/sec</li>
-                                    </div>
-                                    <div class="data-rate-options inner-options" data-index="4">
-                                        <li>kilobits/sec</li>
-                                    </div>
-                                    <div class="data-rate-options inner-options" data-index="5">
-                                        <li>megabytes/sec</li>
-                                    </div>
-                                    <div class="data-rate-options inner-options" data-index="6">
-                                        <li>megabits/sec</li>
-                                    </div>
-                                    <div class="data-rate-options inner-options" data-index="7">
-                                        <li>gigabytes/sec</li>
-                                    </div>
-                                    <div class="data-rate-options inner-options" data-index="8">
-                                        <li>gigabits/sec</li>
-                                    </div>
-                                    <div class="data-rate-options inner-options" data-index="9">
-                                        <li>terabytes/sec</li>
-                                    </div>
-                                    <div class="data-rate-options inner-options" data-index="10">
-                                        <li>terabits/sec</li>
-                                    </div>
-                                    <div class="data-rate-options inner-options" data-index="11">
-                                        <li>petabytes/sec</li>
-                                    </div>
-                                    <div class="data-rate-options inner-options" data-index="12">
-                                        <li>petabits/sec</li>
-                                    </div>
-                                </ul>
+                    <div class="panelDisplay">
+                        <div id="panEdit-panel" class="panEdit-panel"></div>
+                        <div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
+                        <div id="empty-response"></div>
+                        <div class="big-number-display-container"></div>
+                        <div id="corner-popup">
+                            <div class="corner-container">
+                                <div class="corner-text"></div>
                             </div>
                         </div>
-                        <div>
-                            <div class="dropDownTitle dropDown-logLinesView active">
-                                <span>Single line display view</span>
-                                <div class="caret"></div>
-                            </div>
-                            <ul class="editPanelMenu editPanelMenu-logLinesView" id="editPanelMenu-logLinesView">
-                                <div class="editPanelMenu-options" id="logLinesView-options" data-index="0">
-                                    <li>Single line display view</li>
+                        <div class="panel-info-corner"><i class="fa fa-info" aria-hidden="true" id="panel-desc-info"></i></div>
+                    </div>
+                    <div class="section">
+                        <div class="subsection-heading">
+                            <div class="circle">1</div>
+                            <div>Select your visualization</div>
+                        </div>
+                        <div class="section-content">
+                            <ul class="editPanelMenu-chart">
+                                <div class="chart-options" id="chart-type-options" data-index="0">
+                                    <img src="./assets/line-chart.svg" alt="line chart icon" class="chart-display">
+                                    <li>Line Chart</li>
                                 </div>
-                                <div class="editPanelMenu-options" id="logLinesView-options" data-index="1">
-                                    <li>Multi line display view</li>
+                                <div class="chart-options" id="chart-type-options" data-index="1">
+                                    <img src="./assets/bar-chart.svg" alt="bar chart icon" class="chart-display">
+                                    <li>Bar Chart</li>
+                                </div>
+                                <div class="chart-options" id="chart-type-options" data-index="2">
+                                    <img src="./assets/pie-chart.svg" alt="pie chart icon" class="chart-display">
+                                    <li>Pie Chart</li>
+                                </div>
+                                <div class="chart-options" id="chart-type-options" data-index="3">
+                                    <img src="./assets/data-table.svg" alt="data table icon" class="chart-display">
+                                    <li>Data Table</li>
+                                </div>
+                                <div class="chart-options" id="chart-type-options" data-index="4">
+                                    <img src="./assets/number-chart.svg" alt="number chart icon" class="chart-display">
+                                    <li>Number</li>
+                                </div>
+                                <div class="chart-options" id="chart-type-options" data-index="5">
+                                    <img src="./assets/log-lines.svg" alt="log lines icon" class="chart-display">
+                                    <li>Log Lines</li>
                                 </div>
                             </ul>
                         </div>
                     </div>
-                </div>
-                <div class="section">
-                    <div class="subsection-heading">
-                        <div class="circle">3</div>
-                        <div>Give your graph a title <span style="
-                            font-size: 14px;
-                            font-weight: normal;
-                        ">(or leave blank for suggested title)</span> </div>
-                    </div>
-                    <div class="section-content">
-                        <div class="panEdit-nameChange">
-                            <input type="text" id="panEdit-nameChangeInput">
+                    <div class="section">
+                        <div class="subsection-heading">
+                            <div class="circle">2</div>
+                            <div>Graph your data</div>
                         </div>
-                        <!-- <div class="panEdit-descrChange">
-                            <textarea name="" id="panEdit-descrChangeInput" rows="3"></textarea>
-                        </div> -->
+                        <div class="section-content">
+                            <div class="queryInputs">
+                                <div class="dropDown-container">
+                                    <div class="dropDownTitle dropDown-dataSource active">
+                                        <span>Data Source</span>
+                                        <div class="caret"></div>
+                                    </div>
+                                    <ul class="editPanelMenu editPanelMenu-dataSource">
+                                        <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="0">
+                                            <li data-value="Metrics">Metrics</li>
+                                        </div>
+                                        <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="1">
+                                            <li data-value="Logs">Logs</li>
+                                        </div>
+                                        <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="2">
+                                            <li data-value="Traces">Traces</li>
+                                        </div>
+                                    </ul>
+                                </div>
+                                <div class="queryInput-container">
+                                    <div class="queryInput-InnerContainer">
+                                        <input type="text" name="" id="query-input-box" class="queryInput"
+                                            placeholder="Query Input Box">
+                                        <div class="position-relative search-bar-container">
+                                            <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
+                                                id="info-icon-metrics" style="display: none;" title="avg by (color) (testmetric0)
+                                                max by (car_type) (testmetric0)
+                                                min by (model) (testmetric0)
+                                                rate(testmetric0{color=&quot;blue&quot;}[6h])
+                                                deriv(testmetric0{color=&quot;green&quot;}[6h])
+                                                deriv(testmetric0[7d])">
+                                            </i>
+                                            <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-sql"
+                                                style="display: none;" title=' SELECT MAX(latency), COUNT(city) FROM `*` GROUP BY country, gender LIMIT 10
+                                                SELECT * FROM `ind-0`
+                                                SELECT * FROM `ind-0` ORDER BY latency ASC
+                                                SELECT first_name AS firstnames, country AS origincountry FROM `ind-0`
+                                                SELECT MAX(latency), COUNT(city) FROM `*` WHERE gender = male GROUP BY country LIMIT 10
+                                                SELECT * FROM `*` WHERE app_name = Wheataccount AND gender = male LIMIT 10'></i>
+                                            <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-logQL"
+                                                style="display: none;" title=' {app="mysql",name="mysql-backup"}
+                                                    {job="mysql"} |= "error"
+                                                    {name="cassandra"} |~ error=\w+
+                                                    {job="mysql"} |= "error" != "timeout"
+                                                    {job="mysql"} |= "error" | json | line_format "&lbrace;{.err}&rbrace;"
+                                        '></i>
+                                            <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-spl"
+                                                style="display: none;" title=' app_version!=2.14.2 AND weekday=T*day
+                                            city=Boston | stats count, avg(latency) BY weekday, http_method
+                                            city=Boston | stats avg(latency) AS Avg BY weekday | eval Millis=Avg / 1000, Millis=Millis . " ms"
+                                            city=Boston | ```This is a comment``` fields http*
+                                            http_method=POST | regex city="^[a-zA-Z]+\s[a-zA-Z]+$" | fields city
+                                            city=Boston | stats count AS Count BY weekday | where Count / 2 > 6 OR weekday = "Saturday"
+                                        '></i>
+                                        </div>
+                                        <div>
+                                            <button class="btn dropdown-toggle" type="button" id="query-language-btn"
+                                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                                data-bs-toggle="dropdown" title="Select Query Type" style="display: none;">
+                                                <span>Splunk QL</span>
+                                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">
+                                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg" alt="retract">
+                                            </button>
+                                            <div class="dropdown-menu box-shadow" aria-labelledby="index-btn"
+                                                id="query-language-options">
+                                                <li id="option-1" class="panEdit-query-language-option">SQL</li>
+                                                <li id="option-2" class="panEdit-query-language-option">Log QL</li>
+                                                <li id="option-3" class="panEdit-query-language-option active">Splunk QL</li>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <button class="btn dropdown-toggle" type="button" id="metrics-query-language-btn"
+                                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                                data-bs-toggle="dropdown" title="Select Query Type" style="display: none;">
+                                                <span>PromQL</span>
+                                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">
+                                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg" alt="retract">
+                                            </button>
+                                            <div class="dropdown-menu box-shadow" aria-labelledby="index-btn"
+                                                id="query-language-options">
+                                                <li id="option-0" class="panEdit-query-language-option active">PromQL</li>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <button type="submit" id="run-query-btn" class="btn-runQuery">Run Query</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="section-content graph-customization">
+                            <div>
+                                <div class="dropDownTitle dropDown-unit active">
+                                    <span>Unit</span>
+                                    <div class="caret"></div>
+                                </div>
+                                <div id="nestedDropDownContainer">
+                                    <ul class="editPanelMenu editPanelMenu-unit">
+                                        <div class="editPanelMenu-unit-options" id="nestedMiscDropDown" data-index="0">
+                                            <li class="dropDown-misc-options">
+                                                <span>Misc</span>
+                                            </li>
+                                            <div class="horizontalCaret"></div>
+                                        </div>
+                                        <div class="editPanelMenu-unit-options" id="nestedDataDropDown" data-index="1">
+                                            <li class="dropDown-data-options">
+                                                <span>Data</span>
+                                            </li>
+                                            <div class="horizontalCaret"></div>
+                                        </div>
+                                        <div class="editPanelMenu-unit-options" id="nestedThroughputDropDown" data-index="2">
+                                            <li class="dropDown-throughput-options">
+                                                <span>Throughput</span>
+                                            </li>
+                                            <div class="horizontalCaret"></div>
+                                        </div>
+                                        <div class="editPanelMenu-unit-options" id="nestedTimeDropDown" data-index="3">
+                                            <li class="dropDown-time-options">
+                                                <span>Time</span>
+                                            </li>
+                                            <div class="horizontalCaret"></div>
+                                        </div>
+                                        <div class="editPanelMenu-unit-options" id="nestedDataRateDropDown" data-index="4">
+                                            <li class="dropDown-data-rate-options">
+                                                <span>Data Rate</span>
+                                            </li>
+                                            <div class="horizontalCaret"></div>
+                                        </div>
+                                    </ul>
+                                    <ul class="editPanelMenu editPanelMenu-inner-options" id="miscOptionsDropDown">
+                                        <div class="misc-options inner-options" data-index="0">
+                                            <li>none</li>
+                                        </div>
+                                        <div class="misc-options inner-options" data-index="1">
+                                            <li>percent(0-100)</li>
+                                        </div>
+                                    </ul>
+                                    <ul class="editPanelMenu editPanelMenu-inner-options" id="dataOptionsDropDown">
+                                        <div class="data-options inner-options" data-index="0">
+                                            <li>Bytes</li>
+                                        </div>
+                                        <div class="data-options inner-options" data-index="1">
+                                            <li>kB</li>
+                                        </div>
+                                        <div class="data-options inner-options" data-index="2">
+                                            <li>MB</li>
+                                        </div>
+                                        <div class="data-options inner-options" data-index="3">
+                                            <li>GB</li>
+                                        </div>
+                                        <div class="data-options inner-options" data-index="4">
+                                            <li>TB</li>
+                                        </div>
+                                        <div class="data-options inner-options" data-index="5">
+                                            <li>PB</li>
+                                        </div>
+                                        <div class="data-options inner-options" data-index="6">
+                                            <li>EB</li>
+                                        </div>
+                                        <div class="data-options inner-options" data-index="7">
+                                            <li>ZB</li>
+                                        </div>
+                                        <div class="data-options inner-options" data-index="8">
+                                            <li>YB</li>
+                                        </div>
+                                    </ul>
+                                    <ul class="editPanelMenu editPanelMenu-inner-options" id="throughputOptionsDropDown">
+                                        <div class="throughput-options inner-options" data-index="0">
+                                            <li>counts/sec</li>
+                                        </div>
+                                        <div class="throughput-options inner-options" data-index="1">
+                                            <li>writes/sec</li>
+                                        </div>
+                                        <div class="throughput-options inner-options" data-index="2">
+                                            <li>reads/sec</li>
+                                        </div>
+                                        <div class="throughput-options inner-options" data-index="3">
+                                            <li>requests/sec</li>
+                                        </div>
+                                        <div class="throughput-options inner-options" data-index="4">
+                                            <li>ops/sec</li>
+                                        </div>
+                                    </ul>
+                                    <ul class="editPanelMenu editPanelMenu-inner-options" id="timeOptionsDropDown">
+                                        <div class="time-options inner-options" data-index="0">
+                                            <li>hertz(1/s)</li>
+                                        </div>
+                                        <div class="time-options inner-options" data-index="1">
+                                            <li>nanoseconds(ns)</li>
+                                        </div>
+                                        <div class="time-options inner-options" data-index="2">
+                                            <li>microsecond(µs)</li>
+                                        </div>
+                                        <div class="time-options inner-options" data-index="3">
+                                            <li>milliseconds(ms)</li>
+                                        </div>
+                                        <div class="time-options inner-options" data-index="4">
+                                            <li>seconds(s)</li>
+                                        </div>
+                                        <div class="time-options inner-options" data-index="5">
+                                            <li>minutes(m)</li>
+                                        </div>
+                                        <div class="time-options inner-options" data-index="6">
+                                            <li>hours(h)</li>
+                                        </div>
+                                        <div class="time-options inner-options" data-index="7">
+                                            <li>days(d)</li>
+                                        </div>
+                                    </ul>
+                                    <ul class="editPanelMenu editPanelMenu-inner-options" id="dataRateOptionsDropDown">
+                                        <div class="data-rate-options inner-options" data-index="0">
+                                            <li>packets/sec</li>
+                                        </div>
+                                        <div class="data-rate-options inner-options" data-index="1">
+                                            <li>bytes/sec</li>
+                                        </div>
+                                        <div class="data-rate-options inner-options" data-index="2">
+                                            <li>bits/sec</li>
+                                        </div>
+                                        <div class="data-rate-options inner-options" data-index="3">
+                                            <li>kilobytes/sec</li>
+                                        </div>
+                                        <div class="data-rate-options inner-options" data-index="4">
+                                            <li>kilobits/sec</li>
+                                        </div>
+                                        <div class="data-rate-options inner-options" data-index="5">
+                                            <li>megabytes/sec</li>
+                                        </div>
+                                        <div class="data-rate-options inner-options" data-index="6">
+                                            <li>megabits/sec</li>
+                                        </div>
+                                        <div class="data-rate-options inner-options" data-index="7">
+                                            <li>gigabytes/sec</li>
+                                        </div>
+                                        <div class="data-rate-options inner-options" data-index="8">
+                                            <li>gigabits/sec</li>
+                                        </div>
+                                        <div class="data-rate-options inner-options" data-index="9">
+                                            <li>terabytes/sec</li>
+                                        </div>
+                                        <div class="data-rate-options inner-options" data-index="10">
+                                            <li>terabits/sec</li>
+                                        </div>
+                                        <div class="data-rate-options inner-options" data-index="11">
+                                            <li>petabytes/sec</li>
+                                        </div>
+                                        <div class="data-rate-options inner-options" data-index="12">
+                                            <li>petabits/sec</li>
+                                        </div>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="dropDownTitle dropDown-logLinesView active">
+                                    <span>Single line display view</span>
+                                    <div class="caret"></div>
+                                </div>
+                                <ul class="editPanelMenu editPanelMenu-logLinesView" id="editPanelMenu-logLinesView">
+                                    <div class="editPanelMenu-options" id="logLinesView-options" data-index="0">
+                                        <li>Single line display view</li>
+                                    </div>
+                                    <div class="editPanelMenu-options" id="logLinesView-options" data-index="1">
+                                        <li>Multi line display view</li>
+                                    </div>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section">
+                        <div class="subsection-heading">
+                            <div class="circle">3</div>
+                            <div>Give your graph a title <span style="
+                                font-size: 14px;
+                                font-weight: normal;
+                            ">(or leave blank for suggested title)</span> </div>
+                        </div>
+                        <div class="section-content">
+                            <div class="panEdit-nameChange">
+                                <input type="text" id="panEdit-nameChangeInput">
+                            </div>
+                            <!-- <div class="panEdit-descrChange">
+                                <textarea name="" id="panEdit-descrChangeInput" rows="3"></textarea>
+                            </div> -->
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="button-section">
-                <div class="panEdit-navBtns">
-                    <button class="panEdit-btn panEdit-discard" id="discard-btn" title="Undo all changes">Cancel</button>
-                    <button class="panEdit-btn panEdit-save" id="save-btn"
-                        title="Apply changes and save dashboard">Save</button>
-                </div>
+            <div id="viewPanel-container">
+                
+            </div>
+        </div>
+        <div class="button-section">
+            <div class="panEdit-navBtns">
+                <button class="panEdit-btn panEdit-discard" id="discard-btn" title="Undo all changes">Cancel</button>
+                <button class="panEdit-btn panEdit-save" id="save-btn"
+                    title="Apply changes and save dashboard">Save</button>
             </div>
         </div>
     </div>

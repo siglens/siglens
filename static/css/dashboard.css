@@ -1352,6 +1352,10 @@ input:checked + .slider:before {
 }
 .button-section{
   border-top: 1px solid var(--alerting-table-line-color);
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  margin-bottom: 14px;
 }
 .ui-widget.ui-widget-content{
   z-index: 999;
@@ -1509,4 +1513,41 @@ input:checked + .slider:before {
   height: 12px;
   margin-bottom: 5px;
   margin-left: 10px;
+}
+.panelEditorLeft,
+#viewPanel-container {
+    display: none;
+}
+.top-buttons{
+  display: flex;
+  border-bottom: 1px solid var(--alerting-table-line-color);
+  padding: 14px;
+  padding-bottom: 0px;
+  justify-content: space-between;
+}
+.toggle-buttons div{
+  padding-bottom: 6px;
+  margin-right: 20px;
+  cursor: pointer;
+  color: #6F6B7B;
+}
+.toggle-buttons div.active{
+  border-bottom: 4px solid var(--purple-1);
+  color: var(--cstats-header-text-color);
+}
+.view-panel-name{
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.top-buttons .panEdit-discard{
+  width: 24px;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  color: var(--text-color-regular) !important;
+  align-items: center;
+  font-size: 23px;
+  padding-bottom: 3px;
+  cursor: pointer;
 }
