@@ -156,7 +156,7 @@ For information on the PEG syntax, you can refer to the [official PEG syntax doc
 
 Once you have an understanding of PEG and pigeon, you can then update the `.peg` files as needed. After updating the `.peg` files, you need to convert these PEG files to Go files. 
 
-First, install `pigeon` and convert a Parsing Expression Grammar (PEG) file to a Go file using the following commands:
+First, install `pigeon` and convert a PEG file to a Go file using the following commands:
 
 ```bash
 go get -u github.com/mna/pigeon
