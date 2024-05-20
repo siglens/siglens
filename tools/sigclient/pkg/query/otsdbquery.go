@@ -193,6 +193,14 @@ func RunMetricQueryFromFile(apiURL string, filepath string) {
 
 	// read csv values using csv.Reader
 	csvReader := csv.NewReader(f)
+
+	// Skip the first line comment
+	_, err = csvReader.Read()
+	if err != nil {
+		log.Fatalf("Error reading file header: %v, err: %v", filepath, err)
+		return
+	}
+
 	for {
 		rec, err := csvReader.Read()
 		if err == io.EOF {

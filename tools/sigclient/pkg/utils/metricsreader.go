@@ -76,6 +76,7 @@ func (mg *MetricsGenerator) GetRawLog() (map[string]interface{}, error) {
 	retVal["metric"] = mName
 
 	curTime := time.Now().Unix()
+	// When the data is for testing purposes, generate three different timestamps (2 days ago, 1 day ago, now) for metrics testing
 	if mg.multiTimestampsEnabled {
 		switch mg.f.Rand.Int() % 3 {
 		case 0:
@@ -86,7 +87,7 @@ func (mg *MetricsGenerator) GetRawLog() (map[string]interface{}, error) {
 			retVal["timestamp"] = curTime - 60*60*24*2
 		}
 	} else {
-		retVal["timestamp"] = time.Now().Unix()
+		retVal["timestamp"] = curTime
 	}
 
 	retVal["value"] = mg.f.Rand.Float64()*10000 - 5000
