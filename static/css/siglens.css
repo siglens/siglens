@@ -3758,7 +3758,7 @@ float: right;
     display: none;
     flex-direction: column;
     width: 100%;
-    height: 500px;
+    height: 100%;
     position: relative;
     padding: 20px;
 }
@@ -5262,4 +5262,4 @@ input.form-control {
     flex-direction: column;
     max-height: 100%;
     font-size: 14px;
-}
+}x

@@ -660,10 +660,10 @@ function displayPanels() {
         // Rest of your code for handling panel interactions
         // handleDrag(idpanel);
         // handleResize(idpanel);
-        $("#panel" + idpanel + " .panel-header").on('mouseenter',function(){
+        $("#panel" + idpanel).on('mouseenter',function(){
             $("#panel" + idpanel + " .panel-icons").addClass("active")
         });
-        $("#panel" + idpanel + " .panel-header").on('mouseleave',function(){
+        $("#panel" + idpanel).on('mouseleave',function(){
             $("#panel" + idpanel + " .panel-icons").removeClass("active");
             $("#panel" + idpanel + " .dropdown-style").addClass("hidden");
         });
@@ -1074,9 +1074,8 @@ var panelLayout =
             '<div>'+
                 '<span class="dropdown-btn" id="panel-options-btn"></span>' +
                 '<ul class="dropdown-style hidden" id="panel-dropdown-modal">' +
-                '<li data-value="view" class="panel-view-li"><span class="view"></span>View</li>' +
                 '<li data-value="edit" class="panel-edit-li"><span class="edit"></span>Edit</li>' +
-                '<li data-value="duplicate" class="panel-dupl-li"><span class="duplicate"></span>Duplicate</li>' +
+                '<li data-value="duplicate" class="panel-dupl-li"><span class="duplicate"></span>Clone</li>' +
                 '<li data-value="remove" class="panel-remove-li"><span class="remove"></span>Remove</li>' +
                 '</ul>' +
             '</div>' +
@@ -1132,10 +1131,10 @@ function addPanel(chartIndex) {
     let panel = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", panelIndex);
     $("#panel-container").append(panel);
     $(`#panel${idpanel} .panel-header p`).html(`panel${panelIndex}`);
-    $("#panel" + idpanel + " .panel-header").on('mouseenter',function(){
+    $("#panel" + idpanel).on('mouseenter',function(){
         $("#panel" + idpanel + " .panel-icons").addClass("active")
     });
-    $("#panel" + idpanel + " .panel-header").on('mouseleave',function(){
+    $("#panel" + idpanel).on('mouseleave',function(){
         $("#panel" + idpanel + " .panel-icons").removeClass("active");
         $("#panel" + idpanel + " .dropdown-style").addClass("hidden");
     });
@@ -1289,10 +1288,10 @@ function addDuplicatePanel(panelToDuplicate) {
     let panel = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", panelIndex);
     $("#panel-container").append(panel);
     $(`#panel${idpanel} .panel-header p`).html(`panel${panelIndex}`);
-    $("#panel" + idpanel + " .panel-header").on('mouseenter',function(){
+    $("#panel" + idpanel).on('mouseenter',function(){
         $("#panel" + idpanel + " .panel-icons").addClass("active")
     });
-    $("#panel" + idpanel + " .panel-header").on('mouseleave',function(){
+    $("#panel" + idpanel).on('mouseleave',function(){
         $("#panel" + idpanel + " .panel-icons").removeClass("active");
         $("#panel" + idpanel + " .dropdown-style").addClass("hidden");
     });
