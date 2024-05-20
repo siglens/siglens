@@ -112,6 +112,29 @@ Siglens currently support `Linux` and `macOS` for development purposes.
    sudo yum install gcc g++ make
    ```
 
+## How to work with PEG
+
+To contribute to PEG related stories, you need to convert PEG files to Go files. 
+
+First, install pigeon using the following command:
+
+```bash
+go get -u github.com/mna/pigeon
+```
+
+Then, you can convert a PEG file to a Go file using the following command:
+
+```bash
+~/go/bin/pigeon -o ./pkg/ast/spl/spl.peg ./pkg/ast/spl/spl.go
+```
+
+Once a PEG file is converted into a Go file, you can then utilize the parsed variables in your subsequent code implementation.
+
+For more information on PEG syntax, you can refer to the [official PEG syntax documentation](https://pkg.go.dev/github.com/mna/pigeon#hdr-PEG_syntax).
+
+For a deeper understanding of PEG parsing, you can read this [series of articles](https://medium.com/@gvanrossum_83706/peg-parsing-series-de5d41b2ed60).
+```
+
 ### Start up Siglens
 
 Once golang is installed, start up SigLens by running the following command at the root of the repo:
