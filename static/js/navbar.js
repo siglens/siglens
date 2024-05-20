@@ -45,7 +45,7 @@ let navbarComponent = `
                 <a href="./metrics-explorer.html" class="nav-links"><span class="icon-metrics"></span><span class="nav-link-text">Explorer</span></a>
             </div>
             <div class="menu menu-summary" title="Summary">
-                <a href="./summary.html" class="nav-links"><span class="icon-search"></span><span class="nav-link-text">Summary</span></a>
+                <a href="./metricsummary.html" class="nav-links"><span class="icon-search"></span><span class="nav-link-text">Summary</span></a>
             </div>
         </div>
     </div>   
@@ -217,9 +217,6 @@ $(document).ready(function () {
         $(".help-options").slideUp(200);
     });
     
-
-    //new
-
     $(".nav-help-new").on("click", function(event) {
         event.stopPropagation();
         event.preventDefault();

@@ -45,7 +45,6 @@ $(document).ready(function() {
     let endDate = "now";
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
-
     $('.theme-btn').on('click', themePickerHandler);
     addQueryElement();
     getFunctions();
@@ -212,23 +211,21 @@ async function addQueryElement() {
         </div>
     </div>`);
 
-        $('#metrics-queries').append(queryElement);
-        const metricNames = await getMetricNames();
-        metricNames.metricNames.sort();
-        queryElement.find('.metrics').val(metricNames.metricNames[0]); // Initialize first query element with first metric name
+    $('#metrics-queries').append(queryElement);
+    const metricNames = await getMetricNames();
+    metricNames.metricNames.sort();
+    queryElement.find('.metrics').val(metricNames.metricNames[0]); // Initialize first query element with first metric name
     } else {
         // Get the last query name
         var lastQueryName = $('#metrics-queries').find('.metrics-query:last .query-name').text();
         // Determine the next query name based on the last query name
         var nextQueryName = String.fromCharCode(lastQueryName.charCodeAt(0) + 1);
-
         queryElement = $('#metrics-queries').find('.metrics-query').last().clone();
         queryElement.find('.query-name').text(nextQueryName);
         queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
         queryElement.find('.query-builder').show();
         queryElement.find('.raw-query').hide();
         $('#metrics-queries').append(queryElement);
-
     }
 
     // Show or hide the query close icon based on the number of queries

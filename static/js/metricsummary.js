@@ -70,7 +70,6 @@ const gridOptions = {
 };
 
 function displayMetricsTable(res) {
-  debugger;
   if (gridDiv === null) {
     gridDiv = document.querySelector('#ag-grid');
     new agGrid.Grid(gridDiv, gridOptions);
