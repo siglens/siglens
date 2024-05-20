@@ -18,19 +18,47 @@
 package query
 
 import (
+	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 	"time"
+	"verifier/pkg/utils"
 
 	"github.com/montanaflynn/stats"
 	log "github.com/sirupsen/logrus"
 )
 
 type metricsQueryTypes int
+
+// QueryRequest represents the request structure for the API
+type QueryRequest struct {
+	Start   string `json:"start"`
+	End     string `json:"end"`
+	Queries []struct {
+		Name   string `json:"name"`
+		Query  string `json:"query"`
+		QlType string `json:"qlType"`
+	} `json:"queries"`
+	Formulas []struct {
+		Formula string `json:"formula"`
+	} `json:"formulas"`
+}
+
+// QueryResponse represents the response structure from the API
+type QueryResponse struct {
+	Series      []string    `json:"series"`
+	Timestamps  []int64     `json:"timestamps"`
+	Values      [][]float64 `json:"values"`
+	StartTime   int64       `json:"startTime"`
+	IntervalSec int64       `json:"intervalSec"`
+}
 
 const (
 	simpleKeyValueQuery metricsQueryTypes = iota
@@ -151,4 +179,100 @@ func StartMetricsQuery(dest string, numIterations int, continuous, verbose, vali
 		log.Infof("QueryType: %s. Min:%+vms, Max:%+vms, Avg:%+vms, P95:%+vms", qType.String(), min, max, avg, p95)
 	}
 	return validResult
+}
+
+// RunQueryFromFile reads queries from a file and executes them
+func RunMetricQueryFromFile(apiURL string, filepath string) {
+	// open file
+	f, err := os.Open(filepath)
+	if err != nil {
+		log.Fatalf("RunQueryFromFile: Error in opening file: %v, err: %v", filepath, err)
+		return
+	}
+	defer f.Close()
+
+	// read csv values using csv.Reader
+	csvReader := csv.NewReader(f)
+	for {
+		rec, err := csvReader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatalf("RunQueryFromFile: Error in reading file: %v, err: %v", filepath, err)
+			return
+		}
+
+		if len(rec) != 5 {
+			log.Fatalf("RunQueryFromFile: Invalid number of columns in query file: [%v]. Expected 5", rec)
+			return
+		}
+
+		query := rec[0]
+		start := rec[1]
+		end := rec[2]
+		expectedValuesStr := rec[3]
+		relation := rec[4]
+
+		expectedValuesStrs := strings.Split(expectedValuesStr, ",")
+
+		requestBody := QueryRequest{
+			Start: start,
+			End:   end,
+			Queries: []struct {
+				Name   string `json:"name"`
+				Query  string `json:"query"`
+				QlType string `json:"qlType"`
+			}{
+				{Name: "a", Query: query, QlType: "promql"},
+			},
+			Formulas: []struct {
+				Formula string `json:"formula"`
+			}{
+				{Formula: "a"},
+			},
+		}
+
+		requestData, err := json.Marshal(requestBody)
+		if err != nil {
+			log.Fatalf("RunQueryFromFile: Error in marshaling request data: %v", err)
+		}
+
+		resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(requestData))
+		if err != nil {
+			log.Fatalf("RunQueryFromFile: Error in making HTTP request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			log.Fatalf("RunQueryFromFile: Non-OK HTTP status: %v, body: %s", resp.StatusCode, string(body))
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatalf("RunQueryFromFile: Error in reading response body: %v", err)
+		}
+
+		var queryResponse QueryResponse
+		err = json.Unmarshal(body, &queryResponse)
+		if err != nil {
+			log.Fatalf("RunQueryFromFile: Error in unmarshaling response data: %v", err)
+		}
+
+		if len(queryResponse.Values) == 0 || len(queryResponse.Values[0]) != len(expectedValuesStrs) {
+			log.Fatalf("RunQueryFromFile: Unexpected number of values in response: %v", queryResponse.Values)
+		}
+
+		for i, actualValue := range queryResponse.Values[0] {
+			isEqual, err := utils.VerifyInequality(actualValue, relation, expectedValuesStrs[i])
+			if !isEqual {
+				log.Fatalf("RunQueryFromFile: Actual value: %v does not meet condition: [%s %v] at index %d", actualValue, relation, expectedValuesStrs[i], i)
+			} else if err != nil {
+				log.Fatalf("RunQueryFromFile: Error in verifying results: %v", err)
+			}
+		}
+
+		log.Printf("RunQueryFromFile: Query: %v was successful. Response matches expected values.", query)
+	}
 }

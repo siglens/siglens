@@ -19,10 +19,13 @@ package utils
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 
 	log "github.com/sirupsen/logrus"
 )
+
+const TOLERANCE = 0.000001
 
 // Only string comparisons for equality are allowed
 func VerifyInequalityForStr(actual string, relation, expected string) (bool, error) {
@@ -62,6 +65,8 @@ func VerifyInequality(actual float64, relation, expected string) (bool, error) {
 		if actual < fltVal {
 			return true, nil
 		}
+	case "approx":
+		return math.Abs(actual-fltVal) < TOLERANCE, nil
 	default:
 		log.Errorf("verifyInequality: Invalid relation: %v", relation)
 		return false, fmt.Errorf("verifyInequality: Invalid relation: %v", relation)
