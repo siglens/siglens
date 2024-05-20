@@ -593,7 +593,6 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: var(--datatable-bg-color);
   border-radius: 5px;
   height: 100%;
   width: 100%;
@@ -1037,7 +1036,7 @@ input:checked + .slider:before {
   border-bottom: 30px solid #0000;
   border-left: 32px solid var(--purple-1);
   border-right: none;
-  border-radius: 5px 0;
+  border-radius: 1px 0;
   cursor: pointer;
   z-index: 99;
 }
@@ -1168,7 +1167,7 @@ input:checked + .slider:before {
   background-size: 45% !important;
 }
 .panel-header:hover{
-  background-color: var(--edit-panel-border-color) !important;
+  background: var(--datatable-bg-color)  !important;
 }
 .panelDisplay,
 .refresh-btn,
@@ -1223,7 +1222,7 @@ input:checked + .slider:before {
   background-color: var(--panel-table-bg-color);
 }
 .panel div.panel-header .dropdown-btn{
-  background-image: var(--arrow-dashboard-img) !important;
+  background-image: url('../assets/other-options-icon.svg') !important;
 }
 .ag-row-position-absolute::after{
   content: '';
@@ -1497,4 +1496,17 @@ input:checked + .slider:before {
 }
 .grid-stack>.grid-stack-item>.grid-stack-item-content{
   overflow-y: hidden;
+}
+.panel-icons{
+  display: none;
+  cursor: pointer;
+}
+.panel-icons.active{
+  display: flex;
+  cursor: pointer;
+}
+.panel-icons img{
+  height: 12px;
+  margin-bottom: 5px;
+  margin-left: 10px;
 }

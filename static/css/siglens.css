@@ -3035,18 +3035,17 @@ float: right;
 
 .panel div.panel-header {
     cursor: move;
-    background: var(--datatable-bg-color);
     display: flex;
     align-items: center;
-    padding: 3px;
-    padding-left: 12px;
+    padding: 3px 10px 3px 20px;
     cursor: move;
     color: var(--hits-summary-regular-text-color);
-    border-radius: 5px 5px 0px 0px;
+    border-radius: 1px 1px 0px 0px;
     position: relative;
-    font-size: 16px;
-    justify-content: center;
+    font-size: 14px;
+    justify-content: space-between;
     height: 30px;
+    border-bottom: 1px solid var(--border-color-regular);
 }
 .panel div.panel-header p{
     color: var(--white-1);
@@ -3059,20 +3058,23 @@ float: right;
 
 
 .panel div.panel-header .dropdown-btn{
-    background-image: url(../assets/up-arrow-btn-dark-theme.svg);
-    width: 10px;
-    height: 6px;
+    /* background-image: url(../assets/up-arrow-btn-dark-theme.svg); */
+    width: 3px;
+    height: 11px;
     margin-left: 10px;
     cursor: pointer;
+    display: inline-block;
+    margin-bottom: 1px;
+    background-size: cover;
 }
 
-[data-theme='dark'] .panel div.panel-header .dropdown-btn{
+/* [data-theme='dark'] .panel div.panel-header .dropdown-btn{
     background-image: url(../assets/up-arrow-btn-dark-theme.svg);
-}
+} */
 
-.panel div.panel-header .dropdown-btn.active{
+/* .panel div.panel-header .dropdown-btn.active{
     transform: rotate(180deg);
-}
+} */
 
 .panel div.panel-header .hidden{
     visibility: hidden;
@@ -3081,8 +3083,8 @@ float: right;
 .panel {
     width: 100%;
     height: 100%;
-    background-color: var(--datatable-bg-color);
-    border-radius: 5px;
+    /* background-color: var(--datatable-bg-color); */
+    border-radius: 1px;
     display: flex;
     flex-direction: column;
 }
@@ -3122,13 +3124,14 @@ float: right;
     position: absolute;
     top: 25px;
     list-style-type: none;
-    padding: 11px 16px;
+    padding: 10px;
     cursor: pointer;
-    background-color: var(--datatable-bg-color);
-    border-radius: 5px;
-    font-size: 14px;
-    width: 131px;
+    background-color: var(--edit-panel-bg-color);
+    border-radius: 1px;
     z-index: 2;
+    right: 0px;
+    font-size: 13px;
+    box-shadow: var(--box-shadow);
 }
 
 

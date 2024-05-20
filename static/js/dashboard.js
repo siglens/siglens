@@ -660,11 +660,13 @@ function displayPanels() {
         // Rest of your code for handling panel interactions
         // handleDrag(idpanel);
         // handleResize(idpanel);
-        $("#panel" + idpanel + " .panel-header").click(function () {
-            curFocus = "#panel" + idpanel;
-            $("#panel" + idpanel + " .dropdown-btn").toggleClass("active")
-            $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
-        })
+        $("#panel" + idpanel + " .panel-header").on('mouseenter',function(){
+            $("#panel" + idpanel + " .panel-icons").addClass("active")
+        });
+        $("#panel" + idpanel + " .panel-header").on('mouseleave',function(){
+            $("#panel" + idpanel + " .panel-icons").removeClass("active");
+            $("#panel" + idpanel + " .dropdown-style").addClass("hidden");
+        });
         $("#panel" + idpanel + " .dropdown-btn").click(function (e) {
             e.stopPropagation();
             curFocus = "#panel" + idpanel;
@@ -1139,14 +1141,22 @@ function checkForVertical(uiPos) {
 
 var panelLayout =
     '<div class="panel-header">' +
-    '<p>Panel Title</p>' +
-    '<span class="dropdown-btn" id="panel-options-btn"></span>' +
-    '<ul class="dropdown-style hidden" id="panel-dropdown-modal">' +
-    '<li data-value="view" class="panel-view-li"><span class="view"></span>View</li>' +
-    '<li data-value="edit" class="panel-edit-li"><span class="edit"></span>Edit</li>' +
-    '<li data-value="duplicate" class="panel-dupl-li"><span class="duplicate"></span>Duplicate</li>' +
-    '<li data-value="remove" class="panel-remove-li"><span class="remove"></span>Remove</li>' +
-    '</ul>' +
+        '<div>'+
+            '<p>Panel Title</p>'+
+        '</div>' +
+        '<div class="panel-icons">'+
+            '<div><img src="../assets/edit-panel-icon.svg" alt="" class="panel-edit-li" /></div>'+
+            '<div><img src="../assets/resize-icon.svg" alt="" class="panel-view-li" /></div>'+
+            '<div>'+
+                '<span class="dropdown-btn" id="panel-options-btn"></span>' +
+                '<ul class="dropdown-style hidden" id="panel-dropdown-modal">' +
+                '<li data-value="view" class="panel-view-li"><span class="view"></span>View</li>' +
+                '<li data-value="edit" class="panel-edit-li"><span class="edit"></span>Edit</li>' +
+                '<li data-value="duplicate" class="panel-dupl-li"><span class="duplicate"></span>Duplicate</li>' +
+                '<li data-value="remove" class="panel-remove-li"><span class="remove"></span>Remove</li>' +
+                '</ul>' +
+            '</div>' +
+        '</div>' +
     '</div>' +
     `<div class="panel-body">
     <div class="panEdit-panel"></div>
@@ -1198,9 +1208,12 @@ function addPanel(chartIndex) {
     let panel = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", panelIndex);
     $("#panel-container").append(panel);
     $(`#panel${idpanel} .panel-header p`).html(`panel${panelIndex}`);
-    $("#panel" + idpanel + " .panel-header").click(function () {
-        $("#panel" + idpanel + " .dropdown-btn").toggleClass("active")
-        $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
+    $("#panel" + idpanel + " .panel-header").on('mouseenter',function(){
+        $("#panel" + idpanel + " .panel-icons").addClass("active")
+    });
+    $("#panel" + idpanel + " .panel-header").on('mouseleave',function(){
+        $("#panel" + idpanel + " .panel-icons").removeClass("active");
+        $("#panel" + idpanel + " .dropdown-style").addClass("hidden");
     });
     $("#panel" + idpanel + " .dropdown-btn").click(function (e) {
         e.stopPropagation();
@@ -1352,10 +1365,13 @@ function addDuplicatePanel(panelToDuplicate) {
     let panel = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", panelIndex);
     $("#panel-container").append(panel);
     $(`#panel${idpanel} .panel-header p`).html(`panel${panelIndex}`);
-    $("#panel" + idpanel + " .panel-header").click(function () {
-        $("#panel" + idpanel + " .dropdown-btn").toggleClass("active")
-        $("#panel" + idpanel + " .dropdown-style").toggleClass("hidden");
-    })
+    $("#panel" + idpanel + " .panel-header").on('mouseenter',function(){
+        $("#panel" + idpanel + " .panel-icons").addClass("active")
+    });
+    $("#panel" + idpanel + " .panel-header").on('mouseleave',function(){
+        $("#panel" + idpanel + " .panel-icons").removeClass("active");
+        $("#panel" + idpanel + " .dropdown-style").addClass("hidden");
+    });
     $("#panel" + idpanel + " .dropdown-btn").click(function (e) {
         e.stopPropagation();
         $("#panel" + idpanel + " .dropdown-btn").toggleClass("active")
