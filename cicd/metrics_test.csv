@@ -1,7 +1,33 @@
 # This file is a test set of metrics data. The fields below represent: query, start time, end time, response values, equality operator
 testmetric0,now-90d,now,"131.45590577322224,127.06863068860355,159.53343696489338",approx
 "testmetric1{car_type=""Passenger car compact""}",now-90d,now,"230.60590209835345,-610.0306020928656,-349.9374520340044",approx
+abs(testmetric1),now-90d,now,"564.0549536669834,213.038242129121,97.64336705133965",approx
+sqrt(testmetric1),now-90d,now-1d,"23.749841129299863,14.59582961428096",approx
+ceil(testmetric1),now-90d,now,"565,214,-97",eq
+floor(testmetric1),now-90d,now,"564,213,-98",eq
+round(testmetric0),now-90d,now,"131,127,160",eq
 "round(testmetric0, 1/2)",now-90d,now,"131.5,127,159.5",eq
+ln(testmetric1),now-90d,now-1d,"6.335151682331279,5.361471690106262",approx
+log2(testmetric1),now-90d,now-1d,"9.13969191537871,7.734968619182872",approx
+log10(testmetric1),now-90d,now-1d,"2.7513214176565772,2.3284575698936507",approx
+sgn(testmetric2),now-90d,now,"1,1,-1",eq
+deg(testmetric2),now-90d,now,"4773.30375818451,9009.097446091535,-31225.311733041086",approx
+rad(testmetric2),now-90d,now,"1.4540314746763654,2.744328018635429,-9.511773892154617",approx
+"clamp(testmetric3, -10, 100)",now-90d,now,"-10,-10,100",eq
+"clamp_max(testmetric3, 99)",now-90d,now,"-141.36081542523755,-61.650029946604214,99",approx
+"clamp_min(testmetric3, 0)",now-90d,now,"0,0,436.78052525807817",approx
+rate(testmetric3[48h]),now-90d,now,"0.0009225785356323297,0.003345725351176596",approx
+irate(testmetric3[48h]),now-90d,now,"0.0009225785356323284,0.005768872166720863",approx
+increase(testmetric3[48h]),now-90d,now,"159.42157095726634,578.1413406833158",approx
+delta(testmetric3[48h]),now-90d,now,"79.71078547863307,578.1413406833155",approx
+idelta(testmetric3[48h]),now-90d,now,"79.71078547863327,498.4305552046825",approx
+changes(testmetric4[24h]),now-90d,now,"0,1,1",eq
+resets(testmetric4[24h]),now-90d,now,"0,0,1",eq
+avg_over_time(testmetric4[24h]),now-90d,now,"199.18720427445206,218.74591670500848,62.71308845048587",approx
+min_over_time(testmetric4[24h]),now-90d,now,"199.18720427445191,199.18720427445191,-112.8784522345932",approx
+max_over_time(testmetric4[24h]),now-90d,now,"199.18720427445206,238.30462913556497,238.30462913556497",approx
+sum_over_time(testmetric4[24h]),now-90d,now,"199.18720427445197,437.49183341001685,125.42617690097171",approx
+count_over_time(testmetric4[24h]),now-90d,now,"1,2,2",eq
 avg_over_time(testmetric0[24h]),now-90d,now,"131.45590577322233,129.26226823091304,143.30103382674855",approx
 max_over_time(testmetric0[48h]),now-90d,now,"131.45590577322233,131.45590577322233,159.53343696489338",approx
 changes(testmetric0[48h]),now-90d,now,"0,1,2",eq
