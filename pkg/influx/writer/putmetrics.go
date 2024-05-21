@@ -53,7 +53,7 @@ func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
 	var err error
 
 	cType := string(ctx.Request.Header.ContentType())
-	if cType == "text/plain; charset=utf-8" {
+	if strings.Contains(cType, "text/plain") {
 		eType := string(ctx.Request.Header.ContentEncoding())
 		if eType == "gzip" {
 			var body []byte
@@ -75,7 +75,7 @@ func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
 	if err != nil {
 		writeInfluxResponse(ctx, processedCount, failedCount, err.Error(), fasthttp.StatusBadRequest)
 	}
-	writeInfluxResponse(ctx, processedCount, failedCount, "", fasthttp.StatusOK)
+	writeInfluxResponse(ctx, processedCount, failedCount, "", fasthttp.StatusNoContent)
 }
 
 func HandlePutMetrics(fullData []byte, myid uint64) (uint64, uint64, error) {
