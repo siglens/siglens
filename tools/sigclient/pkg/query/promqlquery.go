@@ -50,10 +50,9 @@ func RunPromQLQueryFromFile(apiURL string, filepath string) {
 		query, step := rec[0], rec[3]
 
 		nowTs := uint64(time.Now().Unix())
-		defValue := nowTs - 60*60 // default value is current time - 1 hour
 
-		start := utils.ConvertStringToEpochSec(nowTs, rec[1], defValue)
-		end := utils.ConvertStringToEpochSec(nowTs, rec[2], defValue)
+		start := utils.ConvertStringToEpochSec(nowTs, rec[1], nowTs-3600)
+		end := utils.ConvertStringToEpochSec(nowTs, rec[2], nowTs)
 		expectedResult, err := strconv.ParseBool(rec[4])
 		if err != nil {
 			log.Fatalf("RunPromQLQueryFromFile: Invalid value for expected result: %v", rec[4])
@@ -65,6 +64,7 @@ func RunPromQLQueryFromFile(apiURL string, filepath string) {
 			log.Fatalf("Query: %v, expected result: %v, actual result: %v", query, expectedResult, success)
 		}
 	}
+	log.Info("RunPromQLQueryFromFile: All queries executed successfully")
 }
 
 func RunPromQLQuery(apiURL string, query string, start string, end string, step string, expectedResult bool) (success bool) {
@@ -101,9 +101,9 @@ func RunPromQLQuery(apiURL string, query string, start string, end string, step 
 		log.Printf("Query: %v was successful.", query)
 		return true
 	} else if expectedResult {
-		log.Errorf("Non-200 HTTP status code: %v, query: %v response body: %v", resp.StatusCode, u.RawQuery, string(body))
+		log.Errorf("Query: %v, Expected: %v, Actual: %v, status code: %v, response body: %v", query, expectedResult, success, resp.StatusCode, string(body))
 	} else {
-		log.Printf("Query: %v failed as expected.", query)
+		log.Printf("Query: %v, Expected: Fail, Actual: Fail", query)
 	}
 	return false
 }
