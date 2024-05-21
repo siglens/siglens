@@ -19,6 +19,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 	"verifier/pkg/ingest"
 	"verifier/pkg/query"
 	"verifier/pkg/trace"
@@ -168,6 +169,45 @@ var metricsQueryCmd = &cobra.Command{
 	}),
 }
 
+var promQLQueryCmd = &cobra.Command{
+	Use:   "promql",
+	Short: "send promql queries to SigScalr",
+	Run: cmdWrap.Run(func(cmd *cobra.Command, args []string) error {
+		dest, _ := cmd.Flags().GetString("dest")
+		filepath, _ := cmd.Flags().GetString("filePath")
+		promQLQueryWithStartEnd, _ := cmd.Flags().GetString("query")
+		var promQLQuery, startEpoch, endEpoch string
+		if promQLQueryWithStartEnd != "" {
+			// Split the string into parts
+			parts := strings.Split(promQLQueryWithStartEnd, " ")
+
+			// Check that the length of parts is exactly 3
+			if len(parts) != 3 {
+				log.Fatalf("Invalid query format: %v. Expected format: <query> start:<startEpoch> end:<endEpoch>", promQLQueryWithStartEnd)
+			}
+
+			// Extract the individual arguments
+			promQLQuery = parts[0]
+			startEpoch = strings.TrimPrefix(parts[1], "start:")
+			endEpoch = strings.TrimPrefix(parts[2], "end:")
+		}
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("filePath : %+v\n", filepath)
+		log.Infof("query : %+v\n", promQLQuery)
+
+		if filepath != "" {
+			query.RunPromQLQueryFromFile(dest, filepath)
+		} else if promQLQuery != "" {
+			res := query.RunPromQLQuery(dest, promQLQuery, startEpoch, endEpoch, "15", true)
+			if !res {
+				log.Errorf("PromQL query failed")
+				return fmt.Errorf("PromQL query failed")
+			}
+		}
+		return nil
+	}),
+}
+
 var queryCmd = &cobra.Command{
 	Use:   "query",
 	Short: "send queries to SigScalr",
@@ -216,10 +256,10 @@ func init() {
 	queryCmd.PersistentFlags().BoolP("validateMetricsOutput", "y", false, "check if metric querries return any results")
 	queryCmd.PersistentFlags().StringP("filePath", "f", "", "filepath to csv file to use to run queries from")
 	queryCmd.PersistentFlags().BoolP("randomQueries", "", false, "generate random queries")
-
+	queryCmd.PersistentFlags().StringP("query", "q", "", "query to run")
 	queryCmd.AddCommand(esQueryCmd)
 	queryCmd.AddCommand(metricsQueryCmd)
-
+	queryCmd.AddCommand(promQLQueryCmd)
 	ingestCmd.AddCommand(esBulkCmd)
 	ingestCmd.AddCommand(metricsIngestCmd)
 	traceCmd.PersistentFlags().StringP("filePrefix", "f", "", "Name of file to output to")
