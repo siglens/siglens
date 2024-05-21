@@ -7,28 +7,28 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const INFLUX_SHOW_DB_RESP = `{
+	"results": [
+		{
+			"series": [
+				{
+					"name": "databases",
+					"columns": ["name"],
+					"values": [
+						["_internal"],
+						["benchmark_db"]
+					]
+				}
+			]
+		}
+	}`
+
 func GetQueryHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	q := string(ctx.QueryArgs().Peek("q"))
 	if strings.ToLower(q) == "show databases" {
-		databaseResponse := `{
-			"results": [
-				{
-					"series": [
-						{
-							"name": "databases",
-							"columns": ["name"],
-							"values": [
-								["_internal"],
-								["benchmark_db"]
-							]
-						}
-					]
-				}
-			]
-		}`
 		ctx.SetContentType("application/json")
-		_, err := ctx.Write([]byte(databaseResponse))
+		_, err := ctx.Write([]byte(INFLUX_SHOW_DB_RESP))
 		if err != nil {
 			log.Errorf("GetQueryHandler: failed to write response, err=%v", err)
 		}
