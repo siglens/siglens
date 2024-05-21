@@ -23,6 +23,7 @@ import (
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/health"
 	"github.com/siglens/siglens/pkg/hooks"
+	influxquery "github.com/siglens/siglens/pkg/influx/query"
 	influxwriter "github.com/siglens/siglens/pkg/influx/writer"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/integrations/loki"
@@ -86,13 +87,13 @@ func influxPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 
 func influxQueryGetHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(influxwriter.GetQueryHandler, ctx)
+		serverutils.CallWithOrgId(influxquery.GetQueryHandler, ctx)
 	}
 }
 
 func influxQueryPostHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(influxwriter.PostQueryHandler, ctx)
+		serverutils.CallWithOrgId(influxquery.PostQueryHandler, ctx)
 	}
 }
 func esGreetHandler() func(ctx *fasthttp.RequestCtx) {
