@@ -178,18 +178,20 @@ var promQLQueryCmd = &cobra.Command{
 		promQLQueryWithStartEnd, _ := cmd.Flags().GetString("query")
 		var promQLQuery, startEpoch, endEpoch string
 		if promQLQueryWithStartEnd != "" {
-			// Split the string into parts
-			parts := strings.Split(promQLQueryWithStartEnd, " ")
-
-			// Check that the length of parts is exactly 3
-			if len(parts) != 3 {
+			parts := strings.SplitN(promQLQueryWithStartEnd, "start:", 2)
+			if len(parts) != 2 {
 				log.Fatalf("Invalid query format: %v. Expected format: <query> start:<startEpoch> end:<endEpoch>", promQLQueryWithStartEnd)
 			}
 
-			// Extract the individual arguments
-			promQLQuery = parts[0]
-			startEpoch = strings.TrimPrefix(parts[1], "start:")
-			endEpoch = strings.TrimPrefix(parts[2], "end:")
+			promQLQuery = strings.TrimSpace(parts[0])
+			parts = strings.SplitN(parts[1], "end:", 2)
+
+			if len(parts) != 2 {
+				log.Fatalf("Invalid query format: %v. Expected format: <query> start:<startEpoch> end:<endEpoch>", promQLQueryWithStartEnd)
+			}
+
+			startEpoch = strings.TrimSpace(parts[0])
+			endEpoch = strings.TrimSpace(parts[1])
 		}
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("filePath : %+v\n", filepath)
