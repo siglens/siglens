@@ -1,0 +1,7 @@
+# This file is a test set of metrics data. The fields below represent: query, start time, end time, response values, equality operator
+testmetric0,now-90d,now,"131.45590577322224,127.06863068860355,159.53343696489338",approx
+"testmetric1{car_type=""Passenger car compact""}",now-90d,now,"230.60590209835345,-610.0306020928656,-349.9374520340044",approx
+"round(testmetric0, 1/2)",now-90d,now,"131.5,127,159.5",eq
+avg_over_time(testmetric0[24h]),now-90d,now,"131.45590577322233,129.26226823091304,143.30103382674855",approx
+max_over_time(testmetric0[48h]),now-90d,now,"131.45590577322233,131.45590577322233,159.53343696489338",approx
+changes(testmetric0[48h]),now-90d,now,"0,1,2",eq
