@@ -98,7 +98,6 @@
     $("#customrange-btn").on("click", customRangeHandler);
 
     $(".range-item").on("click", rangeItemHandler);
-    $(".db-range-item").on("click", dashboardRangeItemHandler);
 
 function timePickerHandler(){
     $("#daterangepicker").addClass("show");
@@ -244,67 +243,6 @@ function rangeItemHandler(evt) {
   datePickerHandler($(this).attr("id"), "now", $(this).attr("id"));
 }
 
-function dashboardRangeItemHandler(evt) {
-  resetCustomDateRange();
-  $.each($(".db-range-item.active"), function () {
-    $(this).removeClass("active");
-  });
-  $(evt.currentTarget).addClass("active");
-  datePickerHandler($(this).attr("id"), "now", $(this).attr("id"));
-
-  // if user is on edit panel screen
-  if (currentPanel) {
-    if (currentPanel.queryData) {
-      if (
-        currentPanel.chartType === "Line Chart" &&
-        currentPanel.queryType === "metrics"
-      ) {
-        currentPanel.queryData.start = filterStartDate.toString();
-        currentPanel.queryData.end = filterEndDate.toString();
-      } else {
-        currentPanel.queryData.startEpoch = filterStartDate;
-        currentPanel.queryData.endEpoch = filterEndDate;
-      }
-    }
-  } else if (
-    $(`#viewPanel-container`).css("display").toLowerCase() !== "none"
-  ) {
-    // if user is on view panel screen
-    // get panel-index by attribute
-    let panelIndex = $(`#viewPanel-container .panel`).attr("panel-index");
-    // if panel has some stored query data, reset it
-    if (localPanels[panelIndex].queryData) {
-      delete localPanels[panelIndex].queryRes;
-      if (
-        localPanels[panelIndex].chartType === "Line Chart" &&
-        localPanels[panelIndex].queryType === "metrics"
-      ) {
-        localPanels[panelIndex].queryData.start = filterStartDate.toString();
-        localPanels[panelIndex].queryData.end = filterEndDate.toString();
-      } else {
-        localPanels[panelIndex].queryData.startEpoch = filterStartDate;
-        localPanels[panelIndex].queryData.endEpoch = filterEndDate;
-      }
-    }
-    displayPanelView(panelIndex);
-  } else if (!currentPanel) {
-    // if user is on dashboard screen
-    localPanels.forEach((panel) => {
-      delete panel.queryRes;
-      if (panel.queryData) {
-        if (panel.chartType === "Line Chart" && panel.queryType === "metrics") {
-          panel.queryData.start = filterStartDate.toString();
-          panel.queryData.end = filterEndDate.toString();
-        } else {
-          panel.queryData.startEpoch = filterStartDate;
-          panel.queryData.endEpoch = filterEndDate;
-        }
-      }
-    });
-
-    displayPanels();
-  }
-}
 function resetCustomDateRange() {
   // clear custom selections
   $("#date-start").val("");
