@@ -273,22 +273,22 @@ function handlePanelRemove(panelId) {
     
         // Remove the panel element
         const panel = $(`#panel${panelId}`);
-        panel.remove();
-    
-        // Remove the corresponding grid-stack-item
-        const gridItem = $(`#${panelId}`);
-        if (gridItem.length > 0) {
-            grid.removeWidget(gridItem.get(0));
-        }
-    
+
         // Remove the panel data from the localPanels array
         let panelIndex = panel.attr("panel-index");
         localPanels = localPanels.filter(function (el) {
             return el.panelIndex != panelIndex;
         });
-
+        panel.remove();
+        resetPanelIndices();
+        
+        // Remove the corresponding grid-stack-item
+        const gridItem = $(`#${panelId}`);
+        if (gridItem.length > 0) {
+            grid.removeWidget(gridItem.get(0));
+        }
         await updateDashboard();
-}
+    }
 }
 
 function handleDescriptionTooltip(panelId,description,searchText) {
