@@ -7,21 +7,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const INFLUX_SHOW_DB_RESP = `{
-	"results": [
-		{
-			"series": [
-				{
-					"name": "databases",
-					"columns": ["name"],
-					"values": [
-						["_internal"],
-						["benchmark_db"]
-					]
-				}
-			]
-		}
-	}`
+const INFLUX_SHOW_DB_RESP = `{"results":[{"series":[{"name":"databases","columns":["name"],"values":[["_internal"],["benchmark_db"]]}]}]}`
 
 func GetQueryHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 

@@ -646,6 +646,7 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint64) (uint32, []error) {
 
 	var ts uint32 = uint32(time.Now().Unix())
+	var measurement string
 
 	ingestedCount := uint32(0)
 	errors := make([]error, 0)
@@ -680,7 +681,8 @@ func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint
 			}
 			for index, value := range tag_set {
 				if index == 0 {
-					// skip the first element as it is the db/measurement name
+					// db/measurement name
+					measurement = value
 					continue
 				} else {
 					kvPair := strings.Split(value, "=")
@@ -702,7 +704,7 @@ func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint
 					errors = append(errors, fmt.Errorf("metric key value pair is not valid for metric: %v", metricValueSet))
 					continue
 				}
-				metricName := kvPair[0]
+				metricName := fmt.Sprintf(`%s_%s`, measurement, kvPair[0])
 				metricValue := kvPair[1]
 
 				parsedVal, err := parseInfluxValue(metricValue)
