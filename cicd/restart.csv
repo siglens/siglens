@@ -12,8 +12,8 @@ latency<18580 AND app_name=Stresscrawl,now-1d,now,*,total,eq,1,Pipe QL
 "(MintCream AND (""Thursday"" OR ""Monday""))",now-1d,now,*,total,eq,212,Pipe QL
 "(MintCream AND (""Thursday"" OR ""Monday"")) | min(latency) groupby state",now-1d,now,*,total,eq,212,Pipe QL
 latency<10000 AND latitude>0 AND longitude > 0,now-1d,now,*,total,eq,27,Pipe QL
-404,now-1d,now,*,total,gt,100,Pipe QL
-404 OR 500,now-1d,now,*,total,gt,100,Pipe QL
+200,now-1d,now,*,total,gt,100,Pipe QL
+200 OR 500,now-1d,now,*,total,gt,100,Pipe QL
 min(latency),now-1d,now,*,group:min(latency):*,eq,110,Pipe QL
 "min(latency) groupby city, http_method",now-1d,now,*,group:min(latency):Boston:POST,eq,5479,Pipe QL
 "select batch as bt",now-1d,now,*,total,gt,100,SQL
@@ -37,8 +37,8 @@ app_name=Oxam,now-90d,now,*,total,gt,0,Splunk QL
 search app_name=Oxam,now-90d,now,*,total,gt,0,Splunk QL
 search Sunday,now-90d,now,*,total,gt,1,Splunk QL
 search http_status>400,now-1d,now,*,total,gt,0,Splunk QL
-search 404,now-1d,now,*,total,gt,100,Splunk QL
-search 404 OR 500,now-1d,now,*,total,gt,100,Splunk QL
+search 200,now-1d,now,*,total,gt,100,Splunk QL
+search 200 OR 500,now-1d,now,*,total,gt,100,Splunk QL
 search latency<18580 AND app_name=Stresscrawl,now-1d,now,*,total,eq,1,Splunk QL
 search MintCream AND Thursday OR Monday,now-1d,now,*,total,eq,212,Splunk QL
 search (MintCream AND Thursday) OR Monday,now-1d,now,*,total,gt,212,Splunk QL
@@ -63,9 +63,9 @@ city=Boston | stats values(gender),now-1d,now,*,group:values(gender):*,eq,"femal
 "batch=batch-10 | stats count, min(latitude), max(latitude)",now-1d,now,*,group:max(latitude):*,eq,89.228,Splunk QL
 batch=batch-10 | stats count BY city,now-1d,now,*,group:count(*):St. Louis,eq,2,Splunk QL
 "batch=batch-10 | stats count BY city, http_status",now-1d,now,*,group:count(*):St. Louis:200,eq,1,Splunk QL
-"404 | fields city, weekday",now-1d,now,*,total,gt,100,Splunk QL
-"404 | ```Only keep city and weekday columns``` fields city, weekday",now-1d,now,*,total,gt,100,Splunk QL
-404 | fields http*,now-1d,now,*,total,gt,100,Splunk QL
+"* | fields city, weekday",now-1d,now,*,total,gt,100,Splunk QL
+"* | ```Only keep city and weekday columns``` fields city, weekday",now-1d,now,*,total,gt,100,Splunk QL
+"* | fields http*",now-1d,now,*,total,gt,100,Splunk QL
 city=Boston | stats count AS Count BY weekday,now-1d,now,*,group:Count:Monday,eq,145,Splunk QL
 city=Boston | stats count AS Count BY weekday | eval Append123=Count . 123, now-1d,now,*,group:Append123:Monday,eq,145123,Splunk QL
 city=Boston | stats count AS Count BY zip | eval Summary=Count . zip, now-1d,now,*,group:Summary:85833,eq,285833,Splunk QL

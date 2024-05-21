@@ -270,9 +270,37 @@ $(document).ready(function () {
 			$('#info-icon-spl').tooltip('hide');
 		}
 	});
+
+	$('#edit-button').click(function() {
+        $('#panel-editor-left').show();
+        $('#viewPanel-container').hide();
+		$('#edit-button').addClass('active');
+		$('#overview-button').removeClass('active');
+		runQueryBtnHandler();
+    });
+
+    $('#overview-button').click(function() {
+        $('#panel-editor-left').hide();
+        $('#viewPanel-container').show();
+		$('#edit-button').removeClass('active');
+		$('#overview-button').addClass('active');
+		displayPanelView(panelIndex)
+
+    });
 })
 
 function editPanelInit(redirectedFromViewScreen) {
+	if(redirectedFromViewScreen === -1){
+		$('#panel-editor-left').hide();
+        $('#viewPanel-container').show();
+		$('#edit-button').removeClass('active');
+		$('#overview-button').addClass('active');
+		displayPanelView(panelIndex)
+	}else{
+		$('#panel-editor-left').show();
+		$('#edit-button').addClass('active');
+		$('#overview-button').removeClass('active');
+	}
 	resetOptions();
 	$('.panelDisplay #empty-response').empty();
 	$('.panelDisplay #corner-popup').empty();
@@ -491,7 +519,10 @@ $('.panEdit-save').on("click",async function(redirectedFromViewScreen){
     }
 	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
 	await updateDashboard();
-	applyChangesToPanel(redirectedFromViewScreen)
+	$('.panelEditor-container').hide();
+	$('.popupOverlay').removeClass('active');
+	$('#app-container').show();
+	displayPanels()
 });
 
 $('#panEdit-nameChangeInput').on('change keyup paste', updatePanelName)
@@ -1073,7 +1104,6 @@ function refreshChartMenuOptions() {
 	chartTypeMenuItems[selectedChartTypeIndex].classList.add("selected");
 	let chartType = mapIndexToChartType.get(selectedChartTypeIndex);
 	chartType = chartType.charAt(0).toUpperCase() + chartType.slice(1);
-	// $('.dropDown-chart span').html(chartType);
 }
 
 function refreshUnitMenuOptions() {
@@ -1210,7 +1240,6 @@ function resetPanelTimeRanges() {
 function resetEditPanelScreen() {
 	resetEditPanel();
 	$('.dropDown-dataSource span').html("Data Source")
-	// $('.dropDown-chart span').html("Chart Type")
 	$('.dropDown-unit span').html("Unit")
 	$('.dropDown-logLinesView span').html("Single line display view")
 	$(".index-container").css('display', 'none');
@@ -1383,3 +1412,50 @@ function toggleTableView() {
 		}
 	}
 };
+
+
+function displayPanelView(panelIndex) {
+	let panelLayout =`<div class="panel-body">
+    <div class="panEdit-panel"></div>
+    </div>
+	`;
+	let localPanel;
+	if(currentPanel){
+		localPanel = currentPanel;
+	}else{
+		localPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));	
+	}
+    let panelId = localPanel.panelId;
+    $(`#panel-container #panel${panelId}`).remove();
+    $(`#viewPanel-container`).empty();
+
+    let panel = $("<div>").append(panelLayout).addClass("panel").attr("id", `panel${panelId}`).attr("panel-index", localPanel.panelIndex);
+	$("#viewPanel-container").append(`<div class="view-panel-name">${localPanel.name}</div>`)
+    $("#viewPanel-container").append(panel);
+
+    if (localPanel.chartType == 'Data Table'| localPanel.chartType == 'loglines') {
+        let panEl = $(`#panel${panelId} .panel-body`)
+        let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
+        <div id="empty-response"></div>`
+        panEl.append(responseDiv)
+        $("#panelLogResultsGrid").show();
+		runPanelLogsQuery(localPanel.queryData, panelId,localPanel);
+    } else if (localPanel.chartType == 'Line Chart') {
+        let panEl = $(`#panel${panelId} .panel-body`)
+        let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`
+        panEl.append(responseDiv)
+		runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+    } else if (localPanel.chartType == 'number') {
+        let panEl = $(`#panel${panelId} .panel-body`)
+        let responseDiv = `<div class="big-number-display-container"></div>
+        <div id="empty-response"></div><div id="corner-popup"></div>`
+        panEl.append(responseDiv)
+		runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+    } else if (localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'Bar Chart') {
+        // generic for both bar and pie chartTypes.
+        let panEl = $(`#panel${panelId} .panel-body`)
+        let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`
+        panEl.append(responseDiv)
+         runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+    }
+}

@@ -421,7 +421,8 @@ function displayBigNumber(value, panelId, dataType, panelIndex) {
 		}
 	}
 	if(panelId !== -1) {
-		resizePanelFontSize(panelIndex, panelId);
+		var newSize = $('#' + panelId).width() / 8;
+		$('#' + panelId).find('.big-number, .unit').css('font-size', newSize + 'px');
 	}
 }
 
