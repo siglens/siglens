@@ -1415,13 +1415,16 @@ function toggleTableView() {
 
 
 function displayPanelView(panelIndex) {
-	currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));	
-	var panelLayout =`<div class="panel-body">
+	let panelLayout =`<div class="panel-body">
     <div class="panEdit-panel"></div>
     </div>
 	`;
-
-    let localPanel = currentPanel;
+	let localPanel;
+	if(currentPanel){
+		localPanel = currentPanel;
+	}else{
+		localPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));	
+	}
     let panelId = localPanel.panelId;
     $(`#panel-container #panel${panelId}`).remove();
     $(`#viewPanel-container`).empty();
