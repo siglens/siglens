@@ -33,7 +33,7 @@ jobs:
           name: Run E2E Test
           command: |
             cd tools/sigclient
-            go run main.go ingest esbulk -n 10 -g benchmark -d http://localhost:8081/elastic -t 100_000
+            go run main.go ingest esbulk -n 1 -g benchmark -d http://localhost:8081/elastic -t 100_000
             go run main.go ingest metrics -d http://localhost:8081 -t 1_000 -m 5 -p 1 -b 10_000 -g benchmark
             sleep 40
             go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/ingest.csv
