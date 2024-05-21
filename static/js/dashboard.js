@@ -218,7 +218,7 @@ function handlePanelView() {
 }
 
 function viewPanelInit() {
-    $('.panelEditor-container').show();
+    $('.panelEditor-container').css('display', 'flex');
     $('.popupOverlay').addClass('active');
     $('.panelDisplay #panelLogResultsGrid').empty();
     $('.panelDisplay .big-number-display-container').hide();
@@ -244,7 +244,7 @@ function handlePanelEdit() {
     $(".panel-edit-li").on("click", function () {
         panelIndex = $(this).closest(".panel").attr("panel-index");
         editPanelInit();
-        $('.panelEditor-container').show();
+        $('.panelEditor-container').css('display', 'flex');
         $('.popupOverlay').addClass('active');
         $('.panelDisplay #panelLogResultsGrid').empty();
         $('.panelDisplay .big-number-display-container').hide();
@@ -898,7 +898,7 @@ function addPanel(chartIndex) {
     });
 
     editPanelInit(panelIndex);
-    $('.panelEditor-container').show();
+    $('.panelEditor-container').css('display', 'flex');
     $('.popupOverlay').addClass('active');
 
     handlePanelEdit();
@@ -1090,7 +1090,7 @@ $('#error-ok-btn').click(function () {
 
 function discardDbSetting() {
     if(editPanelFlag){
-        $('.panelEditor-container').show();
+        $('.panelEditor-container').css('display', 'flex');
         $('.popupOverlay').addClass('active');
         editPanelFlag=false;
     }else{
