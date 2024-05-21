@@ -24,7 +24,6 @@ let timeRange = "Last 1 Hr";
 let dbRefresh ="";
 let panelContainer;
 let panelContainerWidthGlobal;
-// let curFocus;
 let originalIndexValues = [];
 let indexValues = [];
 $(document).ready(async function () {
@@ -800,7 +799,6 @@ function addPanel(chartIndex) {
             "w": panelWidth,
             "x": panelLeft,
             "y": panelTop,
-            // "wPercent": panelWidthPercentage,
         },
         "queryType": queryType,
         "queryData": queryData,
