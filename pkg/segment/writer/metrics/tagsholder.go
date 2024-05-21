@@ -78,6 +78,7 @@ func (th *TagsHolder) finish() {
 
 	th.entries = th.entries[:th.idx]
 	if th.idx == 0 {
+		th.done = true
 		return
 	} else {
 		sort.Slice(th.entries, func(i, j int) bool { return th.entries[i].tagKey > th.entries[j].tagKey })
