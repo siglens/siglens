@@ -691,18 +691,18 @@ func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint
 				}
 			}
 
-			for _, value := range field_set {
-				kvPair := strings.Split(value, "=")
-				key := kvPair[0]
-				value = kvPair[1]
+			for _, metricValueSet := range field_set {
+				kvPair := strings.Split(metricValueSet, "=")
+				metricName := kvPair[0]
+				metricValue := kvPair[1]
 
-				parsedVal, err := parseInfluxValue(value)
+				parsedVal, err := parseInfluxValue(metricValue)
 				if err != nil {
 					errors = append(errors, err)
 					continue
 				}
 
-				err = EncodeDatapoint([]byte(key), tags, parsedVal, ts, size, orgid)
+				err = EncodeDatapoint([]byte(metricName), tags, parsedVal, ts, size, orgid)
 				if err != nil {
 					errors = append(errors, err)
 					continue
@@ -863,10 +863,6 @@ func (ts *TimeSeries) AddSingleEntry(dpVal float64, dpTS uint32) (uint64, error)
 			return writtenBytes, err
 		}
 	} else {
-		if ts.lastKnownTS >= dpTS {
-			log.Errorf("timestamp is older than last known timestamp: %d, current: %d", ts.lastKnownTS, dpTS)
-			return writtenBytes, fmt.Errorf("timestamp is older than last known timestamp: %d, current: %d", ts.lastKnownTS, dpTS)
-		}
 		writtenBytes, err = ts.compressor.Compress(dpTS, dpVal)
 		if err != nil {
 			log.Errorf("error encoding timestamp! Error: %+v", err)
