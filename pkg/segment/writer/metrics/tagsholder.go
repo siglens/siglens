@@ -18,8 +18,8 @@
 package metrics
 
 import (
+	"bytes"
 	"sort"
-	"sync"
 
 	jp "github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
@@ -37,28 +37,10 @@ type TagsHolder struct {
 	len     int
 	done    bool
 	entries []tagEntry
-	buf     *bytebufferpool.ByteBuffer
+	buf     *bytes.Buffer
 }
 
 var initialTagCapacity int = 10
-
-var tagsEntryPool = sync.Pool{
-	New: func() interface{} {
-		// returning &slice causes race conditions, so we return []tagEntry and pay the price of allocating on returning
-		// this price is much lower than the cost of creating a new []tagEntry each time
-		slice := make([]tagEntry, initialTagCapacity)
-		return slice
-	},
-}
-
-var tagsHolderPool = sync.Pool{
-	New: func() interface{} {
-		// The Pool's New function should generally only return pointer
-		// types, since a pointer can be put into the return interface
-		// value without an allocation:
-		return &TagsHolder{}
-	},
-}
 
 /*
 Allocates and returns a TagsHolder
@@ -66,25 +48,15 @@ Allocates and returns a TagsHolder
 Caller is responsible for calling ReturnTagsHolder
 */
 func GetTagsHolder() *TagsHolder {
-	holder := tagsHolderPool.Get().(*TagsHolder)
-	holder.buf = bytebufferpool.Get()
-	tagsBuf := tagsEntryPool.Get().([]tagEntry)
+	holder := &TagsHolder{}
+	holder.buf = &bytes.Buffer{}
 
 	holder.len = initialTagCapacity
 	holder.idx = 0
-	holder.entries = tagsBuf
+	holder.entries = make([]tagEntry, initialTagCapacity)
 	holder.done = false
 
 	return holder
-}
-
-/*
-Returns allocated tags holder memory back to the pool
-*/
-func ReturnTagsHolder(th *TagsHolder) {
-	bytebufferpool.Put(th.buf)
-	tagsEntryPool.Put(th.entries)
-	tagsHolderPool.Put(th)
 }
 
 func (th *TagsHolder) Insert(key string, value []byte, vType jp.ValueType) {
