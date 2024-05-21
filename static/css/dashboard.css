@@ -43,6 +43,7 @@
   --top-refresh-btn-bg-img: url("../assets/refresh-icon.svg");
   --arrow-dashboard-img: url("../assets/arrow-dashboard-light.svg");
   --panel-container: var(--white-5);
+  --front-arrow :  url('../assets/front-arrow-icon-dark.svg');
 }
 
 [data-theme='light']{
@@ -67,6 +68,7 @@
   --top-refresh-btn-bg-img: url("../assets/refreshy-icon.svg");
   --arrow-dashboard-img: url("../assets/arrow-dashboard-black.svg");
   --panel-container: var(--white-9);
+  --front-arrow:  url('../assets/front-arrow-icon-light.svg');
 }
 
 
@@ -475,17 +477,6 @@
 
 .panEdit-navBar #date-picker-btn, .table-view-toggle-container{
   margin-left: 15px;
-}
-
-.panView-goToDB {
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  color: var(--purple-1);
-  font-weight: 600;
-}
-
-.panView-goToDB {
-  display: none;
 }
 
 .panEdit-navBtns {
@@ -1551,4 +1542,11 @@ input:checked + .slider:before {
   font-size: 23px;
   padding-bottom: 3px;
   cursor: pointer;
+}
+
+.dashboard-arrow{
+  background-image: var(--front-arrow);
+  height: 10px;
+  width: 6px;
+  background-size: contain;
 }

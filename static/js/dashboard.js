@@ -150,7 +150,6 @@ $('.settings-btn').on('click', handleDbSettings);
 $('#dbSet-save').on('click', saveDbSetting);
 $('#dbSet-discard').on('click', discardDbSetting);
 $('.dbSet-goToDB').on('click', discardDbSetting);
-$('.panView-goToDB').on("click", goToDashboardFromView)
 $('.refresh-range-item').on('click', refreshRangeItemHandler);
 
 
@@ -225,18 +224,6 @@ function viewPanelInit() {
     $('.panelDisplay #empty-response').hide();
     editPanelInit(-1);
     setTimePicker();
-}
-
-function goToDashboardFromView() {
-    $('#viewPanel-container').hide();
-    $('#panel-container').show();
-    $('.panView-goToDB').css('display', 'none');
-    $('#add-panel-btn').show();
-    $('#viewPanel-container .panel .panel-info-corner').empty();
-    updateTimeRangeForPanels();
-    if(dbRefresh){
-		startRefreshInterval(dbRefresh)
-	}
 }
 
 function handlePanelEdit() {

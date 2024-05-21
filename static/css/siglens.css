@@ -2973,24 +2973,27 @@ float: right;
 
 #new-dashboard .dashboard-names{
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
 }
 
 #new-dashboard .all-dashboards{
-    font-size: 18px;
+    font-size: 16px;
     color: #6F6B7B;
     cursor: pointer;
     margin-bottom: 0;
 }
 
 #new-dashboard .name-dashboard{
-    font-weight: 500;
-    font-size: 18px;
+    font-weight: 600;
+    font-size: 16px;
     cursor: pointer;
     margin-bottom: 0;
 }
-
+#new-dashboard .star-icon{
+    margin-left: 0px;
+    margin-bottom: 1px;
+}
 #new-dashboard .btn-container{
     display: flex;
     gap: 15px;
