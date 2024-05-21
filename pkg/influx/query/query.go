@@ -1,6 +1,8 @@
 package query
 
 import (
+	"strings"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -8,7 +10,7 @@ import (
 func GetQueryHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	q := string(ctx.QueryArgs().Peek("q"))
-	if q == "show databases" {
+	if strings.ToLower(q) == "show databases" {
 		databaseResponse := `{
 			"results": [
 				{
@@ -30,7 +32,7 @@ func GetQueryHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		if err != nil {
 			log.Errorf("GetQueryHandler: failed to write response, err=%v", err)
 		}
-	} else if q == "CREATE DATABASE benchmark WITH REPLICATION 1" {
+	} else if strings.Contains(strings.ToLower(q), "create database") {
 		// Return status code 200
 		ctx.SetStatusCode(fasthttp.StatusOK)
 	} else {
@@ -39,7 +41,7 @@ func GetQueryHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 }
 func PostQueryHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	q := string(ctx.QueryArgs().Peek("q"))
-	if q == "drop database benchmark" {
+	if strings.Contains(strings.ToLower(q), "drop database") {
 		// Return status code 200
 		ctx.SetStatusCode(fasthttp.StatusOK)
 	} else {
