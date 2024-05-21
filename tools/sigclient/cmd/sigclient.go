@@ -258,7 +258,7 @@ func init() {
 	queryCmd.PersistentFlags().BoolP("validateMetricsOutput", "y", false, "check if metric querries return any results")
 	queryCmd.PersistentFlags().StringP("filePath", "f", "", "filepath to csv file to use to run queries from")
 	queryCmd.PersistentFlags().BoolP("randomQueries", "", false, "generate random queries")
-	queryCmd.PersistentFlags().StringP("query", "q", "", "query to run")
+	queryCmd.PersistentFlags().StringP("query", "q", "", "promql query to run")
 	queryCmd.AddCommand(esQueryCmd)
 	queryCmd.AddCommand(metricsQueryCmd)
 	queryCmd.AddCommand(promQLQueryCmd)
