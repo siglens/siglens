@@ -325,6 +325,10 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
     // only render the duplicated panel
     $(`#panel${localPanels[localPanels.length - 1].panelId} .panel-header p`).html(localPanels[duplicatedPanelIndex].name + "Copy");
 
+    if (localPanel.description||localPanel.queryData.searchText) {
+        handleDescriptionTooltip(panelId,localPanel.description,localPanel.queryData.searchText)
+    }
+    
     if (localPanel.chartType == 'Data Table' || localPanel.chartType == 'loglines') {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
