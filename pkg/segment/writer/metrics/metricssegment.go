@@ -140,12 +140,6 @@ type TimeSeries struct {
 	compressor  *compress.Compressor
 }
 
-type MetricIngestPayload struct {
-	MetricName []byte
-	Timestamp  uint32
-	Value      float64
-}
-
 var orgMetricsAndTagsLock *sync.RWMutex = &sync.RWMutex{}
 
 type MetricsAndTagsHolder struct {
@@ -646,18 +640,20 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	}
 }
 
-// for an input raw csv row []byte, return the metric name, datapoint value, timestamp, all tags, and any errors occurred
-// The metric name is returned as a raw []byte
-// The tags
-func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]*MetricIngestPayload, []error) {
+// for an input raw csv row []byte; extract the metric name, datapoint value, timestamp, all tags
+// Call the EncodeDatapoint function to add the datapoint to the respective series
+// Return the number of datapoints ingested and any errors encountered
+func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint64) (uint32, []error) {
 
 	var ts uint32 = uint32(time.Now().Unix())
 
-	metricsPayload := []*MetricIngestPayload{}
+	ingestedCount := uint32(0)
 	errors := make([]error, 0)
 
 	reader := csv.NewReader(bytes.NewBuffer(rawCSV))
 	inserted_tags := ""
+
+	size := uint64(len(rawCSV))
 
 	for {
 		record, err := reader.Read()
@@ -667,7 +663,7 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]*MetricIngestPaylo
 				break // End of file
 			}
 			errors = append(errors, err)
-			return nil, errors
+			return 0, errors
 
 		} else {
 			line := strings.Join(record, ",")
@@ -706,20 +702,21 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]*MetricIngestPaylo
 					continue
 				}
 
-				metricPayload := &MetricIngestPayload{
-					MetricName: []byte(key),
-					Timestamp:  ts,
-					Value:      parsedVal,
+				err = EncodeDatapoint([]byte(key), tags, parsedVal, ts, size, orgid)
+				if err != nil {
+					errors = append(errors, err)
+					continue
+				} else {
+					size = 0
+					ingestedCount++
 				}
-
-				metricsPayload = append(metricsPayload, metricPayload)
 			}
 
 		}
 
 	}
 
-	return metricsPayload, errors
+	return ingestedCount, errors
 
 }
 
