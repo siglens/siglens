@@ -324,6 +324,12 @@ const (
 	Max_Over_time
 	Sum_Over_time
 	Count_Over_time
+	Stdvar_Over_Time
+	Stddev_Over_Time
+	Last_Over_Time
+	Present_Over_Time
+	Mad_Over_Time
+	Quantile_Over_Time
 	Changes
 	Resets
 )
