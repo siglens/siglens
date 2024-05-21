@@ -523,6 +523,144 @@ func Test_applyRangeFunctionCount(t *testing.T) {
 	assert.True(t, dtypeutils.AlmostEquals(val, 2))
 }
 
+func Test_applyRangeFunctionStdvarOverTime(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := map[uint32]float64{
+		1000: 10,
+		1001: 20,
+		1002: 30,
+		1013: 40,
+		1018: 50,
+		1019: 60,
+		1020: 70,
+	}
+
+	result["metric"] = ts
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	ans := map[uint32]float64{
+		1000: 0,
+		1001: 25,
+		1002: 66.6666666,
+		1013: 0,
+		1018: 25,
+		1019: 66.6666666,
+		1020: 125,
+	}
+
+	function := structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: 10}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if !dtypeutils.AlmostEquals(expectedVal, val) {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
+func Test_applyRangeFunctionStddevOverTime(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := map[uint32]float64{
+		1000: 10,
+		1001: 20,
+		1002: 30,
+		1013: 40,
+		1018: 50,
+		1019: 60,
+		1020: 70,
+	}
+
+	result["metric"] = ts
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	ans := map[uint32]float64{
+		1000: 0,
+		1001: math.Sqrt(25),
+		1002: math.Sqrt(66.6666666),
+		1013: 0,
+		1018: math.Sqrt(25),
+		1019: math.Sqrt(66.6666666),
+		1020: math.Sqrt(125),
+	}
+
+	function := structs.Function{RangeFunction: segutils.Stddev_Over_Time, TimeWindow: 10}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if !dtypeutils.AlmostEquals(expectedVal, val) {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
+func Test_applyRangeFunctionQuantileOverTime(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := map[uint32]float64{
+		1000: 0.1,
+		1001: 0.2,
+		1002: 0.3,
+		1013: 0.4,
+		1018: 0.5,
+		1019: 0.6,
+		1020: 0.7,
+	}
+
+	result["metric"] = ts
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	ans := map[uint32]float64{
+		1000: 0.09,
+		1001: 0.19,
+		1002: 0.28,
+		1013: 0.36,
+		1018: 0.49,
+		1019: 0.58,
+		1020: 0.67,
+	}
+
+	function := structs.Function{RangeFunction: segutils.Quantile_Over_Time, ValueList: []string{"0.9"}, TimeWindow: 10}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if !dtypeutils.AlmostEquals(expectedVal, val) {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
 func Test_reduceEntries(t *testing.T) {
 	entries := []Entry{
 		Entry{downsampledTime: 0, dpVal: 4.3},
