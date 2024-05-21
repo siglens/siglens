@@ -59,6 +59,7 @@
     --white-6: #160F29;
     --white-7: #453F54;
     --white-8: #9C99A3;
+    --white-9: #F9FAFB;
 
     /* Metrics UI Graph Line Colors */
     --graph-line-color-1: #FF0000;
@@ -1926,6 +1927,9 @@ div.dts div.dataTables_scrollBody table {
     border-width: 0;
     margin-left: 15px;
 }
+#favbutton.active{
+    background-image: url(../assets/star-filled.svg);
+}
 
 #delbutton:hover {
     background-image: url(../assets/dark-delete-icon-hover.svg);
@@ -2959,31 +2963,37 @@ float: right;
 #new-dashboard .header-container{
     display: flex;
     justify-content: space-between;
-    height: 35px;
-    align-items: self-start;
+    height: 55px;
+    align-items: center;
     width: 100%;
+    padding: 20px;
+    border-bottom: 1px solid var(--alerting-table-line-color);
+    background-color: var(--db-bg-color);
 }
 
 #new-dashboard .dashboard-names{
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
 }
 
 #new-dashboard .all-dashboards{
-    font-size: 18px;
+    font-size: 16px;
     color: #6F6B7B;
     cursor: pointer;
     margin-bottom: 0;
 }
 
 #new-dashboard .name-dashboard{
-    font-weight: 500;
-    font-size: 18px;
+    font-weight: 600;
+    font-size: 16px;
     cursor: pointer;
     margin-bottom: 0;
 }
-
+#new-dashboard .star-icon{
+    margin-left: 0px;
+    margin-bottom: 1px;
+}
 #new-dashboard .btn-container{
     display: flex;
     gap: 15px;
@@ -3027,22 +3037,22 @@ float: right;
     width: 100%;
     height: 100%;
     position: relative;
-    padding-left: 0px;
 }
 
 .panel div.panel-header {
     cursor: move;
-    background: var(--datatable-bg-color);
     display: flex;
     align-items: center;
-    padding: 3px;
-    padding-left: 12px;
+    padding: 3px 10px 3px 20px;
     cursor: move;
     color: var(--hits-summary-regular-text-color);
-    border-radius: 5px 5px 0px 0px;
+    border-radius: 1px 1px 0px 0px;
     position: relative;
-    font-size: 16px;
-    justify-content: center;
+    font-size: 14px;
+    justify-content: space-between;
+    height: 30px;
+    border-bottom: 1px solid var(--border-color-regular);
+    background-color: var(--db-bg-color);
 }
 .panel div.panel-header p{
     color: var(--white-1);
@@ -3055,19 +3065,13 @@ float: right;
 
 
 .panel div.panel-header .dropdown-btn{
-    background-image: url(../assets/up-arrow-btn-dark-theme.svg);
-    width: 10px;
-    height: 6px;
+    width: 3px;
+    height: 11px;
     margin-left: 10px;
     cursor: pointer;
-}
-
-[data-theme='dark'] .panel div.panel-header .dropdown-btn{
-    background-image: url(../assets/up-arrow-btn-dark-theme.svg);
-}
-
-.panel div.panel-header .dropdown-btn.active{
-    transform: rotate(180deg);
+    display: inline-block;
+    margin-bottom: 1px;
+    background-size: cover;
 }
 
 .panel div.panel-header .hidden{
@@ -3075,18 +3079,20 @@ float: right;
 }
 
 .panel {
-    width: 49%;
-    height: 250px;
-    background-color: var(--datatable-bg-color);
-    border-radius: 5px;
+    width: 100%;
+    height: 100%;
+    border-radius: 1px;
+    display: flex;
+    flex-direction: column;
 }
 
 .panel-body{
-  height: 87%;
-  display: flex;
-  justify-content: center;
-  /* justify-content: space-between; */
-  align-items: center;
+    flex-grow: 1; 
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--db-bg-color);
 }
 
 .panel-body #corner-popup {
@@ -3116,13 +3122,14 @@ float: right;
     position: absolute;
     top: 25px;
     list-style-type: none;
-    padding: 11px 16px;
+    padding: 10px;
     cursor: pointer;
-    background-color: var(--datatable-bg-color);
-    border-radius: 5px;
-    font-size: 14px;
-    width: 131px;
+    background-color: var(--edit-panel-bg-color);
+    border-radius: 1px;
     z-index: 2;
+    right: 0px;
+    font-size: 13px;
+    box-shadow: var(--box-shadow);
 }
 
 
@@ -3743,12 +3750,10 @@ float: right;
 #viewPanel-container {
     display: none;
     flex-direction: column;
-    max-height: 100vh;
     width: 100%;
-    height: 100%;
+    height: 90%;
     position: relative;
-    padding: 1em 0;
-    padding-left: 0px;
+    padding: 20px;
 }
 
 /* ORG SIGNUP FORM */

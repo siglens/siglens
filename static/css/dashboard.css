@@ -42,6 +42,8 @@
   --top-save-btn-bg-img: url("../assets/save-icon.svg");
   --top-refresh-btn-bg-img: url("../assets/refresh-icon.svg");
   --arrow-dashboard-img: url("../assets/arrow-dashboard-light.svg");
+  --panel-container: var(--white-5);
+  --front-arrow :  url('../assets/front-arrow-icon-dark.svg');
 }
 
 [data-theme='light']{
@@ -65,6 +67,8 @@
   --top-save-btn-bg-img: url("../assets/save-btn.svg");
   --top-refresh-btn-bg-img: url("../assets/refreshy-icon.svg");
   --arrow-dashboard-img: url("../assets/arrow-dashboard-black.svg");
+  --panel-container: var(--white-9);
+  --front-arrow:  url('../assets/front-arrow-icon-light.svg');
 }
 
 
@@ -74,8 +78,8 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
   padding: 1.5%;
+  justify-content: space-between;
 }
 
 /* PANEL-OPTIONS */
@@ -125,7 +129,6 @@
   width: 100%;
   border-radius: 5px;
   font-size: 18px;
-  height: 100px;
   resize: none;
   margin-top: 15px;
   border: 1px solid var(--border-color-regular);
@@ -292,10 +295,6 @@
   cursor: pointer;
 }
 
-/* .editPanelMenu-chart {
-  margin-bottom: 1rem;
-} */
-
 .dropDownTitle {
   background-color: var(--drop-down-btn-bg-regular);
   color: var(--text-color);
@@ -400,7 +399,7 @@
 .panelDisplay .panEdit-panel{
   height: 100%;
   width: 100%;
-  background-color: var(--drop-down-btn-bg-regular);
+  background-color: var(--db-bg-color);
   overflow: hidden;
   margin: 0;
   border-radius: 5px;
@@ -441,7 +440,7 @@
 }
 
 .panelEditor-container {
-  display: flex;
+  display: none;
   flex-direction: column;
   width: 96vw;
   height: 96vh;
@@ -453,7 +452,6 @@
   transform: translate(-50%, -50%);
   border-radius: 8px;
   overflow-y: scroll;
-  justify-content: space-between;
 }
 
 /* PANEL EDIT NAV BAR */
@@ -480,24 +478,14 @@
   margin-left: 15px;
 }
 
-.panView-goToDB {
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  color: var(--purple-1);
-  font-weight: 600;
-}
-
-.panView-goToDB {
-  display: none;
-}
-
 .panEdit-navBtns {
   display: flex;
   flex-direction: row;
   align-items: center;
   width: 100%;
   justify-content: flex-end;
-  padding: 14px 0px;
+  padding: 14px 0px 14px 0px;
+  background-color: var(--db-bg-color);
 }
 
 .panEdit-btn {
@@ -594,7 +582,6 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: var(--datatable-bg-color);
   border-radius: 5px;
   height: 100%;
   width: 100%;
@@ -605,7 +592,7 @@
   justify-content: center;
   align-items: center;
   color: var(--orange-1);
-  font-size: 8vmax;
+  font-size: 6vmax;
   font-weight: 600;
   color: var(--number-and-unit-color);
 }
@@ -616,7 +603,7 @@
   align-items: flex-end;
   position: relative;
   margin-left: 16px;
-  font-size: 8vmax;
+  font-size: 6vmax;
   font-weight: 600;
   color: var(--number-and-unit-color);
 }
@@ -1038,7 +1025,7 @@ input:checked + .slider:before {
   border-bottom: 30px solid #0000;
   border-left: 32px solid var(--purple-1);
   border-right: none;
-  border-radius: 5px 0;
+  border-radius: 1px 0;
   cursor: pointer;
   z-index: 99;
 }
@@ -1169,7 +1156,7 @@ input:checked + .slider:before {
   background-size: 45% !important;
 }
 .panel-header:hover{
-  background-color: var(--edit-panel-border-color) !important;
+  background: var(--datatable-bg-color)  !important;
 }
 .panelDisplay,
 .refresh-btn,
@@ -1209,8 +1196,8 @@ input:checked + .slider:before {
   color: var(--datatable-header-text-color) !important;
 }
 #new-dashboard{
-  padding-left: 20px !important;
-  padding-right: 20px;
+  padding: 0px  !important;
+  background-color: var(--panel-container) !important;
 }
 .panel{
   border: 1px solid var(--border-color-regular) !important;
@@ -1224,7 +1211,7 @@ input:checked + .slider:before {
   background-color: var(--panel-table-bg-color);
 }
 .panel div.panel-header .dropdown-btn{
-  background-image: var(--arrow-dashboard-img) !important;
+  background-image: url('../assets/other-options-icon.svg') !important;
 }
 .ag-row-position-absolute::after{
   content: '';
@@ -1321,7 +1308,7 @@ input:checked + .slider:before {
     top: 50px;
     cursor: default;
     box-shadow: var(--box-shadow);
-    z-index: 99;
+    z-index: 1;
 }
 
 #add-widget-options .editPanelMenu-options{
@@ -1354,6 +1341,10 @@ input:checked + .slider:before {
 }
 .button-section{
   border-top: 1px solid var(--alerting-table-line-color);
+  /* position: absolute; */
+  /* bottom: 0; */
+  width: 100%;
+  flex-shrink: 0;
 }
 .ui-widget.ui-widget-content{
   z-index: 999;
@@ -1456,4 +1447,105 @@ input:checked + .slider:before {
   padding: 0;
   position: absolute;
   width: 1px;
+}
+.add-panel-div{
+  border: 2px solid var(--lavender-2);
+  height: 92%;
+  width: 92%;
+  margin: auto;
+  border-radius: 10px;
+  background-color: rgba(100, 71, 217, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor:pointer;
+}
+.add-panel-div:hover{
+  background-color: rgba(100, 71, 217, 0.3);
+}
+.add-panel-div .plus-icon{
+  font-size: 40px;
+  color: var(--lavender-2);
+  display: none;
+}
+.add-panel-div .text{
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lavender-2);
+}
+.default-item.active .add-panel-div{
+  border-style: dashed;
+  cursor: default;
+}
+.default-item.active .add-panel-div:hover{
+  background-color: rgba(100, 71, 217, 0.1);
+}
+.default-item{
+  margin-top: 10px;
+}
+.grid-stack .grid-stack-placeholder > .placeholder-content {
+  border: 1px dashed var(--border-color-regular);
+  background-color: rgba(100, 71, 217, 0.1);
+}
+.grid-stack>.grid-stack-item>.grid-stack-item-content{
+  overflow-y: hidden;
+}
+.panel-icons{
+  display: none;
+  cursor: pointer;
+}
+.panel-icons.active{
+  display: flex;
+  cursor: pointer;
+}
+.panel-icons img{
+  height: 12px;
+  margin-bottom: 5px;
+  margin-left: 10px;
+}
+.panelEditorLeft,
+#viewPanel-container {
+    display: none;
+}
+.top-buttons{
+  display: flex;
+  border-bottom: 1px solid var(--alerting-table-line-color);
+  padding: 14px;
+  padding-bottom: 0px;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.toggle-buttons div{
+  padding-bottom: 6px;
+  margin-right: 20px;
+  cursor: pointer;
+  color: #6F6B7B;
+}
+.toggle-buttons div.active{
+  border-bottom: 4px solid var(--purple-1);
+  color: var(--cstats-header-text-color);
+}
+.view-panel-name{
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.top-buttons .panEdit-discard{
+  width: 24px;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  color: var(--text-color-regular) !important;
+  align-items: center;
+  font-size: 23px;
+  padding-bottom: 3px;
+  cursor: pointer;
+}
+
+.dashboard-arrow{
+  background-image: var(--front-arrow);
+  height: 10px;
+  width: 6px;
+  background-size: contain;
 }

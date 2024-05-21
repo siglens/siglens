@@ -277,24 +277,18 @@ func AddTimeSeriesEntryToInMemBuf(rawJson []byte, signalType SIGNAL_TYPE, orgid 
 		tagsHolder := metrics.GetTagsHolder()
 		mName, dp, ts, err := metrics.ExtractOTSDBPayload(rawJson, tagsHolder)
 		if err != nil {
-			metrics.ReturnTagsHolder(tagsHolder)
 			return err
 		}
 		err = metrics.EncodeDatapoint(mName, tagsHolder, dp, ts, uint64(len(rawJson)), orgid)
 		if err != nil {
-			metrics.ReturnTagsHolder(tagsHolder)
 			return fmt.Errorf("entry rejected for metric %s %v because of error: %v", mName, tagsHolder, err)
 		}
-		metrics.ReturnTagsHolder(tagsHolder)
 	case SIGNAL_METRICS_INFLUX:
 		tagsHolder := metrics.GetTagsHolder()
 		ingestedCount, errors := metrics.ExtractInfluxPayloadAndInsertDp(rawJson, tagsHolder, orgid)
 		if ingestedCount == 0 {
-			metrics.ReturnTagsHolder(tagsHolder)
 			return fmt.Errorf("influx entry rejected because of errors: %v", errors)
 		}
-
-		metrics.ReturnTagsHolder(tagsHolder)
 
 	default:
 		return fmt.Errorf("unknown signal type %+v", signalType)
