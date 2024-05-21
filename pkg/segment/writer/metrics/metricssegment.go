@@ -680,9 +680,14 @@ func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint
 			}
 			for index, value := range tag_set {
 				if index == 0 {
+					// skip the first element as it is the db/measurement name
 					continue
 				} else {
 					kvPair := strings.Split(value, "=")
+					if len(kvPair) < 2 {
+						errors = append(errors, fmt.Errorf("tag key value pair is not valid for tag: %v", value))
+						continue
+					}
 					key := kvPair[0]
 					value = kvPair[1]
 					tags.Insert(key, []byte(value), jp.String)
@@ -693,6 +698,10 @@ func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint
 
 			for _, metricValueSet := range field_set {
 				kvPair := strings.Split(metricValueSet, "=")
+				if len(kvPair) < 2 {
+					errors = append(errors, fmt.Errorf("metric key value pair is not valid for metric: %v", metricValueSet))
+					continue
+				}
 				metricName := kvPair[0]
 				metricValue := kvPair[1]
 
