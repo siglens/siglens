@@ -39,6 +39,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
+	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
@@ -283,7 +284,8 @@ func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
 
-	var startTime, endTime uint32
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - TEN_YEARS_IN_SECS
 	var err error
 
 	// If startParam exists, parse it
@@ -344,7 +346,8 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
 	qid := rutils.GetNextQid()
-	var startTime, endTime uint32
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - TEN_YEARS_IN_SECS
 	var err error
 	var responseValues []string
 
@@ -361,8 +364,6 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			log.Errorf("ProcessGetLabelValuesRequest: Error parsing end time parameter, err:%v", err)
 			return
 		}
-	} else {
-		endTime = uint32(time.Now().Unix())
 	}
 
 	if labelName == "__name__" {
@@ -444,7 +445,7 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		log.Errorf("ProcessGetSeriesByLabelRequest: Error parsing 'end' parameter, err:%v", err)
 	}
 
-	allSeriesResults := make(map[uint64]*mresults.Series, 0)
+	allSeriesTagsOnlyResults := make(map[uint64]*tsidtracker.AllMatchedTSIDsInfo, 0)
 
 	timeRange := &dtu.MetricsTimeRange{
 		StartEpochSec: uint32(startTime),
@@ -472,14 +473,13 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		segment.LogMetricsQuery("PromQL series by label request", &metricQueryRequest[0], qid)
 		res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
 
-		for tsid, series := range res.AllSeries {
-			allSeriesResults[tsid] = series
-			series.SetMetricName(metricQueryRequest[0].MetricsQuery.MetricName)
+		for tsid, tsidInfoMap := range res.AllSeriesTagsOnlyMap {
+			allSeriesTagsOnlyResults[tsid] = tsidInfoMap
 		}
 	}
 
 	metricsResult := &mresults.MetricsResult{
-		AllSeries: allSeriesResults,
+		AllSeriesTagsOnlyMap: allSeriesTagsOnlyResults,
 	}
 
 	result, err := metricsResult.GetSeriesByLabel()
@@ -1025,6 +1025,20 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Function = structs.Function{RangeFunction: segutils.IRate, TimeWindow: timeWindow}
 				case "increase":
 					mquery.Function = structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow}
+				case "avg_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Avg_Over_time, TimeWindow: timeWindow}
+				case "min_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Min_Over_time, TimeWindow: timeWindow}
+				case "max_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Max_Over_time, TimeWindow: timeWindow}
+				case "sum_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Sum_Over_time, TimeWindow: timeWindow}
+				case "count_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Count_Over_time, TimeWindow: timeWindow}
+				case "changes":
+					mquery.Function = structs.Function{RangeFunction: segutils.Changes, TimeWindow: timeWindow}
+				case "resets":
+					mquery.Function = structs.Function{RangeFunction: segutils.Resets, TimeWindow: timeWindow}
 				default:
 					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
 				}
@@ -1073,6 +1087,8 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp_min function", expr.Args.String())
 					}
 					mquery.Function = structs.Function{MathFunction: segutils.Clamp_Min, ValueList: []string{expr.Args[1].String()}}
+				case "timestamp":
+					mquery.Function = structs.Function{MathFunction: segutils.Timestamp}
 				default:
 					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
 				}

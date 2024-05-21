@@ -240,11 +240,14 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 	return actionLines
 }
 
-func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts bool) (utils.Generator, error) {
+func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool) (utils.Generator, error) {
 
 	if iType == OpenTSDB {
-		rdr := utils.InitMetricsGenerator(nummetrics)
-		err := rdr.Init(str)
+		rdr, err := utils.InitMetricsGenerator(nummetrics, gentype)
+		if err != nil {
+			return rdr, err
+		}
+		err = rdr.Init(str)
 		return rdr, err
 	}
 	var rdr utils.Generator

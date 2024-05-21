@@ -28,12 +28,18 @@ var TAG_VALUE_DELIMITER_BYTE = []byte(",")
 
 var TAG_VALUE_DELIMITER_STR = (",")
 
+type AllMatchedTSIDsInfo struct {
+	MetricName     string
+	TagKeyTagValue map[string]interface{}
+}
+
 /*
 Holder struct to track all matched TSIDs
 */
 type AllMatchedTSIDs struct {
-	allTSIDs map[uint64]*bytebufferpool.ByteBuffer // raw tsids that are currently being tracked
-	first    bool
+	allTSIDs    map[uint64]*bytebufferpool.ByteBuffer // raw tsids that are currently being tracked
+	first       bool
+	tsidInfoMap map[uint64]*AllMatchedTSIDsInfo
 }
 
 /*
@@ -42,8 +48,9 @@ This function should initialize a TSID tracker
 func InitTSIDTracker(numTagFilters int) (*AllMatchedTSIDs, error) {
 
 	return &AllMatchedTSIDs{
-		allTSIDs: make(map[uint64]*bytebufferpool.ByteBuffer, 0),
-		first:    true,
+		allTSIDs:    make(map[uint64]*bytebufferpool.ByteBuffer, 0),
+		first:       true,
+		tsidInfoMap: make(map[uint64]*AllMatchedTSIDsInfo, 0),
 	}, nil
 }
 
@@ -129,6 +136,67 @@ func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]stru
 	return nil
 }
 
+// If first time, add all tsids to map
+// Else, intersect with existing tsids
+func (tr *AllMatchedTSIDs) BulkAddTagsOnly(rawTagValueToTSIDs map[string]map[uint64]struct{}, metricName string, tagKey string) error {
+	if tr.first {
+		for tagValue, tsids := range rawTagValueToTSIDs {
+			for id := range tsids {
+				tsIDinfo := AllMatchedTSIDsInfo{
+					MetricName:     metricName,
+					TagKeyTagValue: make(map[string]interface{}),
+				}
+				tsIDinfo.TagKeyTagValue[tagKey] = tagValue
+				tr.tsidInfoMap[id] = &tsIDinfo
+			}
+		}
+	} else {
+		valid := 0
+		for ts, tsidInfo := range tr.tsidInfoMap {
+			shouldKeep := false
+			for tagValue, tsids := range rawTagValueToTSIDs {
+				if _, ok := tsids[ts]; ok {
+					shouldKeep = true
+					valid++
+
+					// Write the tagKey and tagValue to the existing tsidInfo
+					tsidInfo.TagKeyTagValue[tagKey] = tagValue
+
+					break
+				}
+			}
+
+			if !shouldKeep {
+				delete(tr.tsidInfoMap, ts)
+			}
+		}
+	}
+
+	return nil
+}
+func (tr *AllMatchedTSIDs) BulkAddStarTagsOnly(rawTagValueToTSIDs map[string]map[uint64]struct{}, initMetricName string, tagKey string, numValueFiltersNonZero bool) error {
+	for tagValue, tsids := range rawTagValueToTSIDs {
+		for id := range tsids {
+			tsidInfo, ok := tr.tsidInfoMap[id]
+			if !ok {
+				if numValueFiltersNonZero {
+					continue
+				}
+
+				tsidInfo = &AllMatchedTSIDsInfo{
+					MetricName:     initMetricName,
+					TagKeyTagValue: make(map[string]interface{}),
+				}
+				tr.tsidInfoMap[id] = tsidInfo
+			}
+
+			tsidInfo.TagKeyTagValue[tagKey] = tagValue
+		}
+	}
+
+	return nil
+}
+
 // For all incoming tsids, always add tsid and groupid to stored tsids
 func (tr *AllMatchedTSIDs) BulkAddStar(rawTagValueToTSIDs map[string]map[uint64]struct{}, initMetricName string, tagKey string, numValueFiltersNonZero bool) error {
 	var err error
@@ -197,4 +265,8 @@ func (tr *AllMatchedTSIDs) GetNumMatchedTSIDs() int {
 // returns a map of tsid to groupid
 func (tr *AllMatchedTSIDs) GetAllTSIDs() map[uint64]*bytebufferpool.ByteBuffer {
 	return tr.allTSIDs
+}
+
+func (tr *AllMatchedTSIDs) GetTSIDInfoMap() map[uint64]*AllMatchedTSIDsInfo {
+	return tr.tsidInfoMap
 }
