@@ -378,7 +378,7 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 				}
 			}
 			for k, v := range results {
-				result.Value = []interface{}{int64(k), fmt.Sprintf("%v", v)}
+				result.Value = append(result.Value, []interface{}{int64(k), fmt.Sprintf("%v", v)})
 			}
 			pqldata.Result = append(pqldata.Result, result)
 		}
