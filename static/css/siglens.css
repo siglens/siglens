@@ -5256,3 +5256,39 @@ input.form-control {
     max-height: 100%;
     font-size: 14px;
 }
+
+.index-container{
+    border: 1px solid var(--border-btn-color);
+    border-radius: 5px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    padding: 0px 12px;
+    font-size: 14px;
+    flex-grow: 1;
+  }
+  .index-container .selected-index{
+    color: var(--text-color);
+    padding: 4px 28px 4px 7px;
+    margin-right: 8px;
+    white-space: nowrap;
+    position: relative;
+    background-color: #ECF6FB;
+  }
+  .index-container .selected-index .remove-icon {
+    font-size: 22px;
+    font-weight: bold;
+    position: absolute;
+    top: -3px;
+    right: 8px;
+    cursor: pointer;
+  }
+  #index-listing{
+    border: none;
+    height: 28px;
+    padding: 0px !important;
+  }
+  #index-listing:focus{
+    outline: none;
+    background: var(--ui-widget-bg-color);
+  }
