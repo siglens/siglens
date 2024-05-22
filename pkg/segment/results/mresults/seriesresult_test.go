@@ -1315,24 +1315,24 @@ func Test_applyMathFunctionTimestamp(t *testing.T) {
 	}
 }
 func runTimeFunctionTest(t *testing.T, timeFunction utils.TimeFunctions, expectedCalculation func(time.Time) float64) {
-	inputData := make(map[string]map[uint32]float64)
-	timestamps := make(map[uint32]float64)
+	allMetricsData := make(map[string]map[uint32]float64)
+	allDPs := make(map[uint32]float64)
 
-	timestamp := uint32(time.Date(2024, 1, 1, 23, 0, 0, 0, time.UTC).Unix())
-	timestamps[timestamp] = -30.2
-	timestamps[timestamp+1] = 22
-	timestamps[timestamp+11] = -10
-	timestamps[timestamp+12] = 5.5
+	dpTs := uint32(time.Date(2024, 1, 1, 23, 0, 0, 0, time.UTC).Unix())
+	allDPs[dpTs] = -30.2
+	allDPs[dpTs+1] = 22
+	allDPs[dpTs+11] = -10
+	allDPs[dpTs+12] = 5.5
 
-	inputData["metric"] = timestamps
+	allMetricsData["metric"] = allDPs
 
 	metricsResults := &MetricsResult{
-		Results: inputData,
+		Results: allMetricsData,
 	}
 
 	expectedResults := make(map[uint32]float64)
-	for ts := range timestamps {
-		expectedResults[ts] = expectedCalculation(time.Unix(int64(ts), 0).UTC())
+	for dpTs := range allDPs {
+		expectedResults[dpTs] = expectedCalculation(time.Unix(int64(dpTs), 0).UTC())
 	}
 
 	function := structs.Function{TimeFunction: timeFunction}
@@ -1340,14 +1340,14 @@ func runTimeFunctionTest(t *testing.T, timeFunction utils.TimeFunctions, expecte
 	err := metricsResults.ApplyFunctionsToResults(8, function)
 	assert.Nil(t, err)
 	for metric, timeSeries := range metricsResults.Results {
-		for timestamp, actualValue := range timeSeries {
-			expectedValue, exists := expectedResults[timestamp]
+		for dpTs, actualValue := range timeSeries {
+			expectedValue, exists := expectedResults[dpTs]
 			if !exists {
-				t.Errorf("Unexpected timestamp: %v in metric: %v", timestamp, metric)
+				t.Errorf("Unexpected timestamp: %v in metric: %v", dpTs, metric)
 			}
 
 			if actualValue != expectedValue {
-				t.Errorf("For timestamp: %v in metric: %v, expected value: %v, but got: %v", timestamp, metric, expectedValue, actualValue)
+				t.Errorf("For timestamp: %v in metric: %v, expected value: %v, but got: %v", dpTs, metric, expectedValue, actualValue)
 			}
 		}
 	}
