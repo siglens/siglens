@@ -473,27 +473,7 @@ function editPanelInit(redirectedFromViewScreen) {
 	if (currentPanel.queryData && currentPanel.queryData.indexName) {
 		selectedSearchIndex = currentPanel.queryData.indexName;
 	}
-	if (selectedSearchIndex) {
-		// Remove all existing selected indexes
-		$(".index-container .selected-index").remove();
-		const selectedIndexes = selectedSearchIndex.split(',');
-		selectedIndexes.forEach(function(index) {
-			addSelectedIndex(index);
-			// Remove the selectedSearchIndex from indexValues
-			const indexIndex = indexValues.indexOf(index);
-			if (indexIndex !== -1) {
-				indexValues.splice(indexIndex, 1);
-			}
-			if (index.endsWith('*')) {
-				const prefix = index.slice(0, -1); // Remove the '*'
-				const filteredIndexValues = indexValues.filter(function(option) {
-					return !option.startsWith(prefix);
-				});
-				indexValues = filteredIndexValues;
-				$("#index-listing").autocomplete("option", "source", filteredIndexValues);
-			}
-		});
-	}
+	setIndexDisplayValue(selectedSearchIndex);
 
 	if ($('.dropDown-dataSource.active').length) handleSourceDropDownClick();
 	if ($('.dropDown-unit.active').length) handleUnitDropDownClick();

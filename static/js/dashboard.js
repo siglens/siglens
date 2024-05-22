@@ -28,8 +28,10 @@ let originalIndexValues = [];
 let indexValues = [];
 $(document).ready(async function () {
     let indexes = await getListIndices();
-    originalIndexValues = indexes.map(item => item.index);
-    indexValues = [...originalIndexValues];
+    if (indexes){
+        originalIndexValues = indexes.map(item => item.index);
+        indexValues = [...originalIndexValues];
+    }
     initializeIndexAutocomplete();
     
     $('#new-dashboard').css("transform", "translate(170px)")
