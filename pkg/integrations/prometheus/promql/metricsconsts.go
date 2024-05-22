@@ -292,6 +292,41 @@ const metricFunctions = `[
 		"desc": "The count of all values in the specified interval.", 
 		"eg": "count_over_time(avg (system.disk.used[5m]))",
 		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "quantile_over_time", 
+		"name": "Quantile Over Time", 
+		"desc": "The φ-quantile (0 ≤ φ ≤ 1) of the values in the specified interval.", 
+		"eg": "quantile_over_time(0.6, avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "stddev_over_time", 
+		"name": "Standard deviation Over Time", 
+		"desc": "The population standard deviation of the values in the specified interval.", 
+		"eg": "stddev_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "stdvar_over_time", 
+		"name": "Standard variance Over Time", 
+		"desc": "The population standard variance of the values in the specified interval.", 
+		"eg": "stdvar_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "last_over_time", 
+		"name": "Last Over Time", 
+		"desc": " the most recent point value in the specified interval.", 
+		"eg": "last_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "present_over_time", 
+		"name": "Present Over Time", 
+		"desc": "The value 1 for any series in the specified interval.", 
+		"eg": "present_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
 	}
 ]`
 
