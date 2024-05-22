@@ -266,7 +266,7 @@ const metricFunctions = `[
         "isTimeRangeFunc": false
     },
     {
-    "fn": "quantile_over_time", 
+    	"fn": "quantile_over_time", 
 		"name": "Quantile Over Time", 
 		"desc": "The φ-quantile (0 ≤ φ ≤ 1) of the values in the specified interval.", 
 		"eg": "quantile_over_time(0.6, avg (system.disk.used[5m]))",
