@@ -25,13 +25,15 @@ let indexValues = [];
 $(document).ready(async () => {
     setSaveQueriesDialog();
     let indexes = await getListIndices();
-    originalIndexValues = indexes.map(item => item.index);
-    indexValues = [...originalIndexValues];
+    if (indexes){
+        originalIndexValues = indexes.map(item => item.index);
+        indexValues = [...originalIndexValues];
+    }
     initializeIndexAutocomplete();
     if (window.location.search) {
         data = getInitialSearchFilter(false, false);
     } else {
-        console.log(`No query string found, using default search filter.`);
+        //No query string found, using default search filter
         data = getSearchFilter(false, false);
     }
     doSearch(data);
