@@ -328,7 +328,6 @@ const (
 	Stddev_Over_Time
 	Last_Over_Time
 	Present_Over_Time
-	Mad_Over_Time
 	Quantile_Over_Time
 	Changes
 	Resets
