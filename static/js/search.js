@@ -410,10 +410,8 @@
      }
      let sFrom = 0;
 
-     selIndexName.split(',').forEach(function(searchVal){
-         $(`.index-dropdown-item[data-index="${searchVal}"]`).toggleClass('active');
-     });
- 
+     setIndexDisplayValue(selIndexName);
+
      selectedSearchIndex = selIndexName.split(",").join(",");
      Cookies.set('IndexList', selIndexName.split(",").join(","));
  
@@ -463,11 +461,7 @@
     let sFrom = 0;
     let queryLanguage = $("#query-language-btn span").html();
 
-    selIndexName.split(",").forEach(function (searchVal) {
-      $(`.index-dropdown-item[data-index="${searchVal}"]`).toggleClass(
-        "active"
-      );
-    });
+    setIndexDisplayValue(selIndexName);
 
     selectedSearchIndex = selIndexName.split(",").join(",");
     Cookies.set("IndexList", selIndexName.split(",").join(","));
@@ -549,10 +543,8 @@
    let selIndexName = selectedSearchIndex;
    let sFrom = 0;
    let queryLanguage = $("#query-language-btn span").html();
-  
-   selIndexName.split(",").forEach(function (searchVal) {
-     $(`.index-dropdown-item[data-index="${searchVal}"]`).toggleClass("active");
-   });
+
+   setIndexDisplayValue(selIndexName);
 
    selectedSearchIndex = selIndexName.split(",").join(",");
    Cookies.set("IndexList", selIndexName.split(",").join(","));
