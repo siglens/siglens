@@ -27,6 +27,11 @@ avg_over_time(testmetric4[24h]),now-90d,now,"199.18720427445206,218.745916705008
 min_over_time(testmetric4[24h]),now-90d,now,"199.18720427445191,199.18720427445191,-112.8784522345932",approx
 max_over_time(testmetric4[24h]),now-90d,now,"199.18720427445206,238.30462913556497,238.30462913556497",approx
 sum_over_time(testmetric4[24h]),now-90d,now,"199.18720427445197,437.49183341001685,125.42617690097171",approx
+"quantile_over_time(0.9, testmetric4[24h])",now-90d,now,"179.26848384700685,234.39288664945366,-77.76014409757737",approx
+stddev_over_time(testmetric4[24h]),now-90d,now,"0,19.55871243055644,175.59154068507908",approx
+stdvar_over_time(testmetric4[24h]),now-90d,now,"0,382.5432319412013,30832.389160159768",approx
+last_over_time(testmetric4[24h]),now-90d,now,"199.18720427445206,238.304629135565,-112.87845223459323",approx
+present_over_time(testmetric4[24h]),now-90d,now,"1,1,1",eq
 count_over_time(testmetric4[24h]),now-90d,now,"1,2,2",eq
 avg_over_time(testmetric0[24h]),now-90d,now,"131.45590577322233,129.26226823091304,143.30103382674855",approx
 max_over_time(testmetric0[48h]),now-90d,now,"131.45590577322233,131.45590577322233,159.53343696489338",approx
