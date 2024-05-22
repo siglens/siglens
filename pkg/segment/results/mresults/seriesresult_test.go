@@ -23,6 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -1159,6 +1160,165 @@ func Test_applyMathFunctionRad(t *testing.T) {
 			}
 		}
 	}
+}
+
+func Test_applyTrigonometricFunctionCos(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Cos, segutils.Cos)
+}
+
+func Test_applyTrigonometricFunctionCosh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Cosh, segutils.Cosh)
+}
+func Test_applyTrigonometricFunctionSin(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Sin, segutils.Sin)
+}
+
+func Test_applyTrigonometricFunctionSinh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Sinh, segutils.Sinh)
+}
+
+func Test_applyTrigonometricFunctionTan(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Tan, segutils.Tan)
+}
+
+func Test_applyTrigonometricFunctionTanh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Tanh, segutils.Tanh)
+}
+
+func Test_applyTrigonometricFunctionAsinh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Asinh, segutils.Asinh)
+}
+
+func Test_applyTrigonometricFunctionAtan(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Atan, segutils.Atan)
+}
+
+func runTrigonometricFunctionTest(t *testing.T, mathFunc float64Func, mathFunction utils.MathFunctions) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1] = -0.255
+	ts[2] = 0.6
+	ts[3] = 11.2465
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	for key, val := range ts {
+		ans[key] = mathFunc(val)
+	}
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: mathFunction}
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
+func Test_applyTrigonometricFunctionAcos(t *testing.T) {
+	runTrigonometricFunctionTest2(t, math.Acos, segutils.Acos)
+}
+
+func Test_applyTrigonometricFunctionAsin(t *testing.T) {
+	runTrigonometricFunctionTest2(t, math.Asin, segutils.Asin)
+}
+
+func Test_applyTrigonometricFunctionAtanh(t *testing.T) {
+	runTrigonometricFunctionTest2(t, math.Atanh, segutils.Atanh)
+}
+
+// The range of certain trigonometric functions is limited. E.g.
+// 1. acos, asin, atanh x ∈ [-1,1]
+// 2. acosh x ∈ [1,+Inf]
+func runTrigonometricFunctionTest2(t *testing.T, mathFunc float64Func, mathFunction utils.MathFunctions) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1] = 0.255
+	ts[2] = 0.6
+	ts[3] = -0.2465
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	for key, val := range ts {
+		ans[key] = mathFunc(val)
+	}
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: mathFunction}
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+
+	ts[3] = -10.2465
+	err = metricsResults.ApplyFunctionsToResults(8, function)
+	assert.NotNil(t, err)
+}
+
+func Test_applyTrigonometricFunctionAcosh(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+	ts[1] = 1.255
+	ts[2] = 6
+	ts[3] = 2.465
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	for key, val := range ts {
+		ans[key] = math.Acosh(val)
+	}
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: utils.Acosh}
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+
+	ts[3] = 0.2465
+	err = metricsResults.ApplyFunctionsToResults(8, function)
+	assert.NotNil(t, err)
 }
 
 func Test_applyMathFunctionClamp(t *testing.T) {
