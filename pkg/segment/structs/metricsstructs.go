@@ -95,7 +95,7 @@ type Label struct {
 
 type Result struct {
 	Metric map[string]string `json:"metric"`
-	Value  []interface{}     `json:"value"`
+	Value  []interface{}     `json:"values"`
 }
 
 type Data struct {
