@@ -661,6 +661,98 @@ func Test_applyRangeFunctionQuantileOverTime(t *testing.T) {
 	}
 }
 
+func Test_applyRangeFunctionLastOverTime(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := map[uint32]float64{
+		1000: 0.1,
+		1001: 0.2,
+		1002: 0.3,
+		1013: 0.4,
+		1018: 0.5,
+		1019: 0.6,
+		1020: 0.7,
+	}
+
+	result["metric"] = ts
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	ans := map[uint32]float64{
+		1000: 0.1,
+		1001: 0.2,
+		1002: 0.3,
+		1013: 0.4,
+		1018: 0.5,
+		1019: 0.6,
+		1020: 0.7,
+	}
+
+	function := structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: 10}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if !dtypeutils.AlmostEquals(expectedVal, val) {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
+func Test_applyRangeFunctionPresentOverTime(t *testing.T) {
+	result := make(map[string]map[uint32]float64)
+	ts := map[uint32]float64{
+		1000: 0.1,
+		1001: 0.2,
+		1002: 0.3,
+		1013: 0.4,
+		1018: 0.5,
+		1019: 0.6,
+		1020: 0.7,
+	}
+
+	result["metric"] = ts
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	ans := map[uint32]float64{
+		1000: 1,
+		1001: 1,
+		1002: 1,
+		1013: 1,
+		1018: 1,
+		1019: 1,
+		1020: 1,
+	}
+
+	function := structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: 10}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if !dtypeutils.AlmostEquals(expectedVal, val) {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
 func Test_reduceEntries(t *testing.T) {
 	entries := []Entry{
 		Entry{downsampledTime: 0, dpVal: 4.3},
