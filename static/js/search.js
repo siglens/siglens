@@ -65,6 +65,7 @@
      }
  }
  
+ let doSearchCounter = 0;
  function doSearch(data) {
      startQueryTime = (new Date()).getTime();
      newUri = wsURL("/api/search/ws");
@@ -72,8 +73,9 @@
      let timeToFirstByte = 0;
      let firstQUpdate = true;
      let lastKnownHits = 0;
+     const timerName = `socket timing ${doSearchCounter++}`;
      socket.onopen = function (e) {
-         console.time("socket timing");
+         console.time(timerName);
          $('body').css('cursor', 'progress');
          $("#run-filter-btn").addClass("cancel-search");
          $('#run-filter-btn').addClass('active');
@@ -154,7 +156,7 @@
          } else {
              console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
          }
-         console.timeEnd("socket timing");
+         console.timeEnd(timerName);
      };
  
      socket.addEventListener('error', (event) => {
