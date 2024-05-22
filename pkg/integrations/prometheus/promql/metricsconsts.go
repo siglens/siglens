@@ -91,6 +91,90 @@ const metricFunctions = `[
 		"isTimeRangeFunc": false
 	},
 	{
+		"fn": "acos",
+		"name": "Arccosine (acos)",
+		"desc": "Calculates the arccosine of all elements in v.",
+		"eg": "acos(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "acosh",
+		"name": "Inverse hyperbolic cosine (acosh)",
+		"desc": "Calculates the inverse hyperbolic cosine of all elements in v.",
+		"eg": "acosh(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "asin",
+		"name": "Arcsine (asin)",
+		"desc": "Calculates the arcsine of all elements in v.",
+		"eg": "asin(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "asinh",
+		"name": "Inverse hyperbolic sine (asinh)",
+		"desc": "Calculates the inverse hyperbolic sine of all elements in v.",
+		"eg": "asinh(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "atan",
+		"name": "Arctangent (atan)",
+		"desc": "Calculates the arctangent of all elements in v.",
+		"eg": "atan(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "atanh",
+		"name": "Inverse hyperbolic tangent (atanh)",
+		"desc": "Calculates the inverse hyperbolic tangent of all elements in v.",
+		"eg": "atanh(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "cos",
+		"name": "Cosine (cos)",
+		"desc": "Calculates the cosine of all elements in v.",
+		"eg": "cos(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "cosh",
+		"name": "Hyperbolic cosine (cosh)",
+		"desc": "Calculates the hyperbolic cosine of all elements in v.",
+		"eg": "cosh(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "sin",
+		"name": "Sine (sin)",
+		"desc": "Calculates the sine of all elements in v.",
+		"eg": "sin(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "sinh",
+		"name": "Hyperbolic sine (sinh)",
+		"desc": "Calculates the hyperbolic sine of all elements in v.",
+		"eg": "sinh(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "tan",
+		"name": "Tangent (tan)",
+		"desc": "Calculates the tangent of all elements in v.",
+		"eg": "tan(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "tanh",
+		"name": "Hyperbolic tangent (tanh)",
+		"desc": "Calculates the hyperbolic tangent of all elements in v.",
+		"eg": "tanh(avg (system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
 		"fn": "clamp",
 		"name": "Clamp",
 		"desc": "Clamps the sample values of all elements in v to have a lower limit of min and an upper limit of max.",
