@@ -241,28 +241,28 @@ const metricFunctions = `[
         "fn": "day_of_month",
         "name": "Day of Month",
         "desc": "Extracts the day of the month from a timestamp, represented as a number from 1 to 31.",
-        "eg": "dayOfMonth(timestamp(system.disk.used))",
+        "eg": "day_of_month(timestamp(system.disk.used))",
         "isTimeRangeFunc": false
     },
     {
         "fn": "day_of_week",
         "name": "Day of Week",
         "desc": "Extracts the day of the week from a timestamp, represented as a number from 1 (Monday) to 7 (Sunday).",
-        "eg": "dayOfWeek(timestamp(system.disk.used))",
+        "eg": "day_of_week(timestamp(system.disk.used))",
         "isTimeRangeFunc": false
     },
     {
         "fn": "day_of_year",
         "name": "Day of Year",
         "desc": "Extracts the day of the year from a timestamp, represented as a number from 1 to 366.",
-        "eg": "dayOfYear(timestamp(system.disk.used))",
+        "eg": "day_of_year(timestamp(system.disk.used))",
         "isTimeRangeFunc": false
     },
     {
         "fn": "days_in_month",
         "name": "Days in Month",
         "desc": "Returns the number of days in the month of a timestamp.",
-        "eg": "daysInMonth(timestamp(system.disk.used))",
+        "eg": "days_in_month(timestamp(system.disk.used))",
         "isTimeRangeFunc": false
     }
 ]`
