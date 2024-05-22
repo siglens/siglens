@@ -1036,6 +1036,19 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Function = structs.Function{RangeFunction: segutils.Sum_Over_time, TimeWindow: timeWindow}
 				case "count_over_time":
 					mquery.Function = structs.Function{RangeFunction: segutils.Count_Over_time, TimeWindow: timeWindow}
+				case "stdvar_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: timeWindow}
+				case "stddev_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Stddev_Over_Time, TimeWindow: timeWindow}
+				case "last_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow}
+				case "present_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow}
+				case "quantile_over_time":
+					if len(expr.Args) != 2 {
+						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the quantile_over_time function", expr.Args.String())
+					}
+					mquery.Function = structs.Function{RangeFunction: segutils.Quantile_Over_Time, TimeWindow: timeWindow, ValueList: []string{expr.Args[0].String()}}
 				case "changes":
 					mquery.Function = structs.Function{RangeFunction: segutils.Changes, TimeWindow: timeWindow}
 				case "resets":
@@ -1421,13 +1434,14 @@ func parseTimeStringToUint32(s interface{}) (uint32, error) {
 }
 
 func extractTimeWindow(args parser.Expressions) (float64, error) {
-	if len(args) > 0 {
-		if ms, ok := args[0].(*parser.MatrixSelector); ok {
-			return ms.Range.Seconds(), nil
-		} else {
-			return 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
-		}
-	} else {
+	if len(args) == 0 {
 		return 0, fmt.Errorf("extractTimeWindow: can not extract time window")
 	}
+
+	for _, arg := range args {
+		if ms, ok := arg.(*parser.MatrixSelector); ok {
+			return ms.Range.Seconds(), nil
+		}
+	}
+	return 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
 }
