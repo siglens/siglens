@@ -35,7 +35,7 @@ Different Types of Readers:
 ### OTSDB
 To send ingestion traffic to a server using OTSDB:
 ```bash
-$ go run main.go ingest metrics -d http://localhost:8081 -t 10_000  -m 5 -p 1
+$ go run main.go ingest metrics -d http://localhost:8081/otsdb -t 10_000  -m 5 -p 1
 ```
 Options:
 ```
