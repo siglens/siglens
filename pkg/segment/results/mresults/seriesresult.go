@@ -286,6 +286,51 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 		evaluate(ts, func(val float64) float64 {
 			return val * math.Pi / 180
 		})
+
+	case segutils.Acos:
+		err = evaluateWithErr(ts, func(val float64) (float64, error) {
+			if val < -1 || val > 1 {
+				return val, fmt.Errorf("evaluateWithErr: acos evaluate values in the range [-1,1]")
+			}
+			return math.Acos(val), nil
+		})
+	case segutils.Acosh:
+		err = evaluateWithErr(ts, func(val float64) (float64, error) {
+			if val < 1 {
+				return val, fmt.Errorf("evaluateWithErr: acosh evaluate values in the range [1,+Inf]")
+			}
+			return math.Acosh(val), nil
+		})
+	case segutils.Asin:
+		err = evaluateWithErr(ts, func(val float64) (float64, error) {
+			if val < -1 || val > 1 {
+				return val, fmt.Errorf("evaluateWithErr: asin evaluate values in the range [-1,1]")
+			}
+			return math.Asin(val), nil
+		})
+	case segutils.Asinh:
+		evaluate(ts, math.Asinh)
+	case segutils.Atan:
+		evaluate(ts, math.Atan)
+	case segutils.Atanh:
+		err = evaluateWithErr(ts, func(val float64) (float64, error) {
+			if val < -1 || val > 1 {
+				return val, fmt.Errorf("evaluateWithErr: atanh evaluate values in the range [-1,1]")
+			}
+			return math.Atanh(val), nil
+		})
+	case segutils.Cos:
+		evaluate(ts, math.Cos)
+	case segutils.Cosh:
+		evaluate(ts, math.Cosh)
+	case segutils.Sin:
+		evaluate(ts, math.Sin)
+	case segutils.Sinh:
+		evaluate(ts, math.Sinh)
+	case segutils.Tan:
+		evaluate(ts, math.Tan)
+	case segutils.Tanh:
+		evaluate(ts, math.Tanh)
 	case segutils.Clamp:
 		if len(function.ValueList) != 2 {
 			return ts, fmt.Errorf("ApplyMathFunction: clamp has incorrect parameters: %v", function.ValueList)
@@ -747,11 +792,23 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 }
 
 type float64Func func(float64) float64
+type float64FuncWithErr func(float64) (float64, error)
 
 func evaluate(ts map[uint32]float64, mathFunc float64Func) {
 	for key, val := range ts {
 		ts[key] = mathFunc(val)
 	}
+}
+
+func evaluateWithErr(ts map[uint32]float64, mathFunc float64FuncWithErr) error {
+	for key, val := range ts {
+		resVal, err := mathFunc(val)
+		if err != nil {
+			return err
+		}
+		ts[key] = resVal
+	}
+	return nil
 }
 
 func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) error {
