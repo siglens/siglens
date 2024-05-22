@@ -267,6 +267,7 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 	if err != nil {
 		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error getting results! %+v", err)
 	}
+	mQResponse.Data.ResultType = parser.ValueTypeMatrix
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)

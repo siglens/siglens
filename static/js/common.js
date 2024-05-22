@@ -862,3 +862,27 @@ function findColumnIndex(columnsMap, columnName) {
     }
     return -1; // Return -1 if the column name is not found
 }
+
+function setIndexDisplayValue(selectedSearchIndex){
+    if (selectedSearchIndex) {
+        // Remove all existing selected indexes
+        $(".index-container .selected-index").remove();
+        const selectedIndexes = selectedSearchIndex.split(',');
+        selectedIndexes.forEach(function(index) {
+            addSelectedIndex(index);
+            // Remove the selectedSearchIndex from indexValues
+            const indexIndex = indexValues.indexOf(index);
+            if (indexIndex !== -1) {
+                indexValues.splice(indexIndex, 1);
+            }
+            if (index.endsWith('*')) {
+                const prefix = index.slice(0, -1); // Remove the '*'
+                const filteredIndexValues = indexValues.filter(function(option) {
+                    return !option.startsWith(prefix);
+                });
+                indexValues = filteredIndexValues;
+                $("#index-listing").autocomplete("option", "source", filteredIndexValues);
+            }
+        });
+    }
+}
