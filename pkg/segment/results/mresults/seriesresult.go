@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/nethruster/go-fraction"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -246,6 +247,10 @@ func ApplyFunction(ts map[uint32]float64, function structs.Function) (map[uint32
 
 	if function.MathFunction > 0 {
 		return ApplyMathFunction(ts, function)
+	}
+
+	if function.TimeFunction > 0 {
+		return ApplyTimeFunction(ts, function)
 	}
 
 	return ts, nil
@@ -752,6 +757,63 @@ func evaluate(ts map[uint32]float64, mathFunc float64Func) {
 	for key, val := range ts {
 		ts[key] = mathFunc(val)
 	}
+}
+
+type uint32Func func(uint32) float64
+
+func evaluateTimeFunc(ts map[uint32]float64, timeFunc uint32Func) {
+	for key := range ts {
+		ts[key] = timeFunc(key)
+	}
+}
+
+func ApplyTimeFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
+	switch function.TimeFunction {
+	case segutils.Hour:
+		evaluateTimeFunc(ts, func(timestamp uint32) float64 {
+			t := time.Unix(int64(timestamp), 0).UTC()
+			return float64(t.Hour())
+		})
+	case segutils.Minute:
+		evaluateTimeFunc(ts, func(timestamp uint32) float64 {
+			t := time.Unix(int64(timestamp), 0).UTC()
+			return float64(t.Minute())
+		})
+	case segutils.Month:
+		evaluateTimeFunc(ts, func(timestamp uint32) float64 {
+			t := time.Unix(int64(timestamp), 0).UTC()
+			return float64(t.Month())
+		})
+	case segutils.Year:
+		evaluateTimeFunc(ts, func(timestamp uint32) float64 {
+			t := time.Unix(int64(timestamp), 0).UTC()
+			return float64(t.Year())
+		})
+	case segutils.DayOfMonth:
+		evaluateTimeFunc(ts, func(timestamp uint32) float64 {
+			t := time.Unix(int64(timestamp), 0).UTC()
+			return float64(t.Day())
+		})
+	case segutils.DayOfWeek:
+		evaluateTimeFunc(ts, func(timestamp uint32) float64 {
+			t := time.Unix(int64(timestamp), 0).UTC()
+			return float64(t.Weekday())
+		})
+	case segutils.DayOfYear:
+		evaluateTimeFunc(ts, func(timestamp uint32) float64 {
+			t := time.Unix(int64(timestamp), 0).UTC()
+			return float64(t.YearDay())
+		})
+	case segutils.DaysInMonth:
+		evaluateTimeFunc(ts, func(timestamp uint32) float64 {
+			t := time.Unix(int64(timestamp), 0).UTC()
+			return float64(time.Date(t.Year(), t.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day())
+		})
+	default:
+		return ts, fmt.Errorf("ApplyTimeFunction: unsupported function type %v", function)
+	}
+
+	return ts, nil
 }
 
 func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) error {

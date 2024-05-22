@@ -310,6 +310,19 @@ const (
 	Timestamp
 )
 
+type TimeFunctions float64
+
+const (
+	Hour TimeFunctions = iota + 1
+	Minute
+	Month
+	Year
+	DayOfMonth
+	DayOfWeek
+	DayOfYear
+	DaysInMonth
+)
+
 type RangeFunctions int
 
 const (

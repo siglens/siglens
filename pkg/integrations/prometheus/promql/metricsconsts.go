@@ -208,7 +208,62 @@ const metricFunctions = `[
 		"desc": "The count of all values in the specified interval.", 
 		"eg": "count_over_time(avg (system.disk.used[5m]))",
 		"isTimeRangeFunc": true
-	}
+	},
+	{
+        "fn": "hour",
+        "name": "Hour",
+        "desc": "Extracts the hour of a timestamp, represented as the number of hours since midnight.",
+        "eg": "hour(timestamp(system.disk.used))",
+        "isTimeRangeFunc": false
+    },
+    {
+        "fn": "minute",
+        "name": "Minute",
+        "desc": "Extracts the minute of a timestamp, represented as the number of minutes since the last hour.",
+        "eg": "minute(timestamp(system.disk.used))",
+        "isTimeRangeFunc": false
+    },
+    {
+        "fn": "month",
+        "name": "Month",
+        "desc": "Extracts the month of a timestamp, represented as a number from 1 (January) to 12 (December).",
+        "eg": "month(timestamp(system.disk.used))",
+        "isTimeRangeFunc": false
+    },    {
+        "fn": "year",
+        "name": "Year",
+        "desc": "Extracts the year of a timestamp.",
+        "eg": "year(timestamp(system.disk.used))",
+        "isTimeRangeFunc": false
+    },
+    {
+        "fn": "dayOfMonth",
+        "name": "Day of Month",
+        "desc": "Extracts the day of the month from a timestamp, represented as a number from 1 to 31.",
+        "eg": "dayOfMonth(timestamp(system.disk.used))",
+        "isTimeRangeFunc": false
+    },
+    {
+        "fn": "dayOfWeek",
+        "name": "Day of Week",
+        "desc": "Extracts the day of the week from a timestamp, represented as a number from 1 (Monday) to 7 (Sunday).",
+        "eg": "dayOfWeek(timestamp(system.disk.used))",
+        "isTimeRangeFunc": false
+    },
+    {
+        "fn": "dayOfYear",
+        "name": "Day of Year",
+        "desc": "Extracts the day of the year from a timestamp, represented as a number from 1 to 366.",
+        "eg": "dayOfYear(timestamp(system.disk.used))",
+        "isTimeRangeFunc": false
+    },
+    {
+        "fn": "daysInMonth",
+        "name": "Days in Month",
+        "desc": "Returns the number of days in the month of a timestamp.",
+        "eg": "daysInMonth(timestamp(system.disk.used))",
+        "isTimeRangeFunc": false
+    }
 ]`
 
 const PromQLBuildInfo = `{
