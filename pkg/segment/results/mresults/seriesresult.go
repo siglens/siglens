@@ -314,7 +314,7 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 		evaluate(ts, math.Atan)
 	case segutils.Atanh:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
-			if val < -1 || val > 1 {
+			if val <= -1 || val >= 1 {
 				return val, fmt.Errorf("evaluateWithErr: atanh evaluate values in the range [-1,1]")
 			}
 			return math.Atanh(val), nil
