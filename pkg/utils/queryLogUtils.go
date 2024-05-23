@@ -21,27 +21,56 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	log "github.com/sirupsen/logrus"
 )
 
-// Write to query.log in the following format
-// "Timestamp: <timeStamp>, User: <logged-in user>, URI: <request URI>, Request Body: <request body>"
+var (
+	logFile *os.File
+	mu      sync.Mutex
+)
+
+func init() {
+	var err error
+	logFile, err = os.OpenFile("query.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Errorf("Unable to open query.log file, err=%v", err)
+	} else {
+		logRestartMarker()
+	}
+}
+
+// logRestartMarker logs a marker indicating the application has restarted
+func logRestartMarker() {
+	if logFile == nil {
+		return
+	}
+	mu.Lock()
+	defer mu.Unlock()
+
+	restartTime := time.Now().Format("2006-01-02 15:04:05")
+	_, err := logFile.WriteString(fmt.Sprintf("===== Application Restarted at %s =====\n", restartTime))
+	if err != nil {
+		log.Errorf("Unable to write restart marker to query.log file, err=%v", err)
+	}
+}
+
 func AddQueryLogEntry(queryTimestamp time.Time, user string, uri string, requestBody string, allowWebsocket bool) {
+	if logFile == nil {
+		return
+	}
+	mu.Lock()
+	defer mu.Unlock()
+
 	data := dtypeutils.QueryLogData{
 		TimeStamp:   queryTimestamp.Format("2006-01-02 15:04:05"),
 		UserName:    user,
 		URI:         uri,
 		RequestBody: requestBody,
 	}
-
-	logFile, err := os.OpenFile("query.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Errorf("Unable to write to query.log file, err=%v", err)
-	}
-	defer logFile.Close()
 
 	// Do not log websocket connections, unless explicitly allowed.
 	if data.StatusCode == 101 && !allowWebsocket {
@@ -53,7 +82,7 @@ func AddQueryLogEntry(queryTimestamp time.Time, user string, uri string, request
 		return
 	}
 
-	_, err = logFile.WriteString(fmt.Sprintf("Timestamp: %s, User: %s, URI: %s, Request Body: %s\n",
+	_, err := logFile.WriteString(fmt.Sprintf("Timestamp: %s, User: %s, URI: %s, Request Body: %s\n",
 		data.TimeStamp,
 		data.UserName,
 		data.URI,
