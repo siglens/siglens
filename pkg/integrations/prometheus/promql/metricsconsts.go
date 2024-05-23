@@ -247,7 +247,7 @@ const metricFunctions = `[
 	{
 		"fn": "day_of_week",
 		"name": "Day of Week",
-		"desc": "Extracts the day of the week from a timestamp, represented as a number from 1 (Monday) to 7 (Sunday).",
+		"desc": "Extracts the day of the week from a timestamp, represented as a number from 0 (Sunday) to 6 inclusive.",
 		"eg": "day_of_week(timestamp(system.disk.used))",
 		"isTimeRangeFunc": false
 	},
