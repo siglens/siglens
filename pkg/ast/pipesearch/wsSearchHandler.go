@@ -48,6 +48,14 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		"access.log",
 	)
 
+	utils.AddQueryLogEntry(
+		time.Now(),
+		"No-user", // TODO : Add logged in user when user auth is implemented
+		ctx.Request.URI().String(),
+		fmt.Sprintf("%+v", event),
+		true, // Log this even though it's a websocket connection
+	)
+
 	if err != nil {
 		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: Failed to read initial event %+v!", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))

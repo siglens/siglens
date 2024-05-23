@@ -324,6 +324,13 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		false,
 		"access.log",
 	)
+	utils.AddQueryLogEntry(
+		time.Now(),
+		"No-user", // TODO : Add logged in user when user auth is implemented
+		ctx.Request.URI().String(),
+		string(ctx.PostBody()),
+		false,
+	)
 
 	dbPanelId := utils.ExtractParamAsString(ctx.UserValue("dbPanel-id"))
 	queryStart := time.Now()

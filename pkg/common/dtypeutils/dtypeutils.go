@@ -644,3 +644,11 @@ type AccessLogData struct {
 	StatusCode  int
 	Duration    int64
 }
+
+type QueryLogData struct {
+	TimeStamp   string
+	UserName    string
+	URI         string
+	RequestBody string
+	StatusCode  int
+}
