@@ -326,16 +326,17 @@ type RangeFunctions int
 
 const (
 	Derivative RangeFunctions = iota + 1
+	Predict_Linear
 	Rate
 	IRate
 	Increase
 	Delta
 	IDelta
-	Avg_Over_time
-	Min_Over_time
-	Max_Over_time
-	Sum_Over_time
-	Count_Over_time
+	Avg_Over_Time
+	Min_Over_Time
+	Max_Over_Time
+	Sum_Over_Time
+	Count_Over_Time
 	Stdvar_Over_Time
 	Stddev_Over_Time
 	Last_Over_Time

@@ -238,6 +238,13 @@ const metricFunctions = `[
 		"isTimeRangeFunc": true
 	},
 	{
+		"fn": "predict_linear", 
+		"name": "Predict Linear", 
+		"desc": "Predicts the value of time series t seconds from now, based on the range vector v", 
+		"eg": "predict_linear(avg (system.disk.used[60m]), 1000)",
+		"isTimeRangeFunc": true
+	},
+	{
 		"fn": "deriv", 
 		"name": "Derivative", 
 		"desc": "Calculates the per-second derivative of the time series in a range vector v, using simple linear regression", 
