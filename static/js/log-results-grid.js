@@ -119,11 +119,11 @@ let logsColumnDefs = [
                 if (key != 'logs' && selectedFieldsList.includes(key)) {
                     logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=`+ JSON.stringify(JSON.unflatten(value), null, 2)+`</span>`;                    
 
-                    counter++;
                 }
                 if (key === 'timestamp'){
                     logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${value}</span>`;
                 }
+                counter++;
             });
             return logString;
         },
@@ -258,14 +258,37 @@ function renderLogsGrid(columnOrder, hits){
             };
         }
     });
-    if(hits.length != 0){
-        logsRowData = _.concat(hits, logsRowData);
+    if (hits.length !== 0) {
+        // Map hits objects to match the order of columnsOrder
+        const mappedHits = hits.map(hit => {
+            const reorderedHit = {};
+            columnOrder.forEach(column => {
+                // Check if the property exists in the hit object
+                if (hit.hasOwnProperty(column)) {
+                    reorderedHit[column] = hit[column];
+                }
+            });
+            return reorderedHit;
+        });
+    
+        logsRowData = mappedHits.concat(logsRowData);
+
         if (liveTailState && logsRowData.length > 500){
             logsRowData = logsRowData.slice(0, 500);
         }
             
     }
-    logsColumnDefs = cols
+
+    const logsColumnDefsMap = new Map(logsColumnDefs.map(logCol => [logCol.field, logCol]));
+     // Use column def from logsColumnDefsMap if it exists, otherwise use the original column def from cols
+    const combinedColumnDefs = cols.map(col => logsColumnDefsMap.get(col.field) || col);
+    // Append any remaining column def from logsColumnDefs that were not in cols
+    logsColumnDefs.forEach(logCol => {
+        if (!combinedColumnDefs.some(col => col.field === logCol.field)) {
+            combinedColumnDefs.push(logCol);
+        }
+    });
+    logsColumnDefs = combinedColumnDefs;
     gridOptions.api.setColumnDefs(logsColumnDefs);
 
     const allColumnIds = [];
