@@ -120,6 +120,46 @@ func Test_applyRangeFunctionIRate(t *testing.T) {
 	assert.True(t, dtypeutils.AlmostEquals(val, 1.0/(9-8)))
 }
 
+func Test_applyRangeFunctionPredict_Linear(t *testing.T) {
+	// y = 2x + 1
+	timeSeries := map[uint32]float64{
+		1000: 1.0,
+		1001: 3.0,
+		1002: 5.0,
+		1003: 7.0,
+	}
+
+	result := make(map[string]map[uint32]float64)
+	result["metric"] = timeSeries
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	ans := map[uint32]float64{
+		1001: 3.0 + 2*1000,
+		1002: 5.0 + 2*1000,
+		1003: 7.0 + 2*1000,
+	}
+
+	function := structs.Function{RangeFunction: segutils.Predict_Linear, TimeWindow: 10, ValueList: []string{"1000"}}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if !dtypeutils.AlmostEquals(expectedVal, val) {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
 func Test_applyRangeFunctionIncrease(t *testing.T) {
 	timeSeries := map[uint32]float64{
 		1000: 0.0,
