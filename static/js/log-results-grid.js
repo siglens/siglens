@@ -20,6 +20,7 @@
 'use strict';
 
 let cellEditingClass = '';
+let isFetching = false; 
 
 class ReadOnlyCellEditor {
     // gets called once before the renderer is used
@@ -119,11 +120,11 @@ let logsColumnDefs = [
                 if (key != 'logs' && selectedFieldsList.includes(key)) {
                     logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=`+ JSON.stringify(JSON.unflatten(value), null, 2)+`</span>`;                    
 
-                    counter++;
                 }
                 if (key === 'timestamp'){
                     logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${value}</span>`;
                 }
+                counter++;
             });
             return logString;
         },
@@ -161,23 +162,34 @@ const gridOptions = {
     suppressAnimationFrame: true,
     suppressFieldDotNotation: true,
     onBodyScroll(evt){
-        if(evt.direction === 'vertical' && canScrollMore == true){
+        if(evt.direction === 'vertical' && canScrollMore && !isFetching) {
             let diff = logsRowData.length - evt.api.getLastDisplayedRow();
-            // if we're less than 1 items from the end...fetch more data
+            // if we're less than 5 items from the end...fetch more data
             if(diff <= 5) {
-                // Show loading indicator
+                isFetching = true;
                 showLoadingIndicator();
-                
+
                 let scrollingTrigger = true;
                 data = getSearchFilter(false, scrollingTrigger);
                 if (data && data.searchText == "error") {
                   alert("Error");
                   hideLoadingIndicator(); // Hide loading indicator on error
+                  isFetching = false;
                   return;
                 }
-                doSearch(data).then(() => {
-                    hideLoadingIndicator(); // Hide loading indicator once data is fetched
-                });
+
+                doSearch(data)
+                    .then(() => {
+                        isFetching = false;
+                    })
+                    .catch((error) => {
+                        console.warn("Error fetching data", error);
+                        isFetching = false;
+                    })
+                    .finally(() => {
+                        hideLoadingIndicator(); // Hide loading indicator once data is fetched
+                        isFetching = false;
+                    });
             }
         }
     },
@@ -258,14 +270,37 @@ function renderLogsGrid(columnOrder, hits){
             };
         }
     });
-    if(hits.length != 0){
-        logsRowData = _.concat(hits, logsRowData);
+    if (hits.length !== 0) {
+        // Map hits objects to match the order of columnsOrder
+        const mappedHits = hits.map(hit => {
+            const reorderedHit = {};
+            columnOrder.forEach(column => {
+                // Check if the property exists in the hit object
+                if (hit.hasOwnProperty(column)) {
+                    reorderedHit[column] = hit[column];
+                }
+            });
+            return reorderedHit;
+        });
+    
+        logsRowData = mappedHits.concat(logsRowData);
+
         if (liveTailState && logsRowData.length > 500){
             logsRowData = logsRowData.slice(0, 500);
         }
             
     }
-    logsColumnDefs = cols
+
+    const logsColumnDefsMap = new Map(logsColumnDefs.map(logCol => [logCol.field, logCol]));
+     // Use column def from logsColumnDefsMap if it exists, otherwise use the original column def from cols
+    const combinedColumnDefs = cols.map(col => logsColumnDefsMap.get(col.field) || col);
+    // Append any remaining column def from logsColumnDefs that were not in cols
+    logsColumnDefs.forEach(logCol => {
+        if (!combinedColumnDefs.some(col => col.field === logCol.field)) {
+            combinedColumnDefs.push(logCol);
+        }
+    });
+    logsColumnDefs = combinedColumnDefs;
     gridOptions.api.setColumnDefs(logsColumnDefs);
 
     const allColumnIds = [];

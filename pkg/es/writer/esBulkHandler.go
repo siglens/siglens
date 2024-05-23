@@ -333,15 +333,16 @@ func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 	inIndexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
 
 	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid)
-
+	responseBody := make(map[string]interface{})
 	if indicesNotFound == len(convertedIndexNames) {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		responseBody := make(map[string]interface{})
 		responseBody["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
 		utils.WriteJsonResponse(ctx, responseBody)
 		return
 	} else {
 		ctx.SetStatusCode(fasthttp.StatusOK)
+		responseBody["message"] = "Index deleted successfully"
+		utils.WriteJsonResponse(ctx, responseBody)
 	}
 }
 

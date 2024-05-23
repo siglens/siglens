@@ -765,7 +765,7 @@ function showDeleteIndexToast(msg) {
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
     <div>`
-    $('.index-header').append(toast);
+    $('#logs-stats-header').append(toast);
     $('.toast-close').on('click', removeToast);
     setTimeout(removeToast, 3000);
 }

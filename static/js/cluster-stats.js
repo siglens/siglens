@@ -20,7 +20,6 @@
 'use strict';
 
 let EventCountChart;
- 
 $(document).ready(() => {
     $('#app-content-area').hide();
     setupEventHandlers();
@@ -38,6 +37,8 @@ $(document).ready(() => {
     let data = getTimeRange();
     renderClusterStatsTables();
     renderChart();
+    $('#cancel-del-index-btn, .usage-stats .popupOverlay').on('click', hidePopUpsOnUsageStats);
+    $('.toast-close').on('click', removeToast);
 
     {{ .Button1Function }}
 });
@@ -480,7 +481,7 @@ function processClusterStats(res) {
                     const avgLatency = Math.round(numericPart); 
                     tr.append('<td class="health-stats-value">' + avgLatency + ' ms</td>');
                 }
-                else 
+                else
                     tr.append('<td class="health-stats-value">' + v.toLocaleString() + '</td>');
                 table.find("tbody").append(tr);
             });
@@ -491,9 +492,8 @@ function processClusterStats(res) {
         'Index Name',
         'Incoming Volume',
         'Event Count',
+        ''
     ];
-
-    {{ .ClusterStatsAdminView }}
 
     let indexdataTableColumns = columnOrder.map((columnName, index) => {
         let title = `<div class="grid"><div>${columnName}&nbsp;</div><div><i data-index="${index}"></i></div></div>`;
@@ -541,7 +541,7 @@ function processClusterStats(res) {
                     let l = parseFloat(v.ingestVolume)
                     currRow[1] = Number(`${l >= 10 ? l.toFixed().toLocaleString("en-US") : l}`) + '  GB';
                     currRow[2] = `${v.eventCount}`;
-                    {{ .ClusterStatsAdminButton }}
+                    currRow[3] = `<button class="btn-simple index-del-btn" id="index-del-btn-${k}"></button>`
 
                     totalIngestVolume += parseFloat(`${v.ingestVolume}`);
                     totalEventCount += parseInt(`${v.eventCount}`.replaceAll(',',''));
@@ -566,18 +566,80 @@ function processClusterStats(res) {
         indexDataTable.draw();
         metricsDataTable.draw();
     }
+    let currRowIndex = null;
 
-    {{ if .ClusterStatsCallDisplayRows }}
-        {{ .ClusterStatsCallDisplayRows }}
-    {{ else }}
-        setTimeout(() => {
-            displayIndexDataRows(res);
-        }, 0);
-    {{ end }}
+    setTimeout(() => {
+        displayIndexDataRows(res);
+        $('#index-data-table tbody').on( 'click', 'button', function () {
+            currRowIndex = $(this).closest('tr').index();
+        });
+        let delBtns = $('#index-data-table tbody button')
+        delBtns.each((i, btn)=> {
+        let indexName = ($(btn).attr('id')).split('index-del-btn-')[1];
+        $(btn).on('click', () => showDelIndexPopup(indexName, currRowIndex));
+    })}, 0);
+
+
+
+    function showDelIndexPopup(indexName) {
+        let allowDelete = false;
+        $("#del-index-name-input").keyup((e) => confirmIndexDeletion(e, indexName, allowDelete));
+        $('#del-index-btn').attr("disabled", true);
+        $('#del-index-name-input').val('');
+        $('.popupOverlay, .popupContent').addClass('active');
+        $('#confirm-del-index-prompt').show();
+        $('.del-org-prompt-text-container span').html(indexName);
+    }
+
+    function confirmIndexDeletion(e, indexName, allowDelete) {
+        if(e) e.stopPropagation();
+        if($('#del-index-name-input').val().trim() === ("delete " + indexName )) {
+            $('#del-index-btn').attr("disabled", false);
+            allowDelete = true;
+        } else {
+            $('#del-index-btn').attr("disabled", true);
+            allowDelete = false;
+        }
+        if(allowDelete) {
+            $('#del-index-btn').off('click');
+            $('#del-index-btn').on('click', () => deleteIndex(e, indexName));
+        } else {
+            $('#del-index-btn').off('click');
+        }
+    }
+
+    function deleteIndex(e, indexName) {
+        if(e) e.stopPropagation();
+        $.ajax({
+            method: 'post',
+            url: 'api/deleteIndex/' + indexName,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': '*/*'
+            },
+            crossDomain: true,
+            dataType: 'json',
+        })
+            .then(function (res) { 
+                hidePopUpsOnUsageStats();
+                indexDataTable.row(`:eq(${currRowIndex})`).remove().draw();
+                showDeleteIndexToast('Index Deleted Successfully');
+            })
+            .catch((err) => {
+                hidePopUpsOnUsageStats();
+                showDeleteIndexToast('Error Deleting Index');
+            })
+    }
 
 }
 
-
+function hidePopUpsOnUsageStats() {
+    $('.popupOverlay, .popupContent').removeClass('active');
+    $('#confirm-del-index-prompt').hide();
+    $('#del-index-name-input').val('');
+    $('#del-index-btn').attr("disabled", true);
+    $('#del-index-btn').off('click');
+}
 
 function renderClusterStatsTables() {
     {{ .ClusterStatsSetUserRole }}
