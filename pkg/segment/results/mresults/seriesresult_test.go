@@ -23,6 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -1387,6 +1388,115 @@ func Test_applyMathFunctionRad(t *testing.T) {
 			if val != expectedVal {
 				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
 			}
+		}
+	}
+}
+
+func Test_applyTrigonometricFunctionCos(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Cos, segutils.Cos, false)
+}
+
+func Test_applyTrigonometricFunctionCosh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Cosh, segutils.Cosh, false)
+}
+
+func Test_applyTrigonometricFunctionSin(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Sin, segutils.Sin, false)
+}
+
+func Test_applyTrigonometricFunctionSinh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Sinh, segutils.Sinh, false)
+}
+
+func Test_applyTrigonometricFunctionTan(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Tan, segutils.Tan, false)
+}
+
+func Test_applyTrigonometricFunctionTanh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Tanh, segutils.Tanh, false)
+}
+
+func Test_applyTrigonometricFunctionAsinh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Asinh, segutils.Asinh, false)
+}
+
+func Test_applyTrigonometricFunctionAtan(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Atan, segutils.Atan, false)
+}
+
+func Test_applyTrigonometricFunctionAcos(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Acos, segutils.Acos, true)
+}
+
+func Test_applyTrigonometricFunctionAsin(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Asin, segutils.Asin, true)
+}
+
+func Test_applyTrigonometricFunctionAtanh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Atanh, segutils.Atanh, true)
+}
+
+func Test_applyTrigonometricFunctionAcosh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Acosh, segutils.Acosh, true)
+}
+
+func runTrigonometricFunctionTest(t *testing.T, mathFunc float64Func, mathFunction utils.MathFunctions, testError bool) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+
+	// Define initial values based on whether we're testing an error case
+	if mathFunction == utils.Acosh {
+		ts[1] = 1.255
+		ts[2] = 6
+		ts[3] = 2.465
+	} else if testError {
+		ts[1] = 0.255
+		ts[2] = 0.6
+		ts[3] = -0.2465
+	} else {
+		ts[1] = -0.255
+		ts[2] = 0.6
+		ts[3] = 11.2465
+	}
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	for key, val := range ts {
+		ans[key] = mathFunc(val)
+	}
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: mathFunction}
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+
+	if testError {
+		// Modify values to trigger error
+		ts[3] = -10.2465
+		err = metricsResults.ApplyFunctionsToResults(8, function)
+		assert.NotNil(t, err)
+	} else {
+		// Add specific test for acosh case where valid input should be > 1
+		if mathFunction == utils.Acosh {
+			ts[3] = 0.2465
+			err = metricsResults.ApplyFunctionsToResults(8, function)
+			assert.NotNil(t, err)
 		}
 	}
 }
