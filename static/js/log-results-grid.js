@@ -175,7 +175,12 @@ const gridOptions = {
                   hideLoadingIndicator(); // Hide loading indicator on error
                   return;
                 }
-                doSearch(data).then(() => {
+
+                doSearch(data)
+                .catch((error) => {
+                    console.warn("Error fetching data", error);
+                })
+                .finally(() => {
                     hideLoadingIndicator(); // Hide loading indicator once data is fetched
                 });
             }
