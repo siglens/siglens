@@ -373,29 +373,40 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			}
 
 			timestamp := sortedTimeSeries[i].downsampledTime
-
-			// Find neighboring data points for linear regression
-			var x []float64
-			var y []float64
-
-			// Collect data points for linear regression
-			for j := preIndex; j <= i; j++ {
-				x = append(x, float64(sortedTimeSeries[j].downsampledTime))
-				y = append(y, sortedTimeSeries[j].dpVal)
-			}
-
-			var sumX, sumY, sumXY, sumX2 float64
-			for k := 0; k < len(x); k++ {
-				sumX += x[k]
-				sumY += y[k]
-				sumXY += x[k] * y[k]
-				sumX2 += x[k] * x[k]
-			}
-			n := float64(len(x))
-			slope := (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX)
+			slope := getSlopeByLinearRegression(sortedTimeSeries, preIndex, i)
 			ts[timestamp] = slope
 		}
 		// derivtives at edges do not exist
+		delete(ts, sortedTimeSeries[0].downsampledTime)
+		return ts, nil
+	case segutils.Predict_Linear:
+		if len(function.ValueList) != 1 {
+			return ts, fmt.Errorf("ApplyRangeFunction: predict_linear has incorrect parameters: %v", function.ValueList)
+		}
+
+		floatVal, err := strconv.ParseFloat(function.ValueList[0], 64)
+		if err != nil {
+			return ts, fmt.Errorf("ApplyRangeFunction: predict_linear has incorrect parameters: %v", function.ValueList)
+		}
+
+		predictDuration := uint32(floatVal)
+
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				delete(ts, sortedTimeSeries[i].downsampledTime)
+				continue
+			}
+
+			timestamp := sortedTimeSeries[i].downsampledTime
+
+			slope := getSlopeByLinearRegression(sortedTimeSeries, preIndex, i)
+			ts[timestamp] = sortedTimeSeries[i].dpVal + float64(predictDuration)*slope
+		}
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
 	case segutils.Rate:
@@ -951,4 +962,27 @@ func evaluateStandardVariance(sortedTimeSeries []Entry, ts map[uint32]float64, t
 		ts[sortedTimeSeries[i].downsampledTime] = sumValSquare / float64(i-preIndex+1)
 	}
 	return ts
+}
+
+func getSlopeByLinearRegression(sortedTimeSeries []Entry, preIndex int, i int) float64 {
+	// Find neighboring data points for linear regression
+	var x []float64
+	var y []float64
+
+	// Collect data points for linear regression
+	for j := preIndex; j <= i; j++ {
+		x = append(x, float64(sortedTimeSeries[j].downsampledTime))
+		y = append(y, sortedTimeSeries[j].dpVal)
+	}
+
+	var sumX, sumY, sumXY, sumX2 float64
+	for k := 0; k < len(x); k++ {
+		sumX += x[k]
+		sumY += y[k]
+		sumXY += x[k] * y[k]
+		sumX2 += x[k] * x[k]
+	}
+	n := float64(len(x))
+	slope := (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX)
+	return slope
 }
