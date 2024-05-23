@@ -1016,6 +1016,11 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				switch function {
 				case "deriv":
 					mquery.Function = structs.Function{RangeFunction: segutils.Derivative, TimeWindow: timeWindow}
+				case "predict_linear":
+					if len(expr.Args) != 2 {
+						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the predict_linear function", expr.Args.String())
+					}
+					mquery.Function = structs.Function{RangeFunction: segutils.Predict_Linear, TimeWindow: timeWindow, ValueList: []string{expr.Args[1].String()}}
 				case "delta":
 					mquery.Function = structs.Function{RangeFunction: segutils.Delta, TimeWindow: timeWindow}
 				case "idelta":

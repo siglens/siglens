@@ -314,6 +314,7 @@ type RangeFunctions int
 
 const (
 	Derivative RangeFunctions = iota + 1
+	Predict_Linear
 	Rate
 	IRate
 	Increase
