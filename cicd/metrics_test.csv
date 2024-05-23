@@ -50,3 +50,4 @@ day_of_year(testmetric0),now-90d,now,"367,367,367",lt
 day_of_year(testmetric0),now-90d,now,"0,0,0",gt
 days_in_month(testmetric0),now-90d,now,"32,32,32",lt
 days_in_month(testmetric0),now-90d,now,"27,27,27",gt
+"predict_linear(testmetric0[48h], 1000000)",now-7d,now,"76.28998388512214,322.0191498768958",approx

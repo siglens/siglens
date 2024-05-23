@@ -122,6 +122,46 @@ func Test_applyRangeFunctionIRate(t *testing.T) {
 	assert.True(t, dtypeutils.AlmostEquals(val, 1.0/(9-8)))
 }
 
+func Test_applyRangeFunctionPredict_Linear(t *testing.T) {
+	// y = 2x + 1
+	timeSeries := map[uint32]float64{
+		1000: 1.0,
+		1001: 3.0,
+		1002: 5.0,
+		1003: 7.0,
+	}
+
+	result := make(map[string]map[uint32]float64)
+	result["metric"] = timeSeries
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	ans := map[uint32]float64{
+		1001: 3.0 + 2*1000,
+		1002: 5.0 + 2*1000,
+		1003: 7.0 + 2*1000,
+	}
+
+	function := structs.Function{RangeFunction: segutils.Predict_Linear, TimeWindow: 10, ValueList: []string{"1000"}}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if !dtypeutils.AlmostEquals(expectedVal, val) {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
 func Test_applyRangeFunctionIncrease(t *testing.T) {
 	timeSeries := map[uint32]float64{
 		1000: 0.0,
@@ -320,7 +360,7 @@ func Test_applyRangeFunctionAvg(t *testing.T) {
 		1035: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Avg_Over_time, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Avg_Over_Time, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
@@ -363,7 +403,7 @@ func Test_applyRangeFunctionMin(t *testing.T) {
 		1025: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Min_Over_time, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Min_Over_Time, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
@@ -406,7 +446,7 @@ func Test_applyRangeFunctionMax(t *testing.T) {
 		1025: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Max_Over_time, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Max_Over_Time, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
@@ -449,7 +489,7 @@ func Test_applyRangeFunctionSum(t *testing.T) {
 		1025: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Sum_Over_time, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Sum_Over_Time, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
@@ -492,7 +532,7 @@ func Test_applyRangeFunctionCount(t *testing.T) {
 		1025: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Count_Over_time, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
@@ -1389,6 +1429,115 @@ func Test_applyMathFunctionRad(t *testing.T) {
 			if val != expectedVal {
 				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
 			}
+		}
+	}
+}
+
+func Test_applyTrigonometricFunctionCos(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Cos, segutils.Cos, false)
+}
+
+func Test_applyTrigonometricFunctionCosh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Cosh, segutils.Cosh, false)
+}
+
+func Test_applyTrigonometricFunctionSin(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Sin, segutils.Sin, false)
+}
+
+func Test_applyTrigonometricFunctionSinh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Sinh, segutils.Sinh, false)
+}
+
+func Test_applyTrigonometricFunctionTan(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Tan, segutils.Tan, false)
+}
+
+func Test_applyTrigonometricFunctionTanh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Tanh, segutils.Tanh, false)
+}
+
+func Test_applyTrigonometricFunctionAsinh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Asinh, segutils.Asinh, false)
+}
+
+func Test_applyTrigonometricFunctionAtan(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Atan, segutils.Atan, false)
+}
+
+func Test_applyTrigonometricFunctionAcos(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Acos, segutils.Acos, true)
+}
+
+func Test_applyTrigonometricFunctionAsin(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Asin, segutils.Asin, true)
+}
+
+func Test_applyTrigonometricFunctionAtanh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Atanh, segutils.Atanh, true)
+}
+
+func Test_applyTrigonometricFunctionAcosh(t *testing.T) {
+	runTrigonometricFunctionTest(t, math.Acosh, segutils.Acosh, true)
+}
+
+func runTrigonometricFunctionTest(t *testing.T, mathFunc float64Func, mathFunction utils.MathFunctions, testError bool) {
+	result := make(map[string]map[uint32]float64)
+	ts := make(map[uint32]float64)
+
+	// Define initial values based on whether we're testing an error case
+	if mathFunction == utils.Acosh {
+		ts[1] = 1.255
+		ts[2] = 6
+		ts[3] = 2.465
+	} else if testError {
+		ts[1] = 0.255
+		ts[2] = 0.6
+		ts[3] = -0.2465
+	} else {
+		ts[1] = -0.255
+		ts[2] = 0.6
+		ts[3] = 11.2465
+	}
+
+	result["metric"] = ts
+	ans := make(map[uint32]float64)
+	for key, val := range ts {
+		ans[key] = mathFunc(val)
+	}
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	function := structs.Function{MathFunction: mathFunction}
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if val != expectedVal {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+
+	if testError {
+		// Modify values to trigger error
+		ts[3] = -10.2465
+		err = metricsResults.ApplyFunctionsToResults(8, function)
+		assert.NotNil(t, err)
+	} else {
+		// Add specific test for acosh case where valid input should be > 1
+		if mathFunction == utils.Acosh {
+			ts[3] = 0.2465
+			err = metricsResults.ApplyFunctionsToResults(8, function)
+			assert.NotNil(t, err)
 		}
 	}
 }
