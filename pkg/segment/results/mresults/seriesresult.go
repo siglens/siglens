@@ -795,54 +795,47 @@ func evaluate(ts map[uint32]float64, mathFunc float64Func) {
 	}
 }
 
-type uint32Func func(uint32) float64
+type timeFunc func(time.Time) float64
 
-func evaluateTimeFunc(allDPs map[uint32]float64, timeFunc uint32Func) {
+func evaluateTimeFunc(allDPs map[uint32]float64, timeFunc timeFunc) {
 	for dpTs := range allDPs {
-		allDPs[dpTs] = timeFunc(dpTs)
+		t := time.Unix(int64(dpTs), 0).UTC()
+		allDPs[dpTs] = timeFunc(t)
 	}
 }
 
 func ApplyTimeFunction(allDPs map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
 	switch function.TimeFunction {
 	case segutils.Hour:
-		evaluateTimeFunc(allDPs, func(dpTs uint32) float64 {
-			t := time.Unix(int64(dpTs), 0).UTC()
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.Hour())
 		})
 	case segutils.Minute:
-		evaluateTimeFunc(allDPs, func(dpTs uint32) float64 {
-			t := time.Unix(int64(dpTs), 0).UTC()
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.Minute())
 		})
 	case segutils.Month:
-		evaluateTimeFunc(allDPs, func(dpTs uint32) float64 {
-			t := time.Unix(int64(dpTs), 0).UTC()
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.Month())
 		})
 	case segutils.Year:
-		evaluateTimeFunc(allDPs, func(dpTs uint32) float64 {
-			t := time.Unix(int64(dpTs), 0).UTC()
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.Year())
 		})
 	case segutils.DayOfMonth:
-		evaluateTimeFunc(allDPs, func(dpTs uint32) float64 {
-			t := time.Unix(int64(dpTs), 0).UTC()
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.Day())
 		})
 	case segutils.DayOfWeek:
-		evaluateTimeFunc(allDPs, func(dpTs uint32) float64 {
-			t := time.Unix(int64(dpTs), 0).UTC()
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.Weekday())
 		})
 	case segutils.DayOfYear:
-		evaluateTimeFunc(allDPs, func(dpTs uint32) float64 {
-			t := time.Unix(int64(dpTs), 0).UTC()
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(t.YearDay())
 		})
 	case segutils.DaysInMonth:
-		evaluateTimeFunc(allDPs, func(dpTs uint32) float64 {
-			t := time.Unix(int64(dpTs), 0).UTC()
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
 			return float64(time.Date(t.Year(), t.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day())
 		})
 	default:

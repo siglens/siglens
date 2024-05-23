@@ -210,65 +210,65 @@ const metricFunctions = `[
 		"isTimeRangeFunc": true
 	},
 	{
-        "fn": "hour",
-        "name": "Hour",
-        "desc": "Extracts the hour of a timestamp, represented as the number of hours since midnight.",
-        "eg": "hour(timestamp(system.disk.used))",
-        "isTimeRangeFunc": false
-    },
-    {
-        "fn": "minute",
-        "name": "Minute",
-        "desc": "Extracts the minute of a timestamp, represented as the number of minutes since the last hour.",
-        "eg": "minute(timestamp(system.disk.used))",
-        "isTimeRangeFunc": false
-    },
-    {
-        "fn": "month",
-        "name": "Month",
-        "desc": "Extracts the month of a timestamp, represented as a number from 1 (January) to 12 (December).",
-        "eg": "month(timestamp(system.disk.used))",
-        "isTimeRangeFunc": false
-    },    
+		"fn": "hour",
+		"name": "Hour",
+		"desc": "Extracts the hour of a timestamp, represented as the number of hours since midnight.",
+		"eg": "hour(timestamp(system.disk.used))",
+		"isTimeRangeFunc": false
+	},
 	{
-        "fn": "year",
-        "name": "Year",
-        "desc": "Extracts the year of a timestamp.",
-        "eg": "year(timestamp(system.disk.used))",
-        "isTimeRangeFunc": false
-    },
-    {
-        "fn": "day_of_month",
-        "name": "Day of Month",
-        "desc": "Extracts the day of the month from a timestamp, represented as a number from 1 to 31.",
-        "eg": "day_of_month(timestamp(system.disk.used))",
-        "isTimeRangeFunc": false
-    },
-    {
-        "fn": "day_of_week",
-        "name": "Day of Week",
-        "desc": "Extracts the day of the week from a timestamp, represented as a number from 1 (Monday) to 7 (Sunday).",
-        "eg": "day_of_week(timestamp(system.disk.used))",
-        "isTimeRangeFunc": false
-    },
-    {
-        "fn": "day_of_year",
-        "name": "Day of Year",
-        "desc": "Extracts the day of the year from a timestamp, represented as a number from 1 to 366.",
-        "eg": "day_of_year(timestamp(system.disk.used))",
-        "isTimeRangeFunc": false
-    },
-    {
-        "fn": "days_in_month",
-        "name": "Days in Month",
-        "desc": "Returns the number of days in the month of a timestamp.",
-        "eg": "days_in_month(timestamp(system.disk.used))",
-        "isTimeRangeFunc": false
-    },
-    {
-    	"fn": "quantile_over_time", 
-		"name": "Quantile Over Time", 
-		"desc": "The φ-quantile (0 ≤ φ ≤ 1) of the values in the specified interval.", 
+		"fn": "minute",
+		"name": "Minute",
+		"desc": "Extracts the minute of a timestamp, represented as the number of minutes since the last hour.",
+		"eg": "minute(timestamp(system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "month",
+		"name": "Month",
+		"desc": "Extracts the month of a timestamp, represented as a number from 1 (January) to 12 (December).",
+		"eg": "month(timestamp(system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "year",
+		"name": "Year",
+		"desc": "Extracts the year of a timestamp.",
+		"eg": "year(timestamp(system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "day_of_month",
+		"name": "Day of Month",
+		"desc": "Extracts the day of the month from a timestamp, represented as a number from 1 to 31.",
+		"eg": "day_of_month(timestamp(system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "day_of_week",
+		"name": "Day of Week",
+		"desc": "Extracts the day of the week from a timestamp, represented as a number from 1 (Monday) to 7 (Sunday).",
+		"eg": "day_of_week(timestamp(system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "day_of_year",
+		"name": "Day of Year",
+		"desc": "Extracts the day of the year from a timestamp, represented as a number from 1 to 366.",
+		"eg": "day_of_year(timestamp(system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "days_in_month",
+		"name": "Days in Month",
+		"desc": "Returns the number of days in the month of a timestamp.",
+		"eg": "days_in_month(timestamp(system.disk.used))",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "quantile_over_time",
+		"name": "Quantile Over Time",
+		"desc": "The φ-quantile (0 ≤ φ ≤ 1) of the values in the specified interval.",
 		"eg": "quantile_over_time(0.6, avg (system.disk.used[5m]))",
 		"isTimeRangeFunc": true
 	},
