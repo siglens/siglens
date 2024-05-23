@@ -62,8 +62,6 @@ var metric_value_histogram_keyname = []byte("histogram")
 var metric_value_summary_keyname = []byte("summary")
 var otsdb_tags = []byte("tags")
 
-var influx_value = "value"
-
 var tags_separator = []byte("__")
 
 var TAGS_TREE_FLUSH_SLEEP_DURATION = 60 // 1 min
@@ -642,18 +640,21 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	}
 }
 
-// for an input raw csv row []byte, return the metric name, datapoint value, timestamp (ignored), all tags, and any errors occurred
-// The metric name is returned as a raw []byte
-// The tags
-func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uint32, error) {
+// for an input raw csv row []byte; extract the metric name, datapoint value, timestamp, all tags
+// Call the EncodeDatapoint function to add the datapoint to the respective series
+// Return the number of datapoints ingested and any errors encountered
+func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint64) (uint32, []error) {
 
-	var mName []byte
-	var dpVal float64
 	var ts uint32 = uint32(time.Now().Unix())
-	var err error
+	var measurement string
+
+	ingestedCount := uint32(0)
+	errors := make([]error, 0)
 
 	reader := csv.NewReader(bytes.NewBuffer(rawCSV))
 	inserted_tags := ""
+
+	size := uint64(len(rawCSV))
 
 	for {
 		record, err := reader.Read()
@@ -662,7 +663,8 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 			if err == io.EOF {
 				break // End of file
 			}
-			return nil, 0, 0, err
+			errors = append(errors, err)
+			return 0, errors
 
 		} else {
 			line := strings.Join(record, ",")
@@ -679,9 +681,15 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 			}
 			for index, value := range tag_set {
 				if index == 0 {
-					mName = []byte(value)
+					// db/measurement name
+					measurement = value
+					continue
 				} else {
 					kvPair := strings.Split(value, "=")
+					if len(kvPair) < 2 {
+						errors = append(errors, fmt.Errorf("tag key value pair is not valid for tag: %v", value))
+						continue
+					}
 					key := kvPair[0]
 					value = kvPair[1]
 					tags.Insert(key, []byte(value), jp.String)
@@ -690,16 +698,28 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 				}
 			}
 
-			for _, value := range field_set {
-				kvPair := strings.Split(value, "=")
-				key := kvPair[0]
-				value = kvPair[1]
-				if key == influx_value {
-					fltVal, err := strconv.ParseFloat(value, 64)
-					if err != nil {
-						return nil, 0, 0, fmt.Errorf("failed to convert value to float! %+v", err)
-					}
-					dpVal = fltVal
+			for _, metricValueSet := range field_set {
+				kvPair := strings.Split(metricValueSet, "=")
+				if len(kvPair) < 2 {
+					errors = append(errors, fmt.Errorf("metric key value pair is not valid for metric: %v", metricValueSet))
+					continue
+				}
+				metricName := fmt.Sprintf(`%s_%s`, measurement, kvPair[0])
+				metricValue := kvPair[1]
+
+				parsedVal, err := parseInfluxValue(metricValue)
+				if err != nil {
+					errors = append(errors, err)
+					continue
+				}
+
+				err = EncodeDatapoint([]byte(metricName), tags, parsedVal, ts, size, orgid)
+				if err != nil {
+					errors = append(errors, err)
+					continue
+				} else {
+					size = 0
+					ingestedCount++
 				}
 			}
 
@@ -707,8 +727,34 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 
 	}
 
-	return mName, dpVal, ts, err
+	return ingestedCount, errors
 
+}
+
+func parseInfluxValue(value string) (float64, error) {
+	fltVal, err := strconv.ParseFloat(value, 64)
+	if err == nil {
+		return fltVal, nil
+	}
+
+	// parse the value as a integer.
+	lastChar := value[len(value)-1:]
+	if lastChar == "i" || lastChar == "u" {
+		intVal, err := strconv.ParseInt(value[:len(value)-1], 10, 64)
+		if err == nil {
+			return float64(intVal), nil
+		}
+	}
+
+	// parse the value as a boolean.
+	tempVal := strings.ToLower(value)
+	if tempVal == "t" || tempVal == "true" {
+		return 1, nil
+	} else if tempVal == "f" || tempVal == "false" {
+		return 0, nil
+	}
+
+	return 0, fmt.Errorf("the value is not a valid float, int, or bool. value: %s", value)
 }
 
 // extracts raw []byte from the read tags objects and returns it as []*tagsHolder
@@ -828,10 +874,6 @@ func (ts *TimeSeries) AddSingleEntry(dpVal float64, dpTS uint32) (uint64, error)
 			return writtenBytes, err
 		}
 	} else {
-		if ts.lastKnownTS >= dpTS {
-			log.Errorf("timestamp is older than last known timestamp: %d, current: %d", ts.lastKnownTS, dpTS)
-			return writtenBytes, fmt.Errorf("timestamp is older than last known timestamp: %d, current: %d", ts.lastKnownTS, dpTS)
-		}
 		writtenBytes, err = ts.compressor.Compress(dpTS, dpVal)
 		if err != nil {
 			log.Errorf("error encoding timestamp! Error: %+v", err)

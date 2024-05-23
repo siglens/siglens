@@ -21,11 +21,15 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
 
 const TOLERANCE = 0.000001
+const MIN_IN_SEC = 60
+const HOUR_IN_SEC = 3600
+const DAY_IN_SEC = 86400
 
 // Only string comparisons for equality are allowed
 func VerifyInequalityForStr(actual string, relation, expected string) (bool, error) {
@@ -72,4 +76,37 @@ func VerifyInequality(actual float64, relation, expected string) (bool, error) {
 		return false, fmt.Errorf("verifyInequality: Invalid relation: %v", relation)
 	}
 	return false, nil
+}
+
+func ConvertStringToEpochSec(nowTs uint64, inp string, defValue uint64) uint64 {
+	sanTime := strings.ReplaceAll(inp, " ", "")
+
+	if sanTime == "now" {
+		return nowTs
+	}
+
+	retVal := defValue
+
+	strln := len(sanTime)
+	if strln < 6 {
+		return retVal
+	}
+
+	unit := sanTime[strln-1]
+	num, err := strconv.ParseInt(sanTime[4:strln-1], 0, 64)
+	if err != nil {
+		return defValue
+	}
+
+	switch unit {
+	case 'm':
+		retVal = nowTs - MIN_IN_SEC*uint64(num)
+	case 'h':
+		retVal = nowTs - HOUR_IN_SEC*uint64(num)
+	case 'd':
+		retVal = nowTs - DAY_IN_SEC*uint64(num)
+	default:
+		log.Errorf("convertStringToEpochSec: Unknown time unit %v", unit)
+	}
+	return retVal
 }
