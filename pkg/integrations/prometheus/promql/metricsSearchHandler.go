@@ -1086,6 +1086,30 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Function = structs.Function{MathFunction: segutils.Deg}
 				case "rad":
 					mquery.Function = structs.Function{MathFunction: segutils.Rad}
+				case "acos":
+					mquery.Function = structs.Function{MathFunction: segutils.Acos}
+				case "acosh":
+					mquery.Function = structs.Function{MathFunction: segutils.Acosh}
+				case "asin":
+					mquery.Function = structs.Function{MathFunction: segutils.Asin}
+				case "asinh":
+					mquery.Function = structs.Function{MathFunction: segutils.Asinh}
+				case "atan":
+					mquery.Function = structs.Function{MathFunction: segutils.Atan}
+				case "atanh":
+					mquery.Function = structs.Function{MathFunction: segutils.Atanh}
+				case "cos":
+					mquery.Function = structs.Function{MathFunction: segutils.Cos}
+				case "cosh":
+					mquery.Function = structs.Function{MathFunction: segutils.Cosh}
+				case "sin":
+					mquery.Function = structs.Function{MathFunction: segutils.Sin}
+				case "sinh":
+					mquery.Function = structs.Function{MathFunction: segutils.Sinh}
+				case "tan":
+					mquery.Function = structs.Function{MathFunction: segutils.Tan}
+				case "tanh":
+					mquery.Function = structs.Function{MathFunction: segutils.Tanh}
 				case "clamp":
 					if len(expr.Args) != 3 {
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp function", expr.Args.String())
