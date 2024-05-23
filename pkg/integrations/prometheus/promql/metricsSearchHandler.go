@@ -1027,15 +1027,15 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				case "increase":
 					mquery.Function = structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow}
 				case "avg_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Avg_Over_time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: segutils.Avg_Over_Time, TimeWindow: timeWindow}
 				case "min_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Min_Over_time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: segutils.Min_Over_Time, TimeWindow: timeWindow}
 				case "max_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Max_Over_time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: segutils.Max_Over_Time, TimeWindow: timeWindow}
 				case "sum_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Sum_Over_time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: segutils.Sum_Over_Time, TimeWindow: timeWindow}
 				case "count_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Count_Over_time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: timeWindow}
 				case "stdvar_over_time":
 					mquery.Function = structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: timeWindow}
 				case "stddev_over_time":

@@ -522,7 +522,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i] - prefixSum[preIndex]
 		}
 		return ts, nil
-	case segutils.Avg_Over_time:
+	case segutils.Avg_Over_Time:
 		prefixSum := make([]float64, len(sortedTimeSeries)+1)
 		prefixSum[1] = sortedTimeSeries[0].dpVal
 		for i := 1; i < len(sortedTimeSeries); i++ {
@@ -542,7 +542,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[sortedTimeSeries[i].downsampledTime] = (prefixSum[i+1] - prefixSum[preIndex]) / float64(i-preIndex+1)
 		}
 		return ts, nil
-	case segutils.Min_Over_time:
+	case segutils.Min_Over_Time:
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
 			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
@@ -557,7 +557,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[sortedTimeSeries[i].downsampledTime] = min
 		}
 		return ts, nil
-	case segutils.Max_Over_time:
+	case segutils.Max_Over_Time:
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
 			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
@@ -572,7 +572,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[sortedTimeSeries[i].downsampledTime] = max
 		}
 		return ts, nil
-	case segutils.Sum_Over_time:
+	case segutils.Sum_Over_Time:
 		prefixSum := make([]float64, len(sortedTimeSeries)+1)
 		prefixSum[1] = sortedTimeSeries[0].dpVal
 		for i := 1; i < len(sortedTimeSeries); i++ {
@@ -592,7 +592,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i+1] - prefixSum[preIndex]
 		}
 		return ts, nil
-	case segutils.Count_Over_time:
+	case segutils.Count_Over_Time:
 		ts[sortedTimeSeries[0].downsampledTime] = 1
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow

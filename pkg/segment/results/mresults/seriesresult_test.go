@@ -318,7 +318,7 @@ func Test_applyRangeFunctionAvg(t *testing.T) {
 		1035: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Avg_Over_time, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Avg_Over_Time, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
@@ -361,7 +361,7 @@ func Test_applyRangeFunctionMin(t *testing.T) {
 		1025: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Min_Over_time, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Min_Over_Time, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
@@ -404,7 +404,7 @@ func Test_applyRangeFunctionMax(t *testing.T) {
 		1025: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Max_Over_time, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Max_Over_Time, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
@@ -447,7 +447,7 @@ func Test_applyRangeFunctionSum(t *testing.T) {
 		1025: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Sum_Over_time, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Sum_Over_Time, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
@@ -490,7 +490,7 @@ func Test_applyRangeFunctionCount(t *testing.T) {
 		1025: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Count_Over_time, TimeWindow: 10})
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: 10})
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
