@@ -20,6 +20,7 @@
 'use strict';
 
 let cellEditingClass = '';
+let isFetching = false; 
 
 class ReadOnlyCellEditor {
     // gets called once before the renderer is used
@@ -161,23 +162,34 @@ const gridOptions = {
     suppressAnimationFrame: true,
     suppressFieldDotNotation: true,
     onBodyScroll(evt){
-        if(evt.direction === 'vertical' && canScrollMore == true){
+        if(evt.direction === 'vertical' && canScrollMore && !isFetching) {
             let diff = logsRowData.length - evt.api.getLastDisplayedRow();
-            // if we're less than 1 items from the end...fetch more data
+            // if we're less than 5 items from the end...fetch more data
             if(diff <= 5) {
-                // Show loading indicator
+                isFetching = true;
                 showLoadingIndicator();
-                
+
                 let scrollingTrigger = true;
                 data = getSearchFilter(false, scrollingTrigger);
                 if (data && data.searchText == "error") {
                   alert("Error");
                   hideLoadingIndicator(); // Hide loading indicator on error
+                  isFetching = false;
                   return;
                 }
-                doSearch(data).then(() => {
-                    hideLoadingIndicator(); // Hide loading indicator once data is fetched
-                });
+
+                doSearch(data)
+                    .then(() => {
+                        isFetching = false;
+                    })
+                    .catch((error) => {
+                        console.warn("Error fetching data", error);
+                        isFetching = false;
+                    })
+                    .finally(() => {
+                        hideLoadingIndicator(); // Hide loading indicator once data is fetched
+                        isFetching = false;
+                    });
             }
         }
     },
