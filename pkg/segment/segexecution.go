@@ -206,7 +206,7 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 	if aggs != nil {
 		numTotalSegments, err := query.GetTotalSegmentsToSearch(qid)
 		if err != nil {
-			log.Errorf("executeQueryInternal: failed to get number of total segments for qid! Error: %v", err)
+			log.Errorf("executeQueryInternal: failed to get number of total segments for qid: %v! Error: %v", qid, err)
 		}
 		nodeRes = agg.PostQueryBucketCleaning(nodeRes, aggs, nil, nil, nil, numTotalSegments, false)
 	}
