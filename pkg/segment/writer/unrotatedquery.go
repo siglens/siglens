@@ -352,6 +352,7 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 			continue
 		}
 		currInfo := usi.unrotatedBlockCmis[blkNum]
+		// As long as there is one column within the range, the value is equal to true
 		var matchedBlockRange bool
 		for col := range colsToCheck {
 			var cmi *structs.CmiContainer
@@ -362,10 +363,11 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 			if cmi.Ranges == nil {
 				continue
 			}
-			matchedBlockRange = metautils.CheckRangeIndex(rangeFilter, cmi.Ranges, rangeOp, qid)
-			if matchedBlockRange {
+			isMatched := metautils.CheckRangeIndex(rangeFilter, cmi.Ranges, rangeOp, qid)
+			if isMatched {
 				timeFilteredBlocks[blkNum][col] = true
 			}
+			matchedBlockRange = matchedBlockRange || isMatched
 		}
 		if !matchedBlockRange {
 			delete(timeFilteredBlocks, blkNum)
