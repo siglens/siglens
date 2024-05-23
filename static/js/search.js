@@ -65,100 +65,122 @@
      }
  }
  
+ let doSearchCounter = 0;
  function doSearch(data) {
-     startQueryTime = (new Date()).getTime();
-     newUri = wsURL("/api/search/ws");
-     socket = new WebSocket(newUri);
-     let timeToFirstByte = 0;
-     let firstQUpdate = true;
-     let lastKnownHits = 0;
-     socket.onopen = function (e) {
-         console.time("socket timing");
-         $('body').css('cursor', 'progress');
-         $("#run-filter-btn").addClass("cancel-search");
-         $('#run-filter-btn').addClass('active');
-         $("#query-builder-btn").html("   ");
-         $("#query-builder-btn").addClass("cancel-search");
-         $("#query-builder-btn").addClass("active");
-         socket.send(JSON.stringify(data));
-     };
- 
-     socket.onmessage = function (event) {
-         let jsonEvent = JSON.parse(event.data);
-         let eventType = jsonEvent.state;
-         let totalEventsSearched = jsonEvent.total_events_searched
-         let totalTime = (new Date()).getTime() - startQueryTime;
-         switch (eventType) {
-             case "RUNNING":
-                 console.time("RUNNING");
-                 console.timeEnd("RUNNING");
-                 break;
-             case "QUERY_UPDATE":
-                 console.time("QUERY_UPDATE");
-                 if (timeToFirstByte === 0) {
-                     timeToFirstByte = Number(totalTime).toLocaleString();
-                 }
-                 let totalHits;
- 
-                 if (jsonEvent && jsonEvent.hits && jsonEvent.hits.totalMatched) {
-                     totalHits = jsonEvent.hits.totalMatched
-                     totalMatchLogs = totalHits;
-                     lastKnownHits = totalHits;
-                 } else {
-                     // we enter here only because backend sent null hits/totalmatched
-                     totalHits = lastKnownHits
-                 }
-                 resetDataTable(firstQUpdate);
-                 processQueryUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, totalHits);
-                 console.timeEnd("QUERY_UPDATE");
-                 firstQUpdate = false
-                 break;
-             case "COMPLETE":
-                 let eqRel = "eq";
-                 if (jsonEvent.totalMatched != null && jsonEvent.totalMatched.relation != null) {
-                     eqRel = jsonEvent.totalMatched.relation;
-                 }
-                 console.time("COMPLETE");
-                 canScrollMore = jsonEvent.can_scroll_more;
-                 scrollFrom = jsonEvent.total_rrc_count;
-                 processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
-                 console.timeEnd("COMPLETE");
-                 socket.close(1000);
-                 break;
-             case "TIMEOUT":
-                 console.time("TIMEOUT");
-                 console.log(`[message] Timeout state received from server: ${jsonEvent}`);
-                 processTimeoutUpdate(jsonEvent);
-                 console.timeEnd("TIMEOUT");
-                 break;
-             case "ERROR":
-                 console.time("ERROR");
-                 console.log(`[message] Error state received from server: ${jsonEvent}`);
-                 processErrorUpdate(jsonEvent);
-                 console.timeEnd("ERROR");
-                 break;
-             default:
-                 console.log(`[message] Unknown state received from server: `+ JSON.stringify(jsonEvent));
-                 if (jsonEvent.message.includes("expected")){
-                    jsonEvent.message = "Your query contains syntax error"
-                 } else if (jsonEvent.message.includes("not present")){
-                    jsonEvent['no_data_err'] = "No data found for the query"
-                 }
-                 processSearchErrorLog(jsonEvent);
-         }
-     };
- 
-     socket.onclose = function (event) {
-         if (event.wasClean) {
-             console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
-         } else {
-             console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
-         }
-         console.timeEnd("socket timing");
-     };
- 
-     socket.addEventListener('error', (event) => {
-         console.log('WebSocket error: ', event);
+     return new Promise((resolve, reject) => {
+         startQueryTime = (new Date()).getTime();
+         newUri = wsURL("/api/search/ws");
+         socket = new WebSocket(newUri);
+         let timeToFirstByte = 0;
+         let firstQUpdate = true;
+         let lastKnownHits = 0;
+         let errorMessages = [];
+         const timerName = `socket timing ${doSearchCounter}`;
+         doSearchCounter++;
+         console.time(timerName);
+
+         socket.onopen = function (e) {
+             $('body').css('cursor', 'progress');
+             $("#run-filter-btn").addClass("cancel-search");
+             $('#run-filter-btn').addClass('active');
+             $("#query-builder-btn").html("   ");
+             $("#query-builder-btn").addClass("cancel-search");
+             $("#query-builder-btn").addClass("active");
+
+             try {
+                 socket.send(JSON.stringify(data));
+             } catch (e) {
+                 reject(`Error sending message to server: ${e}`);
+                 console.timeEnd(timerName);
+                 return
+             }
+         };
+
+         socket.onmessage = function (event) {
+             let jsonEvent = JSON.parse(event.data);
+             let eventType = jsonEvent.state;
+             let totalEventsSearched = jsonEvent.total_events_searched
+             let totalTime = (new Date()).getTime() - startQueryTime;
+             switch (eventType) {
+                 case "RUNNING":
+                     break;
+                 case "QUERY_UPDATE":
+                     console.time("QUERY_UPDATE");
+                     if (timeToFirstByte === 0) {
+                         timeToFirstByte = Number(totalTime).toLocaleString();
+                     }
+                     let totalHits;
+
+                     if (jsonEvent && jsonEvent.hits && jsonEvent.hits.totalMatched) {
+                         totalHits = jsonEvent.hits.totalMatched
+                         totalMatchLogs = totalHits;
+                         lastKnownHits = totalHits;
+                     } else {
+                         // we enter here only because backend sent null hits/totalmatched
+                         totalHits = lastKnownHits
+                     }
+                     resetDataTable(firstQUpdate);
+                     processQueryUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, totalHits);
+                     console.timeEnd("QUERY_UPDATE");
+                     firstQUpdate = false
+                     break;
+                 case "COMPLETE":
+                     let eqRel = "eq";
+                     if (jsonEvent.totalMatched != null && jsonEvent.totalMatched.relation != null) {
+                         eqRel = jsonEvent.totalMatched.relation;
+                     }
+                     console.time("COMPLETE");
+                     canScrollMore = jsonEvent.can_scroll_more;
+                     scrollFrom = jsonEvent.total_rrc_count;
+                     processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
+                     console.timeEnd("COMPLETE");
+                     socket.close(1000);
+                     break;
+                 case "TIMEOUT":
+                     console.time("TIMEOUT");
+                     console.log(`[message] Timeout state received from server: ${jsonEvent}`);
+                     processTimeoutUpdate(jsonEvent);
+                     console.timeEnd("TIMEOUT");
+                     errorMessages.push(`Timeout: ${jsonEvent}`);
+                     break;
+                 case "ERROR":
+                     console.time("ERROR");
+                     console.log(`[message] Error state received from server: ${jsonEvent}`);
+                     processErrorUpdate(jsonEvent);
+                     console.timeEnd("ERROR");
+                     errorMessages.push(`Error: ${jsonEvent}`);
+                     break;
+                 default:
+                     console.log(`[message] Unknown state received from server: `+ JSON.stringify(jsonEvent));
+                     if (jsonEvent.message.includes("expected")){
+                        jsonEvent.message = "Your query contains syntax error"
+                     } else if (jsonEvent.message.includes("not present")){
+                        jsonEvent['no_data_err'] = "No data found for the query"
+                     }
+                     processSearchErrorLog(jsonEvent);
+                     errorMessages.push(`Unknown state: ${jsonEvent}`);
+             }
+         };
+
+         socket.onclose = function (event) {
+             if (event.wasClean) {
+                 console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+             } else {
+                 console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
+                 errorMessages.push(`Connection close not clean=${event} code=${event.code} reason=${event.reason}`);
+             }
+
+             if (errorMessages.length === 0) {
+                 resolve();
+             } else {
+                 reject(errorMessages);
+             }
+             console.timeEnd(timerName);
+         };
+
+         socket.addEventListener('error', (event) => {
+             errorMessages.push(`WebSocket error: ${event}`);
+         });
      });
  }
  
