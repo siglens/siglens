@@ -308,6 +308,18 @@ const (
 	Clamp_Max
 	Clamp_Min
 	Timestamp
+	Acos
+	Acosh
+	Asin
+	Asinh
+	Atan
+	Atanh
+	Cos
+	Cosh
+	Sin
+	Sinh
+	Tan
+	Tanh
 )
 
 type RangeFunctions int
