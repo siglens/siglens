@@ -55,7 +55,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes := getIngestionStats(myid)
 	queryCount, totalResponseTime, querieSinceInstall := usageStats.GetQueryStats(myid)
 
-	metricsIncomingBytes, metricsDatapointsCount, metricsOnDiskBytes := getMetricsStats(myid)
+	metricsIncomingBytes, metricsDatapointsCount, metricsOnDiskBytes := GetMetricsStats(myid)
 	metricsImMemBytes := metrics.GetTotalEncodedSize()
 
 	if hook := hooks.GlobalHooks.AddMultinodeStatsHook; hook != nil {
@@ -291,7 +291,7 @@ func convertBytesToGB(bytes float64) string {
 	return finalStr
 }
 
-func getMetricsStats(myid uint64) (uint64, uint64, uint64) {
+func GetMetricsStats(myid uint64) (uint64, uint64, uint64) {
 	bytesCount := uint64(0)
 	onDiskBytesCount := uint64(0)
 	recCount := uint64(0)
