@@ -613,7 +613,7 @@ func ReplaceWildcardStarWithRegex(input string) string {
 }
 
 func AlmostEquals(left, right float64) bool {
-	tolerance := 0.000001
+	tolerance := 0.0001
 	if difference := math.Abs(left - right); difference < tolerance {
 		return true
 	} else {
