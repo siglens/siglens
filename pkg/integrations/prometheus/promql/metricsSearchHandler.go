@@ -1132,6 +1132,22 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Function = structs.Function{MathFunction: segutils.Clamp_Min, ValueList: []string{expr.Args[1].String()}}
 				case "timestamp":
 					mquery.Function = structs.Function{MathFunction: segutils.Timestamp}
+				case "hour":
+					mquery.Function = structs.Function{TimeFunction: segutils.Hour}
+				case "minute":
+					mquery.Function = structs.Function{TimeFunction: segutils.Minute}
+				case "month":
+					mquery.Function = structs.Function{TimeFunction: segutils.Month}
+				case "year":
+					mquery.Function = structs.Function{TimeFunction: segutils.Year}
+				case "day_of_month":
+					mquery.Function = structs.Function{TimeFunction: segutils.DayOfMonth}
+				case "day_of_week":
+					mquery.Function = structs.Function{TimeFunction: segutils.DayOfWeek}
+				case "day_of_year":
+					mquery.Function = structs.Function{TimeFunction: segutils.DayOfYear}
+				case "days_in_month":
+					mquery.Function = structs.Function{TimeFunction: segutils.DaysInMonth}
 				default:
 					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
 				}
