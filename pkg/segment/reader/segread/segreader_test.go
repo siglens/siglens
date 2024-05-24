@@ -228,13 +228,14 @@ func Test_readDictEncDiscardsOldData(t *testing.T) {
 		return encoding
 	}
 
-	encodeDict := func(strings []string) []byte {
+	encodeDict := func(strings []string, recordsWithValue [][]uint16) []byte {
 		encoding := make([]byte, 0)
 		encoding = append(encoding, utils.Uint16ToBytesLittleEndian(uint16(len(strings)))...)
 
-		for _, s := range strings {
-			encoding = append(encoding, utils.Uint16ToBytesLittleEndian(0)...)
-			encoding = append(encoding, utils.Uint16ToBytesLittleEndian(1)...)
+		for i, s := range strings {
+			for _, rec := range recordsWithValue[i] {
+				encoding = append(encoding, utils.Uint16ToBytesLittleEndian(rec)...)
+			}
 
 			encoding = append(encoding, encodeString(s)...)
 		}
@@ -242,15 +243,19 @@ func Test_readDictEncDiscardsOldData(t *testing.T) {
 		return encoding
 	}
 
+	block0RecordCount := uint16(8)
+	block1RecordCount := uint16(5)
 	segFileReader := &SegmentFileReader{
-		blockSummaries: []*structs.BlockSummary{{RecCount: 2}, {RecCount: 2}},
+		blockSummaries: []*structs.BlockSummary{{RecCount: block0RecordCount}, {RecCount: block1RecordCount}},
 	}
 
-	segFileReader.readDictEnc(encodeDict([]string{"apple", "banana", "cherry"}), 0)
-	assert.Len(t, segFileReader.deTlv, 3)
-	assert.Len(t, segFileReader.deRecToTlv, 2)
+	block0Strings := []string{"apple", "banana", "cherry"}
+	segFileReader.readDictEnc(encodeDict(block0Strings, [][]uint16{[]uint16{0, 1, 2, 3}, []uint16{4, 5}, []uint16{6, 7}}), 0)
+	assert.Equal(t, len(block0Strings), len(segFileReader.deTlv))
+	assert.Equal(t, uint16(len(segFileReader.deRecToTlv)), block0RecordCount)
 
-	segFileReader.readDictEnc(encodeDict([]string{"alphabet", "zebra"}), 0)
-	assert.Equal(t, 2, len(segFileReader.deTlv))
-	assert.Len(t, segFileReader.deRecToTlv, 2)
+	block1Strings := []string{"alphabet", "zebra"}
+	segFileReader.readDictEnc(encodeDict(block1Strings, [][]uint16{[]uint16{0, 3, 4}, []uint16{1, 2}}), 1)
+	assert.Equal(t, len(block1Strings), len(segFileReader.deTlv))
+	assert.Equal(t, uint16(len(segFileReader.deRecToTlv)), block1RecordCount)
 }
