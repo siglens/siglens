@@ -1256,7 +1256,7 @@ func getLogicalAndArithmeticOperation(op parser.ItemType) segutils.LogicalAndAri
 		return segutils.LetLessThan
 	case parser.LTE:
 		return segutils.LetLessThanOrEqualTo
-	case parser.EQL:
+	case parser.EQLC:
 		return segutils.LetEquals
 	case parser.NEQ:
 		return segutils.LetNotEquals
