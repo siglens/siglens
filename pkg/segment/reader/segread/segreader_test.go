@@ -217,3 +217,40 @@ func Test_packUnpackDictEnc(t *testing.T) {
 		assert.Equal(t, dWord, expected)
 	}
 }
+
+func Test_readDictEncDiscardsOldData(t *testing.T) {
+	encodeString := func(s string) []byte {
+		encoding := make([]byte, 3+len(s))
+		encoding[0] = segutils.VALTYPE_ENC_SMALL_STRING[0]
+		copy(encoding[1:2], utils.Uint16ToBytesLittleEndian(uint16(len(s))))
+		copy(encoding[3:], []byte(s))
+
+		return encoding
+	}
+
+	encodeDict := func(strings []string) []byte {
+		encoding := make([]byte, 0)
+		encoding = append(encoding, utils.Uint16ToBytesLittleEndian(uint16(len(strings)))...)
+
+		for _, s := range strings {
+			encoding = append(encoding, utils.Uint16ToBytesLittleEndian(0)...)
+			encoding = append(encoding, utils.Uint16ToBytesLittleEndian(1)...)
+
+			encoding = append(encoding, encodeString(s)...)
+		}
+
+		return encoding
+	}
+
+	segFileReader := &SegmentFileReader{
+		blockSummaries: []*structs.BlockSummary{{RecCount: 2}, {RecCount: 2}},
+	}
+
+	segFileReader.readDictEnc(encodeDict([]string{"apple", "banana", "cherry"}), 0)
+	assert.Len(t, segFileReader.deTlv, 3)
+	assert.Len(t, segFileReader.deRecToTlv, 2)
+
+	segFileReader.readDictEnc(encodeDict([]string{"alphabet", "zebra"}), 0)
+	assert.Equal(t, 2, len(segFileReader.deTlv))
+	assert.Len(t, segFileReader.deRecToTlv, 2)
+}
