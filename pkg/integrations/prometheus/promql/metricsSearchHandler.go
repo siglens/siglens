@@ -562,11 +562,11 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	metricQueriesList := make([]*structs.MetricsQuery, 0)
 	var timeRange *dtu.MetricsTimeRange
 	hashList := make([]uint64, 0)
-	for _, metricQuery := range metricQueryRequest {
-		hashList = append(hashList, metricQuery.MetricsQuery.HashedMName)
-		metricQueriesList = append(metricQueriesList, &metricQuery.MetricsQuery)
-		segment.LogMetricsQuery("PromQL metrics query parser", &metricQuery, qid)
-		timeRange = &metricQuery.TimeRange
+	for i := range metricQueryRequest {
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.HashedMName)
+		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
+		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
+		timeRange = &metricQueryRequest[i].TimeRange
 	}
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
 	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, startTime, endTime)
