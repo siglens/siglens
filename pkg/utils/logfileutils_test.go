@@ -36,7 +36,7 @@ func TestAddAccessLogEntry(t *testing.T) {
 	defer os.Remove(tempLogFile.Name())
 
 	// Example data
-	data := dtypeutils.AccessLogData{
+	data := dtypeutils.LogFileData{
 		TimeStamp:   time.Now().Format(time.RFC3339),
 		UserName:    "test_user",
 		URI:         "/example",
@@ -47,11 +47,10 @@ func TestAddAccessLogEntry(t *testing.T) {
 
 	// Call the function with the temporary logFile
 	allowWebsocket := false
-	fileName := tempLogFile.Name()
-	AddAccessLogEntry(data, allowWebsocket, fileName)
+	AddLogEntry(data, allowWebsocket, tempLogFile)
 
 	// Read the content of the temporary file
-	content, err := os.ReadFile(fileName)
+	content, err := os.ReadFile(tempLogFile.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,10 +71,10 @@ func TestAddAccessLogEntry(t *testing.T) {
 
 func Test_AddLogEntryValidations(t *testing.T) {
 	cases := []struct {
-		input dtypeutils.AccessLogData
+		input dtypeutils.LogFileData
 	}{
 		{ // case#1
-			dtypeutils.AccessLogData{
+			dtypeutils.LogFileData{
 				TimeStamp:   "",
 				UserName:    "",
 				URI:         "http:///",
@@ -85,7 +84,7 @@ func Test_AddLogEntryValidations(t *testing.T) {
 			},
 		},
 		{ //case 2
-			dtypeutils.AccessLogData{
+			dtypeutils.LogFileData{
 				StatusCode: 101,
 			},
 		},
@@ -102,7 +101,7 @@ func Test_AddLogEntryValidations(t *testing.T) {
 		// Call the function with the temporary logFile
 		allowWebsocket := false
 		fileName := tempLogFile.Name()
-		AddAccessLogEntry(test.input, allowWebsocket, fileName)
+		AddLogEntry(test.input, allowWebsocket, tempLogFile)
 
 		// Read the content of the temporary file
 		content, err := os.ReadFile(fileName)

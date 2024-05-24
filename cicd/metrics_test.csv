@@ -36,3 +36,4 @@ count_over_time(testmetric4[24h]),now-90d,now,"1,2,2",eq
 avg_over_time(testmetric0[24h]),now-90d,now,"131.45590577322233,129.26226823091304,143.30103382674855",approx
 max_over_time(testmetric0[48h]),now-90d,now,"131.45590577322233,131.45590577322233,159.53343696489338",approx
 changes(testmetric0[48h]),now-90d,now,"0,1,2",eq
+"predict_linear(testmetric0[48h], 100)",now-7d,now,"127.06355282392336,159.54968553618554",approx
