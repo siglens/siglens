@@ -323,12 +323,14 @@ func (sfr *SegmentFileReader) readDictEnc(buf []byte, blockNum uint16) error {
 		newArr := make([][]byte, extLen)
 		sfr.deTlv = append(sfr.deTlv, newArr...)
 	}
+	sfr.deTlv = sfr.deTlv[:numWords]
 
 	if uint16(len(sfr.deRecToTlv)) < sfr.blockSummaries[blockNum].RecCount {
 		extLen := sfr.blockSummaries[blockNum].RecCount - uint16(len(sfr.deRecToTlv))
 		newArr := make([]uint16, extLen)
 		sfr.deRecToTlv = append(sfr.deRecToTlv, newArr...)
 	}
+	sfr.deRecToTlv = sfr.deRecToTlv[:sfr.blockSummaries[blockNum].RecCount]
 
 	var numRecs uint16
 	var soffW uint32
