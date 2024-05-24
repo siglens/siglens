@@ -25,8 +25,8 @@ import (
 
 func Test_ResizeSlice(t *testing.T) {
 	originalSlice := []int{1, 2, 3, 4, 5}
-	newSlice := ResizeSlice(originalSlice, 3)
 
+	newSlice := ResizeSlice(originalSlice, 3)
 	assert.Len(t, newSlice, 3)
 	assert.Equal(t, newSlice, []int{1, 2, 3})
 
