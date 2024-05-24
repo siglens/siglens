@@ -33,6 +33,7 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/health"
 	"github.com/siglens/siglens/pkg/localnodeid"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
@@ -238,7 +239,7 @@ func StopSsa() {
 	props["runtime_os"] = runtime.GOOS
 	props["runtime_arch"] = runtime.GOARCH
 	populateDeploymentSsa(props)
-	populateIngestSsa(props)
+	populateIngestSsa(props, 0)
 	populateQuerySsa(props)
 	_ = client.Enqueue(analytics.Track{
 		Event:      "server shutdown",
@@ -295,7 +296,7 @@ func getSsa() map[string]interface{} {
 
 	ssa := make(map[string]interface{})
 	populateDeploymentSsa(ssa)
-	populateIngestSsa(ssa)
+	populateIngestSsa(ssa, 0)
 	populateQuerySsa(ssa)
 	return ssa
 }
@@ -332,8 +333,8 @@ func populateDeploymentSsa(m map[string]interface{}) {
 	m["country"] = IPAddressInfo.Country
 }
 
-func populateIngestSsa(m map[string]interface{}) {
-	allVirtualTableNames, _ := virtualtable.GetVirtualTableNames(0)
+func populateIngestSsa(m map[string]interface{}, myid uint64) {
+	allVirtualTableNames, _ := virtualtable.GetVirtualTableNames(myid)
 
 	totalEventCount := uint64(0)
 	totalOnDiskBytes := uint64(0)
@@ -345,8 +346,8 @@ func populateIngestSsa(m map[string]interface{}) {
 			log.Debugf("populateIngestSsa: one of nil indexName=%v", indexName)
 			continue
 		}
-		bytesReceivedCount, eventCount, onDiskBytesCount := segwriter.GetVTableCounts(indexName, 0)
-		unrotatedBytesCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, 0)
+		bytesReceivedCount, eventCount, onDiskBytesCount := segwriter.GetVTableCounts(indexName, myid)
+		unrotatedBytesCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, myid)
 		bytesReceivedCount += unrotatedBytesCount
 		eventCount += unrotatedEventCount
 		onDiskBytesCount += unrotatedOnDiskBytesCount
@@ -358,11 +359,21 @@ func populateIngestSsa(m map[string]interface{}) {
 			largestIndexEventCount = totalEventCount
 		}
 	}
+	bytesReceivedCount, eventCount, onDiskBytesCount := segwriter.GetVTableCounts("traces", myid)
+	unrotatedBytesCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts("traces", myid)
+
+	bytesReceivedCount += unrotatedBytesCount
+	eventCount += unrotatedEventCount
+	onDiskBytesCount += unrotatedOnDiskBytesCount
+	totalTracesCount := uint64(eventCount)
+	_, metricsDatapointsCount, _ := health.GetMetricsStats(myid)
 	m["total_event_count"] = totalEventCount
 	m["total_on_disk_bytes"] = totalOnDiskBytes
 	m["total_incoming_bytes"] = totalIncomingBytes
 	m["total_table_count"] = len(allVirtualTableNames)
 	m["largest_index_event_count"] = largestIndexEventCount
+	m["total_traces_count"] = totalTracesCount
+	m["metrics_datapoints_count"] = metricsDatapointsCount
 	m["ip"] = IPAddressInfo.IP
 	m["city"] = IPAddressInfo.City
 	m["region"] = IPAddressInfo.Region
