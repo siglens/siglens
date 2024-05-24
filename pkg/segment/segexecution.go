@@ -73,10 +73,10 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		}
 	}
 
-	return helperQueryArithmeticAndLogical(queryOps, resMap)
+	return HelperQueryArithmeticAndLogical(queryOps, resMap)
 }
 
-func helperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) *mresults.MetricsResult {
+func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) *mresults.MetricsResult {
 	finalResult := make(map[string]map[uint32]float64)
 	for _, queryOp := range queryOps {
 		resultLHS := resMap[queryOp.LHS]
