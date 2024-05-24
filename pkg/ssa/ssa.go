@@ -359,12 +359,10 @@ func populateIngestSsa(m map[string]interface{}, myid uint64) {
 			largestIndexEventCount = totalEventCount
 		}
 	}
-	bytesReceivedCount, eventCount, onDiskBytesCount := segwriter.GetVTableCounts("traces", myid)
-	unrotatedBytesCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts("traces", myid)
+	_, eventCount, _ := segwriter.GetVTableCounts("traces", myid)
+	_, unrotatedEventCount, _ := segwriter.GetUnrotatedVTableCounts("traces", myid)
 
-	bytesReceivedCount += unrotatedBytesCount
 	eventCount += unrotatedEventCount
-	onDiskBytesCount += unrotatedOnDiskBytesCount
 	totalTracesCount := uint64(eventCount)
 	_, metricsDatapointsCount, _ := health.GetMetricsStats(myid)
 	m["total_event_count"] = totalEventCount
