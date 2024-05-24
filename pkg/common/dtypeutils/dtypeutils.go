@@ -636,19 +636,11 @@ func ConvertToSameType(leftType, rightType interface{}) (interface{}, interface{
 	}
 }
 
-type AccessLogData struct {
+type LogFileData struct {
 	TimeStamp   string
 	UserName    string
 	URI         string
 	RequestBody string
 	StatusCode  int
 	Duration    int64
-}
-
-type QueryLogData struct {
-	TimeStamp   string
-	UserName    string
-	URI         string
-	RequestBody string
-	StatusCode  int
 }

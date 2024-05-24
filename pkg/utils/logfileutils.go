@@ -21,16 +21,53 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	log "github.com/sirupsen/logrus"
 )
 
-func DeferableAddAccessLogEntry(startTime time.Time, endTimeFunc func() time.Time, user string,
-	uri string, requestBody string, statusCodeFunc func() int, allowWebsocket bool, fileName string) {
+var (
+	QueryLogFile  *os.File
+	AccessLogFile *os.File
+	mu            sync.Mutex
+)
 
-	data := dtypeutils.AccessLogData{
+func init() {
+	var err error
+	QueryLogFile, err = os.OpenFile("query.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Errorf("Unable to open query.log file, err=%v", err)
+	} else {
+		logRestartMarker(QueryLogFile)
+	}
+
+	AccessLogFile, err = os.OpenFile("access.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Errorf("Unable to open access.log file, err=%v", err)
+	}
+}
+
+// logRestartMarker logs a marker indicating the application has restarted
+func logRestartMarker(logFile *os.File) {
+	if logFile == nil {
+		return
+	}
+	mu.Lock()
+	defer mu.Unlock()
+
+	restartTime := time.Now().Format("2006-01-02 15:04:05")
+	_, err := logFile.WriteString(fmt.Sprintf("===== Application Restarted at %s =====\n", restartTime))
+	if err != nil {
+		log.Errorf("Unable to write restart marker to log file, err=%v", err)
+	}
+}
+
+func DeferableAddAccessLogEntry(startTime time.Time, endTimeFunc func() time.Time, user string,
+	uri string, requestBody string, statusCodeFunc func() int, allowWebsocket bool, logFile *os.File) {
+
+	data := dtypeutils.LogFileData{
 		TimeStamp:   startTime.Format("2006-01-02 15:04:05"),
 		UserName:    user,
 		URI:         uri,
@@ -38,17 +75,17 @@ func DeferableAddAccessLogEntry(startTime time.Time, endTimeFunc func() time.Tim
 		StatusCode:  statusCodeFunc(),
 		Duration:    endTimeFunc().Sub(startTime).Milliseconds(),
 	}
-	AddAccessLogEntry(data, allowWebsocket, fileName)
+	AddLogEntry(data, allowWebsocket, logFile)
 }
 
 // Write to access.log in the following format
 // timeStamp <logged-in user> <request URI> <request body> <response status code> <elapsed time in ms>
-func AddAccessLogEntry(data dtypeutils.AccessLogData, allowWebsocket bool, fileName string) {
-	logFile, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Errorf("Unable to write to access.log file, err=%v", err)
+func AddLogEntry(data dtypeutils.LogFileData, allowWebsocket bool, logFile *os.File) {
+	if logFile == nil {
+		return
 	}
-	defer logFile.Close()
+	mu.Lock()
+	defer mu.Unlock()
 
 	// Do not log websocket connections, unless explicitly allowed.
 	if data.StatusCode == 101 && !allowWebsocket {
@@ -60,7 +97,7 @@ func AddAccessLogEntry(data dtypeutils.AccessLogData, allowWebsocket bool, fileN
 		return
 	}
 
-	_, err = logFile.WriteString(fmt.Sprintf("%s %s %s %s %d %d\n",
+	_, err := logFile.WriteString(fmt.Sprintf("%s %s %s %s %d %d\n",
 		data.TimeStamp,
 		data.UserName, // TODO : Add logged in user when user auth is implemented
 		data.URI,

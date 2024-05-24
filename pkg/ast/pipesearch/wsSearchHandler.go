@@ -23,6 +23,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/fasthttp/websocket"
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -45,16 +46,15 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		fmt.Sprintf("%+v", event),
 		func() int { return ctx.Response.StatusCode() },
 		true, // Log this even though it's a websocket connection
-		"access.log",
+		utils.AccessLogFile,
 	)
 
-	utils.AddQueryLogEntry(
-		time.Now(),
-		"No-user", // TODO : Add logged in user when user auth is implemented
-		ctx.Request.URI().String(),
-		fmt.Sprintf("%+v", event),
-		true, // Log this even though it's a websocket connection
-	)
+	utils.AddLogEntry(dtypeutils.LogFileData{
+		TimeStamp:   time.Now().Format("2006-01-02 15:04:05"),
+		UserName:    "No-user", // TODO : Add logged in user when user auth is implemented
+		URI:         ctx.Request.URI().String(),
+		RequestBody: fmt.Sprintf("%+v", event),
+	}, true, utils.QueryLogFile)
 
 	if err != nil {
 		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: Failed to read initial event %+v!", qid, err)
