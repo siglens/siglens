@@ -31,7 +31,7 @@ import (
 var (
 	QueryLogFile  *os.File
 	AccessLogFile *os.File
-	mu            sync.Mutex
+	fileMutex     sync.Mutex
 )
 
 func init() {
@@ -54,8 +54,8 @@ func logRestartMarker(logFile *os.File) {
 	if logFile == nil {
 		return
 	}
-	mu.Lock()
-	defer mu.Unlock()
+	fileMutex.Lock()
+	defer fileMutex.Unlock()
 
 	restartTime := time.Now().Format("2006-01-02 15:04:05")
 	_, err := logFile.WriteString(fmt.Sprintf("===== Application Restarted at %s =====\n", restartTime))
@@ -84,8 +84,8 @@ func AddLogEntry(data dtypeutils.LogFileData, allowWebsocket bool, logFile *os.F
 	if logFile == nil {
 		return
 	}
-	mu.Lock()
-	defer mu.Unlock()
+	fileMutex.Lock()
+	defer fileMutex.Unlock()
 
 	// Do not log websocket connections, unless explicitly allowed.
 	if data.StatusCode == 101 && !allowWebsocket {
