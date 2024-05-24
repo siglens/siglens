@@ -914,3 +914,7 @@ func SendError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog
 func SendInternalError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
 	sendErrorWithStatus(ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusInternalServerError)
 }
+
+func SendUnauthorizedError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
+	sendErrorWithStatus(ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusUnauthorized)
+}
