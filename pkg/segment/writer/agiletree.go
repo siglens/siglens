@@ -270,11 +270,7 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 	numRecs := wip.blockSummary.RecCount
 
 	for colNum, colName := range stb.groupByKeys {
-		sizeToAdd := int(numRecs) - len(stb.wipRecNumToColEnc[colNum])
-		if sizeToAdd > 0 {
-			newArr := make([]uint32, sizeToAdd)
-			stb.wipRecNumToColEnc[colNum] = append(stb.wipRecNumToColEnc[colNum], newArr...)
-		}
+		stb.wipRecNumToColEnc[colNum] = toputils.ResizeSlice(stb.wipRecNumToColEnc[colNum], int(numRecs))
 
 		cwip := wip.colWips[colName]
 		if cwip.deCount < wipCardLimit {
