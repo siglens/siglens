@@ -409,6 +409,10 @@ func TestCalculateInterval(t *testing.T) {
 
 func Test_GetResults_GTR(t *testing.T) {
 	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:     45,
+			10800: 1045,
+		},
 		map[uint32]float64{},
 		[]structs.QueryArithmetic{
 			{
@@ -422,6 +426,10 @@ func Test_GetResults_GTR(t *testing.T) {
 
 func Test_GetResults_GTE(t *testing.T) {
 	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:     45,
+			10800: 1045,
+		},
 		map[uint32]float64{
 			10800: 1045,
 		},
@@ -437,6 +445,10 @@ func Test_GetResults_GTE(t *testing.T) {
 
 func Test_GetResults_LSS(t *testing.T) {
 	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:     45,
+			10800: 1045,
+		},
 		map[uint32]float64{
 			0: 45,
 		},
@@ -456,6 +468,10 @@ func Test_GetResults_LTE(t *testing.T) {
 			0:     45,
 			10800: 1045,
 		},
+		map[uint32]float64{
+			0:     45,
+			10800: 1045,
+		},
 		[]structs.QueryArithmetic{
 			{
 				LHS:        1,
@@ -468,6 +484,10 @@ func Test_GetResults_LTE(t *testing.T) {
 
 func Test_GetResults_EQLC(t *testing.T) {
 	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:     45,
+			10800: 1045,
+		},
 		map[uint32]float64{
 			0: 45,
 		},
@@ -484,6 +504,10 @@ func Test_GetResults_EQLC(t *testing.T) {
 func Test_GetResults_NEQ(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
+			0:     45,
+			10800: 1045,
+		},
+		map[uint32]float64{
 			10800: 1045,
 		},
 		[]structs.QueryArithmetic{
@@ -496,7 +520,7 @@ func Test_GetResults_NEQ(t *testing.T) {
 		})
 }
 
-func test_GetResults_Ops(t *testing.T, ansMap map[uint32]float64, queryOps []structs.QueryArithmetic) {
+func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap map[uint32]float64, queryOps []structs.QueryArithmetic) {
 	mQuery := &structs.MetricsQuery{
 		MetricName:  "test.metric.0",
 		HashedMName: 1,
@@ -504,7 +528,7 @@ func test_GetResults_Ops(t *testing.T, ansMap map[uint32]float64, queryOps []str
 			Interval:   3,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Sum},
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
 		},
 	}
 	qid := uint64(0)
@@ -517,23 +541,12 @@ func test_GetResults_Ops(t *testing.T, ansMap map[uint32]float64, queryOps []str
 	assert.NoError(t, err)
 	series := mresults.InitSeriesHolder(mQuery, tsGroupId)
 
-	// they should all downsample to 0
-	for i := 0; i < 10; i++ {
-		series.AddEntry(uint32(i), float64(i))
+	// The entries' timestamp interval is larger than the data source interval (3 hours), so they can become separate key-value pairs.
+	for timestamp, val := range initialEntries {
+		series.AddEntry(timestamp, val)
 	}
 
-	assert.Equal(t, series.GetIdx(), 10)
 	metricsResults.AddSeries(series, uint64(100), tsGroupId)
-
-	series2 := mresults.InitSeriesHolder(mQuery, tsGroupId)
-
-	// they should all downsample to 3 * 3600
-	for i := 100; i < 110; i++ {
-		series2.AddEntry(uint32(i)+4*3600, float64(i)) // Timestamp is larger than ds interval (3h), so that it can become a separated key,value pair
-	}
-
-	metricsResults.AddSeries(series2, uint64(101), tsGroupId)
-
 	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
 
 	errors := metricsResults.AggregateResults(1)
