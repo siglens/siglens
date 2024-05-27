@@ -20,6 +20,7 @@ package mresults
 import (
 	"math"
 	"testing"
+	"time"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -1691,4 +1692,76 @@ func Test_applyMathFunctionTimestamp(t *testing.T) {
 			}
 		}
 	}
+}
+func runTimeFunctionTest(t *testing.T, timeFunction utils.TimeFunctions, expectedCalculation func(time.Time) float64) {
+	allMetricsData := make(map[string]map[uint32]float64)
+	allDPs := make(map[uint32]float64)
+
+	dpTs := uint32(time.Date(2024, 1, 1, 23, 0, 0, 0, time.UTC).Unix())
+	allDPs[dpTs] = -30.2
+	allDPs[dpTs+1] = 22
+	allDPs[dpTs+11] = -10
+	allDPs[dpTs+12] = 5.5
+
+	allMetricsData["metric"] = allDPs
+
+	metricsResults := &MetricsResult{
+		Results: allMetricsData,
+	}
+
+	expectedResults := make(map[uint32]float64)
+	for dpTs := range allDPs {
+		expectedResults[dpTs] = expectedCalculation(time.Unix(int64(dpTs), 0).UTC())
+	}
+
+	function := structs.Function{TimeFunction: timeFunction}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for metric, timeSeries := range metricsResults.Results {
+		for dpTs, actualValue := range timeSeries {
+			expectedValue, exists := expectedResults[dpTs]
+			if !exists {
+				t.Errorf("Unexpected timestamp: %v in metric: %v", dpTs, metric)
+			}
+
+			if actualValue != expectedValue {
+				t.Errorf("For timestamp: %v in metric: %v, expected value: %v, but got: %v", dpTs, metric, expectedValue, actualValue)
+			}
+		}
+	}
+}
+
+func Test_applyTimeFunctionHour(t *testing.T) {
+	runTimeFunctionTest(t, segutils.Hour, func(t time.Time) float64 { return float64(t.Hour()) })
+}
+
+func Test_applyTimeFunctionMinute(t *testing.T) {
+	runTimeFunctionTest(t, segutils.Minute, func(t time.Time) float64 { return float64(t.Minute()) })
+}
+
+func Test_applyTimeFunctionMonth(t *testing.T) {
+	runTimeFunctionTest(t, segutils.Month, func(t time.Time) float64 { return float64(t.Month()) })
+}
+
+func Test_applyTimeFunctionYear(t *testing.T) {
+	runTimeFunctionTest(t, segutils.Year, func(t time.Time) float64 { return float64(t.Year()) })
+}
+
+func Test_applyTimeFunctionDayOfMonth(t *testing.T) {
+	runTimeFunctionTest(t, segutils.DayOfMonth, func(t time.Time) float64 { return float64(t.Day()) })
+}
+
+func Test_applyTimeFunctionDayOfWeek(t *testing.T) {
+	runTimeFunctionTest(t, segutils.DayOfWeek, func(t time.Time) float64 { return float64(t.Weekday()) })
+}
+
+func Test_applyTimeFunctionDayOfYear(t *testing.T) {
+	runTimeFunctionTest(t, segutils.DayOfYear, func(t time.Time) float64 { return float64(t.YearDay()) })
+}
+
+func Test_applyTimeFunctionDaysInMonth(t *testing.T) {
+	runTimeFunctionTest(t, segutils.DaysInMonth, func(t time.Time) float64 {
+		return float64(time.Date(t.Year(), t.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day())
+	})
 }
