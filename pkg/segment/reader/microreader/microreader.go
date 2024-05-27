@@ -50,11 +50,7 @@ func ReadBlockSummaries(fileName string, rbuf []byte) ([]*structs.BlockSummary,
 	}
 
 	fileSize := finfo.Size()
-	sizeToAdd := fileSize - int64(len(rbuf))
-	if sizeToAdd > 0 {
-		newArr := make([]byte, sizeToAdd)
-		rbuf = append(rbuf, newArr...)
-	}
+	rbuf = toputils.ResizeSlice(rbuf, int(fileSize))
 
 	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
 	if err != nil {

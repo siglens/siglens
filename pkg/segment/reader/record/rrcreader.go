@@ -136,10 +136,11 @@ func applyHardcodedColumns(hardcodedArray []string, renameHardcodedColumns map[s
 
 func finalizeRecords(allRecords []map[string]interface{}, finalCols map[string]bool, colsIndexMap map[string]int, numProcessedRecords int, recsAggRecords []map[string]interface{}, transactionArgsExist bool) ([]map[string]interface{}, []string) {
 	colsSlice := make([]string, 0)
-	colsInOrder := make([]string, len(finalCols))
+	finalColsLen := len(finalCols)
+	colsInOrder := make([]string, finalColsLen)
 	for colName, colIndex := range colsIndexMap {
 		_, exists := finalCols[colName]
-		if exists && colIndex < len(finalCols) {
+		if exists && colIndex < finalColsLen {
 			colsInOrder[colIndex] = colName
 			delete(finalCols, colName)
 		}

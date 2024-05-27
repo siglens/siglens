@@ -324,37 +324,10 @@ function indexOnSelectHandler(evt) {
         checkedIndices.push($(this).data("index"));
     });
     selectedSearchIndex = checkedIndices.join(",");
-    getDisplayTextForIndex();
+    setIndexDisplayValue(selectedSearchIndex);
     Cookies.set('IndexList', selectedSearchIndex)
 }
 
-function getDisplayTextForIndex(){
-    var selectedIndexes = selectedSearchIndex.split(',');
-    if (sortedListIndices && sortedListIndices.length > 0) {
-        selectedIndexes = sortedListIndices
-            .filter(item => selectedIndexes.includes(item.index))
-            .map(item => item.index);
-    } else {
-        selectedIndexes = [];
-    }
-
-    if (selectedIndexes.length === 0){
-        // If only no index is present
-        $("#index-btn span").html("Index");
-    }
-    else if (selectedIndexes.length === 1 ) {
-        // If only one index is selected
-        var indexName = selectedIndexes[0];
-        var displayedIndexName = indexName.trim() === "" ? "Index" : (indexName.length > 15 ? indexName.substring(0, 4) + '...' : indexName);
-        $("#index-btn span").html(displayedIndexName);
-    } else {
-        // If multiple indexes are selected
-        var numIndexes = selectedIndexes.length;
-        var firstIndexName = selectedIndexes[0];
-        var displayedFirstIndexName = firstIndexName.length > 15 ? firstIndexName.substring(0, 4) + '...' : firstIndexName.substring(0, 15);
-        $("#index-btn span").html(displayedFirstIndexName + ' +' + (numIndexes - 1));
-    }
-}
 function runLiveTailBtnHandler(evt) {
   $(".popover").hide();
   evt.preventDefault();
@@ -507,9 +480,7 @@ function toggleAllAvailableFieldsHandler(evt) {
         let tempFieldList = [];
         availColNames.forEach((colName, index) => {
             $(`.toggle-${string2Hex(colName)}`).addClass('active');
-            if(index>1){
                 tempFieldList.push(colName);
-            }
             gridOptions.columnApi.setColumnVisible(colName, true);
         });
         selectedFieldsList = tempFieldList;
@@ -524,6 +495,7 @@ function toggleAllAvailableFieldsHandler(evt) {
         });
         selectedFieldsList = []
     }
+    updatedSelFieldList = true;
     // Always hide the logs column
     gridOptions.columnApi.setColumnVisible("logs", false);
 }

@@ -40,10 +40,6 @@ let navbarComponent = `
             <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
                     class="nav-link-text">SLOs</span></a>
         </div>
-        <div class="menu nav-live" title="Live Tail">
-            <a href="./live-tail.html" class="nav-links"><span class="icon-live"></span><span
-                    class="nav-link-text">Live Tail</span></a>
-        </div>
         <div class="menu nav-alerts" title="Alerting">
             <a href="./all-alerts.html" class="nav-links"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
         </div>

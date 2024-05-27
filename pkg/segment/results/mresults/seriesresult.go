@@ -24,6 +24,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/nethruster/go-fraction"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -248,6 +249,10 @@ func ApplyFunction(ts map[uint32]float64, function structs.Function) (map[uint32
 		return ApplyMathFunction(ts, function)
 	}
 
+	if function.TimeFunction > 0 {
+		return ApplyTimeFunction(ts, function)
+	}
+
 	return ts, nil
 }
 
@@ -286,6 +291,51 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 		evaluate(ts, func(val float64) float64 {
 			return val * math.Pi / 180
 		})
+
+	case segutils.Acos:
+		err = evaluateWithErr(ts, func(val float64) (float64, error) {
+			if val < -1 || val > 1 {
+				return val, fmt.Errorf("evaluateWithErr: acos evaluate values in the range [-1,1]")
+			}
+			return math.Acos(val), nil
+		})
+	case segutils.Acosh:
+		err = evaluateWithErr(ts, func(val float64) (float64, error) {
+			if val < 1 {
+				return val, fmt.Errorf("evaluateWithErr: acosh evaluate values in the range [1,+Inf]")
+			}
+			return math.Acosh(val), nil
+		})
+	case segutils.Asin:
+		err = evaluateWithErr(ts, func(val float64) (float64, error) {
+			if val < -1 || val > 1 {
+				return val, fmt.Errorf("evaluateWithErr: asin evaluate values in the range [-1,1]")
+			}
+			return math.Asin(val), nil
+		})
+	case segutils.Asinh:
+		evaluate(ts, math.Asinh)
+	case segutils.Atan:
+		evaluate(ts, math.Atan)
+	case segutils.Atanh:
+		err = evaluateWithErr(ts, func(val float64) (float64, error) {
+			if val <= -1 || val >= 1 {
+				return val, fmt.Errorf("evaluateWithErr: atanh evaluate values in the range [-1,1]")
+			}
+			return math.Atanh(val), nil
+		})
+	case segutils.Cos:
+		evaluate(ts, math.Cos)
+	case segutils.Cosh:
+		evaluate(ts, math.Cosh)
+	case segutils.Sin:
+		evaluate(ts, math.Sin)
+	case segutils.Sinh:
+		evaluate(ts, math.Sinh)
+	case segutils.Tan:
+		evaluate(ts, math.Tan)
+	case segutils.Tanh:
+		evaluate(ts, math.Tanh)
 	case segutils.Clamp:
 		if len(function.ValueList) != 2 {
 			return ts, fmt.Errorf("ApplyMathFunction: clamp has incorrect parameters: %v", function.ValueList)
@@ -361,15 +411,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 	switch function.RangeFunction {
 	case segutils.Derivative:
 		// Use those points which within the time window to calculate the derivative
-		var timestamps []uint32
-		var values []float64
-
-		for timestamp, value := range ts {
-			timestamps = append(timestamps, timestamp)
-			values = append(values, value)
-		}
-
-		for i := 1; i < len(timestamps); i++ {
+		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
 			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
 				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
@@ -380,31 +422,42 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 				continue
 			}
 
-			timestamp := timestamps[i]
-
-			// Find neighboring data points for linear regression
-			var x []float64
-			var y []float64
-
-			// Collect data points for linear regression
-			for j := preIndex; j <= i; j++ {
-				x = append(x, float64(timestamps[j]))
-				y = append(y, values[j])
-			}
-
-			var sumX, sumY, sumXY, sumX2 float64
-			for k := 0; k < len(x); k++ {
-				sumX += x[k]
-				sumY += y[k]
-				sumXY += x[k] * y[k]
-				sumX2 += x[k] * x[k]
-			}
-			n := float64(len(x))
-			slope := (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX)
+			timestamp := sortedTimeSeries[i].downsampledTime
+			slope := getSlopeByLinearRegression(sortedTimeSeries, preIndex, i)
 			ts[timestamp] = slope
 		}
 		// derivtives at edges do not exist
-		delete(ts, timestamps[0])
+		delete(ts, sortedTimeSeries[0].downsampledTime)
+		return ts, nil
+	case segutils.Predict_Linear:
+		if len(function.ValueList) != 1 {
+			return ts, fmt.Errorf("ApplyRangeFunction: predict_linear has incorrect parameters: %v", function.ValueList)
+		}
+
+		floatVal, err := strconv.ParseFloat(function.ValueList[0], 64)
+		if err != nil {
+			return ts, fmt.Errorf("ApplyRangeFunction: predict_linear has incorrect parameters: %v", function.ValueList)
+		}
+
+		predictDuration := uint32(floatVal)
+
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				delete(ts, sortedTimeSeries[i].downsampledTime)
+				continue
+			}
+
+			timestamp := sortedTimeSeries[i].downsampledTime
+
+			slope := getSlopeByLinearRegression(sortedTimeSeries, preIndex, i)
+			ts[timestamp] = sortedTimeSeries[i].dpVal + float64(predictDuration)*slope
+		}
+		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
 	case segutils.Rate:
 		return evaluateRate(sortedTimeSeries, ts, timeWindow), nil
@@ -530,7 +583,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i] - prefixSum[preIndex]
 		}
 		return ts, nil
-	case segutils.Avg_Over_time:
+	case segutils.Avg_Over_Time:
 		prefixSum := make([]float64, len(sortedTimeSeries)+1)
 		prefixSum[1] = sortedTimeSeries[0].dpVal
 		for i := 1; i < len(sortedTimeSeries); i++ {
@@ -550,7 +603,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[sortedTimeSeries[i].downsampledTime] = (prefixSum[i+1] - prefixSum[preIndex]) / float64(i-preIndex+1)
 		}
 		return ts, nil
-	case segutils.Min_Over_time:
+	case segutils.Min_Over_Time:
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
 			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
@@ -565,7 +618,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[sortedTimeSeries[i].downsampledTime] = min
 		}
 		return ts, nil
-	case segutils.Max_Over_time:
+	case segutils.Max_Over_Time:
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
 			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
@@ -580,7 +633,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[sortedTimeSeries[i].downsampledTime] = max
 		}
 		return ts, nil
-	case segutils.Sum_Over_time:
+	case segutils.Sum_Over_Time:
 		prefixSum := make([]float64, len(sortedTimeSeries)+1)
 		prefixSum[1] = sortedTimeSeries[0].dpVal
 		for i := 1; i < len(sortedTimeSeries); i++ {
@@ -600,7 +653,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i+1] - prefixSum[preIndex]
 		}
 		return ts, nil
-	case segutils.Count_Over_time:
+	case segutils.Count_Over_Time:
 		ts[sortedTimeSeries[0].downsampledTime] = 1
 		for i := 1; i < len(sortedTimeSeries); i++ {
 			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
@@ -614,6 +667,50 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			}
 
 			ts[sortedTimeSeries[i].downsampledTime] = float64(i - preIndex + 1)
+		}
+		return ts, nil
+	case segutils.Stdvar_Over_Time:
+		return evaluateStandardVariance(sortedTimeSeries, ts, timeWindow), nil
+	case segutils.Stddev_Over_Time:
+		ts = evaluateStandardVariance(sortedTimeSeries, ts, timeWindow)
+		for key, val := range ts {
+			ts[key] = math.Sqrt(val)
+		}
+		return ts, nil
+	case segutils.Last_Over_Time:
+		// If we take the very last sample from every element of a range vector, the resulting vector will be identical to a regular instant vector query.
+		return ts, nil
+	case segutils.Present_Over_Time:
+		for key := range ts {
+			ts[key] = 1
+		}
+		return ts, nil
+	case segutils.Quantile_Over_Time:
+		if len(function.ValueList) != 1 {
+			return ts, fmt.Errorf("ApplyMathFunction: quantile_over_time has incorrect parameters: %v", function.ValueList)
+		}
+		quantile, err := strconv.ParseFloat(function.ValueList[0], 64)
+		if err != nil {
+			return ts, fmt.Errorf("ApplyMathFunction: quantile_over_time has incorrect parameters: %v", function.ValueList)
+		}
+
+		ts[sortedTimeSeries[0].downsampledTime] = sortedTimeSeries[0].dpVal * quantile
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			})
+
+			if i <= preIndex { // Can not find the second point within the time window
+				ts[sortedTimeSeries[i].downsampledTime] = sortedTimeSeries[i].dpVal * quantile
+				continue
+			}
+			// Linear interpolation calculation: P = φ * (N - 1), V = V1 + (P - floor(P)) * (V2 - V1)
+			p := quantile * float64(i-preIndex)
+			index1 := int(math.Floor(float64(preIndex) + p))
+			index2 := int(math.Ceil(float64(preIndex) + p))
+			val := sortedTimeSeries[index1].dpVal + (p-math.Floor(p))*(sortedTimeSeries[index2].dpVal-sortedTimeSeries[index1].dpVal)
+			ts[sortedTimeSeries[i].downsampledTime] = val
 		}
 		return ts, nil
 	default:
@@ -747,11 +844,73 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 }
 
 type float64Func func(float64) float64
+type float64FuncWithErr func(float64) (float64, error)
 
 func evaluate(ts map[uint32]float64, mathFunc float64Func) {
 	for key, val := range ts {
 		ts[key] = mathFunc(val)
 	}
+}
+
+type timeFunc func(time.Time) float64
+
+func evaluateTimeFunc(allDPs map[uint32]float64, timeFunc timeFunc) {
+	for dpTs := range allDPs {
+		t := time.Unix(int64(dpTs), 0).UTC()
+		allDPs[dpTs] = timeFunc(t)
+	}
+}
+
+func ApplyTimeFunction(allDPs map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
+	switch function.TimeFunction {
+	case segutils.Hour:
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
+			return float64(t.Hour())
+		})
+	case segutils.Minute:
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
+			return float64(t.Minute())
+		})
+	case segutils.Month:
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
+			return float64(t.Month())
+		})
+	case segutils.Year:
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
+			return float64(t.Year())
+		})
+	case segutils.DayOfMonth:
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
+			return float64(t.Day())
+		})
+	case segutils.DayOfWeek:
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
+			return float64(t.Weekday())
+		})
+	case segutils.DayOfYear:
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
+			return float64(t.YearDay())
+		})
+	case segutils.DaysInMonth:
+		evaluateTimeFunc(allDPs, func(t time.Time) float64 {
+			return float64(time.Date(t.Year(), t.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day())
+		})
+	default:
+		return allDPs, fmt.Errorf("ApplyTimeFunction: unsupported function type %v", function)
+	}
+
+	return allDPs, nil
+}
+
+func evaluateWithErr(ts map[uint32]float64, mathFunc float64FuncWithErr) error {
+	for key, val := range ts {
+		resVal, err := mathFunc(val)
+		if err != nil {
+			return err
+		}
+		ts[key] = resVal
+	}
+	return nil
 }
 
 func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) error {
@@ -885,4 +1044,57 @@ func evaluateClamp(ts map[uint32]float64, minVal float64, maxVal float64) {
 			ts[key] = maxVal
 		}
 	}
+}
+
+func evaluateStandardVariance(sortedTimeSeries []Entry, ts map[uint32]float64, timeWindow uint32) map[uint32]float64 {
+	prefixSum := make([]float64, len(sortedTimeSeries)+1)
+	prefixSum[1] = sortedTimeSeries[0].dpVal
+	for i := 1; i < len(sortedTimeSeries); i++ {
+		prefixSum[i+1] = (prefixSum[i] + sortedTimeSeries[i].dpVal)
+	}
+
+	ts[sortedTimeSeries[0].downsampledTime] = 0
+	for i := 1; i < len(sortedTimeSeries); i++ {
+		timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+		preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+			return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+		})
+
+		if i <= preIndex { // Can not find the second point within the time window
+			ts[sortedTimeSeries[i].downsampledTime] = 0
+			continue
+		}
+
+		avgVal := (prefixSum[i+1] - prefixSum[preIndex]) / float64(i-preIndex+1)
+		sumValSquare := 0.0
+		for j := preIndex; j <= i; j++ {
+			sumValSquare += (sortedTimeSeries[j].dpVal - avgVal) * (sortedTimeSeries[j].dpVal - avgVal)
+		}
+
+		ts[sortedTimeSeries[i].downsampledTime] = sumValSquare / float64(i-preIndex+1)
+	}
+	return ts
+}
+
+func getSlopeByLinearRegression(sortedTimeSeries []Entry, preIndex int, i int) float64 {
+	// Find neighboring data points for linear regression
+	var x []float64
+	var y []float64
+
+	// Collect data points for linear regression
+	for j := preIndex; j <= i; j++ {
+		x = append(x, float64(sortedTimeSeries[j].downsampledTime))
+		y = append(y, sortedTimeSeries[j].dpVal)
+	}
+
+	var sumX, sumY, sumXY, sumX2 float64
+	for k := 0; k < len(x); k++ {
+		sumX += x[k]
+		sumY += y[k]
+		sumXY += x[k] * y[k]
+		sumX2 += x[k] * x[k]
+	}
+	n := float64(len(x))
+	slope := (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX)
+	return slope
 }

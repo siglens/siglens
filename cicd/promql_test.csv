@@ -1,0 +1,54 @@
+# This file is a test set of metrics data. The fields below represent: query, start time, end time,step,expected result
+"testmetric0",now-1d,now,15,true
+"testmetric1{car_type=""Passenger car compact""}",now-1d,now,15,true
+"round(testmetric0, 1/2)",now-1d,now,15,true
+"avg_over_time(testmetric0[24h])",now-1d,now,15,true
+"max_over_time(testmetric0[48h])",now-1d,now,15,true
+"changes(testmetric0[48h])",now-1d,now,15,true
+"abs(testmetric1)",now-1d,now,15,true
+"sqrt(testmetric1)",now-1d,now,15,true
+"ceil(testmetric1)",now-1d,now,15,true
+"floor(testmetric1)",now-1d,now,15,true
+"round(testmetric0)",now-1d,now,15,true
+"round(testmetric0, 1/2)",now-1d,now,15,true
+"ln(testmetric1)",now-1d,now,15,true
+"log2(testmetric1)",now-1d,now,15,true
+"log10(testmetric1)",now-1d,now,15,true
+"sgn(testmetric2)",now-1d,now,15,true
+"deg(testmetric2)",now-1d,now,15,true
+"rad(testmetric2)",now-1d,now,15,true
+"clamp(testmetric3, -10, 100)",now-1d,now,15,true
+"clamp_max(testmetric3, 99)",now-1d,now,15,true
+"clamp_min(testmetric3, 0)",now-1d,now,15,true
+"rate(abs(testmetric3[48h]))",now-1d,now,15,false
+"irate(testmetric3[48h])",now-1d,now,15,true
+"increase(testmetric3[48h])",now-1d,now,15,true
+"delta(testmetric3[48h])",now-1d,now,15,true
+"idelta(testmetric3[48h])",now-1d,now,15,true
+"changes(testmetric4[24h])",now-1d,now,15,true
+"resets(testmetric4[24h])",now-1d,now,15,true
+"avg_over_time(testmetric4[24h])",now-1d,now,15,true
+"min_over_time(testmetric4[24h])",now-1d,now,15,true
+"max_over_time(testmetric4[24h])",now-1d,now,15,true
+"sum_over_time(testmetric4[24h])",now-1d,now,15,true
+"count_over_time(testmetric4[24h])",now-1d,now,15,true
+"avg_over_time(testmetric0[24h])",now-1d,now,15,true
+"max_over_time(testmetric0[48h])",now-1d,now,15,true
+"changes(testmetric0[48h])",now-1d,now,15,true
+"hour(timestamp(testmetric0))",now-1d,now,15,true
+"minute(timestamp(testmetric0))",now-1d,now,15,true
+"month(timestamp(testmetric0))",now-1d,now,15,true
+"year(timestamp(testmetric0))",now-1d,now,15,true
+"day_of_month(timestamp(testmetric0))",now-1d,now,15,true
+"day_of_week(timestamp(testmetric0))",now-1d,now,15,true
+"day_of_year(timestamp(testmetric0))",now-1d,now,15,true
+"days_in_month(timestamp(testmetric0))",now-1d,now,15,true
+"testmetric0[24h]",now-1d,now,15,false
+"testmetric1{car_type=""Passenger car compact""}[48h]",now-1d,now,15,false
+"abs(testmetric1[24h])",now-1d,now,15,false
+"sqrt(testmetric1[48h])",now-1d,now,15,false
+"ceil(testmetric1[24h])",now-1d,now,15,false
+"floor(testmetric1[48h])",now-1d,now,15,false
+"round(testmetric0[24h])",now-1d,now,15,false
+"round(testmetric0, 1/2)[48h]",now-1d,now,15,false
+"ln(testmetric1[24h])",now-1m,now,15,false

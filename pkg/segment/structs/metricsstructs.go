@@ -63,6 +63,7 @@ type Function struct {
 	RangeFunction utils.RangeFunctions //range function to apply, only one of these will be non nil
 	ValueList     []string
 	TimeWindow    float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
+	TimeFunction  utils.TimeFunctions
 }
 
 type Downsampler struct {
@@ -95,7 +96,7 @@ type Label struct {
 
 type Result struct {
 	Metric map[string]string `json:"metric"`
-	Value  []interface{}     `json:"value"`
+	Value  []interface{}     `json:"values"`
 }
 
 type Data struct {

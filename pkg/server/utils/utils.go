@@ -42,10 +42,7 @@ func CallWithOrgIdQuery(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthtt
 	if hook := hooks.GlobalHooks.GetOrgIdHookQuery; hook != nil {
 		orgId, err = hook(ctx)
 		if err != nil {
-			responsebody := make(map[string]interface{})
-			ctx.SetStatusCode(fasthttp.StatusUnauthorized)
-			responsebody["error"] = err.Error()
-			utils.WriteJsonResponse(ctx, responsebody)
+			utils.SendUnauthorizedError(ctx, "Failed authorization", "", err)
 			return
 		}
 	}
@@ -59,10 +56,7 @@ func CallWithOrgId(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthttp.Req
 	if hook := hooks.GlobalHooks.GetOrgIdHook; hook != nil {
 		orgId, err = hook(ctx)
 		if err != nil {
-			responsebody := make(map[string]interface{})
-			ctx.SetStatusCode(fasthttp.StatusUnauthorized)
-			responsebody["error"] = err.Error()
-			utils.WriteJsonResponse(ctx, responsebody)
+			utils.SendUnauthorizedError(ctx, "Failed authorization", "", err)
 			return
 		}
 	}

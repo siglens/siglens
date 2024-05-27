@@ -120,7 +120,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                     <div class="query-index-container">
                         <div class="index-stats">
-                            <p class="index-stats-header">Logs Stats</p>
+                            <p class="index-stats-header" id="logs-stats-header">Logs Stats</p>
                             <table id="index-data-table" class="index-data-table"></table>
                         </div>
                     </div>
@@ -146,7 +146,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 Storage Savings
                             </div>
                         </div>
-                        {{ .Popup1 | safeHTML }}
+                        <div class="popupContent" id="confirm-del-index-prompt">
+                            <h3 class="header">Delete Index</h3>
+                            <div class="del-org-prompt-text-container">
+                                <div class="prompt-text">Are you sure you want to delete the "<span class="index-name"></span>" index?</div>
+                                <div class="prompt-text prompt-text-bottom">To confirm the action, please type "<b>delete </b><span class="index-name"></span>".</div>
+                            </div>
+                            <input type="text" id="del-index-name-input" class="prompt-input">
+                            <div class="buttons-prompt">
+                                <button type="button" id="cancel-del-index-btn" class="cancel-btn btn">Cancel</button>
+                                <button type="button" id="del-index-btn" class="btn" disabled="true">Delete</button>
+                            </div>
+                        </div>
+                        <div class="popupOverlay"></div>
                     </div>
                     <div id="cstats-app-footer">
                         2024 &copy; SigLens

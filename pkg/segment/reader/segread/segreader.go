@@ -147,10 +147,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		return false, nil
 	}
 
-	if uint32(len(sfr.currFileBuffer)) < colBlockLen {
-		newArr := make([]byte, colBlockLen-uint32(len(sfr.currFileBuffer)))
-		sfr.currFileBuffer = append(sfr.currFileBuffer, newArr...)
-	}
+	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(colBlockLen))
 	_, err := sfr.currFD.ReadAt(sfr.currFileBuffer[:colBlockLen], colBlockOffset)
 	if err != nil {
 		log.Errorf("loadBlockUsingBuffer read file error: %+v", err)
@@ -318,17 +315,8 @@ func (sfr *SegmentFileReader) readDictEnc(buf []byte, blockNum uint16) error {
 	numWords := toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
 	idx += 2
 
-	if uint16(len(sfr.deTlv)) < numWords {
-		extLen := numWords - uint16(len(sfr.deTlv))
-		newArr := make([][]byte, extLen)
-		sfr.deTlv = append(sfr.deTlv, newArr...)
-	}
-
-	if uint16(len(sfr.deRecToTlv)) < sfr.blockSummaries[blockNum].RecCount {
-		extLen := sfr.blockSummaries[blockNum].RecCount - uint16(len(sfr.deRecToTlv))
-		newArr := make([]uint16, extLen)
-		sfr.deRecToTlv = append(sfr.deRecToTlv, newArr...)
-	}
+	sfr.deTlv = toputils.ResizeSlice(sfr.deTlv, int(numWords))
+	sfr.deRecToTlv = toputils.ResizeSlice(sfr.deRecToTlv, int(sfr.blockSummaries[blockNum].RecCount))
 
 	var numRecs uint16
 	var soffW uint32

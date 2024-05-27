@@ -219,10 +219,7 @@ func (sm *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool, a
 			offset += utils.LEN_BLOCK_CMI_SIZE + utils.LEN_BLKNUM_CMI_SIZE // for cmilenHolder (4) and blkNum (2)
 			cmilen := toputils.BytesToUint32LittleEndian(bb[0:utils.LEN_BLOCK_CMI_SIZE])
 			cmilen -= utils.LEN_BLKNUM_CMI_SIZE // for the blkNum(2)
-			if bufflen := uint32(len(cmbuf)); bufflen < cmilen {
-				newSlice := make([]byte, cmilen-bufflen)
-				cmbuf = append(cmbuf, newSlice...)
-			}
+			cmbuf = toputils.ResizeSlice(cmbuf, int(cmilen))
 
 			blkNum := toputils.BytesToUint16LittleEndian(bb[utils.LEN_BLOCK_CMI_SIZE:])
 			if _, shouldLoad := blocksToLoad[blkNum]; allBlocks || shouldLoad {

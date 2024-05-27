@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/cespare/xxhash"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
 )
@@ -121,4 +122,41 @@ func Test_ExtractSeriesOfJsonObjects(t *testing.T) {
 	jsonObjects, err = ExtractSeriesOfJsonObjects([]byte(invalidBody))
 	assert.NotNil(t, err)
 	assert.Nil(t, jsonObjects)
+}
+
+// Hook to capture log entries
+type LoggerHook struct {
+	Entries []*log.Entry
+}
+
+func (hook *LoggerHook) Levels() []log.Level {
+	return log.AllLevels
+}
+
+func (hook *LoggerHook) Fire(entry *log.Entry) error {
+	hook.Entries = append(hook.Entries, entry)
+	return nil
+}
+
+func Test_sendErrorWithStatus(t *testing.T) {
+	logger := log.New()
+	loggerHook := &LoggerHook{}
+	logger.Hooks.Add(loggerHook)
+	ctx := &fasthttp.RequestCtx{}
+
+	// sendErrorWithStatus logs the function two levels up, so wrap it in a closure.
+	func() {
+		sendErrorWithStatus(logger, ctx, "user message", "extra log message", fmt.Errorf("some error"), fasthttp.StatusBadRequest)
+	}()
+
+	assert.Len(t, loggerHook.Entries, 1)
+	assert.Contains(t, loggerHook.Entries[0].Message, "user message")
+	assert.Contains(t, loggerHook.Entries[0].Message, "extra log message")
+	assert.Contains(t, loggerHook.Entries[0].Message, "some error")
+	assert.Contains(t, loggerHook.Entries[0].Message, "httpserverutils_test.go")
+	assert.Contains(t, loggerHook.Entries[0].Message, "Test_sendErrorWithStatus")
+
+	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
+	assert.Equal(t, "{\"error\":\"user message\"}", string(ctx.Response.Body()))
+
 }

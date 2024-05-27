@@ -95,7 +95,12 @@ async function initializeIndexAutocomplete() {
             }
             
             $(this).val('');
-            runQueryBtnHandler();
+            const currentUrl = window.location.href;
+            if (currentUrl.includes("dashboard.html")){
+                runQueryBtnHandler();
+            }else{
+                runFilterBtnHandler(event);
+            }
         },
         open: function(event, ui) {
             var containerPosition = $(this).closest('.index-container').offset();
@@ -199,7 +204,7 @@ async function initializeIndexAutocomplete() {
 }
 
 // Remove selected index from container when remove icon is clicked
-$(".index-container").on("click", ".remove-icon", function() {
+$(".index-container").on("click", ".remove-icon", function(e) {
     if ($('.index-container .selected-index').length === 1) {
         return; // If there's only one tag left, do not remove it
     }
@@ -254,7 +259,12 @@ $(".index-container").on("click", ".remove-icon", function() {
         $("#index-listing").css('width', '100%');
     }
 
-    runQueryBtnHandler();
+    const currentUrl = window.location.href;
+    if (currentUrl.includes("dashboard.html")){
+        runQueryBtnHandler();
+    }else{
+        runFilterBtnHandler(e);
+    }
 });
 
 

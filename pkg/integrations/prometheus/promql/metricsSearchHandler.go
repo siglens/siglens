@@ -267,6 +267,7 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 	if err != nil {
 		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error getting results! %+v", err)
 	}
+	mQResponse.Data.ResultType = parser.ValueTypeMatrix
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -1015,6 +1016,11 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				switch function {
 				case "deriv":
 					mquery.Function = structs.Function{RangeFunction: segutils.Derivative, TimeWindow: timeWindow}
+				case "predict_linear":
+					if len(expr.Args) != 2 {
+						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the predict_linear function", expr.Args.String())
+					}
+					mquery.Function = structs.Function{RangeFunction: segutils.Predict_Linear, TimeWindow: timeWindow, ValueList: []string{expr.Args[1].String()}}
 				case "delta":
 					mquery.Function = structs.Function{RangeFunction: segutils.Delta, TimeWindow: timeWindow}
 				case "idelta":
@@ -1026,15 +1032,28 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				case "increase":
 					mquery.Function = structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow}
 				case "avg_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Avg_Over_time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: segutils.Avg_Over_Time, TimeWindow: timeWindow}
 				case "min_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Min_Over_time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: segutils.Min_Over_Time, TimeWindow: timeWindow}
 				case "max_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Max_Over_time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: segutils.Max_Over_Time, TimeWindow: timeWindow}
 				case "sum_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Sum_Over_time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: segutils.Sum_Over_Time, TimeWindow: timeWindow}
 				case "count_over_time":
-					mquery.Function = structs.Function{RangeFunction: segutils.Count_Over_time, TimeWindow: timeWindow}
+					mquery.Function = structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: timeWindow}
+				case "stdvar_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: timeWindow}
+				case "stddev_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Stddev_Over_Time, TimeWindow: timeWindow}
+				case "last_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow}
+				case "present_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow}
+				case "quantile_over_time":
+					if len(expr.Args) != 2 {
+						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the quantile_over_time function", expr.Args.String())
+					}
+					mquery.Function = structs.Function{RangeFunction: segutils.Quantile_Over_Time, TimeWindow: timeWindow, ValueList: []string{expr.Args[0].String()}}
 				case "changes":
 					mquery.Function = structs.Function{RangeFunction: segutils.Changes, TimeWindow: timeWindow}
 				case "resets":
@@ -1072,6 +1091,30 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Function = structs.Function{MathFunction: segutils.Deg}
 				case "rad":
 					mquery.Function = structs.Function{MathFunction: segutils.Rad}
+				case "acos":
+					mquery.Function = structs.Function{MathFunction: segutils.Acos}
+				case "acosh":
+					mquery.Function = structs.Function{MathFunction: segutils.Acosh}
+				case "asin":
+					mquery.Function = structs.Function{MathFunction: segutils.Asin}
+				case "asinh":
+					mquery.Function = structs.Function{MathFunction: segutils.Asinh}
+				case "atan":
+					mquery.Function = structs.Function{MathFunction: segutils.Atan}
+				case "atanh":
+					mquery.Function = structs.Function{MathFunction: segutils.Atanh}
+				case "cos":
+					mquery.Function = structs.Function{MathFunction: segutils.Cos}
+				case "cosh":
+					mquery.Function = structs.Function{MathFunction: segutils.Cosh}
+				case "sin":
+					mquery.Function = structs.Function{MathFunction: segutils.Sin}
+				case "sinh":
+					mquery.Function = structs.Function{MathFunction: segutils.Sinh}
+				case "tan":
+					mquery.Function = structs.Function{MathFunction: segutils.Tan}
+				case "tanh":
+					mquery.Function = structs.Function{MathFunction: segutils.Tanh}
 				case "clamp":
 					if len(expr.Args) != 3 {
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp function", expr.Args.String())
@@ -1089,6 +1132,22 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Function = structs.Function{MathFunction: segutils.Clamp_Min, ValueList: []string{expr.Args[1].String()}}
 				case "timestamp":
 					mquery.Function = structs.Function{MathFunction: segutils.Timestamp}
+				case "hour":
+					mquery.Function = structs.Function{TimeFunction: segutils.Hour}
+				case "minute":
+					mquery.Function = structs.Function{TimeFunction: segutils.Minute}
+				case "month":
+					mquery.Function = structs.Function{TimeFunction: segutils.Month}
+				case "year":
+					mquery.Function = structs.Function{TimeFunction: segutils.Year}
+				case "day_of_month":
+					mquery.Function = structs.Function{TimeFunction: segutils.DayOfMonth}
+				case "day_of_week":
+					mquery.Function = structs.Function{TimeFunction: segutils.DayOfWeek}
+				case "day_of_year":
+					mquery.Function = structs.Function{TimeFunction: segutils.DayOfYear}
+				case "days_in_month":
+					mquery.Function = structs.Function{TimeFunction: segutils.DaysInMonth}
 				default:
 					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
 				}
@@ -1420,13 +1479,14 @@ func parseTimeStringToUint32(s interface{}) (uint32, error) {
 }
 
 func extractTimeWindow(args parser.Expressions) (float64, error) {
-	if len(args) > 0 {
-		if ms, ok := args[0].(*parser.MatrixSelector); ok {
-			return ms.Range.Seconds(), nil
-		} else {
-			return 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
-		}
-	} else {
+	if len(args) == 0 {
 		return 0, fmt.Errorf("extractTimeWindow: can not extract time window")
 	}
+
+	for _, arg := range args {
+		if ms, ok := arg.(*parser.MatrixSelector); ok {
+			return ms.Range.Seconds(), nil
+		}
+	}
+	return 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
 }
