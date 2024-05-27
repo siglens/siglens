@@ -874,7 +874,7 @@ func ExtractSeriesOfJsonObjects(body []byte) ([]map[string]interface{}, error) {
 	return objects, nil
 }
 
-func sendErrorWithStatus(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error, statusCode int) {
+func sendErrorWithStatus(logger *log.Logger, ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error, statusCode int) {
 	// Get the caller function name, file name, and line number.
 	pc, _, _, _ := runtime.Caller(2) // Get the caller two levels up.
 	caller := runtime.FuncForPC(pc)
@@ -895,9 +895,9 @@ func sendErrorWithStatus(ctx *fasthttp.RequestCtx, messageToUser string, extraMe
 
 	// Log the error message.
 	if extraMessageToLog == "" {
-		log.Errorf("%s at %s:%d: %v, err=%v", callerName, callerFile, callerLine, messageToUser, err)
+		logger.Errorf("%s at %s:%d: %v, err=%v", callerName, callerFile, callerLine, messageToUser, err)
 	} else {
-		log.Errorf("%s at %s:%d: %v. %v, err=%v", callerName, callerFile, callerLine, messageToUser, extraMessageToLog, err)
+		logger.Errorf("%s at %s:%d: %v. %v, err=%v", callerName, callerFile, callerLine, messageToUser, extraMessageToLog, err)
 	}
 
 	// Send the error message to the client.
@@ -908,9 +908,13 @@ func sendErrorWithStatus(ctx *fasthttp.RequestCtx, messageToUser string, extraMe
 }
 
 func SendError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
-	sendErrorWithStatus(ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusBadRequest)
+	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusBadRequest)
 }
 
 func SendInternalError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
-	sendErrorWithStatus(ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusInternalServerError)
+	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusInternalServerError)
+}
+
+func SendUnauthorizedError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
+	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusUnauthorized)
 }

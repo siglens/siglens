@@ -104,9 +104,7 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		numBytes := len(rawJson)
 		err = writer.ProcessIndexRequest(rawJson, tsNow, "test-data", uint64(numBytes), false, localIndexMap, myid)
 		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			responsebody["error"] = err.Error()
-			utils.WriteJsonResponse(ctx, responsebody)
+			utils.SendError(ctx, "Failed to ingest data", "", err)
 			return
 		}
 		usageStats.UpdateStats(uint64(numBytes), 1, myid)
