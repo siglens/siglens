@@ -35,6 +35,14 @@
 "avg_over_time(testmetric0[24h])",now-1d,now,15,true
 "max_over_time(testmetric0[48h])",now-1d,now,15,true
 "changes(testmetric0[48h])",now-1d,now,15,true
+"hour(timestamp(testmetric0))",now-1d,now,15,true
+"minute(timestamp(testmetric0))",now-1d,now,15,true
+"month(timestamp(testmetric0))",now-1d,now,15,true
+"year(timestamp(testmetric0))",now-1d,now,15,true
+"day_of_month(timestamp(testmetric0))",now-1d,now,15,true
+"day_of_week(timestamp(testmetric0))",now-1d,now,15,true
+"day_of_year(timestamp(testmetric0))",now-1d,now,15,true
+"days_in_month(timestamp(testmetric0))",now-1d,now,15,true
 "testmetric0[24h]",now-1d,now,15,false
 "testmetric1{car_type=""Passenger car compact""}[48h]",now-1d,now,15,false
 "abs(testmetric1[24h])",now-1d,now,15,false

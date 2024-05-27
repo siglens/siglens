@@ -50,6 +50,13 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error
 	clen := utils.BytesToUint16LittleEndian(col[idx : idx+COL_OFF_BYTE_SIZE])
 	idx += COL_OFF_BYTE_SIZE
 
+	if uint16(len(col)) < idx+clen {
+		err := fmt.Errorf("invalid column length: %v < (%v + %v) for col %v", len(col), idx, clen, col)
+		log.Errorf("ApplySearchToMatchFilterRawCsg: %v", err)
+		return false, err
+	}
+	asciiBytes := col[idx : idx+clen]
+
 	// todo MatchWords struct can store bytes
 	if match.MatchOperator == And {
 		var foundQword bool = true
@@ -61,13 +68,13 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error
 			}
 
 			if regexp != nil {
-				foundQword = regexp.Match(col[idx : idx+clen])
+				foundQword = regexp.Match(asciiBytes)
 			} else {
-				foundQword = utils.IsSubWordPresent(col[idx:idx+clen], match.MatchPhrase)
+				foundQword = utils.IsSubWordPresent(asciiBytes, match.MatchPhrase)
 			}
 		} else {
 			for _, qword := range match.MatchWords {
-				foundQword = utils.IsSubWordPresent(col[idx:idx+clen], []byte(qword))
+				foundQword = utils.IsSubWordPresent(asciiBytes, []byte(qword))
 				if !foundQword {
 					break
 				}
@@ -79,7 +86,7 @@ func ApplySearchToMatchFilterRawCsg(match *MatchFilter, col []byte) (bool, error
 	if match.MatchOperator == Or {
 		var foundQword bool
 		for _, qword := range match.MatchWords {
-			foundQword = utils.IsSubWordPresent(col[idx:idx+clen], []byte(qword))
+			foundQword = utils.IsSubWordPresent(asciiBytes, []byte(qword))
 			if foundQword {
 				return true, nil
 			}

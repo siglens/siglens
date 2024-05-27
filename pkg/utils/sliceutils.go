@@ -52,3 +52,13 @@ func SelectIndicesFromSlice(slice []string, indices []int) []string {
 
 	return result
 }
+
+func ResizeSlice[T any](slice []T, newLength int) []T {
+	slice = slice[:cap(slice)]
+
+	if len(slice) >= newLength {
+		return slice[:newLength]
+	}
+
+	return append(slice, make([]T, newLength-len(slice))...)
+}

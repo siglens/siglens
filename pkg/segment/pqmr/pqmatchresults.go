@@ -252,10 +252,7 @@ func ReadPqmr(fname *string) (*SegmentPQMRResults, error) {
 		offset += segutils.LEN_PQMR_BLK_SIZE
 		bsSize = utils.BytesToUint16LittleEndian(bbBlkSize[:])
 
-		if bufflen := uint16(len(bsBlk)); bufflen < bsSize {
-			newSlice := make([]byte, bsSize-bufflen)
-			bsBlk = append(bsBlk, newSlice...)
-		}
+		bsBlk = utils.ResizeSlice(bsBlk, int(bsSize))
 
 		_, err = fd.ReadAt(bsBlk[:bsSize], offset)
 		if err != nil {

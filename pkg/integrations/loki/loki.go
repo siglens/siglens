@@ -186,10 +186,7 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	responsebody := make(map[string]interface{})
 	buf, err := snappy.Decode(nil, ctx.PostBody())
 	if err != nil {
-		log.Errorf("ProcessLokiLogsIngestRequest: error decompressing request body, err: %v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = "Error decompressing request body"
-		utils.WriteJsonResponse(ctx, responsebody)
+		utils.SendError(ctx, "Failed to decode request", fmt.Sprintf("body: %s", ctx.PostBody()), err)
 		return
 	}
 
@@ -197,10 +194,7 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	err = proto.Unmarshal(buf, &logLine)
 	if err != nil {
-		log.Errorf("ProcessLokiLogsIngestRequest: Unable to unmarshal request body, err=%v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = "Unable to unmarshal request body"
-		utils.WriteJsonResponse(ctx, responsebody)
+		utils.SendError(ctx, "Unable to unmarshal request", "", err)
 		return
 	}
 
@@ -213,16 +207,12 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		body := logJson
 		err = vtable.AddVirtualTable(&indexNameIn, myid)
 		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
-			responsebody["error"] = "Failed to add virtual table for index"
-			utils.WriteJsonResponse(ctx, responsebody)
+			utils.SendInternalError(ctx, "Failed to add virtual table for index", "", err)
 			return
 		}
 		err = vtable.AddMappingFromADoc(&indexNameIn, &body, myid)
 		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
-			responsebody["error"] = "Failed to add mapping from a doc for index"
-			utils.WriteJsonResponse(ctx, responsebody)
+			utils.SendInternalError(ctx, "Failed to add mapping from a doc for index", "", err)
 			return
 		}
 	}
@@ -232,10 +222,7 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var jsonData map[string][]map[string]interface{}
 	err = json.Unmarshal([]byte(logJson), &jsonData)
 	if err != nil {
-		log.Errorf("ProcessLokiLogsIngestRequest: Unable to unmarshal request body, err=%v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = "Unable to unmarshal request body"
-		utils.WriteJsonResponse(ctx, responsebody)
+		utils.SendError(ctx, "Unable to unmarshal request", "", err)
 		return
 	}
 
@@ -253,10 +240,7 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 		entries, ok := stream["entries"].([]interface{})
 		if !ok {
-			log.Errorf("ProcessLokiLogsIngestRequest: Unable to convert entries to []interface{}")
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			responsebody["error"] = "Unable to convert entries to []interface{}"
-			utils.WriteJsonResponse(ctx, responsebody)
+			utils.SendError(ctx, "Unable to convert entries", "failed to convert to []interface{}", nil)
 			return
 		}
 
@@ -264,26 +248,17 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			for _, entry := range entries {
 				entryMap, ok := entry.(map[string]interface{})
 				if !ok {
-					log.Errorf("ProcessLokiLogsIngestRequest: Unable to convert entry to map[string]interface{}")
-					ctx.SetStatusCode(fasthttp.StatusBadRequest)
-					responsebody["error"] = "Unable to convert entry to map[string]interface{}"
-					utils.WriteJsonResponse(ctx, responsebody)
+					utils.SendError(ctx, "Unable to convert entries", "failed to convert to map[string]interface{}", err)
 					return
 				}
 				timestamp, ok := entryMap["timestamp"].(string)
 				if !ok {
-					log.Errorf("ProcessLokiLogsIngestRequest: Unable to convert timestamp to string")
-					ctx.SetStatusCode(fasthttp.StatusBadRequest)
-					responsebody["error"] = "Unable to convert timestamp to string"
-					utils.WriteJsonResponse(ctx, responsebody)
+					utils.SendError(ctx, "Unable to convert timestamp", "", err)
 					return
 				}
 				line, ok := entryMap["line"].(string)
 				if !ok {
-					log.Errorf("ProcessLokiLogsIngestRequest: Unable to convert line to string")
-					ctx.SetStatusCode(fasthttp.StatusBadRequest)
-					responsebody["error"] = "Unable to convert line to string"
-					utils.WriteJsonResponse(ctx, responsebody)
+					utils.SendError(ctx, "Unable to convert line to string", "", err)
 					return
 				}
 
@@ -292,18 +267,13 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 				test, err := json.Marshal(allIngestData)
 				if err != nil {
-					log.Errorf("ProcessLokiLogsIngestRequest: Unable to marshal data, err=%v", err)
-					ctx.SetStatusCode(fasthttp.StatusBadRequest)
-					responsebody["error"] = "Unable to marshal request body"
-					utils.WriteJsonResponse(ctx, responsebody)
+					utils.SendError(ctx, "Unable to marshal json", fmt.Sprintf("allIngestData: %v", allIngestData), err)
 					return
 				}
 
 				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid)
 				if err != nil {
-					ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
-					responsebody["error"] = "Failed to add entry to in mem buffer"
-					utils.WriteJsonResponse(ctx, responsebody)
+					utils.SendError(ctx, "Failed to ingest record", "", err)
 					return
 				}
 			}
@@ -421,9 +391,7 @@ func ProcessLokiLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	colVals, err := ast.GetColValues(labelName, indexName, astNode, aggNode, timeRange, qid, myid)
 
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusUnauthorized)
-		responsebody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responsebody)
+		utils.SendError(ctx, "Failed to process request", "", err)
 		return
 	}
 
@@ -436,11 +404,7 @@ func ProcessLokiLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	query := removeUnimplementedMethods(string(ctx.QueryArgs().Peek("query")))
 	if query == "" {
-		log.Errorf(" ProcessQueryRequest: received empty search request body ")
-		responsebody := make(map[string]interface{})
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = "received empty search request body"
-		utils.WriteJsonResponse(ctx, responsebody)
+		utils.SendError(ctx, "Search request is empty", "", nil)
 		return
 	}
 
@@ -451,10 +415,7 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	if limitStr != "" {
 		sizeLimit, err = strconv.ParseUint(string(ctx.QueryArgs().Peek("limit")), 10, 64)
 		if err != nil {
-			responsebody := make(map[string]interface{})
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			responsebody["error"] = err.Error()
-			utils.WriteJsonResponse(ctx, responsebody)
+			utils.SendError(ctx, "Failed to parse limit", "", err)
 			return
 		}
 	}
@@ -473,18 +434,12 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ti := structs.InitTableInfo(LOKIINDEX_STAR, myid, false)
 	startTimeMs, endTimeMs, err := parseTimeRangeInMS(ctx, uint64(HOUR_IN_MS))
 	if err != nil {
-		responsebody := make(map[string]interface{})
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responsebody)
+		utils.SendError(ctx, "Failed to parse time range", "", err)
 		return
 	}
 	simpleNode, aggs, err := pipesearch.ParseRequest(query, startTimeMs, endTimeMs, qid, "Log QL", LOKIINDEX_STAR)
 	if err != nil {
-		responsebody := make(map[string]interface{})
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responsebody)
+		utils.SendError(ctx, "Failed to parse request", "", err)
 		return
 	}
 
@@ -543,22 +498,14 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			if !ok {
 				jsonRow, err := json.Marshal(row)
 				if err != nil {
-					responsebody := make(map[string]interface{})
-					log.Errorf("ProcessQueryRequest: Unable to marshal row: %v to string, err=%v", row, err)
-					ctx.SetStatusCode(fasthttp.StatusBadRequest)
-					responsebody["error"] = "Unable to marshal row to string"
-					utils.WriteJsonResponse(ctx, responsebody)
+					utils.SendError(ctx, "Unable to marshal row", fmt.Sprintf("row: %v", row), err)
 				}
 				line = string(jsonRow)
 			}
 			valuesRow := make([]string, 0)
 			timeStamp, ok := row["timestamp"].(uint64)
 			if !ok {
-				responsebody := make(map[string]interface{})
-				log.Errorf("ProcessQueryRequest: Unable to find the timestamp in the row: %v", row)
-				ctx.SetStatusCode(fasthttp.StatusBadRequest)
-				responsebody["error"] = "Unable to parse/fetch the timestamp from the row"
-				utils.WriteJsonResponse(ctx, responsebody)
+				utils.SendError(ctx, "Unable to get the timestamp", fmt.Sprintf("row: %v", row), nil)
 			}
 			valuesRow = append(valuesRow, fmt.Sprintf("%v", timeStamp*MsToNanoConversion), line)
 			queryResultLine.Values = append(queryResultLine.Values, valuesRow)
@@ -650,16 +597,12 @@ func ProcessLokiSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	query := string(ctx.QueryArgs().Peek("match[]"))
 	startEpoch, err := strconv.ParseUint(string(ctx.QueryArgs().Peek("start")), 10, 64)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responsebody)
+		utils.SendError(ctx, "Failed to get start time", "", err)
 		return
 	}
 	endEpoch, err := strconv.ParseUint(string(ctx.QueryArgs().Peek("end")), 10, 64)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responsebody)
+		utils.SendError(ctx, "Failed to get end time", "", err)
 		return
 	}
 	responsebody["status"] = "success"
@@ -669,9 +612,7 @@ func ProcessLokiSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ti := structs.InitTableInfo(LOKIINDEX_STAR, myid, false)
 	simpleNode, aggs, err := pipesearch.ParseQuery(query, qid, "Log QL")
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responsebody)
+		utils.SendError(ctx, "Failed to parse query", fmt.Sprintf("query: %v", query), err)
 		return
 	}
 
@@ -686,9 +627,7 @@ func ProcessLokiSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	queryResult := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
 	allJsons, _, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggs)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responsebody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responsebody)
+		utils.SendError(ctx, "Failed to get matching records", "", err)
 		return
 	}
 	responsebody["data"] = allJsons
