@@ -30,27 +30,24 @@ import (
 )
 
 var (
-	once          sync.Once
 	QueryLogFile  *os.File
 	AccessLogFile *os.File
 	fileMutex     sync.Mutex
 )
 
 func InitLogFiles() {
-	once.Do(func() {
-		var err error
-		QueryLogFile, err = os.OpenFile(config.GetLogPrefix()+"query.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-		if err != nil {
-			log.Errorf("Unable to open query.log file, err=%v", err)
-		} else {
-			logRestartMarker(QueryLogFile)
-		}
+	var err error
+	QueryLogFile, err = os.OpenFile(config.GetLogPrefix()+"query.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Errorf("Unable to open query.log file, err=%v", err)
+	} else {
+		logRestartMarker(QueryLogFile)
+	}
 
-		AccessLogFile, err = os.OpenFile(config.GetLogPrefix()+"access.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-		if err != nil {
-			log.Errorf("Unable to open access.log file, err=%v", err)
-		}
-	})
+	AccessLogFile, err = os.OpenFile(config.GetLogPrefix()+"access.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Errorf("Unable to open access.log file, err=%v", err)
+	}
 }
 
 // logRestartMarker logs a marker indicating the application has restarted
