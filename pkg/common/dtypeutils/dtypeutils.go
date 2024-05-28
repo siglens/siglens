@@ -643,4 +643,5 @@ type LogFileData struct {
 	RequestBody string
 	StatusCode  int
 	Duration    int64
+	QueryID     uint64
 }

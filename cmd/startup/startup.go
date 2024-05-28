@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
 	"github.com/siglens/siglens/pkg/blob"
 	local "github.com/siglens/siglens/pkg/blob/local"
+	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	commonconfig "github.com/siglens/siglens/pkg/config/common"
 	"github.com/siglens/siglens/pkg/dashboards"
@@ -284,6 +285,7 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	instrumentation.InitMetrics()
 	querytracker.InitQT()
 
+	fileutils.InitLogFiles()
 	go tracinghandler.MonitorSpansHealth()
 	go tracinghandler.DependencyGraphThread()
 

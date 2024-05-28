@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package utils
+package fileutils
 
 import (
 	"fmt"
@@ -25,28 +25,32 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
+	once          sync.Once
 	QueryLogFile  *os.File
 	AccessLogFile *os.File
 	fileMutex     sync.Mutex
 )
 
-func init() {
-	var err error
-	QueryLogFile, err = os.OpenFile("query.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Errorf("Unable to open query.log file, err=%v", err)
-	} else {
-		logRestartMarker(QueryLogFile)
-	}
+func InitLogFiles() {
+	once.Do(func() {
+		var err error
+		QueryLogFile, err = os.OpenFile(config.GetLogPrefix()+"query.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			log.Errorf("Unable to open query.log file, err=%v", err)
+		} else {
+			logRestartMarker(QueryLogFile)
+		}
 
-	AccessLogFile, err = os.OpenFile("access.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Errorf("Unable to open access.log file, err=%v", err)
-	}
+		AccessLogFile, err = os.OpenFile(config.GetLogPrefix()+"access.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			log.Errorf("Unable to open access.log file, err=%v", err)
+		}
+	})
 }
 
 // logRestartMarker logs a marker indicating the application has restarted
@@ -65,7 +69,7 @@ func logRestartMarker(logFile *os.File) {
 }
 
 func DeferableAddAccessLogEntry(startTime time.Time, endTimeFunc func() time.Time, user string,
-	uri string, requestBody string, statusCodeFunc func() int, allowWebsocket bool, logFile *os.File) {
+	uri string, requestBody string, statusCodeFunc func() int, allowWebsocket bool, logFile *os.File, qid uint64) {
 
 	data := dtypeutils.LogFileData{
 		TimeStamp:   startTime.Format("2006-01-02 15:04:05"),
@@ -74,6 +78,7 @@ func DeferableAddAccessLogEntry(startTime time.Time, endTimeFunc func() time.Tim
 		RequestBody: requestBody,
 		StatusCode:  statusCodeFunc(),
 		Duration:    endTimeFunc().Sub(startTime).Milliseconds(),
+		QueryID:     qid,
 	}
 	AddLogEntry(data, allowWebsocket, logFile)
 }
@@ -97,9 +102,10 @@ func AddLogEntry(data dtypeutils.LogFileData, allowWebsocket bool, logFile *os.F
 		return
 	}
 
-	_, err := logFile.WriteString(fmt.Sprintf("%s %s %s %s %d %d\n",
+	_, err := logFile.WriteString(fmt.Sprintf("%s %s %d %s %s %d %d\n",
 		data.TimeStamp,
 		data.UserName, // TODO : Add logged in user when user auth is implemented
+		data.QueryID,
 		data.URI,
 		data.RequestBody,
 		data.StatusCode,
