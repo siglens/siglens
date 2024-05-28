@@ -407,6 +407,62 @@ func TestCalculateInterval(t *testing.T) {
 	}
 }
 
+func Test_GetResults_Modulo(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    52.5,
+			3600: 23,
+			7200: -10,
+		},
+		map[uint32]float64{
+			0:    2.5,
+			3600: 3,
+			7200: 0,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetModulo,
+				Constant:   5,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_Power(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    2,
+			7200: -10,
+		},
+		map[uint32]float64{
+			0:    4,
+			7200: 100,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetPower,
+				Constant:   2,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
 func Test_GetResults_GreaterThan(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
