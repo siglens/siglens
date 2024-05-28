@@ -67,8 +67,8 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*
 	mQuery.Aggregator = structs.Aggregation{}
 	selectors := extractSelectors(expr)
 	//go through labels
-	for _, lblEntry := range selectors {
-		for _, entry := range lblEntry {
+	for _, labelEntry := range selectors {
+		for _, entry := range labelEntry {
 			if entry.Name != "__name__" {
 				tagFilter := &structs.TagsFilter{
 					TagKey:          entry.Name,
@@ -164,6 +164,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*
 func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryRequest, queryArithmetic []*structs.QueryArithmetic,
 	intervalSeconds uint32) ([]*structs.MetricsQueryRequest, []*structs.QueryArithmetic, bool, error) {
 	var err error = nil
+	var mQueryAgg *structs.MetricQueryAgg
 	exit := false
 	mQuery := &mQueryReqs[0].MetricsQuery
 
@@ -173,9 +174,15 @@ func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryReq
 
 	switch node := node.(type) {
 	case *parser.AggregateExpr:
-		handleAggregateExpr(node, mQuery)
+		mQueryAgg, err = handleAggregateExpr(node, mQuery)
+		if err == nil {
+			updateMetricQueryWithAggs(mQuery, mQueryAgg)
+		}
 	case *parser.Call:
-		err = handleCallExpr(node, mQuery)
+		mQueryAgg, err = handleCallExpr(node, mQuery)
+		if err == nil {
+			updateMetricQueryWithAggs(mQuery, mQueryAgg)
+		}
 	case *parser.VectorSelector:
 		mQueryReqs, err = handleVectorSelector(mQueryReqs, intervalSeconds)
 	case *parser.BinaryExpr:
@@ -206,7 +213,7 @@ func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryReq
 	return mQueryReqs, queryArithmetic, exit, err
 }
 
-func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuery) {
+func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuery) (*structs.MetricQueryAgg, error) {
 	aggFunc := expr.Op.String()
 
 	// Handle parameters if necessary
@@ -229,15 +236,17 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.Aggregator.AggregatorFunction = segutils.Min
 	case "quantile":
 		mQuery.Aggregator.AggregatorFunction = segutils.Quantile
-	default:
-		log.Infof("handleAggregateExpr: using avg aggregator by default for AggregateExpr (got %v)", aggFunc)
+	case "":
+		log.Infof("handleAggregateExpr: using avg aggregator by default for AggregateExpr (got empty string)")
 		mQuery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
+	default:
+		return nil, fmt.Errorf("handleAggregateExpr: unsupported aggregation function %v", aggFunc)
 	}
 
 	// Handle grouping
-	for _, grp := range expr.Grouping {
+	for _, group := range expr.Grouping {
 		tagFilter := structs.TagsFilter{
-			TagKey:          grp,
+			TagKey:          group,
 			RawTagValue:     "*",
 			HashTagValue:    xxhash.Sum64String("*"),
 			TagOperator:     segutils.TagOperator(segutils.Equal),
@@ -254,21 +263,10 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		AggregatorBlock: mQuery.Aggregator.Clone(),
 	}
 
-	// If MQueryAggs is nil, set it to the new MetricQueryAgg
-	if mQuery.MQueryAggs == nil {
-		mQuery.MQueryAggs = mQueryAgg
-	} else {
-		// Otherwise, set the new MetricQueryAgg to the head of the chain
-		// and set the current head as the next of the new MetricQueryAgg
-		mQueryAgg.Next = mQuery.MQueryAggs
-		mQuery.MQueryAggs = mQueryAgg
-	}
-
-	// Reset the Aggregator to handle the next aggregation correctly
-	mQuery.Aggregator = structs.Aggregation{}
+	return mQueryAgg, nil
 }
 
-func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) error {
+func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) (*structs.MetricQueryAgg, error) {
 	var err error
 	defaultCase := false
 
@@ -286,7 +284,7 @@ func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) error {
 			defaultCase = true
 		}
 		if err != nil {
-			return fmt.Errorf("handleCallExpr: cannot parse Call Node: %v", err)
+			return nil, fmt.Errorf("handleCallExpr: cannot parse Call Node: %v", err)
 		}
 
 		// Break if the case is not default. As Call Expr can have multiple arguments
@@ -307,7 +305,7 @@ func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("handleCallExpr: cannot parse Call Node: %v", err)
+		return nil, fmt.Errorf("handleCallExpr: cannot parse Call Node: %v", err)
 	}
 
 	mQueryAgg := &structs.MetricQueryAgg{
@@ -315,20 +313,7 @@ func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) error {
 		FunctionBlock: mQuery.Function.Clone(),
 	}
 
-	// If MQueryAggs is nil, set it to the new MetricQueryAgg
-	if mQuery.MQueryAggs == nil {
-		mQuery.MQueryAggs = mQueryAgg
-	} else {
-		// Otherwise, set the new MetricQueryAgg to the head of the chain
-		// and set the current head as the next of the new MetricQueryAgg
-		mQueryAgg.Next = mQuery.MQueryAggs
-		mQuery.MQueryAggs = mQueryAgg
-	}
-
-	// Reset the Function to handle the next function call correctly
-	mQuery.Function = structs.Function{}
-
-	return nil
+	return mQueryAgg, nil
 }
 
 func handleCallExprParenExprNode(call *parser.Call, expr *parser.ParenExpr, mQuery *structs.MetricsQuery) error {
@@ -552,13 +537,19 @@ func appendMetricAggsToTheMQuery(mQueryReqs []*structs.MetricsQueryRequest, mQue
 	return mQueryReqs
 }
 
-func HandleNumberLiteral(literal *parser.NumberLiteral, mQuery *structs.MetricsQuery) {
-	// Check if the ValueList is nil, if so, initialize it
-	if mQuery.Function.ValueList == nil {
-		mQuery.Function = structs.Function{
-			ValueList: []string{},
-		}
+func updateMetricQueryWithAggs(mQuery *structs.MetricsQuery, mQueryAgg *structs.MetricQueryAgg) {
+
+	// If MQueryAggs is nil, set it to the new MetricQueryAgg
+	if mQuery.MQueryAggs == nil {
+		mQuery.MQueryAggs = mQueryAgg
+	} else {
+		// Otherwise, set the new MetricQueryAgg to the head of the chain
+		// and set the current head as the next of the new MetricQueryAgg
+		mQueryAgg.Next = mQuery.MQueryAggs
+		mQuery.MQueryAggs = mQueryAgg
 	}
-	// Append the number literal to the ValueList
-	mQuery.Function.ValueList = append(mQuery.Function.ValueList, literal.String())
+
+	// Reset the Function And Aggregator fields to handle the next function call correctly
+	mQuery.Function = structs.Function{}
+	mQuery.Aggregator = structs.Aggregation{}
 }

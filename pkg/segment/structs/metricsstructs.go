@@ -390,18 +390,11 @@ func (mbs *MBlockSummary) UpdateTimeRange(ts uint32) {
 }
 
 func (metricFunc Function) Clone() *Function {
-	return &Function{
-		MathFunction:  metricFunc.MathFunction,
-		RangeFunction: metricFunc.RangeFunction,
-		ValueList:     metricFunc.ValueList,
-		TimeWindow:    metricFunc.TimeWindow,
-		Step:          metricFunc.Step,
-	}
+	functionCopy := metricFunc
+	return &functionCopy
 }
 
 func (agg Aggregation) Clone() *Aggregation {
-	return &Aggregation{
-		AggregatorFunction: agg.AggregatorFunction,
-		FuncConstant:       agg.FuncConstant,
-	}
+	aggCopy := agg
+	return &aggCopy
 }
