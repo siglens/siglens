@@ -145,20 +145,18 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*
 			AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
 		}
 		mQueryReqs[0].MetricsQuery = mQuery
-	}
-	// else {
-	// If the first aggregation is not an aggregator block, then add an aggregator block with avg function
-	// Should I do this way??
+	} else {
+		// If the first Block in the MQueryAggs is not an aggregator block, then add an default aggregator block with avg function
 
-	// if mQuery.MQueryAggs.AggBlockType != structs.AggregatorBlock {
-	// 	mQuery.MQueryAggs = &structs.MetricQueryAgg{
-	// 		AggBlockType:    structs.AggregatorBlock,
-	// 		AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
-	// 		Next:            mQuery.MQueryAggs,
-	// 	}
-	// 	mQueryReqs[0].MetricsQuery = mQuery
-	// }
-	// }
+		if mQuery.MQueryAggs.AggBlockType != structs.AggregatorBlock {
+			mQuery.MQueryAggs = &structs.MetricQueryAgg{
+				AggBlockType:    structs.AggregatorBlock,
+				AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
+				Next:            mQuery.MQueryAggs,
+			}
+			mQueryReqs[0].MetricsQuery = mQuery
+		}
+	}
 
 	return mQueryReqs, pqlQuerytype, queryArithmetic, nil
 }
