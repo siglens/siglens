@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package utils
+package fileutils
 
 import (
 	"fmt"
@@ -43,6 +43,7 @@ func TestAddAccessLogEntry(t *testing.T) {
 		RequestBody: "test_body",
 		StatusCode:  200,
 		Duration:    int64(time.Second * 2),
+		QueryID:     0,
 	}
 
 	// Call the function with the temporary logFile
@@ -56,9 +57,10 @@ func TestAddAccessLogEntry(t *testing.T) {
 	}
 
 	// Validate the content of the file
-	expectedLogEntry := fmt.Sprintf("%s %s %s %s %d %d\n",
+	expectedLogEntry := fmt.Sprintf("%s %s %d %s %s %d %d\n",
 		data.TimeStamp,
 		data.UserName,
+		data.QueryID,
 		data.URI,
 		data.RequestBody,
 		data.StatusCode,
