@@ -8,7 +8,7 @@
             "description": "",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.49733434881949734,
                 "x": 0,
                 "y": 0
@@ -31,10 +31,10 @@
             "description": "",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.49733434881949734,
                 "x": 0,
-                "y": 4
+                "y": 5
             },
             "name": "Queries Per Minute",
             "panelId": "79e65fec-cbc8-445e-8d6f-c1df4fb24cae",
@@ -54,10 +54,10 @@
             "description": "",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 1.003171363290175,
-                "x": 0,
-                "y": 8
+                "x": 2,
+                "y": 0
             },
             "name": "Query Latency",
             "panelId": "222fa2a7-3cab-43b4-8167-1b35cd0831c0",

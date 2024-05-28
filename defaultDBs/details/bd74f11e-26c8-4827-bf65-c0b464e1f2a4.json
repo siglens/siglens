@@ -8,7 +8,7 @@
             "description": "",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.37906172839506175,
                 "x": 0,
                 "y": 0
@@ -31,10 +31,10 @@
             "description": "Storage Savings",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.21668175582990398,
                 "x": 0,
-                "y": 4
+                "y": 5
             },
             "name": "Storage Savings",
             "panelId": "8ad97ab8-657b-4563-b3d6-f50f3d99232e",
@@ -54,10 +54,10 @@
             "description": "Current On Disk Bytes",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.3872064471879287,
-                "x": 0,
-                "y": 8
+                "x": 2,
+                "y": 0
             },
             "name": "Total Storage Used",
             "panelId": "88179951-1fd4-4fae-91c2-843dedc032ca",
@@ -77,10 +77,10 @@
             "description": "",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 1.0031483087597572,
                 "x": 2,
-                "y": 0
+                "y": 5
             },
             "name": "Queries Per Minute",
             "panelId": "a14d8a46-e9ea-4e61-aff0-a07a540fa8a8",
@@ -100,10 +100,10 @@
             "description": "",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 1.0543398058252427,
-                "x": 2,
-                "y": 4
+                "x": 4,
+                "y": 0
             },
             "name": "Volume Change / Min",
             "panelId": "c6cba2f2-e791-4c42-b6fa-e71bd94a6c51",
@@ -123,10 +123,10 @@
             "description": "",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 1.001111111111111,
-                "x": 2,
-                "y": 8
+                "x": 4,
+                "y": 5
             },
             "name": "Query Latency",
             "panelId": "b5bc62e4-63c3-4fb4-b262-4a02b8b43e2d",
@@ -146,9 +146,9 @@
             "description": "Current num of events",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.5056694101508916,
-                "x": 4,
+                "x": 6,
                 "y": 0
             },
             "name": "Current Event Count",
@@ -169,10 +169,10 @@
             "description": "Compression Ratio",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.49332373113854594,
-                "x": 4,
-                "y": 4
+                "x": 6,
+                "y": 5
             },
             "name": "Compression Ratio",
             "panelId": "a740460e-451f-4fed-aa59-e4764fd638a3",

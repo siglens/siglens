@@ -8,7 +8,7 @@
             "description": "",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.39594551845342707,
                 "x": 0,
                 "y": 0
@@ -30,10 +30,10 @@
             "description": "Current On Disk Bytes",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.3846177504393673,
                 "x": 0,
-                "y": 4
+                "y": 5
             },
             "name": "SigScalr Storage Used",
             "panelId": "060afc8a-2e14-41ff-9c43-90b9c20f0832",
@@ -52,10 +52,10 @@
             "description": "Compression Ratio",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.1775761316872428,
-                "x": 0,
-                "y": 8
+                "x": 2,
+                "y": 0
             },
             "name": "Compression Ratio",
             "panelId": "20a5c2a4-129c-4778-ae20-ca24cb35a306",
@@ -75,10 +75,10 @@
             "description": "",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.9918143972246313,
                 "x": 2,
-                "y": 0
+                "y": 5
             },
             "name": "Ingested Volume/min",
             "panelId": "ce5cc4d8-4c3e-4b55-9d7d-97f46815ff0a",
@@ -98,10 +98,10 @@
             "description": "OnDiskBytesPerMinute",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.49581111957349583,
-                "x": 2,
-                "y": 4
+                "x": 4,
+                "y": 0
             },
             "name": "OnDiskBytesPerMinute",
             "panelId": "658e9c6a-0466-4553-88ff-46fdf63dc3c2",
@@ -121,10 +121,10 @@
             "description": "",
             "gridpos": {
                 "h": 2,
-                "w": 4,
+                "w": 5,
                 "wPercent": 0.49733434881949734,
-                "x": 2,
-                "y": 8
+                "x": 4,
+                "y": 5
             },
             "name": "EventsPerMinute",
             "panelId": "c108e768-9086-4461-aa29-b21553614af7",
