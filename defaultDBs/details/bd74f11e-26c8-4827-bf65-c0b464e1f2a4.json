@@ -7,8 +7,8 @@
             "dataType": "TB",
             "description": "",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 0.37906172839506175,
                 "x": 0,
                 "y": 0
@@ -30,11 +30,11 @@
             "dataType": "percent(0-100)",
             "description": "Storage Savings",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 0.21668175582990398,
                 "x": 0,
-                "y": 5
+                "y": 6
             },
             "name": "Storage Savings",
             "panelId": "8ad97ab8-657b-4563-b3d6-f50f3d99232e",
@@ -53,10 +53,10 @@
             "dataType": "TB",
             "description": "Current On Disk Bytes",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 0.3872064471879287,
-                "x": 2,
+                "x": 3,
                 "y": 0
             },
             "name": "Total Storage Used",
@@ -76,11 +76,11 @@
             "dataType": "",
             "description": "",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 1.0031483087597572,
-                "x": 2,
-                "y": 5
+                "x": 3,
+                "y": 6
             },
             "name": "Queries Per Minute",
             "panelId": "a14d8a46-e9ea-4e61-aff0-a07a540fa8a8",
@@ -99,10 +99,10 @@
             "dataType": "",
             "description": "",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 1.0543398058252427,
-                "x": 4,
+                "x": 6,
                 "y": 0
             },
             "name": "Volume Change / Min",
@@ -122,11 +122,11 @@
             "dataType": "",
             "description": "",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 1.001111111111111,
-                "x": 4,
-                "y": 5
+                "x": 6,
+                "y": 6
             },
             "name": "Query Latency",
             "panelId": "b5bc62e4-63c3-4fb4-b262-4a02b8b43e2d",
@@ -145,10 +145,10 @@
             "dataType": "none",
             "description": "Current num of events",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 0.5056694101508916,
-                "x": 6,
+                "x": 9,
                 "y": 0
             },
             "name": "Current Event Count",
@@ -168,11 +168,11 @@
             "dataType": "none",
             "description": "Compression Ratio",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 0.49332373113854594,
-                "x": 6,
-                "y": 5
+                "x": 9,
+                "y": 6
             },
             "name": "Compression Ratio",
             "panelId": "a740460e-451f-4fed-aa59-e4764fd638a3",

@@ -7,8 +7,8 @@
             "dataType": "TB",
             "description": "",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 0.39594551845342707,
                 "x": 0,
                 "y": 0
@@ -29,11 +29,11 @@
             "dataType": "TB",
             "description": "Current On Disk Bytes",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 0.3846177504393673,
                 "x": 0,
-                "y": 5
+                "y": 6
             },
             "name": "SigScalr Storage Used",
             "panelId": "060afc8a-2e14-41ff-9c43-90b9c20f0832",
@@ -51,10 +51,10 @@
             "dataType": "none",
             "description": "Compression Ratio",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 0.1775761316872428,
-                "x": 2,
+                "x": 3,
                 "y": 0
             },
             "name": "Compression Ratio",
@@ -74,11 +74,11 @@
             "dataType": "",
             "description": "",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 0.9918143972246313,
-                "x": 2,
-                "y": 5
+                "x": 3,
+                "y": 6
             },
             "name": "Ingested Volume/min",
             "panelId": "ce5cc4d8-4c3e-4b55-9d7d-97f46815ff0a",
@@ -97,10 +97,10 @@
             "dataType": "",
             "description": "OnDiskBytesPerMinute",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 0.49581111957349583,
-                "x": 4,
+                "x": 6,
                 "y": 0
             },
             "name": "OnDiskBytesPerMinute",
@@ -120,11 +120,11 @@
             "dataType": "",
             "description": "",
             "gridpos": {
-                "h": 2,
-                "w": 5,
+                "h": 3,
+                "w": 6,
                 "wPercent": 0.49733434881949734,
-                "x": 4,
-                "y": 5
+                "x": 6,
+                "y": 6
             },
             "name": "EventsPerMinute",
             "panelId": "c108e768-9086-4461-aa29-b21553614af7",

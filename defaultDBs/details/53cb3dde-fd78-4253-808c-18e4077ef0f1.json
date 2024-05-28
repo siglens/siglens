@@ -8,8 +8,8 @@
       "dataType": "",
       "description": "",
       "gridpos": {
-        "h": 2,
-        "w": 5,
+        "h": 3,
+        "w": 6,
         "wPercent": 0.5141630901287554,
         "x": 0,
         "y": 0
@@ -35,11 +35,11 @@
       "dataType": "",
       "description": "",
       "gridpos": {
-        "h": 2,
-        "w": 5,
+        "h": 3,
+        "w": 6,
         "wPercent": 0.5141630901287554,
         "x": 0,
-        "y": 5
+        "y": 6
       },
       "name": "Pie Chart",
       "panelId": "da7fad9a-56c6-47e7-ab25-ea28498ba463",
@@ -61,10 +61,10 @@
       "dataType": "none",
       "description": "",
       "gridpos": {
-        "h": 2,
-        "w": 5,
+        "h": 3,
+        "w": 6,
         "wPercent": 0.5158798283261803,
-        "x": 2,
+        "x": 3,
         "y": 0
       },
       "name": "Big Number",
@@ -87,11 +87,11 @@
       "dataType": "",
       "description": "",
       "gridpos": {
-        "h": 2,
-        "w": 5,
+        "h": 3,
+        "w": 6,
         "wPercent": 0.5133047210300429,
-        "x": 2,
-        "y": 5
+        "x": 3,
+        "y": 6
       },
       "name": "Bar Chart",
       "panelId": "c0ecaf3c-b6d4-4be4-a4df-0ff25e771a2d",
