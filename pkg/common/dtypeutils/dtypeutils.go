@@ -639,9 +639,9 @@ func ConvertToSameType(leftType, rightType interface{}) (interface{}, interface{
 type LogFileData struct {
 	TimeStamp   string
 	UserName    string
+	QueryID     uint64
 	URI         string
 	RequestBody string
 	StatusCode  int
 	Duration    int64
-	QueryID     uint64
 }

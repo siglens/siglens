@@ -39,11 +39,11 @@ func TestAddAccessLogEntry(t *testing.T) {
 	data := dtypeutils.LogFileData{
 		TimeStamp:   time.Now().Format(time.RFC3339),
 		UserName:    "test_user",
+		QueryID:     0,
 		URI:         "/example",
 		RequestBody: "test_body",
 		StatusCode:  200,
 		Duration:    int64(time.Second * 2),
-		QueryID:     0,
 	}
 
 	// Call the function with the temporary logFile

@@ -71,11 +71,11 @@ func DeferableAddAccessLogEntry(startTime time.Time, endTimeFunc func() time.Tim
 	data := dtypeutils.LogFileData{
 		TimeStamp:   startTime.Format("2006-01-02 15:04:05"),
 		UserName:    user,
+		QueryID:     qid,
 		URI:         uri,
 		RequestBody: requestBody,
 		StatusCode:  statusCodeFunc(),
 		Duration:    endTimeFunc().Sub(startTime).Milliseconds(),
-		QueryID:     qid,
 	}
 	AddLogEntry(data, allowWebsocket, logFile)
 }
