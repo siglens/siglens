@@ -520,6 +520,50 @@ func Test_GetResults_NEQ(t *testing.T) {
 		})
 }
 
+func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:     1,
+			10800: 5,
+			21600: 9,
+		},
+		map[uint32]float64{
+			0:     0,
+			10800: 1,
+			21600: 1,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetGreaterThan,
+				Constant:   4,
+				ReturnBool: true,
+			},
+		})
+
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:     1,
+			10800: 5,
+			21600: 9,
+		},
+		map[uint32]float64{
+			0:     0,
+			10800: 1,
+			21600: 0,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetEquals,
+				Constant:   5,
+				ReturnBool: true,
+			},
+		})
+}
+
 func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap map[uint32]float64, queryOps []structs.QueryArithmetic) {
 	mQuery := &structs.MetricsQuery{
 		MetricName:  "test.metric.0",
