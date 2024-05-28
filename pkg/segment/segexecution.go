@@ -73,10 +73,10 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		}
 	}
 
-	return helperQueryArithmetic(queryOps, resMap)
+	return HelperQueryArithmeticAndLogical(queryOps, resMap)
 }
 
-func helperQueryArithmetic(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) *mresults.MetricsResult {
+func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) *mresults.MetricsResult {
 	finalResult := make(map[string]map[uint32]float64)
 	for _, queryOp := range queryOps {
 		resultLHS := resMap[queryOp.LHS]
@@ -94,9 +94,9 @@ func helperQueryArithmetic(queryOps []structs.QueryArithmetic, resMap map[uint64
 				finalResult[groupID] = make(map[uint32]float64)
 				for timestamp, valueLHS := range tsLHS {
 					switch queryOp.Operation {
-					case utils.Add:
+					case utils.LetAdd:
 						finalResult[groupID][timestamp] = valueLHS + valueRHS
-					case utils.Divide:
+					case utils.LetDivide:
 						if valueRHS == 0 {
 							continue
 						}
@@ -104,14 +104,54 @@ func helperQueryArithmetic(queryOps []structs.QueryArithmetic, resMap map[uint64
 							valueRHS = 1 / valueRHS
 						}
 						finalResult[groupID][timestamp] = valueLHS / valueRHS
-					case utils.Multiply:
+					case utils.LetMultiply:
 						finalResult[groupID][timestamp] = valueLHS * valueRHS
-					case utils.Subtract:
+					case utils.LetSubtract:
 						val := valueLHS - valueRHS
 						if swapped {
 							val = val * -1
 						}
 						finalResult[groupID][timestamp] = val
+					case utils.LetGreaterThan:
+						isGtr := valueLHS > valueRHS
+						if swapped {
+							isGtr = valueLHS < valueRHS
+						}
+						if isGtr {
+							finalResult[groupID][timestamp] = valueLHS
+						}
+					case utils.LetGreaterThanOrEqualTo:
+						isGte := valueLHS >= valueRHS
+						if swapped {
+							isGte = valueLHS <= valueRHS
+						}
+						if isGte {
+							finalResult[groupID][timestamp] = valueLHS
+						}
+					case utils.LetLessThan:
+						isLss := valueLHS < valueRHS
+						if swapped {
+							isLss = valueLHS > valueRHS
+						}
+						if isLss {
+							finalResult[groupID][timestamp] = valueLHS
+						}
+					case utils.LetLessThanOrEqualTo:
+						isLte := valueLHS <= valueRHS
+						if swapped {
+							isLte = valueLHS >= valueRHS
+						}
+						if isLte {
+							finalResult[groupID][timestamp] = valueLHS
+						}
+					case utils.LetEquals:
+						if valueLHS == valueRHS {
+							finalResult[groupID][timestamp] = valueLHS
+						}
+					case utils.LetNotEquals:
+						if valueLHS != valueRHS {
+							finalResult[groupID][timestamp] = valueLHS
+						}
 					}
 				}
 			}
@@ -125,17 +165,41 @@ func helperQueryArithmetic(queryOps []structs.QueryArithmetic, resMap map[uint64
 				for timestamp, valueLHS := range tsLHS {
 					valueRHS := resultRHS.Results[groupID][timestamp]
 					switch queryOp.Operation {
-					case utils.Add:
+					case utils.LetAdd:
 						finalResult[groupID][timestamp] = valueLHS + valueRHS
-					case utils.Divide:
+					case utils.LetDivide:
 						if valueRHS == 0 {
 							continue
 						}
 						finalResult[groupID][timestamp] = valueLHS / valueRHS
-					case utils.Multiply:
+					case utils.LetMultiply:
 						finalResult[groupID][timestamp] = valueLHS * valueRHS
-					case utils.Subtract:
+					case utils.LetSubtract:
 						finalResult[groupID][timestamp] = valueLHS - valueRHS
+					case utils.LetGreaterThan:
+						if valueLHS > valueRHS {
+							finalResult[groupID][timestamp] = valueLHS
+						}
+					case utils.LetGreaterThanOrEqualTo:
+						if valueLHS >= valueRHS {
+							finalResult[groupID][timestamp] = valueLHS
+						}
+					case utils.LetLessThan:
+						if valueLHS < valueRHS {
+							finalResult[groupID][timestamp] = valueLHS
+						}
+					case utils.LetLessThanOrEqualTo:
+						if valueLHS <= valueRHS {
+							finalResult[groupID][timestamp] = valueLHS
+						}
+					case utils.LetEquals:
+						if valueLHS == valueRHS {
+							finalResult[groupID][timestamp] = valueLHS
+						}
+					case utils.LetNotEquals:
+						if valueLHS != valueRHS {
+							finalResult[groupID][timestamp] = valueLHS
+						}
 					}
 				}
 			}
