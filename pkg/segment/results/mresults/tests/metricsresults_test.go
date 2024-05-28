@@ -429,7 +429,7 @@ func Test_GetResults_GreaterThan(t *testing.T) {
 			Interval:   3,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -457,7 +457,7 @@ func Test_GetResults_GreaterThanOrEqualTo(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -485,7 +485,7 @@ func Test_GetResults_LessThan(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -513,7 +513,7 @@ func Test_GetResults_LessThanOrEqualTo(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -540,7 +540,7 @@ func Test_GetResults_Equals(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -568,7 +568,7 @@ func Test_GetResults_NotEquals(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }

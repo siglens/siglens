@@ -13,6 +13,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -249,7 +250,7 @@ func Test_parsePromQLQuery_simpleQueries(t *testing.T) {
 	assert.NotNil(t, mQueryReqs[0].MetricsQuery.MQueryAggs.Next)
 	assert.Equal(t, utils.Rate, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(300), mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.TimeWindow)
-	assert.Equal(t, utils.Multiply, queryArithmetic[0].Operation)
+	assert.Equal(t, segutils.LetMultiply, queryArithmetic[0].Operation)
 	assert.Equal(t, float64(100), queryArithmetic[0].Constant)
 
 	// "(sum(http_requests_total) by (job)) + rate(node_cpu_seconds_total[5m]) / 2"
@@ -281,9 +282,9 @@ func Test_parsePromQLQuery_simpleQueries(t *testing.T) {
 	assert.NotNil(t, mQueryReqs[1].MetricsQuery.MQueryAggs.Next)
 	assert.Equal(t, utils.Rate, mQueryReqs[1].MetricsQuery.MQueryAggs.Next.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(300), mQueryReqs[1].MetricsQuery.MQueryAggs.Next.FunctionBlock.TimeWindow)
-	assert.Equal(t, utils.Divide, queryArithmetic[0].Operation)
+	assert.Equal(t, segutils.LetDivide, queryArithmetic[0].Operation)
 	assert.Equal(t, float64(2), queryArithmetic[0].Constant)
-	assert.Equal(t, utils.Add, queryArithmetic[1].Operation)
+	assert.Equal(t, segutils.LetAdd, queryArithmetic[1].Operation)
 }
 
 func Test_parsePromQLQuery_SimpleQueries_v2(t *testing.T) {
@@ -614,7 +615,7 @@ func Test_parsePromQLQuery_NestedQueries_v3(t *testing.T) {
 	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[1].MetricsQuery.MQueryAggs.Next.Next.AggBlockType)
 	assert.Equal(t, utils.Avg, mQueryReqs[1].MetricsQuery.MQueryAggs.Next.Next.AggregatorBlock.AggregatorFunction)
 
-	assert.Equal(t, utils.Multiply, queryArithmetic[0].Operation)
+	assert.Equal(t, segutils.LetMultiply, queryArithmetic[0].Operation)
 	assert.Equal(t, float64(0), queryArithmetic[0].Constant)
 	assert.Equal(t, mHashedMName1, queryArithmetic[0].LHS)
 	assert.Equal(t, mHashedMName2, queryArithmetic[0].RHS)
@@ -700,12 +701,12 @@ func Test_parsePromQLQuery_NestedQueries_v4(t *testing.T) {
 	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[2].MetricsQuery.MQueryAggs.Next.Next.AggBlockType)
 	assert.Equal(t, utils.Sum, mQueryReqs[2].MetricsQuery.MQueryAggs.Next.Next.AggregatorBlock.AggregatorFunction)
 
-	assert.Equal(t, utils.Divide, queryArithmetic[0].Operation)
+	assert.Equal(t, segutils.LetDivide, queryArithmetic[0].Operation)
 	assert.Equal(t, float64(0), queryArithmetic[0].Constant)
 	assert.Equal(t, mHashedMName1, queryArithmetic[0].LHS)
 	assert.Equal(t, mHashedName2, queryArithmetic[0].RHS)
 
-	assert.Equal(t, utils.Add, queryArithmetic[1].Operation)
+	assert.Equal(t, segutils.LetAdd, queryArithmetic[1].Operation)
 	assert.Equal(t, float64(0), queryArithmetic[1].Constant)
 	assert.Equal(t, mHashedName2, queryArithmetic[1].LHS)
 	assert.Equal(t, mHashedMName3, queryArithmetic[1].RHS)
@@ -773,7 +774,7 @@ func Test_parsePromQLQuery_NestedQueries_v5(t *testing.T) {
 	assert.Equal(t, float64(600), mQueryReqs[1].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.TimeWindow)
 	assert.Equal(t, float64(60), mQueryReqs[1].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.Step)
 
-	assert.Equal(t, utils.Add, queryArithmetic[0].Operation)
+	assert.Equal(t, segutils.LetAdd, queryArithmetic[0].Operation)
 	assert.Equal(t, float64(0), queryArithmetic[0].Constant)
 	assert.Equal(t, mHashedMName1, queryArithmetic[0].LHS)
 	assert.Equal(t, mHashedMName2, queryArithmetic[0].RHS)
@@ -939,7 +940,7 @@ func Test_parsePromQLQuery_NestedQueries_v8(t *testing.T) {
 	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[1].MetricsQuery.MQueryAggs.Next.AggBlockType)
 	assert.Equal(t, utils.Sum, mQueryReqs[1].MetricsQuery.MQueryAggs.Next.AggregatorBlock.AggregatorFunction)
 
-	assert.Equal(t, utils.Subtract, queryArithmetic[0].Operation)
+	assert.Equal(t, segutils.LetSubtract, queryArithmetic[0].Operation)
 }
 
 func Test_parsePromQLQuery_Parse_Metrics_Test_CSV(t *testing.T) {

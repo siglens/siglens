@@ -343,10 +343,10 @@ func handleCallExprMatrixSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 		mQuery.Groupby = true
 	}
 
-	return handlePromQLRangeFunctionNode(function, timeWindow, step, mQuery)
+	return handlePromQLRangeFunctionNode(function, timeWindow, step, expr, mQuery)
 }
 
-func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64, mQuery *structs.MetricsQuery) error {
+func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64, expr *parser.Call, mQuery *structs.MetricsQuery) error {
 	switch functionName {
 	case "deriv":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Derivative, TimeWindow: timeWindow, Step: step}
@@ -370,6 +370,19 @@ func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64
 		mQuery.Function = structs.Function{RangeFunction: segutils.Sum_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "count_over_time":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: timeWindow, Step: step}
+	case "stdvar_over_time":
+		mQuery.Function = structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: timeWindow}
+	case "stddev_over_time":
+		mQuery.Function = structs.Function{RangeFunction: segutils.Stddev_Over_Time, TimeWindow: timeWindow}
+	case "last_over_time":
+		mQuery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow}
+	case "present_over_time":
+		mQuery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow}
+	case "quantile_over_time":
+		if len(expr.Args) != 2 {
+			return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the quantile_over_time function", expr.Args.String())
+		}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Quantile_Over_Time, TimeWindow: timeWindow, ValueList: []string{expr.Args[0].String()}}
 	case "changes":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Changes, TimeWindow: timeWindow, Step: step}
 	case "resets":
@@ -412,6 +425,30 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 		mQuery.Function = structs.Function{MathFunction: segutils.Deg}
 	case "rad":
 		mQuery.Function = structs.Function{MathFunction: segutils.Rad}
+	case "acos":
+		mQuery.Function = structs.Function{MathFunction: segutils.Acos}
+	case "acosh":
+		mQuery.Function = structs.Function{MathFunction: segutils.Acosh}
+	case "asin":
+		mQuery.Function = structs.Function{MathFunction: segutils.Asin}
+	case "asinh":
+		mQuery.Function = structs.Function{MathFunction: segutils.Asinh}
+	case "atan":
+		mQuery.Function = structs.Function{MathFunction: segutils.Atan}
+	case "atanh":
+		mQuery.Function = structs.Function{MathFunction: segutils.Atanh}
+	case "cos":
+		mQuery.Function = structs.Function{MathFunction: segutils.Cos}
+	case "cosh":
+		mQuery.Function = structs.Function{MathFunction: segutils.Cosh}
+	case "sin":
+		mQuery.Function = structs.Function{MathFunction: segutils.Sin}
+	case "sinh":
+		mQuery.Function = structs.Function{MathFunction: segutils.Sinh}
+	case "tan":
+		mQuery.Function = structs.Function{MathFunction: segutils.Tan}
+	case "tanh":
+		mQuery.Function = structs.Function{MathFunction: segutils.Tanh}
 	case "clamp":
 		if len(expr.Args) != 3 {
 			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters: %v for the clamp function", expr.Args.String())
@@ -503,7 +540,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.HashedMName
 		queryArithmetic = append(queryArithmetic, rhsQueryArth...)
 	}
-	arithmeticOperation.Operation = getArithmeticOperation(expr.Op)
+	arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
 	queryArithmetic = append(queryArithmetic, &arithmeticOperation)
 
 	if mQueryReqs[0].MetricsQuery.MQueryAggs == nil {
