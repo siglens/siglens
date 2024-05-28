@@ -20,7 +20,7 @@
 "clamp(testmetric3, -10, 100)",now-1d,now,15,true
 "clamp_max(testmetric3, 99)",now-1d,now,15,true
 "clamp_min(testmetric3, 0)",now-1d,now,15,true
-"abs(rate(testmetric3[48h]))",now-1d,now,15,false
+"abs(rate(testmetric3[48h]))",now-1d,now,15,true
 "irate(testmetric3[48h])",now-1d,now,15,true
 "increase(testmetric3[48h])",now-1d,now,15,true
 "delta(testmetric3[48h])",now-1d,now,15,true
@@ -43,12 +43,12 @@
 "day_of_week(timestamp(testmetric0))",now-1d,now,15,true
 "day_of_year(timestamp(testmetric0))",now-1d,now,15,true
 "days_in_month(timestamp(testmetric0))",now-1d,now,15,true
-"testmetric0[24h]",now-1d,now,15,false
-"testmetric1{car_type=""Passenger car compact""}[48h]",now-1d,now,15,false
-"abs(testmetric1)",now-1d,now,15,false
-"sqrt(testmetric1)",now-1d,now,15,false
-"ceil(testmetric1)",now-1d,now,15,false
-"floor(testmetric1)",now-1d,now,15,false
-"round(testmetric0)",now-1d,now,15,false
-"round(testmetric0, 1/2)",now-1d,now,15,false
-"ln(testmetric1)",now-1m,now,15,false
+"testmetric0[24h]",now-1d,now,15,true
+"testmetric1{car_type=""Passenger car compact""}[48h]",now-1d,now,15,true
+"abs(testmetric1)",now-1d,now,15,true
+"sqrt(testmetric1)",now-1d,now,15,true
+"ceil(testmetric1)",now-1d,now,15,true
+"floor(testmetric1)",now-1d,now,15,true
+"round(testmetric0)",now-1d,now,15,true
+"round(testmetric0, 1/2)",now-1d,now,15,true
+"ln(testmetric1)",now-1m,now,15,true
