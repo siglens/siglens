@@ -378,15 +378,15 @@ func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64
 	case "increase":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow, Step: step}
 	case "avg_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Avg_Over_time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Avg_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "min_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Min_Over_time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Min_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "max_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Max_Over_time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Max_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "sum_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Sum_Over_time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Sum_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "count_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Count_Over_time, TimeWindow: timeWindow, Step: step}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "changes":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Changes, TimeWindow: timeWindow, Step: step}
 	case "resets":

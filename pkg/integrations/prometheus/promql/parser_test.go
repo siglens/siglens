@@ -170,7 +170,7 @@ func Test_parsePromQLQuery_simpleQueries(t *testing.T) {
 	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.False(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
-	assert.Equal(t, utils.Avg_Over_time, mQueryReqs[0].MetricsQuery.MQueryAggs.FunctionBlock.RangeFunction)
+	assert.Equal(t, utils.Avg_Over_Time, mQueryReqs[0].MetricsQuery.MQueryAggs.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(300), mQueryReqs[0].MetricsQuery.MQueryAggs.FunctionBlock.TimeWindow)
 
 	// "clamp((http_request_duration_seconds_bucket), 1.95, 3)"
@@ -417,7 +417,7 @@ func Test_parsePromQLQuery_NestedQueries_v1(t *testing.T) {
 	assert.Equal(t, tagkeys, actualTagKeys)
 
 	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.MQueryAggs.AggBlockType)
-	assert.Equal(t, utils.Max_Over_time, mQueryReqs[0].MetricsQuery.MQueryAggs.FunctionBlock.RangeFunction)
+	assert.Equal(t, utils.Max_Over_Time, mQueryReqs[0].MetricsQuery.MQueryAggs.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(3600), mQueryReqs[0].MetricsQuery.MQueryAggs.FunctionBlock.TimeWindow)
 	assert.NotNil(t, mQueryReqs[0].MetricsQuery.MQueryAggs.Next)
 	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.AggBlockType)
@@ -497,7 +497,7 @@ func Test_parsePromQLQuery_NestedQueries_v2(t *testing.T) {
 	assert.Equal(t, utils.Sum, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.AggregatorBlock.AggregatorFunction)
 	assert.NotNil(t, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next)
 	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.AggBlockType)
-	assert.Equal(t, utils.Max_Over_time, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.RangeFunction)
+	assert.Equal(t, utils.Max_Over_Time, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(600), mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.TimeWindow)
 	assert.Equal(t, float64(120), mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.Step)
 }
@@ -629,7 +629,7 @@ func Test_parsePromQLQuery_NestedQueries_v4(t *testing.T) {
 	assert.Equal(t, utils.Sum, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.AggregatorBlock.AggregatorFunction)
 
 	assert.Equal(t, structs.FunctionBlock, mQueryReqs[1].MetricsQuery.MQueryAggs.AggBlockType)
-	assert.Equal(t, utils.Count_Over_time, mQueryReqs[1].MetricsQuery.MQueryAggs.FunctionBlock.RangeFunction)
+	assert.Equal(t, utils.Count_Over_Time, mQueryReqs[1].MetricsQuery.MQueryAggs.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(300), mQueryReqs[1].MetricsQuery.MQueryAggs.FunctionBlock.TimeWindow)
 
 	assert.Equal(t, structs.FunctionBlock, mQueryReqs[2].MetricsQuery.MQueryAggs.AggBlockType)
@@ -693,7 +693,7 @@ func Test_parsePromQLQuery_NestedQueries_v5(t *testing.T) {
 	assert.Equal(t, utils.Sum, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.AggregatorBlock.AggregatorFunction)
 	assert.NotNil(t, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next)
 	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.AggBlockType)
-	assert.Equal(t, utils.Avg_Over_time, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.RangeFunction)
+	assert.Equal(t, utils.Avg_Over_Time, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(600), mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.TimeWindow)
 	assert.Equal(t, float64(0), mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.Step)
 
@@ -702,7 +702,7 @@ func Test_parsePromQLQuery_NestedQueries_v5(t *testing.T) {
 	assert.Equal(t, float64(300), mQueryReqs[1].MetricsQuery.MQueryAggs.FunctionBlock.TimeWindow)
 	assert.NotNil(t, mQueryReqs[1].MetricsQuery.MQueryAggs.Next)
 	assert.Equal(t, structs.FunctionBlock, mQueryReqs[1].MetricsQuery.MQueryAggs.Next.AggBlockType)
-	assert.Equal(t, utils.Sum_Over_time, mQueryReqs[1].MetricsQuery.MQueryAggs.Next.FunctionBlock.RangeFunction)
+	assert.Equal(t, utils.Sum_Over_Time, mQueryReqs[1].MetricsQuery.MQueryAggs.Next.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(600), mQueryReqs[1].MetricsQuery.MQueryAggs.Next.FunctionBlock.TimeWindow)
 	assert.Equal(t, float64(60), mQueryReqs[1].MetricsQuery.MQueryAggs.Next.FunctionBlock.Step)
 
@@ -784,7 +784,7 @@ func Test_parsePromQLQuery_NestedQueries_v7(t *testing.T) {
 	assert.Equal(t, float64(5), mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.Step)
 	assert.NotNil(t, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next)
 	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.AggBlockType)
-	assert.Equal(t, utils.Max_Over_time, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.RangeFunction)
+	assert.Equal(t, utils.Max_Over_Time, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(600), mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.TimeWindow)
 	assert.Equal(t, float64(0), mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.FunctionBlock.Step)
 }
