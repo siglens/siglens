@@ -561,11 +561,11 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	metricQueriesList := make([]*structs.MetricsQuery, 0)
 	var timeRange *dtu.MetricsTimeRange
 	hashList := make([]uint64, 0)
-	for _, metricQuery := range metricQueryRequest {
-		hashList = append(hashList, metricQuery.MetricsQuery.HashedMName)
-		metricQueriesList = append(metricQueriesList, &metricQuery.MetricsQuery)
-		segment.LogMetricsQuery("PromQL metrics query parser", &metricQuery, qid)
-		timeRange = &metricQuery.TimeRange
+	for i := range metricQueryRequest {
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.HashedMName)
+		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
+		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
+		timeRange = &metricQueryRequest[i].TimeRange
 	}
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
 	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, startTime, endTime)
@@ -734,11 +734,11 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	metricQueriesList := make([]*structs.MetricsQuery, 0)
 	var timeRange *dtu.MetricsTimeRange
 	hashList := make([]uint64, 0)
-	for _, metricQuery := range metricQueryRequest {
-		hashList = append(hashList, metricQuery.MetricsQuery.HashedMName)
-		metricQueriesList = append(metricQueriesList, &metricQuery.MetricsQuery)
-		segment.LogMetricsQuery("PromQL metrics query parser", &metricQuery, qid)
-		timeRange = &metricQuery.TimeRange
+	for i := range metricQueryRequest {
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.HashedMName)
+		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
+		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
+		timeRange = &metricQueryRequest[i].TimeRange
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
@@ -928,6 +928,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 
 		mquery.Aggregator = structs.Aggregation{}
 		parser.Inspect(es.Expr, func(node parser.Node, path []parser.Node) error {
+			// If there is no child node, just return nil
 			if node == nil {
 				return nil
 			}
@@ -997,6 +998,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		// Since we currently handle evaluation logic only in sub-elements like MatrixSelector or VectorSelector, if we add a default case in the switch statement,
 		// traversal would stop prematurely due to an error being returned before reaching sub-nodes such as MatrixSelector
 		parser.Inspect(expr, func(node parser.Node, path []parser.Node) error {
+			// If there is no child node, just return nil
 			if node == nil {
 				return nil
 			}
@@ -1199,7 +1201,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 			arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.HashedMName
 
 		}
-		arithmeticOperation.Operation = getArithmeticOperation(expr.Op)
+		arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
 		if rhsValType == parser.ValueTypeVector {
 			lhsValType = parser.ValueTypeVector
 		}
@@ -1251,16 +1253,28 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 	return []structs.MetricsQueryRequest{*metricQueryRequest}, pqlQuerytype, []structs.QueryArithmetic{}, nil
 }
 
-func getArithmeticOperation(op parser.ItemType) segutils.ArithmeticOperator {
+func getLogicalAndArithmeticOperation(op parser.ItemType) segutils.LogicalAndArithmeticOperator {
 	switch op {
 	case parser.ADD:
-		return segutils.Add
+		return segutils.LetAdd
 	case parser.SUB:
-		return segutils.Subtract
+		return segutils.LetSubtract
 	case parser.MUL:
-		return segutils.Multiply
+		return segutils.LetMultiply
 	case parser.DIV:
-		return segutils.Divide
+		return segutils.LetDivide
+	case parser.GTR:
+		return segutils.LetGreaterThan
+	case parser.GTE:
+		return segutils.LetGreaterThanOrEqualTo
+	case parser.LSS:
+		return segutils.LetLessThan
+	case parser.LTE:
+		return segutils.LetLessThanOrEqualTo
+	case parser.EQLC:
+		return segutils.LetEquals
+	case parser.NEQ:
+		return segutils.LetNotEquals
 	default:
 		log.Errorf("getArithmeticOperation: unexpected op: %v", op)
 		return 0

@@ -15,12 +15,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package mresults
+package tests
 
 import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/segment"
+	mresults "github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
@@ -45,14 +47,14 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 		},
 	}
 	qid := uint64(0)
-	metricsResults := InitMetricResults(mQuery, qid)
+	metricsResults := mresults.InitMetricResults(mQuery, qid)
 	assert.NotNil(t, metricsResults)
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
 	_, err := tsGroupId.Write([]byte("color:yellow"))
 	assert.NoError(t, err)
-	series := InitSeriesHolder(mQuery, tsGroupId)
+	series := mresults.InitSeriesHolder(mQuery, tsGroupId)
 
 	// they should all downsample to 0
 	sum := float64(0)
@@ -67,10 +69,10 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 	assert.Len(t, metricsResults.AllSeries, 1)
 	assert.Len(t, metricsResults.DsResults, 0)
 	assert.Len(t, metricsResults.Results, 0)
-	assert.Equal(t, metricsResults.State, SERIES_READING)
+	assert.Equal(t, metricsResults.State, mresults.SERIES_READING)
 
 	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
-	assert.Equal(t, metricsResults.State, DOWNSAMPLING)
+	assert.Equal(t, metricsResults.State, mresults.DOWNSAMPLING)
 	assert.Len(t, metricsResults.AllSeries, 0)
 	assert.Len(t, metricsResults.DsResults, 1)
 	assert.Len(t, metricsResults.Results, 0)
@@ -114,14 +116,14 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 		},
 	}
 	qid := uint64(0)
-	metricsResults := InitMetricResults(mQuery, qid)
+	metricsResults := mresults.InitMetricResults(mQuery, qid)
 	assert.NotNil(t, metricsResults)
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
 	_, err := tsGroupId.Write([]byte("color:yellow"))
 	assert.NoError(t, err)
-	series := InitSeriesHolder(mQuery, tsGroupId)
+	series := mresults.InitSeriesHolder(mQuery, tsGroupId)
 
 	// they should all downsample to i
 	avg := float64(0)
@@ -137,10 +139,10 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 	assert.Len(t, metricsResults.AllSeries, 1)
 	assert.Len(t, metricsResults.DsResults, 0)
 	assert.Len(t, metricsResults.Results, 0)
-	assert.Equal(t, metricsResults.State, SERIES_READING)
+	assert.Equal(t, metricsResults.State, mresults.SERIES_READING)
 
 	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
-	assert.Equal(t, metricsResults.State, DOWNSAMPLING)
+	assert.Equal(t, metricsResults.State, mresults.DOWNSAMPLING)
 	assert.Len(t, metricsResults.AllSeries, 0)
 	assert.Len(t, metricsResults.DsResults, 1)
 	assert.Len(t, metricsResults.Results, 0)
@@ -187,7 +189,7 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 	}
 
 	qid := uint64(0)
-	metricsResults := InitMetricResults(mQuery, qid)
+	metricsResults := mresults.InitMetricResults(mQuery, qid)
 	assert.NotNil(t, metricsResults)
 	dsSec := mQuery.Downsampler.GetIntervalTimeInSeconds()
 
@@ -197,7 +199,7 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 		defer bytebufferpool.Put(tsGroupId)
 		_, err := tsGroupId.Write(grpId)
 		assert.NoError(t, err)
-		series := InitSeriesHolder(mQuery, tsGroupId)
+		series := mresults.InitSeriesHolder(mQuery, tsGroupId)
 		for i := 0; i < 10; i++ {
 			series.AddEntry(uint32(i), float64(i))
 		}
@@ -206,10 +208,10 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 	assert.Len(t, metricsResults.AllSeries, numSeries)
 	assert.Len(t, metricsResults.DsResults, 0)
 	assert.Len(t, metricsResults.Results, 0)
-	assert.Equal(t, metricsResults.State, SERIES_READING)
+	assert.Equal(t, metricsResults.State, mresults.SERIES_READING)
 
 	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
-	assert.Equal(t, metricsResults.State, DOWNSAMPLING)
+	assert.Equal(t, metricsResults.State, mresults.DOWNSAMPLING)
 	assert.Len(t, metricsResults.AllSeries, 0)
 	assert.Len(t, metricsResults.DsResults, 1)
 	assert.Len(t, metricsResults.Results, 0)
@@ -246,14 +248,14 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 		},
 	}
 	qid := uint64(0)
-	metricsResults := InitMetricResults(mQuery, qid)
+	metricsResults := mresults.InitMetricResults(mQuery, qid)
 	assert.NotNil(t, metricsResults)
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
 	_, err := tsGroupId.Write([]byte("color:yellow"))
 	assert.NoError(t, err)
-	series := InitSeriesHolder(mQuery, tsGroupId)
+	series := mresults.InitSeriesHolder(mQuery, tsGroupId)
 
 	// they should all downsample to 0
 	sum := float64(0)
@@ -268,10 +270,10 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 	assert.Len(t, metricsResults.AllSeries, 1)
 	assert.Len(t, metricsResults.DsResults, 0)
 	assert.Len(t, metricsResults.Results, 0)
-	assert.Equal(t, metricsResults.State, SERIES_READING)
+	assert.Equal(t, metricsResults.State, mresults.SERIES_READING)
 
 	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
-	assert.Equal(t, metricsResults.State, DOWNSAMPLING)
+	assert.Equal(t, metricsResults.State, mresults.DOWNSAMPLING)
 	assert.Len(t, metricsResults.AllSeries, 0)
 	assert.Len(t, metricsResults.DsResults, 1)
 	assert.Len(t, metricsResults.Results, 0)
@@ -315,14 +317,14 @@ func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 		},
 	}
 	qid := uint64(0)
-	metricsResults := InitMetricResults(mQuery, qid)
+	metricsResults := mresults.InitMetricResults(mQuery, qid)
 	assert.NotNil(t, metricsResults)
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
 	_, err := tsGroupId.Write([]byte("color:yellow`"))
 	assert.NoError(t, err)
-	series := InitSeriesHolder(mQuery, tsGroupId)
+	series := mresults.InitSeriesHolder(mQuery, tsGroupId)
 
 	// they should all downsample to 0
 	sum := float64(0)
@@ -337,10 +339,10 @@ func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 	assert.Len(t, metricsResults.AllSeries, 1)
 	assert.Len(t, metricsResults.DsResults, 0)
 	assert.Len(t, metricsResults.Results, 0)
-	assert.Equal(t, metricsResults.State, SERIES_READING)
+	assert.Equal(t, metricsResults.State, mresults.SERIES_READING)
 
 	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
-	assert.Equal(t, metricsResults.State, DOWNSAMPLING)
+	assert.Equal(t, metricsResults.State, mresults.DOWNSAMPLING)
 	assert.Len(t, metricsResults.AllSeries, 0)
 	assert.Len(t, metricsResults.DsResults, 1)
 	assert.Len(t, metricsResults.Results, 0)
@@ -395,12 +397,223 @@ func TestCalculateInterval(t *testing.T) {
 		if i < len(steps) {
 			expectedInterval = steps[i]
 		}
-		actualInterval, err := CalculateInterval(tr)
+		actualInterval, err := mresults.CalculateInterval(tr)
 		if timerangeSeconds[i] > 315360000 { // 10 years in seconds
 			assert.Error(t, err)
 		} else {
 			assert.NoError(t, err)
 			assert.Equal(t, expectedInterval, actualInterval)
+		}
+	}
+}
+
+func Test_GetResults_GreaterThan(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:     45,
+			10800: 1045,
+			21600: 1046,
+		},
+		map[uint32]float64{
+			21600: 1046,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetGreaterThan,
+				Constant:   1045,
+			},
+		},
+		structs.Downsampler{
+			Interval:   3,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_GreaterThanOrEqualTo(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    45,
+			3600: 1045,
+			7200: 100,
+		},
+		map[uint32]float64{
+			3600: 1045,
+			7200: 100,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetGreaterThanOrEqualTo,
+				Constant:   100,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_LessThan(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:     45,
+			3600:  1045,
+			10800: 1044,
+		},
+		map[uint32]float64{
+			0:     45,
+			10800: 1044,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetLessThan,
+				Constant:   1045,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_LessThanOrEqualTo(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:     45,
+			3600:  1046,
+			10800: 1045,
+		},
+		map[uint32]float64{
+			0:     45,
+			10800: 1045,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetLessThanOrEqualTo,
+				Constant:   1045,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_Equals(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:     45,
+			7200:  1045,
+			14400: 666,
+		},
+		map[uint32]float64{
+			0: 45,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetEquals,
+				Constant:   45,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_NotEquals(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:     45,
+			7200:  1045,
+			14400: 666,
+		},
+		map[uint32]float64{
+			7200:  1045,
+			14400: 666,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetNotEquals,
+				Constant:   45,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap map[uint32]float64, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler) {
+	mQuery := &structs.MetricsQuery{
+		MetricName:  "test.metric.0",
+		HashedMName: 1,
+		Downsampler: downsampler,
+	}
+	qid := uint64(0)
+	metricsResults := mresults.InitMetricResults(mQuery, qid)
+	assert.NotNil(t, metricsResults)
+
+	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
+	defer bytebufferpool.Put(tsGroupId)
+	_, err := tsGroupId.Write([]byte("color:yellow"))
+	assert.NoError(t, err)
+	series := mresults.InitSeriesHolder(mQuery, tsGroupId)
+
+	for timestamp, val := range initialEntries {
+		series.AddEntry(timestamp, val)
+	}
+
+	metricsResults.AddSeries(series, uint64(100), tsGroupId)
+	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
+
+	errors := metricsResults.AggregateResults(1)
+	assert.Nil(t, errors)
+
+	res := segment.HelperQueryArithmeticAndLogical(queryOps, map[uint64]*mresults.MetricsResult{
+		1: metricsResults,
+	})
+	assert.Len(t, res.Results, 1)
+	for _, resMap := range res.Results {
+		assert.Equal(t, len(ansMap), len(resMap))
+		for timestamp, val := range resMap {
+			expectedVal, exists := ansMap[timestamp]
+			if !exists {
+				t.Errorf("Should not have this key: %v", timestamp)
+			}
+
+			if expectedVal != val {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
 		}
 	}
 }
