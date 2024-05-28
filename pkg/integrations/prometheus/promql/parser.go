@@ -446,6 +446,22 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 		mQuery.Function = structs.Function{MathFunction: segutils.Clamp_Min, ValueList: []string{expr.Args[1].String()}}
 	case "timestamp":
 		mQuery.Function = structs.Function{MathFunction: segutils.Timestamp}
+	case "hour":
+		mQuery.Function = structs.Function{TimeFunction: segutils.Hour}
+	case "minute":
+		mQuery.Function = structs.Function{TimeFunction: segutils.Minute}
+	case "month":
+		mQuery.Function = structs.Function{TimeFunction: segutils.Month}
+	case "year":
+		mQuery.Function = structs.Function{TimeFunction: segutils.Year}
+	case "day_of_month":
+		mQuery.Function = structs.Function{TimeFunction: segutils.DayOfMonth}
+	case "day_of_week":
+		mQuery.Function = structs.Function{TimeFunction: segutils.DayOfWeek}
+	case "day_of_year":
+		mQuery.Function = structs.Function{TimeFunction: segutils.DayOfYear}
+	case "days_in_month":
+		mQuery.Function = structs.Function{TimeFunction: segutils.DaysInMonth}
 	default:
 		return fmt.Errorf("handleCallExprVectorSelectorNode: unsupported function type %v", function)
 	}
