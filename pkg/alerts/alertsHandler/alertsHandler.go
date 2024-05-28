@@ -20,6 +20,7 @@ package alertsHandler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -94,11 +95,7 @@ func ProcessVersionInfo(ctx *fasthttp.RequestCtx) {
 
 func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessCreateAlertRequest: failed to create alert, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 	responseBody := make(map[string]interface{})
@@ -106,36 +103,24 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
-		log.Errorf("ProcessCreateAlertRequest: empty json body received")
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = "empty json body received"
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Received empty request", "", nil)
 		return
 	}
 	alertToBeCreated.OrgId = org_id
 	err := json.Unmarshal(rawJSON, &alertToBeCreated)
 	if err != nil {
-		log.Errorf("ProcessCreateAlertRequest: could not unmarshal json body, err=%v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to unmarshal json", "", err)
 		return
 	}
 	alertDataObj, err := databaseObj.CreateAlert(&alertToBeCreated)
 	if err != nil {
-		log.Errorf("ProcessCreateAlertRequest: could not create alert=%v, err=%v", alertToBeCreated.AlertName, err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to create alert", fmt.Sprintf("alert name: %v", alertToBeCreated.AlertName), err)
 		return
 	}
 
 	_, err = AddCronJob(&alertDataObj)
 	if err != nil {
-		log.Errorf("ProcessCreateAlertRequest: could not add a new CronJob corresponding to alert=%+v, err=%+v", alertDataObj.AlertName, err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to add CronJob for alert", fmt.Sprintf("alert name: %v", alertDataObj.AlertName), err)
 		return
 	}
 
@@ -149,19 +134,13 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 
 	// Check if databaseObj is nil
 	if databaseObj == nil {
-		log.Error("ProcessSilenceAlertRequest: databaseObj is nil")
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		responseBody["error"] = "Internal server error"
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 
 	// Check if request body is empty
 	if string(ctx.PostBody()) == "" {
-		log.Error("ProcessSilenceAlertRequest: request body is empty")
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = "Request body is empty"
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Received empty request", "", nil)
 		return
 	}
 
@@ -171,20 +150,14 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 		SilenceMinutes uint64 `json:"silence_minutes"`
 	}
 	if err := json.Unmarshal(ctx.PostBody(), &silenceRequest); err != nil {
-		log.Errorf("ProcessSilenceAlertRequest: could not parse request body, err=%+v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to unmarshal json", "", err)
 		return
 	}
 
 	// Find alert and update SilenceMinutes
 	alertDataObj, err := databaseObj.GetAlert(silenceRequest.AlertID)
 	if err != nil {
-		log.Errorf("ProcessSilenceAlertRequest: could not find alert, err=%+v", err)
-		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to find alert", fmt.Sprintf("alert ID: %v", silenceRequest.AlertID), err)
 		return
 	}
 
@@ -192,10 +165,7 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 	// Update the SilenceMinutes
 	err = databaseObj.UpdateAlert(alertDataObj)
 	if err != nil {
-		log.Errorf("ProcessUpdateSilenceRequestRequest: could not update alert=%+v, err=%+v", alertDataObj.AlertName, err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to update alert", fmt.Sprintf("alert name: %v", alertDataObj.AlertName), err)
 		return
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -205,11 +175,7 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 
 func ProcessGetAlertRequest(ctx *fasthttp.RequestCtx) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessGetAlertRequest: failed to get alert, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 
@@ -217,10 +183,7 @@ func ProcessGetAlertRequest(ctx *fasthttp.RequestCtx) {
 	alert_id := utils.ExtractParamAsString(ctx.UserValue("alertID"))
 	alert, err := databaseObj.GetAlert(alert_id)
 	if err != nil {
-		log.Errorf("ProcessGetAlertRequest: failed to get alert with alertId = %+v, err = %+v", alert_id, err.Error())
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to get alert", fmt.Sprintf("alert ID: %v", alert_id), err)
 		return
 	}
 
@@ -231,21 +194,14 @@ func ProcessGetAlertRequest(ctx *fasthttp.RequestCtx) {
 
 func ProcessGetAllAlertsRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessGetAllAlertsRequest: failed to get all alerts, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 
 	responseBody := make(map[string]interface{})
 	alerts, err := databaseObj.GetAllAlerts(org_id)
 	if err != nil {
-		log.Errorf("ProcessGetAllAlertsRequest: could not get all alerts, err: %+v", err.Error())
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to get alerts", "", err)
 		return
 	}
 
@@ -256,21 +212,14 @@ func ProcessGetAllAlertsRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 
 func ProcessGetAllMinionSearchesRequest(ctx *fasthttp.RequestCtx, orgID uint64) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessGetAllMinionSearchesRequest: failed to get all alerts, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 
 	responseBody := make(map[string]interface{})
 	minionSearches, err := databaseObj.GetAllMinionSearches(orgID)
 	if err != nil {
-		log.Errorf("ProcessGetAllMinionSearchesRequest: could not get all alerts, err: %+v", err.Error())
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to get all alerts", "", err)
 		return
 	}
 
@@ -281,39 +230,26 @@ func ProcessGetAllMinionSearchesRequest(ctx *fasthttp.RequestCtx, orgID uint64) 
 
 func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessUpdateAlertRequest: failed to update alert, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 	responseBody := make(map[string]interface{})
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
-		log.Errorf("ProcessUpdateAlertRequest: empty json body received")
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = "empty json body received"
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Received empty request", "", nil)
 		return
 	}
 
 	var alertToBeUpdated *alertutils.AlertDetails
 	err := json.Unmarshal(rawJSON, &alertToBeUpdated)
 	if err != nil {
-		log.Errorf("ProcessUpdateAlertRequest: could not unmarshal json body, err=%v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to unmarshal json", "", err)
 		return
 	}
 
 	err = databaseObj.UpdateAlert(alertToBeUpdated)
 	if err != nil {
-		log.Errorf("ProcessUpdateAlertRequest: could not update alert=%+v, err=%+v", alertToBeUpdated.AlertName, err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to update alert", fmt.Sprintf("alert name: %v", alertToBeUpdated.AlertName), err)
 		return
 	}
 
@@ -332,18 +268,12 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 	err = RemoveCronJob(alertToBeUpdated.AlertId)
 
 	if err != nil {
-		log.Errorf("ProcessUpdateAlertRequest: could not remove old cron job corresponding to alert=%+v, err=%+v", alertToBeUpdated.AlertName, err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to remove cron job for alert", fmt.Sprintf("alert name: %v", alertToBeUpdated.AlertName), err)
 		return
 	}
 	_, err = AddCronJob(alertToBeUpdated)
 	if err != nil {
-		log.Errorf("ProcessUpdateAlertRequest: could not add a new cron job corresponding to alert=%+v, err=%+v", alertToBeUpdated.AlertName, err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to add new cron job for alert", fmt.Sprintf("alert name: %v", alertToBeUpdated.AlertName), err)
 		return
 	}
 
@@ -354,11 +284,7 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 
 func ProcessAlertHistoryRequest(ctx *fasthttp.RequestCtx) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessAlertHistoryRequest: failed to get alert history, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 
@@ -366,10 +292,7 @@ func ProcessAlertHistoryRequest(ctx *fasthttp.RequestCtx) {
 	alertId := utils.ExtractParamAsString(ctx.UserValue("alertID"))
 	alertHistory, err := databaseObj.GetAlertHistory(alertId)
 	if err != nil {
-		log.Errorf("ProcessAlertHistoryRequest: failed to get alert history with alertId = %+v, err = %+v", alertId, err.Error())
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to get alert history", fmt.Sprintf("alert ID: %v", alertId), err)
 		return
 	}
 
@@ -381,47 +304,31 @@ func ProcessAlertHistoryRequest(ctx *fasthttp.RequestCtx) {
 // request body should contain alert_id only
 func ProcessDeleteAlertRequest(ctx *fasthttp.RequestCtx) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessDeleteAlertRequest: failed to delete alert, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 	responseBody := make(map[string]interface{})
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
-		log.Errorf("ProcessDeleteAlertRequest: empty json body received")
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = "empty json body received"
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Received empty request", "", nil)
 		return
 	}
 
 	var alertToBeRemoved *alertutils.AlertDetails
 	err := json.Unmarshal(rawJSON, &alertToBeRemoved)
 	if err != nil {
-		log.Errorf("ProcessDeleteAlertRequest: could not unmarshal json body, err=%v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to unmarshal json", "", err)
 		return
 	}
 	err = RemoveCronJob(alertToBeRemoved.AlertId)
 	if err != nil {
-		log.Errorf("ProcessDeleteAlertRequest: RemoveCronJob failed , alert id=%v, err=%v", alertToBeRemoved.AlertId, err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to remove cron job for alert", fmt.Sprintf("alert name: %v", alertToBeRemoved.AlertName), err)
 		return
 	}
 
 	err = databaseObj.DeleteAlert(alertToBeRemoved.AlertId)
 	if err != nil {
-		log.Errorf("ProcessDeleteAlertRequest: failed to delete alert with id=%v, err=%v", alertToBeRemoved.AlertId, err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to delete alert", fmt.Sprintf("alert name: %v", alertToBeRemoved.AlertName), err)
 		return
 	}
 
@@ -432,11 +339,7 @@ func ProcessDeleteAlertRequest(ctx *fasthttp.RequestCtx) {
 
 func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessCreateContactRequest: failed to create a contact point, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 	responseBody := make(map[string]interface{})
@@ -444,27 +347,18 @@ func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
-		log.Errorf("ProcessCreateContactRequest: empty json body received")
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = "empty json body received"
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Received emtpy request", "", nil)
 		return
 	}
 	err := json.Unmarshal(rawJSON, &contactToBeCreated)
 	if err != nil {
-		log.Errorf("ProcessCreateContactRequest: could not unmarshal json body, err=%v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = "could not unmarshal json body"
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to unmarshal json", "", err)
 		return
 	}
 	contactToBeCreated.OrgId = org_id
 	err = databaseObj.CreateContact(contactToBeCreated)
 	if err != nil {
-		log.Errorf("ProcessCreateContactRequest: could not create contact with name=%v, err=%v", contactToBeCreated.ContactName, err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to create contact", fmt.Sprintf("contact name: %v", contactToBeCreated.ContactName), err)
 		return
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -474,21 +368,14 @@ func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 
 func ProcessGetAllContactsRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessGetAllContactsRequest: failed to get all contacts, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 
 	responseBody := make(map[string]interface{})
 	contacts, err := databaseObj.GetAllContactPoints(org_id)
 	if err != nil {
-		log.Errorf("ProcessGetAllContactsRequest: could not get all contact points, err = %+v", err.Error())
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed get get all contact points", "", err)
 		return
 	}
 	responseBody["contacts"] = contacts
@@ -498,39 +385,26 @@ func ProcessGetAllContactsRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 
 func ProcessUpdateContactRequest(ctx *fasthttp.RequestCtx) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessUpdateContactRequest: failed to update contact, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 
 	responseBody := make(map[string]interface{})
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
-		log.Errorf("ProcessUpdateContactRequest: empty json body received")
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = "empty json body received"
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Received empty request", "", nil)
 		return
 	}
 
 	var contactToBeUpdated *alertutils.Contact
 	err := json.Unmarshal(rawJSON, &contactToBeUpdated)
 	if err != nil {
-		log.Errorf("ProcessUpdateContactRequest: could not unmarshal json body, err=%v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to unmarshal json", "", err)
 		return
 	}
 	err = databaseObj.UpdateContactPoint(contactToBeUpdated)
 	if err != nil {
-		log.Errorf("ProcessUpdateContactRequest: could not update contact = %+v, err = %+v", contactToBeUpdated.ContactName, err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to update contact", fmt.Sprintf("contact name: %v", contactToBeUpdated.ContactName), err)
 		return
 	}
 	responseBody["message"] = "Contact details updated successfully"
@@ -540,40 +414,27 @@ func ProcessUpdateContactRequest(ctx *fasthttp.RequestCtx) {
 
 func ProcessDeleteContactRequest(ctx *fasthttp.RequestCtx) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessDeleteContactRequest: failed to delete contact, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 
 	responseBody := make(map[string]interface{})
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
-		log.Errorf("ProcessDeleteContactRequest: empty json body received")
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = "empty json body received"
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Received empty request", "", nil)
 		return
 	}
 
 	var contact *alertutils.Contact
 	err := json.Unmarshal(rawJSON, &contact)
 	if err != nil {
-		log.Errorf("ProcessDeleteContactRequest: could not unmarshal json body, err=%v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to unmarshal json", "", err)
 		return
 	}
 
 	err = databaseObj.DeleteContactPoint(contact.ContactId)
 	if err != nil {
-		log.Errorf("ProcessDeleteContactRequest: could not delete contact=%+v, err=%+v", contact.ContactId, err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to delete contact", fmt.Sprintf("contact ID: %v", contact.ContactId), err)
 		return
 	}
 
@@ -637,11 +498,7 @@ func InitMinionSearchService(getMyIds func() []uint64) {
 
 func ProcessCreateLogMinionSearchRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessCreateLogMinionSearchRequest: failed to create alert, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 	responseBody := make(map[string]interface{})
@@ -649,18 +506,12 @@ func ProcessCreateLogMinionSearchRequest(ctx *fasthttp.RequestCtx, org_id uint64
 
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
-		log.Errorf("ProcessCreateLogMinionSearchRequest: empty json body received")
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = "empty json body received"
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Received empty request", "", nil)
 		return
 	}
 	err := json.Unmarshal(rawJSON, &LogLinesEntry)
 	if err != nil {
-		log.Errorf("ProcessCreateLogMinionSearchRequest: could not unmarshal json body, err=%v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to unmarshal json", "", err)
 		return
 	}
 	minionSearches := convertToSiglensAlert(LogLinesEntry)
@@ -668,18 +519,12 @@ func ProcessCreateLogMinionSearchRequest(ctx *fasthttp.RequestCtx, org_id uint64
 		searchToBeCreated.OrgId = org_id
 		searchDataObj, err := databaseObj.CreateMinionSearch(searchToBeCreated)
 		if err != nil {
-			log.Errorf("ProcessCreateLogMinionSearchRequest: could not create alert=%v, err=%v", searchToBeCreated.AlertName, err)
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			responseBody["error"] = err.Error()
-			utils.WriteJsonResponse(ctx, responseBody)
+			utils.SendError(ctx, "Failed to create alert", fmt.Sprintf("alert name: %v", searchToBeCreated.AlertName), err)
 			return
 		}
 		_, err = AddMinionSearchCronJob(&searchDataObj)
 		if err != nil {
-			log.Errorf("ProcessCreateLogMinionSearchRequest: could not add a new CronJob corresponding to alert=%+v, err=%+v", searchDataObj.AlertName, err)
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			responseBody["error"] = err.Error()
-			utils.WriteJsonResponse(ctx, responseBody)
+			utils.SendError(ctx, "Failed to create cron job for alert", fmt.Sprintf("alert name: %v", searchDataObj.AlertName), err)
 			return
 		}
 	}
@@ -727,11 +572,7 @@ func convertToSiglensAlert(lmDetails alertutils.LogLinesFile) []*alertutils.Mini
 
 func ProcessGetMinionSearchRequest(ctx *fasthttp.RequestCtx) {
 	if databaseObj == nil {
-		responseBody := make(map[string]interface{})
-		log.Errorf("ProcessGetMinionSearchRequest: failed to get alert, err = %+v", invalidDatabaseProvider)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = invalidDatabaseProvider
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
 
@@ -739,10 +580,7 @@ func ProcessGetMinionSearchRequest(ctx *fasthttp.RequestCtx) {
 	alert_id := utils.ExtractParamAsString(ctx.UserValue("alertID"))
 	msearch, err := databaseObj.GetMinionSearch(alert_id)
 	if err != nil {
-		log.Errorf("ProcessGetMinionSearchRequest: failed to get alert with alertId = %+v, err = %+v", alert_id, err.Error())
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		responseBody["error"] = err.Error()
-		utils.WriteJsonResponse(ctx, responseBody)
+		utils.SendError(ctx, "Failed to get alert", fmt.Sprintf("alert ID: %v", alert_id), err)
 		return
 	}
 

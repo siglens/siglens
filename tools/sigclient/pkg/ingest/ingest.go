@@ -69,7 +69,7 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	case ESBulk:
 		requestStr = url + "/_bulk"
 	case OpenTSDB:
-		requestStr = url + "/otsdb/api/put"
+		requestStr = url + "/api/put"
 
 	default:
 		log.Fatalf("unknown ingest type %+v", iType)

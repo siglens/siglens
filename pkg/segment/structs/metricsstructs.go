@@ -68,6 +68,7 @@ type Function struct {
 	ValueList     []string
 	TimeWindow    float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
 	Step          float64 //E.g: rate(metrics[5m:1m]), extract 1m and convert to seconds
+	TimeFunction  utils.TimeFunctions
 }
 
 type Downsampler struct {

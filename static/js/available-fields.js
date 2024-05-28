@@ -27,7 +27,6 @@ function renderAvailableFields(columnOrder) {
         if (columnsToIgnore.indexOf(colName) == -1) {
             if (!availColNames.includes(colName)){
                 availColNames.push(colName);
-                selectedFieldsList.push(colName)
             }
         }
     });
