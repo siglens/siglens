@@ -173,7 +173,7 @@ func (s *Series) Downsample(downsampler structs.Downsampler) (*DownsampleSeries,
 	return ds, nil
 }
 
-func initDownsampleSeries(agg structs.Aggreation) *DownsampleSeries {
+func initDownsampleSeries(agg structs.Aggregation) *DownsampleSeries {
 
 	runningEntries := make([]RunningEntry, initial_len, extend_capacity)
 	return &DownsampleSeries{

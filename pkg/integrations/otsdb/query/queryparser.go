@@ -100,7 +100,7 @@ func ParseRequest(startStr string, endStr string, m string, myid uint64) (*struc
 			MetricName:  metricName,
 			HashedMName: hashedMName,
 			TagsFilters: tags,
-			Aggregator:  structs.Aggreation{AggregatorFunction: aggregator},
+			Aggregator:  structs.Aggregation{AggregatorFunction: aggregator},
 			Downsampler: downsampler,
 			OrgId:       myid,
 		},
@@ -262,7 +262,7 @@ func parseAggregatorDownsampler(m string) (segutils.AggregateFunctions, structs.
 		"cardinality": segutils.Cardinality,
 		"quantile":    segutils.Quantile,
 	}
-	agg := structs.Aggreation{AggregatorFunction: aggregatorMapping["avg"]}
+	agg := structs.Aggregation{AggregatorFunction: aggregatorMapping["avg"]}
 	downsampler := structs.Downsampler{Interval: 1, Unit: "m", Aggregator: agg}
 
 	if len(aggregaterDownsamplerList) >= 2 {
@@ -282,7 +282,7 @@ func parseAggregatorDownsampler(m string) (segutils.AggregateFunctions, structs.
 			log.Errorf("parseAggregatorDownsampler: invalid downsampler format for %s", downsamplerStr)
 			return aggregator, downsampler, fmt.Errorf("invalid downsampler format for %s", downsamplerStr)
 		}
-		downsampler.Aggregator = structs.Aggreation{AggregatorFunction: aggregatorMapping[downsampleComp[1]]}
+		downsampler.Aggregator = structs.Aggregation{AggregatorFunction: aggregatorMapping[downsampleComp[1]]}
 		downsamplerIntervalUnit := downsampleComp[0]
 		var intervalStr string
 		var unit string
