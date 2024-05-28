@@ -108,23 +108,14 @@ let logsColumnDefs = [
                         $(`.toggle-${string2Hex(colName)}`).removeClass('active');
                     }
                 });
-            } else {
-                selectedFieldsList = [];
-                availColNames.forEach((colName, index) => {
-                    $(`.toggle-${string2Hex(colName)}`).addClass('active');
-                    selectedFieldsList.push(colName);
-                });
             }
             _.forEach(params.data, (value, key) => {
                 let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
                 if (key != 'logs' && selectedFieldsList.includes(key)) {
                     logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=`+ JSON.stringify(JSON.unflatten(value), null, 2)+`</span>`;                    
+                    counter++;
 
                 }
-                if (key === 'timestamp'){
-                    logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${value}</span>`;
-                }
-                counter++;
             });
             return logString;
         },

@@ -61,12 +61,6 @@ afieldDropDown.style.width = "auto";
                 $(`.toggle-${string2Hex(colName)}`).removeClass('active');
             }
         });
-    } else {
-        selectedFieldsList = [];
-        availColNames.forEach((colName, index) => {
-            $(`.toggle-${string2Hex(colName)}`).addClass('active');
-            selectedFieldsList.push(colName);
-        });
     }
 }
 
