@@ -576,14 +576,14 @@ func Test_GetResults_NotEquals(t *testing.T) {
 func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
-			0:     1,
-			10800: 5,
-			21600: 9,
+			0:    1,
+			3600: 5,
+			7200: 9,
 		},
 		map[uint32]float64{
-			0:     0,
-			10800: 1,
-			21600: 1,
+			0:    0,
+			3600: 1,
+			7200: 1,
 		},
 		[]structs.QueryArithmetic{
 			{
@@ -593,18 +593,24 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 				Constant:   4,
 				ReturnBool: true,
 			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
 		})
 
 	test_GetResults_Ops(t,
 		map[uint32]float64{
-			0:     1,
-			10800: 5,
-			21600: 9,
+			0:    1,
+			3600: 5,
+			7200: 9,
 		},
 		map[uint32]float64{
-			0:     0,
-			10800: 1,
-			21600: 0,
+			0:    0,
+			3600: 1,
+			7200: 0,
 		},
 		[]structs.QueryArithmetic{
 			{
@@ -614,6 +620,12 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 				Constant:   5,
 				ReturnBool: true,
 			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
 		})
 }
 
