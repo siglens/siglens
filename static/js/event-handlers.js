@@ -480,9 +480,7 @@ function toggleAllAvailableFieldsHandler(evt) {
         let tempFieldList = [];
         availColNames.forEach((colName, index) => {
             $(`.toggle-${string2Hex(colName)}`).addClass('active');
-            if(index>1){
                 tempFieldList.push(colName);
-            }
             gridOptions.columnApi.setColumnVisible(colName, true);
         });
         selectedFieldsList = tempFieldList;
@@ -497,6 +495,7 @@ function toggleAllAvailableFieldsHandler(evt) {
         });
         selectedFieldsList = []
     }
+    updatedSelFieldList = true;
     // Always hide the logs column
     gridOptions.columnApi.setColumnVisible("logs", false);
 }

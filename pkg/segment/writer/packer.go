@@ -1270,11 +1270,7 @@ func EncodeBlocksum(bmh *BlockMetadataHolder, bsum *BlockSummary,
 	}
 	// summLen + blkNum + highTs + lowTs + recCount + numCols + totalCnamesLen + N * (cnameLenHolder + blkOff + blkLen)
 	requiredLen := 4 + 2 + 8 + 8 + 2 + 2 + clen + len(bmh.ColumnBlockOffset)*(2+8+4)
-
-	if len(blockSummBuf) < requiredLen {
-		newSlice := make([]byte, requiredLen-len(blockSummBuf))
-		blockSummBuf = append(blockSummBuf, newSlice...)
-	}
+	blockSummBuf = utils.ResizeSlice(blockSummBuf, requiredLen)
 
 	// reserve first 4 bytes for BLOCK_SUMMARY_LEN.
 	idx += 4

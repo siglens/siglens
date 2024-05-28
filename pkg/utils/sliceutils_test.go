@@ -15,10 +15,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Note: the only changes to this file should be incrementing SigLensVersion.
-// You shouldn't add other things to this file as it's intended only for
-// tracking the SigLens version that gets packaged inside the Go binary.
+package utils
 
-package config
+import (
+	"testing"
 
-const SigLensVersion = "0.2.9d"
+	"github.com/stretchr/testify/assert"
+)
+
+func Test_ResizeSlice(t *testing.T) {
+	originalSlice := []int{1, 2, 3, 4, 5}
+
+	newSlice := ResizeSlice(originalSlice, 3)
+	assert.Len(t, newSlice, 3)
+	assert.Equal(t, newSlice, []int{1, 2, 3})
+
+	newSlice = ResizeSlice(originalSlice, 10)
+	assert.Len(t, newSlice, 10)
+	assert.Equal(t, newSlice[:5], originalSlice)
+}

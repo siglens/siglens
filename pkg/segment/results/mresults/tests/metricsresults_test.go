@@ -407,13 +407,16 @@ func TestCalculateInterval(t *testing.T) {
 	}
 }
 
-func Test_GetResults_GTR(t *testing.T) {
+func Test_GetResults_GreaterThan(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
 			0:     45,
 			10800: 1045,
+			21600: 1046,
 		},
-		map[uint32]float64{},
+		map[uint32]float64{
+			21600: 1046,
+		},
 		[]structs.QueryArithmetic{
 			{
 				LHS:        1,
@@ -421,17 +424,26 @@ func Test_GetResults_GTR(t *testing.T) {
 				Operation:  utils.LetGreaterThan,
 				Constant:   1045,
 			},
-		})
+		},
+		structs.Downsampler{
+			Interval:   3,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
 }
 
-func Test_GetResults_GTE(t *testing.T) {
+func Test_GetResults_GreaterThanOrEqualTo(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
-			0:     45,
-			10800: 1045,
+			0:    45,
+			3600: 1045,
+			7200: 100,
 		},
 		map[uint32]float64{
-			10800: 1045,
+			3600: 1045,
+			7200: 100,
 		},
 		[]structs.QueryArithmetic{
 			{
@@ -440,17 +452,26 @@ func Test_GetResults_GTE(t *testing.T) {
 				Operation:  utils.LetGreaterThanOrEqualTo,
 				Constant:   100,
 			},
-		})
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
 }
 
-func Test_GetResults_LSS(t *testing.T) {
+func Test_GetResults_LessThan(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
 			0:     45,
-			10800: 1045,
+			3600:  1045,
+			10800: 1044,
 		},
 		map[uint32]float64{
-			0: 45,
+			0:     45,
+			10800: 1044,
 		},
 		[]structs.QueryArithmetic{
 			{
@@ -459,13 +480,21 @@ func Test_GetResults_LSS(t *testing.T) {
 				Operation:  utils.LetLessThan,
 				Constant:   1045,
 			},
-		})
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
 }
 
-func Test_GetResults_LTE(t *testing.T) {
+func Test_GetResults_LessThanOrEqualTo(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
 			0:     45,
+			3600:  1046,
 			10800: 1045,
 		},
 		map[uint32]float64{
@@ -479,14 +508,22 @@ func Test_GetResults_LTE(t *testing.T) {
 				Operation:  utils.LetLessThanOrEqualTo,
 				Constant:   1045,
 			},
-		})
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
 }
 
-func Test_GetResults_EQLC(t *testing.T) {
+func Test_GetResults_Equals(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
 			0:     45,
-			10800: 1045,
+			7200:  1045,
+			14400: 666,
 		},
 		map[uint32]float64{
 			0: 45,
@@ -498,17 +535,26 @@ func Test_GetResults_EQLC(t *testing.T) {
 				Operation:  utils.LetEquals,
 				Constant:   45,
 			},
-		})
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
 }
 
-func Test_GetResults_NEQ(t *testing.T) {
+func Test_GetResults_NotEquals(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
 			0:     45,
-			10800: 1045,
+			7200:  1045,
+			14400: 666,
 		},
 		map[uint32]float64{
-			10800: 1045,
+			7200:  1045,
+			14400: 666,
 		},
 		[]structs.QueryArithmetic{
 			{
@@ -517,7 +563,14 @@ func Test_GetResults_NEQ(t *testing.T) {
 				Operation:  utils.LetNotEquals,
 				Constant:   45,
 			},
-		})
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
 }
 
 func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
@@ -564,16 +617,11 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 		})
 }
 
-func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap map[uint32]float64, queryOps []structs.QueryArithmetic) {
+func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap map[uint32]float64, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler) {
 	mQuery := &structs.MetricsQuery{
 		MetricName:  "test.metric.0",
 		HashedMName: 1,
-		Downsampler: structs.Downsampler{
-			Interval:   3,
-			Unit:       "h",
-			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
-		},
+		Downsampler: downsampler,
 	}
 	qid := uint64(0)
 	metricsResults := mresults.InitMetricResults(mQuery, qid)
@@ -585,7 +633,6 @@ func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap
 	assert.NoError(t, err)
 	series := mresults.InitSeriesHolder(mQuery, tsGroupId)
 
-	// The entries' timestamp interval is larger than the data source interval (3 hours), so they can become separate key-value pairs.
 	for timestamp, val := range initialEntries {
 		series.AddEntry(timestamp, val)
 	}
