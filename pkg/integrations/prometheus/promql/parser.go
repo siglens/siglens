@@ -41,17 +41,18 @@ func extractSelectors(expr parser.Expr) [][]*labels.Matcher {
 }
 
 func extractTimeWindow(args parser.Expressions) (float64, float64, error) {
-	if len(args) > 0 {
-		if ms, ok := args[0].(*parser.MatrixSelector); ok {
-			return ms.Range.Seconds(), 0, nil
-		} else if subQueryExpr, ok := args[0].(*parser.SubqueryExpr); ok {
-			return subQueryExpr.Range.Seconds(), subQueryExpr.Step.Seconds(), nil
-		} else {
-			return 0, 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
-		}
-	} else {
+	if len(args) == 0 {
 		return 0, 0, fmt.Errorf("extractTimeWindow: can not extract time window")
 	}
+
+	for _, arg := range args {
+		if ms, ok := arg.(*parser.MatrixSelector); ok {
+			return ms.Range.Seconds(), 0, nil
+		} else if subQueryExpr, ok := arg.(*parser.SubqueryExpr); ok {
+			return subQueryExpr.Range.Seconds(), subQueryExpr.Step.Seconds(), nil
+		}
+	}
+	return 0, 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
 }
 
 func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*structs.MetricsQueryRequest, parser.ValueType, []*structs.QueryArithmetic, error) {
