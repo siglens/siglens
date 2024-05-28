@@ -65,8 +65,8 @@ func logRestartMarker(logFile *os.File) {
 	}
 }
 
-func DeferableAddAccessLogEntry(startTime time.Time, endTimeFunc func() time.Time, user string,
-	uri string, requestBody string, statusCodeFunc func() int, allowWebsocket bool, logFile *os.File, qid uint64) {
+func DeferableAddAccessLogEntry(startTime time.Time, endTimeFunc func() time.Time, user string, qid uint64,
+	uri string, requestBody string, statusCodeFunc func() int, allowWebsocket bool, logFile *os.File) {
 
 	data := dtypeutils.LogFileData{
 		TimeStamp:   startTime.Format("2006-01-02 15:04:05"),

@@ -43,20 +43,20 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		time.Now(),
 		func() time.Time { return time.Now() },
 		"No-user", // TODO : Add logged in user when user auth is implemented
+		qid,
 		ctx.Request.URI().String(),
 		fmt.Sprintf("%+v", event),
 		func() int { return ctx.Response.StatusCode() },
 		true, // Log this even though it's a websocket connection
 		fileutils.AccessLogFile,
-		qid,
 	)
 
 	fileutils.AddLogEntry(dtypeutils.LogFileData{
 		TimeStamp:   time.Now().Format("2006-01-02 15:04:05"),
 		UserName:    "No-user", // TODO : Add logged in user when user auth is implemented
+		QueryID:     qid,
 		URI:         ctx.Request.URI().String(),
 		RequestBody: fmt.Sprintf("%+v", event),
-		QueryID:     qid,
 	}, true, fileutils.QueryLogFile)
 
 	if err != nil {

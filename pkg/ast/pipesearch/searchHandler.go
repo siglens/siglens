@@ -321,12 +321,12 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		time.Now(),
 		func() time.Time { return time.Now() },
 		"No-user", // TODO : Add logged in user when user auth is implemented
+		qid,
 		ctx.Request.URI().String(),
 		string(ctx.PostBody()),
 		func() int { return ctx.Response.StatusCode() },
 		false,
 		fileutils.AccessLogFile,
-		qid,
 	)
 
 	fileutils.AddLogEntry(dtypeutils.LogFileData{
