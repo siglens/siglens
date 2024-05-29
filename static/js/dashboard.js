@@ -927,6 +927,26 @@ function handleDbSettings() {
         }), null, 2))
     })
 
+    $.ajax({
+        method: "get",
+        url: "api/dashboards/defaultlistall",
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': '*/*'
+        },
+        dataType: 'json',
+        crossDomain: true,
+    }).then(function (res) {
+        for (let [key, value] of Object.entries(res)) {
+            if (key == dbId ){
+                $(".dbSet-dbName").prop('readonly', true);
+                $('.dbSet-dbDescr').prop('readonly', true);
+		    
+                break
+            }
+        }
+    })
+
     //get dashboard data from database
     $.ajax({
         method: "get",
