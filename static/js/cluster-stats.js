@@ -513,7 +513,20 @@ function processClusterStats(res) {
         ''
     ];
 
-    let indexdataTableColumns = columnOrder.map((columnName, index) => {
+    let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', ''];
+    let metricsColumnOrder = ['Index Name', 'Incoming Volume', 'Datapoint Count'];
+
+    let indexdataTableColumns = indexColumnOrder.map((columnName, index) => {
+        let title = `<div class="grid"><div>${columnName}&nbsp;</div><div><i data-index="${index}"></i></div></div>`;
+        return {
+            title: title,
+            name: columnName,
+            visible: true,
+            defaultContent: ``,
+        };
+    });
+
+    let metricsdataTableColumns = metricsColumnOrder.map((columnName, index) => {
         let title = `<div class="grid"><div>${columnName}&nbsp;</div><div><i data-index="${index}"></i></div></div>`;
         return {
             title: title,
@@ -525,7 +538,6 @@ function processClusterStats(res) {
 
     const commonDataTablesConfig = {
         bPaginate: true,
-        columns: indexdataTableColumns,
         autoWidth: false,
         colReorder: false,
         scrollX: false,
@@ -539,10 +551,16 @@ function processClusterStats(res) {
         columnDefs: [],
         data: []
     };
-    
-    let indexDataTable = $('#index-data-table').DataTable(commonDataTablesConfig);
-    let metricsDataTable = $('#metrics-data-table').DataTable(commonDataTablesConfig);
-    
+
+    let indexDataTable = $('#index-data-table').DataTable({
+        ...commonDataTablesConfig,
+        columns: indexdataTableColumns
+    });
+
+    let metricsDataTable = $('#metrics-data-table').DataTable({
+        ...commonDataTablesConfig,
+        columns: metricsdataTableColumns
+    });
     function displayIndexDataRows(res) {
         let totalIngestVolume = 0;
         let totalEventCount = 0;
