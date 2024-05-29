@@ -109,12 +109,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </div>
                         <div class="graph-container mt-2">
                             <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Event Count</div>
-                                <canvas id="EventCountChart"></canvas>
+                                <div class="ingestion-stats-header">Incoming Logs Event Count</div>
+                                <canvas id="EventCountChart-logs"></canvas>
                             </div>
                             <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Volume</div>
-                                <canvas id="GBCountChart"></canvas>
+                                <div class="ingestion-stats-header">Incoming Logs Volume</div>
+                                <canvas id="GBCountChart-logs"></canvas>
+                            </div>
+                        </div>
+                        <div class="graph-container mt-2">
+                            <div class="chart_container">
+                                <div class="ingestion-stats-header">Incoming Metrics Datapoints Count</div>
+                                <canvas id="EventCountChart-metrics"></canvas>
+                            </div>
+                            <div class="chart_container">
+                                <div class="ingestion-stats-header">Incoming Metrics Volume</div>
+                                <canvas id="GBCountChart-metrics"></canvas>
                             </div>
                         </div>
                     </div>
