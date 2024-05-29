@@ -66,12 +66,12 @@ func init() {
 		numFiles = newLimit.Cur
 	}
 	maxPossibleOpenFds := int64(numFiles*OPEN_FD_THRESHOLD_PERCENT) / 100
-	log.Infof("Initialized FD limiter with %+v as max number of open files", maxPossibleOpenFds)
 	GLOBAL_FD_LIMITER = semaphore.NewDefaultWeightedSemaphore(maxPossibleOpenFds, "GlobalFileLimiter")
+	LogMaxOpenFiles()
 }
 
-func GetMaxOpenFiles() int64 {
-	return GLOBAL_FD_LIMITER.MaxSize
+func LogMaxOpenFiles() {
+	log.Infof("Initialized FD limiter with %+v as max number of open files", GLOBAL_FD_LIMITER.MaxSize)
 }
 
 func IsDirEmpty(name string) bool {

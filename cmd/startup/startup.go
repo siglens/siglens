@@ -164,7 +164,7 @@ func Main() {
 		hook(baseLogDir)
 	}
 
-	log.Infof("Initialized FD limiter with %+v as max number of open files", fileutils.GetMaxOpenFiles())
+	fileutils.LogMaxOpenFiles()
 
 	err = StartSiglensServer(nodeType, nodeID)
 	if err != nil {
