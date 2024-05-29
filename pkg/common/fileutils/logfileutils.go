@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package utils
+package fileutils
 
 import (
 	"fmt"
@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -32,20 +33,29 @@ var (
 	QueryLogFile  *os.File
 	AccessLogFile *os.File
 	fileMutex     sync.Mutex
+	columnNames   = "TimeStamp, UserName, QueryID, URI, RequestBody, StatusCode, Duration"
 )
 
-func init() {
-	var err error
-	QueryLogFile, err = os.OpenFile("query.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+func openAndLogRestartMarker(filename string) (*os.File, error) {
+	logFile, err := os.OpenFile(config.GetLogPrefix()+filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		log.Errorf("Unable to open query.log file, err=%v", err)
-	} else {
-		logRestartMarker(QueryLogFile)
+		log.Errorf("Unable to open %s file, err=%v", filename, err)
+		return nil, err
+	}
+	logRestartMarker(logFile)
+	return logFile, nil
+}
+
+func InitLogFiles() {
+	var err error
+	QueryLogFile, err = openAndLogRestartMarker("query.log")
+	if err != nil {
+		return
 	}
 
-	AccessLogFile, err = os.OpenFile("access.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	AccessLogFile, err = openAndLogRestartMarker("access.log")
 	if err != nil {
-		log.Errorf("Unable to open access.log file, err=%v", err)
+		return
 	}
 }
 
@@ -62,14 +72,22 @@ func logRestartMarker(logFile *os.File) {
 	if err != nil {
 		log.Errorf("Unable to write restart marker to log file, err=%v", err)
 	}
+
+	// Write the column names after the restart marker
+	_, err = logFile.WriteString(fmt.Sprintf("%s\n", columnNames))
+	if err != nil {
+		log.Errorf("Unable to write column names to log file, err=%v", err)
+	}
 }
 
-func DeferableAddAccessLogEntry(startTime time.Time, endTimeFunc func() time.Time, user string,
+func DeferableAddAccessLogEntry(startTime time.Time, endTimeFunc func() time.Time, user string, qid uint64,
 	uri string, requestBody string, statusCodeFunc func() int, allowWebsocket bool, logFile *os.File) {
 
+	// Update the column names const accordingly if you change the data structure
 	data := dtypeutils.LogFileData{
 		TimeStamp:   startTime.Format("2006-01-02 15:04:05"),
 		UserName:    user,
+		QueryID:     qid,
 		URI:         uri,
 		RequestBody: requestBody,
 		StatusCode:  statusCodeFunc(),
@@ -97,9 +115,11 @@ func AddLogEntry(data dtypeutils.LogFileData, allowWebsocket bool, logFile *os.F
 		return
 	}
 
-	_, err := logFile.WriteString(fmt.Sprintf("%s %s %s %s %d %d\n",
+	// Update the column names const accordingly if you change the data structure
+	_, err := logFile.WriteString(fmt.Sprintf("%s %s %d %s %s %d %d\n",
 		data.TimeStamp,
 		data.UserName, // TODO : Add logged in user when user auth is implemented
+		data.QueryID,
 		data.URI,
 		data.RequestBody,
 		data.StatusCode,
