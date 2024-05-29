@@ -29,6 +29,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	fileutils "github.com/siglens/siglens/pkg/common/fileutils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -315,23 +316,26 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 }
 
 func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	defer utils.DeferableAddAccessLogEntry(
+	qid := rutils.GetNextQid()
+	defer fileutils.DeferableAddAccessLogEntry(
 		time.Now(),
 		func() time.Time { return time.Now() },
 		"No-user", // TODO : Add logged in user when user auth is implemented
+		qid,
 		ctx.Request.URI().String(),
 		string(ctx.PostBody()),
 		func() int { return ctx.Response.StatusCode() },
 		false,
-		utils.AccessLogFile,
+		fileutils.AccessLogFile,
 	)
 
-	utils.AddLogEntry(dtypeutils.LogFileData{
+	fileutils.AddLogEntry(dtypeutils.LogFileData{
 		TimeStamp:   time.Now().Format("2006-01-02 15:04:05"),
 		UserName:    "No-user", // TODO : Add logged in user when user auth is implemented
+		QueryID:     qid,
 		URI:         ctx.Request.URI().String(),
 		RequestBody: string(ctx.PostBody()),
-	}, false, utils.QueryLogFile)
+	}, false, fileutils.QueryLogFile)
 
 	dbPanelId := utils.ExtractParamAsString(ctx.UserValue("dbPanel-id"))
 	queryStart := time.Now()
@@ -341,7 +345,6 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		utils.SetBadMsg(ctx, "")
 		return
 	}
-	qid := rutils.GetNextQid()
 
 	readJSON := make(map[string]interface{})
 	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
