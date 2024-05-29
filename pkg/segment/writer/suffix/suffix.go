@@ -20,6 +20,7 @@ package suffix
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -71,10 +72,14 @@ func getSuffixFromFile(fileName string) (uint64, error) {
 	scanner := bufio.NewScanner(f)
 	scanner.Scan()
 	rawbytes := scanner.Bytes()
+	if len(rawbytes) == 0 {
+		log.Errorf("getSuffixFromFile: Empty suffix file %v", fileName)
+		return 0, fmt.Errorf("empty suffix file %v", fileName)
+	}
 	var suffxE SuffixEntry
 	err = json.Unmarshal(rawbytes, &suffxE)
 	if err != nil {
-		log.Errorf("GetSuffix: Cannot unmarshal data = %v, err= %v", string(rawbytes), err)
+		log.Errorf("getSuffixFromFile: Cannot unmarshal file = %v with data = %v, err= %v", fileName, string(rawbytes), err)
 		return 0, err
 	}
 	retVal := suffxE.Suffix
