@@ -76,7 +76,7 @@ class ReadOnlyCellEditor {
       
         // Add copy icon to the textarea
         $('.copyable').each(function() {
-          var copyIcon = $('<span class="copy-icon"></span>');
+          var copyIcon = $('<span style="margin-right: 14px;" class="copy-icon"></span>');
           $(this).after(copyIcon);
         });
       
