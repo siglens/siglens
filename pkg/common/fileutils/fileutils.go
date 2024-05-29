@@ -70,6 +70,10 @@ func init() {
 	GLOBAL_FD_LIMITER = semaphore.NewDefaultWeightedSemaphore(maxPossibleOpenFds, "GlobalFileLimiter")
 }
 
+func GetMaxOpenFiles() int64 {
+	return GLOBAL_FD_LIMITER.MaxSize
+}
+
 func IsDirEmpty(name string) bool {
 	f, err := os.Open(name)
 	if err != nil {
