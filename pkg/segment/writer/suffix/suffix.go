@@ -69,6 +69,10 @@ func getSuffixFromFile(fileName string) (uint64, error) {
 		}
 		return 0, err
 	}
+	if err != nil {
+		log.Errorf("getSuffixFromFile: Cannot open file %v, err= %v", fileName, err)
+		return 0, err
+	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
 	scanner.Scan()
