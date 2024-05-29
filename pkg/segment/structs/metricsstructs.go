@@ -119,7 +119,7 @@ type QueryArithmetic struct {
 	LHS         uint64
 	RHS         uint64
 	ConstantOp  bool
-	Operation   utils.ArithmeticOperator
+	Operation   utils.LogicalAndArithmeticOperator
 	Constant    float64
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
 	Results       map[string]map[uint32]float64
