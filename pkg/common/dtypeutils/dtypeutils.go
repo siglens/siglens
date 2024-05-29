@@ -636,6 +636,7 @@ func ConvertToSameType(leftType, rightType interface{}) (interface{}, interface{
 	}
 }
 
+// If you add a new field here or change the order of LogFileData, update the columnNames in logfileutils.go
 type LogFileData struct {
 	TimeStamp   string
 	UserName    string
