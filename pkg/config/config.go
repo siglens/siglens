@@ -42,6 +42,8 @@ import (
 const MINUTES_REREAD_CONFIG = 15
 const RunModFilePath = "data/common/runmod.cfg"
 
+const SIZE_8GB_IN_MB = uint64(8192)
+
 var configFileLastModified uint64
 
 var runningConfig common.Configuration
@@ -680,7 +682,11 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.DataDiskThresholdPercent = 85
 	}
 	if config.MemoryThresholdPercent == 0 {
-		config.MemoryThresholdPercent = 80
+		if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
+			config.MemoryThresholdPercent = 50
+		} else {
+			config.MemoryThresholdPercent = 80
+		}
 	}
 
 	if len(config.S3IngestQueueName) <= 0 {
