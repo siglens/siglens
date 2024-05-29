@@ -364,13 +364,7 @@ func FlushStatsToFile(orgid uint64) error {
 
 func UpdateStats(logsBytesCount uint64, logLinesCount uint64, orgid uint64) {
 	if _, ok := ustats[orgid]; !ok {
-		ustats[orgid] = &Stats{
-			BytesCount:         0,
-			LogLinesCount:      0,
-			TotalBytesCount:    0,
-			TotalLogLinesCount: 0,
-			LogsBytesCount:     0,
-		}
+		ustats[orgid] = &Stats{}
 	}
 	atomic.AddUint64(&ustats[orgid].BytesCount, logsBytesCount)
 	atomic.AddUint64(&ustats[orgid].LogLinesCount, logLinesCount)
@@ -381,13 +375,7 @@ func UpdateStats(logsBytesCount uint64, logLinesCount uint64, orgid uint64) {
 
 func UpdateMetricsStats(metricsBytesCount uint64, incomingMetrics uint64, orgid uint64) {
 	if _, ok := ustats[orgid]; !ok {
-		ustats[orgid] = &Stats{
-			BytesCount:                  0,
-			MetricsDatapointsCount:      0,
-			TotalBytesCount:             0,
-			TotalMetricsDatapointsCount: 0,
-			MetricsBytesCount:           0,
-		}
+		ustats[orgid] = &Stats{}
 	}
 	atomic.AddUint64(&ustats[orgid].BytesCount, metricsBytesCount)
 	atomic.AddUint64(&ustats[orgid].MetricsDatapointsCount, incomingMetrics)

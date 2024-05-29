@@ -72,7 +72,12 @@ function renderChart() {
         dataType: 'json',
         data: JSON.stringify(data)
     })
-    .then(res => drawStatsChart(res, data, "logs").then(() => drawStatsChart(res, data, "metrics")))
+    .then(res => drawStatsChart(res, data, "logs")
+        .then(() => {
+            $('#app-content-area').show();
+            return drawStatsChart(res, data, "metrics");
+        })
+    )
     .catch(showCStatsError);
 }
 
