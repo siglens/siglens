@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	otsdbquery "github.com/siglens/siglens/pkg/integrations/otsdb/query"
 	otsdbwriter "github.com/siglens/siglens/pkg/integrations/otsdb/writer"
+	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -123,14 +124,14 @@ func Benchmark_TagsTree(b *testing.B) {
 	log.Infof("Average tags tree ingest finished in time %.2fms", float64(tTime)/float64(entryCount))
 }
 
-func Benchmark_MetricsEndToEnd(b *testing.B) {
+func Benchmark_MetricsEndToEnd_OTSDB(b *testing.B) {
 
 	/*
-	   go test -run=Bench -bench=Benchmark_MetricsEndToEnd -cpuprofile cpuprofile.out -o rawsearch_cpu
+	   go test -run=Bench -bench=Benchmark_MetricsEndToEnd_OTSDB -cpuprofile cpuprofile.out -o rawsearch_cpu
 	   go tool pprof ./rawsearch_cpu cpuprofile.out
 
 	   (for mem profile)
-	   go test -run=Bench -bench=Benchmark_MetricsEndToEnd -benchmem -memprofile memprofile.out -o rawsearch_mem
+	   go test -run=Bench -bench=Benchmark_MetricsEndToEnd_OTSDB -benchmem -memprofile memprofile.out -o rawsearch_mem
 	   go tool pprof ./rawsearch_mem memprofile.out
 	*/
 
@@ -171,4 +172,82 @@ func Benchmark_MetricsEndToEnd(b *testing.B) {
 		tTime += time.Since(sTime).Milliseconds()
 	}
 	log.Errorf("After %d iterations avg latency %.2fms", count, float64(tTime)/float64(count))
+}
+
+func Benchmark_MetricsEndToEnd_PROMQL(b *testing.B) {
+
+	/*
+	   go test -run=Bench -bench=Benchmark_MetricsEndToEnd_PROMQL -cpuprofile cpuprofile.out -o rawsearch_cpu
+	   go tool pprof ./rawsearch_cpu cpuprofile.out
+
+	   (for mem profile)
+	   go test -run=Bench -bench=Benchmark_MetricsEndToEnd_PROMQL -benchmem -memprofile memprofile.out -o rawsearch_mem
+	   go tool pprof ./rawsearch_mem memprofile.out
+	*/
+
+	config.InitializeDefaultConfig()
+	_ = localstorage.InitLocalStorage()
+	limit.InitMemoryLimiter()
+	metrics.InitTestingConfig()
+
+	baseDir := "/Users/mgaddam/Development/SigScalr/sigDup/siglens/data/ingestnodes/sigsingle.A7nWQjn5xKWrRjkqLAXQQx/"
+	config.SetSmrBaseDirForTestOnly(baseDir)
+
+	err := meta.InitMetricsMeta()
+	if err != nil {
+		b.Fatalf("failed to initialize metrics meta")
+	}
+
+	metricMetaFileName := meta.GetLocalMetricsMetaFName()
+	log.Errorf("Using metrics meta file %s", metricMetaFileName)
+	err = query.PopulateMetricsMetadataForTheFile_TestOnly(metricMetaFileName)
+	if err != nil {
+		b.Fatalf("failed to populate metrics meta")
+	}
+
+	err = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	if err != nil {
+		b.Fatalf("failed to initialize metrics meta")
+	}
+	startTime := uint32(1716997213)
+	endTime := uint32(1717008013)
+
+	promQlMetricQueries := []string{
+		"avg by (group) (testmetric0{color='gray'})",
+		"max by (car_type) (testmetric1{group='group 0'})",
+		"avg by (car_type) (testmetric2{group='group 0'})",
+		"avg by (group,model) (testmetric3)",
+		"avg by (group,model) (testmetric4)",
+		"sum by (model) (testmetric7{group='group 1'})",
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	tTime := int64(0)
+	count := 10
+	for i := 0; i < count; i++ {
+		for ind, m := range promQlMetricQueries {
+			log.Infof("Running query %d: %s", ind, m)
+			sTime := time.Now()
+
+			mQueryReqs, pqlType, _, err := promql.ConvertPqlToMetricsQuery(m, startTime, endTime, 0)
+			assert.NoError(b, err)
+			segment.LogMetricsQuery("PromQl metrics query parser", &mQueryReqs[0], uint64(ind))
+
+			mQResponse := segment.ExecuteMetricsQuery(&mQueryReqs[0].MetricsQuery, &mQueryReqs[0].TimeRange, uint64(ind))
+			if mQResponse == nil {
+				b.Fatal("Benchmark_MetricsEndToEnd: Failed to get metrics query response")
+			}
+			mResult, err := mQResponse.FetchPromqlMetricsForUi(&mQueryReqs[0].MetricsQuery, pqlType, startTime, endTime)
+			assert.NoError(b, err)
+			log.Errorf("Query %d has %d series with %d timestamps having total %d metric data points in %+v", ind, len(mResult.Series), len(mResult.Timestamps),
+				len(mResult.Series)*len(mResult.Timestamps), time.Since(sTime))
+
+			_, err = json.Marshal(mResult)
+			assert.NoError(b, err)
+
+			tTime += time.Since(sTime).Milliseconds()
+		}
+	}
+	log.Errorf("After %d iterations avg latency %.2fms", len(promQlMetricQueries)*count, float64(tTime)/float64(len(promQlMetricQueries)*count))
 }
