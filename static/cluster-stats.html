@@ -72,41 +72,40 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div class="cstats-data-container myOrg-container">
                 <div class="org-nav-tab">
                     {{ .Button1 | safeHTML }}
+                <div class="dropdown" id="cstats-time-picker">
+                    <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                        data-bs-toggle="dropdown" title="Pick the time window">
+                        <span>Time Picker</span>
+                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                    </button>
+                    <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
+                        id="daterangepicker ">
+                        <p class="dt-header">Ingestion Stats for the last</p>
+                        <div class="ranges">
+                            <div class="inner-range">
+                                <div id="now-24h" class="range-item">24 Hrs</div>
+                                <div id="now-90d" class="range-item">90 Days</div>
+                            </div>
+                            <div class="inner-range">
+                                <div id="now-7d" class="range-item active">7 Days</div>
+                                <div id="now-180d" class="range-item">180 Days</div>
+                            </div>
+                            <div class="inner-range">
+                                <div id="now-30d" class="range-item">30 Days</div>
+                                <div id="now-365d" class="range-item">1 Year</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+            </div>
                 <div class="myOrg-inner-container">
                     <div class="usage-stats-header">
                         <p class="caption">Track progress and performance </p>
                     </div>
+                    <p class="index-stats-header">Logs Stats</p>
                     <div class="chart-container">
-                        <div id="filter-container">
-                            <div class="dropdown" id="cstats-time-picker">
-                                <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
-                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                                    data-bs-toggle="dropdown" title="Pick the time window">
-                                    <span>Time Picker</span>
-                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                    <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                                </button>
-                                <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
-                                    id="daterangepicker ">
-                                    <p class="dt-header">Ingestion Stats for the last</p>
-                                    <div class="ranges">
-                                        <div class="inner-range">
-                                            <div id="now-24h" class="range-item">24 Hrs</div>
-                                            <div id="now-90d" class="range-item">90 Days</div>
-                                        </div>
-                                        <div class="inner-range">
-                                            <div id="now-7d" class="range-item active">7 Days</div>
-                                            <div id="now-180d" class="range-item">180 Days</div>
-                                        </div>
-                                        <div class="inner-range">
-                                            <div id="now-30d" class="range-item">30 Days</div>
-                                            <div id="now-365d" class="range-item">1 Year</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                         <div class="graph-container mt-2">
                             <div class="chart_container">
                                 <div class="ingestion-stats-header">Incoming Logs Event Count</div>
@@ -117,6 +116,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <canvas id="GBCountChart-logs"></canvas>
                             </div>
                         </div>
+                    </div>
+                    <div class="query-index-container">
+                        <div class="index-stats">
+                            <table id="index-data-table" class="index-data-table"></table>
+                        </div>
+                    </div>
+                    <p class="index-stats-header">Metrics Stats</p>
+                    <div class="chart-container">
                         <div class="graph-container mt-2">
                             <div class="chart_container">
                                 <div class="ingestion-stats-header">Incoming Metrics Datapoints Count</div>
@@ -128,15 +135,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
                         </div>
                     </div>
+
                     <div class="query-index-container">
                         <div class="index-stats">
-                            <p class="index-stats-header" id="logs-stats-header">Logs Stats</p>
-                            <table id="index-data-table" class="index-data-table"></table>
-                        </div>
-                    </div>
-                    <div class="query-index-container">
-                        <div class="index-stats">
-                            <p class="index-stats-header">Metrics Stats</p>
                             <table id="metrics-data-table" class="index-data-table"></table>
                         </div>
                     </div>
