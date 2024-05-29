@@ -678,15 +678,22 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	if config.Log.LogFileRotationSizeMB == 0 {
 		config.Log.LogFileRotationSizeMB = 100
 	}
+
 	if config.DataDiskThresholdPercent == 0 {
 		config.DataDiskThresholdPercent = 85
 	}
-	if config.MemoryThresholdPercent == 0 {
-		if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
+
+	if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
+		if config.MemoryThresholdPercent > 50 {
+			log.Infof("MemoryThresholdPercent is set to %v%% but bringing it down to 50%%", config.MemoryThresholdPercent)
 			config.MemoryThresholdPercent = 50
-		} else {
-			config.MemoryThresholdPercent = 80
+		} else if config.MemoryThresholdPercent == 0 {
+			config.MemoryThresholdPercent = 50
 		}
+	}
+
+	if config.MemoryThresholdPercent == 0 {
+		config.MemoryThresholdPercent = 80
 	}
 
 	if len(config.S3IngestQueueName) <= 0 {
