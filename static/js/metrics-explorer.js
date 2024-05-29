@@ -60,16 +60,28 @@ async function metricsExplorerDatePickerHandler(evt) {
     var selectedId = $(evt.currentTarget).attr("id");
     $(evt.currentTarget).addClass('active');
     datePickerHandler(selectedId, "now", selectedId);
-    const queryElement = $('#metrics-queries')
-    const metricNames = await getMetricNames();
-    metricNames.metricNames.sort();
-    queryElement.find('.metrics').val(metricNames.metricNames[0]); 
-    getFunctions();
+
+    const newMetricNames = await getMetricNames();
+    newMetricNames.metricNames.sort();
+  
+    $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
+    
     // Update graph for each query
+   
     Object.keys(queries).forEach(async function(queryName) {
         var queryDetails = queries[queryName];
         await getQueryDetails(queryName, queryDetails);
+        const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
+        
+        queryDetails.everywhere = [];
+        queryDetails.everything = [];
+        availableEverywhere = tagsAndValue.availableEverywhere;
+        availableEverything = tagsAndValue.availableEverything[0];
+        const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
+        queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
+        queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
     });
+
     $('#daterangepicker').hide();
 }
 
