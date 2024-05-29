@@ -49,8 +49,8 @@ type Stats struct {
 	TotalLogLinesCount          uint64
 	MetricsDatapointsCount      uint64
 	TotalMetricsDatapointsCount uint64
-	MetricsBytesCount           uint64
 	LogsBytesCount              uint64
+	MetricsBytesCount           uint64
 }
 
 var ustats = make(map[uint64]*Stats)
