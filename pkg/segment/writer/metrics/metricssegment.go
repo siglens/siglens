@@ -527,6 +527,7 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 				_, err := jp.ParseString(value)
 				if err != nil {
 					log.Errorf("failed to extract tags %+v", err)
+					return err
 				}
 				mName = value
 			}
