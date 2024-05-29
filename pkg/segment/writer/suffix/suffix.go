@@ -69,6 +69,7 @@ func getSuffixFromFile(fileName string) (uint64, error) {
 		}
 		return 0, err
 	}
+	defer f.Close()
 	scanner := bufio.NewScanner(f)
 	scanner.Scan()
 	rawbytes := scanner.Bytes()
