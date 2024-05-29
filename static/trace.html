@@ -64,7 +64,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 </head>
 <body>
     <div id="app-container">
-        <div id="dashboard" class="p-20 pb-0">
+        <div id="dashboard" style="margin: 20px;">
             <div class="d-flex justify-content-between mt-2 align-items-center">
                 <div class="d-flex gap-2">
                     <span class="back-to-search-traces" title="Go back">←</span>
@@ -72,10 +72,23 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                 </div>
             </div>
-            <div class="d-flex">
-                <div id="timeline-container">
+            <div class="d-flex flex-column" style="height: 100%;">
+                <div class="d-flex" style="height: 100%; margin-bottom: 20px;">
+                    <div id="timeline-container">
+                    </div>
+                    <div class="span-details-container" style="display: none;">
+                    </div>
                 </div>
-                <div class="span-details-container" style="display: none;">
+                <div class="logs-metrics-container">
+                    <div class="d-flex justify-content-between">
+                        <div class="section-buttons mt-0">
+                            <div class="section-button active" id="search-traces">Logs</div>
+                            <div class="section-button" id="dependency-graph">Metrics</div>
+                        </div>
+                        <div class="max-min-btn">
+                            ←
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

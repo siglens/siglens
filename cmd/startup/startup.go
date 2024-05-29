@@ -32,6 +32,7 @@ import (
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
 	"github.com/siglens/siglens/pkg/blob"
 	local "github.com/siglens/siglens/pkg/blob/local"
+	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	commonconfig "github.com/siglens/siglens/pkg/config/common"
 	"github.com/siglens/siglens/pkg/dashboards"
@@ -284,6 +285,7 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	instrumentation.InitMetrics()
 	querytracker.InitQT()
 
+	fileutils.InitLogFiles()
 	go tracinghandler.MonitorSpansHealth()
 	go tracinghandler.DependencyGraphThread()
 
@@ -355,6 +357,10 @@ func startQueryServer(serverAddr string) {
 			htmlTemplate := htmltemplate.New("html").Funcs(htmltemplate.FuncMap{
 				"safeHTML": func(htmlContent string) htmltemplate.HTML {
 					return htmltemplate.HTML(htmlContent)
+				},
+				"EntMsg": func(htmlContent string) htmltemplate.HTML {
+					emptyHtmlContent := "<div id=\"empty-response\">This feature is available in Enterprise version</div>"
+					return htmltemplate.HTML(emptyHtmlContent)
 				},
 			})
 			textTemplate := texttemplate.New("other")

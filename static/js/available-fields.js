@@ -27,7 +27,6 @@ function renderAvailableFields(columnOrder) {
         if (columnsToIgnore.indexOf(colName) == -1) {
             if (!availColNames.includes(colName)){
                 availColNames.push(colName);
-                selectedFieldsList.push(colName)
             }
         }
     });
@@ -61,12 +60,6 @@ afieldDropDown.style.width = "auto";
             } else {
                 $(`.toggle-${string2Hex(colName)}`).removeClass('active');
             }
-        });
-    } else {
-        selectedFieldsList = [];
-        availColNames.forEach((colName, index) => {
-            $(`.toggle-${string2Hex(colName)}`).addClass('active');
-            selectedFieldsList.push(colName);
         });
     }
 }

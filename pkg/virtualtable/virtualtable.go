@@ -678,7 +678,8 @@ func isIndexExcluded(indexName string) bool {
 }
 
 func DeleteVirtualTable(tname *string, orgid uint64) error {
-
+	vTableRawFileAccessLock.Lock()
+	defer vTableRawFileAccessLock.Unlock()
 	vTableFileName := getVirtualTableFileName(orgid)
 	vtableFd, err := os.OpenFile(vTableFileName, os.O_APPEND|os.O_RDONLY, 0644)
 	if err != nil {

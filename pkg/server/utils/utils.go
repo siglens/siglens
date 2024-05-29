@@ -32,6 +32,7 @@ const OTLP_PREFIX string = "/otlp"
 const API_PREFIX string = "/api"
 const LOKI_PREFIX string = "/loki"
 const HEROKU_ADDON_PREFIX string = "/heroku/resources"
+const METRIC_PREFIX string = "/metrics-explorer"
 
 // This function reduces some boilerplate code by handling the logic for
 // injecting orgId if necessary, or using the default.
@@ -41,10 +42,7 @@ func CallWithOrgIdQuery(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthtt
 	if hook := hooks.GlobalHooks.GetOrgIdHookQuery; hook != nil {
 		orgId, err = hook(ctx)
 		if err != nil {
-			responsebody := make(map[string]interface{})
-			ctx.SetStatusCode(fasthttp.StatusUnauthorized)
-			responsebody["error"] = err.Error()
-			utils.WriteJsonResponse(ctx, responsebody)
+			utils.SendUnauthorizedError(ctx, "Failed authorization", "", err)
 			return
 		}
 	}
@@ -58,10 +56,7 @@ func CallWithOrgId(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthttp.Req
 	if hook := hooks.GlobalHooks.GetOrgIdHook; hook != nil {
 		orgId, err = hook(ctx)
 		if err != nil {
-			responsebody := make(map[string]interface{})
-			ctx.SetStatusCode(fasthttp.StatusUnauthorized)
-			responsebody["error"] = err.Error()
-			utils.WriteJsonResponse(ctx, responsebody)
+			utils.SendUnauthorizedError(ctx, "Failed authorization", "", err)
 			return
 		}
 	}

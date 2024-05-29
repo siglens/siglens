@@ -229,11 +229,7 @@ func readRollupFile(fd *os.File,
 			offset += 2
 			mrSize = utils.BytesToUint16LittleEndian(bbMrSize[:])
 
-			if currBufSize := len(bsBlk); int(mrSize) > currBufSize {
-				toAdd := int(mrSize) - currBufSize
-				newSlice := make([]byte, toAdd)
-				bsBlk = append(bsBlk, newSlice...)
-			}
+			bsBlk = utils.ResizeSlice(bsBlk, int(mrSize))
 
 			// read the actual bitset
 			_, err = fd.ReadAt(bsBlk[:mrSize], offset)

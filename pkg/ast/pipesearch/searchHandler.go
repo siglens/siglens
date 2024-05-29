@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,11 +28,14 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	fileutils "github.com/siglens/siglens/pkg/common/fileutils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
+	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	sutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -263,15 +265,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 			return -1
 		}
 
-		if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
-			sizeLimit = 0
-		} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() {
-			// 1. Dedup needs to see all the matched records before it can return any
-			// of them when there's a sortby option.
-			// 2. If there's a Rex block in the chain followed by a Stats block, we need to
-			// see all the matched records before we apply or calculate the stats.
-			sizeLimit = math.MaxUint64
-		}
+		sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
 		qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
 		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId)
@@ -322,16 +316,26 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 }
 
 func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	defer utils.DeferableAddAccessLogEntry(
+	qid := rutils.GetNextQid()
+	defer fileutils.DeferableAddAccessLogEntry(
 		time.Now(),
 		func() time.Time { return time.Now() },
 		"No-user", // TODO : Add logged in user when user auth is implemented
+		qid,
 		ctx.Request.URI().String(),
 		string(ctx.PostBody()),
 		func() int { return ctx.Response.StatusCode() },
 		false,
-		"access.log",
+		fileutils.AccessLogFile,
 	)
+
+	fileutils.AddLogEntry(dtypeutils.LogFileData{
+		TimeStamp:   time.Now().Format("2006-01-02 15:04:05"),
+		UserName:    "No-user", // TODO : Add logged in user when user auth is implemented
+		QueryID:     qid,
+		URI:         ctx.Request.URI().String(),
+		RequestBody: string(ctx.PostBody()),
+	}, false, fileutils.QueryLogFile)
 
 	dbPanelId := utils.ExtractParamAsString(ctx.UserValue("dbPanel-id"))
 	queryStart := time.Now()
@@ -341,7 +345,6 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		utils.SetBadMsg(ctx, "")
 		return
 	}
-	qid := rutils.GetNextQid()
 
 	readJSON := make(map[string]interface{})
 	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -395,15 +398,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
-		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() {
-		// 1. Dedup needs to see all the matched records before it can return any
-		// of them when there's a sortby option.
-		// 2. If there's a Rex block in the chain followed by a Stats block, we need to
-		// see all the matched records before we apply or calculate the stats.
-		sizeLimit = math.MaxUint64
-	}
+	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
 
 	// If MaxRows is used to limit the number of returned results, set `sizeLimit`
 	// to it. Currently MaxRows is only valid as the root QueryAggregators.
@@ -434,6 +429,14 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 			httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
 		}
 	}
+
+	allMeasRes, measFuncs, added := segresults.CreateMeasResultsFromAggResults(aggs.BucketLimit, nodeResult.Histogram)
+
+	if added == 0 {
+		allMeasRes = nodeResult.MeasureResults
+		measFuncs = nodeResult.MeasureFunctions
+	}
+
 	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid, nodeResult.SegEncToKey, aggs)
 	if err != nil {
 		httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
@@ -453,11 +456,17 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 	httpRespOuter.Qtype = nodeResult.Qtype
 	httpRespOuter.CanScrollMore = canScrollMore
 	httpRespOuter.TotalRRCCount = numRRCs
-	httpRespOuter.MeasureFunctions = nodeResult.MeasureFunctions
-	httpRespOuter.MeasureResults = nodeResult.MeasureResults
+	httpRespOuter.MeasureFunctions = measFuncs
+	httpRespOuter.MeasureResults = allMeasRes
 	httpRespOuter.GroupByCols = nodeResult.GroupByCols
 	httpRespOuter.BucketCount = nodeResult.BucketCount
 	httpRespOuter.DashboardPanelId = dbPanelId
+
+	httpRespOuter.ColumnsOrder = allCols
+	// The length of AllCols is 0, which means it is not a async query
+	if len(allCols) == 0 {
+		httpRespOuter.ColumnsOrder = query.GetFinalColsOrder(nodeResult.ColumnsOrder)
+	}
 
 	log.Infof("qid=%d, Query Took %+v ms", qid, httpRespOuter.ElapedTimeMS)
 
@@ -534,6 +543,7 @@ func convertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
 func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) uint64 {
 
 	sanTime := strings.ReplaceAll(inp, " ", "")
+	nowPrefix := "now-"
 
 	if sanTime == "now" {
 		return nowTs
@@ -542,13 +552,23 @@ func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) uint64 {
 	retVal := defValue
 
 	strln := len(sanTime)
-	if strln < 6 {
-		return retVal
+	if strln < len(nowPrefix)+2 {
+		return defValue
 	}
 
+	// check for prefix 'now-' in the input string
+	if !strings.HasPrefix(sanTime, nowPrefix) {
+		return defValue
+	}
+
+	// check for invalid time units
 	unit := sanTime[strln-1]
-	num, err := strconv.ParseInt(sanTime[4:strln-1], 0, 64)
-	if err != nil {
+	if unit != 'm' && unit != 'h' && unit != 'd' {
+		return defValue
+	}
+
+	num, err := strconv.ParseInt(sanTime[len(nowPrefix):strln-1], 10, 64)
+	if err != nil || num < 0 {
 		return defValue
 	}
 

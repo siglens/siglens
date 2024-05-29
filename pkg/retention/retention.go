@@ -23,6 +23,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -32,6 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
+	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -60,14 +62,16 @@ func internalRetentionCleaner() {
 
 	deletionWarningCounter := 0
 	for {
+		time.Sleep(1 * time.Hour)
 		if hook := hooks.GlobalHooks.InternalRetentionCleanerHook2; hook != nil {
 			hook(hook1Result, deletionWarningCounter)
 		} else {
 			DoRetentionBasedDeletion(config.GetCurrentNodeIngestDir(), config.GetRetentionHours(), 0)
+			doVolumeBasedDeletion(config.GetCurrentNodeIngestDir(), 4000, deletionWarningCounter)
 		}
-
-		deletionWarningCounter++
-		time.Sleep(1 * time.Hour)
+		if deletionWarningCounter <= MAXIMUM_WARNINGS_COUNT {
+			deletionWarningCounter++
+		}
 	}
 }
 
@@ -155,6 +159,39 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 	// Delete all segment data
 	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
 	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
+	deleteEmptyIndices(ingestNodeDir, orgid)
+}
+
+func deleteEmptyIndices(ingestNodeDir string, myid uint64) {
+	allIndices, err := vtable.GetVirtualTableNames(myid)
+	if err != nil {
+		log.Errorf("deleteEmptyIndices: Error in getting virtual table names, err: %v", err)
+		return
+	}
+
+	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
+
+	segMetaEntries, err := writer.ReadSegmeta(currentSegmeta)
+	if err != nil {
+		log.Errorf("deleteEmptyIndices: Error in reading segmeta file, err: %v", err)
+		return
+	}
+	// Create a set of virtualTableName values from segMetaEntries
+	virtualTableNames := make(map[string]struct{})
+	for _, entry := range segMetaEntries {
+		virtualTableNames[entry.VirtualTableName] = struct{}{}
+	}
+
+	// Iterate over all indices
+	for indexName := range allIndices {
+		// If an index is not in the set of virtualTableName values from segMetaEntries, delete it
+		if _, exists := virtualTableNames[indexName]; !exists {
+			err := vtable.DeleteVirtualTable(&indexName, myid)
+			if err != nil {
+				log.Errorf("deleteEmptyIndices: Error in deleting index %s, err: %v", indexName, err)
+			}
+		}
+	}
 }
 
 func GetRetentionTimeMs(retentionHours int, currTime time.Time) uint64 {
@@ -168,6 +205,131 @@ func deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete map[string]*structs.Seg
 			pqsmeta.DeleteSegmentFromPqid(pqid, segmetaEntry.SegmentKey)
 		}
 	}
+}
+
+func doVolumeBasedDeletion(ingestNodeDir string, allowedVolumeGB uint64, deletionWarningCounter int) {
+	allowedVolumeBytes := allowedVolumeGB * 1000 * 1000 * 1000
+	systemVolumeBytes, err := getSystemVolumeBytes()
+	if err != nil {
+		log.Errorf("doVolumeBasedDeletion: Failed to get systemVolumeBytes, err: %v", err)
+		return
+	}
+	if systemVolumeBytes == 0 {
+		return
+	}
+	log.Infof("doVolumeBasedDeletion: System volume(GB) : %v, Allowed volume(GB) : %v, IngestNodeDir: %v",
+		humanize.Comma(int64(systemVolumeBytes/(1000*1000*1000))), humanize.Comma(int64(allowedVolumeBytes/(1000*1000*1000))), ingestNodeDir)
+
+	volumeToDeleteInBytes := uint64(0)
+	if systemVolumeBytes > allowedVolumeBytes {
+		if deletionWarningCounter < MAXIMUM_WARNINGS_COUNT {
+			log.Warnf("Skipping deletion since try %d, System volume(bytes) : %v, Allowed volume(bytes) : %v",
+				deletionWarningCounter, humanize.Comma(int64(systemVolumeBytes)), humanize.Comma(int64(allowedVolumeBytes)))
+			return
+		}
+		volumeToDeleteInBytes = (systemVolumeBytes - allowedVolumeBytes)
+	} else {
+		return
+	}
+
+	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
+	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
+	if err != nil {
+		log.Errorf("doVolumeBasedDeletion: Failed to read segmeta, err: %v", err)
+		return
+	}
+
+	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
+	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)
+	if err != nil {
+		log.Errorf("doVolumeBasedDeletion: Failed to get all metric meta entries, err: %v", err)
+		return
+	}
+
+	allEntries := make([]interface{}, 0, len(allMetricMetas)+len(allSegMetas))
+	for i := range allMetricMetas {
+		allEntries = append(allEntries, allMetricMetas[i])
+	}
+	for i := range allSegMetas {
+		allEntries = append(allEntries, allSegMetas[i])
+	}
+
+	sort.Slice(allEntries, func(i, j int) bool {
+		var timeI uint64
+		if segMeta, ok := allEntries[i].(*structs.SegMeta); ok {
+			timeI = segMeta.LatestEpochMS
+		} else if metricMeta, ok := allEntries[i].(*structs.MetricsMeta); ok {
+			timeI = uint64(metricMeta.LatestEpochSec * 1000) // convert to milliseconds
+		} else {
+			return false
+		}
+
+		var timeJ uint64
+		if segMeta, ok := allEntries[j].(*structs.SegMeta); ok {
+			timeJ = segMeta.LatestEpochMS
+		} else if metricMeta, ok := allEntries[j].(*structs.MetricsMeta); ok {
+			timeJ = uint64(metricMeta.LatestEpochSec * 1000)
+		} else {
+			return false
+		}
+		return timeI < timeJ
+	})
+
+	segmentsToDelete := make(map[string]*structs.SegMeta)
+	metricSegmentsToDelete := make(map[string]*structs.MetricsMeta)
+
+	for _, metaEntry := range allEntries {
+		switch entry := metaEntry.(type) {
+		case *structs.MetricsMeta:
+			if entry.BytesReceivedCount < volumeToDeleteInBytes {
+				metricSegmentsToDelete[entry.MSegmentDir] = entry
+				volumeToDeleteInBytes -= entry.BytesReceivedCount
+			} else {
+				break
+			}
+		case *structs.SegMeta:
+			if entry.BytesReceivedCount < volumeToDeleteInBytes {
+				segmentsToDelete[entry.SegmentKey] = entry
+				volumeToDeleteInBytes -= entry.BytesReceivedCount
+			} else {
+				break
+			}
+		}
+	}
+	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
+	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
+}
+
+func getSystemVolumeBytes() (uint64, error) {
+	currentVolume := uint64(0)
+
+	allVirtualTableNames, err := vtable.GetVirtualTableNames(0)
+	if err != nil {
+		log.Errorf("getSystemVolumeBytes: Error in getting virtual table names, err: %v", err)
+		return currentVolume, err
+	}
+	for indexName := range allVirtualTableNames {
+		if indexName == "" {
+			log.Errorf("getSystemVolumeBytes: skipping an empty index name indexName=%v", indexName)
+			continue
+		}
+		byteCount, _, _ := writer.GetVTableCounts(indexName, 0)
+		unrotatedByteCount, _, _ := writer.GetUnrotatedVTableCounts(indexName, 0)
+
+		totalVolumeForIndex := uint64(byteCount) + uint64(unrotatedByteCount)
+		currentVolume += uint64(totalVolumeForIndex)
+	}
+
+	metricsSegments, err := mmeta.GetLocalMetricsMetaEntries()
+	if err != nil {
+		log.Errorf("doVolumeBasedDeletion: Failed to get all metric meta entries, err: %v", err)
+		return currentVolume, err
+	}
+	for _, segmentEntry := range metricsSegments {
+		currentVolume += segmentEntry.BytesReceivedCount
+	}
+
+	return currentVolume, nil
 }
 
 func DeleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.SegMeta, updateBlob bool) {

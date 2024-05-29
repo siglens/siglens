@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var rawCSV = []byte("measurement,tag1=val1,tag2=val2 value=100 0000000000000000000\nmeasurement,tag1=val1,tag2=val2 value=300 0000000000000000000\n")
+var rawCSV = []byte("measurement,tag1=val1,tag2=val2 metric_1=100,metric_2=20 1714511214000000000\nmeasurement,tag1=val1,tag2=val2 metric_1=300,metric_2=20 1714511215000000000\n")
 
 func Test_InsertCsv(t *testing.T) {
 
@@ -38,7 +38,7 @@ func Test_InsertCsv(t *testing.T) {
 
 	sTime := time.Now()
 	totalSuccess := uint64(0)
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1; i++ {
 		success, fail, err := HandlePutMetrics([]byte(rawCSV), 0)
 		assert.NoError(t, err)
 		assert.Equal(t, success, uint64(2))

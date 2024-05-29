@@ -60,9 +60,9 @@ type TimeSeriesBlockReader struct {
 }
 
 type SharedTimeSeriesSegmentReader struct {
-	TimeSeriesBlockReader []*TimeSeriesSegmentReader
-	numReaders            int
-	rwLock                *sync.Mutex
+	TimeSeriesSegmentReadersList []*TimeSeriesSegmentReader
+	numReaders                   int
+	rwLock                       *sync.Mutex
 }
 
 var seriesBufferPool = sync.Pool{
@@ -111,9 +111,9 @@ func (tssr *TimeSeriesSegmentReader) Close() error {
 
 func InitSharedTimeSeriesSegmentReader(mKey string, numReaders int) (*SharedTimeSeriesSegmentReader, error) {
 	sharedTimeSeriesSegmentReader := &SharedTimeSeriesSegmentReader{
-		TimeSeriesBlockReader: make([]*TimeSeriesSegmentReader, numReaders),
-		numReaders:            numReaders,
-		rwLock:                &sync.Mutex{},
+		TimeSeriesSegmentReadersList: make([]*TimeSeriesSegmentReader, numReaders),
+		numReaders:                   numReaders,
+		rwLock:                       &sync.Mutex{},
 	}
 
 	for i := 0; i < numReaders; i++ {
@@ -122,13 +122,13 @@ func InitSharedTimeSeriesSegmentReader(mKey string, numReaders int) (*SharedTime
 			sharedTimeSeriesSegmentReader.Close()
 			return sharedTimeSeriesSegmentReader, err
 		}
-		sharedTimeSeriesSegmentReader.TimeSeriesBlockReader[i] = currReader
+		sharedTimeSeriesSegmentReader.TimeSeriesSegmentReadersList[i] = currReader
 	}
 	return sharedTimeSeriesSegmentReader, nil
 }
 
 func (stssr *SharedTimeSeriesSegmentReader) Close() error {
-	for _, reader := range stssr.TimeSeriesBlockReader {
+	for _, reader := range stssr.TimeSeriesSegmentReadersList {
 		reader.Close()
 	}
 	return nil
@@ -332,4 +332,49 @@ func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string, rbuf []byte) (
 		return nil, fmt.Errorf("loadTSGFile: the file version doesn't match")
 	}
 	return rbuf, nil
+}
+
+/*
+TODO: Use the buffer pools for such kinds of memory accesses, it will reduce GC pressures.
+*/
+func (tssr *TimeSeriesSegmentReader) GetAllMetricNames() (map[string]bool, error) {
+
+	filePath := fmt.Sprintf("%s.mnm", tssr.mKey)
+
+	fd, err := os.OpenFile(filePath, os.O_RDONLY, 0644)
+	if err != nil {
+		log.Errorf("GetAllMetricNames: failed to open fileName: %v  Error: %v", filePath, err)
+		return nil, err
+	}
+
+	defer fd.Close()
+
+	finfo, err := fd.Stat()
+	if err != nil {
+		log.Errorf("GetAllMetricNames: error when trying to stat file=%+v. Error=%+v", filePath, err)
+		return nil, err
+	}
+
+	fileSize := finfo.Size()
+	buf := make([]byte, fileSize)
+
+	_, err = fd.Read(buf)
+	if err != nil {
+		log.Errorf("GetAllMetricNames: Error reading the Metric Names file: %v, err: %v", filePath, err)
+		return nil, err
+	}
+
+	metricNames := make(map[string]bool)
+
+	for i := 0; i < len(buf); {
+		metricNameLen := int(utils.BytesToUint16LittleEndian(buf[i : i+2]))
+		i += 2
+		metricName := string(buf[i : i+metricNameLen])
+		i += metricNameLen
+		metricNames[metricName] = true
+	}
+
+	buf = nil
+
+	return metricNames, nil
 }

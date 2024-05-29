@@ -48,6 +48,7 @@ import (
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
+	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -208,7 +209,7 @@ func wildcardQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fi
 		recIdxs[rrc.RecordNum] = 1
 		blkRecIndexes[rrc.BlockNum] = recIdxs
 		segkey := result.SegEncToKey[rrc.SegKeyInfo.SegKeyEnc]
-		records, _, err := record.GetRecordsFromSegment(segkey, rrc.VirtualTableName, blkRecIndexes, "timestamp", false, 0, &QueryAggregators{})
+		records, _, err := record.GetRecordsFromSegment(segkey, rrc.VirtualTableName, blkRecIndexes, "timestamp", false, 0, &QueryAggregators{}, make(map[string]int))
 		assert.Nil(t, err)
 
 		log.Info(records)
@@ -1531,6 +1532,7 @@ func Test_unrotatedQuery(t *testing.T) {
 	_ = localstorage.InitLocalStorage()
 	numBatch := 10
 	numRec := 100
+	_ = vtable.InitVTable()
 
 	// disable dict encoding globally
 	writer.SetCardinalityLimit(0)

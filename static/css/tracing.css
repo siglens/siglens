@@ -448,7 +448,8 @@ a.warn-box-anchor {
     padding-bottom: 40px;
     overflow: auto; 
     width: 100%;
-    height: 85vh; 
+    height: 50vh; 
+    transition: height 0.3s ease; 
 }
 
 .back-to-search-traces{
@@ -510,6 +511,10 @@ a.warn-box-anchor {
     fill: var(--text-color);
 }
 
+.error-node {
+    fill: red;
+}
+
 .gantt-chart-heading{
     font-size: 16px;
     font-weight: bold;
@@ -551,10 +556,11 @@ circle:hover{
     border-radius: 10px;
     padding-bottom: 40px;
     overflow: auto;
-    height: 85vh;
+    height: 50vh;
     padding: 20px;
     margin-left: 10px;
     min-width: 450px;
+    transition: height 0.3s ease; 
 }
 
 .span-details-container .close-btn{
@@ -572,4 +578,34 @@ circle:hover{
 .details-container table th,.details-container table td{
     border: 1px solid var(--timepicker-hr-color);
     padding: 8px;
+}
+
+.logs-metrics-container{
+    margin-top: auto;
+    box-shadow: var(--box-shadow);
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 10px;
+    padding-bottom: 40px;
+    overflow: auto;
+    height: 100%;
+    padding: 10px;
+}
+.logs-metrics-container .section-button,.max-min-btn {
+    cursor: pointer;
+}
+#timeline-container.expanded,
+.span-details-container.expanded{
+    height: 75vh;
+}
+.max-min-btn{
+    font-size: 17px;
+    font-weight: bolder;
+    transform: rotate(-45deg);
+}
+.max-min-btn.minimized{
+    transform: rotate(135deg);
+}
+.logs-metrics-container.minimized{
+    height: 50px;
 }

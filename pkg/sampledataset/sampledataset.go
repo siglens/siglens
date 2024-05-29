@@ -23,6 +23,8 @@ import (
 	"fmt"
 
 	writer "github.com/siglens/siglens/pkg/es/writer"
+	"github.com/siglens/siglens/pkg/grpc"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -65,6 +67,12 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 }
 
 func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_FAKE_DATA, false)
+		if alreadyHandled {
+			return
+		}
+	}
 
 	actLines := populateActionLines("", "test-data", 1)
 
@@ -96,9 +104,7 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		numBytes := len(rawJson)
 		err = writer.ProcessIndexRequest(rawJson, tsNow, "test-data", uint64(numBytes), false, localIndexMap, myid)
 		if err != nil {
-			ctx.SetStatusCode(fasthttp.StatusBadRequest)
-			responsebody["error"] = err.Error()
-			utils.WriteJsonResponse(ctx, responsebody)
+			utils.SendError(ctx, "Failed to ingest data", "", err)
 			return
 		}
 		usageStats.UpdateStats(uint64(numBytes), 1, myid)

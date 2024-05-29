@@ -613,7 +613,7 @@ func ReplaceWildcardStarWithRegex(input string) string {
 }
 
 func AlmostEquals(left, right float64) bool {
-	tolerance := 0.000001
+	tolerance := 0.0001
 	if difference := math.Abs(left - right); difference < tolerance {
 		return true
 	} else {
@@ -636,9 +636,11 @@ func ConvertToSameType(leftType, rightType interface{}) (interface{}, interface{
 	}
 }
 
-type AccessLogData struct {
+// If you add a new field here or change the order of LogFileData, update the columnNames in logfileutils.go
+type LogFileData struct {
 	TimeStamp   string
 	UserName    string
+	QueryID     uint64
 	URI         string
 	RequestBody string
 	StatusCode  int

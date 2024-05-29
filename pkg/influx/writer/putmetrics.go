@@ -24,6 +24,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/siglens/siglens/pkg/grpc"
+	"github.com/siglens/siglens/pkg/hooks"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
@@ -39,13 +41,19 @@ type InfluxPutResp struct {
 }
 
 func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_INFLUX_METRICS, false)
+		if alreadyHandled {
+			return
+		}
+	}
 
 	var processedCount uint64
 	var failedCount uint64
 	var err error
 
 	cType := string(ctx.Request.Header.ContentType())
-	if cType == "text/plain; charset=utf-8" {
+	if strings.Contains(cType, "text/plain") {
 		eType := string(ctx.Request.Header.ContentEncoding())
 		if eType == "gzip" {
 			var body []byte
@@ -67,7 +75,7 @@ func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
 	if err != nil {
 		writeInfluxResponse(ctx, processedCount, failedCount, err.Error(), fasthttp.StatusBadRequest)
 	}
-	writeInfluxResponse(ctx, processedCount, failedCount, "", fasthttp.StatusOK)
+	writeInfluxResponse(ctx, processedCount, failedCount, "", fasthttp.StatusNoContent)
 }
 
 func HandlePutMetrics(fullData []byte, myid uint64) (uint64, uint64, error) {

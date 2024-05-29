@@ -41,7 +41,7 @@ func ConvertToASTNodeSQL(exp string, qid uint64) (*structs.ASTNode, *structs.Que
 	exp = formatStringForSQL(exp)
 	aggNode := structs.InitDefaultQueryAggregations()
 	aggNode.BucketLimit = 100
-	astNode, err := query.GetMatchAllASTNode(qid)
+	astNode, err := query.GetMatchAllASTNode(qid, nil)
 	columsArray := make([]string, 0)
 	if err != nil {
 		log.Errorf("qid=%v, ConvertToASTNodeSQL: match all ast node failed! %+v", qid, err)
