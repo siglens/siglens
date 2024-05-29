@@ -72,14 +72,12 @@ function renderChart() {
         dataType: 'json',
         data: JSON.stringify(data)
     })
-        .then((res)=> {
-            $('#app-content-area').show();
-            drawStatsChart(res,data)
-        })
-        .catch(showCStatsError);
+    .then(res => drawStatsChart(res, data, "logs").then(() => drawStatsChart(res, data, "metrics")))
+    .catch(showCStatsError);
 }
 
-function drawStatsChart(res,data) {
+function drawStatsChart(res,data,chartType) {
+    return new Promise((resolve) => {
     let gridLineColor;
     let tickColor;
     if ($('html').attr('data-theme') == "light") {
@@ -103,30 +101,45 @@ function drawStatsChart(res,data) {
                 else{
                     dataPointsPerMin = (val.MetricsCount/(60*24));
                 }
-
-                GBCountData.push({
-                    x: bucketKey,
-                    y: val.GBCount
-                }),
-                EventCountData.push({
-                    x: bucketKey,
-                    y: val.EventCount
-                })
+                if (chartType === 'logs') {
+                    GBCountData.push({
+                        x: bucketKey,
+                        y: val.LogsGBCount 
+                    }),
+                    EventCountData.push({
+                        x: bucketKey,
+                        y: val.LogsEventCount
+                    })
+                } else if (chartType === 'metrics') {
+                    GBCountData.push({
+                        x: bucketKey,
+                        y: val.MetricsGBCount 
+                    }),
+                    EventCountData.push({
+                        x: bucketKey,
+                        y: val.MetricsDatapointsCount
+                    })
+                }
             })
-            if (GBCountChart !== undefined) {
-                GBCountChart.destroy();
-            }
-            if (EventCountChart !== undefined) {
-                EventCountChart.destroy();
-            }
-            GBCountChart = renderGBCountChart(GBCountData,gridLineColor,tickColor);
-            EventCountChart=renderEventCountChart(EventCountData,gridLineColor,tickColor);
+                // Destroy only the relevant charts to prevent overwriting
+                if (window[chartType + 'GBCountChart'] !== undefined) {
+                    window[chartType + 'GBCountChart'].destroy();
+                }
+                if (window[chartType + 'EventCountChart'] !== undefined) {
+                    window[chartType + 'EventCountChart'].destroy();
+                }
+
+            // Create charts and store in a global variable scoped by chart type
+            window[chartType + 'GBCountChart'] = renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType);
+            window[chartType + 'EventCountChart'] = renderEventCountChart(EventCountData, gridLineColor, tickColor, chartType);
         }
-    })
+    });
+    resolve();
+});
 }
 
-function renderGBCountChart(GBCountData,gridLineColor,tickColor) {
-    var GBCountChartCanvas = $("#GBCountChart").get(0).getContext("2d");
+function renderGBCountChart(GBCountData,gridLineColor,tickColor, chartType) {
+    var GBCountChartCanvas = $("#GBCountChart-" + chartType).get(0).getContext("2d");
    
     GBCountChart = new Chart(GBCountChartCanvas, {
         type: 'line',
@@ -228,15 +241,15 @@ function renderGBCountChart(GBCountData,gridLineColor,tickColor) {
     return GBCountChart;
 }
 
-function renderEventCountChart(EventCountData,gridLineColor,tickColor){
-    var EventCountCanvas = $("#EventCountChart").get(0).getContext("2d");
+function renderEventCountChart(EventCountData,gridLineColor,tickColor,chartType){
+    var EventCountCanvas = $("#EventCountChart-" + chartType).get(0).getContext("2d");
 
     EventCountChart = new Chart(EventCountCanvas, {
         type: 'line',
         data: {
             datasets: [
                 {
-                    label: 'Event Count',
+                    label: chartType === 'metrics' ? 'Metrics datapoints count' : 'Event Count',
                     data: EventCountData,
                     borderColor: ['rgb(99,71,217)'],
                     yAxisID: 'y',
@@ -284,7 +297,7 @@ function renderEventCountChart(EventCountData,gridLineColor,tickColor){
                     position: 'left',
                     title: {
                         display: true,
-                        text: 'Event Count'
+                        text: chartType === 'metrics' ? 'Metrics datapoints count' : 'Event Count',
                     },
                     grid: {
                         color: gridLineColor,

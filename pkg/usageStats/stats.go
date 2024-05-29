@@ -49,6 +49,8 @@ type Stats struct {
 	TotalLogLinesCount          uint64
 	MetricsDatapointsCount      uint64
 	TotalMetricsDatapointsCount uint64
+	MetricsBytesCount           uint64
+	LogsBytesCount              uint64
 }
 
 var ustats = make(map[uint64]*Stats)
@@ -68,6 +70,8 @@ type ReadStats struct {
 	EventCount             uint64
 	MetricsDatapointsCount uint64
 	TimeStamp              time.Time
+	LogsBytesCount         uint64
+	MetricsBytesCount      uint64
 }
 
 func StartUsageStats() {
@@ -334,7 +338,9 @@ func FlushStatsToFile(orgid uint64) error {
 			logLinesAsString := strconv.FormatUint(ustats[orgid].LogLinesCount, 10)
 			metricCountAsString := strconv.FormatUint(ustats[orgid].MetricsDatapointsCount, 10)
 			epochAsString := strconv.FormatUint(uint64(time.Now().Unix()), 10)
-			record = []string{bytesAsString, logLinesAsString, metricCountAsString, epochAsString}
+			logsBytesAsString := strconv.FormatUint(ustats[orgid].LogsBytesCount, 10)
+			metricsBytesAsString := strconv.FormatUint(ustats[orgid].MetricsBytesCount, 10)
+			record = []string{bytesAsString, logLinesAsString, metricCountAsString, epochAsString, logsBytesAsString, metricsBytesAsString}
 			records = append(records, record)
 			err = w.WriteAll(records)
 			if err != nil {
@@ -347,6 +353,8 @@ func FlushStatsToFile(orgid uint64) error {
 			atomic.StoreUint64(&ustats[orgid].BytesCount, 0)
 			atomic.StoreUint64(&ustats[orgid].LogLinesCount, 0)
 			atomic.StoreUint64(&ustats[orgid].MetricsDatapointsCount, 0)
+			atomic.StoreUint64(&ustats[orgid].LogsBytesCount, 0)
+			atomic.StoreUint64(&ustats[orgid].MetricsBytesCount, 0)
 
 			return nil
 		}
@@ -354,34 +362,38 @@ func FlushStatsToFile(orgid uint64) error {
 	return nil
 }
 
-func UpdateStats(bytesCount uint64, logLinesCount uint64, orgid uint64) {
+func UpdateStats(logsBytesCount uint64, logLinesCount uint64, orgid uint64) {
 	if _, ok := ustats[orgid]; !ok {
 		ustats[orgid] = &Stats{
 			BytesCount:         0,
 			LogLinesCount:      0,
 			TotalBytesCount:    0,
 			TotalLogLinesCount: 0,
+			LogsBytesCount:     0,
 		}
 	}
-	atomic.AddUint64(&ustats[orgid].BytesCount, bytesCount)
+	atomic.AddUint64(&ustats[orgid].BytesCount, logsBytesCount)
 	atomic.AddUint64(&ustats[orgid].LogLinesCount, logLinesCount)
-	atomic.AddUint64(&ustats[orgid].TotalBytesCount, bytesCount)
+	atomic.AddUint64(&ustats[orgid].TotalBytesCount, logsBytesCount)
 	atomic.AddUint64(&ustats[orgid].TotalLogLinesCount, logLinesCount)
+	atomic.AddUint64(&ustats[orgid].LogsBytesCount, logsBytesCount)
 }
 
-func UpdateMetricsStats(bytesCount uint64, incomingMetrics uint64, orgid uint64) {
+func UpdateMetricsStats(metricsBytesCount uint64, incomingMetrics uint64, orgid uint64) {
 	if _, ok := ustats[orgid]; !ok {
 		ustats[orgid] = &Stats{
 			BytesCount:                  0,
 			MetricsDatapointsCount:      0,
 			TotalBytesCount:             0,
 			TotalMetricsDatapointsCount: 0,
+			MetricsBytesCount:           0,
 		}
 	}
-	atomic.AddUint64(&ustats[orgid].BytesCount, bytesCount)
+	atomic.AddUint64(&ustats[orgid].BytesCount, metricsBytesCount)
 	atomic.AddUint64(&ustats[orgid].MetricsDatapointsCount, incomingMetrics)
-	atomic.AddUint64(&ustats[orgid].TotalBytesCount, bytesCount)
+	atomic.AddUint64(&ustats[orgid].TotalBytesCount, metricsBytesCount)
 	atomic.AddUint64(&ustats[orgid].TotalMetricsDatapointsCount, incomingMetrics)
+	atomic.AddUint64(&ustats[orgid].MetricsBytesCount, metricsBytesCount)
 }
 
 func GetQueryStats(orgid uint64) (uint64, float64, uint64) {
@@ -463,9 +475,12 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 			readStats.BytesCount, _ = strconv.ParseUint(record[0], 10, 64)
 			readStats.EventCount, _ = strconv.ParseUint(record[1], 10, 64)
 
-			// Prior to metrics, format is bytes,eventCount,time
-			// After metrics, format is bytes,eventCount,metricCount,time
-			if len(record) == 4 {
+			// The data format has evolved over time:
+			// - Initially, it was: bytes, eventCount, time
+			// - Then, metrics were added: bytes, eventCount, metricCount, time
+			// - Later, logsBytesCount and metricsBytesCount were added. However, the new format is backward compatible with the old formats.
+			// The current format is: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount
+			if len(record) >= 4 {
 				readStats.MetricsDatapointsCount, _ = strconv.ParseUint(record[2], 10, 64)
 				tsString, _ := strconv.ParseInt(record[3], 10, 64)
 				readStats.TimeStamp = time.Unix(tsString, 0)
@@ -473,6 +488,15 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 				tsString, _ := strconv.ParseInt(record[2], 10, 64)
 				readStats.TimeStamp = time.Unix(tsString, 0)
 			}
+
+			if len(record) == 6 {
+				readStats.LogsBytesCount, _ = strconv.ParseUint(record[4], 10, 64)
+				readStats.MetricsBytesCount, _ = strconv.ParseUint(record[5], 10, 64)
+			} else {
+				readStats.LogsBytesCount = 0
+				readStats.MetricsBytesCount = 0
+			}
+
 			if readStats.TimeStamp.After(startEpoch) && readStats.TimeStamp.Before(endEpoch) {
 				allStatsMap = append(allStatsMap, readStats)
 			}
@@ -489,6 +513,8 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 			entry.EventCount += rStat.EventCount
 			entry.MetricsDatapointsCount += rStat.MetricsDatapointsCount
 			entry.BytesCount += rStat.BytesCount
+			entry.LogsBytesCount += rStat.LogsBytesCount
+			entry.MetricsBytesCount += rStat.MetricsBytesCount
 			entry.TimeStamp = rStat.TimeStamp
 			resultMap[bucketInterval] = entry
 		} else {
