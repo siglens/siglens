@@ -19,6 +19,7 @@ package usageStats
 
 import (
 	"encoding/csv"
+	"errors"
 	"io"
 	"os"
 	"path"
@@ -37,9 +38,14 @@ import (
 
 type UsageStatsGranularity uint8
 
+const MIN_IN_MS = 60_000
+
+var steps = []uint32{5, 10, 20, 30, 40, 50, 60}
+
 const (
 	Hourly UsageStatsGranularity = iota + 1
 	Daily
+	ByMinute
 )
 
 type Stats struct {
@@ -407,7 +413,7 @@ func UpdateQueryStats(queryCount uint64, totalRespTime float64, orgid uint64) {
 	QueryStatsMap[orgid].TotalRespTime += totalRespTime
 }
 
-// Calculate total bytesCount,linesCount and return hourly / daily count
+// Calculate total bytesCount,linesCount and return hourly / daily / minute count
 func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid uint64) (map[string]ReadStats, error) {
 	endEpoch := time.Now()
 	startEpoch := endEpoch.Add(-(time.Duration(pastXhours) * time.Hour))
@@ -421,7 +427,22 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 	resultMap := make(map[string]ReadStats)
 	var bucketInterval string
 	runningTs := startEpoch
-	if granularity == Daily {
+	var intervalMinutes uint32
+	var err error
+	if granularity == ByMinute {
+		intervalMinutes, err = CalculateInterval(uint32(pastXhours * 60))
+		if err != nil {
+			return nil, err
+		}
+
+		for runningTs.Before(endEpoch) {
+			// Truncate runningTs to the nearest intervalMinutes
+			truncatedTs := runningTs.Truncate(time.Duration(intervalMinutes) * time.Minute)
+			bucketInterval = truncatedTs.Format("2006-01-02T15:04")
+			resultMap[bucketInterval] = ReadStats{} // Initialize the bucket if not already present
+			runningTs = runningTs.Add(time.Duration(intervalMinutes) * time.Minute)
+		}
+	} else if granularity == Daily {
 		for endTOD >= startTOD {
 			bucketInterval = runningTs.Format("2006-01-02")
 			runningTs = runningTs.Add(24 * time.Hour)
@@ -496,6 +517,8 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 			bucketInterval = rStat.TimeStamp.Format("2006-01-02")
 		} else if granularity == Hourly {
 			bucketInterval = rStat.TimeStamp.Format("2006-01-02T15")
+		} else if granularity == ByMinute {
+			bucketInterval = rStat.TimeStamp.Truncate(time.Duration(intervalMinutes) * time.Minute).Format("2006-01-02T15:04")
 		}
 		if entry, ok := resultMap[bucketInterval]; ok {
 			entry.EventCount += rStat.EventCount
@@ -510,4 +533,16 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 		}
 	}
 	return resultMap, nil
+}
+
+func CalculateInterval(timerangeMinutes uint32) (uint32, error) {
+	// If timerangeSeconds is greater than 10 years reject the request
+	for _, step := range steps {
+		if timerangeMinutes/step <= 24 {
+			return step, nil
+		}
+	}
+
+	// If no suitable step is found, return an error
+	return 0, errors.New("no suitable step found")
 }
