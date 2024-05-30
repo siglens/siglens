@@ -18,7 +18,18 @@
             "panelIndex": 0,
             "queryData": {
                 "end": "now",
-                "query": "ss_current_bytes_received",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "ss_current_bytes_received"
+                    }
+                  ],
                 "start": "now-1h"
             },
             "queryType": "metrics",
@@ -41,7 +52,18 @@
             "panelIndex": 1,
             "queryData": {
                 "end": "now",
-                "query": "1-(ss_current_on_disk_bytes/ss_current_bytes_received)",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "1-(ss_current_on_disk_bytes/ss_current_bytes_received)"
+                    }
+                  ],
                 "start": "now-1h"
             },
             "queryType": "metrics",
@@ -64,7 +86,18 @@
             "panelIndex": 2,
             "queryData": {
                 "end": "now",
-                "query": "ss_current_on_disk_bytes",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "ss_current_on_disk_bytes"
+                    }
+                  ],
                 "start": "now-1h"
             },
             "queryType": "metrics",
@@ -87,7 +120,18 @@
             "panelIndex": 3,
             "queryData": {
                 "end": "now",
-                "query": "rate(ss_query_count_ratio_total[1m])*60",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "rate(ss_query_count_ratio_total[1m])*60"
+                    }
+                  ],
                 "start": "now-1h"
             },
             "queryType": "metrics",
@@ -110,7 +154,18 @@
             "panelIndex": 4,
             "queryData": {
                 "end": "now",
-                "query": "deriv(ss_current_bytes_received[5m])*60",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "deriv(ss_current_bytes_received[5m])*60"
+                    }
+                  ],
                 "start": "now-1h"
             },
             "queryType": "metrics",
@@ -133,7 +188,18 @@
             "panelIndex": 5,
             "queryData": {
                 "end": "now",
-                "query": "avg(ss_query_latency_ms)",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "avg(ss_query_latency_ms)"
+                    }
+                  ],
                 "start": "now-1h"
             },
             "queryType": "metrics",
@@ -156,7 +222,18 @@
             "panelIndex": 6,
             "queryData": {
                 "end": "now",
-                "query": "ss_current_event_count",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "ss_current_event_count"
+                    }
+                  ],
                 "start": "now-1h"
             },
             "queryType": "metrics",
@@ -179,7 +256,18 @@
             "panelIndex": 7,
             "queryData": {
                 "end": "now",
-                "query": "1-(ss_current_bytes_received/ss_current_on_disk_bytes)",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "1-(ss_current_bytes_received/ss_current_on_disk_bytes)"
+                    }
+                  ],
                 "start": "now-1h"
             },
             "queryType": "metrics",

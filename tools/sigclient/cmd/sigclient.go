@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 	"verifier/pkg/ingest"
+	"verifier/pkg/metricsbench"
 	"verifier/pkg/query"
 	"verifier/pkg/trace"
 
@@ -119,6 +120,19 @@ var esQueryCmd = &cobra.Command{
 		} else {
 			query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose, randomQueries, bearerToken)
 		}
+	},
+}
+
+var metricsBenchCmd = &cobra.Command{
+	Use:   "metricsbench",
+	Short: "send metricsbench queries to SigScalr",
+	Run: func(cmd *cobra.Command, args []string) {
+		destHost, _ := cmd.Flags().GetString("dest")
+		log.Infof("destHost : %+v\n", destHost)
+		if destHost == "" {
+			log.Fatalf("destUrl is required")
+		}
+		metricsbench.ExecuteMetricsBenchQueries(destHost)
 	},
 }
 
@@ -271,4 +285,5 @@ func init() {
 	rootCmd.AddCommand(ingestCmd)
 	rootCmd.AddCommand(queryCmd)
 	rootCmd.AddCommand(traceCmd)
+	rootCmd.AddCommand(metricsBenchCmd)
 }
