@@ -2801,6 +2801,10 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     margin-left: 5px !important;
 }
 
+.fa-sort-alpha-desc:before{
+    margin-left: 5px !important;
+}
+
 /*launch dashboard*/
 .launch-dashboard .popupContent{
     width: 464px !important;
