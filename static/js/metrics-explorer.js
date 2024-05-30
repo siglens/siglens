@@ -52,18 +52,36 @@ $(document).ready(function() {
 });
 
 
-function metricsExplorerDatePickerHandler(evt) {
+async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
     $.each($(".range-item.active"), function () {
         $(this).removeClass('active');
     });
+    var selectedId = $(evt.currentTarget).attr("id");
     $(evt.currentTarget).addClass('active');
-    datePickerHandler($(this).attr('id'), "now", $(this).attr('id'))
+    datePickerHandler(selectedId, "now", selectedId);
+
+    const newMetricNames = await getMetricNames();
+    newMetricNames.metricNames.sort();
+  
+    $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
+    
     // Update graph for each query
+   
     Object.keys(queries).forEach(async function(queryName) {
         var queryDetails = queries[queryName];
-        await getQueryDetails(queryName,queryDetails)
+        await getQueryDetails(queryName, queryDetails);
+        const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
+        
+        queryDetails.everywhere = [];
+        queryDetails.everything = [];
+        availableEverywhere = tagsAndValue.availableEverywhere.sort();
+        availableEverything = tagsAndValue.availableEverything[0].sort();
+        const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
+        queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
+        queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
     });
+
     $('#daterangepicker').hide();
 }
 
@@ -230,7 +248,6 @@ async function addQueryElement() {
         queryElement.find('.query-builder').show();
         queryElement.find('.raw-query').hide();
         $('#metrics-queries').append(queryElement);
-
     }
 
     // Show or hide the query close icon based on the number of queries
@@ -702,7 +719,7 @@ function updateCloseIconVisibility() {
 }
 
 function addVisualizationContainer(queryName, seriesData, queryString) {
-
+     
     var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
     if (existingContainer.length === 0){
         var visualizationContainer = $(`
