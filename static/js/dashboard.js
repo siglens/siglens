@@ -106,7 +106,6 @@ $(document).ready(async function () {
     })
 
     $("#theme-btn").click(() => displayPanels());
-    displayPanels()
     getDashboardData();
 
     setTimePicker();
@@ -399,12 +398,11 @@ async function getDashboardData() {
         localPanels = JSON.parse(JSON.stringify(dbData.panels));
     } else localPanels = [];
     if (localPanels != undefined) {
-        displayPanels()
+        displayPanels();
+        setFavoriteValue(dbData.isFavorite);
+        updateTimeRangeForPanels();
+        setRefreshItemHandler();
     }
-    setFavoriteValue(dbData.isFavorite)
-    updateTimeRangeForPanels();
-    setRefreshItemHandler();
-    refreshDashboardHandler();
 }
 
 function updateTimeRangeForPanels() {
