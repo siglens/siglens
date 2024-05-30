@@ -222,6 +222,12 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 			pastXhours = uint64(7 * 24)
 		}
 	}
+
+	// If pastXhours is less than 24, set granularity to ByMinute
+	if pastXhours < 24 {
+		granularity = usageStats.ByMinute
+	}
+
 	return pastXhours, granularity
 }
 func isIndexExcluded(indexName string) bool {
