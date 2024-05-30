@@ -150,10 +150,11 @@ func Benchmark_MetricsEndToEnd_OTSDB(b *testing.B) {
 	if err != nil {
 		b.Fatalf("failed to initialize metrics meta")
 	}
-	startTime := "1678060800"
-	endTime := "1678147140"
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 24*60*60
+
 	m := "max:1h-sum:cpu.usage_guest_nice{region=*}"
-	mQRequest, err := otsdbquery.ParseRequest(startTime, endTime, m, 0)
+	mQRequest, err := otsdbquery.ParseRequest(fmt.Sprint(startTime), fmt.Sprint(endTime), m, 0)
 	assert.NoError(b, err)
 	segment.LogMetricsQuery("metrics query parser", mQRequest, 1)
 	count := 25
@@ -209,8 +210,8 @@ func Benchmark_MetricsEndToEnd_PROMQL(b *testing.B) {
 	if err != nil {
 		b.Fatalf("failed to initialize metrics meta")
 	}
-	startTime := uint32(1716997213)
-	endTime := uint32(1717008013)
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 24*60*60
 
 	promQlMetricQueries := []string{
 		"avg by (group) (testmetric0{color='gray'})",
