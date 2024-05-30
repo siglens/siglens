@@ -412,12 +412,12 @@ func Test_GetResults_Modulo(t *testing.T) {
 		map[uint32]float64{
 			0:    52.5,
 			3600: 23,
-			7200: -10,
+			7200: -7.5,
 		},
 		map[uint32]float64{
 			0:    2.5,
 			3600: 3,
-			7200: 0,
+			7200: -2.5,
 		},
 		[]structs.QueryArithmetic{
 			{
