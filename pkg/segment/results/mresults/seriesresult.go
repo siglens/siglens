@@ -218,7 +218,7 @@ func (dss *DownsampleSeries) Merge(toJoin *DownsampleSeries) {
 	dss.sorted = false
 }
 
-func (dss *DownsampleSeries) Aggregate() (map[uint32]float64, error) {
+func (dss *DownsampleSeries) Aggregate(grpID string) (string, map[uint32]float64, error) {
 	// dss has a list of RunningEntry that caputre downsampled time per tsid
 	// many tsids will exist but they will share the grpID
 	dss.sortEntries()
@@ -232,12 +232,53 @@ func (dss *DownsampleSeries) Aggregate() (map[uint32]float64, error) {
 		currVal, err := reduceRunningEntries(dss.runningEntries[i:maxJ], dss.downsampleAggFn, dss.aggregationConstant)
 		if err != nil {
 			log.Errorf("Aggregate: failed to reduce running entries: %v", err)
-			return nil, err
+			return "", nil, err
 		}
 		retVal[dss.runningEntries[i].downsampledTime] = currVal
 		i = maxJ - 1
 	}
-	return retVal, nil
+	return sortGroupIDByTagKeyOrder(grpID), retVal, nil
+}
+
+// For arithmetic and logical operations, we use groupIDStr to check if there are exactly matching label sets between two vectors
+// However, for different vectors, since the groupID string is concatenated from tag key-value pairs, we cannot guarantee the order of concatenation.
+// Therefore, we can regenerate the groupID string according to the dictionary order of the tag keys
+func sortGroupIDByTagKeyOrder(groupIDStr string) string {
+	re := regexp.MustCompile(`(.*)\{(.*)`)
+
+	metricName := ""
+	labelSetStr := ""
+	match := re.FindStringSubmatch(groupIDStr)
+	if len(match) == 3 {
+		metricName = match[1]
+		labelSetStr = match[2]
+	} else {
+		return groupIDStr
+	}
+
+	re, err := regexp.Compile(`(\w+):(\w+)`)
+	if err != nil {
+		return groupIDStr
+	}
+
+	matches := re.FindAllStringSubmatch(labelSetStr, -1)
+	labelPairs := make([][]string, 0)
+	for _, match := range matches {
+		if len(match) == 3 {
+			labelPairs = append(labelPairs, []string{match[1], match[2]})
+		}
+	}
+
+	sort.Slice(labelPairs, func(i, j int) bool {
+		return labelPairs[i][0] < labelPairs[j][0]
+	})
+
+	newGroupIDStr := metricName + "{"
+	for _, strs := range labelPairs {
+		newGroupIDStr += (strs[0] + ":" + strs[1] + ",")
+	}
+
+	return newGroupIDStr
 }
 
 func ApplyFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {

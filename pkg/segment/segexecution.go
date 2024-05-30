@@ -158,13 +158,13 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 
 		} else {
 			labelStrSet := make(map[string]struct{})
-			for groupID, tsLHS := range resultLHS.Results {
+			for lGroupID, tsLHS := range resultLHS.Results {
 				// groupId is like: metricName{key:value,...
 				// So, if we want to determine whether there are elements with the same labels in another metric, we need to appropriately modify the group ID.
 				rGroupID := ""
 				labelStr := ""
-				if len(groupID) >= len(resultLHS.MetricName) {
-					labelStr = groupID[len(resultLHS.MetricName):]
+				if len(lGroupID) >= len(resultLHS.MetricName) {
+					labelStr = lGroupID[len(resultLHS.MetricName):]
 					rGroupID = resultRHS.MetricName + labelStr
 				}
 
@@ -175,59 +175,59 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 				if _, ok := resultRHS.Results[rGroupID]; !ok && queryOp.Operation != utils.LetOr && queryOp.Operation != utils.LetUnless {
 					continue
 				} //Entries for which no matching entry in the right-hand vector are dropped
-				finalResult[groupID] = make(map[uint32]float64)
+				finalResult[lGroupID] = make(map[uint32]float64)
 				for timestamp, valueLHS := range tsLHS {
-					valueRHS := resultRHS.Results[groupID][timestamp]
+					valueRHS := resultRHS.Results[rGroupID][timestamp]
 					switch queryOp.Operation {
 					case utils.LetAdd:
-						finalResult[groupID][timestamp] = valueLHS + valueRHS
+						finalResult[lGroupID][timestamp] = valueLHS + valueRHS
 					case utils.LetDivide:
 						if valueRHS == 0 {
 							continue
 						}
-						finalResult[groupID][timestamp] = valueLHS / valueRHS
+						finalResult[lGroupID][timestamp] = valueLHS / valueRHS
 					case utils.LetMultiply:
-						finalResult[groupID][timestamp] = valueLHS * valueRHS
+						finalResult[lGroupID][timestamp] = valueLHS * valueRHS
 					case utils.LetSubtract:
-						finalResult[groupID][timestamp] = valueLHS - valueRHS
+						finalResult[lGroupID][timestamp] = valueLHS - valueRHS
 					case utils.LetGreaterThan:
 						if valueLHS > valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
+							finalResult[lGroupID][timestamp] = valueLHS
 						}
 					case utils.LetGreaterThanOrEqualTo:
 						if valueLHS >= valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
+							finalResult[lGroupID][timestamp] = valueLHS
 						}
 					case utils.LetLessThan:
 						if valueLHS < valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
+							finalResult[lGroupID][timestamp] = valueLHS
 						}
 					case utils.LetLessThanOrEqualTo:
 						if valueLHS <= valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
+							finalResult[lGroupID][timestamp] = valueLHS
 						}
 					case utils.LetEquals:
 						if valueLHS == valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
+							finalResult[lGroupID][timestamp] = valueLHS
 						}
 					case utils.LetNotEquals:
 						if valueLHS != valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
+							finalResult[lGroupID][timestamp] = valueLHS
 						}
 					case utils.LetAnd:
-						finalResult[groupID][timestamp] = valueLHS
+						finalResult[lGroupID][timestamp] = valueLHS
 					case utils.LetOr:
-						finalResult[groupID][timestamp] = valueLHS
+						finalResult[lGroupID][timestamp] = valueLHS
 					case utils.LetUnless:
-						finalResult[groupID][timestamp] = valueLHS
+						finalResult[lGroupID][timestamp] = valueLHS
 					}
 				}
 			}
 			if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
-				for groupID, tsRHS := range resultRHS.Results {
+				for rGroupID, tsRHS := range resultRHS.Results {
 					labelStr := ""
-					if len(groupID) >= len(resultLHS.MetricName) {
-						labelStr = groupID[len(resultLHS.MetricName):]
+					if len(rGroupID) >= len(resultLHS.MetricName) {
+						labelStr = rGroupID[len(resultLHS.MetricName):]
 					}
 
 					// For unless op, all matching elements in both vectors are dropped
@@ -243,9 +243,9 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 						continue
 					}
 
-					finalResult[groupID] = make(map[uint32]float64)
+					finalResult[rGroupID] = make(map[uint32]float64)
 					for timestamp, valueRHS := range tsRHS {
-						finalResult[groupID][timestamp] = valueRHS
+						finalResult[rGroupID][timestamp] = valueRHS
 					}
 				}
 			}
