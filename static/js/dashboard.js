@@ -716,7 +716,18 @@ function addPanel(chartIndex) {
             queryData = {
                 start: "now-1h",
                 end: "now",
-                query: "testmetric0"
+                formulas: [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "testmetric0"
+                    }
+                  ],
             };
             break;
         case 1: // Bar chart
