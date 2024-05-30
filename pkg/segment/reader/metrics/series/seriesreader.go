@@ -23,6 +23,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -77,6 +78,75 @@ var seriesBufferPool = sync.Pool{
 	},
 }
 
+type customPool struct {
+	items []poolItem
+	mutex sync.Mutex
+}
+
+type poolItem struct {
+	buf   []byte
+	inUse bool
+	ptr   unsafe.Pointer
+}
+
+var globalPool = customPool{}
+
+const numPoolItems = 20
+
+func init() {
+	globalPool.items = make([]poolItem, 0)
+	globalPool.mutex = sync.Mutex{}
+
+	globalPool.mutex.Lock()
+	defer globalPool.mutex.Unlock()
+
+	for i := 0; i < numPoolItems; i++ {
+		buf := make([]byte, 180_000_000)
+		item := poolItem{
+			// buf:   make([]byte, 0, segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
+			buf:   buf[:0],
+			inUse: false,
+			ptr:   unsafe.Pointer(&buf[0]),
+		}
+
+		globalPool.items = append(globalPool.items, item)
+	}
+}
+
+func (cp *customPool) Get() []byte {
+	cp.mutex.Lock()
+	defer cp.mutex.Unlock()
+
+	for i := range cp.items {
+		if !cp.items[i].inUse {
+			cp.items[i].inUse = true
+			// log.Printf("andrew returning buffer %p", unsafe.Pointer(&cp.items[i].buf))
+			return cp.items[i].buf
+		}
+	}
+
+	panic("No more buffers available in the pool")
+}
+
+func (cp *customPool) Put(buf []byte) {
+	cp.mutex.Lock()
+	defer cp.mutex.Unlock()
+
+	if len(buf) == 0 {
+		buf = buf[:1]
+	}
+	// log.Printf("andrew putting buffer %p", unsafe.Pointer(&buf[0]))
+
+	for i := range cp.items {
+		if cp.items[i].ptr == unsafe.Pointer(&buf[0]) {
+			cp.items[i].inUse = false
+			return
+		}
+	}
+
+	panic("Buffer not found in the pool")
+}
+
 /*
 Exposes init functions for timeseries block readers.
 
@@ -87,9 +157,11 @@ It is up to the caller to call .Close() to return all buffers
 func InitTimeSeriesReader(mKey string) (*TimeSeriesSegmentReader, error) {
 	// load tso/tsg file as needd
 	return &TimeSeriesSegmentReader{
-		mKey:       mKey,
-		tsoBuf:     *seriesBufferPool.Get().(*[]byte),
-		tsgBuf:     *seriesBufferPool.Get().(*[]byte),
+		mKey: mKey,
+		// tsoBuf:     *seriesBufferPool.Get().(*[]byte),
+		// tsgBuf:     *seriesBufferPool.Get().(*[]byte),
+		tsoBuf:     globalPool.Get(),
+		tsgBuf:     globalPool.Get(),
 		allBuffers: make([][]byte, 0),
 	}, nil
 }
@@ -100,8 +172,10 @@ Closes the iterator by returning all buffers back to the pool
 func (tssr *TimeSeriesSegmentReader) Close() error {
 	// load tso/tsg file as needd
 
-	seriesBufferPool.Put(&tssr.tsoBuf)
-	seriesBufferPool.Put(&tssr.tsgBuf)
+	globalPool.Put(tssr.tsoBuf)
+	globalPool.Put(tssr.tsgBuf)
+	// seriesBufferPool.Put(&tssr.tsoBuf)
+	// seriesBufferPool.Put(&tssr.tsgBuf)
 	for i := range tssr.allBuffers {
 		seriesBufferPool.Put(&tssr.allBuffers[i])
 	}
