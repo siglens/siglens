@@ -78,7 +78,7 @@ const gridOptions = {
       autoHeight: true,
       icons: {
           sortAscending: '<i class="fa fa-sort-alpha-down"/>',
-          sortDescending: '<i class="fa fa-sort-alpha-up"/>',
+          sortDescending: '<i class="fa fa-sort-alpha-desc"/>',
         },
     },
     columnDefs:columnDefs,
