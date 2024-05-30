@@ -42,6 +42,8 @@ import (
 const MINUTES_REREAD_CONFIG = 15
 const RunModFilePath = "data/common/runmod.cfg"
 
+const SIZE_8GB_IN_MB = uint64(8192)
+
 var configFileLastModified uint64
 
 var runningConfig common.Configuration
@@ -676,9 +678,20 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	if config.Log.LogFileRotationSizeMB == 0 {
 		config.Log.LogFileRotationSizeMB = 100
 	}
+
 	if config.DataDiskThresholdPercent == 0 {
 		config.DataDiskThresholdPercent = 85
 	}
+
+	if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
+		if config.MemoryThresholdPercent > 50 {
+			log.Infof("MemoryThresholdPercent is set to %v%% but bringing it down to 50%%", config.MemoryThresholdPercent)
+			config.MemoryThresholdPercent = 50
+		} else if config.MemoryThresholdPercent == 0 {
+			config.MemoryThresholdPercent = 50
+		}
+	}
+
 	if config.MemoryThresholdPercent == 0 {
 		config.MemoryThresholdPercent = 80
 	}
