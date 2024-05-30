@@ -1617,9 +1617,11 @@ div.dts div.dataTables_scrollBody table {
     align-items: center;
     width: 100%;
     margin-top: 40px;
+    margin-bottom: 40px;
 }
 
 .chart-container{
+    position: relative;
     flex-direction: column;
     border: 1px solid var(--search-input-border);
     box-shadow: var(--box-shadow);
