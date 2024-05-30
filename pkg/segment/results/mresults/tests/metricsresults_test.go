@@ -408,7 +408,7 @@ func TestCalculateInterval(t *testing.T) {
 }
 
 func Test_GetResults_GreaterThan(t *testing.T) {
-	test_GetResults_Ops(t,
+	test_GetResults_ArithmeticOps(t,
 		map[uint32]float64{
 			0:     45,
 			10800: 1045,
@@ -435,7 +435,7 @@ func Test_GetResults_GreaterThan(t *testing.T) {
 }
 
 func Test_GetResults_GreaterThanOrEqualTo(t *testing.T) {
-	test_GetResults_Ops(t,
+	test_GetResults_ArithmeticOps(t,
 		map[uint32]float64{
 			0:    45,
 			3600: 1045,
@@ -463,7 +463,7 @@ func Test_GetResults_GreaterThanOrEqualTo(t *testing.T) {
 }
 
 func Test_GetResults_LessThan(t *testing.T) {
-	test_GetResults_Ops(t,
+	test_GetResults_ArithmeticOps(t,
 		map[uint32]float64{
 			0:     45,
 			3600:  1045,
@@ -491,7 +491,7 @@ func Test_GetResults_LessThan(t *testing.T) {
 }
 
 func Test_GetResults_LessThanOrEqualTo(t *testing.T) {
-	test_GetResults_Ops(t,
+	test_GetResults_ArithmeticOps(t,
 		map[uint32]float64{
 			0:     45,
 			3600:  1046,
@@ -519,7 +519,7 @@ func Test_GetResults_LessThanOrEqualTo(t *testing.T) {
 }
 
 func Test_GetResults_Equals(t *testing.T) {
-	test_GetResults_Ops(t,
+	test_GetResults_ArithmeticOps(t,
 		map[uint32]float64{
 			0:     45,
 			7200:  1045,
@@ -546,7 +546,7 @@ func Test_GetResults_Equals(t *testing.T) {
 }
 
 func Test_GetResults_NotEquals(t *testing.T) {
-	test_GetResults_Ops(t,
+	test_GetResults_ArithmeticOps(t,
 		map[uint32]float64{
 			0:     45,
 			7200:  1045,
@@ -573,7 +573,7 @@ func Test_GetResults_NotEquals(t *testing.T) {
 	)
 }
 
-func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap map[uint32]float64, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler) {
+func test_GetResults_ArithmeticOps(t *testing.T, initialEntries map[uint32]float64, ansMap map[uint32]float64, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler) {
 	mQuery := &structs.MetricsQuery{
 		MetricName:  "test.metric.0",
 		HashedMName: 1,
@@ -607,6 +607,211 @@ func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap
 		assert.Equal(t, len(ansMap), len(resMap))
 		for timestamp, val := range resMap {
 			expectedVal, exists := ansMap[timestamp]
+			if !exists {
+				t.Errorf("Should not have this key: %v", timestamp)
+			}
+
+			if expectedVal != val {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
+func Test_GetResults_And(t *testing.T) {
+	results := make(map[string]map[uint32]float64)
+	results["test.metric.1{color:red,type:compact"] = map[uint32]float64{
+		0:    45,
+		7200: 1045,
+	}
+
+	test_GetResults_LogicalOps(t,
+		map[uint32]float64{
+			0:    45,
+			7200: 1045,
+		},
+		map[uint32]float64{
+			0:    2,
+			7200: 6,
+		},
+		results,
+		[]structs.QueryArithmetic{
+			{
+				LHS:       1,
+				RHS:       2,
+				Operation: utils.LetAnd,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_Or(t *testing.T) {
+	results := make(map[string]map[uint32]float64)
+	results["test.metric.1{color:red,type:compact"] = map[uint32]float64{
+		0:    45,
+		7200: 1045,
+	}
+
+	results["test.metric.1{color:yellow,type:compact"] = map[uint32]float64{
+		0:    45,
+		7200: 1045,
+	}
+
+	test_GetResults_LogicalOps(t,
+		map[uint32]float64{
+			0:    45,
+			7200: 1045,
+		},
+		map[uint32]float64{
+			0:    2,
+			7200: 6,
+		},
+		results,
+		[]structs.QueryArithmetic{
+			{
+				LHS:       1,
+				RHS:       2,
+				Operation: utils.LetOr,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_Unless(t *testing.T) {
+	results := make(map[string]map[uint32]float64)
+	results["test.metric.1{color:yellow,type:compact"] = map[uint32]float64{
+		0:    45,
+		7200: 1045,
+	}
+
+	test_GetResults_LogicalOps(t,
+		map[uint32]float64{
+			0:    45,
+			7200: 1045,
+		},
+		map[uint32]float64{
+			0:    2,
+			7200: 6,
+		},
+		results,
+		[]structs.QueryArithmetic{
+			{
+				LHS:       1,
+				RHS:       2,
+				Operation: utils.LetUnless,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func initialize_Metric_Results(t *testing.T, initialEntries1 map[uint32]float64, initialEntries2 map[uint32]float64, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler) map[uint64]*mresults.MetricsResult {
+	// Add 2 groups in metric1
+	mQuery1 := &structs.MetricsQuery{
+		MetricName:   "test.metric.1",
+		HashedMName:  1,
+		Downsampler:  downsampler,
+		GetAllLabels: true,
+	}
+	qid := uint64(0)
+	metricsResults1 := mresults.InitMetricResults(mQuery1, qid)
+	assert.NotNil(t, metricsResults1)
+
+	var tsGroupId1 *bytebufferpool.ByteBuffer = bytebufferpool.Get()
+	defer bytebufferpool.Put(tsGroupId1)
+	_, err := tsGroupId1.Write([]byte(mQuery1.MetricName + "{color:yellow,type:compact"))
+	assert.NoError(t, err)
+
+	series := mresults.InitSeriesHolder(mQuery1, tsGroupId1)
+
+	for timestamp, val := range initialEntries1 {
+		series.AddEntry(timestamp, val)
+	}
+
+	metricsResults1.AddSeries(series, uint64(101), tsGroupId1)
+
+	var tsGroupId2 *bytebufferpool.ByteBuffer = bytebufferpool.Get()
+	defer bytebufferpool.Put(tsGroupId2)
+	_, err = tsGroupId2.Write([]byte(mQuery1.MetricName + "{color:red,type:compact"))
+	assert.NoError(t, err)
+
+	series = mresults.InitSeriesHolder(mQuery1, tsGroupId2)
+
+	for timestamp, val := range initialEntries1 {
+		series.AddEntry(timestamp, val)
+	}
+
+	metricsResults1.AddSeries(series, uint64(102), tsGroupId2)
+	metricsResults1.DownsampleResults(mQuery1.Downsampler, 1)
+
+	errors := metricsResults1.AggregateResults(1)
+	assert.Nil(t, errors)
+
+	// Add 1 group in metric2
+	mQuery2 := &structs.MetricsQuery{
+		MetricName:   "test.metric.2",
+		HashedMName:  2,
+		Downsampler:  downsampler,
+		GetAllLabels: true,
+	}
+	qid = uint64(1)
+	metricsResults2 := mresults.InitMetricResults(mQuery2, qid)
+	assert.NotNil(t, metricsResults2)
+
+	var tsGroupId3 *bytebufferpool.ByteBuffer = bytebufferpool.Get()
+	defer bytebufferpool.Put(tsGroupId3)
+	_, err = tsGroupId3.Write([]byte(mQuery2.MetricName + "{color:red,type:compact"))
+	assert.NoError(t, err)
+	series = mresults.InitSeriesHolder(mQuery2, tsGroupId3)
+
+	for timestamp, val := range initialEntries2 {
+		series.AddEntry(timestamp, val)
+	}
+
+	metricsResults2.AddSeries(series, uint64(103), tsGroupId3)
+	metricsResults2.DownsampleResults(mQuery2.Downsampler, 1)
+
+	errors = metricsResults2.AggregateResults(1)
+	assert.Nil(t, errors)
+
+	return map[uint64]*mresults.MetricsResult{
+		1: metricsResults1,
+		2: metricsResults2,
+	}
+}
+
+func test_GetResults_LogicalOps(t *testing.T, initialEntries1 map[uint32]float64, initialEntries2 map[uint32]float64, ansMap map[string]map[uint32]float64, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler) {
+
+	res := segment.HelperQueryArithmeticAndLogical(queryOps, initialize_Metric_Results(t, initialEntries1, initialEntries2, queryOps, downsampler))
+	assert.Equal(t, len(ansMap), len(res.Results))
+	for groupId, resMap := range res.Results {
+
+		entries, exists := ansMap[groupId]
+		if !exists {
+			t.Errorf("Should have this groupId: %v", groupId)
+		}
+
+		assert.Equal(t, len(entries), len(resMap))
+
+		for timestamp, val := range resMap {
+			expectedVal, exists := entries[timestamp]
 			if !exists {
 				t.Errorf("Should not have this key: %v", timestamp)
 			}
