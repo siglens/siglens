@@ -18,7 +18,18 @@
             "panelIndex": 0,
             "queryData": {
                 "end": "now",
-                "query": "ss_query_count_ratio_total",
+                "formulas": [
+                  {
+                    "formula": "a"
+                  }
+                ],
+                "queries": [
+                  {
+                    "name": "a",
+                    "qlType": "promql",
+                    "query": "ss_query_count_ratio_total"
+                  }
+                ],
                 "start": "now-1h"
             },
             "queryType": "metrics",
@@ -41,7 +52,18 @@
             "panelIndex": 1,
             "queryData": {
                 "end": "now",
-                "query": "rate(ss_query_count_ratio_total[5m])*60",
+                "formulas": [
+                  {
+                    "formula": "a"
+                  }
+                ],
+                "queries": [
+                  {
+                    "name": "a",
+                    "qlType": "promql",
+                    "query": "rate(ss_query_count_ratio_total[5m])*60"
+                  }
+                ],
                 "start": "now-1h"
             },
             "queryType": "metrics",
@@ -64,7 +86,18 @@
             "panelIndex": 2,
             "queryData": {
                 "end": "now",
-                "query": "avg(ss_query_latency_ms)",
+                "formulas": [
+                  {
+                    "formula": "a"
+                  }
+                ],
+                "queries": [
+                  {
+                    "name": "a",
+                    "qlType": "promql",
+                    "query": "avg(ss_query_latency_ms)"
+                  }
+                ],
                 "start": "now-1h"
             },
             "queryType": "metrics",

@@ -450,7 +450,7 @@ const contactGridOptions = {
     headerHeight:32,
 	defaultColDef: {
 		icons: {
-			sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+			sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
 			sortDescending: '<i class="fa fa-sort-alpha-down"/>',
 		},
         cellClass: 'align-center-grid',
