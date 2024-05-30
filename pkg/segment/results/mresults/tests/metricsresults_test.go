@@ -620,7 +620,7 @@ func test_GetResults_ArithmeticOps(t *testing.T, initialEntries map[uint32]float
 
 func Test_GetResults_And(t *testing.T) {
 	results := make(map[string]map[uint32]float64)
-	results["test.metric.1{color:red,type:compact"] = map[uint32]float64{
+	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
 		0:    45,
 		7200: 1045,
 	}
@@ -653,12 +653,12 @@ func Test_GetResults_And(t *testing.T) {
 
 func Test_GetResults_Or(t *testing.T) {
 	results := make(map[string]map[uint32]float64)
-	results["test.metric.1{color:red,type:compact"] = map[uint32]float64{
+	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
 		0:    45,
 		7200: 1045,
 	}
 
-	results["test.metric.1{color:yellow,type:compact"] = map[uint32]float64{
+	results["test.metric.1{color:yellow,type:compact,"] = map[uint32]float64{
 		0:    45,
 		7200: 1045,
 	}
@@ -691,7 +691,7 @@ func Test_GetResults_Or(t *testing.T) {
 
 func Test_GetResults_Unless(t *testing.T) {
 	results := make(map[string]map[uint32]float64)
-	results["test.metric.1{color:yellow,type:compact"] = map[uint32]float64{
+	results["test.metric.1{color:yellow,type:compact,"] = map[uint32]float64{
 		0:    45,
 		7200: 1045,
 	}
@@ -736,7 +736,7 @@ func initialize_Metric_Results(t *testing.T, initialEntries1 map[uint32]float64,
 
 	var tsGroupId1 *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId1)
-	_, err := tsGroupId1.Write([]byte(mQuery1.MetricName + "{color:yellow,type:compact"))
+	_, err := tsGroupId1.Write([]byte(mQuery1.MetricName + "{color:yellow,type:compact,"))
 	assert.NoError(t, err)
 
 	series := mresults.InitSeriesHolder(mQuery1, tsGroupId1)
@@ -749,7 +749,7 @@ func initialize_Metric_Results(t *testing.T, initialEntries1 map[uint32]float64,
 
 	var tsGroupId2 *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId2)
-	_, err = tsGroupId2.Write([]byte(mQuery1.MetricName + "{color:red,type:compact"))
+	_, err = tsGroupId2.Write([]byte(mQuery1.MetricName + "{color:red,type:compact,"))
 	assert.NoError(t, err)
 
 	series = mresults.InitSeriesHolder(mQuery1, tsGroupId2)
@@ -777,7 +777,7 @@ func initialize_Metric_Results(t *testing.T, initialEntries1 map[uint32]float64,
 
 	var tsGroupId3 *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId3)
-	_, err = tsGroupId3.Write([]byte(mQuery2.MetricName + "{color:red,type:compact"))
+	_, err = tsGroupId3.Write([]byte(mQuery2.MetricName + "{color:red,type:compact,"))
 	assert.NoError(t, err)
 	series = mresults.InitSeriesHolder(mQuery2, tsGroupId3)
 
