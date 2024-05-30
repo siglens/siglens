@@ -77,8 +77,11 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	httpResp.IngestionStats["Log Storage Used"] = convertBytesToGB(logsOnDiskBytes)
 	httpResp.IngestionStats["Metrics Storage Used"] = convertBytesToGB(float64(metricsOnDiskBytes + metricsImMemBytes))
-	totalOnDiskBytes := logsOnDiskBytes + float64(metricsOnDiskBytes) + float64(metricsImMemBytes)
-	httpResp.IngestionStats["Storage Saved"] = (1 - (totalOnDiskBytes / (logsIncomingBytes + float64(metricsIncomingBytes)))) * 100
+	logsStorageSaved := (1 - (logsOnDiskBytes / logsIncomingBytes)) * 100
+	httpResp.IngestionStats["Logs Storage Saved"] = logsStorageSaved
+
+	metricsStorageSaved := (1 - ((float64(metricsOnDiskBytes + metricsImMemBytes)) / float64(metricsIncomingBytes))) * 100
+	httpResp.IngestionStats["Metrics Storage Saved"] = metricsStorageSaved
 
 	if hook := hooks.GlobalHooks.SetExtraIngestionStatsHook; hook != nil {
 		hook(httpResp.IngestionStats)
