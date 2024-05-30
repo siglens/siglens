@@ -426,9 +426,9 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 	allStatsMap := make([]ReadStats, 0)
 	resultMap := make(map[string]ReadStats)
 	var bucketInterval string
-	runningTs := startEpoch
 	var intervalMinutes uint32
 	var err error
+	runningTs := startEpoch
 	if granularity == ByMinute {
 		intervalMinutes, err = CalculateIntervalForStatsByMinute(uint32(pastXhours * 60))
 		if err != nil {
