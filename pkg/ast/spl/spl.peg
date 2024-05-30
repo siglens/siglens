@@ -171,9 +171,10 @@ type TimechartArgs struct {
 }
 }
 
-Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
+Start <- SPACE? earliestTime:EarliestTime? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
     var q ast.QueryStruct
     q.SearchFilter = initialSearch.(*ast.Node)
+
 
     // Join the InitialSearchBlock with the FilterBlocks with AND nodes. For a
     // search like "A | B | C | D" we should generate the node structure below
@@ -237,6 +238,10 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
                 for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
             }
         }
+    }
+
+    if earliestTime != nil {
+        q.PipeCommands.EarliestTime = earliestTime.(*structs.TimeRange)
     }
 
     return q, nil
@@ -2546,6 +2551,23 @@ TransactionEval <- "eval" EMPTY_OR_SPACE L_PAREN condition:BoolExpr R_PAREN {
     }
 
     return filterStrExpr, nil
+}
+
+// earliest=[+|-] <time_integer><time_unit>@<time_unit>
+EarliestTime <- "earliest=" op:("-" / "+") value:Integer unit:String {
+    valueAsNum, err := strconv.Atoi(value.(string))
+    if err != nil {
+        return nil, fmt.Errorf("Failed to convert time integer to int: %v", err)
+    }
+
+    earliest := &structs.TimeRange{
+        TimeRangeType: structs.EarliestTime,
+        Operator: op.(string),
+        Value: valueAsNum,
+        Unit: timeUnit.(string),
+    }
+
+    return earliest, nil
 }
 
 

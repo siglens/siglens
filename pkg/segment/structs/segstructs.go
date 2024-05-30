@@ -146,6 +146,7 @@ type QueryAggregators struct {
 	TimeHistogram        *TimeBucket     // Request for time histograms
 	GroupByRequest       *GroupByRequest // groupby aggregation request
 	Sort                 *SortRequest    // how to sort resulting data
+	TimeRangeOverride    *TimeRange      // override time range
 	EarlyExit            bool            // should query early exit
 	BucketLimit          int
 	ShowRequest          *ShowRequest

@@ -244,6 +244,20 @@ type SplitByClause struct {
 	// Where clause: to be finished
 }
 
+type TimeRange struct {
+	TimeRangeType TimeRangeType
+	Operator      string // "-" or "+"
+	Value         int64
+	Unit          string // "m", "h", "s"
+}
+
+type TimeRangeType uint8
+
+const (
+	EarliestTime TimeRangeType = iota
+	LatestTime
+)
+
 // This structure is used to store values which are not within limit. And These values will be merged into the 'other' category.
 type TMLimitResult struct {
 	ValIsInLimit     map[string]bool
