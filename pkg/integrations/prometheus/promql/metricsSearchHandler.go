@@ -1206,7 +1206,13 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		if rhsValType == parser.ValueTypeVector {
 			lhsValType = parser.ValueTypeVector
 		}
-		return append(lhsRequest, rhsRequest...), lhsValType, []structs.QueryArithmetic{arithmeticOperation}, nil
+		req := append(lhsRequest, rhsRequest...)
+		if isLogicalOperator(expr.Op) {
+			for i := 0; i < len(req); i++ {
+				req[i].MetricsQuery.GetAllLabels = true
+			}
+		}
+		return req, lhsValType, []structs.QueryArithmetic{arithmeticOperation}, nil
 	case *parser.ParenExpr:
 		return convertPqlToMetricsQuery(expr.Expr.String(), startTime, endTime, myid)
 	default:
@@ -1276,9 +1282,28 @@ func getLogicalAndArithmeticOperation(op parser.ItemType) segutils.LogicalAndAri
 		return segutils.LetEquals
 	case parser.NEQ:
 		return segutils.LetNotEquals
+	case parser.LAND:
+		return segutils.LetAnd
+	case parser.LOR:
+		return segutils.LetOr
+	case parser.LUNLESS:
+		return segutils.LetUnless
 	default:
 		log.Errorf("getArithmeticOperation: unexpected op: %v", op)
 		return 0
+	}
+}
+
+func isLogicalOperator(op parser.ItemType) bool {
+	switch op {
+	case parser.LAND:
+		return true
+	case parser.LOR:
+		return true
+	case parser.LUNLESS:
+		return true
+	default:
+		return false
 	}
 }
 
