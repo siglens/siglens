@@ -106,7 +106,6 @@ $(document).ready(async function () {
     })
 
     $("#theme-btn").click(() => displayPanels());
-    displayPanels()
     getDashboardData();
 
     setTimePicker();
@@ -399,12 +398,11 @@ async function getDashboardData() {
         localPanels = JSON.parse(JSON.stringify(dbData.panels));
     } else localPanels = [];
     if (localPanels != undefined) {
-        displayPanels()
+        displayPanels();
+        setFavoriteValue(dbData.isFavorite);
+        updateTimeRangeForPanels();
+        setRefreshItemHandler();
     }
-    setFavoriteValue(dbData.isFavorite)
-    updateTimeRangeForPanels();
-    setRefreshItemHandler();
-    refreshDashboardHandler();
 }
 
 function updateTimeRangeForPanels() {
@@ -716,7 +714,18 @@ function addPanel(chartIndex) {
             queryData = {
                 start: "now-1h",
                 end: "now",
-                query: "testmetric0"
+                formulas: [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "testmetric0"
+                    }
+                  ],
             };
             break;
         case 1: // Bar chart
