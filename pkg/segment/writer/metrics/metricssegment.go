@@ -524,15 +524,12 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 		case bytes.Equal(key, otsdb_mname), bytes.Equal(key, metric_name_key):
 			switch valueType {
 			case jp.String:
-				temp, err := jp.ParseString(value)
+				_, err := jp.ParseString(value)
 				if err != nil {
 					log.Errorf("failed to extract tags %+v", err)
+					return err
 				}
-				if temp != "target_info" {
-					mName = value
-				} else {
-					return nil
-				}
+				mName = value
 			}
 		case bytes.Equal(key, otsdb_tags):
 			if valueType != jp.Object {
@@ -633,7 +630,6 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	if len(mName) > 0 && ts > 0 {
 		return mName, dpVal, ts, nil
 	} else if len(mName) == 0 && err == nil {
-		//comes here when mName = target_info
 		return nil, dpVal, 0, nil
 	} else {
 		return nil, dpVal, 0, fmt.Errorf("failed to find all expected keys")

@@ -164,6 +164,8 @@ func Main() {
 		hook(baseLogDir)
 	}
 
+	fileutils.LogMaxOpenFiles()
+
 	err = StartSiglensServer(nodeType, nodeID)
 	if err != nil {
 		ShutdownSiglensServer()

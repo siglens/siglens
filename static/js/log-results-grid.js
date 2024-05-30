@@ -179,12 +179,12 @@ const gridOptions = {
         minWidth: 200,
         icons: {
             sortAscending: '<i class="fa fa-sort-alpha-down"/>',
-            sortDescending: '<i class="fa fa-sort-alpha-up"/>',
+            sortDescending: '<i class="fa fa-sort-alpha-desc"/>',
           },
     },
     icons: {
         sortAscending: '<i class="fa fa-sort-alpha-down"/>',
-        sortDescending: '<i class="fa fa-sort-alpha-up"/>',
+        sortDescending: '<i class="fa fa-sort-alpha-desc"/>',
       },
     enableCellTextSelection: true,
     suppressScrollOnNewData: true,
