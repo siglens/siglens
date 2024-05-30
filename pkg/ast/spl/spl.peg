@@ -241,7 +241,7 @@ Start <- SPACE? earliestTime:EarliestTime? initialSearch:(InitialSearchBlock) fi
     }
 
     if earliestTime != nil {
-        q.PipeCommands.EarliestTime = earliestTime.(*structs.TimeRange)
+        q.PipeCommands.TimeRangeOverride = earliestTime.(*structs.TimeRange)
     }
 
     return q, nil
@@ -2553,16 +2553,29 @@ TransactionEval <- "eval" EMPTY_OR_SPACE L_PAREN condition:BoolExpr R_PAREN {
     return filterStrExpr, nil
 }
 
+Integer <- [0-9]+ {
+    return string(c.text), nil
+}
+
 // earliest=[+|-] <time_integer><time_unit>@<time_unit>
-EarliestTime <- "earliest=" op:("-" / "+") value:Integer unit:String {
+EarliestTime <- "earliest=" op:("-" / "+") value:Integer timeUnit:String {
+    // valueAsBytes, ok := value.([]byte)
+    // if !ok {
+    //     return nil, fmt.Errorf("Failed to convert time integer to []byte, value: %v, %T", value, value)
+    // }
     valueAsNum, err := strconv.Atoi(value.(string))
     if err != nil {
         return nil, fmt.Errorf("Failed to convert time integer to int: %v", err)
     }
 
+    //UnitAsBytes, ok := timeUnit.([]byte)
+    //if !ok {
+    //    return nil, fmt.Errorf("Failed to convert time unit to []byte, time unit: %v, %T", timeUnit, timeUnit)
+    //}
+
     earliest := &structs.TimeRange{
         TimeRangeType: structs.EarliestTime,
-        Operator: op.(string),
+        Operator: string(op.([]byte)),
         Value: valueAsNum,
         Unit: timeUnit.(string),
     }

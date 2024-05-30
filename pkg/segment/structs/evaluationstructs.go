@@ -247,7 +247,7 @@ type SplitByClause struct {
 type TimeRange struct {
 	TimeRangeType TimeRangeType
 	Operator      string // "-" or "+"
-	Value         int64
+	Value         int
 	Unit          string // "m", "h", "s"
 }
 
