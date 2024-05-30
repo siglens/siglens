@@ -40,7 +40,7 @@ type UsageStatsGranularity uint8
 
 const MIN_IN_MS = 60_000
 
-var steps = []uint32{5, 10, 20, 30, 40, 50, 60}
+var timeIntervalsForStatsByMinute = []uint32{5, 10, 20, 30, 40, 50, 60}
 
 const (
 	Hourly UsageStatsGranularity = iota + 1
@@ -430,7 +430,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 	var intervalMinutes uint32
 	var err error
 	if granularity == ByMinute {
-		intervalMinutes, err = CalculateInterval(uint32(pastXhours * 60))
+		intervalMinutes, err = CalculateIntervalForStatsByMinute(uint32(pastXhours * 60))
 		if err != nil {
 			return nil, err
 		}
@@ -518,6 +518,9 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 		} else if granularity == Hourly {
 			bucketInterval = rStat.TimeStamp.Format("2006-01-02T15")
 		} else if granularity == ByMinute {
+			// Truncate the timestamp to the nearest intervalMinutes and format it as a string.
+			// For example, if rStat.TimeStamp is "20:47" and intervalMinutes is 10,
+			// it will truncate the time to "20:40" and format it as "2006-01-02T20:40" to store in the resultMap.
 			bucketInterval = rStat.TimeStamp.Truncate(time.Duration(intervalMinutes) * time.Minute).Format("2006-01-02T15:04")
 		}
 		if entry, ok := resultMap[bucketInterval]; ok {
@@ -535,9 +538,8 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 	return resultMap, nil
 }
 
-func CalculateInterval(timerangeMinutes uint32) (uint32, error) {
-	// If timerangeSeconds is greater than 10 years reject the request
-	for _, step := range steps {
+func CalculateIntervalForStatsByMinute(timerangeMinutes uint32) (uint32, error) {
+	for _, step := range timeIntervalsForStatsByMinute {
 		if timerangeMinutes/step <= 24 {
 			return step, nil
 		}
