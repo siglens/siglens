@@ -89,7 +89,6 @@ func init() {
 	for i := 0; i < numPoolItems; i++ {
 		buf := make([]byte, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
 		item := poolItem{
-			// buf:   make([]byte, 0, segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
 			buf:   buf[:0],
 			inUse: false,
 			ptr:   unsafe.Pointer(&buf[0]),
@@ -130,7 +129,6 @@ func (cp *customPool) Put(buf []byte) error {
 	if len(buf) == 0 {
 		buf = buf[:1]
 	}
-	// log.Printf("andrew putting buffer %p", unsafe.Pointer(&buf[0]))
 
 	bufPtr := unsafe.Pointer(&buf[0])
 	for i := range cp.items {
