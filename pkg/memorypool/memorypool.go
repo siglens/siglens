@@ -18,9 +18,9 @@ import (
 // items is being returned.
 
 type MemoryPool struct {
-	items             []poolItem
-	mutex             sync.Mutex
-	defaultBufferSize uint64
+	items                 []poolItem
+	mutex                 sync.Mutex
+	defaultBufferCapacity uint64
 }
 
 type poolItem struct {
@@ -29,22 +29,22 @@ type poolItem struct {
 	pointer unsafe.Pointer
 }
 
-func NewMemoryPool(numInitialItems int, defaultBufferSize uint64) *MemoryPool {
+func NewMemoryPool(numInitialItems int, defaultBufferCapacity uint64) *MemoryPool {
 	pool := &MemoryPool{
-		items:             make([]poolItem, 0, numInitialItems),
-		mutex:             sync.Mutex{},
-		defaultBufferSize: defaultBufferSize,
+		items:                 make([]poolItem, 0, numInitialItems),
+		mutex:                 sync.Mutex{},
+		defaultBufferCapacity: defaultBufferCapacity,
 	}
 
 	for i := 0; i < numInitialItems; i++ {
-		pool.items = append(pool.items, newItem(defaultBufferSize, false))
+		pool.items = append(pool.items, newItem(defaultBufferCapacity, false))
 	}
 
 	return pool
 }
 
-func newItem(bufferSize uint64, inUse bool) poolItem {
-	buffer := make([]byte, bufferSize)
+func newItem(bufferCapacity uint64, inUse bool) poolItem {
+	buffer := make([]byte, bufferCapacity)
 
 	return poolItem{
 		buffer:  buffer[:0],
@@ -82,8 +82,8 @@ func (self *MemoryPool) Get(minCapacity uint64) []byte {
 	}
 
 	// All items are in use, so make a new item.
-	bufferSize := utils.Max(minCapacity, self.defaultBufferSize)
-	item := newItem(bufferSize, true)
+	bufferCapacity := utils.Max(minCapacity, self.defaultBufferCapacity)
+	item := newItem(bufferCapacity, true)
 	self.items = append(self.items, item)
 
 	return item.buffer
