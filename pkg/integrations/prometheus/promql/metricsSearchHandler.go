@@ -30,7 +30,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/prometheus/common/model"
 
-	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
@@ -891,7 +890,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 	}
 	pqlQuerytype := expr.Type()
 	var mquery structs.MetricsQuery
-	mquery.Aggregator = structs.Aggreation{}
+	mquery.Aggregator = structs.Aggregation{}
 	selectors := extractSelectors(expr)
 	//go through labels
 	for _, lblEntry := range selectors {
@@ -927,7 +926,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 			// LookbackDelta: 0,
 		}
 
-		mquery.Aggregator = structs.Aggreation{}
+		mquery.Aggregator = structs.Aggregation{}
 		parser.Inspect(es.Expr, func(node parser.Node, path []parser.Node) error {
 			// If there is no child node, just return nil
 			if node == nil {
@@ -951,7 +950,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Quantile
 				default:
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for AggregateExpr (got %v)", aggFunc)
-					mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
+					mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
 				}
 			case *parser.VectorSelector:
 				_, grouping := extractGroupsFromPath(path)
@@ -982,12 +981,12 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Quantile
 				default:
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for VectorSelector (got %v)", aggFunc)
-					mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
+					mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
 				}
 			case *parser.NumberLiteral:
 				mquery.Aggregator.FuncConstant = expr.Val
 			default:
-				err := fmt.Errorf("parser.Inspect: Unsupported node type %T", node)
+				err := fmt.Errorf("convertPqlToMetricsQuery: parser.Inspect: Unsupported node type %T", node)
 				log.Errorf("%v", err)
 				return err
 			}
@@ -1011,7 +1010,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					groupby = true
 				}
 
-				timeWindow, err := extractTimeWindow(expr.Args)
+				timeWindow, _, err := extractTimeWindow(expr.Args)
 				if err != nil {
 					return fmt.Errorf("parser.Inspect: can not extract time window from a range vector: %v", err)
 				}
@@ -1160,7 +1159,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		mquery.HashedMName = xxhash.Sum64String(mquery.MetricName)
 		mquery.OrgId = myid
 		mquery.SelectAllSeries = true
-		agg := structs.Aggreation{AggregatorFunction: segutils.Avg}
+		agg := structs.Aggregation{AggregatorFunction: segutils.Avg}
 		mquery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
 
 		if len(mquery.TagsFilters) > 0 {
@@ -1235,7 +1234,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 	mquery.HashedMName = xxhash.Sum64String(metricName)
 
 	if mquery.Aggregator.AggregatorFunction == 0 && !groupby {
-		mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
+		mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
 	}
 	mquery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: mquery.Aggregator}
 	if len(mquery.TagsFilters) > 0 {
@@ -1315,33 +1314,6 @@ func parseTimeFromString(timeStr string) (uint32, error) {
 		return 0, err
 	}
 	return uint32(t.Unix()), nil
-}
-
-func extractSelectors(expr parser.Expr) [][]*labels.Matcher {
-	var selectors [][]*labels.Matcher
-	parser.Inspect(expr, func(node parser.Node, _ []parser.Node) error {
-		var vs interface{}
-		vs, ok := node.(*parser.VectorSelector)
-		if ok {
-			selectors = append(selectors, vs.(*parser.VectorSelector).LabelMatchers)
-		}
-		vs, ok = node.(parser.Expressions)
-		if ok {
-			for _, entry := range vs.(parser.Expressions) {
-				expr, ok := entry.(*parser.MatrixSelector)
-				if !ok {
-					continue
-				}
-				vectorSelector, ok := expr.VectorSelector.(*parser.VectorSelector)
-				if !ok {
-					continue
-				}
-				selectors = append(selectors, vectorSelector.LabelMatchers)
-			}
-		}
-		return nil
-	})
-	return selectors
 }
 
 // extractGroupsFromPath parses vector outer function and extracts grouping information if by or without was used.
@@ -1494,17 +1466,4 @@ func parseTimeStringToUint32(s interface{}) (uint32, error) {
 		return timeVal, err
 	}
 	return timeVal, nil
-}
-
-func extractTimeWindow(args parser.Expressions) (float64, error) {
-	if len(args) == 0 {
-		return 0, fmt.Errorf("extractTimeWindow: can not extract time window")
-	}
-
-	for _, arg := range args {
-		if ms, ok := arg.(*parser.MatrixSelector); ok {
-			return ms.Range.Seconds(), nil
-		}
-	}
-	return 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
 }

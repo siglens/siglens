@@ -37,12 +37,15 @@ Struct to represent a single metrics query request.
 type MetricsQuery struct {
 	MetricName       string // metric name to query for.
 	HashedMName      uint64
-	Aggregator       Aggreation
+	PqlQueryType     parser.ValueType // promql query type
+	Aggregator       Aggregation
 	Function         Function
 	Downsampler      Downsampler
 	TagsFilters      []*TagsFilter    // all tags filters to apply
 	TagIndicesToKeep map[int]struct{} // indices of tags to keep in the result
 	SelectAllSeries  bool             //flag to select all series - for promQl
+
+	MQueryAggs *MetricQueryAgg
 
 	reordered       bool   // if the tags filters have been reordered
 	numStarFilters  int    // index such that TagsFilters[:numStarFilters] are all star filters
@@ -51,9 +54,10 @@ type MetricsQuery struct {
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
 	TagValueSearchOnly  bool // flag to search only tag values
+	Groupby             bool // flag to group by tags
 }
 
-type Aggreation struct {
+type Aggregation struct {
 	AggregatorFunction utils.AggregateFunctions //aggregator function
 	FuncConstant       float64
 }
@@ -63,6 +67,7 @@ type Function struct {
 	RangeFunction utils.RangeFunctions //range function to apply, only one of these will be non nil
 	ValueList     []string
 	TimeWindow    float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
+	Step          float64 //E.g: rate(metrics[5m:1m]), extract 1m and convert to seconds
 	TimeFunction  utils.TimeFunctions
 }
 
@@ -70,7 +75,21 @@ type Downsampler struct {
 	Interval   int
 	Unit       string
 	CFlag      bool
-	Aggregator Aggreation
+	Aggregator Aggregation
+}
+
+type MetricQueryAggBlockType int
+
+const (
+	AggregatorBlock MetricQueryAggBlockType = iota + 1
+	FunctionBlock
+)
+
+type MetricQueryAgg struct {
+	AggBlockType    MetricQueryAggBlockType
+	AggregatorBlock *Aggregation
+	FunctionBlock   *Function
+	Next            *MetricQueryAgg
 }
 
 /*
@@ -368,4 +387,14 @@ func (mbs *MBlockSummary) UpdateTimeRange(ts uint32) {
 	if ts < mbs.LowTs {
 		atomic.StoreUint32(&mbs.LowTs, ts)
 	}
+}
+
+func (metricFunc Function) ShallowClone() *Function {
+	functionCopy := metricFunc
+	return &functionCopy
+}
+
+func (agg Aggregation) ShallowClone() *Aggregation {
+	aggCopy := agg
+	return &aggCopy
 }

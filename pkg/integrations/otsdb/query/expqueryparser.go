@@ -176,7 +176,7 @@ func MetricsQueryExpressionsParseRequest(queryRequest *structs.OTSDBMetricsQuery
 				MetricName:  metricInfo["metric-name"].(string),
 				HashedMName: metricInfo["hashed-mname"].(uint64),
 				TagsFilters: tagsFilter,
-				Aggregator:  structs.Aggreation{AggregatorFunction: aggregator},
+				Aggregator:  structs.Aggregation{AggregatorFunction: aggregator},
 				Downsampler: downsampler,
 			},
 			TimeRange: timeRange,
@@ -187,7 +187,7 @@ func MetricsQueryExpressionsParseRequest(queryRequest *structs.OTSDBMetricsQuery
 }
 
 func metricsQueryExpressionsParseAggregatorDownsampler(queryRequest *structs.OTSDBMetricsQueryExpRequest) (utils.AggregateFunctions, structs.Downsampler, error) {
-	downsampler := structs.Downsampler{Interval: 1, Unit: "m", Aggregator: structs.Aggreation{AggregatorFunction: aggregatorMapping["avg"]}}
+	downsampler := structs.Downsampler{Interval: 1, Unit: "m", Aggregator: structs.Aggregation{AggregatorFunction: aggregatorMapping["avg"]}}
 	aggregator, ok := aggregatorMapping[queryRequest.Time.Aggregator]
 	if !ok {
 		log.Errorf("metricsQueryExpressionsParseAggregatorDownsampler: unsupported aggregator function: %s", queryRequest.Time.Aggregator)
@@ -200,7 +200,7 @@ func metricsQueryExpressionsParseAggregatorDownsampler(queryRequest *structs.OTS
 		log.Errorf("metricsQueryExpressionsParseAggregatorDownsampler: unsupported aggregator function: %s", queryRequest.Time.Aggregator)
 		return aggregator, downsampler, fmt.Errorf("incomplete downsampler function: %v", queryRequest.Time.Downsampler)
 	}
-	downsampler.Aggregator = structs.Aggreation{AggregatorFunction: aggregatorMapping[queryRequest.Time.Downsampler.Aggregator]}
+	downsampler.Aggregator = structs.Aggregation{AggregatorFunction: aggregatorMapping[queryRequest.Time.Downsampler.Aggregator]}
 	var intervalStr, unit string
 	for _, c := range queryRequest.Time.Downsampler.Interval {
 		if c >= '0' && c <= '9' {
