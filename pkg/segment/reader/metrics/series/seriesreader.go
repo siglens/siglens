@@ -77,7 +77,7 @@ type poolItem struct {
 
 var globalPool = customPool{}
 
-const numPoolItems = 2
+const numPoolItems = 4
 
 func init() {
 	globalPool.items = make([]poolItem, 0)
