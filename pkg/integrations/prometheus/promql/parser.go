@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -587,7 +588,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.HashedMName
 		queryArithmetic = append(queryArithmetic, rhsQueryArth...)
 	}
-	arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
+	arithmeticOperation.Operation = putils.GetLogicalAndArithmeticOperation(expr.Op)
 	arithmeticOperation.ReturnBool = expr.ReturnBool
 	queryArithmetic = append(queryArithmetic, &arithmeticOperation)
 

@@ -408,7 +408,7 @@ func TestCalculateInterval(t *testing.T) {
 }
 
 func Test_GetResults_Modulo(t *testing.T) {
-	test_GetResults_Ops(t,
+	test_GetResults_ArithmeticOps(t,
 		map[uint32]float64{
 			0:    52.5,
 			3600: 23,
@@ -553,7 +553,7 @@ func Test_GetResults_Division(t *testing.T) {
 }
 
 func Test_GetResults_Power(t *testing.T) {
-	test_GetResults_Ops(t,
+	test_GetResults_ArithmeticOps(t,
 		map[uint32]float64{
 			0:    2,
 			7200: -10,
@@ -1188,7 +1188,7 @@ func Test_GetResults_On(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -1235,7 +1235,7 @@ func Test_GetResults_Ignoring(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -1283,7 +1283,7 @@ func Test_GetResults_GroupRight(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -1331,7 +1331,7 @@ func Test_GetResults_GroupLeft(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
