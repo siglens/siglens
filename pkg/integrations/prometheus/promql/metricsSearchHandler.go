@@ -1264,6 +1264,10 @@ func getLogicalAndArithmeticOperation(op parser.ItemType) segutils.LogicalAndAri
 		return segutils.LetMultiply
 	case parser.DIV:
 		return segutils.LetDivide
+	case parser.MOD:
+		return segutils.LetModulo
+	case parser.POW:
+		return segutils.LetPower
 	case parser.GTR:
 		return segutils.LetGreaterThan
 	case parser.GTE:
