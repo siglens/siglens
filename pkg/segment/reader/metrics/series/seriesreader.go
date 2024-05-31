@@ -23,8 +23,8 @@ import (
 	"os"
 	"sync"
 	"time"
-	"unsafe"
 
+	"github.com/siglens/siglens/pkg/memorypool"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/compress"
@@ -64,97 +64,7 @@ type SharedTimeSeriesSegmentReader struct {
 	rwLock                       *sync.Mutex
 }
 
-type customPool struct {
-	items []poolItem
-	mutex sync.Mutex
-}
-
-type poolItem struct {
-	buf   []byte
-	inUse bool
-	ptr   unsafe.Pointer
-}
-
-var globalPool = customPool{}
-
-const numStartingPoolItems = 4
-
-func init() {
-	globalPool.items = make([]poolItem, 0)
-	globalPool.mutex = sync.Mutex{}
-
-	globalPool.mutex.Lock()
-	defer globalPool.mutex.Unlock()
-
-	for i := 0; i < numStartingPoolItems; i++ {
-		buf := make([]byte, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
-		item := poolItem{
-			buf:   buf[:0],
-			inUse: false,
-			ptr:   unsafe.Pointer(&buf[0]),
-		}
-
-		globalPool.items = append(globalPool.items, item)
-	}
-}
-
-func (cp *customPool) expandItemToMinSize(i int, minSize uint64) {
-	if cap(cp.items[i].buf) < int(minSize) {
-		cp.items[i].buf = make([]byte, 1, minSize)
-		cp.items[i].ptr = unsafe.Pointer(&cp.items[i].buf[0])
-		cp.items[i].buf = cp.items[i].buf[:0]
-	}
-}
-
-func (cp *customPool) Get(minSize uint64) []byte {
-	cp.mutex.Lock()
-	defer cp.mutex.Unlock()
-
-	for i := range cp.items {
-		if !cp.items[i].inUse {
-			cp.expandItemToMinSize(i, minSize)
-			cp.items[i].inUse = true
-
-			return cp.items[i].buf
-		}
-	}
-
-	// Make a new pool item.
-	buf := make([]byte, 1, minSize)
-	item := poolItem{
-		buf:   buf[:0],
-		inUse: true,
-		ptr:   unsafe.Pointer(&buf[0]),
-	}
-
-	return item.buf
-}
-
-func (cp *customPool) Put(buf []byte) error {
-	cp.mutex.Lock()
-	defer cp.mutex.Unlock()
-
-	if len(buf) == 0 {
-		buf = buf[:1]
-	}
-
-	bufPtr := unsafe.Pointer(&buf[0])
-	for i := range cp.items {
-		if cp.items[i].ptr == bufPtr {
-			cp.items[i].inUse = false
-			return nil
-		}
-	}
-
-	// We should not get here. The returned buffer is not in the pool.
-	allBufferPointers := make([]string, 0)
-	for i := range cp.items {
-		allBufferPointers = append(allBufferPointers, fmt.Sprintf("%p", cp.items[i].ptr))
-	}
-	log.Errorf("customPool.Put: Buffer at %p not found in the pool; expected one of: %+v", bufPtr, allBufferPointers)
-
-	return fmt.Errorf("Buffer not found in the pool")
-}
+var globalPool = memorypool.NewMemoryPool(4, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
 
 /*
 Exposes init functions for timeseries block readers.
