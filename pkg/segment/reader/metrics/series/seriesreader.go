@@ -77,7 +77,7 @@ type poolItem struct {
 
 var globalPool = customPool{}
 
-const numPoolItems = 4
+const numStartingPoolItems = 4
 
 func init() {
 	globalPool.items = make([]poolItem, 0)
@@ -86,7 +86,7 @@ func init() {
 	globalPool.mutex.Lock()
 	defer globalPool.mutex.Unlock()
 
-	for i := 0; i < numPoolItems; i++ {
+	for i := 0; i < numStartingPoolItems; i++ {
 		buf := make([]byte, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
 		item := poolItem{
 			buf:   buf[:0],
@@ -106,7 +106,7 @@ func (cp *customPool) expandItemToMinSize(i int, minSize uint64) {
 	}
 }
 
-func (cp *customPool) Get(minSize uint64) ([]byte, error) {
+func (cp *customPool) Get(minSize uint64) []byte {
 	cp.mutex.Lock()
 	defer cp.mutex.Unlock()
 
@@ -115,11 +115,19 @@ func (cp *customPool) Get(minSize uint64) ([]byte, error) {
 			cp.expandItemToMinSize(i, minSize)
 			cp.items[i].inUse = true
 
-			return cp.items[i].buf, nil
+			return cp.items[i].buf
 		}
 	}
 
-	return nil, fmt.Errorf("No more buffers available in the pool")
+	// Make a new pool item.
+	buf := make([]byte, 1, minSize)
+	item := poolItem{
+		buf:   buf[:0],
+		inUse: true,
+		ptr:   unsafe.Pointer(&buf[0]),
+	}
+
+	return item.buf
 }
 
 func (cp *customPool) Put(buf []byte) error {
@@ -156,20 +164,10 @@ Exposes init functions for timeseries block readers.
 It is up to the caller to call .Close() to return all buffers
 */
 func InitTimeSeriesReader(mKey string) (*TimeSeriesSegmentReader, error) {
-	tsoBuf, err := globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
-	if err != nil {
-		return nil, fmt.Errorf("Error getting tsoBuf from the pool")
-	}
-
-	tsgBuf, err := globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
-	if err != nil {
-		return nil, fmt.Errorf("Error getting tsgBuf from the pool")
-	}
-
 	return &TimeSeriesSegmentReader{
 		mKey:   mKey,
-		tsoBuf: tsoBuf,
-		tsgBuf: tsgBuf,
+		tsoBuf: globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
+		tsgBuf: globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
 	}, nil
 }
 
@@ -339,13 +337,7 @@ func (tssr *TimeSeriesSegmentReader) expandTSOBufferToMinSize(minSize uint64) er
 			return err
 		}
 
-		buf, err := globalPool.Get(minSize)
-		if err != nil {
-			log.Errorf("expandTSOBufferToMinSize: Error getting buffer from the pool: %v", err)
-			return err
-		}
-
-		tssr.tsoBuf = buf
+		tssr.tsoBuf = globalPool.Get(minSize)
 	}
 
 	tssr.tsoBuf = tssr.tsoBuf[:minSize]
@@ -361,13 +353,7 @@ func (tssr *TimeSeriesSegmentReader) expandTSGBufferToMinSize(minSize uint64) er
 			return err
 		}
 
-		buf, err := globalPool.Get(minSize)
-		if err != nil {
-			log.Errorf("expandTSGBufferToMinSize: Error getting buffer from the pool: %v", err)
-			return err
-		}
-
-		tssr.tsgBuf = buf
+		tssr.tsgBuf = globalPool.Get(minSize)
 	}
 
 	tssr.tsgBuf = tssr.tsgBuf[:minSize]
