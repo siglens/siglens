@@ -198,7 +198,7 @@ func (r *MetricsResult) AggregateResults(parallelism int) []error {
 		go func(grp string, ds *DownsampleSeries) {
 			defer wg.Done()
 
-			newGrp, grpVal, err := ds.Aggregate(grp)
+			grpVal, err := ds.Aggregate()
 			if err != nil {
 				errorLock.Lock()
 				errors = append(errors, err)
@@ -207,7 +207,7 @@ func (r *MetricsResult) AggregateResults(parallelism int) []error {
 			}
 
 			lock.Lock()
-			r.Results[newGrp] = grpVal
+			r.Results[grp] = grpVal
 			lock.Unlock()
 		}(grpID, runningDS)
 		idx++
