@@ -113,14 +113,22 @@ func init() {
 	}
 }
 
-func (cp *customPool) Get() []byte {
+func (cp *customPool) expandItemToMinSize(i int, minSize uint64) {
+	if cap(cp.items[i].buf) < int(minSize) {
+		cp.items[i].buf = make([]byte, 0, minSize)
+		cp.items[i].ptr = unsafe.Pointer(&cp.items[i].buf[0])
+	}
+}
+
+func (cp *customPool) Get(minSize uint64) []byte {
 	cp.mutex.Lock()
 	defer cp.mutex.Unlock()
 
 	for i := range cp.items {
 		if !cp.items[i].inUse {
+			cp.expandItemToMinSize(i, minSize)
 			cp.items[i].inUse = true
-			// log.Printf("andrew returning buffer %p", unsafe.Pointer(&cp.items[i].buf))
+
 			return cp.items[i].buf
 		}
 	}
@@ -160,8 +168,8 @@ func InitTimeSeriesReader(mKey string) (*TimeSeriesSegmentReader, error) {
 		mKey: mKey,
 		// tsoBuf:     *seriesBufferPool.Get().(*[]byte),
 		// tsgBuf:     *seriesBufferPool.Get().(*[]byte),
-		tsoBuf:     globalPool.Get(),
-		tsgBuf:     globalPool.Get(),
+		tsoBuf:     globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
+		tsgBuf:     globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
 		allBuffers: make([][]byte, 0),
 	}, nil
 }
