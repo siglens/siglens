@@ -20,10 +20,12 @@ package segment
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -31,7 +33,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
-
 	log "github.com/sirupsen/logrus"
 )
 
@@ -73,10 +74,17 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		}
 	}
 
-	return HelperQueryArithmeticAndLogical(queryOps, resMap)
+	mRes, err := HelperQueryArithmeticAndLogical(queryOps, resMap)
+	if err != nil {
+		return &mresults.MetricsResult{
+			ErrList: []error{err},
+		}
+	}
+
+	return mRes
 }
 
-func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) *mresults.MetricsResult {
+func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) (*mresults.MetricsResult, error) {
 	finalResult := make(map[string]map[uint32]float64)
 	for _, queryOp := range queryOps {
 		resultLHS := resMap[queryOp.LHS]
@@ -96,83 +104,78 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 			for groupID, tsLHS := range resultLHS.Results {
 				finalResult[groupID] = make(map[uint32]float64)
 				for timestamp, valueLHS := range tsLHS {
-					switch queryOp.Operation {
-					case utils.LetAdd:
-						finalResult[groupID][timestamp] = valueLHS + valueRHS
-					case utils.LetDivide:
-						if valueRHS == 0 {
-							continue
-						}
-						if swapped {
-							valueRHS = 1 / valueRHS
-						}
-						finalResult[groupID][timestamp] = valueLHS / valueRHS
-					case utils.LetMultiply:
-						finalResult[groupID][timestamp] = valueLHS * valueRHS
-					case utils.LetSubtract:
-						val := valueLHS - valueRHS
-						if swapped {
-							val = val * -1
-						}
-						finalResult[groupID][timestamp] = val
-					case utils.LetModulo:
-						if swapped {
-							finalResult[groupID][timestamp] = math.Mod(valueRHS, valueLHS)
-						} else {
-							finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
-						}
-					case utils.LetPower:
-						if swapped {
-							finalResult[groupID][timestamp] = math.Pow(valueRHS, valueLHS)
-						} else {
-							finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
-						}
-					case utils.LetGreaterThan:
-						isGtr := valueLHS > valueRHS
-						if swapped {
-							isGtr = valueLHS < valueRHS
-						}
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isGtr, valueLHS)
-					case utils.LetGreaterThanOrEqualTo:
-						isGte := valueLHS >= valueRHS
-						if swapped {
-							isGte = valueLHS <= valueRHS
-						}
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isGte, valueLHS)
-					case utils.LetLessThan:
-						isLss := valueLHS < valueRHS
-						if swapped {
-							isLss = valueLHS > valueRHS
-						}
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isLss, valueLHS)
-					case utils.LetLessThanOrEqualTo:
-						isLte := valueLHS <= valueRHS
-						if swapped {
-							isLte = valueLHS >= valueRHS
-						}
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isLte, valueLHS)
-					case utils.LetEquals:
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS == valueRHS, valueLHS)
-					case utils.LetNotEquals:
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS != valueRHS, valueLHS)
-					}
+					putils.SetFinalResult(queryOp, finalResult, groupID, timestamp, valueLHS, valueRHS, swapped)
 				}
 			}
 
 		} else {
+			// Since each grpID is unique and contains label set information, we can map lGrpID to labelSet and labelSet to rGrpID.
+			// This way, we can quickly find the corresponding rGrpID for a given lGrpID in the other vector. If there is no corresponding result, it means there are no matching labels between the two vectors.
+			idToMatchingLabelSet := make(map[string]string)
+			matchingLabelValTorightGroupID := make(map[string]string)
+			hasVectorMatchingOp := queryOp.VectorMatching != nil && len(queryOp.VectorMatching.MatchingLabels) > 0
+			if hasVectorMatchingOp {
+				// Place the vector with higher cardinality on the left side.
+				if queryOp.VectorMatching.Card == structs.CardOneToMany {
+					swapped = true
+					resultLHS = resMap[queryOp.RHS]
+					resultRHS = resMap[queryOp.LHS]
+				}
+
+				matchingLabelsComb := make(map[string]struct{}, 0)
+				for lGroupID := range resultLHS.Results {
+					matchingLabelValStr := putils.ExtractMatchingLabelSet(lGroupID, queryOp.VectorMatching.MatchingLabels, queryOp.VectorMatching.On)
+					// If the left vector is the 'One' (vector with lower cardinality), it should not have repeated MatchingLabels.
+					// E.g.: (metric1{type="compact"} on (color,type) group_right metric2), the value combinations of (color,type) must be unique in the metric1
+					if queryOp.VectorMatching.Card == structs.CardOneToOne {
+						_, exists := matchingLabelsComb[matchingLabelValStr]
+						if exists {
+							return nil, fmt.Errorf("HelperQueryArithmeticAndLogical: many-to-many matching not allowed: matching labels must be unique on one side")
+						}
+						matchingLabelsComb[matchingLabelValStr] = struct{}{}
+					}
+					idToMatchingLabelSet[lGroupID] = matchingLabelValStr
+				}
+
+				matchingLabelsComb = make(map[string]struct{}, 0)
+				for rGroupID := range resultRHS.Results {
+					matchingLabelValStr := putils.ExtractMatchingLabelSet(rGroupID, queryOp.VectorMatching.MatchingLabels, queryOp.VectorMatching.On)
+					// Right vector is always the 'One' (vector with lower cardinality), it should not have repeated MatchingLabels.
+					_, exists := matchingLabelsComb[matchingLabelValStr]
+					if exists {
+						return nil, fmt.Errorf("HelperQueryArithmeticAndLogical: many-to-many matching not allowed: matching labels must be unique on one side")
+					}
+					matchingLabelsComb[matchingLabelValStr] = struct{}{}
+
+					matchingLabelValTorightGroupID[matchingLabelValStr] = rGroupID
+				}
+			}
+
 			labelStrSet := make(map[string]struct{})
 			for lGroupID, tsLHS := range resultLHS.Results {
 				// lGroupId is like: metricName{key:value,...
 				// So, if we want to determine whether there are elements with the same labels in another metric, we need to appropriately modify the group ID.
 				rGroupID := ""
-				labelStr := ""
-				if len(lGroupID) >= len(resultLHS.MetricName) {
-					labelStr = lGroupID[len(resultLHS.MetricName):]
-					rGroupID = resultRHS.MetricName + labelStr
-				}
 
-				if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
-					labelStrSet[labelStr] = struct{}{}
+				if hasVectorMatchingOp {
+					matchingLabelVal, exists := idToMatchingLabelSet[lGroupID]
+					if !exists {
+						continue
+					}
+					rGroupID, exists = matchingLabelValTorightGroupID[matchingLabelVal]
+					if !exists {
+						continue
+					}
+				} else {
+					labelStr := ""
+					if len(lGroupID) >= len(resultLHS.MetricName) {
+						labelStr = lGroupID[len(resultLHS.MetricName):]
+						rGroupID = resultRHS.MetricName + labelStr
+					}
+
+					if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
+						labelStrSet[labelStr] = struct{}{}
+					}
 				}
 
 				// If 'and' operation cannot find a matching label set in the right vector, we should skip the current label set in the left vector.
@@ -183,53 +186,7 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 				finalResult[lGroupID] = make(map[uint32]float64)
 				for timestamp, valueLHS := range tsLHS {
 					valueRHS := resultRHS.Results[rGroupID][timestamp]
-					switch queryOp.Operation {
-					case utils.LetAdd:
-						finalResult[lGroupID][timestamp] = valueLHS + valueRHS
-					case utils.LetDivide:
-						if valueRHS == 0 {
-							continue
-						}
-						finalResult[lGroupID][timestamp] = valueLHS / valueRHS
-					case utils.LetMultiply:
-						finalResult[lGroupID][timestamp] = valueLHS * valueRHS
-					case utils.LetSubtract:
-						finalResult[lGroupID][timestamp] = valueLHS - valueRHS
-					case utils.LetModulo:
-						finalResult[lGroupID][timestamp] = math.Mod(valueLHS, valueRHS)
-					case utils.LetPower:
-						finalResult[lGroupID][timestamp] = math.Pow(valueLHS, valueRHS)
-					case utils.LetGreaterThan:
-						if valueLHS > valueRHS {
-							finalResult[lGroupID][timestamp] = valueLHS
-						}
-					case utils.LetGreaterThanOrEqualTo:
-						if valueLHS >= valueRHS {
-							finalResult[lGroupID][timestamp] = valueLHS
-						}
-					case utils.LetLessThan:
-						if valueLHS < valueRHS {
-							finalResult[lGroupID][timestamp] = valueLHS
-						}
-					case utils.LetLessThanOrEqualTo:
-						if valueLHS <= valueRHS {
-							finalResult[lGroupID][timestamp] = valueLHS
-						}
-					case utils.LetEquals:
-						if valueLHS == valueRHS {
-							finalResult[lGroupID][timestamp] = valueLHS
-						}
-					case utils.LetNotEquals:
-						if valueLHS != valueRHS {
-							finalResult[lGroupID][timestamp] = valueLHS
-						}
-					case utils.LetAnd:
-						finalResult[lGroupID][timestamp] = valueLHS
-					case utils.LetOr:
-						finalResult[lGroupID][timestamp] = valueLHS
-					case utils.LetUnless:
-						finalResult[lGroupID][timestamp] = valueLHS
-					}
+					putils.SetFinalResult(queryOp, finalResult, lGroupID, timestamp, valueLHS, valueRHS, swapped)
 				}
 			}
 			if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
@@ -272,11 +229,11 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 				}
 			}
 		} else {
-			return &mresults.MetricsResult{ErrList: []error{errors.New("no results found")}}
+			return &mresults.MetricsResult{ErrList: []error{errors.New("no results found")}}, nil
 		}
 	}
 
-	return &mresults.MetricsResult{Results: finalResult, State: mresults.AGGREGATED}
+	return &mresults.MetricsResult{Results: finalResult, State: mresults.AGGREGATED}, nil
 }
 
 func setFinalRes(finalResult map[string]map[uint32]float64, groupID string, timestamp uint32, returnBool bool, comparisonBool bool, val float64) {
