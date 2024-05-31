@@ -53,10 +53,10 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes := getIngestionStats(myid)
-	queryCount, totalResponseTime, querieSinceInstall := usageStats.GetQueryStats(myid)
+	queryCount, totalResponseTime, queriesSinceInstall := usageStats.GetQueryStats(myid)
 
 	metricsIncomingBytes, metricsDatapointsCount, metricsOnDiskBytes := GetMetricsStats(myid)
-	metricsImMemBytes := metrics.GetTotalEncodedSize()
+	metricsInMemBytes := metrics.GetTotalEncodedSize()
 
 	if hook := hooks.GlobalHooks.AddMultinodeStatsHook; hook != nil {
 		hook(indexData, myid, &logsIncomingBytes, &logsOnDiskBytes, &logsEventCount,
@@ -76,19 +76,9 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	httpResp.IngestionStats["Event Count"] = humanize.Comma(int64(logsEventCount))
 
 	httpResp.IngestionStats["Log Storage Used"] = convertBytesToGB(logsOnDiskBytes)
-	httpResp.IngestionStats["Metrics Storage Used"] = convertBytesToGB(float64(metricsOnDiskBytes + metricsImMemBytes))
-	if logsIncomingBytes > 0 {
-		logsStorageSaved := (1 - (float64(logsOnDiskBytes) / float64(logsIncomingBytes))) * 100
-		httpResp.IngestionStats["Logs Storage Saved"] = logsStorageSaved
-	} else {
-		httpResp.IngestionStats["Logs Storage Saved"] = 0.0
-	}
-	if metricsIncomingBytes > 0 {
-		metricsStorageSaved := (1 - ((float64(metricsOnDiskBytes + metricsImMemBytes)) / float64(metricsIncomingBytes))) * 100
-		httpResp.IngestionStats["Metrics Storage Saved"] = metricsStorageSaved
-	} else {
-		httpResp.IngestionStats["Metrics Storage Saved"] = 0.0
-	}
+	httpResp.IngestionStats["Metrics Storage Used"] = convertBytesToGB(float64(metricsOnDiskBytes + metricsInMemBytes))
+	httpResp.IngestionStats["Logs Storage Saved"] = calculateStorageSaved(logsIncomingBytes, logsOnDiskBytes)
+	httpResp.IngestionStats["Metrics Storage Saved"] = calculateStorageSaved(float64(metricsIncomingBytes), float64(metricsOnDiskBytes+metricsInMemBytes))
 
 	if hook := hooks.GlobalHooks.SetExtraIngestionStatsHook; hook != nil {
 		hook(httpResp.IngestionStats)
@@ -98,7 +88,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	httpResp.MetricsStats["Datapoints Count"] = humanize.Comma(int64(metricsDatapointsCount))
 
 	httpResp.QueryStats["Query Count"] = queryCount
-	httpResp.QueryStats["Queries Since Install"] = querieSinceInstall
+	httpResp.QueryStats["Queries Since Install"] = queriesSinceInstall
 
 	if queryCount > 1 {
 		httpResp.QueryStats["Average Latency"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime/float64(queryCount), 3)) + " ms"
@@ -109,6 +99,17 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	httpResp.IndexStats = convertIndexDataToSlice(indexData)
 	utils.WriteJsonResponse(ctx, httpResp)
 
+}
+
+func calculateStorageSaved(incomingBytes, onDiskBytes float64) float64 {
+	storageSaved := 0.0
+	if incomingBytes > 0 {
+		storageSaved = (1 - (onDiskBytes / incomingBytes)) * 100
+		if storageSaved < 0 {
+			storageSaved = 0
+		}
+	}
+	return storageSaved
 }
 
 func convertIndexDataToSlice(indexData map[string]utils.ResultPerIndex) []utils.ResultPerIndex {
