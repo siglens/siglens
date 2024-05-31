@@ -173,6 +173,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 
 	i := 0
 	var bb *bytebufferpool.ByteBuffer
+	maxDuration := 2 * time.Hour
 	for continous || eventCounter < totalEvents {
 
 		recsInBatch := batchSize
@@ -192,8 +193,8 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			return
 		}
 		startTime := time.Now()
-		maxDuration := 2 * time.Hour
 		var reqErr error
+		retryCounter := 1
 		for {
 			reqErr = sendRequest(iType, client, payload, url, bearerToken)
 			if reqErr == nil {
@@ -204,9 +205,9 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 				log.Infof("Error sending request. Exceeded maximum retry duration of %v hr. Exiting.", int(maxDuration.Hours()))
 				break
 			}
-			sleepTime := time.Second * time.Duration(5*(i+1))
-			log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v before retrying.", i, sleepTime.String())
-			i++
+			sleepTime := time.Second * time.Duration(5*(retryCounter))
+			log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v before retrying.", retryCounter, sleepTime.String())
+			retryCounter++
 			time.Sleep(sleepTime)
 		}
 
@@ -312,7 +313,7 @@ readChannel:
 			eventsPerSec := int64((totalSent - lastPrintedCount) / 60)
 			log.Infof("Total elapsed time:%s. Total sent events %+v. Events per second:%+v", totalTimeTaken, humanize.Comma(int64(totalSent)), humanize.Comma(eventsPerSec))
 			if iType == OpenTSDB {
-				log.Infof("Approximation of sent number of unique timeseries:%+v", utils.GetMetricsHLL())
+				log.Infof("HLL Approx so far of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
 			}
 			lastPrintedCount = totalSent
 		}
@@ -326,5 +327,6 @@ readChannel:
 	} else {
 		eventsPerSecond := int64(float64(totalEvents) / numSeconds)
 		log.Printf("Total Time Taken for ingestion %s. Average events per second=%+v", totalTimeTaken, humanize.Comma(eventsPerSecond))
+		log.Infof("Total HLL Approx of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
 	}
 }
