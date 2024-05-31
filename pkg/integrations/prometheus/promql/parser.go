@@ -260,7 +260,7 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 
 	mQueryAgg := &structs.MetricQueryAgg{
 		AggBlockType:    structs.AggregatorBlock,
-		AggregatorBlock: mQuery.Aggregator.Clone(),
+		AggregatorBlock: mQuery.Aggregator.ShallowClone(),
 	}
 
 	return mQueryAgg, nil
@@ -310,7 +310,7 @@ func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) (*structs.M
 
 	mQueryAgg := &structs.MetricQueryAgg{
 		AggBlockType:  structs.FunctionBlock,
-		FunctionBlock: mQuery.Function.Clone(),
+		FunctionBlock: mQuery.Function.ShallowClone(),
 	}
 
 	return mQueryAgg, nil

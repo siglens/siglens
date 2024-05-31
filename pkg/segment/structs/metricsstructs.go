@@ -389,12 +389,12 @@ func (mbs *MBlockSummary) UpdateTimeRange(ts uint32) {
 	}
 }
 
-func (metricFunc Function) Clone() *Function {
+func (metricFunc Function) ShallowClone() *Function {
 	functionCopy := metricFunc
 	return &functionCopy
 }
 
-func (agg Aggregation) Clone() *Aggregation {
+func (agg Aggregation) ShallowClone() *Aggregation {
 	aggCopy := agg
 	return &aggCopy
 }
