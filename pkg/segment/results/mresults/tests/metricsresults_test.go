@@ -431,7 +431,7 @@ func Test_GetResults_Modulo(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -458,7 +458,7 @@ func Test_GetResults_Power(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
