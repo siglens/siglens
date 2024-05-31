@@ -56,6 +56,8 @@ func CreateDataPayload(startTime, query, queryName string) ([]byte, error) {
 func FetchMetrics(wg *sync.WaitGroup, destHost, startTime, query, queryName string) {
 	defer wg.Done()
 
+	reqStartTime := time.Now()
+
 	data, err := CreateDataPayload(startTime, query, queryName)
 	if err != nil {
 		log.Printf("%s error: %v", queryName, err)
@@ -92,14 +94,18 @@ func FetchMetrics(wg *sync.WaitGroup, destHost, startTime, query, queryName stri
 		return
 	}
 
+	reqEndTime := time.Now()
+
 	if series, ok := result["series"].([]interface{}); ok {
-		log.Printf("%s: Series Count: %d", queryName, len(series))
+		log.Printf("%s: Series Count: %d, respTime: %.3fs", queryName, len(series),
+			reqEndTime.Sub(reqStartTime).Seconds())
 	} else {
-		log.Printf("%s: Series Count: 0", queryName)
+		log.Printf("%s: Series Count: 0, respTime: %.3fs", queryName,
+			reqEndTime.Sub(reqStartTime).Seconds())
 	}
 }
 
-func ExecuteMetricsBenchQueries(destHost string) {
+func ExecuteMetricsBenchQueries(destHost string, numIterations int) {
 	queries := []struct {
 		query string
 		name  string
@@ -125,18 +131,26 @@ func ExecuteMetricsBenchQueries(destHost string) {
 		"now-90d",
 	}
 
-	for _, timeRange := range timings {
-		fmt.Printf("Time: %s\n", timeRange)
-		reqStartTime := time.Now()
+	for i := 0; i < numIterations; i++ {
 
-		var wg sync.WaitGroup
-		for _, q := range queries {
-			wg.Add(1)
-			go FetchMetrics(&wg, destHost, timeRange, q.query, q.name)
+		fmt.Printf("\n\n ###################  DOING ITERATION : %v  ###################  \n", i)
+
+		for _, timeRange := range timings {
+			fmt.Printf("Time: %s\n", timeRange)
+			reqStartTime := time.Now()
+
+			var wg sync.WaitGroup
+			for _, q := range queries {
+				wg.Add(1)
+				go FetchMetrics(&wg, destHost, timeRange, q.query, q.name)
+			}
+			wg.Wait()
+
+			reqEndTime := time.Now()
+			fmt.Printf("For last timerange: (%s): Avg time/query: %.3fs, totalTime: %.3fs\n",
+				timeRange, reqEndTime.Sub(reqStartTime).Seconds()/float64(len(queries)),
+				reqEndTime.Sub(reqStartTime).Seconds())
+
 		}
-		wg.Wait()
-
-		reqEndTime := time.Now()
-		fmt.Printf("Time taken for last (%s): %.2fs\n", timeRange, reqEndTime.Sub(reqStartTime).Seconds())
 	}
 }

@@ -32,12 +32,12 @@ import (
 func Test_GetResults_AggFn_Sum(t *testing.T) {
 	mQuery := &structs.MetricsQuery{
 		MetricName: "test.metric.0",
-		Aggregator: structs.Aggreation{AggregatorFunction: utils.Sum},
+		Aggregator: structs.Aggregation{AggregatorFunction: utils.Sum},
 		Downsampler: structs.Downsampler{
 			Interval:   3,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Sum},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Sum},
 		},
 		TagsFilters: []*structs.TagsFilter{
 			{
@@ -101,12 +101,12 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 func Test_GetResults_AggFn_Avg(t *testing.T) {
 	mQuery := &structs.MetricsQuery{
 		MetricName: "test.metric.0",
-		Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		Downsampler: structs.Downsampler{
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Sum},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Sum},
 		},
 		TagsFilters: []*structs.TagsFilter{
 			{
@@ -173,12 +173,12 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 	var numSeries int = 5
 	mQuery := &structs.MetricsQuery{
 		MetricName: "test.metric.0",
-		Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		Downsampler: structs.Downsampler{
 			Interval:   2,
 			Unit:       "s",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Sum},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Sum},
 		},
 		TagsFilters: []*structs.TagsFilter{
 			{
@@ -233,12 +233,12 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 func Test_GetResults_AggFn_Quantile(t *testing.T) {
 	mQuery := &structs.MetricsQuery{
 		MetricName: "test.metric.0",
-		Aggregator: structs.Aggreation{AggregatorFunction: utils.Quantile, FuncConstant: 0.5},
+		Aggregator: structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.5},
 		Downsampler: structs.Downsampler{
 			Interval:   3,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Quantile, FuncConstant: 0.5},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.5},
 		},
 		TagsFilters: []*structs.TagsFilter{
 			{
@@ -302,12 +302,12 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 	mQuery := &structs.MetricsQuery{
 		MetricName: "test.metric.0",
-		Aggregator: structs.Aggreation{AggregatorFunction: utils.Quantile, FuncConstant: 0.3},
+		Aggregator: structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.3},
 		Downsampler: structs.Downsampler{
 			Interval:   3,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Quantile, FuncConstant: 0.3},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.3},
 		},
 		TagsFilters: []*structs.TagsFilter{
 			{
@@ -407,6 +407,62 @@ func TestCalculateInterval(t *testing.T) {
 	}
 }
 
+func Test_GetResults_Modulo(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    52.5,
+			3600: 23,
+			7200: -7.5,
+		},
+		map[uint32]float64{
+			0:    2.5,
+			3600: 3,
+			7200: -2.5,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetModulo,
+				Constant:   5,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_Power(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    2,
+			7200: -10,
+		},
+		map[uint32]float64{
+			0:    4,
+			7200: 100,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetPower,
+				Constant:   2,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
 func Test_GetResults_GreaterThan(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
@@ -429,7 +485,7 @@ func Test_GetResults_GreaterThan(t *testing.T) {
 			Interval:   3,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -457,7 +513,7 @@ func Test_GetResults_GreaterThanOrEqualTo(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -485,7 +541,7 @@ func Test_GetResults_LessThan(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -513,7 +569,7 @@ func Test_GetResults_LessThanOrEqualTo(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -540,7 +596,7 @@ func Test_GetResults_Equals(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }
@@ -568,7 +624,7 @@ func Test_GetResults_NotEquals(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
 		},
 	)
 }

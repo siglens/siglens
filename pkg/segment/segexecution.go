@@ -112,6 +112,18 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 							val = val * -1
 						}
 						finalResult[groupID][timestamp] = val
+					case utils.LetModulo:
+						if swapped {
+							finalResult[groupID][timestamp] = math.Mod(valueRHS, valueLHS)
+						} else {
+							finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
+						}
+					case utils.LetPower:
+						if swapped {
+							finalResult[groupID][timestamp] = math.Pow(valueRHS, valueLHS)
+						} else {
+							finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
+						}
 					case utils.LetGreaterThan:
 						isGtr := valueLHS > valueRHS
 						if swapped {
@@ -176,6 +188,10 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 						finalResult[groupID][timestamp] = valueLHS * valueRHS
 					case utils.LetSubtract:
 						finalResult[groupID][timestamp] = valueLHS - valueRHS
+					case utils.LetModulo:
+						finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
+					case utils.LetPower:
+						finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
 					case utils.LetGreaterThan:
 						if valueLHS > valueRHS {
 							finalResult[groupID][timestamp] = valueLHS

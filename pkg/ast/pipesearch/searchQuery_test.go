@@ -1189,7 +1189,7 @@ func TestAST_simpleAnd_LetAgg_Single(t *testing.T) {
 	assert.Equal(t, aggNode.OutputTransforms.LetColumns.NewColName, "isError")
 	assert.NotNil(t, aggNode.OutputTransforms.LetColumns.SingleColRequest)
 	assert.Equal(t, aggNode.OutputTransforms.LetColumns.SingleColRequest.CName, "status")
-	assert.Equal(t, aggNode.OutputTransforms.LetColumns.SingleColRequest.Oper, utils.LogicalAndArithmeticOperator(10))
+	assert.Equal(t, aggNode.OutputTransforms.LetColumns.SingleColRequest.Oper, utils.LogicalAndArithmeticOperator(LetGreaterThanOrEqualTo))
 	assert.Equal(t, aggNode.OutputTransforms.LetColumns.SingleColRequest.Value.UnsignedVal, uint64(399))
 
 }

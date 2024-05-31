@@ -467,6 +467,9 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 		defer fd.Close()
 
 		r := csv.NewReader(fd)
+		// FieldsPerRecord is set to -1 to allow variable number of fields per record, as the data format has evolved over time.
+		// Make sure to handle the different data formats in the loop below to avoid panics.
+		r.FieldsPerRecord = -1
 		for {
 			var readStats ReadStats
 			record, err := r.Read()
@@ -502,7 +505,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 				readStats.LogsBytesCount, _ = strconv.ParseUint(record[4], 10, 64)
 				readStats.MetricsBytesCount, _ = strconv.ParseUint(record[5], 10, 64)
 			} else {
-				readStats.LogsBytesCount = 0
+				readStats.LogsBytesCount = readStats.BytesCount
 				readStats.MetricsBytesCount = 0
 			}
 
