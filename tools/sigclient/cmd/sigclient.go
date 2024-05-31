@@ -128,11 +128,13 @@ var metricsBenchCmd = &cobra.Command{
 	Short: "send metricsbench queries to SigScalr",
 	Run: func(cmd *cobra.Command, args []string) {
 		destHost, _ := cmd.Flags().GetString("dest")
+		numQueryIterations, _ := cmd.Flags().GetInt("numQueryIterations")
 		log.Infof("destHost : %+v\n", destHost)
+		log.Infof("numQueryIterations : %+v.\n", numQueryIterations)
 		if destHost == "" {
 			log.Fatalf("destUrl is required")
 		}
-		metricsbench.ExecuteMetricsBenchQueries(destHost)
+		metricsbench.ExecuteMetricsBenchQueries(destHost, numQueryIterations)
 	},
 }
 
@@ -273,6 +275,9 @@ func init() {
 	queryCmd.PersistentFlags().StringP("filePath", "f", "", "filepath to csv file to use to run queries from")
 	queryCmd.PersistentFlags().BoolP("randomQueries", "", false, "generate random queries")
 	queryCmd.PersistentFlags().StringP("query", "q", "", "promql query to run")
+
+	metricsBenchCmd.PersistentFlags().IntP("numQueryIterations", "n", 1, "Number of query iteratoins loop")
+
 	queryCmd.AddCommand(esQueryCmd)
 	queryCmd.AddCommand(metricsQueryCmd)
 	queryCmd.AddCommand(promQLQueryCmd)
