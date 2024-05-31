@@ -333,7 +333,12 @@ func getOffsetFromTsoFile(low uint32, high uint32, nTsids uint32, tsid uint64, t
 
 func (tssr *TimeSeriesSegmentReader) expandTSOBufferToMinSize(minSize uint64) error {
 	if cap(tssr.tsoBuf) < int(minSize) {
-		globalPool.Put(tssr.tsoBuf)
+		err := globalPool.Put(tssr.tsoBuf)
+		if err != nil {
+			log.Errorf("expandTSOBufferToMinSize: Error putting buffer back to the pool: %v", err)
+			return err
+		}
+
 		buf, err := globalPool.Get(minSize)
 		if err != nil {
 			log.Errorf("expandTSOBufferToMinSize: Error getting buffer from the pool: %v", err)
@@ -350,7 +355,12 @@ func (tssr *TimeSeriesSegmentReader) expandTSOBufferToMinSize(minSize uint64) er
 
 func (tssr *TimeSeriesSegmentReader) expandTSGBufferToMinSize(minSize uint64) error {
 	if cap(tssr.tsgBuf) < int(minSize) {
-		globalPool.Put(tssr.tsgBuf)
+		err := globalPool.Put(tssr.tsgBuf)
+		if err != nil {
+			log.Errorf("expandTSGBufferToMinSize: Error putting buffer back to the pool: %v", err)
+			return err
+		}
+
 		buf, err := globalPool.Get(minSize)
 		if err != nil {
 			log.Errorf("expandTSGBufferToMinSize: Error getting buffer from the pool: %v", err)
@@ -381,7 +391,6 @@ func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) ([]byte, uint1
 	}
 
 	fileSize := finfo.Size()
-	tssr.expandTSOBufferToMinSize(uint64(fileSize))
 	err = tssr.expandTSOBufferToMinSize(uint64(fileSize))
 	if err != nil {
 		log.Errorf("loadTSOFile: Error expanding TSO buffer: %v", err)
