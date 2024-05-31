@@ -145,7 +145,7 @@ func (tssr *TimeSeriesSegmentReader) InitReaderForBlock(blkNum uint16, queryMetr
 	// load tso/tsg file as need
 	tsoFName := fmt.Sprintf("%s_%d.tso", tssr.mKey, blkNum)
 	sTime := time.Now()
-	readTSO, nTSIDs, err := tssr.loadTSOFile(tsoFName, tssr.tsoBuf)
+	readTSO, nTSIDs, err := tssr.loadTSOFile(tsoFName)
 	if err != nil {
 		log.Errorf("InitReaderForBlock: failed to init reader for block %v! Err:%+v", blkNum, err)
 		return nil, err
@@ -156,7 +156,7 @@ func (tssr *TimeSeriesSegmentReader) InitReaderForBlock(blkNum uint16, queryMetr
 
 	tsgFName := fmt.Sprintf("%s_%d.tsg", tssr.mKey, blkNum)
 	sTime = time.Now()
-	readTSG, err := tssr.loadTSGFile(tsgFName, tssr.tsgBuf)
+	readTSG, err := tssr.loadTSGFile(tsgFName)
 
 	if err != nil {
 		log.Errorf("InitReaderForBlock: failed to init reader for block %v! Err:%+v", blkNum, err)
@@ -246,7 +246,7 @@ func getOffsetFromTsoFile(low uint32, high uint32, nTsids uint32, tsid uint64, t
 	return false, 0, 0
 }
 
-func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string, rbuf []byte) ([]byte, uint16, error) {
+func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) ([]byte, uint16, error) {
 
 	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
 	if err != nil {
@@ -262,7 +262,7 @@ func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string, rbuf []byte) (
 	}
 
 	fileSize := finfo.Size()
-	rbuf = rbuf[:cap(rbuf)]
+	rbuf := tssr.tsoBuf[:cap(tssr.tsoBuf)]
 	sizeToAdd := fileSize - int64(len(rbuf))
 	if sizeToAdd > 0 {
 		newArr := *seriesBufferPool.Get().(*[]byte)
@@ -292,7 +292,7 @@ func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string, rbuf []byte) (
 	return rbuf, nEntries, nil
 }
 
-func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string, rbuf []byte) ([]byte, error) {
+func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error) {
 	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
 	if err != nil {
 		log.Errorf("loadTSGFile: error when trying to open file=%+v. Error=%+v", fileName, err)
@@ -306,7 +306,7 @@ func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string, rbuf []byte) (
 		return nil, err
 	}
 	fileSize := finfo.Size()
-	rbuf = rbuf[:cap(rbuf)]
+	rbuf := tssr.tsgBuf[:cap(tssr.tsgBuf)]
 	sizeToAdd := fileSize - int64(len(rbuf))
 	if sizeToAdd > 0 {
 		newArr := *seriesBufferPool.Get().(*[]byte)
