@@ -330,9 +330,9 @@ function editPanelInit(redirectedFromViewScreen) {
 		function () {panelDescIcon.tooltip('hide');});
 	}
 
-	if (currentPanel.queryData && (currentPanel.queryData.searchText != undefined || currentPanel.queryData.query != undefined)) {
+	if (currentPanel.queryData && (currentPanel.queryData.searchText != undefined || currentPanel.queryData?.queries?.[0]?.query != undefined)) {
 		if(currentPanel.queryType==='metrics')
-			queryStr = currentPanel.queryData.query;
+			queryStr = currentPanel.queryData.queries[0].query;
 		else
 			queryStr = currentPanel.queryData.searchText;
 	}
@@ -1272,10 +1272,19 @@ function getMetricsQData() {
 	let endDate = filterEndDate || "now";
 	let stDate = filterStartDate || "now-15m";
 
-	return {
-		'query': filterValue,
-		'start': stDate.toString(),
-		'end': endDate.toString(),
+	return {	
+		"start":stDate.toString(),
+		"end":endDate.toString(),
+		"queries":[
+			{
+				"name":"a",
+				"query":filterValue,
+				"qlType":"promql"
+			}
+		],
+		"formulas":[
+			{"formula":"a"}
+		]
 	};
 }
 

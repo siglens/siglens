@@ -29,6 +29,7 @@ class ReadOnlyCellEditor {
         this.eInput = document.createElement('textarea');
         cellEditingClass = params.rowIndex%2===0 ? 'even-popup-textarea' : 'odd-popup-textarea'
         this.eInput.classList.add(cellEditingClass);
+        this.eInput.classList.add('copyable');
         this.eInput.readOnly = true;
 
         // Set styles to ensure the textarea fits within its container
@@ -43,10 +44,18 @@ class ReadOnlyCellEditor {
         this.eInput.rows = params.rows;
         this.eInput.maxLength = params.maxLength;
         this.eInput.value = params.value;
+
+        this.gridApi = params.api;
     }
     // gets called once when grid ready to insert the element
     getGui() {
-        return this.eInput;
+        this.gridApi.addEventListener('cellEditingStarted', (event) => {
+            if (event.rowIndex === this.gridApi.getDisplayedRowAtIndex(event.rowIndex).rowIndex) {
+              this.addCopyIcon();
+            }
+          });
+        
+          return this.eInput;
     }
     // returns the new value after editing
     getValue() {
@@ -61,6 +70,35 @@ class ReadOnlyCellEditor {
     destroy() {
         this.eInput.classList.remove(cellEditingClass);
     }
+    addCopyIcon() {
+        // Remove any existing copy icons
+        $('.copy-icon').remove();
+      
+        // Add copy icon to the textarea
+        $('.copyable').each(function() {
+          var copyIcon = $('<span style="margin-right: 14px;" class="copy-icon"></span>');
+          $(this).after(copyIcon);
+        });
+      
+        // Attach click event handler to the copy icon
+        $('.copy-icon').on('click', function(event) {
+          var copyIcon = $(this);
+          var inputOrTextarea = copyIcon.prev('.copyable');
+          var inputValue = inputOrTextarea.val();
+      
+          var tempInput = document.createElement("textarea");
+          tempInput.value = inputValue;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand("copy");
+          document.body.removeChild(tempInput);
+      
+          copyIcon.addClass('success');
+          setTimeout(function() {
+            copyIcon.removeClass('success');
+          }, 1000);
+        });
+      }
   }
 
 const cellEditorParams = (params) => {
@@ -141,12 +179,12 @@ const gridOptions = {
         minWidth: 200,
         icons: {
             sortAscending: '<i class="fa fa-sort-alpha-down"/>',
-            sortDescending: '<i class="fa fa-sort-alpha-up"/>',
+            sortDescending: '<i class="fa fa-sort-alpha-desc"/>',
           },
     },
     icons: {
         sortAscending: '<i class="fa fa-sort-alpha-down"/>',
-        sortDescending: '<i class="fa fa-sort-alpha-up"/>',
+        sortDescending: '<i class="fa fa-sort-alpha-desc"/>',
       },
     enableCellTextSelection: true,
     suppressScrollOnNewData: true,
@@ -213,6 +251,7 @@ const myCellRenderer= (params) => {
 let gridDiv = null;
 
 function renderLogsGrid(columnOrder, hits){
+    
     if (sortByTimestampAtDefault) {
         logsColumnDefs[0].sort = "desc";
     }else {

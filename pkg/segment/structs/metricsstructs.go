@@ -186,11 +186,11 @@ type OTSDBMetricsQueryExpRequest struct {
 }
 
 type MetricsSearchRequest struct {
-	MetricsKeyBaseDir string
-	BlocksToSearch    map[uint16]bool
-	Parallelism       uint
-	QueryType         SegType
-	AllTagKeys        map[string]bool
+	MetricsKeyBaseDir    string
+	BlocksToSearch       map[uint16]bool
+	BlkWorkerParallelism uint
+	QueryType            SegType
+	AllTagKeys           map[string]bool
 }
 
 /*

@@ -20,6 +20,8 @@
 'use strict';
 
 let EventCountChart;
+let TotalVolumeChartLogs;
+let TotalVolumeChartMetrics;
 $(document).ready(() => {
     $('#app-content-area').hide();
     setupEventHandlers();
@@ -344,7 +346,7 @@ function renderEventCountChart(EventCountData,gridLineColor,tickColor,chartType)
 function drawTotalStatsChart(res) {
     var totalIncomingVolume, totalIncomingVolumeMetrics;
     var totalStorageUsed;
-    var totalStorageSaved;
+    var logStorageSaved, metricsStorageSaved;
     var totalStorageUsedMetrics;
     _.forEach(res, (mvalue, key) => {
         if (key === "ingestionStats") {
@@ -359,62 +361,55 @@ function drawTotalStatsChart(res) {
                 else if (k === 'Log Storage Used'){
                     totalStorageUsed = v;
                 }
-                else if (k === 'Storage Saved'){
-                    totalStorageSaved = v;
+                else if (k === 'Logs Storage Saved'){
+                    logStorageSaved = v;
+                } else if (k === 'Metrics Storage Saved'){
+                    metricsStorageSaved = v;
                 }
                 else if (k === 'Metrics Storage Used'){
                     totalStorageUsedMetrics = v;
                 }
             });
-            if (TotalVolumeChart !== undefined) {
-                TotalVolumeChart.destroy();
+            if (TotalVolumeChartLogs !== undefined) {
+                TotalVolumeChartLogs.destroy();
+            }
+            if (TotalVolumeChartMetrics !== undefined) {
+                TotalVolumeChartMetrics.destroy();
             }
 
-            TotalVolumeChart = renderTotalCharts(totalIncomingVolume, totalIncomingVolumeMetrics, totalStorageUsed, totalStorageUsedMetrics)
-                return TotalVolumeChart
+            TotalVolumeChartLogs = renderTotalCharts('Logs', totalIncomingVolume, totalStorageUsed);
+            TotalVolumeChartMetrics = renderTotalCharts('Metrics', totalIncomingVolumeMetrics, totalStorageUsedMetrics);
         }
     });
-
-    let el = $('.storage-savings-container');
-    el.append(`<div class="storage-savings-percent">${Math.round(totalStorageSaved * 10) / 10}%`);
-
-    
+    let elLogs = $('.logs-container .storage-savings-container');
+    let elMetrics = $('.metrics-container .storage-savings-container');
+    elLogs.append(`<div class="storage-savings-percent">${Math.round(logStorageSaved * 10) / 10}%`);
+    elMetrics.append(`<div class="storage-savings-percent">${Math.round(metricsStorageSaved * 10) / 10}%`);
 }
 
-function renderTotalCharts(totalIncomingVolume, totalIncomingVolumeMetrics, totalStorageUsed, totalStorageUsedMetrics) {
-    var TotalVolumeChartCanvas = $("#TotalVolumeChart").get(0).getContext("2d");
-    TotalVolumeChart = new Chart(TotalVolumeChartCanvas, {
+function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
+    var TotalVolumeChartCanvas = $(`#TotalVolumeChart-${label.toLowerCase()}`).get(0).getContext("2d");
+    var TotalVolumeChart = new Chart(TotalVolumeChartCanvas, {
         type: 'bar',
         data: {
             labels: ['Incoming Volume','Storage Used'],
             datasets: [
                 {
-                    
-                    label: 'Logs' ,
+                    label: label,
                     data: [parseFloat(totalIncomingVolume),parseFloat(totalStorageUsed)],
                     backgroundColor: ['rgba(99, 72, 217)'],
                     borderWidth: 1,
                     categoryPercentage: 0.8,
                     barPercentage: 0.8,
-                    
-                },
-                {
-                    label:'Metrics' ,
-                    data: [parseFloat(totalIncomingVolumeMetrics),parseFloat(totalStorageUsedMetrics)],
-                    backgroundColor: ['rgb(255,1,255)'],
-                    borderWidth: 1, 
-                    categoryPercentage: 0.8,
-                    barPercentage: 0.8,
-                    
-                },
+                }
             ]
         },
         options: {  
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
             plugins: {
                 legend: {
-                    position: 'top'
+                    display: false
                 },
                 tooltip: {
                     callbacks: {
@@ -440,20 +435,7 @@ function renderTotalCharts(totalIncomingVolume, totalIncomingVolumeMetrics, tota
                 x: {
                     ticks: {
                         callback: function (val, index, ticks) {
-                            let value = this.getLabelForValue(val);
-                            if (value && value.indexOf('T') > -1) {
-                                let parts = value.split('T');
-                                let xVal = "T" + parts[1];
-                                return xVal;
-                            } else {
-                                if (value) {
-                                    let parts = value.split('-');
-                                    if (parts.length > 1) {
-                                        let xVal = parts[1] + "-" + parts[2];
-                                        return xVal;
-                                    }
-                                }
-                            }
+                            return ['Incoming Volume', 'Storage Used'][index];
                         }
                     },
                     title: {

@@ -77,11 +77,11 @@ func GetMetricsSegmentRequests(mName string, tRange *dtu.MetricsTimeRange, query
 				return
 			}
 			finalReq := &structs.MetricsSearchRequest{
-				MetricsKeyBaseDir: msm.MSegmentDir,
-				BlocksToSearch:    retBlocks,
-				Parallelism:       uint(config.GetParallelism()),
-				QueryType:         structs.METRICS_SEARCH,
-				AllTagKeys:        allTagKeys,
+				MetricsKeyBaseDir:    msm.MSegmentDir,
+				BlocksToSearch:       retBlocks,
+				BlkWorkerParallelism: uint(1),
+				QueryType:            structs.METRICS_SEARCH,
+				AllTagKeys:           allTagKeys,
 			}
 
 			retUpdate.Lock()
