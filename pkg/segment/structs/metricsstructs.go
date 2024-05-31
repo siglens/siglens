@@ -21,6 +21,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"sort"
 	"sync/atomic"
 
 	parser "github.com/prometheus/prometheus/promql/parser"
@@ -231,6 +232,13 @@ func (mq *MetricsQuery) ReorderTagFilters() {
 	if mq.reordered {
 		return
 	}
+
+	// For arithmetic and logical operations, we use groupIDStr to check if there are exactly matching label sets between two vectors
+	// However, for different vectors, since the groupID string is concatenated from tag key-value pairs, we cannot guarantee the order of concatenation.
+	// Therefore, We can sort tagsFilter in advance to ensure that the tags are concatenated in lexicographical order.
+	sort.Slice(mq.TagsFilters, func(i, j int) bool {
+		return mq.TagsFilters[i].TagKey < mq.TagsFilters[j].TagKey
+	})
 
 	queriedTagKeys := make(map[string]TagValueIndex, len(mq.TagsFilters))
 
