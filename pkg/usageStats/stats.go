@@ -505,7 +505,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 				readStats.LogsBytesCount, _ = strconv.ParseUint(record[4], 10, 64)
 				readStats.MetricsBytesCount, _ = strconv.ParseUint(record[5], 10, 64)
 			} else {
-				readStats.LogsBytesCount = 0
+				readStats.LogsBytesCount = readStats.BytesCount
 				readStats.MetricsBytesCount = 0
 			}
 
