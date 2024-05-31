@@ -91,7 +91,7 @@ type poolItem struct {
 
 var globalPool = customPool{}
 
-const numPoolItems = 20
+const numPoolItems = 2
 
 func init() {
 	globalPool.items = make([]poolItem, 0)
@@ -339,6 +339,7 @@ func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) ([]byte, uint1
 	rbuf := tssr.tsoBuf[:cap(tssr.tsoBuf)]
 	sizeToAdd := fileSize - int64(len(rbuf))
 	if sizeToAdd > 0 {
+		panic("should not get here")
 		newArr := *seriesBufferPool.Get().(*[]byte)
 		if diff := sizeToAdd - int64(len(newArr)); diff <= 0 {
 			newArr = newArr[:sizeToAdd]
@@ -383,6 +384,7 @@ func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error
 	rbuf := tssr.tsgBuf[:cap(tssr.tsgBuf)]
 	sizeToAdd := fileSize - int64(len(rbuf))
 	if sizeToAdd > 0 {
+		panic("should not get here")
 		newArr := *seriesBufferPool.Get().(*[]byte)
 		if diff := sizeToAdd - int64(len(newArr)); diff <= 0 {
 			newArr = newArr[:sizeToAdd]
