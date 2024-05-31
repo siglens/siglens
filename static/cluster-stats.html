@@ -85,15 +85,23 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <p class="dt-header">Ingestion Stats for the last</p>
                         <div class="ranges">
                             <div class="inner-range">
-                                <div id="now-24h" class="range-item">24 Hrs</div>
+                                <div id="now-1h" class="range-item">1 Hr</div>
+                                <div id="now-7d" class="range-item active">7 Days</div>
+                            </div>
+                            <div class="inner-range">
+                                <div id="now-3h" class="range-item">3 Hrs</div>
+                                <div id="now-30d" class="range-item">30 Days</div>
+                            </div>
+                            <div class="inner-range">
+                                <div id="now-6h" class="range-item">6 Hrs</div>
                                 <div id="now-90d" class="range-item">90 Days</div>
                             </div>
                             <div class="inner-range">
-                                <div id="now-7d" class="range-item active">7 Days</div>
+                                <div id="now-12h" class="range-item">12 Hrs</div>
                                 <div id="now-180d" class="range-item">180 Days</div>
                             </div>
                             <div class="inner-range">
-                                <div id="now-30d" class="range-item">30 Days</div>
+                                <div id="now-24h" class="range-item">24 Hrs</div>
                                 <div id="now-365d" class="range-item">1 Year</div>
                             </div>
                         </div>
@@ -141,16 +149,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <table id="metrics-data-table" class="index-data-table"></table>
                         </div>
                     </div>
-                    <div class="graph-container mt-5">
-                        <div class="query-stats">
-                            <p class="query-stats-header">Query Stats</p>
-                            <table class="query-table" id="query-table">
-                                <tbody>
-                                </tbody>
-                            </table>
-                        </div>
+                    <div class="graph-container mt-5 logs-container">
                         <div class="bar_chart_container">
-                            <canvas id="TotalVolumeChart"></canvas>
+                            <canvas id="TotalVolumeChart-logs"></canvas>
+                            <div class="bar-graph-footer">Logs Storage</div>
                         </div>
                         <div class="storage-savings-container">
                             <div class="fw-bold storage-savings-title">
@@ -170,6 +172,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
                         </div>
                         <div class="popupOverlay"></div>
+                    </div>
+                    <div class="graph-container mt-5 metrics-container">
+                        <div class="bar_chart_container">
+                            <canvas id="TotalVolumeChart-metrics"></canvas>
+                            <div class="bar-graph-footer">Metrics Storage</div>
+                        </div>
+                        <div class="storage-savings-container">
+                            <div class="fw-bold storage-savings-title">
+                                Storage Savings
+                            </div>
+                        </div>
+                    </div>
+                    <div class="query-stats-container">
+                    <div class="query-stats">
+                        <p class="query-stats-header">Query Stats</p>
+                        <table class="query-table" id="query-table">
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
                     </div>
                     <div id="cstats-app-footer">
                         2024 &copy; SigLens

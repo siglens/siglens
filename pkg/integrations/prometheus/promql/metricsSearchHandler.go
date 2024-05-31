@@ -176,7 +176,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
-	metricQueryRequest, pqlQuerytype, _, err := convertPqlToMetricsQuery(searchText, endTime-1, endTime, myid)
+	metricQueryRequest, pqlQuerytype, _, err := ConvertPqlToMetricsQuery(searchText, endTime-1, endTime, myid)
 	if err != nil {
 		ctx.SetContentType(ContentJson)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -248,7 +248,7 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 
 	log.Infof("qid=%v, ProcessPromqlMetricsRangeSearchRequest:  searchString=[%v] startEpochs=[%v] endEpochs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	metricQueryRequest, pqlQuerytype, _, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
+	metricQueryRequest, pqlQuerytype, _, err := ConvertPqlToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
 		ctx.SetContentType(ContentJson)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -389,7 +389,7 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	searchText := fmt.Sprintf(`(fake_metricname{%s="*"})`, labelName)
-	metricQueryRequest, _, _, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
+	metricQueryRequest, _, _, err := ConvertPqlToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
 		ctx.SetContentType(ContentJson)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -455,7 +455,7 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	for _, match := range matches {
 
-		metricQueryRequest, _, _, err := convertPqlToMetricsQuery(match, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
+		metricQueryRequest, _, _, err := ConvertPqlToMetricsQuery(match, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
 		if err != nil {
 			ctx.SetContentType(ContentJson)
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -545,7 +545,7 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	log.Infof("qid=%v, ProcessMetricsSearchRequest:  searchString=[%v] startEpochMs=[%v] endEpochMs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPqlToMetricsQuery(searchText, startTime, endTime, myid)
 
 	if err != nil {
 		ctx.SetContentType(ContentJson)
@@ -671,7 +671,7 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	searchText := fmt.Sprintf("(%v)", metricName)
 
-	metricQueryRequest, _, _, err := convertPqlToMetricsQuery(searchText, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
+	metricQueryRequest, _, _, err := ConvertPqlToMetricsQuery(searchText, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
 	if err != nil {
 		utils.SendError(ctx, "Failed to parse the Metric Name as a Query", fmt.Sprintf("Metric Name: %+v; qid: %v", metricName, qid), err)
 		return
@@ -726,7 +726,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(finalSearchText, start, end, myid)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPqlToMetricsQuery(finalSearchText, start, end, myid)
 	if err != nil {
 		utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, finalSearchText), err)
 		return
@@ -883,7 +883,7 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	return start, end, queries, formulas, errorLog, nil
 }
 
-func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
+func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
 	// call prometheus promql parser
 	expr, err := parser.ParseExpr(searchText)
 	if err != nil {
@@ -1185,7 +1185,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 			arithmeticOperation.ConstantOp = true
 			arithmeticOperation.Constant = constant.Val
 		} else {
-			lhsRequest, lhsValType, _, err = convertPqlToMetricsQuery(expr.LHS.String(), startTime, endTime, myid)
+			lhsRequest, lhsValType, _, err = ConvertPqlToMetricsQuery(expr.LHS.String(), startTime, endTime, myid)
 			if err != nil {
 				return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
 			}
@@ -1197,7 +1197,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 			arithmeticOperation.ConstantOp = true
 			arithmeticOperation.Constant = constant.Val
 		} else {
-			rhsRequest, rhsValType, _, err = convertPqlToMetricsQuery(expr.RHS.String(), startTime, endTime, myid)
+			rhsRequest, rhsValType, _, err = ConvertPqlToMetricsQuery(expr.RHS.String(), startTime, endTime, myid)
 			if err != nil {
 				return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
 			}
@@ -1218,7 +1218,7 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		}
 		return req, lhsValType, []structs.QueryArithmetic{arithmeticOperation}, nil
 	case *parser.ParenExpr:
-		return convertPqlToMetricsQuery(expr.Expr.String(), startTime, endTime, myid)
+		return ConvertPqlToMetricsQuery(expr.Expr.String(), startTime, endTime, myid)
 	default:
 		return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, fmt.Errorf("convertPqlToMetricsQuery: Unsupported query type %T", expr)
 	}
