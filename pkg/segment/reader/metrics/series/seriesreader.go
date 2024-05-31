@@ -87,7 +87,7 @@ func init() {
 	defer globalPool.mutex.Unlock()
 
 	for i := 0; i < numPoolItems; i++ {
-		buf := make([]byte, 180_000_000)
+		buf := make([]byte, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
 		item := poolItem{
 			// buf:   make([]byte, 0, segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
 			buf:   buf[:0],
@@ -101,8 +101,9 @@ func init() {
 
 func (cp *customPool) expandItemToMinSize(i int, minSize uint64) {
 	if cap(cp.items[i].buf) < int(minSize) {
-		cp.items[i].buf = make([]byte, 0, minSize)
+		cp.items[i].buf = make([]byte, 1, minSize)
 		cp.items[i].ptr = unsafe.Pointer(&cp.items[i].buf[0])
+		cp.items[i].buf = cp.items[i].buf[:0]
 	}
 }
 
