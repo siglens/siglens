@@ -107,7 +107,7 @@ func (cp *customPool) expandItemToMinSize(i int, minSize uint64) {
 	}
 }
 
-func (cp *customPool) Get(minSize uint64) []byte {
+func (cp *customPool) Get(minSize uint64) ([]byte, error) {
 	cp.mutex.Lock()
 	defer cp.mutex.Unlock()
 
@@ -116,14 +116,14 @@ func (cp *customPool) Get(minSize uint64) []byte {
 			cp.expandItemToMinSize(i, minSize)
 			cp.items[i].inUse = true
 
-			return cp.items[i].buf
+			return cp.items[i].buf, nil
 		}
 	}
 
-	panic("No more buffers available in the pool")
+	return nil, fmt.Errorf("No more buffers available in the pool")
 }
 
-func (cp *customPool) Put(buf []byte) {
+func (cp *customPool) Put(buf []byte) error {
 	cp.mutex.Lock()
 	defer cp.mutex.Unlock()
 
@@ -132,14 +132,22 @@ func (cp *customPool) Put(buf []byte) {
 	}
 	// log.Printf("andrew putting buffer %p", unsafe.Pointer(&buf[0]))
 
+	bufPtr := unsafe.Pointer(&buf[0])
 	for i := range cp.items {
-		if cp.items[i].ptr == unsafe.Pointer(&buf[0]) {
+		if cp.items[i].ptr == bufPtr {
 			cp.items[i].inUse = false
-			return
+			return nil
 		}
 	}
 
-	panic("Buffer not found in the pool")
+	// We should not get here. The returned buffer is not in the pool.
+	allBufferPointers := make([]string, 0)
+	for i := range cp.items {
+		allBufferPointers = append(allBufferPointers, fmt.Sprintf("%p", cp.items[i].ptr))
+	}
+	log.Errorf("customPool.Put: Buffer at %p not found in the pool; expected one of: %+v", bufPtr, allBufferPointers)
+
+	return fmt.Errorf("Buffer not found in the pool")
 }
 
 /*
@@ -150,11 +158,20 @@ Exposes init functions for timeseries block readers.
 It is up to the caller to call .Close() to return all buffers
 */
 func InitTimeSeriesReader(mKey string) (*TimeSeriesSegmentReader, error) {
-	// load tso/tsg file as needd
+	tsoBuf, err := globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting tsoBuf from the pool")
+	}
+
+	tsgBuf, err := globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting tsgBuf from the pool")
+	}
+
 	return &TimeSeriesSegmentReader{
 		mKey:   mKey,
-		tsoBuf: globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
-		tsgBuf: globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
+		tsoBuf: tsoBuf,
+		tsgBuf: tsgBuf,
 	}, nil
 }
 
@@ -162,10 +179,19 @@ func InitTimeSeriesReader(mKey string) (*TimeSeriesSegmentReader, error) {
 Closes the iterator by returning all buffers back to the pool
 */
 func (tssr *TimeSeriesSegmentReader) Close() error {
-	// load tso/tsg file as needd
+	err1 := globalPool.Put(tssr.tsoBuf)
+	if err1 != nil {
+		log.Errorf("TimeSeriesSegmentReader.Close: Error putting tsoBuf back to the pool: %v", err1)
+	}
 
-	globalPool.Put(tssr.tsoBuf)
-	globalPool.Put(tssr.tsgBuf)
+	err2 := globalPool.Put(tssr.tsgBuf)
+	if err2 != nil {
+		log.Errorf("TimeSeriesSegmentReader.Close: Error putting tsgBuf back to the pool: %v", err2)
+	}
+
+	if err1 != nil || err2 != nil {
+		return fmt.Errorf("Error putting buffers back to the pool")
+	}
 
 	return nil
 }
@@ -307,22 +333,38 @@ func getOffsetFromTsoFile(low uint32, high uint32, nTsids uint32, tsid uint64, t
 	return false, 0, 0
 }
 
-func (tssr *TimeSeriesSegmentReader) expandTSOBufferToMinSize(minSize uint64) {
+func (tssr *TimeSeriesSegmentReader) expandTSOBufferToMinSize(minSize uint64) error {
 	if cap(tssr.tsoBuf) < int(minSize) {
 		globalPool.Put(tssr.tsoBuf)
-		tssr.tsoBuf = globalPool.Get(minSize)
+		buf, err := globalPool.Get(minSize)
+		if err != nil {
+			log.Errorf("expandTSOBufferToMinSize: Error getting buffer from the pool: %v", err)
+			return err
+		}
+
+		tssr.tsoBuf = buf
 	}
 
 	tssr.tsoBuf = tssr.tsoBuf[:minSize]
+
+	return nil
 }
 
-func (tssr *TimeSeriesSegmentReader) expandTSGBufferToMinSize(minSize uint64) {
+func (tssr *TimeSeriesSegmentReader) expandTSGBufferToMinSize(minSize uint64) error {
 	if cap(tssr.tsgBuf) < int(minSize) {
 		globalPool.Put(tssr.tsgBuf)
-		tssr.tsgBuf = globalPool.Get(minSize)
+		buf, err := globalPool.Get(minSize)
+		if err != nil {
+			log.Errorf("expandTSGBufferToMinSize: Error getting buffer from the pool: %v", err)
+			return err
+		}
+
+		tssr.tsgBuf = buf
 	}
 
 	tssr.tsgBuf = tssr.tsgBuf[:minSize]
+
+	return nil
 }
 
 func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) ([]byte, uint16, error) {
@@ -342,6 +384,12 @@ func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) ([]byte, uint1
 
 	fileSize := finfo.Size()
 	tssr.expandTSOBufferToMinSize(uint64(fileSize))
+	err = tssr.expandTSOBufferToMinSize(uint64(fileSize))
+	if err != nil {
+		log.Errorf("loadTSOFile: Error expanding TSO buffer: %v", err)
+		return nil, 0, err
+	}
+
 	rbuf := tssr.tsoBuf[:]
 
 	_, err = fd.ReadAt(rbuf, 0)
@@ -375,7 +423,12 @@ func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error
 	}
 
 	fileSize := finfo.Size()
-	tssr.expandTSGBufferToMinSize(uint64(fileSize))
+	err = tssr.expandTSGBufferToMinSize(uint64(fileSize))
+	if err != nil {
+		log.Errorf("loadTSGFile: Error expanding TSG buffer: %v", err)
+		return nil, err
+	}
+
 	rbuf := tssr.tsgBuf[:]
 
 	_, err = fd.ReadAt(rbuf, 0)
