@@ -1,1 +1,208 @@
-{"description":"Sigscalr Ingestion Dashboard","name":"Sigscalr Ingestion DB","panels":[{"chartType":"number","dataType":"TB","description":"","gridpos":{"h":211,"w":450.586,"wPercent":0.39594551845342707,"x":10,"y":20},"name":"Total Ingested Volume","panelId":"45b901cf-c465-4249-8879-af6042370f7b","panelIndex":0,"queryData":{"end":"now","query":"ss_current_bytes_received","start":"now-1h"},"queryType":"metrics","unit":"data"},{"chartType":"number","dataType":"TB","description":"Current On Disk Bytes","gridpos":{"h":211,"w":437.695,"wPercent":0.3846177504393673,"x":470.586,"y":20},"name":"SigScalr Storage Used","panelId":"060afc8a-2e14-41ff-9c43-90b9c20f0832","panelIndex":1,"queryData":{"end":"now","query":"ss_current_on_disk_bytes","start":"now-1h"},"queryType":"metrics","unit":"data"},{"chartType":"number","dataType":"none","description":"Compression Ratio","gridpos":{"h":211,"w":202.08163786008228,"wPercent":0.1775761316872428,"x":918.281,"y":20},"name":"Compression Ratio","panelId":"20a5c2a4-129c-4778-ae20-ca24cb35a306","panelIndex":2,"queryData":{"end":"now","query":"ss_current_bytes_received/ss_current_on_disk_bytes","start":"now-1h"},"queryType":"metrics","startDate":"now-1h","unit":"misc"},{"chartType":"Line Chart","dataType":"","description":"","gridpos":{"h":256,"w":1128.6847840416303,"wPercent":0.9918143972246313,"x":10,"y":241},"name":"Ingested Volume/min","panelId":"ce5cc4d8-4c3e-4b55-9d7d-97f46815ff0a","panelIndex":3,"queryData":{"end":"now","query":"deriv(ss_current_bytes_received[2m])*60","start":"now-1h"},"queryType":"metrics","startDate":"now-1h","unit":""},{"chartType":"Line Chart","dataType":"","description":"OnDiskBytesPerMinute","gridpos":{"h":250,"w":564.2330540746383,"wPercent":0.49581111957349583,"x":585.966488956588,"y":507},"name":"OnDiskBytesPerMinute","panelId":"658e9c6a-0466-4553-88ff-46fdf63dc3c2","panelIndex":4,"queryData":{"end":"now","query":"deriv(ss_current_on_disk_bytes[2m])*60","start":"now-1h"},"queryType":"metrics","startDate":"now-1h","unit":""},{"chartType":"Line Chart","dataType":"","description":"","gridpos":{"h":250,"w":565.966488956588,"wPercent":0.49733434881949734,"x":10,"y":507},"name":"EventsPerMinute","panelId":"c108e768-9086-4461-aa29-b21553614af7","panelIndex":5,"queryData":{"end":"now","query":"deriv(ss_current_event_count[2m])*60","start":"now-1h"},"queryType":"metrics","unit":""}],"timeRange":"Last 1 Hr"}
+{
+    "description": "Sigscalr Ingestion Dashboard",
+    "name": "Sigscalr Ingestion DB",
+    "panels": [
+        {
+            "chartType": "number",
+            "dataType": "TB",
+            "description": "",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 0.39594551845342707,
+                "x": 0,
+                "y": 0
+            },
+            "name": "Total Ingested Volume",
+            "panelId": "45b901cf-c465-4249-8879-af6042370f7b",
+            "panelIndex": 0,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                        "formula": "a"
+                    }
+                ],
+                "queries": [
+                    {
+                        "name": "a",
+                        "qlType": "promql",
+                        "query": "ss_current_bytes_received"
+                    }
+                ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "unit": "data"
+        },
+        {
+            "chartType": "number",
+            "dataType": "TB",
+            "description": "Current On Disk Bytes",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 0.3846177504393673,
+                "x": 0,
+                "y": 6
+            },
+            "name": "SigScalr Storage Used",
+            "panelId": "060afc8a-2e14-41ff-9c43-90b9c20f0832",
+            "panelIndex": 1,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                        "formula": "a"
+                    }
+                ],
+                "queries": [
+                    {
+                        "name": "a",
+                        "qlType": "promql",
+                        "query": "ss_current_on_disk_bytes"
+                    }
+                ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "unit": "data"
+        },
+        {
+            "chartType": "number",
+            "dataType": "none",
+            "description": "Compression Ratio",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 0.1775761316872428,
+                "x": 3,
+                "y": 0
+            },
+            "name": "Compression Ratio",
+            "panelId": "20a5c2a4-129c-4778-ae20-ca24cb35a306",
+            "panelIndex": 2,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                        "formula": "a"
+                    }
+                ],
+                "queries": [
+                    {
+                        "name": "a",
+                        "qlType": "promql",
+                        "query": "ss_current_bytes_received/ss_current_on_disk_bytes"
+                    }
+                ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "startDate": "now-1h",
+            "unit": "misc"
+        },
+        {
+            "chartType": "Line Chart",
+            "dataType": "",
+            "description": "",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 0.9918143972246313,
+                "x": 3,
+                "y": 6
+            },
+            "name": "Ingested Volume/min",
+            "panelId": "ce5cc4d8-4c3e-4b55-9d7d-97f46815ff0a",
+            "panelIndex": 3,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                        "formula": "a"
+                    }
+                ],
+                "queries": [
+                    {
+                        "name": "a",
+                        "qlType": "promql",
+                        "query": "deriv(ss_current_bytes_received[2m])*60"
+                    }
+                ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "startDate": "now-1h",
+            "unit": ""
+        },
+        {
+            "chartType": "Line Chart",
+            "dataType": "",
+            "description": "OnDiskBytesPerMinute",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 0.49581111957349583,
+                "x": 6,
+                "y": 0
+            },
+            "name": "OnDiskBytesPerMinute",
+            "panelId": "658e9c6a-0466-4553-88ff-46fdf63dc3c2",
+            "panelIndex": 4,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                        "formula": "a"
+                    }
+                ],
+                "queries": [
+                    {
+                        "name": "a",
+                        "qlType": "promql",
+                        "query": "deriv(ss_current_on_disk_bytes[2m])*60"
+                    }
+                ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "startDate": "now-1h",
+            "unit": ""
+        },
+        {
+            "chartType": "Line Chart",
+            "dataType": "",
+            "description": "",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 0.49733434881949734,
+                "x": 6,
+                "y": 6
+            },
+            "name": "EventsPerMinute",
+            "panelId": "c108e768-9086-4461-aa29-b21553614af7",
+            "panelIndex": 5,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                        "formula": "a"
+                    }
+                ],
+                "queries": [
+                    {
+                        "name": "a",
+                        "qlType": "promql",
+                        "query": "deriv(ss_current_event_count[2m])*60"
+                    }
+                ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "unit": ""
+        }
+    ],
+    "timeRange": "Last 1 Hr"
+}

@@ -51,3 +51,8 @@ day_of_year(testmetric0),now-90d,now,"0,0,0",gt
 days_in_month(testmetric0),now-90d,now,"32,32,32",lt
 days_in_month(testmetric0),now-90d,now,"27,27,27",gt
 "predict_linear(testmetric0[48h], 100)",now-7d,now,"127.06355282392336,159.54968553618554",approx
+"(testmetric0) > 132",now-90d,now,"159.53343696489338",approx
+"(testmetric0) >= 131",now-90d,now,"131.45590577322224,159.53343696489338",approx
+"(testmetric0) < 131",now-90d,now,"127.06863068860355",approx
+"(testmetric0) <= 1000",now-90d,now,"131.45590577322224,127.06863068860355,159.53343696489338",approx
+"(testmetric0) != 1000",now-90d,now,"131.45590577322224,127.06863068860355,159.53343696489338",approx

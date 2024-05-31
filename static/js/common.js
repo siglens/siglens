@@ -77,13 +77,13 @@ let aggGridOptions = {
         resizable: true,
         sortable: true,
         icons: {
-            sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+            sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
         },
         cellRenderer: params => params.value ? params.value : 'null',
     },
     icons: {
-        sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+        sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
         sortDescending: '<i class="fa fa-sort-alpha-down"/>',
     }
 };
@@ -528,7 +528,7 @@ function runMetricsQuery(data, panelId, currentPanel, queryRes) {
     } else {
         $.ajax({
             method: 'post',
-            url: 'promql/api/ui/query',
+            url: 'metrics-explorer/api/v1/timeseries',
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
                 'Accept': '*/*'
@@ -568,21 +568,18 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
 
     if (res.series && res.series.length === 0) {
         panelProcessEmptyQueryResults("", panelId);
+        allResultsDisplayed--;
         $('body').css('cursor', 'default');
 	    $(`#panel${panelId} .panel-body #panel-loading`).hide();
     } else {
         if (chartType === 'number'){
-            $.each(res, function (key, value) {
-                var series = value;
-                $.each(series, function (key, value) {
-                    var tsmap = value
-                    $.each(tsmap, function (key, value) {
-                        if (value > 0){
-                            bigNumVal = value
-                        }
-                    })
-                })         
-            });   
+            $.each(res.values, function (index, valueArray) {
+                $.each(valueArray, function (index, value) {
+                    if (value > bigNumVal) {
+                        bigNumVal = value;
+                    }
+                });
+            }); 
             if(bigNumVal === undefined || bigNumVal === null){
                 panelProcessEmptyQueryResults("", panelId);
             }else{
@@ -595,53 +592,27 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
             } 
         } else {
             hideError();
-            const colors = createMetricsColorsArray();
             let seriesArray = [];
-            let label = [];
-            $.each(res, function (key, value) {
-                var series = value;
-                $.each(series, function (key, value) {
-                    seriesArray.push({ seriesName: key, values: value });
-                    label = [];
-                    $.each(value, function (k, v) {
-                        label.push(k);
-                    })
-                })
-                let gridLineColor;
-                let tickColor;
-                if ($('html').attr('data-theme') == "light") {
-                    gridLineColor = "#DCDBDF";
-                    tickColor = "#160F29";
-                }
-                else {
-                    gridLineColor = "#383148";
-                    tickColor = "#FFFFFF"
-                }
-                metricsDatasets = seriesArray.map((o, i) => {
-                    return {
-                        name: o.seriesName,
-                        data: Object.values(o.values),
-                        type: chartType,
-                        lineStyle: {
-                            color: colors[i],
-                            width: 2,
-                            type: 'solid',
-                            backgroundColor: colors[i],
-                            borderColor: colors[i],
-                        }, itemStyle: {
-                            color: colors[i],
-                            width: 2,
-                            type: 'solid',
-                            backgroundColor: colors[i],
-                            borderColor: colors[i],
-                        },
+            if (res.hasOwnProperty('series') && res.hasOwnProperty('timestamps') && res.hasOwnProperty('values')) {
+                for (let i = 0; i < res.series.length; i++) {
+                    let series = {
+                        seriesName: res.series[i],
+                        values: {}
+                    };
+        
+                    for (let j = 0; j < res.timestamps.length; j++) {
+                        // Convert epoch seconds to milliseconds by multiplying by 1000
+                        let timestampInMilliseconds = res.timestamps[j] * 1000;
+                        let localDate = new Date(timestampInMilliseconds);
+                        let formattedDate = localDate.toLocaleString();
+        
+                        series.values[formattedDate] = res.values[i][j];
                     }
+        
+                    seriesArray.push(series);
                 }
-                );
-            })
-            let labels = label;
-
-            renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, -1);
+            }
+            renderLineChart(seriesArray, panelId);
             allResultsDisplayed--;
             if(allResultsDisplayed <= 0 || panelId === -1) {
                 $('body').css('cursor', 'default');

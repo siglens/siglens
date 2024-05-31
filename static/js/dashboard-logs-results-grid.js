@@ -79,12 +79,12 @@ function getPanelGridOptions() {
             resizable: true,
             minWidth: 200,
             icons: {
-                sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+                sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
                 sortDescending: '<i class="fa fa-sort-alpha-down"/>',
             },
         },
         icons: {
-            sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+            sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
         },
         enableCellTextSelection: true,
@@ -239,13 +239,13 @@ function renderPanelAggsGrid(columnOrder, hits,panelId) {
             resizable: true,
             sortable: true,
             icons: {
-                sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+                sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
                 sortDescending: '<i class="fa fa-sort-alpha-down"/>',
             },
             cellRenderer: params => params.value ? params.value : 'null',
         },
         icons: {
-            sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+            sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
         }
     };

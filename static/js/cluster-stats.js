@@ -20,6 +20,8 @@
 'use strict';
 
 let EventCountChart;
+let TotalVolumeChartLogs;
+let TotalVolumeChartMetrics;
 $(document).ready(() => {
     $('#app-content-area').hide();
     setupEventHandlers();
@@ -72,14 +74,17 @@ function renderChart() {
         dataType: 'json',
         data: JSON.stringify(data)
     })
-        .then((res)=> {
+    .then(res => drawStatsChart(res, data, "logs")
+        .then(() => {
             $('#app-content-area').show();
-            drawStatsChart(res,data)
+            return drawStatsChart(res, data, "metrics");
         })
-        .catch(showCStatsError);
+    )
+    .catch(showCStatsError);
 }
 
-function drawStatsChart(res,data) {
+function drawStatsChart(res,data,chartType) {
+    return new Promise((resolve) => {
     let gridLineColor;
     let tickColor;
     if ($('html').attr('data-theme') == "light") {
@@ -103,30 +108,45 @@ function drawStatsChart(res,data) {
                 else{
                     dataPointsPerMin = (val.MetricsCount/(60*24));
                 }
-
-                GBCountData.push({
-                    x: bucketKey,
-                    y: val.GBCount
-                }),
-                EventCountData.push({
-                    x: bucketKey,
-                    y: val.EventCount
-                })
+                if (chartType === 'logs') {
+                    GBCountData.push({
+                        x: bucketKey,
+                        y: val.LogsGBCount 
+                    }),
+                    EventCountData.push({
+                        x: bucketKey,
+                        y: val.LogsEventCount
+                    })
+                } else if (chartType === 'metrics') {
+                    GBCountData.push({
+                        x: bucketKey,
+                        y: val.MetricsGBCount 
+                    }),
+                    EventCountData.push({
+                        x: bucketKey,
+                        y: val.MetricsDatapointsCount
+                    })
+                }
             })
-            if (GBCountChart !== undefined) {
-                GBCountChart.destroy();
-            }
-            if (EventCountChart !== undefined) {
-                EventCountChart.destroy();
-            }
-            GBCountChart = renderGBCountChart(GBCountData,gridLineColor,tickColor);
-            EventCountChart=renderEventCountChart(EventCountData,gridLineColor,tickColor);
+                // Destroy only the relevant charts to prevent overwriting
+                if (window[chartType + 'GBCountChart'] !== undefined) {
+                    window[chartType + 'GBCountChart'].destroy();
+                }
+                if (window[chartType + 'EventCountChart'] !== undefined) {
+                    window[chartType + 'EventCountChart'].destroy();
+                }
+
+            // Create charts and store in a global variable scoped by chart type
+            window[chartType + 'GBCountChart'] = renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType);
+            window[chartType + 'EventCountChart'] = renderEventCountChart(EventCountData, gridLineColor, tickColor, chartType);
         }
-    })
+    });
+    resolve();
+});
 }
 
-function renderGBCountChart(GBCountData,gridLineColor,tickColor) {
-    var GBCountChartCanvas = $("#GBCountChart").get(0).getContext("2d");
+function renderGBCountChart(GBCountData,gridLineColor,tickColor, chartType) {
+    var GBCountChartCanvas = $("#GBCountChart-" + chartType).get(0).getContext("2d");
    
     GBCountChart = new Chart(GBCountChartCanvas, {
         type: 'line',
@@ -228,15 +248,15 @@ function renderGBCountChart(GBCountData,gridLineColor,tickColor) {
     return GBCountChart;
 }
 
-function renderEventCountChart(EventCountData,gridLineColor,tickColor){
-    var EventCountCanvas = $("#EventCountChart").get(0).getContext("2d");
+function renderEventCountChart(EventCountData,gridLineColor,tickColor,chartType){
+    var EventCountCanvas = $("#EventCountChart-" + chartType).get(0).getContext("2d");
 
     EventCountChart = new Chart(EventCountCanvas, {
         type: 'line',
         data: {
             datasets: [
                 {
-                    label: 'Event Count',
+                    label: chartType === 'metrics' ? 'Metrics datapoints count' : 'Event Count',
                     data: EventCountData,
                     borderColor: ['rgb(99,71,217)'],
                     yAxisID: 'y',
@@ -284,7 +304,7 @@ function renderEventCountChart(EventCountData,gridLineColor,tickColor){
                     position: 'left',
                     title: {
                         display: true,
-                        text: 'Event Count'
+                        text: chartType === 'metrics' ? 'Metrics datapoints count' : 'Event Count',
                     },
                     grid: {
                         color: gridLineColor,
@@ -326,7 +346,7 @@ function renderEventCountChart(EventCountData,gridLineColor,tickColor){
 function drawTotalStatsChart(res) {
     var totalIncomingVolume, totalIncomingVolumeMetrics;
     var totalStorageUsed;
-    var totalStorageSaved;
+    var logStorageSaved, metricsStorageSaved;
     var totalStorageUsedMetrics;
     _.forEach(res, (mvalue, key) => {
         if (key === "ingestionStats") {
@@ -341,62 +361,55 @@ function drawTotalStatsChart(res) {
                 else if (k === 'Log Storage Used'){
                     totalStorageUsed = v;
                 }
-                else if (k === 'Storage Saved'){
-                    totalStorageSaved = v;
+                else if (k === 'Logs Storage Saved'){
+                    logStorageSaved = v;
+                } else if (k === 'Metrics Storage Saved'){
+                    metricsStorageSaved = v;
                 }
                 else if (k === 'Metrics Storage Used'){
                     totalStorageUsedMetrics = v;
                 }
             });
-            if (TotalVolumeChart !== undefined) {
-                TotalVolumeChart.destroy();
+            if (TotalVolumeChartLogs !== undefined) {
+                TotalVolumeChartLogs.destroy();
+            }
+            if (TotalVolumeChartMetrics !== undefined) {
+                TotalVolumeChartMetrics.destroy();
             }
 
-            TotalVolumeChart = renderTotalCharts(totalIncomingVolume, totalIncomingVolumeMetrics, totalStorageUsed, totalStorageUsedMetrics)
-                return TotalVolumeChart
+            TotalVolumeChartLogs = renderTotalCharts('Logs', totalIncomingVolume, totalStorageUsed);
+            TotalVolumeChartMetrics = renderTotalCharts('Metrics', totalIncomingVolumeMetrics, totalStorageUsedMetrics);
         }
     });
-
-    let el = $('.storage-savings-container');
-    el.append(`<div class="storage-savings-percent">${Math.round(totalStorageSaved * 10) / 10}%`);
-
-    
+    let elLogs = $('.logs-container .storage-savings-container');
+    let elMetrics = $('.metrics-container .storage-savings-container');
+    elLogs.append(`<div class="storage-savings-percent">${Math.round(logStorageSaved * 10) / 10}%`);
+    elMetrics.append(`<div class="storage-savings-percent">${Math.round(metricsStorageSaved * 10) / 10}%`);
 }
 
-function renderTotalCharts(totalIncomingVolume, totalIncomingVolumeMetrics, totalStorageUsed, totalStorageUsedMetrics) {
-    var TotalVolumeChartCanvas = $("#TotalVolumeChart").get(0).getContext("2d");
-    TotalVolumeChart = new Chart(TotalVolumeChartCanvas, {
+function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
+    var TotalVolumeChartCanvas = $(`#TotalVolumeChart-${label.toLowerCase()}`).get(0).getContext("2d");
+    var TotalVolumeChart = new Chart(TotalVolumeChartCanvas, {
         type: 'bar',
         data: {
             labels: ['Incoming Volume','Storage Used'],
             datasets: [
                 {
-                    
-                    label: 'Logs' ,
+                    label: label,
                     data: [parseFloat(totalIncomingVolume),parseFloat(totalStorageUsed)],
                     backgroundColor: ['rgba(99, 72, 217)'],
                     borderWidth: 1,
                     categoryPercentage: 0.8,
                     barPercentage: 0.8,
-                    
-                },
-                {
-                    label:'Metrics' ,
-                    data: [parseFloat(totalIncomingVolumeMetrics),parseFloat(totalStorageUsedMetrics)],
-                    backgroundColor: ['rgb(255,1,255)'],
-                    borderWidth: 1, 
-                    categoryPercentage: 0.8,
-                    barPercentage: 0.8,
-                    
-                },
+                }
             ]
         },
         options: {  
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
             plugins: {
                 legend: {
-                    position: 'top'
+                    display: false
                 },
                 tooltip: {
                     callbacks: {
@@ -422,20 +435,7 @@ function renderTotalCharts(totalIncomingVolume, totalIncomingVolumeMetrics, tota
                 x: {
                     ticks: {
                         callback: function (val, index, ticks) {
-                            let value = this.getLabelForValue(val);
-                            if (value && value.indexOf('T') > -1) {
-                                let parts = value.split('T');
-                                let xVal = "T" + parts[1];
-                                return xVal;
-                            } else {
-                                if (value) {
-                                    let parts = value.split('-');
-                                    if (parts.length > 1) {
-                                        let xVal = parts[1] + "-" + parts[2];
-                                        return xVal;
-                                    }
-                                }
-                            }
+                            return ['Incoming Volume', 'Storage Used'][index];
                         }
                     },
                     title: {
@@ -495,7 +495,20 @@ function processClusterStats(res) {
         ''
     ];
 
-    let indexdataTableColumns = columnOrder.map((columnName, index) => {
+    let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', ''];
+    let metricsColumnOrder = ['Index Name', 'Incoming Volume', 'Datapoint Count'];
+
+    let indexdataTableColumns = indexColumnOrder.map((columnName, index) => {
+        let title = `<div class="grid"><div>${columnName}&nbsp;</div><div><i data-index="${index}"></i></div></div>`;
+        return {
+            title: title,
+            name: columnName,
+            visible: true,
+            defaultContent: ``,
+        };
+    });
+
+    let metricsdataTableColumns = metricsColumnOrder.map((columnName, index) => {
         let title = `<div class="grid"><div>${columnName}&nbsp;</div><div><i data-index="${index}"></i></div></div>`;
         return {
             title: title,
@@ -507,7 +520,6 @@ function processClusterStats(res) {
 
     const commonDataTablesConfig = {
         bPaginate: true,
-        columns: indexdataTableColumns,
         autoWidth: false,
         colReorder: false,
         scrollX: false,
@@ -521,10 +533,16 @@ function processClusterStats(res) {
         columnDefs: [],
         data: []
     };
-    
-    let indexDataTable = $('#index-data-table').DataTable(commonDataTablesConfig);
-    let metricsDataTable = $('#metrics-data-table').DataTable(commonDataTablesConfig);
-    
+
+    let indexDataTable = $('#index-data-table').DataTable({
+        ...commonDataTablesConfig,
+        columns: indexdataTableColumns
+    });
+
+    let metricsDataTable = $('#metrics-data-table').DataTable({
+        ...commonDataTablesConfig,
+        columns: metricsdataTableColumns
+    });
     function displayIndexDataRows(res) {
         let totalIngestVolume = 0;
         let totalEventCount = 0;

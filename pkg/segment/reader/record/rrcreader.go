@@ -54,6 +54,12 @@ func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
 	return nr
 }
 
+func deleteNodeResForQid(qid uint64) {
+	mapMutex.Lock()
+	delete(nodeResMap, qid)
+	mapMutex.Unlock()
+}
+
 func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint16]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
@@ -383,7 +389,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	}
 
 	if nodeRes.RecsAggsProcessedSegments >= numTotalSegments {
-		delete(nodeResMap, qid)
+		deleteNodeResForQid(qid)
 	}
 
 	finalRecords, colsSlice := finalizeRecords(allRecords, finalCols, colsIndexMap, numProcessedRecords, recsAggRecords, transactionArgsExist)
