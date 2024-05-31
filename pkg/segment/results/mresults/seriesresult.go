@@ -244,7 +244,10 @@ func (dss *DownsampleSeries) Aggregate(grpID string) (string, map[uint32]float64
 // However, for different vectors, since the groupID string is concatenated from tag key-value pairs, we cannot guarantee the order of concatenation.
 // Therefore, we can regenerate the groupID string according to the dictionary order of the tag keys
 func sortGroupIDByTagKeyOrder(groupIDStr string) string {
-	re := regexp.MustCompile(`(.*)\{(.*)`)
+	re, err := regexp.Compile(`(.*)\{(.*)`)
+	if err != nil {
+		return groupIDStr
+	}
 
 	metricName := ""
 	labelSetStr := ""
@@ -256,7 +259,7 @@ func sortGroupIDByTagKeyOrder(groupIDStr string) string {
 		return groupIDStr
 	}
 
-	re, err := regexp.Compile(`(\w+):(\w+)`)
+	re, err = regexp.Compile(`(.+):(.+)`)
 	if err != nil {
 		return groupIDStr
 	}
@@ -275,7 +278,7 @@ func sortGroupIDByTagKeyOrder(groupIDStr string) string {
 
 	newGroupIDStr := metricName + "{"
 	for _, strs := range labelPairs {
-		newGroupIDStr += (strs[0] + ":" + strs[1] + ",")
+		newGroupIDStr += (strs[0] + ":" + strs[1])
 	}
 
 	return newGroupIDStr
