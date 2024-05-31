@@ -267,6 +267,7 @@ const (
 	LetDivide
 	LetMultiply
 	LetModulo
+	LetPower
 	LetEquals
 	LetNotEquals
 	LetLessThan
