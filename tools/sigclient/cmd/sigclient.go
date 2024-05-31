@@ -276,7 +276,7 @@ func init() {
 	queryCmd.PersistentFlags().BoolP("randomQueries", "", false, "generate random queries")
 	queryCmd.PersistentFlags().StringP("query", "q", "", "promql query to run")
 
-	metricsBenchCmd.PersistentFlags().IntP("numQueryIterations", "n", 1, "Number of query iteratoins loop")
+	metricsBenchCmd.PersistentFlags().IntP("numQueryIterations", "n", 1, "Number of query iterations loop")
 
 	queryCmd.AddCommand(esQueryCmd)
 	queryCmd.AddCommand(metricsQueryCmd)
