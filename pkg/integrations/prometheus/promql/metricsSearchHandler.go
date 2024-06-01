@@ -753,15 +753,6 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	WriteJsonResponse(ctx, &res)
-	ctx.SetContentType(ContentJson)
-	ctx.SetStatusCode(fasthttp.StatusOK)
-
-	if res.AllSeries == nil {
-		log.Infof("Mani: ProcessGetMetricTimeSeriesRequest: AllSeries is nil")
-		return
-	}
-
 	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
 	if err != nil {
 		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid: %v", qid), err)
