@@ -1051,6 +1051,8 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow}
 				case "present_over_time":
 					mquery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow}
+				case "mad_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Mad_Over_Time, TimeWindow: timeWindow}
 				case "quantile_over_time":
 					if len(expr.Args) != 2 {
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the quantile_over_time function", expr.Args.String())
@@ -1256,6 +1258,10 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 
 func getLogicalAndArithmeticOperation(op parser.ItemType) segutils.LogicalAndArithmeticOperator {
 	switch op {
+	case parser.MOD:
+		return segutils.LetModulo
+	case parser.POW:
+		return segutils.LetPower
 	case parser.ADD:
 		return segutils.LetAdd
 	case parser.SUB:
@@ -1276,6 +1282,8 @@ func getLogicalAndArithmeticOperation(op parser.ItemType) segutils.LogicalAndAri
 		return segutils.LetEquals
 	case parser.NEQ:
 		return segutils.LetNotEquals
+	case parser.ATAN2:
+		return segutils.LetAtan2
 	default:
 		log.Errorf("getArithmeticOperation: unexpected op: %v", op)
 		return 0

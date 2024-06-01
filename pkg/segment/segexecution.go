@@ -152,7 +152,26 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 						if valueLHS != valueRHS {
 							finalResult[groupID][timestamp] = valueLHS
 						}
+					case utils.LetModulo:
+						if swapped {
+							finalResult[groupID][timestamp] = math.Mod(valueRHS, valueLHS)
+						} else {
+							finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
+						}
+					case utils.LetPower:
+						if swapped {
+							finalResult[groupID][timestamp] = math.Pow(valueRHS, valueLHS)
+						} else {
+							finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
+						}
+					case utils.LetAtan2:
+						if swapped {
+							finalResult[groupID][timestamp] = math.Atan2(valueRHS, valueLHS)
+						} else {
+							finalResult[groupID][timestamp] = math.Atan2(valueLHS, valueRHS)
+						}
 					}
+
 				}
 			}
 
@@ -200,6 +219,12 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 						if valueLHS != valueRHS {
 							finalResult[groupID][timestamp] = valueLHS
 						}
+					case utils.LetModulo:
+						finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
+					case utils.LetPower:
+						finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
+					case utils.LetAtan2:
+						finalResult[groupID][timestamp] = math.Atan2(valueLHS, valueRHS)
 					}
 				}
 			}

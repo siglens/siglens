@@ -407,6 +407,152 @@ func TestCalculateInterval(t *testing.T) {
 	}
 }
 
+func Test_GetResults_Modulo(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    52.5,
+			3600: 23,
+			7200: -7.5,
+		},
+		map[uint32]float64{
+			0:    2.5,
+			3600: 3,
+			7200: -2.5,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetModulo,
+				Constant:   5,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_Power(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    2,
+			7200: -10,
+		},
+		map[uint32]float64{
+			0:    4,
+			7200: 100,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetPower,
+				Constant:   2,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+// Todo: Need to curve values of original answer?
+func Test_GetResults_Atan2_First_And_Fourth_Quadrant(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    1,
+			3600: 0,
+			7200: -1,
+		},
+		map[uint32]float64{
+			0:    0.4636476090008061,
+			3600: 0,
+			7200: -0.4636476090008061,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetAtan2,
+				Constant:   2,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+// Todo: Need to curve values of original answer?
+func Test_GetResults_Atan2_Second_And_Third_Quadrant(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    1,
+			3600: 0,
+			7200: -1,
+		},
+		map[uint32]float64{
+			0:    2.677945044588987,
+			3600: 3.141592653589793,
+			7200: -2.677945044588987,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetAtan2,
+				Constant:   -2,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+// Todo: Need to curve values of original answer?
+func Test_GetResults_Atan2_With_Decimal_Values(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    2.46,
+			3600: 1000.4567,
+			7200: -400.12,
+		},
+		map[uint32]float64{
+			0:    2.2534188792121137,
+			3600: 1.5727954111488458,
+			7200: -1.5757947856161965,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetAtan2,
+				Constant:   -2,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggreation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
 func Test_GetResults_GreaterThan(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{

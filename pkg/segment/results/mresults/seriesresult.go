@@ -677,6 +677,8 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[key] = math.Sqrt(val)
 		}
 		return ts, nil
+	case segutils.Mad_Over_Time:
+		return evaluateMADOverTime(sortedTimeSeries, ts, timeWindow), nil
 	case segutils.Last_Over_Time:
 		// If we take the very last sample from every element of a range vector, the resulting vector will be identical to a regular instant vector query.
 		return ts, nil
@@ -1074,6 +1076,60 @@ func evaluateStandardVariance(sortedTimeSeries []Entry, ts map[uint32]float64, t
 		ts[sortedTimeSeries[i].downsampledTime] = sumValSquare / float64(i-preIndex+1)
 	}
 	return ts
+}
+
+// MAD Over Time
+func evaluateMADOverTime(sortedTimeSeries []Entry, ts map[uint32]float64, timeWindow uint32) map[uint32]float64 {
+	for i := range sortedTimeSeries {
+		// Define the start time of the window for the current entry
+		timeWindowStartTime := sortedTimeSeries[i].downsampledTime
+		if timeWindow < sortedTimeSeries[i].downsampledTime {
+			timeWindowStartTime -= timeWindow
+		} else {
+			// Case where the window calculation might underflow
+			ts[sortedTimeSeries[i].downsampledTime] = 0
+			continue
+		}
+		// Index of the first entry within the time window
+		preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+			return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+		})
+
+		if preIndex >= i { // Check if there is no previous data point within the window
+			ts[sortedTimeSeries[i].downsampledTime] = 0
+			continue
+		}
+
+		// All values within the time window
+		values := make([]float64, 0, i-preIndex+1)
+		for j := preIndex; j <= i; j++ {
+			values = append(values, sortedTimeSeries[j].dpVal)
+		}
+
+		// Median of these values
+		median := computeMedian(values)
+		// Absolute deviations from the median
+		deviations := make([]float64, len(values))
+		for k, v := range values {
+			deviations[k] = math.Abs(v - median)
+		}
+
+		// Median of the absolute deviations
+		mad := computeMedian(deviations)
+		// Store the MAD in the result map
+		ts[sortedTimeSeries[i].downsampledTime] = mad
+	}
+	return ts
+}
+
+// Median Calculation
+func computeMedian(values []float64) float64 {
+	sort.Float64s(values)
+	n := len(values)
+	if n%2 == 0 {
+		return (values[n/2-1] + values[n/2]) / 2
+	}
+	return values[n/2]
 }
 
 func getSlopeByLinearRegression(sortedTimeSeries []Entry, preIndex int, i int) float64 {

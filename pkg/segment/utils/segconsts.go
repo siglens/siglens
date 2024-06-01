@@ -267,12 +267,14 @@ const (
 	LetDivide
 	LetMultiply
 	LetModulo
+	LetPower
 	LetEquals
 	LetNotEquals
 	LetLessThan
 	LetLessThanOrEqualTo
 	LetGreaterThan
 	LetGreaterThanOrEqualTo
+	LetAtan2
 )
 
 type AggregateFunctions int
@@ -352,6 +354,7 @@ const (
 	Count_Over_Time
 	Stdvar_Over_Time
 	Stddev_Over_Time
+	Mad_Over_Time
 	Last_Over_Time
 	Present_Over_Time
 	Quantile_Over_Time

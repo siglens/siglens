@@ -390,6 +390,13 @@ const metricFunctions = `[
 		"desc": "The value 1 for any series in the specified interval.", 
 		"eg": "present_over_time(avg (system.disk.used[5m]))",
 		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "mad_over_time", 
+		"name": "Median Absolute deviation Over Time", 
+		"desc": "The median absolute deviation of all points in the specified interval.", 
+		"eg": "mad_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
 	}
 ]`
 
