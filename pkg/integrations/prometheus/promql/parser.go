@@ -2,6 +2,7 @@ package promql
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/cespare/xxhash"
 	"github.com/prometheus/prometheus/model/labels"
@@ -53,6 +54,25 @@ func extractTimeWindow(args parser.Expressions) (float64, float64, error) {
 		}
 	}
 	return 0, 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
+}
+
+func convertPromQLToMetricsQuery(query string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
+	mQueryReqs, pqlQuerytype, queryArithmetic, err := parsePromQLQuery(query, startTime, endTime, myid)
+	if err != nil {
+		return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
+	}
+
+	metricQueryRequests := make([]structs.MetricsQueryRequest, 0)
+	for _, mQueryReq := range mQueryReqs {
+		metricQueryRequests = append(metricQueryRequests, *mQueryReq)
+	}
+
+	queryArithmetics := make([]structs.QueryArithmetic, 0)
+	for _, queryArithmetic := range queryArithmetic {
+		queryArithmetics = append(queryArithmetics, *queryArithmetic)
+	}
+
+	return metricQueryRequests, pqlQuerytype, queryArithmetics, nil
 }
 
 func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*structs.MetricsQueryRequest, parser.ValueType, []*structs.QueryArithmetic, error) {
@@ -213,6 +233,21 @@ func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryReq
 	return mQueryReqs, queryArithmetic, exit, err
 }
 
+// To check if the current Expr or nested Expr contains a AggregateExpr
+func hasNestedAggregateExpr(expr parser.Expr) bool {
+	var isAggregateExpr bool
+
+	parser.Inspect(expr, func(node parser.Node, _ []parser.Node) error {
+		if _, ok := node.(*parser.AggregateExpr); ok {
+			isAggregateExpr = true
+			return fmt.Errorf("hasNestedAggregateExpr: Found AggregateExpr") // Break the Inspect
+		}
+		return nil
+	})
+
+	return isAggregateExpr
+}
+
 func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuery) (*structs.MetricQueryAgg, error) {
 	aggFunc := expr.Op.String()
 
@@ -243,6 +278,10 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		return nil, fmt.Errorf("handleAggregateExpr: unsupported aggregation function %v", aggFunc)
 	}
 
+	// if True, it implies that there is a nested AggregateExpr in the current Expr
+	// And this group by Aggregation should not be done on the initial Aggregation.
+	hasAggExpr := hasNestedAggregateExpr(expr.Expr)
+
 	// Handle grouping
 	for _, group := range expr.Grouping {
 		tagFilter := structs.TagsFilter{
@@ -251,12 +290,15 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 			HashTagValue:    xxhash.Sum64String("*"),
 			TagOperator:     segutils.TagOperator(segutils.Equal),
 			LogicalOperator: segutils.And,
+			NotInitialGroup: hasAggExpr,
 		}
 		mQuery.TagsFilters = append(mQuery.TagsFilters, &tagFilter)
 	}
 	if len(expr.Grouping) > 0 {
 		mQuery.Groupby = true
 	}
+
+	mQuery.Aggregator.GroupByFields = sort.StringSlice(expr.Grouping)
 
 	mQueryAgg := &structs.MetricQueryAgg{
 		AggBlockType:    structs.AggregatorBlock,

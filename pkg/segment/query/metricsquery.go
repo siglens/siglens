@@ -107,6 +107,8 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 
+	mRes.MetricName = mQuery.MetricName
+
 	errors = mRes.AggregateResults(parallelism)
 	if errors != nil {
 		for _, err := range errors {
@@ -116,13 +118,30 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 
-	errors = mRes.ApplyFunctionsToResults(parallelism, mQuery.Function)
-	if errors != nil {
-		for _, err := range errors {
-			mRes.AddError(err)
+	for mQuery.MQueryAggs != nil {
+		if mQuery.MQueryAggs.AggBlockType == structs.FunctionBlock {
+			mQuery.Function = *mQuery.MQueryAggs.FunctionBlock
+			errors = mRes.ApplyFunctionsToResults(parallelism, mQuery.Function)
+			if errors != nil {
+				for _, err := range errors {
+					mRes.AddError(err)
+				}
+
+				return mRes
+			}
+		} else if mQuery.MQueryAggs.AggBlockType == structs.AggregatorBlock {
+			mQuery.Aggregator = *mQuery.MQueryAggs.AggregatorBlock
+			errors = mRes.ApplyAggregationToResults(parallelism, mQuery.Aggregator)
+			if errors != nil {
+				for _, err := range errors {
+					mRes.AddError(err)
+				}
+
+				return mRes
+			}
 		}
 
-		return mRes
+		mQuery.MQueryAggs = mQuery.MQueryAggs.Next
 	}
 
 	return mRes

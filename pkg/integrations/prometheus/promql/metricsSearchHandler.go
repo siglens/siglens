@@ -725,7 +725,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPqlToMetricsQuery(finalSearchText, start, end, myid)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPromQLToMetricsQuery(finalSearchText, start, end, myid)
 	if err != nil {
 		utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, finalSearchText), err)
 		return
@@ -750,6 +750,15 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 		allErrors := strings.Join(errorMessages, "; ")
 		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid: %v", qid), fmt.Errorf(allErrors))
+		return
+	}
+
+	WriteJsonResponse(ctx, &res)
+	ctx.SetContentType(ContentJson)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+
+	if res.AllSeries == nil {
+		log.Infof("Mani: ProcessGetMetricTimeSeriesRequest: AllSeries is nil")
 		return
 	}
 
