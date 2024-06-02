@@ -436,6 +436,122 @@ func Test_GetResults_Modulo(t *testing.T) {
 	)
 }
 
+func Test_GetResults_Addition(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    10,
+			3600: 20,
+			7200: 30,
+		},
+		map[uint32]float64{
+			0:    15,
+			3600: 25,
+			7200: 35,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetAdd,
+				Constant:   5,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_Subtraction(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    10,
+			3600: 20,
+			7200: 30,
+		},
+		map[uint32]float64{
+			0:    5,
+			3600: 15,
+			7200: 25,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetSubtract,
+				Constant:   5,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_Multiplication(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    2,
+			3600: 3,
+			7200: 4,
+		},
+		map[uint32]float64{
+			0:    10,
+			3600: 15,
+			7200: 20,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetMultiply,
+				Constant:   5,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_Division(t *testing.T) {
+	test_GetResults_Ops(t,
+		map[uint32]float64{
+			0:    10,
+			3600: 20,
+			7200: 30,
+		},
+		map[uint32]float64{
+			0:    2,
+			3600: 4,
+			7200: 6,
+		},
+		[]structs.QueryArithmetic{
+			{
+				LHS:        1,
+				ConstantOp: true,
+				Operation:  utils.LetDivide,
+				Constant:   5,
+			},
+		},
+		structs.Downsampler{
+			Interval:   1,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
 func Test_GetResults_Power(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
