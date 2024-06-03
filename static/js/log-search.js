@@ -142,6 +142,23 @@ $(document).ready(async () => {
           $(this).val("");
         }
     });
+
+    function autoResizeTextarea() {
+        this.style.height = 'auto'; // Reset the height
+        this.style.height = this.scrollHeight + 'px'; // Set it to the scroll height
+    }
+
+    $("#filter-input").on('focus', function() {
+        $(this).addClass('expanded');
+        autoResizeTextarea.call(this); // Adjust height when focused
+    });
+
+    $("#filter-input").on('blur', function() {
+        $(this).removeClass('expanded');
+        this.style.height = '32px'; // Reset to initial height on blur
+    });
+
+    $("#filter-input").on('input', autoResizeTextarea);
 });
 function displayQueryLangToolTip(selectedQueryLangID) {
     $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
@@ -175,31 +192,31 @@ $("#clearInput").click(function() {
     $(this).hide();
 });
 
-/*
-Function to clear the query input field, search filter tags, and related elements
-*/
-function clearQueryInput() {
-    // Clear the query input field
-    $("#query-input").val("*").focus();
+// /*
+// Function to clear the query input field, search filter tags, and related elements
+// */
+// function clearQueryInput() {
+//     // Clear the query input field
+//     $("#query-input").val("*").focus();
 
-    // Hide the clear button for the query input field if it's empty
-    if ($("#query-input").val().trim() !== "") {
-        $("#clear-query-btn").show();
-    } else {
-        $("#clear-query-btn").hide();
-    }
+//     // Hide the clear button for the query input field if it's empty
+//     if ($("#query-input").val().trim() !== "") {
+//         $("#clear-query-btn").show();
+//     } else {
+//         $("#clear-query-btn").hide();
+//     }
 
-    // Clear all search filter tags and related elements
-    $("#tags, #tags-second, #tags-third").empty();
-    firstBoxSet.clear();
-    secondBoxSet.clear();
-    thirdBoxSet.clear();
+//     // Clear all search filter tags and related elements
+//     $("#tags, #tags-second, #tags-third").empty();
+//     firstBoxSet.clear();
+//     secondBoxSet.clear();
+//     thirdBoxSet.clear();
 
-    // Show the default text for search filters, aggregation attribute, and aggregations
-    $("#search-filter-text, #aggregate-attribute-text, #aggregations").show();
-}
+//     // Show the default text for search filters, aggregation attribute, and aggregations
+//     $("#search-filter-text, #aggregate-attribute-text, #aggregations").show();
+// }
 
-// Event handler for the clear button associated with the query input field
-$("#clear-query-btn").click(function() {
-    clearQueryInput();
-});
+// // Event handler for the clear button associated with the query input field
+// $("#clear-query-btn").click(function() {
+//     clearQueryInput();
+// });

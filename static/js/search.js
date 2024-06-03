@@ -386,7 +386,7 @@
             let tag = document.createElement("li");
             tag.innerText = value;
             // Add a delete button to the tag
-            tag.innerHTML += '<button class="delete-button">x</button>';
+            tag.innerHTML += '<button class="delete-button">×</button>';
             // Append the tag to the tags list
             tags.appendChild(tag);
           });
@@ -400,7 +400,7 @@
             let tag = document.createElement("li");
             tag.innerText = value;
             // Add a delete button to the tag
-            tag.innerHTML += '<button class="delete-button">x</button>';
+            tag.innerHTML += '<button class="delete-button">×</button>';
             // Append the tag to the tags list
             tags.appendChild(tag);
           });
@@ -414,7 +414,7 @@
             let tag = document.createElement("li");
             tag.innerText = value;
             // Add a delete button to the tag
-            tag.innerHTML += '<button class="delete-button">x</button>';
+            tag.innerHTML += '<button class="delete-button">×</button>';
             // Append the tag to the tags list
             
             tags.appendChild(tag);

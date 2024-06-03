@@ -32,6 +32,7 @@
     --code-input-box-color: var(--black-1);
     --qb-input-box-color: var(--black-2);
     --qb-box-bg: var(--black-1);
+    --selected-filter: #2D69BC;
     }
 
 [data-theme='light'] {
@@ -45,17 +46,22 @@
     --code-input-box-color: var(--white-1);
     --qb-input-box-color: var(--white-1);
     --qb-box-bg: var(--white-0);
+    --selected-filter: var(--blue-1);
     }
 #query-language-btn{
     margin-left: 5px;
+    width: 106px;
+    height: 32px;
+    border-radius: 2px;
 }
 #filter-container {
     margin: 0;
-    margin-top: 10px;
+    /* margin-top: 10px; */
     background-color: var(--top-bar-bg-color-regular);
-    height: 32px;
-    display: block;
+    display: flex;
+    flex-wrap: wrap;
     border-radius: 5px;
+    height: auto;
 }
 #add-logs-to-db-btn,
 #alert-from-logs-btn{
@@ -75,6 +81,7 @@
 }
 .dashboard-box{
     height: 100vh;
+    padding: 20px;
 }
 .save-query-div{
     margin-bottom: 10px;
@@ -117,9 +124,10 @@ input.form-control {
 
 .filter-box ul {
     list-style: none;
-    margin: 5px 0 0 0;
-    width: 0;
+    margin: 0px;
     flex: 1;
+    flex-wrap: wrap;
+    height: auto;
     overflow-x: auto;
     padding-left: 5px;
     scrollbar-width: none;
@@ -133,15 +141,17 @@ input.form-control {
 .filter-box li {
     display: flex;
     flex-direction: row;
-    background-color: var(--filter-color);
     color: var(--text-color);
-    border-radius: 5px;
-    padding: 0px 7px;
+    /* border-radius: 5px; */
+    background-color: var(--selected-filter);
+    padding: 0px 5px;
     margin-right: 5px;
-    margin-bottom: 5px;
+    height: 30px;
+    /* margin-bottom: 5px; */
+    align-items: center;
     white-space: nowrap;
     font-size: 14px;
-    border: 1px solid var(--border-switch);
+    /* border: 1px solid var(--border-switch); */
 }
 
 .tags-input input[type="text"] {
@@ -158,6 +168,8 @@ input.form-control {
     border: none;
     color: var(--purple-3);
     background: none;
+    font-size: 18px !important;
+    margin-left: 2px;
 }
 
 .display-rule {
@@ -182,14 +194,23 @@ input.form-control {
 
 .filter-box {
     border: 1px solid var(--border-btn-color);
-    background: var(--qb-input-box-color) !important;
-    border-radius: 4px;
-    height: 32px;
+    /* background: var(--qb-input-box-color) !important; */
+    border-radius: 2px;
+    min-height: 32px;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
     overflow: hidden;
+    cursor: text;
+    padding-right: 10px;
+}
+
+.builder-div{
+    background-color: var(--drop-down-btn-bg-regular);
+    padding: 4px 12px;
+    border: 1px solid var(--border-btn-color);
+    height: 32px;
 }
 
 .completed,
@@ -209,8 +230,8 @@ input.form-control {
 .symbol,
 .value-first,
 .column-first {
-    width: 120px;
-    height: 32px;
+    min-width: 120px;
+    height: 30px;
     color: var(--text-color) !important;
     margin-right: 5px;
 }
@@ -227,15 +248,16 @@ input.form-control {
 
 .filter-con {
     position: relative;
-    width: 100%;
+    min-width: 300px;
+    display: inline-block;
 }
 
-.third-enter {
+/* .third-enter {
     display: flex;
     height: 43px;
     flex-direction: row;
     justify-content: space-between;
-}
+} */
 
 .column-third {
     width: 100% !important;
@@ -245,47 +267,56 @@ input.form-control {
 
 .third-box {
     width: 100%;
-    margin: -1px;
+    /* margin: -1px; */
 }
 
 .second-enter {
-    margin-right: 10px;
+    /* margin-right: 10px; */
 }
 
 .add-filter {
     position: absolute;
-    top: 42px;
-    border-style: solid;
-    border-color: var(--border-switch);
-    border-radius: 4px;
-    height: 40px;
+    /* top: 34px; */
+    border: 1px solid var(--border-btn-color);
+    border-radius: 2px;
+    height: 37px;
     display: flex;
     flex-direction: row;
     align-items: center;
-    padding: 0 5px;
-    background-color: var(--border-btn-color);
-    width: 100%;
+    padding: 0 4px;
+    background: var(--code-input-box-color);
     visibility: hidden;
     z-index: 100;
     font-size: 16px;
 }
 
 .ui-autocomplete {
-    height: 150px !important;
+    max-height: 170px !important;
     overflow-y: scroll;
     overflow-x: hidden;
     border-radius: 3px !important;
     font-size: 14px !important;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
 }
 
 .ui-menu {
     width: 120px !important;
     font-size: 14px !important;
 }
+  
+.ui-state-hover,
+.ui-state-active,
+.ui-state-focus {
+    color: #ffffff;
+    text-decoration: none;
+    background-color: #2D69BC;
+    cursor: pointer;
+    height: 34px;
+}
 
-.ui-menu-item:hover {
+/* .ui-menu-item:hover {
     background-color: #6347D9 !important;
     transition-delay: 0S !important;
     border: none !important;
@@ -297,7 +328,7 @@ input.form-control {
     transition-delay: 0S !important;
     border: none !important;
     color: var(--white-0) !important;
-}
+} */
 
 .ui-menu-item .ui-menu-item-wrapper {
     background: var(--ui-widget-bg-color);
@@ -307,6 +338,7 @@ input.form-control {
 .ui-menu.ui-widget.ui-widget-content.ui-autocomplete.ui-front{
     width: max-content!important;
     min-width: 120px;
+    border: 1px solid var(--ui-widget-border-color);
 }
 
 .ui-tabs-tab {
@@ -321,6 +353,7 @@ input.form-control {
 
 .ui-tabs .ui-tabs-panel {
     padding: 0 !important;
+    width: 100%;
 }
 
 .ui-tabs ui-tabs-nav li {
@@ -378,9 +411,12 @@ input.form-control {
 }
 
 .tab-list {
-    margin: 10px 24px 0 23px !important;
-    width: 220px;
-    height: 30px;
+    /* margin-left: auto !important;
+    margin-top: 10px !important;
+    margin-right: 10px !important; */
+    margin: 10px 0px 10px auto !important;
+    width: 178px;
+    height: 26px;
     border-radius: 5px;
     background: var(--myOrg-input);
     display: flex;
@@ -391,10 +427,9 @@ input.form-control {
 .dropdown-box {
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
-    position: absolute;
-    right: 28px;
-    top: 10px;
+    justify-content: flex-end;
+    /* margin-top: 10px;
+    margin-right: 10px; */
 }
 
 .tab-li {
@@ -438,6 +473,7 @@ a:visited.ui-button,
 .ui-state-active a:link,
 .ui-state-active a:visited {
     color: var(--text-color) !important;
+    padding: 2px 5px !important;
 }
 
 .ui-state-hover {
@@ -448,9 +484,20 @@ a:visited.ui-button,
 .ui-tabs .ui-tabs-nav li {
     margin: 0;
     background: var(--myOrg-input) !important;
-    height: 22px;
-    font-size: 14px;
-    margin-top: 2px;
+    height: 20px;
+    font-size: 12px;
+    /* margin-top: 2px; */
+}
+.tab-chart-list .tab-li{
+    margin: 0;
+    background: var(--myOrg-input) !important;
+    height: 22px !important;
+    font-size: 14px !important;
+    margin-top: 2px !important;
+}
+.ui-tabs .ui-tabs-nav .ui-tabs-anchor{
+    padding: 2px 5px;
+    outline: none;
 }
 
 #index-btn,
@@ -471,6 +518,10 @@ a:visited.ui-button,
     border: 1px solid var(--border-switch);
 }
 
+.cancel-enter{
+    font-size: 22px !important;
+}
+
 .add-con {
     border: 1px solid var(--border-btn-color);
 }
@@ -488,12 +539,13 @@ a:visited.ui-button,
 }
 
 .filter-info {
-    box-shadow: 0px 2px 8px 0px var(--border-shadow);
+    /* box-shadow: 0px 2px 8px 0px var(--border-shadow);
     border: 1px solid var(--border-btn-color);
-    border-radius: 10px;
-    margin: 8px 24px 0 24px;
-    padding: 5px 10px;
-    background-color: var(--qb-box-bg);
+    border-radius: 10px; */
+    /* margin: 8px 24px 0 24px; */
+    display: flex;
+    /* padding: 5px 10px; */
+    /* background-color: var(--qb-box-bg); */
 }
 
 .query-text,
@@ -502,9 +554,28 @@ a:visited.ui-button,
 #filter-input.form-control{
     font-family: "DINpro", Arial, sans-serif !important;
 }
+#filter-input.form-control, 
+textarea.form-control{
+    min-height: 32px;
+    box-sizing: border-box;
+    resize: none; 
+    overflow: hidden; 
+    transition: height 0.3s; 
+    /* white-space: nowrap;  */
+}
+textarea.form-control:focus{
+    box-shadow: none;
+    box-shadow: var(--box-shadow);
+    border-bottom: 2px solid var(--purple-2) !important;
+}
+#filter-input.form-control.expanded, textarea.form-control.expanded {
+    white-space: pre-wrap;
+}
 .ui-widget{
     height: auto;
     width: auto;
+    padding: 0px;
+    /* margin-left: 10px; */
 }
 
 .ui-autocomplete::-webkit-scrollbar {
@@ -585,9 +656,9 @@ a:visited.ui-button,
 }
 .filter-container {
     display: flex;
-    margin-top: 6px;
-    margin-left: 20px;
-    margin-right: 24px;
+    /* margin-top: 6px;
+    margin-left: 10px; */
+    margin-right: 10px;
     background-color: var(--top-bar-bg-color-regular);
 }
 .search-bar-container{
@@ -649,7 +720,7 @@ div.show-record-popup {
     background-color: var(--border-btn-color);
 }
 .custom-chart-tab{
-    padding: 0 26px;
+    /* padding: 0 26px; */
     position: relative;
     height: 100%;
     background: none;
@@ -661,17 +732,17 @@ div.show-record-popup {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    width: 180px;
+    width: 150px;
     position: absolute;
     background-color: var(--myOrg-input);
 }
 #logs-view-controls {
     position: absolute;
-    left: 214px;
+    left: 160px;
     display: flex;
     justify-content: space-between;
     flex-direction: row;
-    width: calc(100% - 214px);
+    width: calc(100% - 136px);
 }
 #tabs-chart,
 #showTable{
@@ -741,3 +812,32 @@ div.show-record-popup {
     padding: 0;
     margin: 0;
 }
+
+  
+.ui-autocomplete > li > div {
+    display: block;
+    padding: 3px 20px;
+    clear: both;
+    font-weight: normal;
+    height: 34px;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+}
+  
+.ui-state-hover,
+.ui-state-active,
+.ui-state-focus {
+    color: #ffffff !important;
+    text-decoration: none;
+    background-color: var(--purple-2) !important;
+    cursor: pointer;
+    height: 34px;
+    border: none !important;
+    outline: none;
+}
+.ui-widget input, .ui-widget select, .ui-widget textarea, .ui-widget button{
+    font-family: "DINpro", Arial, sans-serif;    
+    font-size: 14px;
+}
+

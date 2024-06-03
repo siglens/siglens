@@ -261,6 +261,7 @@ function setQueryLangHandler(e) {
     let selectedQueryLanguageId = $(this).attr("id").split("-")[1];
     if (selectedQueryLanguageId !== "3" && currentTab === 0) {
         $("#custom-code-tab").tabs("option", "active", 1);
+        $("#custom-code-tab").tabs("option", "disabled", [0]);
     } else if (selectedQueryLanguageId !== "3" && currentTab === 1) {
         $("#custom-code-tab").tabs("option", "disabled", [0]);
     } else if (selectedQueryLanguageId === "3" && currentTab === 1) {

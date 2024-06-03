@@ -34,8 +34,8 @@ $("#custom-code-tab").tabs({
     if (currentTab == 0) {
       // Query Builder Tab
       let filterValue = $("#filter-input").val();
-      if (filterValue != "") $("#query-input").val(filterValue);
-      if (filterValue == "") $("#query-input").val('*')
+      // if (filterValue != "") $("#query-input").val(filterValue);
+      // if (filterValue == "") $("#query-input").val('*')
       if(!isQueryBuilderSearch){
         // Clear input boxes of the query builder when a query is searched from the free text
         $(".tags-list").empty();  
@@ -48,8 +48,11 @@ $("#custom-code-tab").tabs({
       displayQueryLangToolTip("3");
     }else{
       // Free Text Tab
-      let filterValue = $("#query-input").val();
-      if (filterValue != "") $("#filter-input").val(filterValue);
+      console.log("isQueryBuilderSearch",isQueryBuilderSearch);
+      if(isQueryBuilderSearch){
+        let filterValue = getQueryBuilderCode();
+        if (filterValue != "") $("#filter-input").val(filterValue);
+      }
     }
   },
 });
@@ -287,7 +290,7 @@ async function ThirdFilterStart(evt) {
           // the trimmed value
           tag.innerText = ui.item.value;
           // Add a delete button to the tag
-          tag.innerHTML += '<button class="delete-button">x</button>';
+          tag.innerHTML += '<button class="delete-button">×</button>';
           // Append the tag to the tags list
           tagThird.appendChild(tag);
           var dom = $("#tags-third");
@@ -382,7 +385,7 @@ function filterComplete(evt) {
     // the trimmed value
     tag.innerText = tagContent;
     // Add a delete button to the tag
-    tag.innerHTML += '<button class="delete-button">x</button>';
+    tag.innerHTML += '<button class="delete-button">×</button>';
     // Append the tag to the tags list
     tags.appendChild(tag);
     var dom = $("#tags");
@@ -428,7 +431,7 @@ function secondFilterComplete(evt) {
     // the trimmed value
     tag.innerText = tagContent;
     // Add a delete button to the tag
-    tag.innerHTML += '<button class="delete-button">x</button>';
+    tag.innerHTML += '<button class="delete-button">×</button>';
     // Append the tag to the tags list
     tagSecond.appendChild(tag);
     var dom = $("#tags-second");
