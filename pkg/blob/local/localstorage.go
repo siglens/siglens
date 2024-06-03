@@ -47,8 +47,11 @@ func InitLocalStorage() error {
 			log.Errorf("InitLocalStorage: Error reading SegSetKeys file %s: %v", filePath, err)
 			return err
 		}
+	} else if len(file) == 0 {
+		log.Warnf("InitLocalStorage: Empty file found at %s", filePath)
 	} else {
-		if err := json.Unmarshal(file, &segSetKeys); err != nil {
+		err := json.Unmarshal(file, &segSetKeys)
+		if err != nil {
 			log.Errorf("InitLocalStorage: Error unmarshalling SegSetKeys file %s: %v", filePath, err)
 			return err
 		}
