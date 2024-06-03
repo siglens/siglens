@@ -55,7 +55,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes := getIngestionStats(myid)
 	queryCount, totalResponseTime, querieSinceInstall := usageStats.GetQueryStats(myid)
 
-	metricsIncomingBytes, metricsDatapointsCount, metricsOnDiskBytes := getMetricsStats(myid)
+	metricsIncomingBytes, metricsDatapointsCount, metricsOnDiskBytes := GetMetricsStats(myid)
 	metricsImMemBytes := metrics.GetTotalEncodedSize()
 
 	if hook := hooks.GlobalHooks.AddMultinodeStatsHook; hook != nil {
@@ -77,8 +77,18 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	httpResp.IngestionStats["Log Storage Used"] = convertBytesToGB(logsOnDiskBytes)
 	httpResp.IngestionStats["Metrics Storage Used"] = convertBytesToGB(float64(metricsOnDiskBytes + metricsImMemBytes))
-	totalOnDiskBytes := logsOnDiskBytes + float64(metricsOnDiskBytes) + float64(metricsImMemBytes)
-	httpResp.IngestionStats["Storage Saved"] = (1 - (totalOnDiskBytes / (logsIncomingBytes + float64(metricsIncomingBytes)))) * 100
+	if logsIncomingBytes > 0 {
+		logsStorageSaved := (1 - (float64(logsOnDiskBytes) / float64(logsIncomingBytes))) * 100
+		httpResp.IngestionStats["Logs Storage Saved"] = logsStorageSaved
+	} else {
+		httpResp.IngestionStats["Logs Storage Saved"] = 0.0
+	}
+	if metricsIncomingBytes > 0 {
+		metricsStorageSaved := (1 - ((float64(metricsOnDiskBytes + metricsImMemBytes)) / float64(metricsIncomingBytes))) * 100
+		httpResp.IngestionStats["Metrics Storage Saved"] = metricsStorageSaved
+	} else {
+		httpResp.IngestionStats["Metrics Storage Saved"] = 0.0
+	}
 
 	if hook := hooks.GlobalHooks.SetExtraIngestionStatsHook; hook != nil {
 		hook(httpResp.IngestionStats)
@@ -155,9 +165,11 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
 
 	for k, entry := range rStats {
 		httpResp.ChartStats[k] = make(map[string]interface{}, 2)
-		httpResp.ChartStats[k]["EventCount"] = entry.EventCount
-		httpResp.ChartStats[k]["MetricsCount"] = entry.MetricsDatapointsCount
-		httpResp.ChartStats[k]["GBCount"] = float64(entry.BytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["TotalGBCount"] = float64(entry.BytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["LogsEventCount"] = entry.EventCount
+		httpResp.ChartStats[k]["MetricsDatapointsCount"] = entry.MetricsDatapointsCount
+		httpResp.ChartStats[k]["LogsGBCount"] = float64(entry.LogsBytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["MetricsGBCount"] = float64(entry.MetricsBytesCount) / 1_000_000_000
 	}
 	utils.WriteJsonResponse(ctx, httpResp)
 }
@@ -217,6 +229,12 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 			pastXhours = uint64(7 * 24)
 		}
 	}
+
+	// If pastXhours is less than 24, set granularity to ByMinute
+	if pastXhours < 24 {
+		granularity = usageStats.ByMinute
+	}
+
 	return pastXhours, granularity
 }
 func isIndexExcluded(indexName string) bool {
@@ -291,7 +309,7 @@ func convertBytesToGB(bytes float64) string {
 	return finalStr
 }
 
-func getMetricsStats(myid uint64) (uint64, uint64, uint64) {
+func GetMetricsStats(myid uint64) (uint64, uint64, uint64) {
 	bytesCount := uint64(0)
 	onDiskBytesCount := uint64(0)
 	recCount := uint64(0)

@@ -167,23 +167,7 @@ function customRangeHandler(evt){
                 currentPanel.queryData.endEpoch = filterEndDate
             }
         }
-    } else if($(`#viewPanel-container`).css('display').toLowerCase() !== 'none') {
-            // if user is on view panel screen
-            // get panel-index by attribute
-            let panelIndex = ($(`#viewPanel-container .panel`).attr('panel-index'));
-            // if panel has some stored query data, reset it
-            if(localPanels[panelIndex].queryData) {
-                delete localPanels[panelIndex].queryRes
-                if(localPanels[panelIndex].chartType === "Line Chart" || localPanels[panelIndex].queryType === "metrics") {
-                    localPanels[panelIndex].queryData.start = filterStartDate.toString();
-                    localPanels[panelIndex].queryData.end = filterEndDate.toString();
-                } else {
-                        localPanels[panelIndex].queryData.startEpoch = filterStartDate
-                        localPanels[panelIndex].queryData.endEpoch = filterEndDate
-                        }
-                }
-            displayPanelView(panelIndex);
-    } else if(!currentPanel) {     
+    }else if(!currentPanel) {     
             // if user is on dashboard screen
             localPanels.forEach(panel => {
                 delete panel.queryRes
@@ -210,7 +194,7 @@ function rangeItemHandler(evt){
     datePickerHandler($(this).attr('id'), "now", $(this).attr('id'))
 }
     
-function dashboardRangeItemHandler(evt){
+async function dashboardRangeItemHandler(evt){
     resetCustomDateRange();
     $.each($(".db-range-item.active"), function () {
         $(this).removeClass('active');
@@ -228,24 +212,9 @@ function dashboardRangeItemHandler(evt){
                 currentPanel.queryData.startEpoch = filterStartDate
                 currentPanel.queryData.endEpoch = filterEndDate
             }
+            runQueryBtnHandler();
         }
-    } else if($(`#viewPanel-container`).css('display').toLowerCase() !== 'none') {
-            // if user is on view panel screen
-            // get panel-index by attribute
-            let panelIndex = ($(`#viewPanel-container .panel`).attr('panel-index'));
-            // if panel has some stored query data, reset it
-            if(localPanels[panelIndex].queryData) {
-                delete localPanels[panelIndex].queryRes
-                if(localPanels[panelIndex].chartType === "Line Chart" || localPanels[panelIndex].queryType === "metrics") {
-                    localPanels[panelIndex].queryData.start = filterStartDate.toString();
-                    localPanels[panelIndex].queryData.end = filterEndDate.toString();
-                } else {
-                        localPanels[panelIndex].queryData.startEpoch = filterStartDate
-                        localPanels[panelIndex].queryData.endEpoch = filterEndDate
-                        }
-                }
-            displayPanelView(panelIndex)
-    } else if(!currentPanel) {       
+    }else if(!currentPanel) {       
             // if user is on dashboard screen
             localPanels.forEach(panel => {
                 delete panel.queryRes
@@ -261,6 +230,7 @@ function dashboardRangeItemHandler(evt){
             })
             
         displayPanels();
+        await updateDashboard();
     }
 }
 function resetCustomDateRange(){
@@ -278,11 +248,11 @@ function resetCustomDateRange(){
         Cookies.remove('customStartTime');
         Cookies.remove('customEndTime');
 }
-function hideColumnHandler(evt) {
+function hideColumnHandler(evt, isCloseIcon = false) {
     evt.preventDefault();
     evt.stopPropagation();
 
-    availableFieldsSelectHandler(evt);
+    availableFieldsSelectHandler(evt, isCloseIcon);
 }
 
 function setQueryLangHandler(e) {
@@ -354,37 +324,10 @@ function indexOnSelectHandler(evt) {
         checkedIndices.push($(this).data("index"));
     });
     selectedSearchIndex = checkedIndices.join(",");
-    getDisplayTextForIndex();
+    setIndexDisplayValue(selectedSearchIndex);
     Cookies.set('IndexList', selectedSearchIndex)
 }
 
-function getDisplayTextForIndex(){
-    var selectedIndexes = selectedSearchIndex.split(',');
-    if (sortedListIndices && sortedListIndices.length > 0) {
-        selectedIndexes = sortedListIndices
-            .filter(item => selectedIndexes.includes(item.index))
-            .map(item => item.index);
-    } else {
-        selectedIndexes = [];
-    }
-
-    if (selectedIndexes.length === 0){
-        // If only no index is present
-        $("#index-btn span").html("Index");
-    }
-    else if (selectedIndexes.length === 1 ) {
-        // If only one index is selected
-        var indexName = selectedIndexes[0];
-        var displayedIndexName = indexName.trim() === "" ? "Index" : (indexName.length > 15 ? indexName.substring(0, 4) + '...' : indexName);
-        $("#index-btn span").html(displayedIndexName);
-    } else {
-        // If multiple indexes are selected
-        var numIndexes = selectedIndexes.length;
-        var firstIndexName = selectedIndexes[0];
-        var displayedFirstIndexName = firstIndexName.length > 15 ? firstIndexName.substring(0, 4) + '...' : firstIndexName.substring(0, 15);
-        $("#index-btn span").html(displayedFirstIndexName + ' +' + (numIndexes - 1));
-    }
-}
 function runLiveTailBtnHandler(evt) {
   $(".popover").hide();
   evt.preventDefault();
@@ -451,9 +394,18 @@ function availableFieldsClickHandler(evt) {
     evt.stopPropagation();
 }
 
-function availableFieldsSelectHandler(evt) {
+function availableFieldsSelectHandler(evt, isCloseIcon = false) {
+    let colName
 
-    let colName = evt.currentTarget.dataset.index;
+    if(isCloseIcon){
+        const outerDiv = evt.currentTarget.closest('.ag-header-cell');
+        const colId = outerDiv.getAttribute('col-id');
+        colName = colId
+    }
+    else{
+        colName = evt.currentTarget.dataset.index
+    }
+
     let encColName = string2Hex(colName);
     // don't toggle the timestamp column
     if (colName !== "timestamp") {
@@ -537,9 +489,7 @@ function toggleAllAvailableFieldsHandler(evt) {
         let tempFieldList = [];
         availColNames.forEach((colName, index) => {
             $(`.toggle-${string2Hex(colName)}`).addClass('active');
-            if(index>1){
                 tempFieldList.push(colName);
-            }
             gridOptions.columnApi.setColumnVisible(colName, true);
         });
         selectedFieldsList = tempFieldList;
@@ -554,6 +504,7 @@ function toggleAllAvailableFieldsHandler(evt) {
         });
         selectedFieldsList = []
     }
+    updatedSelFieldList = true;
     // Always hide the logs column
     gridOptions.columnApi.setColumnVisible("logs", false);
 }

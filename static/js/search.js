@@ -65,100 +65,122 @@
      }
  }
  
+ let doSearchCounter = 0;
  function doSearch(data) {
-     startQueryTime = (new Date()).getTime();
-     newUri = wsURL("/api/search/ws");
-     socket = new WebSocket(newUri);
-     let timeToFirstByte = 0;
-     let firstQUpdate = true;
-     let lastKnownHits = 0;
-     socket.onopen = function (e) {
-         console.time("socket timing");
-         $('body').css('cursor', 'progress');
-         $("#run-filter-btn").addClass("cancel-search");
-         $('#run-filter-btn').addClass('active');
-         $("#query-builder-btn").html("   ");
-         $("#query-builder-btn").addClass("cancel-search");
-         $("#query-builder-btn").addClass("active");
-         socket.send(JSON.stringify(data));
-     };
- 
-     socket.onmessage = function (event) {
-         let jsonEvent = JSON.parse(event.data);
-         let eventType = jsonEvent.state;
-         let totalEventsSearched = jsonEvent.total_events_searched
-         let totalTime = (new Date()).getTime() - startQueryTime;
-         switch (eventType) {
-             case "RUNNING":
-                 console.time("RUNNING");
-                 console.timeEnd("RUNNING");
-                 break;
-             case "QUERY_UPDATE":
-                 console.time("QUERY_UPDATE");
-                 if (timeToFirstByte === 0) {
-                     timeToFirstByte = Number(totalTime).toLocaleString();
-                 }
-                 let totalHits;
- 
-                 if (jsonEvent && jsonEvent.hits && jsonEvent.hits.totalMatched) {
-                     totalHits = jsonEvent.hits.totalMatched
-                     totalMatchLogs = totalHits;
-                     lastKnownHits = totalHits;
-                 } else {
-                     // we enter here only because backend sent null hits/totalmatched
-                     totalHits = lastKnownHits
-                 }
-                 resetDataTable(firstQUpdate);
-                 processQueryUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, totalHits);
-                 console.timeEnd("QUERY_UPDATE");
-                 firstQUpdate = false
-                 break;
-             case "COMPLETE":
-                 let eqRel = "eq";
-                 if (jsonEvent.totalMatched != null && jsonEvent.totalMatched.relation != null) {
-                     eqRel = jsonEvent.totalMatched.relation;
-                 }
-                 console.time("COMPLETE");
-                 canScrollMore = jsonEvent.can_scroll_more;
-                 scrollFrom = jsonEvent.total_rrc_count;
-                 processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
-                 console.timeEnd("COMPLETE");
-                 socket.close(1000);
-                 break;
-             case "TIMEOUT":
-                 console.time("TIMEOUT");
-                 console.log(`[message] Timeout state received from server: ${jsonEvent}`);
-                 processTimeoutUpdate(jsonEvent);
-                 console.timeEnd("TIMEOUT");
-                 break;
-             case "ERROR":
-                 console.time("ERROR");
-                 console.log(`[message] Error state received from server: ${jsonEvent}`);
-                 processErrorUpdate(jsonEvent);
-                 console.timeEnd("ERROR");
-                 break;
-             default:
-                 console.log(`[message] Unknown state received from server: `+ JSON.stringify(jsonEvent));
-                 if (jsonEvent.message.includes("expected")){
-                    jsonEvent.message = "Your query contains syntax error"
-                 } else if (jsonEvent.message.includes("not present")){
-                    jsonEvent['no_data_err'] = "No data found for the query"
-                 }
-                 processSearchErrorLog(jsonEvent);
-         }
-     };
- 
-     socket.onclose = function (event) {
-         if (event.wasClean) {
-             console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
-         } else {
-             console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
-         }
-         console.timeEnd("socket timing");
-     };
- 
-     socket.addEventListener('error', (event) => {
-         console.log('WebSocket error: ', event);
+     return new Promise((resolve, reject) => {
+         startQueryTime = (new Date()).getTime();
+         newUri = wsURL("/api/search/ws");
+         socket = new WebSocket(newUri);
+         let timeToFirstByte = 0;
+         let firstQUpdate = true;
+         let lastKnownHits = 0;
+         let errorMessages = [];
+         const timerName = `socket timing ${doSearchCounter}`;
+         doSearchCounter++;
+         console.time(timerName);
+
+         socket.onopen = function (e) {
+             $('body').css('cursor', 'progress');
+             $("#run-filter-btn").addClass("cancel-search");
+             $('#run-filter-btn').addClass('active');
+             $("#query-builder-btn").html("   ");
+             $("#query-builder-btn").addClass("cancel-search");
+             $("#query-builder-btn").addClass("active");
+
+             try {
+                 socket.send(JSON.stringify(data));
+             } catch (e) {
+                 reject(`Error sending message to server: ${e}`);
+                 console.timeEnd(timerName);
+                 return
+             }
+         };
+
+         socket.onmessage = function (event) {
+             let jsonEvent = JSON.parse(event.data);
+             let eventType = jsonEvent.state;
+             let totalEventsSearched = jsonEvent.total_events_searched
+             let totalTime = (new Date()).getTime() - startQueryTime;
+             switch (eventType) {
+                 case "RUNNING":
+                     break;
+                 case "QUERY_UPDATE":
+                     console.time("QUERY_UPDATE");
+                     if (timeToFirstByte === 0) {
+                         timeToFirstByte = Number(totalTime).toLocaleString();
+                     }
+                     let totalHits;
+
+                     if (jsonEvent && jsonEvent.hits && jsonEvent.hits.totalMatched) {
+                         totalHits = jsonEvent.hits.totalMatched
+                         totalMatchLogs = totalHits;
+                         lastKnownHits = totalHits;
+                     } else {
+                         // we enter here only because backend sent null hits/totalmatched
+                         totalHits = lastKnownHits
+                     }
+                     resetDataTable(firstQUpdate);
+                     processQueryUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, totalHits);
+                     console.timeEnd("QUERY_UPDATE");
+                     firstQUpdate = false
+                     break;
+                 case "COMPLETE":
+                     let eqRel = "eq";
+                     if (jsonEvent.totalMatched != null && jsonEvent.totalMatched.relation != null) {
+                         eqRel = jsonEvent.totalMatched.relation;
+                     }
+                     console.time("COMPLETE");
+                     canScrollMore = jsonEvent.can_scroll_more;
+                     scrollFrom = jsonEvent.total_rrc_count;
+                     processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
+                     console.timeEnd("COMPLETE");
+                     socket.close(1000);
+                     break;
+                 case "TIMEOUT":
+                     console.time("TIMEOUT");
+                     console.log(`[message] Timeout state received from server: ${jsonEvent}`);
+                     processTimeoutUpdate(jsonEvent);
+                     console.timeEnd("TIMEOUT");
+                     errorMessages.push(`Timeout: ${jsonEvent}`);
+                     break;
+                 case "ERROR":
+                     console.time("ERROR");
+                     console.log(`[message] Error state received from server: ${jsonEvent}`);
+                     processErrorUpdate(jsonEvent);
+                     console.timeEnd("ERROR");
+                     errorMessages.push(`Error: ${jsonEvent}`);
+                     break;
+                 default:
+                     console.log(`[message] Unknown state received from server: `+ JSON.stringify(jsonEvent));
+                     if (jsonEvent.message.includes("expected")){
+                        jsonEvent.message = "Your query contains syntax error"
+                     } else if (jsonEvent.message.includes("not present")){
+                        jsonEvent['no_data_err'] = "No data found for the query"
+                     }
+                     processSearchErrorLog(jsonEvent);
+                     errorMessages.push(`Unknown state: ${jsonEvent}`);
+             }
+         };
+
+         socket.onclose = function (event) {
+             if (event.wasClean) {
+                 console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+             } else {
+                 console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
+                 errorMessages.push(`Connection close not clean=${event} code=${event.code} reason=${event.reason}`);
+             }
+
+             if (errorMessages.length === 0) {
+                 resolve();
+             } else {
+                 reject(errorMessages);
+             }
+             console.timeEnd(timerName);
+         };
+
+         socket.addEventListener('error', (event) => {
+             errorMessages.push(`WebSocket error: ${event}`);
+         });
      });
  }
  
@@ -410,10 +432,8 @@
      }
      let sFrom = 0;
 
-     selIndexName.split(',').forEach(function(searchVal){
-         $(`.index-dropdown-item[data-index="${searchVal}"]`).toggleClass('active');
-     });
- 
+     setIndexDisplayValue(selIndexName);
+
      selectedSearchIndex = selIndexName.split(",").join(",");
      Cookies.set('IndexList', selIndexName.split(",").join(","));
  
@@ -463,11 +483,7 @@
     let sFrom = 0;
     let queryLanguage = $("#query-language-btn span").html();
 
-    selIndexName.split(",").forEach(function (searchVal) {
-      $(`.index-dropdown-item[data-index="${searchVal}"]`).toggleClass(
-        "active"
-      );
-    });
+    setIndexDisplayValue(selIndexName);
 
     selectedSearchIndex = selIndexName.split(",").join(",");
     Cookies.set("IndexList", selIndexName.split(",").join(","));
@@ -549,10 +565,8 @@
    let selIndexName = selectedSearchIndex;
    let sFrom = 0;
    let queryLanguage = $("#query-language-btn span").html();
-  
-   selIndexName.split(",").forEach(function (searchVal) {
-     $(`.index-dropdown-item[data-index="${searchVal}"]`).toggleClass("active");
-   });
+
+   setIndexDisplayValue(selIndexName);
 
    selectedSearchIndex = selIndexName.split(",").join(",");
    Cookies.set("IndexList", selIndexName.split(",").join(","));
@@ -623,15 +637,22 @@
       res.hits.records.length >= 1 &&
       res.qtype === "logs-query"
     ) {
-      let columnOrder = _.uniq(
-        _.concat(
+      let columnOrder =  []
+      if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+        columnOrder = _.uniq(_.concat(
           // make timestamp the first column
           "timestamp",
           // make logs the second column
           "logs",
-          res.allColumns
-        )
-      );
+          res.columnsOrder));
+      }else{
+        columnOrder = _.uniq(_.concat(
+            // make timestamp the first column
+            "timestamp",
+            // make logs the second column
+            "logs",
+            res.allColumns));
+      }
       allLiveTailColumns = res.allColumns;
       renderAvailableFields(columnOrder);
       renderLogsGrid(columnOrder, res.hits.records);
@@ -640,15 +661,23 @@
         totalHits = res.hits.totalMatched;
       }
     } else if (logsRowData.length > 0) {
-      let columnOrder = _.uniq(
-        _.concat(
+      let columnOrder = []
+      if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+        columnOrder = _.uniq(_.concat(
           // make timestamp the first column
           "timestamp",
           // make logs the second column
           "logs",
-          allLiveTailColumns
-        )
-      );
+          res.columnsOrder));
+      }else{
+          columnOrder = _.uniq(
+          _.concat(
+            // make timestamp the first column
+            "timestamp",
+            // make logs the second column
+            "logs",
+            allLiveTailColumns));
+      }
       renderAvailableFields(columnOrder);
       renderLogsGrid(columnOrder, logsRowData);
       totalHits = logsRowData.length;
@@ -656,17 +685,21 @@
       res.measure &&
       (res.qtype === "aggs-query" || res.qtype === "segstats-query")
     ) {
-      if (res.groupByCols) {
-        columnOrder = _.uniq(_.concat(res.groupByCols));
-      }
       let columnOrder = [];
-      if (res.measureFunctions) {
-        columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
+      if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+        columnOrder = res.columnsOrder
+      }else{
+        if (res.groupByCols) {
+          columnOrder = _.uniq(_.concat(res.groupByCols));
+        }
+        if (res.measureFunctions) {
+          columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
+        }
       }
 
       aggsColumnDefs = [];
       segStatsRowData = [];
-      renderMeasuresGrid(columnOrder, res.measure);
+      renderMeasuresGrid(columnOrder, res);
     }
     let totalTime = new Date().getTime() - startQueryTime;
     let percentComplete = res.percent_complete;
@@ -684,12 +717,22 @@
   }
  function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte, totalHits) {
      if (res.hits && res.hits.records!== null && res.hits.records.length >= 1 && res.qtype === "logs-query") {
-         let columnOrder = _.uniq(_.concat(
+      let columnOrder =  []
+        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+          columnOrder = _.uniq(_.concat(
+            // make timestamp the first column
+            'timestamp',
+            // make logs the second column
+            'logs',
+            res.columnsOrder));
+        }else{
+          columnOrder = _.uniq(_.concat(
              // make timestamp the first column
              'timestamp',
              // make logs the second column
              'logs',
              res.allColumns));
+        }
              
          // for sort function display
          sortByTimestampAtDefault = res.sortByTimestampAtDefault; 
@@ -704,19 +747,23 @@
              totalHits = res.hits.totalMatched
          }
      } else if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
-         if (res.groupByCols ) {
-             columnOrder = _.uniq(_.concat(
-                 res.groupByCols));
-         }
-         let columnOrder =[]
-         if (res.measureFunctions ) {
-             columnOrder = _.uniq(_.concat(
-                 columnOrder,res.measureFunctions));
-         }
+        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+          columnOrder = res.columnsOrder
+        }else{ 
+          if (res.groupByCols ) {
+              columnOrder = _.uniq(_.concat(
+                  res.groupByCols));
+          }
+          let columnOrder =[]
+          if (res.measureFunctions ) {
+              columnOrder = _.uniq(_.concat(
+                  columnOrder,res.measureFunctions));
+          }
+        }
  
          aggsColumnDefs=[];
          segStatsRowData=[]; 
-         renderMeasuresGrid(columnOrder, res.measure);
+         renderMeasuresGrid(columnOrder, res);
  
      }
      let totalTime = (new Date()).getTime() - startQueryTime;
@@ -767,7 +814,7 @@
       $("#agg-result-container").show();
       aggsColumnDefs = [];
       segStatsRowData = [];
-      renderMeasuresGrid(columnOrder, res.measure);
+      renderMeasuresGrid(columnOrder, res);
       if (
         (res.qtype === "aggs-query" || res.qtype === "segstats-query") &&
         res.bucketCount
@@ -813,21 +860,25 @@
      }
      if (res.measure) {
          measureInfo = res.measure;
-         if (res.groupByCols) {
-             columnOrder = _.uniq(_.concat(
-                 res.groupByCols));
-         }
-         if (res.measureFunctions) {
-             columnOrder = _.uniq(_.concat(
-                 columnOrder,res.measureFunctions));
-         }
+        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+          columnOrder = res.columnsOrder
+        }else{
+          if (res.groupByCols) {
+              columnOrder = _.uniq(_.concat(
+                  res.groupByCols));
+          }
+          if (res.measureFunctions) {
+              columnOrder = _.uniq(_.concat(
+                  columnOrder,res.measureFunctions));
+          }
+        }
          resetDashboard();
          $("#logs-result-container").hide();
          $("#custom-chart-tab").show();
          $("#agg-result-container").show();
          aggsColumnDefs=[];
          segStatsRowData=[];
-         renderMeasuresGrid(columnOrder, res.measure);
+         renderMeasuresGrid(columnOrder, res);
          if ((res.qtype ==="aggs-query" || res.qtype === "segstats-query") && res.bucketCount){
              totalHits = res.bucketCount;
          }

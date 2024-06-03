@@ -54,6 +54,12 @@ func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
 	return nr
 }
 
+func deleteNodeResForQid(qid uint64) {
+	mapMutex.Lock()
+	delete(nodeResMap, qid)
+	mapMutex.Unlock()
+}
+
 func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint16]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
@@ -134,12 +140,26 @@ func applyHardcodedColumns(hardcodedArray []string, renameHardcodedColumns map[s
 	return allRecords, finalCols
 }
 
-func finalizeRecords(allRecords []map[string]interface{}, finalCols map[string]bool, numProcessedRecords int, recsAggRecords []map[string]interface{}, transactionArgsExist bool) ([]map[string]interface{}, []string) {
-	colsSlice := make([]string, len(finalCols))
-	idx := 0
+func finalizeRecords(allRecords []map[string]interface{}, finalCols map[string]bool, colsIndexMap map[string]int, numProcessedRecords int, recsAggRecords []map[string]interface{}, transactionArgsExist bool) ([]map[string]interface{}, []string) {
+	colsSlice := make([]string, 0)
+	finalColsLen := len(finalCols)
+	colsInOrder := make([]string, finalColsLen)
+	for colName, colIndex := range colsIndexMap {
+		_, exists := finalCols[colName]
+		if exists && colIndex < finalColsLen {
+			colsInOrder[colIndex] = colName
+			delete(finalCols, colName)
+		}
+	}
+
+	for _, colName := range colsInOrder {
+		if len(colName) > 0 {
+			colsSlice = append(colsSlice, colName)
+		}
+	}
+
 	for colName := range finalCols {
-		colsSlice[idx] = colName
-		idx++
+		colsSlice = append(colsSlice, colName)
 	}
 
 	// Some commands (like dedup) can remove records from the final result, so
@@ -151,7 +171,7 @@ func finalizeRecords(allRecords []map[string]interface{}, finalCols map[string]b
 		finalRecords = allRecords
 	} else {
 		finalRecords = make([]map[string]interface{}, numProcessedRecords)
-		idx = 0
+		idx := 0
 		for _, record := range allRecords {
 			if idx >= numProcessedRecords {
 				break
@@ -164,7 +184,9 @@ func finalizeRecords(allRecords []map[string]interface{}, finalCols map[string]b
 		}
 	}
 
-	sort.Strings(colsSlice)
+	if len(colsIndexMap) == 0 {
+		sort.Strings(colsSlice)
+	}
 
 	return finalRecords, colsSlice
 }
@@ -180,6 +202,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 	allRecords := make([]map[string]interface{}, len(allrrc))
 	finalCols := make(map[string]bool)
+	colsIndexMap := make(map[string]int)
 	numProcessedRecords := 0
 
 	var resultRecMap map[string]bool
@@ -191,11 +214,12 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 	processSingleSegment := func(currSeg string, virtualTableName string, blkRecIndexes map[uint16]map[uint16]uint64, isLastBlk bool) {
 		recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes,
-			config.GetTimeStampKey(), esResponse, qid, aggs)
+			config.GetTimeStampKey(), esResponse, qid, aggs, colsIndexMap)
 		if err != nil {
 			log.Errorf("GetJsonFromAllRrc: failed to read recs from segfile=%v, err=%v", currSeg, err)
 			return
 		}
+		nodeRes.ColumnsOrder = colsIndexMap
 		for cName := range cols {
 			finalCols[cName] = true
 		}
@@ -348,8 +372,11 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 		}
 	}
 
-	if !(tableColumnsExist || aggs.OutputTransforms == nil || hasQueryAggergatorBlock || transactionArgsExist) {
+	if !(tableColumnsExist || (aggs != nil && aggs.OutputTransforms == nil) || hasQueryAggergatorBlock || transactionArgsExist) {
 		allRecords, finalCols = applyHardcodedColumns(hardcodedArray, renameHardcodedColumns, allRecords, finalCols)
+		if len(hardcodedArray) > 0 {
+			numProcessedRecords = 1
+		}
 	} else {
 		for currSeg, blkIds := range segmap {
 			blkIdsIndex := 0
@@ -365,10 +392,10 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	}
 
 	if nodeRes.RecsAggsProcessedSegments >= numTotalSegments {
-		delete(nodeResMap, qid)
+		deleteNodeResForQid(qid)
 	}
 
-	finalRecords, colsSlice := finalizeRecords(allRecords, finalCols, numProcessedRecords, recsAggRecords, transactionArgsExist)
+	finalRecords, colsSlice := finalizeRecords(allRecords, finalCols, colsIndexMap, numProcessedRecords, recsAggRecords, transactionArgsExist)
 	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
 
 	return finalRecords, colsSlice, nil

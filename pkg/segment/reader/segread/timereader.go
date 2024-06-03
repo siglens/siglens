@@ -163,7 +163,7 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 	}
 
 	blockMeta, ok := trr.timeMetadata[blockNum]
-	if !ok {
+	if !ok || blockMeta == nil {
 		log.Errorf("readAllTimestampsForBlock: failed to find block %d in all block metadata %+v", blockNum, trr.timeMetadata)
 		return errors.New("requested blockNum does not exist")
 	}
@@ -180,10 +180,7 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 		return errors.New("requested blockNum does not exist")
 	}
 
-	if uint32(len(trr.blockReadBuffer)) < blkLen {
-		newArr := make([]byte, blkLen-uint32(len(trr.blockReadBuffer)))
-		trr.blockReadBuffer = append(trr.blockReadBuffer, newArr...)
-	}
+	trr.blockReadBuffer = toputils.ResizeSlice(trr.blockReadBuffer, int(blkLen))
 	_, err = trr.timeFD.ReadAt(trr.blockReadBuffer[:blkLen], blkOff)
 	if err != nil {
 		if err != io.EOF {
@@ -217,11 +214,9 @@ func (trr *TimeRangeReader) resizeSliceForBlock(blockNum uint16) error {
 		log.Errorf("readAllTimestampsForBlock: failed to find block %d in all blocks: %+v", blockNum, trr.blockRecCount)
 		return errors.New("blockNum not found")
 	}
-	if currBufSize := len(trr.blockTimestamps); int(numRecs) > currBufSize {
-		toAdd := int(numRecs) - currBufSize
-		newSlice := make([]uint64, toAdd)
-		trr.blockTimestamps = append(trr.blockTimestamps, newSlice...)
-	}
+
+	trr.blockTimestamps = toputils.ResizeSlice(trr.blockTimestamps, int(numRecs))
+
 	return nil
 }
 

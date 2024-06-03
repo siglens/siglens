@@ -29,6 +29,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"verifier/pkg/utils"
 
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/fasthttp/websocket"
@@ -620,7 +621,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 						switch eValue := eValue.(type) {
 						case float64:
 							finalHits = eValue
-							hits, err = verifyInequality(finalHits, relation, expectedValue)
+							hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
 						case map[string]interface{}:
 							for k, v := range eValue {
 								if k == "value" {
@@ -629,7 +630,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 									if !ok {
 										log.Fatalf("RunQueryFromFile: Returned total matched is not a float: %v", v)
 									}
-									hits, err = verifyInequality(finalHits, relation, expectedValue)
+									hits, err = utils.VerifyInequality(finalHits, relation, expectedValue)
 
 								}
 							}
@@ -674,9 +675,9 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 								}
 
 								if actualValueIsNumber {
-									ok, err = verifyInequality(actualValue, relation, expectedValue)
+									ok, err = utils.VerifyInequality(actualValue, relation, expectedValue)
 								} else {
-									ok, err = verifyInequalityForStr(measureVal[groupData[1]].(string), relation, expectedValue)
+									ok, err = utils.VerifyInequalityForStr(measureVal[groupData[1]].(string), relation, expectedValue)
 								}
 
 								if err != nil {
@@ -702,49 +703,4 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 			}
 		}
 	}
-}
-
-// Only string comparisons for equality are allowed
-func verifyInequalityForStr(actual string, relation, expected string) (bool, error) {
-	if relation == "eq" {
-		if actual == expected {
-			return true, nil
-		} else {
-			return false, fmt.Errorf("verifyInequalityForStr: actual: \"%v\" and expected: \"%v\" are not equal", actual, expected)
-		}
-	} else {
-		log.Errorf("verifyInequalityForStr: Invalid relation: %v", relation)
-		return false, fmt.Errorf("verifyInequalityForStr: Invalid relation: %v", relation)
-	}
-}
-
-// verifyInequality verifies the expected inequality returned by the query.
-// returns true, nil if relation is ""
-func verifyInequality(actual float64, relation, expected string) (bool, error) {
-	if relation == "" {
-		return true, nil
-	}
-	fltVal, err := strconv.ParseFloat(expected, 64)
-	if err != nil {
-		log.Errorf("verifyInequality: Error in parsing expected value: %v, err: %v", expected, err)
-		return false, err
-	}
-	switch relation {
-	case "eq":
-		if actual == fltVal {
-			return true, nil
-		}
-	case "gt":
-		if actual > fltVal {
-			return true, nil
-		}
-	case "lt":
-		if actual < fltVal {
-			return true, nil
-		}
-	default:
-		log.Errorf("verifyInequality: Invalid relation: %v", relation)
-		return false, fmt.Errorf("verifyInequality: Invalid relation: %v", relation)
-	}
-	return false, nil
 }

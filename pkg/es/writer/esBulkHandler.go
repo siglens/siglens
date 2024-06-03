@@ -28,6 +28,8 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/grpc"
+	"github.com/siglens/siglens/pkg/hooks"
 	segment "github.com/siglens/siglens/pkg/segment/utils"
 
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -54,13 +56,15 @@ const CREATE_TOP_STR string = "create"
 const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
 
-type kibanaIngHandlerFnDef func(
-	ctx *fasthttp.RequestCtx, request map[string]interface{},
-	indexNameConverted string, updateArg bool, idVal string, tsNow uint64, myid uint64) error
+func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) {
+	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_ES_BULK, useIngestHook)
+		if alreadyHandled {
+			return
+		}
+	}
 
-func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, kibanaIngHandlerFn kibanaIngHandlerFnDef) {
-
-	processedCount, response, err := HandleBulkBody(ctx.PostBody(), ctx, myid, kibanaIngHandlerFn)
+	processedCount, response, err := HandleBulkBody(ctx.PostBody(), ctx, myid, useIngestHook)
 	if err != nil {
 		PostBulkErrorResponse(ctx)
 		return
@@ -74,7 +78,7 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, kibanaIngHandlerF
 	}
 }
 
-func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, kibanaIngHandlerFn kibanaIngHandlerFnDef) (int, map[string]interface{}, error) {
+func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) (int, map[string]interface{}, error) {
 
 	r := bytes.NewReader(postBody)
 
@@ -124,9 +128,13 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, kiba
 					if err != nil {
 						success = false
 					}
-					err = kibanaIngHandlerFn(ctx, request, indexNameConverted, false, idVal, tsNow, myid)
-					if err != nil {
-						success = false
+					if useIngestHook {
+						if hook := hooks.GlobalHooks.EsBulkIngestInternalHook; hook != nil {
+							err = hook(ctx, request, indexNameConverted, false, idVal, tsNow, myid)
+							if err != nil {
+								success = false
+							}
+						}
 					}
 				} else {
 					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes), false, localIndexMap, myid)
@@ -325,15 +333,16 @@ func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 	inIndexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
 
 	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid)
-
+	responseBody := make(map[string]interface{})
 	if indicesNotFound == len(convertedIndexNames) {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		responseBody := make(map[string]interface{})
 		responseBody["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
 		utils.WriteJsonResponse(ctx, responseBody)
 		return
 	} else {
 		ctx.SetStatusCode(fasthttp.StatusOK)
+		responseBody["message"] = "Index deleted successfully"
+		utils.WriteJsonResponse(ctx, responseBody)
 	}
 }
 

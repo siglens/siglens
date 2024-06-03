@@ -79,12 +79,12 @@ function getPanelGridOptions() {
             resizable: true,
             minWidth: 200,
             icons: {
-                sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+                sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
                 sortDescending: '<i class="fa fa-sort-alpha-down"/>',
             },
         },
         icons: {
-            sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+            sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
         },
         enableCellTextSelection: true,
@@ -239,13 +239,13 @@ function renderPanelAggsGrid(columnOrder, hits,panelId) {
             resizable: true,
             sortable: true,
             icons: {
-                sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+                sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
                 sortDescending: '<i class="fa fa-sort-alpha-down"/>',
             },
             cellRenderer: params => params.value ? params.value : 'null',
         },
         icons: {
-            sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+            sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
         }
     };
@@ -273,15 +273,27 @@ function renderPanelAggsGrid(columnOrder, hits,panelId) {
     aggsColumnDefs = _.chain(aggsColumnDefs).concat(colDefs).uniqBy('field').value();
     aggGridOptions.api.setColumnDefs(aggsColumnDefs);
     let newRow = new Map()
-    $.each(hits, function (key, resMap) {
-       newRow.set("id", 0)
-       columnOrder.map((colName, index) => {
-           if (resMap.GroupByValues!=null && resMap.GroupByValues[index]!="*" && index< (resMap.GroupByValues).length){
-               newRow.set(colName, resMap.GroupByValues[index])
-           }else{
-               newRow.set(colName, resMap.MeasureVal[colName])
-           }
-       })
+     $.each(hits.measure, function (key, resMap) {
+        newRow.set("id", 0)
+        columnOrder.map((colName, index) => {
+            let ind=-1
+            if (hits.groupByCols !=undefined && hits.groupByCols.length > 0) {
+                ind = findColumnIndex(hits.groupByCols,colName)
+            }
+            //group by col
+            if (ind !=-1  && resMap.GroupByValues.length != 1 && resMap.GroupByValues[ind]!="*"){
+                newRow.set(colName, resMap.GroupByValues[ind])
+            }else if (ind !=-1 && resMap.GroupByValues.length === 1 && resMap.GroupByValues[0]!="*"){
+                newRow.set(colName, resMap.GroupByValues[0])
+            }else{
+            // Check if MeasureVal is undefined or null and set it to 0
+                if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {
+                    newRow.set(colName, "0");
+                } else {
+                    newRow.set(colName, resMap.MeasureVal[colName]);
+                }
+            }
+        })
         segStatsRowData = _.concat(segStatsRowData, Object.fromEntries(newRow));
     })
     aggGridOptions.api.setRowData(segStatsRowData);

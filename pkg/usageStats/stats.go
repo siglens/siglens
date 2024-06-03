@@ -19,6 +19,7 @@ package usageStats
 
 import (
 	"encoding/csv"
+	"errors"
 	"io"
 	"os"
 	"path"
@@ -37,9 +38,14 @@ import (
 
 type UsageStatsGranularity uint8
 
+const MIN_IN_MS = 60_000
+
+var timeIntervalsForStatsByMinute = []uint32{5, 10, 20, 30, 40, 50, 60}
+
 const (
 	Hourly UsageStatsGranularity = iota + 1
 	Daily
+	ByMinute
 )
 
 type Stats struct {
@@ -49,6 +55,8 @@ type Stats struct {
 	TotalLogLinesCount          uint64
 	MetricsDatapointsCount      uint64
 	TotalMetricsDatapointsCount uint64
+	LogsBytesCount              uint64
+	MetricsBytesCount           uint64
 }
 
 var ustats = make(map[uint64]*Stats)
@@ -68,6 +76,8 @@ type ReadStats struct {
 	EventCount             uint64
 	MetricsDatapointsCount uint64
 	TimeStamp              time.Time
+	LogsBytesCount         uint64
+	MetricsBytesCount      uint64
 }
 
 func StartUsageStats() {
@@ -334,7 +344,9 @@ func FlushStatsToFile(orgid uint64) error {
 			logLinesAsString := strconv.FormatUint(ustats[orgid].LogLinesCount, 10)
 			metricCountAsString := strconv.FormatUint(ustats[orgid].MetricsDatapointsCount, 10)
 			epochAsString := strconv.FormatUint(uint64(time.Now().Unix()), 10)
-			record = []string{bytesAsString, logLinesAsString, metricCountAsString, epochAsString}
+			logsBytesAsString := strconv.FormatUint(ustats[orgid].LogsBytesCount, 10)
+			metricsBytesAsString := strconv.FormatUint(ustats[orgid].MetricsBytesCount, 10)
+			record = []string{bytesAsString, logLinesAsString, metricCountAsString, epochAsString, logsBytesAsString, metricsBytesAsString}
 			records = append(records, record)
 			err = w.WriteAll(records)
 			if err != nil {
@@ -347,6 +359,8 @@ func FlushStatsToFile(orgid uint64) error {
 			atomic.StoreUint64(&ustats[orgid].BytesCount, 0)
 			atomic.StoreUint64(&ustats[orgid].LogLinesCount, 0)
 			atomic.StoreUint64(&ustats[orgid].MetricsDatapointsCount, 0)
+			atomic.StoreUint64(&ustats[orgid].LogsBytesCount, 0)
+			atomic.StoreUint64(&ustats[orgid].MetricsBytesCount, 0)
 
 			return nil
 		}
@@ -354,34 +368,26 @@ func FlushStatsToFile(orgid uint64) error {
 	return nil
 }
 
-func UpdateStats(bytesCount uint64, logLinesCount uint64, orgid uint64) {
+func UpdateStats(logsBytesCount uint64, logLinesCount uint64, orgid uint64) {
 	if _, ok := ustats[orgid]; !ok {
-		ustats[orgid] = &Stats{
-			BytesCount:         0,
-			LogLinesCount:      0,
-			TotalBytesCount:    0,
-			TotalLogLinesCount: 0,
-		}
+		ustats[orgid] = &Stats{}
 	}
-	atomic.AddUint64(&ustats[orgid].BytesCount, bytesCount)
+	atomic.AddUint64(&ustats[orgid].BytesCount, logsBytesCount)
 	atomic.AddUint64(&ustats[orgid].LogLinesCount, logLinesCount)
-	atomic.AddUint64(&ustats[orgid].TotalBytesCount, bytesCount)
+	atomic.AddUint64(&ustats[orgid].TotalBytesCount, logsBytesCount)
 	atomic.AddUint64(&ustats[orgid].TotalLogLinesCount, logLinesCount)
+	atomic.AddUint64(&ustats[orgid].LogsBytesCount, logsBytesCount)
 }
 
-func UpdateMetricsStats(bytesCount uint64, incomingMetrics uint64, orgid uint64) {
+func UpdateMetricsStats(metricsBytesCount uint64, incomingMetrics uint64, orgid uint64) {
 	if _, ok := ustats[orgid]; !ok {
-		ustats[orgid] = &Stats{
-			BytesCount:                  0,
-			MetricsDatapointsCount:      0,
-			TotalBytesCount:             0,
-			TotalMetricsDatapointsCount: 0,
-		}
+		ustats[orgid] = &Stats{}
 	}
-	atomic.AddUint64(&ustats[orgid].BytesCount, bytesCount)
+	atomic.AddUint64(&ustats[orgid].BytesCount, metricsBytesCount)
 	atomic.AddUint64(&ustats[orgid].MetricsDatapointsCount, incomingMetrics)
-	atomic.AddUint64(&ustats[orgid].TotalBytesCount, bytesCount)
+	atomic.AddUint64(&ustats[orgid].TotalBytesCount, metricsBytesCount)
 	atomic.AddUint64(&ustats[orgid].TotalMetricsDatapointsCount, incomingMetrics)
+	atomic.AddUint64(&ustats[orgid].MetricsBytesCount, metricsBytesCount)
 }
 
 func GetQueryStats(orgid uint64) (uint64, float64, uint64) {
@@ -407,7 +413,7 @@ func UpdateQueryStats(queryCount uint64, totalRespTime float64, orgid uint64) {
 	QueryStatsMap[orgid].TotalRespTime += totalRespTime
 }
 
-// Calculate total bytesCount,linesCount and return hourly / daily count
+// Calculate total bytesCount,linesCount and return hourly / daily / minute count
 func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid uint64) (map[string]ReadStats, error) {
 	endEpoch := time.Now()
 	startEpoch := endEpoch.Add(-(time.Duration(pastXhours) * time.Hour))
@@ -420,8 +426,23 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 	allStatsMap := make([]ReadStats, 0)
 	resultMap := make(map[string]ReadStats)
 	var bucketInterval string
+	var intervalMinutes uint32
+	var err error
 	runningTs := startEpoch
-	if granularity == Daily {
+	if granularity == ByMinute {
+		intervalMinutes, err = CalculateIntervalForStatsByMinute(uint32(pastXhours * 60))
+		if err != nil {
+			return nil, err
+		}
+
+		for runningTs.Before(endEpoch) {
+			// Truncate runningTs to the nearest intervalMinutes
+			truncatedTs := runningTs.Truncate(time.Duration(intervalMinutes) * time.Minute)
+			bucketInterval = truncatedTs.Format("2006-01-02T15:04")
+			resultMap[bucketInterval] = ReadStats{} // Initialize the bucket if not already present
+			runningTs = runningTs.Add(time.Duration(intervalMinutes) * time.Minute)
+		}
+	} else if granularity == Daily {
 		for endTOD >= startTOD {
 			bucketInterval = runningTs.Format("2006-01-02")
 			runningTs = runningTs.Add(24 * time.Hour)
@@ -446,6 +467,9 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 		defer fd.Close()
 
 		r := csv.NewReader(fd)
+		// FieldsPerRecord is set to -1 to allow variable number of fields per record, as the data format has evolved over time.
+		// Make sure to handle the different data formats in the loop below to avoid panics.
+		r.FieldsPerRecord = -1
 		for {
 			var readStats ReadStats
 			record, err := r.Read()
@@ -463,9 +487,12 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 			readStats.BytesCount, _ = strconv.ParseUint(record[0], 10, 64)
 			readStats.EventCount, _ = strconv.ParseUint(record[1], 10, 64)
 
-			// Prior to metrics, format is bytes,eventCount,time
-			// After metrics, format is bytes,eventCount,metricCount,time
-			if len(record) == 4 {
+			// The data format has evolved over time:
+			// - Initially, it was: bytes, eventCount, time
+			// - Then, metrics were added: bytes, eventCount, metricCount, time
+			// - Later, logsBytesCount and metricsBytesCount were added. However, the new format is backward compatible with the old formats.
+			// The current format is: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount
+			if len(record) >= 4 {
 				readStats.MetricsDatapointsCount, _ = strconv.ParseUint(record[2], 10, 64)
 				tsString, _ := strconv.ParseInt(record[3], 10, 64)
 				readStats.TimeStamp = time.Unix(tsString, 0)
@@ -473,6 +500,15 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 				tsString, _ := strconv.ParseInt(record[2], 10, 64)
 				readStats.TimeStamp = time.Unix(tsString, 0)
 			}
+
+			if len(record) == 6 {
+				readStats.LogsBytesCount, _ = strconv.ParseUint(record[4], 10, 64)
+				readStats.MetricsBytesCount, _ = strconv.ParseUint(record[5], 10, 64)
+			} else {
+				readStats.LogsBytesCount = readStats.BytesCount
+				readStats.MetricsBytesCount = 0
+			}
+
 			if readStats.TimeStamp.After(startEpoch) && readStats.TimeStamp.Before(endEpoch) {
 				allStatsMap = append(allStatsMap, readStats)
 			}
@@ -484,11 +520,18 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 			bucketInterval = rStat.TimeStamp.Format("2006-01-02")
 		} else if granularity == Hourly {
 			bucketInterval = rStat.TimeStamp.Format("2006-01-02T15")
+		} else if granularity == ByMinute {
+			// Truncate the timestamp to the nearest intervalMinutes and format it as a string.
+			// For example, if rStat.TimeStamp is "20:47" and intervalMinutes is 10,
+			// it will truncate the time to "20:40" and format it as "2006-01-02T20:40" to store in the resultMap.
+			bucketInterval = rStat.TimeStamp.Truncate(time.Duration(intervalMinutes) * time.Minute).Format("2006-01-02T15:04")
 		}
 		if entry, ok := resultMap[bucketInterval]; ok {
 			entry.EventCount += rStat.EventCount
 			entry.MetricsDatapointsCount += rStat.MetricsDatapointsCount
 			entry.BytesCount += rStat.BytesCount
+			entry.LogsBytesCount += rStat.LogsBytesCount
+			entry.MetricsBytesCount += rStat.MetricsBytesCount
 			entry.TimeStamp = rStat.TimeStamp
 			resultMap[bucketInterval] = entry
 		} else {
@@ -496,4 +539,15 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 		}
 	}
 	return resultMap, nil
+}
+
+func CalculateIntervalForStatsByMinute(timerangeMinutes uint32) (uint32, error) {
+	for _, step := range timeIntervalsForStatsByMinute {
+		if timerangeMinutes/step <= 24 {
+			return step, nil
+		}
+	}
+
+	// If no suitable step is found, return an error
+	return 0, errors.New("no suitable step found")
 }

@@ -43,11 +43,18 @@
      aggsColumnDefs = _.chain(aggsColumnDefs).concat(colDefs).uniqBy('field').value();
      aggGridOptions.api.setColumnDefs(aggsColumnDefs);
      let newRow = new Map()
-     $.each(hits, function (key, resMap) {
+     $.each(hits.measure, function (key, resMap) {
         newRow.set("id", 0)
         columnOrder.map((colName, index) => {
-            if (resMap.GroupByValues!=null && resMap.GroupByValues[index]!="*" && index< (resMap.GroupByValues).length){
-                newRow.set(colName, resMap.GroupByValues[index])
+            let ind=-1
+            if (hits.groupByCols !=undefined && hits.groupByCols.length > 0) {
+                ind = findColumnIndex(hits.groupByCols,colName)
+            }
+            //group by col
+            if (ind !=-1  && resMap.GroupByValues.length != 1 && resMap.GroupByValues[ind]!="*"){
+                newRow.set(colName, resMap.GroupByValues[ind])
+            }else if (ind !=-1 && resMap.GroupByValues.length === 1 && resMap.GroupByValues[0]!="*"){
+                newRow.set(colName, resMap.GroupByValues[0])
             }else{
                 // Check if MeasureVal is undefined or null and set it to 0
                 if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {

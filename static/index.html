@@ -64,6 +64,62 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         $('html').attr('data-theme', defaultTheme);
     </script>
     {{ .RunCheck1 | safeHTML }}
+    <style>
+        /* JQUERY AUTOCOMPLETE */
+        .ui-autocomplete {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 1000;
+            display: none;
+            float: left;
+            min-width: 160px;
+            padding: 0;
+            margin: 2px 0 0;
+            list-style: none;
+            font-size: 14px;
+            text-align: left;
+            background-color: #ffffff;
+            border: 1px solid #cccccc;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+            -webkit-box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+            background-clip: padding-box;
+        }
+
+        .ui-autocomplete > li > div {
+            display: block;
+            padding: 3px 20px;
+            clear: both;
+            font-weight: normal;
+            height: 34px;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+        }
+
+        .ui-state-hover,
+        .ui-state-active,
+        .ui-state-focus {
+            color: #ffffff;
+            text-decoration: none;
+            background-color: #2D69BC;
+            cursor: pointer;
+            height: 34px;
+        }
+
+        .ui-helper-hidden-accessible {
+            border: 0;
+            clip: rect(0 0 0 0);
+            height: 1px;
+            margin: -1px;
+            overflow: hidden;
+            padding: 0;
+            position: absolute;
+            width: 1px;
+        }
+    </style>
 </head>
 
 <body>
@@ -173,6 +229,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 </div>
             </div>
             <div class="dropdown-box">
+                <div class="index-container">
+                    <input type="text" name="" id="index-listing">
+                </div>
                 <div class="dropdown">
                     <button class="btn dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
                         aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
@@ -184,17 +243,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <li id="option-1" class="query-language-option">SQL</li>
                         <li id="option-2" class="query-language-option">Log QL</li>
                         <li id="option-3" class="query-language-option active">Splunk QL</li>
-                    </div>
-                </div>
-                <div class="dropdown">
-                    <button class="btn dropdown-toggle" type="button" id="index-btn" data-toggle="dropdown" aria-haspopup="true"
-                        aria-expanded="false" data-bs-toggle="dropdown" title="Index Name to search on">
-                        <span>Index</span>
-                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                    </button>
-                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="available-indexes">
-                        <div id="index-listing"></div>
                     </div>
                 </div>
                 <div class="dropdown">
@@ -268,6 +316,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn" id="save-query-options">
                                 <li id="csv-block" class="query-language-option">Download as CSV</li>
                                 <li id="json-block" class="query-language-option">Download as JSON</li>
+                                <li id="xml-block" class="query-language-option">Download as XML</li>
+                                <li id="sql-block" class="query-language-option">Download as SQL</li>
                             </div>
                         </div>
                         <button class="btn show-record-intro-btn below-btn-img" id="show-record-intro-btn"  title="Query Response Information"></button>

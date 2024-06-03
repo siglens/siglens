@@ -95,9 +95,39 @@ func otsdbMetricQueryExpHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func metricsSearchHandler() func(ctx *fasthttp.RequestCtx) {
+func promqlMetricsInstantQueryHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessMetricsSearchRequest, ctx)
+		serverutils.CallWithOrgIdQuery(prom.ProcessPromqlMetricsSearchRequest, ctx)
+	}
+}
+
+func promqlMetricsRangeQueryHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessPromqlMetricsRangeSearchRequest, ctx)
+	}
+}
+
+func promqlBuildInfoHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessPromqlBuildInfoRequest, ctx)
+	}
+}
+
+func promqlGetLabelsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetLabelsRequest, ctx)
+	}
+}
+
+func promqlGetLabelValuesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetLabelValuesRequest, ctx)
+	}
+}
+
+func promqlGetSeriesByLabelHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetSeriesByLabelRequest, ctx)
 	}
 }
 func uiMetricsSearchHandler() func(ctx *fasthttp.RequestCtx) {
@@ -118,6 +148,12 @@ func getMetricTimeSeriesHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func getMetricFunctionsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetMetricFunctionsRequest, ctx)
+	}
+}
+
 func getAllMetricTagsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(prom.ProcessGetAllMetricTagsRequest, ctx)
@@ -130,17 +166,12 @@ func esGreetHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func processKibanaIngestRequest(ctx *fasthttp.RequestCtx, request map[string]interface{},
-	indexNameConverted string, updateArg bool, idVal string, tsNow uint64, myid uint64) error {
-	return nil
-}
-
 func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
 
 		handler := func(ctx *fasthttp.RequestCtx, orgId uint64) {
-			eswriter.ProcessBulkRequest(ctx, orgId, processKibanaIngestRequest)
+			eswriter.ProcessBulkRequest(ctx, orgId, false)
 		}
 
 		serverutils.CallWithOrgId(handler, ctx)
@@ -422,7 +453,7 @@ func sampleDatasetBulkHandler() func(ctx *fasthttp.RequestCtx) {
 
 func lokiLabelsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		loki.ProcessLokiLabelRequest(ctx)
+		serverutils.CallWithOrgIdQuery(loki.ProcessLokiLabelRequest, ctx)
 	}
 }
 

@@ -149,10 +149,7 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 	}
 	fileSize := uint32(finfo.Size())
 
-	if uint32(len(str.metaFileBuffer)) < fileSize {
-		newArr := make([]byte, fileSize-uint32(len(str.metaFileBuffer)))
-		str.metaFileBuffer = append(str.metaFileBuffer, newArr...)
-	}
+	str.metaFileBuffer = toputils.ResizeSlice(str.metaFileBuffer, int(fileSize))
 
 	_, err = str.metaFd.ReadAt(str.metaFileBuffer[:fileSize], 0)
 	if err != nil {
@@ -587,11 +584,7 @@ func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEn
 	myLevsOff := str.treeMeta.levsOffsets[desiredLevel]
 	myLevsSize := int64(str.treeMeta.levsSizes[desiredLevel])
 
-	sizeToAdd := myLevsSize - int64(len(agileTreeBuf))
-	if sizeToAdd > 0 {
-		newArr := make([]byte, sizeToAdd)
-		agileTreeBuf = append(agileTreeBuf, newArr...)
-	}
+	agileTreeBuf = toputils.ResizeSlice(agileTreeBuf, int(myLevsSize))
 
 	_, err = str.levDataFd.ReadAt(agileTreeBuf[:myLevsSize], myLevsOff)
 	if err != nil {

@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package utils
+package fileutils
 
 import (
 	"fmt"
@@ -36,9 +36,10 @@ func TestAddAccessLogEntry(t *testing.T) {
 	defer os.Remove(tempLogFile.Name())
 
 	// Example data
-	data := dtypeutils.AccessLogData{
+	data := dtypeutils.LogFileData{
 		TimeStamp:   time.Now().Format(time.RFC3339),
 		UserName:    "test_user",
+		QueryID:     0,
 		URI:         "/example",
 		RequestBody: "test_body",
 		StatusCode:  200,
@@ -47,19 +48,19 @@ func TestAddAccessLogEntry(t *testing.T) {
 
 	// Call the function with the temporary logFile
 	allowWebsocket := false
-	fileName := tempLogFile.Name()
-	AddAccessLogEntry(data, allowWebsocket, fileName)
+	AddLogEntry(data, allowWebsocket, tempLogFile)
 
 	// Read the content of the temporary file
-	content, err := os.ReadFile(fileName)
+	content, err := os.ReadFile(tempLogFile.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Validate the content of the file
-	expectedLogEntry := fmt.Sprintf("%s %s %s %s %d %d\n",
+	expectedLogEntry := fmt.Sprintf("%s %s %d %s %s %d %d\n",
 		data.TimeStamp,
 		data.UserName,
+		data.QueryID,
 		data.URI,
 		data.RequestBody,
 		data.StatusCode,
@@ -72,10 +73,10 @@ func TestAddAccessLogEntry(t *testing.T) {
 
 func Test_AddLogEntryValidations(t *testing.T) {
 	cases := []struct {
-		input dtypeutils.AccessLogData
+		input dtypeutils.LogFileData
 	}{
 		{ // case#1
-			dtypeutils.AccessLogData{
+			dtypeutils.LogFileData{
 				TimeStamp:   "",
 				UserName:    "",
 				URI:         "http:///",
@@ -85,7 +86,7 @@ func Test_AddLogEntryValidations(t *testing.T) {
 			},
 		},
 		{ //case 2
-			dtypeutils.AccessLogData{
+			dtypeutils.LogFileData{
 				StatusCode: 101,
 			},
 		},
@@ -102,7 +103,7 @@ func Test_AddLogEntryValidations(t *testing.T) {
 		// Call the function with the temporary logFile
 		allowWebsocket := false
 		fileName := tempLogFile.Name()
-		AddAccessLogEntry(test.input, allowWebsocket, fileName)
+		AddLogEntry(test.input, allowWebsocket, tempLogFile)
 
 		// Read the content of the temporary file
 		content, err := os.ReadFile(fileName)

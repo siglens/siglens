@@ -395,7 +395,6 @@ input.form-control {
     position: absolute;
     right: 28px;
     top: 10px;
-    width: 398px;
 }
 
 .tab-li {
@@ -458,6 +457,7 @@ a:visited.ui-button,
 #date-picker-btn {
     padding: 0;
     font-size: 14px;
+    margin-left: 5px;
 }
 
 #index-btn {

@@ -22,35 +22,32 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/cespare/xxhash"
-	pql "github.com/influxdata/promql/v2"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/prometheus/common/model"
 
-	"github.com/influxdata/promql/v2/pkg/labels"
+	"github.com/prometheus/prometheus/promql/parser"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
+	"github.com/siglens/siglens/pkg/segment/results/mresults"
+	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	. "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
-
-const MIN_IN_MS = 60_000
-const HOUR_IN_MS = 3600_000
-const DAY_IN_MS = 86400_000
 
 func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32, time.Duration, usageStats.UsageStatsGranularity, error) {
 	searchText := ""
@@ -153,62 +150,112 @@ func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32,
 	return searchText, startTime, endTime, 0, granularity, nil
 }
 
-func ProcessMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	rawJSON := ctx.PostBody()
-	if rawJSON == nil {
-		log.Errorf(" ProcessMetricsSearchRequest: received empty search request body ")
-		utils.SetBadMsg(ctx, "")
-		return
-	}
+func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	qid := rutils.GetNextQid()
+	searchText := string(ctx.FormValue("query"))
+	timeParam := string(ctx.FormValue("time"))
 
-	readJSON := make(map[string]interface{})
-	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
-	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
-	decoder.UseNumber()
-	err := decoder.Decode(&readJSON)
-	if err != nil {
-		ctx.SetContentType(ContentJson)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		WriteJsonResponse(ctx, nil)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("qid=%v, ProcessMetricsSearchRequest: could not write error message err=%v", qid, err)
-		}
-		log.Errorf("qid=%v, ProcessMetricsSearchRequest: failed to decode search request body! Err=%+v", qid, err)
+	var endTime uint32
+	var err error
+
+	if searchText == "" {
+		log.Errorf("ProcessPromqlMetricsSearchRequest: no query parameter provided")
+		utils.SetBadMsg(ctx, "query is required")
 		return
 	}
 
-	searchText, startTime, endTime, step, _, err := parseSearchBody(readJSON)
-	if err != nil {
-		ctx.SetContentType(ContentJson)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("qid=%v, ProcessMetricsSearchRequest: could not write error message err=%v", qid, err)
-		}
-
-		log.Errorf("qid=%v, ProcessMetricsSearchRequest: parseSearchBody , err=%v", qid, err)
-		return
-	}
-	if endTime == 0 {
+	if timeParam == "" {
+		// If timeParam doesn't exist, assume the current time in epoch seconds as endTime
 		endTime = uint32(time.Now().Unix())
-	}
-	if startTime == 0 {
-		startTime = uint32(time.Now().Add(time.Duration(-5) * time.Minute).Unix())
+	} else {
+		endTime, err = utils.ParseTimeForPromQL(timeParam)
+		if err != nil {
+			log.Errorf("ProcessPromqlMetricsSearchRequest: Error parsing time parameter, err:%v", err)
+			return
+		}
 	}
 
-	log.Infof("qid=%v, ProcessMetricsSearchRequest:  searchString=[%v] startEpochMs=[%v] endEpochMs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
-
-	metricQueryRequest, pqlQuerytype, _, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
+	metricQueryRequest, pqlQuerytype, _, err := ConvertPqlToMetricsQuery(searchText, endTime-1, endTime, myid)
 	if err != nil {
 		ctx.SetContentType(ContentJson)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		WriteJsonResponse(ctx, nil)
-		log.Errorf("qid=%v, ProcessMetricsSearchRequest: Error parsing query err=%+v", qid, err)
+		log.Errorf("qid=%v, ProcessPromqlMetricsSearchRequest: Error parsing query err=%+v", qid, err)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf("qid=%v, ProcessMetricsSearchRequest: could not write error message err=%v", qid, err)
+			log.Errorf("qid=%v, ProcessPromqlMetricsSearchRequest: could not write error message err=%v", qid, err)
+		}
+		return
+	}
+	if len(metricQueryRequest) == 0 {
+		ctx.SetContentType(ContentJson)
+		WriteJsonResponse(ctx, map[string]interface{}{})
+		return
+	}
+	segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[0], qid)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
+
+	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
+	if err != nil {
+		log.Errorf("ProcessPromqlMetricsSearchRequest: Error getting results! %+v", err)
+	}
+	WriteJsonResponse(ctx, &mQResponse)
+	ctx.SetContentType(ContentJson)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	qid := rutils.GetNextQid()
+	searchText := string(ctx.FormValue("query"))
+	startParam := string(ctx.FormValue("start"))
+	endParam := string(ctx.FormValue("end"))
+	stepValue := string(ctx.FormValue("step"))
+
+	var step time.Duration
+	var stepFloat float64
+	var err error
+
+	if searchText == "" {
+		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: missing query parameter")
+		utils.SetBadMsg(ctx, "query parameter is required")
+		return
+	}
+
+	// Try to parse step as a duration
+	step, err = time.ParseDuration(stepValue)
+	if err != nil {
+		// If parsing as a duration fails, try to parse as a float
+		stepFloat, err = strconv.ParseFloat(stepValue, 64)
+		if err != nil {
+			log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error parsing step, err:%v", err)
+			return
+		}
+		// Convert float to duration in seconds
+		step = time.Duration(stepFloat * float64(time.Second))
+	}
+
+	startTime, err := utils.ParseTimeForPromQL(startParam)
+	if err != nil {
+		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error parsing start parameter, err:%v", err)
+		return
+	}
+	endTime, err := utils.ParseTimeForPromQL(endParam)
+	if err != nil {
+		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error parsing end parameter, err:%v", err)
+		return
+	}
+
+	log.Infof("qid=%v, ProcessPromqlMetricsRangeSearchRequest:  searchString=[%v] startEpochs=[%v] endEpochs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
+
+	metricQueryRequest, pqlQuerytype, _, err := ConvertPqlToMetricsQuery(searchText, startTime, endTime, myid)
+	if err != nil {
+		ctx.SetContentType(ContentJson)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		WriteJsonResponse(ctx, nil)
+		log.Errorf("qid=%v, ProcessPromqlMetricsRangeSearchRequest: Error parsing query err=%+v", qid, err)
+		_, err = ctx.WriteString(err.Error())
+		if err != nil {
+			log.Errorf("qid=%v, ProcessPromqlMetricsRangeSearchRequest: could not write error message err=%v", qid, err)
 		}
 		return
 	}
@@ -217,9 +264,235 @@ func ProcessMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
 	if err != nil {
-		log.Errorf("ExecuteAsyncQuery: Error getting results! %+v", err)
+		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error getting results! %+v", err)
 	}
+	mQResponse.Data.ResultType = parser.ValueTypeMatrix
 	WriteJsonResponse(ctx, &mQResponse)
+	ctx.SetContentType(ContentJson)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+
+}
+func ProcessPromqlBuildInfoRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	ctx.SetContentType("application/json")
+	_, err := ctx.Write([]byte(PromQLBuildInfo))
+	if err != nil {
+		log.Errorf("ProcessPromqlBuildInfoRequest: failed to write response, err=%v", err)
+	}
+}
+
+func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	startParam := string(ctx.FormValue("start"))
+	endParam := string(ctx.FormValue("end"))
+
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - TEN_YEARS_IN_SECS
+	var err error
+
+	// If startParam exists, parse it
+	if startParam != "" {
+		startTime, err = utils.ParseTimeForPromQL(startParam)
+		if err != nil {
+			log.Errorf("ProcessGetLabelsRequest: Error parsing start time parameter, err:%v", err)
+			return
+		}
+	}
+
+	// If endParam exists, parse it
+	if endParam != "" {
+		endTime, err = utils.ParseTimeForPromQL(endParam)
+		if err != nil {
+			log.Errorf("ProcessGetLabelsRequest: Error parsing end time parameter, err:%v", err)
+			return
+		}
+	} else {
+		endTime = uint32(time.Now().Unix())
+	}
+	timeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: startTime,
+		EndEpochSec:   endTime,
+	}
+	uniqueTagKeysUnrotated, err := metrics.GetUniqueTagKeysForUnrotated(timeRange, myid)
+	if err != nil {
+		log.Errorf("ProcessGetLabelsRequest: Error getting unique tag keys for unrotated, err:%v", err)
+		return
+	}
+
+	uniqueTagKeys, err := metadata.GetUniqueTagKeysForRotated(timeRange, myid)
+	if err != nil {
+		log.Errorf("ProcessGetLabelsRequest: Error getting unique tag keys for rotated, err:%v", err)
+		return
+	}
+
+	for key := range uniqueTagKeysUnrotated {
+		uniqueTagKeys[key] = struct{}{}
+	}
+
+	keys := make([]string, 0, len(uniqueTagKeys))
+	for key := range uniqueTagKeys {
+		keys = append(keys, key)
+	}
+
+	response := map[string]interface{}{
+		"status": "success",
+		"data":   keys,
+	}
+
+	WriteJsonResponse(ctx, &response)
+	ctx.SetContentType("application/json")
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	labelName := utils.ExtractParamAsString(ctx.UserValue("labelName"))
+	startParam := string(ctx.FormValue("start"))
+	endParam := string(ctx.FormValue("end"))
+	qid := rutils.GetNextQid()
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - TEN_YEARS_IN_SECS
+	var err error
+	var responseValues []string
+
+	if startParam != "" {
+		startTime, err = utils.ParseTimeForPromQL(startParam)
+		if err != nil {
+			log.Errorf("ProcessGetLabelValuesRequest: Error parsing start time parameter, err:%v", err)
+			return
+		}
+	}
+	if endParam != "" {
+		endTime, err = utils.ParseTimeForPromQL(endParam)
+		if err != nil {
+			log.Errorf("ProcessGetLabelValuesRequest: Error parsing end time parameter, err:%v", err)
+			return
+		}
+	}
+
+	if labelName == "__name__" {
+		timeRange := &dtu.MetricsTimeRange{
+			StartEpochSec: startTime,
+			EndEpochSec:   endTime,
+		}
+		responseValues, err = query.GetAllMetricNamesOverTheTimeRange(timeRange, myid)
+		if err != nil {
+			utils.SendError(ctx, "Failed to get all metric names", "", err)
+			return
+		}
+
+		response := map[string]interface{}{
+			"status": "success",
+			"data":   responseValues,
+		}
+		WriteJsonResponse(ctx, &response)
+		ctx.SetContentType(ContentJson)
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		return
+	}
+
+	searchText := fmt.Sprintf(`(fake_metricname{%s="*"})`, labelName)
+	metricQueryRequest, _, _, err := ConvertPqlToMetricsQuery(searchText, startTime, endTime, myid)
+	if err != nil {
+		ctx.SetContentType(ContentJson)
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		WriteJsonResponse(ctx, nil)
+		log.Errorf("qid=%v, ProcessGetLabelValuesRequest: Error parsing query err=%+v", qid, err)
+		_, err = ctx.WriteString(err.Error())
+		if err != nil {
+			log.Errorf("qid=%v, ProcessGetLabelValuesRequest: could not write error message err=%v", qid, err)
+		}
+		return
+	}
+	if len(metricQueryRequest) == 0 {
+		ctx.SetContentType(ContentJson)
+		WriteJsonResponse(ctx, map[string]interface{}{})
+		return
+	}
+	metricQueryRequest[0].MetricsQuery.TagValueSearchOnly = true
+	segment.LogMetricsQuery("PromQL Label Values request", &metricQueryRequest[0], qid)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
+
+	responseValues = make([]string, 0, len(res.TagValues))
+	for _, innerMap := range res.TagValues {
+		for tagValue := range innerMap {
+			responseValues = append(responseValues, tagValue)
+		}
+	}
+
+	response := map[string]interface{}{
+		"status": "success",
+		"data":   responseValues,
+	}
+	WriteJsonResponse(ctx, &response)
+	ctx.SetContentType(ContentJson)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	qid := rutils.GetNextQid()
+	matches := make([]string, 0)
+	ctx.QueryArgs().VisitAll(func(key []byte, value []byte) {
+		if string(key) == "match[]" {
+			matches = append(matches, string(value))
+		}
+	})
+
+	startParam := string(ctx.FormValue("start"))
+	endParam := string(ctx.FormValue("end"))
+
+	startTime, err := utils.ParseTimeForPromQL(startParam)
+	if err != nil {
+		log.Errorf("ProcessGetSeriesByLabelRequest: Error parsing 'start' parameter, err:%v", err)
+	}
+	endTime, err := utils.ParseTimeForPromQL(endParam)
+	if err != nil {
+		log.Errorf("ProcessGetSeriesByLabelRequest: Error parsing 'end' parameter, err:%v", err)
+	}
+
+	allSeriesTagsOnlyResults := make(map[uint64]*tsidtracker.AllMatchedTSIDsInfo, 0)
+
+	timeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: uint32(startTime),
+		EndEpochSec:   uint32(endTime),
+	}
+
+	for _, match := range matches {
+
+		metricQueryRequest, _, _, err := ConvertPqlToMetricsQuery(match, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
+		if err != nil {
+			ctx.SetContentType(ContentJson)
+			ctx.SetStatusCode(fasthttp.StatusBadRequest)
+			WriteJsonResponse(ctx, nil)
+			log.Errorf("qid=%v, ProcessGetSeriesByLabelRequest: Error parsing query err=%+v", qid, err)
+			_, err = ctx.WriteString(err.Error())
+			if err != nil {
+				log.Errorf("qid=%v, ProcessGetSeriesByLabelRequest: could not write error message err=%v", qid, err)
+			}
+			return
+		}
+
+		metricQueryRequest[0].MetricsQuery.ExitAfterTagsSearch = true
+		metricQueryRequest[0].MetricsQuery.TagIndicesToKeep = make(map[int]struct{})
+		metricQueryRequest[0].MetricsQuery.SelectAllSeries = true
+		segment.LogMetricsQuery("PromQL series by label request", &metricQueryRequest[0], qid)
+		res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
+
+		for tsid, tsidInfoMap := range res.AllSeriesTagsOnlyMap {
+			allSeriesTagsOnlyResults[tsid] = tsidInfoMap
+		}
+	}
+
+	metricsResult := &mresults.MetricsResult{
+		AllSeriesTagsOnlyMap: allSeriesTagsOnlyResults,
+	}
+
+	result, err := metricsResult.GetSeriesByLabel()
+	if err != nil {
+		utils.SendError(ctx, "Failed to get series", fmt.Sprintf("qid: %v, Matches: %+v", qid, matches), err)
+		return
+	}
+
+	response := map[string]interface{}{
+		"status": "success",
+		"data":   result,
+	}
+	WriteJsonResponse(ctx, &response)
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
@@ -271,8 +544,7 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	log.Infof("qid=%v, ProcessMetricsSearchRequest:  searchString=[%v] startEpochMs=[%v] endEpochMs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	startTime, endTime, interval := parseSearchTextForRangeSelection(searchText, startTime, endTime)
-	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(searchText, startTime, endTime, myid)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPqlToMetricsQuery(searchText, startTime, endTime, myid)
 
 	if err != nil {
 		ctx.SetContentType(ContentJson)
@@ -289,14 +561,14 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	metricQueriesList := make([]*structs.MetricsQuery, 0)
 	var timeRange *dtu.MetricsTimeRange
 	hashList := make([]uint64, 0)
-	for _, metricQuery := range metricQueryRequest {
-		hashList = append(hashList, metricQuery.MetricsQuery.HashedMName)
-		metricQueriesList = append(metricQueriesList, &metricQuery.MetricsQuery)
-		segment.LogMetricsQuery("PromQL metrics query parser", &metricQuery, qid)
-		timeRange = &metricQuery.TimeRange
+	for i := range metricQueryRequest {
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.HashedMName)
+		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
+		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
+		timeRange = &metricQueryRequest[i].TimeRange
 	}
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
-	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, startTime, endTime, interval)
+	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, startTime, endTime)
 	if err != nil {
 		log.Errorf("ExecuteAsyncQuery: Error getting results! %+v", err)
 	}
@@ -398,13 +670,14 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	searchText := fmt.Sprintf("(%v)", metricName)
 
-	metricQueryRequest, _, _, err := convertPqlToMetricsQuery(searchText, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
+	metricQueryRequest, _, _, err := ConvertPqlToMetricsQuery(searchText, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
 	if err != nil {
 		utils.SendError(ctx, "Failed to parse the Metric Name as a Query", fmt.Sprintf("Metric Name: %+v; qid: %v", metricName, qid), err)
 		return
 	}
 
 	metricQueryRequest[0].MetricsQuery.ExitAfterTagsSearch = true
+	metricQueryRequest[0].MetricsQuery.TagIndicesToKeep = make(map[int]struct{})
 
 	segment.LogMetricsQuery("Tags Request PromQL metrics query parser", &metricQueryRequest[0], qid)
 	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
@@ -438,40 +711,51 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	log.Debugf("ProcessGetMetricTimeSeriesRequest: Need to Parse: formulas=%v", formulas)
+	// Todo:
+	// Some of the Formulas are not being executed properly. Need to fix.
+	queryFormulaMap := make(map[string]string)
+
+	for _, query := range queries {
+		queryFormulaMap[fmt.Sprintf("%v", query["name"])] = fmt.Sprintf("%v", query["query"])
+	}
+
+	finalSearchText, err := buildMetricQueryFromFormulaAndQueries(fmt.Sprintf("%v", formulas[0]["formula"]), queryFormulaMap)
+	if err != nil {
+		utils.SendError(ctx, "Error building metrics query", fmt.Sprintf("qid: %v, Error: %+v", qid, err), err)
+		return
+	}
+
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPqlToMetricsQuery(finalSearchText, start, end, myid)
+	if err != nil {
+		utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, finalSearchText), err)
+		return
+	}
 
 	metricQueriesList := make([]*structs.MetricsQuery, 0)
 	var timeRange *dtu.MetricsTimeRange
-	hashedMNamesList := make([]uint64, 0)
+	hashList := make([]uint64, 0)
+	for i := range metricQueryRequest {
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.HashedMName)
+		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
+		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
+		timeRange = &metricQueryRequest[i].TimeRange
+	}
+	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
+	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
 
-	// Todo:
-	// The queryFormulas var should contain the parsed formulas.
-	// Modify the below flow to parse the individual queries, execute the queries and then apply the formulas.
-	var queryFormulas []structs.QueryArithmetic
-	for _, query := range queries {
-		queryStrText := fmt.Sprintf("%v", query["query"])
-		start, end, interval := parseSearchTextForRangeSelection(queryStrText, start, end)
-		metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPqlToMetricsQuery(queryStrText, start, end, myid)
-		if err != nil {
-			utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, queryStrText), err)
-			return
+	if len(res.ErrList) > 0 {
+		var errorMessages []string
+		for _, err := range res.ErrList {
+			errorMessages = append(errorMessages, err.Error())
 		}
-		// The size of the metricQueryRequest might always be 1.
-		for _, metricQuery := range metricQueryRequest {
-			metricQuery.MetricsQuery.PqlQueryType = pqlQuerytype
-			metricQuery.MetricsQuery.Interval = interval
-			hashedMNamesList = append(hashedMNamesList, metricQuery.MetricsQuery.HashedMName)
-			metricQueriesList = append(metricQueriesList, &metricQuery.MetricsQuery)
-			segment.LogMetricsQuery("PromQL metrics query parser", &metricQuery, qid)
-			timeRange = &metricQuery.TimeRange
-		}
-		queryFormulas = queryArithmetic
+		allErrors := strings.Join(errorMessages, "; ")
+		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid: %v", qid), fmt.Errorf(allErrors))
+		return
 	}
 
-	res := segment.ExecuteMultipleMetricsQuery(hashedMNamesList, metricQueriesList, queryFormulas, timeRange, qid)
-	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], metricQueriesList[0].PqlQueryType, start, end, metricQueriesList[0].Interval)
+	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
 	if err != nil {
-		utils.SendError(ctx, "Failed to get metric time series", fmt.Sprintf("qid: %v", qid), err)
+		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid: %v", qid), err)
 		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
@@ -479,6 +763,25 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]string) (string, error) {
+
+	finalSearchText := formula
+	for key, value := range queries {
+		finalSearchText = strings.ReplaceAll(finalSearchText, key, fmt.Sprintf("%v", value))
+	}
+
+	log.Infof("buildMetricQueryFromFormulAndQueries: finalSearchText=%v", finalSearchText)
+
+	return finalSearchText, nil
+}
+
+func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	ctx.SetContentType("application/json")
+	_, err := ctx.Write([]byte(metricFunctions))
+	if err != nil {
+		log.Errorf("ProcessGetMetricFunctionsRequest: failed to write response, err=%v", err)
+	}
+}
 func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]interface{}, []map[string]interface{}, string, error) {
 	var start = uint32(0)
 	var end = uint32(0)
@@ -579,15 +882,15 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	return start, end, queries, formulas, errorLog, nil
 }
 
-func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, pql.ValueType, []structs.QueryArithmetic, error) {
+func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
 	// call prometheus promql parser
-	expr, err := pql.ParseExpr(searchText)
+	expr, err := parser.ParseExpr(searchText)
 	if err != nil {
 		return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
 	}
 	pqlQuerytype := expr.Type()
 	var mquery structs.MetricsQuery
-	mquery.Aggregator = structs.Aggreation{}
+	mquery.Aggregator = structs.Aggregation{}
 	selectors := extractSelectors(expr)
 	//go through labels
 	for _, lblEntry := range selectors {
@@ -607,10 +910,15 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		}
 	}
 
+	intervalSeconds, err := mresults.CalculateInterval(endTime - startTime)
+	if err != nil {
+		return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
+	}
+
 	var groupby bool
 	switch expr := expr.(type) {
-	case *pql.AggregateExpr:
-		es := &pql.EvalStmt{
+	case *parser.AggregateExpr:
+		es := &parser.EvalStmt{
 			Expr:     expr,
 			Start:    time.Now().Add(time.Duration(-5) * time.Minute),
 			End:      time.Now(),
@@ -618,10 +926,14 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 			// LookbackDelta: 0,
 		}
 
-		mquery.Aggregator = structs.Aggreation{}
-		pql.Inspect(es.Expr, func(node pql.Node, path []pql.Node) error {
+		mquery.Aggregator = structs.Aggregation{}
+		parser.Inspect(es.Expr, func(node parser.Node, path []parser.Node) error {
+			// If there is no child node, just return nil
+			if node == nil {
+				return nil
+			}
 			switch expr := node.(type) {
-			case *pql.AggregateExpr:
+			case *parser.AggregateExpr:
 				aggFunc := extractFuncFromPath(path)
 				switch aggFunc {
 				case "avg":
@@ -638,9 +950,9 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Quantile
 				default:
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for AggregateExpr (got %v)", aggFunc)
-					mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
+					mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
 				}
-			case *pql.VectorSelector:
+			case *parser.VectorSelector:
 				_, grouping := extractGroupsFromPath(path)
 				aggFunc := extractFuncFromPath(path)
 				for _, grp := range grouping {
@@ -669,44 +981,191 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Quantile
 				default:
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for VectorSelector (got %v)", aggFunc)
-					mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
+					mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
 				}
-			case *pql.NumberLiteral:
+			case *parser.NumberLiteral:
 				mquery.Aggregator.FuncConstant = expr.Val
 			default:
-				err := fmt.Errorf("pql.Inspect: Unsupported node type %T", node)
+				err := fmt.Errorf("convertPqlToMetricsQuery: parser.Inspect: Unsupported node type %T", node)
 				log.Errorf("%v", err)
 				return err
 			}
 			return nil
 		})
-	case *pql.Call:
-		pql.Inspect(expr, func(node pql.Node, path []pql.Node) error {
+	case *parser.Call:
+		// E.g: rate(http_requests_total[5m]), So, the process of the Inspect method calling node is as follows:
+		// promql.Call:"rate(http_requests_total[5m])" -> promql.Expressions[0] -> promql.MatrixSelector:"http_requests_total[5m]"
+		// Since we currently handle evaluation logic only in sub-elements like MatrixSelector or VectorSelector, if we add a default case in the switch statement,
+		// traversal would stop prematurely due to an error being returned before reaching sub-nodes such as MatrixSelector
+		parser.Inspect(expr, func(node parser.Node, path []parser.Node) error {
+			// If there is no child node, just return nil
+			if node == nil {
+				return nil
+			}
 			switch node.(type) {
-			case *pql.MatrixSelector:
+			case *parser.MatrixSelector:
 				function := extractFuncFromPath(path)
 
 				if mquery.TagsFilters != nil {
 					groupby = true
 				}
+
+				timeWindow, _, err := extractTimeWindow(expr.Args)
+				if err != nil {
+					return fmt.Errorf("parser.Inspect: can not extract time window from a range vector: %v", err)
+				}
 				switch function {
 				case "deriv":
-					mquery.Aggregator = structs.Aggreation{RangeFunction: segutils.Derivative}
+					mquery.Function = structs.Function{RangeFunction: segutils.Derivative, TimeWindow: timeWindow}
+				case "predict_linear":
+					if len(expr.Args) != 2 {
+						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the predict_linear function", expr.Args.String())
+					}
+					mquery.Function = structs.Function{RangeFunction: segutils.Predict_Linear, TimeWindow: timeWindow, ValueList: []string{expr.Args[1].String()}}
+				case "delta":
+					mquery.Function = structs.Function{RangeFunction: segutils.Delta, TimeWindow: timeWindow}
+				case "idelta":
+					mquery.Function = structs.Function{RangeFunction: segutils.IDelta, TimeWindow: timeWindow}
 				case "rate":
-					mquery.Aggregator = structs.Aggreation{RangeFunction: segutils.Rate}
+					mquery.Function = structs.Function{RangeFunction: segutils.Rate, TimeWindow: timeWindow}
+				case "irate":
+					mquery.Function = structs.Function{RangeFunction: segutils.IRate, TimeWindow: timeWindow}
+				case "increase":
+					mquery.Function = structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow}
+				case "avg_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Avg_Over_Time, TimeWindow: timeWindow}
+				case "min_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Min_Over_Time, TimeWindow: timeWindow}
+				case "max_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Max_Over_Time, TimeWindow: timeWindow}
+				case "sum_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Sum_Over_Time, TimeWindow: timeWindow}
+				case "count_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: timeWindow}
+				case "stdvar_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: timeWindow}
+				case "stddev_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Stddev_Over_Time, TimeWindow: timeWindow}
+				case "last_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow}
+				case "present_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow}
+				case "quantile_over_time":
+					if len(expr.Args) != 2 {
+						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the quantile_over_time function", expr.Args.String())
+					}
+					mquery.Function = structs.Function{RangeFunction: segutils.Quantile_Over_Time, TimeWindow: timeWindow, ValueList: []string{expr.Args[0].String()}}
+				case "changes":
+					mquery.Function = structs.Function{RangeFunction: segutils.Changes, TimeWindow: timeWindow}
+				case "resets":
+					mquery.Function = structs.Function{RangeFunction: segutils.Resets, TimeWindow: timeWindow}
 				default:
-					return fmt.Errorf("pql.Inspect: unsupported function type %v", function)
+					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
 				}
-
+			case *parser.VectorSelector:
+				function := extractFuncFromPath(path)
+				switch function {
+				case "abs":
+					mquery.Function = structs.Function{MathFunction: segutils.Abs}
+				case "sqrt":
+					mquery.Function = structs.Function{MathFunction: segutils.Sqrt}
+				case "ceil":
+					mquery.Function = structs.Function{MathFunction: segutils.Ceil}
+				case "round":
+					mquery.Function = structs.Function{MathFunction: segutils.Round}
+					if len(expr.Args) > 1 {
+						mquery.Function.ValueList = []string{expr.Args[1].String()}
+					}
+				case "floor":
+					mquery.Function = structs.Function{MathFunction: segutils.Floor}
+				case "exp":
+					mquery.Function = structs.Function{MathFunction: segutils.Exp}
+				case "ln":
+					mquery.Function = structs.Function{MathFunction: segutils.Ln}
+				case "log2":
+					mquery.Function = structs.Function{MathFunction: segutils.Log2}
+				case "log10":
+					mquery.Function = structs.Function{MathFunction: segutils.Log10}
+				case "sgn":
+					mquery.Function = structs.Function{MathFunction: segutils.Sgn}
+				case "deg":
+					mquery.Function = structs.Function{MathFunction: segutils.Deg}
+				case "rad":
+					mquery.Function = structs.Function{MathFunction: segutils.Rad}
+				case "acos":
+					mquery.Function = structs.Function{MathFunction: segutils.Acos}
+				case "acosh":
+					mquery.Function = structs.Function{MathFunction: segutils.Acosh}
+				case "asin":
+					mquery.Function = structs.Function{MathFunction: segutils.Asin}
+				case "asinh":
+					mquery.Function = structs.Function{MathFunction: segutils.Asinh}
+				case "atan":
+					mquery.Function = structs.Function{MathFunction: segutils.Atan}
+				case "atanh":
+					mquery.Function = structs.Function{MathFunction: segutils.Atanh}
+				case "cos":
+					mquery.Function = structs.Function{MathFunction: segutils.Cos}
+				case "cosh":
+					mquery.Function = structs.Function{MathFunction: segutils.Cosh}
+				case "sin":
+					mquery.Function = structs.Function{MathFunction: segutils.Sin}
+				case "sinh":
+					mquery.Function = structs.Function{MathFunction: segutils.Sinh}
+				case "tan":
+					mquery.Function = structs.Function{MathFunction: segutils.Tan}
+				case "tanh":
+					mquery.Function = structs.Function{MathFunction: segutils.Tanh}
+				case "clamp":
+					if len(expr.Args) != 3 {
+						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp function", expr.Args.String())
+					}
+					mquery.Function = structs.Function{MathFunction: segutils.Clamp, ValueList: []string{expr.Args[1].String(), expr.Args[2].String()}}
+				case "clamp_max":
+					if len(expr.Args) != 2 {
+						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp_max function", expr.Args.String())
+					}
+					mquery.Function = structs.Function{MathFunction: segutils.Clamp_Max, ValueList: []string{expr.Args[1].String()}}
+				case "clamp_min":
+					if len(expr.Args) != 2 {
+						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the clamp_min function", expr.Args.String())
+					}
+					mquery.Function = structs.Function{MathFunction: segutils.Clamp_Min, ValueList: []string{expr.Args[1].String()}}
+				case "timestamp":
+					mquery.Function = structs.Function{MathFunction: segutils.Timestamp}
+				case "hour":
+					mquery.Function = structs.Function{TimeFunction: segutils.Hour}
+				case "minute":
+					mquery.Function = structs.Function{TimeFunction: segutils.Minute}
+				case "month":
+					mquery.Function = structs.Function{TimeFunction: segutils.Month}
+				case "year":
+					mquery.Function = structs.Function{TimeFunction: segutils.Year}
+				case "day_of_month":
+					mquery.Function = structs.Function{TimeFunction: segutils.DayOfMonth}
+				case "day_of_week":
+					mquery.Function = structs.Function{TimeFunction: segutils.DayOfWeek}
+				case "day_of_year":
+					mquery.Function = structs.Function{TimeFunction: segutils.DayOfYear}
+				case "days_in_month":
+					mquery.Function = structs.Function{TimeFunction: segutils.DaysInMonth}
+				default:
+					return fmt.Errorf("parser.Inspect: unsupported function type %v", function)
+				}
 			}
 			return nil
 		})
-	case *pql.VectorSelector:
+	case *parser.VectorSelector:
 		mquery.HashedMName = xxhash.Sum64String(mquery.MetricName)
 		mquery.OrgId = myid
 		mquery.SelectAllSeries = true
-		agg := structs.Aggreation{AggregatorFunction: segutils.Avg}
-		mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: agg}
+		agg := structs.Aggregation{AggregatorFunction: segutils.Avg}
+		mquery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
+
+		if len(mquery.TagsFilters) > 0 {
+			mquery.SelectAllSeries = false
+		}
+
 		metricQueryRequest := &structs.MetricsQueryRequest{
 			MetricsQuery: mquery,
 			TimeRange: dtu.MetricsTimeRange{
@@ -715,15 +1174,15 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 			},
 		}
 		return []structs.MetricsQueryRequest{*metricQueryRequest}, pqlQuerytype, []structs.QueryArithmetic{}, nil
-	case *pql.BinaryExpr:
+	case *parser.BinaryExpr:
 		arithmeticOperation := structs.QueryArithmetic{}
-		var lhsValType, rhsValType pql.ValueType
+		var lhsValType, rhsValType parser.ValueType
 		var lhsRequest, rhsRequest []structs.MetricsQueryRequest
-		if constant, ok := expr.LHS.(*pql.NumberLiteral); ok {
+		if constant, ok := expr.LHS.(*parser.NumberLiteral); ok {
 			arithmeticOperation.ConstantOp = true
 			arithmeticOperation.Constant = constant.Val
 		} else {
-			lhsRequest, lhsValType, _, err = convertPqlToMetricsQuery(expr.LHS.String(), startTime, endTime, myid)
+			lhsRequest, lhsValType, _, err = ConvertPqlToMetricsQuery(expr.LHS.String(), startTime, endTime, myid)
 			if err != nil {
 				return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
 			}
@@ -731,24 +1190,24 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 
 		}
 
-		if constant, ok := expr.RHS.(*pql.NumberLiteral); ok {
+		if constant, ok := expr.RHS.(*parser.NumberLiteral); ok {
 			arithmeticOperation.ConstantOp = true
 			arithmeticOperation.Constant = constant.Val
 		} else {
-			rhsRequest, rhsValType, _, err = convertPqlToMetricsQuery(expr.RHS.String(), startTime, endTime, myid)
+			rhsRequest, rhsValType, _, err = ConvertPqlToMetricsQuery(expr.RHS.String(), startTime, endTime, myid)
 			if err != nil {
 				return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
 			}
 			arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.HashedMName
 
 		}
-		arithmeticOperation.Operation = getArithmeticOperation(expr.Op)
-		if rhsValType == pql.ValueTypeVector {
-			lhsValType = pql.ValueTypeVector
+		arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
+		if rhsValType == parser.ValueTypeVector {
+			lhsValType = parser.ValueTypeVector
 		}
 		return append(lhsRequest, rhsRequest...), lhsValType, []structs.QueryArithmetic{arithmeticOperation}, nil
-	case *pql.ParenExpr:
-		return convertPqlToMetricsQuery(expr.Expr.String(), startTime, endTime, myid)
+	case *parser.ParenExpr:
+		return ConvertPqlToMetricsQuery(expr.Expr.String(), startTime, endTime, myid)
 	default:
 		return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, fmt.Errorf("convertPqlToMetricsQuery: Unsupported query type %T", expr)
 	}
@@ -775,10 +1234,14 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 	mquery.HashedMName = xxhash.Sum64String(metricName)
 
 	if mquery.Aggregator.AggregatorFunction == 0 && !groupby {
-		mquery.Aggregator = structs.Aggreation{AggregatorFunction: segutils.Avg}
+		mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
 	}
-	mquery.Downsampler = structs.Downsampler{Interval: 1, Unit: "m", Aggregator: mquery.Aggregator}
-	mquery.SelectAllSeries = !groupby // if group by is not present, then we need to select all series
+	mquery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: mquery.Aggregator}
+	if len(mquery.TagsFilters) > 0 {
+		mquery.SelectAllSeries = false
+	} else {
+		mquery.SelectAllSeries = true
+	}
 	mquery.OrgId = myid
 	metricQueryRequest := &structs.MetricsQueryRequest{
 		MetricsQuery: mquery,
@@ -790,16 +1253,32 @@ func convertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 	return []structs.MetricsQueryRequest{*metricQueryRequest}, pqlQuerytype, []structs.QueryArithmetic{}, nil
 }
 
-func getArithmeticOperation(op pql.ItemType) segutils.ArithmeticOperator {
+func getLogicalAndArithmeticOperation(op parser.ItemType) segutils.LogicalAndArithmeticOperator {
 	switch op {
-	case pql.ItemADD:
-		return segutils.Add
-	case pql.ItemSUB:
-		return segutils.Subtract
-	case pql.ItemMUL:
-		return segutils.Multiply
-	case pql.ItemDIV:
-		return segutils.Divide
+	case parser.ADD:
+		return segutils.LetAdd
+	case parser.SUB:
+		return segutils.LetSubtract
+	case parser.MUL:
+		return segutils.LetMultiply
+	case parser.DIV:
+		return segutils.LetDivide
+	case parser.MOD:
+		return segutils.LetModulo
+	case parser.POW:
+		return segutils.LetPower
+	case parser.GTR:
+		return segutils.LetGreaterThan
+	case parser.GTE:
+		return segutils.LetGreaterThanOrEqualTo
+	case parser.LSS:
+		return segutils.LetLessThan
+	case parser.LTE:
+		return segutils.LetLessThanOrEqualTo
+	case parser.EQLC:
+		return segutils.LetEquals
+	case parser.NEQ:
+		return segutils.LetNotEquals
 	default:
 		log.Errorf("getArithmeticOperation: unexpected op: %v", op)
 		return 0
@@ -837,47 +1316,33 @@ func parseTimeFromString(timeStr string) (uint32, error) {
 	return uint32(t.Unix()), nil
 }
 
-func extractSelectors(expr pql.Expr) [][]*labels.Matcher {
-	var selectors [][]*labels.Matcher
-	pql.Inspect(expr, func(node pql.Node, _ []pql.Node) error {
-		var vs interface{}
-		vs, ok := node.(*pql.VectorSelector)
-		if ok {
-			selectors = append(selectors, vs.(*pql.VectorSelector).LabelMatchers)
-		}
-		vs, ok = node.(pql.Expressions)
-		if ok {
-			for _, entry := range vs.(pql.Expressions) {
-				expr, ok := entry.(*pql.MatrixSelector)
-				if ok {
-					selectors = append(selectors, expr.LabelMatchers)
-				}
-			}
-		}
-		return nil
-	})
-	return selectors
-}
-
 // extractGroupsFromPath parses vector outer function and extracts grouping information if by or without was used.
-func extractGroupsFromPath(p []pql.Node) (bool, []string) {
+func extractGroupsFromPath(p []parser.Node) (bool, []string) {
 	if len(p) == 0 {
 		return false, nil
 	}
 	switch n := p[len(p)-1].(type) {
-	case *pql.AggregateExpr:
+	case *parser.AggregateExpr:
 		return !n.Without, n.Grouping
-	case pql.Expressions:
+	case parser.Expressions:
 		groupByVals := make([]string, 0)
 		for _, entry := range n {
-			expr, ok := entry.(*pql.MatrixSelector)
-			if ok {
-				for _, labels := range expr.LabelMatchers {
-					if labels.Name != "__name__" {
-						groupByVals = append(groupByVals, labels.Name)
-					}
+			expr, ok := entry.(*parser.MatrixSelector)
+			if !ok {
+				continue
+			}
+
+			vectorSelector, ok := expr.VectorSelector.(*parser.VectorSelector)
+			if !ok {
+				continue
+			}
+
+			for _, labels := range vectorSelector.LabelMatchers {
+				if labels.Name != "__name__" {
+					groupByVals = append(groupByVals, labels.Name)
 				}
 			}
+
 		}
 		return false, groupByVals
 	default:
@@ -887,16 +1352,16 @@ func extractGroupsFromPath(p []pql.Node) (bool, []string) {
 
 // extractFuncFromPath walks up the path and searches for the first instance of
 // a function or aggregation.
-func extractFuncFromPath(p []pql.Node) string {
+func extractFuncFromPath(p []parser.Node) string {
 	if len(p) == 0 {
 		return ""
 	}
 	switch n := p[len(p)-1].(type) {
-	case *pql.AggregateExpr:
+	case *parser.AggregateExpr:
 		return n.Op.String()
-	case *pql.Call:
+	case *parser.Call:
 		return n.Func.Name
-	case *pql.BinaryExpr:
+	case *parser.BinaryExpr:
 		// If we hit a binary expression we terminate since we only care about functions
 		// or aggregations over a single metric.
 		return ""
@@ -973,58 +1438,6 @@ func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) (uint64, usage
 		log.Errorf("parseAlphaNumTime: Unknown time unit %v", unit)
 	}
 	return retVal, granularity
-}
-
-func parseSearchTextForRangeSelection(searchText string, startTime uint32, endTime uint32) (uint32, uint32, uint32) {
-
-	pattern := `\[(.*?)\]`
-
-	regex := regexp.MustCompile(pattern)
-
-	matches := regex.FindAllStringSubmatch(searchText, -1)
-
-	var timeRange string
-
-	for _, match := range matches {
-		timeRange = match[1]
-	}
-
-	var totalVal uint32 = 0
-	var curVal uint32 = 0
-	var curDimension string = ""
-	var dimensionVal uint32 = 0
-
-	for _, ch := range timeRange {
-		if unicode.IsDigit(ch) {
-			if curDimension == "" {
-				curVal = curVal*10 + uint32(ch-'0')
-			} else {
-				totalVal += curVal * dimensionVal
-				curDimension = ""
-				curVal = uint32(ch - '0')
-			}
-		} else {
-			curDimension += curDimension + string(ch)
-			if curDimension == "s" || curDimension == "S" {
-				dimensionVal = 1
-			} else if curDimension == "m" || curDimension == "M" {
-				dimensionVal = 60
-			} else if curDimension == "h" || curDimension == "H" {
-				dimensionVal = 3600
-			} else if curDimension == "d" || curDimension == "D" {
-				dimensionVal = 24 * 3600
-			} else if curDimension == "w" || curDimension == "W" {
-				dimensionVal = 7 * 24 * 3600
-			}
-		}
-	}
-	totalVal += curVal * dimensionVal
-
-	if totalVal > 0 {
-		startTime = endTime - totalVal
-	}
-
-	return startTime, endTime, totalVal
 }
 
 func parseTimeStringToUint32(s interface{}) (uint32, error) {

@@ -15,12 +15,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package grpc_query
+package utils
 
-// A single request for a segment key
-type SegkeyRequest interface {
-	GetSegmentKey() string
-	GetTableName() string
-	GetStartEpochMs() uint64
-	GetEndEpochMs() uint64
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func Test_ResizeSlice(t *testing.T) {
+	originalSlice := []int{1, 2, 3, 4, 5}
+
+	newSlice := ResizeSlice(originalSlice, 3)
+	assert.Len(t, newSlice, 3)
+	assert.Equal(t, newSlice, []int{1, 2, 3})
+
+	newSlice = ResizeSlice(originalSlice, 10)
+	assert.Len(t, newSlice, 10)
+	assert.Equal(t, newSlice[:5], originalSlice)
 }

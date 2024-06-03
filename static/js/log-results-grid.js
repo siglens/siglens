@@ -20,6 +20,7 @@
 'use strict';
 
 let cellEditingClass = '';
+let isFetching = false; 
 
 class ReadOnlyCellEditor {
     // gets called once before the renderer is used
@@ -28,6 +29,7 @@ class ReadOnlyCellEditor {
         this.eInput = document.createElement('textarea');
         cellEditingClass = params.rowIndex%2===0 ? 'even-popup-textarea' : 'odd-popup-textarea'
         this.eInput.classList.add(cellEditingClass);
+        this.eInput.classList.add('copyable');
         this.eInput.readOnly = true;
 
         // Set styles to ensure the textarea fits within its container
@@ -42,10 +44,18 @@ class ReadOnlyCellEditor {
         this.eInput.rows = params.rows;
         this.eInput.maxLength = params.maxLength;
         this.eInput.value = params.value;
+
+        this.gridApi = params.api;
     }
     // gets called once when grid ready to insert the element
     getGui() {
-        return this.eInput;
+        this.gridApi.addEventListener('cellEditingStarted', (event) => {
+            if (event.rowIndex === this.gridApi.getDisplayedRowAtIndex(event.rowIndex).rowIndex) {
+              this.addCopyIcon();
+            }
+          });
+        
+          return this.eInput;
     }
     // returns the new value after editing
     getValue() {
@@ -60,6 +70,35 @@ class ReadOnlyCellEditor {
     destroy() {
         this.eInput.classList.remove(cellEditingClass);
     }
+    addCopyIcon() {
+        // Remove any existing copy icons
+        $('.copy-icon').remove();
+      
+        // Add copy icon to the textarea
+        $('.copyable').each(function() {
+          var copyIcon = $('<span style="margin-right: 14px;" class="copy-icon"></span>');
+          $(this).after(copyIcon);
+        });
+      
+        // Attach click event handler to the copy icon
+        $('.copy-icon').on('click', function(event) {
+          var copyIcon = $(this);
+          var inputOrTextarea = copyIcon.prev('.copyable');
+          var inputValue = inputOrTextarea.val();
+      
+          var tempInput = document.createElement("textarea");
+          tempInput.value = inputValue;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand("copy");
+          document.body.removeChild(tempInput);
+      
+          copyIcon.addClass('success');
+          setTimeout(function() {
+            copyIcon.removeClass('success');
+          }, 1000);
+        });
+      }
   }
 
 const cellEditorParams = (params) => {
@@ -107,22 +146,13 @@ let logsColumnDefs = [
                         $(`.toggle-${string2Hex(colName)}`).removeClass('active');
                     }
                 });
-            } else {
-                selectedFieldsList = [];
-                availColNames.forEach((colName, index) => {
-                    $(`.toggle-${string2Hex(colName)}`).addClass('active');
-                    selectedFieldsList.push(colName);
-                });
             }
             _.forEach(params.data, (value, key) => {
                 let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
                 if (key != 'logs' && selectedFieldsList.includes(key)) {
                     logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=`+ JSON.stringify(JSON.unflatten(value), null, 2)+`</span>`;                    
-
                     counter++;
-                }
-                if (key === 'timestamp'){
-                    logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${value}</span>`;
+
                 }
             });
             return logString;
@@ -149,39 +179,89 @@ const gridOptions = {
         minWidth: 200,
         icons: {
             sortAscending: '<i class="fa fa-sort-alpha-down"/>',
-            sortDescending: '<i class="fa fa-sort-alpha-up"/>',
+            sortDescending: '<i class="fa fa-sort-alpha-desc"/>',
           },
+          headerComponentParams: {
+            template:
+                `<div class="ag-cell-label-container" role="presentation">
+                  <span ref="eMenu" class="ag-header-icon ag-header-cell-menu-button"></span>
+                  <span ref="eFilterButton" class="ag-header-icon ag-header-cell-filter-button"></span>
+                  <div ref="eLabel" class="ag-header-cell-label" role="presentation">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 3px; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 3px;">
+                            <span ref="eText" class="ag-header-cell-text" role="columnheader"></span>
+                            <span ref="eSortOrder" class="ag-header-icon ag-sort-order"></span>
+                            <span ref="eSortAsc" class="ag-header-icon ag-sort-ascending-icon"></span>
+                            <span ref="eSortDesc" class="ag-header-icon ag-sort-descending-icon"></span>
+                            <span ref="eSortNone" class="ag-header-icon ag-sort-none-icon"></span>
+                            <span ref="eFilter" class="ag-header-icon ag-filter-icon"></span>
+                        </div>
+                        <i onclick="hideColumnHandler(event, true)" class="fa fa-close close-icon"></i>
+                    </div>
+                  </div>
+                </div>`
+        }
     },
     icons: {
         sortAscending: '<i class="fa fa-sort-alpha-down"/>',
-        sortDescending: '<i class="fa fa-sort-alpha-up"/>',
+        sortDescending: '<i class="fa fa-sort-alpha-desc"/>',
       },
+      close: true,
     enableCellTextSelection: true,
     suppressScrollOnNewData: true,
     suppressAnimationFrame: true,
     suppressFieldDotNotation: true,
     onBodyScroll(evt){
-        if(evt.direction === 'vertical' && canScrollMore == true){
+        if(evt.direction === 'vertical' && canScrollMore && !isFetching) {
             let diff = logsRowData.length - evt.api.getLastDisplayedRow();
-            // if we're less than 1 items from the end...fetch more data
+            // if we're less than 5 items from the end...fetch more data
             if(diff <= 5) {
-                // Show loading indicator
+                isFetching = true;
                 showLoadingIndicator();
-                
+
                 let scrollingTrigger = true;
                 data = getSearchFilter(false, scrollingTrigger);
                 if (data && data.searchText == "error") {
                   alert("Error");
                   hideLoadingIndicator(); // Hide loading indicator on error
+                  isFetching = false;
                   return;
                 }
-                doSearch(data).then(() => {
-                    hideLoadingIndicator(); // Hide loading indicator once data is fetched
-                });
+
+                doSearch(data)
+                    .then(() => {
+                        isFetching = false;
+                    })
+                    .catch((error) => {
+                        console.warn("Error fetching data", error);
+                        isFetching = false;
+                    })
+                    .finally(() => {
+                        hideLoadingIndicator(); // Hide loading indicator once data is fetched
+                        isFetching = false;
+                    });
             }
         }
     },
     overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
+    onGridReady: function (params) {
+        const eGridDiv = document.querySelector('#LogResultsGrid');
+        const style = document.createElement('style');
+        style.textContent = `
+            .close-icon {
+                cursor: pointer;
+                color: #888;
+                margin-left: 5px;
+                display: none;
+            }
+              
+            .ag-header-cell:not([col-id="timestamp"]):hover .close-icon {
+                display: inline-block;
+            }
+            
+        `;
+        eGridDiv.appendChild(style);
+    }
 };
 
 function showLoadingIndicator() {
@@ -210,6 +290,7 @@ const myCellRenderer= (params) => {
 let gridDiv = null;
 
 function renderLogsGrid(columnOrder, hits){
+    
     if (sortByTimestampAtDefault) {
         logsColumnDefs[0].sort = "desc";
     }else {
@@ -239,24 +320,56 @@ function renderLogsGrid(columnOrder, hits){
                 hideCol = false;
             }
         }
-        return {
-            field: colName,
-            hide: hideCol,
-            headerName: colName,
-            cellRenderer: myCellRenderer,
-            cellRendererParams : {
-                colName: colName
-             }
-        };
+        if (colName === "timestamp"){
+            return {
+                field: colName,
+                hide: hideCol,
+                headerName: colName,
+                cellRenderer:function(params) {
+                        return moment(params.value).format(timestampDateFmt);
+                    }
+            }
+        }else{
+            return {
+                field: colName,
+                hide: hideCol,
+                headerName: colName,
+                cellRenderer: myCellRenderer,
+                cellRendererParams : {colName: colName}
+            };
+        }
     });
-    if(hits.length != 0){
-        logsRowData = _.concat(hits, logsRowData);
+    if (hits.length !== 0) {
+        // Map hits objects to match the order of columnsOrder
+        const mappedHits = hits.map(hit => {
+            const reorderedHit = {};
+            columnOrder.forEach(column => {
+                // Check if the property exists in the hit object
+                if (hit.hasOwnProperty(column)) {
+                    reorderedHit[column] = hit[column];
+                }
+            });
+            return reorderedHit;
+        });
+    
+        logsRowData = mappedHits.concat(logsRowData);
+
         if (liveTailState && logsRowData.length > 500){
             logsRowData = logsRowData.slice(0, 500);
         }
             
     }
-    logsColumnDefs = _.chain(logsColumnDefs).concat(cols).uniqBy('field').value();
+
+    const logsColumnDefsMap = new Map(logsColumnDefs.map(logCol => [logCol.field, logCol]));
+     // Use column def from logsColumnDefsMap if it exists, otherwise use the original column def from cols
+    const combinedColumnDefs = cols.map(col => logsColumnDefsMap.get(col.field) || col);
+    // Append any remaining column def from logsColumnDefs that were not in cols
+    logsColumnDefs.forEach(logCol => {
+        if (!combinedColumnDefs.some(col => col.field === logCol.field)) {
+            combinedColumnDefs.push(logCol);
+        }
+    });
+    logsColumnDefs = combinedColumnDefs;
     gridOptions.api.setColumnDefs(logsColumnDefs);
 
     const allColumnIds = [];
@@ -265,6 +378,7 @@ function renderLogsGrid(columnOrder, hits){
     });
     gridOptions.columnApi.autoSizeColumns(allColumnIds, false);
     gridOptions.api.setRowData(logsRowData);
+
     
     switch (logview){
         case 'single-line':

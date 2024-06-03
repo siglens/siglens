@@ -77,11 +77,11 @@ func GetMetricsSegmentRequests(mName string, tRange *dtu.MetricsTimeRange, query
 				return
 			}
 			finalReq := &structs.MetricsSearchRequest{
-				MetricsKeyBaseDir: msm.MSegmentDir,
-				BlocksToSearch:    retBlocks,
-				Parallelism:       uint(config.GetParallelism()),
-				QueryType:         structs.METRICS_SEARCH,
-				AllTagKeys:        allTagKeys,
+				MetricsKeyBaseDir:    msm.MSegmentDir,
+				BlocksToSearch:       retBlocks,
+				BlkWorkerParallelism: uint(2),
+				QueryType:            structs.METRICS_SEARCH,
+				AllTagKeys:           allTagKeys,
 			}
 
 			retUpdate.Lock()
@@ -121,4 +121,19 @@ func GetMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid uint6
 	}
 
 	return metricsSegMeta
+}
+
+func GetUniqueTagKeysForRotated(tRange *dtu.MetricsTimeRange, myid uint64) (map[string]struct{}, error) {
+	mSegmentsMeta := GetMetricSegmentsOverTheTimeRange(tRange, myid)
+
+	uniqueTagKeys := make(map[string]struct{})
+
+	// Iterate over the metadata and extract unique tag keys
+	for _, meta := range mSegmentsMeta {
+		for key := range meta.TagKeys {
+			uniqueTagKeys[key] = struct{}{}
+		}
+	}
+
+	return uniqueTagKeys, nil
 }

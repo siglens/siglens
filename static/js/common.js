@@ -77,13 +77,13 @@ let aggGridOptions = {
         resizable: true,
         sortable: true,
         icons: {
-            sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+            sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
         },
         cellRenderer: params => params.value ? params.value : 'null',
     },
     icons: {
-        sortAscending: '<i class="fa fa-sort-alpha-up"/>',
+        sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
         sortDescending: '<i class="fa fa-sort-alpha-down"/>',
     }
 };
@@ -225,18 +225,28 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
         //for aggs-query and segstats-query
         if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
             let columnOrder = []
-            if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(
-                    res.groupByCols));
+            if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+                columnOrder = res.columnsOrder
+            }else{
+                if (res.groupByCols) {
+                    columnOrder = _.uniq(_.concat(
+                        res.groupByCols));
+                }
+                if (res.measureFunctions) {
+                    columnOrder = _.uniq(_.concat(
+                        columnOrder, res.measureFunctions));
+                }
             }
-            if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(
-                    columnOrder, res.measureFunctions));
-            }
-            renderPanelAggsGrid(columnOrder, res.measure,panelId)
+            renderPanelAggsGrid(columnOrder, res ,panelId)
         }//for logs-query
         else if(res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
-            renderPanelLogsGrid(res.allColumns, res.hits.records, panelId, logLinesViewType);
+            let columnOrder = []
+            if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+                columnOrder = res.columnsOrder
+            }else{
+                columnOrder = res.allColumns
+            }
+            renderPanelLogsGrid(columnOrder, res.hits.records, panelId, logLinesViewType);
         }
         allResultsDisplayed--;
         if(allResultsDisplayed <= 0 || panelId === -1) {
@@ -444,16 +454,18 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
         }
 
         let columnOrder = []
-        if (res.groupByCols) {
-            columnOrder = _.uniq(_.concat(
-                res.groupByCols));
+        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+            columnOrder = res.columnsOrder
+        }else{
+            if (res.groupByCols) {
+                columnOrder = _.uniq(_.concat(
+                    res.groupByCols));
+            }
+            if (res.measureFunctions) {
+                columnOrder = _.uniq(_.concat(
+                    columnOrder, res.measureFunctions));
+            }
         }
-
-        if (res.measureFunctions) {
-            columnOrder = _.uniq(_.concat(
-                columnOrder, res.measureFunctions));
-        }
-
         if (res.errors) {
             panelProcessEmptyQueryResults(res.errors[0], panelId);
         } else {
@@ -469,7 +481,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
             } else {
                 // for number, bar and pie charts
                 if(panelId ===-1)
-                    renderPanelAggsGrid(columnOrder, res.measure,panelId);
+                    renderPanelAggsGrid(columnOrder, res, panelId);
 
                 panelChart = renderBarChart(columnOrder, res.measure, panelId, chartType, dataType, panelIndex);
             }
@@ -516,7 +528,7 @@ function runMetricsQuery(data, panelId, currentPanel, queryRes) {
     } else {
         $.ajax({
             method: 'post',
-            url: 'promql/api/ui/query',
+            url: 'metrics-explorer/api/v1/timeseries',
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
                 'Accept': '*/*'
@@ -554,23 +566,20 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
         $(`#panel${panelId} .panEdit-panel`).show();
     }
 
-    if (res.aggStats && Object.keys(res.aggStats).length === 0) {
+    if (res.series && res.series.length === 0) {
         panelProcessEmptyQueryResults("", panelId);
+        allResultsDisplayed--;
         $('body').css('cursor', 'default');
 	    $(`#panel${panelId} .panel-body #panel-loading`).hide();
     } else {
         if (chartType === 'number'){
-            $.each(res, function (key, value) {
-                var series = value;
-                $.each(series, function (key, value) {
-                    var tsmap = value
-                    $.each(tsmap, function (key, value) {
-                        if (value > 0){
-                            bigNumVal = value
-                        }
-                    })
-                })         
-            });   
+            $.each(res.values, function (index, valueArray) {
+                $.each(valueArray, function (index, value) {
+                    if (value > bigNumVal) {
+                        bigNumVal = value;
+                    }
+                });
+            }); 
             if(bigNumVal === undefined || bigNumVal === null){
                 panelProcessEmptyQueryResults("", panelId);
             }else{
@@ -583,53 +592,27 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
             } 
         } else {
             hideError();
-            const colors = createMetricsColorsArray();
             let seriesArray = [];
-            let label = [];
-            $.each(res, function (key, value) {
-                var series = value;
-                $.each(series, function (key, value) {
-                    seriesArray.push({ seriesName: key, values: value });
-                    label = [];
-                    $.each(value, function (k, v) {
-                        label.push(k);
-                    })
-                })
-                let gridLineColor;
-                let tickColor;
-                if ($('html').attr('data-theme') == "light") {
-                    gridLineColor = "#DCDBDF";
-                    tickColor = "#160F29";
-                }
-                else {
-                    gridLineColor = "#383148";
-                    tickColor = "#FFFFFF"
-                }
-                metricsDatasets = seriesArray.map((o, i) => {
-                    return {
-                        name: o.seriesName,
-                        data: Object.values(o.values),
-                        type: chartType,
-                        lineStyle: {
-                            color: colors[i],
-                            width: 2,
-                            type: 'solid',
-                            backgroundColor: colors[i],
-                            borderColor: colors[i],
-                        }, itemStyle: {
-                            color: colors[i],
-                            width: 2,
-                            type: 'solid',
-                            backgroundColor: colors[i],
-                            borderColor: colors[i],
-                        },
+            if (res.hasOwnProperty('series') && res.hasOwnProperty('timestamps') && res.hasOwnProperty('values')) {
+                for (let i = 0; i < res.series.length; i++) {
+                    let series = {
+                        seriesName: res.series[i],
+                        values: {}
+                    };
+        
+                    for (let j = 0; j < res.timestamps.length; j++) {
+                        // Convert epoch seconds to milliseconds by multiplying by 1000
+                        let timestampInMilliseconds = res.timestamps[j] * 1000;
+                        let localDate = new Date(timestampInMilliseconds);
+                        let formattedDate = localDate.toLocaleString();
+        
+                        series.values[formattedDate] = res.values[i][j];
                     }
+        
+                    seriesArray.push(series);
                 }
-                );
-            })
-            let labels = label;
-
-            renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, -1);
+            }
+            renderLineChart(seriesArray, panelId);
             allResultsDisplayed--;
             if(allResultsDisplayed <= 0 || panelId === -1) {
                 $('body').css('cursor', 'default');
@@ -753,7 +736,7 @@ function showDeleteIndexToast(msg) {
         ${msg}
         <button type="button" aria-label="Close" class="toast-close">✖</button>
     <div>`
-    $('.index-header').append(toast);
+    $('#logs-stats-header').append(toast);
     $('.toast-close').on('click', removeToast);
     setTimeout(removeToast, 3000);
 }
@@ -838,5 +821,39 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
                 renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
             }
             break;
+    }
+}
+
+function findColumnIndex(columnsMap, columnName) {
+    // Iterate over the Map entries
+    for (const [ index,name] of columnsMap.entries()) {
+        if (name === columnName) {
+            return index; // Return the index if the column name matches
+        }
+    }
+    return -1; // Return -1 if the column name is not found
+}
+
+function setIndexDisplayValue(selectedSearchIndex){
+    if (selectedSearchIndex) {
+        // Remove all existing selected indexes
+        $(".index-container .selected-index").remove();
+        const selectedIndexes = selectedSearchIndex.split(',');
+        selectedIndexes.forEach(function(index) {
+            addSelectedIndex(index);
+            // Remove the selectedSearchIndex from indexValues
+            const indexIndex = indexValues.indexOf(index);
+            if (indexIndex !== -1) {
+                indexValues.splice(indexIndex, 1);
+            }
+            if (index.endsWith('*')) {
+                const prefix = index.slice(0, -1); // Remove the '*'
+                const filteredIndexValues = indexValues.filter(function(option) {
+                    return !option.startsWith(prefix);
+                });
+                indexValues = filteredIndexValues;
+                $("#index-listing").autocomplete("option", "source", filteredIndexValues);
+            }
+        });
     }
 }

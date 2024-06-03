@@ -62,8 +62,6 @@ var metric_value_histogram_keyname = []byte("histogram")
 var metric_value_summary_keyname = []byte("summary")
 var otsdb_tags = []byte("tags")
 
-var influx_value = "value"
-
 var tags_separator = []byte("__")
 
 var TAGS_TREE_FLUSH_SLEEP_DURATION = 60 // 1 min
@@ -408,6 +406,9 @@ If it cannot find the series or no space exists in the metrics segment, it will 
 Return number of bytes written and any error encountered
 */
 func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint32, nBytes uint64, orgid uint64) error {
+	if len(mName) == 0 {
+		return fmt.Errorf("metric name is empty")
+	}
 	tsid, err := tags.GetTSID(mName)
 	if err != nil {
 		return err
@@ -523,15 +524,12 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 		case bytes.Equal(key, otsdb_mname), bytes.Equal(key, metric_name_key):
 			switch valueType {
 			case jp.String:
-				temp, err := jp.ParseString(value)
+				_, err := jp.ParseString(value)
 				if err != nil {
 					log.Errorf("failed to extract tags %+v", err)
+					return err
 				}
-				if temp != "target_info" {
-					mName = value
-				} else {
-					return nil
-				}
+				mName = value
 			}
 		case bytes.Equal(key, otsdb_tags):
 			if valueType != jp.Object {
@@ -619,9 +617,6 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 			})
 
 			return err
-
-		default:
-			log.Warnf("unknown keyname %+s", key)
 		}
 		return nil
 	}
@@ -635,25 +630,27 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	if len(mName) > 0 && ts > 0 {
 		return mName, dpVal, ts, nil
 	} else if len(mName) == 0 && err == nil {
-		//comes here when mName = target_info
 		return nil, dpVal, 0, nil
 	} else {
 		return nil, dpVal, 0, fmt.Errorf("failed to find all expected keys")
 	}
 }
 
-// for an input raw csv row []byte, return the metric name, datapoint value, timestamp (ignored), all tags, and any errors occurred
-// The metric name is returned as a raw []byte
-// The tags
-func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uint32, error) {
+// for an input raw csv row []byte; extract the metric name, datapoint value, timestamp, all tags
+// Call the EncodeDatapoint function to add the datapoint to the respective series
+// Return the number of datapoints ingested and any errors encountered
+func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint64) (uint32, []error) {
 
-	var mName []byte
-	var dpVal float64
 	var ts uint32 = uint32(time.Now().Unix())
-	var err error
+	var measurement string
+
+	ingestedCount := uint32(0)
+	errors := make([]error, 0)
 
 	reader := csv.NewReader(bytes.NewBuffer(rawCSV))
 	inserted_tags := ""
+
+	size := uint64(len(rawCSV))
 
 	for {
 		record, err := reader.Read()
@@ -662,7 +659,8 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 			if err == io.EOF {
 				break // End of file
 			}
-			return nil, 0, 0, err
+			errors = append(errors, err)
+			return 0, errors
 
 		} else {
 			line := strings.Join(record, ",")
@@ -679,9 +677,15 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 			}
 			for index, value := range tag_set {
 				if index == 0 {
-					mName = []byte(value)
+					// db/measurement name
+					measurement = value
+					continue
 				} else {
 					kvPair := strings.Split(value, "=")
+					if len(kvPair) < 2 {
+						errors = append(errors, fmt.Errorf("tag key value pair is not valid for tag: %v", value))
+						continue
+					}
 					key := kvPair[0]
 					value = kvPair[1]
 					tags.Insert(key, []byte(value), jp.String)
@@ -690,16 +694,28 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 				}
 			}
 
-			for _, value := range field_set {
-				kvPair := strings.Split(value, "=")
-				key := kvPair[0]
-				value = kvPair[1]
-				if key == influx_value {
-					fltVal, err := strconv.ParseFloat(value, 64)
-					if err != nil {
-						return nil, 0, 0, fmt.Errorf("failed to convert value to float! %+v", err)
-					}
-					dpVal = fltVal
+			for _, metricValueSet := range field_set {
+				kvPair := strings.Split(metricValueSet, "=")
+				if len(kvPair) < 2 {
+					errors = append(errors, fmt.Errorf("metric key value pair is not valid for metric: %v", metricValueSet))
+					continue
+				}
+				metricName := fmt.Sprintf(`%s_%s`, measurement, kvPair[0])
+				metricValue := kvPair[1]
+
+				parsedVal, err := parseInfluxValue(metricValue)
+				if err != nil {
+					errors = append(errors, err)
+					continue
+				}
+
+				err = EncodeDatapoint([]byte(metricName), tags, parsedVal, ts, size, orgid)
+				if err != nil {
+					errors = append(errors, err)
+					continue
+				} else {
+					size = 0
+					ingestedCount++
 				}
 			}
 
@@ -707,8 +723,34 @@ func ExtractInfluxPayload(rawCSV []byte, tags *TagsHolder) ([]byte, float64, uin
 
 	}
 
-	return mName, dpVal, ts, err
+	return ingestedCount, errors
 
+}
+
+func parseInfluxValue(value string) (float64, error) {
+	fltVal, err := strconv.ParseFloat(value, 64)
+	if err == nil {
+		return fltVal, nil
+	}
+
+	// parse the value as a integer.
+	lastChar := value[len(value)-1:]
+	if lastChar == "i" || lastChar == "u" {
+		intVal, err := strconv.ParseInt(value[:len(value)-1], 10, 64)
+		if err == nil {
+			return float64(intVal), nil
+		}
+	}
+
+	// parse the value as a boolean.
+	tempVal := strings.ToLower(value)
+	if tempVal == "t" || tempVal == "true" {
+		return 1, nil
+	} else if tempVal == "f" || tempVal == "false" {
+		return 0, nil
+	}
+
+	return 0, fmt.Errorf("the value is not a valid float, int, or bool. value: %s", value)
 }
 
 // extracts raw []byte from the read tags objects and returns it as []*tagsHolder
@@ -828,10 +870,6 @@ func (ts *TimeSeries) AddSingleEntry(dpVal float64, dpTS uint32) (uint64, error)
 			return writtenBytes, err
 		}
 	} else {
-		if ts.lastKnownTS >= dpTS {
-			log.Errorf("timestamp is older than last known timestamp: %d, current: %d", ts.lastKnownTS, dpTS)
-			return writtenBytes, fmt.Errorf("timestamp is older than last known timestamp: %d, current: %d", ts.lastKnownTS, dpTS)
-		}
 		writtenBytes, err = ts.compressor.Compress(dpTS, dpVal)
 		if err != nil {
 			log.Errorf("error encoding timestamp! Error: %+v", err)
@@ -1306,11 +1344,11 @@ func GetUnrotatedMetricsSegmentRequests(metricName string, tRange *dtu.MetricsTi
 				return
 			}
 			finalReq := &structs.MetricsSearchRequest{
-				MetricsKeyBaseDir: mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix),
-				BlocksToSearch:    retBlocks,
-				Parallelism:       uint(config.GetParallelism()),
-				QueryType:         structs.UNROTATED_METRICS_SEARCH,
-				AllTagKeys:        tKeys,
+				MetricsKeyBaseDir:    mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix),
+				BlocksToSearch:       retBlocks,
+				BlkWorkerParallelism: uint(2),
+				QueryType:            structs.UNROTATED_METRICS_SEARCH,
+				AllTagKeys:           tKeys,
 			}
 			tt := GetTagsTreeHolder(orgid, mSeg.Mid)
 			if tt == nil {
@@ -1348,6 +1386,26 @@ func GetUnrotatedMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, or
 	}
 
 	return resultMetricSegments, nil
+}
+func GetUniqueTagKeysForUnrotated(tRange *dtu.MetricsTimeRange, myid uint64) (map[string]struct{}, error) {
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
+	if err != nil {
+		return nil, err
+	}
+
+	uniqueTagKeys := make(map[string]struct{})
+
+	// Iterate over the segments and extract unique tag keys
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(myid, segment.Mid)
+		if tagsTreeHolder != nil {
+			for k := range tagsTreeHolder.allTrees {
+				uniqueTagKeys[k] = struct{}{}
+			}
+		}
+	}
+
+	return uniqueTagKeys, nil
 }
 
 func GetTotalEncodedSize() uint64 {

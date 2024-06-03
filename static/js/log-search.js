@@ -19,25 +19,25 @@
 
 'use strict';
 
-$(document).ready(() => {
+let originalIndexValues = [];
+let indexValues = [];
+
+$(document).ready(async () => {
     setSaveQueriesDialog();
-    getListIndices()
-    .then(function() {
-        if (window.location.search) {
-            data = getInitialSearchFilter(false, false);
-        } else {
-            console.log(`No query string found, using default search filter.`);
-            data = getSearchFilter(false, false);
-        }
-        return data;
-    })
-    .then(function(data) {
-        doSearch(data);
-    })
-    .finally(function() {
-        $('body').css('cursor', 'default');
-        getDisplayTextForIndex()
-    });
+    let indexes = await getListIndices();
+    if (indexes){
+        originalIndexValues = indexes.map(item => item.index);
+        indexValues = [...originalIndexValues];
+    }
+    initializeIndexAutocomplete();
+    if (window.location.search) {
+        data = getInitialSearchFilter(false, false);
+    } else {
+        //No query string found, using default search filter
+        data = getSearchFilter(false, false);
+    }
+    doSearch(data);
+    $('body').css('cursor', 'default');
 
     const currentUrl = window.location.href;
     if (currentUrl.includes("live-tail.html")) {

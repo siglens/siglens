@@ -1,1 +1,279 @@
-{"description":"Sigscalr Data Dashboard","name":"Sigscalr Data DB","panels":[{"chartType":"number","dataType":"TB","description":"","gridpos":{"h":250,"w":431.3722469135803,"wPercent":0.37906172839506175,"x":10,"y":20},"name":"Total Incoming Volume","panelId":"fa6d6a00-53f2-4340-ae34-2fbf2ce399d0","panelIndex":0,"queryData":{"end":"now","query":"ss_current_bytes_received","start":"now-1h"},"queryType":"metrics","startDate":"now-1h","unit":"data"},{"chartType":"number","dataType":"percent(0-100)","description":"Storage Savings","gridpos":{"h":250,"w":246.58383813443072,"wPercent":0.21668175582990398,"x":902.0131838134431,"y":20},"name":"Storage Savings","panelId":"8ad97ab8-657b-4563-b3d6-f50f3d99232e","panelIndex":1,"queryData":{"end":"now","query":"1-(ss_current_on_disk_bytes/ss_current_bytes_received)","start":"now-1h"},"queryType":"metrics","startDate":"now-1h","unit":"percent"},{"chartType":"number","dataType":"TB","description":"Current On Disk Bytes","gridpos":{"h":250,"w":440.6409368998628,"wPercent":0.3872064471879287,"x":451.3722469135803,"y":20},"name":"Total Storage Used","panelId":"88179951-1fd4-4fae-91c2-843dedc032ca","panelIndex":2,"queryData":{"end":"now","query":"ss_current_on_disk_bytes","start":"now-1h"},"queryType":"metrics","startDate":"now-1h","unit":"data"},{"chartType":"Line Chart","dataType":"","description":"","gridpos":{"h":250,"w":1141.5827753686037,"wPercent":1.0031483087597572,"x":10,"y":540},"name":"Queries Per Minute","panelId":"a14d8a46-e9ea-4e61-aff0-a07a540fa8a8","panelIndex":3,"queryData":{"end":"now","query":"rate(ss_query_count_ratio_total[1m])*60","start":"now-1h"},"queryType":"metrics","startDate":"now-1h","unit":""},{"chartType":"Line Chart","dataType":"","description":"","gridpos":{"h":250,"w":1199.8386990291262,"wPercent":1.0543398058252427,"x":10,"y":280},"name":"Volume Change / Min","panelId":"c6cba2f2-e791-4c42-b6fa-e71bd94a6c51","panelIndex":4,"queryData":{"end":"now","query":"deriv(ss_current_bytes_received[5m])*60","start":"now-1h"},"queryType":"metrics","startDate":"now-1h","unit":""},{"chartType":"Line Chart","dataType":"","description":"","gridpos":{"h":248,"w":1139.2644444444443,"wPercent":1.001111111111111,"x":10,"y":800},"name":"Query Latency","panelId":"b5bc62e4-63c3-4fb4-b262-4a02b8b43e2d","panelIndex":5,"queryData":{"end":"now","query":"avg(ss_query_latency_ms)","start":"now-1h"},"queryType":"metrics","startDate":"now-1h","unit":""},{"chartType":"number","dataType":"none","description":"Current num of events","gridpos":{"h":250,"w":575.4517887517146,"wPercent":0.5056694101508916,"x":10,"y":1058},"name":"Current Event Count","panelId":"b3a89c5d-8924-4422-af33-bdc4a36ed78d","panelIndex":6,"queryData":{"end":"now","query":"ss_current_event_count","start":"now-1h"},"queryType":"metrics","startDate":"now-1h","unit":"misc"},{"chartType":"number","dataType":"none","description":"Compression Ratio","gridpos":{"h":250,"w":561.4024060356653,"wPercent":0.49332373113854594,"x":595.4517887517146,"y":1058},"name":"Compression Ratio","panelId":"a740460e-451f-4fed-aa59-e4764fd638a3","panelIndex":7,"queryData":{"end":"now","query":"1-(ss_current_bytes_received/ss_current_on_disk_bytes)","start":"now-1h"},"queryType":"metrics","startDate":"now-1h","unit":"misc"}],"timeRange":"Last 1 Hr"}
+{
+    "description": "Sigscalr Data Dashboard",
+    "name": "Sigscalr Data DB",
+    "panels": [
+        {
+            "chartType": "number",
+            "dataType": "TB",
+            "description": "",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 0.37906172839506175,
+                "x": 0,
+                "y": 0
+            },
+            "name": "Total Incoming Volume",
+            "panelId": "fa6d6a00-53f2-4340-ae34-2fbf2ce399d0",
+            "panelIndex": 0,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "ss_current_bytes_received"
+                    }
+                  ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "startDate": "now-1h",
+            "unit": "data"
+        },
+        {
+            "chartType": "number",
+            "dataType": "percent(0-100)",
+            "description": "Storage Savings",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 0.21668175582990398,
+                "x": 0,
+                "y": 6
+            },
+            "name": "Storage Savings",
+            "panelId": "8ad97ab8-657b-4563-b3d6-f50f3d99232e",
+            "panelIndex": 1,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "1-(ss_current_on_disk_bytes/ss_current_bytes_received)"
+                    }
+                  ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "startDate": "now-1h",
+            "unit": "percent"
+        },
+        {
+            "chartType": "number",
+            "dataType": "TB",
+            "description": "Current On Disk Bytes",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 0.3872064471879287,
+                "x": 3,
+                "y": 0
+            },
+            "name": "Total Storage Used",
+            "panelId": "88179951-1fd4-4fae-91c2-843dedc032ca",
+            "panelIndex": 2,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "ss_current_on_disk_bytes"
+                    }
+                  ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "startDate": "now-1h",
+            "unit": "data"
+        },
+        {
+            "chartType": "Line Chart",
+            "dataType": "",
+            "description": "",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 1.0031483087597572,
+                "x": 3,
+                "y": 6
+            },
+            "name": "Queries Per Minute",
+            "panelId": "a14d8a46-e9ea-4e61-aff0-a07a540fa8a8",
+            "panelIndex": 3,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "rate(ss_query_count_ratio_total[1m])*60"
+                    }
+                  ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "startDate": "now-1h",
+            "unit": ""
+        },
+        {
+            "chartType": "Line Chart",
+            "dataType": "",
+            "description": "",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 1.0543398058252427,
+                "x": 6,
+                "y": 0
+            },
+            "name": "Volume Change / Min",
+            "panelId": "c6cba2f2-e791-4c42-b6fa-e71bd94a6c51",
+            "panelIndex": 4,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "deriv(ss_current_bytes_received[5m])*60"
+                    }
+                  ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "startDate": "now-1h",
+            "unit": ""
+        },
+        {
+            "chartType": "Line Chart",
+            "dataType": "",
+            "description": "",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 1.001111111111111,
+                "x": 6,
+                "y": 6
+            },
+            "name": "Query Latency",
+            "panelId": "b5bc62e4-63c3-4fb4-b262-4a02b8b43e2d",
+            "panelIndex": 5,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "avg(ss_query_latency_ms)"
+                    }
+                  ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "startDate": "now-1h",
+            "unit": ""
+        },
+        {
+            "chartType": "number",
+            "dataType": "none",
+            "description": "Current num of events",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 0.5056694101508916,
+                "x": 9,
+                "y": 0
+            },
+            "name": "Current Event Count",
+            "panelId": "b3a89c5d-8924-4422-af33-bdc4a36ed78d",
+            "panelIndex": 6,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "ss_current_event_count"
+                    }
+                  ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "startDate": "now-1h",
+            "unit": "misc"
+        },
+        {
+            "chartType": "number",
+            "dataType": "none",
+            "description": "Compression Ratio",
+            "gridpos": {
+                "h": 3,
+                "w": 6,
+                "wPercent": 0.49332373113854594,
+                "x": 9,
+                "y": 6
+            },
+            "name": "Compression Ratio",
+            "panelId": "a740460e-451f-4fed-aa59-e4764fd638a3",
+            "panelIndex": 7,
+            "queryData": {
+                "end": "now",
+                "formulas": [
+                    {
+                      "formula": "a"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "name": "a",
+                      "qlType": "promql",
+                      "query": "1-(ss_current_bytes_received/ss_current_on_disk_bytes)"
+                    }
+                  ],
+                "start": "now-1h"
+            },
+            "queryType": "metrics",
+            "startDate": "now-1h",
+            "unit": "misc"
+        }
+    ],
+    "timeRange": "Last 1 Hr"
+}

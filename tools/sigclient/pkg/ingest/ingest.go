@@ -56,7 +56,6 @@ func (q IngestType) String() string {
 }
 
 const PRINT_FREQ = 100_000
-const RETRY_COUNT = 10
 
 // returns any errors encountered. It is the caller's responsibility to attempt retries
 func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) error {
@@ -70,7 +69,7 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	case ESBulk:
 		requestStr = url + "/_bulk"
 	case OpenTSDB:
-		requestStr = url + "/otsdb/api/put"
+		requestStr = url + "/api/put"
 
 	default:
 		log.Fatalf("unknown ingest type %+v", iType)
@@ -174,6 +173,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 
 	i := 0
 	var bb *bytebufferpool.ByteBuffer
+	maxDuration := 2 * time.Hour
 	for continous || eventCounter < totalEvents {
 
 		recsInBatch := batchSize
@@ -192,14 +192,22 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			}
 			return
 		}
+		startTime := time.Now()
 		var reqErr error
-		for i := 0; i < RETRY_COUNT; i++ {
+		retryCounter := 1
+		for {
 			reqErr = sendRequest(iType, client, payload, url, bearerToken)
 			if reqErr == nil {
 				break
 			}
-			sleepTime := time.Second * time.Duration(5*(i+1))
-			log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v before retrying.", i+1, sleepTime.String())
+			elapsed := time.Since(startTime)
+			if elapsed >= maxDuration {
+				log.Infof("Error sending request. Exceeded maximum retry duration of %v hr. Exiting.", int(maxDuration.Hours()))
+				break
+			}
+			sleepTime := time.Second * time.Duration(5*(retryCounter))
+			log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v before retrying.", retryCounter, sleepTime.String())
+			retryCounter++
 			time.Sleep(sleepTime)
 		}
 
@@ -207,7 +215,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			bytebufferpool.Put(bb)
 		}
 		if reqErr != nil {
-			log.Fatalf("Error sending request after %d attempts! %v", RETRY_COUNT, reqErr)
+			log.Fatalf("Error sending request after %v hr ! %v", int(maxDuration.Hours()), reqErr)
 			return
 		}
 		eventCounter += recsInBatch
@@ -233,11 +241,14 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 	return actionLines
 }
 
-func getReaderFromArgs(iType IngestType, nummetrics int, gentype, str string, ts bool) (utils.Generator, error) {
+func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool) (utils.Generator, error) {
 
 	if iType == OpenTSDB {
-		rdr := utils.InitMetricsGenerator(nummetrics)
-		err := rdr.Init(str)
+		rdr, err := utils.InitMetricsGenerator(nummetrics, gentype)
+		if err != nil {
+			return rdr, err
+		}
+		err = rdr.Init(str)
 		return rdr, err
 	}
 	var rdr utils.Generator
@@ -302,7 +313,7 @@ readChannel:
 			eventsPerSec := int64((totalSent - lastPrintedCount) / 60)
 			log.Infof("Total elapsed time:%s. Total sent events %+v. Events per second:%+v", totalTimeTaken, humanize.Comma(int64(totalSent)), humanize.Comma(eventsPerSec))
 			if iType == OpenTSDB {
-				log.Infof("Approximation of sent number of unique timeseries:%+v", utils.GetMetricsHLL())
+				log.Infof("HLL Approx so far of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
 			}
 			lastPrintedCount = totalSent
 		}
@@ -316,5 +327,6 @@ readChannel:
 	} else {
 		eventsPerSecond := int64(float64(totalEvents) / numSeconds)
 		log.Printf("Total Time Taken for ingestion %s. Average events per second=%+v", totalTimeTaken, humanize.Comma(eventsPerSecond))
+		log.Infof("Total HLL Approx of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
 	}
 }

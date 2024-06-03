@@ -63,11 +63,7 @@ func (stb *StarTreeBuilder) encodeDictEnc(colName string, colNum uint16,
 func (stb *StarTreeBuilder) encodeMetadata(strMFd *os.File) (uint32, error) {
 
 	sizeNeeded := stb.estimateMetaSize()
-	sizeToAdd := sizeNeeded - len(stb.buf)
-	if sizeToAdd > 0 {
-		newArr := make([]byte, sizeToAdd)
-		stb.buf = append(stb.buf, newArr...)
-	}
+	stb.buf = utils.ResizeSlice(stb.buf, sizeNeeded)
 
 	idx := uint32(0)
 	idx += 4 // reserve for metabyteslen
@@ -149,11 +145,7 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 	levsOffsets[level] = strLevFileOff
 
 	sizeNeeded := stb.estimateNodeSize(len(curLevNodes))
-	sizeToAdd := sizeNeeded - len(stb.buf)
-	if sizeToAdd > 0 {
-		newArr := make([]byte, sizeToAdd)
-		stb.buf = append(stb.buf, newArr...)
-	}
+	stb.buf = utils.ResizeSlice(stb.buf, sizeNeeded)
 
 	idx := uint32(0)
 	// encode levelNum

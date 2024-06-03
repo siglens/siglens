@@ -20,14 +20,10 @@ package utils
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"math"
-	"strconv"
-	"time"
 	"unsafe"
 
-	jp "github.com/buger/jsonparser"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -125,14 +121,6 @@ func BytesToInt16LittleEndian(bytes []byte) int16 {
 	return int16(binary.LittleEndian.Uint16(bytes))
 }
 
-func IsTimeInMilli(tval uint64) bool {
-	if tval >= 99999999999 {
-		return true
-	} else {
-		return false
-	}
-}
-
 func UInt64ToStringBytes(val uint64) string {
 	const unit = 1000
 	if val < unit {
@@ -144,75 +132,6 @@ func UInt64ToStringBytes(val uint64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f%cb", float64(val)/float64(div), "kmgtpe"[exp])
-}
-func GetCurrentTimeInMs() uint64 {
-	return uint64(time.Now().UTC().UnixNano()) / uint64(time.Millisecond)
-}
-
-// This function will extract the timestamp from the raw body. This will assume the timestamp key exists at the root level
-func ExtractTimeStamp(raw []byte, timestampKey *string) uint64 {
-	rawVal, dType, _, err := jp.Get(raw, *timestampKey)
-	if err != nil {
-		// timestamp key does not exist in doc
-		return 0
-	}
-	switch dType {
-	case jp.String:
-		tsStr, err := jp.ParseString(rawVal)
-		if err != nil {
-			log.Errorf("Failed to parse timestamp of raw string val: %v. Error: %v", rawVal, err)
-			return 0
-		}
-		ts_millis, err := convertTimestampToMillis(tsStr)
-		if err != nil {
-			ts_millis = GetCurrentTimeInMs()
-			log.Errorf("ExtractTimeStamp: Setting timestamp to current time in milli sec as parsing timestamp failed, err = %v", err)
-		}
-		return ts_millis
-	case jp.Number:
-		var ts_millis uint64
-		val, err := jp.ParseInt(rawVal)
-		if err != nil {
-			val, err := jp.ParseFloat(rawVal)
-			if err != nil {
-				log.Errorf("Failed to parse timestamp of float val: %v. Error: %v", rawVal, err)
-				return 0
-			}
-			ts_millis = uint64(val)
-		} else {
-			ts_millis = uint64(val)
-		}
-
-		if !IsTimeInMilli(ts_millis) {
-			ts_millis *= 1000
-		}
-		return ts_millis
-	default:
-		return 0
-	}
-}
-
-func convertTimestampToMillis(value string) (uint64, error) {
-	parsed_value, err := strconv.ParseUint(string(value), 10, 64)
-	if err == nil {
-		if !IsTimeInMilli(parsed_value) {
-			parsed_value *= 1000
-		}
-		return parsed_value, nil
-	}
-
-	timeFormats := []string{"2006-01-02T15:04:05Z",
-		"2006-01-02T15:04:05.999Z",
-		"2006-01-02T15:04:05.999-07:00"}
-
-	for _, timeFormat := range timeFormats {
-		parsed_value, err := time.Parse(timeFormat, value)
-		if err != nil {
-			continue
-		}
-		return uint64(parsed_value.UTC().UnixNano() / 1000000), nil
-	}
-	return 0, errors.New("couldn't find matching time format")
 }
 
 func BinarySearchUint16(needle uint16, haystack []uint16) bool {

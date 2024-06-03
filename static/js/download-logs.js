@@ -143,6 +143,7 @@ function setDownloadLogsDialog() {
 
     return csv;
   }
+
   function downloadCsv(csvData, fileName) {
     const blob = new Blob([csvData], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -153,13 +154,72 @@ function setDownloadLogsDialog() {
     downloadLink.click();
     document.body.removeChild(downloadLink);
   }
+
+  // Function to convert JSON data to XML format
+  function convertToXML(json) {
+    const items = JSON.parse(json);
+    let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n<root>\n';
+    items.forEach(item => {
+      xmlString += '  <item>\n';
+      Object.keys(item).forEach(key => {
+        xmlString += `    <${key}>${item[key]}</${key}>\n`;
+      });
+      xmlString += '  </item>\n';
+    });
+    xmlString += '</root>';
+    return xmlString;
+  }
+
+  // Function to download XML data as a file
+  function downloadXml(xmlData, fileName) {
+    const blob = new Blob([xmlData], { type: "text/xml" });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
+    downloadLink.href = url;
+    downloadLink.download = fileName;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  }
+
+  // Function to convert JSON data to SQL format
+  function convertToSQL(json) {
+    const data = JSON.parse(json);
+    const tableName = 'SQL_Table'; 
+    const columns = Object.keys(data[0]); 
+    
+    // Generate SQL INSERT statements for each object in the data array
+    const sqlStatements = data.map(item => {
+      const values = columns.map(col => {
+        // Escape single quotes in string values and wrap in quotes
+        const value = typeof item[col] === 'string' ? `'${item[col].replace(/'/g, "''")}'` : item[col];
+        return value;
+      }).join(', '); // Join column values with commas
+  
+      return `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${values});`;
+    });
+    return sqlStatements.join('\n');
+  }
+
+    // Function to download SQL data as a file
+    function downloadSql(sqlData, fileName) {
+      const blob = new Blob([sqlData], { type: "text/sql" });
+      const url = URL.createObjectURL(blob);
+      const downloadLink = document.createElement("a");
+      downloadLink.href = url;
+      downloadLink.download = fileName;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+  
   function download() {
     confirmDownload = true;
     let valid = true;
     allFields.removeClass("ui-state-error");
     tips.removeClass("ui-state-highlight");
     tips.text("");
-    valid = valid && checkLength(qname, "download name", 3, 16);
+    valid = valid && checkLength(qname, "download name", 1, 254);
     valid = valid && checkRegexp(
       qname,
       /^[a-zA-Z0-9_.-]+$/i,
@@ -222,11 +282,19 @@ function setDownloadLogsDialog() {
           if (!confirmDownload) return;
           if (res && res.hits && res.hits.records && res.hits.records.length > 0) {
             let json = JSON.stringify(res.hits.records);
-            if (curChoose == ".json") downloadJson(name, json);
-            else {
-              const csvData = convertToCSV(json);
-              downloadCsv(csvData, name);
-            }
+            if (curChoose == ".json") {
+            downloadJson(name, JSON.stringify(json));
+          } else if (curChoose == ".csv") {
+            const csvData = convertToCSV(json);
+            downloadCsv(csvData, name);
+          } else if (curChoose == ".xml") {
+            const xmlData = convertToXML(json);
+            downloadXml(xmlData, name);
+          } else if (curChoose == ".sql") { 
+            console.log(json);
+            const sqlData = convertToSQL(json);
+            downloadSql(sqlData, name);
+          }
           }else if (res && res.aggregations && res.aggregations[""].buckets.length > 0) {
             let arr = res.aggregations[""].buckets;
             let createNewRecords = [];
@@ -302,6 +370,20 @@ function setDownloadLogsDialog() {
   });
   $("#json-block").on("click", function () {
     curChoose = ".json";
+    $("#validateTips").hide();
+    $("#download-info").dialog("open");
+    $(".ui-widget-overlay").addClass("opacity-75");
+    return false;
+  });
+  $("#xml-block").on("click", function () {
+    curChoose = ".xml";
+    $("#validateTips").hide();
+    $("#download-info").dialog("open");
+    $(".ui-widget-overlay").addClass("opacity-75");
+    return false;
+  });
+  $("#sql-block").on("click", function () {
+    curChoose = ".sql";
     $("#validateTips").hide();
     $("#download-info").dialog("open");
     $(".ui-widget-overlay").addClass("opacity-75");

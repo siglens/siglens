@@ -23,7 +23,7 @@ import (
 	"path"
 	"sync/atomic"
 
-	pql "github.com/influxdata/promql/v2"
+	parser "github.com/prometheus/prometheus/promql/parser"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -35,33 +35,61 @@ import (
 Struct to represent a single metrics query request.
 */
 type MetricsQuery struct {
-	MetricName      string // metric name to query for.
-	HashedMName     uint64
-	Aggregator      Aggreation
-	Downsampler     Downsampler
-	TagsFilters     []*TagsFilter // all tags filters to apply
-	SelectAllSeries bool          //flag to select all series - for promQl
+	MetricName       string // metric name to query for.
+	HashedMName      uint64
+	PqlQueryType     parser.ValueType // promql query type
+	Aggregator       Aggregation
+	Function         Function
+	Downsampler      Downsampler
+	TagsFilters      []*TagsFilter    // all tags filters to apply
+	TagIndicesToKeep map[int]struct{} // indices of tags to keep in the result
+	SelectAllSeries  bool             //flag to select all series - for promQl
 
-	reordered      bool   // if the tags filters have been reordered
-	numStarFilters int    // index such that TagsFilters[:numStarFilters] are all star filters
-	OrgId          uint64 // organization id
+	MQueryAggs *MetricQueryAgg
 
-	PqlQueryType        pql.ValueType // promql query type
-	Interval            uint32        // timeseries interval
-	ExitAfterTagsSearch bool          // flag to exit after raw tags search
+	reordered       bool   // if the tags filters have been reordered
+	numStarFilters  int    // index such that TagsFilters[:numStarFilters] are all star filters
+	numValueFilters uint32 // number of value filters
+	OrgId           uint64 // organization id
+
+	ExitAfterTagsSearch bool // flag to exit after raw tags search
+	TagValueSearchOnly  bool // flag to search only tag values
+	Groupby             bool // flag to group by tags
 }
 
-type Aggreation struct {
+type Aggregation struct {
 	AggregatorFunction utils.AggregateFunctions //aggregator function
-	RangeFunction      utils.RangeFunctions     //range function to apply, only one of these will be non nil
 	FuncConstant       float64
+}
+
+type Function struct {
+	MathFunction  utils.MathFunctions
+	RangeFunction utils.RangeFunctions //range function to apply, only one of these will be non nil
+	ValueList     []string
+	TimeWindow    float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
+	Step          float64 //E.g: rate(metrics[5m:1m]), extract 1m and convert to seconds
+	TimeFunction  utils.TimeFunctions
 }
 
 type Downsampler struct {
 	Interval   int
 	Unit       string
 	CFlag      bool
-	Aggregator Aggreation
+	Aggregator Aggregation
+}
+
+type MetricQueryAggBlockType int
+
+const (
+	AggregatorBlock MetricQueryAggBlockType = iota + 1
+	FunctionBlock
+)
+
+type MetricQueryAgg struct {
+	AggBlockType    MetricQueryAggBlockType
+	AggregatorBlock *Aggregation
+	FunctionBlock   *Function
+	Next            *MetricQueryAgg
 }
 
 /*
@@ -85,9 +113,14 @@ type Label struct {
 	Name, Value string
 }
 
+type Result struct {
+	Metric map[string]string `json:"metric"`
+	Value  []interface{}     `json:"values"`
+}
+
 type Data struct {
-	ResultType pql.ValueType `json:"resultType"`
-	Result     []pql.Series  `json:"series,omitempty"`
+	ResultType parser.ValueType `json:"resultType"`
+	Result     []Result         `json:"result,omitempty"`
 }
 type MetricsQueryResponsePromQl struct {
 	Status    string   `json:"status"` //success/error
@@ -105,7 +138,7 @@ type QueryArithmetic struct {
 	LHS         uint64
 	RHS         uint64
 	ConstantOp  bool
-	Operation   utils.ArithmeticOperator
+	Operation   utils.LogicalAndArithmeticOperator
 	Constant    float64
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
 	Results       map[string]map[uint32]float64
@@ -172,11 +205,11 @@ type OTSDBMetricsQueryExpRequest struct {
 }
 
 type MetricsSearchRequest struct {
-	MetricsKeyBaseDir string
-	BlocksToSearch    map[uint16]bool
-	Parallelism       uint
-	QueryType         SegType
-	AllTagKeys        map[string]bool
+	MetricsKeyBaseDir    string
+	BlocksToSearch       map[uint16]bool
+	BlkWorkerParallelism uint
+	QueryType            SegType
+	AllTagKeys           map[string]bool
 }
 
 /*
@@ -194,32 +227,86 @@ func (mbs *MBlockSummary) Reset() {
 	mbs.LowTs = math.MaxUint32
 }
 
+type TagValueType string
+
+// Values for TagValueType
+const (
+	StarValue   TagValueType = "*"
+	ValueString TagValueType = "string"
+)
+
+type TagValueIndex struct {
+	tagValueType TagValueType
+	index        int
+}
+
 /*
 Fixes the order of tags filters to be in the following order:
-1. * tag filters
-2. other tag filters
+1. other tag filters
+2. * tag filters
 */
 func (mq *MetricsQuery) ReorderTagFilters() {
 	if mq.reordered {
 		return
 	}
+
+	queriedTagKeys := make(map[string]TagValueIndex, len(mq.TagsFilters))
+
 	starTags := make([]*TagsFilter, 0, len(mq.TagsFilters))
 	otherTags := make([]*TagsFilter, 0, len(mq.TagsFilters))
+
 	for _, tf := range mq.TagsFilters {
-		if tagVal, ok := tf.RawTagValue.(string); ok && tagVal == "*" {
-			starTags = append(starTags, tf)
+		if isStarValue(tf) {
+			handleStarTag(tf, queriedTagKeys, &starTags)
 		} else {
-			otherTags = append(otherTags, tf)
+			handleValueTag(tf, queriedTagKeys, &otherTags, &starTags)
 		}
 	}
-	mq.TagsFilters = append(starTags, otherTags...)
+
+	mq.TagsFilters = append(otherTags, starTags...)
 	mq.reordered = true
 	mq.numStarFilters = len(starTags)
+	mq.numValueFilters = uint32(len(otherTags))
+}
+
+// Checks if the tag filter value is a star
+func isStarValue(tf *TagsFilter) bool {
+	tagVal, ok := tf.RawTagValue.(string)
+	return ok && tagVal == "*"
+}
+
+// Handles star tags logic
+func handleStarTag(tf *TagsFilter, queriedTagKeys map[string]TagValueIndex, starTags *[]*TagsFilter) {
+	if _, exists := queriedTagKeys[tf.TagKey]; !exists {
+		*starTags = append(*starTags, tf)
+		queriedTagKeys[tf.TagKey] = TagValueIndex{tagValueType: StarValue, index: len(*starTags) - 1}
+	}
+}
+
+// Handles other tag values logic
+func handleValueTag(tf *TagsFilter, queriedTagKeys map[string]TagValueIndex, otherTags, starTags *[]*TagsFilter) {
+	tagValInd, exists := queriedTagKeys[tf.TagKey]
+	if exists {
+		if tagValInd.tagValueType == StarValue {
+			// Remove the star tag filter
+			*starTags = append((*starTags)[:tagValInd.index], (*starTags)[tagValInd.index+1:]...)
+			// Once removed, continue to add this tf below to otherTags
+		} else {
+			// Skip adding if already exists and is not a star
+			return
+		}
+	}
+	*otherTags = append(*otherTags, tf)
+	queriedTagKeys[tf.TagKey] = TagValueIndex{tagValueType: ValueString, index: len(*otherTags) - 1}
 }
 
 func (mq *MetricsQuery) GetNumStarFilters() int {
 	mq.ReorderTagFilters()
 	return mq.numStarFilters
+}
+
+func (mq *MetricsQuery) GetNumValueFilters() uint32 {
+	return mq.numValueFilters
 }
 
 const SIZE_OF_MBSUM = 10 // 2 + 4 + 4
@@ -300,4 +387,14 @@ func (mbs *MBlockSummary) UpdateTimeRange(ts uint32) {
 	if ts < mbs.LowTs {
 		atomic.StoreUint32(&mbs.LowTs, ts)
 	}
+}
+
+func (metricFunc Function) ShallowClone() *Function {
+	functionCopy := metricFunc
+	return &functionCopy
+}
+
+func (agg Aggregation) ShallowClone() *Aggregation {
+	aggCopy := agg
+	return &aggCopy
 }
