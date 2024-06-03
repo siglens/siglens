@@ -18,6 +18,7 @@
 package query
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -144,6 +145,10 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 
 				return mRes
 			}
+		} else {
+			log.Errorf("ApplyMetricsQuery: Invalid AggBlockType: %v", mQuery.MQueryAggs.AggBlockType)
+			mRes.AddError(fmt.Errorf("invalid AggBlockType: %v", mQuery.MQueryAggs.AggBlockType))
+			return mRes
 		}
 
 		mQuery.MQueryAggs = mQuery.MQueryAggs.Next

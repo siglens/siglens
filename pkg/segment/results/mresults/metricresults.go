@@ -226,10 +226,9 @@ func (r *MetricsResult) AggregateResults(parallelism int) []error {
 	return nil
 }
 
-func getAggSeriesId(metricName string, seriesId string, groupByFields []string) string {
-	if len(groupByFields) == 0 {
-		return metricName + "{"
-	}
+// extractGroupByFieldsFromSeriesId extracts the groupByFields from the seriesId
+// And returns the slice of Group By Fields as key-value pairs.
+func extractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) []string {
 	var groupKeyValuePairs []string
 	for _, field := range groupByFields {
 		start := strings.Index(seriesId, field+":")
@@ -246,6 +245,19 @@ func getAggSeriesId(metricName string, seriesId string, groupByFields []string) 
 		keyValuePair := fmt.Sprintf("%s:%s", field, seriesId[start:end])
 		groupKeyValuePairs = append(groupKeyValuePairs, keyValuePair)
 	}
+	return groupKeyValuePairs
+}
+
+// getAggSeriesId returns the group seriesId for the aggregated series based on the given seriesId and groupByFields
+// If groupByFields is empty, it returns the "metricName{" as the group seriesId
+// If groupByFields is not empty, it returns the "metricName{key1:value1,key2:value2,..." as the group seriesId
+// Where key1, key2, ... are the groupByFields and value1, value2, ... are the values of the groupByFields in the seriesId
+// The groupByFields are extracted from the seriesId
+func getAggSeriesId(metricName string, seriesId string, groupByFields []string) string {
+	if len(groupByFields) == 0 {
+		return metricName + "{"
+	}
+	groupKeyValuePairs := extractGroupByFieldsFromSeriesId(seriesId, groupByFields)
 	seriesId = metricName + "{" + strings.Join(groupKeyValuePairs, ",")
 	return seriesId
 }

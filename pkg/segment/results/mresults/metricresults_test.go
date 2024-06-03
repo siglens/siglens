@@ -26,6 +26,45 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_getAggSeriesId_SeriesWithGroupBy(t *testing.T) {
+	metricName := "test"
+	seriesId := "test{tk1:v1,tk2:v2"
+	groupByFields := []string{"tk1", "tk2"}
+
+	aggSeriesId := getAggSeriesId(metricName, seriesId, groupByFields)
+	assert.Equal(t, "test{tk1:v1,tk2:v2", aggSeriesId)
+
+	// trailing comma
+	seriesId = "test{tk1:v1,tk2:v2,"
+	aggSeriesId = getAggSeriesId(metricName, seriesId, groupByFields)
+	assert.Equal(t, "test{tk1:v1,tk2:v2", aggSeriesId)
+}
+
+func Test_getAggSeriesId_SeriesWithoutGroupBy(t *testing.T) {
+	metricName := "test"
+	seriesId := "test{"
+
+	aggSeriesId := getAggSeriesId(metricName, seriesId, nil)
+	assert.Equal(t, "test{", aggSeriesId)
+}
+
+func Test_getAggSeriesId_SeriesWithGroupByAndNoGroupByFields(t *testing.T) {
+	metricName := "test"
+	seriesId := "test{tk1:v1,tk2:v2"
+	groupByFields := make([]string, 0)
+
+	aggSeriesId := getAggSeriesId(metricName, seriesId, groupByFields)
+	assert.Equal(t, "test{", aggSeriesId)
+}
+
+func Test_getAggSeriesId_SeriesWithoutGroupByAndEmptyGroupByFields(t *testing.T) {
+	metricName := "test"
+	seriesId := "test{"
+
+	aggSeriesId := getAggSeriesId(metricName, seriesId, make([]string, 0))
+	assert.Equal(t, "test{", aggSeriesId)
+}
+
 func Test_ApplyAggregationToResults_NoGroupBy_Single_Series(t *testing.T) {
 	mResult := &MetricsResult{
 		MetricName: "test",
