@@ -529,7 +529,7 @@ func ReadRunModConfig(fileName string) (common.RunModConfig, error) {
 
 func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 	var runModConfig common.RunModConfig
-	if len(jsonData) == 0 {
+	if len(strings.TrimSpace(string(jsonData))) == 0 {
 		log.Error("ExtractReadRunModConfig: Could not parse runmod config as it is empty")
 		return runModConfig, fmt.Errorf("ExtractReadRunModConfig: No data to parse")
 	}

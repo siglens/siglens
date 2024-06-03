@@ -374,7 +374,7 @@ func GetAliases(indexName string, orgid uint64) (map[string]bool, error) {
 		log.Errorf("GetAliases: Failed to readfile fullname=%v, err=%v", fullname, err)
 		return retval, err
 	}
-	if len(rdata) == 0 {
+	if len(strings.TrimSpace(string(rdata))) == 0 {
 		log.Errorf("GetAliases: No data to parse in file %v", fullname)
 		return retval, fmt.Errorf("GetAliases: No data to parse in file %v", fullname)
 	}
