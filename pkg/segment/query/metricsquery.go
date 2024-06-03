@@ -87,8 +87,10 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 	mQuery.ReorderTagFilters()
 
-	mQuery.Aggregator = *mQuery.MQueryAggs.AggregatorBlock // The first Aggregation in the MQueryAggs is always a AggregatorBlock
-	mQuery.MQueryAggs = mQuery.MQueryAggs.Next
+	if mQuery.MQueryAggs != nil {
+		mQuery.Aggregator = *mQuery.MQueryAggs.AggregatorBlock // The first Aggregation in the MQueryAggs is always a AggregatorBlock
+		mQuery.MQueryAggs = mQuery.MQueryAggs.Next
+	}
 
 	if mQuery.TagValueSearchOnly {
 		applyTagValuesSearchOnlyOnSegments(mQuery, mSegments, mRes, timeRange, qid, querySummary)
