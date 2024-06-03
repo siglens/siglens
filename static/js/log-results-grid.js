@@ -181,11 +181,32 @@ const gridOptions = {
             sortAscending: '<i class="fa fa-sort-alpha-down"/>',
             sortDescending: '<i class="fa fa-sort-alpha-desc"/>',
           },
+          headerComponentParams: {
+            template:
+                `<div class="ag-cell-label-container" role="presentation">
+                  <span ref="eMenu" class="ag-header-icon ag-header-cell-menu-button"></span>
+                  <span ref="eFilterButton" class="ag-header-icon ag-header-cell-filter-button"></span>
+                  <div ref="eLabel" class="ag-header-cell-label" role="presentation">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 3px; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 3px;">
+                            <span ref="eText" class="ag-header-cell-text" role="columnheader"></span>
+                            <span ref="eSortOrder" class="ag-header-icon ag-sort-order"></span>
+                            <span ref="eSortAsc" class="ag-header-icon ag-sort-ascending-icon"></span>
+                            <span ref="eSortDesc" class="ag-header-icon ag-sort-descending-icon"></span>
+                            <span ref="eSortNone" class="ag-header-icon ag-sort-none-icon"></span>
+                            <span ref="eFilter" class="ag-header-icon ag-filter-icon"></span>
+                        </div>
+                        <i onclick="hideColumnHandler(event, true)" class="fa fa-close close-icon"></i>
+                    </div>
+                  </div>
+                </div>`
+        }
     },
     icons: {
         sortAscending: '<i class="fa fa-sort-alpha-down"/>',
         sortDescending: '<i class="fa fa-sort-alpha-desc"/>',
       },
+      close: true,
     enableCellTextSelection: true,
     suppressScrollOnNewData: true,
     suppressAnimationFrame: true,
@@ -223,6 +244,24 @@ const gridOptions = {
         }
     },
     overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
+    onGridReady: function (params) {
+        const eGridDiv = document.querySelector('#LogResultsGrid');
+        const style = document.createElement('style');
+        style.textContent = `
+            .close-icon {
+                cursor: pointer;
+                color: #888;
+                margin-left: 5px;
+                display: none;
+            }
+              
+            .ag-header-cell:not([col-id="timestamp"]):hover .close-icon {
+                display: inline-block;
+            }
+            
+        `;
+        eGridDiv.appendChild(style);
+    }
 };
 
 function showLoadingIndicator() {
@@ -339,6 +378,7 @@ function renderLogsGrid(columnOrder, hits){
     });
     gridOptions.columnApi.autoSizeColumns(allColumnIds, false);
     gridOptions.api.setRowData(logsRowData);
+
     
     switch (logview){
         case 'single-line':
