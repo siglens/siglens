@@ -37,7 +37,11 @@ import (
 var metricSearch *semaphore.WeightedSemaphore
 
 func init() {
-	metricSearch = semaphore.NewWeightedSemaphore(5, "metricsearch.limiter", time.Minute)
+	// max number of concurrent searches
+	// This can be set to runtime.GoMaxProcs(0)/2 to use half the number of cores. Previously it was set to 5.
+	// But we are setting it to 1 to avoid high memory usage.
+	max := 1
+	metricSearch = semaphore.NewWeightedSemaphore(int64(max), "metricsearch.limiter", time.Minute)
 }
 
 func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker.AllMatchedTSIDs, req *structs.MetricsSearchRequest, res *mresults.MetricsResult,
@@ -47,8 +51,8 @@ func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker
 		log.Errorf("qid=%d, RawSearchMetricsSegment: received a nil search request", qid)
 		res.AddError(fmt.Errorf("received a nil search request"))
 		return
-	} else if req.Parallelism <= 0 {
-		log.Errorf("qid=%d, RawSearchMetricsSegment: invalid fileParallelism of %d - must be > 0", qid, req.Parallelism)
+	} else if req.BlkWorkerParallelism <= 0 {
+		log.Errorf("qid=%d, RawSearchMetricsSegment: invalid fileParallelism of %d - must be > 0", qid, req.BlkWorkerParallelism)
 		res.AddError(fmt.Errorf("invalid fileParallelism - must be > 0"))
 		return
 	}
@@ -68,7 +72,7 @@ func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker
 		return
 	}
 
-	sharedBlockIterators, err := series.InitSharedTimeSeriesSegmentReader(req.MetricsKeyBaseDir, int(req.Parallelism))
+	sharedBlockIterators, err := series.InitSharedTimeSeriesSegmentReader(req.MetricsKeyBaseDir, int(req.BlkWorkerParallelism))
 	if err != nil {
 		log.Errorf("qid=%d, RawSearchMetricsSegment: Error initialising a time series reader. Error: %v", qid, err)
 		res.AddError(err)
@@ -81,8 +85,10 @@ func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker
 		blockNumChan <- int(blkNum)
 	}
 	close(blockNumChan)
+	// BlkWorkerParallelism is set to 1. We can set it to config.GetParallelism().
+	// But this is causing high usage of memory and the memory is not getting released appropriately.
 	var wg sync.WaitGroup
-	for i := 0; i < int(req.Parallelism); i++ {
+	for i := 0; i < int(req.BlkWorkerParallelism); i++ {
 		wg.Add(1)
 		go blockWorker(i, sharedBlockIterators.TimeSeriesSegmentReadersList[i], blockNumChan, tsidInfo, mQuery, timeRange, res, qid, &wg, querySummary)
 	}
