@@ -1344,11 +1344,11 @@ func GetUnrotatedMetricsSegmentRequests(metricName string, tRange *dtu.MetricsTi
 				return
 			}
 			finalReq := &structs.MetricsSearchRequest{
-				MetricsKeyBaseDir: mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix),
-				BlocksToSearch:    retBlocks,
-				Parallelism:       uint(config.GetParallelism()),
-				QueryType:         structs.UNROTATED_METRICS_SEARCH,
-				AllTagKeys:        tKeys,
+				MetricsKeyBaseDir:    mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix),
+				BlocksToSearch:       retBlocks,
+				BlkWorkerParallelism: uint(2),
+				QueryType:            structs.UNROTATED_METRICS_SEARCH,
+				AllTagKeys:           tKeys,
 			}
 			tt := GetTagsTreeHolder(orgid, mSeg.Mid)
 			if tt == nil {

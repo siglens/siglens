@@ -71,6 +71,10 @@ func initMetricsMetaRefresh() {
 	go refreshMetricsMetadataLoop()
 }
 
+func PopulateMetricsMetadataForTheFile_TestOnly(mFileName string) error {
+	return populateMetricsMetadata(mFileName)
+}
+
 func initMetadataRefresh() {
 	initSegmentMetaRefresh()
 	initMetricsMetaRefresh()

@@ -436,10 +436,8 @@ function createColorsArray() {
     return colorArray;
 }
 
-function renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, flag) {
-	const colors = createColorsArray();
-    let gridLineColor;
-    let tickColor;
+function renderLineChart(seriesData, panelId) {
+	let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
 	let root = document.querySelector(':root');
 	let rootStyles = getComputedStyle(root);
 	let gridLineDarkThemeColor = rootStyles.getPropertyValue('--black-3');
@@ -447,54 +445,53 @@ function renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartTyp
 	let tickDarkThemeColor = rootStyles.getPropertyValue('--white-0');
 	let tickLightThemeColor = rootStyles.getPropertyValue('--white-6');
 
-	if ($('html').attr('data-theme') == "light") {
-        gridLineColor = gridLineLightThemeColor;
-        tickColor = tickLightThemeColor;
+    // Extract labels and datasets from seriesData
+    if (seriesData.length > 0) {
+        var labels = Object.keys(seriesData[0].values);
+        var datasets = seriesData.map(function(series, index) {
+            return {
+                label: series.seriesName,
+                data: Object.values(series.values),
+                borderColor: classic[index % classic.length],
+                backgroundColor : classic[index % classic.length] + 70,
+                borderWidth: 2,
+                fill: false
+            };
+        });
+    }else{
+        var labels = [];
+        var datasets = [];
     }
-    else {
-        gridLineColor = gridLineDarkThemeColor;
-        tickColor = tickDarkThemeColor;
-    }
-	let datasets = [];
-    let data = {};
 
-    datasets = seriesArray.map((o, i) => ({
-        label: o.seriesName,
-        data: Object.values(o.values),
-        backgroundColor: colors[i],
-        borderColor: colors[i],
-        color: gridLineColor,
-        borderWidth: 2,
-        fill: false,
-    }));
-	data = {
+	var chartData = {
         labels: labels,
         datasets: datasets
-    }
+    };
 
 	const config = {
         type: 'line',
-        data,
+        data: chartData,
         options: {
             maintainAspectRatio: false,
             responsive: true,
             title: {
                 display: true,
             },
-            plugins: {
+			plugins: {
                 legend: {
-                    display: false
-                },
-                tooltip: {
-                    enabled: true,
+                    position: 'bottom',
+                    align: 'start',
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 2,
+                        fontSize: 10
+                    }
                 }
             },
             scales: {
                 x: {
                     grid: {
-                        color: function () {
-							return $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
-						},
+						display: false,
                     },
                     ticks: {
                         color: function () {
@@ -524,78 +521,17 @@ function renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartTyp
 		panelChartEl.css("width", "100%").css("height", "100%");
 	}
 
-	if (flag === -1) {
-		let can = `<canvas class="line-chart-canvas" ></canvas>`
-		panelChartEl.append(can)
-		var lineCanvas = (panelChartEl).find('canvas')[0].getContext('2d');
-        lineChart = new Chart(lineCanvas, config);
-		$(`#panel${panelId} .panel-body #panel-loading`).hide();
-		if (panelId === -1){
-			panelChartEl.append(`<div class="lineChartLegend"></div>`)
-			displayLegendsForLineChart(seriesArray, labels, colors,metricsDatasets,panelId, chartType);
-		}
-    }
-
-    const bgColor = [];
-    const bColor = data.datasets.map(color => {
-        bgColor.push(color.backgroundColor);
-        return color.borderColor;
-    })
-
-    if (flag == -2) {
-
-        lineChart.config.data.datasets.map((dataset, index) => {
-            dataset.backgroundColor = bgColor[index];
-            dataset.borderColor = bColor[index];
-        })
-        lineChart.update();
-    }
-
-    if(flag >= 0) {
-        const chartDataObject = lineChart.config.data.datasets.map(dataset => {
-            dataset.borderColor = "rgba(0,0,0,0)";
-            dataset.backgroundColor = "rgba(0,0,0,0)";
-        })
-
-        lineChart.config.data.datasets[flag].borderColor = bColor[flag];
-        lineChart.config.data.datasets[flag].backgroundColor = bgColor[flag];
-        lineChart.update();
-    }
+	let can = `<canvas class="line-chart-canvas" ></canvas>`
+	panelChartEl.append(can)
+	var lineCanvas = (panelChartEl).find('canvas')[0].getContext('2d');
+	lineChart = new Chart(lineCanvas, config);
+	$(`#panel${panelId} .panel-body #panel-loading`).hide();
+	if (panelId === -1){
+		panelChartEl.append(`<div class="lineChartLegend"></div>`)
+	}
 
 	return lineChart;
 };
-
-function displayLegendsForLineChart(seriesArray, labels, colors,metricsDatasets,panelId, chartType) {
-    $.each(seriesArray, function (k, v) {
-		const htmlString = `<div class="legend-element-line" id="legend-line-${k}"><span class="legend-colors-line" style="background-color:` + colors[k] + `"></span>` + v.seriesName + `</div>`;
-        $('.lineChartLegend').append(htmlString);
-	});
-
-    let prev = null;
-
-    const legends = document.querySelectorAll('.legend-element-line');
-    $.each(legends, function (i, legend) {
-        legend.addEventListener('click', (e) => {
-                let currSelectedEl = parseInt((e.target.id).slice(12));
-                if(prev == null) {
-                    e.target.classList.add("selected");
-                    prev = currSelectedEl;
-                    renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, currSelectedEl);
-                } else if (prev == currSelectedEl) {
-                    e.target.classList.remove("selected");
-                    prev = null;
-                    renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, -2);
-                } else {
-                    let prevEl = document.getElementById(`legend-line-${prev}`);
-                    prevEl.classList.remove("selected");
-                    e.target.classList.add("selected");
-                    prev = currSelectedEl;
-                    renderLineChart(seriesArray, metricsDatasets, labels, panelId, chartType, currSelectedEl);                  
-                }
-            }
-        )
-    })
-}
 
 window.addEventListener('resize', function (event) {
     if ($('.panelEditor-container').css('display') !== 'none' && panelChart){

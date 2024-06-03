@@ -1579,8 +1579,13 @@ div.dts div.dataTables_scrollBody table {
 
 .bar_chart_container {
     width: 36%;
+    margin-top: auto;
 }
 
+.bar-graph-footer{
+    margin-left: 33%;
+    font-weight: bold;
+}
 .index-data-table.dataTable.no-footer{
     width: 100% !important;
 }
@@ -1618,6 +1623,11 @@ div.dts div.dataTables_scrollBody table {
     width: 100%;
     margin-top: 40px;
     margin-bottom: 40px;
+}
+.query-stats-container{
+    margin-left: 23px;
+    display: flex;
+    width: 97%;
 }
 
 .chart-container{
@@ -2798,6 +2808,10 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 .fa-sort-alpha-down:before{
+    margin-left: 5px !important;
+}
+
+.fa-sort-alpha-desc:before{
     margin-left: 5px !important;
 }
 

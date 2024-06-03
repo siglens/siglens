@@ -374,6 +374,9 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 
 	if !(tableColumnsExist || (aggs != nil && aggs.OutputTransforms == nil) || hasQueryAggergatorBlock || transactionArgsExist) {
 		allRecords, finalCols = applyHardcodedColumns(hardcodedArray, renameHardcodedColumns, allRecords, finalCols)
+		if len(hardcodedArray) > 0 {
+			numProcessedRecords = 1
+		}
 	} else {
 		for currSeg, blkIds := range segmap {
 			blkIdsIndex := 0
