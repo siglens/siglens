@@ -243,41 +243,41 @@ func RunMetricQueryFromFile(apiURL string, filepath string) {
 
 		requestData, err := json.Marshal(requestBody)
 		if err != nil {
-			log.Fatalf("RunQueryFromFile: Error in marshaling request data: %v", err)
+			log.Fatalf("RunQueryFromFile: Error in marshaling request data: %v, Query=%v", err, query)
 		}
 
 		resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(requestData))
 		if err != nil {
-			log.Fatalf("RunQueryFromFile: Error in making HTTP request: %v", err)
+			log.Fatalf("RunQueryFromFile: Error in making HTTP request for Query: %v. Error=%v", query, err)
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			log.Fatalf("RunQueryFromFile: Non-OK HTTP status: %v, body: %s", resp.StatusCode, string(body))
+			log.Fatalf("RunQueryFromFile: Non-OK HTTP status: %v, body: %s, Query: %s", resp.StatusCode, string(body), query)
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatalf("RunQueryFromFile: Error in reading response body: %v", err)
+			log.Fatalf("RunQueryFromFile: Error in reading response body: %v, Query=%v", err, query)
 		}
 
 		var queryResponse QueryResponse
 		err = json.Unmarshal(body, &queryResponse)
 		if err != nil {
-			log.Fatalf("RunQueryFromFile: Error in unmarshaling response data: %v", err)
+			log.Fatalf("RunQueryFromFile: Error in unmarshaling response data: %v, Query=%v", err, query)
 		}
 
 		if len(queryResponse.Values) == 0 || len(queryResponse.Values[0]) != len(expectedValuesStrs) {
-			log.Fatalf("RunQueryFromFile: Unexpected number of values in response: %v", queryResponse.Values)
+			log.Fatalf("RunQueryFromFile: Unexpected number of values in response: %v, Query=%v", queryResponse.Values, query)
 		}
 
 		for i, actualValue := range queryResponse.Values[0] {
 			isEqual, err := utils.VerifyInequality(actualValue, relation, expectedValuesStrs[i])
 			if !isEqual {
-				log.Fatalf("RunQueryFromFile: Actual value: %v does not meet condition: [%s %v] at index %d", actualValue, relation, expectedValuesStrs[i], i)
+				log.Fatalf("RunQueryFromFile: For Query=%v, Actual value: %v does not meet condition: [%s %v] at index %d", query, actualValue, relation, expectedValuesStrs[i], i)
 			} else if err != nil {
-				log.Fatalf("RunQueryFromFile: Error in verifying results: %v", err)
+				log.Fatalf("RunQueryFromFile: For Query=%v, Error in verifying results: %v", query, err)
 			}
 		}
 
