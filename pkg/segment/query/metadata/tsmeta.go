@@ -79,7 +79,7 @@ func GetMetricsSegmentRequests(mName string, tRange *dtu.MetricsTimeRange, query
 			finalReq := &structs.MetricsSearchRequest{
 				MetricsKeyBaseDir:    msm.MSegmentDir,
 				BlocksToSearch:       retBlocks,
-				BlkWorkerParallelism: uint(1),
+				BlkWorkerParallelism: uint(2),
 				QueryType:            structs.METRICS_SEARCH,
 				AllTagKeys:           allTagKeys,
 			}
