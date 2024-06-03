@@ -248,11 +248,11 @@ function resetCustomDateRange(){
         Cookies.remove('customStartTime');
         Cookies.remove('customEndTime');
 }
-function hideColumnHandler(evt) {
+function hideColumnHandler(evt, isCloseIcon = false) {
     evt.preventDefault();
     evt.stopPropagation();
 
-    availableFieldsSelectHandler(evt);
+    availableFieldsSelectHandler(evt, isCloseIcon);
 }
 
 function setQueryLangHandler(e) {
@@ -394,9 +394,18 @@ function availableFieldsClickHandler(evt) {
     evt.stopPropagation();
 }
 
-function availableFieldsSelectHandler(evt) {
+function availableFieldsSelectHandler(evt, isCloseIcon = false) {
+    let colName
 
-    let colName = evt.currentTarget.dataset.index;
+    if(isCloseIcon){
+        const outerDiv = evt.currentTarget.closest('.ag-header-cell');
+        const colId = outerDiv.getAttribute('col-id');
+        colName = colId
+    }
+    else{
+        colName = evt.currentTarget.dataset.index
+    }
+
     let encColName = string2Hex(colName);
     // don't toggle the timestamp column
     if (colName !== "timestamp") {
