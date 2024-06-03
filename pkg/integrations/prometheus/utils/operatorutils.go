@@ -71,6 +71,10 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 		valueRHS = tmp
 	}
 
+	if queryOp.ReturnBool {
+		finalResult[groupID][timestamp] = 0
+	}
+
 	switch queryOp.Operation {
 	case utils.LetAdd:
 		finalResult[groupID][timestamp] = valueLHS + valueRHS
@@ -94,30 +98,70 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 	case utils.LetGreaterThan:
 		isGtr := valueLHS > valueRHS
 		if isGtr {
-			finalResult[groupID][timestamp] = valueLHS
+			if queryOp.ReturnBool {
+				finalResult[groupID][timestamp] = 1
+				return
+			}
+			if swapped {
+				finalResult[groupID][timestamp] = valueRHS
+			} else {
+				finalResult[groupID][timestamp] = valueLHS
+			}
 		}
 	case utils.LetGreaterThanOrEqualTo:
 		isGte := valueLHS >= valueRHS
 		if isGte {
-			finalResult[groupID][timestamp] = valueLHS
+			if queryOp.ReturnBool {
+				finalResult[groupID][timestamp] = 1
+				return
+			}
+			if swapped {
+				finalResult[groupID][timestamp] = valueRHS
+			} else {
+				finalResult[groupID][timestamp] = valueLHS
+			}
 		}
 	case utils.LetLessThan:
 		isLss := valueLHS < valueRHS
 		if isLss {
-			finalResult[groupID][timestamp] = valueLHS
+			if queryOp.ReturnBool {
+				finalResult[groupID][timestamp] = 1
+				return
+			}
+			if swapped {
+				finalResult[groupID][timestamp] = valueRHS
+			} else {
+				finalResult[groupID][timestamp] = valueLHS
+			}
 		}
 	case utils.LetLessThanOrEqualTo:
 		isLte := valueLHS <= valueRHS
 		if isLte {
-			finalResult[groupID][timestamp] = valueLHS
+			if queryOp.ReturnBool {
+				finalResult[groupID][timestamp] = 1
+				return
+			}
+			if swapped {
+				finalResult[groupID][timestamp] = valueRHS
+			} else {
+				finalResult[groupID][timestamp] = valueLHS
+			}
 		}
 	case utils.LetEquals:
 		if valueLHS == valueRHS {
-			finalResult[groupID][timestamp] = valueLHS
+			if queryOp.ReturnBool {
+				finalResult[groupID][timestamp] = 1
+			} else {
+				finalResult[groupID][timestamp] = valueLHS
+			}
 		}
 	case utils.LetNotEquals:
 		if valueLHS != valueRHS {
-			finalResult[groupID][timestamp] = valueLHS
+			if queryOp.ReturnBool {
+				finalResult[groupID][timestamp] = 1
+			} else {
+				finalResult[groupID][timestamp] = valueLHS
+			}
 		}
 	default:
 		log.Errorf("SetFinalResult: does not support using this operator: %v", queryOp.Operation)
