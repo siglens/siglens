@@ -56,5 +56,12 @@ days_in_month(testmetric0),now-90d,now,"27,27,27",gt
 "(testmetric0) < 131",now-90d,now,"127.06863068860355",approx
 "(testmetric0) <= 1000",now-90d,now,"131.45590577322224,127.06863068860355,159.53343696489338",approx
 "(testmetric0) != 1000",now-90d,now,"131.45590577322224,127.06863068860355,159.53343696489338",approx
+"(testmetric0) == 1000",now-90d,now,"",approx
+"132 < bool (testmetric0)",now-90d,now,"0,0,1",approx
+"(testmetric0) >= bool 131",now-90d,now,"1,0,1",approx
+"(testmetric0) < bool 131",now-90d,now,"0,1,0",approx
+"(testmetric0) <= bool 1000",now-90d,now,"1,1,1",approx
+"1000 != bool (testmetric0)",now-90d,now,"1,1,1",approx
+"(testmetric0) == bool 1000",now-90d,now,"0,0,0",approx
 "(testmetric0) ^ 2",now-90d,now,"17280.6551626583,16146.436905076764,25450.917509831666",approx
 "(testmetric0) % 10",now-90d,now,"1.4559057732223835,7.06863068860379,9.533436964893554",approx
