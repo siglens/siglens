@@ -1202,6 +1202,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 
 		}
 		arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
+		arithmeticOperation.ReturnBool = expr.ReturnBool
 		if rhsValType == parser.ValueTypeVector {
 			lhsValType = parser.ValueTypeVector
 		}
