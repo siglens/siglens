@@ -1219,7 +1219,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 			}
 
 			arithmeticOperation.VectorMatching = &structs.VectorMatching{
-				Card:           structs.VectorMatchCardinality(expr.VectorMatching.Card),
+				Cardinality:    structs.VectorMatchCardinality(expr.VectorMatching.Card),
 				MatchingLabels: expr.VectorMatching.MatchingLabels,
 				On:             expr.VectorMatching.On,
 			}

@@ -155,7 +155,7 @@ type QueryArithmetic struct {
 // operation are supposed to be matched.
 type VectorMatching struct {
 	// The cardinality of the two Vectors.
-	Card VectorMatchCardinality
+	Cardinality VectorMatchCardinality
 	// MatchingLabels contains the labels which define equality of a pair of
 	// elements from the Vectors.
 	MatchingLabels []string

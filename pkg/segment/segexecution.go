@@ -116,7 +116,7 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 			hasVectorMatchingOp := queryOp.VectorMatching != nil && len(queryOp.VectorMatching.MatchingLabels) > 0
 			if hasVectorMatchingOp {
 				// Place the vector with higher cardinality on the left side.
-				if queryOp.VectorMatching.Card == structs.CardOneToMany {
+				if queryOp.VectorMatching.Cardinality == structs.CardOneToMany {
 					swapped = true
 					resultLHS = resMap[queryOp.RHS]
 					resultRHS = resMap[queryOp.LHS]
@@ -127,7 +127,7 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 					matchingLabelValStr := putils.ExtractMatchingLabelSet(lGroupID, queryOp.VectorMatching.MatchingLabels, queryOp.VectorMatching.On)
 					// If the left vector is the 'One' (vector with lower cardinality), it should not have repeated MatchingLabels.
 					// E.g.: (metric1{type="compact"} on (color,type) group_right metric2), the value combinations of (color,type) must be unique in the metric1
-					if queryOp.VectorMatching.Card == structs.CardOneToOne {
+					if queryOp.VectorMatching.Cardinality == structs.CardOneToOne {
 						_, exists := matchingLabelsComb[matchingLabelValStr]
 						if exists {
 							return nil, fmt.Errorf("HelperQueryArithmeticAndLogical: many-to-many matching not allowed: matching labels must be unique on one side")

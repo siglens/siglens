@@ -1158,7 +1158,7 @@ func Test_GetResults_On(t *testing.T) {
 	}
 
 	vectorMatching := &structs.VectorMatching{
-		Card:           structs.CardOneToOne,
+		Cardinality:    structs.CardOneToOne,
 		MatchingLabels: []string{"color"},
 		On:             true,
 	}
@@ -1205,7 +1205,7 @@ func Test_GetResults_Ignoring(t *testing.T) {
 	}
 
 	vectorMatching := &structs.VectorMatching{
-		Card:           structs.CardOneToOne,
+		Cardinality:    structs.CardOneToOne,
 		MatchingLabels: []string{"type"},
 		On:             false,
 	}
@@ -1253,7 +1253,7 @@ func Test_GetResults_GroupRight(t *testing.T) {
 	}
 
 	vectorMatching := &structs.VectorMatching{
-		Card:           structs.CardOneToMany,
+		Cardinality:    structs.CardOneToMany,
 		MatchingLabels: []string{"color"},
 		On:             true,
 	}
@@ -1301,7 +1301,7 @@ func Test_GetResults_GroupLeft(t *testing.T) {
 	}
 
 	vectorMatching := &structs.VectorMatching{
-		Card:           structs.CardManyToOne,
+		Cardinality:    structs.CardManyToOne,
 		MatchingLabels: []string{"color"},
 		On:             true,
 	}

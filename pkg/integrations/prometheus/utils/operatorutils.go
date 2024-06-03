@@ -65,6 +65,12 @@ func IsLogicalOperator(op segutils.LogicalAndArithmeticOperator) bool {
 
 func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[uint32]float64, groupID string, timestamp uint32, valueLHS float64, valueRHS float64, swapped bool) {
 
+	if swapped {
+		tmp := valueLHS
+		valueLHS = valueRHS
+		valueRHS = tmp
+	}
+
 	switch queryOp.Operation {
 	case utils.LetAdd:
 		finalResult[groupID][timestamp] = valueLHS + valueRHS
@@ -72,11 +78,7 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 		if valueRHS == 0 {
 			return
 		}
-		if swapped {
-			finalResult[groupID][timestamp] = valueRHS / valueLHS
-		} else {
-			finalResult[groupID][timestamp] = valueLHS / valueRHS
-		}
+		finalResult[groupID][timestamp] = valueLHS / valueRHS
 	case utils.LetMultiply:
 		finalResult[groupID][timestamp] = valueLHS * valueRHS
 	case utils.LetSubtract:
@@ -86,46 +88,26 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 		}
 		finalResult[groupID][timestamp] = val
 	case utils.LetModulo:
-		if swapped {
-			finalResult[groupID][timestamp] = math.Mod(valueRHS, valueLHS)
-		} else {
-			finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
-		}
+		finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
 	case utils.LetPower:
-		if swapped {
-			finalResult[groupID][timestamp] = math.Pow(valueRHS, valueLHS)
-		} else {
-			finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
-		}
+		finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
 	case utils.LetGreaterThan:
 		isGtr := valueLHS > valueRHS
-		if swapped {
-			isGtr = valueLHS < valueRHS
-		}
 		if isGtr {
 			finalResult[groupID][timestamp] = valueLHS
 		}
 	case utils.LetGreaterThanOrEqualTo:
 		isGte := valueLHS >= valueRHS
-		if swapped {
-			isGte = valueLHS <= valueRHS
-		}
 		if isGte {
 			finalResult[groupID][timestamp] = valueLHS
 		}
 	case utils.LetLessThan:
 		isLss := valueLHS < valueRHS
-		if swapped {
-			isLss = valueLHS > valueRHS
-		}
 		if isLss {
 			finalResult[groupID][timestamp] = valueLHS
 		}
 	case utils.LetLessThanOrEqualTo:
 		isLte := valueLHS <= valueRHS
-		if swapped {
-			isLte = valueLHS >= valueRHS
-		}
 		if isLte {
 			finalResult[groupID][timestamp] = valueLHS
 		}
@@ -137,6 +119,8 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 		if valueLHS != valueRHS {
 			finalResult[groupID][timestamp] = valueLHS
 		}
+	default:
+		log.Errorf("SetFinalResult: does not support using this operator: %v", queryOp.Operation)
 	}
 
 	// Logical ops can only been used between 2 vectors
@@ -148,18 +132,20 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 			finalResult[groupID][timestamp] = valueLHS
 		case utils.LetUnless:
 			finalResult[groupID][timestamp] = valueLHS
+		default:
+			log.Errorf("SetFinalResult: does not support using this operator: %v", queryOp.Operation)
 		}
 	}
 }
 
-func ExtractMatchingLabelSet(groupIDStr string, matchingLabels []string, on bool) string {
+// If matchingLabels = [tag1], groupIDStr = "metricName{tag1:val1,tag2:val2,tag3:val3}""
+// When includeColumns is true, extract labels and regenerate labelStr from matchingLabels based on the previous groupIDStr. The result is {tag1:val1}
+// Otherwise, exclude the labels, so the result is {tag2:val2,tag3:val3}
+func ExtractMatchingLabelSet(groupIDStr string, matchingLabels []string, includeColumns bool) string {
 
 	labelSetMap := make(map[string]string)
 
-	re, err := regexp.Compile(`(.*)\{(.*)`)
-	if err != nil {
-		return groupIDStr
-	}
+	re := regexp.MustCompile(`(.*)\{(.*)`)
 
 	labelSetStr := ""
 	match := re.FindStringSubmatch(groupIDStr)
@@ -169,10 +155,7 @@ func ExtractMatchingLabelSet(groupIDStr string, matchingLabels []string, on bool
 		return groupIDStr
 	}
 
-	re, err = regexp.Compile(`\s*([\w\s]+):\s*([\w\s]+)`)
-	if err != nil {
-		return labelSetStr
-	}
+	re = regexp.MustCompile(`\s*([\w\s]+):\s*([\w\s]+)`)
 
 	matches := re.FindAllStringSubmatch(labelSetStr, -1)
 	for _, match := range matches {
@@ -180,15 +163,19 @@ func ExtractMatchingLabelSet(groupIDStr string, matchingLabels []string, on bool
 			labelKey := match[1]
 			labelVal := match[2]
 			labelSetMap[labelKey] = labelVal
+		} else {
+			log.Errorf("ExtractMatchingLabelSet: can not correctly extract tags from labelStr: %v", labelSetStr)
 		}
 	}
 
 	matchingLabelValStr := ""
-	if on {
+	// When includeColumns is true, use matchingLabels to create a combination.
+	// Otherwise, use all other labels except matchingLabels to create a combination.
+	if includeColumns {
 		for _, label := range matchingLabels {
 			val, exists := labelSetMap[label]
 			if exists {
-				matchingLabelValStr += val
+				matchingLabelValStr += (val + ",")
 			}
 		}
 	} else { // exclude matchingLabels
