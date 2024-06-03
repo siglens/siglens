@@ -77,8 +77,8 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	httpResp.IngestionStats["Log Storage Used"] = convertBytesToGB(logsOnDiskBytes)
 	httpResp.IngestionStats["Metrics Storage Used"] = convertBytesToGB(float64(metricsOnDiskBytes + metricsInMemBytes))
-	httpResp.IngestionStats["Logs Storage Saved"] = calculateStorageSaved(logsIncomingBytes, logsOnDiskBytes)
-	httpResp.IngestionStats["Metrics Storage Saved"] = calculateStorageSaved(float64(metricsIncomingBytes), float64(metricsOnDiskBytes+metricsInMemBytes))
+	httpResp.IngestionStats["Logs Storage Saved"] = calculateStorageSavedPercentage(logsIncomingBytes, logsOnDiskBytes)
+	httpResp.IngestionStats["Metrics Storage Saved"] = calculateStorageSavedPercentage(float64(metricsIncomingBytes), float64(metricsOnDiskBytes+metricsInMemBytes))
 
 	if hook := hooks.GlobalHooks.SetExtraIngestionStatsHook; hook != nil {
 		hook(httpResp.IngestionStats)
@@ -101,7 +101,7 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 
 }
 
-func calculateStorageSaved(incomingBytes, onDiskBytes float64) float64 {
+func calculateStorageSavedPercentage(incomingBytes, onDiskBytes float64) float64 {
 	storageSaved := 0.0
 	if incomingBytes > 0 {
 		storageSaved = (1 - (onDiskBytes / incomingBytes)) * 100
