@@ -392,6 +392,11 @@ func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64
 	switch functionName {
 	case "deriv":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Derivative, TimeWindow: timeWindow, Step: step}
+	case "predict_linear":
+		if len(expr.Args) != 2 {
+			return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the predict_linear function", expr.Args.String())
+		}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Predict_Linear, TimeWindow: timeWindow, ValueList: []string{expr.Args[1].String()}}
 	case "delta":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Delta, TimeWindow: timeWindow, Step: step}
 	case "idelta":
