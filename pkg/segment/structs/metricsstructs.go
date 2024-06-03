@@ -55,11 +55,8 @@ type MetricsQuery struct {
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
 	TagValueSearchOnly  bool // flag to search only tag values
-<<<<<<< HEAD
 	GetAllLabels        bool // flag to get all label sets for each time series
-=======
 	Groupby             bool // flag to group by tags
->>>>>>> develop
 }
 
 type Aggregation struct {
