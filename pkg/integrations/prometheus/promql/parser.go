@@ -588,6 +588,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		queryArithmetic = append(queryArithmetic, rhsQueryArth...)
 	}
 	arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
+	arithmeticOperation.ReturnBool = expr.ReturnBool
 	queryArithmetic = append(queryArithmetic, &arithmeticOperation)
 
 	if mQueryReqs[0].MetricsQuery.MQueryAggs == nil {

@@ -271,7 +271,7 @@ func RunMetricQueryFromFile(apiURL string, filepath string) {
 		// If the expected string is empty, then the actual retrieved string should also be empty.
 		if len(expectedValuesStr) != 0 {
 			if len(queryResponse.Values) == 0 || len(queryResponse.Values[0]) != len(expectedValuesStrs) {
-				log.Fatalf("RunQueryFromFile: Unexpected number of values in response: %v, Query=%v", queryResponse.Values, query)
+				log.Fatalf("RunQueryFromFile: Unexpected number of values in response: %v, ExpectedValues=%v, Query=%v", queryResponse.Values, expectedValuesStrs, query)
 			}
 		}
 
