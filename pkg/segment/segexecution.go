@@ -89,6 +89,9 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 				swapped = true
 				resultLHS = resMap[queryOp.RHS]
 			}
+			if resultLHS == nil { // for the case where both LHS and RHS are constants
+				continue
+			}
 
 			for groupID, tsLHS := range resultLHS.Results {
 				finalResult[groupID] = make(map[uint32]float64)
