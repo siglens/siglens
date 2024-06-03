@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"strings"
 	"sync"
@@ -151,10 +152,60 @@ func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
 	return retVal, nil
 }
 
-func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int,
-	continous bool, batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string,
-	indexName string, numIndices int) {
+var preGeneratedSeries []map[string]interface{}
 
+func generateUniqueID(series map[string]interface{}) string {
+	metricName := series["metric"].(string)
+	tags := series["tags"].(map[string]interface{})
+	var builder strings.Builder
+	builder.WriteString(metricName)
+	for key, value := range tags {
+		builder.WriteString(key)
+		builder.WriteString(fmt.Sprintf("%v", value))
+	}
+	return builder.String()
+}
+
+func generatePredefinedSeries(nMetrics int, cardinality int, gentype string) error {
+	preGeneratedSeries = make([]map[string]interface{}, 0, cardinality)
+	rdr, err := utils.InitMetricsGenerator(nMetrics, gentype)
+	if err != nil {
+		return err
+	}
+	start := time.Now()
+	uniqueSeriesMap := make(map[string]struct{})
+	for len(preGeneratedSeries) < cardinality {
+		currPayload, err := rdr.GetRawLog()
+		if err != nil {
+			return err
+		}
+		uniqueID := generateUniqueID(currPayload)
+		if _, exists := uniqueSeriesMap[uniqueID]; !exists {
+			preGeneratedSeries = append(preGeneratedSeries, currPayload)
+			uniqueSeriesMap[uniqueID] = struct{}{}
+		}
+	}
+	elapsed := time.Since(start)
+	log.Infof("Generated %d unique series in %v", len(uniqueSeriesMap), elapsed)
+	return nil
+}
+
+func generateBodyFromPredefinedSeries(recs int) ([]byte, error) {
+	finalPayLoad := make([]interface{}, recs)
+	for i := 0; i < recs; i++ {
+		series := preGeneratedSeries[i%len(preGeneratedSeries)]
+		series["timestamp"] = time.Now().Unix()
+		series["value"] = rand.Float64()*10000 - 5000
+		finalPayLoad[i] = series
+	}
+	retVal, err := json.Marshal(finalPayLoad)
+	if err != nil {
+		return nil, err
+	}
+	return retVal, nil
+}
+
+func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool, batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int) {
 	defer wg.Done()
 	eventCounter := 0
 	t := http.DefaultTransport.(*http.Transport).Clone()
@@ -173,18 +224,24 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 
 	i := 0
 	var bb *bytebufferpool.ByteBuffer
+	var payload []byte
+	var err error
 	maxDuration := 2 * time.Hour
-	for continous || eventCounter < totalEvents {
+	for continuous || eventCounter < totalEvents {
 
 		recsInBatch := batchSize
-		if !continous && eventCounter+batchSize > totalEvents {
+		if !continuous && eventCounter+batchSize > totalEvents {
 			recsInBatch = totalEvents - eventCounter
 		}
 		i++
 		if iType == ESBulk {
 			bb = bytebufferpool.Get()
 		}
-		payload, err := generateBody(iType, recsInBatch, i, rdr, actLines, bb)
+		if iType == OpenTSDB {
+			payload, err = generateBodyFromPredefinedSeries(recsInBatch)
+		} else {
+			payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
+		}
 		if err != nil {
 			log.Errorf("Error generating bulk body!: %v", err)
 			if iType == ESBulk {
@@ -277,9 +334,15 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 	return rdr, err
 }
 
-func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
-	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool, nMetrics int, bearerToken string) {
+func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool, batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool, nMetrics int, bearerToken string, cardinality int) {
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
+	if iType == OpenTSDB {
+		err := generatePredefinedSeries(nMetrics, cardinality, generatorType)
+		if err != nil {
+			log.Errorf("Failed to pre-generate series: %v", err)
+			return
+		}
+	}
 	var wg sync.WaitGroup
 	totalEventsPerProcess := totalEvents / processCount
 
@@ -292,8 +355,12 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
-		go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
-			&totalSent, bearerToken, indexName, numIndices)
+		if iType == OpenTSDB {
+			go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix, &totalSent, bearerToken, indexName, numIndices)
+		} else {
+			go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
+				&totalSent, bearerToken, indexName, numIndices)
+		}
 	}
 
 	go func() {

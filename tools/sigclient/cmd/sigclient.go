@@ -66,7 +66,7 @@ var esBulkCmd = &cobra.Command{
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("generatorType : %+v. Add timestamp: %+v\n", generatorType, ts)
 
-		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken)
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0)
 	},
 }
 
@@ -83,6 +83,7 @@ var metricsIngestCmd = &cobra.Command{
 		nMetrics, _ := cmd.Flags().GetInt("metrics")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		generatorType, _ := cmd.Flags().GetString("generator")
+		cardinality, _ := cmd.Flags().GetInt("cardinality")
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
@@ -90,7 +91,8 @@ var metricsIngestCmd = &cobra.Command{
 		log.Infof("batchSize : %+v. Num metrics: %+v\n", batchSize, nMetrics)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("generatorType : %+v.\n", generatorType)
-		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken)
+		log.Infof("cardinality : %+v.\n", cardinality)
+		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality)
 	},
 }
 
@@ -267,6 +269,7 @@ func init() {
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
+	metricsIngestCmd.PersistentFlags().IntP("cardinality", "u", 2_000_000, "Specify the total unique time series (cardinality).")
 
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
