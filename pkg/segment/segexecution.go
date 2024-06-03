@@ -159,7 +159,7 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 		} else {
 			labelStrSet := make(map[string]struct{})
 			for lGroupID, tsLHS := range resultLHS.Results {
-				// groupId is like: metricName{key:value,...
+				// lGroupId is like: metricName{key:value,...
 				// So, if we want to determine whether there are elements with the same labels in another metric, we need to appropriately modify the group ID.
 				rGroupID := ""
 				labelStr := ""
@@ -172,6 +172,8 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 					labelStrSet[labelStr] = struct{}{}
 				}
 
+				// If 'and' operation cannot find a matching label set in the right vector, we should skip the current label set in the left vector.
+				// However, for the 'or', 'unless' we do not want to skip that.
 				if _, ok := resultRHS.Results[rGroupID]; !ok && queryOp.Operation != utils.LetOr && queryOp.Operation != utils.LetUnless {
 					continue
 				} //Entries for which no matching entry in the right-hand vector are dropped
@@ -226,26 +228,26 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 			if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
 				for rGroupID, tsRHS := range resultRHS.Results {
 					labelStr := ""
-					if len(rGroupID) >= len(resultLHS.MetricName) {
-						labelStr = rGroupID[len(resultLHS.MetricName):]
+					if len(rGroupID) >= len(resultRHS.MetricName) {
+						labelStr = rGroupID[len(resultRHS.MetricName):]
 					}
 
-					// For unless op, all matching elements in both vectors are dropped
+					// For 'unless' op, all matching elements in both vectors are dropped
 					if queryOp.Operation == utils.LetUnless {
 						lGroupID := resultLHS.MetricName + labelStr
 						delete(finalResult, lGroupID)
 						continue
-					}
+					} else { // For 'or' op, check if the vector on the right has a label set that does not exist in the vector on the left.
+						_, exists := labelStrSet[labelStr]
+						// If exists, which means we already add that label set when traversing the resultLHS
+						if exists {
+							continue
+						}
 
-					_, exists := labelStrSet[labelStr]
-					// If exists, which means we already add that label set when traversing the resultLHS
-					if exists {
-						continue
-					}
-
-					finalResult[rGroupID] = make(map[uint32]float64)
-					for timestamp, valueRHS := range tsRHS {
-						finalResult[rGroupID][timestamp] = valueRHS
+						finalResult[rGroupID] = make(map[uint32]float64)
+						for timestamp, valueRHS := range tsRHS {
+							finalResult[rGroupID][timestamp] = valueRHS
+						}
 					}
 				}
 			}

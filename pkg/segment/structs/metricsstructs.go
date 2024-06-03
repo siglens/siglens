@@ -52,7 +52,7 @@ type MetricsQuery struct {
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
 	TagValueSearchOnly  bool // flag to search only tag values
-	GetAllLabels        bool // flag to get all label sets for each time serie
+	GetAllLabels        bool // flag to get all label sets for each time series
 }
 
 type Aggreation struct {
