@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"strings"
 	"sync"
@@ -166,17 +165,19 @@ func generateUniqueID(series map[string]interface{}) string {
 	return builder.String()
 }
 
-func generatePredefinedSeries(nMetrics int, cardinality int, gentype string) error {
+func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string) error {
 	preGeneratedSeries = make([]map[string]interface{}, 0, cardinality)
 	rdr, err := utils.InitMetricsGenerator(nMetrics, gentype)
 	if err != nil {
+		log.Errorf("generatePredefinedSeries: failed to initalize metrics generator: %+v", err)
 		return err
 	}
 	start := time.Now()
 	uniqueSeriesMap := make(map[string]struct{})
-	for len(preGeneratedSeries) < cardinality {
+	for uint64(len(preGeneratedSeries)) < cardinality {
 		currPayload, err := rdr.GetRawLog()
 		if err != nil {
+			log.Errorf("generatePredefinedSeries: failed to get raw log: %+v", err)
 			return err
 		}
 		uniqueID := generateUniqueID(currPayload)
@@ -190,13 +191,12 @@ func generatePredefinedSeries(nMetrics int, cardinality int, gentype string) err
 	return nil
 }
 
-func generateBodyFromPredefinedSeries(recs int) ([]byte, error) {
+func generateBodyFromPredefinedSeries(recs int, seriesId *uint64) ([]byte, error) {
 	finalPayLoad := make([]interface{}, recs)
 	for i := 0; i < recs; i++ {
-		series := preGeneratedSeries[i%len(preGeneratedSeries)]
-		series["timestamp"] = time.Now().Unix()
-		series["value"] = rand.Float64()*10000 - 5000
+		series := preGeneratedSeries[*seriesId%uint64(len(preGeneratedSeries))]
 		finalPayLoad[i] = series
+		*seriesId++
 	}
 	retVal, err := json.Marshal(finalPayLoad)
 	if err != nil {
@@ -212,6 +212,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 	t.MaxIdleConns = 500
 	t.MaxConnsPerHost = 100
 	t.MaxIdleConnsPerHost = 100
+	seriesId := uint64(0)
 	client := &http.Client{
 		Timeout:   100 * time.Second,
 		Transport: t,
@@ -238,7 +239,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			bb = bytebufferpool.Get()
 		}
 		if iType == OpenTSDB {
-			payload, err = generateBodyFromPredefinedSeries(recsInBatch)
+			payload, err = generateBodyFromPredefinedSeries(recsInBatch, &seriesId)
 		} else {
 			payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
 		}
@@ -334,7 +335,7 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 	return rdr, err
 }
 
-func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool, batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool, nMetrics int, bearerToken string, cardinality int) {
+func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool, batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool, nMetrics int, bearerToken string, cardinality uint64) {
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	if iType == OpenTSDB {
 		err := generatePredefinedSeries(nMetrics, cardinality, generatorType)

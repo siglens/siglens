@@ -83,7 +83,7 @@ var metricsIngestCmd = &cobra.Command{
 		nMetrics, _ := cmd.Flags().GetInt("metrics")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		generatorType, _ := cmd.Flags().GetString("generator")
-		cardinality, _ := cmd.Flags().GetInt("cardinality")
+		cardinality, _ := cmd.Flags().GetUint64("cardinality")
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
@@ -269,7 +269,7 @@ func init() {
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
-	metricsIngestCmd.PersistentFlags().IntP("cardinality", "u", 2_000_000, "Specify the total unique time series (cardinality).")
+	metricsIngestCmd.PersistentFlags().Uint64P("cardinality", "u", 2_000_000, "Specify the total unique time series (cardinality).")
 
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
