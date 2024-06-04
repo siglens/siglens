@@ -238,17 +238,6 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 	return &mresults.MetricsResult{Results: finalResult, State: mresults.AGGREGATED}, nil
 }
 
-func setFinalRes(finalResult map[string]map[uint32]float64, groupID string, timestamp uint32, returnBool bool, comparisonBool bool, val float64) {
-	// If a comparison operator, return 0/1 rather than filtering.
-	if returnBool {
-		finalResult[groupID][timestamp] = 0
-		val = 1
-	}
-	if comparisonBool {
-		finalResult[groupID][timestamp] = val
-	}
-}
-
 func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
 
 	rQuery, err := query.StartQuery(qid, false)
