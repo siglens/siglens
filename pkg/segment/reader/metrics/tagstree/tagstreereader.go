@@ -22,6 +22,7 @@ import (
 	"io/fs"
 	"os"
 
+	"github.com/cespare/xxhash"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -383,6 +384,113 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 	return true, true, rawTagValueToTSIDs, tagHashValue, nil
 }
 
+func (attr *AllTagTreeReaders) GetAllTagKeys() []string {
+	var tagKeys []string
+	for tagKey := range attr.tagTrees {
+		tagKeys = append(tagKeys, tagKey)
+	}
+
+	return tagKeys
+}
+
+// Returns a map: tagKey -> set of tagValues for that key
+func (attr *AllTagTreeReaders) GetAllTagPairs() map[string]map[string]struct{} {
+	tagPairs := make(map[string]map[string]struct{})
+	for tagKey, ttr := range attr.tagTrees {
+		ttr.readTagValuesOnly(tagKey, tagPairs)
+	}
+
+	return tagPairs
+}
+
+func (attr *AllTagTreeReaders) GetTSIDsForKey(tagKey string) (map[uint64]struct{}, error) {
+	ttr, ok := attr.tagTrees[tagKey]
+	if !ok {
+		return nil, fmt.Errorf("AllTagTreeReaders.GetTSIDsForKey: tag key %v not found", tagKey)
+	}
+
+	allTSIDs := make(map[uint64]struct{})
+	values := make(map[string]map[string]struct{})
+	ttr.readTagValuesOnly(tagKey, values)
+
+	valuesForKey, ok := values[tagKey]
+	if !ok {
+		err := fmt.Errorf("AllTagTreeReaders.GetTSIDsForKey: tag key %v not found in values map", tagKey)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	for value := range valuesForKey {
+		tsids, err := ttr.GetTSIDsForTagValue(value)
+		if err != nil {
+			log.Errorf("AllTagTreeReaders.GetTSIDsForKey: failed to get TSIDs for tag key %v, tag value %v. Error: %v", tagKey, value, err)
+			return nil, err
+		}
+
+		allTSIDs = utils.MergeMaps(allTSIDs, tsids)
+	}
+
+	return allTSIDs, nil
+}
+
+func (attr *AllTagTreeReaders) GetTSIDsForTagPair(tagKey string, tagValue string) (map[uint64]struct{}, error) {
+	ttr, ok := attr.tagTrees[tagKey]
+	if !ok {
+		return nil, fmt.Errorf("AllTagTreeReaders.GetTSIDsForTagPair: tag key %v not found", tagKey)
+	}
+
+	return ttr.GetTSIDsForTagValue(tagValue)
+}
+
+func (ttr *TagTreeReader) GetTSIDsForTagValue(tagValue string) (map[uint64]struct{}, error) {
+	hashedMetricNames, err := ttr.getHashedMetricNames()
+	if err != nil {
+		log.Errorf("TagTreeReader.GetTSIDsForTagValue: failed to get hashed metric names. Error: %v", err)
+		return nil, err
+	}
+
+	allTSIDs := make(map[uint64]struct{})
+	hashedTagValue := xxhash.Sum64String(tagValue) // The hash function that TagTree.AddTagValue uses.
+
+	for hashedMetricName := range hashedMetricNames {
+		_, _, rawTagValueToTSIDs, _, err := ttr.GetMatchingTSIDs(hashedMetricName, hashedTagValue, segutils.Equal)
+		if err != nil {
+			log.Errorf("AllTagTreeReaders.GetTSIDsForTagValue: failed to get matching TSIDs for tag value %v, metric hash %v. Error: %v",
+				tagValue, hashedMetricName, err)
+			return nil, err
+		}
+
+		// There should be 0 or 1 matching tag values, since we're looking for
+		// a specific tag value.
+		if len(rawTagValueToTSIDs) > 1 {
+			err := fmt.Errorf("AllTagTreeReaders.GetTSIDsForTagValue: expected 0 or 1 tag value to match, got %v", len(rawTagValueToTSIDs))
+			log.Errorf(err.Error())
+			return nil, err
+		}
+
+		for _, tsids := range rawTagValueToTSIDs {
+			allTSIDs = utils.MergeMaps(allTSIDs, tsids)
+		}
+	}
+
+	return allTSIDs, nil
+}
+
+// func (attr *AllTagTreeReaders) AllTSIDs() (map[uint64]struct{}, error) {
+// 	allTSIDs := make(map[uint64]struct{})
+// 	for _, ttr := range attr.tagTrees {
+// 		tsids, err := ttr.allTSIDs()
+// 		if err != nil {
+// 			log.Errorf("AllTagTreeReaders.AllTSIDs: failed to get all TSIDs. Error: %v", err)
+// 			return nil, err
+// 		}
+
+// 		allTSIDs = utils.MergeMaps(allTSIDs, tsids)
+// 	}
+
+// 	return allTSIDs, nil
+// }
+
 /*
 Returns *TagValueIterator a boolean indicating if the metric name was found, or any errors encountered
 */
@@ -633,4 +741,46 @@ func (tvi *TagValueIterator) NextTagValue() ([]byte, []byte, bool) {
 		}
 	}
 	return nil, nil, false
+}
+
+func (attr *AllTagTreeReaders) GetHashedMetricNames() (map[uint64]struct{}, error) {
+	allHashedMetricNames := make(map[uint64]struct{})
+	for _, ttr := range attr.tagTrees {
+		hashedMetricNames, err := ttr.getHashedMetricNames()
+		if err != nil {
+			log.Errorf("AllTagTreeReaders.GetHashedMetricNames: failed to get hashed metric names. Error: %v", err)
+			return nil, err
+		}
+
+		allHashedMetricNames = utils.MergeMaps(allHashedMetricNames, hashedMetricNames)
+	}
+
+	return allHashedMetricNames, nil
+}
+
+// Refer to the comment above TagTree.encodeTagsTree() for how the metadata is
+// structured.
+func (ttr *TagTreeReader) getHashedMetricNames() (map[uint64]struct{}, error) {
+	tagsTreeVersion := ttr.metadataBuf[0]
+	if tagsTreeVersion != segutils.VERSION_TAGSTREE_1[0] {
+		log.Errorf("TagTreeReader.getHashedMetricNames: tags tree version %v is not supported", tagsTreeVersion)
+		return nil, fmt.Errorf("Invalid tags tree version")
+	}
+
+	metadataSize := utils.BytesToUint32LittleEndian(ttr.metadataBuf[1:5])
+	if metadataSize != uint32(len(ttr.metadataBuf)) {
+		log.Errorf("TagTreeReader.getHashedMetricNames: metadata expected size %v does not match actual size %v",
+			metadataSize, len(ttr.metadataBuf))
+		return nil, fmt.Errorf("Invalid metadata size: expected %v, got %v", metadataSize, len(ttr.metadataBuf))
+	}
+
+	hashedMetricNames := make(map[uint64]struct{})
+	index := uint32(5)
+	for index < metadataSize {
+		hashedMetricName := utils.BytesToUint64LittleEndian(ttr.metadataBuf[index : index+8])
+		hashedMetricNames[hashedMetricName] = struct{}{}
+		index += 16 // 8 for the hashed metric name, 4 for the start offset, 4 for the end offset
+	}
+
+	return hashedMetricNames, nil
 }
