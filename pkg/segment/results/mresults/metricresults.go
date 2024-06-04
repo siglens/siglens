@@ -78,6 +78,7 @@ TODO: depending on metrics query, have different cases on how to resolve dps
 */
 func InitMetricResults(mQuery *structs.MetricsQuery, qid uint64) *MetricsResult {
 	return &MetricsResult{
+		MetricName:           mQuery.MetricName,
 		AllSeries:            make(map[uint64]*Series),
 		rwLock:               &sync.RWMutex{},
 		ErrList:              make([]error, 0),

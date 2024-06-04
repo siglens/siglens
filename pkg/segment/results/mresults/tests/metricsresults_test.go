@@ -959,3 +959,211 @@ func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap
 		}
 	}
 }
+
+func Test_GetResults_And(t *testing.T) {
+	expectedResults := make(map[string]map[uint32]float64)
+	// There is the expected result: contains only one matching label set
+	expectedResults["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
+		0:    45,
+		7200: 1045,
+	}
+	// These two label sets are for metric1 and metric2 respectively.
+	labelStrs1 := []string{"{color:yellow,type:compact,", "{color:red,type:compact,"}
+	labelStrs2 := []string{"{color:red,type:compact,"}
+	test_GetResults_LogicalAndVectorMatchingOps(t,
+		map[uint32]float64{
+			0:    45,
+			7200: 1045,
+		},
+		map[uint32]float64{
+			0:    2,
+			7200: 6,
+		},
+		labelStrs1, labelStrs2, expectedResults,
+		[]structs.QueryArithmetic{
+			{
+				LHS:       1,
+				RHS:       2,
+				Operation: utils.LetAnd,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_Or(t *testing.T) {
+	expectedResults := make(map[string]map[uint32]float64)
+	// There is the expected result: contains all unique label sets
+	expectedResults["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
+		0:    45,
+		7200: 1045,
+	}
+
+	expectedResults["test.metric.1{color:yellow,type:compact,"] = map[uint32]float64{
+		0:    45,
+		7200: 1045,
+	}
+
+	labelStrs1 := []string{"{color:yellow,type:compact,", "{color:red,type:compact,"}
+	labelStrs2 := []string{"{color:red,type:compact,"}
+
+	test_GetResults_LogicalAndVectorMatchingOps(t,
+		map[uint32]float64{
+			0:    45,
+			7200: 1045,
+		},
+		map[uint32]float64{
+			0:    2,
+			7200: 6,
+		},
+		labelStrs1, labelStrs2, expectedResults,
+		[]structs.QueryArithmetic{
+			{
+				LHS:       1,
+				RHS:       2,
+				Operation: utils.LetOr,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_Unless(t *testing.T) {
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults["test.metric.1{color:yellow,type:compact,"] = map[uint32]float64{
+		0:    45,
+		7200: 1045,
+	}
+
+	labelStrs1 := []string{"{color:yellow,type:compact,", "{color:red,type:compact,"}
+	labelStrs2 := []string{"{color:red,type:compact,"}
+
+	test_GetResults_LogicalAndVectorMatchingOps(t,
+		map[uint32]float64{
+			0:    45,
+			7200: 1045,
+		},
+		map[uint32]float64{
+			0:    2,
+			7200: 6,
+		},
+		labelStrs1, labelStrs2, expectedResults,
+		[]structs.QueryArithmetic{
+			{
+				LHS:       1,
+				RHS:       2,
+				Operation: utils.LetUnless,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+// Create two vectors. The label sets and entries are determined by the input parameters.
+func initialize_Metric_Results(t *testing.T, initialEntries1 map[uint32]float64, initialEntries2 map[uint32]float64, labelStrs1 []string, labelStrs2 []string, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler) map[uint64]*mresults.MetricsResult {
+	// Add 2 groups in metric1
+	mQuery1 := &structs.MetricsQuery{
+		MetricName:      "test.metric.1",
+		HashedMName:     1,
+		Downsampler:     downsampler,
+		GetAllLabels:    true,
+		SelectAllSeries: true,
+	}
+	qid := uint64(0)
+	metricsResults1 := mresults.InitMetricResults(mQuery1, qid)
+	assert.NotNil(t, metricsResults1)
+
+	tsid := uint64(100)
+	for _, labelStr := range labelStrs1 {
+		var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
+		defer bytebufferpool.Put(tsGroupId)
+		addSerieToMetricRes(t, metricsResults1, mQuery1, initialEntries1, tsGroupId, labelStr, tsid)
+		tsid++
+	}
+
+	metricsResults1.DownsampleResults(mQuery1.Downsampler, 1)
+	errors := metricsResults1.AggregateResults(1)
+	assert.Nil(t, errors)
+
+	// Add 1 group in metric2
+	mQuery2 := &structs.MetricsQuery{
+		MetricName:      "test.metric.2",
+		HashedMName:     2,
+		Downsampler:     downsampler,
+		GetAllLabels:    true,
+		SelectAllSeries: true,
+	}
+	qid = uint64(1)
+	metricsResults2 := mresults.InitMetricResults(mQuery2, qid)
+	assert.NotNil(t, metricsResults2)
+
+	for _, labelStr := range labelStrs2 {
+		var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
+		defer bytebufferpool.Put(tsGroupId)
+		addSerieToMetricRes(t, metricsResults2, mQuery2, initialEntries2, tsGroupId, labelStr, tsid)
+		tsid++
+	}
+
+	metricsResults2.DownsampleResults(mQuery2.Downsampler, 1)
+	errors = metricsResults2.AggregateResults(1)
+	assert.Nil(t, errors)
+
+	return map[uint64]*mresults.MetricsResult{
+		1: metricsResults1,
+		2: metricsResults2,
+	}
+}
+
+func test_GetResults_LogicalAndVectorMatchingOps(t *testing.T, initialEntries1 map[uint32]float64, initialEntries2 map[uint32]float64, labelStrs1 []string, labelStrs2 []string, ansMap map[string]map[uint32]float64, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler) {
+
+	res := segment.HelperQueryArithmeticAndLogical(queryOps, initialize_Metric_Results(t, initialEntries1, initialEntries2, labelStrs1, labelStrs2, queryOps, downsampler))
+	assert.Equal(t, len(ansMap), len(res.Results))
+	for groupId, resMap := range res.Results {
+
+		entries, exists := ansMap[groupId]
+		if !exists {
+			t.Errorf("Should have this groupId: %v", groupId)
+		}
+
+		assert.Equal(t, len(entries), len(resMap))
+
+		for timestamp, val := range resMap {
+			expectedVal, exists := entries[timestamp]
+			if !exists {
+				t.Errorf("Should not have this key: %v", timestamp)
+			}
+
+			if expectedVal != val {
+				t.Errorf("Expected value should be %v, but got %v", expectedVal, val)
+			}
+		}
+	}
+}
+
+func addSerieToMetricRes(t *testing.T, metricsResults *mresults.MetricsResult, mQuery *structs.MetricsQuery, entries map[uint32]float64, tsGroupId *bytebufferpool.ByteBuffer, labelStr string, tsid uint64) {
+	_, err := tsGroupId.Write([]byte(mQuery.MetricName + labelStr))
+	assert.NoError(t, err)
+
+	series := mresults.InitSeriesHolder(mQuery, tsGroupId)
+
+	for timestamp, val := range entries {
+		series.AddEntry(timestamp, val)
+	}
+
+	metricsResults.AddSeries(series, tsid, tsGroupId)
+}
