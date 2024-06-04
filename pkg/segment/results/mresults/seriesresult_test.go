@@ -657,7 +657,6 @@ func Test_applyRangeFunctionStddevOverTime(t *testing.T) {
 	}
 }
 
-// Test For Mad Over Time
 func Test_applyRangeFunctionMADOverTime(t *testing.T) {
 
 	result := make(map[string]map[uint32]float64)

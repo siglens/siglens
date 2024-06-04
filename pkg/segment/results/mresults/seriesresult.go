@@ -1078,7 +1078,13 @@ func evaluateStandardVariance(sortedTimeSeries []Entry, ts map[uint32]float64, t
 	return ts
 }
 
-// MAD Over Time
+/*
+* Median Absolute Deviation Over Time
+1. Calculate the median absolute deviation of all points in the specified interval
+2. Calculate the absolute difference between each point and obtained median in that interval
+3. Calculate median of these obtained values
+*
+*/
 func evaluateMADOverTime(sortedTimeSeries []Entry, ts map[uint32]float64, timeWindow uint32) map[uint32]float64 {
 	for i := range sortedTimeSeries {
 		// Define the start time of the window for the current entry

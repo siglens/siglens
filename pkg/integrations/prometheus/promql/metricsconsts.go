@@ -119,6 +119,13 @@ const metricFunctions = `[
 		"isTimeRangeFunc": false
 	},
 	{
+		"fn": "atan2",
+		"name": "2-argument arctangent (Atan2)",
+		"desc": "Calculates the arctangent, or inverse tangent, of the specified x and y coordinates as arguments.",
+		"eg": "y atan2 x",
+		"isTimeRangeFunc": false
+	},
+	{
 		"fn": "atan",
 		"name": "Arctangent (atan)",
 		"desc": "Calculates the arctangent of all elements in v.",
