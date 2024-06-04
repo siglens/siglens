@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/siglens/siglens/pkg/memorypool"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/compress"
@@ -40,8 +41,6 @@ type TimeSeriesSegmentReader struct {
 	mKey   string // base metrics key directory
 	tsoBuf []byte // raw buffer used to decode the TSO
 	tsgBuf []byte // raw buffer used to decode the TSO
-
-	allBuffers [][]byte // list of all buffers used to read TSO/TSG files
 }
 
 /*
@@ -65,17 +64,7 @@ type SharedTimeSeriesSegmentReader struct {
 	rwLock                       *sync.Mutex
 }
 
-var seriesBufferPool = sync.Pool{
-	New: func() interface{} {
-		// The Pool's New function should generally only return pointer
-		// types, since a pointer can be put into the return interface
-		// value without an allocation:
-
-		buff := float64(segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
-		slice := make([]byte, 0, int(buff))
-		return &slice
-	},
-}
+var globalPool = memorypool.NewMemoryPool(4, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
 
 /*
 Exposes init functions for timeseries block readers.
@@ -85,12 +74,10 @@ Exposes init functions for timeseries block readers.
 It is up to the caller to call .Close() to return all buffers
 */
 func InitTimeSeriesReader(mKey string) (*TimeSeriesSegmentReader, error) {
-	// load tso/tsg file as needd
 	return &TimeSeriesSegmentReader{
-		mKey:       mKey,
-		tsoBuf:     *seriesBufferPool.Get().(*[]byte),
-		tsgBuf:     *seriesBufferPool.Get().(*[]byte),
-		allBuffers: make([][]byte, 0),
+		mKey:   mKey,
+		tsoBuf: globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
+		tsgBuf: globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
 	}, nil
 }
 
@@ -98,12 +85,18 @@ func InitTimeSeriesReader(mKey string) (*TimeSeriesSegmentReader, error) {
 Closes the iterator by returning all buffers back to the pool
 */
 func (tssr *TimeSeriesSegmentReader) Close() error {
-	// load tso/tsg file as needd
+	err1 := globalPool.Put(tssr.tsoBuf)
+	if err1 != nil {
+		log.Errorf("TimeSeriesSegmentReader.Close: Error putting tsoBuf back to the pool: %v", err1)
+	}
 
-	seriesBufferPool.Put(&tssr.tsoBuf)
-	seriesBufferPool.Put(&tssr.tsgBuf)
-	for i := range tssr.allBuffers {
-		seriesBufferPool.Put(&tssr.allBuffers[i])
+	err2 := globalPool.Put(tssr.tsgBuf)
+	if err2 != nil {
+		log.Errorf("TimeSeriesSegmentReader.Close: Error putting tsgBuf back to the pool: %v", err2)
+	}
+
+	if err1 != nil || err2 != nil {
+		return fmt.Errorf("Error putting buffers back to the pool")
 	}
 
 	return nil
@@ -246,92 +239,86 @@ func getOffsetFromTsoFile(low uint32, high uint32, nTsids uint32, tsid uint64, t
 	return false, 0, 0
 }
 
-func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) ([]byte, uint16, error) {
+// Note: this must only be called for buffers received from globalPool. If
+// there's no error, the buffer passed in must not be used again; only use the
+// returned buffer.
+func expandPoolBufferToMinSize(buffer []byte, minSize uint64) ([]byte, error) {
+	if cap(buffer) < int(minSize) {
+		err := globalPool.Put(buffer)
+		if err != nil {
+			log.Errorf("expandPoolBufferToMinSize: Error putting buffer back into the pool: %v", err)
+			return buffer, err
+		}
 
+		buffer = globalPool.Get(minSize)
+	}
+
+	buffer = buffer[:minSize]
+
+	return buffer, nil
+}
+
+func loadFileIntoPoolBuffer(fileName string, bufferFromPool *[]byte) error {
 	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Infof("loadTSOFile: failed to open fileName: %v  Error: %v", fileName, err)
-		return nil, 0, err
+		log.Errorf("loadFileIntoPoolBuffer: failed to open fileName: %v  Error: %v", fileName, err)
+		return err
 	}
 	defer fd.Close()
 
 	finfo, err := fd.Stat()
 	if err != nil {
-		log.Errorf("loadTSOFile: error when trying to stat file=%+v. Error=%+v", fileName, err)
-		return nil, 0, err
+		log.Errorf("loadFileIntoPoolBuffer: error when trying to stat file=%+v. Error=%+v", fileName, err)
+		return err
 	}
 
 	fileSize := finfo.Size()
-	rbuf := tssr.tsoBuf[:cap(tssr.tsoBuf)]
-	sizeToAdd := fileSize - int64(len(rbuf))
-	if sizeToAdd > 0 {
-		newArr := *seriesBufferPool.Get().(*[]byte)
-		if diff := sizeToAdd - int64(len(newArr)); diff <= 0 {
-			newArr = newArr[:sizeToAdd]
-		} else {
-			extend := make([]byte, diff)
-			newArr = append(newArr, extend...)
-		}
-		tssr.allBuffers = append(tssr.allBuffers, newArr)
-		rbuf = append(rbuf, newArr...)
-	} else {
-		rbuf = rbuf[:fileSize]
-	}
-	_, err = fd.ReadAt(rbuf, 0)
+	newBuffer, err := expandPoolBufferToMinSize(*bufferFromPool, uint64(fileSize))
 	if err != nil {
-		log.Errorf("loadTSOFile: Error reading TSO file: %v, err: %v", fileName, err)
+		log.Errorf("loadFileIntoPoolBuffer: Error expanding buffer: %v", err)
+		return err
+	}
+
+	*bufferFromPool = newBuffer
+
+	_, err = fd.ReadAt(newBuffer, 0)
+	if err != nil {
+		log.Errorf("loadFileIntoPoolBuffer: Error reading file: %v, err: %v", fileName, err)
+		return err
+	}
+
+	return nil
+}
+
+func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) ([]byte, uint16, error) {
+	err := loadFileIntoPoolBuffer(fileName, &tssr.tsoBuf)
+	if err != nil {
+		log.Errorf("loadTSOFile: Error loading TSO file: %v", err)
 		return nil, 0, err
 	}
-	// rbuf[0] gives the version byte
+
 	versionTsoFile := make([]byte, 1)
-	copy(versionTsoFile, rbuf[:1])
+	copy(versionTsoFile, tssr.tsoBuf[:1])
 	if versionTsoFile[0] != segutils.VERSION_TSOFILE[0] {
-		return nil, 0, fmt.Errorf("loadTSOFile: the file version doesn't match")
+		return nil, 0, fmt.Errorf("loadFileIntoPoolBuffer: the file version doesn't match; expected=%+v, got=%+v", segutils.VERSION_TSOFILE[0], versionTsoFile[0])
 	}
-	nEntries := utils.BytesToUint16LittleEndian(rbuf[1:3])
-	return rbuf, nEntries, nil
+	nEntries := utils.BytesToUint16LittleEndian(tssr.tsoBuf[1:3])
+	return tssr.tsoBuf, nEntries, nil
 }
 
 func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error) {
-	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
+	err := loadFileIntoPoolBuffer(fileName, &tssr.tsgBuf)
 	if err != nil {
-		log.Errorf("loadTSGFile: error when trying to open file=%+v. Error=%+v", fileName, err)
+		log.Errorf("loadTSGFile: Error loading TSG file: %v", err)
 		return nil, err
 	}
-	defer fd.Close()
 
-	finfo, err := fd.Stat()
-	if err != nil {
-		log.Errorf("loadTSGFile: error when trying to stat file=%+v. Error=%+v", fileName, err)
-		return nil, err
-	}
-	fileSize := finfo.Size()
-	rbuf := tssr.tsgBuf[:cap(tssr.tsgBuf)]
-	sizeToAdd := fileSize - int64(len(rbuf))
-	if sizeToAdd > 0 {
-		newArr := *seriesBufferPool.Get().(*[]byte)
-		if diff := sizeToAdd - int64(len(newArr)); diff <= 0 {
-			newArr = newArr[:sizeToAdd]
-		} else {
-			extend := make([]byte, diff)
-			newArr = append(newArr, extend...)
-		}
-		tssr.allBuffers = append(tssr.allBuffers, newArr)
-		rbuf = append(rbuf, newArr...)
-	} else {
-		rbuf = rbuf[:fileSize]
-	}
-	_, err = fd.ReadAt(rbuf, 0)
-	if err != nil {
-		log.Errorf("loadTSGFile: Error reading TSG file: %v, err: %v", fileName, err)
-		return nil, err
-	}
 	versionTsgFile := make([]byte, 1)
-	copy(versionTsgFile, rbuf[:1])
+	copy(versionTsgFile, tssr.tsgBuf[:1])
 	if versionTsgFile[0] != segutils.VERSION_TSGFILE[0] {
-		return nil, fmt.Errorf("loadTSGFile: the file version doesn't match")
+		return nil, fmt.Errorf("loadTSGFile: the file version doesn't match; expected=%+v, got=%+v", segutils.VERSION_TSGFILE[0], versionTsgFile[0])
 	}
-	return rbuf, nil
+	return tssr.tsgBuf, nil
 }
 
 /*

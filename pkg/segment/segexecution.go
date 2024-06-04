@@ -112,46 +112,46 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 							val = val * -1
 						}
 						finalResult[groupID][timestamp] = val
+					case utils.LetModulo:
+						if swapped {
+							finalResult[groupID][timestamp] = math.Mod(valueRHS, valueLHS)
+						} else {
+							finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
+						}
+					case utils.LetPower:
+						if swapped {
+							finalResult[groupID][timestamp] = math.Pow(valueRHS, valueLHS)
+						} else {
+							finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
+						}
 					case utils.LetGreaterThan:
 						isGtr := valueLHS > valueRHS
 						if swapped {
 							isGtr = valueLHS < valueRHS
 						}
-						if isGtr {
-							finalResult[groupID][timestamp] = valueLHS
-						}
+						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isGtr, valueLHS)
 					case utils.LetGreaterThanOrEqualTo:
 						isGte := valueLHS >= valueRHS
 						if swapped {
 							isGte = valueLHS <= valueRHS
 						}
-						if isGte {
-							finalResult[groupID][timestamp] = valueLHS
-						}
+						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isGte, valueLHS)
 					case utils.LetLessThan:
 						isLss := valueLHS < valueRHS
 						if swapped {
 							isLss = valueLHS > valueRHS
 						}
-						if isLss {
-							finalResult[groupID][timestamp] = valueLHS
-						}
+						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isLss, valueLHS)
 					case utils.LetLessThanOrEqualTo:
 						isLte := valueLHS <= valueRHS
 						if swapped {
 							isLte = valueLHS >= valueRHS
 						}
-						if isLte {
-							finalResult[groupID][timestamp] = valueLHS
-						}
+						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isLte, valueLHS)
 					case utils.LetEquals:
-						if valueLHS == valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
-						}
+						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS == valueRHS, valueLHS)
 					case utils.LetNotEquals:
-						if valueLHS != valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
-						}
+						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS != valueRHS, valueLHS)
 					}
 				}
 			}
@@ -176,30 +176,22 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 						finalResult[groupID][timestamp] = valueLHS * valueRHS
 					case utils.LetSubtract:
 						finalResult[groupID][timestamp] = valueLHS - valueRHS
+					case utils.LetModulo:
+						finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
+					case utils.LetPower:
+						finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
 					case utils.LetGreaterThan:
-						if valueLHS > valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
-						}
+						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS > valueRHS, valueLHS)
 					case utils.LetGreaterThanOrEqualTo:
-						if valueLHS >= valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
-						}
+						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS >= valueRHS, valueLHS)
 					case utils.LetLessThan:
-						if valueLHS < valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
-						}
+						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS < valueRHS, valueLHS)
 					case utils.LetLessThanOrEqualTo:
-						if valueLHS <= valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
-						}
+						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS <= valueRHS, valueLHS)
 					case utils.LetEquals:
-						if valueLHS == valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
-						}
+						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS == valueRHS, valueLHS)
 					case utils.LetNotEquals:
-						if valueLHS != valueRHS {
-							finalResult[groupID][timestamp] = valueLHS
-						}
+						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS != valueRHS, valueLHS)
 					}
 				}
 			}
@@ -207,6 +199,17 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 	}
 
 	return &mresults.MetricsResult{Results: finalResult, State: mresults.AGGREGATED}
+}
+
+func setFinalRes(finalResult map[string]map[uint32]float64, groupID string, timestamp uint32, returnBool bool, comparisonBool bool, val float64) {
+	// If a comparison operator, return 0/1 rather than filtering.
+	if returnBool {
+		finalResult[groupID][timestamp] = 0
+		val = 1
+	}
+	if comparisonBool {
+		finalResult[groupID][timestamp] = val
+	}
 }
 
 func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
