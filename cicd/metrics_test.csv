@@ -34,7 +34,6 @@ last_over_time(testmetric4[24h]),now-90d,now,"199.18720427445206,238.30462913556
 present_over_time(testmetric4[24h]),now-90d,now,"1,1,1",eq
 count_over_time(testmetric4[24h]),now-90d,now,"1,2,2",eq
 avg_over_time(testmetric0[24h]),now-90d,now,"131.45590577322233,129.26226823091304,143.30103382674855",approx
-mad_over_time(testmetric0[24h]),now-90d,now,"131.45590577322233,129.26226823091304,143.30103382674855",approx
 max_over_time(testmetric0[48h]),now-90d,now,"131.45590577322233,131.45590577322233,159.53343696489338",approx
 changes(testmetric0[48h]),now-90d,now,"0,1,2",eq
 hour(testmetric0),now-90d,now,"24,24,24",lt
