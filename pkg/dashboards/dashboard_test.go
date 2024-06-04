@@ -154,6 +154,12 @@ func Test_parseUpdateDashboardRequest(t *testing.T) {
 	_, _, _, err = parseUpdateDashboardRequest(req)
 	assert.NotNil(t, err)
 
+	// Test with invalid request sending value other than string
+	req["id"] = 122
+	req["name"] = "Dashboard Name"
+	_, _, _, err = parseUpdateDashboardRequest(req)
+	assert.NotNil(t, err)
+
 	// Test with valid request
 	req["id"] = "dashboard-1"
 	req["name"] = "Dashboard"
