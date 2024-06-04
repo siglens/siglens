@@ -561,6 +561,25 @@ function logOptionMultiHandler() {
             
             colDef.cellStyle = {'white-space': 'normal'};
             colDef.autoHeight = true;
+            colDef.cellRenderer = function(params) {
+                console.log('params: ', params)
+                const logsDataArray = []
+                
+                const data = params.data
+                logsDataArray.push(`_index=${data._index}`)
+
+                const keysArray = Object.keys(data)
+                
+                keysArray
+                    .filter((item)=> item !== '_index')
+                    .forEach((key)=>{
+                        logsDataArray.push(`${key}=${data[key]}`)
+                    })
+                
+                const logsDataString = logsDataArray.join(' | ')
+
+                return `<div style="white-space: pre-wrap;">${logsDataString.replace(/\n/g, '<br>')}</div>`
+            }
         }
     });
     gridOptions.api.setColumnDefs(logsColumnDefs);
