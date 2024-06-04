@@ -1108,6 +1108,25 @@ func Test_parsePromQLQuery_NestedQueries_NestedGroupBy_v2(t *testing.T) {
 	assert.Equal(t, "proc", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.Next.AggregatorBlock.GroupByFields[1])
 }
 
+// func Test_parsePromQLQuery_MultiQueryWithOperators(t *testing.T) {
+// 	endTime := uint32(time.Now().Unix())
+// 	startTime := endTime - 86400 // 1 day
+
+// 	timeRange := dtu.MetricsTimeRange{
+// 		StartEpochSec: startTime,
+// 		EndEpochSec:   endTime,
+// 	}
+// 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
+// 	intervalSeconds := int(intervalSeconds_uint32)
+
+// 	myId := uint64(0)
+
+// 	query := `(day_of_week(timestamp(count by (service) ( count by (build_version, service) ( build_information{ chronosphere_k8s_cluster=~'production' } ) ) > 1)) == 2 and hour(timestamp(count by (service) ( count by (build_version, service) ( build_information{ chronosphere_k8s_cluster=~'production' } ) ) > 1)) >= 23)`
+// 	mHashedMName := xxhash.Sum64String("build_information")
+// 	tagKeys := []string{"build_version", "service"}
+
+// }
+
 func Test_parsePromQLQuery_Parse_Metrics_Test_CSV(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day

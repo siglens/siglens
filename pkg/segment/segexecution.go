@@ -20,6 +20,7 @@ package segment
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 
@@ -54,6 +55,9 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQuery, queryOps []structs.QueryArithmetic, timeRange *dtu.MetricsTimeRange, qid uint64) *mresults.MetricsResult {
 	resMap := make(map[uint64]*mresults.MetricsResult)
 	for index, mQuery := range mQueries {
+		if _, ok := resMap[hashList[index]]; ok {
+			continue
+		}
 		querySummary := summary.InitQuerySummary(summary.METRICS, qid)
 		defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
 		_, err := query.StartQuery(qid, false)
@@ -77,6 +81,7 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 }
 
 func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) *mresults.MetricsResult {
+	fmt.Println("HelperQueryArithmeticAndLogical: resMap: ", resMap)
 	finalResult := make(map[string]map[uint32]float64)
 	for _, queryOp := range queryOps {
 		resultLHS := resMap[queryOp.LHS]
