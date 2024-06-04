@@ -442,6 +442,8 @@ function secondFilterComplete(evt) {
     else $("#aggregate-attribute-text").show();
   }
 }
+
+// Todo - update this function show error message of we do not build correct query 
 function getSearchText() {
   let filterValue = getQueryBuilderCode();
   if (filterValue != "") {

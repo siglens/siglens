@@ -344,6 +344,7 @@
      });
    }
  function getInitialSearchFilter(skipPushState, scrollingTrigger) {
+  console.log("----------------------------------------------------------------");
      let queryParams = new URLSearchParams(window.location.search);
      let stDate = queryParams.get("startEpoch") || Cookies.get('startEpoch') || "now-15m";
      let endDate = queryParams.get("endEpoch") || Cookies.get('endEpoch') || "now";
@@ -361,6 +362,7 @@
      }
      let filterTab = queryParams.get("filterTab");
      let filterValue = queryParams.get('searchText');
+     console.log("filterValue",filterValue);
      if(filterTab == "0" || filterTab == null){
       if(filterValue != "*"){
         if(filterValue.indexOf("|") != -1){
@@ -420,8 +422,8 @@
             tags.appendChild(tag);
           });
         }
+      $("#search-filter-text, #aggregate-attribute-text, #aggregations").hide();
       }
-        $("#query-input").val(filterValue);
      }else{
         $("#custom-code-tab").tabs("option", "active", 1);
         if (filterValue === "*") {
@@ -553,7 +555,6 @@
        });
      }
      if (filterValue == "") filterValue = "*";
-     $("#query-input").val(filterValue);
      if(thirdBoxSet && thirdBoxSet.size > 0 && (secondBoxSet == null || secondBoxSet.size == 0)) $("#query-builder-btn").addClass("stop-search").prop('disabled', true);
      else $("#query-builder-btn").removeClass("stop-search").prop('disabled', false);
    return showError ? "Searches with a Search Criteria must have an Aggregate Attribute" : filterValue;
