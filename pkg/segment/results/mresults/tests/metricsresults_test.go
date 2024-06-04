@@ -463,7 +463,6 @@ func Test_GetResults_Power(t *testing.T) {
 	)
 }
 
-// Todo: Need to curve values of original answer?
 func Test_GetResults_Atan2_First_And_Fourth_Quadrant(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
@@ -493,7 +492,6 @@ func Test_GetResults_Atan2_First_And_Fourth_Quadrant(t *testing.T) {
 	)
 }
 
-// Todo: Need to curve values of original answer?
 func Test_GetResults_Atan2_Second_And_Third_Quadrant(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
@@ -523,7 +521,6 @@ func Test_GetResults_Atan2_Second_And_Third_Quadrant(t *testing.T) {
 	)
 }
 
-// Todo: Need to curve values of original answer?
 func Test_GetResults_Atan2_With_Decimal_Values(t *testing.T) {
 	test_GetResults_Ops(t,
 		map[uint32]float64{
