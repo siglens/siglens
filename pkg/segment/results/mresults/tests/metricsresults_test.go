@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	"github.com/siglens/siglens/pkg/segment"
 	mresults "github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -1347,4 +1348,28 @@ func addSerieToMetricRes(t *testing.T, metricsResults *mresults.MetricsResult, m
 	}
 
 	metricsResults.AddSeries(series, tsid, tsGroupId)
+}
+
+func Test_ExtractMatchingLabelSet(t *testing.T) {
+
+	grpIDStr := "testmetric0{color:green,model:model1,car_type:compact}"
+
+	resStr := putils.ExtractMatchingLabelSet(grpIDStr, []string{"model"}, true)
+	assert.Equal(t, "model:model1,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"model", "color"}, true)
+	assert.Equal(t, "model:model1,color:green,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{}, true)
+	assert.Equal(t, "", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"abc"}, true)
+	assert.Equal(t, "", resStr)
+
+	// Exclude color col, and concatenate strings according to the lexicographic order of tag key
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"color"}, false)
+	assert.Equal(t, "car_type:compact,model:model1,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"color", "car_type"}, false)
+	assert.Equal(t, "model:model1,", resStr)
 }
