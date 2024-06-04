@@ -1719,7 +1719,7 @@ div.dts div.dataTables_scrollBody table {
 .query-language-option , .panEdit-query-language-option{
     width: 100%;
     margin: 0;
-    margin-top: 10px;
+    margin-top: 5px;
 }
 
 .index-dropdown-item:hover,.alert-dropdown-item:hover,.panEdit-query-language-option:hover, .query-language-option:hover,.source-option:hover{

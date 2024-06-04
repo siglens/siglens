@@ -898,3 +898,8 @@ div.show-record-popup {
 #empty-response{
     display: none;
 }
+#query-language-options{
+    width: 93px;
+    padding: 5px;
+    padding-top: 0px;
+}
