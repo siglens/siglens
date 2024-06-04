@@ -180,12 +180,17 @@ Aggregate results for series sharing a groupid
 Internally, this will store the final aggregated results
 e.g. will store avg instead of running sum&count
 */
-func (r *MetricsResult) AggregateResults(parallelism int) []error {
+func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Aggregation) []error {
 	if r.State != DOWNSAMPLING {
 		return []error{errors.New("results is not in downsampling state")}
 	}
 
 	r.Results = make(map[string]map[uint32]float64)
+	isCountAgg := r.computeAggCount(aggregation)
+	if isCountAgg {
+		return nil
+	}
+
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 
@@ -405,6 +410,42 @@ func (r *MetricsResult) Merge(localRes *MetricsResult) error {
 		currSeries.Merge(series)
 	}
 	return nil
+}
+
+// extractGroupByFieldsFromSeriesId extracts the groupByFields from the seriesId
+// And returns the slice of Group By Fields as key-value pairs.
+func extractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) []string {
+	var groupKeyValuePairs []string
+	for _, field := range groupByFields {
+		start := strings.Index(seriesId, field+":")
+		if start == -1 {
+			continue
+		}
+		start += len(field) + 1 // +1 to skip the ':'
+		end := strings.Index(seriesId[start:], ",")
+		if end == -1 {
+			end = len(seriesId)
+		} else {
+			end += start
+		}
+		keyValuePair := fmt.Sprintf("%s:%s", field, seriesId[start:end])
+		groupKeyValuePairs = append(groupKeyValuePairs, keyValuePair)
+	}
+	return groupKeyValuePairs
+}
+
+// getAggSeriesId returns the group seriesId for the aggregated series based on the given seriesId and groupByFields
+// If groupByFields is empty, it returns the "metricName{" as the group seriesId
+// If groupByFields is not empty, it returns the "metricName{key1:value1,key2:value2,..." as the group seriesId
+// Where key1, key2, ... are the groupByFields and value1, value2, ... are the values of the groupByFields in the seriesId
+// The groupByFields are extracted from the seriesId
+func getAggSeriesId(metricName string, seriesId string, groupByFields []string) string {
+	if len(groupByFields) == 0 {
+		return metricName + "{"
+	}
+	groupKeyValuePairs := extractGroupByFieldsFromSeriesId(seriesId, groupByFields)
+	seriesId = metricName + "{" + strings.Join(groupKeyValuePairs, ",")
+	return seriesId
 }
 
 // The groupID string should be in the format of "metricName{tk1:tv1,tk2:tv2,..."
@@ -666,4 +707,49 @@ func CalculateInterval(timerangeSeconds uint32) (uint32, error) {
 
 	// If no suitable step is found, return an error
 	return 0, errors.New("no suitable step found")
+}
+
+// Count only cares about the number of time series at each timestamp, so it does not need to reduce entries to calculate the values.
+func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) bool {
+	if aggregation.AggregatorFunction != segutils.Count {
+		return false
+	}
+
+	// groupByCols seriesId mapping to map[uint32]map[string]struct{}
+	// We can determine the number of full unique grpIDs for each timestamp.
+	// For example, count by (color,gender) (metric0)
+	// ["color:red,gender:male"] = { 1: {{"color:red,gender:male,age:20"}, {"color:red,gender:male,age:5"}}, 2: ...   }
+	// ["color:yellow,gender:male"] = { 1: {{"color:yellow,gender:male,age:3"}}, 2: ...   }
+	seriesIdEntriesMap := make(map[string]map[uint32]map[string]struct{})
+
+	for grpID, runningDS := range r.DsResults {
+		seriesId := getAggSeriesId(r.MetricName, grpID, aggregation.GroupByFields)
+		_, exists := seriesIdEntriesMap[seriesId]
+		if !exists {
+			seriesIdEntriesMap[seriesId] = make(map[uint32]map[string]struct{})
+		}
+
+		for i := 0; i < runningDS.idx; i++ {
+			timestamp := runningDS.runningEntries[i].downsampledTime
+
+			_, exists := seriesIdEntriesMap[seriesId][timestamp]
+			if !exists {
+				seriesIdEntriesMap[seriesId][timestamp] = make(map[string]struct{})
+			}
+			seriesIdEntriesMap[seriesId][timestamp][grpID] = struct{}{}
+		}
+	}
+
+	for seriesId, entries := range seriesIdEntriesMap {
+		grpVal := make(map[uint32]float64)
+		for timestamp, grpIdSet := range entries {
+			grpVal[timestamp] = float64(len(grpIdSet))
+		}
+		r.Results[seriesId] = grpVal
+	}
+
+	r.DsResults = nil
+	r.State = AGGREGATED
+
+	return true
 }

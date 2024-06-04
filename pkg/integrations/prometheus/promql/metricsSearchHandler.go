@@ -942,6 +942,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Avg
 				case "count":
 					mquery.Aggregator.AggregatorFunction = segutils.Count
+					mquery.GetAllLabels = true
 				case "sum":
 					mquery.Aggregator.AggregatorFunction = segutils.Sum
 				case "max":
@@ -956,6 +957,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				}
 			case *parser.VectorSelector:
 				_, grouping := extractGroupsFromPath(path)
+				mquery.Aggregator.GroupByFields = sort.StringSlice(grouping)
 				aggFunc := extractFuncFromPath(path)
 				for _, grp := range grouping {
 					groupby = true
@@ -973,6 +975,8 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Avg
 				case "count":
 					mquery.Aggregator.AggregatorFunction = segutils.Count
+					mquery.GetAllLabels = true
+					mquery.TagsFilters = make([]*structs.TagsFilter, 0)
 				case "sum":
 					mquery.Aggregator.AggregatorFunction = segutils.Sum
 				case "max":
