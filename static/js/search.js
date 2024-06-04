@@ -746,7 +746,8 @@
          if (res && res.hits && res.hits.totalMatched) {
              totalHits = res.hits.totalMatched
          }
-     } else if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
+    } else if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
+      let columnOrder =[]
         if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
           columnOrder = res.columnsOrder
         }else{ 
@@ -754,7 +755,6 @@
               columnOrder = _.uniq(_.concat(
                   res.groupByCols));
           }
-          let columnOrder =[]
           if (res.measureFunctions ) {
               columnOrder = _.uniq(_.concat(
                   columnOrder,res.measureFunctions));
