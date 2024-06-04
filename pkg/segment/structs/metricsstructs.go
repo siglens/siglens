@@ -60,6 +60,7 @@ type MetricsQuery struct {
 type Aggregation struct {
 	AggregatorFunction utils.AggregateFunctions //aggregator function
 	FuncConstant       float64
+	GroupByFields      []string // group by fields will be sorted
 }
 
 type Function struct {
@@ -101,6 +102,7 @@ type TagsFilter struct {
 	HashTagValue    uint64
 	TagOperator     utils.TagOperator
 	LogicalOperator utils.LogicalOperator
+	NotInitialGroup bool
 }
 
 type MetricsQueryResponse struct {
@@ -139,6 +141,7 @@ type QueryArithmetic struct {
 	RHS         uint64
 	ConstantOp  bool
 	Operation   utils.LogicalAndArithmeticOperator
+	ReturnBool  bool // If a comparison operator, return 0/1 rather than filtering.
 	Constant    float64
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
 	Results       map[string]map[uint32]float64
