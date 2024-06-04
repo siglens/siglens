@@ -34,8 +34,6 @@ $("#custom-code-tab").tabs({
     if (currentTab == 0) {
       // Query Builder Tab
       let filterValue = $("#filter-input").val();
-      // if (filterValue != "") $("#query-input").val(filterValue);
-      // if (filterValue == "") $("#query-input").val('*')
       if(!isQueryBuilderSearch){
         // Clear input boxes of the query builder when a query is searched from the free text
         $(".tags-list").empty();  
@@ -48,7 +46,6 @@ $("#custom-code-tab").tabs({
       displayQueryLangToolTip("3");
     }else{
       // Free Text Tab
-      console.log("isQueryBuilderSearch",isQueryBuilderSearch);
       if(isQueryBuilderSearch){
         let filterValue = getQueryBuilderCode();
         if (filterValue != "") $("#filter-input").val(filterValue);

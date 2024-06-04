@@ -726,16 +726,7 @@ body {
     height: 24px;
     width: 24px;
 }
-/* #filter-container {
-    display: grid;
-    grid-template-columns: 2fr auto auto auto auto;
-    column-gap: 15px;
-    margin-top: 16px;
-    margin-left: 23px;
-    margin-right: 10px;
-    height: 44px;
-    background-color: var(--top-bar-bg-color-regular);
-} */
+
 #cancel-loading,
 #live-tail-btn,
 #add-icon,
@@ -931,11 +922,7 @@ input.form-control:focus {
     display: grid;
     grid-template-columns: 3fr auto;
     column-gap: 25px;
-    /* margin-top: 15px; */
-    /* margin-left: 23px;
-    margin-right: 25px; */
     height: 8px;
-
     font-size: 14px;
     font-weight: 600;
 }
@@ -1247,21 +1234,9 @@ progress.hidden {
 
 /* Component containers
 ----------------------------------*/
-/* .ui-widget {
-    font-size: 1em;
-}
-
-.ui-widget .ui-widget {
-    font-size: 1em;
-} */
-
 .ui-widget input {
     font-family: "DINpro", Arial, sans-serif;    
 }
-
-/* .ui-widget.ui-widget-content {
-    border: 1px solid var(--ui-widget-border-color);
-} */
 
 .ui-widget-content {
     border: 1px solid var(--ui-widget-border-color);
@@ -2203,11 +2178,6 @@ div.dts div.dataTables_scrollBody table {
 .ui-widget-header {
     border: none;
 }
-
-/* .ui-widget.ui-widget-content {
-    border: 1px solid var(--ui-widget-border-color);
-    border-radius: 8px !important;
-} */
 
 .ui-widget-overlay {
     position: fixed;
