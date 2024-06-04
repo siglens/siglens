@@ -246,3 +246,17 @@ func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
 
 	os.RemoveAll(dir)
 }
+
+func TestGetOrCreateNodeRes(t *testing.T) {
+    // Test when NodeResult instance exists
+    qidExists := uint64(1)
+    nodeResMap[qidExists] = &structs.NodeResult{}
+    resultExists := GetOrCreateNodeRes(qidExists)
+    assert.NotNil(t, resultExists, "Expected NodeResult instance, got nil")
+
+    // Test when NodeResult instance does not exist
+    qidNotExists := uint64(2)
+    resultNotExists := GetOrCreateNodeRes(qidNotExists)
+    assert.NotNil(t, resultNotExists, "Expected new NodeResult instance, got nil")
+    assert.Equal(t, resultNotExists, nodeResMap[qidNotExists], "New NodeResult instance not added to the map")
+}
