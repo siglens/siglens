@@ -677,6 +677,46 @@ func ProcessListAllDefaultDBRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
+func checkAndReturnFieldInMapIfExists(mapData map[string]interface{}, fieldName string) (interface{}, error) {
+	value, exists := mapData[fieldName]
+	if !exists {
+		return nil, errors.New(fieldName + " field not found")
+	}
+	return value, nil
+}
+
+func parseUpdateDashboardRequest(readJSON map[string]interface{}) (string, string, map[string]interface{}, error) {
+
+	value, err := checkAndReturnFieldInMapIfExists(readJSON, "id")
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	dId, ok := value.(string)
+	if !ok {
+		return "", "", nil, errors.New("id field is not a string")
+	}
+
+	value, err = checkAndReturnFieldInMapIfExists(readJSON, "name")
+	if err != nil {
+		return "", "", nil, err
+	}
+	dName, ok := value.(string)
+	if !ok {
+		return "", "", nil, errors.New("name field is not a string")
+	}
+
+	value, err = checkAndReturnFieldInMapIfExists(readJSON, "details")
+	if err != nil {
+		return "", "", nil, err
+	}
+	dashboardDetails, ok := value.(map[string]interface{})
+	if !ok {
+		return "", "", nil, errors.New("details field is not a map")
+	}
+	return dId, dName, dashboardDetails, nil
+}
+
 func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
@@ -694,9 +734,12 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	dId := readJSON["id"].(string)
-	dName := readJSON["name"].(string)
-	dashboardDetails := readJSON["details"].(map[string]interface{})
+	dId, dName, dashboardDetails, err := parseUpdateDashboardRequest(readJSON)
+	if err != nil {
+		log.Errorf("ProcessCreateDashboardRequest: could not parse user query=%v, err=%v", readJSON, err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 	err = updateDashboard(dId, dName, dashboardDetails, myid)
 	if err != nil {
 		if err.Error() == "dashboard name already exists" {
