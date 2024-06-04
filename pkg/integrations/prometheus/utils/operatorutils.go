@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"math"
 	"regexp"
 	"sort"
@@ -87,9 +88,6 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 		finalResult[groupID][timestamp] = valueLHS * valueRHS
 	case utils.LetSubtract:
 		val := valueLHS - valueRHS
-		if swapped {
-			val = val * -1
-		}
 		finalResult[groupID][timestamp] = val
 	case utils.LetModulo:
 		finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
@@ -182,12 +180,13 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 	}
 }
 
+// This method will return uniuqe tag key value pair combination str, we refer it as labelStr.
 // If matchingLabels = [tag1], groupIDStr = "metricName{tag1:val1,tag2:val2,tag3:val3}""
-// When includeColumns is true, extract labels and regenerate labelStr from matchingLabels based on the previous groupIDStr. The result is {tag1:val1}
+// When includeColumns is true, extract labels and generate labelStr from matchingLabels based on the previous groupIDStr. The result is {tag1:val1}
 // Otherwise, exclude the labels, so the result is {tag2:val2,tag3:val3}
 func ExtractMatchingLabelSet(groupIDStr string, matchingLabels []string, includeColumns bool) string {
 
-	labelSetMap := make(map[string]string)
+	labelKeysToValuesMap := make(map[string]string)
 
 	re := regexp.MustCompile(`(.*)\{(.*)`)
 
@@ -206,7 +205,7 @@ func ExtractMatchingLabelSet(groupIDStr string, matchingLabels []string, include
 		if len(match) == 3 {
 			labelKey := match[1]
 			labelVal := match[2]
-			labelSetMap[labelKey] = labelVal
+			labelKeysToValuesMap[labelKey] = labelVal
 		} else {
 			log.Errorf("ExtractMatchingLabelSet: can not correctly extract tags from labelStr: %v", labelSetStr)
 		}
@@ -217,28 +216,26 @@ func ExtractMatchingLabelSet(groupIDStr string, matchingLabels []string, include
 	// Otherwise, use all other labels except matchingLabels to create a combination.
 	if includeColumns {
 		for _, label := range matchingLabels {
-			val, exists := labelSetMap[label]
+			val, exists := labelKeysToValuesMap[label]
 			if exists {
-				matchingLabelValStr += (val + ",")
+				matchingLabelValStr += fmt.Sprintf("%v:%v,", label, val)
 			}
 		}
 	} else { // exclude matchingLabels
 		for _, labelKeyToRemove := range matchingLabels {
-			delete(labelSetMap, labelKeyToRemove)
+			delete(labelKeysToValuesMap, labelKeyToRemove)
 		}
 
 		labelKeyStrs := make([]string, 0)
-		for labelKey := range labelSetMap {
+		for labelKey := range labelKeysToValuesMap {
 			labelKeyStrs = append(labelKeyStrs, labelKey)
 		}
 
 		sort.Strings(labelKeyStrs)
 
 		for _, labelKey := range labelKeyStrs {
-			val, exists := labelSetMap[labelKey]
-			if exists {
-				matchingLabelValStr += (val + ",")
-			}
+			val := labelKeysToValuesMap[labelKey]
+			matchingLabelValStr += fmt.Sprintf("%v:%v,", labelKey, val)
 		}
 	}
 

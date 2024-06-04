@@ -129,6 +129,7 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 					// E.g.: (metric1{type="compact"} on (color,type) group_right metric2), the value combinations of (color,type) must be unique in the metric1
 					if queryOp.VectorMatching.Cardinality == structs.CardOneToOne {
 						_, exists := matchingLabelsComb[matchingLabelValStr]
+						// None of the operators we currently implement support many-to-many operations, and this may need to be modified in the future.
 						if exists {
 							return nil, fmt.Errorf("HelperQueryArithmeticAndLogical: many-to-many matching not allowed: matching labels must be unique on one side")
 						}
@@ -142,6 +143,7 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 					matchingLabelValStr := putils.ExtractMatchingLabelSet(rGroupID, queryOp.VectorMatching.MatchingLabels, queryOp.VectorMatching.On)
 					// Right vector is always the 'One' (vector with lower cardinality), it should not have repeated MatchingLabels.
 					_, exists := matchingLabelsComb[matchingLabelValStr]
+					// None of the operators we currently implement support many-to-many operations, and this may need to be modified in the future.
 					if exists {
 						return nil, fmt.Errorf("HelperQueryArithmeticAndLogical: many-to-many matching not allowed: matching labels must be unique on one side")
 					}
