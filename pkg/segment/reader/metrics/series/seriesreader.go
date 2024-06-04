@@ -23,8 +23,8 @@ import (
 	"os"
 	"sync"
 	"time"
-	"unsafe"
 
+	"github.com/siglens/siglens/pkg/memorypool"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/compress"
@@ -64,97 +64,7 @@ type SharedTimeSeriesSegmentReader struct {
 	rwLock                       *sync.Mutex
 }
 
-type customPool struct {
-	items []poolItem
-	mutex sync.Mutex
-}
-
-type poolItem struct {
-	buf   []byte
-	inUse bool
-	ptr   unsafe.Pointer
-}
-
-var globalPool = customPool{}
-
-const numStartingPoolItems = 4
-
-func init() {
-	globalPool.items = make([]poolItem, 0)
-	globalPool.mutex = sync.Mutex{}
-
-	globalPool.mutex.Lock()
-	defer globalPool.mutex.Unlock()
-
-	for i := 0; i < numStartingPoolItems; i++ {
-		buf := make([]byte, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
-		item := poolItem{
-			buf:   buf[:0],
-			inUse: false,
-			ptr:   unsafe.Pointer(&buf[0]),
-		}
-
-		globalPool.items = append(globalPool.items, item)
-	}
-}
-
-func (cp *customPool) expandItemToMinSize(i int, minSize uint64) {
-	if cap(cp.items[i].buf) < int(minSize) {
-		cp.items[i].buf = make([]byte, 1, minSize)
-		cp.items[i].ptr = unsafe.Pointer(&cp.items[i].buf[0])
-		cp.items[i].buf = cp.items[i].buf[:0]
-	}
-}
-
-func (cp *customPool) Get(minSize uint64) []byte {
-	cp.mutex.Lock()
-	defer cp.mutex.Unlock()
-
-	for i := range cp.items {
-		if !cp.items[i].inUse {
-			cp.expandItemToMinSize(i, minSize)
-			cp.items[i].inUse = true
-
-			return cp.items[i].buf
-		}
-	}
-
-	// Make a new pool item.
-	buf := make([]byte, 1, minSize)
-	item := poolItem{
-		buf:   buf[:0],
-		inUse: true,
-		ptr:   unsafe.Pointer(&buf[0]),
-	}
-
-	return item.buf
-}
-
-func (cp *customPool) Put(buf []byte) error {
-	cp.mutex.Lock()
-	defer cp.mutex.Unlock()
-
-	if len(buf) == 0 {
-		buf = buf[:1]
-	}
-
-	bufPtr := unsafe.Pointer(&buf[0])
-	for i := range cp.items {
-		if cp.items[i].ptr == bufPtr {
-			cp.items[i].inUse = false
-			return nil
-		}
-	}
-
-	// We should not get here. The returned buffer is not in the pool.
-	allBufferPointers := make([]string, 0)
-	for i := range cp.items {
-		allBufferPointers = append(allBufferPointers, fmt.Sprintf("%p", cp.items[i].ptr))
-	}
-	log.Errorf("customPool.Put: Buffer at %p not found in the pool; expected one of: %+v", bufPtr, allBufferPointers)
-
-	return fmt.Errorf("Buffer not found in the pool")
-}
+var globalPool = memorypool.NewMemoryPool(4, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
 
 /*
 Exposes init functions for timeseries block readers.
@@ -329,113 +239,86 @@ func getOffsetFromTsoFile(low uint32, high uint32, nTsids uint32, tsid uint64, t
 	return false, 0, 0
 }
 
-func (tssr *TimeSeriesSegmentReader) expandTSOBufferToMinSize(minSize uint64) error {
-	if cap(tssr.tsoBuf) < int(minSize) {
-		err := globalPool.Put(tssr.tsoBuf)
+// Note: this must only be called for buffers received from globalPool. If
+// there's no error, the buffer passed in must not be used again; only use the
+// returned buffer.
+func expandPoolBufferToMinSize(buffer []byte, minSize uint64) ([]byte, error) {
+	if cap(buffer) < int(minSize) {
+		err := globalPool.Put(buffer)
 		if err != nil {
-			log.Errorf("expandTSOBufferToMinSize: Error putting buffer back to the pool: %v", err)
-			return err
+			log.Errorf("expandPoolBufferToMinSize: Error putting buffer back into the pool: %v", err)
+			return buffer, err
 		}
 
-		tssr.tsoBuf = globalPool.Get(minSize)
+		buffer = globalPool.Get(minSize)
 	}
 
-	tssr.tsoBuf = tssr.tsoBuf[:minSize]
+	buffer = buffer[:minSize]
 
-	return nil
+	return buffer, nil
 }
 
-func (tssr *TimeSeriesSegmentReader) expandTSGBufferToMinSize(minSize uint64) error {
-	if cap(tssr.tsgBuf) < int(minSize) {
-		err := globalPool.Put(tssr.tsgBuf)
-		if err != nil {
-			log.Errorf("expandTSGBufferToMinSize: Error putting buffer back to the pool: %v", err)
-			return err
-		}
+func loadFileIntoPoolBuffer(fileName string, bufferFromPool *[]byte) error {
+	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
+	if err != nil {
+		log.Errorf("loadFileIntoPoolBuffer: failed to open fileName: %v  Error: %v", fileName, err)
+		return err
+	}
+	defer fd.Close()
 
-		tssr.tsgBuf = globalPool.Get(minSize)
+	finfo, err := fd.Stat()
+	if err != nil {
+		log.Errorf("loadFileIntoPoolBuffer: error when trying to stat file=%+v. Error=%+v", fileName, err)
+		return err
 	}
 
-	tssr.tsgBuf = tssr.tsgBuf[:minSize]
+	fileSize := finfo.Size()
+	newBuffer, err := expandPoolBufferToMinSize(*bufferFromPool, uint64(fileSize))
+	if err != nil {
+		log.Errorf("loadFileIntoPoolBuffer: Error expanding buffer: %v", err)
+		return err
+	}
+
+	*bufferFromPool = newBuffer
+
+	_, err = fd.ReadAt(newBuffer, 0)
+	if err != nil {
+		log.Errorf("loadFileIntoPoolBuffer: Error reading file: %v, err: %v", fileName, err)
+		return err
+	}
 
 	return nil
 }
 
 func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) ([]byte, uint16, error) {
-
-	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
+	err := loadFileIntoPoolBuffer(fileName, &tssr.tsoBuf)
 	if err != nil {
-		log.Infof("loadTSOFile: failed to open fileName: %v  Error: %v", fileName, err)
-		return nil, 0, err
-	}
-	defer fd.Close()
-
-	finfo, err := fd.Stat()
-	if err != nil {
-		log.Errorf("loadTSOFile: error when trying to stat file=%+v. Error=%+v", fileName, err)
+		log.Errorf("loadTSOFile: Error loading TSO file: %v", err)
 		return nil, 0, err
 	}
 
-	fileSize := finfo.Size()
-	err = tssr.expandTSOBufferToMinSize(uint64(fileSize))
-	if err != nil {
-		log.Errorf("loadTSOFile: Error expanding TSO buffer: %v", err)
-		return nil, 0, err
-	}
-
-	rbuf := tssr.tsoBuf[:]
-
-	_, err = fd.ReadAt(rbuf, 0)
-	if err != nil {
-		log.Errorf("loadTSOFile: Error reading TSO file: %v, err: %v", fileName, err)
-		return nil, 0, err
-	}
-
-	// rbuf[0] gives the version byte
 	versionTsoFile := make([]byte, 1)
-	copy(versionTsoFile, rbuf[:1])
+	copy(versionTsoFile, tssr.tsoBuf[:1])
 	if versionTsoFile[0] != segutils.VERSION_TSOFILE[0] {
-		return nil, 0, fmt.Errorf("loadTSOFile: the file version doesn't match; expected=%+v, got=%+v", segutils.VERSION_TSOFILE[0], versionTsoFile[0])
+		return nil, 0, fmt.Errorf("loadFileIntoPoolBuffer: the file version doesn't match; expected=%+v, got=%+v", segutils.VERSION_TSOFILE[0], versionTsoFile[0])
 	}
-	nEntries := utils.BytesToUint16LittleEndian(rbuf[1:3])
-	return rbuf, nEntries, nil
+	nEntries := utils.BytesToUint16LittleEndian(tssr.tsoBuf[1:3])
+	return tssr.tsoBuf, nEntries, nil
 }
 
 func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error) {
-	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
+	err := loadFileIntoPoolBuffer(fileName, &tssr.tsgBuf)
 	if err != nil {
-		log.Errorf("loadTSGFile: error when trying to open file=%+v. Error=%+v", fileName, err)
-		return nil, err
-	}
-	defer fd.Close()
-
-	finfo, err := fd.Stat()
-	if err != nil {
-		log.Errorf("loadTSGFile: error when trying to stat file=%+v. Error=%+v", fileName, err)
-		return nil, err
-	}
-
-	fileSize := finfo.Size()
-	err = tssr.expandTSGBufferToMinSize(uint64(fileSize))
-	if err != nil {
-		log.Errorf("loadTSGFile: Error expanding TSG buffer: %v", err)
-		return nil, err
-	}
-
-	rbuf := tssr.tsgBuf[:]
-
-	_, err = fd.ReadAt(rbuf, 0)
-	if err != nil {
-		log.Errorf("loadTSGFile: Error reading TSG file: %v, err: %v", fileName, err)
+		log.Errorf("loadTSGFile: Error loading TSG file: %v", err)
 		return nil, err
 	}
 
 	versionTsgFile := make([]byte, 1)
-	copy(versionTsgFile, rbuf[:1])
+	copy(versionTsgFile, tssr.tsgBuf[:1])
 	if versionTsgFile[0] != segutils.VERSION_TSGFILE[0] {
 		return nil, fmt.Errorf("loadTSGFile: the file version doesn't match; expected=%+v, got=%+v", segutils.VERSION_TSGFILE[0], versionTsgFile[0])
 	}
-	return rbuf, nil
+	return tssr.tsgBuf, nil
 }
 
 /*

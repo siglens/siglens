@@ -725,7 +725,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPqlToMetricsQuery(finalSearchText, start, end, myid)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPromQLToMetricsQuery(finalSearchText, start, end, myid)
 	if err != nil {
 		utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, finalSearchText), err)
 		return
@@ -1202,6 +1202,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 
 		}
 		arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
+		arithmeticOperation.ReturnBool = expr.ReturnBool
 		if rhsValType == parser.ValueTypeVector {
 			lhsValType = parser.ValueTypeVector
 		}
