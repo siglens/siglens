@@ -752,8 +752,6 @@ func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant floa
 				ret = entries[i].dpVal
 			}
 		}
-	case utils.Count:
-		ret += float64(len(entries))
 	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 
