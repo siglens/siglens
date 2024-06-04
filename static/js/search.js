@@ -344,7 +344,6 @@
      });
    }
  function getInitialSearchFilter(skipPushState, scrollingTrigger) {
-  console.log("----------------------------------------------------------------");
      let queryParams = new URLSearchParams(window.location.search);
      let stDate = queryParams.get("startEpoch") || Cookies.get('startEpoch') || "now-15m";
      let endDate = queryParams.get("endEpoch") || Cookies.get('endEpoch') || "now";
@@ -362,11 +361,10 @@
      }
      let filterTab = queryParams.get("filterTab");
      let filterValue = queryParams.get('searchText');
-     console.log("filterValue",filterValue);
      if(filterTab == "0" || filterTab == null){
       if(filterValue != "*"){
         if(filterValue.indexOf("|") != -1){
-          firstBoxSet = new Set(filterValue.split(" | ")[0].split(" "));
+          firstBoxSet = new Set(filterValue.split(" | ")[0].match(/(?:[^\s"]+|"[^"]*")+/g));
           secondBoxSet = new Set(
             filterValue
               .split("stats ")[1]
@@ -423,6 +421,7 @@
           });
         }
       $("#search-filter-text, #aggregate-attribute-text, #aggregations").hide();
+      $("#filter-input").val(filterValue).change();
       }
      }else{
         $("#custom-code-tab").tabs("option", "active", 1);
