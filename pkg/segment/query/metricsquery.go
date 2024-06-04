@@ -37,13 +37,57 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func getAllRequestsWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid uint64, querySummary *summary.QuerySummary) (map[string][]*structs.MetricsSearchRequest, error) {
+	rotatedMetricRequests, err := metadata.GetMetricsSegmentRequests(timeRange, querySummary, myid)
+	if err != nil {
+		err = fmt.Errorf("getAllRequestsWithinTimeRange: failed to get rotated metric segments for time range %+v; err=%v", timeRange, err)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	unrotatedMetricRequests, err := metrics.GetUnrotatedMetricsSegmentRequests(timeRange, querySummary, myid)
+	if err != nil {
+		err = fmt.Errorf("getAllRequestsWithinTimeRange: failed to get unrotated metric segments for time range %+v; err=%v", timeRange, err)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	allSearchRequests := mergeMetricSearchRequests(unrotatedMetricRequests, rotatedMetricRequests)
+
+	return allSearchRequests, nil
+}
+
+func GetAllTagsTreesWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid uint64, querySummary *summary.QuerySummary) ([]*tagstree.AllTagTreeReaders, error) {
+	allSearchRequests, err := getAllRequestsWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		err = fmt.Errorf("GetAllTagsTreesWithinTimeRange: failed to get all metric requests within time range %+v; err=%v", timeRange, err)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	// Extract the tags trees from the metric requests.
+	tagsTrees := make([]*tagstree.AllTagTreeReaders, 0)
+	for baseDir := range allSearchRequests {
+		allTagsTreeReader, err := tagstree.InitAllTagsTreeReader(baseDir)
+		if err != nil {
+			err = fmt.Errorf("GetAllTagsTreesWithinTimeRange: failed to get tags tree reader for baseDir: %s; err=%v", baseDir, err)
+			log.Errorf(err.Error())
+			return nil, err
+		}
+
+		tagsTrees = append(tagsTrees, allTagsTreeReader)
+	}
+
+	return tagsTrees, nil
+}
+
 func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) *mresults.MetricsResult {
 
 	// init metrics results structs
 	mRes := mresults.InitMetricResults(mQuery, qid)
 
-	// get all metrics segments that pass the initial time + metric name filter
-	mSegments, err := metadata.GetMetricsSegmentRequests(mQuery.MetricName, timeRange, querySummary, mQuery.OrgId)
+	// get all metrics segments that pass the initial time filter
+	mSegments, err := metadata.GetMetricsSegmentRequests(timeRange, querySummary, mQuery.OrgId)
 	if err != nil {
 		log.Errorf("ApplyMetricsQuery: failed to get rotated metric segments: %v", err)
 		return &mresults.MetricsResult{
@@ -51,7 +95,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		}
 	}
 
-	unrotatedMSegments, err := metrics.GetUnrotatedMetricsSegmentRequests(mQuery.MetricName, timeRange, querySummary, mQuery.OrgId)
+	unrotatedMSegments, err := metrics.GetUnrotatedMetricsSegmentRequests(timeRange, querySummary, mQuery.OrgId)
 	if err != nil {
 		log.Errorf("ApplyMetricsQuery: failed to get unrotated metric segments: %v", err)
 		return &mresults.MetricsResult{
@@ -59,7 +103,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		}
 	}
 
-	mSegments = mergeRotatedAndUnrotatedRequests(unrotatedMSegments, mSegments)
+	mSegments = mergeMetricSearchRequests(unrotatedMSegments, mSegments)
 	allTagKeys := make(map[string]bool)
 
 	for _, allMSearchReqs := range mSegments {
@@ -157,7 +201,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	return mRes
 }
 
-func mergeRotatedAndUnrotatedRequests(unrotatedMSegments map[string][]*structs.MetricsSearchRequest, mSegments map[string][]*structs.MetricsSearchRequest) map[string][]*structs.MetricsSearchRequest {
+func mergeMetricSearchRequests(unrotatedMSegments map[string][]*structs.MetricsSearchRequest, mSegments map[string][]*structs.MetricsSearchRequest) map[string][]*structs.MetricsSearchRequest {
 	for k, v := range unrotatedMSegments {
 		if _, ok := mSegments[k]; ok {
 			mSegments[k] = append(mSegments[k], v...)

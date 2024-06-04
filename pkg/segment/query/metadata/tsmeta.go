@@ -32,7 +32,7 @@ Returns all tagTrees that we need to search and what MetricsSegments & MetricsBl
 
 Returns map[string][]*structs.MetricSearchRequest, mapping a tagsTree to all MetricSearchRequest that pass time filtering
 */
-func GetMetricsSegmentRequests(mName string, tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid uint64) (map[string][]*structs.MetricsSearchRequest, error) {
+func GetMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid uint64) (map[string][]*structs.MetricsSearchRequest, error) {
 	sTime := time.Now()
 
 	retUpdate := &sync.Mutex{}
