@@ -412,18 +412,32 @@ func NewSingleESResponse() *SingleESResponse {
 
 func WriteResponse(ctx *fasthttp.RequestCtx, httpResp HttpServerResponse) {
 	ctx.SetContentType(ContentJson)
-	jval, _ := json.Marshal(httpResp)
-	_, err := ctx.Write(jval)
+	jval, err := json.Marshal(httpResp)
 	if err != nil {
+		log.Errorf("WriteResponse: Error marshaling HTTP response. Error: %v, HTTP Response: %+v", err, httpResp)
+		ctx.Error("Error marshaling HTTP response", fasthttp.StatusInternalServerError)
+		return
+	}
+	_, err = ctx.Write(jval)
+	if err != nil {
+		log.Errorf("WriteResponse: Error writing HTTP response. Error: %v, HTTP Response: %+v", err, httpResp)
+		ctx.Error("Error writing HTTP response", fasthttp.StatusInternalServerError)
 		return
 	}
 }
 
 func WriteJsonResponse(ctx *fasthttp.RequestCtx, httpResp interface{}) {
 	ctx.SetContentType(ContentJson)
-	jval, _ := json.Marshal(httpResp)
-	_, err := ctx.Write(jval)
+	jval, err := json.Marshal(httpResp)
 	if err != nil {
+		log.Errorf("WriteJsonResponse: Error marshaling JSON response. Error: %v, HTTP Response: %+v", err, httpResp)
+		ctx.Error("Error marshaling JSON response", fasthttp.StatusInternalServerError)
+		return
+	}
+	_, err = ctx.Write(jval)
+	if err != nil {
+		log.Errorf("WriteJsonResponse: Error writing JSON response. Error: %v, HTTP Response: %+v", err, httpResp)
+		ctx.Error("Error writing JSON response", fasthttp.StatusInternalServerError)
 		return
 	}
 }
