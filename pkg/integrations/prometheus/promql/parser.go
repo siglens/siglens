@@ -2,6 +2,7 @@ package promql
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/cespare/xxhash"
 	"github.com/prometheus/prometheus/model/labels"
@@ -53,6 +54,25 @@ func extractTimeWindow(args parser.Expressions) (float64, float64, error) {
 		}
 	}
 	return 0, 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
+}
+
+func convertPromQLToMetricsQuery(query string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
+	mQueryReqs, pqlQuerytype, queryArithmetic, err := parsePromQLQuery(query, startTime, endTime, myid)
+	if err != nil {
+		return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
+	}
+
+	metricQueryRequests := make([]structs.MetricsQueryRequest, 0)
+	for _, mQueryReq := range mQueryReqs {
+		metricQueryRequests = append(metricQueryRequests, *mQueryReq)
+	}
+
+	queryArithmetics := make([]structs.QueryArithmetic, 0)
+	for _, queryArithmetic := range queryArithmetic {
+		queryArithmetics = append(queryArithmetics, *queryArithmetic)
+	}
+
+	return metricQueryRequests, pqlQuerytype, queryArithmetics, nil
 }
 
 func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*structs.MetricsQueryRequest, parser.ValueType, []*structs.QueryArithmetic, error) {
@@ -213,6 +233,21 @@ func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryReq
 	return mQueryReqs, queryArithmetic, exit, err
 }
 
+// To check if the current Expr or nested Expr contains a AggregateExpr
+func hasNestedAggregateExpr(expr parser.Expr) bool {
+	var isAggregateExpr bool
+
+	parser.Inspect(expr, func(node parser.Node, _ []parser.Node) error {
+		if _, ok := node.(*parser.AggregateExpr); ok {
+			isAggregateExpr = true
+			return fmt.Errorf("hasNestedAggregateExpr: Found AggregateExpr") // Break the Inspect
+		}
+		return nil
+	})
+
+	return isAggregateExpr
+}
+
 func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuery) (*structs.MetricQueryAgg, error) {
 	aggFunc := expr.Op.String()
 
@@ -243,6 +278,10 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		return nil, fmt.Errorf("handleAggregateExpr: unsupported aggregation function %v", aggFunc)
 	}
 
+	// if True, it implies that there is a nested AggregateExpr in the current Expr
+	// And this group by Aggregation should not be done on the initial Aggregation.
+	hasAggExpr := hasNestedAggregateExpr(expr.Expr)
+
 	// Handle grouping
 	for _, group := range expr.Grouping {
 		tagFilter := structs.TagsFilter{
@@ -251,12 +290,15 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 			HashTagValue:    xxhash.Sum64String("*"),
 			TagOperator:     segutils.TagOperator(segutils.Equal),
 			LogicalOperator: segutils.And,
+			NotInitialGroup: hasAggExpr,
 		}
 		mQuery.TagsFilters = append(mQuery.TagsFilters, &tagFilter)
 	}
 	if len(expr.Grouping) > 0 {
 		mQuery.Groupby = true
 	}
+
+	mQuery.Aggregator.GroupByFields = sort.StringSlice(expr.Grouping)
 
 	mQueryAgg := &structs.MetricQueryAgg{
 		AggBlockType:    structs.AggregatorBlock,
@@ -350,6 +392,11 @@ func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64
 	switch functionName {
 	case "deriv":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Derivative, TimeWindow: timeWindow, Step: step}
+	case "predict_linear":
+		if len(expr.Args) != 2 {
+			return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the predict_linear function", expr.Args.String())
+		}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Predict_Linear, TimeWindow: timeWindow, ValueList: []string{expr.Args[1].String()}}
 	case "delta":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Delta, TimeWindow: timeWindow, Step: step}
 	case "idelta":
@@ -541,6 +588,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		queryArithmetic = append(queryArithmetic, rhsQueryArth...)
 	}
 	arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
+	arithmeticOperation.ReturnBool = expr.ReturnBool
 	queryArithmetic = append(queryArithmetic, &arithmeticOperation)
 
 	if mQueryReqs[0].MetricsQuery.MQueryAggs == nil {
