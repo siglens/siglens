@@ -49,10 +49,12 @@
     --selected-filter: var(--blue-1);
     }
 #query-language-btn{
-    margin-left: 5px;
-    width: 106px;
+    margin-left: 0px;
+    width: 93px;
     height: 32px;
-    border-radius: 2px;
+    border-radius: 5px;
+    padding: 7px;
+    margin-right: 6px;
 }
 #filter-container {
     margin: 0;
@@ -62,6 +64,7 @@
     flex-wrap: wrap;
     border-radius: 5px;
     height: auto;
+    width: fit-content;
 }
 #add-logs-to-db-btn,
 #alert-from-logs-btn{
@@ -74,14 +77,15 @@
     padding: 0 20px;
 }
 #progress-div{
-    margin-top: 0;
+    margin-top: -3px;
+    margin-bottom: 2px;
 }
 .sidebar-icon{
     z-index: 1;
 }
 .dashboard-box{
     height: 100vh;
-    padding: 20px;
+    padding: 10px 20px;
 }
 .save-query-div{
     margin-bottom: 10px;
@@ -143,7 +147,7 @@ input.form-control {
     flex-direction: row;
     color: var(--text-color);
     /* border-radius: 5px; */
-    background-color: var(--selected-filter);
+    /* background-color: var(--selected-filter); */
     padding: 0px 5px;
     margin-right: 5px;
     height: 30px;
@@ -203,22 +207,24 @@ input.form-control {
     align-items: center;
     overflow: hidden;
     cursor: text;
-    padding-right: 10px;
+    /* padding-right: 10px; */
 }
 
 .builder-div{
     background-color: var(--drop-down-btn-bg-regular);
-    padding: 4px 12px;
-    border: 1px solid var(--border-btn-color);
+    padding: 4px 6px;
+    /* border: 1px solid var(--border-btn-color); */
     height: 32px;
+    border: solid var(--border-btn-color);
+    border-width: 1px 0.5px;
 }
 
 .completed,
-.cancel-enter,
-.add-con {
+.cancel-enter{
+    padding: 0px;
     margin: 0 4px 0 0;
     height: 26px;
-    width: 26px;
+    min-width: 26px;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -267,6 +273,7 @@ input.form-control {
 
 .third-box {
     width: 100%;
+    border-radius: 0 5px 5px 0;
     /* margin: -1px; */
 }
 
@@ -377,7 +384,7 @@ input.form-control {
     background-repeat: no-repeat;
     background-size: 50%;
     background-position: center;
-    border-radius: 0 5px 5px 0;
+    border-radius: 5px;
     cursor: pointer;
     border: none;
 }
@@ -411,11 +418,9 @@ input.form-control {
 }
 
 .tab-list {
-    /* margin-left: auto !important;
-    margin-top: 10px !important;
-    margin-right: 10px !important; */
-    margin: 10px 0px 10px auto !important;
-    width: 178px;
+    margin-left: auto !important;
+    margin-bottom: 6px !important;
+    width: 94px;
     height: 26px;
     border-radius: 5px;
     background: var(--myOrg-input);
@@ -427,7 +432,7 @@ input.form-control {
 .dropdown-box {
     display: flex;
     flex-direction: row;
-    justify-content: flex-end;
+    justify-content: space-between;
     /* margin-top: 10px;
     margin-right: 10px; */
 }
@@ -519,11 +524,24 @@ a:visited.ui-button,
 }
 
 .cancel-enter{
-    font-size: 22px !important;
+    font-size: 20px !important;
+    padding-bottom: 3px;
 }
 
 .add-con {
     border: 1px solid var(--border-btn-color);
+    font-size: 16px !important;
+    padding: 0px;
+    padding-bottom: 3px;
+    margin: 0 4px 0 10px;
+    height: 20px;
+    width: 20px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--default-tab);
+    color: var(--text-color);
 }
 
 .form-control,
@@ -544,6 +562,8 @@ a:visited.ui-button,
     border-radius: 10px; */
     /* margin: 8px 24px 0 24px; */
     display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
     /* padding: 5px 10px; */
     /* background-color: var(--qb-box-bg); */
 }
@@ -561,6 +581,7 @@ textarea.form-control{
     resize: none; 
     overflow: hidden; 
     transition: height 0.3s; 
+    padding-top: 4px;
     /* white-space: nowrap;  */
 }
 textarea.form-control:focus{
@@ -587,7 +608,7 @@ textarea.form-control:focus{
 .completed{
     background-image: var(--complete-bg-img);
     background-repeat: no-repeat;
-    background-size: 50%;
+    background-size: 47%;
     background-position: center;
 }
 .select-box{
@@ -658,7 +679,7 @@ textarea.form-control:focus{
     display: flex;
     /* margin-top: 6px;
     margin-left: 10px; */
-    margin-right: 10px;
+    /* margin-right: 10px; */
     background-color: var(--top-bar-bg-color-regular);
 }
 .search-bar-container{
@@ -840,4 +861,40 @@ div.show-record-popup {
     font-family: "DINpro", Arial, sans-serif;    
     font-size: 14px;
 }
+.query-builder-container{
+    box-shadow: 0px 2px 8px 0px var(--border-shadow);
+    border-radius: 5px;
+    padding: 10px 10px 14px 10px;
+    background-color: var(--qb-box-bg);
+    margin: 10px 0px;
+}
+#filter-box-1{
+    border-radius: 5px 0 0 5px;
+}
+#filter-box-1 li{
+    background-color: #FFFFCC;
+}
 
+#filter-box-2 li{
+    background-color: var(--selected-filter);
+}
+
+#filter-box-3 li{
+    background-color: #FBE7F4;
+}
+#initial-response{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    text-align: center;
+    padding: 40px;
+    box-shadow: 0px 2px 8px 0px var(--border-shadow);
+    border-radius: 5px;
+    color: var(--empty-response-text-color);
+}
+#empty-response{
+    display: none;
+}

@@ -30,13 +30,29 @@ $(document).ready(async () => {
         indexValues = [...originalIndexValues];
     }
     initializeIndexAutocomplete();
+    // If query string found , then do search
     if (window.location.search) {
         data = getInitialSearchFilter(false, false);
+        doSearch(data);
     } else {
-        //No query string found, using default search filter
-        data = getSearchFilter(false, false);
+        setIndexDisplayValue(selectedSearchIndex);
+        let stDate = Cookies.get('startEpoch') || "now-15m";
+        let endDate = Cookies.get('endEpoch') || "now";
+        if (!isNaN(stDate)) {
+            stDate = Number(stDate);
+            endDate = Number(endDate);
+            datePickerHandler(stDate, endDate, "custom");
+            loadCustomDateTimeFromEpoch(stDate,endDate);
+        } else if (stDate !== "now-15m") {
+            datePickerHandler(stDate, endDate, stDate);
+        } else {
+            datePickerHandler(stDate, endDate, "");
+        }
+        $('#run-filter-btn').html(' ');
+        $("#query-builder-btn").html(" ");
+        $("#custom-chart-tab").hide();
     }
-    doSearch(data);
+
     $('body').css('cursor', 'default');
 
     const currentUrl = window.location.href;

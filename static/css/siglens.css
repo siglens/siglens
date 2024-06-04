@@ -836,7 +836,7 @@ body {
 #avail-fields-btn.active .dropdown-arrow.orange,
 #refresh-picker-btn.active .dropdown-arrow.orange {
     padding-left: 0;
-    padding-right: 15px;
+    padding-right: 5px;
     transform: rotate(180deg);
 }
 
@@ -931,9 +931,9 @@ input.form-control:focus {
     display: grid;
     grid-template-columns: 3fr auto;
     column-gap: 25px;
-    margin-top: 15px;
-    margin-left: 23px;
-    margin-right: 25px;
+    /* margin-top: 15px; */
+    /* margin-left: 23px;
+    margin-right: 25px; */
     height: 8px;
 
     font-size: 14px;

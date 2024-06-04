@@ -45,7 +45,7 @@
   }
  function resetDataTable(firstQUpdate) {
      if (firstQUpdate) {
-         $('#empty-response').hide();
+         $('#empty-response, #initial-response').hide();
          $("#custom-chart-tab").show();
          let currentTab = $("#custom-chart-tab").tabs("option", "active");
          if (currentTab == 0) {
