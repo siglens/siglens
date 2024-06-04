@@ -89,6 +89,9 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 				swapped = true
 				resultLHS = resMap[queryOp.RHS]
 			}
+			if resultLHS == nil { // for the case where both LHS and RHS are constants
+				continue
+			}
 
 			for groupID, tsLHS := range resultLHS.Results {
 				finalResult[groupID] = make(map[uint32]float64)
@@ -256,6 +259,20 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 				}
 			}
 
+		}
+	}
+
+	if len(finalResult) == 0 {
+		// For the case where both LHS and RHS are constants
+		// We are not processing those constants. So we return the result as is.
+		if len(resMap) == 1 {
+			for _, res := range resMap {
+				if res != nil {
+					finalResult = res.Results
+				}
+			}
+		} else {
+			return &mresults.MetricsResult{ErrList: []error{errors.New("no results found")}}
 		}
 	}
 

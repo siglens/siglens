@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
@@ -52,6 +53,10 @@ func Test_MetricsQuery(t *testing.T) {
 	mQRequest, err := otsdbquery.ParseRequest(startTime, endTime, m, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, mQRequest)
+	mQRequest.MetricsQuery.MQueryAggs = &structs.MetricQueryAgg{
+		AggBlockType:    structs.AggregatorBlock,
+		AggregatorBlock: &mQRequest.MetricsQuery.Aggregator,
+	}
 	res := segment.ExecuteMetricsQuery(&mQRequest.MetricsQuery, &mQRequest.TimeRange, uint64(0))
 	mQResponse, err := res.GetOTSDBResults(&mQRequest.MetricsQuery)
 	assert.NotNil(t, mQRequest)
@@ -89,6 +94,10 @@ func Test_MetricsQueryMultipleTagValues(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, mQRequest)
 	assert.Len(t, mQRequest.MetricsQuery.TagsFilters, 3)
+	mQRequest.MetricsQuery.MQueryAggs = &structs.MetricQueryAgg{
+		AggBlockType:    structs.AggregatorBlock,
+		AggregatorBlock: &mQRequest.MetricsQuery.Aggregator,
+	}
 	for _, tags := range mQRequest.MetricsQuery.TagsFilters {
 		assert.Contains(t, expectedTagKeys, tags.TagKey)
 		if tags.TagKey == "group" {
