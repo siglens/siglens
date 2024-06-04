@@ -274,6 +274,9 @@ const (
 	LetLessThanOrEqualTo
 	LetGreaterThan
 	LetGreaterThanOrEqualTo
+	LetAnd
+	LetOr
+	LetUnless
 )
 
 type AggregateFunctions int

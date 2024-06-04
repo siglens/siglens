@@ -240,6 +240,10 @@ func (dss *DownsampleSeries) Aggregate() (map[uint32]float64, error) {
 	return retVal, nil
 }
 
+func ApplyAggregation(entries []RunningEntry, aggregation structs.Aggregation) (float64, error) {
+	return reduceRunningEntries(entries, aggregation.AggregatorFunction, aggregation.FuncConstant)
+}
+
 func ApplyFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
 	if function.RangeFunction > 0 {
 		return ApplyRangeFunction(ts, function)
