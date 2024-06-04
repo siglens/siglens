@@ -160,44 +160,105 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 			}
 
 		} else {
-			for groupID, tsLHS := range resultLHS.Results {
-				if _, ok := resultRHS.Results[groupID]; !ok {
+			labelStrSet := make(map[string]struct{})
+			for lGroupID, tsLHS := range resultLHS.Results {
+				// lGroupId is like: metricName{key:value,...
+				// So, if we want to determine whether there are elements with the same labels in another metric, we need to appropriately modify the group ID.
+				rGroupID := ""
+				labelStr := ""
+				if len(lGroupID) >= len(resultLHS.MetricName) {
+					labelStr = lGroupID[len(resultLHS.MetricName):]
+					rGroupID = resultRHS.MetricName + labelStr
+				}
+
+				if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
+					labelStrSet[labelStr] = struct{}{}
+				}
+
+				// If 'and' operation cannot find a matching label set in the right vector, we should skip the current label set in the left vector.
+				// However, for the 'or', 'unless' we do not want to skip that.
+				if _, ok := resultRHS.Results[rGroupID]; !ok && queryOp.Operation != utils.LetOr && queryOp.Operation != utils.LetUnless {
 					continue
 				} //Entries for which no matching entry in the right-hand vector are dropped
-				finalResult[groupID] = make(map[uint32]float64)
+				finalResult[lGroupID] = make(map[uint32]float64)
 				for timestamp, valueLHS := range tsLHS {
-					valueRHS := resultRHS.Results[groupID][timestamp]
+					valueRHS := resultRHS.Results[rGroupID][timestamp]
 					switch queryOp.Operation {
 					case utils.LetAdd:
-						finalResult[groupID][timestamp] = valueLHS + valueRHS
+						finalResult[lGroupID][timestamp] = valueLHS + valueRHS
 					case utils.LetDivide:
 						if valueRHS == 0 {
 							continue
 						}
-						finalResult[groupID][timestamp] = valueLHS / valueRHS
+						finalResult[lGroupID][timestamp] = valueLHS / valueRHS
 					case utils.LetMultiply:
-						finalResult[groupID][timestamp] = valueLHS * valueRHS
+						finalResult[lGroupID][timestamp] = valueLHS * valueRHS
 					case utils.LetSubtract:
-						finalResult[groupID][timestamp] = valueLHS - valueRHS
+						finalResult[lGroupID][timestamp] = valueLHS - valueRHS
 					case utils.LetModulo:
-						finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
+						finalResult[lGroupID][timestamp] = math.Mod(valueLHS, valueRHS)
 					case utils.LetPower:
-						finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
+						finalResult[lGroupID][timestamp] = math.Pow(valueLHS, valueRHS)
 					case utils.LetGreaterThan:
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS > valueRHS, valueLHS)
+						if valueLHS > valueRHS {
+							finalResult[lGroupID][timestamp] = valueLHS
+						}
 					case utils.LetGreaterThanOrEqualTo:
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS >= valueRHS, valueLHS)
+						if valueLHS >= valueRHS {
+							finalResult[lGroupID][timestamp] = valueLHS
+						}
 					case utils.LetLessThan:
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS < valueRHS, valueLHS)
+						if valueLHS < valueRHS {
+							finalResult[lGroupID][timestamp] = valueLHS
+						}
 					case utils.LetLessThanOrEqualTo:
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS <= valueRHS, valueLHS)
+						if valueLHS <= valueRHS {
+							finalResult[lGroupID][timestamp] = valueLHS
+						}
 					case utils.LetEquals:
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS == valueRHS, valueLHS)
+						if valueLHS == valueRHS {
+							finalResult[lGroupID][timestamp] = valueLHS
+						}
 					case utils.LetNotEquals:
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS != valueRHS, valueLHS)
+						if valueLHS != valueRHS {
+							finalResult[lGroupID][timestamp] = valueLHS
+						}
+					case utils.LetAnd:
+						finalResult[lGroupID][timestamp] = valueLHS
+					case utils.LetOr:
+						finalResult[lGroupID][timestamp] = valueLHS
+					case utils.LetUnless:
+						finalResult[lGroupID][timestamp] = valueLHS
 					}
 				}
 			}
+			if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
+				for rGroupID, tsRHS := range resultRHS.Results {
+					labelStr := ""
+					if len(rGroupID) >= len(resultRHS.MetricName) {
+						labelStr = rGroupID[len(resultRHS.MetricName):]
+					}
+
+					// For 'unless' op, all matching elements in both vectors are dropped
+					if queryOp.Operation == utils.LetUnless {
+						lGroupID := resultLHS.MetricName + labelStr
+						delete(finalResult, lGroupID)
+						continue
+					} else { // For 'or' op, check if the vector on the right has a label set that does not exist in the vector on the left.
+						_, exists := labelStrSet[labelStr]
+						// If exists, which means we already add that label set when traversing the resultLHS
+						if exists {
+							continue
+						}
+
+						finalResult[rGroupID] = make(map[uint32]float64)
+						for timestamp, valueRHS := range tsRHS {
+							finalResult[rGroupID][timestamp] = valueRHS
+						}
+					}
+				}
+			}
+
 		}
 	}
 
