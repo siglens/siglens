@@ -54,6 +54,7 @@ Depending on the State the stored information is different:
   - AGGREGATING: maps a groupid to the resulting aggregated values
 */
 type MetricsResult struct {
+	MetricName string
 	// maps tsid to the raw read series (with downsampled timestamp)
 	AllSeries map[uint64]*Series
 
@@ -217,6 +218,110 @@ func (r *MetricsResult) AggregateResults(parallelism int) []error {
 	wg.Wait()
 	r.DsResults = nil
 	r.State = AGGREGATED
+
+	if len(errors) > 0 {
+		return errors
+	}
+
+	return nil
+}
+
+// extractGroupByFieldsFromSeriesId extracts the groupByFields from the seriesId
+// And returns the slice of Group By Fields as key-value pairs.
+func extractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) []string {
+	var groupKeyValuePairs []string
+	for _, field := range groupByFields {
+		start := strings.Index(seriesId, field+":")
+		if start == -1 {
+			continue
+		}
+		start += len(field) + 1 // +1 to skip the ':'
+		end := strings.Index(seriesId[start:], ",")
+		if end == -1 {
+			end = len(seriesId)
+		} else {
+			end += start
+		}
+		keyValuePair := fmt.Sprintf("%s:%s", field, seriesId[start:end])
+		groupKeyValuePairs = append(groupKeyValuePairs, keyValuePair)
+	}
+	return groupKeyValuePairs
+}
+
+// getAggSeriesId returns the group seriesId for the aggregated series based on the given seriesId and groupByFields
+// If groupByFields is empty, it returns the "metricName{" as the group seriesId
+// If groupByFields is not empty, it returns the "metricName{key1:value1,key2:value2,..." as the group seriesId
+// Where key1, key2, ... are the groupByFields and value1, value2, ... are the values of the groupByFields in the seriesId
+// The groupByFields are extracted from the seriesId
+func getAggSeriesId(metricName string, seriesId string, groupByFields []string) string {
+	if len(groupByFields) == 0 {
+		return metricName + "{"
+	}
+	groupKeyValuePairs := extractGroupByFieldsFromSeriesId(seriesId, groupByFields)
+	seriesId = metricName + "{" + strings.Join(groupKeyValuePairs, ",")
+	return seriesId
+}
+
+func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation structs.Aggregation) []error {
+	if r.State != AGGREGATED {
+		return []error{errors.New("results is not in aggregated state")}
+	}
+
+	results := make(map[string]map[uint32]float64, len(r.Results))
+
+	lock := &sync.Mutex{}
+	wg := &sync.WaitGroup{}
+
+	errorLock := &sync.Mutex{}
+	errors := make([]error, 0)
+
+	var idx int
+
+	seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
+
+	for seriesId, timeSeries := range r.Results {
+		aggSeriesId := getAggSeriesId(r.MetricName, seriesId, aggregation.GroupByFields)
+		if _, ok := results[aggSeriesId]; !ok {
+			results[aggSeriesId] = make(map[uint32]float64, 0)
+			seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
+		}
+		for ts, val := range timeSeries {
+			if _, ok := seriesEntriesMap[aggSeriesId][ts]; !ok {
+				seriesEntriesMap[aggSeriesId][ts] = make([]RunningEntry, 0)
+			}
+			seriesEntriesMap[aggSeriesId][ts] = append(seriesEntriesMap[aggSeriesId][ts], RunningEntry{runningCount: 1, runningVal: val})
+		}
+	}
+
+	for seriesId, timeSeries := range seriesEntriesMap {
+
+		wg.Add(1)
+		go func(grp string, ts map[uint32][]RunningEntry) {
+			defer wg.Done()
+
+			for ts, entries := range ts {
+				aggVal, err := ApplyAggregation(entries, aggregation)
+				if err != nil {
+					errorLock.Lock()
+					errors = append(errors, err)
+					errorLock.Unlock()
+					return
+				}
+				lock.Lock()
+				results[grp][ts] = aggVal
+				lock.Unlock()
+			}
+
+		}(seriesId, timeSeries)
+		idx++
+		if idx%parallelism == 0 {
+			wg.Wait()
+		}
+
+	}
+
+	wg.Wait()
+	r.Results = results
 
 	if len(errors) > 0 {
 		return errors
