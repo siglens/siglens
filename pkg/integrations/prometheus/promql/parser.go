@@ -564,7 +564,8 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 	arithmeticOperation := structs.QueryArithmetic{}
 	var lhsRequest, rhsRequest []*structs.MetricsQueryRequest
 	var lhsQueryArth, rhsQueryArth []*structs.QueryArithmetic
-
+	lhsIsVector := false
+	rhsIsVector := false
 	if constant, ok := expr.LHS.(*parser.NumberLiteral); ok {
 		arithmeticOperation.ConstantOp = true
 		arithmeticOperation.Constant = constant.Val
@@ -575,6 +576,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		}
 		arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.HashedMName
 		queryArithmetic = append(queryArithmetic, lhsQueryArth...)
+		lhsIsVector = true
 	}
 
 	if constant, ok := expr.RHS.(*parser.NumberLiteral); ok {
@@ -587,6 +589,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		}
 		arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.HashedMName
 		queryArithmetic = append(queryArithmetic, rhsQueryArth...)
+		rhsIsVector = true
 	}
 	arithmeticOperation.Operation = putils.GetLogicalAndArithmeticOperation(expr.Op)
 	arithmeticOperation.ReturnBool = expr.ReturnBool
@@ -604,6 +607,33 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		mQueryReqs = append(mQueryReqs, lhsRequest...)
 	}
 	mQueryReqs = append(mQueryReqs, rhsRequest...)
+
+	if expr.VectorMatching != nil && len(expr.VectorMatching.MatchingLabels) > 0 {
+		if putils.IsLogicalOperator(arithmeticOperation.Operation) {
+			return []*structs.MetricsQueryRequest{}, []*structs.QueryArithmetic{}, fmt.Errorf("convertPqlToMetricsQuery: Grouping modifiers can only be used for comparison and arithmetic %T", expr)
+		}
+
+		arithmeticOperation.VectorMatching = &structs.VectorMatching{
+			Cardinality:    structs.VectorMatchCardinality(expr.VectorMatching.Card),
+			MatchingLabels: expr.VectorMatching.MatchingLabels,
+			On:             expr.VectorMatching.On,
+		}
+		sort.Strings(arithmeticOperation.VectorMatching.MatchingLabels)
+
+		for i := 0; i < len(mQueryReqs); i++ {
+			if len(mQueryReqs[i].MetricsQuery.TagsFilters) > 0 {
+				mQueryReqs[i].MetricsQuery.SelectAllSeries = true
+			}
+		}
+	}
+
+	// Mathematical operations between two vectors occur when their label sets match, so it is necessary to retrieve all label sets from the vectors.
+	// Logical operations also require checking whether the label sets between the vectors match
+	if putils.IsLogicalOperator(arithmeticOperation.Operation) || (lhsIsVector && rhsIsVector) {
+		for i := 0; i < len(mQueryReqs); i++ {
+			mQueryReqs[i].MetricsQuery.GetAllLabels = true
+		}
+	}
 
 	return mQueryReqs, queryArithmetic, nil
 }
