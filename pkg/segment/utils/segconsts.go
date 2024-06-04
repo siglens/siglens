@@ -287,6 +287,9 @@ const (
 	Sum
 	Cardinality
 	Quantile
+	Stddev
+	Stdvar
+	Group
 	Values
 )
 

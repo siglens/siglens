@@ -236,6 +236,12 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.Aggregator.AggregatorFunction = segutils.Min
 	case "quantile":
 		mQuery.Aggregator.AggregatorFunction = segutils.Quantile
+	case "stddev":
+		mQuery.Aggregator.AggregatorFunction = segutils.Stddev
+	case "stdvar":
+		mQuery.Aggregator.AggregatorFunction = segutils.Stdvar
+	case "group":
+		mQuery.Aggregator.AggregatorFunction = segutils.Group
 	case "":
 		log.Infof("handleAggregateExpr: using avg aggregator by default for AggregateExpr (got empty string)")
 		mQuery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
