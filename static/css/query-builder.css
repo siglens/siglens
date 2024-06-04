@@ -199,7 +199,7 @@ input.form-control {
 .filter-box {
     border: 1px solid var(--border-btn-color);
     /* background: var(--qb-input-box-color) !important; */
-    border-radius: 2px;
+    /* border-radius: 2px; */
     min-height: 32px;
     display: flex;
     flex-direction: row;

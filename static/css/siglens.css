@@ -1710,7 +1710,7 @@ div.dts div.dataTables_scrollBody table {
     margin-left: 12px;
     margin-right: 12px;
     padding: 4px 0;
-    padding-left: 12px;
+    padding-left: 9px;
     font-weight: var(--fw-400);
     font-family: "DINpro", Arial, sans-serif;
     border-radius: 4px;
