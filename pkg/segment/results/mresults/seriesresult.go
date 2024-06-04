@@ -752,6 +752,8 @@ func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant floa
 				ret = entries[i].dpVal
 			}
 		}
+	case utils.Count:
+		// Count is to calculate the number of time series, we do not care about the entry value
 	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 
@@ -811,9 +813,7 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 			}
 		}
 	case utils.Count:
-		for i := range entries {
-			ret += float64(entries[i].runningCount)
-		}
+		// Count is to calculate the number of time series, we do not care about the entry value
 	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 
