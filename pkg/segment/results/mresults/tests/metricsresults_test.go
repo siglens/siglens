@@ -961,9 +961,9 @@ func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap
 }
 
 func Test_GetResults_And(t *testing.T) {
-	results := make(map[string]map[uint32]float64)
+	expectedResults := make(map[string]map[uint32]float64)
 	// There is the expected result: contains only one matching label set
-	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
+	expectedResults["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
 		0:    45,
 		7200: 1045,
 	}
@@ -979,7 +979,7 @@ func Test_GetResults_And(t *testing.T) {
 			0:    2,
 			7200: 6,
 		},
-		labelStrs1, labelStrs2, results,
+		labelStrs1, labelStrs2, expectedResults,
 		[]structs.QueryArithmetic{
 			{
 				LHS:       1,
@@ -997,14 +997,14 @@ func Test_GetResults_And(t *testing.T) {
 }
 
 func Test_GetResults_Or(t *testing.T) {
-	results := make(map[string]map[uint32]float64)
+	expectedResults := make(map[string]map[uint32]float64)
 	// There is the expected result: contains all unique label sets
-	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
+	expectedResults["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
 		0:    45,
 		7200: 1045,
 	}
 
-	results["test.metric.1{color:yellow,type:compact,"] = map[uint32]float64{
+	expectedResults["test.metric.1{color:yellow,type:compact,"] = map[uint32]float64{
 		0:    45,
 		7200: 1045,
 	}
@@ -1021,7 +1021,7 @@ func Test_GetResults_Or(t *testing.T) {
 			0:    2,
 			7200: 6,
 		},
-		labelStrs1, labelStrs2, results,
+		labelStrs1, labelStrs2, expectedResults,
 		[]structs.QueryArithmetic{
 			{
 				LHS:       1,
@@ -1039,8 +1039,8 @@ func Test_GetResults_Or(t *testing.T) {
 }
 
 func Test_GetResults_Unless(t *testing.T) {
-	results := make(map[string]map[uint32]float64)
-	results["test.metric.1{color:yellow,type:compact,"] = map[uint32]float64{
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults["test.metric.1{color:yellow,type:compact,"] = map[uint32]float64{
 		0:    45,
 		7200: 1045,
 	}
@@ -1057,7 +1057,7 @@ func Test_GetResults_Unless(t *testing.T) {
 			0:    2,
 			7200: 6,
 		},
-		labelStrs1, labelStrs2, results,
+		labelStrs1, labelStrs2, expectedResults,
 		[]structs.QueryArithmetic{
 			{
 				LHS:       1,
