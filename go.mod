@@ -41,6 +41,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.24.0
 	go.opentelemetry.io/otel/sdk/metric v0.39.0
 	go.opentelemetry.io/proto/otlp v1.1.0
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 	golang.org/x/sync v0.5.0
 	golang.org/x/text v0.14.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240102182953-50ed04b92917
@@ -67,7 +68,6 @@ require (
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/goleak v1.2.1 // indirect
-	golang.org/x/exp v0.0.0-20230321023759-10a507213a29 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240102182953-50ed04b92917 // indirect
 	google.golang.org/grpc v1.61.1 // indirect
 )

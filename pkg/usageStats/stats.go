@@ -20,6 +20,7 @@ package usageStats
 import (
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -462,6 +463,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 		filename := getStatsFilename(statsFile)
 		fd, err := os.OpenFile(filename, os.O_RDONLY, 0666)
 		if err != nil {
+			log.Errorf("GetUsageStats: error opening stats file = %v, err= %v", filename, err)
 			continue
 		}
 		defer fd.Close()
@@ -471,7 +473,6 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 		// Make sure to handle the different data formats in the loop below to avoid panics.
 		r.FieldsPerRecord = -1
 		for {
-			var readStats ReadStats
 			record, err := r.Read()
 			if err == io.EOF {
 				break
@@ -480,33 +481,11 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 				log.Errorf("GetUsageStats: error reading stats file = %v, err= %v", filename, err)
 				break
 			}
-			if len(record) < 3 {
-				log.Errorf("GetUsageStats: invalid stats entry in fname %+v = %v, err= %v", filename, record, err)
+
+			readStats, err := parseStatsRecord(record)
+			if err != nil {
+				log.Errorf("GetUsageStats: error parsing record in file = %v, record = %v, err= %v", filename, record, err)
 				continue
-			}
-			readStats.BytesCount, _ = strconv.ParseUint(record[0], 10, 64)
-			readStats.EventCount, _ = strconv.ParseUint(record[1], 10, 64)
-
-			// The data format has evolved over time:
-			// - Initially, it was: bytes, eventCount, time
-			// - Then, metrics were added: bytes, eventCount, metricCount, time
-			// - Later, logsBytesCount and metricsBytesCount were added. However, the new format is backward compatible with the old formats.
-			// The current format is: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount
-			if len(record) >= 4 {
-				readStats.MetricsDatapointsCount, _ = strconv.ParseUint(record[2], 10, 64)
-				tsString, _ := strconv.ParseInt(record[3], 10, 64)
-				readStats.TimeStamp = time.Unix(tsString, 0)
-			} else {
-				tsString, _ := strconv.ParseInt(record[2], 10, 64)
-				readStats.TimeStamp = time.Unix(tsString, 0)
-			}
-
-			if len(record) == 6 {
-				readStats.LogsBytesCount, _ = strconv.ParseUint(record[4], 10, 64)
-				readStats.MetricsBytesCount, _ = strconv.ParseUint(record[5], 10, 64)
-			} else {
-				readStats.LogsBytesCount = readStats.BytesCount
-				readStats.MetricsBytesCount = 0
 			}
 
 			if readStats.TimeStamp.After(startEpoch) && readStats.TimeStamp.Before(endEpoch) {
@@ -539,6 +518,77 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid u
 		}
 	}
 	return resultMap, nil
+}
+
+// The data format has evolved over time:
+// - Initially, it was: bytes, eventCount, time
+// - Then, metrics were added: bytes, eventCount, metricCount, time
+// - Later, logsBytesCount and metricsBytesCount were added. However, the new format is backward compatible with the old formats.
+// The current format is: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount
+func parseStatsRecord(record []string) (ReadStats, error) {
+	var readStats ReadStats
+	var err error
+
+	if len(record) < 3 {
+		return readStats, fmt.Errorf("parseStatsRecord: invalid record length: %d", len(record))
+	}
+
+	readStats.BytesCount, err = strconv.ParseUint(record[0], 10, 64)
+	if err != nil {
+		return readStats, fmt.Errorf("parseStatsRecord: could not parse BytesCount field '%v': %w", record[0], err)
+	}
+	readStats.EventCount, err = strconv.ParseUint(record[1], 10, 64)
+	if err != nil {
+		return readStats, fmt.Errorf("parseStatsRecord: could not parse EventCount field '%v': %w", record[1], err)
+	}
+
+	switch len(record) {
+	case 3:
+		tsString, err := strconv.ParseInt(record[2], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse timestamp field '%v': %w", record[2], err)
+		}
+		readStats.TimeStamp = time.Unix(tsString, 0)
+		readStats.LogsBytesCount = readStats.BytesCount
+		readStats.MetricsBytesCount = 0
+
+	case 4:
+		readStats.MetricsDatapointsCount, err = strconv.ParseUint(record[2], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse MetricsDatapointsCount field '%v': %w", record[2], err)
+		}
+		tsString, err := strconv.ParseInt(record[3], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse timestamp field '%v': %w", record[3], err)
+		}
+		readStats.TimeStamp = time.Unix(tsString, 0)
+		readStats.LogsBytesCount = readStats.BytesCount
+		readStats.MetricsBytesCount = 0
+
+	case 6:
+		readStats.MetricsDatapointsCount, err = strconv.ParseUint(record[2], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse MetricsDatapointsCount field '%v': %w", record[2], err)
+		}
+		tsString, err := strconv.ParseInt(record[3], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse timestamp field '%v': %w", record[3], err)
+		}
+		readStats.LogsBytesCount, err = strconv.ParseUint(record[4], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse LogsBytesCount field '%v': %w", record[4], err)
+		}
+		readStats.MetricsBytesCount, err = strconv.ParseUint(record[5], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse MetricsBytesCount field '%v': %w", record[5], err)
+		}
+		readStats.TimeStamp = time.Unix(tsString, 0)
+	default:
+		err = fmt.Errorf("parseStatsRecord: invalid record length: %d", len(record))
+		return readStats, err
+	}
+
+	return readStats, nil
 }
 
 func CalculateIntervalForStatsByMinute(timerangeMinutes uint32) (uint32, error) {
