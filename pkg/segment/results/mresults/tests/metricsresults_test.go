@@ -409,7 +409,7 @@ func TestCalculateInterval(t *testing.T) {
 }
 
 func Test_GetResults_Modulo(t *testing.T) {
-	test_GetResults_ArithmeticOps(t,
+	test_GetResults_Ops(t,
 		map[uint32]float64{
 			0:    52.5,
 			3600: 23,
@@ -554,7 +554,7 @@ func Test_GetResults_Division(t *testing.T) {
 }
 
 func Test_GetResults_Power(t *testing.T) {
-	test_GetResults_ArithmeticOps(t,
+	test_GetResults_Ops(t,
 		map[uint32]float64{
 			0:    2,
 			7200: -10,
