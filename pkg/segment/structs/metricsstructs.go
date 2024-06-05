@@ -438,3 +438,7 @@ func (agg Aggregation) ShallowClone() *Aggregation {
 	aggCopy := agg
 	return &aggCopy
 }
+
+func (agg Aggregation) IsAggregateFromAllTimeseries() bool {
+	return agg.AggregatorFunction == utils.Count || agg.AggregatorFunction == utils.TopK || agg.AggregatorFunction == utils.BottomK
+}

@@ -18,6 +18,7 @@
 package mresults
 
 import (
+	"container/heap"
 	"errors"
 	"fmt"
 	"sort"
@@ -180,17 +181,28 @@ Aggregate results for series sharing a groupid
 Internally, this will store the final aggregated results
 e.g. will store avg instead of running sum&count
 */
-func (r *MetricsResult) AggregateResults(parallelism int) []error {
+func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Aggregation) []error {
 	if r.State != DOWNSAMPLING {
 		return []error{errors.New("results is not in downsampling state")}
 	}
 
 	r.Results = make(map[string]map[uint32]float64)
+	errors := make([]error, 0)
+
+	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
+	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
+	if aggregation.IsAggregateFromAllTimeseries() {
+		err := r.aggregateFromAllTimeseries(aggregation)
+		if err != nil {
+			errors = append(errors, err)
+			return errors
+		}
+		return nil
+	}
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 
 	errorLock := &sync.Mutex{}
-	errors := make([]error, 0)
 
 	var idx int
 	for grpID, runningDS := range r.DsResults {
@@ -198,7 +210,7 @@ func (r *MetricsResult) AggregateResults(parallelism int) []error {
 		go func(grp string, ds *DownsampleSeries) {
 			defer wg.Done()
 
-			grpVal, err := ds.Aggregate()
+			grpVal, err := ds.AggregateFromSingleTimeseries()
 			if err != nil {
 				errorLock.Lock()
 				errors = append(errors, err)
@@ -269,12 +281,23 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 	}
 
 	results := make(map[string]map[uint32]float64, len(r.Results))
+	errors := make([]error, 0)
+
+	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
+	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
+	if aggregation.IsAggregateFromAllTimeseries() {
+		err := r.aggregateFromAllTimeseries(aggregation)
+		if err != nil {
+			errors = append(errors, err)
+			return errors
+		}
+		return nil
+	}
 
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 
 	errorLock := &sync.Mutex{}
-	errors := make([]error, 0)
 
 	var idx int
 
@@ -301,7 +324,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 			defer wg.Done()
 
 			for ts, entries := range ts {
-				aggVal, err := ApplyAggregation(entries, aggregation)
+				aggVal, err := ApplyAggregationFromSingleTimeseries(entries, aggregation)
 				if err != nil {
 					errorLock.Lock()
 					errors = append(errors, err)
@@ -675,4 +698,84 @@ func CalculateInterval(timerangeSeconds uint32) (uint32, error) {
 
 	// If no suitable step is found, return an error
 	return 0, errors.New("no suitable step found")
+}
+
+func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregation) error {
+
+	var err error
+	switch aggregation.AggregatorFunction {
+	case segutils.TopK:
+		err = r.computeExtremesKElements(aggregation.FuncConstant, -1.0, true)
+	case segutils.BottomK:
+		err = r.computeExtremesKElements(aggregation.FuncConstant, 1.0, false)
+	default:
+		return fmt.Errorf("aggregateFromAllTimeseries: Unsupported aggregation: %v", aggregation)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// The larger the priority, the earlier it will be popped out. Since we use the value as the priority, for `topk`, the larger the value, the more we want it to remain in the priority queue. Therefore, its priority should be smaller.
+// For bottomk, it's the opposite
+func (r *MetricsResult) computeExtremesKElements(funcConstant float64, factor float64, isTopK bool) error {
+	capacity := int(funcConstant)
+
+	if capacity <= 0 {
+		return fmt.Errorf("computeExtremesKElements: k must larger than 0")
+	}
+
+	// Use a PriorityQueue to store the top k elements for each timestamp, then separate the (timestamp, val) key-value pairs for each time series and generate the result
+	timestampToHeap := make(map[uint32]*utils.PriorityQueue)
+	for grpID, runningDS := range r.DsResults {
+		for i := 0; i < runningDS.idx; i++ {
+			timestamp := runningDS.runningEntries[i].downsampledTime
+
+			pq, exists := timestampToHeap[timestamp]
+			if !exists {
+				newPQ := make(utils.PriorityQueue, 0)
+				heap.Init(&newPQ)
+				heap.Push(&newPQ, &utils.Item{
+					Value:    grpID,
+					Priority: (runningDS.runningEntries[i].runningVal * factor),
+				})
+				timestampToHeap[timestamp] = &newPQ
+			} else {
+				if len(*pq) >= capacity {
+					item := heap.Pop(pq).(*utils.Item)
+					if isTopK && (item.Priority*factor) > runningDS.runningEntries[i].runningVal {
+						heap.Push(pq, item)
+						continue
+					}
+					if !isTopK && (item.Priority) < runningDS.runningEntries[i].runningVal {
+						heap.Push(pq, item)
+						continue
+					}
+				}
+				heap.Push(pq, &utils.Item{
+					Value:    grpID,
+					Priority: (runningDS.runningEntries[i].runningVal * factor),
+				})
+			}
+		}
+	}
+
+	for timestamp, pq := range timestampToHeap {
+		for pq.Len() > 0 {
+			item := heap.Pop(pq).(*utils.Item)
+			_, exists := r.Results[item.Value]
+			if !exists {
+				r.Results[item.Value] = make(map[uint32]float64)
+			}
+			r.Results[item.Value][timestamp] = (item.Priority * factor) // Restore to original value
+		}
+	}
+
+	r.DsResults = nil
+	r.State = AGGREGATED
+
+	return nil
 }
