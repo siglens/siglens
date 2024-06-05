@@ -100,11 +100,11 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 				finalResult[groupID][timestamp] = 1
 				return
 			}
-			if swapped {
+			// If the comparison occurs between a vector and a constant, we need to retain its value no matter which side the vector is on as long as the expression holds
+			if queryOp.ConstantOp && swapped {
 				finalResult[groupID][timestamp] = valueRHS
-			} else {
-				finalResult[groupID][timestamp] = valueLHS
 			}
+			finalResult[groupID][timestamp] = valueLHS
 		}
 	case utils.LetGreaterThanOrEqualTo:
 		isGte := valueLHS >= valueRHS
@@ -113,11 +113,10 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 				finalResult[groupID][timestamp] = 1
 				return
 			}
-			if swapped {
+			if queryOp.ConstantOp && swapped {
 				finalResult[groupID][timestamp] = valueRHS
-			} else {
-				finalResult[groupID][timestamp] = valueLHS
 			}
+			finalResult[groupID][timestamp] = valueLHS
 		}
 	case utils.LetLessThan:
 		isLss := valueLHS < valueRHS
@@ -126,11 +125,10 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 				finalResult[groupID][timestamp] = 1
 				return
 			}
-			if swapped {
+			if queryOp.ConstantOp && swapped {
 				finalResult[groupID][timestamp] = valueRHS
-			} else {
-				finalResult[groupID][timestamp] = valueLHS
 			}
+			finalResult[groupID][timestamp] = valueLHS
 		}
 	case utils.LetLessThanOrEqualTo:
 		isLte := valueLHS <= valueRHS
@@ -139,11 +137,10 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 				finalResult[groupID][timestamp] = 1
 				return
 			}
-			if swapped {
+			if queryOp.ConstantOp && swapped {
 				finalResult[groupID][timestamp] = valueRHS
-			} else {
-				finalResult[groupID][timestamp] = valueLHS
 			}
+			finalResult[groupID][timestamp] = valueLHS
 		}
 	case utils.LetEquals:
 		if valueLHS == valueRHS {
@@ -180,9 +177,10 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 	}
 }
 
-// This method will return uniuqe tag key value pair combination str, we refer it as labelStr.
+// This method extracts tag key-value pairs from the string and processes the corresponding tags according to the include or exclude rules of matchingLabels.
+// Finally, it concatenates the tag keys and values in dictionary order and returns the result.
 // If matchingLabels = [tag1], groupIDStr = "metricName{tag1:val1,tag2:val2,tag3:val3}"
-// When includeColumns is true, extract labels and generate labelStr from matchingLabels based on the previous groupIDStr. The result is "tag1:val1,"
+// When includeColumns is true, extract labels and generate result from matchingLabels based on the previous groupIDStr. The result is "tag1:val1,"
 // Otherwise, exclude the labels, so the result is "tag2:val2,tag3:val3,"
 func ExtractMatchingLabelSet(groupIDStr string, matchingLabels []string, includeColumns bool) string {
 
