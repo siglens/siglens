@@ -185,8 +185,10 @@ async function updateDashboard() {
                 $(".name-dashboard").text(dbName);
                 showToast('Dashboard Updated Successfully');
                 return true;
+            } else {
+                showToast('Error saving dashboard');
+                throw new Error('Error saving dashboard');
             }
-            return res.json();
         })
         .catch(error => {
             console.error(error);
