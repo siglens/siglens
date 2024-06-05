@@ -5297,7 +5297,7 @@ input.form-control {
 /* Tippy.js Tooltip  */
 .tippy-box{
     background-color: var(--side-nav-bg-color-regular);
-    font-size: 14px;
+    font-size: 12px;
     box-shadow: var(--box-shadow);
 }
 

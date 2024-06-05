@@ -780,6 +780,7 @@
      $('#corner-popup').hide();
      $('#empty-response').show();
      $('#logs-view-controls').hide();
+     $('#initial-response').hide();
      let el = $('#empty-response');
      $('#empty-response').empty();
      el.append('<span>Your query returned no data, adjust your query.</span>')
@@ -940,6 +941,7 @@
      $("#data-row-container").hide();
      $('#corner-popup').hide();
      $('#empty-response').show();
+     $('#initial-response').hide();
      $('#logs-view-controls').hide();
     $("#custom-chart-tab").hide();
      let el = $('#empty-response');

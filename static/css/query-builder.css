@@ -395,7 +395,7 @@ input.form-control {
     width: 94px;
     height: 26px;
     border-radius: 5px;
-    background: var(--myOrg-input);
+    background: var(--alert-background);
     display: flex;
     flex-direction: row;
     justify-content: space-between;
@@ -551,6 +551,7 @@ textarea.form-control{
     overflow: hidden; 
     transition: height 0.3s; 
     padding-top: 4px;
+    background-color: var(--top-bar-bg-color-regular);
 }
 textarea.form-control:focus{
     box-shadow: none;
@@ -731,7 +732,7 @@ div.show-record-popup {
 #tabs-chart,
 #showTable{
     display: none;
-    margin: 42px 0 0 0;
+    margin: 50px 0 0 0;
 }
 .tab-content-size{
     height: 100%;
@@ -835,7 +836,7 @@ div.show-record-popup {
     border-radius: 5px 0 0 5px;
 }
 #filter-box-1 li{
-    background-color: var(--selected-filter-yellow);
+    background-color: var( --selected-filter-yellow);
 }
 
 #filter-box-2 li{
@@ -843,18 +844,17 @@ div.show-record-popup {
 }
 
 #filter-box-3 li{
-    background-color: var(--selected-filter-red);
+    background-color: var( --selected-filter-red);
 }
 #initial-response{
     width: 100%;
-    height: 100%;
+    margin-top: 15%;    
     display: flex;
     justify-content: center;
     align-items: center;
     font-size: 24px;
     text-align: center;
     padding: 40px;
-    box-shadow: 0px 2px 8px 0px var(--border-shadow);
     border-radius: 5px;
     color: var(--empty-response-text-color);
 }
