@@ -1166,7 +1166,71 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint
 }
 
 func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	type keyAndNumValues struct {
+		Key       string `json:"key"`
+		NumValues uint64 `json:"numValues"`
+	}
+	type responseStruct struct {
+		TagKeys []keyAndNumValues `json:"tagKeys"`
+	}
 
+	jsonMap, err := ReadJsonBody(ctx)
+	if err != nil {
+		utils.SendError(ctx, "Failed to read request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		return
+	}
+
+	timeRange, err := ExtractUnixOrAlphaTimeRange(jsonMap, "startEpoch", "endEpoch")
+	if err != nil {
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("json: %v", jsonMap), err)
+		return
+	}
+
+	limit := ExtractFromJsonOrDefault(jsonMap, "limit", uint64(10)).(uint64)
+	noLimit := (limit == 0)
+	querySummary := &summary.QuerySummary{}
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
+		return
+	}
+
+	tagPairs := make(map[string]map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		segmentTagPairs := segmentTagTreeReader.GetAllTagPairs()
+		for key, valueSet := range segmentTagPairs {
+			if _, ok := tagPairs[key]; !ok {
+				tagPairs[key] = valueSet
+			} else {
+				tagPairs[key] = utils.MergeMaps(tagPairs[key], valueSet)
+			}
+		}
+	}
+
+	keysAndNumValues := make([]keyAndNumValues, 0)
+	for key, valueSet := range tagPairs {
+		element := keyAndNumValues{
+			Key:       key,
+			NumValues: uint64(len(valueSet)),
+		}
+
+		keysAndNumValues = append(keysAndNumValues, element)
+	}
+
+	sort.Slice(keysAndNumValues, func(i, j int) bool {
+		return keysAndNumValues[i].NumValues > keysAndNumValues[j].NumValues
+	})
+
+	if !noLimit && limit < uint64(len(keysAndNumValues)) {
+		keysAndNumValues = keysAndNumValues[:limit]
+	}
+
+	response := responseStruct{
+		TagKeys: keysAndNumValues,
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, &response)
 }
 
 func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
