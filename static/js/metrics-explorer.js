@@ -68,8 +68,27 @@ async function metricsExplorerDatePickerHandler(evt) {
     // Update graph for each query
    
     Object.keys(queries).forEach(async function(queryName) {
-        var queryDetails = queries[queryName];
-        console.log('queries in daterange: ', queryDetails)
+        var _queryDetails = queries[queryName];
+
+        const {metrics, everywhere, everything, aggFunction, functions} = _queryDetails
+
+        const tagsAndValue = await getTagKeyValue(_queryDetails.metrics);
+        _queryDetails.everywhere = [];
+        _queryDetails.everything = [];
+        availableEverywhere = tagsAndValue.availableEverywhere.sort();
+        availableEverything = tagsAndValue.availableEverything[0].sort();
+        const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
+        queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
+        queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
+
+        queries[queryName].metrics = metrics
+        queries[queryName].everywhere = everywhere
+        queries[queryName].everything = everything
+        queries[queryName].aggFunction = aggFunction
+        queries[queryName].functions = functions
+
+        const queryDetails = queries[queryName]
+        
         await getQueryDetails(queryName, queryDetails);
     });
 
@@ -1157,7 +1176,6 @@ async function getMetricNames() {
 
 
 async function getMetricsData(queryName, metricName) {
-    console.log('metricName: ', metricName)
     const query = { name: queryName, query: `(${metricName})`, qlType: "promql" };
     const queries = [query];
     const formula = { formula: queryName };
@@ -1219,16 +1237,13 @@ function getTagKeyValue(metricName) {
 
 
 async function getQueryDetails(queryName, queryDetails){
-    console.log('queryDetails: ', queryDetails)
     const queryString = createQueryString(queryDetails);
-    console.log('queryString: ', queryString)
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData)
     addVisualizationContainer(queryName, chartData, queryString);
 }
 
 function createQueryString(queryObject) {
-    console.log('queryObject: ', queryObject)
     const { metrics, everywhere, everything, aggFunction, functions } = queryObject;
 
     const everywhereString = everywhere.map(tag => {
