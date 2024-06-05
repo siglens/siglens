@@ -57,6 +57,8 @@ func (q IngestType) String() string {
 
 const PRINT_FREQ = 100_000
 
+var seriesId uint64
+
 // returns any errors encountered. It is the caller's responsibility to attempt retries
 func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) error {
 
@@ -152,51 +154,61 @@ func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
 }
 
 var preGeneratedSeries []map[string]interface{}
+var uniqueSeriesMap = make(map[string]struct{})
 
-func generateUniqueID(series map[string]interface{}) string {
-	metricName := series["metric"].(string)
-	tags := series["tags"].(map[string]interface{})
-	var builder strings.Builder
-	builder.WriteString(metricName)
-	for key, value := range tags {
-		builder.WriteString(key)
-		builder.WriteString(fmt.Sprintf("%v", value))
+func generateUniquePayload(rdr *utils.MetricsGenerator) (map[string]interface{}, error) {
+	var currPayload map[string]interface{}
+	var err error
+	for {
+		currPayload, err = rdr.GetRawLog()
+		if err != nil {
+			log.Errorf("generateUniquePayload: failed to get raw log: %+v", err)
+			return nil, err
+		}
+		metricName := currPayload["metric"].(string)
+		tags := currPayload["tags"].(map[string]interface{})
+		var builder strings.Builder
+		builder.WriteString(metricName)
+		for key, value := range tags {
+			builder.WriteString(key)
+			builder.WriteString(fmt.Sprintf("%v", value))
+		}
+		id := builder.String()
+		if _, exists := uniqueSeriesMap[id]; !exists {
+			uniqueSeriesMap[id] = struct{}{}
+			break
+		}
 	}
-	return builder.String()
+
+	return currPayload, nil
 }
 
 func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string) error {
-	preGeneratedSeries = make([]map[string]interface{}, 0, cardinality)
+	preGeneratedSeries = make([]map[string]interface{}, cardinality)
 	rdr, err := utils.InitMetricsGenerator(nMetrics, gentype)
 	if err != nil {
-		log.Errorf("generatePredefinedSeries: failed to initalize metrics generator: %+v", err)
+		log.Errorf("generatePredefinedSeries: failed to initialize metrics generator: %+v", err)
 		return err
 	}
 	start := time.Now()
-	uniqueSeriesMap := make(map[string]struct{})
-	for uint64(len(preGeneratedSeries)) < cardinality {
-		currPayload, err := rdr.GetRawLog()
+	for i := uint64(0); i < cardinality; i++ {
+		currPayload, err := generateUniquePayload(rdr)
 		if err != nil {
-			log.Errorf("generatePredefinedSeries: failed to get raw log: %+v", err)
+			log.Errorf("generatePredefinedSeries: failed to generate unique payload: %+v", err)
 			return err
 		}
-		uniqueID := generateUniqueID(currPayload)
-		if _, exists := uniqueSeriesMap[uniqueID]; !exists {
-			preGeneratedSeries = append(preGeneratedSeries, currPayload)
-			uniqueSeriesMap[uniqueID] = struct{}{}
-		}
+		preGeneratedSeries[i] = currPayload
 	}
 	elapsed := time.Since(start)
-	log.Infof("Generated %d unique series in %v", len(uniqueSeriesMap), elapsed)
+	log.Infof("Generated %d unique series in %v", len(preGeneratedSeries), elapsed)
 	return nil
 }
 
-func generateBodyFromPredefinedSeries(recs int, seriesId *uint64) ([]byte, error) {
+func generateBodyFromPredefinedSeries(recs int, preGeneratedSeriesLength uint64) ([]byte, error) {
 	finalPayLoad := make([]interface{}, recs)
 	for i := 0; i < recs; i++ {
-		series := preGeneratedSeries[*seriesId%uint64(len(preGeneratedSeries))]
+		series := preGeneratedSeries[seriesId%preGeneratedSeriesLength]
 		finalPayLoad[i] = series
-		*seriesId++
 	}
 	retVal, err := json.Marshal(finalPayLoad)
 	if err != nil {
@@ -212,7 +224,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 	t.MaxIdleConns = 500
 	t.MaxConnsPerHost = 100
 	t.MaxIdleConnsPerHost = 100
-	seriesId := uint64(0)
+	preGeneratedSeriesLength := uint64(len(preGeneratedSeries))
 	client := &http.Client{
 		Timeout:   100 * time.Second,
 		Transport: t,
@@ -239,7 +251,8 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			bb = bytebufferpool.Get()
 		}
 		if iType == OpenTSDB {
-			payload, err = generateBodyFromPredefinedSeries(recsInBatch, &seriesId)
+			payload, err = generateBodyFromPredefinedSeries(recsInBatch, preGeneratedSeriesLength)
+			seriesId += uint64(recsInBatch)
 		} else {
 			payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
 		}
@@ -356,12 +369,8 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
-		if iType == OpenTSDB {
-			go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix, &totalSent, bearerToken, indexName, numIndices)
-		} else {
-			go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
-				&totalSent, bearerToken, indexName, numIndices)
-		}
+		go runIngestion(iType, reader, &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
+			&totalSent, bearerToken, indexName, numIndices)
 	}
 
 	go func() {
