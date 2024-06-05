@@ -571,7 +571,6 @@ function logOptionMultiHandler() {
             colDef.cellStyle = {'white-space': 'normal'};
             colDef.autoHeight = true;
             colDef.cellRenderer = function(params) {
-                console.log('params: ', params)
                 const logsDataArray = []
                 
                 const data = params.data
