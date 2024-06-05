@@ -634,7 +634,7 @@ function showToast(msg) {
     <div>`
     $('body').prepend(toast);
     $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 5000);
+    setTimeout(removeToast, 1000);
 }
 
 function removeToast() {
