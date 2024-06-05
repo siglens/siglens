@@ -273,6 +273,22 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.Aggregator.AggregatorFunction = segutils.Min
 	case "quantile":
 		mQuery.Aggregator.AggregatorFunction = segutils.Quantile
+	case "topk":
+		numberLiteral, ok := expr.Param.(*parser.NumberLiteral)
+		if !ok {
+			return nil, fmt.Errorf("handleAggregateExpr: topk contains invalid param: %v", expr.Param)
+		}
+		mQuery.Aggregator.AggregatorFunction = segutils.TopK
+		mQuery.Aggregator.FuncConstant = numberLiteral.Val
+		mQuery.GetAllLabels = true
+	case "bottomk":
+		numberLiteral, ok := expr.Param.(*parser.NumberLiteral)
+		if !ok {
+			return nil, fmt.Errorf("handleAggregateExpr: bottomk contains invalid param: %v", expr.Param)
+		}
+		mQuery.Aggregator.AggregatorFunction = segutils.BottomK
+		mQuery.Aggregator.FuncConstant = numberLiteral.Val
+		mQuery.GetAllLabels = true
 	case "":
 		log.Infof("handleAggregateExpr: using avg aggregator by default for AggregateExpr (got empty string)")
 		mQuery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
