@@ -175,6 +175,17 @@ $(document).ready(async () => {
     });
 
     $("#filter-input").on('input', autoResizeTextarea);
+
+    $("#logs-settings").click(function(){
+        event.stopPropagation();
+        $("#setting-container").fadeToggle("fast");
+    });
+    
+    $(document).click(function(event) {
+        if (!$(event.target).closest('#setting-container').length) {
+            $("#setting-container").hide();
+        }
+    });
 });
 function displayQueryLangToolTip(selectedQueryLangID) {
     $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();

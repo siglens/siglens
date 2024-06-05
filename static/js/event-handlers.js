@@ -257,6 +257,7 @@ function hideColumnHandler(evt, isCloseIcon = false) {
 
 function setQueryLangHandler(e) {
     $('.query-language-option').removeClass('active');
+    $("#setting-container").hide();
     let currentTab = $("#custom-code-tab").tabs("option", "active");
     let selectedQueryLanguageId = $(this).attr("id").split("-")[1];
     if (selectedQueryLanguageId !== "3" && currentTab === 0) {

@@ -850,6 +850,10 @@ div.show-record-popup {
 }
 #query-language-options{
     width: 93px;
-    padding: 5px;
+    padding: 0px;
     padding-top: 0px;
+    position: relative;
+    display: block;
+    font-size: 12px !important;
+    border: none;
 }

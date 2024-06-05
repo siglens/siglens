@@ -255,6 +255,7 @@
     --top-refresh-btn-bg-img: url("../assets/refresh-icon.svg");
     --new-tab-icon: url("../assets/new-tab-icon-dark.svg");
     --copy-icon: url("../assets/copy-icon-dark-mode.svg");
+    --top-setting-btn-bg-img: url("../assets/settings-icon.svg");
     --selected-index-container: var(--black-1);
 }
 
@@ -396,6 +397,7 @@
     --top-refresh-btn-bg-img: url("../assets/refreshy-icon.svg");
     --new-tab-icon: url("../assets/new-tab-icon-light.svg");
     --copy-icon: url("../assets/copy-icon.svg");
+    --top-setting-btn-bg-img: url("../assets/setting-icon.svg");
     --selected-index-container: var(--blue-1);
 }
 
@@ -1288,6 +1290,22 @@ progress.hidden {
     color: var(--button-text-color) !important;
 }
 
+#logs-settings{
+    position: relative;
+}
+
+#setting-container{
+    box-shadow: var(--box-shadow);
+    padding: 6px;
+    display: none;
+    position: absolute;
+    top: 50px;
+    border-radius: 5px;
+    z-index: 9;
+    font-size: 12px !important;
+    background: var(--index-drop-down-box-bg-color);
+    border: 1px solid var(--timepicker-border-color);
+}
 
 /* cluster stats start */
 
@@ -3000,21 +3018,20 @@ float: right;
     justify-content: center;
 }
 
-#save-db-btn img{
-    width: 20px;
-    height: 20px;
+.settings-btn{
+    width: 26px;
+    height: 26px !important;
+    margin-left: 10px;
+    cursor: pointer;
+    border: 1px solid var(--border-color-regular) !important;
+    background: var(--top-setting-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
+    background-size: 50% !important;
 }
 
-.settings-btn img{
-    width: 22px;
-    height: 22px;
+.settings-btn:hover{
+    background: var(--top-setting-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
+    background-size: 50% !important;
 }
-
-.refresh-btn img{
-    width: 22px;
-    height: 18px;
-}
-
 /*panel*/
 
 #panel-container {
