@@ -51,7 +51,6 @@ $(document).ready(function() {
     getFunctions();
 });
 
-
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
     $.each($(".range-item.active"), function () {
@@ -70,16 +69,8 @@ async function metricsExplorerDatePickerHandler(evt) {
    
     Object.keys(queries).forEach(async function(queryName) {
         var queryDetails = queries[queryName];
+        console.log('queries in daterange: ', queryDetails)
         await getQueryDetails(queryName, queryDetails);
-        const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
-        
-        queryDetails.everywhere = [];
-        queryDetails.everything = [];
-        availableEverywhere = tagsAndValue.availableEverywhere.sort();
-        availableEverything = tagsAndValue.availableEverything[0].sort();
-        const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
-        queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
-        queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
     });
 
     $('#daterangepicker').hide();
@@ -1166,6 +1157,7 @@ async function getMetricNames() {
 
 
 async function getMetricsData(queryName, metricName) {
+    console.log('metricName: ', metricName)
     const query = { name: queryName, query: `(${metricName})`, qlType: "promql" };
     const queries = [query];
     const formula = { formula: queryName };
@@ -1227,13 +1219,16 @@ function getTagKeyValue(metricName) {
 
 
 async function getQueryDetails(queryName, queryDetails){
+    console.log('queryDetails: ', queryDetails)
     const queryString = createQueryString(queryDetails);
+    console.log('queryString: ', queryString)
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData)
     addVisualizationContainer(queryName, chartData, queryString);
 }
 
 function createQueryString(queryObject) {
+    console.log('queryObject: ', queryObject)
     const { metrics, everywhere, everything, aggFunction, functions } = queryObject;
 
     const everywhereString = everywhere.map(tag => {
