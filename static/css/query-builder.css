@@ -724,11 +724,11 @@ div.show-record-popup {
 }
 #logs-view-controls {
     position: absolute;
-    left: 160px;
+    left: 155px;
     display: flex;
     justify-content: space-between;
     flex-direction: row;
-    width: calc(100% - 136px);
+    width: calc(100% - 130px);
 }
 #tabs-chart,
 #showTable{
