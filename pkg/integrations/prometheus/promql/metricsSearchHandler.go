@@ -901,13 +901,19 @@ func ReadJsonBody(ctx *fasthttp.RequestCtx) (map[string]interface{}, error) {
 	return jsonMap, nil
 }
 
-func ExtractFromJsonOrDefault(jsonMap map[string]interface{}, key string, defaultValue interface{}) interface{} {
+func ExtractFromJsonOrDefault[T any](jsonMap map[string]interface{}, key string, defaultValue T) T {
 	value, ok := jsonMap[key]
 	if !ok {
 		return defaultValue
 	}
 
-	return value
+	valueAsT, ok := value.(T)
+	if !ok {
+		log.Warnf("ExtractFromJsonOrDefault: key %v with value %v is of type %T, not of type %T", key, value, value, defaultValue)
+		return defaultValue
+	}
+
+	return valueAsT
 }
 
 // Tries to read the `key` from the top-level of `jsonMap`. The value should
@@ -932,7 +938,7 @@ func ExtractUnixOrAlphaTimeValue(jsonMap map[string]interface{}, key string) (ui
 
 		return epoch, nil
 	case string:
-		nowMillis := uint64(time.Now().Unix())
+		nowMillis := uint64(time.Now().UnixMilli())
 		epoch, _ := parseAlphaNumTime(nowMillis, v, nowMillis)
 		epoch /= 1000 // Convert to seconds
 		return epoch, nil
@@ -981,7 +987,8 @@ func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uin
 		return
 	}
 
-	querySummary := &summary.QuerySummary{}
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
 	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
 	if err != nil {
 		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
@@ -1036,9 +1043,10 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint6
 		return
 	}
 
-	limit := ExtractFromJsonOrDefault(jsonMap, "limit", uint64(10)).(uint64)
+	limit := uint64(ExtractFromJsonOrDefault(jsonMap, "limit", float64(10)))
 	noLimit := (limit == 0)
-	querySummary := &summary.QuerySummary{}
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
 	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
 	if err != nil {
 		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
@@ -1108,9 +1116,10 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint
 		return
 	}
 
-	limit := ExtractFromJsonOrDefault(jsonMap, "limit", uint64(10)).(uint64)
+	limit := uint64(ExtractFromJsonOrDefault(jsonMap, "limit", float64(10)))
 	noLimit := (limit == 0)
-	querySummary := &summary.QuerySummary{}
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
 	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
 	if err != nil {
 		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
@@ -1186,9 +1195,10 @@ func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint6
 		return
 	}
 
-	limit := ExtractFromJsonOrDefault(jsonMap, "limit", uint64(10)).(uint64)
+	limit := uint64(ExtractFromJsonOrDefault(jsonMap, "limit", float64(10)))
 	noLimit := (limit == 0)
-	querySummary := &summary.QuerySummary{}
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
 	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
 	if err != nil {
 		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)

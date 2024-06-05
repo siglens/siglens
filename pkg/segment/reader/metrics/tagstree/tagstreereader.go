@@ -49,7 +49,7 @@ Should expose functions that will return a list of tsids given a metric name and
 */
 type TagTreeReader struct {
 	fd          *os.File // file having all the tagstree info for a tag key
-	metadataBuf []byte   // consists of the meta data info for a given tag key
+	metadataBuf []byte   // consists of the meta data info for a given tag key; excludes the first 5 bytes (version and size)
 }
 
 func (ttr *TagTreeReader) Close() error {
@@ -75,10 +75,44 @@ func (attr *AllTagTreeReaders) getTagTreeFileInfoForTagKey(tagKey string) (bool,
 }
 
 func InitAllTagsTreeReader(tagsTreeBaseDir string) (*AllTagTreeReaders, error) {
-	return &AllTagTreeReaders{
+	// Each file in the base directory is a tag tree file. The file name is the
+	// tag key.
+	filesInDir, err := os.ReadDir(tagsTreeBaseDir)
+	if err != nil {
+		err = fmt.Errorf("InitAllTagsTreeReader: failed to read the base directory %s; err=%v", tagsTreeBaseDir, err)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	attr := &AllTagTreeReaders{
 		baseDir:  tagsTreeBaseDir,
 		tagTrees: make(map[string]*TagTreeReader),
-	}, nil
+	}
+
+	for _, file := range filesInDir {
+		if file.IsDir() {
+			log.Warnf("InitAllTagsTreeReader: found a directory %v in the base directory %s; skipping it", file.Name(), tagsTreeBaseDir)
+			continue
+		}
+
+		tagKey := file.Name()
+		fInfo, err := file.Info()
+		if err != nil {
+			err = fmt.Errorf("InitAllTagsTreeReader: failed to get file info for file %s; err=%v", tagKey, err)
+			log.Errorf(err.Error())
+			return nil, err
+		}
+
+		// This also inserts the tagTreeReader into the tagTrees map.
+		_, err = attr.InitTagsTreeReader(tagKey, fInfo)
+		if err != nil {
+			err = fmt.Errorf("InitAllTagsTreeReader: failed to initialize tag tree reader for tag key %s in base dir %v; err=%v", tagKey, tagsTreeBaseDir, err)
+			log.Errorf(err.Error())
+			return nil, err
+		}
+	}
+
+	return attr, nil
 }
 
 func (attr *AllTagTreeReaders) InitTagsTreeReader(tagKey string, fInfo fs.FileInfo) (*TagTreeReader, error) {
@@ -346,6 +380,7 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 				log.Errorf("TagTreeReader.GetMatchingTSIDs: unknown value type: %v, (treeOffset, len(tagTreeBuf)): (%v, %v)", tagRawValueType, treeOffset, len(tagTreeBuf))
 				return false, false, nil, 0, fmt.Errorf("unknown value type: %v", tagRawValueType)
 			}
+
 			tsidCount := utils.BytesToUint16LittleEndian(tagTreeBuf[treeOffset : treeOffset+2])
 			treeOffset += 2
 			if uint32(len(tagTreeBuf))-treeOffset < uint32(tsidCount*8) {
@@ -761,22 +796,9 @@ func (attr *AllTagTreeReaders) GetHashedMetricNames() (map[uint64]struct{}, erro
 // Refer to the comment above TagTree.encodeTagsTree() for how the metadata is
 // structured.
 func (ttr *TagTreeReader) getHashedMetricNames() (map[uint64]struct{}, error) {
-	tagsTreeVersion := ttr.metadataBuf[0]
-	if tagsTreeVersion != segutils.VERSION_TAGSTREE_1[0] {
-		log.Errorf("TagTreeReader.getHashedMetricNames: tags tree version %v is not supported", tagsTreeVersion)
-		return nil, fmt.Errorf("Invalid tags tree version")
-	}
-
-	metadataSize := utils.BytesToUint32LittleEndian(ttr.metadataBuf[1:5])
-	if metadataSize != uint32(len(ttr.metadataBuf)) {
-		log.Errorf("TagTreeReader.getHashedMetricNames: metadata expected size %v does not match actual size %v",
-			metadataSize, len(ttr.metadataBuf))
-		return nil, fmt.Errorf("Invalid metadata size: expected %v, got %v", metadataSize, len(ttr.metadataBuf))
-	}
-
 	hashedMetricNames := make(map[uint64]struct{})
-	index := uint32(5)
-	for index < metadataSize {
+	index := 0
+	for index < len(ttr.metadataBuf) {
 		hashedMetricName := utils.BytesToUint64LittleEndian(ttr.metadataBuf[index : index+8])
 		hashedMetricNames[hashedMetricName] = struct{}{}
 		index += 16 // 8 for the hashed metric name, 4 for the start offset, 4 for the end offset
