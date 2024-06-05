@@ -384,10 +384,10 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 	return true, true, rawTagValueToTSIDs, tagHashValue, nil
 }
 
-func (attr *AllTagTreeReaders) GetAllTagKeys() []string {
-	var tagKeys []string
+func (attr *AllTagTreeReaders) GetAllTagKeys() map[string]struct{} {
+	tagKeys := make(map[string]struct{})
 	for tagKey := range attr.tagTrees {
-		tagKeys = append(tagKeys, tagKey)
+		tagKeys[tagKey] = struct{}{}
 	}
 
 	return tagKeys

@@ -19,6 +19,7 @@ package utils
 
 import (
 	"math"
+	"time"
 )
 
 func round(num float64) int {
@@ -29,4 +30,8 @@ func round(num float64) int {
 func ToFixed(num float64, precision int) float64 {
 	output := math.Pow(10, float64(precision))
 	return float64(round(num*output)) / output
+}
+
+func EpochIsSeconds(epoch uint64) bool {
+	return epoch < uint64(time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC).Unix())
 }

@@ -19,6 +19,7 @@ package promql
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -36,6 +37,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
@@ -880,6 +882,139 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	}
 
 	return start, end, queries, formulas, errorLog, nil
+}
+
+func ReadJsonBody(ctx *fasthttp.RequestCtx) (map[string]interface{}, error) {
+	rawJson := ctx.PostBody()
+	if len(rawJson) == 0 {
+		return nil, nil
+	}
+
+	jsonMap := make(map[string]interface{})
+	err := json.Unmarshal(rawJson, &jsonMap)
+	if err != nil {
+		log.Errorf("ReadJsonBody: failed to unmarshal json body: %s; err=%v", err)
+		return nil, err
+	}
+
+	return jsonMap, nil
+}
+
+// Tries to read the `key` from the top-level of `jsonMap`. The value should
+// either be a unix epoch in seconds or a string like "now-1h".
+func ExtractUnixOrAlphaTimeValue(jsonMap map[string]interface{}, key string) (uint64, error) {
+	value, ok := jsonMap[key]
+	if !ok {
+		return 0, fmt.Errorf("ExtractUnixOrAlphaTimeValue: key %v not found in json: %v", key, jsonMap)
+	}
+
+	switch v := value.(type) {
+	case int:
+	case int32:
+	case int64:
+	case uint:
+	case uint32:
+	case uint64:
+		epoch := uint64(v)
+		if !utils.EpochIsSeconds(epoch) {
+			return 0, fmt.Errorf("ExtractUnixOrAlphaTimeValue: key %v with value %v is not a unix epoch in seconds", key, epoch)
+		}
+
+		return epoch, nil
+	case string:
+		nowMillis := uint64(time.Now().Unix())
+		epoch, _ := parseAlphaNumTime(nowMillis, v, nowMillis)
+		epoch /= 1000 // Convert to seconds
+		return epoch, nil
+	default:
+		return 0, fmt.Errorf("Value of key %s is not a number or string", key)
+	}
+
+	log.Errorf("ExtractUnixOrAlphaTimeValue: key %v with type %T and value %v failed to match a switch case", key, key, value)
+	return 0, fmt.Errorf("Unexpected type for key %v: %T", key, key)
+}
+
+func ExtractUnixOrAlphaTimeRange(jsonMap map[string]interface{}, startKey string, endKey string) (*dtu.MetricsTimeRange, error) {
+	start, err := ExtractUnixOrAlphaTimeValue(jsonMap, startKey)
+	if err != nil {
+		log.Errorf("ExtractUnixOrAlphaTimeRange: failed to extract start time %v from json %v; err=%v", startKey, jsonMap, err)
+		return nil, err
+	}
+
+	end, err := ExtractUnixOrAlphaTimeValue(jsonMap, endKey)
+	if err != nil {
+		log.Errorf("ExtractUnixOrAlphaTimeRange: failed to extract end time %v from json %v; err=%v", endKey, jsonMap, err)
+		return nil, err
+	}
+
+	if start >= end {
+		log.Errorf("ExtractUnixOrAlphaTimeRange: start time must be before end time; start=%v, end=%v", start, end)
+		return nil, fmt.Errorf("start time %v is not before end time %v", start, end)
+	}
+
+	return &dtu.MetricsTimeRange{
+		StartEpochSec: uint32(start),
+		EndEpochSec:   uint32(end),
+	}, nil
+}
+
+func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	jsonMap, err := ReadJsonBody(ctx)
+	if err != nil {
+		utils.SendError(ctx, "Failed to read request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		return
+	}
+
+	timeRange, err := ExtractUnixOrAlphaTimeRange(jsonMap, "startEpoch", "endEpoch")
+	if err != nil {
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("json: %v", jsonMap), err)
+		return
+	}
+
+	querySummary := &summary.QuerySummary{}
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
+		return
+	}
+
+	tagKeys := make(map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		tagKeys = utils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
+	}
+
+	allTsids := make(map[uint64]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		for tagKey := range tagKeys {
+			tsids, err := segmentTagTreeReader.GetTSIDsForKey(tagKey)
+			if err != nil {
+				utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v", tagKey), err)
+				return
+			}
+
+			allTsids = utils.MergeMaps(allTsids, tsids)
+		}
+	}
+
+	response := map[string]interface{}{
+		"seriesCardinality": uint64(len(allTsids)),
+	}
+
+	WriteJsonResponse(ctx, &response)
+	ctx.SetContentType(ContentJson)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+
+}
+
+func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+
+}
+
+func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+
 }
 
 func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
