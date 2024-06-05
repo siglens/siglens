@@ -206,7 +206,6 @@ const gridOptions = {
         sortAscending: '<i class="fa fa-sort-alpha-down"/>',
         sortDescending: '<i class="fa fa-sort-alpha-desc"/>',
       },
-      close: true,
     enableCellTextSelection: true,
     suppressScrollOnNewData: true,
     suppressAnimationFrame: true,
