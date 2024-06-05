@@ -142,6 +142,38 @@ func Test_dashboard_storage_methods(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func Test_parseUpdateDashboardRequest(t *testing.T) {
+	// Test with empty request
+	req := make(map[string]interface{})
+	_, _, _, err := parseUpdateDashboardRequest(req)
+	assert.NotNil(t, err)
+
+	// Test with invalid request
+	req["id"] = "122"
+	req["name"] = "Dashboard Name"
+	_, _, _, err = parseUpdateDashboardRequest(req)
+	assert.NotNil(t, err)
+
+	// Test with invalid request sending value other than string
+	req["id"] = 122
+	req["name"] = "Dashboard Name"
+	_, _, _, err = parseUpdateDashboardRequest(req)
+	assert.NotNil(t, err)
+
+	// Test with valid request
+	req["id"] = "dashboard-1"
+	req["name"] = "Dashboard"
+	req["details"] = make(map[string]interface{})
+	req["details"].(map[string]interface{})["description"] = "Dashboard type"
+	req["details"].(map[string]interface{})["note"] = "mydashboard"
+	id, name, details, err := parseUpdateDashboardRequest(req)
+	assert.Nil(t, err)
+	assert.Equal(t, "dashboard-1", id)
+	assert.Equal(t, "Dashboard", name)
+	assert.Equal(t, "Dashboard type", details["description"])
+	assert.Equal(t, "mydashboard", details["note"])
+}
+
 /*
 func Test_dashboard_storage_methods_multiple_orgs(t *testing.T) {
 	config.InitializeDefaultConfig()
