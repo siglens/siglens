@@ -18,6 +18,7 @@
 package query
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -87,6 +88,11 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 	mQuery.ReorderTagFilters()
 
+	if mQuery.MQueryAggs != nil {
+		mQuery.Aggregator = *mQuery.MQueryAggs.AggregatorBlock // The first Aggregation in the MQueryAggs is always a AggregatorBlock
+		mQuery.MQueryAggs = mQuery.MQueryAggs.Next
+	}
+
 	if mQuery.TagValueSearchOnly {
 		applyTagValuesSearchOnlyOnSegments(mQuery, mSegments, mRes, timeRange, qid, querySummary)
 		return mRes
@@ -107,6 +113,8 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 
+	mRes.MetricName = mQuery.MetricName
+
 	errors = mRes.AggregateResults(parallelism)
 	if errors != nil {
 		for _, err := range errors {
@@ -116,13 +124,34 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 
-	errors = mRes.ApplyFunctionsToResults(parallelism, mQuery.Function)
-	if errors != nil {
-		for _, err := range errors {
-			mRes.AddError(err)
+	for mQuery.MQueryAggs != nil {
+		if mQuery.MQueryAggs.AggBlockType == structs.FunctionBlock {
+			mQuery.Function = *mQuery.MQueryAggs.FunctionBlock
+			errors = mRes.ApplyFunctionsToResults(parallelism, mQuery.Function)
+			if errors != nil {
+				for _, err := range errors {
+					mRes.AddError(err)
+				}
+
+				return mRes
+			}
+		} else if mQuery.MQueryAggs.AggBlockType == structs.AggregatorBlock {
+			mQuery.Aggregator = *mQuery.MQueryAggs.AggregatorBlock
+			errors = mRes.ApplyAggregationToResults(parallelism, mQuery.Aggregator)
+			if errors != nil {
+				for _, err := range errors {
+					mRes.AddError(err)
+				}
+
+				return mRes
+			}
+		} else {
+			log.Errorf("ApplyMetricsQuery: Invalid AggBlockType: %v", mQuery.MQueryAggs.AggBlockType)
+			mRes.AddError(fmt.Errorf("invalid AggBlockType: %v", mQuery.MQueryAggs.AggBlockType))
+			return mRes
 		}
 
-		return mRes
+		mQuery.MQueryAggs = mQuery.MQueryAggs.Next
 	}
 
 	return mRes
