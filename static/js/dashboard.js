@@ -185,10 +185,11 @@ async function updateDashboard() {
                 $(".name-dashboard").text(dbName);
                 showToast('Dashboard Updated Successfully');
                 return true;
-            } else {
-                showToast('Error saving dashboard');
-                throw new Error('Error saving dashboard');
             }
+            return res.json().then(err => {
+                showToast(err.message);
+                throw new Error(err.message);
+            });
         })
         .catch(error => {
             console.error(error);
@@ -633,7 +634,7 @@ function showToast(msg) {
     <div>`
     $('body').prepend(toast);
     $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 1000);
+    setTimeout(removeToast, 5000);
 }
 
 function removeToast() {
