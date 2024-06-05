@@ -20,7 +20,6 @@ package segment
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
 	"time"
 
@@ -77,194 +76,259 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		}
 	}
 
-	return HelperQueryArithmeticAndLogical(queryOps, resMap)
+	return ProcessQueryArithmeticAndLogical(queryOps, resMap)
 }
 
-func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) *mresults.MetricsResult {
-	fmt.Println("HelperQueryArithmeticAndLogical: resMap: ", resMap)
-	finalResult := make(map[string]map[uint32]float64)
-	for _, queryOp := range queryOps {
-		resultLHS := resMap[queryOp.LHS]
-		resultRHS := resMap[queryOp.RHS]
-		swapped := false
-		if queryOp.ConstantOp {
-			resultLHS, ok := resMap[queryOp.LHS]
-			valueRHS := queryOp.Constant
-			if !ok { //this means the rhs is a vector result
-				swapped = true
-				resultLHS = resMap[queryOp.RHS]
+func ProcessQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) *mresults.MetricsResult {
+
+	if len(queryOps) > 1 {
+		log.Errorf("processQueryArithmeticAndLogical: len(queryOps) should be 1, but got %d", len(queryOps))
+		log.Errorf("processQueryArithmeticAndLogical: processing only the first queryOp")
+	}
+
+	operationCounter := 0
+
+	finalResult := processQueryArithmeticNodeOp(&queryOps[0], resMap, &operationCounter)
+
+	// delete all the intermediate results from the resMap
+	for id := range resMap {
+		delete(resMap, id)
+	}
+
+	return &mresults.MetricsResult{Results: finalResult, State: mresults.AGGREGATED}
+}
+
+func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, operationCounter *int) map[string]map[uint32]float64 {
+	if queryOp == nil {
+		return nil
+	}
+
+	if queryOp.LHSExpr != nil {
+		var metricName string
+		// process the LHS expression first
+		result := processQueryArithmeticNodeOp(queryOp.LHSExpr, resMap, operationCounter)
+		if len(result) > 0 {
+			for groupID := range result {
+				metricName = mresults.ExtractMetricNameFromGroupID(groupID)
+				break
 			}
-			if resultLHS == nil { // for the case where both LHS and RHS are constants
-				continue
-			}
-
-			for groupID, tsLHS := range resultLHS.Results {
-				finalResult[groupID] = make(map[uint32]float64)
-				for timestamp, valueLHS := range tsLHS {
-					switch queryOp.Operation {
-					case utils.LetAdd:
-						finalResult[groupID][timestamp] = valueLHS + valueRHS
-					case utils.LetDivide:
-						if valueRHS == 0 {
-							continue
-						}
-						if swapped {
-							valueRHS = 1 / valueRHS
-						}
-						finalResult[groupID][timestamp] = valueLHS / valueRHS
-					case utils.LetMultiply:
-						finalResult[groupID][timestamp] = valueLHS * valueRHS
-					case utils.LetSubtract:
-						val := valueLHS - valueRHS
-						if swapped {
-							val = val * -1
-						}
-						finalResult[groupID][timestamp] = val
-					case utils.LetModulo:
-						if swapped {
-							finalResult[groupID][timestamp] = math.Mod(valueRHS, valueLHS)
-						} else {
-							finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
-						}
-					case utils.LetPower:
-						if swapped {
-							finalResult[groupID][timestamp] = math.Pow(valueRHS, valueLHS)
-						} else {
-							finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
-						}
-					case utils.LetGreaterThan:
-						isGtr := valueLHS > valueRHS
-						if swapped {
-							isGtr = valueLHS < valueRHS
-						}
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isGtr, valueLHS)
-					case utils.LetGreaterThanOrEqualTo:
-						isGte := valueLHS >= valueRHS
-						if swapped {
-							isGte = valueLHS <= valueRHS
-						}
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isGte, valueLHS)
-					case utils.LetLessThan:
-						isLss := valueLHS < valueRHS
-						if swapped {
-							isLss = valueLHS > valueRHS
-						}
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isLss, valueLHS)
-					case utils.LetLessThanOrEqualTo:
-						isLte := valueLHS <= valueRHS
-						if swapped {
-							isLte = valueLHS >= valueRHS
-						}
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isLte, valueLHS)
-					case utils.LetEquals:
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS == valueRHS, valueLHS)
-					case utils.LetNotEquals:
-						setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS != valueRHS, valueLHS)
-					}
-				}
-			}
-
-		} else {
-			labelStrSet := make(map[string]struct{})
-			for lGroupID, tsLHS := range resultLHS.Results {
-				// lGroupId is like: metricName{key:value,...
-				// So, if we want to determine whether there are elements with the same labels in another metric, we need to appropriately modify the group ID.
-				rGroupID := ""
-				labelStr := ""
-				if len(lGroupID) >= len(resultLHS.MetricName) {
-					labelStr = lGroupID[len(resultLHS.MetricName):]
-					rGroupID = resultRHS.MetricName + labelStr
-				}
-
-				if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
-					labelStrSet[labelStr] = struct{}{}
-				}
-
-				// If 'and' operation cannot find a matching label set in the right vector, we should skip the current label set in the left vector.
-				// However, for the 'or', 'unless' we do not want to skip that.
-				if _, ok := resultRHS.Results[rGroupID]; !ok && queryOp.Operation != utils.LetOr && queryOp.Operation != utils.LetUnless {
-					continue
-				} //Entries for which no matching entry in the right-hand vector are dropped
-				finalResult[lGroupID] = make(map[uint32]float64)
-				for timestamp, valueLHS := range tsLHS {
-					valueRHS := resultRHS.Results[rGroupID][timestamp]
-					switch queryOp.Operation {
-					case utils.LetAdd:
-						finalResult[lGroupID][timestamp] = valueLHS + valueRHS
-					case utils.LetDivide:
-						if valueRHS == 0 {
-							continue
-						}
-						finalResult[lGroupID][timestamp] = valueLHS / valueRHS
-					case utils.LetMultiply:
-						finalResult[lGroupID][timestamp] = valueLHS * valueRHS
-					case utils.LetSubtract:
-						finalResult[lGroupID][timestamp] = valueLHS - valueRHS
-					case utils.LetModulo:
-						finalResult[lGroupID][timestamp] = math.Mod(valueLHS, valueRHS)
-					case utils.LetPower:
-						finalResult[lGroupID][timestamp] = math.Pow(valueLHS, valueRHS)
-					case utils.LetGreaterThan:
-						if valueLHS > valueRHS {
-							finalResult[lGroupID][timestamp] = valueLHS
-						}
-					case utils.LetGreaterThanOrEqualTo:
-						if valueLHS >= valueRHS {
-							finalResult[lGroupID][timestamp] = valueLHS
-						}
-					case utils.LetLessThan:
-						if valueLHS < valueRHS {
-							finalResult[lGroupID][timestamp] = valueLHS
-						}
-					case utils.LetLessThanOrEqualTo:
-						if valueLHS <= valueRHS {
-							finalResult[lGroupID][timestamp] = valueLHS
-						}
-					case utils.LetEquals:
-						if valueLHS == valueRHS {
-							finalResult[lGroupID][timestamp] = valueLHS
-						}
-					case utils.LetNotEquals:
-						if valueLHS != valueRHS {
-							finalResult[lGroupID][timestamp] = valueLHS
-						}
-					case utils.LetAnd:
-						finalResult[lGroupID][timestamp] = valueLHS
-					case utils.LetOr:
-						finalResult[lGroupID][timestamp] = valueLHS
-					case utils.LetUnless:
-						finalResult[lGroupID][timestamp] = valueLHS
-					}
-				}
-			}
-			if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
-				for rGroupID, tsRHS := range resultRHS.Results {
-					labelStr := ""
-					if len(rGroupID) >= len(resultRHS.MetricName) {
-						labelStr = rGroupID[len(resultRHS.MetricName):]
-					}
-
-					// For 'unless' op, all matching elements in both vectors are dropped
-					if queryOp.Operation == utils.LetUnless {
-						lGroupID := resultLHS.MetricName + labelStr
-						delete(finalResult, lGroupID)
-						continue
-					} else { // For 'or' op, check if the vector on the right has a label set that does not exist in the vector on the left.
-						_, exists := labelStrSet[labelStr]
-						// If exists, which means we already add that label set when traversing the resultLHS
-						if exists {
-							continue
-						}
-
-						finalResult[rGroupID] = make(map[uint32]float64)
-						for timestamp, valueRHS := range tsRHS {
-							finalResult[rGroupID][timestamp] = valueRHS
-						}
-					}
-				}
-			}
-
 		}
+		// generate a new LHS hash by adding the operation counter, that is incremented after each operation
+		newLHS := queryOp.LHS + uint64(*operationCounter)
+		// store the result of the LHS expression in the resMap.
+		// We cannot overwrite the LHS result in the resMap, as it may be used in other operations.
+		resMap[newLHS] = &mresults.MetricsResult{MetricName: metricName, Results: result, State: mresults.AGGREGATED}
+		// update the LHS of the current queryOp to the newLHS, so that the result of the LHS expression can be used in the current operation
+		queryOp.LHS = newLHS
+	}
+
+	if queryOp.RHSExpr != nil {
+		var metricName string
+		// process the RHS expression first
+		result := processQueryArithmeticNodeOp(queryOp.RHSExpr, resMap, operationCounter)
+		if len(result) > 0 {
+			for groupID := range result {
+				metricName = mresults.ExtractMetricNameFromGroupID(groupID)
+				break
+			}
+		}
+		// generate a new RHS hash by adding the operation counter, that is incremented after each operation
+		newRHS := queryOp.RHS + uint64(*operationCounter)
+		// store the result of the RHS expression in the resMap
+		// We cannot overwrite the RHS result in the resMap, as it may be used in other operations.
+		resMap[newRHS] = &mresults.MetricsResult{MetricName: metricName, Results: result, State: mresults.AGGREGATED}
+		// update the RHS of the current queryOp to the newRHS, so that the result of the RHS expression can be used in the current operation
+		queryOp.RHS = newRHS
+	}
+
+	*operationCounter++
+
+	return HelperQueryArithmeticAndLogical(queryOp, resMap)
+}
+
+func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) map[string]map[uint32]float64 {
+	finalResult := make(map[string]map[uint32]float64)
+
+	resultLHS := resMap[queryOp.LHS]
+	resultRHS := resMap[queryOp.RHS]
+	swapped := false
+	if queryOp.ConstantOp {
+		resultLHS, ok := resMap[queryOp.LHS]
+		valueRHS := queryOp.Constant
+		if !ok { //this means the rhs is a vector result
+			swapped = true
+			resultLHS = resMap[queryOp.RHS]
+		}
+		if resultLHS == nil { // for the case where both LHS and RHS are constants
+			return nil
+		}
+
+		for groupID, tsLHS := range resultLHS.Results {
+			finalResult[groupID] = make(map[uint32]float64)
+			for timestamp, valueLHS := range tsLHS {
+				switch queryOp.Operation {
+				case utils.LetAdd:
+					finalResult[groupID][timestamp] = valueLHS + valueRHS
+				case utils.LetDivide:
+					if valueRHS == 0 {
+						continue
+					}
+					if swapped {
+						valueRHS = 1 / valueRHS
+					}
+					finalResult[groupID][timestamp] = valueLHS / valueRHS
+				case utils.LetMultiply:
+					finalResult[groupID][timestamp] = valueLHS * valueRHS
+				case utils.LetSubtract:
+					val := valueLHS - valueRHS
+					if swapped {
+						val = val * -1
+					}
+					finalResult[groupID][timestamp] = val
+				case utils.LetModulo:
+					if swapped {
+						finalResult[groupID][timestamp] = math.Mod(valueRHS, valueLHS)
+					} else {
+						finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
+					}
+				case utils.LetPower:
+					if swapped {
+						finalResult[groupID][timestamp] = math.Pow(valueRHS, valueLHS)
+					} else {
+						finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
+					}
+				case utils.LetGreaterThan:
+					isGtr := valueLHS > valueRHS
+					if swapped {
+						isGtr = valueLHS < valueRHS
+					}
+					setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isGtr, valueLHS)
+				case utils.LetGreaterThanOrEqualTo:
+					isGte := valueLHS >= valueRHS
+					if swapped {
+						isGte = valueLHS <= valueRHS
+					}
+					setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isGte, valueLHS)
+				case utils.LetLessThan:
+					isLss := valueLHS < valueRHS
+					if swapped {
+						isLss = valueLHS > valueRHS
+					}
+					setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isLss, valueLHS)
+				case utils.LetLessThanOrEqualTo:
+					isLte := valueLHS <= valueRHS
+					if swapped {
+						isLte = valueLHS >= valueRHS
+					}
+					setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, isLte, valueLHS)
+				case utils.LetEquals:
+					setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS == valueRHS, valueLHS)
+				case utils.LetNotEquals:
+					setFinalRes(finalResult, groupID, timestamp, queryOp.ReturnBool, valueLHS != valueRHS, valueLHS)
+				}
+			}
+		}
+
+	} else {
+		labelStrSet := make(map[string]struct{})
+		for lGroupID, tsLHS := range resultLHS.Results {
+			// lGroupId is like: metricName{key:value,...
+			// So, if we want to determine whether there are elements with the same labels in another metric, we need to appropriately modify the group ID.
+			rGroupID := ""
+			labelStr := ""
+			if len(lGroupID) >= len(resultLHS.MetricName) {
+				labelStr = lGroupID[len(resultLHS.MetricName):]
+				rGroupID = resultRHS.MetricName + labelStr
+			}
+
+			if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
+				labelStrSet[labelStr] = struct{}{}
+			}
+
+			// If 'and' operation cannot find a matching label set in the right vector, we should skip the current label set in the left vector.
+			// However, for the 'or', 'unless' we do not want to skip that.
+			if _, ok := resultRHS.Results[rGroupID]; !ok && queryOp.Operation != utils.LetOr && queryOp.Operation != utils.LetUnless {
+				continue
+			} //Entries for which no matching entry in the right-hand vector are dropped
+			finalResult[lGroupID] = make(map[uint32]float64)
+			for timestamp, valueLHS := range tsLHS {
+				valueRHS := resultRHS.Results[rGroupID][timestamp]
+				switch queryOp.Operation {
+				case utils.LetAdd:
+					finalResult[lGroupID][timestamp] = valueLHS + valueRHS
+				case utils.LetDivide:
+					if valueRHS == 0 {
+						continue
+					}
+					finalResult[lGroupID][timestamp] = valueLHS / valueRHS
+				case utils.LetMultiply:
+					finalResult[lGroupID][timestamp] = valueLHS * valueRHS
+				case utils.LetSubtract:
+					finalResult[lGroupID][timestamp] = valueLHS - valueRHS
+				case utils.LetModulo:
+					finalResult[lGroupID][timestamp] = math.Mod(valueLHS, valueRHS)
+				case utils.LetPower:
+					finalResult[lGroupID][timestamp] = math.Pow(valueLHS, valueRHS)
+				case utils.LetGreaterThan:
+					if valueLHS > valueRHS {
+						finalResult[lGroupID][timestamp] = valueLHS
+					}
+				case utils.LetGreaterThanOrEqualTo:
+					if valueLHS >= valueRHS {
+						finalResult[lGroupID][timestamp] = valueLHS
+					}
+				case utils.LetLessThan:
+					if valueLHS < valueRHS {
+						finalResult[lGroupID][timestamp] = valueLHS
+					}
+				case utils.LetLessThanOrEqualTo:
+					if valueLHS <= valueRHS {
+						finalResult[lGroupID][timestamp] = valueLHS
+					}
+				case utils.LetEquals:
+					if valueLHS == valueRHS {
+						finalResult[lGroupID][timestamp] = valueLHS
+					}
+				case utils.LetNotEquals:
+					if valueLHS != valueRHS {
+						finalResult[lGroupID][timestamp] = valueLHS
+					}
+				case utils.LetAnd:
+					finalResult[lGroupID][timestamp] = valueLHS
+				case utils.LetOr:
+					finalResult[lGroupID][timestamp] = valueLHS
+				case utils.LetUnless:
+					finalResult[lGroupID][timestamp] = valueLHS
+				}
+			}
+		}
+		if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
+			for rGroupID, tsRHS := range resultRHS.Results {
+				labelStr := ""
+				if len(rGroupID) >= len(resultRHS.MetricName) {
+					labelStr = rGroupID[len(resultRHS.MetricName):]
+				}
+
+				// For 'unless' op, all matching elements in both vectors are dropped
+				if queryOp.Operation == utils.LetUnless {
+					lGroupID := resultLHS.MetricName + labelStr
+					delete(finalResult, lGroupID)
+					continue
+				} else { // For 'or' op, check if the vector on the right has a label set that does not exist in the vector on the left.
+					_, exists := labelStrSet[labelStr]
+					// If exists, which means we already add that label set when traversing the resultLHS
+					if exists {
+						continue
+					}
+
+					finalResult[rGroupID] = make(map[uint32]float64)
+					for timestamp, valueRHS := range tsRHS {
+						finalResult[rGroupID][timestamp] = valueRHS
+					}
+				}
+			}
+		}
+
 	}
 
 	if len(finalResult) == 0 {
@@ -277,11 +341,11 @@ func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap 
 				}
 			}
 		} else {
-			return &mresults.MetricsResult{ErrList: []error{errors.New("no results found")}}
+			return nil
 		}
 	}
 
-	return &mresults.MetricsResult{Results: finalResult, State: mresults.AGGREGATED}
+	return finalResult
 }
 
 func setFinalRes(finalResult map[string]map[uint32]float64, groupID string, timestamp uint32, returnBool bool, comparisonBool bool, val float64) {

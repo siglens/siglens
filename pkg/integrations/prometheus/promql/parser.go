@@ -112,8 +112,6 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*
 	mQuery.OrgId = myid
 	mQuery.PqlQueryType = pqlQuerytype
 	mQuery.QueryHash = xxhash.Sum64String(query)
-	fmt.Println("Query: ", query)
-	fmt.Println("QueryHash: ", mQuery.QueryHash)
 
 	intervalSeconds, err := mresults.CalculateInterval(endTime - startTime)
 	if err != nil {
@@ -566,6 +564,8 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 	arithmeticOperation := structs.QueryArithmetic{}
 	var lhsRequest, rhsRequest []*structs.MetricsQueryRequest
 	var lhsQueryArth, rhsQueryArth []*structs.QueryArithmetic
+	lhsIsVector := false
+	rhsIsVector := false
 
 	if constant, ok := expr.LHS.(*parser.NumberLiteral); ok {
 		arithmeticOperation.ConstantOp = true
@@ -580,6 +580,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		if len(lhsQueryArth) > 0 {
 			arithmeticOperation.LHSExpr = lhsQueryArth[0]
 		}
+		lhsIsVector = true
 	}
 
 	if constant, ok := expr.RHS.(*parser.NumberLiteral); ok {
@@ -595,6 +596,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		if len(rhsQueryArth) > 0 {
 			arithmeticOperation.RHSExpr = rhsQueryArth[0]
 		}
+		rhsIsVector = true
 	}
 	arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
 	arithmeticOperation.ReturnBool = expr.ReturnBool
@@ -612,6 +614,14 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		mQueryReqs = append(mQueryReqs, lhsRequest...)
 	}
 	mQueryReqs = append(mQueryReqs, rhsRequest...)
+
+	// Mathematical operations between two vectors occur when their label sets match, so it is necessary to retrieve all label sets from the vectors.
+	// Logical operations also require checking whether the label sets between the vectors match
+	if isLogicalOperator(expr.Op) || (lhsIsVector && rhsIsVector) {
+		for i := 0; i < len(mQueryReqs); i++ {
+			mQueryReqs[i].MetricsQuery.GetAllLabels = true
+		}
+	}
 
 	return mQueryReqs, queryArithmetic, nil
 }
