@@ -546,7 +546,15 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 	mQuery := &mQueryReqs[0].MetricsQuery
 	mQuery.HashedMName = xxhash.Sum64String(mQuery.MetricName)
 	mQuery.SelectAllSeries = true
+
+	// Use the innermost aggregator of the query as the aggregator for the downsampler
 	agg := structs.Aggregation{AggregatorFunction: segutils.Avg}
+	if mQuery.MQueryAggs != nil && mQuery.MQueryAggs.AggregatorBlock != nil {
+		agg.AggregatorFunction = mQuery.MQueryAggs.AggregatorBlock.AggregatorFunction
+		agg.FuncConstant = mQuery.MQueryAggs.AggregatorBlock.FuncConstant
+		agg.GroupByFields = mQuery.MQueryAggs.AggregatorBlock.GroupByFields
+	}
+
 	mQuery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
 
 	if len(mQuery.TagsFilters) > 0 {
