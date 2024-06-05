@@ -725,7 +725,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPqlToMetricsQuery(finalSearchText, start, end, myid)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := convertPromQLToMetricsQuery(finalSearchText, start, end, myid)
 	if err != nil {
 		utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, finalSearchText), err)
 		return
@@ -1178,6 +1178,8 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		arithmeticOperation := structs.QueryArithmetic{}
 		var lhsValType, rhsValType parser.ValueType
 		var lhsRequest, rhsRequest []structs.MetricsQueryRequest
+		lhsIsVector := false
+		rhsIsVector := false
 		if constant, ok := expr.LHS.(*parser.NumberLiteral); ok {
 			arithmeticOperation.ConstantOp = true
 			arithmeticOperation.Constant = constant.Val
@@ -1187,7 +1189,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
 			}
 			arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.HashedMName
-
+			lhsIsVector = true
 		}
 
 		if constant, ok := expr.RHS.(*parser.NumberLiteral); ok {
@@ -1199,14 +1201,22 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
 			}
 			arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.HashedMName
-
+			rhsIsVector = true
 		}
 		arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
 		arithmeticOperation.ReturnBool = expr.ReturnBool
 		if rhsValType == parser.ValueTypeVector {
 			lhsValType = parser.ValueTypeVector
 		}
-		return append(lhsRequest, rhsRequest...), lhsValType, []structs.QueryArithmetic{arithmeticOperation}, nil
+		req := append(lhsRequest, rhsRequest...)
+		// Mathematical operations between two vectors occur when their label sets match, so it is necessary to retrieve all label sets from the vectors.
+		// Logical operations also require checking whether the label sets between the vectors match
+		if isLogicalOperator(expr.Op) || (lhsIsVector && rhsIsVector) {
+			for i := 0; i < len(req); i++ {
+				req[i].MetricsQuery.GetAllLabels = true
+			}
+		}
+		return req, lhsValType, []structs.QueryArithmetic{arithmeticOperation}, nil
 	case *parser.ParenExpr:
 		return ConvertPqlToMetricsQuery(expr.Expr.String(), startTime, endTime, myid)
 	default:
@@ -1280,9 +1290,28 @@ func getLogicalAndArithmeticOperation(op parser.ItemType) segutils.LogicalAndAri
 		return segutils.LetEquals
 	case parser.NEQ:
 		return segutils.LetNotEquals
+	case parser.LAND:
+		return segutils.LetAnd
+	case parser.LOR:
+		return segutils.LetOr
+	case parser.LUNLESS:
+		return segutils.LetUnless
 	default:
 		log.Errorf("getArithmeticOperation: unexpected op: %v", op)
 		return 0
+	}
+}
+
+func isLogicalOperator(op parser.ItemType) bool {
+	switch op {
+	case parser.LAND:
+		return true
+	case parser.LOR:
+		return true
+	case parser.LUNLESS:
+		return true
+	default:
+		return false
 	}
 }
 
