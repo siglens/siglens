@@ -262,15 +262,40 @@ function setQueryLangHandler(e) {
     let selectedQueryLanguageId = $(this).attr("id").split("-")[1];
     if (selectedQueryLanguageId !== "3" && currentTab === 0) {
         $("#custom-code-tab").tabs("option", "active", 1);
-        $("#custom-code-tab").tabs("option", "disabled", [0]);
+        showDisabledTabTooltip();
+        $('#ui-id-1').addClass('disabled-tab')
+        
     } else if (selectedQueryLanguageId !== "3" && currentTab === 1) {
-        $("#custom-code-tab").tabs("option", "disabled", [0]);
+        showDisabledTabTooltip();
+        $('#ui-id-1').addClass('disabled-tab')
+
     } else if (selectedQueryLanguageId === "3" && currentTab === 1) {
         $("#custom-code-tab").tabs("option", "disabled", []);
+        hideDisabledTabTooltip();
+        $('#ui-id-1').removeClass('disabled-tab')
+
     }
     $('#query-language-btn span').html($(this).html());
     displayQueryLangToolTip(selectedQueryLanguageId);
     $(this).addClass('active');
+}
+
+function showDisabledTabTooltip() {
+    hideDisabledTabTooltip();
+    tippy('#tab-title1', {
+        content: 'Builder is only available for Splunk QL. Please change the settings to select Splunk QL in order to use the builder.',
+        placement: 'top',
+        arrow: true,
+        trigger: 'mouseenter focus',
+    });
+}
+
+function hideDisabledTabTooltip() {
+    document.querySelectorAll('#tab-title1').forEach(function(el) {
+        if (el._tippy) {
+            el._tippy.destroy();
+        }
+    });
 }
 
 function qLangOnShowHandler() {

@@ -435,6 +435,7 @@ a:visited.ui-button,
 .ui-tabs .ui-tabs-nav .ui-state-active {
     background: var(--tab-active-background) !important;
     border: 1px solid var(--purple-1) !important;
+    cursor: pointer;
 }
 
 .ui-state-active a,
@@ -465,6 +466,11 @@ a:visited.ui-button,
 .ui-tabs .ui-tabs-nav .ui-tabs-anchor{
     padding: 2px 5px;
     outline: none;
+}
+
+.disabled-tab {
+    pointer-events: none;
+    opacity: 0.5;
 }
 
 #index-btn,

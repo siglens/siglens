@@ -5267,29 +5267,52 @@ input.form-control {
     padding: 0px 2px;
     font-size: 14px;
     flex-grow: 1;
-  }
-  .index-container .selected-index{
+}
+.index-container .selected-index{
     color: var(--text-color);
     padding: 4px 28px 4px 7px;
     margin-left: 4px;
     white-space: nowrap;
     position: relative;
     background-color: var(--selected-index-container);
-  }
-  .index-container .selected-index .remove-icon {
+}
+.index-container .selected-index .remove-icon {
     font-size: 22px;
     font-weight: bold;
     position: absolute;
     top: -3px;
     right: 8px;
     cursor: pointer;
-  }
-  #index-listing{
+}
+#index-listing{
     border: none;
     height: 28px;
     padding: 0px !important;
-  }
-  #index-listing:focus{
+}
+#index-listing:focus{
     outline: none;
     background: var(--ui-widget-bg-color);
-  }
+}
+
+/* Tippy.js Tooltip  */
+.tippy-box{
+    background-color: var(--side-nav-bg-color-regular);
+    font-size: 14px;
+    box-shadow: var(--box-shadow);
+}
+
+.tippy-box[data-placement^='top'] > .tippy-arrow::before {
+    border-top-color:var(--side-nav-bg-color-regular);
+}
+
+.tippy-box[data-placement^='bottom'] > .tippy-arrow::before {
+    border-bottom-color:var(--side-nav-bg-color-regular);
+}
+
+.tippy-box[data-placement^='left'] > .tippy-arrow::before {
+    border-left-color:var(--side-nav-bg-color-regular);
+}
+
+.tippy-box[data-placement^='right'] > .tippy-arrow::before {
+    border-right-color:var(--side-nav-bg-color-regular);
+}
