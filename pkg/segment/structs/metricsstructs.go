@@ -21,6 +21,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"sort"
 	"sync/atomic"
 
 	parser "github.com/prometheus/prometheus/promql/parser"
@@ -54,12 +55,14 @@ type MetricsQuery struct {
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
 	TagValueSearchOnly  bool // flag to search only tag values
+	GetAllLabels        bool // flag to get all label sets for each time series
 	Groupby             bool // flag to group by tags
 }
 
 type Aggregation struct {
 	AggregatorFunction utils.AggregateFunctions //aggregator function
 	FuncConstant       float64
+	GroupByFields      []string // group by fields will be sorted
 }
 
 type Function struct {
@@ -101,6 +104,7 @@ type TagsFilter struct {
 	HashTagValue    uint64
 	TagOperator     utils.TagOperator
 	LogicalOperator utils.LogicalOperator
+	NotInitialGroup bool
 }
 
 type MetricsQueryResponse struct {
@@ -250,6 +254,13 @@ func (mq *MetricsQuery) ReorderTagFilters() {
 	if mq.reordered {
 		return
 	}
+
+	// For arithmetic and logical operations, we use groupIDStr to check if there are exactly matching label sets between two vectors
+	// However, for different vectors, since the groupID string is concatenated from tag key-value pairs, we cannot guarantee the order of concatenation.
+	// Therefore, We can sort tagsFilter in advance to ensure that the tags are concatenated in lexicographical order.
+	sort.Slice(mq.TagsFilters, func(i, j int) bool {
+		return mq.TagsFilters[i].TagKey < mq.TagsFilters[j].TagKey
+	})
 
 	queriedTagKeys := make(map[string]TagValueIndex, len(mq.TagsFilters))
 
