@@ -388,7 +388,7 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 	}
 	_, ok := allDashboards[id]
 	if !ok {
-		log.Errorf("updateDashboard: Dashboard id %v does not exis, dname: %v", id, dName)
+		log.Errorf("updateDashboard: Dashboard id %v does not exist, dname: %v", id, dName)
 		return errors.New("updateDashboard: Dashboard id does not exist")
 	}
 
