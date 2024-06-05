@@ -100,11 +100,12 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 				finalResult[groupID][timestamp] = 1
 				return
 			}
-			// If the comparison occurs between a vector and a constant, we need to retain its value no matter which side the vector is on as long as the expression holds
+			// For a constant and a vector, we only swapped it when vector is in the right side in the original query
 			if queryOp.ConstantOp && swapped {
 				finalResult[groupID][timestamp] = valueRHS
+			} else {
+				finalResult[groupID][timestamp] = valueLHS
 			}
-			finalResult[groupID][timestamp] = valueLHS
 		}
 	case utils.LetGreaterThanOrEqualTo:
 		isGte := valueLHS >= valueRHS
@@ -115,8 +116,9 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 			}
 			if queryOp.ConstantOp && swapped {
 				finalResult[groupID][timestamp] = valueRHS
+			} else {
+				finalResult[groupID][timestamp] = valueLHS
 			}
-			finalResult[groupID][timestamp] = valueLHS
 		}
 	case utils.LetLessThan:
 		isLss := valueLHS < valueRHS
@@ -127,8 +129,9 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 			}
 			if queryOp.ConstantOp && swapped {
 				finalResult[groupID][timestamp] = valueRHS
+			} else {
+				finalResult[groupID][timestamp] = valueLHS
 			}
-			finalResult[groupID][timestamp] = valueLHS
 		}
 	case utils.LetLessThanOrEqualTo:
 		isLte := valueLHS <= valueRHS
@@ -139,8 +142,9 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 			}
 			if queryOp.ConstantOp && swapped {
 				finalResult[groupID][timestamp] = valueRHS
+			} else {
+				finalResult[groupID][timestamp] = valueLHS
 			}
-			finalResult[groupID][timestamp] = valueLHS
 		}
 	case utils.LetEquals:
 		if valueLHS == valueRHS {
