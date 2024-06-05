@@ -32,7 +32,10 @@
     --code-input-box-color: var(--black-1);
     --qb-input-box-color: var(--black-2);
     --qb-box-bg: var(--black-1);
-    --selected-filter: #2D69BC;
+    --selected-filter-yellow: rgb(102, 72, 17);
+    --selected-filter-blue: rgb(10, 42, 105);
+    --selected-filter-red: rgb(102, 0, 61);
+    --cross-button: var(--white-0);
     }
 
 [data-theme='light'] {
@@ -46,7 +49,10 @@
     --code-input-box-color: var(--white-1);
     --qb-input-box-color: var(--white-1);
     --qb-box-bg: var(--white-0);
-    --selected-filter: var(--blue-1);
+    --selected-filter-blue: var(--blue-1);
+    --selected-filter-yellow: #FFFFCC;
+    --selected-filter-red: #FBE7F4;
+    --cross-button: var(--purple-3);
     }
 #query-language-btn{
     margin-left: 0px;
@@ -166,10 +172,11 @@ input.form-control {
 
 .delete-button {
     border: none;
-    color: var(--purple-3);
+    color: var(--cross-button);
     background: none;
-    font-size: 18px !important;
-    margin-left: 2px;
+    font-size: 22px !important;
+    margin-left: 3px;
+    margin-bottom: 2px;
 }
 
 .display-rule {
@@ -828,15 +835,15 @@ div.show-record-popup {
     border-radius: 5px 0 0 5px;
 }
 #filter-box-1 li{
-    background-color: #FFFFCC;
+    background-color: var(--selected-filter-yellow);
 }
 
 #filter-box-2 li{
-    background-color: var(--selected-filter);
+    background-color: var(--selected-filter-blue);
 }
 
 #filter-box-3 li{
-    background-color: #FBE7F4;
+    background-color: var(--selected-filter-red);
 }
 #initial-response{
     width: 100%;
