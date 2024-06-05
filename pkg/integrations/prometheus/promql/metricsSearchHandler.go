@@ -1078,15 +1078,91 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint6
 		seriesCounts = seriesCounts[:limit]
 	}
 
-	response := responseStruct{}
-	response.TagKeys = seriesCounts
+	response := responseStruct{
+		TagKeys: seriesCounts,
+	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, &response)
 }
 
 func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	type tagPairSeriesCount struct {
+		Key       string `json:"key"`
+		Value     string `json:"value"`
+		NumSeries uint64 `json:"numSeries"`
+	}
+	type responseStruct struct {
+		TagPairs []tagPairSeriesCount `json:"tagPairs"`
+	}
 
+	jsonMap, err := ReadJsonBody(ctx)
+	if err != nil {
+		utils.SendError(ctx, "Failed to read request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		return
+	}
+
+	timeRange, err := ExtractUnixOrAlphaTimeRange(jsonMap, "startEpoch", "endEpoch")
+	if err != nil {
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("json: %v", jsonMap), err)
+		return
+	}
+
+	limit := ExtractFromJsonOrDefault(jsonMap, "limit", uint64(10)).(uint64)
+	noLimit := (limit == 0)
+	querySummary := &summary.QuerySummary{}
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
+		return
+	}
+
+	tagPairs := make(map[string]map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		segmentTagPairs := segmentTagTreeReader.GetAllTagPairs()
+		for key, valueSet := range segmentTagPairs {
+			if _, ok := tagPairs[key]; !ok {
+				tagPairs[key] = valueSet
+			} else {
+				tagPairs[key] = utils.MergeMaps(tagPairs[key], valueSet)
+			}
+		}
+	}
+
+	seriesCounts := make([]tagPairSeriesCount, 0)
+	for key, valueSet := range tagPairs {
+		for value := range valueSet {
+			for _, segmentTagTreeReader := range tagsTreeReaders {
+				tsids, err := segmentTagTreeReader.GetTSIDsForTagPair(key, value)
+				if err != nil {
+					utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v and value %v", key, value), err)
+					return
+				}
+
+				keyAndCount := tagPairSeriesCount{
+					Key:       key,
+					Value:     value,
+					NumSeries: uint64(len(tsids)),
+				}
+				seriesCounts = append(seriesCounts, keyAndCount)
+			}
+		}
+	}
+
+	sort.Slice(seriesCounts, func(i, j int) bool {
+		return seriesCounts[i].NumSeries > seriesCounts[j].NumSeries
+	})
+
+	if !noLimit && limit < uint64(len(seriesCounts)) {
+		seriesCounts = seriesCounts[:limit]
+	}
+
+	response := responseStruct{
+		TagPairs: seriesCounts,
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, &response)
 }
 
 func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
