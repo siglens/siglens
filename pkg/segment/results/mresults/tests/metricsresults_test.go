@@ -1372,4 +1372,10 @@ func Test_ExtractMatchingLabelSet(t *testing.T) {
 
 	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"color", "car_type"}, false)
 	assert.Equal(t, "model:model1,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{}, false)
+	assert.Equal(t, "car_type:compact,color:green,model:model1,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"abc"}, false)
+	assert.Equal(t, "car_type:compact,color:green,model:model1,", resStr)
 }

@@ -181,9 +181,9 @@ func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[
 }
 
 // This method will return uniuqe tag key value pair combination str, we refer it as labelStr.
-// If matchingLabels = [tag1], groupIDStr = "metricName{tag1:val1,tag2:val2,tag3:val3}""
-// When includeColumns is true, extract labels and generate labelStr from matchingLabels based on the previous groupIDStr. The result is {tag1:val1}
-// Otherwise, exclude the labels, so the result is {tag2:val2,tag3:val3}
+// If matchingLabels = [tag1], groupIDStr = "metricName{tag1:val1,tag2:val2,tag3:val3}"
+// When includeColumns is true, extract labels and generate labelStr from matchingLabels based on the previous groupIDStr. The result is "tag1:val1,"
+// Otherwise, exclude the labels, so the result is "tag2:val2,tag3:val3,"
 func ExtractMatchingLabelSet(groupIDStr string, matchingLabels []string, includeColumns bool) string {
 
 	labelKeysToValuesMap := make(map[string]string)
