@@ -351,9 +351,11 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 		startOff = utils.BytesToUint32LittleEndian(ttr.metadataBuf[id : id+4])
 		id += 4
 		endOff = utils.BytesToUint32LittleEndian(ttr.metadataBuf[id : id+4])
+
 		tagTreeBuf := make([]byte, endOff-startOff)
 		_, err := ttr.fd.ReadAt(tagTreeBuf, int64(startOff))
 		if err != nil {
+			log.Errorf("TagTreeReader.GetMatchingTSIDs: failed to read tagtree buffer with startOffset %v and endOffset %v; err=%+v", startOff, endOff, err)
 			return false, false, nil, 0, err
 		}
 		treeOffset := uint32(0)
@@ -377,13 +379,14 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 				rawTagValue = tagTreeBuf[treeOffset : treeOffset+8]
 				treeOffset += 8
 			} else {
-				log.Errorf("TagTreeReader.GetMatchingTSIDs: unknown value type: %v, (treeOffset, len(tagTreeBuf)): (%v, %v)", tagRawValueType, treeOffset, len(tagTreeBuf))
+				log.Errorf("TagTreeReader.GetMatchingTSIDs: unknown value type: %v, (treeOffset, len(tagTreeBuf)): (%v, %v), file name: %v, startOffset: %v",
+					tagRawValueType, treeOffset, len(tagTreeBuf), ttr.fd.Name(), startOff)
 				return false, false, nil, 0, fmt.Errorf("unknown value type: %v", tagRawValueType)
 			}
 
-			tsidCount := utils.BytesToUint16LittleEndian(tagTreeBuf[treeOffset : treeOffset+2])
+			tsidCount := uint32(utils.BytesToUint16LittleEndian(tagTreeBuf[treeOffset : treeOffset+2]))
 			treeOffset += 2
-			if uint32(len(tagTreeBuf))-treeOffset < uint32(tsidCount*8) {
+			if uint32(len(tagTreeBuf))-treeOffset < tsidCount*8 {
 				// not enough bytes left in tagTreeBuf for tsidCount TSIDs
 				log.Errorf("GetMatchingTSIDs: unexpected lack of space for %v TSIDs", tsidCount)
 				break
@@ -394,7 +397,7 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 				valueAsStr := string(rawTagValue)
 				rawTagValueToTSIDs[valueAsStr] = make(map[uint64]struct{})
 
-				for i := uint32(0); i < uint32(tsidCount); i++ {
+				for i := uint32(0); i < tsidCount; i++ {
 					tsid := utils.BytesToUint64LittleEndian(tagTreeBuf[treeOffset : treeOffset+8])
 					rawTagValueToTSIDs[valueAsStr][tsid] = struct{}{}
 
@@ -402,7 +405,7 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 				}
 			}
 			if mightMatchOtherValue && !matchesThis {
-				treeOffset += uint32(tsidCount * 8)
+				treeOffset += tsidCount * 8
 			} else if !mightMatchOtherValue {
 				break
 			}
@@ -601,13 +604,13 @@ func (tvi *TagValueIterator) Next() (uint64, []byte, map[uint64]struct{}, []byte
 		} else {
 			log.Errorf("TagValueIterator.Next: unknown value type: %v", tagRawValueType)
 		}
-		tsidCount := utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2])
+		tsidCount := uint32(utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2]))
 		tvi.treeOffset += 2
-		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < uint32(tsidCount*8) {
+		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < tsidCount*8 {
 			// not enough bytes left in tagTreeBuf for all TSIDs
 			return 0, nil, nil, nil, false
 		}
-		for i := uint16(0); i < tsidCount; i++ {
+		for i := uint32(0); i < tsidCount; i++ {
 			tsid := utils.BytesToUint64LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8])
 			tvi.treeOffset += 8
 			matchingTSIDs[tsid] = struct{}{}
@@ -762,15 +765,15 @@ func (tvi *TagValueIterator) NextTagValue() ([]byte, []byte, bool) {
 			return nil, nil, false
 
 		}
-		tsidCount := utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2])
+		tsidCount := uint32(utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2]))
 		tvi.treeOffset += 2
-		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < uint32(tsidCount*8) {
+		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < tsidCount*8 {
 			// not enough bytes left in tagTreeBuf for all TSIDs
 			return nil, nil, false
 		}
 
 		// we don't need the tsids
-		tvi.treeOffset += uint32(8 * tsidCount)
+		tvi.treeOffset += 8 * tsidCount
 		if tsidCount > 0 {
 			return tagValue, tagRawValueType, true
 		}
