@@ -720,6 +720,7 @@ div.show-record-popup {
     width: 150px;
     position: absolute;
     background-color: var(--myOrg-input);
+    margin-left: -5px !important; 
 }
 #logs-view-controls {
     position: absolute;
