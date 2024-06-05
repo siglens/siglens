@@ -598,6 +598,7 @@ func BitwiseXOr(left interface{}, right interface{}) (interface{}, error) {
 // todo: better wildcard comparison
 func ReplaceWildcardStarWithRegex(input string) string {
 	var result strings.Builder
+	result.WriteString("^") // Start of string
 	for i, literal := range strings.Split(input, "*") {
 
 		// Replace * with .*
@@ -609,6 +610,8 @@ func ReplaceWildcardStarWithRegex(input string) string {
 		// literal text.
 		result.WriteString(regexp.QuoteMeta(literal))
 	}
+	result.WriteString("$") // End of string
+
 	return result.String()
 }
 
