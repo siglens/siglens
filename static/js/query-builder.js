@@ -299,7 +299,7 @@ async function ThirdFilterStart(evt) {
         }
         if(thirdBoxSet.size > 0) $("#aggregations").hide();
         else $("#aggregations").show();
-        $("#column-third").focus();
+        ThirdCancelInfo(event);
         return false;
       },
     })
