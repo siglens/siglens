@@ -355,7 +355,7 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 		tagTreeBuf := make([]byte, endOff-startOff)
 		_, err := ttr.fd.ReadAt(tagTreeBuf, int64(startOff))
 		if err != nil {
-			log.Errorf("TagTreeReader.GetMatchingTSIDs: failed to read tagtree buffer with startOffset %v and endOffset %v; err=%+v", startOff, endOff, err)
+			log.Errorf("TagTreeReader.GetMatchingTSIDs: failed to read tagtree buffer for %v with startOffset %v and endOffset %v; err=%+v", ttr.fd.Name(), startOff, endOff, err)
 			return false, false, nil, 0, err
 		}
 		treeOffset := uint32(0)
@@ -447,7 +447,7 @@ func (attr *AllTagTreeReaders) GetAllTagPairs() map[string]map[string]struct{} {
 func (attr *AllTagTreeReaders) GetTSIDsForKey(tagKey string) (map[uint64]struct{}, error) {
 	ttr, ok := attr.tagTrees[tagKey]
 	if !ok {
-		return nil, fmt.Errorf("AllTagTreeReaders.GetTSIDsForKey: tag key %v not found", tagKey)
+		return nil, nil
 	}
 
 	allTSIDs := make(map[uint64]struct{})
