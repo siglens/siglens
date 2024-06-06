@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	"github.com/siglens/siglens/pkg/segment"
 	mresults "github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -927,23 +928,17 @@ func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
-	_, err := tsGroupId.Write([]byte("color:yellow"))
-	assert.NoError(t, err)
-	series := mresults.InitSeriesHolder(mQuery, tsGroupId)
+	addSerieToMetricRes(t, metricsResults, mQuery, initialEntries, tsGroupId, "color:yellow", uint64(101))
 
-	for timestamp, val := range initialEntries {
-		series.AddEntry(timestamp, val)
-	}
-
-	metricsResults.AddSeries(series, uint64(100), tsGroupId)
 	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
 
 	errors := metricsResults.AggregateResults(1)
 	assert.Nil(t, errors)
 
-	res := segment.HelperQueryArithmeticAndLogical(queryOps, map[uint64]*mresults.MetricsResult{
+	res, err := segment.HelperQueryArithmeticAndLogical(queryOps, map[uint64]*mresults.MetricsResult{
 		1: metricsResults,
 	})
+	assert.Nil(t, err)
 	assert.Len(t, res.Results, 1)
 	for _, resMap := range res.Results {
 		assert.Equal(t, len(ansMap), len(resMap))
@@ -1131,7 +1126,8 @@ func initialize_Metric_Results(t *testing.T, initialEntries1 map[uint32]float64,
 
 func test_GetResults_LogicalAndVectorMatchingOps(t *testing.T, initialEntries1 map[uint32]float64, initialEntries2 map[uint32]float64, labelStrs1 []string, labelStrs2 []string, ansMap map[string]map[uint32]float64, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler) {
 
-	res := segment.HelperQueryArithmeticAndLogical(queryOps, initialize_Metric_Results(t, initialEntries1, initialEntries2, labelStrs1, labelStrs2, queryOps, downsampler))
+	res, err := segment.HelperQueryArithmeticAndLogical(queryOps, initialize_Metric_Results(t, initialEntries1, initialEntries2, labelStrs1, labelStrs2, queryOps, downsampler))
+	assert.Nil(t, err)
 	assert.Equal(t, len(ansMap), len(res.Results))
 	for groupId, resMap := range res.Results {
 
@@ -1155,6 +1151,192 @@ func test_GetResults_LogicalAndVectorMatchingOps(t *testing.T, initialEntries1 m
 	}
 }
 
+func Test_GetResults_On(t *testing.T) {
+	results := make(map[string]map[uint32]float64)
+	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
+		0:    3,
+		7200: 11,
+	}
+
+	vectorMatching := &structs.VectorMatching{
+		Cardinality:    structs.CardOneToOne,
+		MatchingLabels: []string{"color"},
+		On:             true,
+	}
+
+	labelStrs1 := []string{"{color:yellow,type:compact,", "{color:red,type:compact,", "{color:green,type:mid size,"}
+	labelStrs2 := []string{"{color:red,", "{color:blue,", "{color:white,"}
+
+	test_GetResults_LogicalAndVectorMatchingOps(t,
+		map[uint32]float64{
+			0:    1,
+			7200: 5,
+		},
+		map[uint32]float64{
+			0:    2,
+			7200: 6,
+		},
+		labelStrs1, labelStrs2, results,
+		[]structs.QueryArithmetic{
+			{
+				LHS:            1,
+				RHS:            2,
+				Operation:      utils.LetAdd,
+				VectorMatching: vectorMatching,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_Ignoring(t *testing.T) {
+	results := make(map[string]map[uint32]float64)
+	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
+		0:    -5,
+		7200: 3,
+	}
+	results["test.metric.1{color:blue,type:mid size,"] = map[uint32]float64{
+		0:    -5,
+		7200: 3,
+	}
+
+	vectorMatching := &structs.VectorMatching{
+		Cardinality:    structs.CardOneToOne,
+		MatchingLabels: []string{"type"},
+		On:             false,
+	}
+
+	labelStrs1 := []string{"{color:yellow,type:compact,", "{color:red,type:compact,", "{color:blue,type:mid size,"}
+	labelStrs2 := []string{"{color:red,", "{color:blue,", "{color:white,"}
+
+	test_GetResults_LogicalAndVectorMatchingOps(t,
+		map[uint32]float64{
+			0:    1,
+			7200: 5,
+		},
+		map[uint32]float64{
+			0:    6,
+			7200: 2,
+		},
+		labelStrs1, labelStrs2, results,
+		[]structs.QueryArithmetic{
+			{
+				LHS:            1,
+				RHS:            2,
+				Operation:      utils.LetSubtract,
+				VectorMatching: vectorMatching,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_GroupRight(t *testing.T) {
+	results := make(map[string]map[uint32]float64)
+	results["test.metric.2{color:red,type:compact,"] = map[uint32]float64{
+		0:    100,
+		7200: 3,
+	}
+
+	results["test.metric.2{color:red,type:mid size,"] = map[uint32]float64{
+		0:    100,
+		7200: 3,
+	}
+
+	vectorMatching := &structs.VectorMatching{
+		Cardinality:    structs.CardOneToMany,
+		MatchingLabels: []string{"color"},
+		On:             true,
+	}
+
+	labelStrs1 := []string{"{color:red,", "{color:blue,", "{color:white,"}
+	labelStrs2 := []string{"{color:yellow,type:compact,", "{color:red,type:compact,", "{color:red,type:mid size,"}
+
+	test_GetResults_LogicalAndVectorMatchingOps(t,
+		map[uint32]float64{
+			0:    200,
+			7200: 18,
+		},
+		map[uint32]float64{
+			0:    2,
+			7200: 6,
+		},
+		labelStrs1, labelStrs2, results,
+		[]structs.QueryArithmetic{
+			{
+				LHS:            1,
+				RHS:            2,
+				Operation:      utils.LetDivide,
+				VectorMatching: vectorMatching,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
+func Test_GetResults_GroupLeft(t *testing.T) {
+	results := make(map[string]map[uint32]float64)
+	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
+		0:    2,
+		7200: 30,
+	}
+
+	results["test.metric.1{color:red,type:mid size,"] = map[uint32]float64{
+		0:    2,
+		7200: 30,
+	}
+
+	vectorMatching := &structs.VectorMatching{
+		Cardinality:    structs.CardManyToOne,
+		MatchingLabels: []string{"color"},
+		On:             true,
+	}
+
+	labelStrs1 := []string{"{color:yellow,type:compact,", "{color:red,type:compact,", "{color:red,type:mid size,"}
+	labelStrs2 := []string{"{color:red,", "{color:blue,", "{color:white,"}
+
+	test_GetResults_LogicalAndVectorMatchingOps(t,
+		map[uint32]float64{
+			0:    1,
+			7200: 5,
+		},
+		map[uint32]float64{
+			0:    2,
+			7200: 6,
+		},
+		labelStrs1, labelStrs2, results,
+		[]structs.QueryArithmetic{
+			{
+				LHS:            1,
+				RHS:            2,
+				Operation:      utils.LetMultiply,
+				VectorMatching: vectorMatching,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		},
+	)
+}
+
 func addSerieToMetricRes(t *testing.T, metricsResults *mresults.MetricsResult, mQuery *structs.MetricsQuery, entries map[uint32]float64, tsGroupId *bytebufferpool.ByteBuffer, labelStr string, tsid uint64) {
 	_, err := tsGroupId.Write([]byte(mQuery.MetricName + labelStr))
 	assert.NoError(t, err)
@@ -1166,4 +1348,34 @@ func addSerieToMetricRes(t *testing.T, metricsResults *mresults.MetricsResult, m
 	}
 
 	metricsResults.AddSeries(series, tsid, tsGroupId)
+}
+
+func Test_ExtractMatchingLabelSet(t *testing.T) {
+
+	grpIDStr := "testmetric0{color:green,model:model1,car_type:compact}"
+
+	resStr := putils.ExtractMatchingLabelSet(grpIDStr, []string{"model"}, true)
+	assert.Equal(t, "model:model1,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"model", "color"}, true)
+	assert.Equal(t, "model:model1,color:green,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{}, true)
+	assert.Equal(t, "", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"abc"}, true)
+	assert.Equal(t, "", resStr)
+
+	// Exclude color col, and concatenate strings according to the lexicographic order of tag key
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"color"}, false)
+	assert.Equal(t, "car_type:compact,model:model1,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"color", "car_type"}, false)
+	assert.Equal(t, "model:model1,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{}, false)
+	assert.Equal(t, "car_type:compact,color:green,model:model1,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"abc"}, false)
+	assert.Equal(t, "car_type:compact,color:green,model:model1,", resStr)
 }
