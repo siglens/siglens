@@ -174,7 +174,7 @@ func acceptRegexVal(pattern string, tagRawValue []byte, tagOperator segutils.Tag
 		return false, err
 	}
 	acceptVal := (matched && tagOperator == segutils.Regex) || (!matched && tagOperator == segutils.NegRegex)
-	
+
 	return acceptVal, nil
 }
 
