@@ -27,7 +27,7 @@ let availableMetrics = [];
 let previousStartEpoch = null;
 let previousEndEpoch = null;
 let rawTimeSeriesData=[];
-let allFunctions;
+let allFunctions=[];
 
 
 // Theme
@@ -40,15 +40,15 @@ let orange = ["#f8ddbd", "#f4d2a9", "#f0b077", "#ec934f", "#e0722f", "#c85621", 
 let gray = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#62636a", "#4c4d57"]
 let palette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
 
-$(document).ready(function() {
+$(document).ready(async function() {
     let stDate = "now-1h";
     let endDate = "now";
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
     
     $('.theme-btn').on('click', themePickerHandler);
+    allFunctions = await getFunctions();
     addQueryElement();
-    getFunctions();
 });
 
 
@@ -1267,8 +1267,8 @@ function createQueryString(queryObject) {
     return queryString;
 }
 
-function getFunctions() {
-    $.ajax({
+async function getFunctions() {
+    const res = await $.ajax({
       method: "get",
       url: "metrics-explorer/api/v1/functions",
       headers: {
@@ -1277,11 +1277,9 @@ function getFunctions() {
       },
       crossDomain: true,
       dataType: "json",
-    }).then((res)=>{
-        if (res) {
-            allFunctions = res
-        }
-    })
+    });
+    if(res)
+        return res; 
 }
 
 
