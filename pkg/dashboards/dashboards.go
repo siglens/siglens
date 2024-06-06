@@ -273,7 +273,9 @@ func createDashboard(dname string, orgid uint64) (map[string]string, error) {
 
 	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + newId + ".json"
 
-	err = os.WriteFile(dashboardDetailsFname, []byte("{}"), 0644)
+	dData := []byte(fmt.Sprintf("{\"name\": \"%s\"}", dname))
+
+	err = os.WriteFile(dashboardDetailsFname, dData, 0644)
 	if err != nil {
 		log.Errorf("createDashboard: Error creating empty local file %s: for dname: %v, err: %v",
 			dashboardDetailsFname, dname, err)
