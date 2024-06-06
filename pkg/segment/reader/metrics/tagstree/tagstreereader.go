@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"regexp"
 
 	"github.com/cespare/xxhash"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
@@ -166,6 +167,17 @@ func (attr *AllTagTreeReaders) CloseAllTagTreeReaders() {
 	}
 }
 
+func acceptRegexVal(pattern string, tagRawValue []byte, tagOperator segutils.TagOperator) (bool, error) {
+	fullAnchorPattern := fmt.Sprintf("^(%v)$", pattern)
+	matched, err := regexp.Match(fullAnchorPattern, tagRawValue)
+	if err != nil {
+		return false, err
+	}
+	acceptVal := (matched && tagOperator == segutils.Regex) || (!matched && tagOperator == segutils.NegRegex)
+
+	return acceptVal, nil
+}
+
 /*
 Wrapper function that applies all tags filters
 
@@ -204,7 +216,7 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 		if !fileExists {
 			continue
 		}
-		if tagVal, ok := tf.RawTagValue.(string); ok && tagVal == "*" {
+		if tagVal, ok := tf.RawTagValue.(string); ok && (tagVal == "*" || tf.IsRegex()) {
 			itr, mNameExists, err := attr.GetValueIteratorForMetric(mQuery.HashedMName, tf.TagKey, fInfo)
 			if err != nil {
 				log.Infof("FindTSIDS: failed to get the value iterator for metric name %v and tag key %v. Error: %v. TagVAlH %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue)
@@ -218,6 +230,19 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 			rawTagValueToTSIDs := make(map[string]map[uint64]struct{})
 			for {
 				_, tagRawValue, tsids, tagRawValueType, more := itr.Next()
+
+				// if operator is regex check for match and skip on no match
+				if tf.IsRegex() && len(tagRawValue) > 0 {
+					acceptVal, err := acceptRegexVal(tagVal, tagRawValue, tf.TagOperator)
+					if err != nil {
+						log.Errorf("FindTSIDS: failed to match regex %v with tag value %v. Error: %v", tagVal, tagRawValue, err)
+						continue
+					}
+					if !acceptVal {
+						continue
+					}
+				}
+
 				if !more {
 					if mQuery.GetAllLabels {
 						numValueFiltersNonZero := mQuery.GetNumValueFilters() > 0
@@ -242,7 +267,11 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 							} else {
 								initMetricName = fmt.Sprintf("%v{", mQuery.MetricName)
 							}
-							err = tracker.BulkAddStar(rawTagValueToTSIDs, initMetricName, tf.TagKey, numValueFiltersNonZero)
+							if tf.IsRegex() {
+								err = tracker.BulkAdd(rawTagValueToTSIDs, mQuery.MetricName, tf.TagKey)
+							} else {
+								err = tracker.BulkAddStar(rawTagValueToTSIDs, initMetricName, tf.TagKey, numValueFiltersNonZero)
+							}
 						}
 					}
 					if err != nil {

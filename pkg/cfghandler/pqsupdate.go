@@ -38,7 +38,7 @@ func GetPqsEnabled(ctx *fasthttp.RequestCtx) {
 	var pqsEnabled bool
 	runModConfig, err := config.ReadRunModConfig(config.RunModFilePath)
 	if err != nil {
-		log.Infof("GetPqsEnabled:Error reading runmod config: %v", err)
+		log.Infof("GetPqsEnabled:Error reading runmod config: %v. RunModFilePath=%v", err, config.RunModFilePath)
 		pqsEnabled = config.IsPQSEnabled()
 	} else {
 		pqsEnabled = runModConfig.PQSEnabled
@@ -48,7 +48,7 @@ func GetPqsEnabled(ctx *fasthttp.RequestCtx) {
 	ctx.SetContentType("application/json")
 	_, err = ctx.WriteString(`{"pqsEnabled":` + fmt.Sprintf("%v", pqsEnabled) + `}`)
 	if err != nil {
-		log.Errorf("GetPqsEnabled:Error writing response: %v", err)
+		log.Errorf("GetPqsEnabled:Error writing String response: %v", err)
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		return
 	}
@@ -58,12 +58,12 @@ func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
 	var cfg PqsConfig
 	err := json.Unmarshal(ctx.PostBody(), &cfg)
 	if err != nil {
-		log.Errorf("PostPqsUpdate:Error parsing request body: %v", err)
+		log.Errorf("PostPqsUpdate:Error parsing request body: %v. RequestBody=%v", err, string(ctx.PostBody()))
 		ctx.Error("Bad Request", fasthttp.StatusBadRequest)
 		return
 	}
 	if err := SavePQSConfigToRunMod(config.RunModFilePath, cfg.PQSEnabled); err != nil {
-		log.Errorf("PostPqsUpdate:Error saving pqsEnabled: %v", err)
+		log.Errorf("PostPqsUpdate:Error saving pqsEnabled to RunMod: %v. RunModFilePath=%v", err, config.RunModFilePath)
 
 		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 		return
@@ -73,7 +73,7 @@ func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
 	ctx.SetContentType("application/json")
 	_, err = ctx.WriteString(`{"status":"success"}`)
 	if err != nil {
-		log.Errorf("PostPqsUpdate:Error writing response: %v", err)
+		log.Errorf("PostPqsUpdate:Error writing String response: %v", err)
 		return
 
 	}
