@@ -200,7 +200,7 @@ func filterOpOnDataType(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 	case SS_DT_STRING:
 		if len(rec) == 0 || rec[0] != VALTYPE_ENC_SMALL_STRING[0] {
 			// if we are doing a regex search on a number, we need to convert the number to string
-			if isRegexSearch && isValTypeEncANumber(rec[0]) {
+			if len(rec) > 0 && isRegexSearch && isValTypeEncANumber(rec[0]) {
 				return filterOpOnRecNumberEncType(rec, qValDte, fop, isRegexSearch, recDte)
 			}
 			return false, nil
