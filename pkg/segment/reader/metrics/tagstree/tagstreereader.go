@@ -160,12 +160,20 @@ func (attr *AllTagTreeReaders) InitTagsTreeReader(tagKey string, fInfo fs.FileIn
 	return ttr, nil
 }
 
+func (attr *AllTagTreeReaders) CloseAllTagTreeReaders() {
+	for _, ttr := range attr.tagTrees {
+		ttr.Close()
+	}
+}
+
 /*
 Wrapper function that applies all tags filters
 
 # Returns a map of groupid to all tsids that are in that group
 
 # It is assumed that mQuery.ReorderTagFilters() has been called before this function
+
+# And it is the responsibililty of the caller to call CloseAllTagTreeReaders() after this function
 
 Due to how we add tag filters (see ApplyMetricsQuery()), we can have queries where we add the filter
 someKey=* for a key someKey that does not exist for this metric (but does exist for a different
@@ -182,11 +190,6 @@ key.
 */
 func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtracker.AllMatchedTSIDs, error) {
 
-	defer func() {
-		for _, ttr := range attr.tagTrees {
-			ttr.Close()
-		}
-	}()
 	// for each filter, somehow keep track of the running group for each TSID?
 	tracker, err := tsidtracker.InitTSIDTracker(len(mQuery.TagsFilters))
 	if err != nil {
@@ -232,7 +235,13 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 							}
 							err = tracker.BulkAddStarTagsOnly(rawTagValueToTSIDs, initMetricName, tf.TagKey, numValueFiltersNonZero)
 						} else {
-							initMetricName = fmt.Sprintf("%v{", mQuery.MetricName)
+							if mQuery.IsRegexOnMetricName() && !mQuery.GroupByMetricName {
+								// If the metric name is a regex, we do not want to add the metric name to the tracker
+								// As this may affect the group by
+								initMetricName = fmt.Sprintf("%v{", STAR)
+							} else {
+								initMetricName = fmt.Sprintf("%v{", mQuery.MetricName)
+							}
 							err = tracker.BulkAddStar(rawTagValueToTSIDs, initMetricName, tf.TagKey, numValueFiltersNonZero)
 						}
 					}
@@ -272,21 +281,20 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 				return nil, err
 			}
 		} else {
-			mNameExists, tagValueExists, rawTagValueToTSIDs, _, err := attr.GetMatchingTSIDs(mQuery.HashedMName, tf.TagKey, tf.HashTagValue, tf.TagOperator, fInfo)
+			_, _, rawTagValueToTSIDs, _, err := attr.GetMatchingTSIDs(mQuery.HashedMName, tf.TagKey, tf.HashTagValue, tf.TagOperator, fInfo)
 			if err != nil {
 				log.Infof("FindTSIDS: failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
 				return nil, err
 			}
-			if !mNameExists {
-				continue
-			}
-			if !tagValueExists {
-				continue
-			}
+
 			if mQuery.ExitAfterTagsSearch {
 				err = tracker.BulkAddTagsOnly(rawTagValueToTSIDs, mQuery.MetricName, tf.TagKey)
 			} else {
-				err = tracker.BulkAdd(rawTagValueToTSIDs, mQuery.MetricName, tf.TagKey)
+				metricName := mQuery.MetricName
+				if mQuery.IsRegexOnMetricName() && !mQuery.GroupByMetricName {
+					metricName = STAR
+				}
+				err = tracker.BulkAdd(rawTagValueToTSIDs, metricName, tf.TagKey)
 			}
 			if err != nil {
 				log.Errorf("FindTSIDS: failed to build add tsids to tracker! Error %+v", err)
