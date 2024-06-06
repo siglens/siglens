@@ -366,8 +366,8 @@ func ExtractRangeFilterFromSearch(leftSearch *SearchExpressionInput, filterOp Fi
 
 		return rangeFilter, finalOp, true
 	} else {
-		// TODO: simply complex relations for range filters -> col1 * 2 > 5 --> col1 > 2.5
-		log.Warningf("qid=%d, Unable to extract range filter from %+v, and %+v", qid, leftSearch, rightSearch)
+		// TODO: simplify complex relations for range filters -> col1 * 2 > 5 --> col1 > 2.5
+		log.Warningf("ExtractRangeFilterFromSearch: qid=%d, Unable to extract range filter from %+v, and %+v", qid, leftSearch, rightSearch)
 	}
 
 	return rangeFilter, filterOp, false

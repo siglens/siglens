@@ -1,10 +1,5 @@
 package promql
 
-const MIN_IN_MS = 60_000
-const HOUR_IN_MS = 3600_000
-const DAY_IN_MS = 86400_000
-const TEN_YEARS_IN_SECS = 315_360_000
-
 const metricFunctions = `[
 	{
 		"fn": "abs",

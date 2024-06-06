@@ -181,14 +181,14 @@ func initOrgMetrics(orgid uint64) error {
 	availableMem := memory.GetAvailableMetricsIngestMemory()
 	numMetricsSegments = getNumberOfSegmentsFromMemory(availableMem)
 	if numMetricsSegments == 0 {
-		log.Error("initOrgMetrics: Not enough memory to initialize metrics segments")
+		log.Errorf("initOrgMetrics: Available memory (%d) is not enough to initialize a single metrics segment", availableMem)
 		return errors.New("not enough memory to initialize metrics segments")
 	}
 
 	for i := uint64(0); i < numMetricsSegments; i++ {
 		mSeg, err := InitMetricsSegment(orgid, fmt.Sprintf("%d", i))
 		if err != nil {
-			log.Errorf("Initialising metrics segment failed for org: %v, err: %v", orgid, err)
+			log.Errorf("initOrgMetrics: Initialising metrics segment failed for org: %v, err: %v", orgid, err)
 			return err
 		}
 
@@ -196,7 +196,7 @@ func initOrgMetrics(orgid uint64) error {
 		OrgMetricsAndTags[orgid].MetricSegments[fmt.Sprint(i)] = mSeg
 		OrgMetricsAndTags[orgid].TagHolders[mSeg.Mid], err = InitTagsTreeHolder(mSeg.Mid)
 		if err != nil {
-			log.Errorf("Initialising tags tree holder failed for org: %v, err: %v", orgid, err)
+			log.Errorf("initOrgMetrics: Initialising tags tree holder failed for org: %v, err: %v", orgid, err)
 			orgMetricsAndTagsLock.Unlock()
 			return err
 		}
@@ -233,7 +233,7 @@ func getNumberOfSegmentsFromMemory(mem uint64) uint64 {
 	retVal := mem / utils.MAX_BYTES_METRICS_BLOCK
 	concurreny := uint64(config.GetParallelism())
 	if retVal == 0 {
-		log.Infof("Less than %dMB was allocated. Defaulting to 1 metrics segment", utils.ConvertUintBytesToMB(mem))
+		log.Infof("getNumberOfSegmentsFromMemory: Less than %dMB was allocated. Defaulting to 1 metrics segment", utils.ConvertUintBytesToMB(mem))
 		retVal = 1
 	} else if retVal > concurreny {
 		retVal = concurreny
@@ -252,7 +252,8 @@ func timeBasedRotate() {
 				err := ms.CheckAndRotate(false)
 				ms.rwLock.Unlock()
 				if err != nil {
-					log.Errorf("timeBasedRotateMetricsBlock: rotating block %d for metric segment %s due to time failed", ms.currBlockNum, ms.metricsKeyBase)
+					log.Errorf("timeBasedRotate: Failed to rotate block %d for metric segment %s due to time. err=%v",
+						ms.currBlockNum, ms.metricsKeyBase, err)
 				}
 			}
 		}
@@ -289,7 +290,7 @@ func timeBasedTagsTreeFlush() {
 				if tt.dirty {
 					err := tt.flushSingleTagsTree(tagKey, tth.tagstreeBase)
 					if err != nil {
-						log.Errorf("timeBasedTagsTreeFlush: Error rotating tags tree! Err %+v", err)
+						log.Errorf("timeBasedTagsTreeFlush: Error rotating tags tree for key %v at %v, err=%v", tagKey, tth.tagstreeBase, err)
 					}
 				}
 			}
@@ -304,7 +305,7 @@ func InitMetricsSegment(orgid uint64, mId string) (*MetricsSegment, error) {
 	}
 	mKey, err := getBaseMetricsKey(suffix, mId)
 	if err != nil {
-		log.Errorf("Failed to init metrics segment! %+v", err)
+		log.Errorf("InitMetricsSegment: Failed to get metrics key for suffix %v and mid %v, err=%v", suffix, mId, err)
 		return nil, err
 	}
 	return &MetricsSegment{
@@ -362,19 +363,19 @@ func getFinalMetricsDir(mId string, suffix uint64) string {
 }
 
 // returns the new series, number of bytes encoded, or any error
-func initTimeSeries(tsid uint64, dp float64, timestammp uint32) (*TimeSeries, uint64, error) {
+func initTimeSeries(tsid uint64, dp float64, timestamp uint32) (*TimeSeries, uint64, error) {
 	ts := &TimeSeries{lock: &sync.Mutex{}}
 	ts.rawEncoding = new(bytes.Buffer)
-	c, finish, err := compress.NewCompressor(ts.rawEncoding, timestammp)
+	c, finish, err := compress.NewCompressor(ts.rawEncoding, timestamp)
 	if err != nil {
-		log.Errorf("error creating dod compressor! Error: %v", err)
+		log.Errorf("initTimeSeries: failed to create compressor for encoding=%v, timestamp=%v, err=%v", ts.rawEncoding, timestamp, err)
 		return nil, 0, err
 	}
 	ts.cFinishFn = finish
 	ts.compressor = c
 	ts.nEntries++
-	ts.lastKnownTS = timestammp
-	writtenBytes, err := ts.compressor.Compress(timestammp, dp)
+	ts.lastKnownTS = timestamp
+	writtenBytes, err := ts.compressor.Compress(timestamp, dp)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -407,20 +408,22 @@ Return number of bytes written and any error encountered
 */
 func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint32, nBytes uint64, orgid uint64) error {
 	if len(mName) == 0 {
+		log.Errorf("EncodeDatapoint: metric name is empty, orgid=%v", orgid)
 		return fmt.Errorf("metric name is empty")
 	}
 	tsid, err := tags.GetTSID(mName)
 	if err != nil {
+		log.Errorf("EncodeDatapoint: failed to get TSID for metric=%s, orgid=%v, err=%v", mName, orgid, err)
 		return err
 	}
 	mSeg, tth, err := getMetricsSegment(mName, orgid)
 	if err != nil {
-		log.Errorf("EncodeDatapoint: failed to get metrics segment for orgid %v: %v", orgid, err)
+		log.Errorf("EncodeDatapoint: failed to get metrics segment for metric=%s, orgid=%v, err=%v", mName, orgid, err)
 		return err
 	}
 
 	if mSeg == nil {
-		log.Errorf("EncodeDatapoint: No segment remaining to be assigned to orgid=%v", orgid)
+		log.Errorf("EncodeDatapoint: got nil metrics segment for metric=%s, orgid=%v", mName, orgid)
 		return fmt.Errorf("no segment remaining to be assigned to orgid=%v", orgid)
 	}
 
@@ -437,7 +440,7 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 	ts, seriesExists, err = mSeg.mBlock.GetTimeSeries(tsid)
 	if err != nil {
 		mSeg.rwLock.RUnlock()
-		log.Errorf("EncodeDatapoint: failed to get time series for TSID %s, %d. Err: %v", mName, tsid, err)
+		log.Errorf("EncodeDatapoint: failed to get time series for tsid=%v, metric=%s, orgid=%v, err=%v", tsid, mName, orgid, err)
 		return err
 	}
 	var bytesWritten uint64
@@ -449,38 +452,40 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 	if !seriesExists {
 		ts, bytesWritten, err = initTimeSeries(tsid, dp, timestamp)
 		if err != nil {
-			log.Errorf("EncodeDatapoint: failed to create time series for TSID %s, %d. Err: %v", mName, tsid, err)
+			log.Errorf("EncodeDatapoint: failed to create time series for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
+				tsid, dp, timestamp, mName, orgid, err)
 			return err
 		}
 		mSeg.rwLock.Lock()
 		exists, idx, err := mSeg.mBlock.InsertTimeSeries(tsid, ts)
 		if err != nil {
 			mSeg.rwLock.Unlock()
-			log.Errorf("EncodeDatapoint: failed to create time series for TSID %s, %d. Err: %v", mName, tsid, err)
+			log.Errorf("EncodeDatapoint: failed to insert time series for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
+				tsid, dp, timestamp, mName, orgid, err)
 			return err
 		}
 		if !exists { // if the new series was actually added, add the tsid to the block
-			err = mSeg.mBlock.addTsidToBlock(tsid)
-			if err != nil {
-				mSeg.rwLock.Unlock()
-				return err
-			}
+			mSeg.mBlock.addTsidToBlock(tsid)
 		}
 		mSeg.rwLock.Unlock()
 		if exists {
 			bytesWritten, err = mSeg.mBlock.allSeries[idx].AddSingleEntry(dp, timestamp)
 			if err != nil {
+				log.Errorf("EncodeDatapoint: failed to add single entry for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
+					tsid, dp, timestamp, mName, orgid, err)
 				return err
 			}
 		}
 		err = tth.AddTagsForTSID(mName, tags, tsid)
 		if err != nil {
-			log.Errorf("getTimeSeries: failed to add tags for TSID %s, %d. Err: %v", mName, tsid, err)
+			log.Errorf("EncodeDatapoint: failed to add tags for tsid=%v, metric=%s, orgid=%v, err=%v", tsid, mName, orgid, err)
 			return err
 		}
 	} else {
 		bytesWritten, err = ts.AddSingleEntry(dp, timestamp)
 		if err != nil {
+			log.Errorf("EncodeDatapoint: failed to add single entry for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
+				tsid, dp, timestamp, mName, orgid, err)
 			return err
 		}
 	}
@@ -498,16 +503,14 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 /*
 Caller is responsible for acquiring and releasing locks
 */
-func (mb *MetricsBlock) addTsidToBlock(tsid uint64) error {
-
+func (mb *MetricsBlock) addTsidToBlock(tsid uint64) {
 	l := len(mb.sortedTsids)
 	if l == 0 {
 		mb.sortedTsids = append(mb.sortedTsids, tsid)
-		return nil
+		return
 	}
 
 	mb.sortedTsids = append(mb.sortedTsids, tsid)
-	return nil
 }
 
 // for an input raw json []byte, return the metric name, datapoint value, timestamp, all tags, and any errors occurred
@@ -519,6 +522,11 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	var ts uint32
 	var err error
 
+	if tags == nil {
+		log.Errorf("ExtractOTSDBPayload: tags holder is nil")
+		return nil, 0, 0, fmt.Errorf("tags holder is nil")
+	}
+
 	handler := func(key []byte, value []byte, valueType jp.ValueType, off int) error {
 		switch {
 		case bytes.Equal(key, otsdb_mname), bytes.Equal(key, metric_name_key):
@@ -526,19 +534,19 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 			case jp.String:
 				_, err := jp.ParseString(value)
 				if err != nil {
-					log.Errorf("failed to extract tags %+v", err)
+					log.Errorf("ExtractOTSDBPayload: failed to parse %v as string, err=%v", value, err)
 					return err
 				}
 				mName = value
 			}
 		case bytes.Equal(key, otsdb_tags):
 			if valueType != jp.Object {
-				log.Errorf("tags key was not expected object type %+v, raw: %+v", valueType, string(value))
-				return fmt.Errorf("tags is not expected type:%+v", valueType)
+				log.Errorf("ExtractOTSDBPayload: tags key %s has value %s of type %v, which is not an object", key, value, valueType)
+				return fmt.Errorf("value type %v is not an object", valueType)
 			}
 			err = extractTagsFromJson(value, tags)
 			if err != nil {
-				log.Errorf("failed to extract tags %+v", err)
+				log.Errorf("ExtractOTSDBPayload: failed to extract tags. value=%s, tags=%+v, err=%v", value, tags, err)
 				return err
 			}
 		case bytes.Equal(key, otsdb_timestamp):
@@ -548,7 +556,8 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 				if err != nil {
 					fltVal, err := jp.ParseFloat(value)
 					if err != nil {
-						return fmt.Errorf("failed to parse timestamp! Not expected type:%+v", valueType.String())
+						log.Errorf("ExtractOTSDBPayload: failed to parse timestamp %v as int or float, err=%v", value, err)
+						return fmt.Errorf("ExtractOTSDBPayload: failed to parse timestamp! Not expected type:%+v", valueType.String())
 					} else {
 						if toputils.IsTimeInMilli(uint64(fltVal)) {
 							ts = uint32(fltVal / 1000)
@@ -577,38 +586,46 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 				}
 
 				// Parse the string to time using time.Parse and multiple layouts.
+				found := false
 				for _, layout := range dateTimeLayouts {
 					t, err := time.Parse(layout, string(value))
 					if err == nil {
+						found = true
 						ts = uint32(t.Unix())
 						break
 					}
 				}
-				if ts == 0 {
-					return fmt.Errorf("failed to parse timestamp! Not expected type:%+v", valueType.String())
+				if !found {
+					log.Errorf("ExtractOTSDBPayload: unknown timestamp format %s", value)
+					return fmt.Errorf("unknown timestamp format %s", value)
 				}
 			}
 		case bytes.Equal(key, otsdb_value):
 			if valueType != jp.Number {
+				log.Errorf("ExtractOTSDBPayload: value %s of type %v is not a number", value, valueType)
 				return fmt.Errorf("value is not a number")
 			}
 			fltVal, err := jp.ParseFloat(value)
 			if err != nil {
+				log.Errorf("ExtractOTSDBPayload: failed to parse value %v as float, err=%v", value, err)
 				return fmt.Errorf("failed to convert value to float! %+v", err)
 			}
 			dpVal = fltVal
 		case bytes.Equal(key, metric_value_gauge_keyname), bytes.Equal(key, metric_value_counter_keyname),
 			bytes.Equal(key, metric_value_histogram_keyname), bytes.Equal(key, metric_value_summary_keyname):
 			if valueType != jp.Object {
+				log.Errorf("ExtractOTSDBPayload: value %s of type %v is not an object", value, valueType)
 				return fmt.Errorf("value is not an object")
 			}
 			err = jp.ObjectEach(value, func(key []byte, value []byte, valueType jp.ValueType, off int) error {
 				if bytes.Equal(key, otsdb_value) {
 					if valueType != jp.Number {
+						log.Errorf("ExtractOTSDBPayload: value %s of type %v is not a number", value, valueType)
 						return fmt.Errorf("value is not a number")
 					}
 					fltVal, err := jp.ParseFloat(value)
 					if err != nil {
+						log.Errorf("ExtractOTSDBPayload: failed to parse value %v as float, err=%v", value, err)
 						return fmt.Errorf("failed to convert value to float! %+v", err)
 					}
 					dpVal = fltVal
@@ -624,7 +641,7 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	err = jp.ObjectEach(rawJson, handler)
 
 	if err != nil {
-		log.Errorf("ExtractOTSDBPayload payload %v failed to extract payload! %+v ", string(rawJson), err)
+		log.Errorf("ExtractOTSDBPayload: failed to parse json %s, err=%v", rawJson, err)
 		return mName, dpVal, ts, err
 	}
 	if len(mName) > 0 && ts > 0 {
@@ -632,7 +649,9 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	} else if len(mName) == 0 && err == nil {
 		return nil, dpVal, 0, nil
 	} else {
-		return nil, dpVal, 0, fmt.Errorf("failed to find all expected keys")
+		err = fmt.Errorf("ExtractOTSDBPayload: failed to find all expected keys. mName=%s, ts=%d, dpVal=%f", mName, ts, dpVal)
+		log.Errorf(err.Error())
+		return nil, dpVal, 0, err
 	}
 }
 
@@ -659,6 +678,8 @@ func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint
 			if err == io.EOF {
 				break // End of file
 			}
+
+			log.Errorf("ExtractInfluxPayloadAndInsertDp: failed to read raw csv: %+v, error: %+v", rawCSV, err)
 			errors = append(errors, err)
 			return 0, errors
 
@@ -670,7 +691,7 @@ func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint
 			if len(whitespace_split) > 2 {
 				tsNano, err := strconv.ParseInt(whitespace_split[2], 10, 64)
 				if err != nil {
-					log.Errorf("ExtractInfluxPayload: failed to parse the timestamp: %+v, error: %+v", whitespace_split[2], err)
+					log.Errorf("ExtractInfluxPayload: failed to parse the timestamp to an int: %+v, error: %+v", whitespace_split[2], err)
 				} else {
 					ts = uint32(tsNano / 1_000_000_000)
 				}
@@ -683,7 +704,8 @@ func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint
 				} else {
 					kvPair := strings.Split(value, "=")
 					if len(kvPair) < 2 {
-						errors = append(errors, fmt.Errorf("tag key value pair is not valid for tag: %v", value))
+						log.Errorf("ExtractInfluxPayload: tag set pair %v is invalid (expected key=value)", value)
+						errors = append(errors, fmt.Errorf("tag %v is not a key=value pair", value))
 						continue
 					}
 					key := kvPair[0]
@@ -697,6 +719,7 @@ func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint
 			for _, metricValueSet := range field_set {
 				kvPair := strings.Split(metricValueSet, "=")
 				if len(kvPair) < 2 {
+					log.Errorf("ExtractInfluxPayload: metric pair %v is invalid (expected key=value)", metricValueSet)
 					errors = append(errors, fmt.Errorf("metric key value pair is not valid for metric: %v", metricValueSet))
 					continue
 				}
@@ -750,7 +773,9 @@ func parseInfluxValue(value string) (float64, error) {
 		return 0, nil
 	}
 
-	return 0, fmt.Errorf("the value is not a valid float, int, or bool. value: %s", value)
+	err = fmt.Errorf("parseInfluxValue: value %v is not a valid float, int, or bool", value)
+	log.Errorf(err.Error())
+	return 0, err
 }
 
 // extracts raw []byte from the read tags objects and returns it as []*tagsHolder
@@ -759,13 +784,13 @@ func extractTagsFromJson(tagsObj []byte, tags *TagsHolder) error {
 
 	handler := func(key []byte, value []byte, valueType jp.ValueType, off int) error {
 		if key == nil {
-			log.Errorf("missing key %+v %+v %+v", key, value, valueType)
+			log.Errorf("extractTagsFromJson: key is nil. value=%+v valueType=%+v", value, valueType)
 			return nil
 		}
 
 		strKey, err := jp.ParseString(key)
 		if err != nil {
-			log.Errorf("key invalid str %+v %+v %+v", key, value, err)
+			log.Errorf("extractTagsFromJson: failed to parse key %v as string. value=%+v valueType=%+v, err=%v", key, value, valueType, err)
 			return err
 		}
 		tags.Insert(strKey, value, valueType)
@@ -773,6 +798,7 @@ func extractTagsFromJson(tagsObj []byte, tags *TagsHolder) error {
 	}
 	err := jp.ObjectEach(tagsObj, handler)
 	if err != nil {
+		log.Errorf("extractTagsFromJson: failed to parse tags object %s, err=%v", tagsObj, err)
 		return err
 	}
 	return nil
@@ -809,7 +835,9 @@ func (mb *MetricsBlock) GetTimeSeries(tsid uint64) (*TimeSeries, bool, error) {
 	idx, ok := mb.tsidLookup[tsid]
 	if !ok {
 		if len(mb.allSeries) >= utils.MAX_ACTIVE_SERIES_PER_SEGMENT {
-			return nil, false, fmt.Errorf("5M limit reached")
+			err := fmt.Errorf("MetricsBlock.GetTimeSeries: reached limit for max active series (%d) per segment", utils.MAX_ACTIVE_SERIES_PER_SEGMENT)
+			log.Errorf(err.Error())
+			return nil, false, err
 		}
 		return nil, false, nil
 	} else {
@@ -829,7 +857,9 @@ func (mb *MetricsBlock) InsertTimeSeries(tsid uint64, ts *TimeSeries) (bool, int
 	idx, ok := mb.tsidLookup[tsid]
 	if !ok {
 		if len(mb.allSeries) >= utils.MAX_ACTIVE_SERIES_PER_SEGMENT {
-			return false, 0, fmt.Errorf("5M limit reached")
+			err := fmt.Errorf("MetricsBlock.InsertTimeSeries: reached limit for max active series (%d) per segment", utils.MAX_ACTIVE_SERIES_PER_SEGMENT)
+			log.Errorf(err.Error())
+			return false, 0, err
 		}
 		mb.tsidLookup[tsid] = len(mb.allSeries)
 		idx = len(mb.allSeries)
@@ -859,20 +889,20 @@ func (ts *TimeSeries) AddSingleEntry(dpVal float64, dpTS uint32) (uint64, error)
 		// set the header of the dod to the current epoch time. TODO: prevent additions if dpTS is not within 2hrs of header
 		c, finish, err := compress.NewCompressor(ts.rawEncoding, dpTS)
 		if err != nil {
-			log.Errorf("error creating dod compressor! Error: %v", err)
+			log.Errorf("TimeSeries.AddSingleEntry: failed to create compressor for encoding=%v, timestamp=%v, err=%v", ts.rawEncoding, dpTS, err)
 			return writtenBytes, err
 		}
 		ts.cFinishFn = finish
 		ts.compressor = c
 		writtenBytes, err = ts.compressor.Compress(dpTS, dpVal)
 		if err != nil {
-			log.Errorf("error encoding timestamp! Error: %+v", err)
+			log.Errorf("TimeSeries.AddSingleEntry: failed to compress dpTS=%v, dpVal=%v, num entries=%v, err=%v", dpTS, dpVal, ts.nEntries, err)
 			return writtenBytes, err
 		}
 	} else {
 		writtenBytes, err = ts.compressor.Compress(dpTS, dpVal)
 		if err != nil {
-			log.Errorf("error encoding timestamp! Error: %+v", err)
+			log.Errorf("TimeSeries.AddSingleEntry: failed to compress dpTS=%v, dpVal=%v, num entries=%v, err=%v", dpTS, dpVal, ts.nEntries, err)
 			return writtenBytes, err
 		}
 	}
@@ -892,7 +922,8 @@ func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 	if encSize > utils.MAX_BYTES_METRICS_BLOCK || (encSize > 0 && forceRotate) {
 		err := ms.mBlock.rotateBlock(ms.metricsKeyBase, ms.Suffix, ms.currBlockNum)
 		if err != nil {
-			log.Errorf("metrics.CheckAndRotate: failed to rotate block %v", err)
+			log.Errorf("MetricsSegment.CheckAndRotate: failed to rotate block for key=%v, suffix=%v, blocknum=%v, err=%v",
+				ms.metricsKeyBase, ms.Suffix, ms.currBlockNum, err)
 			return err
 		}
 		if !forceRotate {
@@ -904,7 +935,7 @@ func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 	if totalEncSize > utils.MAX_BYTES_METRICS_SEGMENT || (totalEncSize > 0 && forceRotate) {
 		err := ms.rotateSegment(forceRotate)
 		if err != nil {
-			log.Errorf("CheckAndRotate: failed to rotate mid %v: %v", ms.metricsKeyBase, err)
+			log.Errorf("MetricsSegment.CheckAndRotate: failed to rotate mid %v: %v", ms.metricsKeyBase, err)
 			return err
 		}
 		tt := GetTagsTreeHolder(ms.Orgid, ms.Mid)
@@ -912,7 +943,7 @@ func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 		if forceRotate || time.Since(tt.createdTime) > time.Duration(24*time.Hour) {
 			err = tt.rotateTagsTree(forceRotate)
 			if err != nil {
-				log.Errorf("CheckAndRotate: failed to rotate tags tree %v: %v", tt.tagstreeBase, err)
+				log.Errorf("MetricsSegment.CheckAndRotate: failed to rotate tags tree %v: %v", tt.tagstreeBase, err)
 			}
 		}
 	}
@@ -1010,12 +1041,12 @@ func (mb *MetricsBlock) FlushTSOAndTSGFiles(file string) error {
 
 	_, err = fdTso.Write(tsoBuffer.Bytes())
 	if err != nil {
-		log.Errorf("FlushTSOFile: Failed to write to TSO file %v", tsoFileName)
+		log.Errorf("FlushTSOFile: Failed to write to TSO file %v, err=%v", tsoFileName, err)
 		return err
 	}
 	_, err = fdTsg.Write(tsgBuffer.Bytes())
 	if err != nil {
-		log.Errorf("FlushTSOFile: Failed to write to TSO file %v", tsoFileName)
+		log.Errorf("FlushTSOFile: Failed to write to TSO file %v, err=%v", tsgFileName, err)
 		return err
 	}
 	return nil
@@ -1026,12 +1057,12 @@ func (mb *MetricsBlock) flushBlock(basePath string, suffix uint64, bufId uint16)
 	fName := fmt.Sprintf("%s%d.mbsu", basePath, suffix)
 	_, err := mb.mBlockSummary.FlushSummary(fName)
 	if err != nil {
-		log.Errorf("Could not write metrics block summary for block at %s", finalPath)
+		log.Errorf("MetricsBlock.flushBlock: Failed to write metrics block summary for block at %s, err=%v", finalPath, err)
 		return err
 	}
 	err = mb.FlushTSOAndTSGFiles(finalPath)
 	if err != nil {
-		log.Errorf("Could not flush TSO and TSG files at %s", finalPath)
+		log.Errorf("MetricsBlock.flushBlock: Failed to flush TSO and TSG files at %s, err=%v", finalPath, err)
 		return err
 	}
 	return nil
@@ -1046,7 +1077,7 @@ func (mb *MetricsBlock) rotateBlock(basePath string, suffix uint64, bufId uint16
 
 	err := mb.flushBlock(basePath, suffix, bufId)
 	if err != nil {
-		log.Errorf("rotateBlock: Could not flush block at %v/%v/%v", basePath, suffix, bufId)
+		log.Errorf("MetricsBlock.rotateBlock: Failed to flush block at %v/%v/%v", basePath, suffix, bufId)
 		return err
 	}
 
@@ -1075,19 +1106,19 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	var err error
 	err = ms.FlushMetricNamesBloom()
 	if err != nil {
-		log.Errorf("rotateSegment: failed to flush metric names bloom! Error %+v", err)
+		log.Errorf("rotateSegment: failed to flush metric names bloom for base=%s, suffix=%d, orgid=%v. Error %+v", ms.metricsKeyBase, ms.Suffix, ms.Orgid, err)
 		return err
 	}
 	err = ms.FlushMetricNames()
 	if err != nil {
-		log.Errorf("rotateSegment: failed to flush metric names! Error %+v", err)
+		log.Errorf("rotateSegment: failed to flush metric names for base=%s, suffix=%d, orgid=%v. Error %+v", ms.metricsKeyBase, ms.Suffix, ms.Orgid, err)
 		return err
 	}
 	finalDir := getFinalMetricsDir(ms.Mid, ms.Suffix)
 	metaEntry := ms.getMetaEntry(finalDir, ms.Suffix)
 	err = os.MkdirAll(path.Dir(path.Dir(finalDir)), 0764)
 	if err != nil {
-		log.Errorf("rotateSegment: failed to create directory %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
+		log.Errorf("rotateSegment: failed to create directory %s to %s for orgid=%v, Error %+v", ms.metricsKeyBase, finalDir, ms.Orgid, err)
 		return err
 	}
 
@@ -1107,19 +1138,19 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	// Rename metricsKeyBase to finalDir
 	err = os.Rename(path.Dir(ms.metricsKeyBase), finalDir)
 	if err != nil {
-		log.Errorf("rotateSegment: failed to rename %s to %s. Error %+v", ms.metricsKeyBase, finalDir, err)
+		log.Errorf("rotateSegment: failed to rename %s to %s for orgid=%v, Error %+v", ms.metricsKeyBase, finalDir, ms.Orgid, err)
 		return err
 	}
 	log.Infof("rotating segment of size %v that created %v metrics blocks to %+v", ms.totalEncodedSize, ms.currBlockNum+1, finalDir)
 	if !forceRotate {
 		nextSuffix, err := suffix.GetSuffix(ms.Mid, "ts")
 		if err != nil {
-			log.Errorf("rotateSegment: failed to get the next suffix for m.id %s, err %+v", ms.Mid, err)
+			log.Errorf("rotateSegment: failed to get the next suffix for metric ID %s, orgid=%v, err %+v", ms.Mid, ms.Orgid, err)
 			return err
 		}
 		mKey, err := getBaseMetricsKey(nextSuffix, ms.Mid)
 		if err != nil {
-			log.Errorf("rotateSegment: failed to get next base key for %s: %v", ms.Mid, err)
+			log.Errorf("rotateSegment: failed to get next base key for metric ID %s, orgid=%v, err %+v", ms.Mid, ms.Orgid, err)
 			return err
 		}
 		mNamesCount := uint(len(ms.mNamesMap))
@@ -1141,7 +1172,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 
 	err = meta.AddMetricsMetaEntry(metaEntry)
 	if err != nil {
-		log.Errorf("rotateSegment: failed to add metrics meta entry! Error %+v", err)
+		log.Errorf("rotateSegment: failed to add metrics meta entry %+v, orgid=%v, Error %+v", metaEntry, ms.Orgid, err)
 		return err
 	}
 
@@ -1281,7 +1312,7 @@ func ForceFlushMetricsBlock() {
 			mSeg.rwLock.Lock()
 			err := mSeg.CheckAndRotate(true)
 			if err != nil {
-				log.Errorf("Failed to rotate metrics segment %v on shutdown", err)
+				log.Errorf("ForceFlushMetricsBlock: Failed to rotate metrics segment %+v on shutdown, err=%v", mSeg, err)
 			}
 			mSeg.rwLock.Unlock()
 		}(mSegment)
@@ -1294,7 +1325,7 @@ func ForceFlushMetricsBlock() {
 			for tagKey, tt := range tth.allTrees {
 				err := tt.flushSingleTagsTree(tagKey, tth.tagstreeBase)
 				if err != nil {
-					log.Errorf("timeBasedTagsTreeFlush: Error rotating tags tree! Err %+v", err)
+					log.Errorf("timeBasedTagsTreeFlush: Error rotating tags tree %v from holder at %v. err=%v", tt.name, tth.tagstreeBase, err)
 				}
 			}
 		}(ttholder)
@@ -1302,7 +1333,7 @@ func ForceFlushMetricsBlock() {
 	wg.Wait()
 }
 
-func GetUnrotatedMetricsSegmentRequests(metricName string, tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid uint64) (map[string][]*structs.MetricsSearchRequest, error) {
+func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid uint64) (map[string][]*structs.MetricsSearchRequest, error) {
 	sTime := time.Now()
 	retVal := make(map[string][]*structs.MetricsSearchRequest)
 	retLock := &sync.Mutex{}
@@ -1325,6 +1356,7 @@ func GetUnrotatedMetricsSegmentRequests(metricName string, tRange *dtu.MetricsTi
 			blockSummaries, err := microreader.ReadMetricsBlockSummaries(blockSummaryFile)
 			if err != nil {
 				if errors.Is(err, os.ErrNotExist) {
+					log.Warnf("GetUnrotatedMetricsSegmentRequests: Block summary file not found at %v", blockSummaryFile)
 					return
 				}
 				log.Errorf("GetUnrotatedMetricsSegmentRequests: Error reading block summary file at %v", blockSummaryFile)
@@ -1349,6 +1381,7 @@ func GetUnrotatedMetricsSegmentRequests(metricName string, tRange *dtu.MetricsTi
 				BlkWorkerParallelism: uint(2),
 				QueryType:            structs.UNROTATED_METRICS_SEARCH,
 				AllTagKeys:           tKeys,
+				UnrotatedMetricNames: mSeg.mNamesMap,
 			}
 			tt := GetTagsTreeHolder(orgid, mSeg.Mid)
 			if tt == nil {
@@ -1387,9 +1420,11 @@ func GetUnrotatedMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, or
 
 	return resultMetricSegments, nil
 }
+
 func GetUniqueTagKeysForUnrotated(tRange *dtu.MetricsTimeRange, myid uint64) (map[string]struct{}, error) {
 	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
 	if err != nil {
+		log.Errorf("GetUniqueTagKeysForUnrotated: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
 		return nil, err
 	}
 
