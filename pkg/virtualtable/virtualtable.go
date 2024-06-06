@@ -363,25 +363,25 @@ func GetAliases(indexName string, orgid uint64) (map[string]bool, error) {
 	sb1.WriteString(indexName)
 	sb1.WriteString(".json")
 
-	fullname := sb1.String()
+	filename := sb1.String()
 
 	retval := map[string]bool{}
-	rdata, err := os.ReadFile(fullname)
+	rdata, err := os.ReadFile(filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return retval, nil
 		}
-		log.Errorf("GetAliases: Failed to readfile fullname=%v, err=%v", fullname, err)
+		log.Errorf("GetAliases: Failed to readfile filename=%v, err=%v", filename, err)
 		return retval, err
 	}
 	if len(strings.TrimSpace(string(rdata))) == 0 {
-		log.Errorf("GetAliases: No data to parse in file %v. FileData Size=%v", fullname, len(strings.TrimSpace(string(rdata))))
-		return retval, fmt.Errorf("GetAliases: No data to parse in file %v", fullname)
+		log.Errorf("GetAliases: No data to parse in file %v. FileData Size=%v", filename, len(strings.TrimSpace(string(rdata))))
+		return retval, fmt.Errorf("GetAliases: No data to parse in file %v", filename)
 	}
 
 	err = json.Unmarshal(rdata, &retval)
 	if err != nil {
-		log.Errorf("GetAliases: Failed to unmarshall data in filename=%v, err=%v", fullname, err)
+		log.Errorf("GetAliases: Failed to unmarshall data in filename=%v, err=%v", filename, err)
 		return retval, err
 	}
 
@@ -400,7 +400,7 @@ func writeAliasFile(indexName *string, allnames map[string]bool, orgid uint64) e
 	sb1.WriteString(*indexName)
 	sb1.WriteString(".json")
 
-	fullname := sb1.String()
+	filename := sb1.String()
 
 	jdata, err := json.Marshal(&allnames)
 	if err != nil {
@@ -408,9 +408,9 @@ func writeAliasFile(indexName *string, allnames map[string]bool, orgid uint64) e
 		return err
 	}
 
-	err = os.WriteFile(fullname, jdata, 0644)
+	err = os.WriteFile(filename, jdata, 0644)
 	if err != nil {
-		log.Errorf("writeAliasFile: Failed write to the file=%v, err=%v", fullname, err)
+		log.Errorf("writeAliasFile: Failed write to the file=%v, err=%v", filename, err)
 		return err
 	}
 
