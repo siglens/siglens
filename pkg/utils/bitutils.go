@@ -47,7 +47,7 @@ func Float64ToBytesLittleEndian(val float64) []byte {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, val)
 	if err != nil {
-		log.Error("binary.Write failed:", err)
+		log.Errorf("Float64ToBytesLittleEndian: binary.Write failed, val: %v, err: %v", val, err)
 	}
 	return buf.Bytes()
 }
@@ -89,7 +89,7 @@ func Int16ToBytesLittleEndian(signedval int16) []byte {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, signedval)
 	if err != nil {
-		log.Errorf("binary.Write failed:%v\n", err)
+		log.Errorf("Int16ToBytesLittleEndian: binary.Write failed: val: %v, err: %v\n", signedval, err)
 	}
 	return buf.Bytes()
 }
@@ -98,7 +98,7 @@ func Int32ToBytesLittleEndian(signedval int32) []byte {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, signedval)
 	if err != nil {
-		log.Errorf("binary.Write failed:%v\n", err)
+		log.Errorf("Int32ToBytesLittleEndian: binary.Write failed: val: %v, err: %v\n", signedval, err)
 	}
 	return buf.Bytes()
 }
@@ -107,7 +107,7 @@ func Int64ToBytesLittleEndian(signedval int64) []byte {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, signedval)
 	if err != nil {
-		log.Errorf("binary.Write failed:%v\n", err)
+		log.Errorf("Int64ToBytesLittleEndian: binary.Write failed: val: %v, err: %v\n", signedval, err)
 	}
 	return buf.Bytes()
 }
