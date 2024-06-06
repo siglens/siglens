@@ -666,14 +666,42 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
             ]
         }
 
+## Metric APIs
+### Total number of unique series
+    Endpoint: /metrics-explorer/api/v1/series-cardinality
+    Method: POST
+    Inputs:
+        - startEpoch: unix seconds or e.g. "now-1h"
+        - endEpoch: unix seconds or e.g. "now"
+    Outputs:
+        - seriesCardinality: int
 
-        
+### Tag-keys with highest number of series
+    Endpoint: /metrics-explorer/api/v1/tag-keys-with-most-series
+    Method: POST
+    Inputs:
+        - startEpoch: unix seconds or e.g. "now-1h"
+        - endEpoch: unix seconds or e.g. "now"
+        - limit: non-negative int (default 10; 0 means no limit)
+    Outputs:
+        - tagKeys: []{key: string, numSeries: int}
 
-
-
-
-            
-
-
-                
-
+### Tag key-value pairs with highest number of series
+    Endpoint: /metrics-explorer/api/v1/tag-pairs-with-most-series
+    Method: POST
+    Inputs:
+        - startEpoch: unix seconds or e.g. "now-1h"
+        - endEpoch: unix seconds or e.g. "now"
+        - limit: non-negative int (default 10; 0 means no limit)
+    Outputs:
+        - tagPairs: []{key: string, value: string, numSeries: int}
+    
+### Tag keys with highest number of unique values
+Endpoint: /metrics-explorer/api/v1/tag-keys-with-most-values
+Method: POST
+    Inputs:
+        - startEpoch: unix seconds or e.g. "now-1h"
+        - endEpoch: unix seconds or e.g. "now"
+        - limit: non-negative int (default 10; 0 means no limit)
+    Outputs:
+        - tagKeys: []{key: string, numValues: int}
