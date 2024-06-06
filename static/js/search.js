@@ -45,7 +45,7 @@
   }
  function resetDataTable(firstQUpdate) {
      if (firstQUpdate) {
-         $('#empty-response').hide();
+         $('#empty-response, #initial-response').hide();
          $("#custom-chart-tab").show();
          let currentTab = $("#custom-chart-tab").tabs("option", "active");
          if (currentTab == 0) {
@@ -364,7 +364,7 @@
      if(filterTab == "0" || filterTab == null){
       if(filterValue != "*"){
         if(filterValue.indexOf("|") != -1){
-          firstBoxSet = new Set(filterValue.split(" | ")[0].split(" "));
+          firstBoxSet = new Set(filterValue.split(" | ")[0].match(/(?:[^\s"]+|"[^"]*")+/g));
           secondBoxSet = new Set(
             filterValue
               .split("stats ")[1]
@@ -386,7 +386,7 @@
             let tag = document.createElement("li");
             tag.innerText = value;
             // Add a delete button to the tag
-            tag.innerHTML += '<button class="delete-button">x</button>';
+            tag.innerHTML += '<button class="delete-button">×</button>';
             // Append the tag to the tags list
             tags.appendChild(tag);
           });
@@ -400,7 +400,7 @@
             let tag = document.createElement("li");
             tag.innerText = value;
             // Add a delete button to the tag
-            tag.innerHTML += '<button class="delete-button">x</button>';
+            tag.innerHTML += '<button class="delete-button">×</button>';
             // Append the tag to the tags list
             tags.appendChild(tag);
           });
@@ -414,14 +414,15 @@
             let tag = document.createElement("li");
             tag.innerText = value;
             // Add a delete button to the tag
-            tag.innerHTML += '<button class="delete-button">x</button>';
+            tag.innerHTML += '<button class="delete-button">×</button>';
             // Append the tag to the tags list
             
             tags.appendChild(tag);
           });
         }
+      $("#search-filter-text, #aggregate-attribute-text, #aggregations").hide();
+      $("#filter-input").val(filterValue).change();
       }
-        $("#query-input").val(filterValue);
      }else{
         $("#custom-code-tab").tabs("option", "active", 1);
         if (filterValue === "*") {
@@ -553,7 +554,6 @@
        });
      }
      if (filterValue == "") filterValue = "*";
-     $("#query-input").val(filterValue);
      if(thirdBoxSet && thirdBoxSet.size > 0 && (secondBoxSet == null || secondBoxSet.size == 0)) $("#query-builder-btn").addClass("stop-search").prop('disabled', true);
      else $("#query-builder-btn").removeClass("stop-search").prop('disabled', false);
    return showError ? "Searches with a Search Criteria must have an Aggregate Attribute" : filterValue;
@@ -746,7 +746,8 @@
          if (res && res.hits && res.hits.totalMatched) {
              totalHits = res.hits.totalMatched
          }
-     } else if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
+    } else if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
+      let columnOrder =[]
         if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
           columnOrder = res.columnsOrder
         }else{ 
@@ -754,7 +755,6 @@
               columnOrder = _.uniq(_.concat(
                   res.groupByCols));
           }
-          let columnOrder =[]
           if (res.measureFunctions ) {
               columnOrder = _.uniq(_.concat(
                   columnOrder,res.measureFunctions));
@@ -780,6 +780,7 @@
      $('#corner-popup').hide();
      $('#empty-response').show();
      $('#logs-view-controls').hide();
+     $('#initial-response').hide();
      let el = $('#empty-response');
      $('#empty-response').empty();
      el.append('<span>Your query returned no data, adjust your query.</span>')
@@ -940,6 +941,7 @@
      $("#data-row-container").hide();
      $('#corner-popup').hide();
      $('#empty-response').show();
+     $('#initial-response').hide();
      $('#logs-view-controls').hide();
     $("#custom-chart-tab").hide();
      let el = $('#empty-response');
