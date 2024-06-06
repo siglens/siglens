@@ -83,7 +83,8 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 	case RegexExpression:
 		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(query.QueryInfo.ColName, blockNum, recordNum, qid)
 		if err != nil {
-			return false, err
+			log.Errorf("ApplyColumnarSearchQuery: %v", err)
+			return false, nil
 		}
 		return writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, true, holderDte)
 	case RegexExpressionAllColumns:
@@ -251,11 +252,8 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 	case SimpleExpression, RegexExpression:
 
 		isDict, err := mcr.IsBlkDictEncoded(sq.QueryInfo.ColName, blockNum)
-		if err != nil {
-			return true, dictEncColNames, err
-		}
-
-		if !isDict {
+		// Like other switch cases, we do not return the error. When an error occurs, stop executing the subsequent logic.
+		if err != nil || !isDict {
 			return true, dictEncColNames, nil
 		}
 
