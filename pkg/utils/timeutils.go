@@ -18,9 +18,20 @@
 package utils
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"time"
+
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 )
+
+const MIN_IN_MS = 60_000
+const HOUR_IN_MS = 3600_000
+const DAY_IN_MS = 86400_000
+const TEN_YEARS_IN_SECS = 315_360_000
 
 func round(num float64) int {
 	return int(num + math.Copysign(0.5, num))
@@ -34,4 +45,126 @@ func ToFixed(num float64, precision int) float64 {
 
 func EpochIsSeconds(epoch uint64) bool {
 	return epoch < uint64(time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC).Unix())
+}
+
+/*
+Supports "now-[Num][Unit]"
+Num ==> any positive integer
+Unit ==> m(minutes), h(hours), d(days)
+*/
+func ParseAlphaNumTime(nowTs uint64, inp string, defValue uint64) uint64 {
+	sanTime := strings.ReplaceAll(inp, " ", "")
+	nowPrefix := "now-"
+
+	if sanTime == "now" {
+		return nowTs
+	}
+
+	retVal := defValue
+
+	strln := len(sanTime)
+	if strln < len(nowPrefix)+2 {
+		return defValue
+	}
+
+	// check for prefix 'now-' in the input string
+	if !strings.HasPrefix(sanTime, nowPrefix) {
+		return defValue
+	}
+
+	// check for invalid time units
+	unit := sanTime[strln-1]
+	if unit != 'm' && unit != 'h' && unit != 'd' {
+		return defValue
+	}
+
+	num, err := strconv.ParseInt(sanTime[len(nowPrefix):strln-1], 10, 64)
+	if err != nil || num < 0 {
+		return defValue
+	}
+
+	switch unit {
+	case 'm':
+		retVal = nowTs - MIN_IN_MS*uint64(num)
+	case 'h':
+		retVal = nowTs - HOUR_IN_MS*uint64(num)
+	case 'd':
+		retVal = nowTs - DAY_IN_MS*uint64(num)
+	}
+	return retVal
+}
+
+// Should either be a unix epoch in seconds or a string like "now-1h".
+type Epoch struct {
+	IntValue    uint64
+	StringValue string
+	IsString    bool
+	IsInt       bool
+}
+
+// Implement https://pkg.go.dev/encoding/json#Unmarshaler
+func (e *Epoch) UnmarshalJSON(rawJson []byte) error {
+	// Try to unmarshal as int
+	var intVal uint64
+	if err := json.Unmarshal(rawJson, &intVal); err == nil {
+		e.IntValue = intVal
+		e.IsInt = true
+		return nil
+	}
+
+	// Try to unmarshal as string
+	var stringVal string
+	if err := json.Unmarshal(rawJson, &stringVal); err == nil {
+		e.StringValue = stringVal
+		e.IsString = true
+		return nil
+	}
+
+	return fmt.Errorf("failed to unmarshal Epoch from json: %s", rawJson)
+}
+
+func (e *Epoch) UnixSeconds(now time.Time) (uint64, error) {
+	if (e.IsInt && e.IsString) || (!e.IsInt && !e.IsString) {
+		return 0, fmt.Errorf("Epoch %+v is invalid", e)
+	}
+
+	if e.IsInt {
+		epoch := e.IntValue
+		if !EpochIsSeconds(epoch) {
+			return 0, fmt.Errorf("Epoch is not in seconds: %v", epoch)
+		}
+
+		return epoch, nil
+	}
+
+	if e.IsString {
+		nowMillis := uint64(now.UnixMilli())
+		epoch := ParseAlphaNumTime(nowMillis, e.StringValue, nowMillis)
+		epoch /= 1000 // Convert to seconds
+
+		return epoch, nil
+	}
+
+	return 0, fmt.Errorf("Epoch %+v is not a string or int", e)
+}
+
+func GetMetricsTimeRange(startEpoch Epoch, endEpoch Epoch, now time.Time) (*dtypeutils.MetricsTimeRange, error) {
+	start, err := startEpoch.UnixSeconds(now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get start time: %v", err)
+	}
+
+	end, err := endEpoch.UnixSeconds(now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get end time: %v", err)
+	}
+
+	if start >= end {
+		return nil, fmt.Errorf("start time %v is not before end time %v", start, end)
+	}
+
+	return &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(start),
+		EndEpochSec:   uint32(end),
+	}, nil
 }

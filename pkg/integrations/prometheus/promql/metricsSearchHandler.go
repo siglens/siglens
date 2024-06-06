@@ -885,80 +885,10 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	return start, end, queries, formulas, errorLog, nil
 }
 
-// Should either be a unix epoch in seconds or a string like "now-1h".
-type Epoch struct {
-	IntValue    uint64
-	StringValue string
-	IsString    bool
-	IsInt       bool
-}
-
-// Implement https://pkg.go.dev/encoding/json#Unmarshaler
-func (e *Epoch) UnmarshalJSON(rawJson []byte) error {
-	// Try to unmarshal as int
-	var intVal uint64
-	if err := json.Unmarshal(rawJson, &intVal); err == nil {
-		e.IntValue = intVal
-		e.IsInt = true
-		return nil
-	}
-
-	// Try to unmarshal as string
-	var stringVal string
-	if err := json.Unmarshal(rawJson, &stringVal); err == nil {
-		e.StringValue = stringVal
-		e.IsString = true
-		return nil
-	}
-
-	return fmt.Errorf("failed to unmarshal Epoch from json: %s", rawJson)
-}
-
-func (e *Epoch) UnixSeconds(now time.Time) (uint64, error) {
-	if e.IsInt {
-		if !utils.EpochIsSeconds(e.IntValue) {
-			return 0, fmt.Errorf("Epoch is not in seconds: %v", e.IntValue)
-		}
-
-		return e.IntValue, nil
-	}
-
-	if e.IsString {
-		nowMillis := uint64(now.UnixMilli())
-		epoch, _ := parseAlphaNumTime(nowMillis, e.StringValue, nowMillis)
-		epoch /= 1000 // Convert to seconds
-
-		return epoch, nil
-	}
-
-	return 0, fmt.Errorf("Epoch %+v is not a string or int", e)
-}
-
-func GetMetricsTimeRange(startEpoch Epoch, endEpoch Epoch, now time.Time) (*dtu.MetricsTimeRange, error) {
-	start, err := startEpoch.UnixSeconds(now)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get start time: %v", err)
-	}
-
-	end, err := endEpoch.UnixSeconds(now)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get end time: %v", err)
-	}
-
-	if start >= end {
-		return nil, fmt.Errorf("start time %v is not before end time %v", start, end)
-	}
-
-	return &dtu.MetricsTimeRange{
-		StartEpochSec: uint32(start),
-		EndEpochSec:   uint32(end),
-	}, nil
-}
-
 func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	type inputStruct struct {
-		StartEpoch Epoch `json:"startEpoch"`
-		EndEpoch   Epoch `json:"endEpoch"`
+		StartEpoch utils.Epoch `json:"startEpoch"`
+		EndEpoch   utils.Epoch `json:"endEpoch"`
 	}
 	type outputStruct struct {
 		SeriesCardinality uint64 `json:"seriesCardinality"`
@@ -971,7 +901,7 @@ func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uin
 		return
 	}
 
-	timeRange, err := GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
+	timeRange, err := utils.GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
 	if err != nil {
 		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
 		return
@@ -1014,9 +944,9 @@ func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uin
 
 func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	type inputStruct struct {
-		StartEpoch Epoch  `json:"startEpoch"`
-		EndEpoch   Epoch  `json:"endEpoch"`
-		Limit      uint64 `json:"limit"`
+		StartEpoch utils.Epoch `json:"startEpoch"`
+		EndEpoch   utils.Epoch `json:"endEpoch"`
+		Limit      uint64      `json:"limit"`
 	}
 	type tagKeySeriesCount struct {
 		Key       string `json:"key"`
@@ -1033,7 +963,7 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint6
 		return
 	}
 
-	timeRange, err := GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
+	timeRange, err := utils.GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
 	if err != nil {
 		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
 		return
@@ -1092,9 +1022,9 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint6
 
 func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	type inputStruct struct {
-		StartEpoch Epoch  `json:"startEpoch"`
-		EndEpoch   Epoch  `json:"endEpoch"`
-		Limit      uint64 `json:"limit"`
+		StartEpoch utils.Epoch `json:"startEpoch"`
+		EndEpoch   utils.Epoch `json:"endEpoch"`
+		Limit      uint64      `json:"limit"`
 	}
 	type tagPairSeriesCount struct {
 		Key       string `json:"key"`
@@ -1112,7 +1042,7 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint
 		return
 	}
 
-	timeRange, err := GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
+	timeRange, err := utils.GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
 	if err != nil {
 		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
 		return
@@ -1178,9 +1108,9 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint
 
 func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	type inputStruct struct {
-		StartEpoch Epoch  `json:"startEpoch"`
-		EndEpoch   Epoch  `json:"endEpoch"`
-		Limit      uint64 `json:"limit"`
+		StartEpoch utils.Epoch `json:"startEpoch"`
+		EndEpoch   utils.Epoch `json:"endEpoch"`
+		Limit      uint64      `json:"limit"`
 	}
 	type keyAndNumValues struct {
 		Key       string `json:"key"`
@@ -1197,7 +1127,7 @@ func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint6
 		return
 	}
 
-	timeRange, err := GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
+	timeRange, err := utils.GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
 	if err != nil {
 		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
 		return
