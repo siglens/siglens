@@ -697,8 +697,8 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
         - tagPairs: []{key: string, value: string, numSeries: int}
     
 ### Tag keys with highest number of unique values
-Endpoint: /metrics-explorer/api/v1/tag-keys-with-most-values
-Method: POST
+    Endpoint: /metrics-explorer/api/v1/tag-keys-with-most-values
+    Method: POST
     Inputs:
         - startEpoch: unix seconds or e.g. "now-1h"
         - endEpoch: unix seconds or e.g. "now"
