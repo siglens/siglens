@@ -64,7 +64,6 @@
 }
 #filter-container {
     margin: 0;
-    /* margin-top: 10px; */
     background-color: var(--top-bar-bg-color-regular);
     display: flex;
     flex-wrap: wrap;
