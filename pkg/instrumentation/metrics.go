@@ -42,22 +42,27 @@ func InitMetrics() {
 	if metricsPkgInitialized {
 		return
 	}
+	log.Info("InitMetrics: Initializing metrics package...")
 	exporter, err := prometheus.New()
 	if err != nil {
-		log.Errorf("Failed to initialize prometheus exporter: %v", err)
+		log.Errorf("InitMetrics: Failed to initialize prometheus exporter with error: %v", err)
 	}
 	provider := metric.NewMeterProvider(metric.WithReader(exporter))
 	otel.SetMeterProvider(provider)
 
 	commonAttributes = append(commonAttributes, attribute.String("hostname", conf.GetHostID()))
+	log.Infof("InitMetrics: Added hostname %s as a common attribute to all metrics", conf.GetHostID())
 	registerGaugeCallbacks()
 
 	http.Handle("/metrics", promhttp.Handler())
 	go func() {
-		_ = http.ListenAndServe(":2222", nil)
+		err := http.ListenAndServe(":2222", nil)
+		if err != nil {
+			log.Errorf("InitMetrics: Failed to start Prometheus exporter on :2222 with error: %v", err)
+		}
 	}()
 
-	log.Infof("OpenTelemetry Prometheus exporter running on :2222")
+	log.Infof("InitMetrics: OpenTelemetry Prometheus exporter running on :2222")
 	metricsPkgInitialized = true
 }
 
