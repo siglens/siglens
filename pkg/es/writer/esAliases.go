@@ -65,7 +65,7 @@ func ProcessGetAllAliases(ctx *fasthttp.RequestCtx, myid uint64) {
 	respbody := make(map[string]interface{})
 	allIndices, err := vtable.GetVirtualTableNames(myid)
 	if err != nil {
-		log.Errorf("ProcessGetAllAliases: Failed to get aliases for myid=%v, err=%v", myid, err)
+		log.Errorf("ProcessGetAllAliases: Failed to get allIndexes/VTableNames for myid=%v, err=%v", myid, err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		respbody := make(map[string]interface{})
 		respbody["error"] = err.Error()
@@ -100,7 +100,7 @@ func ProcessGetIndexAlias(ctx *fasthttp.RequestCtx, myid uint64) {
 	indexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
 
 	if indexName == "" {
-		log.Errorf("ProcessGetIndexAlias: one of nil indexName=%v", indexName)
+		log.Errorf("ProcessGetIndexAlias: indexName is nil len(indexName)=%v", len(indexName))
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -108,7 +108,7 @@ func ProcessGetIndexAlias(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	currentAliases, err := vtable.GetAliases(indexName, myid)
 	if err != nil {
-		log.Errorf("ProcessGetIndexAlias: GetAliases returned err=%v", err)
+		log.Errorf("ProcessGetIndexAlias: GetAliases for the indexName=%v, returned err=%v", indexName, err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -127,7 +127,7 @@ func ProcessPutAliasesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	aliasName := utils.ExtractParamAsString(ctx.UserValue("aliasName"))
 
 	if indexName == "" || aliasName == "" {
-		log.Errorf("ProcessPutAliasesRequest: one of nil indexName=%v, aliasName=%v", indexName, aliasName)
+		log.Errorf("ProcessPutAliasesRequest: indexName or aliasName is nil. indexName=%v, aliasName=%v", indexName, aliasName)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -165,7 +165,7 @@ func ProcessPostAliasesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	err := decoder.Decode(&jsonBody)
 
 	if err != nil {
-		log.Errorf("ProcessPostAliasesRequest: error un-marshalling JSON: %v", err)
+		log.Errorf("ProcessPostAliasesRequest: error un-marshalling JSON. JSONBody=%v, Error=%v", jsonBody, err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -222,7 +222,7 @@ func processActions(ctx *fasthttp.RequestCtx, actions interface{}, myid uint64) 
 			}
 		}
 	default:
-		log.Errorf("processActions: unknown actions.(type)  value.type=%T", t)
+		log.Errorf("processActions: unknown actions.(type), actions=%v, value.type=%T", t, t)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -238,14 +238,14 @@ func parseAddAction(ctx *fasthttp.RequestCtx, params interface{}, myid uint64) {
 	case map[string]interface{}:
 		aliasName := t["alias"]
 		if aliasName == nil {
-			log.Errorf("parseAddAction: aliasName was nil, params=%v", params)
+			log.Errorf("parseAddAction: aliasName is nil, params=%v", params)
 			utils.SetBadMsg(ctx, "")
 			return
 		}
 		indexName := t["index"]
 		indices := t["indices"]
 		if indexName == nil && indices == nil {
-			log.Errorf("parseAddAction: both indexName and indices was nil, params=%v", params)
+			log.Errorf("parseAddAction: both indexName and indices is nil, params=%v", params)
 			utils.SetBadMsg(ctx, "")
 			return
 		}
@@ -266,6 +266,18 @@ func parseAddAction(ctx *fasthttp.RequestCtx, params interface{}, myid uint64) {
 func doAddAliases(ctx *fasthttp.RequestCtx, indexName interface{}, aliasName interface{}, indices interface{}, myid uint64) {
 
 	log.Infof("doAddAliases: addalias for indexName=%v, aliasName=%v, indices=%v", indexName, aliasName, indices)
+
+	if _, ok := indexName.(string); !ok {
+		log.Errorf("doAddAliases: indexName is not a string, indexName=%v", indexName)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
+
+	if _, ok := aliasName.(string); !ok {
+		log.Errorf("doAddAliases: aliasName is not a string, aliasName=%v", aliasName)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 
 	if indexName != nil {
 		err := vtable.AddAliases(indexName.(string), []string{aliasName.(string)}, myid)
@@ -303,16 +315,29 @@ func parseRemoveAction(ctx *fasthttp.RequestCtx, params interface{}, myid uint64
 	case map[string]interface{}:
 		aliasName := t["alias"]
 		if aliasName == nil {
-			log.Errorf("parseRemoveAction: aliasName was nil, params=%v", params)
+			log.Errorf("parseRemoveAction: aliasName is nil, params=%v", params)
 			utils.SetBadMsg(ctx, "")
 			return
 		}
 		indexName := t["index"]
 		if indexName == nil {
-			log.Errorf("parseRemoveAction: both indexName was nil, params=%v", params)
+			log.Errorf("parseRemoveAction: both indexName is nil, params=%v", params)
 			utils.SetBadMsg(ctx, "")
 			return
 		}
+
+		if _, ok := indexName.(string); !ok {
+			log.Errorf("parseRemoveAction: indexName is not a string, indexName=%v", indexName)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+
+		if _, ok := aliasName.(string); !ok {
+			log.Errorf("parseRemoveAction: aliasName is not a string, aliasName=%v", aliasName)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+
 		err := vtable.RemoveAliases(indexName.(string), []string{aliasName.(string)}, myid)
 		if err != nil {
 			log.Errorf("parseRemoveAction: failed to remove alias, indexName=%v, aliasName=%v err=%v", indexName.(string), aliasName.(string), err)
@@ -333,7 +358,7 @@ func ProcessIndexAliasExist(ctx *fasthttp.RequestCtx, myid uint64) {
 	aliasName := utils.ExtractParamAsString(ctx.UserValue("aliasName"))
 	if indexName == "" {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		log.Errorf("ProcessIndexAliasExist : indexName is required")
+		log.Errorf("ProcessIndexAliasExist : indexName is required. len(indexName)=%v", len(indexName))
 		ctx.SetContentType(utils.ContentJson)
 		return
 	}
@@ -350,7 +375,7 @@ func ProcessIndexAliasExist(ctx *fasthttp.RequestCtx, myid uint64) {
 	//for alias
 	if aliasName == "" || !alias {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
-		log.Errorf("ProcessIndexAliasExist : aliasName is required")
+		log.Errorf("ProcessIndexAliasExist : aliasName is required. len(aliasName)=%v", len(aliasName))
 		ctx.SetContentType(utils.ContentJson)
 	} else {
 		ctx.SetStatusCode(fasthttp.StatusOK)

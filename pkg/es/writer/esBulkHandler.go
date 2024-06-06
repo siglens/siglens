@@ -36,8 +36,6 @@ import (
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 
-	// segstructs "github.com/siglens/siglens/pkg/segment/structs"
-
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
@@ -132,6 +130,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useI
 						if hook := hooks.GlobalHooks.EsBulkIngestInternalHook; hook != nil {
 							err = hook(ctx, request, indexNameConverted, false, idVal, tsNow, myid)
 							if err != nil {
+								log.Errorf("HandleBulkBody: failed to call EsBulkIngestInternalHook, err=%v", err)
 								success = false
 							}
 						}
@@ -139,6 +138,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useI
 				} else {
 					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes), false, localIndexMap, myid)
 					if err != nil {
+						log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
 						success = false
 					}
 				}
@@ -257,7 +257,7 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 
 	err := vtable.AddVirtualTable(&indexNameConverted, myid)
 	if err != nil {
-		log.Errorf("AddAndGetRealIndexName: failed to add virtual table, err=%v", err)
+		log.Errorf("AddAndGetRealIndexName: failed to add virtual table=%v, err=%v", indexNameConverted, err)
 	}
 	return indexNameConverted
 }
@@ -289,7 +289,7 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	err := writer.AddEntryToInMemBuf(streamid, rawJson, ts_millis, indexNameConverted, bytesReceived, flush,
 		docType, myid)
 	if err != nil {
-		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, err=%v", err)
+		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
 		return err
 	}
 	return nil
@@ -307,7 +307,7 @@ func ProcessPutIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		_, err = ctx.Write([]byte("Failed to put index/mapping"))
 		if err != nil {
-			log.Errorf("ProcessPutIndex: failed to write response, err=%v", err)
+			log.Errorf("ProcessPutIndex: failed to write byte response, err=%v", err)
 		}
 		ctx.SetContentType(utils.ContentJson)
 		return
@@ -360,9 +360,9 @@ func deleteIndex(inIndexName string, myid uint64) ([]string, int) {
 		ok, _ := vtable.IsAlias(indexName, myid)
 		if ok {
 			aliases, _ := vtable.GetAliasesAsArray(indexName, myid)
-			error := vtable.RemoveAliases(indexName, aliases, myid)
-			if error != nil {
-				log.Errorf("deleteIndex : No Aliases removed for indexName = %v, alias: %v ", indexName, aliases)
+			err := vtable.RemoveAliases(indexName, aliases, myid)
+			if err != nil {
+				log.Errorf("deleteIndex : No Aliases removed for indexName = %v, alias: %v, Error=%v", indexName, aliases, err)
 			}
 		}
 		err := vtable.DeleteVirtualTable(&indexName, myid)
