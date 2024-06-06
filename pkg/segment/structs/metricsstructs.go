@@ -149,9 +149,34 @@ type QueryArithmetic struct {
 	ReturnBool  bool // If a comparison operator, return 0/1 rather than filtering.
 	Constant    float64
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
-	Results       map[string]map[uint32]float64
-	OperatedState bool //true if operation has been executed
+	Results        map[string]map[uint32]float64
+	OperatedState  bool //true if operation has been executed
+	VectorMatching *VectorMatching
 }
+
+// VectorMatching describes how elements from two Vectors in a binary
+// operation are supposed to be matched.
+type VectorMatching struct {
+	// The cardinality of the two Vectors.
+	Cardinality VectorMatchCardinality
+	// MatchingLabels contains the labels which define equality of a pair of
+	// elements from the Vectors.
+	MatchingLabels []string
+	// On includes the given label names from matching,
+	// rather than excluding them.
+	On bool
+}
+
+// VectorMatchCardinality describes the cardinality relationship
+// of two Vectors in a binary operation.
+type VectorMatchCardinality int
+
+const (
+	CardOneToOne VectorMatchCardinality = iota
+	CardManyToOne
+	CardOneToMany
+	CardManyToMany
+)
 
 /*
 Struct to represent the metrics query request and its corresponding timerange

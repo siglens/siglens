@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/prometheus/prometheus/promql/parser"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -1203,15 +1205,36 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 			arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.HashedMName
 			rhsIsVector = true
 		}
-		arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
+		arithmeticOperation.Operation = putils.GetLogicalAndArithmeticOperation(expr.Op)
 		arithmeticOperation.ReturnBool = expr.ReturnBool
 		if rhsValType == parser.ValueTypeVector {
 			lhsValType = parser.ValueTypeVector
 		}
+
 		req := append(lhsRequest, rhsRequest...)
+
+		if expr.VectorMatching != nil && len(expr.VectorMatching.MatchingLabels) > 0 {
+			if putils.IsLogicalOperator(arithmeticOperation.Operation) {
+				return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, fmt.Errorf("convertPqlToMetricsQuery: Grouping modifiers can only be used for comparison and arithmetic %T", expr)
+			}
+
+			arithmeticOperation.VectorMatching = &structs.VectorMatching{
+				Cardinality:    structs.VectorMatchCardinality(expr.VectorMatching.Card),
+				MatchingLabels: expr.VectorMatching.MatchingLabels,
+				On:             expr.VectorMatching.On,
+			}
+			sort.Strings(arithmeticOperation.VectorMatching.MatchingLabels)
+
+			for i := 0; i < len(req); i++ {
+				if len(req[i].MetricsQuery.TagsFilters) > 0 {
+					req[i].MetricsQuery.SelectAllSeries = true
+				}
+			}
+		}
+
 		// Mathematical operations between two vectors occur when their label sets match, so it is necessary to retrieve all label sets from the vectors.
 		// Logical operations also require checking whether the label sets between the vectors match
-		if isLogicalOperator(expr.Op) || (lhsIsVector && rhsIsVector) {
+		if putils.IsLogicalOperator(arithmeticOperation.Operation) || (lhsIsVector && rhsIsVector) {
 			for i := 0; i < len(req); i++ {
 				req[i].MetricsQuery.GetAllLabels = true
 			}
@@ -1262,57 +1285,6 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		},
 	}
 	return []structs.MetricsQueryRequest{*metricQueryRequest}, pqlQuerytype, []structs.QueryArithmetic{}, nil
-}
-
-func getLogicalAndArithmeticOperation(op parser.ItemType) segutils.LogicalAndArithmeticOperator {
-	switch op {
-	case parser.ADD:
-		return segutils.LetAdd
-	case parser.SUB:
-		return segutils.LetSubtract
-	case parser.MUL:
-		return segutils.LetMultiply
-	case parser.DIV:
-		return segutils.LetDivide
-	case parser.MOD:
-		return segutils.LetModulo
-	case parser.POW:
-		return segutils.LetPower
-	case parser.GTR:
-		return segutils.LetGreaterThan
-	case parser.GTE:
-		return segutils.LetGreaterThanOrEqualTo
-	case parser.LSS:
-		return segutils.LetLessThan
-	case parser.LTE:
-		return segutils.LetLessThanOrEqualTo
-	case parser.EQLC:
-		return segutils.LetEquals
-	case parser.NEQ:
-		return segutils.LetNotEquals
-	case parser.LAND:
-		return segutils.LetAnd
-	case parser.LOR:
-		return segutils.LetOr
-	case parser.LUNLESS:
-		return segutils.LetUnless
-	default:
-		log.Errorf("getArithmeticOperation: unexpected op: %v", op)
-		return 0
-	}
-}
-
-func isLogicalOperator(op parser.ItemType) bool {
-	switch op {
-	case parser.LAND:
-		return true
-	case parser.LOR:
-		return true
-	case parser.LUNLESS:
-		return true
-	default:
-		return false
-	}
 }
 
 func parseTimeFromString(timeStr string) (uint32, error) {

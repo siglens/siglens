@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -541,7 +542,15 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 	mQuery := &mQueryReqs[0].MetricsQuery
 	mQuery.HashedMName = xxhash.Sum64String(mQuery.MetricName)
 	mQuery.SelectAllSeries = true
+
+	// Use the innermost aggregator of the query as the aggregator for the downsampler
 	agg := structs.Aggregation{AggregatorFunction: segutils.Avg}
+	if mQuery.MQueryAggs != nil && mQuery.MQueryAggs.AggregatorBlock != nil {
+		agg.AggregatorFunction = mQuery.MQueryAggs.AggregatorBlock.AggregatorFunction
+		agg.FuncConstant = mQuery.MQueryAggs.AggregatorBlock.FuncConstant
+		agg.GroupByFields = mQuery.MQueryAggs.AggregatorBlock.GroupByFields
+	}
+
 	mQuery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
 
 	if len(mQuery.TagsFilters) > 0 {
@@ -598,7 +607,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		}
 		rhsIsVector = true
 	}
-	arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
+	arithmeticOperation.Operation = putils.GetLogicalAndArithmeticOperation(expr.Op)
 	arithmeticOperation.ReturnBool = expr.ReturnBool
 	queryArithmetic = append(queryArithmetic, &arithmeticOperation)
 
@@ -615,9 +624,28 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 	}
 	mQueryReqs = append(mQueryReqs, rhsRequest...)
 
+	if expr.VectorMatching != nil && len(expr.VectorMatching.MatchingLabels) > 0 {
+		if putils.IsLogicalOperator(arithmeticOperation.Operation) {
+			return []*structs.MetricsQueryRequest{}, []*structs.QueryArithmetic{}, fmt.Errorf("convertPqlToMetricsQuery: Grouping modifiers can only be used for comparison and arithmetic %T", expr)
+		}
+
+		arithmeticOperation.VectorMatching = &structs.VectorMatching{
+			Cardinality:    structs.VectorMatchCardinality(expr.VectorMatching.Card),
+			MatchingLabels: expr.VectorMatching.MatchingLabels,
+			On:             expr.VectorMatching.On,
+		}
+		sort.Strings(arithmeticOperation.VectorMatching.MatchingLabels)
+
+		for i := 0; i < len(mQueryReqs); i++ {
+			if len(mQueryReqs[i].MetricsQuery.TagsFilters) > 0 {
+				mQueryReqs[i].MetricsQuery.SelectAllSeries = true
+			}
+		}
+	}
+
 	// Mathematical operations between two vectors occur when their label sets match, so it is necessary to retrieve all label sets from the vectors.
 	// Logical operations also require checking whether the label sets between the vectors match
-	if isLogicalOperator(expr.Op) || (lhsIsVector && rhsIsVector) {
+	if putils.IsLogicalOperator(arithmeticOperation.Operation) || (lhsIsVector && rhsIsVector) {
 		for i := 0; i < len(mQueryReqs); i++ {
 			mQueryReqs[i].MetricsQuery.GetAllLabels = true
 		}
