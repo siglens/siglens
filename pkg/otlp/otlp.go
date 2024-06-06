@@ -49,7 +49,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	// All requests and responses should be protobufs.
 	ctx.Response.Header.Set("Content-Type", "application/x-protobuf")
 	if string(ctx.Request.Header.Peek("Content-Type")) != "application/x-protobuf" {
-		log.Infof("ProcessTraceIngest: got a non-protobuf request")
+		log.Infof("ProcessTraceIngest: got a non-protobuf request. Got Content-Type: %s", string(ctx.Request.Header.Peek("Content-Type")))
 		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Expected a protobuf request")
 		return
 	}
@@ -73,7 +73,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	// Unmarshal the data.
 	request, err := unmarshalTraceRequest(data)
 	if err != nil {
-		log.Errorf("ProcessTraceIngest: failed to unpack: %v", err)
+		log.Errorf("ProcessTraceIngest: failed to unpack Data: %s with err %v", string(data), err)
 		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to unmarshal traces")
 		return
 	}
@@ -105,7 +105,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 			for _, span := range scopeSpans.Spans {
 				jsonData, err := spanToJson(span, service)
 				if err != nil {
-					log.Errorf("ProcessTraceIngest: failed to marshal span %s: %v", span, err)
+					log.Errorf("ProcessTraceIngest: failed to marshal span %s: %v. Service name: %s", span, err, service)
 					numFailedSpans++
 					continue
 				}
@@ -113,7 +113,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 				lenJsonData := uint64(len(jsonData))
 				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
 				if err != nil {
-					log.Errorf("ProcessTraceIngest: failed to process ingest request: %v", err)
+					log.Errorf("ProcessTraceIngest: failed to process ingest request with err: %v. JSON Data: %s", err, string(jsonData))
 					numFailedSpans++
 					continue
 				}
@@ -134,7 +134,7 @@ func requiresGzipDecompression(ctx *fasthttp.RequestCtx) bool {
 	}
 
 	if encoding != "" && encoding != "none" {
-		log.Errorf("requiresGzipDecompression: invalid content encoding: %s", encoding)
+		log.Errorf("requiresGzipDecompression: invalid content encoding: %s. Request headers: %v", encoding, ctx.Request.Header.String())
 	}
 
 	return false
@@ -144,6 +144,7 @@ func unmarshalTraceRequest(data []byte) (*coltracepb.ExportTraceServiceRequest, 
 	var trace coltracepb.ExportTraceServiceRequest
 	err := proto.Unmarshal(data, &trace)
 	if err != nil {
+		log.Errorf("unmarshalTraceRequest: failed to unmarshal trace request. err: %v data: %v", err, string(data))
 		return nil, err
 	}
 	return &trace, nil
@@ -182,6 +183,7 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 
 	eventsJson, err := json.Marshal(span.Events)
 	if err != nil {
+		log.Errorf("spanToJson: failed to marshal span with ID %s: %v", hex.EncodeToString(span.SpanId), err)
 		return nil, err
 	}
 	result["events"] = string(eventsJson)
@@ -199,6 +201,7 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 func extractKeyValue(keyvalue *commonpb.KeyValue) (string, interface{}, error) {
 	value, err := extractAnyValue(keyvalue.Value)
 	if err != nil {
+		log.Errorf("extractKeyValue: failed to extract value for key %s: %v", keyvalue.Key, err)
 		return "", nil, err
 	}
 
@@ -228,7 +231,7 @@ func extractAnyValue(anyValue *commonpb.AnyValue) (interface{}, error) {
 
 		return value, nil
 	default:
-		return nil, fmt.Errorf("extractAnyValue: unsupported value type: %T", anyValue)
+		return nil, fmt.Errorf("extractAnyValue: unsupported value type: %T", anyValue.Value)
 	}
 }
 
@@ -248,7 +251,7 @@ func linksToJson(spanLinks []*tracepb.Span_Link) ([]byte, error) {
 		for _, keyvalue := range link.Attributes {
 			key, value, err := extractKeyValue(keyvalue)
 			if err != nil {
-				log.Errorf("spanToJson: failed to extract link attribute: %v", err)
+				log.Errorf("linksToJson: failed to extract link attribute for key-value pair %v. err: %v", keyvalue, err)
 				return nil, err
 			}
 
@@ -263,7 +266,13 @@ func linksToJson(spanLinks []*tracepb.Span_Link) ([]byte, error) {
 		}
 	}
 
-	return json.Marshal(links)
+	jsonLinks, err := json.Marshal(links)
+	if err != nil {
+		log.Errorf("linksToJson: failed to marshal links to JSON. links: %v err: %v", links, err)
+		return nil, err
+	}
+
+	return jsonLinks, nil
 }
 
 func setFailureResponse(ctx *fasthttp.RequestCtx, statusCode int, message string) {
@@ -276,7 +285,7 @@ func setFailureResponse(ctx *fasthttp.RequestCtx, statusCode int, message string
 
 	bytes, err := proto.Marshal(&failureStatus)
 	if err != nil {
-		log.Errorf("sendFailureResponse: failed to marshal failure status: %v", err)
+		log.Errorf("setFailureResponse: failed to marshal failure status. err: %v. Status: %+v", err, &failureStatus)
 	}
 	_, err = ctx.Write(bytes)
 	if err != nil {
@@ -289,13 +298,13 @@ func handleTraceIngestionResponse(ctx *fasthttp.RequestCtx, numSpans int, numFai
 		// This request was successful.
 		response, err := proto.Marshal(&coltracepb.ExportTraceServiceResponse{})
 		if err != nil {
-			log.Errorf("ProcessTraceIngest: failed to marshal successful response: %v", err)
+			log.Errorf("handleTraceIngestionResponse: failed to marshal successful response. err: %v. NumSpans: %d", err, numSpans)
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			return
 		}
 		_, err = ctx.Write(response)
 		if err != nil {
-			log.Errorf("ProcessTraceIngest: failed to write successful response: %v", err)
+			log.Errorf("handleTraceIngestionResponse: failed to write successful response. err: %v. NumSpans: %d", err, numSpans)
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			return
 		}
@@ -312,13 +321,13 @@ func handleTraceIngestionResponse(ctx *fasthttp.RequestCtx, numSpans int, numFai
 
 		response, err := proto.Marshal(&traceResponse)
 		if err != nil {
-			log.Errorf("ProcessTraceIngest: failed to marshal partially successful response: %v", err)
+			log.Errorf("handleTraceIngestionResponse: failed to marshal partially successful response: %v. NumSpans: %d, NumFailedSpans: %d, Trace Response: %v", err, numSpans, numFailedSpans, &traceResponse)
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			return
 		}
 		_, err = ctx.Write(response)
 		if err != nil {
-			log.Errorf("ProcessTraceIngest: failed to write partially successful response: %v", err)
+			log.Errorf("handleTraceIngestionResponse: failed to write partially successful response: %v. NumSpans: %d, NumFailedSpans: %d, response: %v", err, numSpans, numFailedSpans, response)
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			return
 		}
@@ -328,9 +337,10 @@ func handleTraceIngestionResponse(ctx *fasthttp.RequestCtx, numSpans int, numFai
 	} else {
 		// Every span failed to be ingested.
 		if numFailedSpans > numSpans {
-			log.Errorf("ProcessTraceIngest: error in counting number of total and failed spans")
+			log.Errorf("handleTraceIngestionResponse: error in counting number of total and failed spans. Counted NumSpans: %d, Counted NumFailedSpans: %d", numSpans, numFailedSpans)
 		}
 
+		log.Errorf("handleTraceIngestionResponse: every span failed ingestion. NumSpans: %d, NumFailedSpans: %d", numSpans, numFailedSpans)
 		setFailureResponse(ctx, fasthttp.StatusInternalServerError, "Every span failed ingestion")
 		return
 	}
