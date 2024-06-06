@@ -125,6 +125,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*
 
 	mQuery.OrgId = myid
 	mQuery.PqlQueryType = pqlQuerytype
+	mQuery.QueryHash = xxhash.Sum64String(query)
 
 	intervalSeconds, err := mresults.CalculateInterval(endTime - startTime)
 	if err != nil {
@@ -590,6 +591,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 	var lhsQueryArth, rhsQueryArth []*structs.QueryArithmetic
 	lhsIsVector := false
 	rhsIsVector := false
+
 	if constant, ok := expr.LHS.(*parser.NumberLiteral); ok {
 		arithmeticOperation.ConstantOp = true
 		arithmeticOperation.Constant = constant.Val
@@ -598,8 +600,10 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		if err != nil {
 			return mQueryReqs, queryArithmetic, err
 		}
-		arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.HashedMName
-		queryArithmetic = append(queryArithmetic, lhsQueryArth...)
+		arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.QueryHash
+		if len(lhsQueryArth) > 0 {
+			arithmeticOperation.LHSExpr = lhsQueryArth[0]
+		}
 		lhsIsVector = true
 	}
 
@@ -611,8 +615,10 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		if err != nil {
 			return mQueryReqs, queryArithmetic, err
 		}
-		arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.HashedMName
-		queryArithmetic = append(queryArithmetic, rhsQueryArth...)
+		arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.QueryHash
+		if len(rhsQueryArth) > 0 {
+			arithmeticOperation.RHSExpr = rhsQueryArth[0]
+		}
 		rhsIsVector = true
 	}
 	arithmeticOperation.Operation = putils.GetLogicalAndArithmeticOperation(expr.Op)

@@ -51,7 +51,6 @@ $(document).ready(async function() {
     addQueryElement();
 });
 
-
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
     $.each($(".range-item.active"), function () {
@@ -70,16 +69,15 @@ async function metricsExplorerDatePickerHandler(evt) {
    
     Object.keys(queries).forEach(async function(queryName) {
         var queryDetails = queries[queryName];
-        await getQueryDetails(queryName, queryDetails);
+
         const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
-        
-        queryDetails.everywhere = [];
-        queryDetails.everything = [];
         availableEverywhere = tagsAndValue.availableEverywhere.sort();
         availableEverything = tagsAndValue.availableEverything[0].sort();
         const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
         queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
         queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
+        
+        await getQueryDetails(queryName, queryDetails);
     });
 
     $('#daterangepicker').hide();
