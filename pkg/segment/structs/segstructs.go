@@ -342,7 +342,7 @@ func (ss *SegStats) Init(rawSegStatJson []byte) error {
 	var segStatJson *SegStatsJSON
 	err := json.Unmarshal(rawSegStatJson, &segStatJson)
 	if err != nil {
-		log.Errorf("SegStats.Init: Failed to unmarshal SegStatsJSON: %v", err)
+		log.Errorf("SegStats.Init: Failed to unmarshal SegStatsJSON error: %v data: %v", err, string(rawSegStatJson))
 		return err
 	}
 	ss.IsNumeric = segStatJson.IsNumeric
@@ -350,7 +350,7 @@ func (ss *SegStats) Init(rawSegStatJson []byte) error {
 	ss.Hll = hyperloglog.New()
 	err = ss.Hll.UnmarshalBinary(segStatJson.RawHll)
 	if err != nil {
-		log.Errorf("SegStats.Init: Failed to unmarshal hyperloglog: %v", err)
+		log.Errorf("SegStats.Init: Failed to unmarshal hyperloglog error: %v data: %v", err, string(segStatJson.RawHll))
 		return err
 	}
 	ss.NumStats = segStatJson.NumStats
@@ -364,7 +364,7 @@ func (ssj *SegStatsJSON) ToStats() (*SegStats, error) {
 	ss.Hll = hyperloglog.New()
 	err := ss.Hll.UnmarshalBinary(ssj.RawHll)
 	if err != nil {
-		log.Errorf("SegStatsJSON.ToStats: Failed to unmarshal hyperloglog: %v", err)
+		log.Errorf("SegStatsJSON.ToStats: Failed to unmarshal hyperloglog error: %v data: %v", err, string(ssj.RawHll))
 		return nil, err
 	}
 	ss.NumStats = ssj.NumStats
@@ -378,7 +378,7 @@ func (ss *SegStats) ToJSON() (*SegStatsJSON, error) {
 	segStatJson.Count = ss.Count
 	rawHll, err := ss.Hll.MarshalBinary()
 	if err != nil {
-		log.Errorf("SegStats.ToJSON: Failed to marshal hyperloglog: %v", err)
+		log.Errorf("SegStats.ToJSON: Failed to marshal hyperloglog error: %v", err)
 		return nil, err
 	}
 	segStatJson.RawHll = rawHll
@@ -399,7 +399,7 @@ func (ss *SegStats) Merge(other *SegStats) {
 	ss.Records = append(ss.Records, other.Records...)
 	err := ss.Hll.Merge(other.Hll)
 	if err != nil {
-		log.Errorf("Failed to merge hyperloglog stats: %v", err)
+		log.Errorf("SegStats.Merge: Failed to merge hyperloglog stats error: %v", err)
 	}
 
 	if ss.NumStats == nil {

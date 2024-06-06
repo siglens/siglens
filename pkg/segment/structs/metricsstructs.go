@@ -319,6 +319,10 @@ func isStarValue(tf *TagsFilter) bool {
 	return ok && tagVal == "*"
 }
 
+func (tf *TagsFilter) IsRegex() bool {
+	return (tf.TagOperator == utils.Regex || tf.TagOperator == utils.NegRegex)
+}
+
 // Handles star tags logic
 func handleStarTag(tf *TagsFilter, queriedTagKeys map[string]TagValueIndex, starTags *[]*TagsFilter) {
 	if _, exists := queriedTagKeys[tf.TagKey]; !exists {
