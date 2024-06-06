@@ -1349,6 +1349,7 @@ func GetUnrotatedMetricsSegmentRequests(metricName string, tRange *dtu.MetricsTi
 				BlkWorkerParallelism: uint(2),
 				QueryType:            structs.UNROTATED_METRICS_SEARCH,
 				AllTagKeys:           tKeys,
+				UnrotatedMetricNames: mSeg.mNamesMap,
 			}
 			tt := GetTagsTreeHolder(orgid, mSeg.Mid)
 			if tt == nil {

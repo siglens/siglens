@@ -36,15 +36,17 @@ import (
 Struct to represent a single metrics query request.
 */
 type MetricsQuery struct {
-	MetricName       string // metric name to query for.
-	HashedMName      uint64
-	PqlQueryType     parser.ValueType // promql query type
-	Aggregator       Aggregation
-	Function         Function
-	Downsampler      Downsampler
-	TagsFilters      []*TagsFilter    // all tags filters to apply
-	TagIndicesToKeep map[int]struct{} // indices of tags to keep in the result
-	SelectAllSeries  bool             //flag to select all series - for promQl
+	MetricName             string            // metric name to query for.
+	MetricOperator         utils.TagOperator // operator to apply on metric name
+	MetricNameRegexPattern string            // regex pattern to apply on metric name
+	HashedMName            uint64
+	PqlQueryType           parser.ValueType // promql query type
+	Aggregator             Aggregation
+	Function               Function
+	Downsampler            Downsampler
+	TagsFilters            []*TagsFilter    // all tags filters to apply
+	TagIndicesToKeep       map[int]struct{} // indices of tags to keep in the result
+	SelectAllSeries        bool             //flag to select all series - for promQl
 
 	MQueryAggs *MetricQueryAgg
 
@@ -57,6 +59,7 @@ type MetricsQuery struct {
 	TagValueSearchOnly  bool // flag to search only tag values
 	GetAllLabels        bool // flag to get all label sets for each time series
 	Groupby             bool // flag to group by tags
+	GroupByMetricName   bool // flag to group by metric name
 }
 
 type Aggregation struct {
@@ -240,6 +243,7 @@ type MetricsSearchRequest struct {
 	BlkWorkerParallelism uint
 	QueryType            SegType
 	AllTagKeys           map[string]bool
+	UnrotatedMetricNames map[string]bool
 }
 
 /*
@@ -434,4 +438,8 @@ func (metricFunc Function) ShallowClone() *Function {
 func (agg Aggregation) ShallowClone() *Aggregation {
 	aggCopy := agg
 	return &aggCopy
+}
+
+func (mQuery *MetricsQuery) IsRegexOnMetricName() bool {
+	return mQuery.MetricOperator == utils.Regex || mQuery.MetricOperator == utils.NegRegex
 }
