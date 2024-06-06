@@ -19,6 +19,7 @@ package writer
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/gogo/protobuf/proto"
@@ -44,12 +45,12 @@ type PrometheusPutResp struct {
 func decodeWriteRequest(compressed []byte) (*prompb.WriteRequest, error) {
 	reqBuf, err := snappy.Decode(nil, compressed)
 	if err != nil {
-		log.Errorf("decodeWriteRequest: Error decompressing request body, err: %v", err)
+		log.Errorf("decodeWriteRequest: Error decompressing request body. Compressed length: %v, data: %v, err=%v", len(compressed), compressed, err)
 		return nil, err
 	}
 	var req prompb.WriteRequest
 	if err := proto.Unmarshal(reqBuf, &req); err != nil {
-		log.Errorf("decodeWriteRequest: Error unmarshalling request body, err: %v", err)
+		log.Errorf("decodeWriteRequest: Error unmarshalling request body %v, err=%v", reqBuf, err)
 		return nil, err
 	}
 	return &req, nil
@@ -68,19 +69,19 @@ func PutMetrics(ctx *fasthttp.RequestCtx) {
 	var err error
 	version := string(ctx.Request.Header.Peek("X-Prometheus-Remote-Write-Version"))
 	if version != "0.1.0" {
-		log.Errorf("PutMetrics: Unsupported remote write protocol version %v", version)
+		log.Errorf("PutMetrics: Unsupported remote write protocol version %v, expected 0.1.0", version)
 		writePrometheusResponse(ctx, processedCount, failedCount, "unsupported remote write protocol", fasthttp.StatusBadRequest)
 		return
 	}
 	cType := string(ctx.Request.Header.ContentType())
 	if cType != "application/x-protobuf" {
-		log.Errorf("PutMetrics: unknown content type [%s]! %v", cType, err)
+		log.Errorf("PutMetrics: unknown content type: %s, expected application/x-protobuf", cType)
 		writePrometheusResponse(ctx, processedCount, failedCount, "unknown content type", fasthttp.StatusBadRequest)
 		return
 	}
 	encoding := string(ctx.Request.Header.ContentEncoding())
 	if encoding != "snappy" {
-		log.Errorf("PutMetrics: unknown content encoding [%s]! %v", encoding, err)
+		log.Errorf("PutMetrics: unknown content encoding %s, expected snappy", encoding)
 		writePrometheusResponse(ctx, processedCount, failedCount, "unknown content encoding", fasthttp.StatusBadRequest)
 		return
 	}
@@ -88,6 +89,7 @@ func PutMetrics(ctx *fasthttp.RequestCtx) {
 	compressed := ctx.PostBody()
 	processedCount, failedCount, err = HandlePutMetrics(compressed)
 	if err != nil {
+		log.Errorf("PutMetrics: failed to handle put metrics for compressed data: %v. err=%+v", compressed, err)
 		writePrometheusResponse(ctx, processedCount, failedCount, err.Error(), fasthttp.StatusBadRequest)
 		return
 	}
@@ -100,7 +102,9 @@ func HandlePutMetrics(compressed []byte) (uint64, uint64, error) {
 
 	req, err := decodeWriteRequest(compressed)
 	if err != nil {
-		return successCount, failedCount, nil
+		err = fmt.Errorf("HandlePutMetrics: failed to decode request %v, err=%v", compressed, err)
+		log.Errorf(err.Error())
+		return successCount, failedCount, err
 	}
 
 	for _, ts := range req.Timeseries {
@@ -119,7 +123,7 @@ func HandlePutMetrics(compressed []byte) (uint64, uint64, error) {
 			data, err := sample.MarshalJSON()
 			if err != nil {
 				failedCount++
-				log.Errorf("HandlePutMetrics: failed to marshal data, err: %+v", err)
+				log.Errorf("HandlePutMetrics: failed to marshal sample=%+v to json, err=%v", sample, err)
 				continue
 			}
 
@@ -127,7 +131,7 @@ func HandlePutMetrics(compressed []byte) (uint64, uint64, error) {
 			err = json.Unmarshal(data, &dataJson)
 			if err != nil {
 				failedCount++
-				log.Errorf("HandlePutMetrics: failed to Unmarshal data, err: %+v", err)
+				log.Errorf("HandlePutMetrics: failed to Unmarshal data=%+v, err=%v", data, err)
 				continue
 			}
 
@@ -168,7 +172,7 @@ func HandlePutMetrics(compressed []byte) (uint64, uint64, error) {
 
 			err = writer.AddTimeSeriesEntryToInMemBuf([]byte(modifiedData), SIGNAL_METRICS_OTSDB, uint64(0))
 			if err != nil {
-				log.Errorf("HandlePutMetrics: failed to add time series entry %+v", err)
+				log.Errorf("HandlePutMetrics: failed to add time series entry for data=%+v, err=%v", modifiedData, err)
 				failedCount++
 			} else {
 				successCount++
@@ -191,13 +195,13 @@ func writePrometheusResponse(ctx *fasthttp.RequestCtx, processedCount uint64, fa
 	ctx.SetContentType(utils.ContentJson)
 	jval, mErr := json.Marshal(resp)
 	if mErr != nil {
-		log.Errorf("writePrometheusResponse: failed to marshal resp %+v", mErr)
+		log.Errorf("writePrometheusResponse: failed to marshal %v to json, err=%v", resp, mErr)
 		return
 	}
 	_, mErr = ctx.Write(jval)
 
 	if mErr != nil {
-		log.Errorf("writePrometheusResponse: failed to write jval to http request %+v", mErr)
+		log.Errorf("writePrometheusResponse: failed to write jval=%v to http context, err=%v", jval, mErr)
 		return
 	}
 }
