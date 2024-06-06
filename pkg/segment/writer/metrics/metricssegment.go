@@ -1302,7 +1302,7 @@ func ForceFlushMetricsBlock() {
 	wg.Wait()
 }
 
-func GetUnrotatedMetricsSegmentRequests(metricName string, tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid uint64) (map[string][]*structs.MetricsSearchRequest, error) {
+func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid uint64) (map[string][]*structs.MetricsSearchRequest, error) {
 	sTime := time.Now()
 	retVal := make(map[string][]*structs.MetricsSearchRequest)
 	retLock := &sync.Mutex{}
