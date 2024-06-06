@@ -81,17 +81,6 @@ func GetAllTagsTreesWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid uint64
 	return tagsTrees, nil
 }
 
-// func GetNumSeriesWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid uint64, querySummary *summary.QuerySummary) (uint64, error) {
-// 	tagsTrees, err := GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
-// 	if err != nil {
-// 		err = fmt.Errorf("GetNumSeriesWithinTimeRange: failed to get tags trees within time range %+v; err=%v", timeRange, err)
-// 		log.Errorf(err.Error())
-// 		return 0, err
-// 	}
-
-// 	// tsids
-// }
-
 func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) *mresults.MetricsResult {
 
 	// init metrics results structs

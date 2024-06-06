@@ -514,21 +514,6 @@ func (ttr *TagTreeReader) GetTSIDsForTagValue(tagValue string) (map[uint64]struc
 	return allTSIDs, nil
 }
 
-// func (attr *AllTagTreeReaders) AllTSIDs() (map[uint64]struct{}, error) {
-// 	allTSIDs := make(map[uint64]struct{})
-// 	for _, ttr := range attr.tagTrees {
-// 		tsids, err := ttr.allTSIDs()
-// 		if err != nil {
-// 			log.Errorf("AllTagTreeReaders.AllTSIDs: failed to get all TSIDs. Error: %v", err)
-// 			return nil, err
-// 		}
-
-// 		allTSIDs = utils.MergeMaps(allTSIDs, tsids)
-// 	}
-
-// 	return allTSIDs, nil
-// }
-
 /*
 Returns *TagValueIterator a boolean indicating if the metric name was found, or any errors encountered
 */
