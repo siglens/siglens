@@ -52,14 +52,12 @@ var (
 
 // ConstructHttpServer new fasthttp server
 func ConstructIngestServer(cfg config.WebConfig, ServerAddr string) *ingestionServerCfg {
-
-	s := &ingestionServerCfg{
+	return &ingestionServerCfg{
 		Config: cfg,
 		Addr:   ServerAddr,
 		router: router.New(),
 		debug:  true,
 	}
-	return s
 }
 
 func (hs *ingestionServerCfg) Close() {
@@ -124,6 +122,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 
 	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
+		log.Errorf("ingestionServerCfg.Run: Failed to listen on %s, err=%v", hs.Addr, err)
 		return err
 	}
 
@@ -144,12 +143,14 @@ func (hs *ingestionServerCfg) Run() (err error) {
 		g.Add(func() error {
 			return s.ServeTLS(hs.ln, config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
 		}, func(e error) {
+			log.Errorf("ingestionServerCfg.Run: Failed to serve TLS on %s, err=%v", hs.Addr, e)
 			_ = hs.ln.Close()
 		})
 	} else {
 		g.Add(func() error {
 			return s.Serve(hs.ln)
 		}, func(e error) {
+			log.Errorf("ingestionServerCfg.Run: Failed to serve on %s, err=%v", hs.Addr, e)
 			_ = hs.ln.Close()
 		})
 	}
@@ -160,6 +161,7 @@ func (hs *ingestionServerCfg) RunSafeServer() (err error) {
 	hs.router.GET("/health", hs.Recovery(getSafeHealthHandler()))
 	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
+		log.Errorf("ingestionServerCfg.RunSafeServer: Failed to listen on %s, err=%v", hs.Addr, err)
 		return err
 	}
 
@@ -186,6 +188,7 @@ func (hs *ingestionServerCfg) RunSafeServer() (err error) {
 	g.Add(func() error {
 		return s.Serve(hs.ln)
 	}, func(e error) {
+		log.Errorf("ingestionServerCfg.RunSafeServer: Failed to serve on %s, err=%v", hs.Addr, e)
 		_ = hs.ln.Close()
 	})
 	return g.Run()
