@@ -937,9 +937,8 @@ func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uin
 		SeriesCardinality: uint64(len(allTsids)),
 	}
 
-	WriteJsonResponse(ctx, &output)
-	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+	WriteJsonResponse(ctx, &output)
 }
 
 func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
@@ -952,7 +951,7 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint6
 		Key       string `json:"key"`
 		NumSeries uint64 `json:"numSeries"`
 	}
-	type responseStruct struct {
+	type outputStruct struct {
 		TagKeys []tagKeySeriesCount `json:"tagKeys"`
 	}
 
@@ -1012,12 +1011,12 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint6
 		seriesCounts = seriesCounts[:limit]
 	}
 
-	response := responseStruct{
+	output := outputStruct{
 		TagKeys: seriesCounts,
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
-	utils.WriteJsonResponse(ctx, &response)
+	utils.WriteJsonResponse(ctx, &output)
 }
 
 func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
@@ -1031,7 +1030,7 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint
 		Value     string `json:"value"`
 		NumSeries uint64 `json:"numSeries"`
 	}
-	type responseStruct struct {
+	type outputStruct struct {
 		TagPairs []tagPairSeriesCount `json:"tagPairs"`
 	}
 
@@ -1098,12 +1097,12 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint
 		seriesCounts = seriesCounts[:limit]
 	}
 
-	response := responseStruct{
+	output := outputStruct{
 		TagPairs: seriesCounts,
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
-	utils.WriteJsonResponse(ctx, &response)
+	utils.WriteJsonResponse(ctx, &output)
 }
 
 func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
@@ -1116,7 +1115,7 @@ func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint6
 		Key       string `json:"key"`
 		NumValues uint64 `json:"numValues"`
 	}
-	type responseStruct struct {
+	type outputStruct struct {
 		TagKeys []keyAndNumValues `json:"tagKeys"`
 	}
 
@@ -1173,12 +1172,12 @@ func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint6
 		keysAndNumValues = keysAndNumValues[:limit]
 	}
 
-	response := responseStruct{
+	output := outputStruct{
 		TagKeys: keysAndNumValues,
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
-	utils.WriteJsonResponse(ctx, &response)
+	utils.WriteJsonResponse(ctx, &output)
 }
 
 func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
