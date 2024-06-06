@@ -418,6 +418,15 @@ func removeMetricNameFromGroupID(groupID string) string {
 	}
 }
 
+func ExtractMetricNameFromGroupID(groupID string) string {
+	stringVals := strings.Split(groupID, "{")
+	if len(stringVals) != 2 {
+		return groupID
+	} else {
+		return stringVals[0]
+	}
+}
+
 func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*structs.MetricsQueryResponse, error) {
 	if r.State != AGGREGATED {
 		return nil, errors.New("results is not in aggregated state")

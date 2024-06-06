@@ -37,6 +37,7 @@ Struct to represent a single metrics query request.
 */
 type MetricsQuery struct {
 	MetricName       string // metric name to query for.
+	QueryHash        uint64 // hash of the query
 	HashedMName      uint64
 	PqlQueryType     parser.ValueType // promql query type
 	Aggregator       Aggregation
@@ -141,6 +142,8 @@ type QueryArithmetic struct {
 	OperationId uint64
 	LHS         uint64
 	RHS         uint64
+	LHSExpr     *QueryArithmetic
+	RHSExpr     *QueryArithmetic
 	ConstantOp  bool
 	Operation   utils.LogicalAndArithmeticOperator
 	ReturnBool  bool // If a comparison operator, return 0/1 rather than filtering.
