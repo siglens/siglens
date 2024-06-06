@@ -585,7 +585,6 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 			return mQueryReqs, queryArithmetic, err
 		}
 		arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.QueryHash
-		// queryArithmetic = append(queryArithmetic, lhsQueryArth...)
 		if len(lhsQueryArth) > 0 {
 			arithmeticOperation.LHSExpr = lhsQueryArth[0]
 		}
@@ -601,7 +600,6 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 			return mQueryReqs, queryArithmetic, err
 		}
 		arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.QueryHash
-		// queryArithmetic = append(queryArithmetic, rhsQueryArth...)
 		if len(rhsQueryArth) > 0 {
 			arithmeticOperation.RHSExpr = rhsQueryArth[0]
 		}
