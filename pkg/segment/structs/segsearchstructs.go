@@ -19,7 +19,6 @@ package structs
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -305,7 +304,7 @@ func getSearchInputFromFilterInput(filter *FilterInput, qid uint64) *SearchExpre
 		val, err := CreateDtypeEnclosure(filter.SubtreeResult, qid)
 		if err != nil {
 			// TODO: handle error
-			log.Errorf("qid=%d, getSearchInputFromFilterInput: Error creating dtype enclosure: %v", qid, err)
+			log.Errorf("getSearchInputFromFilterInput: qid=%d, Error creating dtype enclosure: %v", qid, err)
 		}
 		searchInput.ColumnValue = val
 		return &searchInput
@@ -381,7 +380,7 @@ func extractSearchQueryFromMatchFilter(match *MatchFilter) *SearchQuery {
 		cval := dtu.ReplaceWildcardStarWithRegex(string(match.MatchPhrase))
 		rexpC, err := regexp.Compile(cval)
 		if err != nil {
-			log.Errorf("extractSearchQueryFromMatchFilter: regexp compile failed, err=%v", err)
+			log.Errorf("extractSearchQueryFromMatchFilter: regexp compile failed for exp: %v, err: %v", cval, err)
 		} else {
 			currQuery.MatchFilter.SetRegexp(rexpC)
 		}
@@ -410,7 +409,7 @@ func extractSearchQueryFromExpressionFilter(exp *ExpressionFilter, qid uint64) *
 			cval := dtu.ReplaceWildcardStarWithRegex(sq.ExpressionFilter.LeftSearchInput.ColumnValue.StringVal)
 			rexpC, err := regexp.Compile(cval)
 			if err != nil {
-				log.Errorf("extractSearchQueryFromExpressionFilter: regexp compile failed, err=%v", err)
+				log.Errorf("extractSearchQueryFromExpressionFilter: regexp compile failed for exp: %v, err: %v", cval, err)
 			} else {
 				sq.ExpressionFilter.LeftSearchInput.ColumnValue.SetRegexp(rexpC)
 			}
@@ -471,14 +470,14 @@ func (searchExp *SearchExpression) getAllColumnsInSearch() map[string]string {
 // if bool is true, the searchExpression contained a wildcard
 func (searchExp *SearchExpression) GetAllBlockBloomKeysToSearch() (map[string]bool, bool, error) {
 	if searchExp.FilterOp != Equals {
-		return nil, false, errors.New("relation is not simple key1:value1")
+		return nil, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: relation is not simple filter op is not equals")
 	}
 	if searchExp.LeftSearchInput != nil && searchExp.LeftSearchInput.ComplexRelation != nil {
 		// complex relations are not supported for blockbloom
-		return nil, false, errors.New("relation is not simple key1:value1")
+		return nil, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: relation is not simple LeftSearchInput is complex relation")
 	}
 	if searchExp.RightSearchInput != nil && searchExp.RightSearchInput.ComplexRelation != nil {
-		return nil, false, errors.New("relation is not simple key1:value1")
+		return nil, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: relation is not simple RightSearchInput is complex relation")
 	}
 	allKeys := make(map[string]bool)
 	var colVal *DtypeEnclosure
@@ -489,14 +488,14 @@ func (searchExp *SearchExpression) GetAllBlockBloomKeysToSearch() (map[string]bo
 	}
 
 	if colVal == nil {
-		return nil, false, errors.New("unable to extract column name and value from request")
+		return nil, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: unable to extract column name and value from request")
 	}
 
 	if colVal.IsRegex() {
 		return allKeys, true, nil
 	}
 	if len(colVal.StringVal) == 0 {
-		return allKeys, false, errors.New("unable to extract column name and value from request")
+		return allKeys, false, fmt.Errorf("SearchExpression.GetAllBlockBloomKeysToSearch: unable to extract column name from request")
 	}
 	allKeys[colVal.StringVal] = true
 	return allKeys, false, nil

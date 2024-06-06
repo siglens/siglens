@@ -42,7 +42,7 @@ func GetUploadFilename(baseDir string, streamid string) string {
 
 	err := os.MkdirAll(baseDir, 0764)
 	if err != nil {
-		log.Errorf("getUploadFilename: mkdir failed basedir=%v, err=%v", baseDir, err)
+		log.Errorf("GetUploadFilename: mkdir failed basedir: %v, err: %v", baseDir, err)
 		return ""
 	}
 	sb.WriteString(baseDir)
@@ -62,7 +62,7 @@ func GetSSRFilename(baseDir string) string {
 
 	err := os.MkdirAll(baseDir, 0764)
 	if err != nil {
-		log.Errorf("getSSRFilename: mkdir failed basedir=%v, err=%v", baseDir, err)
+		log.Errorf("GetSSRFilename: mkdir failed basedir: %v, err: %v", baseDir, err)
 		return ""
 	}
 	sb.WriteString(baseDir)
@@ -88,7 +88,7 @@ func InitDerivedConfig(hostID string) error {
 
 	err := os.MkdirAll(smrBaseDir, 0764)
 	if err != nil {
-		log.Errorf("InitDerivedConfig: mkdir failed basedir=%v, err=%v", smrBaseDir, err)
+		log.Errorf("InitDerivedConfig: mkdir failed basedir: %v, err: %v", smrBaseDir, err)
 		return err
 	}
 
@@ -96,7 +96,7 @@ func InitDerivedConfig(hostID string) error {
 	if value != "" {
 		queryPort, err := strconv.ParseUint(value, 10, 64)
 		if err != nil {
-			log.Errorf("InitDerivedConfig: failed to parse PORT=%v, err=%v", value, err)
+			log.Errorf("InitDerivedConfig: failed to parse PORT: %v, err: %v", value, err)
 		} else {
 			SetQueryPort(queryPort)
 		}
@@ -120,7 +120,7 @@ func GetHostIP() string {
 func GetLocalIP() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		log.Errorf("GetLocalIP: failed to get local ip: err=%v", err)
+		log.Errorf("GetLocalIP: failed to get local ip, err: %v", err)
 		return ""
 	}
 	var ip string
