@@ -68,26 +68,16 @@ async function metricsExplorerDatePickerHandler(evt) {
     // Update graph for each query
    
     Object.keys(queries).forEach(async function(queryName) {
-        var _queryDetails = queries[queryName];
+        var queryDetails = queries[queryName];
 
-        const {metrics, everywhere, everything, aggFunction, functions} = _queryDetails
-
-        const tagsAndValue = await getTagKeyValue(_queryDetails.metrics);
-        _queryDetails.everywhere = [];
-        _queryDetails.everything = [];
+        const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
         availableEverywhere = tagsAndValue.availableEverywhere.sort();
         availableEverything = tagsAndValue.availableEverything[0].sort();
         const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
         queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
         queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
 
-        queries[queryName].metrics = metrics
-        queries[queryName].everywhere = everywhere
-        queries[queryName].everything = everything
-        queries[queryName].aggFunction = aggFunction
-        queries[queryName].functions = functions
-
-        const queryDetails = queries[queryName]
+        queries[queryName] = queryDetails;
         
         await getQueryDetails(queryName, queryDetails);
     });
