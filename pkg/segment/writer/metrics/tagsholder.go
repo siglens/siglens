@@ -23,6 +23,7 @@ import (
 
 	jp "github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
+	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 )
 
@@ -96,20 +97,24 @@ func (th *TagsHolder) GetTSID(mName []byte) (uint64, error) {
 	th.buf.Reset()
 	_, err := th.buf.Write(mName)
 	if err != nil {
+		log.Errorf("TagsHolder.GetTSID: Error writing metric name: %v", err)
 		return 0, err
 	}
 
 	_, err = th.buf.Write(tags_separator)
 	if err != nil {
+		log.Errorf("TagsHolder.GetTSID: Error writing tags separator %v, err=%v", tags_separator, err)
 		return 0, err
 	}
 	for _, val := range th.entries {
 		_, err := th.buf.WriteString(val.tagKey)
 		if err != nil {
+			log.Errorf("TagsHolder.GetTSID: Error writing tag key %v, err=%v", val.tagKey, err)
 			return 0, err
 		}
 		_, err = th.buf.Write(tags_separator)
 		if err != nil {
+			log.Errorf("TagsHolder.GetTSID: Error writing tags separator %v, err=%v", tags_separator, err)
 			return 0, err
 		}
 		if val.tagValue == nil {
@@ -117,6 +122,7 @@ func (th *TagsHolder) GetTSID(mName []byte) (uint64, error) {
 		}
 		_, err = th.buf.Write(val.tagValue)
 		if err != nil {
+			log.Errorf("TagsHolder.GetTSID: Error writing tag value %v, err=%v", val.tagValue, err)
 			return 0, err
 		}
 	}

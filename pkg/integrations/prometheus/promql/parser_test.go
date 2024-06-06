@@ -263,7 +263,7 @@ func Test_parsePromQLQuery_simpleQueries(t *testing.T) {
 	assert.Equal(t, 2, len(mQueryReqs))
 	assert.Equal(t, timeRange, mQueryReqs[0].TimeRange)
 	assert.Equal(t, timeRange, mQueryReqs[1].TimeRange)
-	assert.Equal(t, 2, len(queryArithmetic))
+	assert.Equal(t, 1, len(queryArithmetic))
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "http_requests_total", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, "node_cpu_seconds_total", mQueryReqs[1].MetricsQuery.MetricName)
@@ -281,9 +281,10 @@ func Test_parsePromQLQuery_simpleQueries(t *testing.T) {
 	assert.NotNil(t, mQueryReqs[1].MetricsQuery.MQueryAggs.Next)
 	assert.Equal(t, segutils.Rate, mQueryReqs[1].MetricsQuery.MQueryAggs.Next.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(300), mQueryReqs[1].MetricsQuery.MQueryAggs.Next.FunctionBlock.TimeWindow)
-	assert.Equal(t, segutils.LetDivide, queryArithmetic[0].Operation)
-	assert.Equal(t, float64(2), queryArithmetic[0].Constant)
-	assert.Equal(t, segutils.LetAdd, queryArithmetic[1].Operation)
+	assert.Equal(t, segutils.LetAdd, queryArithmetic[0].Operation)
+	assert.NotNil(t, queryArithmetic[0].RHSExpr)
+	assert.Equal(t, float64(2), queryArithmetic[0].RHSExpr.Constant)
+	assert.Equal(t, segutils.LetDivide, queryArithmetic[0].RHSExpr.Operation)
 }
 
 func Test_parsePromQLQuery_SimpleQueries_v2(t *testing.T) {
@@ -569,6 +570,8 @@ func Test_parsePromQLQuery_NestedQueries_v3(t *testing.T) {
 	query := "(sum(rate(http_requests_total[5m])) by (job)) * avg(irate(node_cpu_seconds_total[5m]))"
 	mHashedMName1 := xxhash.Sum64String("http_requests_total")
 	mHashedMName2 := xxhash.Sum64String("node_cpu_seconds_total")
+	mQueryHash1 := xxhash.Sum64String("(sum by (job) (rate(http_requests_total[5m])))")
+	mQueryHash2 := xxhash.Sum64String("avg(irate(node_cpu_seconds_total[5m]))")
 	tagkeys := []string{"job"}
 
 	mQueryReqs, pqlQuerytype, queryArithmetic, err := parsePromQLQuery(query, startTime, endTime, myId)
@@ -620,8 +623,8 @@ func Test_parsePromQLQuery_NestedQueries_v3(t *testing.T) {
 
 	assert.Equal(t, segutils.LetMultiply, queryArithmetic[0].Operation)
 	assert.Equal(t, float64(0), queryArithmetic[0].Constant)
-	assert.Equal(t, mHashedMName1, queryArithmetic[0].LHS)
-	assert.Equal(t, mHashedMName2, queryArithmetic[0].RHS)
+	assert.Equal(t, mQueryHash1, queryArithmetic[0].LHS)
+	assert.Equal(t, mQueryHash2, queryArithmetic[0].RHS)
 }
 
 func Test_parsePromQLQuery_NestedQueries_v4(t *testing.T) {
@@ -642,6 +645,9 @@ func Test_parsePromQLQuery_NestedQueries_v4(t *testing.T) {
 	mHashedMName1 := xxhash.Sum64String("http_requests_total")
 	mHashedName2 := xxhash.Sum64String("http_requests_total")
 	mHashedMName3 := xxhash.Sum64String("node_cpu_seconds_total")
+	queryHash1 := xxhash.Sum64String("sum by (job) (rate(http_requests_total[5m]))")
+	queryHash2 := xxhash.Sum64String("count_over_time(http_requests_total[5m])")
+	queryHash3 := xxhash.Sum64String("sum(rate(node_cpu_seconds_total[5m]))")
 	tagkeys := []string{"job"}
 
 	mQueryReqs, pqlQuerytype, queryArithmetic, err := parsePromQLQuery(query, startTime, endTime, myId)
@@ -650,7 +656,7 @@ func Test_parsePromQLQuery_NestedQueries_v4(t *testing.T) {
 	assert.Equal(t, timeRange, mQueryReqs[0].TimeRange)
 	assert.Equal(t, timeRange, mQueryReqs[1].TimeRange)
 	assert.Equal(t, timeRange, mQueryReqs[2].TimeRange)
-	assert.Equal(t, 2, len(queryArithmetic))
+	assert.Equal(t, 1, len(queryArithmetic))
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "http_requests_total", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, "http_requests_total", mQueryReqs[1].MetricsQuery.MetricName)
@@ -704,15 +710,17 @@ func Test_parsePromQLQuery_NestedQueries_v4(t *testing.T) {
 	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[2].MetricsQuery.MQueryAggs.Next.Next.AggBlockType)
 	assert.Equal(t, segutils.Sum, mQueryReqs[2].MetricsQuery.MQueryAggs.Next.Next.AggregatorBlock.AggregatorFunction)
 
-	assert.Equal(t, segutils.LetDivide, queryArithmetic[0].Operation)
+	assert.Equal(t, segutils.LetAdd, queryArithmetic[0].Operation)
 	assert.Equal(t, float64(0), queryArithmetic[0].Constant)
-	assert.Equal(t, mHashedMName1, queryArithmetic[0].LHS)
-	assert.Equal(t, mHashedName2, queryArithmetic[0].RHS)
+	assert.Equal(t, queryHash1, queryArithmetic[0].LHS)
+	assert.Equal(t, queryHash3, queryArithmetic[0].RHS)
 
-	assert.Equal(t, segutils.LetAdd, queryArithmetic[1].Operation)
-	assert.Equal(t, float64(0), queryArithmetic[1].Constant)
-	assert.Equal(t, mHashedName2, queryArithmetic[1].LHS)
-	assert.Equal(t, mHashedMName3, queryArithmetic[1].RHS)
+	assert.NotNil(t, queryArithmetic[0].LHSExpr)
+
+	assert.Equal(t, segutils.LetDivide, queryArithmetic[0].LHSExpr.Operation)
+	assert.Equal(t, float64(0), queryArithmetic[0].LHSExpr.Constant)
+	assert.Equal(t, queryHash1, queryArithmetic[0].LHSExpr.LHS)
+	assert.Equal(t, queryHash2, queryArithmetic[0].LHSExpr.RHS)
 }
 
 func Test_parsePromQLQuery_NestedQueries_v5(t *testing.T) {
@@ -731,6 +739,8 @@ func Test_parsePromQLQuery_NestedQueries_v5(t *testing.T) {
 	query := "avg_over_time(sum(rate(http_requests_total[5m]))[10m:]) + sum_over_time(rate(http_requests_total[5m])[10m:1m])"
 	mHashedMName1 := xxhash.Sum64String("http_requests_total")
 	mHashedMName2 := xxhash.Sum64String("http_requests_total")
+	queryHash1 := xxhash.Sum64String("avg_over_time(sum(rate(http_requests_total[5m]))[10m:])")
+	queryHash2 := xxhash.Sum64String("sum_over_time(rate(http_requests_total[5m])[10m:1m])")
 
 	mQueryReqs, pqlQuerytype, queryArithmetic, err := parsePromQLQuery(query, startTime, endTime, myId)
 	assert.Nil(t, err)
@@ -779,8 +789,8 @@ func Test_parsePromQLQuery_NestedQueries_v5(t *testing.T) {
 
 	assert.Equal(t, segutils.LetAdd, queryArithmetic[0].Operation)
 	assert.Equal(t, float64(0), queryArithmetic[0].Constant)
-	assert.Equal(t, mHashedMName1, queryArithmetic[0].LHS)
-	assert.Equal(t, mHashedMName2, queryArithmetic[0].RHS)
+	assert.Equal(t, queryHash1, queryArithmetic[0].LHS)
+	assert.Equal(t, queryHash2, queryArithmetic[0].RHS)
 }
 
 func Test_parsePromQLQuery_NestedQueries_v6(t *testing.T) {

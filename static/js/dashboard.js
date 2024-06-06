@@ -186,7 +186,10 @@ async function updateDashboard() {
                 showToast('Dashboard Updated Successfully');
                 return true;
             }
-            return res.json();
+            return res.json().then(err => {
+                showToast("Request failed: " + err.message);
+                throw new Error("Request failed: " + err.message);
+            });
         })
         .catch(error => {
             console.error(error);

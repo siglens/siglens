@@ -21,6 +21,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"sort"
 	"sync/atomic"
 
 	parser "github.com/prometheus/prometheus/promql/parser"
@@ -35,15 +36,18 @@ import (
 Struct to represent a single metrics query request.
 */
 type MetricsQuery struct {
-	MetricName       string // metric name to query for.
-	HashedMName      uint64
-	PqlQueryType     parser.ValueType // promql query type
-	Aggregator       Aggregation
-	Function         Function
-	Downsampler      Downsampler
-	TagsFilters      []*TagsFilter    // all tags filters to apply
-	TagIndicesToKeep map[int]struct{} // indices of tags to keep in the result
-	SelectAllSeries  bool             //flag to select all series - for promQl
+	MetricName             string            // metric name to query for.
+	MetricOperator         utils.TagOperator // operator to apply on metric name
+	MetricNameRegexPattern string            // regex pattern to apply on metric name
+	QueryHash              uint64            // hash of the query
+	HashedMName            uint64
+	PqlQueryType           parser.ValueType // promql query type
+	Aggregator             Aggregation
+	Function               Function
+	Downsampler            Downsampler
+	TagsFilters            []*TagsFilter    // all tags filters to apply
+	TagIndicesToKeep       map[int]struct{} // indices of tags to keep in the result
+	SelectAllSeries        bool             //flag to select all series - for promQl
 
 	MQueryAggs *MetricQueryAgg
 
@@ -54,7 +58,9 @@ type MetricsQuery struct {
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
 	TagValueSearchOnly  bool // flag to search only tag values
+	GetAllLabels        bool // flag to get all label sets for each time series
 	Groupby             bool // flag to group by tags
+	GroupByMetricName   bool // flag to group by metric name
 }
 
 type Aggregation struct {
@@ -139,14 +145,41 @@ type QueryArithmetic struct {
 	OperationId uint64
 	LHS         uint64
 	RHS         uint64
+	LHSExpr     *QueryArithmetic
+	RHSExpr     *QueryArithmetic
 	ConstantOp  bool
 	Operation   utils.LogicalAndArithmeticOperator
 	ReturnBool  bool // If a comparison operator, return 0/1 rather than filtering.
 	Constant    float64
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
-	Results       map[string]map[uint32]float64
-	OperatedState bool //true if operation has been executed
+	Results        map[string]map[uint32]float64
+	OperatedState  bool //true if operation has been executed
+	VectorMatching *VectorMatching
 }
+
+// VectorMatching describes how elements from two Vectors in a binary
+// operation are supposed to be matched.
+type VectorMatching struct {
+	// The cardinality of the two Vectors.
+	Cardinality VectorMatchCardinality
+	// MatchingLabels contains the labels which define equality of a pair of
+	// elements from the Vectors.
+	MatchingLabels []string
+	// On includes the given label names from matching,
+	// rather than excluding them.
+	On bool
+}
+
+// VectorMatchCardinality describes the cardinality relationship
+// of two Vectors in a binary operation.
+type VectorMatchCardinality int
+
+const (
+	CardOneToOne VectorMatchCardinality = iota
+	CardManyToOne
+	CardOneToMany
+	CardManyToMany
+)
 
 /*
 Struct to represent the metrics query request and its corresponding timerange
@@ -213,6 +246,7 @@ type MetricsSearchRequest struct {
 	BlkWorkerParallelism uint
 	QueryType            SegType
 	AllTagKeys           map[string]bool
+	UnrotatedMetricNames map[string]bool
 }
 
 /*
@@ -253,6 +287,13 @@ func (mq *MetricsQuery) ReorderTagFilters() {
 		return
 	}
 
+	// For arithmetic and logical operations, we use groupIDStr to check if there are exactly matching label sets between two vectors
+	// However, for different vectors, since the groupID string is concatenated from tag key-value pairs, we cannot guarantee the order of concatenation.
+	// Therefore, We can sort tagsFilter in advance to ensure that the tags are concatenated in lexicographical order.
+	sort.Slice(mq.TagsFilters, func(i, j int) bool {
+		return mq.TagsFilters[i].TagKey < mq.TagsFilters[j].TagKey
+	})
+
 	queriedTagKeys := make(map[string]TagValueIndex, len(mq.TagsFilters))
 
 	starTags := make([]*TagsFilter, 0, len(mq.TagsFilters))
@@ -276,6 +317,10 @@ func (mq *MetricsQuery) ReorderTagFilters() {
 func isStarValue(tf *TagsFilter) bool {
 	tagVal, ok := tf.RawTagValue.(string)
 	return ok && tagVal == "*"
+}
+
+func (tf *TagsFilter) IsRegex() bool {
+	return (tf.TagOperator == utils.Regex || tf.TagOperator == utils.NegRegex)
 }
 
 // Handles star tags logic
@@ -332,7 +377,7 @@ func (ds *Downsampler) GetIntervalTimeInSeconds() uint32 {
 	case "y":
 		intervalTime += 86400 * 365
 	default:
-		log.Error("GetIntervalTimeInSeconds: invalid time format")
+		log.Errorf("Downsampler.GetIntervalTimeInSeconds: invalid time format: %v", ds.Unit)
 		return 0
 	}
 
@@ -349,13 +394,13 @@ func (mbs *MBlockSummary) FlushSummary(fName string) ([]byte, error) {
 		err := os.MkdirAll(path.Dir(fName), os.FileMode(0764))
 		flag = true
 		if err != nil {
-			log.Errorf("Failed to create directory at %s: %v", path.Dir(fName), err)
+			log.Errorf("MBlockSummary.FlushSummary: Failed to create directory at %s, err: %v", path.Dir(fName), err)
 			return nil, err
 		}
 	}
 	fd, err := os.OpenFile(fName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		log.Errorf("writeBlockSummary: open failed fname=%v, err=%v", fName, err)
+		log.Errorf("MBlockSummary.FlushSummary: Failed to open file: %v, err: %v", fName, err)
 		return nil, err
 	}
 	defer fd.Close()
@@ -377,7 +422,7 @@ func (mbs *MBlockSummary) FlushSummary(fName string) ([]byte, error) {
 	copy(mBlkSum[idx:], toputils.Uint32ToBytesLittleEndian(mbs.LowTs))
 
 	if _, err := fd.Write(mBlkSum); err != nil {
-		log.Errorf("writeBlockSummary:  write failed blockSummaryFname=%v, err=%v", fName, err)
+		log.Errorf("MBlockSummary.FlushSummary: Failed to write block in file: %v, err: %v", fName, err)
 		return nil, err
 	}
 	return mBlkSum, nil
@@ -400,4 +445,12 @@ func (metricFunc Function) ShallowClone() *Function {
 func (agg Aggregation) ShallowClone() *Aggregation {
 	aggCopy := agg
 	return &aggCopy
+}
+
+func (agg Aggregation) IsAggregateFromAllTimeseries() bool {
+	return agg.AggregatorFunction == utils.Count // Todo: Will add topk, bottomk
+}
+
+func (mQuery *MetricsQuery) IsRegexOnMetricName() bool {
+	return mQuery.MetricOperator == utils.Regex || mQuery.MetricOperator == utils.NegRegex
 }

@@ -2,12 +2,14 @@ package promql
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 
 	"github.com/cespare/xxhash"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -99,7 +101,19 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*
 				}
 				mQuery.TagsFilters = append(mQuery.TagsFilters, tagFilter)
 			} else {
+				mQuery.MetricOperator = segutils.TagOperator(entry.Type)
 				mQuery.MetricName = entry.Value
+
+				if mQuery.IsRegexOnMetricName() {
+					// If the metric name is a regex, then we need to add the start and end anchors
+					anchoredMetricName := fmt.Sprintf("^(%v)$", entry.Value)
+					_, err := regexp.Compile(anchoredMetricName)
+					if err != nil {
+						log.Errorf("parsePromQLQuery: Error compiling regex for the anchored MetricName Pattern: %v. Error=%v", anchoredMetricName, err)
+						return []*structs.MetricsQueryRequest{}, "", []*structs.QueryArithmetic{}, err
+					}
+					mQuery.MetricNameRegexPattern = anchoredMetricName
+				}
 			}
 		}
 	}
@@ -111,6 +125,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*
 
 	mQuery.OrgId = myid
 	mQuery.PqlQueryType = pqlQuerytype
+	mQuery.QueryHash = xxhash.Sum64String(query)
 
 	intervalSeconds, err := mresults.CalculateInterval(endTime - startTime)
 	if err != nil {
@@ -263,6 +278,7 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.Aggregator.AggregatorFunction = segutils.Avg
 	case "count":
 		mQuery.Aggregator.AggregatorFunction = segutils.Count
+		mQuery.GetAllLabels = true
 	case "sum":
 		mQuery.Aggregator.AggregatorFunction = segutils.Sum
 	case "max":
@@ -284,6 +300,9 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 
 	// Handle grouping
 	for _, group := range expr.Grouping {
+		if group == "__name__" {
+			mQuery.GroupByMetricName = true
+		}
 		tagFilter := structs.TagsFilter{
 			TagKey:          group,
 			RawTagValue:     "*",
@@ -540,7 +559,15 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 	mQuery := &mQueryReqs[0].MetricsQuery
 	mQuery.HashedMName = xxhash.Sum64String(mQuery.MetricName)
 	mQuery.SelectAllSeries = true
+
+	// Use the innermost aggregator of the query as the aggregator for the downsampler
 	agg := structs.Aggregation{AggregatorFunction: segutils.Avg}
+	if mQuery.MQueryAggs != nil && mQuery.MQueryAggs.AggregatorBlock != nil {
+		agg.AggregatorFunction = mQuery.MQueryAggs.AggregatorBlock.AggregatorFunction
+		agg.FuncConstant = mQuery.MQueryAggs.AggregatorBlock.FuncConstant
+		agg.GroupByFields = mQuery.MQueryAggs.AggregatorBlock.GroupByFields
+	}
+
 	mQuery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
 
 	if len(mQuery.TagsFilters) > 0 {
@@ -563,6 +590,8 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 	arithmeticOperation := structs.QueryArithmetic{}
 	var lhsRequest, rhsRequest []*structs.MetricsQueryRequest
 	var lhsQueryArth, rhsQueryArth []*structs.QueryArithmetic
+	lhsIsVector := false
+	rhsIsVector := false
 
 	if constant, ok := expr.LHS.(*parser.NumberLiteral); ok {
 		arithmeticOperation.ConstantOp = true
@@ -572,8 +601,11 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		if err != nil {
 			return mQueryReqs, queryArithmetic, err
 		}
-		arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.HashedMName
-		queryArithmetic = append(queryArithmetic, lhsQueryArth...)
+		arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.QueryHash
+		if len(lhsQueryArth) > 0 {
+			arithmeticOperation.LHSExpr = lhsQueryArth[0]
+		}
+		lhsIsVector = true
 	}
 
 	if constant, ok := expr.RHS.(*parser.NumberLiteral); ok {
@@ -584,10 +616,13 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		if err != nil {
 			return mQueryReqs, queryArithmetic, err
 		}
-		arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.HashedMName
-		queryArithmetic = append(queryArithmetic, rhsQueryArth...)
+		arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.QueryHash
+		if len(rhsQueryArth) > 0 {
+			arithmeticOperation.RHSExpr = rhsQueryArth[0]
+		}
+		rhsIsVector = true
 	}
-	arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
+	arithmeticOperation.Operation = putils.GetLogicalAndArithmeticOperation(expr.Op)
 	arithmeticOperation.ReturnBool = expr.ReturnBool
 	queryArithmetic = append(queryArithmetic, &arithmeticOperation)
 
@@ -603,6 +638,33 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		mQueryReqs = append(mQueryReqs, lhsRequest...)
 	}
 	mQueryReqs = append(mQueryReqs, rhsRequest...)
+
+	if expr.VectorMatching != nil && len(expr.VectorMatching.MatchingLabels) > 0 {
+		if putils.IsLogicalOperator(arithmeticOperation.Operation) {
+			return []*structs.MetricsQueryRequest{}, []*structs.QueryArithmetic{}, fmt.Errorf("convertPqlToMetricsQuery: Grouping modifiers can only be used for comparison and arithmetic %T", expr)
+		}
+
+		arithmeticOperation.VectorMatching = &structs.VectorMatching{
+			Cardinality:    structs.VectorMatchCardinality(expr.VectorMatching.Card),
+			MatchingLabels: expr.VectorMatching.MatchingLabels,
+			On:             expr.VectorMatching.On,
+		}
+		sort.Strings(arithmeticOperation.VectorMatching.MatchingLabels)
+
+		for i := 0; i < len(mQueryReqs); i++ {
+			if len(mQueryReqs[i].MetricsQuery.TagsFilters) > 0 {
+				mQueryReqs[i].MetricsQuery.SelectAllSeries = true
+			}
+		}
+	}
+
+	// Mathematical operations between two vectors occur when their label sets match, so it is necessary to retrieve all label sets from the vectors.
+	// Logical operations also require checking whether the label sets between the vectors match
+	if putils.IsLogicalOperator(arithmeticOperation.Operation) || (lhsIsVector && rhsIsVector) {
+		for i := 0; i < len(mQueryReqs); i++ {
+			mQueryReqs[i].MetricsQuery.GetAllLabels = true
+		}
+	}
 
 	return mQueryReqs, queryArithmetic, nil
 }

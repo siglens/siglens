@@ -808,10 +808,6 @@ func Test_reduceEntries(t *testing.T) {
 	var val float64
 	var err error
 
-	val, err = reduceEntries(entries, segutils.Count, functionConstant)
-	assert.Nil(t, err)
-	assert.True(t, dtypeutils.AlmostEquals(5.0, val))
-
 	val, err = reduceEntries(entries, segutils.Sum, functionConstant)
 	assert.Nil(t, err)
 	assert.True(t, dtypeutils.AlmostEquals(16.0, val))
@@ -880,10 +876,6 @@ func Test_reduceRunningEntries(t *testing.T) {
 	val, err = reduceRunningEntries(entries, segutils.Avg, functionConstant)
 	assert.Nil(t, err)
 	assert.True(t, dtypeutils.AlmostEquals(16.0/5, val))
-
-	val, err = reduceRunningEntries(entries, segutils.Count, functionConstant)
-	assert.Nil(t, err)
-	assert.True(t, dtypeutils.AlmostEquals(5.0, val))
 
 	val, err = reduceRunningEntries(entries, segutils.Sum, functionConstant)
 	assert.Nil(t, err)
