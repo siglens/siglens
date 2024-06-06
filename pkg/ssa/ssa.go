@@ -104,7 +104,6 @@ func FetchIPAddressDetails() (IPAddressDetails, error) {
 	} else {
 		log.Errorf("FetchIPAddressDetails: Failed to parse location from: %s", details.Loc)
 	}
-	log.Infof("Successfully fetched and decoded IP address details")
 	return details, nil
 }
 func InitSsa() {
