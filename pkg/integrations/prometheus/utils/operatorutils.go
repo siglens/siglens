@@ -64,7 +64,7 @@ func IsLogicalOperator(op segutils.LogicalAndArithmeticOperator) bool {
 	}
 }
 
-func SetFinalResult(queryOp structs.QueryArithmetic, finalResult map[string]map[uint32]float64, groupID string, timestamp uint32, valueLHS float64, valueRHS float64, swapped bool) {
+func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map[uint32]float64, groupID string, timestamp uint32, valueLHS float64, valueRHS float64, swapped bool) {
 
 	if swapped {
 		tmp := valueLHS
