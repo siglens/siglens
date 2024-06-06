@@ -22,6 +22,7 @@ import (
 	"io/fs"
 	"os"
 
+	"github.com/cespare/xxhash"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -48,7 +49,7 @@ Should expose functions that will return a list of tsids given a metric name and
 */
 type TagTreeReader struct {
 	fd          *os.File // file having all the tagstree info for a tag key
-	metadataBuf []byte   // consists of the meta data info for a given tag key
+	metadataBuf []byte   // consists of the meta data info for a given tag key; excludes the first 5 bytes (version and size)
 }
 
 func (ttr *TagTreeReader) Close() error {
@@ -74,10 +75,44 @@ func (attr *AllTagTreeReaders) getTagTreeFileInfoForTagKey(tagKey string) (bool,
 }
 
 func InitAllTagsTreeReader(tagsTreeBaseDir string) (*AllTagTreeReaders, error) {
-	return &AllTagTreeReaders{
+	// Each file in the base directory is a tag tree file. The file name is the
+	// tag key.
+	filesInDir, err := os.ReadDir(tagsTreeBaseDir)
+	if err != nil {
+		err = fmt.Errorf("InitAllTagsTreeReader: failed to read the base directory %s; err=%v", tagsTreeBaseDir, err)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	attr := &AllTagTreeReaders{
 		baseDir:  tagsTreeBaseDir,
 		tagTrees: make(map[string]*TagTreeReader),
-	}, nil
+	}
+
+	for _, file := range filesInDir {
+		if file.IsDir() {
+			log.Warnf("InitAllTagsTreeReader: found a directory %v in the base directory %s; skipping it", file.Name(), tagsTreeBaseDir)
+			continue
+		}
+
+		tagKey := file.Name()
+		fInfo, err := file.Info()
+		if err != nil {
+			err = fmt.Errorf("InitAllTagsTreeReader: failed to get file info for file %s; err=%v", tagKey, err)
+			log.Errorf(err.Error())
+			return nil, err
+		}
+
+		// This also inserts the tagTreeReader into the tagTrees map.
+		_, err = attr.InitTagsTreeReader(tagKey, fInfo)
+		if err != nil {
+			err = fmt.Errorf("InitAllTagsTreeReader: failed to initialize tag tree reader for tag key %s in base dir %v; err=%v", tagKey, tagsTreeBaseDir, err)
+			log.Errorf(err.Error())
+			return nil, err
+		}
+	}
+
+	return attr, nil
 }
 
 func (attr *AllTagTreeReaders) InitTagsTreeReader(tagKey string, fInfo fs.FileInfo) (*TagTreeReader, error) {
@@ -324,9 +359,11 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 		startOff = utils.BytesToUint32LittleEndian(ttr.metadataBuf[id : id+4])
 		id += 4
 		endOff = utils.BytesToUint32LittleEndian(ttr.metadataBuf[id : id+4])
+
 		tagTreeBuf := make([]byte, endOff-startOff)
 		_, err := ttr.fd.ReadAt(tagTreeBuf, int64(startOff))
 		if err != nil {
+			log.Errorf("TagTreeReader.GetMatchingTSIDs: failed to read tagtree buffer for %v with startOffset %v and endOffset %v; err=%+v", ttr.fd.Name(), startOff, endOff, err)
 			return false, false, nil, 0, err
 		}
 		treeOffset := uint32(0)
@@ -350,12 +387,14 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 				rawTagValue = tagTreeBuf[treeOffset : treeOffset+8]
 				treeOffset += 8
 			} else {
-				log.Errorf("TagTreeReader.GetMatchingTSIDs: unknown value type: %v, (treeOffset, len(tagTreeBuf)): (%v, %v)", tagRawValueType, treeOffset, len(tagTreeBuf))
+				log.Errorf("TagTreeReader.GetMatchingTSIDs: unknown value type: %v, (treeOffset, len(tagTreeBuf)): (%v, %v), file name: %v, startOffset: %v",
+					tagRawValueType, treeOffset, len(tagTreeBuf), ttr.fd.Name(), startOff)
 				return false, false, nil, 0, fmt.Errorf("unknown value type: %v", tagRawValueType)
 			}
-			tsidCount := utils.BytesToUint16LittleEndian(tagTreeBuf[treeOffset : treeOffset+2])
+
+			tsidCount := uint32(utils.BytesToUint16LittleEndian(tagTreeBuf[treeOffset : treeOffset+2]))
 			treeOffset += 2
-			if uint32(len(tagTreeBuf))-treeOffset < uint32(tsidCount*8) {
+			if uint32(len(tagTreeBuf))-treeOffset < tsidCount*8 {
 				// not enough bytes left in tagTreeBuf for tsidCount TSIDs
 				log.Errorf("GetMatchingTSIDs: unexpected lack of space for %v TSIDs", tsidCount)
 				break
@@ -366,7 +405,7 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 				valueAsStr := string(rawTagValue)
 				rawTagValueToTSIDs[valueAsStr] = make(map[uint64]struct{})
 
-				for i := uint32(0); i < uint32(tsidCount); i++ {
+				for i := uint32(0); i < tsidCount; i++ {
 					tsid := utils.BytesToUint64LittleEndian(tagTreeBuf[treeOffset : treeOffset+8])
 					rawTagValueToTSIDs[valueAsStr][tsid] = struct{}{}
 
@@ -374,7 +413,7 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 				}
 			}
 			if mightMatchOtherValue && !matchesThis {
-				treeOffset += uint32(tsidCount * 8)
+				treeOffset += tsidCount * 8
 			} else if !mightMatchOtherValue {
 				break
 			}
@@ -389,6 +428,105 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 		return false, false, rawTagValueToTSIDs, tagHashValue, nil
 	}
 	return true, true, rawTagValueToTSIDs, tagHashValue, nil
+}
+
+func (attr *AllTagTreeReaders) GetAllTagKeys() map[string]struct{} {
+	tagKeys := make(map[string]struct{})
+	for tagKey := range attr.tagTrees {
+		tagKeys[tagKey] = struct{}{}
+	}
+
+	return tagKeys
+}
+
+// Returns a map: tagKey -> set of tagValues for that key
+func (attr *AllTagTreeReaders) GetAllTagPairs() map[string]map[string]struct{} {
+	tagPairs := make(map[string]map[string]struct{})
+	for tagKey, ttr := range attr.tagTrees {
+		err := ttr.readTagValuesOnly(tagKey, tagPairs)
+		if err != nil {
+			log.Errorf("AllTagTreeReaders.GetAllTagPairs: failed to get tag values for tag key %v. Error: %v", tagKey, err)
+		}
+	}
+
+	return tagPairs
+}
+
+func (attr *AllTagTreeReaders) GetTSIDsForKey(tagKey string) (map[uint64]struct{}, error) {
+	ttr, ok := attr.tagTrees[tagKey]
+	if !ok {
+		return nil, nil
+	}
+
+	allTSIDs := make(map[uint64]struct{})
+	values := make(map[string]map[string]struct{})
+	err := ttr.readTagValuesOnly(tagKey, values)
+	if err != nil {
+		log.Errorf("AllTagTreeReaders.GetTSIDsForKey: failed to get tag values for tag key %v. Error: %v", tagKey, err)
+		return nil, err
+	}
+
+	valuesForKey, ok := values[tagKey]
+	if !ok {
+		err := fmt.Errorf("AllTagTreeReaders.GetTSIDsForKey: tag key %v not found in values map", tagKey)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	for value := range valuesForKey {
+		tsids, err := ttr.GetTSIDsForTagValue(value)
+		if err != nil {
+			log.Errorf("AllTagTreeReaders.GetTSIDsForKey: failed to get TSIDs for tag key %v, tag value %v. Error: %v", tagKey, value, err)
+			return nil, err
+		}
+
+		allTSIDs = utils.MergeMaps(allTSIDs, tsids)
+	}
+
+	return allTSIDs, nil
+}
+
+func (attr *AllTagTreeReaders) GetTSIDsForTagPair(tagKey string, tagValue string) (map[uint64]struct{}, error) {
+	ttr, ok := attr.tagTrees[tagKey]
+	if !ok {
+		return nil, fmt.Errorf("AllTagTreeReaders.GetTSIDsForTagPair: tag key %v not found", tagKey)
+	}
+
+	return ttr.GetTSIDsForTagValue(tagValue)
+}
+
+func (ttr *TagTreeReader) GetTSIDsForTagValue(tagValue string) (map[uint64]struct{}, error) {
+	hashedMetricNames, err := ttr.getHashedMetricNames()
+	if err != nil {
+		log.Errorf("TagTreeReader.GetTSIDsForTagValue: failed to get hashed metric names. Error: %v", err)
+		return nil, err
+	}
+
+	allTSIDs := make(map[uint64]struct{})
+	hashedTagValue := xxhash.Sum64String(tagValue) // The hash function that TagTree.AddTagValue uses.
+
+	for hashedMetricName := range hashedMetricNames {
+		_, _, rawTagValueToTSIDs, _, err := ttr.GetMatchingTSIDs(hashedMetricName, hashedTagValue, segutils.Equal)
+		if err != nil {
+			log.Errorf("AllTagTreeReaders.GetTSIDsForTagValue: failed to get matching TSIDs for tag value %v, metric hash %v. Error: %v",
+				tagValue, hashedMetricName, err)
+			return nil, err
+		}
+
+		// There should be 0 or 1 matching tag values, since we're looking for
+		// a specific tag value.
+		if len(rawTagValueToTSIDs) > 1 {
+			err := fmt.Errorf("AllTagTreeReaders.GetTSIDsForTagValue: expected 0 or 1 tag value to match, got %v", len(rawTagValueToTSIDs))
+			log.Errorf(err.Error())
+			return nil, err
+		}
+
+		for _, tsids := range rawTagValueToTSIDs {
+			allTSIDs = utils.MergeMaps(allTSIDs, tsids)
+		}
+	}
+
+	return allTSIDs, nil
 }
 
 /*
@@ -466,13 +604,13 @@ func (tvi *TagValueIterator) Next() (uint64, []byte, map[uint64]struct{}, []byte
 		} else {
 			log.Errorf("TagValueIterator.Next: unknown value type: %v", tagRawValueType)
 		}
-		tsidCount := utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2])
+		tsidCount := uint32(utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2]))
 		tvi.treeOffset += 2
-		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < uint32(tsidCount*8) {
+		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < tsidCount*8 {
 			// not enough bytes left in tagTreeBuf for all TSIDs
 			return 0, nil, nil, nil, false
 		}
-		for i := uint16(0); i < tsidCount; i++ {
+		for i := uint32(0); i < tsidCount; i++ {
 			tsid := utils.BytesToUint64LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8])
 			tvi.treeOffset += 8
 			matchingTSIDs[tsid] = struct{}{}
@@ -627,18 +765,47 @@ func (tvi *TagValueIterator) NextTagValue() ([]byte, []byte, bool) {
 			return nil, nil, false
 
 		}
-		tsidCount := utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2])
+		tsidCount := uint32(utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2]))
 		tvi.treeOffset += 2
-		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < uint32(tsidCount*8) {
+		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < tsidCount*8 {
 			// not enough bytes left in tagTreeBuf for all TSIDs
 			return nil, nil, false
 		}
 
 		// we don't need the tsids
-		tvi.treeOffset += uint32(8 * tsidCount)
+		tvi.treeOffset += 8 * tsidCount
 		if tsidCount > 0 {
 			return tagValue, tagRawValueType, true
 		}
 	}
 	return nil, nil, false
+}
+
+func (attr *AllTagTreeReaders) GetHashedMetricNames() (map[uint64]struct{}, error) {
+	allHashedMetricNames := make(map[uint64]struct{})
+	for _, ttr := range attr.tagTrees {
+		hashedMetricNames, err := ttr.getHashedMetricNames()
+		if err != nil {
+			log.Errorf("AllTagTreeReaders.GetHashedMetricNames: failed to get hashed metric names. Error: %v", err)
+			return nil, err
+		}
+
+		allHashedMetricNames = utils.MergeMaps(allHashedMetricNames, hashedMetricNames)
+	}
+
+	return allHashedMetricNames, nil
+}
+
+// Refer to the comment above TagTree.encodeTagsTree() for how the metadata is
+// structured.
+func (ttr *TagTreeReader) getHashedMetricNames() (map[uint64]struct{}, error) {
+	hashedMetricNames := make(map[uint64]struct{})
+	index := 0
+	for index < len(ttr.metadataBuf) {
+		hashedMetricName := utils.BytesToUint64LittleEndian(ttr.metadataBuf[index : index+8])
+		hashedMetricNames[hashedMetricName] = struct{}{}
+		index += 16 // 8 for the hashed metric name, 4 for the start offset, 4 for the end offset
+	}
+
+	return hashedMetricNames, nil
 }

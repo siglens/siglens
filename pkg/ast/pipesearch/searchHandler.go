@@ -44,10 +44,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const MIN_IN_MS = 60_000
-const HOUR_IN_MS = 3600_000
-const DAY_IN_MS = 86400_000
-
 /*
 Example incomingBody
 
@@ -115,7 +111,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			startEpoch = uint64(val)
 		case string:
 			defValue := nowTs - (15 * 60 * 1000)
-			startEpoch = parseAlphaNumTime(nowTs, string(val), defValue)
+			startEpoch = utils.ParseAlphaNumTime(nowTs, string(val), defValue)
 		default:
 			startEpoch = nowTs - (15 * 60 * 1000)
 		}
@@ -136,7 +132,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case uint64:
 			endEpoch = uint64(val)
 		case string:
-			endEpoch = parseAlphaNumTime(nowTs, string(val), nowTs)
+			endEpoch = utils.ParseAlphaNumTime(nowTs, string(val), nowTs)
 		default:
 			endEpoch = nowTs
 		}
@@ -532,55 +528,6 @@ func convertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
 	}
 
 	return utils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
-}
-
-/*
-   Supports "now-[Num][Unit]"
-   Num ==> any positive integer
-   Unit ==> m(minutes), h(hours), d(days)
-*/
-
-func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) uint64 {
-
-	sanTime := strings.ReplaceAll(inp, " ", "")
-	nowPrefix := "now-"
-
-	if sanTime == "now" {
-		return nowTs
-	}
-
-	retVal := defValue
-
-	strln := len(sanTime)
-	if strln < len(nowPrefix)+2 {
-		return defValue
-	}
-
-	// check for prefix 'now-' in the input string
-	if !strings.HasPrefix(sanTime, nowPrefix) {
-		return defValue
-	}
-
-	// check for invalid time units
-	unit := sanTime[strln-1]
-	if unit != 'm' && unit != 'h' && unit != 'd' {
-		return defValue
-	}
-
-	num, err := strconv.ParseInt(sanTime[len(nowPrefix):strln-1], 10, 64)
-	if err != nil || num < 0 {
-		return defValue
-	}
-
-	switch unit {
-	case 'm':
-		retVal = nowTs - MIN_IN_MS*uint64(num)
-	case 'h':
-		retVal = nowTs - HOUR_IN_MS*uint64(num)
-	case 'd':
-		retVal = nowTs - DAY_IN_MS*uint64(num)
-	}
-	return retVal
 }
 
 func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid uint64) {
