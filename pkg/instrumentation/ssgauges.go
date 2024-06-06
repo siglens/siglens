@@ -103,7 +103,6 @@ func SetQueryLatencyMs(val int64, labelkey string, labelval string) {
 	}
 	mentry.sum += val
 	mentry.count++
-	log.Infof("SetQueryLatencyMs: New sum for key %s is %d and count is %d", keystr, mentry.sum, mentry.count)
 }
 
 var writerSegstoreCountGauge int64
@@ -296,7 +295,6 @@ func SetSegmentLatencyP95Ms(val int64, labelkey string, labelval string) {
 	}
 	mentry.sum += val
 	mentry.count++
-	log.Infof("SetSegmentLatencyP95Ms: New sum for key %s is %d and count is %d", keystr, mentry.sum, mentry.count)
 }
 
 func registerGaugeCallbacks() {

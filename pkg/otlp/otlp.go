@@ -231,7 +231,6 @@ func extractAnyValue(anyValue *commonpb.AnyValue) (interface{}, error) {
 
 		return value, nil
 	default:
-		log.Errorf("extractAnyValue: unsupported value type: %T. Input: %+v", anyValue.Value, anyValue)
 		return nil, fmt.Errorf("extractAnyValue: unsupported value type: %T", anyValue.Value)
 	}
 }
