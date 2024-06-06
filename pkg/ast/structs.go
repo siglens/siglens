@@ -18,7 +18,6 @@
 package ast
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -110,7 +109,7 @@ func OpNameToString(label interface{}) (string, error) {
 			}
 			sb.WriteString(s)
 		default:
-			return "", fmt.Errorf("unexpected type [%T] found in label interfaces: %+v", i, i)
+			return "", fmt.Errorf("OpNameToString: unexpected type [%T] found in label interfaces: %+v", i, i)
 		}
 	}
 	return sb.String(), nil
@@ -185,7 +184,7 @@ func AggTypeToAggregateFunction(aggType string) (utils.AggregateFunctions, error
 	} else if aggType == "cardinality" {
 		aggFunc = utils.Cardinality
 	} else {
-		return aggFunc, errors.New("unsupported statistic aggregation type")
+		return aggFunc, fmt.Errorf("AggTypeToAggregateFunction: unsupported statistic aggregation type %v", aggType)
 	}
 	return aggFunc, nil
 }
