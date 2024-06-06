@@ -190,6 +190,10 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/all_tags", hs.Recovery(getAllMetricTagsHandler()))
 	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/timeseries", hs.Recovery(getMetricTimeSeriesHandler()))
 	hs.Router.GET(server_utils.METRIC_PREFIX+"/api/v1/functions", hs.Recovery(getMetricFunctionsHandler()))
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/series-cardinality", hs.Recovery(getMetricSeriesCardinalityHandler()))
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/tag-keys-with-most-series", hs.Recovery(getTagKeysWithMostSeriesHandler()))
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/tag-pairs-with-most-series", hs.Recovery(getTagPairsWithMostSeriesHandler()))
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/tag-keys-with-most-values", hs.Recovery(getTagKeysWithMostValuesHandler()))
 
 	// search api Handlers
 	hs.Router.POST(server_utils.API_PREFIX+"/echo", tracing.TraceMiddleware(hs.Recovery(pipeSearchHandler())))

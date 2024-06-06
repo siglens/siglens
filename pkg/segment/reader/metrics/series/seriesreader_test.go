@@ -42,10 +42,7 @@ func Test_GetAllMetricNames(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Read Metric Names from the File.
-	tssr, err := InitTimeSeriesReader(filePath[:len(filePath)-4])
-	assert.Nil(t, err)
-
-	mNamesMap, err := tssr.GetAllMetricNames()
+	mNamesMap, err := GetAllMetricNames(filePath[:len(filePath)-4])
 	assert.Nil(t, err)
 
 	assert.Equal(t, len(mNamesMap), int(mNamesCount))
