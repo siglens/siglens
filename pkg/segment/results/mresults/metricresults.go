@@ -186,8 +186,16 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	}
 
 	r.Results = make(map[string]map[uint32]float64)
-	isCountAgg := r.computeAggCount(aggregation)
-	if isCountAgg {
+	errors := make([]error, 0)
+
+	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
+	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
+	if aggregation.IsAggregateFromAllTimeseries() {
+		err := r.aggregateFromAllTimeseries(aggregation)
+		if err != nil {
+			errors = append(errors, err)
+			return errors
+		}
 		return nil
 	}
 
@@ -195,7 +203,6 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	wg := &sync.WaitGroup{}
 
 	errorLock := &sync.Mutex{}
-	errors := make([]error, 0)
 
 	var idx int
 	for grpID, runningDS := range r.DsResults {
@@ -203,7 +210,7 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 		go func(grp string, ds *DownsampleSeries) {
 			defer wg.Done()
 
-			grpVal, err := ds.Aggregate()
+			grpVal, err := ds.AggregateFromSingleTimeseries()
 			if err != nil {
 				errorLock.Lock()
 				errors = append(errors, err)
@@ -274,12 +281,23 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 	}
 
 	results := make(map[string]map[uint32]float64, len(r.Results))
+	errors := make([]error, 0)
+
+	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
+	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
+	if aggregation.IsAggregateFromAllTimeseries() {
+		err := r.aggregateFromAllTimeseries(aggregation)
+		if err != nil {
+			errors = append(errors, err)
+			return errors
+		}
+		return nil
+	}
 
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 
 	errorLock := &sync.Mutex{}
-	errors := make([]error, 0)
 
 	var idx int
 
@@ -306,7 +324,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 			defer wg.Done()
 
 			for ts, entries := range ts {
-				aggVal, err := ApplyAggregation(entries, aggregation)
+				aggVal, err := ApplyAggregationFromSingleTimeseries(entries, aggregation)
 				if err != nil {
 					errorLock.Lock()
 					errors = append(errors, err)
@@ -673,11 +691,21 @@ func CalculateInterval(timerangeSeconds uint32) (uint32, error) {
 	return 0, errors.New("no suitable step found")
 }
 
-// Count only cares about the number of time series at each timestamp, so it does not need to reduce entries to calculate the values.
-func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) bool {
-	if aggregation.AggregatorFunction != segutils.Count {
-		return false
+func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregation) error {
+
+	switch aggregation.AggregatorFunction {
+	case segutils.Count:
+		r.computeAggCount(aggregation)
+	// Todo: Add TopK and BottomK
+	default:
+		return fmt.Errorf("aggregateFromAllTimeseries: Unsupported aggregation: %v", aggregation)
 	}
+
+	return nil
+}
+
+// Count only cares about the number of time series at each timestamp, so it does not need to reduce entries to calculate the values.
+func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
 
 	// groupByCols seriesId mapping to map[uint32]map[string]struct{}
 	// We can determine the number of full unique grpIDs for each timestamp.
@@ -714,6 +742,4 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) bool {
 
 	r.DsResults = nil
 	r.State = AGGREGATED
-
-	return true
 }

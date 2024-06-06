@@ -218,7 +218,7 @@ func (dss *DownsampleSeries) Merge(toJoin *DownsampleSeries) {
 	dss.sorted = false
 }
 
-func (dss *DownsampleSeries) Aggregate() (map[uint32]float64, error) {
+func (dss *DownsampleSeries) AggregateFromSingleTimeseries() (map[uint32]float64, error) {
 	// dss has a list of RunningEntry that caputre downsampled time per tsid
 	// many tsids will exist but they will share the grpID
 	dss.sortEntries()
@@ -240,7 +240,7 @@ func (dss *DownsampleSeries) Aggregate() (map[uint32]float64, error) {
 	return retVal, nil
 }
 
-func ApplyAggregation(entries []RunningEntry, aggregation structs.Aggregation) (float64, error) {
+func ApplyAggregationFromSingleTimeseries(entries []RunningEntry, aggregation structs.Aggregation) (float64, error) {
 	return reduceRunningEntries(entries, aggregation.AggregatorFunction, aggregation.FuncConstant)
 }
 
