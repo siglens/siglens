@@ -50,7 +50,7 @@ func SelectMatchingStringsWithWildcard(s string, slice []string) []string {
 
 	compiledRegex, err := regexp.Compile(s)
 	if err != nil {
-		log.Errorf("SelectMatchingStringsWithWildcard: regex compile failed: %v", err)
+		log.Errorf("SelectMatchingStringsWithWildcard: regex compile failed, pattern: %v, err: %v", s, err)
 		return nil
 	}
 
