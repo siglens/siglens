@@ -86,24 +86,14 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	// init metrics results structs
 	mRes := mresults.InitMetricResults(mQuery, qid)
 
-	// get all metrics segments that pass the initial time filter
-	mSegments, err := metadata.GetMetricsSegmentRequests(timeRange, querySummary, mQuery.OrgId)
+	mSegments, err := getAllRequestsWithinTimeRange(timeRange, mQuery.OrgId, querySummary)
 	if err != nil {
-		log.Errorf("ApplyMetricsQuery: failed to get rotated metric segments: %v", err)
+		log.Errorf("ApplyMetricsQuery: failed to get all metric segments within time range %+v; err=%v", timeRange, err)
 		return &mresults.MetricsResult{
 			ErrList: []error{err},
 		}
 	}
 
-	unrotatedMSegments, err := metrics.GetUnrotatedMetricsSegmentRequests(timeRange, querySummary, mQuery.OrgId)
-	if err != nil {
-		log.Errorf("ApplyMetricsQuery: failed to get unrotated metric segments: %v", err)
-		return &mresults.MetricsResult{
-			ErrList: []error{err},
-		}
-	}
-
-	mSegments = mergeMetricSearchRequests(unrotatedMSegments, mSegments)
 	allTagKeys := make(map[string]bool)
 
 	for _, allMSearchReqs := range mSegments {
