@@ -83,7 +83,7 @@ func ApplyColumnarSearchQuery(query *SearchQuery, multiColReader *segread.MultiC
 	case RegexExpression:
 		rawColVal, err := multiColReader.ReadRawRecordFromColumnFile(query.QueryInfo.ColName, blockNum, recordNum, qid)
 		if err != nil {
-			log.Errorf("ApplyColumnarSearchQuery: %v", err)
+			log.Debugf("ApplyColumnarSearchQuery: %v", err)
 			return false, nil
 		}
 		return writer.ApplySearchToExpressionFilterSimpleCsg(query.QueryInfo.QValDte, query.ExpressionFilter.FilterOp, rawColVal, true, holderDte)
