@@ -55,6 +55,9 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQuery, queryOps []structs.QueryArithmetic, timeRange *dtu.MetricsTimeRange, qid uint64) *mresults.MetricsResult {
 	resMap := make(map[uint64]*mresults.MetricsResult)
 	for index, mQuery := range mQueries {
+		if _, ok := resMap[hashList[index]]; ok {
+			continue
+		}
 		querySummary := summary.InitQuerySummary(summary.METRICS, qid)
 		defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
 		_, err := query.StartQuery(qid, false)
@@ -74,168 +77,236 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		}
 	}
 
-	mRes, err := HelperQueryArithmeticAndLogical(queryOps, resMap)
+	return ProcessQueryArithmeticAndLogical(queryOps, resMap)
+}
+
+func ProcessQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) *mresults.MetricsResult {
+
+	if len(queryOps) > 1 {
+		log.Errorf("processQueryArithmeticAndLogical: len(queryOps) should be 1, but got %d", len(queryOps))
+		log.Errorf("processQueryArithmeticAndLogical: processing only the first queryOp")
+	}
+
+	operationCounter := 0
+
+	finalResult, err := processQueryArithmeticNodeOp(&queryOps[0], resMap, &operationCounter)
 	if err != nil {
+		log.Errorf("ProcessQueryArithmeticAndLogical: Error processing query arithmetic node operation: %v", err)
 		return &mresults.MetricsResult{
 			ErrList: []error{err},
 		}
 	}
 
-	return mRes
+	// delete all the intermediate results from the resMap
+	for id := range resMap {
+		delete(resMap, id)
+	}
+
+	return &mresults.MetricsResult{Results: finalResult, State: mresults.AGGREGATED}
 }
 
-func HelperQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) (*mresults.MetricsResult, error) {
+func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, operationCounter *int) (map[string]map[uint32]float64, error) {
+	if queryOp == nil {
+		return nil, fmt.Errorf("processQueryArithmeticNodeOp: queryOp is nil")
+	}
+
+	if queryOp.LHSExpr != nil {
+		var metricName string
+		// process the LHS expression first
+		result, err := processQueryArithmeticNodeOp(queryOp.LHSExpr, resMap, operationCounter)
+		if err != nil {
+			return nil, err
+		}
+		if len(result) > 0 {
+			for groupID := range result {
+				metricName = mresults.ExtractMetricNameFromGroupID(groupID)
+				break
+			}
+		}
+		// generate a new LHS hash by adding the operation counter, that is incremented after each operation
+		newLHS := queryOp.LHS + uint64(*operationCounter)
+		// store the result of the LHS expression in the resMap.
+		// We cannot overwrite the LHS result in the resMap, as it may be used in other operations.
+		resMap[newLHS] = &mresults.MetricsResult{MetricName: metricName, Results: result, State: mresults.AGGREGATED}
+		// update the LHS of the current queryOp to the newLHS, so that the result of the LHS expression can be used in the current operation
+		queryOp.LHS = newLHS
+	}
+
+	if queryOp.RHSExpr != nil {
+		var metricName string
+		// process the RHS expression first
+		result, err := processQueryArithmeticNodeOp(queryOp.RHSExpr, resMap, operationCounter)
+		if err != nil {
+			return nil, err
+		}
+		if len(result) > 0 {
+			for groupID := range result {
+				metricName = mresults.ExtractMetricNameFromGroupID(groupID)
+				break
+			}
+		}
+		// generate a new RHS hash by adding the operation counter, that is incremented after each operation
+		newRHS := queryOp.RHS + uint64(*operationCounter)
+		// store the result of the RHS expression in the resMap
+		// We cannot overwrite the RHS result in the resMap, as it may be used in other operations.
+		resMap[newRHS] = &mresults.MetricsResult{MetricName: metricName, Results: result, State: mresults.AGGREGATED}
+		// update the RHS of the current queryOp to the newRHS, so that the result of the RHS expression can be used in the current operation
+		queryOp.RHS = newRHS
+	}
+
+	*operationCounter++
+
+	return HelperQueryArithmeticAndLogical(queryOp, resMap)
+}
+
+func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult) (map[string]map[uint32]float64, error) {
 	finalResult := make(map[string]map[uint32]float64)
-	for _, queryOp := range queryOps {
-		resultLHS := resMap[queryOp.LHS]
-		resultRHS := resMap[queryOp.RHS]
-		swapped := false
-		if queryOp.ConstantOp {
-			resultLHS, ok := resMap[queryOp.LHS]
-			valueRHS := queryOp.Constant
-			if !ok { //this means the rhs is a vector result
+
+	resultLHS := resMap[queryOp.LHS]
+	resultRHS := resMap[queryOp.RHS]
+	swapped := false
+	if queryOp.ConstantOp {
+		resultLHS, ok := resMap[queryOp.LHS]
+		valueRHS := queryOp.Constant
+		if !ok { //this means the rhs is a vector result
+			swapped = true
+			resultLHS = resMap[queryOp.RHS]
+		}
+		if resultLHS == nil {
+			// For the case where both LHS and RHS are constants
+			// We are not processing those constants. So we return the result as is.
+			if len(resMap) == 1 {
+				for _, res := range resMap {
+					if res != nil {
+						finalResult = res.Results
+					}
+				}
+				return finalResult, nil
+			} else {
+				return nil, nil
+			}
+		}
+
+		for groupID, tsLHS := range resultLHS.Results {
+			finalResult[groupID] = make(map[uint32]float64)
+			for timestamp, valueLHS := range tsLHS {
+				putils.SetFinalResult(queryOp, finalResult, groupID, timestamp, valueLHS, valueRHS, swapped)
+			}
+		}
+
+	} else {
+		// Since each grpID is unique and contains label set information, we can map lGrpID to labelSet and labelSet to rGrpID.
+		// This way, we can quickly find the corresponding rGrpID for a given lGrpID in the other vector. If there is no corresponding result, it means there are no matching labels between the two vectors.
+		idToMatchingLabelSet := make(map[string]string)
+		matchingLabelValTorightGroupID := make(map[string]string)
+		hasVectorMatchingOp := queryOp.VectorMatching != nil && len(queryOp.VectorMatching.MatchingLabels) > 0
+		if hasVectorMatchingOp {
+			// Place the vector with higher cardinality on the left side.
+			if queryOp.VectorMatching.Cardinality == structs.CardOneToMany {
 				swapped = true
 				resultLHS = resMap[queryOp.RHS]
-			}
-			if resultLHS == nil { // for the case where both LHS and RHS are constants
-				continue
+				resultRHS = resMap[queryOp.LHS]
 			}
 
-			for groupID, tsLHS := range resultLHS.Results {
-				finalResult[groupID] = make(map[uint32]float64)
-				for timestamp, valueLHS := range tsLHS {
-					putils.SetFinalResult(queryOp, finalResult, groupID, timestamp, valueLHS, valueRHS, swapped)
-				}
-			}
-
-		} else {
-			// Since each grpID is unique and contains label set information, we can map lGrpID to labelSet and labelSet to rGrpID.
-			// This way, we can quickly find the corresponding rGrpID for a given lGrpID in the other vector. If there is no corresponding result, it means there are no matching labels between the two vectors.
-			idToMatchingLabelSet := make(map[string]string)
-			matchingLabelValTorightGroupID := make(map[string]string)
-			hasVectorMatchingOp := queryOp.VectorMatching != nil && len(queryOp.VectorMatching.MatchingLabels) > 0
-			if hasVectorMatchingOp {
-				// Place the vector with higher cardinality on the left side.
-				if queryOp.VectorMatching.Cardinality == structs.CardOneToMany {
-					swapped = true
-					resultLHS = resMap[queryOp.RHS]
-					resultRHS = resMap[queryOp.LHS]
-				}
-
-				matchingLabelsComb := make(map[string]struct{}, 0)
-				for lGroupID := range resultLHS.Results {
-					matchingLabelValStr := putils.ExtractMatchingLabelSet(lGroupID, queryOp.VectorMatching.MatchingLabels, queryOp.VectorMatching.On)
-					// If the left vector is the 'One' (vector with lower cardinality), it should not have repeated MatchingLabels.
-					// E.g.: (metric1{type="compact"} on (color,type) group_right metric2), the value combinations of (color,type) must be unique in the metric1
-					if queryOp.VectorMatching.Cardinality == structs.CardOneToOne {
-						_, exists := matchingLabelsComb[matchingLabelValStr]
-						// None of the operators we currently implement support many-to-many operations, and this may need to be modified in the future.
-						if exists {
-							return nil, fmt.Errorf("HelperQueryArithmeticAndLogical: many-to-many matching not allowed: matching labels must be unique on one side")
-						}
-						matchingLabelsComb[matchingLabelValStr] = struct{}{}
-					}
-					idToMatchingLabelSet[lGroupID] = matchingLabelValStr
-				}
-
-				matchingLabelsComb = make(map[string]struct{}, 0)
-				for rGroupID := range resultRHS.Results {
-					matchingLabelValStr := putils.ExtractMatchingLabelSet(rGroupID, queryOp.VectorMatching.MatchingLabels, queryOp.VectorMatching.On)
-					// Right vector is always the 'One' (vector with lower cardinality), it should not have repeated MatchingLabels.
+			matchingLabelsComb := make(map[string]struct{}, 0)
+			for lGroupID := range resultLHS.Results {
+				matchingLabelValStr := putils.ExtractMatchingLabelSet(lGroupID, queryOp.VectorMatching.MatchingLabels, queryOp.VectorMatching.On)
+				// If the left vector is the 'One' (vector with lower cardinality), it should not have repeated MatchingLabels.
+				// E.g.: (metric1{type="compact"} on (color,type) group_right metric2), the value combinations of (color,type) must be unique in the metric1
+				if queryOp.VectorMatching.Cardinality == structs.CardOneToOne {
 					_, exists := matchingLabelsComb[matchingLabelValStr]
 					// None of the operators we currently implement support many-to-many operations, and this may need to be modified in the future.
 					if exists {
 						return nil, fmt.Errorf("HelperQueryArithmeticAndLogical: many-to-many matching not allowed: matching labels must be unique on one side")
 					}
 					matchingLabelsComb[matchingLabelValStr] = struct{}{}
-
-					matchingLabelValTorightGroupID[matchingLabelValStr] = rGroupID
 				}
+				idToMatchingLabelSet[lGroupID] = matchingLabelValStr
 			}
 
-			labelStrSet := make(map[string]struct{})
-			for lGroupID, tsLHS := range resultLHS.Results {
-				// lGroupId is like: metricName{key:value,...
-				// So, if we want to determine whether there are elements with the same labels in another metric, we need to appropriately modify the group ID.
-				rGroupID := ""
-
-				if hasVectorMatchingOp {
-					matchingLabelVal, exists := idToMatchingLabelSet[lGroupID]
-					if !exists {
-						continue
-					}
-					rGroupID, exists = matchingLabelValTorightGroupID[matchingLabelVal]
-					if !exists {
-						continue
-					}
-				} else {
-					labelStr := ""
-					if len(lGroupID) >= len(resultLHS.MetricName) {
-						labelStr = lGroupID[len(resultLHS.MetricName):]
-						rGroupID = resultRHS.MetricName + labelStr
-					}
-
-					if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
-						labelStrSet[labelStr] = struct{}{}
-					}
+			matchingLabelsComb = make(map[string]struct{}, 0)
+			for rGroupID := range resultRHS.Results {
+				matchingLabelValStr := putils.ExtractMatchingLabelSet(rGroupID, queryOp.VectorMatching.MatchingLabels, queryOp.VectorMatching.On)
+				// Right vector is always the 'One' (vector with lower cardinality), it should not have repeated MatchingLabels.
+				_, exists := matchingLabelsComb[matchingLabelValStr]
+				// None of the operators we currently implement support many-to-many operations, and this may need to be modified in the future.
+				if exists {
+					return nil, fmt.Errorf("HelperQueryArithmeticAndLogical: many-to-many matching not allowed: matching labels must be unique on one side")
 				}
+				matchingLabelsComb[matchingLabelValStr] = struct{}{}
 
-				// If 'and' operation cannot find a matching label set in the right vector, we should skip the current label set in the left vector.
-				// However, for the 'or', 'unless' we do not want to skip that.
-				if _, ok := resultRHS.Results[rGroupID]; !ok && queryOp.Operation != utils.LetOr && queryOp.Operation != utils.LetUnless {
+				matchingLabelValTorightGroupID[matchingLabelValStr] = rGroupID
+			}
+		}
+
+		labelStrSet := make(map[string]struct{})
+		for lGroupID, tsLHS := range resultLHS.Results {
+			// lGroupId is like: metricName{key:value,...
+			// So, if we want to determine whether there are elements with the same labels in another metric, we need to appropriately modify the group ID.
+			rGroupID := ""
+
+			if hasVectorMatchingOp {
+				matchingLabelVal, exists := idToMatchingLabelSet[lGroupID]
+				if !exists {
 					continue
-				} //Entries for which no matching entry in the right-hand vector are dropped
-				finalResult[lGroupID] = make(map[uint32]float64)
-				for timestamp, valueLHS := range tsLHS {
-					valueRHS := resultRHS.Results[rGroupID][timestamp]
-					putils.SetFinalResult(queryOp, finalResult, lGroupID, timestamp, valueLHS, valueRHS, swapped)
+				}
+				rGroupID, exists = matchingLabelValTorightGroupID[matchingLabelVal]
+				if !exists {
+					continue
+				}
+			} else {
+				labelStr := ""
+				if len(lGroupID) >= len(resultLHS.MetricName) {
+					labelStr = lGroupID[len(resultLHS.MetricName):]
+					rGroupID = resultRHS.MetricName + labelStr
+				}
+
+				if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
+					labelStrSet[labelStr] = struct{}{}
 				}
 			}
-			if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
-				for rGroupID, tsRHS := range resultRHS.Results {
-					labelStr := ""
-					if len(rGroupID) >= len(resultRHS.MetricName) {
-						labelStr = rGroupID[len(resultRHS.MetricName):]
-					}
 
-					// For 'unless' op, all matching elements in both vectors are dropped
-					if queryOp.Operation == utils.LetUnless {
-						lGroupID := resultLHS.MetricName + labelStr
-						delete(finalResult, lGroupID)
+			// If 'and' operation cannot find a matching label set in the right vector, we should skip the current label set in the left vector.
+			// However, for the 'or', 'unless' we do not want to skip that.
+			if _, ok := resultRHS.Results[rGroupID]; !ok && queryOp.Operation != utils.LetOr && queryOp.Operation != utils.LetUnless {
+				continue
+			} //Entries for which no matching entry in the right-hand vector are dropped
+			finalResult[lGroupID] = make(map[uint32]float64)
+			for timestamp, valueLHS := range tsLHS {
+				valueRHS := resultRHS.Results[rGroupID][timestamp]
+				putils.SetFinalResult(queryOp, finalResult, lGroupID, timestamp, valueLHS, valueRHS, swapped)
+			}
+		}
+		if queryOp.Operation == utils.LetOr || queryOp.Operation == utils.LetUnless {
+			for rGroupID, tsRHS := range resultRHS.Results {
+				labelStr := ""
+				if len(rGroupID) >= len(resultRHS.MetricName) {
+					labelStr = rGroupID[len(resultRHS.MetricName):]
+				}
+
+				// For 'unless' op, all matching elements in both vectors are dropped
+				if queryOp.Operation == utils.LetUnless {
+					lGroupID := resultLHS.MetricName + labelStr
+					delete(finalResult, lGroupID)
+					continue
+				} else { // For 'or' op, check if the vector on the right has a label set that does not exist in the vector on the left.
+					_, exists := labelStrSet[labelStr]
+					// If exists, which means we already add that label set when traversing the resultLHS
+					if exists {
 						continue
-					} else { // For 'or' op, check if the vector on the right has a label set that does not exist in the vector on the left.
-						_, exists := labelStrSet[labelStr]
-						// If exists, which means we already add that label set when traversing the resultLHS
-						if exists {
-							continue
-						}
+					}
 
-						finalResult[rGroupID] = make(map[uint32]float64)
-						for timestamp, valueRHS := range tsRHS {
-							finalResult[rGroupID][timestamp] = valueRHS
-						}
+					finalResult[rGroupID] = make(map[uint32]float64)
+					for timestamp, valueRHS := range tsRHS {
+						finalResult[rGroupID][timestamp] = valueRHS
 					}
 				}
 			}
-
 		}
+
 	}
 
-	if len(finalResult) == 0 {
-		// For the case where both LHS and RHS are constants
-		// We are not processing those constants. So we return the result as is.
-		if len(resMap) == 1 {
-			for _, res := range resMap {
-				if res != nil {
-					finalResult = res.Results
-				}
-			}
-		} else {
-			return &mresults.MetricsResult{ErrList: []error{errors.New("no results found")}}, nil
-		}
-	}
-
-	return &mresults.MetricsResult{Results: finalResult, State: mresults.AGGREGATED}, nil
+	return finalResult, nil
 }
 
 func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
