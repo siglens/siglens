@@ -447,6 +447,10 @@ func (agg Aggregation) ShallowClone() *Aggregation {
 	return &aggCopy
 }
 
+func (agg Aggregation) IsAggregateFromAllTimeseries() bool {
+	return agg.AggregatorFunction == utils.Count // Todo: Will add topk, bottomk
+}
+
 func (mQuery *MetricsQuery) IsRegexOnMetricName() bool {
 	return mQuery.MetricOperator == utils.Regex || mQuery.MetricOperator == utils.NegRegex
 }
