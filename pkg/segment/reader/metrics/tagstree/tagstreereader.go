@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"regexp"
 
 	"github.com/cespare/xxhash"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
@@ -28,7 +29,6 @@ import (
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
-	"regexp"
 )
 
 const STAR = "*"
