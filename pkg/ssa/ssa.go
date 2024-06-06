@@ -78,13 +78,13 @@ func FetchIPAddressDetails() (IPAddressDetails, error) {
 	var details IPAddressDetails
 	resp, err := http.Get("https://ipinfo.io")
 	if err != nil {
-		log.Errorf("Failed to fetch IP address details: %v", err)
+		log.Errorf("FetchIPAddressDetails: Failed to fetch IP address details: %v", err)
 		return details, err
 	}
 	defer resp.Body.Close()
 
 	if err := json.NewDecoder(resp.Body).Decode(&details); err != nil {
-		log.Errorf("Failed to decode IP address details: %v", err)
+		log.Errorf("FetchIPAddressDetails: Failed to decode IP address details: %v", err)
 		return details, err
 	}
 
@@ -94,18 +94,16 @@ func FetchIPAddressDetails() (IPAddressDetails, error) {
 		if lat, err := strconv.ParseFloat(locParts[0], 64); err == nil {
 			details.Latitude = lat
 		} else {
-			log.Errorf("Failed to parse latitude: %v", err)
+			log.Errorf("FetchIPAddressDetails: Failed to parse latitude %s, Error: %v", locParts[0], err)
 		}
 		if lon, err := strconv.ParseFloat(locParts[1], 64); err == nil {
 			details.Longitude = lon
 		} else {
-			log.Errorf("Failed to parse longitude: %v", err)
+			log.Errorf("FetchIPAddressDetails: Failed to parse longitude %s, Error: %v", locParts[1], err)
 		}
 	} else {
-		log.Errorf("Failed to parse location: %v", details.Loc)
+		log.Errorf("FetchIPAddressDetails: Failed to parse location from: %s", details.Loc)
 	}
-
-	log.Infof("Successfully fetched and decoded IP address details")
 
 	return details, nil
 }
@@ -119,12 +117,12 @@ func InitSsa() {
 	)
 
 	if err != nil {
-		log.Errorf("Error initializing ssa: %v", err)
+		log.Errorf("InitSsa: Error initializing ssa: %v", err)
 		return
 	}
 	ipDetails, err := FetchIPAddressDetails()
 	if err != nil {
-		log.Errorf("Failed to fetch IP address details: %v", err)
+		log.Errorf("InitSsa: Failed to fetch IP address details: %v", err)
 	}
 
 	IPAddressInfo = ipDetails
@@ -143,7 +141,7 @@ func InitSsa() {
 		// Write the timestamp to the file (Unix time in milliseconds)
 		err = os.WriteFile(timestampFilePath, []byte(strconv.FormatInt(int64(oldestSegmentEpoch), 10)), 0644)
 		if err != nil {
-			log.Errorf("InitSsa: Failed to write timestamp to file: %v", err)
+			log.Errorf("InitSsa: Failed to write timestamp to file: %v, timestamp filepath=%v", err, timestampFilePath)
 		}
 	} else if err != nil {
 		log.Errorf("InitSsa: Failed to check if timestamp file exists: %v", err)
@@ -157,7 +155,7 @@ func GetOldestSegmentEpoch(ingestNodeDir string, orgid uint64) (uint64, error) {
 	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
 	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
 	if err != nil {
-		log.Errorf("GetOldestSegmentEpoch: Failed to read segmeta, err: %v", err)
+		log.Errorf("GetOldestSegmentEpoch: Failed to read segmeta, err: %v, segmeta: %v", err, currentSegmeta)
 		return 0, err
 	}
 
@@ -165,7 +163,7 @@ func GetOldestSegmentEpoch(ingestNodeDir string, orgid uint64) (uint64, error) {
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
 	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)
 	if err != nil {
-		log.Errorf("GetOldestSegmentEpoch: Failed to get all metric meta entries, err: %v", err)
+		log.Errorf("GetOldestSegmentEpoch: Failed to get all metric meta entries, err: %v, metrics meta: %v", err, currentMetricsMeta)
 		return 0, err
 	}
 
@@ -248,7 +246,7 @@ func StopSsa() {
 	})
 	err := client.Close()
 	if err != nil {
-		log.Debugf("Failed to stop ssa module! Error: %v", err)
+		log.Debugf("StopSsa: Failed to stop ssa module! Error: %v", err)
 	}
 }
 
@@ -275,11 +273,11 @@ func flushSsa() {
 	// Read the timestamp from the file (Unix time in milliseconds)
 	data, err := os.ReadFile(timestampFilePath)
 	if err != nil {
-		log.Errorf("Failed to read timestamp from file: %v", err)
+		log.Errorf("flushSsa: Failed to read timestamp from file: %v", err)
 	} else {
 		timestamp, err := strconv.ParseInt(string(data), 10, 64)
 		if err != nil {
-			log.Errorf("Failed to parse timestamp: %v", err)
+			log.Errorf("flushSsa: Failed to parse timestamp: %v", err)
 		} else {
 			days = int(time.Now().UnixMilli()-timestamp) / (60 * 60 * 24 * 1000)
 		}
