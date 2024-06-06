@@ -76,8 +76,6 @@ async function metricsExplorerDatePickerHandler(evt) {
         const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
         queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
         queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
-
-        queries[queryName] = queryDetails;
         
         await getQueryDetails(queryName, queryDetails);
     });
