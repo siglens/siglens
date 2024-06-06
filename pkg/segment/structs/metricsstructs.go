@@ -377,7 +377,7 @@ func (ds *Downsampler) GetIntervalTimeInSeconds() uint32 {
 	case "y":
 		intervalTime += 86400 * 365
 	default:
-		log.Error("GetIntervalTimeInSeconds: invalid time format")
+		log.Errorf("Downsampler.GetIntervalTimeInSeconds: invalid time format: %v", ds.Unit)
 		return 0
 	}
 
@@ -394,13 +394,13 @@ func (mbs *MBlockSummary) FlushSummary(fName string) ([]byte, error) {
 		err := os.MkdirAll(path.Dir(fName), os.FileMode(0764))
 		flag = true
 		if err != nil {
-			log.Errorf("Failed to create directory at %s: %v", path.Dir(fName), err)
+			log.Errorf("MBlockSummary.FlushSummary: Failed to create directory at %s, err: %v", path.Dir(fName), err)
 			return nil, err
 		}
 	}
 	fd, err := os.OpenFile(fName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		log.Errorf("writeBlockSummary: open failed fname=%v, err=%v", fName, err)
+		log.Errorf("MBlockSummary.FlushSummary: Failed to open file: %v, err: %v", fName, err)
 		return nil, err
 	}
 	defer fd.Close()
@@ -422,7 +422,7 @@ func (mbs *MBlockSummary) FlushSummary(fName string) ([]byte, error) {
 	copy(mBlkSum[idx:], toputils.Uint32ToBytesLittleEndian(mbs.LowTs))
 
 	if _, err := fd.Write(mBlkSum); err != nil {
-		log.Errorf("writeBlockSummary:  write failed blockSummaryFname=%v, err=%v", fName, err)
+		log.Errorf("MBlockSummary.FlushSummary: Failed to write block in file: %v, err: %v", fName, err)
 		return nil, err
 	}
 	return mBlkSum, nil
