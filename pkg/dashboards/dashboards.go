@@ -35,6 +35,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var defaultDashboardIds map[string]struct{}
+
 var allidsBaseFname string
 var allDashIdsLock map[uint64]*sync.Mutex = make(map[uint64]*sync.Mutex)
 var latestDashboardReadTimeMillis map[uint64]uint64
@@ -46,7 +48,7 @@ var allDashboardsIdsLock *sync.RWMutex = &sync.RWMutex{}
 
 func readSavedDashboards(orgid uint64) ([]byte, error) {
 	var dashboardData []byte
-	allidsFname := getDashboardFileName(orgid)
+	allidsFname := getAllIdsFileName(orgid)
 	_, err := os.Stat(allidsFname)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -59,7 +61,7 @@ func readSavedDashboards(orgid uint64) ([]byte, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
 		}
-		log.Errorf("readSavedDashboards: Failed to read dashboard file fname=%v, err=%v", allidsFname, err)
+		log.Errorf("readSavedDashboards: Failed to read allidsFname file fname=%v, err=%v", allidsFname, err)
 		return nil, err
 	}
 
@@ -67,37 +69,29 @@ func readSavedDashboards(orgid uint64) ([]byte, error) {
 	if _, ok := allDashboardsIds[orgid]; !ok {
 		allDashboardsIds[orgid] = make(map[string]string)
 	}
-	var dashboardDetails map[string]string
-	err = json.Unmarshal(dashboardData, &dashboardDetails)
+	var allDashboardNames map[string]string
+	err = json.Unmarshal(dashboardData, &allDashboardNames)
 	if err != nil {
 		allDashboardsIdsLock.Unlock()
-		log.Errorf("readSavedDashboards: Failed to unmarshall dashboard file fname=%v, err=%v", allidsFname, err)
+		log.Errorf("readSavedDashboards: Failed to unmarshall allidsFname file fname=%v, err=%v", allidsFname, err)
 		return nil, err
 	}
-	allDashboardsIds[orgid] = dashboardDetails
+	allDashboardsIds[orgid] = allDashboardNames
 	latestDashboardReadTimeMillis[orgid] = utils.GetCurrentTimeInMs()
 	allDashboardsIdsLock.Unlock()
 	return dashboardData, nil
 }
 
-func readSavedDefaultDashboards(orgid uint64) ([]byte, error) {
+func readDefaultDashboards(orgid uint64) ([]byte, error) {
 	var dashboardData []byte
 	allidsFname := getDefaultDashboardFileName()
-	_, err := os.Stat(allidsFname)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
-		log.Errorf("readSavedDashboards: Failed to stat dashboard file fname=%v, err=%v", allidsFname, err)
-		return nil, err
-	}
 
-	dashboardData, err = os.ReadFile(allidsFname)
+	dashboardData, err := os.ReadFile(allidsFname)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
 		}
-		log.Errorf("readSavedDashboards: Failed to read dashboard file fname=%v, err=%v", allidsFname, err)
+		log.Errorf("readDefaultDashboards: Failed to read allidsFname file fname=%v, err=%v", allidsFname, err)
 		return nil, err
 	}
 
@@ -105,20 +99,21 @@ func readSavedDefaultDashboards(orgid uint64) ([]byte, error) {
 	if _, ok := allDashboardsIds[orgid]; !ok {
 		allDashboardsIds[orgid] = make(map[string]string)
 	}
-	var dashboardDetails map[string]string
-	err = json.Unmarshal(dashboardData, &dashboardDetails)
+	var allDashboardNames map[string]string
+	err = json.Unmarshal(dashboardData, &allDashboardNames)
 	if err != nil {
 		allDashboardsIdsLock.Unlock()
-		log.Errorf("readSavedDashboards: Failed to unmarshall dashboard file fname=%v, err=%v", allidsFname, err)
+		log.Errorf("readDefaultDashboards: Failed to unmarshall allidsFname file fname=%v, err=%v, dashboardData=%v",
+			allidsFname, err, dashboardData)
 		return nil, err
 	}
-	allDashboardsIds[orgid] = dashboardDetails
+	allDashboardsIds[orgid] = allDashboardNames
 	latestDashboardReadTimeMillis[orgid] = utils.GetCurrentTimeInMs()
 	allDashboardsIdsLock.Unlock()
 	return dashboardData, nil
 }
 
-func getDashboardFileName(orgid uint64) string {
+func getAllIdsFileName(orgid uint64) string {
 	var allidsFname string
 	if orgid == 0 {
 		allidsFname = allidsBaseFname + ".json"
@@ -137,6 +132,13 @@ func getDefaultDashboardFileName() string {
 
 func InitDashboards() error {
 	var sb strings.Builder
+
+	defaultDashboardIds = make(map[string]struct{})
+
+	defaultDashboardIds["10329b95-47a8-48df-8b1d-0a0a01ec6c42"] = struct{}{}
+	defaultDashboardIds["a28f485c-4747-4024-bb6b-d230f101f852"] = struct{}{}
+	defaultDashboardIds["bd74f11e-26c8-4827-bf65-c0b464e1f2a4"] = struct{}{}
+	defaultDashboardIds["53cb3dde-fd78-4253-808c-18e4077ef0f1"] = struct{}{}
 
 	sb.WriteString(config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards")
 	baseDir := sb.String()
@@ -183,7 +185,7 @@ func getAllDashboardIds(orgid uint64) (map[string]string, error) {
 	_, err := readSavedDashboards(orgid)
 	if err != nil {
 		releaseLock(orgid)
-		log.Errorf("getAllDashboardIds: failed to read, err=%v", err)
+		log.Errorf("getAllDashboardIds: failed to read, orgid=%v, err=%v", orgid, err)
 		return nil, err
 	}
 	releaseLock(orgid)
@@ -194,10 +196,10 @@ func getAllDashboardIds(orgid uint64) (map[string]string, error) {
 
 func getAllDefaultDashboardIds(orgid uint64) (map[string]string, error) {
 	createOrAcquireLock(orgid)
-	_, err := readSavedDefaultDashboards(orgid)
+	_, err := readDefaultDashboards(orgid)
 	if err != nil {
 		releaseLock(orgid)
-		log.Errorf("getAllDashboardIds: failed to read, err=%v", err)
+		log.Errorf("getAllDefaultDashboardIds: failed to read, orgid=%v,  err=%v", orgid, err)
 		return nil, err
 	}
 	releaseLock(orgid)
@@ -216,15 +218,12 @@ func createUniqId(dname string) string {
 func dashboardNameExists(dname string, orgid uint64) bool {
 	allDashboardIds, err := getAllDashboardIds(orgid)
 	if err != nil {
-		log.Errorf("Error getting all dashboard IDs: %v", err)
+		log.Errorf("dashboardNameExists: Error getting all dashboard IDs: %v", err)
 		return false
 	}
-	for _, name := range allDashboardIds {
-		if name == dname {
-			return true
-		}
-	}
-	return false
+	_, exists := allDashboardIds[dname]
+
+	return exists
 }
 
 func createDashboard(dname string, orgid uint64) (map[string]string, error) {
@@ -236,7 +235,7 @@ func createDashboard(dname string, orgid uint64) (map[string]string, error) {
 	newId := createUniqId(dname)
 
 	if dashboardNameExists(dname, orgid) {
-		log.Errorf("Dashboard with name %s already exists", dname)
+		log.Errorf("createDashboard: Dashboard with name %s already exists", dname)
 		return nil, errors.New("dashboard name already exists")
 	}
 
@@ -247,7 +246,7 @@ func createDashboard(dname string, orgid uint64) (map[string]string, error) {
 	}
 	for _, dId := range dashBoardIds {
 		if dId == newId {
-			log.Errorf("createDashboard: Failed to create dashboard, dashboard id already exists=%v", dname)
+			log.Errorf("createDashboard: Failed to create dashboard, dashboard id: %v already exists dname: %v", newId, dname)
 			return nil, errors.New("createDashboard: Failed to create dashboard, dashboard id already exists")
 		}
 	}
@@ -261,11 +260,11 @@ func createDashboard(dname string, orgid uint64) (map[string]string, error) {
 	jdata, err := json.Marshal(&orgDashboards)
 	allDashboardsIdsLock.Unlock()
 	if err != nil {
-		log.Errorf("createDashboard: Failed to marshall err=%v", err)
+		log.Errorf("createDashboard: Failed to marshall allDashboardids, dname: %v err=%v", dname, err)
 		return nil, err
 	}
 
-	allidsFname := getDashboardFileName(orgid)
+	allidsFname := getAllIdsFileName(orgid)
 	err = os.WriteFile(allidsFname, jdata, 0644)
 	if err != nil {
 		log.Errorf("createDashboard: Failed to write file=%v, err=%v", allidsFname, err)
@@ -276,14 +275,15 @@ func createDashboard(dname string, orgid uint64) (map[string]string, error) {
 
 	err = os.WriteFile(dashboardDetailsFname, []byte("{}"), 0644)
 	if err != nil {
-		log.Errorf("createDashboard: Error creating empty local file %s: %v", dashboardDetailsFname, err)
+		log.Errorf("createDashboard: Error creating empty local file %s: for dname: %v, err: %v",
+			dashboardDetailsFname, dname, err)
 		return nil, err
 	}
 
-	log.Infof("createDashboard: Successfully created file %v", dashboardDetailsFname)
+	log.Infof("createDashboard: Successfully created file %v, for dname: %v", dashboardDetailsFname, dname)
 	err = blob.UploadQueryNodeDir()
 	if err != nil {
-		log.Errorf("createDashboard: Failed to upload query nodes dir  err=%v", err)
+		log.Errorf("createDashboard: Failed to upload query nodes dir, dname: %v  err=%v", dname, err)
 		return nil, err
 	}
 
@@ -291,37 +291,22 @@ func createDashboard(dname string, orgid uint64) (map[string]string, error) {
 	allDashboardsIdsLock.RLock()
 	orgDashboardsIds := allDashboardsIds[orgid]
 	allDashboardsIdsLock.RUnlock()
-	for k, v := range orgDashboardsIds {
-		if k == newId {
-			retval[k] = v
-			break
-		}
-	}
+
+	retval[newId] = orgDashboardsIds[newId]
 
 	return retval, nil
 }
 
-func dashboardIsDefault(id string) bool {
-	defaultIds := []string{
-		"10329b95-47a8-48df-8b1d-0a0a01ec6c42",
-		"a28f485c-4747-4024-bb6b-d230f101f852",
-		"bd74f11e-26c8-4827-bf65-c0b464e1f2a4",
-		"53cb3dde-fd78-4253-808c-18e4077ef0f1",
-	}
+func isDefaultDashboard(id string) bool {
 
-	for _, defaultId := range defaultIds {
-		if id == defaultId {
-			return true
-		}
-	}
-
-	return false
+	_, exists := defaultDashboardIds[id]
+	return exists
 }
 
 func toggleFavorite(id string) (bool, error) {
 	// Load the dashboard JSON file
 	var dashboardDetailsFname string
-	if dashboardIsDefault(id) {
+	if isDefaultDashboard(id) {
 		dashboardDetailsFname = "defaultDBs/details/" + id + ".json"
 	} else {
 		dashboardDetailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
@@ -336,7 +321,8 @@ func toggleFavorite(id string) (bool, error) {
 	var dashboard map[string]interface{}
 	err = json.Unmarshal(dashboardJson, &dashboard)
 	if err != nil {
-		log.Errorf("toggleFavorite: Failed to unmarshal json, err=%v", err)
+		log.Errorf("toggleFavorite: Failed to unmarshal json, dashboardDetailsFname: %v, dashdata: %v, err: %v",
+			dashboardDetailsFname, dashboard, err)
 		return false, err
 	}
 
@@ -366,7 +352,7 @@ func toggleFavorite(id string) (bool, error) {
 }
 func getDashboard(id string) (map[string]interface{}, error) {
 	var dashboardDetailsFname string
-	if dashboardIsDefault(id) {
+	if isDefaultDashboard(id) {
 		dashboardDetailsFname = "defaultDBs/details/" + id + ".json"
 	} else {
 		dashboardDetailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
@@ -384,12 +370,12 @@ func getDashboard(id string) (map[string]interface{}, error) {
 
 	err = json.Unmarshal(rdata, &detailDashboardInfo)
 	if err != nil {
-		log.Errorf("getDashboard: Failed to unmarshall dashboard file fname=%v, err=%v", dashboardDetailsFname, err)
+		log.Errorf("getDashboard: Failed to unmarshall dashboard file fname: %v, rdata: %v,  err: %v",
+			dashboardDetailsFname, rdata, err)
 		return nil, err
 	}
 
-	retval := detailDashboardInfo
-	return retval, nil
+	return detailDashboardInfo, nil
 }
 
 func updateDashboard(id string, dName string, dashboardDetails map[string]interface{}, orgid uint64) error {
@@ -402,13 +388,13 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 	}
 	_, ok := allDashboards[id]
 	if !ok {
-		log.Errorf("updateDashboard: Dashboard id %v does not exist", id)
+		log.Errorf("updateDashboard: Dashboard id %v does not exist, dname: %v", id, dName)
 		return errors.New("updateDashboard: Dashboard id does not exist")
 	}
 
 	currentDashboardDetails, err := getDashboard(id)
 	if err != nil {
-		log.Errorf("ProcessGetDashboardRequest: could not get Dashboard=%v, err=%v", id, err)
+		log.Errorf("updateDashboard: could not get id: %v, dname: %v, err=%v", id, dName, err)
 		return errors.New("updateDashboard: Error fetching dashboard details")
 	}
 
@@ -435,14 +421,14 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 	allDashboardsIdsLock.RUnlock()
 	jdata, err := json.Marshal(&orgDashboards)
 	if err != nil {
-		log.Errorf("updateDashboard: Failed to marshall err=%v", err)
+		log.Errorf("updateDashboard: Failed to marshall id: %v, dName: %v, data: %v, err=%v", id, dName, orgDashboards, err)
 		return err
 	}
 
-	allidsFname := getDashboardFileName(orgid)
+	allidsFname := getAllIdsFileName(orgid)
 	err = os.WriteFile(allidsFname, jdata, 0644)
 	if err != nil {
-		log.Errorf("updateDashboard: Failed to write file=%v, err=%v", allidsFname, err)
+		log.Errorf("updateDashboard: Failed to write file=%v, id: %v, dName: %v, err=%v", allidsFname, id, dName, err)
 		return err
 	}
 
@@ -450,13 +436,14 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 
 	jdata, err = json.Marshal(&dashboardDetails)
 	if err != nil {
-		log.Errorf("updateDashboard: Failed to marshall err=%v", err)
+		log.Errorf("updateDashboard: Failed to marshall id: %v, dName: %v, data: %v,  err: %v", id, dName, dashboardDetails, err)
 		return err
 	}
 
 	err = os.WriteFile(dashboardDetailsFname, jdata, 0644)
 	if err != nil {
-		log.Errorf("updateDashboard: Failed to writefile fullname=%v, err=%v", dashboardDetailsFname, err)
+		log.Errorf("updateDashboard: Failed to writefile fname: %v, id: %v, dName: %v, err: %v", dashboardDetailsFname, id,
+			dName, err)
 		return err
 	}
 	log.Infof("updateDashboard: Successfully updated dashboard details in file %v", dashboardDetailsFname)
@@ -464,7 +451,7 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 	// Update the query node dir
 	err = blob.UploadQueryNodeDir()
 	if err != nil {
-		log.Errorf("updateDashboard: Failed to upload query nodes dir  err=%v", err)
+		log.Errorf("updateDashboard: Failed to upload query nodes dir, id: %v, dName: %v, err: %v", id, dName, err)
 		return err
 	}
 
@@ -485,7 +472,8 @@ func deleteDashboard(id string, orgid uint64) error {
 	var dashboardDetails map[string]string
 	err = json.Unmarshal(dashboardData, &dashboardDetails)
 	if err != nil {
-		log.Errorf("deleteDashboard: Failed to unmarshall dashboard file for orgid=%v, err=%v", orgid, err)
+		log.Errorf("deleteDashboard: Failed to unmarshall dashboard file for orgid=%v,dashboardData: %v, err=%v", orgid,
+			dashboardData, err)
 		return err
 	}
 
@@ -500,14 +488,14 @@ func deleteDashboard(id string, orgid uint64) error {
 	allDashboardsIdsLock.RUnlock()
 	jdata, err := json.Marshal(&orgDashboardIds)
 	if err != nil {
-		log.Errorf("deleteDashboard: Failed to marshall err=%v", err)
+		log.Errorf("deleteDashboard: Failed to marshall, id: %v, data: %v err=%v", id, orgDashboardIds, err)
 		return err
 	}
 
-	allidsFname := getDashboardFileName(orgid)
+	allidsFname := getAllIdsFileName(orgid)
 	err = os.WriteFile(allidsFname, jdata, 0644)
 	if err != nil {
-		log.Errorf("deleteDashboard: Failed to write file=%v, err=%v", allidsFname, err)
+		log.Errorf("deleteDashboard: Failed to write file: %v, err: %v", allidsFname, err)
 		return err
 	}
 
@@ -541,7 +529,7 @@ func setConflictMsg(ctx *fasthttp.RequestCtx) {
 func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf("ProcessCreateDashboardRequest: received empty user query")
+		log.Errorf("ProcessCreateDashboardRequest: received empty body id request")
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -550,7 +538,7 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	err := json.Unmarshal(rawJSON, &dname)
 	if err != nil {
-		log.Errorf("ProcessCreateDashboardRequest: could not unmarshall user query, err=%v", err)
+		log.Errorf("ProcessCreateDashboardRequest: could not unmarshall body: %v, err=%v", rawJSON, err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -561,7 +549,7 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			setConflictMsg(ctx)
 			return
 		} else {
-			log.Errorf("ProcessCreateDashboardRequest: could not create Dashboard=%v, err=%v", dname, err)
+			log.Errorf("ProcessCreateDashboardRequest: could not create dname: %v, id: %v, err=%v", dname, myid, err)
 			utils.SetBadMsg(ctx, "")
 			return
 		}
@@ -627,7 +615,7 @@ func getAllFavoriteDashboardIds(orgId uint64) (map[string]string, error) {
 func isDashboardFavorite(id string) (bool, error) {
 	var dashboardDetailsFname string
 
-	if dashboardIsDefault(id) {
+	if isDefaultDashboard(id) {
 		dashboardDetailsFname = "defaultDBs/details/" + id + ".json"
 	} else {
 		dashboardDetailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
@@ -641,7 +629,7 @@ func isDashboardFavorite(id string) (bool, error) {
 	var dashboard map[string]interface{}
 	err = json.Unmarshal(dashboardJson, &dashboard)
 	if err != nil {
-		log.Errorf("isDashboardFavorite: Failed to unmarshal json, err=%v", err)
+		log.Errorf("isDashboardFavorite: Failed to unmarshal json: %v, err=%v", dashboardJson, err)
 		return false, err
 	}
 
@@ -669,7 +657,7 @@ func ProcessListAllDefaultDBRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	dIds, err := getAllDefaultDashboardIds(myid)
 
 	if err != nil {
-		log.Errorf("ProcessListAllRequest: could not get dashboard ids, err=%v", err)
+		log.Errorf("ProcessListAllDefaultDBRequest: could not get dashboard ids, err=%v", err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -729,14 +717,14 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	err := json.Unmarshal(rawJSON, &readJSON)
 	if err != nil {
-		log.Errorf("ProcessCreateDashboardRequest: could not unmarshall user query, err=%v", err)
+		log.Errorf("ProcessCreateDashboardRequest: could not unmarshall body: %v, err=%v", rawJSON, err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
 
 	dId, dName, dashboardDetails, err := parseUpdateDashboardRequest(readJSON)
 	if err != nil {
-		log.Errorf("ProcessCreateDashboardRequest: could not parse user query=%v, err=%v", readJSON, err)
+		log.Errorf("ProcessCreateDashboardRequest: parseUpdateDashboardRequest failed, readJSON: %v, err: %v", readJSON, err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -746,7 +734,7 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			setConflictMsg(ctx)
 			return
 		} else {
-			log.Errorf("ProcessCreateDashboardRequest: could not create Dashboard=%v, err=%v", dId, err)
+			log.Errorf("ProcessCreateDashboardRequest: could not create Dashboard, dId: %v, myid: %v, err: %v", dId, myid, err)
 			utils.SetBadMsg(ctx, "")
 			return
 		}
@@ -760,7 +748,7 @@ func ProcessGetDashboardRequest(ctx *fasthttp.RequestCtx) {
 	dId := utils.ExtractParamAsString(ctx.UserValue("dashboard-id"))
 	dashboardDetails, err := getDashboard(dId)
 	if err != nil {
-		log.Errorf("ProcessGetDashboardRequest: could not get Dashboard=%v, err=%v", dId, err)
+		log.Errorf("ProcessGetDashboardRequest: could not get Dashboard, id: %v, err: %v", dId, err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -772,12 +760,12 @@ func ProcessDeleteDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	dId := utils.ExtractParamAsString(ctx.UserValue("dashboard-id"))
 	err := deleteDashboard(dId, myid)
 	if err != nil {
-		log.Errorf("ProcessDeleteDashboardRequest: Failed to delete dashboard=%v, err=%v", dId, err)
+		log.Errorf("ProcessDeleteDashboardRequest: Failed to delete dashboard, id: %v, err=%v", dId, err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
 
-	log.Infof("ProcessDeleteDashboardRequest: Successfully deleted dashboard %v", dId)
+	log.Infof("ProcessDeleteDashboardRequest: Successfully deleted dashboard id: %v", dId)
 	err = blob.UploadQueryNodeDir()
 	if err != nil {
 		log.Errorf("ProcessDeleteDashboardRequest: Failed to upload query nodes dir  err=%v", err)
@@ -797,7 +785,7 @@ func ProcessDeleteDashboardsByOrgId(orgid uint64) error {
 	for dId := range dIds {
 		err = deleteDashboard(dId, orgid)
 		if err != nil {
-			log.Errorf("ProcessDeleteDashboardsByOrgId: Failed to delete dashboard=%v, err=%v", dId, err)
+			log.Errorf("ProcessDeleteDashboardsByOrgId: Failed to delete dashboard, id: %v, err: %v", dId, err)
 		}
 
 		log.Infof("ProcessDeleteDashboardsByOrgId: Successfully deleted dashboard %v", dId)
