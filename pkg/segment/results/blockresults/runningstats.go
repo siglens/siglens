@@ -88,19 +88,19 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 		case utils.Min:
 			err := rr.AddEvalResultsForMinOrMaxOrSum(runningStats, measureResults, i)
 			if err != nil {
-				log.Errorf("AddMeasureResults: %v", err)
+				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for min/max/sum, err: %v", err)
 			}
 		case utils.Count:
 			step, err := rr.AddEvalResultsForCount(runningStats, measureResults, i, usedByTimechart, cnt)
 			if err != nil {
-				log.Errorf("AddMeasureResults: %v", err)
+				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for count, err: %v", err)
 			}
 			i += step
 		case utils.Cardinality:
 			if rr.currStats[i].ValueColRequest == nil {
 				rawVal, err := measureResults[i].GetString()
 				if err != nil {
-					log.Errorf("AddMeasureResults: failed to add measurement to running stats: %v", err)
+					log.Errorf("RunningBucketResults.AddMeasureResults: failed to add measurement to running stats: %v", err)
 					continue
 				}
 				bb := bbp.Get()
@@ -114,13 +114,13 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 		case utils.Values:
 			step, err := rr.AddEvalResultsForValuesOrCardinality(runningStats, measureResults, i)
 			if err != nil {
-				log.Errorf("AddMeasureResults: %v", err)
+				log.Errorf("RunningBucketResults.AddMeasureResults: failed to add eval results for values/cardinality, err: %v", err)
 			}
 			i += step
 		default:
 			err := rr.ProcessReduce(runningStats, measureResults[i], i)
 			if err != nil {
-				log.Errorf("AddMeasureResults: %v", err)
+				log.Errorf("RunningBucketResults.AddMeasureResults: Error while ProcessReduce, err: %v", err)
 			}
 		}
 	}
@@ -165,13 +165,13 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 			if rr.currStats[i].ValueColRequest == nil {
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("mergeRunningStats: err: %v", err)
+					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'values' while ValueColRequest is nil, err: %v", err)
 				}
 			} else {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("mergeRunningStats: err: %v", err)
+					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'values' err: %v", err)
 				}
 				i += (len(fields) - 1)
 			}
@@ -179,13 +179,13 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 			if rr.currStats[i].ValueColRequest == nil {
 				err := (*runningStats)[i].hll.Merge(toJoinRunningStats[i].hll)
 				if err != nil {
-					log.Errorf("mergeRunningStats: failed merge HLL!: %v", err)
+					log.Errorf("RunningBucketResults.mergeRunningStats: failed merge HLL!: %v", err)
 				}
 			} else {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("mergeRunningStats: err: %v", err)
+					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'cardinality', err: %v", err)
 				}
 				i += (len(fields) - 1)
 			}
@@ -193,20 +193,20 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 			if rr.currStats[i].ValueColRequest == nil {
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("mergeRunningStats: err: %v", err)
+					log.Errorf("RunningBucketResults.mergeRunningStats: Error merging running stats for 'count', err: %v", err)
 				}
 			} else {
 				fields := rr.currStats[i].ValueColRequest.GetFields()
 				err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 				if err != nil {
-					log.Errorf("mergeRunningStats: failed to add measurement to running stats: %v", err)
+					log.Errorf("RunningBucketResults.mergeRunningStats: failed to add measurement to running stats, err: %v", err)
 				}
 				i += (len(fields) - 1)
 			}
 		default:
 			err := rr.ProcessReduce(runningStats, toJoinRunningStats[i].rawVal, i)
 			if err != nil {
-				log.Errorf("mergeRunningStats: err: %v", err)
+				log.Errorf("RunningBucketResults.mergeRunningStats: err: %v", err)
 			}
 		}
 	}
@@ -215,7 +215,7 @@ func (rr *RunningBucketResults) mergeRunningStats(runningStats *[]runningStats, 
 func (rr *RunningBucketResults) ProcessReduce(runningStats *[]runningStats, e utils.CValueEnclosure, i int) error {
 	retVal, err := utils.Reduce((*runningStats)[i].rawVal, e, rr.currStats[i].MeasureFunc)
 	if err != nil {
-		return fmt.Errorf("ProcessReduce: failed to add measurement to running stats: %v", err)
+		return fmt.Errorf("RunningBucketResults.ProcessReduce: failed to add measurement to running stats, err: %v", err)
 	} else {
 		(*runningStats)[i].rawVal = retVal
 	}
@@ -229,18 +229,18 @@ func (rr *RunningBucketResults) AddEvalResultsForMinOrMaxOrSum(runningStats *[]r
 
 	fields := rr.currStats[i].ValueColRequest.GetFields()
 	if len(fields) != 1 {
-		return fmt.Errorf("AddEvalResultsForMinOrMaxOrSum: Incorrect number of fields for aggCol: %v", rr.currStats[i].String())
+		return fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: Incorrect number of fields (expected: 1, actual: %v) for aggCol: %v", len(fields), rr.currStats[i].String())
 	}
 	fieldToValue := make(map[string]utils.CValueEnclosure)
 	fieldToValue[fields[0]] = measureResults[i]
 	boolResult, err := rr.currStats[i].ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
 	if err != nil {
-		return fmt.Errorf("AddEvalResultsForMinOrMaxOrSum: there are some errors in the eval function that is inside the min/max function: %v", err)
+		return fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: there are some errors in the eval function that is inside the min/max/sum function, err: %v", err)
 	}
 	if boolResult {
 		err := rr.ProcessReduce(runningStats, measureResults[i], i)
 		if err != nil {
-			return fmt.Errorf("AddEvalResultsForMinOrMaxOrSum: %v", err)
+			return fmt.Errorf("RunningBucketResults.AddEvalResultsForMinOrMaxOrSum: err: %v", err)
 		}
 	}
 	return nil
@@ -271,7 +271,7 @@ func (rr *RunningBucketResults) AddEvalResultsForCount(runningStats *[]runningSt
 
 	boolResult, err := rr.currStats[i].ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
 	if err != nil {
-		return 0, fmt.Errorf("AddEvalResultsForCount: there are some errors in the eval function that is inside the count function: %v", err)
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForCount: there are some errors in the eval function that is inside the count function, err: %v", err)
 	}
 	if (*runningStats)[i].rawVal.CVal == nil {
 		(*runningStats)[i].rawVal = utils.CValueEnclosure{
@@ -298,7 +298,7 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 	if rr.currStats[i].ValueColRequest == nil {
 		strVal, err := measureResults[i].GetString()
 		if err != nil {
-			return 0, fmt.Errorf("AddEvalResultsForValuesOrCardinality: failed to add measurement to running stats: %v", err)
+			return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValuesOrCardinality: failed to add measurement to running stats, err: %v", err)
 		}
 		strSet[strVal] = struct{}{}
 		(*runningStats)[i].rawVal.CVal = strSet
@@ -316,7 +316,7 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 
 	strVal, err := rr.currStats[i].ValueColRequest.EvaluateToString(fieldToValue)
 	if err != nil {
-		return 0, fmt.Errorf("AddEvalResultsForValuesOrCardinality: there are some errors in the eval function that is inside the count function: %v", err)
+		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValuesOrCardinality: failed to evaluate ValueColRequest to string, err: %v", err)
 	}
 	strSet[strVal] = struct{}{}
 	(*runningStats)[i].rawVal.CVal = strSet
