@@ -758,7 +758,7 @@ func (eo *HttpServerESResponse) GetHits() uint64 {
 	case map[string]interface{}:
 		retVal, ok := t["value"]
 		if !ok {
-			log.Infof("Tried to get hits for a map with no 'value' key! Map: %v", retVal)
+			log.Warnf("GetHits: Tried to get hits for a map with no 'value' key! Map: %v", retVal)
 			return 0
 		}
 		switch hit := retVal.(type) {
@@ -769,11 +769,11 @@ func (eo *HttpServerESResponse) GetHits() uint64 {
 		case int64:
 			return uint64(hit)
 		default:
-			log.Infof("Map value is not a supported type!: %v %T", hit, hit)
+			log.Warnf("GetHits: Map value is not a supported type!: %v %T", hit, hit)
 			return 0
 		}
 	default:
-		log.Infof("Tried to get hits for unsupported type %T", t)
+		log.Warnf("GetHits: Tried to get hits for unsupported type %T", t)
 		return 0
 	}
 }
@@ -832,7 +832,7 @@ func VerifyBasicAuth(ctx *fasthttp.RequestCtx, usernameHash uint64, passwordHash
 func GetSpecificIdentifier() (string, error) {
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		return "", fmt.Errorf("GetSpecificIdentifier: %v", err)
+		return "", fmt.Errorf("GetSpecificIdentifier: failt to get net interfaces: %v", err)
 	}
 
 	for _, iface := range interfaces {
@@ -909,9 +909,9 @@ func sendErrorWithStatus(logger *log.Logger, ctx *fasthttp.RequestCtx, messageTo
 
 	// Log the error message.
 	if extraMessageToLog == "" {
-		logger.Errorf("%s at %s:%d: %v, err=%v", callerName, callerFile, callerLine, messageToUser, err)
+		logger.Errorf("sendErrorWithStatus: %s at %s:%d: %v, err=%v", callerName, callerFile, callerLine, messageToUser, err)
 	} else {
-		logger.Errorf("%s at %s:%d: %v. %v, err=%v", callerName, callerFile, callerLine, messageToUser, extraMessageToLog, err)
+		logger.Errorf("sendErrorWithStatus: %s at %s:%d: %v. %v, err=%v", callerName, callerFile, callerLine, messageToUser, extraMessageToLog, err)
 	}
 
 	// Send the error message to the client.
