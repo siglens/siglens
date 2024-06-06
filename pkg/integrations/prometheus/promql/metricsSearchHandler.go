@@ -885,86 +885,67 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	return start, end, queries, formulas, errorLog, nil
 }
 
-func ReadJsonBody(ctx *fasthttp.RequestCtx) (map[string]interface{}, error) {
-	rawJson := ctx.PostBody()
-	if len(rawJson) == 0 {
-		return nil, nil
-	}
-
-	jsonMap := make(map[string]interface{})
-	err := json.Unmarshal(rawJson, &jsonMap)
-	if err != nil {
-		log.Errorf("ReadJsonBody: failed to unmarshal json body: %s; err=%v", err)
-		return nil, err
-	}
-
-	return jsonMap, nil
+// Should either be a unix epoch in seconds or a string like "now-1h".
+type Epoch struct {
+	IntValue    uint64
+	StringValue string
+	IsString    bool
+	IsInt       bool
 }
 
-func ExtractFromJsonOrDefault[T any](jsonMap map[string]interface{}, key string, defaultValue T) T {
-	value, ok := jsonMap[key]
-	if !ok {
-		return defaultValue
+// Implement https://pkg.go.dev/encoding/json#Unmarshaler
+func (e *Epoch) UnmarshalJSON(rawJson []byte) error {
+	// Try to unmarshal as int
+	var intVal uint64
+	if err := json.Unmarshal(rawJson, &intVal); err == nil {
+		e.IntValue = intVal
+		e.IsInt = true
+		return nil
 	}
 
-	valueAsT, ok := value.(T)
-	if !ok {
-		log.Warnf("ExtractFromJsonOrDefault: key %v with value %v is of type %T, not of type %T", key, value, value, defaultValue)
-		return defaultValue
+	// Try to unmarshal as string
+	var stringVal string
+	if err := json.Unmarshal(rawJson, &stringVal); err == nil {
+		e.StringValue = stringVal
+		e.IsString = true
+		return nil
 	}
 
-	return valueAsT
+	return fmt.Errorf("failed to unmarshal Epoch from json: %s", rawJson)
 }
 
-// Tries to read the `key` from the top-level of `jsonMap`. The value should
-// either be a unix epoch in seconds or a string like "now-1h".
-func ExtractUnixOrAlphaTimeValue(jsonMap map[string]interface{}, key string) (uint64, error) {
-	value, ok := jsonMap[key]
-	if !ok {
-		return 0, fmt.Errorf("ExtractUnixOrAlphaTimeValue: key %v not found in json: %v", key, jsonMap)
-	}
-
-	switch v := value.(type) {
-	case int:
-	case int32:
-	case int64:
-	case uint:
-	case uint32:
-	case uint64:
-		epoch := uint64(v)
-		if !utils.EpochIsSeconds(epoch) {
-			return 0, fmt.Errorf("ExtractUnixOrAlphaTimeValue: key %v with value %v is not a unix epoch in seconds", key, epoch)
+func (e *Epoch) UnixSeconds(now time.Time) (uint64, error) {
+	if e.IsInt {
+		if !utils.EpochIsSeconds(e.IntValue) {
+			return 0, fmt.Errorf("Epoch is not in seconds: %v", e.IntValue)
 		}
 
-		return epoch, nil
-	case string:
-		nowMillis := uint64(time.Now().UnixMilli())
-		epoch, _ := parseAlphaNumTime(nowMillis, v, nowMillis)
-		epoch /= 1000 // Convert to seconds
-		return epoch, nil
-	default:
-		return 0, fmt.Errorf("Value of key %s is not a number or string", key)
+		return e.IntValue, nil
 	}
 
-	log.Errorf("ExtractUnixOrAlphaTimeValue: key %v with type %T and value %v failed to match a switch case", key, key, value)
-	return 0, fmt.Errorf("Unexpected type for key %v: %T", key, key)
+	if e.IsString {
+		nowMillis := uint64(now.UnixMilli())
+		epoch, _ := parseAlphaNumTime(nowMillis, e.StringValue, nowMillis)
+		epoch /= 1000 // Convert to seconds
+
+		return epoch, nil
+	}
+
+	return 0, fmt.Errorf("Epoch %+v is not a string or int", e)
 }
 
-func ExtractUnixOrAlphaTimeRange(jsonMap map[string]interface{}, startKey string, endKey string) (*dtu.MetricsTimeRange, error) {
-	start, err := ExtractUnixOrAlphaTimeValue(jsonMap, startKey)
+func GetMetricsTimeRange(startEpoch Epoch, endEpoch Epoch, now time.Time) (*dtu.MetricsTimeRange, error) {
+	start, err := startEpoch.UnixSeconds(now)
 	if err != nil {
-		log.Errorf("ExtractUnixOrAlphaTimeRange: failed to extract start time %v from json %v; err=%v", startKey, jsonMap, err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get start time: %v", err)
 	}
 
-	end, err := ExtractUnixOrAlphaTimeValue(jsonMap, endKey)
+	end, err := endEpoch.UnixSeconds(now)
 	if err != nil {
-		log.Errorf("ExtractUnixOrAlphaTimeRange: failed to extract end time %v from json %v; err=%v", endKey, jsonMap, err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get end time: %v", err)
 	}
 
 	if start >= end {
-		log.Errorf("ExtractUnixOrAlphaTimeRange: start time must be before end time; start=%v, end=%v", start, end)
 		return nil, fmt.Errorf("start time %v is not before end time %v", start, end)
 	}
 
@@ -975,15 +956,24 @@ func ExtractUnixOrAlphaTimeRange(jsonMap map[string]interface{}, startKey string
 }
 
 func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	jsonMap, err := ReadJsonBody(ctx)
+	type inputStruct struct {
+		StartEpoch Epoch `json:"startEpoch"`
+		EndEpoch   Epoch `json:"endEpoch"`
+	}
+	type outputStruct struct {
+		SeriesCardinality uint64 `json:"seriesCardinality"`
+	}
+
+	input := inputStruct{}
+	err := json.Unmarshal(ctx.PostBody(), &input)
 	if err != nil {
-		utils.SendError(ctx, "Failed to read request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		utils.SendError(ctx, "Failed to parse request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
 		return
 	}
 
-	timeRange, err := ExtractUnixOrAlphaTimeRange(jsonMap, "startEpoch", "endEpoch")
+	timeRange, err := GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
 	if err != nil {
-		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("json: %v", jsonMap), err)
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
 		return
 	}
 
@@ -1013,16 +1003,21 @@ func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uin
 		}
 	}
 
-	response := map[string]interface{}{
-		"seriesCardinality": uint64(len(allTsids)),
+	output := outputStruct{
+		SeriesCardinality: uint64(len(allTsids)),
 	}
 
-	WriteJsonResponse(ctx, &response)
+	WriteJsonResponse(ctx, &output)
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
 func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	type inputStruct struct {
+		StartEpoch Epoch  `json:"startEpoch"`
+		EndEpoch   Epoch  `json:"endEpoch"`
+		Limit      uint64 `json:"limit"`
+	}
 	type tagKeySeriesCount struct {
 		Key       string `json:"key"`
 		NumSeries uint64 `json:"numSeries"`
@@ -1031,19 +1026,20 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint6
 		TagKeys []tagKeySeriesCount `json:"tagKeys"`
 	}
 
-	jsonMap, err := ReadJsonBody(ctx)
+	input := inputStruct{Limit: 10} // Set defaults
+	err := json.Unmarshal(ctx.PostBody(), &input)
 	if err != nil {
-		utils.SendError(ctx, "Failed to read request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		utils.SendError(ctx, "Failed to parse request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
 		return
 	}
 
-	timeRange, err := ExtractUnixOrAlphaTimeRange(jsonMap, "startEpoch", "endEpoch")
+	timeRange, err := GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
 	if err != nil {
-		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("json: %v", jsonMap), err)
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
 		return
 	}
 
-	limit := uint64(ExtractFromJsonOrDefault(jsonMap, "limit", float64(10)))
+	limit := input.Limit
 	noLimit := (limit == 0)
 	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
 	defer querySummary.LogMetricsQuerySummary(myid)
@@ -1095,6 +1091,11 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint6
 }
 
 func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	type inputStruct struct {
+		StartEpoch Epoch  `json:"startEpoch"`
+		EndEpoch   Epoch  `json:"endEpoch"`
+		Limit      uint64 `json:"limit"`
+	}
 	type tagPairSeriesCount struct {
 		Key       string `json:"key"`
 		Value     string `json:"value"`
@@ -1104,19 +1105,20 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint
 		TagPairs []tagPairSeriesCount `json:"tagPairs"`
 	}
 
-	jsonMap, err := ReadJsonBody(ctx)
+	input := inputStruct{Limit: 10} // Set defaults
+	err := json.Unmarshal(ctx.PostBody(), &input)
 	if err != nil {
-		utils.SendError(ctx, "Failed to read request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		utils.SendError(ctx, "Failed to parse request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
 		return
 	}
 
-	timeRange, err := ExtractUnixOrAlphaTimeRange(jsonMap, "startEpoch", "endEpoch")
+	timeRange, err := GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
 	if err != nil {
-		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("json: %v", jsonMap), err)
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
 		return
 	}
 
-	limit := uint64(ExtractFromJsonOrDefault(jsonMap, "limit", float64(10)))
+	limit := input.Limit
 	noLimit := (limit == 0)
 	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
 	defer querySummary.LogMetricsQuerySummary(myid)
@@ -1175,6 +1177,11 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint
 }
 
 func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	type inputStruct struct {
+		StartEpoch Epoch  `json:"startEpoch"`
+		EndEpoch   Epoch  `json:"endEpoch"`
+		Limit      uint64 `json:"limit"`
+	}
 	type keyAndNumValues struct {
 		Key       string `json:"key"`
 		NumValues uint64 `json:"numValues"`
@@ -1183,19 +1190,20 @@ func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint6
 		TagKeys []keyAndNumValues `json:"tagKeys"`
 	}
 
-	jsonMap, err := ReadJsonBody(ctx)
+	input := inputStruct{Limit: 10} // Set defaults
+	err := json.Unmarshal(ctx.PostBody(), &input)
 	if err != nil {
-		utils.SendError(ctx, "Failed to read request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		utils.SendError(ctx, "Failed to parse request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
 		return
 	}
 
-	timeRange, err := ExtractUnixOrAlphaTimeRange(jsonMap, "startEpoch", "endEpoch")
+	timeRange, err := GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
 	if err != nil {
-		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("json: %v", jsonMap), err)
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
 		return
 	}
 
-	limit := uint64(ExtractFromJsonOrDefault(jsonMap, "limit", float64(10)))
+	limit := input.Limit
 	noLimit := (limit == 0)
 	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
 	defer querySummary.LogMetricsQuerySummary(myid)
