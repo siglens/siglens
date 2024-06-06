@@ -59,12 +59,26 @@ func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
 			var body []byte
 			body, err = ctx.Request.BodyGunzip()
 			if err != nil {
-				log.Errorf("PutMetrics: error unzipping body! %v", err)
+				log.Errorf("PutMetrics: failed to gunzip request. Zipped body=%v, err=%v", ctx.Request.Body(), err)
+				writeInfluxResponse(ctx, processedCount, failedCount, "Failed to gunzip request", fasthttp.StatusBadRequest)
+				return
 			}
+
 			processedCount, failedCount, err = HandlePutMetrics(body, myid)
+			if err != nil {
+				log.Errorf("PutMetrics: failed to process request. body=%v, err=%v", body, err)
+				writeInfluxResponse(ctx, processedCount, failedCount, "Failed to process request", fasthttp.StatusBadRequest)
+				return
+			}
+
 		} else {
 			body := ctx.PostBody()
 			processedCount, failedCount, err = HandlePutMetrics(body, myid)
+			if err != nil {
+				log.Errorf("PutMetrics: failed to process request. body=%v, err=%v", body, err)
+				writeInfluxResponse(ctx, processedCount, failedCount, "Failed to process request", fasthttp.StatusBadRequest)
+				return
+			}
 		}
 	} else {
 		log.Errorf("PutMetrics: unknown content type [%s]! %v", cType, err)
@@ -72,9 +86,6 @@ func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	if err != nil {
-		writeInfluxResponse(ctx, processedCount, failedCount, err.Error(), fasthttp.StatusBadRequest)
-	}
 	writeInfluxResponse(ctx, processedCount, failedCount, "", fasthttp.StatusNoContent)
 }
 
@@ -97,14 +108,14 @@ func HandlePutMetrics(fullData []byte, myid uint64) (uint64, uint64, error) {
 			if err == io.EOF {
 				break // End of file
 			}
+
+			log.Errorf("HandlePutMetrics: failed to read %v (length %v) as csv, err=%v", fullData, len(fullData), err)
 			return 0, 0, err
-
 		} else {
-
 			csvRow := strings.Join(record, ",")
 			mErr := writer.AddTimeSeriesEntryToInMemBuf([]byte(csvRow), SIGNAL_METRICS_INFLUX, myid)
 			if mErr != nil {
-				log.Errorf("HandlePutMetrics: failed to add time series entry %+v", mErr)
+				log.Errorf("HandlePutMetrics: failed to add time series for csvRow=%v, myid=%v, err=%v", csvRow, myid, mErr)
 				failedCount++
 			} else {
 				successCount++
@@ -117,20 +128,20 @@ func HandlePutMetrics(fullData []byte, myid uint64) (uint64, uint64, error) {
 	if err != nil {
 		mErr := writer.AddTimeSeriesEntryToInMemBuf(fullData, SIGNAL_METRICS_INFLUX, myid)
 		if mErr != nil {
-			log.Errorf("HandlePutMetrics: failed to add time series entry %+v", mErr)
+			log.Errorf("HandlePutMetrics: failed to add full data as a time series entry for myid=%v, err=%v", myid, mErr)
 			failedCount++
 		} else {
 			successCount++
 		}
 		return failedCount, successCount, err
 	}
-	usageStats.UpdateMetricsStats(bytesReceived, successCount, myid)
-	return successCount, failedCount, nil
 
+	usageStats.UpdateMetricsStats(bytesReceived, successCount, myid)
+
+	return successCount, failedCount, nil
 }
 
 func writeInfluxResponse(ctx *fasthttp.RequestCtx, processedCount uint64, failedCount uint64, err string, code int) {
-
 	resp := InfluxPutResp{Success: processedCount, Failed: failedCount}
 	if err != "" {
 		resp.Errors = []string{err}
@@ -140,12 +151,11 @@ func writeInfluxResponse(ctx *fasthttp.RequestCtx, processedCount uint64, failed
 	ctx.SetContentType(utils.ContentJson)
 	jval, mErr := json.Marshal(resp)
 	if mErr != nil {
-		log.Errorf("writeInfluxResponse: failed to marshal resp %+v", mErr)
+		log.Errorf("writeInfluxResponse: failed to marshal response %+v to json, err=%v", resp, mErr)
 	}
+
 	_, mErr = ctx.Write(jval)
-
 	if mErr != nil {
-		log.Errorf("writeInfluxResponse: failed to write jval to http request %+v", mErr)
+		log.Errorf("writeInfluxResponse: failed to write json %v to http request, err=%v", jval, mErr)
 	}
-
 }
