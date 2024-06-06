@@ -20,6 +20,7 @@ package metrics
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -443,8 +444,11 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 			default:
 				return nil, fmt.Errorf("encodeTagsTree: Incorrect tag value type %v", tInfo.tagValueType)
 			}
-			l1 := uint16(len(tInfo.matchingtsids))
-			if _, err := tagBuf.Write(utils.Uint16ToBytesLittleEndian(l1)); err != nil {
+			numMatchingTSIDs := len(tInfo.matchingtsids)
+			if numMatchingTSIDs > math.MaxUint16 {
+				log.Errorf("encodeTagsTree: Number of matching TSIDs (%v) exceeds maximum allowed value (%v)", numMatchingTSIDs, math.MaxUint16)
+			}
+			if _, err := tagBuf.Write(utils.Uint16ToBytesLittleEndian(uint16(numMatchingTSIDs))); err != nil {
 				log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
 				return nil, err
 			}
