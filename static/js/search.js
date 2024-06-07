@@ -351,14 +351,19 @@
      let queryLanguage = queryParams.get("queryLanguage");
      queryLanguage = queryLanguage.replace('"', '');
     $(".query-language-option").removeClass("active");
+    let selectedQueryLanguageId;
      if (queryLanguage == "SQL") {
        $("#option-1").addClass("active");
+       selectedQueryLanguageId = 1;
      } else if (queryLanguage == "Log QL") {
        $("#option-2").addClass("active");
+       selectedQueryLanguageId = 2;
      } else if (queryLanguage == "Splunk QL") {
        $("#option-3").addClass("active");
+       selectedQueryLanguageId = 3;
      }
      let filterTab = queryParams.get("filterTab");
+     handleTabAndTooltip(selectedQueryLanguageId, parseInt(filterTab))
      let filterValue = queryParams.get('searchText');
      if(filterTab == "0" || filterTab == null){
       if(filterValue != "*"){

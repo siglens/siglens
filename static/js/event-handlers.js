@@ -260,23 +260,24 @@ function setQueryLangHandler(e) {
     $("#setting-container").hide();
     let currentTab = $("#custom-code-tab").tabs("option", "active");
     let selectedQueryLanguageId = $(this).attr("id").split("-")[1];
+    handleTabAndTooltip(selectedQueryLanguageId, currentTab);
+    $(this).addClass('active');
+}
+
+function handleTabAndTooltip(selectedQueryLanguageId, currentTab) {
     if (selectedQueryLanguageId !== "3" && currentTab === 0) {
         $("#custom-code-tab").tabs("option", "active", 1);
         showDisabledTabTooltip();
-        $('#ui-id-1').addClass('disabled-tab')
-        
+        $('#ui-id-1').addClass('disabled-tab');
     } else if (selectedQueryLanguageId !== "3" && currentTab === 1) {
         showDisabledTabTooltip();
-        $('#ui-id-1').addClass('disabled-tab')
-
+        $('#ui-id-1').addClass('disabled-tab');
     } else if (selectedQueryLanguageId === "3" && currentTab === 1) {
         $("#custom-code-tab").tabs("option", "disabled", []);
         hideDisabledTabTooltip();
-        $('#ui-id-1').removeClass('disabled-tab')
-
+        $('#ui-id-1').removeClass('disabled-tab');
     }
     displayQueryLangToolTip(selectedQueryLanguageId);
-    $(this).addClass('active');
 }
 
 function showDisabledTabTooltip() {
