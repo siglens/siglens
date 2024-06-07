@@ -278,7 +278,7 @@ FieldSelectBlock <- PIPE CMD_FIELDS op:("-" / "+")? EMPTY_OR_SPACE fields:FieldN
     return queryAggregator, nil
 }
 
-AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? {
+AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? options:(StatsOptions)?{
     aggNode := &structs.QueryAggregators{}
 
     // Extract the MeasureAggregators and check if any of the aggregation fields
@@ -320,7 +320,75 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
         aggNode.BucketLimit = query.MAX_GRP_BUCKS
     }
 
+    if options != nil {
+        aggNode.StatsOptions = options.(*structs.StatsOptions)
+    } else {
+        aggNode.StatsOptions = &structs.StatsOptions {
+            Delim: " ",
+            Partitions: 1,
+            DedupSplitvals: false,
+            Allnum: false,
+        }
+    }
+
     return aggNode, nil
+}
+
+// Optional arguments for stats block
+StatsOptions <- option:(StatsOption)*
+{
+    //Default value
+    options := &structs.StatsOptions {
+        Delim: " ",
+        Partitions: 1,
+        DedupSplitvals: false,
+        Allnum: false,
+    }
+
+    optionSlice := option.([]any)
+    for _, opt := range optionSlice {
+        optArr :=  opt.([]string)
+        // Check for matching option types
+        switch optArr[0] {
+        case "dedup_splitvals":
+            dedupSplitvalsBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatsBlock: Options: invalid param for dedup_splitvals option, param: %v, err: %v", optArr[1], err)
+            }
+            options.DedupSplitvals = dedupSplitvalsBool
+        case "partitions":
+            pVal, err := strconv.ParseUint(optArr[1], 10, 64)
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatsBlock: Options: invalid param for partitions option, param: %v, err: %v", optArr[1], err)
+            }
+            options.Partitions = pVal
+        case "allnum":
+            allnumBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatsBlock: Options: invalid param for allnum option, param: %v, err: %v", optArr[1], err)
+            }
+            options.Allnum = allnumBool
+        case "delim":
+            options.Delim = optArr[1]
+        default:
+            return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: invalid option: %v", optArr[0])
+        }
+    }
+
+    return options, nil
+}
+
+StatsOption <- SPACE optionCMD:StatsOptionCMD EQUAL str:(IntegerAsString / EvalFieldToRead / QuotedString) {
+    optionArr := []string{optionCMD.(string), str.(string)}
+    return optionArr, nil
+}
+
+StatsOptionCMD <- option:("allnum" / "dedup_splitvals" / "delim" / "partitions") {
+    optionStr, err := transferUint8ToString(option)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: StatsOptionCMD: %v", err)
+    }
+    return optionStr, nil
 }
 
 GroupbyBlock <- BY fields:FieldNameList {

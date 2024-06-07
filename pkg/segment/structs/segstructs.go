@@ -130,6 +130,13 @@ type TransactionArguments struct {
 	EndsWith              *FilterStringExpr
 }
 
+type StatsOptions struct {
+	Delim          string
+	Partitions     uint64
+	DedupSplitvals bool
+	Allnum         bool
+}
+
 type TransactionGroupState struct {
 	Key       string
 	Open      bool
@@ -151,6 +158,7 @@ type QueryAggregators struct {
 	ShowRequest          *ShowRequest
 	TableName            string
 	TransactionArguments *TransactionArguments
+	StatsOptions         *StatsOptions
 	Next                 *QueryAggregators
 	Limit                int
 }
