@@ -42,21 +42,21 @@ func initNewNodeID(fName string) {
 	nodeUUID := shortuuid.New()
 	err := os.MkdirAll(getCommonDir(), 0755)
 	if err != nil {
-		log.Errorf("Failed to create common directory: %v", err)
+		log.Errorf("initNewNodeID: Failed to create common directory=%v, Error=%v", getCommonDir(), err)
 		runningNodeId = nodeUUID
 		return
 	}
 
 	fd, err := os.OpenFile(fName, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0755)
 	if err != nil {
-		log.Errorf("Failed to open node id file %s: %+v", fName, err)
+		log.Errorf("initNewNodeID: Failed to open node id file %s: Error=%+v", fName, err)
 		runningNodeId = nodeUUID
 		return
 	}
 	defer fd.Close()
 	_, err = fd.WriteString(nodeUUID)
 	if err != nil {
-		log.Errorf("Failed to write to node id file %s: %+v", fName, err)
+		log.Errorf("initNewNodeID: Failed to write to node id file %s: Error=%+v", fName, err)
 		runningNodeId = nodeUUID
 		return
 	}

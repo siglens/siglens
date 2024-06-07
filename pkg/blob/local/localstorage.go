@@ -179,14 +179,14 @@ func DeleteLocal(fName string) error {
 	segSetKeysLock.Lock()
 	defer segSetKeysLock.Unlock()
 	if strings.Contains(fName, "/active/") {
-		log.Debugf("Not deleting segset from active dir %v", fName)
+		log.Debugf("DeleteLocal: Not deleting segset from active dir %v", fName)
 		delete(segSetKeys, fName)
 		return fmt.Errorf("not deleting segset from active dir %v", fName)
 	}
 	if _, exists := segSetKeys[fName]; exists && fName != "" {
 		deleteLocalFile(fName)
 		delete(segSetKeys, fName)
-		log.Debugf("DeleteSegSetFileFromSegSetKey %v ", fName)
+		log.Debugf("DeleteLocal: DeleteSegSetFileFromSegSetKey %v ", fName)
 		return nil
 	}
 	return nil
@@ -194,7 +194,7 @@ func DeleteLocal(fName string) error {
 
 func deleteLocalFile(file string) {
 	if err := os.Remove(file); err != nil {
-		log.Errorf("ssregistry.local: deleteLocalFile: Error deleting file %s: %v", file, err)
+		log.Errorf("deleteLocalFile: ssregistry.local: Error deleting file %s: Error=%v", file, err)
 	}
 
 	recursivelyDeleteParentDirectories(file)
