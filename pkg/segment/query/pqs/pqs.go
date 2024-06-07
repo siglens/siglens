@@ -96,13 +96,13 @@ func GetAllPersistentQueryResults(segKey string, pqid string) (*pqmr.SegmentPQMR
 	fName := fmt.Sprintf("%v/pqmr/%v.pqmr", segKey, pqResults.pqid)
 	err = blob.DownloadSegmentBlob(fName, false)
 	if err != nil {
-		log.Errorf("Failed to download PQMR results! SegKey: %+v, pqid: %+v", segKey, pqResults.pqid)
+		log.Errorf("GetAllPersistentQueryResults: Failed to download PQMR results! SegKey: %+v, pqid: %+v, file name: %v", segKey, pqResults.pqid, fName)
 		return nil, errors.New("failed to download PQMR results")
 	}
 
 	pqmrResults, err := pqmr.ReadPqmr(&fName)
 	if err != nil {
-		log.Errorf("Failed to read PQMR results! From file %+v. Error: %+v", fName, err)
+		log.Errorf("GetAllPersistentQueryResults: Failed to read PQMR results! From file %+v. Error: %+v", fName, err)
 		return nil, err
 	}
 	return pqmrResults, nil

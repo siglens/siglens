@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"io"
 	"math"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Compressor decompresses time-series data based on Facebook's paper.
@@ -43,6 +45,7 @@ func NewDecompressIterator(r io.Reader) (*DecompressIterator, error) {
 	}
 	h, err := d.br.readBits(32)
 	if err != nil {
+		log.Errorf("NewDecompressIterator: failed to read header from reader=%v, err=%v", r, err)
 		return nil, err
 	}
 	d.header = uint32(h)
@@ -88,7 +91,8 @@ func (di *DecompressIterator) Next() bool {
 func (d *Decompressor) decompressFirst() (t uint32, v float64, err error) {
 	delta, err := d.br.readBits(firstDeltaBits)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to decompress delta at first: %w", err)
+		log.Errorf("Decomporessor.decompressFirst: failed to read delta from bitReader=%+v, err=%v", d.br, err)
+		return 0, 0, fmt.Errorf("failed to decompress first delta bits: %w", err)
 	}
 	if delta == 1<<firstDeltaBits-1 {
 		return 0, 0, io.EOF
@@ -96,7 +100,8 @@ func (d *Decompressor) decompressFirst() (t uint32, v float64, err error) {
 
 	value, err := d.br.readBits(64)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to decompress value at first: %w", err)
+		log.Errorf("Decomporessor.decompressFirst: failed to read value from bitReader=%+v, err=%v", d.br, err)
+		return 0, 0, err
 	}
 
 	d.delta = uint32(delta)
@@ -109,11 +114,13 @@ func (d *Decompressor) decompressFirst() (t uint32, v float64, err error) {
 func (d *Decompressor) decompress() (t uint32, v float64, err error) {
 	t, err = d.decompressTimestamp()
 	if err != nil {
+		log.Errorf("Decompressor.decompress: failed to decompress timestamp, err=%v", err)
 		return 0, 0, err
 	}
 
 	v, err = d.decompressValue()
 	if err != nil {
+		log.Errorf("Decompressor.decompress: failed to decompress value, err=%v", err)
 		return 0, 0, err
 	}
 
@@ -123,6 +130,7 @@ func (d *Decompressor) decompress() (t uint32, v float64, err error) {
 func (d *Decompressor) decompressTimestamp() (uint32, error) {
 	n, err := d.dodTimestampBitN()
 	if err != nil {
+		log.Errorf("Decompressor.decompressTimestamp: failed to get dodTimestampBitN. decompressor=%+v, err=%v", d, err)
 		return 0, err
 	}
 
@@ -133,6 +141,7 @@ func (d *Decompressor) decompressTimestamp() (uint32, error) {
 
 	bits, err := d.br.readBits(int(n))
 	if err != nil {
+		log.Errorf("Decompressor.decompressTimestamp: failed to read %v bits. decompressor=%+v, err=%v", n, d, err)
 		return 0, fmt.Errorf("failed to read timestamp: %w", err)
 	}
 
@@ -157,6 +166,7 @@ func (d *Decompressor) dodTimestampBitN() (n uint, err error) {
 		dod <<= 1
 		b, err := d.br.readBit()
 		if err != nil {
+			log.Errorf("Decompressor.dodTimestampBitN: failed to read bit. decompressor=%+v, err=%v", d, err)
 			return 0, err
 		}
 		if b {
@@ -178,6 +188,7 @@ func (d *Decompressor) dodTimestampBitN() (n uint, err error) {
 	case 0x0F: // 1111
 		return 32, nil
 	default:
+		log.Errorf("Decompressor.dodTimestampBitN: invalid bit header %v for bit length to read. decompressor=%+v, err=%v", dod, d, err)
 		return 0, errors.New("invalid bit header for bit length to read")
 	}
 }
@@ -187,6 +198,7 @@ func (d *Decompressor) decompressValue() (float64, error) {
 	for i := 0; i < 2; i++ {
 		bit, err := d.br.readBit()
 		if err != nil {
+			log.Errorf("Decompressor.decompressValue: failed to read bit. decompressor=%+v, err=%v", d, err)
 			return 0, fmt.Errorf("failed to read value: %w", err)
 		}
 		if bit {
@@ -200,11 +212,13 @@ func (d *Decompressor) decompressValue() (float64, error) {
 		if read == 0x3 { // read byte is '11'
 			leadingZeros, err := d.br.readBits(5)
 			if err != nil {
-				return 0, fmt.Errorf("failed to read value: %w", err)
+				log.Errorf("Decompressor.decompressValue: failed to read leadingZeros. decompressor=%+v, err=%v", d, err)
+				return 0, fmt.Errorf("failed to read leading zeros: %w", err)
 			}
 			significantBits, err := d.br.readBits(6)
 			if err != nil {
-				return 0, fmt.Errorf("failed to read value: %w", err)
+				log.Errorf("Decompressor.decompressValue: failed to read significantBits. decompressor=%+v, err=%v", d, err)
+				return 0, fmt.Errorf("failed to read significant bits: %w", err)
 			}
 			if significantBits == 0 {
 				significantBits = 64
@@ -215,6 +229,7 @@ func (d *Decompressor) decompressValue() (float64, error) {
 		// read byte is '11' or '1'
 		valueBits, err := d.br.readBits(int(64 - d.leadingZeros - d.trailingZeros))
 		if err != nil {
+			log.Errorf("Decompressor.decompressValue: failed to read value. decompressor=%+v, err=%v", d, err)
 			return 0, fmt.Errorf("failed to read value: %w", err)
 		}
 		valueBits <<= uint64(d.trailingZeros)

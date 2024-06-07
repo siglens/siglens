@@ -19,6 +19,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"time"
@@ -51,7 +52,7 @@ func SanitizeHistogramInterval(startEpochMs uint64, endEpochMs uint64,
 	var retVal uint64
 
 	if startEpochMs > endEpochMs {
-		return retVal, errors.New("startEpochMs was higher than endEpochMs")
+		return retVal, fmt.Errorf("SanitizeHistogramInterval: startEpochMs: %v was higher than endEpochMs: %v", startEpochMs, endEpochMs)
 	}
 
 	trange := endEpochMs - startEpochMs
@@ -68,7 +69,7 @@ func SanitizeHistogramInterval(startEpochMs uint64, endEpochMs uint64,
 		}
 	}
 
-	log.Infof("SanitizeHistogramInterval: returning really long 20y HT interval, should not have happened")
+	log.Warnf("SanitizeHistogramInterval: returning really long 20y HT interval, should not have happened")
 	return HT_STEPS[len(HT_STEPS)-1], nil
 }
 
@@ -106,7 +107,7 @@ func ExtractTimeStamp(raw []byte, timestampKey *string) uint64 {
 	case jp.String:
 		tsStr, err := jp.ParseString(rawVal)
 		if err != nil {
-			log.Errorf("Failed to parse timestamp of raw string val: %v. Error: %v", rawVal, err)
+			log.Errorf("ExtractTimeStamp: Failed to parse timestamp of raw string val: %v. Error: %v", rawVal, err)
 			return 0
 		}
 		ts_millis, err := ConvertTimestampToMillis(tsStr)
@@ -121,7 +122,7 @@ func ExtractTimeStamp(raw []byte, timestampKey *string) uint64 {
 		if err != nil {
 			val, err := jp.ParseFloat(rawVal)
 			if err != nil {
-				log.Errorf("Failed to parse timestamp of float val: %v. Error: %v", rawVal, err)
+				log.Errorf("ExtractTimeStamp: Failed to parse timestamp of float val: %v. Error: %v", rawVal, err)
 				return 0
 			}
 			ts_millis = uint64(val)
@@ -166,7 +167,7 @@ func ConvertTimestampToMillis(value string) (uint64, error) {
 		}
 		return uint64(parsed_value.UTC().UnixNano() / 1000000), nil
 	}
-	return 0, errors.New("couldn't find matching time format")
+	return 0, fmt.Errorf("ExtractTimeStamp: couldn't find matching time format for value: %v", value)
 }
 
 // Helper function that parses a time parameter for use in PromQL.
@@ -175,8 +176,8 @@ func ConvertTimestampToMillis(value string) (uint64, error) {
 // The function returns the parsed time as a uint32 Unix timestamp and an error if the parsing fails.
 func ParseTimeForPromQL(timeParam string) (uint32, error) {
 	if timeParam == "" {
-		log.Errorf("parseTimeForPromQL: time parameter is empty")
-		return 0, errors.New("time parameter is empty")
+		log.Errorf("ParseTimeForPromQL: time parameter is empty")
+		return 0, errors.New("ParseTimeForPromQL: time parameter is empty")
 	}
 
 	// Try to parse as integer (Unix timestamp)
@@ -198,5 +199,5 @@ func ParseTimeForPromQL(timeParam string) (uint32, error) {
 	}
 
 	// If all parsing attempts failed, return an error
-	return 0, errors.New("failed to parse time parameter as Unix timestamp or RFC3339 timestamp")
+	return 0, fmt.Errorf("ParseTimeForPromQL: failed to parse time parameter: %v as Unix timestamp or RFC3339 timestamp", timeParam)
 }

@@ -180,17 +180,29 @@ Aggregate results for series sharing a groupid
 Internally, this will store the final aggregated results
 e.g. will store avg instead of running sum&count
 */
-func (r *MetricsResult) AggregateResults(parallelism int) []error {
+func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Aggregation) []error {
 	if r.State != DOWNSAMPLING {
 		return []error{fmt.Errorf("AggregateResults: results is not in downsampling state, state: %v", r.State)}
 	}
 
 	r.Results = make(map[string]map[uint32]float64)
+	errors := make([]error, 0)
+
+	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
+	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
+	if aggregation.IsAggregateFromAllTimeseries() {
+		err := r.aggregateFromAllTimeseries(aggregation)
+		if err != nil {
+			errors = append(errors, err)
+			return errors
+		}
+		return nil
+	}
+
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 
 	errorLock := &sync.Mutex{}
-	errors := make([]error, 0)
 
 	var idx int
 	for grpID, runningDS := range r.DsResults {
@@ -198,7 +210,7 @@ func (r *MetricsResult) AggregateResults(parallelism int) []error {
 		go func(grp string, ds *DownsampleSeries) {
 			defer wg.Done()
 
-			grpVal, err := ds.Aggregate()
+			grpVal, err := ds.AggregateFromSingleTimeseries()
 			if err != nil {
 				errorLock.Lock()
 				errors = append(errors, err)
@@ -269,12 +281,23 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 	}
 
 	results := make(map[string]map[uint32]float64, len(r.Results))
+	errors := make([]error, 0)
+
+	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
+	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
+	if aggregation.IsAggregateFromAllTimeseries() {
+		err := r.aggregateFromAllTimeseries(aggregation)
+		if err != nil {
+			errors = append(errors, err)
+			return errors
+		}
+		return nil
+	}
 
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 
 	errorLock := &sync.Mutex{}
-	errors := make([]error, 0)
 
 	var idx int
 
@@ -301,7 +324,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 			defer wg.Done()
 
 			for ts, entries := range ts {
-				aggVal, err := ApplyAggregation(entries, aggregation)
+				aggVal, err := ApplyAggregationFromSingleTimeseries(entries, aggregation)
 				if err != nil {
 					errorLock.Lock()
 					errors = append(errors, err)
@@ -675,4 +698,57 @@ func CalculateInterval(timerangeSeconds uint32) (uint32, error) {
 
 	// If no suitable step is found, return an error
 	return 0, errors.New("no suitable step found")
+}
+
+func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregation) error {
+
+	switch aggregation.AggregatorFunction {
+	case segutils.Count:
+		r.computeAggCount(aggregation)
+	// Todo: Add TopK and BottomK
+	default:
+		return fmt.Errorf("aggregateFromAllTimeseries: Unsupported aggregation: %v", aggregation)
+	}
+
+	return nil
+}
+
+// Count only cares about the number of time series at each timestamp, so it does not need to reduce entries to calculate the values.
+func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
+
+	// groupByCols seriesId mapping to map[uint32]map[string]struct{}
+	// We can determine the number of full unique grpIDs for each timestamp.
+	// For example, count by (color,gender) (metric0)
+	// ["color:red,gender:male"] = { 1: {{"color:red,gender:male,age:20"}, {"color:red,gender:male,age:5"}}, 2: ...   }
+	// ["color:yellow,gender:male"] = { 1: {{"color:yellow,gender:male,age:3"}}, 2: ...   }
+	seriesIdEntriesMap := make(map[string]map[uint32]map[string]struct{})
+
+	for grpID, runningDS := range r.DsResults {
+		seriesId := getAggSeriesId(r.MetricName, grpID, aggregation.GroupByFields)
+		_, exists := seriesIdEntriesMap[seriesId]
+		if !exists {
+			seriesIdEntriesMap[seriesId] = make(map[uint32]map[string]struct{})
+		}
+
+		for i := 0; i < runningDS.idx; i++ {
+			timestamp := runningDS.runningEntries[i].downsampledTime
+
+			_, exists := seriesIdEntriesMap[seriesId][timestamp]
+			if !exists {
+				seriesIdEntriesMap[seriesId][timestamp] = make(map[string]struct{})
+			}
+			seriesIdEntriesMap[seriesId][timestamp][grpID] = struct{}{}
+		}
+	}
+
+	for seriesId, entries := range seriesIdEntriesMap {
+		grpVal := make(map[uint32]float64)
+		for timestamp, grpIdSet := range entries {
+			grpVal[timestamp] = float64(len(grpIdSet))
+		}
+		r.Results[seriesId] = grpVal
+	}
+
+	r.DsResults = nil
+	r.State = AGGREGATED
 }
