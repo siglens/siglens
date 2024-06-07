@@ -180,17 +180,29 @@ Aggregate results for series sharing a groupid
 Internally, this will store the final aggregated results
 e.g. will store avg instead of running sum&count
 */
-func (r *MetricsResult) AggregateResults(parallelism int) []error {
+func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Aggregation) []error {
 	if r.State != DOWNSAMPLING {
-		return []error{errors.New("results is not in downsampling state")}
+		return []error{fmt.Errorf("AggregateResults: results is not in downsampling state, state: %v", r.State)}
 	}
 
 	r.Results = make(map[string]map[uint32]float64)
+	errors := make([]error, 0)
+
+	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
+	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
+	if aggregation.IsAggregateFromAllTimeseries() {
+		err := r.aggregateFromAllTimeseries(aggregation)
+		if err != nil {
+			errors = append(errors, err)
+			return errors
+		}
+		return nil
+	}
+
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 
 	errorLock := &sync.Mutex{}
-	errors := make([]error, 0)
 
 	var idx int
 	for grpID, runningDS := range r.DsResults {
@@ -198,7 +210,7 @@ func (r *MetricsResult) AggregateResults(parallelism int) []error {
 		go func(grp string, ds *DownsampleSeries) {
 			defer wg.Done()
 
-			grpVal, err := ds.Aggregate()
+			grpVal, err := ds.AggregateFromSingleTimeseries()
 			if err != nil {
 				errorLock.Lock()
 				errors = append(errors, err)
@@ -265,16 +277,27 @@ func getAggSeriesId(metricName string, seriesId string, groupByFields []string) 
 
 func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation structs.Aggregation) []error {
 	if r.State != AGGREGATED {
-		return []error{errors.New("results is not in aggregated state")}
+		return []error{fmt.Errorf("ApplyAggregationToResults: results is not in aggregated state, state: %v", r.State)}
 	}
 
 	results := make(map[string]map[uint32]float64, len(r.Results))
+	errors := make([]error, 0)
+
+	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
+	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
+	if aggregation.IsAggregateFromAllTimeseries() {
+		err := r.aggregateFromAllTimeseries(aggregation)
+		if err != nil {
+			errors = append(errors, err)
+			return errors
+		}
+		return nil
+	}
 
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 
 	errorLock := &sync.Mutex{}
-	errors := make([]error, 0)
 
 	var idx int
 
@@ -301,7 +324,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 			defer wg.Done()
 
 			for ts, entries := range ts {
-				aggVal, err := ApplyAggregation(entries, aggregation)
+				aggVal, err := ApplyAggregationFromSingleTimeseries(entries, aggregation)
 				if err != nil {
 					errorLock.Lock()
 					errors = append(errors, err)
@@ -390,7 +413,7 @@ This can only merge results if both structs are in SERIES_READING state
 */
 func (r *MetricsResult) Merge(localRes *MetricsResult) error {
 	if r.State != SERIES_READING || localRes.State != SERIES_READING {
-		return errors.New("merged results are not in serires reading state")
+		return fmt.Errorf("Merge: merged results are not in serires reading state, state: %v", r.State)
 	}
 	r.rwLock.Lock()
 	defer r.rwLock.Unlock()
@@ -418,9 +441,18 @@ func removeMetricNameFromGroupID(groupID string) string {
 	}
 }
 
+func ExtractMetricNameFromGroupID(groupID string) string {
+	stringVals := strings.Split(groupID, "{")
+	if len(stringVals) != 2 {
+		return groupID
+	} else {
+		return stringVals[0]
+	}
+}
+
 func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*structs.MetricsQueryResponse, error) {
 	if r.State != AGGREGATED {
-		return nil, errors.New("results is not in aggregated state")
+		return nil, fmt.Errorf("GetOTSDBResults: results is not in aggregated state, state: %v", r.State)
 	}
 	retVal := make([]*structs.MetricsQueryResponse, len(r.Results))
 
@@ -438,7 +470,7 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 		tags := make(map[string]string)
 		tagValues := strings.Split(removeTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
 		if len(tagKeys) != len(tagValues) {
-			err := errors.New("GetResults: the length of tag key and tag value pair must match")
+			err := fmt.Errorf("GetResults: the length of tag key and tag value pair must match. Tag Key: %v; Tag Value: %v", tagKeys, tagValues)
 			return nil, err
 		}
 
@@ -458,7 +490,7 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 
 func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType) (*structs.MetricsQueryResponsePromQl, error) {
 	if r.State != AGGREGATED {
-		return nil, errors.New("results is not in aggregated state")
+		return nil, fmt.Errorf("GetResultsPromQl: results is not in aggregated state, state: %v", r.State)
 	}
 	var pqldata structs.Data
 
@@ -489,7 +521,7 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 			pqldata.Result = append(pqldata.Result, result)
 		}
 	default:
-		return nil, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type")
+		return nil, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type: %v", pqlQuerytype)
 	}
 	return &structs.MetricsQueryResponsePromQl{
 		Status: "success",
@@ -498,7 +530,7 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 }
 func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) ([]string, []string, error) {
 	if res.State != SERIES_READING {
-		return nil, nil, errors.New("results is not in Series Reading state")
+		return nil, nil, fmt.Errorf("GetMetricTagsResultSet: results is not in Series Reading state, state: %v", res.State)
 	}
 
 	// The Tag Keys in the TagFilters will be unique,
@@ -528,7 +560,7 @@ func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) (
 
 func (res *MetricsResult) GetSeriesByLabel() ([]map[string]interface{}, error) {
 	if res.State != SERIES_READING {
-		return nil, errors.New("results is not in Series Reading state")
+		return nil, fmt.Errorf("GetSeriesByLabel: results is not in Series Reading state, state: %v", res.State)
 	}
 
 	data := make([]map[string]interface{}, 0)
@@ -550,7 +582,7 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	var httpResp utils.MetricsStatsResponseInfo
 	httpResp.AggStats = make(map[string]map[string]interface{})
 	if r.State != AGGREGATED {
-		return utils.MetricsStatsResponseInfo{}, errors.New("results is not in aggregated state")
+		return utils.MetricsStatsResponseInfo{}, fmt.Errorf("GetResultsPromQlForUi: results is not in aggregated state, state: %v", r.State)
 	}
 
 	for grpId, results := range r.Results {
@@ -589,7 +621,7 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 
 		}
 	default:
-		return httpResp, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type")
+		return httpResp, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type: %v", pqlQuerytype)
 	}
 
 	return httpResp, nil
@@ -606,7 +638,7 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 	httpResp.StartTime = startTime
 
 	if r.State != AGGREGATED {
-		return utils.MetricStatsResponse{}, errors.New("results is not in aggregated state")
+		return utils.MetricStatsResponse{}, fmt.Errorf("FetchPromqlMetricsForUi: results is not in aggregated state, state: %v", r.State)
 	}
 
 	// Calculate the interval using the start and end times
@@ -656,7 +688,7 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 func CalculateInterval(timerangeSeconds uint32) (uint32, error) {
 	// If timerangeSeconds is greater than 10 years reject the request
 	if timerangeSeconds > TEN_YEARS_IN_SECS {
-		return 0, errors.New("timerangeSeconds is greater than 10 years")
+		return 0, fmt.Errorf("timerangeSeconds:%v is greater than 10 years", timerangeSeconds)
 	}
 	for _, step := range steps {
 		if timerangeSeconds/step <= 360 {
@@ -666,4 +698,57 @@ func CalculateInterval(timerangeSeconds uint32) (uint32, error) {
 
 	// If no suitable step is found, return an error
 	return 0, errors.New("no suitable step found")
+}
+
+func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregation) error {
+
+	switch aggregation.AggregatorFunction {
+	case segutils.Count:
+		r.computeAggCount(aggregation)
+	// Todo: Add TopK and BottomK
+	default:
+		return fmt.Errorf("aggregateFromAllTimeseries: Unsupported aggregation: %v", aggregation)
+	}
+
+	return nil
+}
+
+// Count only cares about the number of time series at each timestamp, so it does not need to reduce entries to calculate the values.
+func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
+
+	// groupByCols seriesId mapping to map[uint32]map[string]struct{}
+	// We can determine the number of full unique grpIDs for each timestamp.
+	// For example, count by (color,gender) (metric0)
+	// ["color:red,gender:male"] = { 1: {{"color:red,gender:male,age:20"}, {"color:red,gender:male,age:5"}}, 2: ...   }
+	// ["color:yellow,gender:male"] = { 1: {{"color:yellow,gender:male,age:3"}}, 2: ...   }
+	seriesIdEntriesMap := make(map[string]map[uint32]map[string]struct{})
+
+	for grpID, runningDS := range r.DsResults {
+		seriesId := getAggSeriesId(r.MetricName, grpID, aggregation.GroupByFields)
+		_, exists := seriesIdEntriesMap[seriesId]
+		if !exists {
+			seriesIdEntriesMap[seriesId] = make(map[uint32]map[string]struct{})
+		}
+
+		for i := 0; i < runningDS.idx; i++ {
+			timestamp := runningDS.runningEntries[i].downsampledTime
+
+			_, exists := seriesIdEntriesMap[seriesId][timestamp]
+			if !exists {
+				seriesIdEntriesMap[seriesId][timestamp] = make(map[string]struct{})
+			}
+			seriesIdEntriesMap[seriesId][timestamp][grpID] = struct{}{}
+		}
+	}
+
+	for seriesId, entries := range seriesIdEntriesMap {
+		grpVal := make(map[uint32]float64)
+		for timestamp, grpIdSet := range entries {
+			grpVal[timestamp] = float64(len(grpIdSet))
+		}
+		r.Results[seriesId] = grpVal
+	}
+
+	r.DsResults = nil
+	r.State = AGGREGATED
 }

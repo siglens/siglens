@@ -324,9 +324,9 @@ func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error
 /*
 TODO: Use the buffer pools for such kinds of memory accesses, it will reduce GC pressures.
 */
-func (tssr *TimeSeriesSegmentReader) GetAllMetricNames() (map[string]bool, error) {
+func GetAllMetricNames(mKey string) (map[string]bool, error) {
 
-	filePath := fmt.Sprintf("%s.mnm", tssr.mKey)
+	filePath := fmt.Sprintf("%s.mnm", mKey)
 
 	fd, err := os.OpenFile(filePath, os.O_RDONLY, 0644)
 	if err != nil {

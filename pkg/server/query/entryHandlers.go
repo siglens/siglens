@@ -160,6 +160,30 @@ func getAllMetricTagsHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func getMetricSeriesCardinalityHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetMetricSeriesCardinalityRequest, ctx)
+	}
+}
+
+func getTagKeysWithMostSeriesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetTagKeysWithMostSeriesRequest, ctx)
+	}
+}
+
+func getTagPairsWithMostSeriesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetTagPairsWithMostSeriesRequest, ctx)
+	}
+}
+
+func getTagKeysWithMostValuesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(prom.ProcessGetTagKeysWithMostValuesRequest, ctx)
+	}
+}
+
 func esGreetHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		esutils.ProcessGreetHandler(ctx)
