@@ -59,7 +59,7 @@ func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
 			var body []byte
 			body, err = ctx.Request.BodyGunzip()
 			if err != nil {
-				log.Errorf("PutMetrics: failed to gunzip request. Zipped body=%v, err=%v", ctx.Request.Body(), err)
+				log.Errorf("PutMetrics: error unzipping body! %v", err)
 				writeInfluxResponse(ctx, processedCount, failedCount, "Failed to gunzip request", fasthttp.StatusBadRequest)
 				return
 			}
