@@ -63,7 +63,7 @@ func getAllEmptyPQSToMap(emptyPQSFilename string) (map[string]bool, error) {
 
 	err = json.NewDecoder(fd).Decode(&allEmptyPQS)
 	if err != nil {
-		log.Errorf("getAllEmptyPQSToMap: Cannot unmarshal data, err =%v", err)
+		log.Errorf("getAllEmptyPQSToMap: Cannot decode json data from file=%v, err =%v", emptyPQSFilename, err)
 		return nil, err
 	}
 
@@ -86,13 +86,13 @@ func AddEmptyResults(pqid string, segKey string, virtualTableName string) {
 	if _, err := os.Stat(dirName); os.IsNotExist(err) {
 		err := os.MkdirAll(dirName, os.FileMode(0764))
 		if err != nil {
-			log.Errorf("Failed to create directory at %s: %v", dirName, err)
+			log.Errorf("AddEmptyResults: Failed to create directory at %s: Error=%v", dirName, err)
 		}
 	}
 	fileName := getPqmetaFilename(pqid)
 	emptyPQS, err := getAllEmptyPQSToMap(fileName)
 	if err != nil {
-		log.Errorf("Failed to get empty PQS data from file at %s: %v", fileName, err)
+		log.Errorf("AddEmptyResults: Failed to get empty PQS data from file at %s: Error=%v", fileName, err)
 	}
 	if emptyPQS != nil {
 		emptyPQS[segKey] = true
@@ -126,25 +126,25 @@ func writeEmptyPqsMapToFile(fileName string, emptyPqs map[string]bool) {
 func removePqmrFilesAndDirectory(pqid string) error {
 	workingDirectory, err := os.Getwd()
 	if err != nil {
-		log.Errorf("Error fetching current workingDirectory")
+		log.Errorf("removePqmrFilesAndDirectory: Error fetching current workingDirectory")
 		return err
 	}
 	pqFname := workingDirectory + "/" + getPqmetaFilename(pqid)
 	err = os.Remove(pqFname)
 	if err != nil {
-		log.Errorf("Cannot delete file at %v", err)
+		log.Errorf("removePqmrFilesAndDirectory: Cannot delete file=%v, Error=%v", pqFname, err)
 		return err
 	}
 	pqMetaDirectory := path.Dir(pqFname)
 	files, err := os.ReadDir(pqMetaDirectory)
 	if err != nil {
-		log.Errorf("Cannot PQMR directory at %v", pqMetaDirectory)
+		log.Errorf("removePqmrFilesAndDirectory: Cannot PQMR directory at %v, Error=%v", pqMetaDirectory, err)
 		return err
 	}
 	if len(files) == 0 {
 		err := os.Remove(pqMetaDirectory)
 		if err != nil {
-			log.Errorf("Error deleting Pqmr directory at %v", pqMetaDirectory)
+			log.Errorf("removePqmrFilesAndDirectory: Error deleting Pqmr directory at %v, Error=%v", pqMetaDirectory, err)
 			return err
 		}
 	}
@@ -155,13 +155,13 @@ func DeleteSegmentFromPqid(pqid string, segKey string) {
 	pqFname := getPqmetaFilename(pqid)
 	emptyPQS, err := getAllEmptyPQSToMap(pqFname)
 	if err != nil {
-		log.Errorf("DeleteSegmentFromPqid: Failed to get empty PQS data from file at %s: %v", pqFname, err)
+		log.Errorf("DeleteSegmentFromPqid: Failed to get empty PQS data from file at %s: Error=%v", pqFname, err)
 	}
 	delete(emptyPQS, segKey)
 	if len(emptyPQS) == 0 {
 		err := removePqmrFilesAndDirectory(pqid)
 		if err != nil {
-			log.Errorf("DeleteSegmentFromPqid: Error removing segKey %v from %v pqid", segKey, pqid)
+			log.Errorf("DeleteSegmentFromPqid: Error removing segKey %v from %v pqid, Error=%v", segKey, pqid, err)
 		}
 		return
 	}
