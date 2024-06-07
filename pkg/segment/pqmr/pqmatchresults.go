@@ -175,7 +175,7 @@ func (pqmr *PQMatchResults) FlushPqmr(fname *string, blkNum uint16) error {
 	if _, err := os.Stat(dirName); os.IsNotExist(err) {
 		err := os.MkdirAll(dirName, os.FileMode(0764))
 		if err != nil {
-			log.Errorf("Failed to create directory %s: %v", dirName, err)
+			log.Errorf("FlushPqmr: Failed to create directory %s: Error=%v", dirName, err)
 			return err
 		}
 	}
@@ -319,7 +319,7 @@ func WritePqmrToDisk(buf []byte, fileName string) error {
 	if _, err := os.Stat(dirName); os.IsNotExist(err) {
 		err := os.MkdirAll(dirName, os.FileMode(0764))
 		if err != nil {
-			log.Errorf("Failed to create directory %s: %v", dirName, err)
+			log.Errorf("WritePqmrToDisk: Failed to create directory %s: %v", dirName, err)
 			return err
 		}
 	}

@@ -287,7 +287,7 @@ func (m *MatchFilter) GetRegexp() (*regexp.Regexp, error) {
 
 		re, err := regexp.Compile(m.RegexpString)
 		if err != nil {
-			log.Errorf("MatchFilter.GetRegexp: error compiling regexp: %v, err=%v", m.RegexpString, err)
+			log.Errorf("MatchFilter.GetRegexp: error compiling regexp: %v, err: %v", m.RegexpString, err)
 			return nil, err
 		}
 

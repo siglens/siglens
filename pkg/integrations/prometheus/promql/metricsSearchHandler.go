@@ -19,6 +19,7 @@ package promql
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -38,6 +39,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
@@ -564,7 +566,7 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var timeRange *dtu.MetricsTimeRange
 	hashList := make([]uint64, 0)
 	for i := range metricQueryRequest {
-		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.HashedMName)
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.QueryHash)
 		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
 		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
 		timeRange = &metricQueryRequest[i].TimeRange
@@ -737,7 +739,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var timeRange *dtu.MetricsTimeRange
 	hashList := make([]uint64, 0)
 	for i := range metricQueryRequest {
-		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.HashedMName)
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.QueryHash)
 		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
 		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
 		timeRange = &metricQueryRequest[i].TimeRange
@@ -884,6 +886,301 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	return start, end, queries, formulas, errorLog, nil
 }
 
+func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	type inputStruct struct {
+		StartEpoch utils.Epoch `json:"startEpoch"`
+		EndEpoch   utils.Epoch `json:"endEpoch"`
+	}
+	type outputStruct struct {
+		SeriesCardinality uint64 `json:"seriesCardinality"`
+	}
+
+	input := inputStruct{}
+	err := json.Unmarshal(ctx.PostBody(), &input)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		return
+	}
+
+	timeRange, err := utils.GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
+	if err != nil {
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
+		return
+	}
+
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
+		return
+	}
+
+	tagKeys := make(map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		tagKeys = utils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
+	}
+
+	allTsids := make(map[uint64]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		for tagKey := range tagKeys {
+			tsids, err := segmentTagTreeReader.GetTSIDsForKey(tagKey)
+			if err != nil {
+				utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v", tagKey), err)
+				return
+			}
+
+			allTsids = utils.MergeMaps(allTsids, tsids)
+		}
+	}
+
+	output := outputStruct{
+		SeriesCardinality: uint64(len(allTsids)),
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	WriteJsonResponse(ctx, &output)
+}
+
+func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	type inputStruct struct {
+		StartEpoch utils.Epoch `json:"startEpoch"`
+		EndEpoch   utils.Epoch `json:"endEpoch"`
+		Limit      uint64      `json:"limit"`
+	}
+	type tagKeySeriesCount struct {
+		Key       string `json:"key"`
+		NumSeries uint64 `json:"numSeries"`
+	}
+	type outputStruct struct {
+		TagKeys []tagKeySeriesCount `json:"tagKeys"`
+	}
+
+	input := inputStruct{Limit: 10} // Set defaults
+	err := json.Unmarshal(ctx.PostBody(), &input)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		return
+	}
+
+	timeRange, err := utils.GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
+	if err != nil {
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
+		return
+	}
+
+	limit := input.Limit
+	noLimit := (limit == 0)
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
+		return
+	}
+
+	tagKeys := make(map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		tagKeys = utils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
+	}
+
+	seriesCounts := make([]tagKeySeriesCount, 0, len(tagKeys))
+	for tagKey := range tagKeys {
+		tsidsForKey := make(map[uint64]struct{})
+		for _, segmentTagTreeReader := range tagsTreeReaders {
+			tsids, err := segmentTagTreeReader.GetTSIDsForKey(tagKey)
+			if err != nil {
+				utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v", tagKey), err)
+				return
+			}
+
+			tsidsForKey = utils.MergeMaps(tsidsForKey, tsids)
+		}
+
+		keyAndCount := tagKeySeriesCount{
+			Key:       tagKey,
+			NumSeries: uint64(len(tsidsForKey)),
+		}
+		seriesCounts = append(seriesCounts, keyAndCount)
+	}
+
+	sort.Slice(seriesCounts, func(i, j int) bool {
+		return seriesCounts[i].NumSeries > seriesCounts[j].NumSeries
+	})
+
+	if !noLimit && limit < uint64(len(seriesCounts)) {
+		seriesCounts = seriesCounts[:limit]
+	}
+
+	output := outputStruct{
+		TagKeys: seriesCounts,
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, &output)
+}
+
+func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	type inputStruct struct {
+		StartEpoch utils.Epoch `json:"startEpoch"`
+		EndEpoch   utils.Epoch `json:"endEpoch"`
+		Limit      uint64      `json:"limit"`
+	}
+	type tagPairSeriesCount struct {
+		Key       string `json:"key"`
+		Value     string `json:"value"`
+		NumSeries uint64 `json:"numSeries"`
+	}
+	type outputStruct struct {
+		TagPairs []tagPairSeriesCount `json:"tagPairs"`
+	}
+
+	input := inputStruct{Limit: 10} // Set defaults
+	err := json.Unmarshal(ctx.PostBody(), &input)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		return
+	}
+
+	timeRange, err := utils.GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
+	if err != nil {
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
+		return
+	}
+
+	limit := input.Limit
+	noLimit := (limit == 0)
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
+		return
+	}
+
+	tagPairs := make(map[string]map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		segmentTagPairs := segmentTagTreeReader.GetAllTagPairs()
+		for key, valueSet := range segmentTagPairs {
+			if _, ok := tagPairs[key]; !ok {
+				tagPairs[key] = valueSet
+			} else {
+				tagPairs[key] = utils.MergeMaps(tagPairs[key], valueSet)
+			}
+		}
+	}
+
+	seriesCounts := make([]tagPairSeriesCount, 0)
+	for key, valueSet := range tagPairs {
+		for value := range valueSet {
+			for _, segmentTagTreeReader := range tagsTreeReaders {
+				tsids, err := segmentTagTreeReader.GetTSIDsForTagPair(key, value)
+				if err != nil {
+					utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v and value %v", key, value), err)
+					return
+				}
+
+				keyAndCount := tagPairSeriesCount{
+					Key:       key,
+					Value:     value,
+					NumSeries: uint64(len(tsids)),
+				}
+				seriesCounts = append(seriesCounts, keyAndCount)
+			}
+		}
+	}
+
+	sort.Slice(seriesCounts, func(i, j int) bool {
+		return seriesCounts[i].NumSeries > seriesCounts[j].NumSeries
+	})
+
+	if !noLimit && limit < uint64(len(seriesCounts)) {
+		seriesCounts = seriesCounts[:limit]
+	}
+
+	output := outputStruct{
+		TagPairs: seriesCounts,
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, &output)
+}
+
+func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	type inputStruct struct {
+		StartEpoch utils.Epoch `json:"startEpoch"`
+		EndEpoch   utils.Epoch `json:"endEpoch"`
+		Limit      uint64      `json:"limit"`
+	}
+	type keyAndNumValues struct {
+		Key       string `json:"key"`
+		NumValues uint64 `json:"numValues"`
+	}
+	type outputStruct struct {
+		TagKeys []keyAndNumValues `json:"tagKeys"`
+	}
+
+	input := inputStruct{Limit: 10} // Set defaults
+	err := json.Unmarshal(ctx.PostBody(), &input)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		return
+	}
+
+	timeRange, err := utils.GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
+	if err != nil {
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
+		return
+	}
+
+	limit := input.Limit
+	noLimit := (limit == 0)
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
+		return
+	}
+
+	tagPairs := make(map[string]map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		segmentTagPairs := segmentTagTreeReader.GetAllTagPairs()
+		for key, valueSet := range segmentTagPairs {
+			if _, ok := tagPairs[key]; !ok {
+				tagPairs[key] = valueSet
+			} else {
+				tagPairs[key] = utils.MergeMaps(tagPairs[key], valueSet)
+			}
+		}
+	}
+
+	keysAndNumValues := make([]keyAndNumValues, 0)
+	for key, valueSet := range tagPairs {
+		element := keyAndNumValues{
+			Key:       key,
+			NumValues: uint64(len(valueSet)),
+		}
+
+		keysAndNumValues = append(keysAndNumValues, element)
+	}
+
+	sort.Slice(keysAndNumValues, func(i, j int) bool {
+		return keysAndNumValues[i].NumValues > keysAndNumValues[j].NumValues
+	})
+
+	if !noLimit && limit < uint64(len(keysAndNumValues)) {
+		keysAndNumValues = keysAndNumValues[:limit]
+	}
+
+	output := outputStruct{
+		TagKeys: keysAndNumValues,
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, &output)
+}
+
 func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
 	// call prometheus promql parser
 	expr, err := parser.ParseExpr(searchText)
@@ -942,6 +1239,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Avg
 				case "count":
 					mquery.Aggregator.AggregatorFunction = segutils.Count
+					mquery.GetAllLabels = true
 				case "sum":
 					mquery.Aggregator.AggregatorFunction = segutils.Sum
 				case "max":
@@ -956,6 +1254,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				}
 			case *parser.VectorSelector:
 				_, grouping := extractGroupsFromPath(path)
+				mquery.Aggregator.GroupByFields = sort.StringSlice(grouping)
 				aggFunc := extractFuncFromPath(path)
 				for _, grp := range grouping {
 					groupby = true
@@ -973,6 +1272,8 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Avg
 				case "count":
 					mquery.Aggregator.AggregatorFunction = segutils.Count
+					mquery.GetAllLabels = true
+					mquery.TagsFilters = make([]*structs.TagsFilter, 0)
 				case "sum":
 					mquery.Aggregator.AggregatorFunction = segutils.Sum
 				case "max":

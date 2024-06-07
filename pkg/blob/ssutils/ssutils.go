@@ -53,7 +53,7 @@ func GetFileNameFromSegSetFile(segSetFile structs.SegSetFile) string {
 	case structs.Rollup:
 		fileName = fileName + "/rups/" + segSetFile.Identifier + ".crup"
 	default:
-		log.Errorf("GetFileNameFromSegSetFile: unknown seg set file type! %+v", segSetFile.FileType)
+		log.Errorf("GetFileNameFromSegSetFile: unknown seg set file type=%+v, filName=%v", segSetFile.FileType, fileName)
 	}
 	return fileName
 }

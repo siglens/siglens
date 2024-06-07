@@ -126,7 +126,7 @@ func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
 	case "cardinality":
 		return utils.Cardinality
 	default:
-		log.Errorf("qid=%v, getAggregationSQL: aggregation type not supported!", qid)
+		log.Errorf("qid=%v, getAggregationSQL: aggregation type: %v is not supported!", qid, agg)
 		return 0
 	}
 }
@@ -145,7 +145,7 @@ func getMathEvaluatorSQL(op string, qid uint64) (utils.MathFunctions, error) {
 	case "exp":
 		return utils.Exp, nil
 	default:
-		log.Errorf("qid=%v, getMathEvaluatorSQL: math evaluator type not supported!", qid)
+		log.Errorf("qid=%v, getMathEvaluatorSQL: math evaluator type: %v is not supported!", qid, op)
 		return 0, fmt.Errorf("math evaluator type not supported")
 	}
 }
@@ -165,7 +165,7 @@ func getMathFunctionSQL(funcName string, argExprs sqlparser.SelectExprs, qid uin
 
 	leftExpr, err := convertToNumericExpr(argExprs[0])
 	if err != nil {
-		log.Errorf("qid=%v, getMathFunctionSQL: error converting left expression of Math function to numeric expression! %+v", qid, err)
+		log.Errorf("qid=%v, getMathFunctionSQL: error converting left expression of Math function to numeric expression! err: %+v", qid, err)
 		return mathFunc, nil, err
 	}
 
@@ -176,7 +176,7 @@ func getMathFunctionSQL(funcName string, argExprs sqlparser.SelectExprs, qid uin
 		if len(argExprs) == 2 {
 			rightExpr, err = convertToNumericExpr(argExprs[1])
 			if err != nil {
-				log.Errorf("qid=%v, getMathFunctionSQL: error converting right expression of round to numeric expression! %+v", qid, err)
+				log.Errorf("qid=%v, getMathFunctionSQL: error converting right expression of round to numeric expression! err: %+v", qid, err)
 				return mathFunc, nil, err
 			}
 		}
@@ -215,10 +215,10 @@ func convertToNumericExpr(expr any) (*structs.NumericExpr, error) {
 				NumericExprMode: determineNumericExprMode(agg),
 			}, nil
 		default:
-			return nil, fmt.Errorf("unsupported expression type: %T", expr)
+			return nil, fmt.Errorf("convertToNumericExpr: unsupported expression type: %T", expr)
 		}
 	default:
-		return nil, fmt.Errorf("unsupported expression type: %T", expr)
+		return nil, fmt.Errorf("convertToNumericExpr: unsupported expression type: %T", expr)
 	}
 }
 
@@ -242,7 +242,7 @@ func determineNumericExprMode(e sqlparser.Expr) structs.NumericExprMode {
 // Generate NumericExpr struct for eval functions
 func createNumericExpr(op string, leftExpr *structs.NumericExpr, rightExpr *structs.NumericExpr, numericExprMode structs.NumericExprMode) (*structs.NumericExpr, error) {
 	if leftExpr == nil {
-		return nil, fmt.Errorf("expr cannot be nil")
+		return nil, fmt.Errorf("createNumericExpr: left expr cannot be nil")
 	}
 
 	return &structs.NumericExpr{
@@ -271,7 +271,7 @@ func parseSingleCondition(expr sqlparser.Expr, astNode *structs.ASTNode, qid uin
 		}
 
 		if err != nil {
-			log.Errorf("qid=%v, parseSingleCondition: process pipe search failed! %+v", qid, err)
+			log.Errorf("qid=%v, parseSingleCondition: process pipe search failed! err: %+v", qid, err)
 			return nil, err
 		}
 
@@ -293,7 +293,7 @@ func parseSingleCondition(expr sqlparser.Expr, astNode *structs.ASTNode, qid uin
 func parseAndConditionSQL(astNode *structs.ASTNode, expr *sqlparser.AndExpr, qid uint64) {
 	subNode, err := parseSingleCondition(expr.Left, &structs.ASTNode{}, qid, And)
 	if err != nil {
-		log.Errorf("qid=%v, parseAndConditionSQL: parse single condition failed! %+v", qid, err)
+		log.Errorf("qid=%v, parseAndConditionSQL: parse single condition failed! err: %+v", qid, err)
 		return
 	}
 	if astNode.AndFilterCondition.NestedNodes == nil {
@@ -309,7 +309,7 @@ func parseAndConditionSQL(astNode *structs.ASTNode, expr *sqlparser.AndExpr, qid
 	case *sqlparser.ComparisonExpr:
 		rightNode, err := parseSingleCondition(expr.Right, &structs.ASTNode{}, qid, And)
 		if err != nil {
-			log.Errorf("qid=%v, parseAndConditionSQL: parse single condition failed! %+v", qid, err)
+			log.Errorf("qid=%v, parseAndConditionSQL: parse single condition failed! err: %+v", qid, err)
 			return
 		}
 		astNode.AndFilterCondition.NestedNodes = append(astNode.AndFilterCondition.NestedNodes, rightNode)
@@ -323,7 +323,7 @@ func parseAndConditionSQL(astNode *structs.ASTNode, expr *sqlparser.AndExpr, qid
 		case *sqlparser.ComparisonExpr:
 			rightNode, err := parseSingleCondition(expr.Right, &structs.ASTNode{}, qid, And)
 			if err != nil {
-				log.Errorf("qid=%v, parseAndConditionSQL: parse single condition failed! %+v", qid, err)
+				log.Errorf("qid=%v, parseAndConditionSQL: parse single condition failed! err: %+v", qid, err)
 				return
 			}
 			astNode.AndFilterCondition.NestedNodes = append(astNode.AndFilterCondition.NestedNodes, rightNode)
@@ -377,7 +377,7 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 
 				if mathFunc > 0 {
 					if err != nil {
-						log.Errorf("qid=%v, parseSelect: getMathFunctionSQL failed! %+v", qid, err)
+						log.Errorf("qid=%v, parseSelect: getMathFunctionSQL failed! err: %+v", qid, err)
 						return astNode, aggNode, columsArray, err
 					}
 
@@ -446,7 +446,7 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 		case *sqlparser.StarExpr:
 			break //astNode is defaulted to matchall, so no further action is needed
 		default:
-			return astNode, aggNode, columsArray, fmt.Errorf("only star expressions and regualar expressions are handled")
+			return astNode, aggNode, columsArray, fmt.Errorf("parseSelect: only star expressions and regualar expressions are handled")
 
 		}
 
@@ -533,11 +533,11 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 		case *sqlparser.ComparisonExpr:
 			astNode, err = parseSingleCondition(stmt, astNode, qid, And)
 			if err != nil {
-				log.Errorf("qid=%v, parseSingleCondition: statement failed to be parsed! %+v", qid, err)
+				log.Errorf("qid=%v, parseSelect: failed to parse single condition of statement! err: %+v", qid, err)
 				return astNode, aggNode, columsArray, err
 			}
 		default:
-			return astNode, aggNode, columsArray, fmt.Errorf("qid=%v, ConvertToASTNodeSQL: only OR, AND, Comparison types are supported! %+v", qid, err)
+			return astNode, aggNode, columsArray, fmt.Errorf("qid=%v, parseSelect: only OR, AND, Comparison types are supported! err: %+v", qid, err)
 		}
 
 	}
@@ -561,7 +561,7 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 
 	if currStmt.OrderBy != nil {
 		if len(currStmt.OrderBy) != 1 {
-			return astNode, aggNode, columsArray, fmt.Errorf("qid=%v, ConvertToASTNodeSQL: Incorred Order By clause number! Only one clause is supported %+v", qid, err)
+			return astNode, aggNode, columsArray, fmt.Errorf("qid=%v, parseSelect: Incorrect Order By clause number! Only one clause is supported, err: %+v", qid, err)
 		}
 		orderByClause := currStmt.OrderBy[0]
 		ascending := orderByClause.Direction == sqlparser.AscScr
@@ -574,7 +574,7 @@ func parseSelect(astNode *structs.ASTNode, aggNode *structs.QueryAggregators, cu
 func parseOrConditionSQL(astNode *structs.ASTNode, expr *sqlparser.OrExpr, qid uint64) {
 	subNode, err := parseSingleCondition(expr.Left, &structs.ASTNode{}, qid, And)
 	if err != nil {
-		log.Errorf("qid=%v, parseOrConditionSQL: parse single condition failed! %+v", qid, err)
+		log.Errorf("qid=%v, parseOrConditionSQL: parse single condition failed! err: %+v", qid, err)
 		return
 	}
 	if astNode.OrFilterCondition == nil {
@@ -595,7 +595,7 @@ func parseOrConditionSQL(astNode *structs.ASTNode, expr *sqlparser.OrExpr, qid u
 	case *sqlparser.ComparisonExpr:
 		rightNode, err := parseSingleCondition(expr.Right, &structs.ASTNode{}, qid, Or)
 		if err != nil {
-			log.Errorf("qid=%v, parseOrConditionSQL: parse single condition failed! %+v", qid, err)
+			log.Errorf("qid=%v, parseOrConditionSQL: parse single condition failed! err: %+v", qid, err)
 			return
 		}
 		astNode.OrFilterCondition.NestedNodes = append(astNode.AndFilterCondition.NestedNodes, rightNode)
@@ -609,7 +609,7 @@ func parseOrConditionSQL(astNode *structs.ASTNode, expr *sqlparser.OrExpr, qid u
 		case *sqlparser.ComparisonExpr:
 			rightNode, err := parseSingleCondition(child, &structs.ASTNode{}, qid, Or)
 			if err != nil {
-				log.Errorf("qid=%v, parseOrConditionSQL: parse single condition failed! %+v", qid, err)
+				log.Errorf("qid=%v, parseOrConditionSQL: parse single condition failed! err: %+v", qid, err)
 				return
 			}
 			astNode.OrFilterCondition.NestedNodes = append(astNode.AndFilterCondition.NestedNodes, rightNode)

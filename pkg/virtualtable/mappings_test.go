@@ -32,7 +32,7 @@ func Test_createMappingFromEvent(t *testing.T) {
 	body := string(loadDataBytes)
 	index := "1234"
 
-	_, result := createMappingFromEvent(&body, &index)
+	result, _ := createMappingFromEvent(&body, &index)
 	fmt.Println(result)
 
 	expected := "{\"1234\":{\"mappings\":{\"browser_language\":{\"type\":\"string\"},\"browser_name\":{\"type\":\"string\"},\"browser_user_agent\":{\"type\":\"string\"},\"click_id\":{\"type\":\"string\"},\"device_is_mobile\":{\"type\":\"bool\"},\"device_type\":{\"type\":\"string\"},\"eventType\":{\"type\":\"string\"},\"event_id\":{\"type\":\"string\"},\"geo_country\":{\"type\":\"string\"},\"geo_latitude\":{\"type\":\"string\"},\"geo_longitude\":{\"type\":\"string\"},\"geo_region_name\":{\"type\":\"string\"},\"geo_timezone\":{\"type\":\"string\"},\"ip_address\":{\"type\":\"string\"},\"os\":{\"type\":\"string\"},\"os_name\":{\"type\":\"string\"},\"os_timezone\":{\"type\":\"string\"},\"page_url\":{\"type\":\"string\"},\"page_url_path\":{\"type\":\"string\"},\"referer_medium\":{\"type\":\"string\"},\"referer_url\":{\"type\":\"string\"},\"referer_url_port\":{\"type\":\"number\"},\"referer_url_scheme\":{\"type\":\"string\"},\"timestamp\":{\"type\":\"number\"},\"user_custom_id\":{\"type\":\"string\"},\"user_domain_id\":{\"type\":\"string\"},\"utm_campaign\":{\"type\":\"string\"},\"utm_content\":{\"type\":\"string\"},\"utm_medium\":{\"type\":\"string\"},\"utm_source\":{\"type\":\"string\"}}}}"

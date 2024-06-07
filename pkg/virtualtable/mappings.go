@@ -27,17 +27,17 @@ import (
 	"github.com/siglens/siglens/pkg/utils"
 )
 
-func createMappingFromEvent(incomingBody *string, indexName *string) (error, string) {
+func createMappingFromEvent(incomingBody *string, indexName *string) (string, error) {
 	jsonSource := make(map[string]interface{})
 	decoder := json.NewDecoder(strings.NewReader(*incomingBody))
 	decoder.UseNumber()
 	err := decoder.Decode(&jsonSource)
+	if err != nil {
+		log.Errorf("createMappingFromEvent: failed to decode json incoming event body=%v, err=%v", *incomingBody, err)
+		return "", err
+	}
 	indexToMapping := make(map[string]interface{})
 	m := make(map[string]interface{})
-	if err != nil {
-		log.Errorf("createMappingFromEvent: failed to decode json event, err=%v", err)
-		return err, ""
-	}
 	flat_json := utils.Flatten(jsonSource)
 	for key, val := range flat_json {
 
@@ -64,23 +64,23 @@ func createMappingFromEvent(incomingBody *string, indexName *string) (error, str
 				"type": "bool"}
 
 		default:
-			log.Errorf("createMappingFromEvent: dont know how to convert type=%T for colName=%v", val, key)
+			log.Errorf("createMappingFromEvent: unknown type=%T. Value=%v, colName=%v", val, val, key)
 		}
 	}
 	indexToMapping[*indexName] = map[string]interface{}{
 		"mappings": m}
 	JsonBody, err := json.Marshal(indexToMapping)
 	if err != nil {
-		log.Errorf("createMappingFromEvent: cannot Marshal the data, err=%v", err)
-		return err, ""
+		log.Errorf("createMappingFromEvent: cannot Marshal the data, data=%v, err=%v", indexToMapping, err)
+		return "", err
 	}
-	return nil, string(JsonBody)
+	return string(JsonBody), nil
 }
 
 func AddMappingFromADoc(indexName *string, incomingBody *string, orgid uint64) error {
-	err, jsonBody := createMappingFromEvent(incomingBody, indexName)
+	jsonBody, err := createMappingFromEvent(incomingBody, indexName)
 	if err != nil {
-		log.Errorf("AddMappingFromADoc: cannot create mapping from the event with indexName=%v, err=%v", indexName, err)
+		log.Errorf("AddMappingFromADoc: cannot create mapping from the event with indexName=%v, incomingBody=%v, err=%v", indexName, incomingBody, err)
 		return err
 	}
 	return AddMapping(indexName, &jsonBody, orgid)

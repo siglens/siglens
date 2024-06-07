@@ -45,7 +45,7 @@
   }
  function resetDataTable(firstQUpdate) {
      if (firstQUpdate) {
-         $('#empty-response').hide();
+         $('#empty-response, #initial-response').hide();
          $("#custom-chart-tab").show();
          let currentTab = $("#custom-chart-tab").tabs("option", "active");
          if (currentTab == 0) {
@@ -348,23 +348,27 @@
      let stDate = queryParams.get("startEpoch") || Cookies.get('startEpoch') || "now-15m";
      let endDate = queryParams.get("endEpoch") || Cookies.get('endEpoch') || "now";
      let selIndexName = queryParams.get('indexName');
-     let queryLanguage = queryParams.get("queryLanguage") ||$('#query-language-btn span').html();
+     let queryLanguage = queryParams.get("queryLanguage");
      queryLanguage = queryLanguage.replace('"', '');
-     $("#query-language-btn span").html(queryLanguage);
     $(".query-language-option").removeClass("active");
+    let selectedQueryLanguageId;
      if (queryLanguage == "SQL") {
        $("#option-1").addClass("active");
+       selectedQueryLanguageId = "1";
      } else if (queryLanguage == "Log QL") {
        $("#option-2").addClass("active");
+       selectedQueryLanguageId = "2";
      } else if (queryLanguage == "Splunk QL") {
        $("#option-3").addClass("active");
+       selectedQueryLanguageId = "3";
      }
      let filterTab = queryParams.get("filterTab");
+     handleTabAndTooltip(selectedQueryLanguageId, parseInt(filterTab))
      let filterValue = queryParams.get('searchText');
      if(filterTab == "0" || filterTab == null){
       if(filterValue != "*"){
         if(filterValue.indexOf("|") != -1){
-          firstBoxSet = new Set(filterValue.split(" | ")[0].split(" "));
+          firstBoxSet = new Set(filterValue.split(" | ")[0].match(/(?:[^\s"]+|"[^"]*")+/g));
           secondBoxSet = new Set(
             filterValue
               .split("stats ")[1]
@@ -375,7 +379,7 @@
             thirdBoxSet = new Set(filterValue.split(" BY ")[1].split(","));
           }
         }else{
-          firstBoxSet = new Set(filterValue.split(" "));
+          firstBoxSet = new Set(filterValue.match(/(?:[^\s"]+|"[^"]*")+/g));
         }
         if (firstBoxSet && firstBoxSet.size > 0) {
           let tags = document.getElementById("tags");
@@ -386,7 +390,7 @@
             let tag = document.createElement("li");
             tag.innerText = value;
             // Add a delete button to the tag
-            tag.innerHTML += '<button class="delete-button">x</button>';
+            tag.innerHTML += '<button class="delete-button">×</button>';
             // Append the tag to the tags list
             tags.appendChild(tag);
           });
@@ -400,7 +404,7 @@
             let tag = document.createElement("li");
             tag.innerText = value;
             // Add a delete button to the tag
-            tag.innerHTML += '<button class="delete-button">x</button>';
+            tag.innerHTML += '<button class="delete-button">×</button>';
             // Append the tag to the tags list
             tags.appendChild(tag);
           });
@@ -414,14 +418,16 @@
             let tag = document.createElement("li");
             tag.innerText = value;
             // Add a delete button to the tag
-            tag.innerHTML += '<button class="delete-button">x</button>';
+            tag.innerHTML += '<button class="delete-button">×</button>';
             // Append the tag to the tags list
             
             tags.appendChild(tag);
           });
         }
+      $("#search-filter-text, #aggregate-attribute-text, #aggregations").hide();
+      $("#filter-input").val(filterValue).change();
+      isQueryBuilderSearch = true;
       }
-        $("#query-input").val(filterValue);
      }else{
         $("#custom-code-tab").tabs("option", "active", 1);
         if (filterValue === "*") {
@@ -429,6 +435,7 @@
         } else {
           $("#filter-input").val(filterValue).change();
         }
+        isQueryBuilderSearch = false;
      }
      let sFrom = 0;
 
@@ -455,6 +462,7 @@
          addQSParm("endEpoch", endDate);
          addQSParm("indexName", selIndexName);
          addQSParm("queryLanguage", queryLanguage);
+         addQSParm("filterTab", filterTab)
          window.history.pushState({ path: myUrl }, '', myUrl);
      }
  
@@ -481,7 +489,7 @@
     if (startTime == 1800) stDate = "now-1h";
     let selIndexName = selectedSearchIndex;
     let sFrom = 0;
-    let queryLanguage = $("#query-language-btn span").html();
+    let queryLanguage = $('#query-language-options .query-language-option.active').html();
 
     setIndexDisplayValue(selIndexName);
 
@@ -553,7 +561,6 @@
        });
      }
      if (filterValue == "") filterValue = "*";
-     $("#query-input").val(filterValue);
      if(thirdBoxSet && thirdBoxSet.size > 0 && (secondBoxSet == null || secondBoxSet.size == 0)) $("#query-builder-btn").addClass("stop-search").prop('disabled', true);
      else $("#query-builder-btn").removeClass("stop-search").prop('disabled', false);
    return showError ? "Searches with a Search Criteria must have an Aggregate Attribute" : filterValue;
@@ -564,7 +571,7 @@
    let stDate = filterStartDate || "now-15m";
    let selIndexName = selectedSearchIndex;
    let sFrom = 0;
-   let queryLanguage = $("#query-language-btn span").html();
+   let queryLanguage = $('#query-language-options .query-language-option.active').html();
 
    setIndexDisplayValue(selIndexName);
 
@@ -593,6 +600,7 @@
    addQSParm("endEpoch", endDate);
    addQSParm("indexName", selIndexName);
    addQSParm("queryLanguage", queryLanguage);
+   addQSParm("filterTab", currentTab)
 
    window.history.pushState({ path: myUrl }, "", myUrl);
 
@@ -621,7 +629,7 @@
          'searchText': filterValue,
          'indexName': selectedSearchIndex,
          'filterTab': currentTab.toString(),
-         'queryLanguage': $("#query-language-btn span").html()
+         'queryLanguage': $('#query-language-options .query-language-option.active').html(),
      };
  }
   function processLiveTailQueryUpdate(
@@ -746,7 +754,8 @@
          if (res && res.hits && res.hits.totalMatched) {
              totalHits = res.hits.totalMatched
          }
-     } else if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
+    } else if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
+      let columnOrder =[]
         if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
           columnOrder = res.columnsOrder
         }else{ 
@@ -754,7 +763,6 @@
               columnOrder = _.uniq(_.concat(
                   res.groupByCols));
           }
-          let columnOrder =[]
           if (res.measureFunctions ) {
               columnOrder = _.uniq(_.concat(
                   columnOrder,res.measureFunctions));
@@ -780,6 +788,7 @@
      $('#corner-popup').hide();
      $('#empty-response').show();
      $('#logs-view-controls').hide();
+     $('#initial-response').hide();
      let el = $('#empty-response');
      $('#empty-response').empty();
      el.append('<span>Your query returned no data, adjust your query.</span>')
@@ -940,6 +949,7 @@
      $("#data-row-container").hide();
      $('#corner-popup').hide();
      $('#empty-response').show();
+     $('#initial-response').hide();
      $('#logs-view-controls').hide();
     $("#custom-chart-tab").hide();
      let el = $('#empty-response');

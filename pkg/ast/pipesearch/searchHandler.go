@@ -44,10 +44,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const MIN_IN_MS = 60_000
-const HOUR_IN_MS = 3600_000
-const DAY_IN_MS = 86400_000
-
 /*
 Example incomingBody
 
@@ -69,7 +65,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case string:
 			searchText = val
 		default:
-			log.Errorf("parseSearchBody searchText is not a string! Val %+v", val)
+			log.Errorf("ParseSearchBody: searchText is not a string! val: %+v", val)
 		}
 	}
 
@@ -95,7 +91,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			}
 
 		default:
-			log.Errorf("parseSearchBody indexName is not a string! Val %+v, type: %T", val, iText)
+			log.Errorf("ParseSearchBody: indexName is not a string! val: %+v, type: %T", val, iText)
 		}
 	}
 
@@ -115,7 +111,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			startEpoch = uint64(val)
 		case string:
 			defValue := nowTs - (15 * 60 * 1000)
-			startEpoch = parseAlphaNumTime(nowTs, string(val), defValue)
+			startEpoch = utils.ParseAlphaNumTime(nowTs, string(val), defValue)
 		default:
 			startEpoch = nowTs - (15 * 60 * 1000)
 		}
@@ -136,7 +132,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case uint64:
 			endEpoch = uint64(val)
 		case string:
-			endEpoch = parseAlphaNumTime(nowTs, string(val), nowTs)
+			endEpoch = utils.ParseAlphaNumTime(nowTs, string(val), nowTs)
 		default:
 			endEpoch = nowTs
 		}
@@ -204,7 +200,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case int:
 			scrollFrom = val
 		default:
-			log.Infof("parseSearchBody: unknown type for scroll=%T", val)
+			log.Infof("ParseSearchBody: unknown type %T for scroll", val)
 			scrollFrom = 0
 		}
 	}
@@ -241,7 +237,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	decoder.UseNumber()
 	err := decoder.Decode(&readJSON)
 	if err != nil {
-		log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: failed to decode search request body! Err=%+v", qid, err)
+		log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: failed to decode search request body! err: %+v", qid, err)
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
@@ -261,7 +257,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	if queryLanguageType == "Pipe QL" {
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
 		if err != nil {
-			log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing query err=%+v", qid, err)
+			log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing query err: %+v", qid, err)
 			return -1
 		}
 
@@ -277,7 +273,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 
 				measureNum, err := strconv.Atoi(measureVal)
 				if err != nil {
-					log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest Error parsing int from a string: %s", err)
+					log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing int from a string: %s", err)
 					return -1
 				}
 				return measureNum
@@ -286,7 +282,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	} else if queryLanguageType == "Splunk QL" {
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 		if err != nil {
-			log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing query err=%+v", qid, err)
+			log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing query err: %+v", qid, err)
 			return -1
 		}
 
@@ -302,14 +298,14 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 				measureVal = strings.ReplaceAll(measureVal, ",", "")
 				measureNum, err := strconv.ParseFloat(measureVal, 64)
 				if err != nil {
-					log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest Error parsing int from a string: %s", err)
+					log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing int from a string: %s", err)
 					return -1
 				}
 				return int(measureNum)
 			}
 		}
 	} else {
-		log.Infof("ProcessAlertsPipeSearchRequest: unknown queryLanguageType: %v;", queryLanguageType)
+		log.Infof("ProcessAlertsPipeSearchRequest: unknown queryLanguageType: %v", queryLanguageType)
 	}
 
 	return -1
@@ -341,7 +337,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	queryStart := time.Now()
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf(" ProcessPipeSearchRequest: received empty search request body ")
+		log.Errorf("ProcessPipeSearchRequest: received empty search request body")
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -355,9 +351,9 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf("qid=%v, ProcessPipeSearchRequest: could not write error message err=%v", qid, err)
+			log.Errorf("qid=%v, ProcessPipeSearchRequest: could not write error message, err: %v", qid, err)
 		}
-		log.Errorf("qid=%v, ProcessPipeSearchRequest: failed to decode search request body! Err=%+v", qid, err)
+		log.Errorf("qid=%v, ProcessPipeSearchRequest: failed to decode search request body! err: %+v", qid, err)
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
@@ -384,17 +380,17 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	} else if queryLanguageType == "Splunk QL" {
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 	} else {
-		log.Infof("ProcessPipeSearchRequest: unknown queryLanguageType: %v; using Pipe QL instead", queryLanguageType)
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
+		log.Infof("ProcessPipeSearchRequest: unknown queryLanguageType: %v; using Splunk QL instead", queryLanguageType)
+		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 	}
 
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf("qid=%v, ProcessPipeSearchRequest: could not write error message err=%v", qid, err)
+			log.Errorf("qid=%v, ProcessPipeSearchRequest: could not write error message, err: %v", qid, err)
 		}
-		log.Errorf("qid=%v, ProcessPipeSearchRequest: Error parsing query err=%+v", qid, err)
+		log.Errorf("qid=%v, ProcessPipeSearchRequest: Error parsing query, err: %+v", qid, err)
 		return
 	}
 
@@ -484,7 +480,7 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 
 	allJsons, allCols, err := record.GetJsonFromAllRrc(rrcs, false, qid, segencmap, aggs)
 	if err != nil {
-		log.Errorf("qid=%d, convertRRCsToJSONResponse: failed to get allrecords from rrc, err=%v", qid, err)
+		log.Errorf("qid=%d, convertRRCsToJSONResponse: failed to get allrecords from rrc, err: %v", qid, err)
 		return allJsons, allCols, err
 	}
 
@@ -534,61 +530,12 @@ func convertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
 	return utils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
 }
 
-/*
-   Supports "now-[Num][Unit]"
-   Num ==> any positive integer
-   Unit ==> m(minutes), h(hours), d(days)
-*/
-
-func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) uint64 {
-
-	sanTime := strings.ReplaceAll(inp, " ", "")
-	nowPrefix := "now-"
-
-	if sanTime == "now" {
-		return nowTs
-	}
-
-	retVal := defValue
-
-	strln := len(sanTime)
-	if strln < len(nowPrefix)+2 {
-		return defValue
-	}
-
-	// check for prefix 'now-' in the input string
-	if !strings.HasPrefix(sanTime, nowPrefix) {
-		return defValue
-	}
-
-	// check for invalid time units
-	unit := sanTime[strln-1]
-	if unit != 'm' && unit != 'h' && unit != 'd' {
-		return defValue
-	}
-
-	num, err := strconv.ParseInt(sanTime[len(nowPrefix):strln-1], 10, 64)
-	if err != nil || num < 0 {
-		return defValue
-	}
-
-	switch unit {
-	case 'm':
-		retVal = nowTs - MIN_IN_MS*uint64(num)
-	case 'h':
-		retVal = nowTs - HOUR_IN_MS*uint64(num)
-	case 'd':
-		retVal = nowTs - DAY_IN_MS*uint64(num)
-	}
-	return retVal
-}
-
 func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	var resp utils.AutoCompleteDataInfo
 	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
 	if err != nil {
-		log.Errorf("GetAutoCompleteData: failed to get all virtual table names, err=%v", err)
+		log.Errorf("GetAutoCompleteData: failed to get all virtual table names, err: %v", err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 	}
 
@@ -602,7 +549,7 @@ func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	for _, indexName := range sortedIndices {
 		if indexName == "" {
-			log.Errorf("GetAutoCompleteData: skipping an empty index name indexName=%v", indexName)
+			log.Errorf("GetAutoCompleteData: skipping an empty index name indexName: %v", indexName)
 			continue
 		}
 

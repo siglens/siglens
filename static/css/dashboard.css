@@ -38,7 +38,6 @@
   --db-setting-placeholder:var(--black-5);
   --db-setting-text:var(--white-2);
   --legend-element-hover: var(--white-1);
-  --top-setting-btn-bg-img: url("../assets/settings-icon.svg");
   --top-save-btn-bg-img: url("../assets/save-icon.svg");
   --top-refresh-btn-bg-img: url("../assets/refresh-icon.svg");
   --arrow-dashboard-img: url("../assets/arrow-dashboard-light.svg");
@@ -63,7 +62,6 @@
   --db-setting-placeholder:var(--black-6);
   --db-setting-text:var(--black-4);
   --legend-element-hover: var(--black-1);
-  --top-setting-btn-bg-img: url("../assets/setting-icon.svg");
   --top-save-btn-bg-img: url("../assets/save-btn.svg");
   --top-refresh-btn-bg-img: url("../assets/refreshy-icon.svg");
   --arrow-dashboard-img: url("../assets/arrow-dashboard-black.svg");
@@ -1358,22 +1356,7 @@ input:checked + .slider:before {
   padding: 0px 12px;
   font-size: 14px;
 }
-.index-container .selected-index{
-  color: var(--text-color);
-  padding: 4px 28px 4px 7px;
-  margin-right: 8px;
-  white-space: nowrap;
-  position: relative;
-  background-color: #ECF6FB;
-}
-.index-container .selected-index .remove-icon {
-  font-size: 22px;
-  font-weight: bold;
-  position: absolute;
-  top: -3px;
-  right: 8px;
-  cursor: pointer;
-}
+
 #index-listing{
   border: none;
   height: 28px;

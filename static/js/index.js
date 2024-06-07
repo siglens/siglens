@@ -95,12 +95,6 @@ async function initializeIndexAutocomplete() {
             }
             
             $(this).val('');
-            const currentUrl = window.location.href;
-            if (currentUrl.includes("dashboard.html")){
-                runQueryBtnHandler();
-            }else{
-                runFilterBtnHandler(event);
-            }
         },
         open: function(event, ui) {
             var containerPosition = $(this).closest('.index-container').offset();
@@ -257,13 +251,6 @@ $(".index-container").on("click", ".remove-icon", function(e) {
     // Update the input width and placeholder if necessary
     if ($('.index-container').find('.selected-index').length === 0) {
         $("#index-listing").css('width', '100%');
-    }
-
-    const currentUrl = window.location.href;
-    if (currentUrl.includes("dashboard.html")){
-        runQueryBtnHandler();
-    }else{
-        runFilterBtnHandler(e);
     }
 });
 

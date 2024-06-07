@@ -19,6 +19,7 @@ package query
 
 import (
 	"fmt"
+	"regexp"
 	"sync"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/series"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
+	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -37,29 +39,63 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func getAllRequestsWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid uint64, querySummary *summary.QuerySummary) (map[string][]*structs.MetricsSearchRequest, error) {
+	rotatedMetricRequests, err := metadata.GetMetricsSegmentRequests(timeRange, querySummary, myid)
+	if err != nil {
+		err = fmt.Errorf("getAllRequestsWithinTimeRange: failed to get rotated metric segments for time range %+v; err=%v", timeRange, err)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	unrotatedMetricRequests, err := metrics.GetUnrotatedMetricsSegmentRequests(timeRange, querySummary, myid)
+	if err != nil {
+		err = fmt.Errorf("getAllRequestsWithinTimeRange: failed to get unrotated metric segments for time range %+v; err=%v", timeRange, err)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	allSearchRequests := mergeMetricSearchRequests(unrotatedMetricRequests, rotatedMetricRequests)
+
+	return allSearchRequests, nil
+}
+
+func GetAllTagsTreesWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid uint64, querySummary *summary.QuerySummary) ([]*tagstree.AllTagTreeReaders, error) {
+	allSearchRequests, err := getAllRequestsWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		err = fmt.Errorf("GetAllTagsTreesWithinTimeRange: failed to get all metric requests within time range %+v; err=%v", timeRange, err)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	// Extract the tags trees from the metric requests.
+	tagsTrees := make([]*tagstree.AllTagTreeReaders, 0)
+	for baseDir := range allSearchRequests {
+		allTagsTreeReader, err := tagstree.InitAllTagsTreeReader(baseDir)
+		if err != nil {
+			err = fmt.Errorf("GetAllTagsTreesWithinTimeRange: failed to get tags tree reader for baseDir: %s; err=%v", baseDir, err)
+			log.Errorf(err.Error())
+			return nil, err
+		}
+
+		tagsTrees = append(tagsTrees, allTagsTreeReader)
+	}
+
+	return tagsTrees, nil
+}
+
 func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) *mresults.MetricsResult {
 
 	// init metrics results structs
 	mRes := mresults.InitMetricResults(mQuery, qid)
 
-	// get all metrics segments that pass the initial time + metric name filter
-	mSegments, err := metadata.GetMetricsSegmentRequests(mQuery.MetricName, timeRange, querySummary, mQuery.OrgId)
+	mSegments, err := getAllRequestsWithinTimeRange(timeRange, mQuery.OrgId, querySummary)
 	if err != nil {
-		log.Errorf("ApplyMetricsQuery: failed to get rotated metric segments: %v", err)
+		log.Errorf("ApplyMetricsQuery: failed to get all metric segments within time range %+v; err=%v", timeRange, err)
 		return &mresults.MetricsResult{
 			ErrList: []error{err},
 		}
 	}
 
-	unrotatedMSegments, err := metrics.GetUnrotatedMetricsSegmentRequests(mQuery.MetricName, timeRange, querySummary, mQuery.OrgId)
-	if err != nil {
-		log.Errorf("ApplyMetricsQuery: failed to get unrotated metric segments: %v", err)
-		return &mresults.MetricsResult{
-			ErrList: []error{err},
-		}
-	}
-
-	mSegments = mergeRotatedAndUnrotatedRequests(unrotatedMSegments, mSegments)
 	allTagKeys := make(map[string]bool)
 
 	for _, allMSearchReqs := range mSegments {
@@ -114,8 +150,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 
 	mRes.MetricName = mQuery.MetricName
-
-	errors = mRes.AggregateResults(parallelism)
+	errors = mRes.AggregateResults(parallelism, mQuery.Aggregator)
 	if errors != nil {
 		for _, err := range errors {
 			mRes.AddError(err)
@@ -157,7 +192,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	return mRes
 }
 
-func mergeRotatedAndUnrotatedRequests(unrotatedMSegments map[string][]*structs.MetricsSearchRequest, mSegments map[string][]*structs.MetricsSearchRequest) map[string][]*structs.MetricsSearchRequest {
+func mergeMetricSearchRequests(unrotatedMSegments map[string][]*structs.MetricsSearchRequest, mSegments map[string][]*structs.MetricsSearchRequest) map[string][]*structs.MetricsSearchRequest {
 	for k, v := range unrotatedMSegments {
 		if _, ok := mSegments[k]; ok {
 			mSegments[k] = append(mSegments[k], v...)
@@ -202,15 +237,8 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid ui
 		wg.Add(1)
 		go func(msm *structs.MetricsMeta) {
 			defer wg.Done()
-			tssr, err := series.InitTimeSeriesReader(msm.MSegmentDir)
-			if err != nil {
-				log.Errorf("GetAllMetricNamesOverTheTimeRange: Error initializing time series reader for the MSegmentDir: %+v. Error: %v", msm.MSegmentDir, err)
-				gErr = err
-				return
-			}
-			defer tssr.Close()
 
-			mNamesMap, err := tssr.GetAllMetricNames()
+			mNamesMap, err := series.GetAllMetricNames(msm.MSegmentDir)
 			if err != nil {
 				gErr = err
 				return
@@ -293,25 +321,95 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 			mRes.AddError(err)
 			continue
 		}
+
+		var metricNames []string
+
+		if mQuery.IsRegexOnMetricName() {
+			// Regex Search on Metric Name. We need to get all the Metric Names in this Segment.
+			// The baseDir is the base directory of the tags tree holder but not the segment directory.
+			// The Segement base Directory can be taken from the first MetricSearchRequest.
+
+			if len(allMSearchReqs) == 0 {
+				mRes.AddError(fmt.Errorf("no metric search request found for the tags tree holder baseDir: %s", baseDir))
+				continue
+			}
+
+			metricNames, err = getRegexMatchedMetricNames(allMSearchReqs[0], mQuery.MetricNameRegexPattern, mQuery.MetricOperator)
+			if err != nil {
+				mRes.AddError(err)
+				continue
+			}
+		} else {
+			metricNames = []string{mQuery.MetricName}
+		}
+
+		if len(metricNames) == 0 {
+			continue
+		}
+
 		sTime := time.Now()
 
-		tsidInfo, err := attr.FindTSIDS(mQuery)
-
-		querySummary.UpdateTimeSearchingTagsTrees(time.Since(sTime))
-		querySummary.IncrementNumTagsTreesSearched(1)
+		segTsidInfo, err := tsidtracker.InitTSIDTracker(len(mQuery.TagsFilters))
 		if err != nil {
 			mRes.AddError(err)
 			continue
 		}
 
-		querySummary.IncrementNumTSIDsMatched(uint64(tsidInfo.GetNumMatchedTSIDs()))
+		for _, mName := range metricNames {
+			mQuery.MetricName = mName
+			mQuery.HashedMName = xxhash.Sum64String(mName)
+			tsidInfo, err := attr.FindTSIDS(mQuery)
+			if err != nil {
+				log.Errorf("qid=%d, applyMetricsOperatorOnSegments: Error finding TSIDs for metric %s: %v", qid, mName, err)
+				continue
+			}
+			segTsidInfo.MergeTSIDs(tsidInfo)
+		}
+		// Close the TagTreeReader
+		attr.CloseAllTagTreeReaders()
+
+		querySummary.UpdateTimeSearchingTagsTrees(time.Since(sTime))
+		querySummary.IncrementNumTagsTreesSearched(1)
+
+		querySummary.IncrementNumTSIDsMatched(uint64(segTsidInfo.GetNumMatchedTSIDs()))
 		if mQuery.ExitAfterTagsSearch {
-			mRes.AddAllSeriesTagsOnlyMap(tsidInfo.GetTSIDInfoMap())
+			mRes.AddAllSeriesTagsOnlyMap(segTsidInfo.GetTSIDInfoMap())
 			continue
 		}
 
 		for _, mSeg := range allMSearchReqs {
-			search.RawSearchMetricsSegment(mQuery, tsidInfo, mSeg, mRes, timeRange, qid, querySummary)
+			search.RawSearchMetricsSegment(mQuery, segTsidInfo, mSeg, mRes, timeRange, qid, querySummary)
 		}
 	}
+}
+
+func getRegexMatchedMetricNames(mSegSearchReq *structs.MetricsSearchRequest, regexPattern string, operator utils.TagOperator) ([]string, error) {
+	mNamesMap, err := series.GetAllMetricNames(mSegSearchReq.MetricsKeyBaseDir)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(mSegSearchReq.UnrotatedMetricNames) > 0 {
+		for mName := range mSegSearchReq.UnrotatedMetricNames {
+			if _, ok := mNamesMap[mName]; !ok {
+				mNamesMap[mName] = true
+			}
+		}
+	}
+
+	metricNames := make([]string, 0)
+	for mName := range mNamesMap {
+		regexpMatched, err := regexp.MatchString(regexPattern, mName)
+		if err != nil {
+			return nil, err
+		}
+
+		appendToList := (regexpMatched && operator == utils.Regex) || (!regexpMatched && operator == utils.NegRegex)
+
+		if appendToList {
+			metricNames = append(metricNames, mName)
+		}
+	}
+
+	return metricNames, nil
 }
