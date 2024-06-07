@@ -77,7 +77,7 @@ func (sfr *SegmentFileReader) ApplySearchToExpressionFilterDictCsg(qValDte *util
 	}
 
 	if isRegexSearch && qValDte.GetRegexp() == nil {
-		return false, errors.New("qValDte had nil regexp compilation")
+		return false, errors.New("SegmentFileReader.ApplySearchToExpressionFilterDictCsg: qValDte had nil regexp compilation")
 	}
 
 	dte := &utils.DtypeEnclosure{}

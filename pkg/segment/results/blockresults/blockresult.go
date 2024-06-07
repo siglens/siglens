@@ -105,7 +105,7 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 	if aggs != nil && aggs.Sort != nil {
 		sortedRes, err := InitializeSort(count, aggs.Sort)
 		if err != nil {
-			log.Errorf("qid=%d, Initialize block results failed: %v", qid, err)
+			log.Errorf("qid=%d, InitBlockResults: initialize sort request failed, err: %v", qid, err)
 			return nil, err
 		}
 		blockRes.sortResults = true
@@ -150,7 +150,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 		case utils.Range:
 			curId, err := aggregations.AddMeasureAggInRunningStatsForRange(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
 			if err != nil {
-				log.Errorf("convertRequestToInternalStats: %v", err)
+				log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for range, err: %v", err)
 			}
 			idx = curId
 			continue
@@ -158,7 +158,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.AddMeasureAggInRunningStatsForCount(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
 				if err != nil {
-					log.Errorf("convertRequestToInternalStats: %v", err)
+					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for count, err: %v", err)
 				}
 				idx = curId
 			} else {
@@ -174,7 +174,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.AddMeasureAggInRunningStatsForAvg(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
 				if err != nil {
-					log.Errorf("convertRequestToInternalStats: %v", err)
+					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for avg, err: %v", err)
 				}
 				idx = curId
 				continue
@@ -193,7 +193,7 @@ func convertRequestToInternalStats(req *structs.GroupByRequest, usedByTimechart 
 			if m.ValueColRequest != nil {
 				curId, err := aggregations.AddMeasureAggInRunningStatsForValuesOrCardinality(m, &allConvertedMeasureOps, &allReverseIndex, colToIdx, idx)
 				if err != nil {
-					log.Errorf("convertRequestToInternalStats: %v", err)
+					log.Errorf("convertRequestToInternalStats: Error while adding measure agg in running stats for values/cardinality, err: %v", err)
 				}
 				idx = curId
 				continue
@@ -561,7 +561,7 @@ func (gb *GroupByBuckets) ConvertToAggregationResult(req *structs.GroupByRequest
 			bucketKey = bucketKey.([]string)[0]
 		}
 		if err != nil {
-			log.Errorf("ConvertToAggregationResult: failed to extract raw key: %v", err)
+			log.Errorf("GroupByBuckets.ConvertToAggregationResult: failed to convert group by key: %v, err: %v", key, err)
 		}
 		results[bucketNum] = &structs.BucketResult{
 			ElemCount:   bucket.count,
@@ -604,7 +604,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 		case utils.Count:
 			if mInfo.ValueColRequest != nil || usedByTimechart {
 				if !usedByTimechart && len(mInfo.ValueColRequest.GetFields()) == 0 {
-					log.Errorf("AddResultToStatRes: Incorrect number of fields for aggCol: %v", mInfoStr)
+					log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for count: %v", mInfoStr)
 					continue
 				}
 
@@ -667,7 +667,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 			valIdx := gb.reverseMeasureIndex[idx]
 			if mInfo.ValueColRequest != nil {
 				if len(mInfo.ValueColRequest.GetFields()) == 0 {
-					log.Errorf("AddResultToStatRes: Incorrect number of fields for aggCol: %v", mInfoStr)
+					log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for cardinality: %v", mInfoStr)
 					continue
 				}
 				strSet, ok := runningStats[valIdx].rawVal.CVal.(map[string]struct{})
@@ -686,7 +686,7 @@ func (gb *GroupByBuckets) AddResultToStatRes(req *structs.GroupByRequest, bucket
 		case utils.Values:
 			if mInfo.ValueColRequest != nil {
 				if len(mInfo.ValueColRequest.GetFields()) == 0 {
-					log.Errorf("AddResultToStatRes: Incorrect number of fields for aggCol: %v", mInfoStr)
+					log.Errorf("GroupByBuckets.AddResultToStatRes: Zero fields of ValueColRequest for values: %v", mInfoStr)
 					continue
 				}
 			}
@@ -762,7 +762,7 @@ func (gb *GroupByBuckets) ConvertToJson() (*GroupByBucketsJSON, error) {
 			if bucket.currStats[idx].MeasureFunc == utils.Cardinality {
 				encoded, err := rs.hll.MarshalBinary()
 				if err != nil {
-					log.Errorf("GroupByBuckets.ConvertToJson: failed to marshal hll: %v", err)
+					log.Errorf("GroupByBuckets.ConvertToJson: failed to marshal hll, err: %v", err)
 					return nil, err
 				}
 				retVals = append(retVals, encoded)
@@ -792,7 +792,7 @@ func (tb *TimeBuckets) ConvertToJson() (*TimeBucketsJSON, error) {
 			if bucket.currStats[idx].MeasureFunc == utils.Cardinality {
 				encoded, err := rs.hll.MarshalBinary()
 				if err != nil {
-					log.Errorf("TimeBuckets.ConvertToJson: failed to marshal hll: %v", err)
+					log.Errorf("TimeBuckets.ConvertToJson: failed to marshal hll, err: %v", err)
 					return nil, err
 				}
 				retVals = append(retVals, encoded)
@@ -843,7 +843,7 @@ func (gb *GroupByBucketsJSON) ToGroupByBucket(req *structs.GroupByRequest) (*Gro
 		retVal.AllRunningBuckets = append(retVal.AllRunningBuckets, newBucket)
 		key, err := base64.StdEncoding.DecodeString(base64Key)
 		if err != nil {
-			log.Errorf("GroupByBuckets.JSON.ToGroupByBucket: failed to decode base64Key %v: %v", base64Key, err)
+			log.Errorf("GroupByBucketsJSON.ToGroupByBucket: failed to decode base64Key: %v, err: %v", base64Key, err)
 		}
 		retVal.StringBucketIdx[string(key)] = reverseIndex
 		reverseIndex++
@@ -862,17 +862,17 @@ func (rb *RunningBucketResultsJSON) Convert() (*RunningBucketResults, error) {
 			hll := hyperloglog.New()
 			hllString, ok := rs.(string)
 			if !ok {
-				log.Errorf("RunningBucketResultsJSON.Convert: failed to convert hll to byte array %+v %T", rs, rs)
-				return nil, fmt.Errorf("failed to convert hll to byte array")
+				log.Errorf("RunningBucketResultsJSON.Convert: failed to convert hll to string, hll: %+v of type %T", rs, rs)
+				return nil, fmt.Errorf("RunningBucketResultsJSON.Convert: failed to convert hll to byte array")
 			}
 			hllBytes, err := base64.StdEncoding.DecodeString(hllString)
 			if err != nil {
-				log.Errorf("RunningBucketResultsJSON.Convert: failed to decode hll: %v", err)
+				log.Errorf("RunningBucketResultsJSON.Convert: failed to decode hllString, err: %v", err)
 				return nil, err
 			}
 			err = hll.UnmarshalBinary(hllBytes)
 			if err != nil {
-				log.Errorf("RunningBucketResultsJSON.Convert: failed to unmarshal hll: %v", err)
+				log.Errorf("RunningBucketResultsJSON.Convert: failed to unmarshal hllBytes, err: %v", err)
 				return nil, err
 			}
 			currRunningStats = append(currRunningStats, runningStats{hll: hll})
@@ -880,7 +880,7 @@ func (rb *RunningBucketResultsJSON) Convert() (*RunningBucketResults, error) {
 			newVal := utils.CValueEnclosure{}
 			err := newVal.ConvertValue(rs)
 			if err != nil {
-				log.Errorf("RunningBucketResultsJSON.Convert: failed to convert value: %v", err)
+				log.Errorf("RunningBucketResultsJSON.Convert: failed to convert value, err: %v", err)
 				return nil, err
 			}
 			currRunningStats = append(currRunningStats, runningStats{rawVal: newVal})
