@@ -256,10 +256,14 @@ function hideColumnHandler(evt, isCloseIcon = false) {
 }
 
 function setQueryLangHandler(e) {
+    let previousQueryLanguageId = $('#query-language-options .query-language-option.active').attr('id').split('-')[1];
     $('.query-language-option').removeClass('active');
     $("#setting-container").hide();
     let currentTab = $("#custom-code-tab").tabs("option", "active");
     let selectedQueryLanguageId = $(this).attr("id").split("-")[1];
+    if (!(previousQueryLanguageId === selectedQueryLanguageId)) {
+        $('#filter-input').val("");
+    }
     handleTabAndTooltip(selectedQueryLanguageId, currentTab);
     $(this).addClass('active');
 }
