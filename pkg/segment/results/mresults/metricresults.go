@@ -773,7 +773,7 @@ func (r *MetricsResult) computeExtremesKElements(funcConstant float64, factor fl
 			if !exists {
 				r.Results[item.Value] = make(map[uint32]float64)
 			}
-			r.Results[item.Value][timestamp] = (item.Priority * factor) // Restore to original value
+			r.Results[item.Value][timestamp] = (item.Priority / factor) // Restore to original value
 		}
 	}
 
