@@ -60,10 +60,10 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 	}, true, fileutils.QueryLogFile)
 
 	if err != nil {
-		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: Failed to read initial event %+v!", qid, err)
+		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: Failed to read initial event! err: %+v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
-			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! %+v", qid, wErr)
+			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! err: %+v", qid, wErr)
 		}
 		return
 	}
@@ -72,7 +72,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: first request does not have 'state' as a key!", qid)
 		wErr := conn.WriteJSON(createErrorResponse("request missing required key 'state'"))
 		if wErr != nil {
-			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! %+v", qid, wErr)
+			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! err: %+v", qid, wErr)
 		}
 		return
 	}
@@ -80,7 +80,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: first request is not a query 'state'!", qid)
 		wErr := conn.WriteJSON(createErrorResponse("first request should have 'state':'query'"))
 		if wErr != nil {
-			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! %+v", qid, wErr)
+			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! err: %+v", qid, wErr)
 		}
 		return
 	}
@@ -115,10 +115,10 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 	}
 
 	if err != nil {
-		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to parse query err=%v", qid, err)
+		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to parse query, err: %v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
-			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! %+v", qid, wErr)
+			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! err: %+v", qid, wErr)
 		}
 		return
 	}
@@ -133,10 +133,10 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
 	eventC, err := segment.ExecuteAsyncQuery(simpleNode, aggs, qid, qc)
 	if err != nil {
-		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to execute query err=%v", qid, err)
+		log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to execute query, err: %v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
-			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! %+v", qid, wErr)
+			log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! err: %+v", qid, wErr)
 		}
 		return
 	}
@@ -159,14 +159,14 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 				query.DeleteQuery(qid)
 				return
 			default:
-				log.Errorf("qid=%v, Got unknown state %v", qid, qscd.StateName)
+				log.Errorf("qid=%v, Got unknown state: %v", qid, qscd.StateName)
 			}
 			if !ok {
 				log.Errorf("qid=%v, ProcessPipeSearchWebsocket: Got non ok, state: %v", qid, qscd.StateName)
 				return
 			}
 		case readMsg := <-websocketR:
-			log.Infof("qid=%d, Got message from websocket %+v", qid, readMsg)
+			log.Infof("qid=%d, Got message from websocket: %+v", qid, readMsg)
 			if readMsg["state"] == "cancel" {
 				query.CancelQuery(qid)
 			}
@@ -195,11 +195,11 @@ func readInitialEvent(qid uint64, conn *websocket.Conn) (map[string]interface{},
 	readEvent := make(map[string]interface{})
 	err := conn.ReadJSON(&readEvent)
 	if err != nil {
-		log.Errorf("qid=%d, readInitialEvent: Failed to read initial event from websocket!: %v", qid, err)
+		log.Errorf("qid=%d, readInitialEvent: Failed to read initial event from websocket! err: %v", qid, err)
 		return readEvent, err
 	}
 
-	log.Infof("qid=%d, Read initial event from websocket %+v", qid, readEvent)
+	log.Infof("qid=%d, Read initial event from websocket: %+v", qid, readEvent)
 	return readEvent, nil
 }
 
@@ -219,7 +219,7 @@ func processTimeoutUpdate(conn *websocket.Conn, qid uint64) {
 	}
 	err := conn.WriteJSON(e)
 	if err != nil {
-		log.Errorf("qid=%d, processTimeoutUpdate: failed to write to websocket! %+v", qid, err)
+		log.Errorf("qid=%d, processTimeoutUpdate: failed to write to websocket! err: %+v", qid, err)
 	}
 }
 
@@ -231,7 +231,7 @@ func processRunningUpdate(conn *websocket.Conn, qid uint64) {
 	}
 	wErr := conn.WriteJSON(e)
 	if wErr != nil {
-		log.Errorf("qid=%d, processRunningUpdate: failed to write error response to websocket! %+v", qid, wErr)
+		log.Errorf("qid=%d, processRunningUpdate: failed to write error response to websocket! err: %+v", qid, wErr)
 	}
 }
 
@@ -243,7 +243,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 		log.Errorf("qid=%d, processQueryUpdate: failed to get total records searched: %+v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
-			log.Errorf("qid=%d, processQueryUpdate: failed to write error response to websocket! %+v", qid, wErr)
+			log.Errorf("qid=%d, processQueryUpdate: failed to write error response to websocket! err: %+v", qid, wErr)
 		}
 		return 0
 	}
@@ -253,7 +253,7 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 		log.Errorf("qid=%d, processQueryUpdate: got nil query update!", qid)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
-			log.Errorf("qid=%d, processQueryUpdate: failed to write RRC response to websocket! %+v", qid, wErr)
+			log.Errorf("qid=%d, processQueryUpdate: failed to write RRC response to websocket! err: %+v", qid, wErr)
 		}
 		return 0
 	}
@@ -262,14 +262,14 @@ func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scro
 	if err != nil {
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
 		if wErr != nil {
-			log.Errorf("qid=%d, processQueryUpdate: failed to write RRC response to websocket! %+v", qid, wErr)
+			log.Errorf("qid=%d, processQueryUpdate: failed to write RRC response to websocket! err: %+v", qid, wErr)
 		}
 		return 0
 	}
 
 	wErr := conn.WriteJSON(wsResponse)
 	if wErr != nil {
-		log.Errorf("qid=%d, processQueryUpdate: failed to write update response to websocket! %+v", qid, wErr)
+		log.Errorf("qid=%d, processQueryUpdate: failed to write update response to websocket! err: %+v", qid, wErr)
 	}
 
 	return numRrcsAdded
@@ -279,7 +279,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	queryC := query.GetQueryCountInfoForQid(qid)
 	totalEventsSearched, err := query.GetTotalsRecsSearchedForQid(qid)
 	if err != nil {
-		log.Errorf("qid=%d, processCompleteUpdate: failed to get total records searched: %+v", qid, err)
+		log.Errorf("qid=%d, processCompleteUpdate: failed to get total records searched, err: %+v", qid, err)
 	}
 	numRRCs, err := query.GetNumMatchedRRCs(qid)
 	if err != nil {
@@ -314,12 +314,12 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 	} else if searchErrors == "" {
 		wErr := conn.WriteJSON(resp)
 		if wErr != nil {
-			log.Errorf("qid=%d, processCompleteUpdate: failed to write complete response to websocket! %+v", qid, wErr)
+			log.Errorf("qid=%d, processCompleteUpdate: failed to write complete response to websocket! err: %+v", qid, wErr)
 		}
 	} else {
 		wErr := conn.WriteJSON(createErrorResponse(searchErrors))
 		if wErr != nil {
-			log.Errorf("qid=%d, processCompleteUpdate: failed to write error response to websocket! %+v", qid, wErr)
+			log.Errorf("qid=%d, processCompleteUpdate: failed to write error response to websocket! err: %+v", qid, wErr)
 		}
 	}
 }
@@ -332,7 +332,7 @@ func processMaxScrollComplete(conn *websocket.Conn, qid uint64) {
 	resp.Qtype = qType.String()
 	wErr := conn.WriteJSON(resp)
 	if wErr != nil {
-		log.Errorf("qid=%d, processMaxScrollComplete: failed to write complete response to websocket! %+v", qid, wErr)
+		log.Errorf("qid=%d, processMaxScrollComplete: failed to write complete response to websocket! err: %+v", qid, wErr)
 	}
 }
 
@@ -382,7 +382,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 
 		inrrcs, qc, segencmap, err := query.GetRawRecordInfoForQid(scrollFrom, qid)
 		if err != nil {
-			log.Errorf("qid=%d, createRecsWsResp: failed to get rrcs %v", qid, err)
+			log.Errorf("qid=%d, createRecsWsResp: failed to get rrcs, err: %v", qid, err)
 			return nil, 0, err
 		}
 
@@ -393,19 +393,19 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 			// handle remote
 			allJson, allCols, err = query.GetRemoteRawLogInfo(qUpdate.RemoteID, inrrcs, qid)
 			if err != nil {
-				log.Errorf("qid=%d, createRecsWsResp: failed to get remote raw logs and columns: %+v", qid, err)
+				log.Errorf("qid=%d, createRecsWsResp: failed to get remote raw logs and columns, err: %+v", qid, err)
 				return nil, 0, err
 			}
 		} else {
 			// handle local
 			allJson, allCols, err = getRawLogsAndColumns(inrrcs, qUpdate.SegKeyEnc, useAnySegKey, sizeLimit, segencmap, aggs, qid)
 			if err != nil {
-				log.Errorf("qid=%d, createRecsWsResp: failed to get raw logs and columns: %+v", qid, err)
+				log.Errorf("qid=%d, createRecsWsResp: failed to get raw logs and columns, err: %+v", qid, err)
 				return nil, 0, err
 			}
 		}
 		if err != nil {
-			log.Errorf("qid=%d, createRecsWsResp: failed to convert rrcs to json: %+v", qid, err)
+			log.Errorf("qid=%d, createRecsWsResp: failed to convert rrcs to json, err: %+v", qid, err)
 			return nil, 0, err
 		}
 
@@ -436,7 +436,7 @@ func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint16
 	rrcs = rrcs[:found]
 	allJson, allCols, err := convertRRCsToJSONResponse(rrcs, sizeLimit, qid, segencmap, aggs)
 	if err != nil {
-		log.Errorf("qid=%d, getRawLogsAndColumns: failed to convert rrcs to json: %+v", qid, err)
+		log.Errorf("qid=%d, getRawLogsAndColumns: failed to convert rrcs to json, err: %+v", qid, err)
 		return nil, nil, err
 	}
 	return allJson, allCols, nil
