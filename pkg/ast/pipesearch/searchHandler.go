@@ -380,7 +380,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	} else if queryLanguageType == "Splunk QL" {
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 	} else {
-		log.Infof("ProcessPipeSearchRequest: unknown queryLanguageType: %v; using Pipe QL instead", queryLanguageType)
+		log.Infof("ProcessPipeSearchRequest: unknown queryLanguageType: %v; using Splunk QL instead", queryLanguageType)
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 	}
 
