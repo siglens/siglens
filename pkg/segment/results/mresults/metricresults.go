@@ -764,14 +764,39 @@ func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation
 	timestampToVals := make(map[uint32][]float64)
 	r.Results = make(map[string]map[uint32]float64)
 
-	// If we use group by for this vector, we will only perform aggregation for each time series at each timestamp.
-	// Since there is only one value, the standard variance will be 0.
+	// If we use group by for this vector, We need to obtain all the timeseries within a group, and then calculate the variance or standard deviation separately for each group
 	if len(aggregation.GroupByFields) > 0 {
-		for grpID, runningDS := range r.DsResults {
-			seriesMap := make(map[uint32]float64)
+		// All the time series values under one group
+		grpIDToEntryMap := make(map[string]map[uint32][]float64)
+
+		for seriesID, runningDS := range r.DsResults {
+			matchingLabelValStr := putils.ExtractMatchingLabelSet(seriesID, aggregation.GroupByFields, true)
+
+			_, exists := grpIDToEntryMap[matchingLabelValStr]
+			if !exists {
+				grpIDToEntryMap[matchingLabelValStr] = make(map[uint32][]float64)
+			}
+
 			for i := 0; i < runningDS.idx; i++ {
-				seriesMap[runningDS.runningEntries[i].downsampledTime] = 0.0
-				r.Results[grpID] = seriesMap
+				_, exists := grpIDToEntryMap[matchingLabelValStr][runningDS.runningEntries[i].downsampledTime]
+				if !exists {
+					grpIDToEntryMap[matchingLabelValStr][runningDS.runningEntries[i].downsampledTime] = make([]float64, 0)
+				}
+
+				grpIDToEntryMap[matchingLabelValStr][runningDS.runningEntries[i].downsampledTime] = append(grpIDToEntryMap[matchingLabelValStr][runningDS.runningEntries[i].downsampledTime], runningDS.runningEntries[i].runningVal)
+			}
+		}
+
+		// Compute standard variance or deviation within each group
+		for grpID, entry := range grpIDToEntryMap {
+			grpID = r.MetricName + "{" + grpID
+			r.Results[grpID] = make(map[uint32]float64)
+			for timestamp, values := range entry {
+				resVal := utils.CalculateStandardVariance(values)
+				if aggregation.AggregatorFunction == segutils.Stddev {
+					resVal = math.Sqrt(resVal)
+				}
+				r.Results[grpID][timestamp] = resVal
 			}
 		}
 
@@ -790,7 +815,7 @@ func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation
 		resultMap := make(map[uint32]float64)
 
 		for timestamp, values := range timestampToVals {
-			resVal := putils.CalculateStandardVariance(values)
+			resVal := utils.CalculateStandardVariance(values)
 			if aggregation.AggregatorFunction == segutils.Stddev {
 				resVal = math.Sqrt(resVal)
 			}
