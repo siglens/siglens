@@ -289,7 +289,6 @@ const myCellRenderer= (params) => {
 let gridDiv = null;
 
 function renderLogsGrid(columnOrder, hits){
-    
     if (sortByTimestampAtDefault) {
         logsColumnDefs[0].sort = "desc";
     }else {
@@ -378,7 +377,6 @@ function renderLogsGrid(columnOrder, hits){
     gridOptions.columnApi.autoSizeColumns(allColumnIds, false);
     gridOptions.api.setRowData(logsRowData);
 
-    
     switch (logview){
         case 'single-line':
             logOptionSingleHandler();

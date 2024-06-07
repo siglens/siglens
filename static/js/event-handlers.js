@@ -545,6 +545,24 @@ function logOptionSingleHandler() {
         if (colDef.field === "logs"){
             colDef.cellStyle = null;
             colDef.autoHeight = null;
+            colDef.cellRenderer= function(params){
+                const logsDataArray = []
+                
+                const data = params.data
+                logsDataArray.push(`_index=${data._index}`)
+
+                const keysArray = Object.keys(data)
+                
+                keysArray
+                    .filter((item)=> item !== '_index' && item !== 'timestamp')
+                    .forEach((key)=>{
+                        logsDataArray.push(`${key}=${data[key]}`)
+                    })
+                
+                const logsDataString = logsDataArray.join(' | ')
+
+                return `${logsDataString}`
+            }
         }
     });
     gridOptions.api.setColumnDefs(logsColumnDefs);
@@ -567,9 +585,9 @@ function logOptionMultiHandler() {
 
     logsColumnDefs.forEach(function (colDef, index) {
         if (colDef.field === "logs"){
-            
             colDef.cellStyle = {'white-space': 'normal'};
             colDef.autoHeight = true;
+
             colDef.cellRenderer = function(params) {
                 const logsDataArray = []
                 
