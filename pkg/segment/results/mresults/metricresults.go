@@ -20,12 +20,14 @@ package mresults
 import (
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	parser "github.com/prometheus/prometheus/promql/parser"
+	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -705,6 +707,10 @@ func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregati
 	switch aggregation.AggregatorFunction {
 	case segutils.Count:
 		r.computeAggCount(aggregation)
+	case segutils.Stdvar:
+		fallthrough
+	case segutils.Stddev:
+		r.computeAggStdvarOrStddev(aggregation)
 	// Todo: Add TopK and BottomK
 	default:
 		return fmt.Errorf("aggregateFromAllTimeseries: Unsupported aggregation: %v", aggregation)
@@ -747,6 +753,51 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
 			grpVal[timestamp] = float64(len(grpIdSet))
 		}
 		r.Results[seriesId] = grpVal
+	}
+
+	r.DsResults = nil
+	r.State = AGGREGATED
+}
+
+// Retrieve all series values at each timestamp and calculate the results based on those values.
+func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation) {
+	timestampToVals := make(map[uint32][]float64)
+	r.Results = make(map[string]map[uint32]float64)
+
+	// If we use group by for this vector, we will only perform aggregation for each time series at each timestamp.
+	// Since there is only one value, the standard variance will be 0.
+	if len(aggregation.GroupByFields) > 0 {
+		for grpID, runningDS := range r.DsResults {
+			seriesMap := make(map[uint32]float64)
+			for i := 0; i < runningDS.idx; i++ {
+				seriesMap[runningDS.runningEntries[i].downsampledTime] = 0.0
+				r.Results[grpID] = seriesMap
+			}
+		}
+
+	} else { // Without using group by, perform aggregation for all values at each timestamp.
+		for _, runningDS := range r.DsResults {
+			for i := 0; i < runningDS.idx; i++ {
+				timestamp := runningDS.runningEntries[i].downsampledTime
+				_, exists := timestampToVals[timestamp]
+				if !exists {
+					timestampToVals[timestamp] = make([]float64, 0)
+				}
+				timestampToVals[timestamp] = append(timestampToVals[timestamp], runningDS.runningEntries[i].runningVal)
+			}
+		}
+
+		resultMap := make(map[uint32]float64)
+
+		for timestamp, values := range timestampToVals {
+			resVal := putils.CalculateStandardVariance(values)
+			if aggregation.AggregatorFunction == segutils.Stddev {
+				resVal = math.Sqrt(resVal)
+			}
+			resultMap[timestamp] = resVal
+		}
+
+		r.Results[r.MetricName+"{"] = resultMap
 	}
 
 	r.DsResults = nil

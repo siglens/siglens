@@ -289,8 +289,10 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.Aggregator.AggregatorFunction = segutils.Quantile
 	case "stddev":
 		mQuery.Aggregator.AggregatorFunction = segutils.Stddev
+		mQuery.GetAllLabels = true
 	case "stdvar":
 		mQuery.Aggregator.AggregatorFunction = segutils.Stdvar
+		mQuery.GetAllLabels = true
 	case "group":
 		mQuery.Aggregator.AggregatorFunction = segutils.Group
 	case "":

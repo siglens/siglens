@@ -847,10 +847,6 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 		} else {
 			ret = entriesCopy[int(index)].runningVal
 		}
-	case utils.Stdvar:
-		ret = evaluatueVariance(entries)
-	case utils.Stddev:
-		ret = math.Sqrt(evaluatueVariance(entries))
 	case utils.Group:
 		ret = 1
 	default:
@@ -860,20 +856,6 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 	}
 
 	return ret, nil
-}
-
-func evaluatueVariance(entries []RunningEntry) float64 {
-	sum := 0.0
-	length := float64(len(entries))
-	for i := range entries {
-		sum += entries[i].runningVal
-	}
-	avg := sum / length
-	sumValSquare := 0.0
-	for i := range entries {
-		sumValSquare += (entries[i].runningVal - avg) * (entries[i].runningVal - avg)
-	}
-	return sumValSquare / length
 }
 
 type float64Func func(float64) float64
