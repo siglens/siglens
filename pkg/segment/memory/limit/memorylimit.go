@@ -37,7 +37,7 @@ var LOG_GLOBAL_MEM_FREQUENCY = 5
 
 func InitMemoryLimiter() {
 	totalAvailableSizeBytes := config.GetTotalMemoryAvailable()
-	log.Infof("InitQueryNode: Total available memory %+v MB", utils.ConvertUintBytesToMB(totalAvailableSizeBytes))
+	log.Infof("InitMemoryLimiter: Total available memory %+v MB", utils.ConvertUintBytesToMB(totalAvailableSizeBytes))
 
 	maxBlockMetaInMemory := uint64(0)
 	maxSearchAvailableSize := uint64(0)

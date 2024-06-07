@@ -58,7 +58,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		case json.Number:
 			pageInt, err := val.Int64()
 			if err != nil {
-				log.Errorf("ProcessSearchTracesRequest: error converting page to int: %v", err)
+				log.Errorf("ProcessSearchTracesRequest: error converting page Val=%v to int: %v", val, err)
 			}
 			page = int(pageInt)
 		default:
@@ -94,7 +94,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		searchRequestBody.SearchText = "trace_id=" + traceId + " AND parent_span_id=\"\" | fields start_time, end_time, name, service"
 		pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: traceId:%v, %v", traceId, err)
+			log.Errorf("ProcessSearchTracesRequest: traceId:%v, Error=%v", traceId, err)
 			continue
 		}
 
@@ -132,7 +132,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		searchRequestBody.SearchText = "trace_id=" + traceId + " | stats count BY status"
 		pipeSearchResponseOuter, err = processSearchRequest(searchRequestBody, myid)
 		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: traceId:%v, %v", traceId, err)
+			log.Errorf("ProcessSearchTracesRequest: traceId:%v, Error=%v", traceId, err)
 			continue
 		}
 
@@ -176,9 +176,9 @@ func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchRequestBody, map[string]interface{}, error) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf("Received empty search request body")
+		log.Errorf("ParseAndValidateRequestBody: Received empty search request body")
 		putils.SetBadMsg(ctx, "")
-		return nil, nil, errors.New("Received empty search request body")
+		return nil, nil, errors.New("received empty search request body")
 	}
 
 	readJSON := make(map[string]interface{})
@@ -250,17 +250,17 @@ func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, trace
 	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
 		statusCode, exists := bucket["key"].(string)
 		if !exists {
-			log.Error("AddTrace: Unable to extract 'key' from bucket")
+			log.Error("AddTrace: Unable to extract 'key' from bucket Map")
 			return
 		}
 		countMap, exists := bucket["count(*)"].(map[string]interface{})
 		if !exists {
-			log.Error("AddTrace: Unable to extract 'count(*)' from bucket")
+			log.Error("AddTrace: Unable to extract 'count(*)' from bucket Map")
 			return
 		}
 		countFloat64, exists := countMap["value"].(float64)
 		if !exists {
-			log.Error("AddTrace: Unable to extract 'value' from bucket")
+			log.Error("AddTrace: Unable to extract 'value' from bucket Map")
 			return
 		}
 
@@ -290,7 +290,7 @@ func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uin
 
 	modifiedData, err := json.Marshal(searchRequestBody)
 	if err != nil {
-		return nil, fmt.Errorf("processSearchRequest: could not marshal to json body, err=%v", err)
+		return nil, fmt.Errorf("processSearchRequest: could not marshal to json body=%v, err=%v", *searchRequestBody, err)
 	}
 
 	// Get initial data
@@ -338,7 +338,7 @@ func ProcessRedTracesIngest() {
 		ctx := &fasthttp.RequestCtx{}
 		requestData, err := json.Marshal(searchRequestBody)
 		if err != nil {
-			log.Errorf("ProcessRedTracesIngest: could not marshal to json body, err=%v", err)
+			log.Errorf("ProcessRedTracesIngest: could not marshal to json body=%v, err=%v", searchRequestBody, err)
 			return
 		}
 
@@ -451,7 +451,7 @@ func ProcessRedTracesIngest() {
 
 		jsonData, err := redMetricsToJson(redMetrics, service)
 		if err != nil {
-			log.Errorf("ProcessRedTracesIngest: failed to marshal redMetrics %v: %v", redMetrics, err)
+			log.Errorf("ProcessRedTracesIngest: failed to marshal redMetrics=%v: Error=%v", redMetrics, err)
 			continue
 		}
 
@@ -513,7 +513,7 @@ func MakeTracesDependancyGraph(startEpoch int64, endEpoch int64) map[string]map[
 	}
 	requestBodyJSON, err := json.Marshal(requestBody)
 	if err != nil {
-		fmt.Println("Error marshaling request body:", err)
+		fmt.Printf("MakeTracesDependancyGraph: Error marshaling request body=%v, Error=%v", requestBody, err)
 		return nil
 	}
 	ctx := &fasthttp.RequestCtx{}
@@ -555,7 +555,7 @@ func MakeTracesDependancyGraph(startEpoch int64, endEpoch int64) map[string]map[
 func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 	dependencyMatrixJSON, err := json.Marshal(dependencyMatrix)
 	if err != nil {
-		log.Errorf("Error marshaling dependency matrix:err=%v", err)
+		log.Errorf("writeDependencyMatrix: Error marshaling dependency matrix:err=%v", err)
 		return
 	}
 
@@ -581,7 +581,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
 	// Extract startEpoch and endEpoch from the request
 	_, readJSON, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
-		log.Errorf("ProcessDependencyRequest: %v", err)
+		log.Errorf("ProcessAggregatedDependencyGraphs: Unable to Parse Request Body, Error=%v", err)
 		return
 	}
 	searchRequestBody := &structs.SearchRequestBody{}
@@ -592,7 +592,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
 	searchRequestBody.EndEpoch = readJSON["endEpoch"].(string)
 	dependencyResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 	if err != nil {
-		log.Errorf("ProcessSearchRequest: %v", err)
+		log.Errorf("ProcessAggregatedDependencyGraphs: processSearchRequest: Error=%v", err)
 		return
 	}
 	processedData := make(map[string]interface{})
@@ -600,7 +600,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusOK)
 		_, writeErr := ctx.WriteString("no dependencies graphs have been generated")
 		if writeErr != nil {
-			log.Errorf("ProcessDependencyRequest: Error writing to context: %v", writeErr)
+			log.Errorf("ProcessAggregatedDependencyGraphs: Error writing to context: %v", writeErr)
 		}
 		return
 	} else {
@@ -646,7 +646,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 		_, writeErr := ctx.WriteString(fmt.Sprintf("Error encoding JSON: %s", err.Error()))
 		if writeErr != nil {
-			log.Errorf("Error writing to context: %v", writeErr)
+			log.Errorf("ProcessAggregatedDependencyGraphs: Error writing to context: %v", writeErr)
 		}
 		return
 	}
@@ -659,7 +659,7 @@ func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid uint64) {
 	// Extract startEpoch and endEpoch from the request
 	_, readJSON, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
-		log.Errorf("ProcessDepgraphRequest: %v", err)
+		log.Errorf("ProcessGeneratedDepGraph: Unable to Parse Request Body, Error=%v", err)
 		return
 	}
 
@@ -688,9 +688,9 @@ func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid uint64) {
 	err = json.NewEncoder(ctx).Encode(processedData)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
-		_, writeErr := ctx.WriteString(fmt.Sprintf("ProcessDepgraphRequest: Error encoding JSON: %s", err.Error()))
+		_, writeErr := ctx.WriteString(fmt.Sprintf("ProcessGeneratedDepGraph: Error encoding JSON: %s", err.Error()))
 		if writeErr != nil {
-			log.Errorf("ProcessDepgraphRequest: Error writing to context: %v", writeErr)
+			log.Errorf("ProcessGeneratedDepGraph: Error writing to context: %v", writeErr)
 		}
 		return
 	}
@@ -701,7 +701,7 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf("ProcessGanttChartRequest: received empty search request body ")
+		log.Errorf("ProcessGanttChartRequest: received empty search request body")
 		putils.SetBadMsg(ctx, "")
 		return
 	}
@@ -791,7 +791,7 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 			jsonData, err := json.Marshal(spanMap)
 			if err != nil {
-				log.Errorf("ProcessGanttChartRequest: could not marshal to json body, err=%v", err)
+				log.Errorf("ProcessGanttChartRequest: could not marshal to json body spanMap, err=%v", err)
 				continue
 			}
 			if err := json.Unmarshal(jsonData, &span); err != nil {

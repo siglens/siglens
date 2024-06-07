@@ -80,7 +80,7 @@ func ProcessSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	qid := rutils.GetNextQid()
-	log.Infof("qid=%v, esQueryHandler: tableInfo=[%v], queryJson=[%v] scroll = [%v]",
+	log.Infof("qid=%v, ProcessSearchRequest: esQueryHandler: tableInfo=[%v], queryJson=[%v] scroll = [%v]",
 		qid, ti.String(), string(queryJson), string(scrollTimeout))
 
 	requestURI := ctx.URI().String()
@@ -97,9 +97,9 @@ func ProcessSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf("qid=%v, esQueryHandler: could not write error message err=%v", qid, err)
+			log.Errorf("qid=%v, ProcessSearchRequest: esQueryHandler: could not write error message err=%v", qid, err)
 		}
-		log.Errorf("qid=%v, esQueryHandler: Error parsing query err=%+v", qid, err)
+		log.Errorf("qid=%v, ProcessSearchRequest: esQueryHandler: Error parsing query=%v, err=%+v", qid, string(queryJson), err)
 		return
 	}
 
@@ -117,9 +117,9 @@ func ProcessSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString("Failed to parse query!")
 		if err != nil {
-			log.Errorf("qid=%v, esQueryHandler: could not write error message err=%v", qid, err)
+			log.Errorf("qid=%v, ProcessSearchRequest: esQueryHandler: could not write error message err=%v", qid, err)
 		}
-		log.Errorf("qid=%v, esQueryHandler: Failed to parse query, simpleNode=%v, aggs=%v, err=%v", qid, simpleNode, aggs, err)
+		log.Errorf("qid=%v, ProcessSearchRequest: esQueryHandler: Failed to parse query, simpleNode=%v, aggs=%v, err=%v", qid, simpleNode, aggs, err)
 		return
 	}
 
@@ -127,9 +127,9 @@ func ProcessSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString("Scroll Timeout : Invalid Search context")
 		if err != nil {
-			log.Errorf("qid=%v, esQueryHandler: could not write error message err=%v", qid, err)
+			log.Errorf("qid=%v, ProcessSearchRequest: esQueryHandler: could not write error message err=%v", qid, err)
 		}
-		log.Errorf("qid=%v, esQueryHandler: Scroll Timeout %v : Invalid Search context", qid, scrollRecord.Scroll_id)
+		log.Errorf("qid=%v, ProcessSearchRequest: esQueryHandler: Scroll Timeout, Scroll_id=%v : Invalid Search context", qid, scrollRecord.Scroll_id)
 		return
 	}
 
@@ -147,9 +147,9 @@ func ProcessSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
 			_, err = ctx.WriteString("Scroll Timeout : Invalid Search context")
 			if err != nil {
-				log.Errorf("qid=%v, esQueryHandler: could not write error message err=%v", qid, err)
+				log.Errorf("qid=%v, ProcessSearchRequest: esQueryHandler: could not write error message err=%v", qid, err)
 			}
-			log.Errorf("qid=%v, esQueryHandler: Scroll Timeout %v : Invalid Search context", qid, scrollRecord.Scroll_id)
+			log.Errorf("qid=%v, ProcessSearchRequest: esQueryHandler: Scroll Timeout, Scroll_id=%v : Invalid Search context", qid, scrollRecord.Scroll_id)
 			return
 		} else {
 			ctx.SetStatusCode(fasthttp.StatusOK)
@@ -203,7 +203,7 @@ func getIndexNameAggOnly(aggName string, myid uint64) *structs.NodeResult {
 	bucketResults := make([]*structs.BucketResult, 0)
 	for indexName := range allVirtualTableNames {
 		if indexName == "" {
-			log.Errorf("getIndexNameAggOnly: skipping an empty index name indexName=%v", indexName)
+			log.Errorf("getIndexNameAggOnly: skipping an empty index name len(indexName)=%v", len(indexName))
 			continue
 		}
 		_, eventCount, _ := segwriter.GetVTableCounts(indexName, myid)
