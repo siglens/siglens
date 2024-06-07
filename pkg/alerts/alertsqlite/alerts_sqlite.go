@@ -46,7 +46,7 @@ func (p *Sqlite) SetDB(dbConnection *gorm.DB) {
 func (p *Sqlite) CloseDb() {
 	sqlDB, err := p.db.DB()
 	if err != nil {
-		log.Errorf("Error occurred while closing a DB connection")
+		log.Errorf("CloseDb: Error occurred while closing a DB connection, err: %v", err)
 	}
 	defer sqlDB.Close()
 }
@@ -58,7 +58,7 @@ func (p *Sqlite) Connect() error {
 		Logger: alertutils.NewGormLogrusLogger(logger.WithField("component", "gorm"), 100*time.Millisecond),
 	})
 	if err != nil {
-		log.Errorf("connectAlertDB: error in opening sqlite connection, err: %+v", err)
+		log.Errorf("Connect: error in opening sqlite connection, err: %+v", err)
 		return err
 	}
 
@@ -107,8 +107,8 @@ func isValid(str string) bool {
 // checks whether the alert name exists
 func (p Sqlite) isNewAlertName(alertName string) (bool, error) {
 	if !isValid(alertName) {
-		log.Errorf("isNewAlertName: data validation check failed")
-		return false, errors.New("isNewAlertName: data validation check failed")
+		log.Errorf("isNewAlertName: data validation check failed for alertName: %v", alertName)
+		return false, fmt.Errorf("isNewAlertName: data validation check failed for alertName: %v", alertName)
 	}
 	if err := p.db.Where("alert_name = ?", alertName).First(&alertutils.AlertDetails{}).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -124,7 +124,7 @@ func (p Sqlite) isNewAlertName(alertName string) (bool, error) {
 func (p Sqlite) verifyAlertExists(alert_id string) (bool, string, error) {
 	if !isValid(alert_id) {
 		log.Errorf("verifyAlertExists: data validation check failed %v", alert_id)
-		return false, "", errors.New("verifyAlertExists: data validation check failed")
+		return false, "", fmt.Errorf("verifyAlertExists: data validation check failed %v", alert_id)
 	}
 	var alert alertutils.AlertDetails
 
@@ -141,8 +141,8 @@ func (p Sqlite) verifyAlertExists(alert_id string) (bool, string, error) {
 
 func (p Sqlite) verifyContactExists(contact_id string) (bool, error) {
 	if !isValid(contact_id) {
-		log.Errorf("verifyContactExists: data validation check failed")
-		return false, errors.New("verifyContactExists: data validation check failed")
+		log.Errorf("verifyContactExists: data validation check failed for contact_id: %v", contact_id)
+		return false, fmt.Errorf("verifyContactExists: data validation check failed for contact_id: %v", contact_id)
 	}
 	var contact alertutils.Contact
 	if err := p.db.Where("contact_id = ?", contact_id).Find(&contact).First(&alertutils.Contact{}).Error; err != nil {
@@ -166,14 +166,14 @@ func CreateUniqId() string {
 // Starts a new cron job for the alert
 func (p Sqlite) CreateAlert(alertDetails *alertutils.AlertDetails) (alertutils.AlertDetails, error) {
 	if !isValid(alertDetails.AlertName) {
-		log.Errorf("createAlert: data validation check failed")
-		return alertutils.AlertDetails{}, errors.New("createAlert: data validation check failed")
+		log.Errorf("CreateAlert: data validation check failed for alert: %v", alertDetails.AlertName)
+		return alertutils.AlertDetails{}, fmt.Errorf("createAlert: data validation check failed for alert: %v", alertDetails.AlertName)
 	}
 	isNewAlertName, _ := p.isNewAlertName(alertDetails.AlertName)
 
 	if !isNewAlertName {
-		log.Errorf("createAlert: alert name already exists")
-		return alertutils.AlertDetails{}, errors.New("alert name already exists")
+		log.Errorf("CreateAlert: alert name: %v already exists", alertDetails.AlertName)
+		return alertutils.AlertDetails{}, fmt.Errorf("createAlert: alert name: %v already exists", alertDetails.AlertName)
 	}
 	alert_id := CreateUniqId()
 	state := alertutils.Inactive
@@ -181,7 +181,7 @@ func (p Sqlite) CreateAlert(alertDetails *alertutils.AlertDetails) (alertutils.A
 	alertDetails.AlertId = alert_id
 	result := p.db.Create(alertDetails)
 	if result.Error != nil && result.RowsAffected != 1 {
-		log.Errorf("createAlert: unable to create alert:%v", result.Error)
+		log.Errorf("CreateAlert: unable to create alert for alert: %v, err: %v", alertDetails.AlertName, result.Error)
 		return alertutils.AlertDetails{}, result.Error
 	}
 
@@ -191,7 +191,7 @@ func (p Sqlite) CreateAlert(alertDetails *alertutils.AlertDetails) (alertutils.A
 	notification.NotificationId = CreateUniqId()
 	result = p.db.Create(&notification)
 	if result.Error != nil && result.RowsAffected != 1 {
-		log.Errorf("createAlert: unable to update notification details:%v", result.Error)
+		log.Errorf("CreateAlert: unable to update notification details for alert: %v, err= %v", alertDetails.AlertName, result.Error)
 		return alertutils.AlertDetails{}, result.Error
 	}
 	return *alertDetails, nil
@@ -199,8 +199,8 @@ func (p Sqlite) CreateAlert(alertDetails *alertutils.AlertDetails) (alertutils.A
 
 func (p Sqlite) GetAlert(alert_id string) (*alertutils.AlertDetails, error) {
 	if !isValid(alert_id) {
-		log.Errorf("getAlert: data validation check failed")
-		return nil, errors.New("getAlert: data validation check failed")
+		log.Errorf("GetAlert: data validation check failed for alert id: %v", alert_id)
+		return nil, fmt.Errorf("GetAlert: data validation check failed for alert id: %v", alert_id)
 	}
 	var alert alertutils.AlertDetails
 	if err := p.db.Preload("Labels").Where(&alertutils.AlertDetails{AlertId: alert_id}).Find(&alert).Error; err != nil {
@@ -218,22 +218,22 @@ func (p Sqlite) GetAllAlerts(orgId uint64) ([]alertutils.AlertDetails, error) {
 
 func (p Sqlite) UpdateSilenceMinutes(updatedSilenceMinutes *alertutils.AlertDetails) error {
 	if !isValid(updatedSilenceMinutes.AlertName) || !isValid(updatedSilenceMinutes.QueryParams.QueryText) {
-		log.Errorf("updateSilenceMinutes: data validation check failed")
-		return errors.New("updateSilenceMinutesupdateSilenceMinutes: data validation check failed")
+		log.Errorf("UpdateSilenceMinutes: data validation check failed for alert: %v", updatedSilenceMinutes.AlertName)
+		return fmt.Errorf("UpdateSilenceMinutes: data validation check failed for alert: %v", updatedSilenceMinutes.AlertName)
 	}
 	alertExists, _, err := p.verifyAlertExists(updatedSilenceMinutes.AlertId)
 	if err != nil {
-		log.Errorf("updateSilenceMinutes: unable to verify if alert exists, err: %+v", err)
-		return err
+		log.Errorf("UpdateSilenceMinutes: unable to verify if alert: %v exists, err: %+v", updatedSilenceMinutes.AlertName, err)
+		return fmt.Errorf("UpdateSilenceMinutes: unable to verify if alert: %v exists, err: %+v", updatedSilenceMinutes.AlertName, err)
 	}
 	if !alertExists {
-		log.Errorf("updateSilenceMinutes: alert does not exist")
-		return errors.New("alert does not exist")
+		log.Errorf("UpdateSilenceMinutes: alert: %v does not exist", updatedSilenceMinutes.AlertName)
+		return fmt.Errorf("UpdateSilenceMinutes: alert: %v does not exist", updatedSilenceMinutes.AlertName)
 	}
 	result := p.db.Save(&updatedSilenceMinutes)
 	if result.Error != nil && result.RowsAffected != 1 {
-		log.Errorf("UpdateSilenceMinutes: unable to update silence minutes details:%v", result.Error)
-		return result.Error
+		log.Errorf("UpdateSilenceMinutes: unable to update silence minutes details for alert: %v, err: %v", updatedSilenceMinutes.AlertName, result.Error)
+		return fmt.Errorf("UpdateSilenceMinutes: unable to update silence minutes details for alert: %v, err: %v", updatedSilenceMinutes.AlertName, result.Error)
 	}
 
 	return nil
@@ -247,65 +247,65 @@ func (p Sqlite) UpdateAlert(editedAlert *alertutils.AlertDetails) error {
 	// update alert can update alert name -> still id will remain same
 	// todo: check if contact_id exists
 	if !isValid(editedAlert.AlertName) || !isValid(editedAlert.QueryParams.QueryText) {
-		log.Errorf("updateAlert: data validation check failed")
-		return errors.New("updateAlert: data validation check failed")
+		log.Errorf("UpdateAlert: data validation check failed for alert: %v", editedAlert.AlertName)
+		return fmt.Errorf("UpdateAlert: data validation check failed for alert: %v", editedAlert.AlertName)
 	}
 	alertExists, alertName, err := p.verifyAlertExists(editedAlert.AlertId)
 	if err != nil {
-		log.Errorf("updateAlert: unable to verify if alert exists, err: %+v", err)
-		return err
+		log.Errorf("UpdateAlert: unable to verify if alert: %v exists, err: %+v", editedAlert.AlertName, err)
+		return fmt.Errorf("UpdateAlert: unable to verify if alert: %v exists, err: %+v", editedAlert.AlertName, err)
 	}
 	// new alert means id in request body is incorrect
 	if !alertExists {
-		log.Errorf("updateAlert: alert does not exist")
-		return errors.New("alert does not exist")
+		log.Errorf("UpdateAlert: alert: %v does not exist", editedAlert.AlertName)
+		return fmt.Errorf("UpdateAlert: alert: %v does not exist", editedAlert.AlertName)
 	}
 	// if alert name in request body is same as that present in db, allow update
 	if alertName != editedAlert.AlertName {
 		isNewAlertName, err := p.isNewAlertName(editedAlert.AlertName)
 		if err != nil {
-			log.Errorf("updateAlert: unable to verify if alert name is new, err: %+v", err)
-			return err
+			log.Errorf("UpdateAlert: unable to verify if alert name: %v is new, err: %+v", editedAlert.AlertName, err)
+			return fmt.Errorf("UpdateAlert: unable to verify if alert name: %v is new, err: %+v", editedAlert.AlertName, err)
 		}
 		if !isNewAlertName {
-			log.Errorf("updateAlert: alert name already exists")
-			return errors.New("alert name already exists")
+			log.Errorf("UpdateAlert: alert name: %v already exists", editedAlert.AlertName)
+			return fmt.Errorf("UpdateAlert: alert name: %v already exists", editedAlert.AlertName)
 		}
 	}
 	result := p.db.Set("gorm:association_autoupdate", true).Save(&editedAlert)
 	if result.Error != nil && result.RowsAffected != 1 {
-		log.Errorf("UpdateAlert: unable to update alert details:%v", result.Error)
-		return result.Error
+		log.Errorf("UpdateAlert: unable to update details for alert: %v, err: %v", editedAlert.AlertName, result.Error)
+		return fmt.Errorf("UpdateAlert: unable to update details for alert: %v, err: %v", editedAlert.AlertName, result.Error)
 	}
 	return nil
 }
 
 func (p Sqlite) DeleteAlert(alert_id string) error {
 	if !isValid(alert_id) {
-		log.Errorf("deleteAlert: data validation check failed")
-		return errors.New("deleteAlert: data validation check failed")
+		log.Errorf("DeleteAlert: data validation check failed for alert id: %v", alert_id)
+		return fmt.Errorf("DeleteAlert: data validation check failed for alert id: %v", alert_id)
 	}
 	var alert alertutils.AlertDetails
 	result := p.db.First(&alert, "alert_id = ?", alert_id)
 	if result.Error != nil {
-		log.Errorf("deleteAlert: error deleting alert %v", result.Error)
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			log.Errorf("deleteAlert: alert does not exist")
-			return result.Error
+			log.Errorf("DeleteAlert: error deleting alert, alert does not exist, alert name: %v, err: %v", alert.AlertName, result.Error)
+			return fmt.Errorf("DeleteAlert: error deleting alert, alert does not exist, alert name: %v, err: %v", alert.AlertName, result.Error)
 		} else {
-			return result.Error
+			log.Errorf("DeleteAlert: error deleting alert, alert name: %v, err: %v", alert.AlertName, result.Error)
+			return fmt.Errorf("DeleteAlert: error deleting alert, alert name: %v, err: %v", alert.AlertName, result.Error)
 		}
 	}
 	err := p.db.Model(&alert).Association("Labels").Clear()
 	if err != nil {
-		log.Errorf("deleteAlert: unable to delete alert :%v", err)
-		return err
+		log.Errorf("DeleteAlert: unable to delete alert, alert name: %v, err: %v", alert.AlertName, err)
+		return fmt.Errorf("DeleteAlert: unable to delete alert, alert name: %v, err: %v", alert.AlertName, err)
 	}
 
 	result = p.db.Delete(&alert)
 	if result.Error != nil && result.RowsAffected != 1 {
-		log.Errorf("deleteAlert: unable to delete alert :%v", result.Error)
-		return result.Error
+		log.Errorf("DeleteAlert: unable to delete alert, alert id: %v, err: %v", alert.AlertName, err)
+		return fmt.Errorf("DeleteAlert: unable to delete alert, alert name: %v, err: %v", alert.AlertName, err)
 	}
 
 	return nil
@@ -316,15 +316,15 @@ func (p Sqlite) CreateContact(newContact *alertutils.Contact) error {
 	result := p.db.First(&contact, "contact_name = ?", newContact.ContactName)
 	if result.Error != nil {
 		if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			log.Errorf("CreateContact: contact name already exist")
-			return result.Error
+			log.Errorf("CreateContact: contact name: %v already exist, err: %v", newContact.ContactName, result.Error)
+			return fmt.Errorf("CreateContact: contact name: %v already exist, err: %v", newContact.ContactName, result.Error)
 		} else {
 			contact_id := CreateUniqId()
 			newContact.ContactId = contact_id
 			result = p.db.Create(&newContact)
 			if result.Error != nil && result.RowsAffected != 1 {
-				log.Errorf("CreateContact: unable to create contact:%v", result.Error)
-				return result.Error
+				log.Errorf("CreateContact: unable to create contact: %v, err: %v", newContact.ContactName, result.Error)
+				return fmt.Errorf("CreateContact: unable to create contact: %v, err: %v", newContact.ContactName, result.Error)
 			}
 		}
 	}
@@ -342,39 +342,39 @@ func (p Sqlite) GetAllContactPoints(org_id uint64) ([]alertutils.Contact, error)
 
 func (p Sqlite) UpdateContactPoint(contact *alertutils.Contact) error {
 	if !isValid(contact.ContactId) {
-		log.Errorf("updateContactPoint: invalid contact id")
-		return errors.New("invalid contact id")
+		log.Errorf("UpdateContactPoint: invalid contact id: %v, contact name: %v", contact.ContactId, contact.ContactName)
+		return fmt.Errorf("UpdateContactPoint: invalid contact id: %v, contact name: %v", contact.ContactId, contact.ContactName)
 	}
 
 	contactExists, err := p.verifyContactExists(contact.ContactId)
 	if err != nil {
-		log.Errorf("updateContactPoint: unable to verify if contact exists, err: %+v", err)
-		return err
+		log.Errorf("UpdateContactPoint: unable to verify if contact exists, contact name: %v, err: %+v", contact.ContactName, err)
+		return fmt.Errorf("UpdateContactPoint: unable to verify if contact exists, contact name: %v, err: %+v", contact.ContactName, err)
 	}
 	// contact does not exist, that means id in request body is incorrect
 	if !contactExists {
-		log.Errorf("updateContactPoint: contact does not exist")
-		return errors.New("contact does not exist")
+		log.Errorf("UpdateContactPoint: contact does not exist, contact name: %v", contact.ContactName)
+		return fmt.Errorf("UpdateContactPoint: contact does not exist, contact name: %v", contact.ContactName)
 	}
 
 	if len(contact.Slack) != 0 {
 		err := p.db.Model(&alertutils.Contact{ContactId: contact.ContactId}).Association("Slack").Clear()
 		if err != nil {
-			log.Errorf("updateContactPoint: unable to update contact : %v, err: %+v", contact.ContactName, err)
-			return err
+			log.Errorf("UpdateContactPoint: unable to update contact : %v, err: %+v", contact.ContactName, err)
+			return fmt.Errorf("UpdateContactPoint: unable to update contact : %v, err: %+v", contact.ContactName, err)
 		}
 	}
 	if len(contact.Webhook) != 0 {
 		err := p.db.Model(&alertutils.Contact{ContactId: contact.ContactId}).Association("Webhook").Clear()
 		if err != nil {
-			log.Errorf("updateContactPoint: unable to update contact : %v, err: %+v", contact.ContactName, err)
-			return err
+			log.Errorf("UpdateContactPoint: unable to update contact: %v, err: %+v", contact.ContactName, err)
+			return fmt.Errorf("UpdateContactPoint: unable to update contact: %v, err: %+v", contact.ContactName, err)
 		}
 	}
 	result := p.db.Session(&gorm.Session{FullSaveAssociations: true}).Save(&contact)
 	if result.Error != nil && result.RowsAffected != 1 {
-		log.Errorf("updateContactPoint: unable to update contact : %v, err: %+v", contact.ContactName, err)
-		return result.Error
+		log.Errorf("UpdateContactPoint: unable to update contact: %v, err: %+v", contact.ContactName, err)
+		return fmt.Errorf("UpdateContactPoint: unable to update contact: %v, err: %+v", contact.ContactName, err)
 	}
 	return nil
 
@@ -427,43 +427,43 @@ func (p Sqlite) GetCoolDownDetails(alert_id string) (uint64, time.Time, error) {
 
 func (p Sqlite) DeleteContactPoint(contact_id string) error {
 	if !isValid(contact_id) {
-		log.Errorf("deleteContactPoint: data validation check failed")
-		return errors.New("deleteContactPoint: data validation check failed")
+		log.Errorf("DeleteContactPoint: data validation check failed, contact id: %v", contact_id)
+		return fmt.Errorf("DeleteContactPoint: data validation check failed, contact id: %v", contact_id)
 	}
 
 	contactExists, err := p.verifyContactExists(contact_id)
 	if err != nil {
-		log.Errorf("deleteContactPoint: unable to verify if contact exists, err: %+v", err)
-		return err
+		log.Errorf("DeleteContactPoint: unable to verify if contact exists, contact id: %v, err: %+v", contact_id, err)
+		return fmt.Errorf("DeleteContactPoint: unable to verify if contact exists, contact id: %v, err: %+v", contact_id, err)
 	}
 	// contact does not exist, that means id in request body is incorrect
 	if !contactExists {
-		log.Errorf("deleteContactPoint: contact does not exist")
-		return errors.New("contact does not exist")
+		log.Errorf("DeleteContactPoint: contact does not exist, contact id: %v", contact_id)
+		return fmt.Errorf("DeleteContactPoint: contact does not exist, contact id: %v", contact_id)
 	}
 
 	var contact alertutils.Contact
 
 	result := p.db.First(&contact, "contact_id = ?", contact_id)
 	if result.Error != nil {
-		log.Errorf("deleteContactPoint: error deleting contact %v", result.Error)
+		log.Errorf("DeleteContactPoint: error deleting contact, contact: %v, err: %v", contact.ContactName, result.Error)
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			log.Errorf("deleteContactPoint: contact does not exist")
+			log.Errorf("DeleteContactPoint: contact: %v does not exist", contact.ContactName)
 			return result.Error
 		} else {
-			return result.Error
+			return fmt.Errorf("DeleteContactPoint: error deleting contact, contact: %v, err: %v", contact.ContactName, result.Error)
 		}
 	}
 	err = p.db.Model(&contact).Association("Slack").Clear()
 	if err != nil {
-		log.Errorf("deleteContactPoint: unable to delete contact :%v", err)
-		return err
+		log.Errorf("DeleteContactPoint: unable to delete contact: %v, err: %v", contact.ContactName, err)
+		return fmt.Errorf("DeleteContactPoint: unable to delete contact: %v, err: %v", contact.ContactName, err)
 	}
 
 	result = p.db.Delete(&contact)
 	if result.Error != nil && result.RowsAffected != 1 {
-		log.Errorf("deleteContactPoint: unable to delete contact :%v", result.Error)
-		return result.Error
+		log.Errorf("DeleteContactPoint: unable to delete contact: %v, err: %v", contact.ContactName, err)
+		return fmt.Errorf("DeleteContactPoint: unable to delete contact: %v, err: %v", contact.ContactName, err)
 	}
 
 	return nil
@@ -473,30 +473,30 @@ func (p Sqlite) DeleteContactPoint(contact_id string) error {
 func (p Sqlite) UpdateLastSentTime(alert_id string) error {
 	currentTime := time.Now().UTC()
 	if err := p.db.Model(&alertutils.Notification{}).Where("alert_id = ?", alert_id).Update("last_sent_time", currentTime).Error; err != nil {
-		log.Errorf("updateLastSentTime: unable to UpdateLastSentTime, err: %+v", err)
-		return err
+		log.Errorf("UpdateLastSentTime: unable to UpdateLastSentTime, alert id: %v, err: %+v", alert_id, err)
+		return fmt.Errorf("UpdateLastSentTime: unable to UpdateLastSentTime, alert id: %v, err: %+v", alert_id, err)
 	}
 	return nil
 }
 
 func (p Sqlite) UpdateAlertStateByAlertID(alert_id string, alertState alertutils.AlertState) error {
 	if !isValid(alert_id) {
-		log.Errorf("UpdateAlertStateByAlertID: data validation check failed")
-		return errors.New("UpdateAlertStateByAlertID: data validation check failed")
+		log.Errorf("UpdateAlertStateByAlertID: data validation check failed, alert id: %v", alert_id)
+		return fmt.Errorf("UpdateAlertStateByAlertID: data validation check failed, alert id: %v", alert_id)
 	}
 	alertExists, _, err := p.verifyAlertExists(alert_id)
 	if err != nil {
-		log.Errorf("UpdateAlertStateByAlertID: unable to verify if alert name exists, err: %+v", err)
-		return err
+		log.Errorf("UpdateAlertStateByAlertID: unable to verify if alert name exists, alert id: %v, err: %+v", alert_id, err)
+		return fmt.Errorf("UpdateAlertStateByAlertID: unable to verify if alert name exists, alert id: %v, err: %+v", alert_id, err)
 	}
 	if !alertExists {
-		log.Errorf("UpdateAlertStateByAlertID: alert does not exist")
-		return errors.New("alert does not exist")
+		log.Errorf("UpdateAlertStateByAlertID: alert does not exist, alert id: %v", alert_id)
+		return fmt.Errorf("UpdateAlertStateByAlertID: alert does not exist, alert id: %v", alert_id)
 	}
 
 	if err := p.db.Model(&alertutils.AlertDetails{}).Where("alert_id = ?", alert_id).Update("state", alertState).Error; err != nil {
 		log.Errorf("UpdateAlertStateByAlertID: unable to update alert state, with alert id: %v, err: %+v", alert_id, err)
-		return err
+		return fmt.Errorf("UpdateAlertStateByAlertID: unable to update alert state, with alert id: %v, err: %+v", alert_id, err)
 	}
 	return nil
 }
@@ -505,8 +505,8 @@ func (p Sqlite) GetEmailAndChannelID(contact_id string) ([]string, []alertutils.
 
 	var contact = &alertutils.Contact{}
 	if err := p.db.Preload("Slack").Preload("Webhook").First(&contact).Where("contact_id = ?", contact_id).Error; err != nil {
-		log.Errorf("GetEmailAndChannelID: unable to update contact, err: %+v", err)
-		return nil, nil, nil, err
+		log.Errorf("GetEmailAndChannelID: unable to update contact, contact id: %v, err: %+v", contact_id, err)
+		return nil, nil, nil, fmt.Errorf("GetEmailAndChannelID: unable to update contact, contact id: %v, err: %+v", contact_id, err)
 	}
 	emailArray := contact.Email
 	slackArray := contact.Slack
@@ -525,22 +525,22 @@ func (p Sqlite) GetAllMinionSearches(orgId uint64) ([]alertutils.MinionSearch, e
 // Creates a new record in all_alerts table
 func (p Sqlite) CreateMinionSearch(minionSearchDetails *alertutils.MinionSearch) (alertutils.MinionSearch, error) {
 	if !isValid(minionSearchDetails.AlertName) {
-		log.Errorf("CreateMinionSearch: data validation check failed")
-		return alertutils.MinionSearch{}, errors.New("CreateMinionSearch: data validation check failed")
+		log.Errorf("CreateMinionSearch: data validation check failed for alert: %v", minionSearchDetails.AlertName)
+		return alertutils.MinionSearch{}, fmt.Errorf("CreateMinionSearch: data validation check failed for alert: %v", minionSearchDetails.AlertName)
 	}
 	isNewAlertName, _ := p.isNewAlertName(minionSearchDetails.AlertName)
 
 	if !isNewAlertName {
-		log.Errorf("CreateMinionSearch: alert name already exists")
-		return alertutils.MinionSearch{}, errors.New("alert name already exists")
+		log.Errorf("CreateMinionSearch: alert name: %v already exists", minionSearchDetails.AlertName)
+		return alertutils.MinionSearch{}, fmt.Errorf("CreateMinionSearch: alert name: %v already exists", minionSearchDetails.AlertName)
 	}
 	minionSearchDetails.CreateTimestamp = time.Now()
 	minionSearchDetails.State = alertutils.Inactive
 
 	result := p.db.Create(minionSearchDetails)
 	if result.Error != nil && result.RowsAffected != 1 {
-		log.Errorf("createAlert: unable to create alert:%v", result.Error)
-		return alertutils.MinionSearch{}, result.Error
+		log.Errorf("CreateAlert: unable to create alert, alert name: %v err: %v", minionSearchDetails.AlertName, result.Error)
+		return alertutils.MinionSearch{}, fmt.Errorf("CreateAlert: unable to create alert, alert name: %v err: %v", minionSearchDetails.AlertName, result.Error)
 	}
 
 	return *minionSearchDetails, nil
@@ -548,8 +548,8 @@ func (p Sqlite) CreateMinionSearch(minionSearchDetails *alertutils.MinionSearch)
 
 func (p Sqlite) GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error) {
 	if !isValid(alert_id) {
-		log.Errorf("GetMinionSearch: data validation check failed")
-		return nil, errors.New("GetMinionSearch: data validation check failed")
+		log.Errorf("GetMinionSearch: data validation check failed for alert id: %v", alert_id)
+		return nil, fmt.Errorf("GetMinionSearch: data validation check failed for alert id: %v", alert_id)
 	}
 
 	var alert alertutils.MinionSearch
@@ -562,29 +562,29 @@ func (p Sqlite) GetMinionSearch(alert_id string) (*alertutils.MinionSearch, erro
 
 func (p Sqlite) UpdateMinionSearchStateByAlertID(alertId string, alertState alertutils.AlertState) error {
 	if !isValid(alertId) {
-		log.Errorf("UpdateMinionSearchStateByAlertID: data validation check failed")
-		return errors.New("UpdateMinionSearchStateByAlertID: data validation check failed")
+		log.Errorf("UpdateMinionSearchStateByAlertID: data validation check failed for alert id: %v", alertId)
+		return fmt.Errorf("UpdateMinionSearchStateByAlertID: data validation check failed for alert id: %v", alertId)
 	}
 	searchExists, _, err := p.verifyMinionSearchExists(alertId)
 	if err != nil {
-		log.Errorf("UpdateMinionSearchStateByAlertID: unable to verify if alert name exists, err: %+v", err)
-		return err
+		log.Errorf("UpdateMinionSearchStateByAlertID: unable to verify if alert name exists, alert id: %v, err: %+v", alertId, err)
+		return fmt.Errorf("UpdateMinionSearchStateByAlertID: unable to verify if alert name exists, alert id: %v, err: %+v", alertId, err)
 	}
 	if !searchExists {
-		log.Errorf("UpdateMinionSearchStateByAlertID: alert does not exist")
-		return errors.New("MinionSearch does not exist")
+		log.Errorf("UpdateMinionSearchStateByAlertID: alert does not exist, alert id: %v", alertId)
+		return fmt.Errorf("UpdateMinionSearchStateByAlertID: alert does not exist, alert id: %v", alertId)
 	}
 	if err := p.db.Model(&alertutils.MinionSearch{}).Where("alert_id = ?", alertId).Update("state", alertState).Error; err != nil {
 		log.Errorf("UpdateAlertStateByAlertID: unable to update alert state, with alert id: %v, err: %+v", alertId, err)
-		return err
+		return fmt.Errorf("UpdateAlertStateByAlertID: unable to update alert state, with alert id: %v, err: %+v", alertId, err)
 	}
 	return nil
 }
 
 func (p Sqlite) verifyMinionSearchExists(alert_id string) (bool, string, error) {
 	if !isValid(alert_id) {
-		log.Errorf("verifyMinionSearchExists: data validation check failed %v", alert_id)
-		return false, "", errors.New("verifyMinionSearchExists: data validation check failed")
+		log.Errorf("verifyMinionSearchExists: data validation check failed, alert id: %v", alert_id)
+		return false, "", fmt.Errorf("verifyMinionSearchExists: data validation check failed, alert id: %v", alert_id)
 	}
 	var alert alertutils.MinionSearch
 
@@ -600,33 +600,33 @@ func (p Sqlite) verifyMinionSearchExists(alert_id string) (bool, string, error) 
 
 func (p Sqlite) CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error) {
 	if !isValid(alertHistoryDetails.AlertId) || !isValid(alertHistoryDetails.EventDescription) || !isValid(alertHistoryDetails.UserName) {
-		log.Errorf("CreateAlertHistory: data validation check failed")
-		return nil, errors.New("CreateAlertHistory: data validation check failed")
+		log.Errorf("CreateAlertHistory: data validation check failed, alert id: %v, alert name: %v", alertHistoryDetails.AlertId, alertHistoryDetails.UserName)
+		return nil, fmt.Errorf("CreateAlertHistory: data validation check failed, alert id: %v, alert name: %v", alertHistoryDetails.AlertId, alertHistoryDetails.UserName)
 	}
 
 	result := p.db.Create(alertHistoryDetails)
 	if result.Error != nil && result.RowsAffected != 1 {
-		log.Errorf("createAlert: unable to create alert:%v", result.Error)
-		return &alertutils.AlertHistoryDetails{}, result.Error
+		log.Errorf("CreateAlert: unable to create alert, alert id: %v, alert name: %v, err: %v", alertHistoryDetails.AlertId, alertHistoryDetails.UserName, result.Error)
+		return &alertutils.AlertHistoryDetails{}, fmt.Errorf("CreateAlert: unable to create alert, alert id: %v, alert name: %v, err: %v", alertHistoryDetails.AlertId, alertHistoryDetails.UserName, result.Error)
 	}
 	return alertHistoryDetails, nil
 }
 
 func (p Sqlite) GetAlertHistory(alertId string) ([]*alertutils.AlertHistoryDetails, error) {
 	if !isValid(alertId) {
-		log.Errorf("GetAlertHistory: data validation check failed")
-		return nil, errors.New("GetAlertHistory: data validation check failed")
+		log.Errorf("GetAlertHistory: data validation check failed for alert id: %v", alertId)
+		return nil, fmt.Errorf("GetAlertHistory: data validation check failed for alert id: %v", alertId)
 	}
 
 	alertExists, _, err := p.verifyAlertExists(alertId)
 	if err != nil {
-		log.Errorf("GetAlertHistory: unable to verify if alert exists, err: %+v", err)
-		return nil, err
+		log.Errorf("GetAlertHistory: unable to verify if alert exists, alert id: %v, err: %+v", alertId, err)
+		return nil, fmt.Errorf("GetAlertHistory: unable to verify if alert exists, alert id: %v, err: %+v", alertId, err)
 	}
 
 	if !alertExists {
-		log.Errorf("GetAlertHistory: alert does not exist")
-		return nil, errors.New("alert does not exist")
+		log.Errorf("GetAlertHistory: alert does not exist, alert id: %v", alertId)
+		return nil, fmt.Errorf("GetAlertHistory: alert does not exist, alert id: %v", alertId)
 	}
 
 	alertHistory := make([]*alertutils.AlertHistoryDetails, 0)
