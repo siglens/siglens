@@ -187,13 +187,13 @@ lint, UTs, gofmt :
 ```
 
 ## Glossary
-**AgileAggs**: A tree structure used for efficiently aggregating data grouped on certain fields.
-**BSU**: Block Summary.
-**CMI**: Columnar Micro Index. This stores data for a single column for a single segment.
-**CSG**: Columnar Segment file. This stores data for a single segment.
-**PQMR**: Persistent Query Matched Results.
-**PQS**: Persistent Query Service. This is used to cache results for frequent queries.
-**QSR**: Query Segment Request. Sometimes you'll see the plural: QSRs.
-**TSG**: Time Series Gorilla-encoded. This file stores Gorilla-encoded time series data.
-**TSO**: Time Series Offset. This file stores the offsets for time series data.
-**TagsTree**: An AgileAggs tree specialized for metrics data.
+- **AgileAggs**: A tree structure used for efficiently aggregating data grouped on certain fields.
+- **BSU**: Block Summary.
+- **CMI**: Columnar Micro Index. This stores data for a single column for a single segment.
+- **CSG**: Columnar Segment file. This stores data for a single segment.
+- **PQMR**: Persistent Query Matched Results.
+- **PQS**: Persistent Query Service. This is used to cache results for frequent queries.
+- **QSR**: Query Segment Request. Sometimes you'll see the plural: QSRs.
+- **TSG**: Time Series Gorilla-encoded. This file stores Gorilla-encoded time series data.
+- **TSO**: Time Series Offset. This file stores the offsets for time series data.
+- **TagsTree**: An AgileAggs tree specialized for metrics data.
