@@ -782,6 +782,16 @@ func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant floa
 		} else {
 			ret = entriesCopy[int(index)].dpVal
 		}
+	case utils.Stddev:
+		fallthrough
+	case utils.Stdvar:
+		sum := 0.0
+		for i := range entries {
+			sum += entries[i].dpVal
+		}
+		ret = sum / float64(len(entries))
+	case utils.Group:
+		ret = 1
 	default:
 		err := fmt.Errorf("reduceEntries: unsupported AggregateFunction: %v", fn)
 		log.Errorf("%v", err)
@@ -841,6 +851,8 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 		} else {
 			ret = entriesCopy[int(index)].runningVal
 		}
+	case utils.Group:
+		ret = 1
 	default:
 		err := fmt.Errorf("reduceRunningEntries: unsupported AggregateFunction: %v", fn)
 		log.Errorf("%v", err)

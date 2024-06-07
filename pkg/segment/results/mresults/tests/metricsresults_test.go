@@ -18,6 +18,7 @@
 package tests
 
 import (
+	"math"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -202,6 +203,122 @@ func Test_GetResults_AggFn_Count(t *testing.T) {
 		3600: 2,
 		7200: 1,
 	}
+	res := initialize_Single_Metric_Results(t, timeSeriesMap, downsampler, aggregator, metricName)
+	validateResults(t, res.Results, expectedResults)
+}
+
+func Test_GetResults_AggFn_Group(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Group}
+	metricName := "test.metric.1"
+	downsampler := structs.Downsampler{
+		Interval:   1,
+		Unit:       "h",
+		CFlag:      false,
+		Aggregator: aggregator,
+	}
+
+	timeSeriesMap := make(map[string]map[uint32]float64)
+	timeSeriesMap["{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 100,
+	}
+	timeSeriesMap["{color:red"] = map[uint32]float64{
+		0:    3,
+		3600: 80,
+		7200: 66,
+	}
+
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults[metricName+"{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 1,
+	}
+	expectedResults[metricName+"{color:red"] = map[uint32]float64{
+		0:    1,
+		3600: 1,
+		7200: 1,
+	}
+
+	res := initialize_Single_Metric_Results(t, timeSeriesMap, downsampler, aggregator, metricName)
+	validateResults(t, res.Results, expectedResults)
+}
+
+func Test_GetResults_AggFn_Stdvar(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Stdvar}
+	metricName := "test.metric.1"
+	downsampler := structs.Downsampler{
+		Interval:   1,
+		Unit:       "h",
+		CFlag:      false,
+		Aggregator: aggregator,
+	}
+
+	timeSeriesMap := make(map[string]map[uint32]float64)
+	timeSeriesMap["{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 0,
+	}
+	timeSeriesMap["{color:red"] = map[uint32]float64{
+		0:    3,
+		3600: 2,
+	}
+	timeSeriesMap["{color:blue"] = map[uint32]float64{
+		0:    5,
+		3600: 2,
+		7200: 2,
+	}
+	timeSeriesMap["{color:green"] = map[uint32]float64{
+		0:    7,
+		3600: 4,
+	}
+
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults[metricName+"{"] = map[uint32]float64{
+		0:    5,
+		3600: 2,
+		7200: 0,
+	}
+
+	res := initialize_Single_Metric_Results(t, timeSeriesMap, downsampler, aggregator, metricName)
+	validateResults(t, res.Results, expectedResults)
+}
+
+func Test_GetResults_AggFn_Stddev(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Stddev}
+	metricName := "test.metric.1"
+	downsampler := structs.Downsampler{
+		Interval:   1,
+		Unit:       "h",
+		CFlag:      false,
+		Aggregator: aggregator,
+	}
+
+	timeSeriesMap := make(map[string]map[uint32]float64)
+	timeSeriesMap["{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 0,
+	}
+	timeSeriesMap["{color:red"] = map[uint32]float64{
+		0:    3,
+		3600: 2,
+	}
+	timeSeriesMap["{color:blue"] = map[uint32]float64{
+		0:    5,
+		3600: 2,
+		7200: 2,
+	}
+	timeSeriesMap["{color:green"] = map[uint32]float64{
+		0:    7,
+		3600: 4,
+	}
+
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults[metricName+"{"] = map[uint32]float64{
+		0:    math.Sqrt(5),
+		3600: math.Sqrt(2),
+		7200: 0,
+	}
+
 	res := initialize_Single_Metric_Results(t, timeSeriesMap, downsampler, aggregator, metricName)
 	validateResults(t, res.Results, expectedResults)
 }
@@ -1223,7 +1340,7 @@ func initialize_Single_Metric_Results(t *testing.T, timeSeriesMap map[string]map
 	}
 
 	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
-	errors := metricsResults.AggregateResults(1, mQuery.Aggregator)
+	errors := metricsResults.AggregateResults(1, aggregator)
 	assert.Nil(t, errors)
 
 	return metricsResults

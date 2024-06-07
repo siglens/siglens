@@ -21,12 +21,14 @@ import (
 	"container/heap"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	parser "github.com/prometheus/prometheus/promql/parser"
+	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -711,6 +713,10 @@ func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregati
 		err = r.computeExtremesKElements(aggregation.FuncConstant, -1.0, true)
 	case segutils.BottomK:
 		err = r.computeExtremesKElements(aggregation.FuncConstant, 1.0, false)
+	case segutils.Stdvar:
+		fallthrough
+	case segutils.Stddev:
+		r.computeAggStdvarOrStddev(aggregation)
 	default:
 		return fmt.Errorf("aggregateFromAllTimeseries: Unsupported aggregation: %v", aggregation)
 	}
@@ -817,6 +823,76 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
 			grpVal[timestamp] = float64(len(grpIdSet))
 		}
 		r.Results[seriesId] = grpVal
+	}
+
+	r.DsResults = nil
+	r.State = AGGREGATED
+}
+
+// Retrieve all series values at each timestamp and calculate the results based on those values.
+func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation) {
+	timestampToVals := make(map[uint32][]float64)
+	r.Results = make(map[string]map[uint32]float64)
+
+	// If we use group by for this vector, We need to obtain all the timeseries within a group, and then calculate the variance or standard deviation separately for each group
+	if len(aggregation.GroupByFields) > 0 {
+		// All the time series values under one group
+		grpIDToEntryMap := make(map[string]map[uint32][]float64)
+
+		for seriesID, runningDS := range r.DsResults {
+			matchingLabelValStr := putils.ExtractMatchingLabelSet(seriesID, aggregation.GroupByFields, true)
+
+			_, exists := grpIDToEntryMap[matchingLabelValStr]
+			if !exists {
+				grpIDToEntryMap[matchingLabelValStr] = make(map[uint32][]float64)
+			}
+
+			for i := 0; i < runningDS.idx; i++ {
+				_, exists := grpIDToEntryMap[matchingLabelValStr][runningDS.runningEntries[i].downsampledTime]
+				if !exists {
+					grpIDToEntryMap[matchingLabelValStr][runningDS.runningEntries[i].downsampledTime] = make([]float64, 0)
+				}
+
+				grpIDToEntryMap[matchingLabelValStr][runningDS.runningEntries[i].downsampledTime] = append(grpIDToEntryMap[matchingLabelValStr][runningDS.runningEntries[i].downsampledTime], runningDS.runningEntries[i].runningVal)
+			}
+		}
+
+		// Compute standard variance or deviation within each group
+		for grpID, entry := range grpIDToEntryMap {
+			grpID = r.MetricName + "{" + grpID
+			r.Results[grpID] = make(map[uint32]float64)
+			for timestamp, values := range entry {
+				resVal := utils.CalculateStandardVariance(values)
+				if aggregation.AggregatorFunction == segutils.Stddev {
+					resVal = math.Sqrt(resVal)
+				}
+				r.Results[grpID][timestamp] = resVal
+			}
+		}
+
+	} else { // Without using group by, perform aggregation for all values at each timestamp.
+		for _, runningDS := range r.DsResults {
+			for i := 0; i < runningDS.idx; i++ {
+				timestamp := runningDS.runningEntries[i].downsampledTime
+				_, exists := timestampToVals[timestamp]
+				if !exists {
+					timestampToVals[timestamp] = make([]float64, 0)
+				}
+				timestampToVals[timestamp] = append(timestampToVals[timestamp], runningDS.runningEntries[i].runningVal)
+			}
+		}
+
+		resultMap := make(map[uint32]float64)
+
+		for timestamp, values := range timestampToVals {
+			resVal := utils.CalculateStandardVariance(values)
+			if aggregation.AggregatorFunction == segutils.Stddev {
+				resVal = math.Sqrt(resVal)
+			}
+			resultMap[timestamp] = resVal
+		}
+
+		r.Results[r.MetricName+"{"] = resultMap
 	}
 
 	r.DsResults = nil

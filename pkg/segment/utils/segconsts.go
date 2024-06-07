@@ -292,6 +292,9 @@ const (
 	Quantile
 	TopK
 	BottomK
+	Stddev
+	Stdvar
+	Group
 	Values
 )
 

@@ -15,26 +15,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package ingestserver
+package utils
 
-import (
-	"github.com/siglens/siglens/pkg/hooks"
-	log "github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
-)
-
-func (hs *ingestionServerCfg) Recovery(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx) {
-	fn := func(ctx *fasthttp.RequestCtx) {
-		if hook := hooks.GlobalHooks.IngestMiddlewareRecoveryHook; hook != nil {
-			err := hook(ctx)
-			if err != nil {
-				log.Errorf("ingestionServerCfg.Recovery: got error from hook: %v", err)
-				return
-			}
-		}
-
-		// do next
-		next(ctx)
+func CalculateStandardVariance(values []float64) float64 {
+	sum := 0.0
+	length := float64(len(values))
+	for _, val := range values {
+		sum += val
 	}
-	return fn
+	avg := sum / length
+	sumValSquare := 0.0
+	for _, val := range values {
+		sumValSquare += (val - avg) * (val - avg)
+	}
+	return sumValSquare / length
 }
