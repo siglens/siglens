@@ -256,28 +256,32 @@ function hideColumnHandler(evt, isCloseIcon = false) {
 }
 
 function setQueryLangHandler(e) {
+    let previousQueryLanguageId = $('#query-language-options .query-language-option.active').attr('id').split('-')[1];
     $('.query-language-option').removeClass('active');
     $("#setting-container").hide();
     let currentTab = $("#custom-code-tab").tabs("option", "active");
     let selectedQueryLanguageId = $(this).attr("id").split("-")[1];
+    if (!(previousQueryLanguageId === selectedQueryLanguageId)) {
+        $('#filter-input').val("");
+    }
+    handleTabAndTooltip(selectedQueryLanguageId, currentTab);
+    $(this).addClass('active');
+}
+
+function handleTabAndTooltip(selectedQueryLanguageId, currentTab) {
     if (selectedQueryLanguageId !== "3" && currentTab === 0) {
         $("#custom-code-tab").tabs("option", "active", 1);
         showDisabledTabTooltip();
-        $('#ui-id-1').addClass('disabled-tab')
-        
+        $('#ui-id-1').addClass('disabled-tab');
     } else if (selectedQueryLanguageId !== "3" && currentTab === 1) {
         showDisabledTabTooltip();
-        $('#ui-id-1').addClass('disabled-tab')
-
+        $('#ui-id-1').addClass('disabled-tab');
     } else if (selectedQueryLanguageId === "3" && currentTab === 1) {
         $("#custom-code-tab").tabs("option", "disabled", []);
         hideDisabledTabTooltip();
-        $('#ui-id-1').removeClass('disabled-tab')
-
+        $('#ui-id-1').removeClass('disabled-tab');
     }
-    $('#query-language-btn span').html($(this).html());
     displayQueryLangToolTip(selectedQueryLanguageId);
-    $(this).addClass('active');
 }
 
 function showDisabledTabTooltip() {

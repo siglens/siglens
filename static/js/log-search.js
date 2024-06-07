@@ -192,14 +192,17 @@ function displayQueryLangToolTip(selectedQueryLangID) {
     $("#clearInput").hide();
     switch (selectedQueryLangID) {
         case "1":
+        case 1:
             $('#info-icon-sql').show();
             $("#filter-input").attr("placeholder", "Enter your SQL query here, or click the 'i' icon for examples");
             break;
         case "2":
+        case 2:
             $('#info-icon-logQL').show();
             $("#filter-input").attr("placeholder", "Enter your LogQL query here, or click the 'i' icon for examples");
             break;
         case "3":
+        case 3:
             $('#info-icon-spl').show();
             $("#filter-input").attr("placeholder", "Enter your SPL query here, or click the 'i' icon for examples");
             break;
