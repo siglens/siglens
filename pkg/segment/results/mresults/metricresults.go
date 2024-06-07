@@ -710,9 +710,9 @@ func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregati
 	case segutils.Count:
 		r.computeAggCount(aggregation)
 	case segutils.TopK:
-		err = r.computeExtremesKElements(aggregation.FuncConstant, -1.0, true)
+		err = r.computeExtremesKElements(aggregation.FuncConstant, -1.0)
 	case segutils.BottomK:
-		err = r.computeExtremesKElements(aggregation.FuncConstant, 1.0, false)
+		err = r.computeExtremesKElements(aggregation.FuncConstant, 1.0)
 	case segutils.Stdvar:
 		fallthrough
 	case segutils.Stddev:
@@ -730,7 +730,7 @@ func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregati
 
 // The larger the priority, the earlier it will be popped out. Since we use the value as the priority, for `topk`, the larger the value, the more we want it to remain in the priority queue. Therefore, its priority should be smaller.
 // For bottomk, it's the opposite
-func (r *MetricsResult) computeExtremesKElements(funcConstant float64, factor float64, isTopK bool) error {
+func (r *MetricsResult) computeExtremesKElements(funcConstant float64, factor float64) error {
 	capacity := int(funcConstant)
 
 	if capacity <= 0 {
@@ -755,11 +755,7 @@ func (r *MetricsResult) computeExtremesKElements(funcConstant float64, factor fl
 			} else {
 				if len(*pq) >= capacity {
 					item := heap.Pop(pq).(*utils.Item)
-					if isTopK && (item.Priority*factor) > runningDS.runningEntries[i].runningVal {
-						heap.Push(pq, item)
-						continue
-					}
-					if !isTopK && (item.Priority) < runningDS.runningEntries[i].runningVal {
+					if item.Priority < runningDS.runningEntries[i].runningVal*factor {
 						heap.Push(pq, item)
 						continue
 					}
