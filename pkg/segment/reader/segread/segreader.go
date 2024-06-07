@@ -99,7 +99,7 @@ func InitNewSegFileReader(fd *os.File, colName string, blockMetadata map[uint16]
 
 func (sfr *SegmentFileReader) Close() error {
 	if sfr.currFD == nil {
-		return errors.New("tried to close an unopened segment file reader")
+		return errors.New("SegmentFileReader.Close: tried to close an unopened segment file reader")
 	}
 	sfr.returnBuffers()
 	return sfr.currFD.Close()
@@ -114,12 +114,12 @@ func (sfr *SegmentFileReader) returnBuffers() {
 func (sfr *SegmentFileReader) readBlock(blockNum uint16) (bool, error) {
 	validBlock, err := sfr.loadBlockUsingBuffer(blockNum)
 	if err != nil {
-		log.Errorf("readBlock: error trying to read block %v in file %s. Error: %+v",
+		log.Errorf("SegmentFileReader.readBlock: error trying to read block %v in file %s. Error: %+v",
 			blockNum, sfr.fileName, err)
 		return true, err
 	}
 	if !validBlock {
-		return false, fmt.Errorf("column does not exist in block")
+		return false, fmt.Errorf("SegmentFileReader.readBlock: column does not exist in block: %v", blockNum)
 	}
 
 	sfr.currBlockNum = blockNum
@@ -134,7 +134,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 
 	blockMetata, blockExists := sfr.blockMetadata[blockNum]
 	if !blockExists {
-		return true, errors.New("block  number does not exist for this segment file reader")
+		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v does not exist for this segment file reader", blockNum)
 	}
 	colBlockLen, colExists := blockMetata.ColumnBlockLen[sfr.ColName]
 	if !colExists {
@@ -150,7 +150,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(colBlockLen))
 	_, err := sfr.currFD.ReadAt(sfr.currFileBuffer[:colBlockLen], colBlockOffset)
 	if err != nil {
-		log.Errorf("loadBlockUsingBuffer read file error: %+v", err)
+		log.Errorf("SegmentFileReader.loadBlockUsingBuffer: read file error at offset: %v, err: %+v", colBlockOffset, err)
 		return true, err
 	}
 	oPtr := uint32(0)
@@ -164,9 +164,9 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		err := sfr.readDictEnc(sfr.currFileBuffer[oPtr:colBlockLen], blockNum)
 		return true, err
 	} else {
-		log.Errorf("received an unknown encoding type for %v column! expected zstd or dictenc got %+v",
+		log.Errorf("SegmentFileReader.loadBlockUsingBuffer: received an unknown encoding type for %v column! expected zstd or dictenc got %+v",
 			sfr.ColName, sfr.encType)
-		return true, fmt.Errorf("received an unknown encoding type for %v column! expected zstd or dictenc got %+v",
+		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: received an unknown encoding type for %v column! expected zstd or dictenc got %+v",
 			sfr.ColName, sfr.encType)
 	}
 }
@@ -182,7 +182,7 @@ func (sfr *SegmentFileReader) ReadRecordFromBlock(blockNum uint16, recordNum uin
 			return nil, err
 		}
 		if err != nil {
-			log.Errorf("ReadRecordFromBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
+			log.Errorf("SegmentFileReader.ReadRecordFromBlock: error loading blockNum: %v. Error: %+v", blockNum, err)
 			return nil, err
 		}
 	}
@@ -198,7 +198,7 @@ func (sfr *SegmentFileReader) ReadRecordFromBlock(blockNum uint16, recordNum uin
 		sfr.currOffset = 0
 		currRecLen, err := sfr.getCurrentRecordLength()
 		if err != nil {
-			log.Errorf("ReadRecordFromBlock: error resetting SegmentFileReader %s. Error: %+v",
+			log.Errorf("SegmentFileReader.ReadRecordFromBlock: error resetting SegmentFileReader %s. Error: %+v",
 				sfr.fileName, err)
 			return nil, err
 		}
@@ -220,10 +220,10 @@ func (sfr *SegmentFileReader) ReadRecordFromBlock(blockNum uint16, recordNum uin
 		}
 	}
 
-	errStr := fmt.Sprintf("ReadRecordFromBlock: reached end of block before matching recNum %+v, blockNum %+v, Currently at rec %+v. File %+v, colname %v", recordNum, blockNum,
+	errStr := fmt.Sprintf("SegmentFileReader.ReadRecordFromBlock: reached end of block before matching recNum %+v, blockNum %+v, Currently at rec %+v. File %+v, colname %v", recordNum, blockNum,
 		sfr.currRecordNum, sfr.fileName, sfr.ColName)
 	log.Error(errStr)
-	log.Errorf("Current offset %+v, blkLen: %+v", sfr.currOffset, sfr.currUncompressedBlockLen)
+	log.Errorf("SegmentFileReader.ReadRecordFromBlock: Current offset %+v, blkLen: %+v", sfr.currOffset, sfr.currUncompressedBlockLen)
 	return nil, errors.New(errStr)
 }
 
@@ -232,13 +232,13 @@ func (sfr *SegmentFileReader) ReadRecordFromBlock(blockNum uint16, recordNum uin
 func (sfr *SegmentFileReader) iterateNextRecord() error {
 	nextOff := sfr.currOffset + sfr.currRecLen
 	if nextOff >= sfr.currUncompressedBlockLen {
-		log.Errorf("iterateNextRecord: reached end of block next Offset:%+v, curr uncompressed blklen: %+v", nextOff, sfr.currUncompressedBlockLen)
+		log.Errorf("SegmentFileReader.iterateNextRecord: reached end of block, next Offset: %+v, curr uncompressed blklen: %+v", nextOff, sfr.currUncompressedBlockLen)
 		return errors.New("no more records to iterate")
 	}
 	sfr.currOffset = nextOff
 	currRecLen, err := sfr.getCurrentRecordLength()
 	if err != nil {
-		log.Errorf("iterateNextRecord: an error occurred while iterating to the next record %+v. Skipping...", err)
+		log.Errorf("SegmentFileReader.iterateNextRecord: an error occurred while iterating to the next record at offset: %v Skipping..., err:  %+v", sfr.currOffset, err)
 		sfr.currOffset -= sfr.currRecLen
 		return err
 	}
@@ -281,7 +281,7 @@ func (sfr *SegmentFileReader) getCurrentRecordLength() (uint32, error) {
 		reclen = 3 + uint32(toputils.BytesToUint16LittleEndian(sfr.currRawBlockBuffer[sfr.currOffset+1:]))
 
 	default:
-		log.Errorf("getCurrentRecordLength: Received an unknown encoding type %+v at offset %+v", sfr.currRawBlockBuffer[sfr.currOffset], sfr.currOffset)
+		log.Errorf("SegmentFileReader.getCurrentRecordLength: Received an unknown encoding type %+v at offset %+v", sfr.currRawBlockBuffer[sfr.currOffset], sfr.currOffset)
 		return 0, errors.New("received an unknown encoding type")
 	}
 	return reclen, nil
@@ -295,7 +295,7 @@ func (sfr *SegmentFileReader) IsBlkDictEncoded(blockNum uint16) (bool, error) {
 			return false, err
 		}
 		if err != nil {
-			log.Errorf("IsBlkDictEncoded: error loading blockNum: %v. Error: %+v", blockNum, err)
+			log.Errorf("SegmentFileReader.IsBlkDictEncoded: error loading blockNum: %v. Error: %+v", blockNum, err)
 			return false, err
 		}
 	}
@@ -333,7 +333,7 @@ func (sfr *SegmentFileReader) readDictEnc(buf []byte, blockNum uint16) error {
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			idx += 1 // 1 for T
 		default:
-			return fmt.Errorf("readDictEnc unknown dictEnc: %v only supported flt/int64/str", buf[idx])
+			return fmt.Errorf("SegmentFileReader.readDictEnc: unknown dictEnc: %v only supported flt/int64/str", buf[idx])
 		}
 
 		sfr.deTlv[w] = buf[soffW:idx]
@@ -356,7 +356,7 @@ func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
 
 	uncompressed, err := decoder.DecodeAll(buf[0:], sfr.currUncompressBuffer[:0])
 	if err != nil {
-		log.Errorf("unpackRawCsg decompress error: %+v", err)
+		log.Errorf("SegmentFileReader.unpackRawCsg: decompress error: %+v", err)
 		return err
 	}
 	sfr.currRawBlockBuffer = uncompressed
@@ -364,7 +364,7 @@ func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
 
 	currRecLen, err := sfr.getCurrentRecordLength()
 	if err != nil {
-		log.Errorf("unpackRawCsg: error getting record length for the first record in block %v in file %s. Error: %+v",
+		log.Errorf("SegmentFileReader.unpackRawCsg: error getting record length for the first record in block %v in file %s. Error: %+v",
 			blockNum, sfr.fileName, err)
 		return err
 	}
@@ -414,7 +414,7 @@ func (sfr *SegmentFileReader) deToResults(results map[uint16]map[string]interfac
 		} else if dWord[0] == utils.VALTYPE_ENC_BACKFILL[0] {
 			results[rn][sfr.ColName] = nil
 		} else {
-			log.Errorf("deToResults: de only supported for str/int64/float64")
+			log.Errorf("SegmentFileReader.deToResults: de only supported for str/int64/float64")
 			return false
 		}
 	}
@@ -424,7 +424,7 @@ func (sfr *SegmentFileReader) deToResults(results map[uint16]map[string]interfac
 func (sfr *SegmentFileReader) deGetRec(rn uint16) ([]byte, error) {
 
 	if rn >= uint16(len(sfr.deRecToTlv)) {
-		return nil, fmt.Errorf("recNum %+v does not exist, len=%+v", rn, len(sfr.deRecToTlv))
+		return nil, fmt.Errorf("SegmentFileReader.deGetRec: recNum %+v does not exist, len: %+v", rn, len(sfr.deRecToTlv))
 	}
 	dwIdx := sfr.deRecToTlv[rn]
 	dWord := sfr.deTlv[dwIdx]
