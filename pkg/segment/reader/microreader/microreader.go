@@ -134,7 +134,7 @@ func ReadSegMeta(fname string) (*structs.SegMeta, error) {
 
 	err = json.Unmarshal(rdata, &sm)
 	if err != nil {
-		log.Errorf("Cannot unmarshal data = %v, err= %v", string(rdata), err)
+		log.Errorf("ReadSegMeta: Cannot unmarshal data = %v, err= %v", string(rdata), err)
 		return nil, err
 	}
 	return &sm, nil
@@ -157,8 +157,7 @@ func ReadMetricsBlockSummaries(fileName string) ([]*structs.MBlockSummary, error
 
 	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Infof("ReadMetricsBlockSummaries: failed to open fileName: %v  Error: %v.",
-			fileName, err)
+		log.Infof("ReadMetricsBlockSummaries: failed to open fileName: %v  Error: %v.", fileName, err)
 		return mBlockSummaries, err
 	}
 	defer fd.Close()
@@ -173,7 +172,7 @@ func ReadMetricsBlockSummaries(fileName string) ([]*structs.MBlockSummary, error
 	versionBlockSummary := make([]byte, 1)
 	copy(versionBlockSummary, data[:1])
 	if versionBlockSummary[0] != utils.VERSION_MBLOCKSUMMARY[0] {
-		return mBlockSummaries, fmt.Errorf("ReadMetricsBlockSummaries: the file version doesn't match")
+		return mBlockSummaries, fmt.Errorf("ReadMetricsBlockSummaries: the file version doesn't match. Expected Version: %v, Got Version: %v", utils.VERSION_MBLOCKSUMMARY[0], versionBlockSummary[0])
 	}
 	offset := int64(1)
 	for offset < fileSize {

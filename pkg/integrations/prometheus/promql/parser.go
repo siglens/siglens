@@ -2,6 +2,7 @@ package promql
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 
 	"github.com/cespare/xxhash"
@@ -100,7 +101,19 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*
 				}
 				mQuery.TagsFilters = append(mQuery.TagsFilters, tagFilter)
 			} else {
+				mQuery.MetricOperator = segutils.TagOperator(entry.Type)
 				mQuery.MetricName = entry.Value
+
+				if mQuery.IsRegexOnMetricName() {
+					// If the metric name is a regex, then we need to add the start and end anchors
+					anchoredMetricName := fmt.Sprintf("^(%v)$", entry.Value)
+					_, err := regexp.Compile(anchoredMetricName)
+					if err != nil {
+						log.Errorf("parsePromQLQuery: Error compiling regex for the anchored MetricName Pattern: %v. Error=%v", anchoredMetricName, err)
+						return []*structs.MetricsQueryRequest{}, "", []*structs.QueryArithmetic{}, err
+					}
+					mQuery.MetricNameRegexPattern = anchoredMetricName
+				}
 			}
 		}
 	}
@@ -265,6 +278,7 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.Aggregator.AggregatorFunction = segutils.Avg
 	case "count":
 		mQuery.Aggregator.AggregatorFunction = segutils.Count
+		mQuery.GetAllLabels = true
 	case "sum":
 		mQuery.Aggregator.AggregatorFunction = segutils.Sum
 	case "max":
@@ -302,6 +316,9 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 
 	// Handle grouping
 	for _, group := range expr.Grouping {
+		if group == "__name__" {
+			mQuery.GroupByMetricName = true
+		}
 		tagFilter := structs.TagsFilter{
 			TagKey:          group,
 			RawTagValue:     "*",

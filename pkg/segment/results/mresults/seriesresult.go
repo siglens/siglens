@@ -46,7 +46,7 @@ type Series struct {
 	sorted    bool
 	grpID     *bytebufferpool.ByteBuffer
 
-	// if original Downsampler Aggregator is `Avg`, convertedDownsampleAggFn is equal to `Sum` else equal to original Downsampler Aggregator
+	// If the original Downsampler Aggregator is Avg, the convertedDownsampleAggFn is set to Sum; otherwise, it is set to the original Downsampler Aggregator.
 	convertedDownsampleAggFn utils.AggregateFunctions
 	aggregationConstant      float64
 }
@@ -81,6 +81,7 @@ var extend_capacity = 50
 Allocates a series from the pool and returns.
 
 The allocated series should be returned to the pools via (mr *MetricsResults).DownsampleResults()
+If the original Downsampler Aggregator is Avg, the convertedDownsampleAggFn is set to Sum; otherwise, it is set to the original Downsampler Aggregator.
 */
 func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.ByteBuffer) *Series {
 	// have some info about downsample
@@ -164,7 +165,7 @@ func (s *Series) Downsample(downsampler structs.Downsampler) (*DownsampleSeries,
 		})
 		retVal, err := reduceEntries(s.entries[i:maxJ], s.convertedDownsampleAggFn, s.aggregationConstant)
 		if err != nil {
-			log.Errorf("Downsample: failed to reduce entries: %v", err)
+			log.Errorf("Downsample: failed to reduce entries: %v by using this operator: %v, err: %v", s.entries[i:maxJ], s.convertedDownsampleAggFn, err)
 			return nil, err
 		}
 		ds.Add(retVal, s.entries[i].downsampledTime, uint64(maxJ-i))
@@ -231,7 +232,7 @@ func (dss *DownsampleSeries) AggregateFromSingleTimeseries() (map[uint32]float64
 		})
 		currVal, err := reduceRunningEntries(dss.runningEntries[i:maxJ], dss.downsampleAggFn, dss.aggregationConstant)
 		if err != nil {
-			log.Errorf("Aggregate: failed to reduce running entries: %v", err)
+			log.Errorf("Aggregate: failed to reduce entries: %v by using this operator: %v, err: %v", dss.runningEntries[i:maxJ], dss.downsampleAggFn, err)
 			return nil, err
 		}
 		retVal[dss.runningEntries[i].downsampledTime] = currVal
@@ -299,21 +300,21 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Acos:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
 			if val < -1 || val > 1 {
-				return val, fmt.Errorf("evaluateWithErr: acos evaluate values in the range [-1,1]")
+				return val, fmt.Errorf("evaluateWithErr: acos evaluate values in the range [-1,1], but got input value: %v", val)
 			}
 			return math.Acos(val), nil
 		})
 	case segutils.Acosh:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
 			if val < 1 {
-				return val, fmt.Errorf("evaluateWithErr: acosh evaluate values in the range [1,+Inf]")
+				return val, fmt.Errorf("evaluateWithErr: acosh evaluate values in the range [1,+Inf], but got input value: %v", val)
 			}
 			return math.Acosh(val), nil
 		})
 	case segutils.Asin:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
 			if val < -1 || val > 1 {
-				return val, fmt.Errorf("evaluateWithErr: asin evaluate values in the range [-1,1]")
+				return val, fmt.Errorf("evaluateWithErr: asin evaluate values in the range [-1,1], but got input value: %v", val)
 			}
 			return math.Asin(val), nil
 		})
@@ -324,7 +325,7 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Atanh:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
 			if val <= -1 || val >= 1 {
-				return val, fmt.Errorf("evaluateWithErr: atanh evaluate values in the range [-1,1]")
+				return val, fmt.Errorf("evaluateWithErr: atanh evaluate values in the range [-1,1], but got input value: %v", val)
 			}
 			return math.Atanh(val), nil
 		})
@@ -695,7 +696,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 		}
 		quantile, err := strconv.ParseFloat(function.ValueList[0], 64)
 		if err != nil {
-			return ts, fmt.Errorf("ApplyMathFunction: quantile_over_time has incorrect parameters: %v", function.ValueList)
+			return ts, fmt.Errorf("ApplyMathFunction: quantile_over_time has incorrect parameters: %v, params can not convert to a float: %v", function.ValueList, err)
 		}
 
 		ts[sortedTimeSeries[0].downsampledTime] = sortedTimeSeries[0].dpVal * quantile
@@ -718,7 +719,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 		}
 		return ts, nil
 	default:
-		return ts, fmt.Errorf("ApplyRangeFunction: Unknown function type")
+		return ts, fmt.Errorf("ApplyRangeFunction: Unknown function type: %v", function.RangeFunction)
 	}
 }
 
@@ -757,7 +758,7 @@ func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant floa
 			}
 		}
 	case utils.Count:
-		ret += float64(len(entries))
+		// Count is to calculate the number of time series, we do not care about the entry value
 	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 
@@ -817,9 +818,7 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 			}
 		}
 	case utils.Count:
-		for i := range entries {
-			ret += float64(entries[i].runningCount)
-		}
+		// Count is to calculate the number of time series, we do not care about the entry value
 	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 
@@ -945,7 +944,7 @@ func evaluateRoundWithPrecision(ts map[uint32]float64, toNearestStr string) erro
 	toNearestStr = strings.ReplaceAll(toNearestStr, " ", "")
 	toNearest, err := convertStrToFloat64(toNearestStr)
 	if err != nil {
-		return fmt.Errorf("evaluateRoundWithPrecision: %v", err)
+		return fmt.Errorf("evaluateRoundWithPrecision: can not convert toNearest param: %v to a float, err: %v", toNearestStr, err)
 	}
 
 	for key, val := range ts {

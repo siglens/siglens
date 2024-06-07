@@ -66,7 +66,7 @@ func GetTotalMemoryAvailable() uint64 {
 	if v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
-			log.Error("Error while converting gogc to int")
+			log.Errorf("GetTotalMemoryAvailable: Error while converting gogc: %v to int", v)
 			n = 100
 		}
 		gogc = uint64(n)
@@ -75,7 +75,7 @@ func GetTotalMemoryAvailable() uint64 {
 	}
 	hostMemory := memory.TotalMemory() * runningConfig.MemoryThresholdPercent / 100
 	allowedMemory := hostMemory / (1 + gogc/100)
-	log.Infof("GOGC: %+v, MemThresholdPerc: %v, HostRAM: %+v MB, RamAllowedToUse: %v MB", gogc,
+	log.Infof("GetTotalMemoryAvailable: GOGC: %+v, MemThresholdPerc: %v, HostRAM: %+v MB, RamAllowedToUse: %v MB", gogc,
 		runningConfig.MemoryThresholdPercent,
 		segutils.ConvertUintBytesToMB(memory.TotalMemory()),
 		segutils.ConvertUintBytesToMB(allowedMemory))
@@ -277,7 +277,7 @@ func GetRunningConfigAsJsonStr() (string, error) {
 
 func GetSegFlushIntervalSecs() int {
 	if runningConfig.SegFlushIntervalSecs > 600 {
-		log.Errorf("GetSegFlushIntervalSecs:SegFlushIntervalSecs cannot be more than 10 mins")
+		log.Errorf("GetSegFlushIntervalSecs: SegFlushIntervalSecs cannot be more than 10 mins")
 		runningConfig.SegFlushIntervalSecs = 600
 	}
 	return runningConfig.SegFlushIntervalSecs
@@ -319,7 +319,7 @@ func GetS3ConfigMap() map[string]interface{} {
 func IsIngestNode() bool {
 	retVal, err := strconv.ParseBool(runningConfig.IngestNode)
 	if err != nil {
-		log.Errorf("Error parsing ingest node: [%v] Err: [%+v]. Defaulting to true", runningConfig.IngestNode, err)
+		log.Errorf("IsIngestNode: Error parsing ingest node: [%v], Err: [%+v]. Defaulting to true", runningConfig.IngestNode, err)
 		return true
 	}
 	return retVal
@@ -328,7 +328,7 @@ func IsIngestNode() bool {
 func IsQueryNode() bool {
 	retVal, err := strconv.ParseBool(runningConfig.QueryNode)
 	if err != nil {
-		log.Errorf("Error parsing query node: [%v] Err: [%+v]. Defaulting to true", runningConfig.QueryNode, err)
+		log.Errorf("IsIngestNode: Error parsing query node: [%v], Err: [%+v]. Defaulting to true", runningConfig.QueryNode, err)
 		return true
 	}
 	return retVal
@@ -340,8 +340,8 @@ func SetEventTypeKeywords(val []string) {
 
 func SetSegFlushIntervalSecs(val int) {
 	if val < 1 {
-		log.Errorf("SetSegFlushIntervalSecs : SegFlushIntervalSecs should not be less than 1s")
-		log.Infof("SetSegFlushIntervalSecs : Setting SegFlushIntervalSecs to 1 by default")
+		log.Errorf("SetSegFlushIntervalSecs: SegFlushIntervalSecs should not be less than 1s")
+		log.Infof("SetSegFlushIntervalSecs: Setting SegFlushIntervalSecs to 1 by default")
 		val = 1
 	}
 	runningConfig.SegFlushIntervalSecs = val
@@ -402,17 +402,17 @@ func ValidateDeployment() (common.DeploymentType, error) {
 		}
 		return common.SingleNode, nil
 	}
-	return 0, fmt.Errorf("single node deployment must have both query and ingest in the same node")
+	return 0, fmt.Errorf("ValidateDeployment: single node deployment must have both query and ingest in the same node")
 }
 
 func WriteToYamlConfig() {
 	setValues, err := yaml.Marshal(&runningConfig)
 	if err != nil {
-		log.Errorf("error converting to yaml: %v", err)
+		log.Errorf("WriteToYamlConfig: error converting to yaml: %v", err)
 	}
 	err = os.WriteFile(configFilePath, setValues, 0644)
 	if err != nil {
-		log.Errorf("error writing to yaml file: %v", err)
+		log.Errorf("WriteToYamlConfig: error writing to yaml configFilePath: %v, err: %v", configFilePath, err)
 	}
 }
 
@@ -431,11 +431,11 @@ func InitConfigurationData() error {
 	var readConfig common.RunModConfig
 	readConfig, err = ReadRunModConfig(RunModFilePath)
 	if err != nil && !os.IsNotExist(err) {
-		log.Errorf("InitConfigurationData: Failed to read runmod config: %v, config: %+v", err, readConfig)
+		log.Errorf("InitConfigurationData: Failed to read runmod config err: %v, config: %+v", err, readConfig)
 	}
 	fileInfo, err := os.Stat(configFilePath)
 	if err != nil {
-		log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
+		log.Errorf("InitConfigurationData: Cannot stat config file while re-reading, configFilePath: %v, err: %v", configFilePath, err)
 		return err
 	}
 	configFileLastModified = uint64(fileInfo.ModTime().UTC().Unix())
@@ -513,16 +513,16 @@ func InitializeTestingConfig() {
 func ReadRunModConfig(fileName string) (common.RunModConfig, error) {
 	_, err := os.Stat(fileName)
 	if os.IsNotExist(err) {
-		log.Infof("ReadRunModConfig:Config file '%s' does not exist. Awaiting user action to create it.", fileName)
+		log.Infof("ReadRunModConfig: Config file '%s' does not exist. Awaiting user action to create it.", fileName)
 		return common.RunModConfig{}, err
 	} else if err != nil {
-		log.Errorf("ReadRunModConfig:Error accessing config file '%s': %v", fileName, err)
+		log.Errorf("ReadRunModConfig: Error accessing config file: '%s', err: %v", fileName, err)
 		return common.RunModConfig{}, err
 	}
 
 	jsonData, err := os.ReadFile(fileName)
 	if err != nil {
-		log.Errorf("ReadRunModConfig:Cannot read input fileName = %v, err=%v", fileName, err)
+		log.Errorf("ReadRunModConfig: Cannot read input file: %v, err: %v", fileName, err)
 	}
 	return ExtractReadRunModConfig(jsonData)
 }
@@ -535,7 +535,7 @@ func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 	}
 	err := json.Unmarshal(jsonData, &runModConfig)
 	if err != nil {
-		log.Errorf("ExtractReadRunModConfig:Failed to parse runmod.cfg: %v", err)
+		log.Errorf("ExtractReadRunModConfig: Failed to parse runmod.cfg data: %v, err: %v", string(jsonData), err)
 		return runModConfig, err
 	}
 
@@ -546,7 +546,7 @@ func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 func ReadConfigFile(fileName string) (common.Configuration, error) {
 	yamlData, err := os.ReadFile(fileName)
 	if err != nil {
-		log.Errorf("Cannot read input fileName = %v, err=%v", fileName, err)
+		log.Errorf("ReadConfigFile: Cannot read input file: %v, err: %v", fileName, err)
 	}
 
 	if hook := hooks.GlobalHooks.ExtractConfigHook; hook != nil {
@@ -560,7 +560,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	var config common.Configuration
 	err := yaml.Unmarshal(yamlData, &config)
 	if err != nil {
-		log.Errorf("Error parsing yaml err=%v", err)
+		log.Errorf("ExtractConfigData: Error parsing yaml data: %v, err: %v", string(yamlData), err)
 		return config, err
 	}
 
@@ -658,7 +658,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if config.RetentionHours == 0 || config.RetentionHours > 15*24 {
-		log.Infof("Setting to 360hrs (15 days) of retention as default...")
+		log.Infof("ExtractConfigData: Setting to 360hrs (15 days) of retention as default...")
 		config.RetentionHours = 15 * 24
 	}
 	if len(config.TimeStampKey) <= 0 {
@@ -689,7 +689,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 
 	if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
 		if config.MemoryThresholdPercent > 50 {
-			log.Infof("MemoryThresholdPercent is set to %v%% but bringing it down to 50%%", config.MemoryThresholdPercent)
+			log.Infof("ExtractConfigData: MemoryThresholdPercent is set to %v%% but bringing it down to 50%%", config.MemoryThresholdPercent)
 			config.MemoryThresholdPercent = 50
 		} else if config.MemoryThresholdPercent == 0 {
 			config.MemoryThresholdPercent = 50
@@ -735,8 +735,8 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	if os.Getenv("TRACE_SAMPLING_PRECENTAGE") != "" {
 		samplingPercentage, err := strconv.ParseFloat(os.Getenv("TRACE_SAMPLING_PRECENTAGE"), 64)
 		if err != nil {
-			log.Errorf("Error parsing TRACE_SAMPLING_PRECENTAGE: %v", err)
-			log.Info("Setting Trace Sampling Percentage to 1")
+			log.Errorf("ExtractConfigData: Error parsing TRACE_SAMPLING_PRECENTAGE err: %v", err)
+			log.Info("ExtractConfigData: Setting Trace Sampling Percentage to 1")
 			config.Tracing.SamplingPercentage = 1
 		} else {
 			config.Tracing.SamplingPercentage = samplingPercentage
@@ -748,10 +748,10 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if len(config.Tracing.Endpoint) <= 0 {
-		log.Info("Tracing is disabled. Please set the endpoint in the config file to enable Tracing.")
+		log.Info("ExtractConfigData: Tracing is disabled. Please set the endpoint in the config file to enable Tracing.")
 		SetTracingEnabled(false)
 	} else {
-		log.Info("Tracing is enabled. Tracing Endpoint: ", config.Tracing.Endpoint)
+		log.Info("ExtractConfigData: Tracing is enabled. Tracing Endpoint: ", config.Tracing.Endpoint)
 		SetTracingEnabled(true)
 	}
 
@@ -773,7 +773,7 @@ func ExtractCmdLineInput() string {
 	configFile := flag.String("config", "server.yaml", "Path to config file")
 
 	flag.Parse()
-	log.Info("Extracting config from configFile: ", *configFile)
+	log.Infof("ExtractCmdLineInput: Extracting config from configFile: %v", *configFile)
 	log.Trace("VerifyCommandLineInput | STOP")
 	return *configFile
 }
@@ -1001,7 +1001,7 @@ func ProcessGetConfigAsJson(ctx *fasthttp.RequestCtx) {
 func ProcessForceReadConfig(ctx *fasthttp.RequestCtx) {
 	newConfig, err := ReadConfigFile(configFilePath)
 	if err != nil {
-		log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
+		log.Errorf("ProcessForceReadConfig: Error while reading config file, configFilepath: %v, err: %v", configFilePath, err)
 		return
 	}
 	SetConfig(newConfig)
@@ -1012,7 +1012,7 @@ func ProcessForceReadConfig(ctx *fasthttp.RequestCtx) {
 func refreshConfig() {
 	fileInfo, err := os.Stat(configFilePath)
 	if err != nil {
-		log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
+		log.Errorf("refreshConfig: Cannot stat config file while re-reading, configFilepath: %v, err: %v", configFilePath, err)
 		return
 	}
 	modifiedTime := fileInfo.ModTime()
@@ -1020,7 +1020,7 @@ func refreshConfig() {
 	if modifiedTimeSec > configFileLastModified {
 		newConfig, err := ReadConfigFile(configFilePath)
 		if err != nil {
-			log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
+			log.Errorf("refreshConfig: Error while reading config file, configFilepath: %v, err: %v", configFilePath, err)
 			return
 		}
 		SetConfig(newConfig)
@@ -1087,7 +1087,7 @@ func extractStrArray(inputValueParam interface{}) ([]string, error) {
 	case []interface{}:
 		break
 	default:
-		err := fmt.Errorf("inputValueParam type = %T not accepted", inputValueParam)
+		err := fmt.Errorf("extractStrArray: inputValueParam of type = %T not accepted", inputValueParam)
 		return nil, err
 	}
 	evArray := []string{}
@@ -1097,7 +1097,7 @@ func extractStrArray(inputValueParam interface{}) ([]string, error) {
 			str := element
 			evArray = append(evArray, str)
 		default:
-			err := fmt.Errorf("element type = %T not accepted", element)
+			err := fmt.Errorf("extractStrArray: element of type = %T not accepted", element)
 			return nil, err
 		}
 	}
@@ -1106,7 +1106,7 @@ func extractStrArray(inputValueParam interface{}) ([]string, error) {
 
 func getQueryServerPort() (uint64, error) {
 	if runningConfig.QueryPort == 0 {
-		return 0, errors.New("QueryServer Port config was not specified")
+		return 0, errors.New("getQueryServerPort: QueryServer Port config was not specified")
 	}
 	return runningConfig.QueryPort, nil
 }

@@ -15,10 +15,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Note: the only changes to this file should be incrementing SigLensVersion.
-// You shouldn't add other things to this file as it's intended only for
-// tracking the SigLens version that gets packaged inside the Go binary.
+package utils
 
-package config
+// If there are duplicate keys, values from the second map will overwrite those
+// from the first map.
+func MergeMaps[K comparable, V any](map1, map2 map[K]V) map[K]V {
+	result := make(map[K]V)
 
-const SigLensVersion = "0.2.15d"
+	for k, v := range map1 {
+		result[k] = v
+	}
+
+	for k, v := range map2 {
+		result[k] = v
+	}
+
+	return result
+}
