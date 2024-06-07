@@ -120,18 +120,18 @@ func (e *Epoch) UnmarshalJSON(rawJson []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("failed to unmarshal Epoch from json: %s", rawJson)
+	return fmt.Errorf("UnmarshalJSON: failed to unmarshal Epoch from json: %s", rawJson)
 }
 
 func (e *Epoch) UnixSeconds(now time.Time) (uint64, error) {
 	if (e.IsInt && e.IsString) || (!e.IsInt && !e.IsString) {
-		return 0, fmt.Errorf("Epoch %+v is invalid", e)
+		return 0, fmt.Errorf("UnixSeconds: Epoch %+v is invalid", e)
 	}
 
 	if e.IsInt {
 		epoch := e.IntValue
 		if !EpochIsSeconds(epoch) {
-			return 0, fmt.Errorf("Epoch is not in seconds: %v", epoch)
+			return 0, fmt.Errorf("UnixSeconds: Epoch is not in seconds: %v", epoch)
 		}
 
 		return epoch, nil
@@ -145,22 +145,22 @@ func (e *Epoch) UnixSeconds(now time.Time) (uint64, error) {
 		return epoch, nil
 	}
 
-	return 0, fmt.Errorf("Epoch %+v is not a string or int", e)
+	return 0, fmt.Errorf("UnixSeconds: Epoch %+v is not a string or int", e)
 }
 
 func GetMetricsTimeRange(startEpoch Epoch, endEpoch Epoch, now time.Time) (*dtypeutils.MetricsTimeRange, error) {
 	start, err := startEpoch.UnixSeconds(now)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get start time: %v", err)
+		return nil, fmt.Errorf("GetMetricsTimeRange: failed to get start time from: %v, err: %v", now, err)
 	}
 
 	end, err := endEpoch.UnixSeconds(now)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get end time: %v", err)
+		return nil, fmt.Errorf("GetMetricsTimeRange: failed to get end time from: %v, err: %v", now, err)
 	}
 
 	if start >= end {
-		return nil, fmt.Errorf("start time %v is not before end time %v", start, end)
+		return nil, fmt.Errorf("GetMetricsTimeRange: start time %v is not before end time %v", start, end)
 	}
 
 	return &dtypeutils.MetricsTimeRange{

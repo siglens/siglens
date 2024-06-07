@@ -48,7 +48,7 @@ func init() {
 	var rLimit syscall.Rlimit
 	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
 	if err != nil {
-		log.Errorf("Failed to get max possible number of open file descriptors. Defaulting to %+v. Error: %v",
+		log.Errorf("init: Failed to get max possible number of open file descriptors. Defaulting to %+v. Error: %v",
 			DEFAULT_MAX_OPEN_FDs, err)
 		numFiles = DEFAULT_MAX_OPEN_FDs
 	} else {
@@ -60,7 +60,7 @@ func init() {
 
 	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &newLimit)
 	if err != nil {
-		log.Errorf("Failed to set max possible number of open file descriptors. Defaulting to %+v. Error: %v",
+		log.Errorf("init: Failed to set max possible number of open file descriptors. Defaulting to %+v. Error: %v",
 			rLimit.Cur, err)
 	} else {
 		numFiles = newLimit.Cur
@@ -71,7 +71,7 @@ func init() {
 }
 
 func LogMaxOpenFiles() {
-	log.Infof("Initialized FD limiter with %+v as max number of open files", GLOBAL_FD_LIMITER.MaxSize)
+	log.Infof("LogMaxOpenFiles: Initialized FD limiter with %+v as max number of open files", GLOBAL_FD_LIMITER.MaxSize)
 }
 
 func IsDirEmpty(name string) bool {
@@ -108,7 +108,7 @@ func GetAllFilesInDirectory(path string) []string {
 	files, err := os.ReadDir(path)
 
 	if err != nil {
-		log.Errorf("GetAllFilesInDirectory Error: %v", err)
+		log.Errorf("GetAllFilesInDirectory: err: %v", err)
 		return retVal
 	}
 

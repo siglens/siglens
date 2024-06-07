@@ -348,18 +348,22 @@
      let stDate = queryParams.get("startEpoch") || Cookies.get('startEpoch') || "now-15m";
      let endDate = queryParams.get("endEpoch") || Cookies.get('endEpoch') || "now";
      let selIndexName = queryParams.get('indexName');
-     let queryLanguage = queryParams.get("queryLanguage") ||$('#query-language-btn span').html();
+     let queryLanguage = queryParams.get("queryLanguage");
      queryLanguage = queryLanguage.replace('"', '');
-     $("#query-language-btn span").html(queryLanguage);
     $(".query-language-option").removeClass("active");
+    let selectedQueryLanguageId;
      if (queryLanguage == "SQL") {
        $("#option-1").addClass("active");
+       selectedQueryLanguageId = "1";
      } else if (queryLanguage == "Log QL") {
        $("#option-2").addClass("active");
+       selectedQueryLanguageId = "2";
      } else if (queryLanguage == "Splunk QL") {
        $("#option-3").addClass("active");
+       selectedQueryLanguageId = "3";
      }
      let filterTab = queryParams.get("filterTab");
+     handleTabAndTooltip(selectedQueryLanguageId, parseInt(filterTab))
      let filterValue = queryParams.get('searchText');
      if(filterTab == "0" || filterTab == null){
       if(filterValue != "*"){
@@ -375,7 +379,7 @@
             thirdBoxSet = new Set(filterValue.split(" BY ")[1].split(","));
           }
         }else{
-          firstBoxSet = new Set(filterValue.split(" "));
+          firstBoxSet = new Set(filterValue.match(/(?:[^\s"]+|"[^"]*")+/g));
         }
         if (firstBoxSet && firstBoxSet.size > 0) {
           let tags = document.getElementById("tags");
@@ -422,6 +426,7 @@
         }
       $("#search-filter-text, #aggregate-attribute-text, #aggregations").hide();
       $("#filter-input").val(filterValue).change();
+      isQueryBuilderSearch = true;
       }
      }else{
         $("#custom-code-tab").tabs("option", "active", 1);
@@ -430,6 +435,7 @@
         } else {
           $("#filter-input").val(filterValue).change();
         }
+        isQueryBuilderSearch = false;
      }
      let sFrom = 0;
 
@@ -456,6 +462,7 @@
          addQSParm("endEpoch", endDate);
          addQSParm("indexName", selIndexName);
          addQSParm("queryLanguage", queryLanguage);
+         addQSParm("filterTab", filterTab)
          window.history.pushState({ path: myUrl }, '', myUrl);
      }
  
@@ -482,7 +489,7 @@
     if (startTime == 1800) stDate = "now-1h";
     let selIndexName = selectedSearchIndex;
     let sFrom = 0;
-    let queryLanguage = $("#query-language-btn span").html();
+    let queryLanguage = $('#query-language-options .query-language-option.active').html();
 
     setIndexDisplayValue(selIndexName);
 
@@ -564,7 +571,7 @@
    let stDate = filterStartDate || "now-15m";
    let selIndexName = selectedSearchIndex;
    let sFrom = 0;
-   let queryLanguage = $("#query-language-btn span").html();
+   let queryLanguage = $('#query-language-options .query-language-option.active').html();
 
    setIndexDisplayValue(selIndexName);
 
@@ -593,6 +600,7 @@
    addQSParm("endEpoch", endDate);
    addQSParm("indexName", selIndexName);
    addQSParm("queryLanguage", queryLanguage);
+   addQSParm("filterTab", currentTab)
 
    window.history.pushState({ path: myUrl }, "", myUrl);
 
@@ -621,7 +629,7 @@
          'searchText': filterValue,
          'indexName': selectedSearchIndex,
          'filterTab': currentTab.toString(),
-         'queryLanguage': $("#query-language-btn span").html()
+         'queryLanguage': $('#query-language-options .query-language-option.active').html(),
      };
  }
   function processLiveTailQueryUpdate(
