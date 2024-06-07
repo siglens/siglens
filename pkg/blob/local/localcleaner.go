@@ -51,7 +51,7 @@ func removeFilesForMemoryLoop() {
 		if freeMemNeeded > 0 {
 			err := removeFilesForDiskSpace(freeMemNeeded)
 			if err != nil {
-				log.Errorf("removeFilesForMemoryLoop: Error making space: %v", err)
+				log.Errorf("removeFilesForMemoryLoop: Error making space: %v, freeMemNeeded=%v", err, freeMemNeeded)
 			}
 		}
 		time.Sleep(time.Second * 30)
@@ -61,7 +61,7 @@ func removeFilesForMemoryLoop() {
 func getMemToBeFreed() uint64 {
 	s, err := disk.Usage(config.GetDataPath())
 	if err != nil {
-		log.Errorf("getMemToBeFreed: Error getting disk usage for / err=%v", err)
+		log.Errorf("getMemToBeFreed: Error getting disk usage for the disk data path=%v, err=%v", config.GetDataPath(), err)
 		return 0
 	}
 	allowedVolume := (s.Total * config.GetDataDiskThresholdPercent()) / 100
