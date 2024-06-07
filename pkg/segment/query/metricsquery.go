@@ -150,8 +150,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 
 	mRes.MetricName = mQuery.MetricName
-
-	errors = mRes.AggregateResults(parallelism)
+	errors = mRes.AggregateResults(parallelism, mQuery.Aggregator)
 	if errors != nil {
 		for _, err := range errors {
 			mRes.AddError(err)

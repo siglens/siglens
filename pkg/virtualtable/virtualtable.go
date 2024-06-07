@@ -195,7 +195,7 @@ func AddVirtualTable(tname *string, orgid uint64) error {
 	err := addVirtualTableHelper(tname, orgid)
 	vTableRawFileAccessLock.Unlock()
 	if err != nil {
-		log.Errorf("AddVirtualTable: Error in adding virtual table to the file!. Err: %v", err)
+		log.Errorf("AddVirtualTable: Error in adding virtual table=%v to the file!. Err: %v", tname, err)
 		return err
 	}
 	return nil
@@ -287,23 +287,23 @@ func getVirtualTableNamesHelper(fileName string) (map[string]bool, error) {
 func AddAliases(indexName string, aliases []string, orgid uint64) error {
 
 	if indexName == "" {
-		log.Errorf("AddAliases: indexName was null")
-		return errors.New("indexName was null")
+		log.Errorf("AddAliases: indexName is null. len(indexName)=%v", len(indexName))
+		return errors.New("indexName is null")
 	}
 
 	alLen := len(aliases)
 	if alLen == 0 {
-		log.Errorf("AddAliases: len of aliases was 0")
-		return errors.New("len of aliases was 0")
+		log.Errorf("AddAliases: len of aliases is 0. len(aliases)=%v", alLen)
+		return errors.New("len of aliases is 0")
 	}
 
 	currentAliases, err := GetAliases(indexName, orgid)
 	if err != nil {
-		log.Errorf("AddAliases: GetAliases returned err=%v", err)
+		log.Errorf("AddAliases: For indexName=%v, GetAliases returned err=%v", indexName, err)
 		return err
 	}
 
-	log.Infof("AddAliases: idxname=%v, existing aliases=[%v], newaliases=[%v]", indexName, currentAliases, aliases)
+	log.Infof("AddAliases: indexname=%v, existing aliases=[%v], newaliases=[%v]", indexName, currentAliases, aliases)
 
 	for i := 0; i < alLen; i++ {
 		currentAliases[aliases[i]] = true
@@ -363,25 +363,25 @@ func GetAliases(indexName string, orgid uint64) (map[string]bool, error) {
 	sb1.WriteString(indexName)
 	sb1.WriteString(".json")
 
-	fullname := sb1.String()
+	filename := sb1.String()
 
 	retval := map[string]bool{}
-	rdata, err := os.ReadFile(fullname)
+	rdata, err := os.ReadFile(filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return retval, nil
 		}
-		log.Errorf("GetAliases: Failed to readfile fullname=%v, err=%v", fullname, err)
+		log.Errorf("GetAliases: Failed to readfile filename=%v, err=%v", filename, err)
 		return retval, err
 	}
 	if len(strings.TrimSpace(string(rdata))) == 0 {
-		log.Errorf("GetAliases: No data to parse in file %v", fullname)
-		return retval, fmt.Errorf("GetAliases: No data to parse in file %v", fullname)
+		log.Errorf("GetAliases: No data to parse in file %v. FileData Size=%v", filename, len(strings.TrimSpace(string(rdata))))
+		return retval, fmt.Errorf("GetAliases: No data to parse in file %v", filename)
 	}
 
 	err = json.Unmarshal(rdata, &retval)
 	if err != nil {
-		log.Errorf("GetAliases: Failed to unmarshall fullname=%v, err=%v", fullname, err)
+		log.Errorf("GetAliases: Failed to unmarshall data in filename=%v, err=%v", filename, err)
 		return retval, err
 	}
 
@@ -400,17 +400,17 @@ func writeAliasFile(indexName *string, allnames map[string]bool, orgid uint64) e
 	sb1.WriteString(*indexName)
 	sb1.WriteString(".json")
 
-	fullname := sb1.String()
+	filename := sb1.String()
 
 	jdata, err := json.Marshal(&allnames)
 	if err != nil {
-		log.Errorf("writeAliasFile: Failed to marshall fullname=%v, err=%v", fullname, err)
+		log.Errorf("writeAliasFile: Failed to marshall allnamesmap=%v, err=%v", allnames, err)
 		return err
 	}
 
-	err = os.WriteFile(fullname, jdata, 0644)
+	err = os.WriteFile(filename, jdata, 0644)
 	if err != nil {
-		log.Errorf("writeAliasFile: Failed to writefile fullname=%v, err=%v", fullname, err)
+		log.Errorf("writeAliasFile: Failed write to the file=%v, err=%v", filename, err)
 		return err
 	}
 
@@ -420,7 +420,7 @@ func writeAliasFile(indexName *string, allnames map[string]bool, orgid uint64) e
 func initializeAliasToIndexMap() error {
 	dirs, err := os.ReadDir(VTableAliasesDir)
 	if err != nil {
-		log.Errorf("initializeAliasToIndexMap: Failed to readdir vTableAliasesDir=%v, err=%v", VTableAliasesDir, err)
+		log.Errorf("initializeAliasToIndexMap: Failed to read directory, vTableAliasesDir=%v, err=%v", VTableAliasesDir, err)
 		return err
 	}
 
@@ -430,7 +430,7 @@ func initializeAliasToIndexMap() error {
 			orgIdNumber, _ := strconv.ParseUint(orgid, 10, 64)
 			files, err := os.ReadDir(VTableAliasesDir + dir.Name())
 			if err != nil {
-				log.Errorf("initializeAliasToIndexMap: Failed to readdir for org =%v, err=%v", orgid, err)
+				log.Errorf("initializeAliasToIndexMap: Failed to read directory=%v, for org =%v, err=%v", VTableAliasesDir+dir.Name(), orgid, err)
 				return err
 			}
 			for _, f := range files {
@@ -442,7 +442,7 @@ func initializeAliasToIndexMap() error {
 					indexName := strings.TrimSuffix(fname, ".json")
 					aliasNames, err := GetAliases(indexName, orgIdNumber)
 					if err != nil {
-						log.Errorf("initializeAliasToIndexMap: Failed to getAllAliasInIndexFile fname=%v, err=%v", fname, err)
+						log.Errorf("initializeAliasToIndexMap: For indexName=%v, Failed to getAllAliasInIndexFile fname=%v, err=%v", indexName, fname, err)
 						return err
 					}
 
@@ -459,12 +459,12 @@ func initializeAliasToIndexMap() error {
 func putAliasToIndexInMem(aliasName string, indexName string, orgid uint64) {
 
 	if aliasName == "" {
-		log.Errorf("putAliasToIndexInMem: aliasName was empty")
+		log.Errorf("putAliasToIndexInMem: aliasName is empty. len(aliasName)=%v", len(aliasName))
 		return
 	}
 
 	if indexName == "" {
-		log.Errorf("putAliasToIndexInMem: indexName was empty")
+		log.Errorf("putAliasToIndexInMem: indexName is empty. len(indexName)=%v", len(indexName))
 		return
 	}
 
@@ -479,12 +479,12 @@ func putAliasToIndexInMem(aliasName string, indexName string, orgid uint64) {
 }
 
 func FlushAliasMapToFile() error {
-	log.Warnf("Flushing alias map to file on exit")
+	log.Warnf("FlushAliasMapToFile: Flushing alias map to file on exit")
 	for orgid := range aliasToIndexNames {
 		for alias, indexNames := range aliasToIndexNames[orgid] {
 			err := writeAliasFile(&alias, indexNames, orgid)
 			if err != nil {
-				log.Errorf("Failed to save alias map! %+v", err)
+				log.Errorf("FlushAliasMapToFile: Failed to save alias map! alias=%v, Error= %+v", alias, err)
 			}
 		}
 	}
@@ -493,11 +493,9 @@ func FlushAliasMapToFile() error {
 
 func GetIndexNameFromAlias(aliasName string, orgid uint64) (string, error) {
 	if aliasName == "" {
-		log.Errorf("getIndexNameFromAlias: aliasName was empty")
-		return "", errors.New("getIndexNameFromAlias: aliasName was empty")
+		log.Errorf("getIndexNameFromAlias: aliasName is empty")
+		return "", errors.New("getIndexNameFromAlias: aliasName is empty")
 	}
-
-	//	log.Infof("GetIndexNameFromAlias: aliasName=%v, aliasToIndexNames=%v", aliasName, aliasToIndexNames)
 
 	if _, pres := aliasToIndexNames[orgid][aliasName]; pres {
 		for key := range aliasToIndexNames[orgid][aliasName] {
@@ -522,19 +520,19 @@ func IsAlias(nameToCheck string, orgid uint64) (bool, string) {
 func RemoveAliases(indexName string, aliases []string, orgid uint64) error {
 
 	if indexName == "" {
-		log.Errorf("RemoveAliases: indexName was null")
-		return errors.New("indexName was null")
+		log.Errorf("RemoveAliases: indexName is null.len(indexName)=%v", len(indexName))
+		return errors.New("indexName is null")
 	}
 
 	alLen := len(aliases)
 	if alLen == 0 {
-		log.Errorf("RemoveAliases: len of aliases was 0")
+		log.Errorf("RemoveAliases: len of aliases was 0. len(aliases)=%v", alLen)
 		return errors.New("len of aliases was 0")
 	}
 
 	currentAliases, err := GetAliases(indexName, orgid)
 	if err != nil {
-		log.Errorf("RemoveAliases: GetAliases returned err=%v", err)
+		log.Errorf("RemoveAliases: For indexName=%v, GetAliases returned err=%v", currentAliases, err)
 		return err
 	}
 
@@ -566,11 +564,11 @@ func removeAliasFile(indexName *string, orgid uint64) error {
 	sb1.WriteString(*indexName)
 	sb1.WriteString(".json")
 
-	fullname := sb1.String()
+	filename := sb1.String()
 
-	err := os.Remove(fullname)
+	err := os.Remove(filename)
 	if err != nil {
-		log.Errorf("removeAliasFile: Failed to remove fullname=%v, err=%v", fullname, err)
+		log.Errorf("removeAliasFile: Failed to remove filename=%v, err=%v", filename, err)
 		return err
 	}
 
@@ -616,7 +614,7 @@ func ExpandAndReturnIndexNames(indexNameIn string, orgid uint64, isElastic bool)
 				regexStr := "^" + strings.ReplaceAll(indexName, "*", `.*`) + "$"
 				indexRegExp, err := regexp.Compile(regexStr)
 				if err != nil {
-					log.Infof("ExpandAndReturnIndexNames: Error compiling match: %v", err)
+					log.Infof("ExpandAndReturnIndexNames: Error compiling regexStr=%v, Error=%v", regexStr, err)
 					return []string{}
 				}
 				// check all aliases for matches
@@ -710,7 +708,7 @@ func DeleteVirtualTable(tname *string, orgid uint64) error {
 	}
 	errW := os.WriteFile(vTableFileName, []byte(store), 0644)
 	if errW != nil {
-		log.Errorf("DeleteVirtualTable : Error writing to vtableFd: %v", errW)
+		log.Errorf("DeleteVirtualTable : Error writing to vtableFilename=%v, Error=%v", vTableFileName, errW)
 		return errW
 	}
 	return nil
