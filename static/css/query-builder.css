@@ -551,6 +551,7 @@ textarea.form-control{
     transition: height 0.3s; 
     padding-top: 4px;
     background-color: var(--top-bar-bg-color-regular);
+    color: var(--text-color) !important;
 }
 textarea.form-control:focus{
     box-shadow: none;
