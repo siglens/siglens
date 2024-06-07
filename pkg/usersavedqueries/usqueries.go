@@ -87,16 +87,16 @@ func releaseLock(orgid uint64) {
 func writeUsq(qname string, uq map[string]interface{}, orgid uint64) error {
 
 	if qname == "" {
-		log.Errorf("writeUsq: failed to save query data, with empty query name")
-		return errors.New("writeUsq: failed to save query data, with empty query name")
+		log.Errorf("writeUsq: failed to save query data, query name is empty")
+		return errors.New("writeUsq: failed to save query data, query name is empty")
 	}
 
 	acquireOrCreateLock(orgid)
 	err := readSavedQueries(orgid)
 	if err != nil {
 		releaseLock(orgid)
-		log.Errorf("writeUsq: failed to read sdata, err=%v", err)
-		return errors.New("Internal server error, failed to read sdata")
+		log.Errorf("writeUsq: failed to read save queries, err=%v", err)
+		return errors.New("internal server error, failed to read saved queries")
 	}
 	releaseLock(orgid)
 	localUSQInfoLock.Lock()
@@ -108,8 +108,8 @@ func writeUsq(qname string, uq map[string]interface{}, orgid uint64) error {
 
 	err = writeSavedQueries(orgid)
 	if err != nil {
-		log.Errorf("writeUsq: failed to stat file, err=%v", err)
-		return errors.New("Internal server error, cant write data")
+		log.Errorf("writeUsq: failed to write the saved queries into a file, err=%v", err)
+		return errors.New("internal server error, cant write data")
 	}
 	return nil
 }
@@ -270,7 +270,7 @@ func deleteUsq(qname string, orgid uint64) (bool, error) {
 	err = writeSavedQueries(orgid)
 	if err != nil {
 		log.Errorf("DeleteUsq: failed to write file, err=%v", err)
-		return false, errors.New("Internal server error, cant write data")
+		return false, errors.New("internal server error, cant write data")
 	}
 
 	return true, nil
@@ -286,8 +286,8 @@ func readSavedQueries(orgid uint64) error {
 	fileInfo, err := os.Stat(usqFilename)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			log.Errorf("readSavedQueries: failed to stat file, err=%v", err)
-			return errors.New("Internal server error, can't read mtime")
+			log.Errorf("readSavedQueries: failed to stat file=%v, err=%v", usqFilename, err)
+			return errors.New("internal server error, can't read mtime")
 		}
 		return nil // if doesnt exist then cant really do anything
 	}
@@ -341,13 +341,13 @@ func writeSavedQueries(orgid uint64) error {
 	localUSQInfoLock.RUnlock()
 	jdata, err := json.Marshal(orgMap)
 	if err != nil {
-		log.Errorf("writeSavedQueries: Failed to marshall err=%v", err)
+		log.Errorf("writeSavedQueries: Failed to marshall orgMap=%v, err=%v", orgMap, err)
 		return err
 	}
 
 	err = os.WriteFile(usqFilename, jdata, 0644)
 	if err != nil {
-		log.Errorf("writeSavedQueries: Failed to writefile fullname=%v, err=%v", usqFilename, err)
+		log.Errorf("writeSavedQueries: Failed to writefile filename=%v, err=%v", usqFilename, err)
 		return err
 	}
 	err = blob.UploadQueryNodeDir()
@@ -416,7 +416,7 @@ func GetUserSavedQueriesAll(ctx *fasthttp.RequestCtx) {
 func SaveUserQueries(ctx *fasthttp.RequestCtx) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf("SaveUserQueries: received empty user query")
+		log.Errorf("SaveUserQueries: received empty user query. Postbody is nil")
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -432,7 +432,7 @@ func SaveUserQueries(ctx *fasthttp.RequestCtx) {
 		if err != nil {
 			log.Errorf("SaveUserQueries: could not write error message err=%v", err)
 		}
-		log.Errorf("SaveUserQueries: failed to decode user query body! Err=%+v", err)
+		log.Errorf("SaveUserQueries: failed to decode user query body=%v, Err=%+v", string(rawJSON), err)
 	}
 
 	var qname string
@@ -474,7 +474,7 @@ func SaveUserQueries(ctx *fasthttp.RequestCtx) {
 	}
 	err = writeUsq(qname, usQueryMap, 0)
 	if err != nil {
-		log.Errorf("SaveUserQueries: could not write query to file err=%v", err)
+		log.Errorf("SaveUserQueries: could not write query with query name=%v, to file err=%v", qname, err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
