@@ -375,7 +375,7 @@
             thirdBoxSet = new Set(filterValue.split(" BY ")[1].split(","));
           }
         }else{
-          firstBoxSet = new Set(filterValue.split(" "));
+          firstBoxSet = new Set(filterValue.match(/(?:[^\s"]+|"[^"]*")+/g));
         }
         if (firstBoxSet && firstBoxSet.size > 0) {
           let tags = document.getElementById("tags");
