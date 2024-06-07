@@ -455,6 +455,7 @@
          addQSParm("endEpoch", endDate);
          addQSParm("indexName", selIndexName);
          addQSParm("queryLanguage", queryLanguage);
+         addQSParm("filterTab", filterTab)
          window.history.pushState({ path: myUrl }, '', myUrl);
      }
  
@@ -592,6 +593,7 @@
    addQSParm("endEpoch", endDate);
    addQSParm("indexName", selIndexName);
    addQSParm("queryLanguage", queryLanguage);
+   addQSParm("filterTab", currentTab)
 
    window.history.pushState({ path: myUrl }, "", myUrl);
 
