@@ -392,7 +392,7 @@ function showPanelInfo(infoMsg) {
 
 function getQueryParamsData(scrollingTrigger) {
     let sFrom = 0;
-    let queryLanguage = $('.queryInput-container #query-language-btn span').html();
+    let queryLanguage = $('#query-language-options .query-language-option.active').html();
 
     if (scrollingTrigger) {
         sFrom = scrollFrom;

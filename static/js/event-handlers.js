@@ -275,7 +275,6 @@ function setQueryLangHandler(e) {
         $('#ui-id-1').removeClass('disabled-tab')
 
     }
-    $('#query-language-btn span').html($(this).html());
     displayQueryLangToolTip(selectedQueryLanguageId);
     $(this).addClass('active');
 }

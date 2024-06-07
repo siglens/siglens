@@ -348,9 +348,8 @@
      let stDate = queryParams.get("startEpoch") || Cookies.get('startEpoch') || "now-15m";
      let endDate = queryParams.get("endEpoch") || Cookies.get('endEpoch') || "now";
      let selIndexName = queryParams.get('indexName');
-     let queryLanguage = queryParams.get("queryLanguage") ||$('#query-language-btn span').html();
+     let queryLanguage = queryParams.get("queryLanguage");
      queryLanguage = queryLanguage.replace('"', '');
-     $("#query-language-btn span").html(queryLanguage);
     $(".query-language-option").removeClass("active");
      if (queryLanguage == "SQL") {
        $("#option-1").addClass("active");
@@ -482,7 +481,7 @@
     if (startTime == 1800) stDate = "now-1h";
     let selIndexName = selectedSearchIndex;
     let sFrom = 0;
-    let queryLanguage = $("#query-language-btn span").html();
+    let queryLanguage = $('#query-language-options .query-language-option.active').html();
 
     setIndexDisplayValue(selIndexName);
 
@@ -564,7 +563,7 @@
    let stDate = filterStartDate || "now-15m";
    let selIndexName = selectedSearchIndex;
    let sFrom = 0;
-   let queryLanguage = $("#query-language-btn span").html();
+   let queryLanguage = $('#query-language-options .query-language-option.active').html();
 
    setIndexDisplayValue(selIndexName);
 
@@ -621,7 +620,7 @@
          'searchText': filterValue,
          'indexName': selectedSearchIndex,
          'filterTab': currentTab.toString(),
-         'queryLanguage': $("#query-language-btn span").html()
+         'queryLanguage': $('#query-language-options .query-language-option.active').html(),
      };
  }
   function processLiveTailQueryUpdate(
