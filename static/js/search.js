@@ -426,6 +426,7 @@
         }
       $("#search-filter-text, #aggregate-attribute-text, #aggregations").hide();
       $("#filter-input").val(filterValue).change();
+      isQueryBuilderSearch = true;
       }
      }else{
         $("#custom-code-tab").tabs("option", "active", 1);
@@ -434,6 +435,7 @@
         } else {
           $("#filter-input").val(filterValue).change();
         }
+        isQueryBuilderSearch = false;
      }
      let sFrom = 0;
 
