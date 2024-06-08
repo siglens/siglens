@@ -334,6 +334,7 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
     return aggNode, nil
 }
 
+// Todo: implement the processing logic
 // Optional arguments for stats block
 StatsOptions <- option:(StatsOption)*
 {
@@ -2037,7 +2038,8 @@ Aggregator <- aggFunc:AggFunction asField:AsField? {
 // 1. min, max, sum, avg, and range can only evaluate boolComparisonExpr, as they need to compute the field value inside the expression. There should be only one field.
 // 2. count can evaluate boolExpr because it does not care about the field value inside the expression. It only cares about whether the current row should be counted or not.
 // 3. distinctCount and values can evaluate valueExpr because they just need to find out the distinct values of the result of the expression. As for the type of the expression result, it is not important.
-AggFunction <- agg:(AggCount / AggDistinctCount / AggAvg / AggMin / AggMax / AggRange / AggSum / AggValues) {
+AggFunction <- agg:(AggCount / AggDistinctCount / AggAvg / AggMin / AggMax / AggRange / AggSum / AggValues / AggEstdc / AggEstdcError / AggExactPerc / AggMedian / AggMode / AggPerc /
+AggStdev / AggStdevp / AggSumsq / AggUpperPerc / AggVar / AggVarp / AggFirst / AggLast / AggList / AggEarliest / AggEarliestTime / AggLatest / AggLatestTime / AggRate) {
     return agg, nil
 }
 
@@ -2220,6 +2222,209 @@ AggSum <- "sum" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_P
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Sum,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggEstdc <- "estdc" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Estdc,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggEstdcError <- "estdc_error" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.EstdcError,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggExactPerc <- "exactperc" numStr:(FloatAsString / IntegerAsString) L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.ExactPerc,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggPerc <- "perc" numStr:(FloatAsString / IntegerAsString) L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Perc,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggUpperPerc <- "upperperc" numStr:(FloatAsString / IntegerAsString) L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.UpperPerc,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggMedian <- "median" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Median,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggMode <- "mode" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Mode,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggStdev <- "stdev" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Stdev,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggStdevp <- "stdevp" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Stdevp,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggSumsq <- "sumsq" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Sumsq,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggVar <- "var" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Var,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggVarp <- "varp" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Varp,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggFirst <- "first" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.First,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggLast <- "last" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Last,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggList <- "list" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.List,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggEarliest <- "earliest" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Earliest,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggEarliestTime <- "earliest_time" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.EarliestTime,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggLatest <- "latest" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Latest,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggLatestTime <- "latest_time" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.LatestTime,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggRate <- "rate" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.StatsRate,
     }
 
     return agg, nil

@@ -291,6 +291,26 @@ const (
 	Cardinality
 	Quantile
 	Values
+	List
+	Estdc
+	EstdcError
+	ExactPerc
+	Median
+	Mode
+	Perc
+	UpperPerc
+	Stdev
+	Stdevp
+	Sumsq
+	Var
+	Varp
+	First
+	Last
+	Earliest
+	EarliestTime
+	Latest
+	LatestTime
+	StatsRate
 )
 
 type MathFunctions int

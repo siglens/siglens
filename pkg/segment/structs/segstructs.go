@@ -201,6 +201,7 @@ type MeasureAggregator struct {
 	StrEnc             string                   `json:"strEnc,omitempty"`
 	ValueColRequest    *ValueExpr               `json:"valueColRequest,omitempty"`
 	OverrodeMeasureAgg *MeasureAggregator       `json:"overrideFunc,omitempty"`
+	Param              string
 }
 
 type MathEvaluator struct {
