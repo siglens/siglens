@@ -56,12 +56,12 @@ func InitNewRollupReader(segKey string, tsKey string, qid uint64) (*RollupReader
 	fName := fmt.Sprintf("%v/rups/%v.crup", path.Dir(segKey), xxhash.Sum64String(tsKey+"m"))
 	err := blob.DownloadSegmentBlob(fName, true)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader failed to download min rollup file. %+v, err=%v", qid, fName, err)
+		log.Errorf("qid=%d, InitNewRollupReader: failed to download min rollup file: %+v, err: %v", qid, fName, err)
 		return nil, err
 	}
 	minRupFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader: failed to open min rollup file %s. Error: %+v", qid, fName, err)
+		log.Errorf("qid=%d, InitNewRollupReader: failed to open min rollup file: %s, err: %+v", qid, fName, err)
 		return &RollupReader{}, err
 	}
 	allInUseFiles = append(allInUseFiles, fName)
@@ -69,12 +69,12 @@ func InitNewRollupReader(segKey string, tsKey string, qid uint64) (*RollupReader
 	fName = fmt.Sprintf("%v/rups/%v.crup", path.Dir(segKey), xxhash.Sum64String(tsKey+"h"))
 	err = blob.DownloadSegmentBlob(fName, true)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader failed to download hour rollup file. %+v, err=%v", qid, fName, err)
+		log.Errorf("qid=%d, InitNewRollupReader: failed to download hour rollup file: %+v, err: %v", qid, fName, err)
 		return nil, err
 	}
 	hourRupFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader: failed to open hour rollup file %s. Error: %+v", qid, fName, err)
+		log.Errorf("qid=%d, InitNewRollupReader: failed to open hour rollup file: %s, err: %+v", qid, fName, err)
 		return &RollupReader{}, err
 	}
 	allInUseFiles = append(allInUseFiles, fName)
@@ -82,12 +82,12 @@ func InitNewRollupReader(segKey string, tsKey string, qid uint64) (*RollupReader
 	fName = fmt.Sprintf("%v/rups/%v.crup", path.Dir(segKey), xxhash.Sum64String(tsKey+"d"))
 	err = blob.DownloadSegmentBlob(fName, true)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader failed to download day rollup file. %+v, err=%v", qid, fName, err)
+		log.Errorf("qid=%d, InitNewRollupReader: failed to download day rollup file: %+v, err: %v", qid, fName, err)
 		return nil, err
 	}
 	dayRupFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader: failed to open day rollup file %s. Error: %+v", qid, fName, err)
+		log.Errorf("qid=%d, InitNewRollupReader: failed to open day rollup file: %s, err: %+v", qid, fName, err)
 		return &RollupReader{}, err
 	}
 	allInUseFiles = append(allInUseFiles, fName)
@@ -120,7 +120,7 @@ func (rur *RollupReader) Close() {
 	}
 	err := blob.SetSegSetFilesAsNotInUse(rur.allInUseFiles)
 	if err != nil {
-		log.Errorf("Failed to release needed segment files from local storage %+v!  Err: %+v", rur.allInUseFiles, err)
+		log.Errorf("RollupReader.Close: Failed to release needed segment files from local storage: %+v!  err: %+v", rur.allInUseFiles, err)
 	}
 }
 
@@ -130,7 +130,7 @@ func (rur *RollupReader) GetMinRollups() (map[uint16]map[uint64]*writer.RolledRe
 	}
 	err := readRollupFile(rur.minRupFd, rur.allBlocksTomRollup, rur.qid)
 	if err != nil {
-		log.Errorf("qid=%d, GetMinRollups: failed to read min rollups: err=%v", rur.qid, err)
+		log.Errorf("qid=%d, RollupReader.GetMinRollups: failed to read min rollups, err: %v", rur.qid, err)
 		return nil, err
 	}
 	rur.allBlocksTomLoaded = true
@@ -143,7 +143,7 @@ func (rur *RollupReader) GetHourRollups() (map[uint16]map[uint64]*writer.RolledR
 	}
 	err := readRollupFile(rur.hourRupFd, rur.allBlocksTohRollup, rur.qid)
 	if err != nil {
-		log.Errorf("qid=%d, GetHourRollups: failed to read hour rollups: err=%v", rur.qid, err)
+		log.Errorf("qid=%d, RollupReader.GetHourRollups: failed to read hour rollups, err: %v", rur.qid, err)
 		return nil, err
 	}
 	rur.allBlocksTohLoaded = true
@@ -156,7 +156,7 @@ func (rur *RollupReader) GetDayRollups() (map[uint16]map[uint64]*writer.RolledRe
 	}
 	err := readRollupFile(rur.dayRupFd, rur.allBlocksTodRollup, rur.qid)
 	if err != nil {
-		log.Errorf("qid=%d, GetDayRollups: failed to read min rollups: err=%v", rur.qid, err)
+		log.Errorf("qid=%d, RollupReader.GetDayRollups: failed to read day rollups, err: %v", rur.qid, err)
 		return nil, err
 	}
 	rur.allBlocksTodLoaded = true
@@ -183,7 +183,7 @@ func readRollupFile(fd *os.File,
 		_, err := fd.ReadAt(bbBlkNum, offset)
 		if err != nil {
 			if err != io.EOF {
-				log.Errorf("qid=%d, readRollupFile: failed to read blkNum len err=[%+v]", qid, err)
+				log.Errorf("qid=%d, readRollupFile: failed to read blkNum at offset: %v, err: %+v", qid, offset, err)
 				return err
 			}
 			break
@@ -197,7 +197,7 @@ func readRollupFile(fd *os.File,
 		_, err = fd.ReadAt(bbNumBucks, offset)
 		if err != nil {
 			if err != io.EOF {
-				log.Errorf("qid=%d, readRollupFile: failed to read blkNum len err=[%+v]", qid, err)
+				log.Errorf("qid=%d, readRollupFile: failed to read num of buckets at offset: %v, err: %+v", qid, offset, err)
 				return err
 			}
 			break
@@ -209,8 +209,8 @@ func readRollupFile(fd *os.File,
 			// read bucketKey timestamp
 			_, err = fd.ReadAt(bbBKey, offset)
 			if err != nil {
-				log.Errorf("qid=%d, readRollupFile: failed to read bKey for blkNum=%v, i=%v, err=[%+v]",
-					qid, blkNum, i, err)
+				log.Errorf("qid=%d, readRollupFile: failed to read bKey for blkNum: %v, i: %v, offset: %v, err: %+v",
+					qid, blkNum, i, offset, err)
 				return err
 			}
 			offset += 8
@@ -222,8 +222,8 @@ func readRollupFile(fd *os.File,
 			// read matched result bitset size
 			_, err = fd.ReadAt(bbMrSize, offset)
 			if err != nil {
-				log.Errorf("qid=%d, readRollupFile: failed to read mrsize for blkNum=%v, i=%v, err=[%+v]",
-					qid, blkNum, i, err)
+				log.Errorf("qid=%d, readRollupFile: failed to read mrsize for blkNum: %v, i: %v, offset: %v, err: %+v",
+					qid, blkNum, i, offset, err)
 				return err
 			}
 			offset += 2
@@ -235,7 +235,7 @@ func readRollupFile(fd *os.File,
 			_, err = fd.ReadAt(bsBlk[:mrSize], offset)
 			if err != nil {
 				if err != io.EOF {
-					log.Errorf("qid=%d, readRollupFile: failed to read bitset err=[%+v]", qid, err)
+					log.Errorf("qid=%d, readRollupFile: failed to read bitset at offset: %v, err: %+v", qid, offset, err)
 					return err
 				}
 				break
@@ -245,7 +245,7 @@ func readRollupFile(fd *os.File,
 			bs := bitset.New(0)
 			err = bs.UnmarshalBinary(bsBlk[:mrSize])
 			if err != nil {
-				log.Errorf("qid=%d, readRollupFile: failed to unmarshall bitset err=[%+v]", qid, err)
+				log.Errorf("qid=%d, readRollupFile: failed to unmarshall bitset, err: %+v", qid, err)
 				return err
 			}
 

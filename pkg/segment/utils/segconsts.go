@@ -290,6 +290,9 @@ const (
 	Sum
 	Cardinality
 	Quantile
+	Stddev
+	Stdvar
+	Group
 	Values
 	List
 	Estdc
