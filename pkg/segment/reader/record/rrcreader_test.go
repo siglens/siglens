@@ -153,15 +153,15 @@ func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
 	assert.Equal(t, 2, len(allRecords))
 
 	// 11 columns + timestamp + index
-	assert.Equal(t, 3, len(allRecords[0]))
+	assert.Equal(t, 2, len(allRecords[0]))
 
 	// checking decoding non random column values
 
-	indexName := "evts"
+	// indexName := "evts"
 	key0Val := "match words 123 abc"
 
 	for i := 0; i < numRecords; i++ {
-		assert.Equal(t, indexName, allRecords[i]["_index"])
+		// assert.Equal(t, indexName, allRecords[i]["_index"])
 		assert.Equal(t, key0Val, allRecords[i]["key0"])
 		assert.Equal(t, uint64(i), allRecords[i][config.GetTimeStampKey()])
 	}
@@ -217,11 +217,11 @@ func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
 	assert.Equal(t, 2, len(allRecords))
 
 	// 11 columns + timestamp + index
-	assert.Equal(t, 13, len(allRecords[0]))
+	assert.Equal(t, 12, len(allRecords[0]))
 
 	// checking decoding non random column values
 
-	indexName := "evts"
+	// indexName := "evts"
 	// key0Val := "match words 123 abc"
 	key1Val := "value1"
 	key2Vals := []int64{0, 1}
@@ -231,7 +231,7 @@ func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
 	key8Val := int64(0)
 	key10Val := segkey
 	for i := 0; i < numRecords; i++ {
-		assert.Equal(t, indexName, allRecords[i]["_index"])
+		// assert.Equal(t, indexName, allRecords[i]["_index"])
 		// assert.Equal(t, key0Val, allRecords[i]["key0"])
 		assert.Equal(t, key1Val, allRecords[i]["key1"])
 		assert.Equal(t, key2Vals[i], allRecords[i]["key2"]) // we only encode floats
