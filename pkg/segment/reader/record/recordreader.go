@@ -58,6 +58,10 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 			return nil, allCols, errors.New("failed to get column names for segkey in rotated and unrotated files")
 		}
 	}
+
+	//keep track of total column count before applying filter.
+	totalColumnCount := len(allCols)
+
 	allCols = applyColNameTransform(allCols, aggs, colsIndexMap, qid)
 	numOpenFds := int64(len(allCols))
 	err = fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(numOpenFds, 10, fmt.Sprintf("GetRecordsFromSegment.qid=%d", qid))
@@ -166,7 +170,12 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 
 		for r := range resultAllRawRecs {
 			resultAllRawRecs[r][config.GetTimeStampKey()] = recordIdxTSMap[r]
-			resultAllRawRecs[r]["_index"] = vTable
+
+			// if the total column count is less than or equal to the number of columns we have read, it indicates there is no field operations.
+			if totalColumnCount <= len(allMatchedColumns) {
+				resultAllRawRecs[r]["_index"] = vTable
+				addedExtraFields = true
+			}
 
 			resId := fmt.Sprintf("%s_%d_%d", segKey, blockIdx, r)
 			if esQuery {
@@ -175,7 +184,7 @@ func GetRecordsFromSegment(segKey string, vTable string, blkRecIndexes map[uint1
 				}
 			}
 			result[resId] = resultAllRawRecs[r]
-			addedExtraFields = true
+
 		}
 	}
 	if addedExtraFields {
