@@ -1470,39 +1470,17 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
 / likeExpr: LikeExpr {
     return likeExpr, nil
 }
-LikeExpr <- left:ValueExpr SPACE "LIKE" SPACE right:ValueExpr {
-    expr := &structs.BoolExpr {
-        IsTerminal: true,
-        LeftValue: left.(*structs.ValueExpr),
-        RightValue: right.(*structs.ValueExpr),
-        ValueOp: "like",
+
+LikeExpr <- opName:("like" / "Like" / "match" / "cidrmatch") L_PAREN leftValue:ValueExpr COMMA rightValue:ValueExpr R_PAREN {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
     }
-    return expr, nil
-}
-/ "like" L_PAREN stringr:ValueExpr COMMA pattern:ValueExpr R_PAREN {
-     expr := &structs.BoolExpr {
-         IsTerminal: true,
-         LeftValue: stringr.(*structs.ValueExpr),
-         RightValue: pattern.(*structs.ValueExpr),
-         ValueOp: "like",
-     }
-     return expr, nil
- }
-/ "match" L_PAREN stringVal:ValueExpr COMMA pattern:ValueExpr R_PAREN {
-     expr := &structs.BoolExpr {
-         IsTerminal: true,
-         LeftValue: stringVal.(*structs.ValueExpr),
-         RightValue: pattern.(*structs.ValueExpr),
-         ValueOp: "match",
-     }
-     return expr, nil
- }
-/ "cidrmatch" L_PAREN cidr:ValueExpr COMMA ip:ValueExpr R_PAREN {
     expr := &structs.BoolExpr {
         IsTerminal: true,
-        LeftValue: cidr.(*structs.ValueExpr),
-        RightValue: ip.(*structs.ValueExpr),
-        ValueOp: "cidrmatch",
+        LeftValue: leftValue.(*structs.ValueExpr),
+        RightValue: rightValue.(*structs.ValueExpr),
+        ValueOp: opNameStr,
     }
     return expr, nil
 }
