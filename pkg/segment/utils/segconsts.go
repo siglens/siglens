@@ -543,6 +543,9 @@ type NumTypeEnclosure struct {
 }
 
 func (nte *NumTypeEnclosure) ToCValueEnclosure() (*CValueEnclosure, error) {
+	if nte == nil {
+		return nil, fmt.Errorf("ToCValueEnclosure: numTypeEnclosure is nil")
+	}
 	switch nte.Ntype {
 	case SS_DT_FLOAT:
 		return &CValueEnclosure{
