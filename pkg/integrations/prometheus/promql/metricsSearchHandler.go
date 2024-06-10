@@ -179,7 +179,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
-	metricQueryRequest, pqlQuerytype, _, err := ConvertPqlToMetricsQuery(searchText, endTime-1, endTime, myid)
+	metricQueryRequest, pqlQuerytype, _, err := ConvertPromQLToMetricsQuery(searchText, endTime-1, endTime, myid)
 	if err != nil {
 		ctx.SetContentType(ContentJson)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -251,7 +251,7 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 
 	log.Infof("qid=%v, ProcessPromqlMetricsRangeSearchRequest:  searchString=[%v] startEpochs=[%v] endEpochs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	metricQueryRequest, pqlQuerytype, _, err := ConvertPqlToMetricsQuery(searchText, startTime, endTime, myid)
+	metricQueryRequest, pqlQuerytype, _, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
 		ctx.SetContentType(ContentJson)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -392,7 +392,7 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	searchText := fmt.Sprintf(`(fake_metricname{%s="*"})`, labelName)
-	metricQueryRequest, _, _, err := ConvertPqlToMetricsQuery(searchText, startTime, endTime, myid)
+	metricQueryRequest, _, _, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
 		ctx.SetContentType(ContentJson)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -458,7 +458,7 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	for _, match := range matches {
 
-		metricQueryRequest, _, _, err := ConvertPqlToMetricsQuery(match, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
+		metricQueryRequest, _, _, err := ConvertPromQLToMetricsQuery(match, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
 		if err != nil {
 			ctx.SetContentType(ContentJson)
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
