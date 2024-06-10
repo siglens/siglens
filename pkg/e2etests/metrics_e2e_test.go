@@ -54,7 +54,7 @@ import (
 	3. init the testing config by calling initTestConfig()
 	4. Get the test metrics data by calling GetTestMetricsData(startTimestamp). This function returns the test metrics timeseries data, metric names, tag keys and tag key values.
 	5. Ingest the test metrics data by calling ingestTestMetricsData(allTimeSeries). This function ingests the test metrics data into the in-memory buffer.
-	6. Rotate the metrics data by calling rotateMetricsData(true). This function forces the rotation of the metrics data.
+	6. Rotate the metrics data by calling rotateMetricsDataAndClearSegStore(true). This function forces the rotation of the metrics data. And clear the unrotated segments in memory.
 	7. Initialize the metrics data and query node by calling initializeMetricsMetaData(). This function populates the metrics data.
 	8. Define the time range for the query by creating a MetricsTimeRange object.
 	9. Define the expected results for the query.
@@ -322,7 +322,7 @@ func ingestTestMetricsData(allTimeSeries []timeSeries) error {
 	return nil
 }
 
-func rotateMetricsData(forceRotate bool) ([]*metrics.MetricsSegment, error) {
+func rotateMetricsDataAndClearSegStore(forceRotate bool) ([]*metrics.MetricsSegment, error) {
 	retVal := make([]*metrics.MetricsSegment, len(metrics.GetAllMetricsSegments()))
 
 	for idx, mSeg := range metrics.GetAllMetricsSegments() {
@@ -360,7 +360,7 @@ func Test_WriteMetrics(t *testing.T) {
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 }
@@ -401,7 +401,7 @@ func Test_RotatedMetricNames(t *testing.T) {
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 
@@ -432,7 +432,7 @@ func Test_GetAllTagsForAMetric(t *testing.T) {
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 
@@ -477,7 +477,7 @@ func Test_SimpleMetricQuery_v1(t *testing.T) {
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 
@@ -532,7 +532,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Star(t *testing.T) {
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 
@@ -600,7 +600,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_OR(t *testing.T) {
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 
@@ -670,7 +670,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_GroupByMetric(t *testing.T) {
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 
@@ -741,7 +741,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter(t *testing.T) {
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 
@@ -814,7 +814,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v1(t *
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 
@@ -883,7 +883,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v2(t *
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 
@@ -956,7 +956,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v3(t *
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 
@@ -1023,7 +1023,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 
@@ -1113,7 +1113,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_G
 	err = ingestTestMetricsData(allTimeSeries)
 	assert.Nil(t, err)
 
-	mSegs, err := rotateMetricsData(true)
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
 	assert.Nil(t, err)
 	assert.Greater(t, len(mSegs), 0)
 
