@@ -1233,6 +1233,7 @@ ConditionExpr <- "if" L_PAREN condition:BoolExpr COMMA trueValue:ValueExpr COMMA
     return node, nil
 }
 
+//Todo: implement the processing logic for: mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
 TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
@@ -1246,43 +1247,41 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
 
     return node, nil
 }
+/ (opName:("max" / "min" / "mvappend" / "mvfind" / "mvsort") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    if rest == nil {
+        return firstVal, nil
+    }
+    restSlice := rest.([]any)
+    values := make([]*structs.StringExpr, 1 + len(restSlice))
+    values[0] = firstVal.(*structs.StringExpr)
 
-/ (opName:("max" / "min") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN )
-      {
-        opNameStr, err := transferUint8ToString(opName)
-        if err != nil {
-            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-        }
-        if rest == nil {
-            return firstVal, nil
-        }
-        restSlice := rest.([]any)
-        values := make([]*structs.StringExpr, 1 + len(restSlice))
-        values[0] = firstVal.(*structs.StringExpr)
-
-        for i := range restSlice {
-            stringAtom := restSlice[i].([]any)
-            values[i + 1] = stringAtom[1].(*structs.StringExpr)
-        }
-        node := &structs.TextExpr {
-            Op: opNameStr,
-            MaxMinValues: values,
-        }
-        return node, nil
-      }
-/ (opName:("urldecode") L_PAREN url:StringExpr R_PAREN ){
-        opNameStr, err := transferUint8ToString(opName)
+    for i := range restSlice {
+        stringAtom := restSlice[i].([]any)
+        values[i + 1] = stringAtom[1].(*structs.StringExpr)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        ValueList: values,
+    }
+    return node, nil
+}
+/ (opName:("urldecode" / "mvcount" / "mvdedup") L_PAREN url:StringExpr R_PAREN ){
+    opNameStr, err := transferUint8ToString(opName)
         if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
-        node := &structs.TextExpr {
-            Op: opNameStr,
-            Value: url.(*structs.StringExpr),
-            StrToRemove: "",
-        }
-        return node, nil
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Value: url.(*structs.StringExpr),
+        StrToRemove: "",
     }
-/ (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
+    return node, nil
+}
+/ (opName:("split" / "mvjoin") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -1307,7 +1306,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     if !ok {
         return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert startIndex as *structs.NumericExpr")
     }
-  var lengthConverted *structs.NumericExpr
+    var lengthConverted *structs.NumericExpr
     if lengthParam != nil {
         lengthSlice, ok := lengthParam.([]interface{})
         if ok && len(lengthSlice) > 1 {
@@ -1360,6 +1359,163 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
         Op: opNameStr,
         Value: stringExpr,
         StrToRemove: removeQuotes(strToRemove),
+    }
+
+    return node, nil
+}
+/ (opName:("mvfilter") L_PAREN condition:BoolExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to recognize operator: %v, err= %v", opName, err)
+    }
+
+    boolExpr, ok := condition.(*structs.BoolExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert expr as *structs.BoolExpr for function: %v, err= %v", opNameStr, err)
+    }
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Condition: boolExpr,
+    }
+
+    return node, nil
+}
+/ (opName:("mvindex") L_PAREN stringExpr:StringExpr COMMA startIndex:NumericExpr endIndex:(NumericParamExpr)? R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr for function: %v, err= %v", opNameStr, err)
+    }
+    startIndexConverted, ok := startIndex.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert startIndex as *structs.NumericExpr for function: %v", opNameStr)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Value: stringExprConverted,
+        StartIndex: startIndexConverted,
+    }
+    if endIndex != nil {
+        endIndexConverted, ok := endIndex.(*structs.NumericExpr)
+        if !ok {
+            return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert endtIndex as *structs.NumericExpr for function: %v", opNameStr)
+        }
+        node.EndIndex = endIndexConverted
+    }
+
+    return node, nil
+}
+/ (opName:("mvmap") L_PAREN stringExpr:StringExpr COMMA expr:ValueExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr for function: %v", opNameStr)
+    }
+    valueExprConverted, ok := expr.(*structs.ValueExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert expr as *structs.ValueExpr for function: %v", opNameStr)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Val: valueExprConverted,
+        Value: stringExprConverted,
+    }
+
+    return node, nil
+}
+/ (opName:("mvrange") L_PAREN startIndex:NumericExpr COMMA endIndex:NumericExpr COMMA stringExpr:(StringExpr)? R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    startIndexConverted, ok := startIndex.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert startIndex as *structs.NumericExpr for function: %v", opNameStr)
+    }
+    endIndexConverted, ok := endIndex.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert endIndex as *structs.NumericExpr for function: %v", opNameStr)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        StartIndex: startIndexConverted,
+        EndIndex: endIndexConverted,
+    }
+    if stringExpr != nil {
+        stringExprConverted, ok := stringExpr.(*structs.StringExpr)
+        if !ok {
+            return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr for function: %v", opNameStr)
+        }
+        node.Value = stringExprConverted
+    }
+
+    return node, nil
+}
+/ (opName:("mvzip") L_PAREN mvLeft:StringExpr COMMA mvRight:StringExpr rest:(COMMA StringExpr)? R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    values := make([]*structs.StringExpr, 2)
+    mvLeftConverted, ok := mvLeft.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert mvLeft as *structs.StringExpr")
+    }
+    mvRightConverted, ok := mvRight.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert mvRight as *structs.StringExpr")
+    }
+    values[0] = mvLeftConverted
+    values[1] = mvRightConverted
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        ValueList: values,
+    }
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        delim, ok := restSlice[1].(*structs.StringExpr)
+        if !ok {
+            return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert delim as *structs.StringExpr")
+        }
+        node.Delimiter = delim
+    }
+
+    return node, nil
+}
+/ (opName:("mv_to_json_array") L_PAREN stringExpr:StringExpr rest:(COMMA ("true" / "false") "()")? R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr for function: %v", opNameStr)
+    }
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Value: stringExprConverted,
+        InferTypes: false, // default value
+    }
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        inferTypes, err := transferUint8ToString(restSlice[1])
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        }
+        if inferTypes == "true" {
+            node.InferTypes = true
+        }
     }
 
     return node, nil
@@ -1757,7 +1913,7 @@ NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv) NumericExprLe
     return cur, nil
 }
 
-RoundPrecisionExpr <- COMMA expr:NumericExprLevel3 {
+NumericParamExpr <- COMMA expr:NumericExprLevel3 {
     rightNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1794,8 +1950,9 @@ NumericExprLevel1 <- L_PAREN expr:NumericExprLevel3 R_PAREN {
     return expr, nil
 }
 
+// Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random
 //Currently involves abs, ceil, round, sqrt
-NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
+NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" / "floor" / "ln" / "sigfig") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1815,7 +1972,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
 
     return node, nil
 }
-/ roundExpr:"round" L_PAREN expr:(NumericExprLevel3) roundPrecision:(RoundPrecisionExpr)? R_PAREN {
+/ roundExpr:"round" L_PAREN expr:(NumericExprLevel3) roundPrecision:(NumericParamExpr)? R_PAREN {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1836,10 +1993,17 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
 
     return node, nil
 }
-/ "now" "()" {
+/ (opName:("now" / "pi" / "random") L_PAREN R_PAREN) {
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
     return &structs.NumericExpr{
         IsTerminal: true,
-        Op:         "now",
+        Op: opNameStr,
     }, nil
 }
 / "tonumber" L_PAREN stringExpr:StringExpr baseExpr:(COMMA NumericExprLevel3)? R_PAREN {
@@ -1872,6 +2036,36 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
 }
 / lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
     return expr, nil
+}
+/ (opName:("log" / "pow") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
+    leftNumericExpr, ok := expr.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
+    }
+
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
+
+    var rightNumericExpr *structs.NumericExpr
+    if param == nil {
+        return nil, fmt.Errorf("Function: %v 's param can not be nil", opNameStr)
+    }
+    rightNumericExpr, ok = param.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert param as *structs.NumericExpr")
+    }
+
+    node, err := createNumericExpr(opNameStr, leftNumericExpr, rightNumericExpr, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+
+    return node, nil
 }
 
 LenExpr <- str:QuotedString !(EVAL_CONCAT) {
