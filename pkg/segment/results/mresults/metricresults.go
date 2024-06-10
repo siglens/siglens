@@ -498,7 +498,7 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 	var pqldata structs.Data
 
 	switch pqlQuerytype {
-	case parser.ValueTypeVector:
+	case parser.ValueTypeVector, parser.ValueTypeMatrix:
 		pqldata.ResultType = parser.ValueType("vector")
 		for grpId, results := range r.Results {
 

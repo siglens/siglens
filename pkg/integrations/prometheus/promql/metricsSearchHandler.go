@@ -201,7 +201,8 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
 	if err != nil {
-		log.Errorf("ProcessPromqlMetricsSearchRequest: Error getting results! %+v", err)
+		utils.SendError(ctx, "Failed to get results", fmt.Sprintf("Query: %s", searchText), err)
+		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
@@ -268,7 +269,8 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 
 	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
 	if err != nil {
-		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error getting results! %+v", err)
+		utils.SendError(ctx, "Failed to get results", fmt.Sprintf("Query: %s", searchText), err)
+		return
 	}
 	mQResponse.Data.ResultType = parser.ValueTypeMatrix
 	WriteJsonResponse(ctx, &mQResponse)
@@ -574,7 +576,8 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
 	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, startTime, endTime)
 	if err != nil {
-		log.Errorf("ExecuteAsyncQuery: Error getting results! %+v", err)
+		utils.SendError(ctx, "Failed to get results", fmt.Sprintf("Query: %s", searchText), err)
+		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
