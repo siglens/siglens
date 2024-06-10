@@ -191,10 +191,17 @@ type TextExpr struct {
 }
 
 type ConditionExpr struct {
-	Op         string //if
-	BoolExpr   *BoolExpr
-	TrueValue  *ValueExpr //if bool expr is true, take this value
-	FalseValue *ValueExpr
+	Op                  string //if, case, coalesce
+	BoolExpr            *BoolExpr
+	TrueValue           *ValueExpr //if bool expr is true, take this value
+	FalseValue          *ValueExpr
+	ConditionValuePairs []*ConditionValuePair
+	ValueList           []*ValueExpr
+}
+
+type ConditionValuePair struct {
+	Condition *BoolExpr
+	Value     *ValueExpr
 }
 
 type TimechartExpr struct {
@@ -331,6 +338,12 @@ func (self *SortExpr) ReleaseProcessedSegmentsLock() {
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
 func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
+	// TODO: Implement the operator in the switch cases below, and replace the if statements with case statements
+	switch self.ValueOp {
+	case "searchmatch":
+		return false, fmt.Errorf("BoolExpr.Evaluate: does support using this operator: %v", self.ValueOp)
+	}
+
 	if self.IsTerminal {
 		if self.ValueOp == "in" {
 			inFlag, err := isInValueList(fieldToValue, self.LeftValue, self.ValueList)
@@ -1445,29 +1458,29 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 
 // Field may come from BoolExpr or ValueExpr
 func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
-	predicateFlag, err := self.BoolExpr.Evaluate(fieldToValue)
-	if err != nil {
-		return "", fmt.Errorf("ConditionExpr.EvaluateCondition cannot evaluate BoolExpr: %v", err)
-	}
-
-	trueValue, err := self.TrueValue.EvaluateValueExprAsString(fieldToValue)
-	if err != nil {
-		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate trueValue to a ValueExpr: %v", err)
-	}
-	falseValue, err := self.FalseValue.EvaluateValueExprAsString(fieldToValue)
-	if err != nil {
-		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate falseValue to a ValueExpr: %v", err)
-	}
 
 	switch self.Op {
 	case "if":
+		predicateFlag, err := self.BoolExpr.Evaluate(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("ConditionExpr.EvaluateCondition cannot evaluate BoolExpr: %v", err)
+		}
+
+		trueValue, err := self.TrueValue.EvaluateValueExprAsString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate trueValue to a ValueExpr: %v", err)
+		}
+		falseValue, err := self.FalseValue.EvaluateValueExprAsString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate falseValue to a ValueExpr: %v", err)
+		}
 		if predicateFlag {
 			return trueValue, nil
 		} else {
 			return falseValue, nil
 		}
 	default:
-		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: unexpected operation: %v", self.Op)
+		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: unsupported operation: %v", self.Op)
 	}
 
 }
@@ -1505,9 +1518,18 @@ func (self *TextExpr) GetFields() []string {
 // Append all the fields in ConditionExpr
 func (self *ConditionExpr) GetFields() []string {
 	fields := make([]string, 0)
-	fields = append(fields, self.BoolExpr.GetFields()...)
-	fields = append(fields, self.TrueValue.GetFields()...)
-	fields = append(fields, self.FalseValue.GetFields()...)
+	if self.BoolExpr != nil {
+		fields = append(fields, self.BoolExpr.GetFields()...)
+	}
+	if self.TrueValue != nil {
+		fields = append(fields, self.TrueValue.GetFields()...)
+	}
+	if self.FalseValue != nil {
+		fields = append(fields, self.FalseValue.GetFields()...)
+	}
+	for _, pair := range self.ConditionValuePairs {
+		fields = append(fields, pair.Condition.GetFields()...)
+	}
 	return fields
 }
 

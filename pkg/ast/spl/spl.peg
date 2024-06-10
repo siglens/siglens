@@ -1221,6 +1221,7 @@ EvalExpression <- value:ValueExpr {
     return letColReq, nil
 }
 
+//Todo: implement the processing logic for: case, coalesce, validate, nullif
 ConditionExpr <- "if" L_PAREN condition:BoolExpr COMMA trueValue:ValueExpr COMMA falseValue:ValueExpr R_PAREN {
 
     node := &structs.ConditionExpr {
@@ -1231,6 +1232,66 @@ ConditionExpr <- "if" L_PAREN condition:BoolExpr COMMA trueValue:ValueExpr COMMA
     }
 
     return node, nil
+}
+/ opName:("case" / "validate") L_PAREN pair:ConditionValuePair rest:(COMMA ConditionValuePair)* R_PAREN {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: ConditionExpr: %v", err)
+    }
+    pairs := make([]*structs.ConditionValuePair, 1)
+    pairs[0] = pair.(*structs.ConditionValuePair)
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        for i := range restSlice {
+            ele := restSlice[i].([]any)
+            pairs = append(pairs, ele[1].(*structs.ConditionValuePair))
+        }
+    }
+
+    node := &structs.ConditionExpr {
+        Op: opNameStr,
+        ConditionValuePairs: pairs,
+    }
+
+    return node, nil
+}
+/ "coalesce" L_PAREN valueExpr:ValueExpr rest:(COMMA ValueExpr)* R_PAREN {
+    restSlice := rest.([]any)
+    valueList := make([]*structs.ValueExpr, 1 + len(restSlice))
+    valueList[0] = valueExpr.(*structs.ValueExpr)
+
+    for i := range restSlice {
+        valueAtom := restSlice[i].([]any)
+        valueList[i + 1] = valueAtom[1].(*structs.ValueExpr)
+    }
+
+    node := &structs.ConditionExpr {
+        Op: "coalesce",
+        ValueList: valueList,
+    }
+
+    return node, nil
+}
+/ "nullif" L_PAREN leftValue:ValueExpr COMMA rightValue:ValueExpr R_PAREN {
+    valueList := make([]*structs.ValueExpr, 2)
+    valueList[0] = leftValue.(*structs.ValueExpr)
+    valueList[1] = rightValue.(*structs.ValueExpr)
+
+    node := &structs.ConditionExpr {
+        Op: "nullif",
+        ValueList: valueList,
+    }
+
+    return node, nil
+}
+
+ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
+    conditionValuePair := &structs.ConditionValuePair {
+        Condition: condition.(*structs.BoolExpr),
+        Value: value.(*structs.ValueExpr),
+    }
+    return conditionValuePair, nil
 }
 
 TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
@@ -1458,7 +1519,8 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
     return expr, nil
 }
 
-EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull") L_PAREN value:ValueExpr R_PAREN ) {
+//Todo: implement the processing logic for: searchmatch
+EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "searchmatch") L_PAREN value:ValueExpr R_PAREN ) {
     opNameStr, err := transferUint8ToString(op)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
