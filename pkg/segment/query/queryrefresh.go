@@ -72,6 +72,9 @@ func initMetricsMetaRefresh() {
 }
 
 func PopulateMetricsMetadataForTheFile_TestOnly(mFileName string) error {
+	metaFileLastModifiedLock.Lock()
+	metaFileLastModified[mFileName] = 0
+	metaFileLastModifiedLock.Unlock()
 	return populateMetricsMetadata(mFileName)
 }
 

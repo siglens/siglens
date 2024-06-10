@@ -205,6 +205,10 @@ func initOrgMetrics(orgid uint64) error {
 	return nil
 }
 
+func ResetMetricsSegStore_TestOnly() {
+	OrgMetricsAndTags = make(map[uint64]*MetricsAndTagsHolder)
+}
+
 /*
 Returns the total incoming bytes, total on disk bytes, approx number of datapoints across all metric segments
 */
