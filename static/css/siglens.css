@@ -2721,6 +2721,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
  .ag-cell {
     padding: 3px 15px !important;
     font-size: 14px;
+    user-select: all;
 }
 
 .ag-theme-mycustomtheme .ag-row{

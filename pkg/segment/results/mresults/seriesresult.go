@@ -741,12 +741,16 @@ func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant floa
 		for i := range entries {
 			ret += entries[i].dpVal
 		}
+	case utils.BottomK:
+		fallthrough
 	case utils.Min:
 		for i := range entries {
 			if i == 0 || entries[i].dpVal < ret {
 				ret = entries[i].dpVal
 			}
 		}
+	case utils.TopK:
+		fallthrough
 	case utils.Max:
 		for i := range entries {
 			if i == 0 || entries[i].dpVal > ret {

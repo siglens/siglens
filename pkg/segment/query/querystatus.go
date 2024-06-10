@@ -624,7 +624,7 @@ func GetFinalColsOrder(columnsOrder map[string]int) []string {
 	for colName, colIndex := range columnsOrder {
 		pq[i] = &putils.Item{
 			Value:    colName,
-			Priority: -colIndex,
+			Priority: float64(-colIndex),
 			Index:    i,
 		}
 		i++
