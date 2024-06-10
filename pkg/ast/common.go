@@ -70,7 +70,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 					compiledRegex, err := regexp.Compile(t)
 					if err != nil {
 						log.Errorf("qid=%d, ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", qid, t, err)
-						return nil, fmt.Errorf("Invalid regex: %s", t)
+						return nil, fmt.Errorf("invalid regex: %s", t)
 					}
 					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid)
 					andFilterCondition = append(andFilterCondition, criteria)
@@ -82,7 +82,7 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 
 					cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t), "\"", "")
 					if strings.Contains(t, "\"") {
-						criteria := createMatchPhraseFilterCriteria(colName, cleanedColVal, And, negateMatch, qid)
+						criteria := createMatchPhraseFilterCriteria(colName, cleanedColVal, And, negateMatch)
 						andFilterCondition = append(andFilterCondition, criteria)
 					} else {
 						if strings.Contains(t, "*") {
@@ -98,8 +98,8 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 				if valueIsRegex {
 					compiledRegex, err := regexp.Compile(t)
 					if err != nil {
-						log.Errorf("ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", t, err)
-						return nil, fmt.Errorf("Invalid regex: %s", t)
+						log.Errorf("qid=%d, ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", qid, t, err)
+						return nil, fmt.Errorf("invalid regex: %s", t)
 					}
 					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid)
 					andFilterCondition = append(andFilterCondition, criteria)
@@ -131,13 +131,13 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 		criteria := CreateTermFilterCriteria("*", cleanedColVal, opr, qid)
 		andFilterCondition = append(andFilterCondition, criteria)
 	default:
-		log.Errorf("ProcessSingleFilter: Invalid colValue type %v", t)
+		log.Errorf("qid=%d, ProcessSingleFilter: Invalid colValue type. ColValue=%v, ColValueType=%T", qid, t, t)
 		return nil, errors.New("ProcessSingleFilter: Invalid colValue type")
 	}
 	return andFilterCondition, nil
 }
 
-func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatch bool, qid uint64) *FilterCriteria {
+func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatch bool) *FilterCriteria {
 	//match_phrase value will always be string
 	var rtInput = strings.TrimSpace(v.(string))
 	var matchWords = make([][]byte, 0)
@@ -154,15 +154,15 @@ func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, nega
 	return &criteria
 }
 
-func createMatchFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatch bool, qid uint64) *FilterCriteria {
+func createMatchFilterCriteria(colName, colValue interface{}, opr LogicalOperator, negateMatch bool, qid uint64) *FilterCriteria {
 	var rtInput string
-	switch vtype := v.(type) {
+	switch vtype := colValue.(type) {
 	case json.Number:
 		rtInput = string(vtype)
 	case string:
 		rtInput = vtype
 	default:
-		log.Errorf("qid=%d, createMatchFilterCriteria: invalid value ", qid)
+		log.Errorf("qid=%d, createMatchFilterCriteria: invalid Column value. Value=%v, ValueType=%v ", qid, colValue, vtype)
 	}
 	words := strings.Split(rtInput, " ")
 	var matchWords = make([][]byte, 0)
@@ -173,14 +173,14 @@ func createMatchFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatc
 		}
 	}
 
-	_, ok := k.(string)
+	_, ok := colName.(string)
 	if !ok {
-		log.Errorf("qid=%d, createMatchFilterCriteria: invalid type for key %+v", qid, k)
+		log.Errorf("qid=%d, createMatchFilterCriteria: colName=%v is expected to be of type string but got %T", qid, colName, colName)
 		return nil
 	}
 
 	criteria := FilterCriteria{MatchFilter: &MatchFilter{
-		MatchColumn:   k.(string),
+		MatchColumn:   colName.(string),
 		MatchWords:    matchWords,
 		MatchOperator: opr,
 		NegateMatch:   negateMatch}}
@@ -188,14 +188,14 @@ func createMatchFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatc
 	return &criteria
 }
 
-func CreateTermFilterCriteria(k string, v interface{}, opr FilterOperator, qid uint64) *FilterCriteria {
-	cVal, err := CreateDtypeEnclosure(v, qid)
+func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOperator, qid uint64) *FilterCriteria {
+	cVal, err := CreateDtypeEnclosure(colValue, qid)
 	if err != nil {
-		log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure: %+v", qid, err)
+		log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure for ColValue=%v. Error=%+v", qid, colValue, err)
 	}
 	criteria := FilterCriteria{ExpressionFilter: &ExpressionFilter{
 		LeftInput: &FilterInput{Expression: &Expression{
-			LeftInput: &ExpressionInput{ColumnName: k}}},
+			LeftInput: &ExpressionInput{ColumnName: colName}}},
 		FilterOperator: opr,
 		RightInput: &FilterInput{Expression: &Expression{
 			LeftInput: &ExpressionInput{ColumnValue: cVal}}}}}
@@ -243,7 +243,7 @@ func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, ag
 	queryResult := segment.ExecuteQuery(astNode, aggNode, qid, qc)
 	allJsons, _, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggNode)
 	if err != nil {
-		log.Errorf("qid=%v, GetColValues: get json from all records failed! %+v", qid, err)
+		log.Errorf("qid=%v, GetColValues: fetching JSON records from All RRC failed! %+v", qid, err)
 		return nil, err
 	}
 
@@ -266,7 +266,7 @@ func ParseTimeRange(startEpoch, endEpoch uint64, aggs *QueryAggregators, qid uin
 		//set default time range to last 90 days
 		return rutils.GetESDefaultQueryTimeRange(), nil
 	} else if startEpoch == 0 || endEpoch == 0 {
-		err := fmt.Errorf("parseTimeRange: , startEpoch/ endEpoch not set : %v %v", startEpoch, endEpoch)
+		err := fmt.Errorf("parseTimeRange: startEpoch/endEpoch is not set. Given startEpoch=%v, endEpoch=%v", startEpoch, endEpoch)
 		return nil, err
 	}
 	tRange.StartEpochMs = startEpoch
@@ -276,7 +276,7 @@ func ParseTimeRange(startEpoch, endEpoch uint64, aggs *QueryAggregators, qid uin
 
 func GetDefaultTimechartSpanOptions(startEpoch, endEpoch uint64, qid uint64) (*structs.SpanOptions, error) {
 	if startEpoch == 0 || endEpoch == 0 {
-		err := fmt.Errorf("GetDefaultTimechartSpanOptions: , time range not set")
+		err := fmt.Errorf("GetDefaultTimechartSpanOptions: startEpoch/endEpoch is not set. Given startEpoch=%v, endEpoch=%v", startEpoch, endEpoch)
 		return nil, err
 	}
 

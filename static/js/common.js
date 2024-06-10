@@ -95,6 +95,7 @@ function showError(errorMsg) {
     $("#agg-result-container").hide();
     $("#data-row-container").hide();
     $('#empty-response').hide();
+    $('#initial-response').hide();
     let currentTab = $("#custom-chart-tab").tabs("option", "active");
     if (currentTab == 0) {
       $("#logs-view-controls").show();
@@ -391,7 +392,7 @@ function showPanelInfo(infoMsg) {
 
 function getQueryParamsData(scrollingTrigger) {
     let sFrom = 0;
-    let queryLanguage = $('.queryInput-container #query-language-btn span').html();
+    let queryLanguage = $('#query-language-options .query-language-option.active').html();
 
     if (scrollingTrigger) {
         sFrom = scrollFrom;

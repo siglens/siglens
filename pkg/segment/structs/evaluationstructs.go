@@ -341,7 +341,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 		} else if self.ValueOp == "isbool" {
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
-				return false, fmt.Errorf("isbool: can not evaluate to String: %v", err)
+				return false, fmt.Errorf("BoolExpr.Evaluate: 'isbool' can not evaluate to String: %v", err)
 			}
 			isBool := strings.ToLower(val) == "true" || strings.ToLower(val) == "false" || val == "0" || val == "1"
 			return isBool, nil
@@ -394,7 +394,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			regexPattern := strings.Replace(strings.Replace(regexp.QuoteMeta(rightStr), "%", ".*", -1), "_", ".", -1)
 			matched, err := regexp.MatchString("^"+regexPattern+"$", leftStr)
 			if err != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: regex error in LIKE operation: %v", err)
+				return false, fmt.Errorf("BoolExpr.Evaluate: regex error in LIKE operation pattern: %v, string: %v, err: %v", regexPattern, leftStr, err)
 			}
 			return matched, nil
 		} else if self.ValueOp == "match" {
@@ -410,7 +410,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 
 			matched, err := regexp.MatchString(rightStr, leftStr)
 			if err != nil {
-				return false, fmt.Errorf("BoolExpr.Evaluate: regex error in MATCH operation: %v", err)
+				return false, fmt.Errorf("BoolExpr.Evaluate: regex error in MATCH operation leftString %v, rightString %v, err: %v", leftStr, rightStr, err)
 			}
 			return matched, nil
 
@@ -418,12 +418,12 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			cidrStr, errCidr := self.LeftValue.EvaluateToString(fieldToValue)
 			ipStr, errIp := self.RightValue.EvaluateToString(fieldToValue)
 			if errCidr != nil || errIp != nil {
-				return false, fmt.Errorf("cidrmatch: error evaluating arguments: %v, %v", errCidr, errIp)
+				return false, fmt.Errorf("BoolExpr.Evaluate: 'cidrmatch' error evaluating arguments errCidr: %v, errIp: %v", errCidr, errIp)
 			}
 
 			match, err := isIPInCIDR(cidrStr, ipStr)
 			if err != nil {
-				return false, fmt.Errorf("cidrmatch: error in matching CIDR: %v", err)
+				return false, fmt.Errorf("BoolExpr.Evaluate: 'cidrmatch' error in matching is IP in CIDR: cidr: %v, ip: %v, err: %v", cidrStr, ipStr, err)
 			}
 			return match, nil
 		}
@@ -493,7 +493,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 		case BoolOpOr:
 			return left || right, nil
 		default:
-			return false, fmt.Errorf("invalid BoolOp: %v", self.BoolOp)
+			return false, fmt.Errorf("BoolExpr.Evaluate: invalid BoolOp: %v", self.BoolOp)
 		}
 	}
 }
@@ -505,7 +505,7 @@ func isIPInCIDR(cidrStr, ipStr string) (bool, error) {
 	}
 	ip := net.ParseIP(ipStr)
 	if ip == nil {
-		return false, fmt.Errorf("invalid IP address")
+		return false, fmt.Errorf("isIPInCIDR: invalid IP address: %v", ipStr)
 	}
 
 	return cidrNet.Contains(ip), nil
@@ -520,7 +520,7 @@ func isInValueList(fieldToValue map[string]utils.CValueEnclosure, value *ValueEx
 	for _, atom := range valueList {
 		atomStr, err := atom.EvaluateToString(fieldToValue)
 		if err != nil {
-			return false, fmt.Errorf("isInValueList: can not evaluate to String: %v", err)
+			return false, fmt.Errorf("isInValueList: can not evaluate to string: %v", err)
 		}
 
 		if atomStr == valueStr {
@@ -600,7 +600,7 @@ func (self *ValueExpr) EvaluateToString(fieldToValue map[string]utils.CValueEncl
 		}
 		return strconv.FormatBool(boolResult), nil
 	default:
-		return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string")
+		return "", fmt.Errorf("ValueExpr.EvaluateToString: cannot evaluate to string, not a valid ValueExprMode")
 	}
 }
 
@@ -767,11 +767,11 @@ func (self *StatisticExpr) OverrideGroupByCol(bucketResult *BucketResult, resTot
 			bucketResult.BucketKey = bucketKey
 		case string:
 			if keyIndex != 0 {
-				return fmt.Errorf("OverrideGroupByCol: expected keyIndex to be 0, not %v", keyIndex)
+				return fmt.Errorf("StatisticExpr.OverrideGroupByCol: expected keyIndex to be 0, not %v", keyIndex)
 			}
 			bucketResult.BucketKey = cellValueStr
 		default:
-			return fmt.Errorf("OverrideGroupByCol: bucket key has unexpected type: %T", bucketKey)
+			return fmt.Errorf("StatisticExpr.OverrideGroupByCol: bucket key has unexpected type: %T", bucketKey)
 		}
 	}
 	return nil
@@ -837,7 +837,7 @@ func (self *StatisticExpr) SortBucketResult(results *[]*BucketResult) error {
 
 		limit, err := strconv.Atoi(self.Limit)
 		if err != nil {
-			return fmt.Errorf("SortBucketResult: cannot convert %v to int", self.Limit)
+			return fmt.Errorf("StatisticExpr.SortBucketResult: cannot convert %v to int", self.Limit)
 		}
 
 		// Only return unique limit field combinations
@@ -935,7 +935,7 @@ func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *Bucke
 					if exists {
 						str, err := val.GetString()
 						if err != nil {
-							return fmt.Errorf("RemoveFieldsNotInExpr: %v", err)
+							return fmt.Errorf("StatisticExpr.RemoveFieldsNotInExpr: %v", err)
 						}
 						newBucketKey = append(newBucketKey, str)
 					} else {
@@ -946,7 +946,7 @@ func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *Bucke
 			}
 		}
 	default:
-		return fmt.Errorf("RemoveFieldsNotInExpr: bucket key has unexpected type: %T", bucketKey)
+		return fmt.Errorf("StatisticExpr.RemoveFieldsNotInExpr: bucket key has unexpected type: %T", bucketKey)
 	}
 
 	// Remove unused func in stats res
@@ -1025,7 +1025,7 @@ func (self *RenameExpr) ProcessRenameRegexExpression(colName string) (string, er
 	regexPattern := `\b` + strings.ReplaceAll(originalPattern, "*", "(.*)") + `\b`
 	regex, err := regexp.Compile(regexPattern)
 	if err != nil {
-		return "", fmt.Errorf("ProcessRenameRegexExpression: There are some errors in the pattern: %v", err)
+		return "", fmt.Errorf("RenameExpr.ProcessRenameRegexExpression: There are some errors in the pattern: %v, err: %v", regexPattern, err)
 	}
 
 	matchingParts := regex.FindStringSubmatch(colName)
@@ -1281,7 +1281,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 	if self.Op == "max" {
 		if len(self.MaxMinValues) == 0 {
-			return "", fmt.Errorf("TextExpr.Evaluate: no values provided for 'max' operation")
+			return "", fmt.Errorf("TextExpr.EvaluateText: no values provided for 'max' operation")
 		}
 		maxString := ""
 		for _, expr := range self.MaxMinValues {
@@ -1297,7 +1297,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 
 	} else if self.Op == "min" {
 		if len(self.MaxMinValues) == 0 {
-			return "", fmt.Errorf("TextExpr.Evaluate: no values provided for 'min' operation")
+			return "", fmt.Errorf("TextExpr.EvaluateText: no values provided for 'min' operation")
 		}
 		minString := ""
 		for _, expr := range self.MaxMinValues {
@@ -1314,24 +1314,24 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	} else if self.Op == "tostring" {
 		valueStr, err := self.Val.EvaluateToString(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.Evaluate: failed to evaluate value for 'tostring' operation: %v", err)
+			return "", fmt.Errorf("TextExpr.EvaluateText: failed to evaluate value for 'tostring' operation: %v", err)
 		}
 		if self.Format != nil {
 			formatStr, err := self.Format.Evaluate(fieldToValue)
 			if err != nil {
-				return "", fmt.Errorf("TextExpr.Evaluate: failed to evaluate format for 'tostring' operation: %v", err)
+				return "", fmt.Errorf("TextExpr.EvaluateText: failed to evaluate format for 'tostring' operation: %v", err)
 			}
 			switch formatStr {
 			case "hex":
 				num, convErr := strconv.Atoi(valueStr)
 				if convErr != nil {
-					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to integer for hex formatting: %v", valueStr, convErr)
+					return "", fmt.Errorf("TextExpr.EvaluateText: failed to convert value '%s' to integer for hex formatting: %v", valueStr, convErr)
 				}
 				return fmt.Sprintf("%#x", num), nil
 			case "commas":
 				num, convErr := strconv.ParseFloat(valueStr, 64)
 				if convErr != nil {
-					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to float for comma formatting: %v", valueStr, convErr)
+					return "", fmt.Errorf("TextExpr.EvaluateText: failed to convert value '%s' to float for comma formatting: %v", valueStr, convErr)
 				}
 				roundedNum := math.Round(num*100) / 100
 				formattedNum := humanize.CommafWithDigits(roundedNum, 2)
@@ -1339,14 +1339,14 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			case "duration":
 				num, convErr := strconv.Atoi(valueStr)
 				if convErr != nil {
-					return "", fmt.Errorf("TextExpr.Evaluate: failed to convert value '%s' to seconds for duration formatting: %v", valueStr, convErr)
+					return "", fmt.Errorf("TextExpr.EvaluateText: failed to convert value '%s' to seconds for duration formatting: %v", valueStr, convErr)
 				}
 				hours := num / 3600
 				minutes := (num % 3600) / 60
 				seconds := num % 60
 				return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds), nil
 			default:
-				return "", fmt.Errorf("TextExpr.Evaluate: unsupported format '%s' for tostring operation", formatStr)
+				return "", fmt.Errorf("TextExpr.EvaluateText: unsupported format '%s' for tostring operation", formatStr)
 			}
 		} else {
 			return valueStr, nil
@@ -1354,7 +1354,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	}
 	cellValueStr, err := self.Value.Evaluate(fieldToValue)
 	if err != nil {
-		return "", fmt.Errorf("TextExpr.Evaluate: can not evaluate text as a str: %v", err)
+		return "", fmt.Errorf("TextExpr.EvaluateText: can not evaluate text as a str: %v", err)
 	}
 
 	switch self.Op {
@@ -1367,14 +1367,14 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	case "urldecode":
 		decodedStr, decodeErr := url.QueryUnescape(cellValueStr)
 		if decodeErr != nil {
-			return "", fmt.Errorf("TextExpr.Evaluate: failed to decode URL: %v", decodeErr)
+			return "", fmt.Errorf("TextExpr.EvaluateText: failed to decode URL: %v", decodeErr)
 		}
 		return decodedStr, nil
 
 	case "split":
 		delimiterStr, err := self.Delimiter.Evaluate(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.Evaluate: cannot evaluate delimiter as a string: %v", err)
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate delimiter as a string: %v", err)
 		}
 
 		return strings.Join(strings.Split(cellValueStr, delimiterStr), "&nbsp"), nil
@@ -1396,7 +1396,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			startIndex = len(baseString) + startIndex
 		}
 		if startIndex < 0 || startIndex >= len(baseString) {
-			return "", fmt.Errorf("substr: start index is out of range")
+			return "", fmt.Errorf("TextExpr.EvaluateText: 'substr' start index is out of range")
 		}
 		substrLength := len(baseString) - startIndex
 		if self.LengthExpr != nil {
@@ -1406,7 +1406,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			}
 			substrLength = int(lengthFloat)
 			if substrLength < 0 || startIndex+substrLength > len(baseString) {
-				return "", fmt.Errorf("substr: length leads to out of range substring")
+				return "", fmt.Errorf("TextExpr.EvaluateText: 'substr' length leads to out of range substring")
 			}
 		}
 		endIndex := startIndex + substrLength
@@ -1416,7 +1416,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		return baseString[startIndex:endIndex], nil
 
 	default:
-		return "", fmt.Errorf("TextExpr.Evaluate: unexpected operation: %v", self.Op)
+		return "", fmt.Errorf("TextExpr.EvaluateText: unexpected operation: %v", self.Op)
 	}
 }
 
@@ -1431,13 +1431,13 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 		if err != nil {
 			str, err = self.EvaluateToString(fieldToValue)
 			if err != nil {
-				return "", fmt.Errorf("ConditionExpr.Evaluate: can not evaluate to a ValueExpr: %v", err)
+				return "", fmt.Errorf("ValueExpr.EvaluateValueExprAsString: can not evaluate VEMNumericExpr to string: %v", err)
 			}
 		}
 	case VEMStringExpr:
 		str, err = self.EvaluateToString(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("ConditionExpr.Evaluate: can not evaluate to a ValueExpr: %v", err)
+			return "", fmt.Errorf("ValueExpr.EvaluateValueExprAsString: can not evaluate VEMStringExpr to string: %v", err)
 		}
 	}
 	return str, nil
@@ -1447,16 +1447,16 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 	predicateFlag, err := self.BoolExpr.Evaluate(fieldToValue)
 	if err != nil {
-		return "", fmt.Errorf("ConditionExpr.Evaluate: %v", err)
+		return "", fmt.Errorf("ConditionExpr.EvaluateCondition cannot evaluate BoolExpr: %v", err)
 	}
 
 	trueValue, err := self.TrueValue.EvaluateValueExprAsString(fieldToValue)
 	if err != nil {
-		return "", fmt.Errorf("ConditionExpr.Evaluate: can not evaluate trueValue to a ValueExpr: %v", err)
+		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate trueValue to a ValueExpr: %v", err)
 	}
 	falseValue, err := self.FalseValue.EvaluateValueExprAsString(fieldToValue)
 	if err != nil {
-		return "", fmt.Errorf("ConditionExpr.Evaluate: can not evaluate falseValue to a ValueExpr: %v", err)
+		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate falseValue to a ValueExpr: %v", err)
 	}
 
 	switch self.Op {
@@ -1467,7 +1467,7 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 			return falseValue, nil
 		}
 	default:
-		return "", fmt.Errorf("ConditionExpr.Evaluate: unexpected operation: %v", self.Op)
+		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: unexpected operation: %v", self.Op)
 	}
 
 }
@@ -1541,7 +1541,7 @@ func (self *NumericExpr) GetFields() []string {
 func getValueAsString(fieldToValue map[string]utils.CValueEnclosure, field string) (string, error) {
 	enclosure, ok := fieldToValue[field]
 	if !ok {
-		return "", fmt.Errorf("Missing field %v", field)
+		return "", fmt.Errorf("getValueAsString: Missing field %v", field)
 	}
 
 	return enclosure.GetString()
@@ -1550,7 +1550,7 @@ func getValueAsString(fieldToValue map[string]utils.CValueEnclosure, field strin
 func getValueAsFloat(fieldToValue map[string]utils.CValueEnclosure, field string) (float64, error) {
 	enclosure, ok := fieldToValue[field]
 	if !ok {
-		return 0, fmt.Errorf("Missing field %v", field)
+		return 0, fmt.Errorf("getValueAsFloat: Missing field %v", field)
 	}
 
 	if value, err := enclosure.GetFloatValue(); err == nil {
@@ -1564,7 +1564,7 @@ func getValueAsFloat(fieldToValue map[string]utils.CValueEnclosure, field string
 		}
 	}
 
-	return 0, fmt.Errorf("Cannot convert CValueEnclosure %v to float", enclosure)
+	return 0, fmt.Errorf("getValueAsFloat: Cannot convert CValueEnclosure %v to float", enclosure)
 }
 
 func (self *SortValue) Compare(other *SortValue) (int, error) {
@@ -1573,7 +1573,7 @@ func (self *SortValue) Compare(other *SortValue) (int, error) {
 		selfIP := net.ParseIP(self.Val)
 		otherIP := net.ParseIP(other.Val)
 		if selfIP == nil || otherIP == nil {
-			return 0, fmt.Errorf("SortValue.Compare: cannot parse IP address")
+			return 0, fmt.Errorf("SortValue.Compare: cannot parse IP address selfIp: %v, otherIp: %v", self.Val, other.Val)
 		}
 		return bytes.Compare(selfIP, otherIP), nil
 	case "num":
@@ -1628,7 +1628,7 @@ func CompareSortValueSlices(a []SortValue, b []SortValue, ascending []int) (int,
 	for i := 0; i < len(a); i++ {
 		comp, err := a[i].Compare(&b[i])
 		if err != nil {
-			return 0, fmt.Errorf("CompareSortValueSlices: %v", err)
+			return 0, fmt.Errorf("CompareSortValueSlices err: %v", err)
 		}
 
 		if comp != 0 {

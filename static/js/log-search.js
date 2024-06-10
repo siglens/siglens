@@ -30,13 +30,29 @@ $(document).ready(async () => {
         indexValues = [...originalIndexValues];
     }
     initializeIndexAutocomplete();
+    // If query string found , then do search
     if (window.location.search) {
         data = getInitialSearchFilter(false, false);
+        doSearch(data);
     } else {
-        //No query string found, using default search filter
-        data = getSearchFilter(false, false);
+        setIndexDisplayValue(selectedSearchIndex);
+        let stDate = Cookies.get('startEpoch') || "now-15m";
+        let endDate = Cookies.get('endEpoch') || "now";
+        if (!isNaN(stDate)) {
+            stDate = Number(stDate);
+            endDate = Number(endDate);
+            datePickerHandler(stDate, endDate, "custom");
+            loadCustomDateTimeFromEpoch(stDate,endDate);
+        } else if (stDate !== "now-15m") {
+            datePickerHandler(stDate, endDate, stDate);
+        } else {
+            datePickerHandler(stDate, endDate, "");
+        }
+        $('#run-filter-btn').html(' ');
+        $("#query-builder-btn").html(" ");
+        $("#custom-chart-tab").hide();
     }
-    doSearch(data);
+
     $('body').css('cursor', 'default');
 
     const currentUrl = window.location.href;
@@ -142,20 +158,51 @@ $(document).ready(async () => {
           $(this).val("");
         }
     });
+
+    function autoResizeTextarea() {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
+    }
+
+    $("#filter-input").on('focus', function() {
+        $(this).addClass('expanded');
+        autoResizeTextarea.call(this);
+    });
+
+    $("#filter-input").on('blur', function() {
+        $(this).removeClass('expanded');
+        this.style.height = '32px'; 
+    });
+
+    $("#filter-input").on('input', autoResizeTextarea);
+
+    $("#logs-settings").click(function(){
+        event.stopPropagation();
+        $("#setting-container").fadeToggle("fast");
+    });
+    
+    $(document).click(function(event) {
+        if (!$(event.target).closest('#setting-container').length) {
+            $("#setting-container").hide();
+        }
+    });
 });
 function displayQueryLangToolTip(selectedQueryLangID) {
     $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
     $("#clearInput").hide();
     switch (selectedQueryLangID) {
         case "1":
+        case 1:
             $('#info-icon-sql').show();
             $("#filter-input").attr("placeholder", "Enter your SQL query here, or click the 'i' icon for examples");
             break;
         case "2":
+        case 2:
             $('#info-icon-logQL').show();
             $("#filter-input").attr("placeholder", "Enter your LogQL query here, or click the 'i' icon for examples");
             break;
         case "3":
+        case 3:
             $('#info-icon-spl').show();
             $("#filter-input").attr("placeholder", "Enter your SPL query here, or click the 'i' icon for examples");
             break;
@@ -175,31 +222,3 @@ $("#clearInput").click(function() {
     $(this).hide();
 });
 
-/*
-Function to clear the query input field, search filter tags, and related elements
-*/
-function clearQueryInput() {
-    // Clear the query input field
-    $("#query-input").val("*").focus();
-
-    // Hide the clear button for the query input field if it's empty
-    if ($("#query-input").val().trim() !== "") {
-        $("#clear-query-btn").show();
-    } else {
-        $("#clear-query-btn").hide();
-    }
-
-    // Clear all search filter tags and related elements
-    $("#tags, #tags-second, #tags-third").empty();
-    firstBoxSet.clear();
-    secondBoxSet.clear();
-    thirdBoxSet.clear();
-
-    // Show the default text for search filters, aggregation attribute, and aggregations
-    $("#search-filter-text, #aggregate-attribute-text, #aggregations").show();
-}
-
-// Event handler for the clear button associated with the query input field
-$("#clear-query-btn").click(function() {
-    clearQueryInput();
-});

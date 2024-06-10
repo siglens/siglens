@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pbnjay/memory"
 	"github.com/siglens/siglens/pkg/config/common"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -275,7 +277,12 @@ a: b
 			assert.Error(t, err)
 			continue
 		}
-
+		if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
+			assert.Equal(t, uint64(50), actualConfig.MemoryThresholdPercent)
+			// If memory is less than 8GB, config by default returns 50% as the threshold
+			// For testing purpose resetting it to 80%
+			actualConfig.MemoryThresholdPercent = 80
+		}
 		assert.NoError(t, err, fmt.Sprintf("Comparison failed, test=%v", i+1))
 		assert.EqualValues(t, test.expected, actualConfig, fmt.Sprintf("Comparison failed, test=%v", i+1))
 	}

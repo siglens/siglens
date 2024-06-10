@@ -18,9 +18,11 @@
 package tests
 
 import (
+	"math"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	"github.com/siglens/siglens/pkg/segment"
 	mresults "github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -30,9 +32,10 @@ import (
 )
 
 func Test_GetResults_AggFn_Sum(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Sum}
 	mQuery := &structs.MetricsQuery{
 		MetricName: "test.metric.0",
-		Aggregator: structs.Aggregation{AggregatorFunction: utils.Sum},
+		Aggregator: aggregator,
 		Downsampler: structs.Downsampler{
 			Interval:   3,
 			Unit:       "h",
@@ -78,7 +81,7 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 	assert.Len(t, metricsResults.Results, 0)
 	assert.Contains(t, metricsResults.DsResults, tsGroupId.String())
 
-	errors := metricsResults.AggregateResults(1)
+	errors := metricsResults.AggregateResults(1, aggregator)
 	assert.Nil(t, errors)
 	assert.Len(t, metricsResults.AllSeries, 0)
 	assert.Len(t, metricsResults.DsResults, 0)
@@ -99,9 +102,10 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Avg(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
 	mQuery := &structs.MetricsQuery{
 		MetricName: "test.metric.0",
-		Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		Aggregator: aggregator,
 		Downsampler: structs.Downsampler{
 			Interval:   1,
 			Unit:       "h",
@@ -148,7 +152,7 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 	assert.Len(t, metricsResults.Results, 0)
 	assert.Contains(t, metricsResults.DsResults, tsGroupId.String())
 
-	errors := metricsResults.AggregateResults(1)
+	errors := metricsResults.AggregateResults(1, aggregator)
 	assert.Nil(t, errors)
 
 	assert.Len(t, metricsResults.AllSeries, 0)
@@ -169,11 +173,162 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 	}
 }
 
+func Test_GetResults_AggFn_Count(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Count}
+	metricName := "test.metric.1"
+	downsampler := structs.Downsampler{
+		Interval:   1,
+		Unit:       "h",
+		CFlag:      false,
+		Aggregator: aggregator,
+	}
+
+	timeSeriesMap := make(map[string]map[uint32]float64)
+	timeSeriesMap["{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 100,
+	}
+	timeSeriesMap["{color:red"] = map[uint32]float64{
+		0:    3,
+		7200: 66,
+	}
+	timeSeriesMap["{color:blue"] = map[uint32]float64{
+		0:    -1,
+		3600: 120,
+	}
+
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults[metricName+"{"] = map[uint32]float64{
+		0:    3,
+		3600: 2,
+		7200: 1,
+	}
+	res := initialize_Single_Metric_Results(t, timeSeriesMap, downsampler, aggregator, metricName)
+	validateResults(t, res.Results, expectedResults)
+}
+
+func Test_GetResults_AggFn_Group(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Group}
+	metricName := "test.metric.1"
+	downsampler := structs.Downsampler{
+		Interval:   1,
+		Unit:       "h",
+		CFlag:      false,
+		Aggregator: aggregator,
+	}
+
+	timeSeriesMap := make(map[string]map[uint32]float64)
+	timeSeriesMap["{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 100,
+	}
+	timeSeriesMap["{color:red"] = map[uint32]float64{
+		0:    3,
+		3600: 80,
+		7200: 66,
+	}
+
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults[metricName+"{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 1,
+	}
+	expectedResults[metricName+"{color:red"] = map[uint32]float64{
+		0:    1,
+		3600: 1,
+		7200: 1,
+	}
+
+	res := initialize_Single_Metric_Results(t, timeSeriesMap, downsampler, aggregator, metricName)
+	validateResults(t, res.Results, expectedResults)
+}
+
+func Test_GetResults_AggFn_Stdvar(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Stdvar}
+	metricName := "test.metric.1"
+	downsampler := structs.Downsampler{
+		Interval:   1,
+		Unit:       "h",
+		CFlag:      false,
+		Aggregator: aggregator,
+	}
+
+	timeSeriesMap := make(map[string]map[uint32]float64)
+	timeSeriesMap["{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 0,
+	}
+	timeSeriesMap["{color:red"] = map[uint32]float64{
+		0:    3,
+		3600: 2,
+	}
+	timeSeriesMap["{color:blue"] = map[uint32]float64{
+		0:    5,
+		3600: 2,
+		7200: 2,
+	}
+	timeSeriesMap["{color:green"] = map[uint32]float64{
+		0:    7,
+		3600: 4,
+	}
+
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults[metricName+"{"] = map[uint32]float64{
+		0:    5,
+		3600: 2,
+		7200: 0,
+	}
+
+	res := initialize_Single_Metric_Results(t, timeSeriesMap, downsampler, aggregator, metricName)
+	validateResults(t, res.Results, expectedResults)
+}
+
+func Test_GetResults_AggFn_Stddev(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Stddev}
+	metricName := "test.metric.1"
+	downsampler := structs.Downsampler{
+		Interval:   1,
+		Unit:       "h",
+		CFlag:      false,
+		Aggregator: aggregator,
+	}
+
+	timeSeriesMap := make(map[string]map[uint32]float64)
+	timeSeriesMap["{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 0,
+	}
+	timeSeriesMap["{color:red"] = map[uint32]float64{
+		0:    3,
+		3600: 2,
+	}
+	timeSeriesMap["{color:blue"] = map[uint32]float64{
+		0:    5,
+		3600: 2,
+		7200: 2,
+	}
+	timeSeriesMap["{color:green"] = map[uint32]float64{
+		0:    7,
+		3600: 4,
+	}
+
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults[metricName+"{"] = map[uint32]float64{
+		0:    math.Sqrt(5),
+		3600: math.Sqrt(2),
+		7200: 0,
+	}
+
+	res := initialize_Single_Metric_Results(t, timeSeriesMap, downsampler, aggregator, metricName)
+	validateResults(t, res.Results, expectedResults)
+}
+
 func Test_GetResults_AggFn_Multiple(t *testing.T) {
 	var numSeries int = 5
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
 	mQuery := &structs.MetricsQuery{
 		MetricName: "test.metric.0",
-		Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+		Aggregator: aggregator,
 		Downsampler: structs.Downsampler{
 			Interval:   2,
 			Unit:       "s",
@@ -217,7 +372,7 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 	assert.Len(t, metricsResults.Results, 0)
 	assert.Contains(t, metricsResults.DsResults, string(grpId))
 
-	errors := metricsResults.AggregateResults(1)
+	errors := metricsResults.AggregateResults(1, aggregator)
 	assert.Nil(t, errors)
 	assert.Len(t, metricsResults.AllSeries, 0)
 	assert.Len(t, metricsResults.DsResults, 0)
@@ -231,14 +386,15 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Quantile(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.5}
 	mQuery := &structs.MetricsQuery{
 		MetricName: "test.metric.0",
-		Aggregator: structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.5},
+		Aggregator: aggregator,
 		Downsampler: structs.Downsampler{
 			Interval:   3,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.5},
+			Aggregator: aggregator,
 		},
 		TagsFilters: []*structs.TagsFilter{
 			{
@@ -279,7 +435,7 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 	assert.Len(t, metricsResults.Results, 0)
 	assert.Contains(t, metricsResults.DsResults, tsGroupId.String())
 
-	errors := metricsResults.AggregateResults(1)
+	errors := metricsResults.AggregateResults(1, aggregator)
 	assert.Nil(t, errors)
 	assert.Len(t, metricsResults.AllSeries, 0)
 	assert.Len(t, metricsResults.DsResults, 0)
@@ -300,14 +456,15 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.3}
 	mQuery := &structs.MetricsQuery{
 		MetricName: "test.metric.0",
-		Aggregator: structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.3},
+		Aggregator: aggregator,
 		Downsampler: structs.Downsampler{
 			Interval:   3,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.3},
+			Aggregator: aggregator,
 		},
 		TagsFilters: []*structs.TagsFilter{
 			{
@@ -348,7 +505,7 @@ func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 	assert.Len(t, metricsResults.Results, 0)
 	assert.Contains(t, metricsResults.DsResults, tsGroupId.String())
 
-	errors := metricsResults.AggregateResults(1)
+	errors := metricsResults.AggregateResults(1, aggregator)
 	assert.Nil(t, errors)
 	assert.Len(t, metricsResults.AllSeries, 0)
 	assert.Len(t, metricsResults.DsResults, 0)
@@ -366,6 +523,92 @@ func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 	for _, val := range mQResponse[0].Dps {
 		assert.True(t, dtypeutils.AlmostEquals(val, float64(2.7)))
 	}
+}
+
+func Test_GetResults_AggFn_TopK(t *testing.T) {
+	// Compute top 2 elements for each timestamp
+	aggregator := structs.Aggregation{AggregatorFunction: utils.TopK, FuncConstant: 2.0}
+	metricName := "test.metric.1"
+	downsampler := structs.Downsampler{
+		Interval:   1,
+		Unit:       "h",
+		CFlag:      false,
+		Aggregator: aggregator,
+	}
+
+	timeSeriesMap := make(map[string]map[uint32]float64)
+	timeSeriesMap["{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 100,
+	}
+	timeSeriesMap["{color:red"] = map[uint32]float64{
+		0:    3,
+		3600: 80,
+		7200: 66,
+	}
+	timeSeriesMap["{color:blue"] = map[uint32]float64{
+		0:    -1,
+		3600: 120,
+	}
+
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults[metricName+"{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 100,
+	}
+	expectedResults[metricName+"{color:red"] = map[uint32]float64{
+		0:    3,
+		7200: 66,
+	}
+	expectedResults[metricName+"{color:blue"] = map[uint32]float64{
+		3600: 120,
+	}
+
+	res := initialize_Single_Metric_Results(t, timeSeriesMap, downsampler, aggregator, metricName)
+	validateResults(t, res.Results, expectedResults)
+}
+
+func Test_GetResults_AggFn_BottomK(t *testing.T) {
+	// Compute bottom 2 elements for each timestamp
+	aggregator := structs.Aggregation{AggregatorFunction: utils.BottomK, FuncConstant: 2.0}
+	metricName := "test.metric.1"
+	downsampler := structs.Downsampler{
+		Interval:   1,
+		Unit:       "h",
+		CFlag:      false,
+		Aggregator: aggregator,
+	}
+
+	timeSeriesMap := make(map[string]map[uint32]float64)
+	timeSeriesMap["{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 100,
+	}
+	timeSeriesMap["{color:red"] = map[uint32]float64{
+		0:    3,
+		3600: 80,
+		7200: 66,
+	}
+	timeSeriesMap["{color:blue"] = map[uint32]float64{
+		0:    -1,
+		3600: 120,
+	}
+
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults[metricName+"{color:yellow"] = map[uint32]float64{
+		0:    1,
+		3600: 100,
+	}
+	expectedResults[metricName+"{color:red"] = map[uint32]float64{
+		3600: 80,
+		7200: 66,
+	}
+	expectedResults[metricName+"{color:blue"] = map[uint32]float64{
+		0: -1,
+	}
+
+	res := initialize_Single_Metric_Results(t, timeSeriesMap, downsampler, aggregator, metricName)
+	validateResults(t, res.Results, expectedResults)
 }
 
 func TestCalculateInterval(t *testing.T) {
@@ -927,25 +1170,19 @@ func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap
 
 	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 	defer bytebufferpool.Put(tsGroupId)
-	_, err := tsGroupId.Write([]byte("color:yellow"))
-	assert.NoError(t, err)
-	series := mresults.InitSeriesHolder(mQuery, tsGroupId)
+	addSerieToMetricRes(t, metricsResults, mQuery, initialEntries, tsGroupId, "color:yellow", uint64(101))
 
-	for timestamp, val := range initialEntries {
-		series.AddEntry(timestamp, val)
-	}
-
-	metricsResults.AddSeries(series, uint64(100), tsGroupId)
 	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
 
-	errors := metricsResults.AggregateResults(1)
+	errors := metricsResults.AggregateResults(1, mQuery.Aggregator)
 	assert.Nil(t, errors)
 
-	res := segment.HelperQueryArithmeticAndLogical(queryOps, map[uint64]*mresults.MetricsResult{
+	res, err := segment.HelperQueryArithmeticAndLogical(&queryOps[0], map[uint64]*mresults.MetricsResult{
 		1: metricsResults,
 	})
-	assert.Len(t, res.Results, 1)
-	for _, resMap := range res.Results {
+	assert.Nil(t, err)
+	assert.Len(t, res, 1)
+	for _, resMap := range res {
 		assert.Equal(t, len(ansMap), len(resMap))
 		for timestamp, val := range resMap {
 			expectedVal, exists := ansMap[timestamp]
@@ -961,6 +1198,7 @@ func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap
 }
 
 func Test_GetResults_And(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
 	expectedResults := make(map[string]map[uint32]float64)
 	// There is the expected result: contains only one matching label set
 	expectedResults["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
@@ -991,12 +1229,14 @@ func Test_GetResults_And(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: aggregator,
 		},
+		aggregator,
 	)
 }
 
 func Test_GetResults_Or(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
 	expectedResults := make(map[string]map[uint32]float64)
 	// There is the expected result: contains all unique label sets
 	expectedResults["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
@@ -1033,12 +1273,14 @@ func Test_GetResults_Or(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: aggregator,
 		},
+		aggregator,
 	)
 }
 
 func Test_GetResults_Unless(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
 	expectedResults := make(map[string]map[uint32]float64)
 	expectedResults["test.metric.1{color:yellow,type:compact,"] = map[uint32]float64{
 		0:    45,
@@ -1069,13 +1311,44 @@ func Test_GetResults_Unless(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: aggregator,
 		},
+		aggregator,
 	)
 }
 
+// Create one vector where each time series will have different entries.
+func initialize_Single_Metric_Results(t *testing.T, timeSeriesMap map[string]map[uint32]float64, downsampler structs.Downsampler, aggregator structs.Aggregation, metricName string) *mresults.MetricsResult {
+	mQuery := &structs.MetricsQuery{
+		MetricName:      metricName,
+		HashedMName:     1,
+		Downsampler:     downsampler,
+		GetAllLabels:    true,
+		SelectAllSeries: true,
+		Aggregator:      aggregator,
+	}
+	qid := uint64(0)
+	metricsResults := mresults.InitMetricResults(mQuery, qid)
+	assert.NotNil(t, metricsResults)
+
+	tsid := uint64(100)
+	for grpID, entry := range timeSeriesMap {
+		var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
+		defer bytebufferpool.Put(tsGroupId)
+		addSerieToMetricRes(t, metricsResults, mQuery, entry, tsGroupId, grpID, tsid)
+		tsid++
+	}
+
+	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
+	errors := metricsResults.AggregateResults(1, aggregator)
+	assert.Nil(t, errors)
+
+	return metricsResults
+}
+
 // Create two vectors. The label sets and entries are determined by the input parameters.
-func initialize_Metric_Results(t *testing.T, initialEntries1 map[uint32]float64, initialEntries2 map[uint32]float64, labelStrs1 []string, labelStrs2 []string, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler) map[uint64]*mresults.MetricsResult {
+// Time series under the same vector will have the same entries.
+func initialize_Multiple_Metric_Results(t *testing.T, initialEntries1 map[uint32]float64, initialEntries2 map[uint32]float64, labelStrs1 []string, labelStrs2 []string, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler, aggregator structs.Aggregation) map[uint64]*mresults.MetricsResult {
 	// Add 2 groups in metric1
 	mQuery1 := &structs.MetricsQuery{
 		MetricName:      "test.metric.1",
@@ -1083,6 +1356,7 @@ func initialize_Metric_Results(t *testing.T, initialEntries1 map[uint32]float64,
 		Downsampler:     downsampler,
 		GetAllLabels:    true,
 		SelectAllSeries: true,
+		Aggregator:      aggregator,
 	}
 	qid := uint64(0)
 	metricsResults1 := mresults.InitMetricResults(mQuery1, qid)
@@ -1097,7 +1371,7 @@ func initialize_Metric_Results(t *testing.T, initialEntries1 map[uint32]float64,
 	}
 
 	metricsResults1.DownsampleResults(mQuery1.Downsampler, 1)
-	errors := metricsResults1.AggregateResults(1)
+	errors := metricsResults1.AggregateResults(1, mQuery1.Aggregator)
 	assert.Nil(t, errors)
 
 	// Add 1 group in metric2
@@ -1120,7 +1394,7 @@ func initialize_Metric_Results(t *testing.T, initialEntries1 map[uint32]float64,
 	}
 
 	metricsResults2.DownsampleResults(mQuery2.Downsampler, 1)
-	errors = metricsResults2.AggregateResults(1)
+	errors = metricsResults2.AggregateResults(1, mQuery2.Aggregator)
 	assert.Nil(t, errors)
 
 	return map[uint64]*mresults.MetricsResult{
@@ -1129,11 +1403,15 @@ func initialize_Metric_Results(t *testing.T, initialEntries1 map[uint32]float64,
 	}
 }
 
-func test_GetResults_LogicalAndVectorMatchingOps(t *testing.T, initialEntries1 map[uint32]float64, initialEntries2 map[uint32]float64, labelStrs1 []string, labelStrs2 []string, ansMap map[string]map[uint32]float64, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler) {
+func test_GetResults_LogicalAndVectorMatchingOps(t *testing.T, initialEntries1 map[uint32]float64, initialEntries2 map[uint32]float64, labelStrs1 []string, labelStrs2 []string, ansMap map[string]map[uint32]float64, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler, aggregator structs.Aggregation) {
+	res, err := segment.HelperQueryArithmeticAndLogical(&queryOps[0], initialize_Multiple_Metric_Results(t, initialEntries1, initialEntries2, labelStrs1, labelStrs2, queryOps, downsampler, aggregator))
+	assert.Nil(t, err)
+	validateResults(t, res, ansMap)
+}
 
-	res := segment.HelperQueryArithmeticAndLogical(queryOps, initialize_Metric_Results(t, initialEntries1, initialEntries2, labelStrs1, labelStrs2, queryOps, downsampler))
-	assert.Equal(t, len(ansMap), len(res.Results))
-	for groupId, resMap := range res.Results {
+func validateResults(t *testing.T, res map[string]map[uint32]float64, ansMap map[string]map[uint32]float64) {
+	assert.Equal(t, len(ansMap), len(res))
+	for groupId, resMap := range res {
 
 		entries, exists := ansMap[groupId]
 		if !exists {
@@ -1155,6 +1433,200 @@ func test_GetResults_LogicalAndVectorMatchingOps(t *testing.T, initialEntries1 m
 	}
 }
 
+func Test_GetResults_On(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	results := make(map[string]map[uint32]float64)
+	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
+		0:    3,
+		7200: 11,
+	}
+
+	vectorMatching := &structs.VectorMatching{
+		Cardinality:    structs.CardOneToOne,
+		MatchingLabels: []string{"color"},
+		On:             true,
+	}
+
+	labelStrs1 := []string{"{color:yellow,type:compact,", "{color:red,type:compact,", "{color:green,type:mid size,"}
+	labelStrs2 := []string{"{color:red,", "{color:blue,", "{color:white,"}
+
+	test_GetResults_LogicalAndVectorMatchingOps(t,
+		map[uint32]float64{
+			0:    1,
+			7200: 5,
+		},
+		map[uint32]float64{
+			0:    2,
+			7200: 6,
+		},
+		labelStrs1, labelStrs2, results,
+		[]structs.QueryArithmetic{
+			{
+				LHS:            1,
+				RHS:            2,
+				Operation:      utils.LetAdd,
+				VectorMatching: vectorMatching,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: aggregator,
+		},
+		aggregator,
+	)
+}
+
+func Test_GetResults_Ignoring(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	results := make(map[string]map[uint32]float64)
+	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
+		0:    -5,
+		7200: 3,
+	}
+	results["test.metric.1{color:blue,type:mid size,"] = map[uint32]float64{
+		0:    -5,
+		7200: 3,
+	}
+
+	vectorMatching := &structs.VectorMatching{
+		Cardinality:    structs.CardOneToOne,
+		MatchingLabels: []string{"type"},
+		On:             false,
+	}
+
+	labelStrs1 := []string{"{color:yellow,type:compact,", "{color:red,type:compact,", "{color:blue,type:mid size,"}
+	labelStrs2 := []string{"{color:red,", "{color:blue,", "{color:white,"}
+
+	test_GetResults_LogicalAndVectorMatchingOps(t,
+		map[uint32]float64{
+			0:    1,
+			7200: 5,
+		},
+		map[uint32]float64{
+			0:    6,
+			7200: 2,
+		},
+		labelStrs1, labelStrs2, results,
+		[]structs.QueryArithmetic{
+			{
+				LHS:            1,
+				RHS:            2,
+				Operation:      utils.LetSubtract,
+				VectorMatching: vectorMatching,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: aggregator,
+		},
+		aggregator,
+	)
+}
+
+func Test_GetResults_GroupRight(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	results := make(map[string]map[uint32]float64)
+	results["test.metric.2{color:red,type:compact,"] = map[uint32]float64{
+		0:    100,
+		7200: 3,
+	}
+
+	results["test.metric.2{color:red,type:mid size,"] = map[uint32]float64{
+		0:    100,
+		7200: 3,
+	}
+
+	vectorMatching := &structs.VectorMatching{
+		Cardinality:    structs.CardOneToMany,
+		MatchingLabels: []string{"color"},
+		On:             true,
+	}
+
+	labelStrs1 := []string{"{color:red,", "{color:blue,", "{color:white,"}
+	labelStrs2 := []string{"{color:yellow,type:compact,", "{color:red,type:compact,", "{color:red,type:mid size,"}
+
+	test_GetResults_LogicalAndVectorMatchingOps(t,
+		map[uint32]float64{
+			0:    200,
+			7200: 18,
+		},
+		map[uint32]float64{
+			0:    2,
+			7200: 6,
+		},
+		labelStrs1, labelStrs2, results,
+		[]structs.QueryArithmetic{
+			{
+				LHS:            1,
+				RHS:            2,
+				Operation:      utils.LetDivide,
+				VectorMatching: vectorMatching,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: aggregator,
+		},
+		aggregator,
+	)
+}
+
+func Test_GetResults_GroupLeft(t *testing.T) {
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	results := make(map[string]map[uint32]float64)
+	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
+		0:    2,
+		7200: 30,
+	}
+
+	results["test.metric.1{color:red,type:mid size,"] = map[uint32]float64{
+		0:    2,
+		7200: 30,
+	}
+
+	vectorMatching := &structs.VectorMatching{
+		Cardinality:    structs.CardManyToOne,
+		MatchingLabels: []string{"color"},
+		On:             true,
+	}
+
+	labelStrs1 := []string{"{color:yellow,type:compact,", "{color:red,type:compact,", "{color:red,type:mid size,"}
+	labelStrs2 := []string{"{color:red,", "{color:blue,", "{color:white,"}
+
+	test_GetResults_LogicalAndVectorMatchingOps(t,
+		map[uint32]float64{
+			0:    1,
+			7200: 5,
+		},
+		map[uint32]float64{
+			0:    2,
+			7200: 6,
+		},
+		labelStrs1, labelStrs2, results,
+		[]structs.QueryArithmetic{
+			{
+				LHS:            1,
+				RHS:            2,
+				Operation:      utils.LetMultiply,
+				VectorMatching: vectorMatching,
+			},
+		},
+		structs.Downsampler{
+			Interval:   2,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: aggregator,
+		},
+		aggregator,
+	)
+}
+
 func addSerieToMetricRes(t *testing.T, metricsResults *mresults.MetricsResult, mQuery *structs.MetricsQuery, entries map[uint32]float64, tsGroupId *bytebufferpool.ByteBuffer, labelStr string, tsid uint64) {
 	_, err := tsGroupId.Write([]byte(mQuery.MetricName + labelStr))
 	assert.NoError(t, err)
@@ -1166,4 +1638,34 @@ func addSerieToMetricRes(t *testing.T, metricsResults *mresults.MetricsResult, m
 	}
 
 	metricsResults.AddSeries(series, tsid, tsGroupId)
+}
+
+func Test_ExtractMatchingLabelSet(t *testing.T) {
+
+	grpIDStr := "testmetric0{color:green,model:model1,car_type:compact}"
+
+	resStr := putils.ExtractMatchingLabelSet(grpIDStr, []string{"model"}, true)
+	assert.Equal(t, "model:model1,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"model", "color"}, true)
+	assert.Equal(t, "model:model1,color:green,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{}, true)
+	assert.Equal(t, "", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"abc"}, true)
+	assert.Equal(t, "", resStr)
+
+	// Exclude color col, and concatenate strings according to the lexicographic order of tag key
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"color"}, false)
+	assert.Equal(t, "car_type:compact,model:model1,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"color", "car_type"}, false)
+	assert.Equal(t, "model:model1,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{}, false)
+	assert.Equal(t, "car_type:compact,color:green,model:model1,", resStr)
+
+	resStr = putils.ExtractMatchingLabelSet(grpIDStr, []string{"abc"}, false)
+	assert.Equal(t, "car_type:compact,color:green,model:model1,", resStr)
 }

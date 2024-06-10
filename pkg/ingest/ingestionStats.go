@@ -47,7 +47,7 @@ func ingestionMetricsLooper() {
 		}
 		for indexName := range allVirtualTableNames {
 			if indexName == "" {
-				log.Errorf("ingestionMetricsLooper: skipping an empty index name indexName=%v", indexName)
+				log.Errorf("ingestionMetricsLooper: skipping an empty index name len(indexName)=%v", len(indexName))
 				continue
 			}
 			byteCount, eventCount, onDiskBytes := segwriter.GetVTableCounts(indexName, 0)
