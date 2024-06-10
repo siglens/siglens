@@ -107,7 +107,7 @@ async function initializeIndexAutocomplete() {
         }
     }).on('click', function() {
         $(this).select();
-    }).on('input', async function() {
+    }).on('input', function() {
         let typedValue = $(this).val();
         const minWidth = 3; 
         const inputWidth = Math.max(typedValue.length * 10, minWidth);
@@ -127,17 +127,8 @@ async function initializeIndexAutocomplete() {
             return;
         }
     
-        // Check if the typed value matches any index
-        async function testRegex(option) {
-            var matcher = new RegExp( typedValue ,"gi" );
-            return matcher.test(option.toLowerCase());
-        }
-        const matchesIndex =  indexValues.some(testRegex);
+        
 
-        // If the typed value matches any index, add the option to index list
-        if (matchesIndex) {
-           filteredIndexValues.unshift(typedValue);
-        }
         indexValues = filteredIndexValues
         $(this).autocomplete("option", "source", filteredIndexValues);
     }).on('change', function() {
@@ -151,7 +142,7 @@ async function initializeIndexAutocomplete() {
             return !option.includes('*');
         });
         $(this).autocomplete("option", "source", filteredIndexValues);
-    }).on('keypress', function(event) {
+    }).on('keypress', async function(event) {
         // Clear the input field if the typed value does not match any options when Enter is pressed
         if (event.keyCode === 13) {
             let typedValue = $(this).val();
@@ -171,6 +162,20 @@ async function initializeIndexAutocomplete() {
                     $(this).autocomplete("option", "source", indexValues);
                 }
             } else {
+                var matcher = new RegExp( typedValue.replace("*",".*") ,"gi" );
+                function hasMatchingString(arr, regex) {
+                    return arr.some((element) => regex.test(element.toLowerCase()));
+                }
+                const matchesIndex =  hasMatchingString(indexValues, matcher);
+                // If the typed value matches any index, add the option to index list
+                if (matchesIndex) {
+                    indexValues.unshift(typedValue);
+                    addSelectedIndex(typedValue);
+                    if (!selectedSearchIndex.includes(typedValue)) {
+                        selectedSearchIndex += selectedSearchIndex ? ',' + typedValue : typedValue;
+                    }
+                }
+                $(this).autocomplete("option", "source", indexValues);
                 $(this).val('');
                 this.style.width = '5px';
             }
