@@ -364,6 +364,9 @@ func startQueryServer(serverAddr string) {
 					emptyHtmlContent := "<div id=\"empty-response\">This feature is available in Enterprise version</div>"
 					return htmltemplate.HTML(emptyHtmlContent)
 				},
+				"CSSVersion": func() string {
+					return "0.0.1"
+				},
 			})
 			textTemplate := texttemplate.New("other")
 
