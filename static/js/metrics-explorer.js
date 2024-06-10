@@ -213,7 +213,7 @@ async function addQueryElement() {
                 </div>
             </div>
             <div class="raw-query" style="display: none;">
-                <input type="text" readonly class="raw-query-input">
+                <input type="text" class="raw-query-input"><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search"> </button>
             </div>
         </div>
         <div>
