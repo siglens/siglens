@@ -107,7 +107,7 @@ async function initializeIndexAutocomplete() {
         }
     }).on('click', function() {
         $(this).select();
-    }).on('input', function() {
+    }).on('input', async function() {
         let typedValue = $(this).val();
         const minWidth = 3; 
         const inputWidth = Math.max(typedValue.length * 10, minWidth);
@@ -128,14 +128,15 @@ async function initializeIndexAutocomplete() {
         }
     
         // Check if the typed value matches any index
-        const matchesIndex = indexValues.some(function(option) {
-            return option.startsWith(typedValue);
-        });
-    
-        // If the typed value matches any index, add the option with "*" if needed
+        async function testRegex(option) {
+            var matcher = new RegExp( typedValue ,"gi" );
+            return matcher.test(option.toLowerCase());
+        }
+        const matchesIndex =  indexValues.some(testRegex);
+
+        // If the typed value matches any index, add the option to index list
         if (matchesIndex) {
-            const wildcardOption = typedValue.endsWith('*') ? typedValue : typedValue + '*'; // Create the option with "*" if needed
-            filteredIndexValues.unshift(wildcardOption); // Add the option with "*" to the beginning of the array
+           filteredIndexValues.unshift(typedValue);
         }
         indexValues = filteredIndexValues
         $(this).autocomplete("option", "source", filteredIndexValues);
