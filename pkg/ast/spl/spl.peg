@@ -166,7 +166,7 @@ type TxnArgs struct {
 
 type TimechartArgs struct {
     singleAggExpr *singleAggTemp
-    // Todo: Add eval clause expr.
+    // TODO: Add eval clause expr.
     tcOptions     *structs.TcOptions
 }
 }
@@ -442,7 +442,7 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
     
     timechartArgs := tcArgs.(*TimechartArgs)
     
-    // Todo: Should add || timechartArgs.evalExpr == nil
+    // TODO: Should add || timechartArgs.evalExpr == nil
     if timechartArgs.singleAggExpr == nil {
         return nil, fmt.Errorf("spl peg: timechart: either single-agg or eval-expression by split-by-clause is required")
     }
@@ -1221,7 +1221,7 @@ EvalExpression <- value:ValueExpr {
     return letColReq, nil
 }
 
-//Todo: implement the processing logic for: case, coalesce, validate, nullif
+//TODO: implement the processing logic for: case, coalesce, validate, nullif
 ConditionExpr <- "if" L_PAREN condition:BoolExpr COMMA trueValue:ValueExpr COMMA falseValue:ValueExpr R_PAREN {
 
     node := &structs.ConditionExpr {
@@ -1519,7 +1519,7 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
     return expr, nil
 }
 
-//Todo: implement the processing logic for: searchmatch
+//TODO: implement the processing logic for: searchmatch
 EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "searchmatch") L_PAREN value:ValueExpr R_PAREN ) {
     opNameStr, err := transferUint8ToString(op)
     if err != nil {
