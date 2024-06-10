@@ -338,9 +338,35 @@ async function addQueryElement() {
         queryElement.find('.query-builder').toggle();
         queryElement.find('.raw-query').toggle();
         var queryName = queryElement.find('.query-name').text();
+        var queryDetails = queries[queryName];
+
+        if (queryDetails.state === 'builder') {
+            // Switch to raw mode and show the query string
+            const queryString = createQueryString(queryDetails);
+            queryDetails.rawQueryInput = queryString;
+            queryElement.find('.raw-query-input').val(queryString);
+            queryDetails.state = 'raw';
+        } else {
+            // Switch to builder mode
+            queryDetails.state = 'builder';
+            getQueryDetails(queryName, queryDetails);
+        }
         const queryString = createQueryString(queries[queryName]);
         queryElement.find('.raw-query input').val(queryString);
     });
+
+    queryElement.find('.raw-query').on('click', '#run-filter-btn', async function() {
+        var queryName = queryElement.find('.query-name').text();
+        var queryDetails = queries[queryName];
+        var rawQuery = queryElement.find('.raw-query-input').val();
+        queryDetails.rawQueryInput = rawQuery;
+        
+        // Perform the search with the raw query
+        await getMetricsData(queryName, rawQuery);
+        const chartData = await convertDataForChart(rawTimeSeriesData);
+        addVisualizationContainer(queryName, chartData, rawQuery);
+    });
+    
 }
 
 async function initializeAutocomplete(queryElement, previousQuery = {}) {
@@ -352,7 +378,9 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         everywhere: [],
         everything: [],
         aggFunction: 'avg by',
-        functions: []
+        functions: [],
+        state: 'builder',
+        rawQueryInput: ''
     };
     // Use details from the previous query if it exists
     if (!jQuery.isEmptyObject(previousQuery)) {
