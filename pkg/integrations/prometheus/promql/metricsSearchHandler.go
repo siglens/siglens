@@ -1248,6 +1248,12 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Min
 				case "quantile":
 					mquery.Aggregator.AggregatorFunction = segutils.Quantile
+				case "topk":
+					mquery.Aggregator.AggregatorFunction = segutils.TopK
+					mquery.GetAllLabels = true
+				case "bottomk":
+					mquery.Aggregator.AggregatorFunction = segutils.BottomK
+					mquery.GetAllLabels = true
 				case "stddev":
 					mquery.Aggregator.AggregatorFunction = segutils.Stddev
 				case "stdvar":
@@ -1288,6 +1294,12 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Min
 				case "quantile":
 					mquery.Aggregator.AggregatorFunction = segutils.Quantile
+				case "topk":
+					mquery.Aggregator.AggregatorFunction = segutils.TopK
+					mquery.GetAllLabels = true
+				case "bottomk":
+					mquery.Aggregator.AggregatorFunction = segutils.BottomK
+					mquery.GetAllLabels = true
 				case "stddev":
 					mquery.Aggregator.AggregatorFunction = segutils.Stddev
 				case "stdvar":
