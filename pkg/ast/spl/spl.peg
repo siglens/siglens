@@ -1454,7 +1454,11 @@ BoolExprLevel2 <- NOT L_PAREN first:BoolExprLevel1 R_PAREN {
 BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
     return first, nil
 }
-/ (op:("isbool" / "isint" / "isstr" / "isnull") L_PAREN value:ValueExpr R_PAREN ) {
+/ expr: (EvalComparisonExpr / BoolComparisonExpr) {
+    return expr, nil
+}
+
+EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull") L_PAREN value:ValueExpr R_PAREN ) {
     opNameStr, err := transferUint8ToString(op)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
@@ -1467,11 +1471,7 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
     }
     return expr, nil
 }
-/ likeExpr: LikeExpr {
-    return likeExpr, nil
-}
-
-LikeExpr <- opName:("like" / "Like" / "match" / "cidrmatch") L_PAREN leftValue:ValueExpr COMMA rightValue:ValueExpr R_PAREN {
+/ opName:("like" / "Like" / "match" / "cidrmatch") L_PAREN leftValue:ValueExpr COMMA rightValue:ValueExpr R_PAREN {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
@@ -1484,12 +1484,6 @@ LikeExpr <- opName:("like" / "Like" / "match" / "cidrmatch") L_PAREN leftValue:V
     }
     return expr, nil
 }
-/ inExpr: InExpr {
-    return inExpr, nil
-}
-/ boolComparisonExpr:BoolComparisonExpr {
-    return boolComparisonExpr, nil
-}
 
 BoolComparisonExpr <- left:ValueExpr op:EqualityOrInequality right:ValueExpr {
     expr := &structs.BoolExpr {
@@ -1501,7 +1495,6 @@ BoolComparisonExpr <- left:ValueExpr op:EqualityOrInequality right:ValueExpr {
 
     return expr, nil
 }
-
 
 InExpr <- left:ValueExpr SPACE "in" L_PAREN valueToJudge:ValueExpr rest:(COMMA ValueExpr)* R_PAREN {
     restSlice := rest.([]any)
