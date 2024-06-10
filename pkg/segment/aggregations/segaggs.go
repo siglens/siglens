@@ -121,6 +121,13 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	return nodeResult
 }
 
+/*
+* TODO: The processing logic for SPL commands that need to be implemented is outlined below. These commands may need to be implemented elsewhere.
+ 1. Eval cmd:
+    1.1 Mathematical functions: floor, pi, ln, log, sigfig, pow
+    1.2 Statistical eval functions: random
+    1.3 Multivalue eval functions: mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
+*/
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 	switch agg.PipeCommandType {
