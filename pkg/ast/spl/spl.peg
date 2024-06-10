@@ -1298,14 +1298,6 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
-    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr")
-    }
-    startIndexConverted, ok := startIndex.(*structs.NumericExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert startIndex as *structs.NumericExpr")
-    }
     var lengthConverted *structs.NumericExpr
     if lengthParam != nil {
         lengthSlice, ok := lengthParam.([]interface{})
@@ -1320,8 +1312,8 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     }
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExprConverted,
-        StartIndex: startIndexConverted,
+        Value: stringExpr.(*structs.StringExpr),
+        StartIndex: startIndex.(*structs.NumericExpr),
         LengthExpr: lengthConverted,
     }
     return node, nil
@@ -1345,11 +1337,6 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
 
-    stringExpr, ok := expr.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert expr as *structs.StringExpr: %v", err)
-    }
-
     strToRemove := " \t"
     if strToRemoveExpr != nil {
         strToRemove = strToRemoveExpr.(string)
@@ -1357,7 +1344,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
 
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExpr,
+        Value: expr.(*structs.StringExpr),
         StrToRemove: removeQuotes(strToRemove),
     }
 
@@ -1369,14 +1356,9 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
         return nil, fmt.Errorf("Spl peg: TextExpr: Failed to recognize operator: %v, err= %v", opName, err)
     }
 
-    boolExpr, ok := condition.(*structs.BoolExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert expr as *structs.BoolExpr for function: %v, err= %v", opNameStr, err)
-    }
-
     node := &structs.TextExpr {
         Op: opNameStr,
-        Condition: boolExpr,
+        Condition: condition.(*structs.BoolExpr),
     }
 
     return node, nil
@@ -1386,25 +1368,13 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
-    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr for function: %v, err= %v", opNameStr, err)
-    }
-    startIndexConverted, ok := startIndex.(*structs.NumericExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert startIndex as *structs.NumericExpr for function: %v", opNameStr)
-    }
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExprConverted,
-        StartIndex: startIndexConverted,
+        Value: stringExpr.(*structs.StringExpr),
+        StartIndex: startIndex.(*structs.NumericExpr),
     }
     if endIndex != nil {
-        endIndexConverted, ok := endIndex.(*structs.NumericExpr)
-        if !ok {
-            return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert endtIndex as *structs.NumericExpr for function: %v", opNameStr)
-        }
-        node.EndIndex = endIndexConverted
+        node.EndIndex = endIndex.(*structs.NumericExpr)
     }
 
     return node, nil
@@ -1414,18 +1384,10 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
-    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr for function: %v", opNameStr)
-    }
-    valueExprConverted, ok := expr.(*structs.ValueExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert expr as *structs.ValueExpr for function: %v", opNameStr)
-    }
     node := &structs.TextExpr {
         Op: opNameStr,
-        Val: valueExprConverted,
-        Value: stringExprConverted,
+        Val: expr.(*structs.ValueExpr),
+        Value: stringExpr.(*structs.StringExpr),
     }
 
     return node, nil
@@ -1435,25 +1397,13 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
-    startIndexConverted, ok := startIndex.(*structs.NumericExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert startIndex as *structs.NumericExpr for function: %v", opNameStr)
-    }
-    endIndexConverted, ok := endIndex.(*structs.NumericExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert endIndex as *structs.NumericExpr for function: %v", opNameStr)
-    }
     node := &structs.TextExpr {
         Op: opNameStr,
-        StartIndex: startIndexConverted,
-        EndIndex: endIndexConverted,
+        StartIndex: startIndex.(*structs.NumericExpr),
+        EndIndex: endIndex.(*structs.NumericExpr),
     }
     if stringExpr != nil {
-        stringExprConverted, ok := stringExpr.(*structs.StringExpr)
-        if !ok {
-            return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr for function: %v", opNameStr)
-        }
-        node.Value = stringExprConverted
+        node.Value = stringExpr.(*structs.StringExpr)
     }
 
     return node, nil
@@ -1464,16 +1414,8 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
     values := make([]*structs.StringExpr, 2)
-    mvLeftConverted, ok := mvLeft.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert mvLeft as *structs.StringExpr")
-    }
-    mvRightConverted, ok := mvRight.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert mvRight as *structs.StringExpr")
-    }
-    values[0] = mvLeftConverted
-    values[1] = mvRightConverted
+    values[0] = mvLeft.(*structs.StringExpr)
+    values[1] = mvRight.(*structs.StringExpr)
 
     node := &structs.TextExpr {
         Op: opNameStr,
@@ -1482,11 +1424,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
 
     if rest != nil {
         restSlice := rest.([]any)
-        delim, ok := restSlice[1].(*structs.StringExpr)
-        if !ok {
-            return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert delim as *structs.StringExpr")
-        }
-        node.Delimiter = delim
+        node.Delimiter = restSlice[1].(*structs.StringExpr)
     }
 
     return node, nil
@@ -1496,14 +1434,10 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
-    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr for function: %v", opNameStr)
-    }
 
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExprConverted,
+        Value: stringExpr.(*structs.StringExpr),
         InferTypes: false, // default value
     }
 
