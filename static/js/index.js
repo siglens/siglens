@@ -73,19 +73,10 @@ async function initializeIndexAutocomplete() {
             const selectedValue = ui.item.value;
             addSelectedIndex(selectedValue);
 
-
-            if (selectedValue.endsWith('*')) {
-                const prefix = selectedValue.slice(0, -1); // Remove the '*'
-                let filteredIndexValues = indexValues.filter(function(option) {
-                    return !option.startsWith(prefix);
-                });
-                indexValues = filteredIndexValues;
-                $(this).autocomplete("option", "source", filteredIndexValues);
-            }
-
             const index = indexValues.indexOf(selectedValue);
             if (index !== -1) {
                 indexValues.splice(index, 1);
+                indexValues = indexValues.filter(option => !option.includes('*')); // Remove options including '*'
                 $(this).autocomplete("option", "source", indexValues);
             }
             
@@ -95,6 +86,8 @@ async function initializeIndexAutocomplete() {
             }
             
             $(this).val('');
+            $(this).blur();
+
         },
         open: function(event, ui) {
             var containerPosition = $(this).closest('.index-container').offset();
@@ -168,79 +161,48 @@ async function initializeIndexAutocomplete() {
                 }
                 $(this).val('');
                 this.style.width = '5px';
-                runQueryBtnHandler();
                 
                 // Remove the selected value from indexValues
                 const index = indexValues.indexOf(typedValue);
                 if (index !== -1) {
                     indexValues.splice(index, 1);
+                    indexValues = indexValues.filter(option => !option.includes('*')); // Remove options including '*'
                     $(this).autocomplete("option", "source", indexValues);
-                }
-                if (typedValue.endsWith('*')) {
-                    const prefix = typedValue.slice(0, -1); // Remove the '*'
-                    let filteredIndexValues = indexValues.filter(function(option) {
-                        return !option.startsWith(prefix);
-                    });
-                    indexValues = filteredIndexValues;
-                    $(this).autocomplete("option", "source", filteredIndexValues);
                 }
             } else {
                 $(this).val('');
                 this.style.width = '5px';
             }
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
-            } else {
-                $(this).autocomplete('search', '');
-            }
+            $(this).autocomplete('close');
+            $(this).blur();
         }
-    }); 
+    });
 }
 
 // Remove selected index from container when remove icon is clicked
 $(".index-container").on("click", ".remove-icon", function(e) {
-    if ($('.index-container .selected-index').length === 1) {
-        return; // If there's only one tag left, do not remove it
-    }
-
     const removedValue = $(this).parent().contents().filter(function() {
         return this.nodeType === 3;
     }).text().trim();
+
+
+    if ($('.index-container .selected-index').length === 1) {
+       // If there's only one tag left, add * as selected index
+       if(removedValue === "*"){
+            return;
+       }else{
+        addSelectedIndex("*")
+        selectedSearchIndex += selectedSearchIndex ? ',' + "*" : "*";
+       }
+    }
+    
     $(this).parent().remove();
 
-    // If the removed value is a wildcard option
-    if (removedValue.endsWith('*')) {
-        const prefix = removedValue.slice(0, -1); // Remove the '*'
-        
-        // Remove wildcard options from indexValues
-        indexValues = indexValues.filter(function(option) {
-            return !option.startsWith(prefix);
-        });
-        
-        // Add back only the non-wildcard options that match the prefix
-        const matchingOptions = originalIndexValues.filter(function(option) {
-            return option.startsWith(prefix) && !selectedSearchIndex.includes(option);
-        });
-        
-        indexValues.push(...matchingOptions);
+    if (!removedValue.endsWith('*')) {        
+        // If the removed value is not a wildcard option
+        indexValues.push(removedValue);
         indexValues.sort();
         $("#index-listing").autocomplete('option', 'source', indexValues);
-    } else {
-        // If the removed value is not a wildcard option
-        const prefix = removedValue;
-
-        // Check if any wildcard options exist that match the removed value
-        const wildcardExists = selectedSearchIndex.split(',').some(function(value) {
-            const strippedValue = value.replace('*', '');
-            return value.endsWith('*') && prefix.startsWith(strippedValue);
-        });
-
-        // If no wildcard options match the removed value's prefix, add it back to indexValues
-        if (!wildcardExists) {
-            indexValues.push(removedValue);
-            indexValues.sort();
-            $("#index-listing").autocomplete('option', 'source', indexValues);
-        }
     }
 
     // Update selectedSearchIndex
@@ -267,3 +229,9 @@ function addSelectedIndex(index) {
         $("#index-listing").css('width', '5px');
     }
 }
+
+$('#add-index').click(function(e){
+    e.preventDefault();
+    $("#index-listing").focus();
+    $("#index-listing").autocomplete("search", "");
+});
