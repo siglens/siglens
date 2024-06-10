@@ -148,6 +148,15 @@ func getRexColNames(pattern string) ([]string, error) {
     return rexColNames, nil
 }
 
+func initializeStatsOptions() *structs.StatsOptions {
+    return &structs.StatsOptions {
+        Delim: " ",
+        Partitions: 1,
+        DedupSplitvals: false,
+        Allnum: false,
+    }
+}
+
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
@@ -323,12 +332,7 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
     if options != nil {
         aggNode.StatsOptions = options.(*structs.StatsOptions)
     } else {
-        aggNode.StatsOptions = &structs.StatsOptions {
-            Delim: " ",
-            Partitions: 1,
-            DedupSplitvals: false,
-            Allnum: false,
-        }
+        aggNode.StatsOptions = initializeStatsOptions()
     }
 
     return aggNode, nil
@@ -339,12 +343,7 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
 StatsOptions <- option:(StatsOption)*
 {
     //Default value
-    options := &structs.StatsOptions {
-        Delim: " ",
-        Partitions: 1,
-        DedupSplitvals: false,
-        Allnum: false,
-    }
+    options := initializeStatsOptions()
 
     optionSlice := option.([]any)
     for _, opt := range optionSlice {
