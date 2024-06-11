@@ -69,6 +69,14 @@ type timeSeries struct {
 	Value     int               `json:"value"`
 }
 
+// dataStartTimestamp is the start timestamp for the test data
+// This is used to generate the test data and every query must use this timestamp as the start timestamp
+// You can change this value to some other value or set it dynamically based on the current time. For example: uint32(time.Now().Unix() - 24*3600)
+// But this might cause the test cases to fail. But that does not mean there is an error with the code.
+// The problem is with the assumption of the test case. The timeseries at T1 and T2 has time diff = 1 second and in my below test cases
+// I am assuming them to be downsampled to the same time bucket. But sometimes when you use dynamic timestamp that might not happend and the test case might fail.
+// This will happend as we calculate the downsampledTime using this formula: downsampledTime = (ts / s.dsSeconds) * s.dsSeconds
+// So, it is better to keep this value to be constant and not change this.
 const dataStartTimestamp uint32 = 1718052279
 
 func GetTestMetricsData(startTimestamp uint32) ([]timeSeries, []string, map[string][]string, map[string][]string) {
@@ -561,7 +569,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Star(t *testing.T) {
 		At T4: testmetric0: 60, testmetric1: 100, testmetric2: 140
 		At T5: testmetric0: 70, testmetric1: 110, testmetric2: 150
 
-		The time diff between T1 and T2 is less than 6 seconds, so the values at T1 and T2 will be aggregated to the same bucket.
+		The time diff between T1 and T2 is 1 second, so the values at T1 and T2 will be aggregated to the same bucket.
 
 		Values at T1 bucket = 10 + 20 + 30 + 40 + 80 + 120 = 300 / 6 = 50
 		Values at T2 bucket = 50 + 90 + 130  = 270 / 3 = 90
@@ -629,7 +637,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_OR(t *testing.T) {
 		At T4: testmetric0: 60, testmetric1: 100
 		At T5: testmetric0: 70, testmetric1: 110
 
-		The time diff between T1 and T2 is less than 5 seconds, so the values at T1 and T2 will be aggregated to the same bucket.
+		The time diff between T1 and T2 is 1 second, so the values at T1 and T2 will be aggregated to the same bucket.
 
 		Values at T1 bucket = 10 + 20 + 40 + 80 = 150 / 4 = 37.5
 		Values at T2 bucket = 50 + 90 = 140 / 2 = 70
@@ -770,7 +778,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter(t *testing.T) {
 		At T4: testmetric0: 60
 		At T5: testmetric0: 70
 
-		The time diff between T1 and T2 is less than 5 seconds, so the values at T1 and T2 will be aggregated to the same bucket.
+		The time diff between T1 and T2 is 1 second, so the values at T1 and T2 will be aggregated to the same bucket.
 
 		Values at T1 bucket = 10 + 40 = 50 / 2 = 25
 		Values at T2 bucket = 50 = 50
