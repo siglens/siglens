@@ -172,6 +172,7 @@ type NumericExpr struct {
 type StringExpr struct {
 	StringExprMode StringExprMode
 	RawString      string      // only used when mode is RawString
+	StringList     []string    // only used when mode is RawStringList
 	FieldName      string      // only used when mode is Field
 	ConcatExpr     *ConcatExpr // only used when mode is Concat
 	TextExpr       *TextExpr   // only used when mode is TextExpr
@@ -187,7 +188,7 @@ type TextExpr struct {
 	StartIndex   *NumericExpr
 	LengthExpr   *NumericExpr
 	Val          *ValueExpr
-	Format       *StringExpr
+	ValueList    []*ValueExpr
 }
 
 type ConditionExpr struct {
@@ -302,10 +303,11 @@ const (
 type StringExprMode uint8
 
 const (
-	SEMRawString  = iota // only used when mode is RawString
-	SEMField             // only used when mode is Field
-	SEMConcatExpr        // only used when mode is Concat
-	SEMTextExpr          // only used when mode is TextExpr
+	SEMRawString     = iota // only used when mode is RawString
+	SEMRawStringList        // only used when mode is RawStringList
+	SEMField                // only used when mode is Field
+	SEMConcatExpr           // only used when mode is Concat
+	SEMTextExpr             // only used when mode is TextExpr
 )
 
 type NumericExprMode uint8

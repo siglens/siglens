@@ -1294,6 +1294,7 @@ ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
     return conditionValuePair, nil
 }
 
+//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson
 TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
@@ -1307,7 +1308,6 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
 
     return node, nil
 }
-
 / (opName:("max" / "min") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN )
       {
         opNameStr, err := transferUint8ToString(opName)
@@ -1388,7 +1388,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     }
     return node, nil
 }
-/ "tostring" L_PAREN value:ValueExpr format:(COMMA StringExpr )? R_PAREN {
+/ "tostring" L_PAREN value:ValueExpr format:(COMMA StringExpr)? R_PAREN {
     var formatExpr *structs.StringExpr
     if format != nil {
         formatSlice := format.([]interface{})
@@ -1424,6 +1424,64 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     }
 
     return node, nil
+}
+/ "ipmask" L_PAREN mask:StringExpr COMMA ip:ValueExpr R_PAREN {
+    return &structs.TextExpr{
+        Op: "ipmask",
+        Val: ip.(*structs.ValueExpr),
+        Param: mask.(*structs.StringExpr),
+    }, nil
+}
+/ "object_to_array" L_PAREN obj:ValueExpr COMMA key:QuotedString COMMA value:QuotedString R_PAREN {
+    stringExpr := &structs.StringExpr {
+        StringExprMode: structs.SEMRawStringList,
+        StringList: []string{key.(string), value.(string)},
+    }
+    return &structs.TextExpr{
+        Op: "object_to_array",
+        Val: obj.(*structs.ValueExpr),
+        Param: stringExpr,
+    }, nil
+}
+/ "printf" L_PAREN format:StringExpr rest:(COMMA ValueExpr)* R_PAREN {
+    textExpr := &structs.TextExpr{
+        Op: "printf",
+        Param: format.(*structs.StringExpr),
+    }
+    if rest != nil {
+        restSlice := rest.([]any)
+        valueList := make([]*structs.ValueExpr, len(restSlice))
+
+        for i := range restSlice {
+            valueAtom := restSlice[i].([]any)
+            valueList[i] = valueAtom[1].(*structs.ValueExpr)
+        }
+        textExpr.ValueList = valueList
+    }
+
+    return textExpr, nil
+}
+/ "tojson" L_PAREN containInternalFields:(("true" / "false") "()")? R_PAREN {
+    expr := &structs.StringExpr {
+        StringExprMode: structs.SEMRawString,
+        RawString: "true", // default value
+    }
+
+    if containInternalFields != nil {
+        restSlice := containInternalFields.([]any)
+        containInternalFieldsStr, err := transferUint8ToString(restSlice[0])
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        }
+        if containInternalFieldsStr == "false" {
+            expr.RawString = "false"
+        }
+    }
+
+    return &structs.TextExpr{
+        Op: "tojson",
+        Param: expr,
+    }, nil
 }
 
 StrToRemoveExpr <- COMMA strToRemove:String {
