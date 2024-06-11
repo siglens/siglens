@@ -2535,8 +2535,80 @@ var g = &grammar{
 												ignoreCase: false,
 												want:       "\"mvfind\"",
 											},
+										},
+									},
+								},
+								&ruleRefExpr{
+									pos:  position{line: 1250, col: 51, offset: 37657},
+									name: "L_PAREN",
+								},
+								&labeledExpr{
+									pos:   position{line: 1250, col: 59, offset: 37665},
+									label: "firstVal",
+									expr: &ruleRefExpr{
+										pos:  position{line: 1250, col: 68, offset: 37674},
+										name: "StringExpr",
+									},
+								},
+								&labeledExpr{
+									pos:   position{line: 1250, col: 79, offset: 37685},
+									label: "rest",
+									expr: &zeroOrMoreExpr{
+										pos: position{line: 1250, col: 84, offset: 37690},
+										expr: &seqExpr{
+											pos: position{line: 1250, col: 85, offset: 37691},
+											exprs: []any{
+												&ruleRefExpr{
+													pos:  position{line: 1250, col: 85, offset: 37691},
+													name: "COMMA",
+												},
+												&ruleRefExpr{
+													pos:  position{line: 1250, col: 91, offset: 37697},
+													name: "StringExpr",
+												},
+											},
+										},
+									},
+								},
+								&ruleRefExpr{
+									pos:  position{line: 1250, col: 104, offset: 37710},
+									name: "R_PAREN",
+								},
+							},
+						},
+					},
+					&actionExpr{
+						pos: position{line: 1272, col: 3, offset: 38310},
+						run: (*parser).callonTextExpr27,
+						expr: &seqExpr{
+							pos: position{line: 1272, col: 4, offset: 38311},
+							exprs: []any{
+								&labeledExpr{
+									pos:   position{line: 1272, col: 4, offset: 38311},
+									label: "opName",
+									expr: &choiceExpr{
+										pos: position{line: 1272, col: 12, offset: 38319},
+										alternatives: []any{
 											&litMatcher{
-												pos:        position{line: 1250, col: 52, offset: 37658},
+												pos:        position{line: 1272, col: 12, offset: 38319},
+												val:        "urldecode",
+												ignoreCase: false,
+												want:       "\"urldecode\"",
+											},
+											&litMatcher{
+												pos:        position{line: 1272, col: 26, offset: 38333},
+												val:        "mvcount",
+												ignoreCase: false,
+												want:       "\"mvcount\"",
+											},
+											&litMatcher{
+												pos:        position{line: 1272, col: 38, offset: 38345},
+												val:        "mvdedup",
+												ignoreCase: false,
+												want:       "\"mvdedup\"",
+											},
+											&litMatcher{
+												pos:        position{line: 1272, col: 50, offset: 38357},
 												val:        "mvsort",
 												ignoreCase: false,
 												want:       "\"mvsort\"",
@@ -2545,91 +2617,19 @@ var g = &grammar{
 									},
 								},
 								&ruleRefExpr{
-									pos:  position{line: 1250, col: 62, offset: 37668},
+									pos:  position{line: 1272, col: 60, offset: 38367},
 									name: "L_PAREN",
 								},
 								&labeledExpr{
-									pos:   position{line: 1250, col: 70, offset: 37676},
-									label: "firstVal",
-									expr: &ruleRefExpr{
-										pos:  position{line: 1250, col: 79, offset: 37685},
-										name: "StringExpr",
-									},
-								},
-								&labeledExpr{
-									pos:   position{line: 1250, col: 90, offset: 37696},
-									label: "rest",
-									expr: &zeroOrMoreExpr{
-										pos: position{line: 1250, col: 95, offset: 37701},
-										expr: &seqExpr{
-											pos: position{line: 1250, col: 96, offset: 37702},
-											exprs: []any{
-												&ruleRefExpr{
-													pos:  position{line: 1250, col: 96, offset: 37702},
-													name: "COMMA",
-												},
-												&ruleRefExpr{
-													pos:  position{line: 1250, col: 102, offset: 37708},
-													name: "StringExpr",
-												},
-											},
-										},
-									},
-								},
-								&ruleRefExpr{
-									pos:  position{line: 1250, col: 115, offset: 37721},
-									name: "R_PAREN",
-								},
-							},
-						},
-					},
-					&actionExpr{
-						pos: position{line: 1272, col: 3, offset: 38321},
-						run: (*parser).callonTextExpr28,
-						expr: &seqExpr{
-							pos: position{line: 1272, col: 4, offset: 38322},
-							exprs: []any{
-								&labeledExpr{
-									pos:   position{line: 1272, col: 4, offset: 38322},
-									label: "opName",
-									expr: &choiceExpr{
-										pos: position{line: 1272, col: 12, offset: 38330},
-										alternatives: []any{
-											&litMatcher{
-												pos:        position{line: 1272, col: 12, offset: 38330},
-												val:        "urldecode",
-												ignoreCase: false,
-												want:       "\"urldecode\"",
-											},
-											&litMatcher{
-												pos:        position{line: 1272, col: 26, offset: 38344},
-												val:        "mvcount",
-												ignoreCase: false,
-												want:       "\"mvcount\"",
-											},
-											&litMatcher{
-												pos:        position{line: 1272, col: 38, offset: 38356},
-												val:        "mvdedup",
-												ignoreCase: false,
-												want:       "\"mvdedup\"",
-											},
-										},
-									},
-								},
-								&ruleRefExpr{
-									pos:  position{line: 1272, col: 49, offset: 38367},
-									name: "L_PAREN",
-								},
-								&labeledExpr{
-									pos:   position{line: 1272, col: 57, offset: 38375},
+									pos:   position{line: 1272, col: 68, offset: 38375},
 									label: "url",
 									expr: &ruleRefExpr{
-										pos:  position{line: 1272, col: 61, offset: 38379},
+										pos:  position{line: 1272, col: 72, offset: 38379},
 										name: "StringExpr",
 									},
 								},
 								&ruleRefExpr{
-									pos:  position{line: 1272, col: 72, offset: 38390},
+									pos:  position{line: 1272, col: 83, offset: 38390},
 									name: "R_PAREN",
 								},
 							},
@@ -9821,7 +9821,7 @@ func (p *parser) callonTextExpr10() (any, error) {
 	return p.cur.onTextExpr10(stack["opName"], stack["firstVal"], stack["rest"])
 }
 
-func (c *current) onTextExpr28(opName, url any) (any, error) {
+func (c *current) onTextExpr27(opName, url any) (any, error) {
 	opNameStr, err := transferUint8ToString(opName)
 	if err != nil {
 		return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -9834,10 +9834,10 @@ func (c *current) onTextExpr28(opName, url any) (any, error) {
 	return node, nil
 }
 
-func (p *parser) callonTextExpr28() (any, error) {
+func (p *parser) callonTextExpr27() (any, error) {
 	stack := p.vstack[len(p.vstack)-1]
 	_ = stack
-	return p.cur.onTextExpr28(stack["opName"], stack["url"])
+	return p.cur.onTextExpr27(stack["opName"], stack["url"])
 }
 
 func (c *current) onTextExpr39(opName, stringExpr, delim any) (any, error) {

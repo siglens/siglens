@@ -1247,7 +1247,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
 
     return node, nil
 }
-/ (opName:("max" / "min" / "mvappend" / "mvfind" / "mvsort") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN ) {
+/ (opName:("max" / "min" / "mvappend" / "mvfind") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN ) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -1269,7 +1269,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     }
     return node, nil
 }
-/ (opName:("urldecode" / "mvcount" / "mvdedup") L_PAREN url:StringExpr R_PAREN ){
+/ (opName:("urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN url:StringExpr R_PAREN ){
     opNameStr, err := transferUint8ToString(opName)
         if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
