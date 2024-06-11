@@ -290,6 +290,8 @@ const (
 	Sum
 	Cardinality
 	Quantile
+	TopK
+	BottomK
 	Stddev
 	Stdvar
 	Group
