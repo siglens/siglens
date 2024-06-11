@@ -121,6 +121,12 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	return nodeResult
 }
 
+/*
+* TODO: The processing logic for SPL commands that need to be implemented is outlined below. These commands may need to be implemented elsewhere.
+ 1. Eval cmd:
+    1.1 Comparison and Conditional functions: case, coalesce, searchmatch, validate, nullif
+    1.2 Conversion functions: ipmask, object_to_array, printf, tojson
+*/
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 	switch agg.PipeCommandType {
