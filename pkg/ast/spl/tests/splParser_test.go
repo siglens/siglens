@@ -1898,6 +1898,30 @@ func Test_aggSum(t *testing.T) {
 	testSingleAggregateFunction(t, utils.Sum, "latency")
 }
 
+// These aggregation functions only have their parsing logic implemented.
+func Test_unimplementedAgg(t *testing.T) {
+	testSingleAggregateFunction(t, utils.Estdc, "latency")
+	testSingleAggregateFunction(t, utils.EstdcError, "latency")
+	testSingleAggregateFunction(t, utils.Median, "latency")
+	testSingleAggregateFunction(t, utils.Mode, "latency")
+	testSingleAggregateFunction(t, utils.Stdev, "latency")
+	testSingleAggregateFunction(t, utils.Stdevp, "latency")
+	testSingleAggregateFunction(t, utils.Sumsq, "latency")
+	testSingleAggregateFunction(t, utils.Var, "latency")
+	testSingleAggregateFunction(t, utils.Varp, "latency")
+	testSingleAggregateFunction(t, utils.First, "latency")
+	testSingleAggregateFunction(t, utils.Last, "latency")
+	testSingleAggregateFunction(t, utils.List, "latency")
+	testSingleAggregateFunction(t, utils.Earliest, "latency")
+	testSingleAggregateFunction(t, utils.EarliestTime, "latency")
+	testSingleAggregateFunction(t, utils.Latest, "latency")
+	testSingleAggregateFunction(t, utils.LatestTime, "latency")
+	testSingleAggregateFunction(t, utils.StatsRate, "latency")
+	testPercAggregateFunction(t, utils.ExactPerc, "6.6", "latency")
+	testPercAggregateFunction(t, utils.Perc, "99", "latency")
+	testPercAggregateFunction(t, utils.UpperPerc, "5", "latency")
+}
+
 func testSingleAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions, measureCol string) {
 	query := []byte(`search A=1 | stats ` + aggFunc.String() + `(` + measureCol + `)`)
 	res, err := spl.Parse("", query)
@@ -1931,6 +1955,43 @@ func testSingleAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions,
 	assert.Len(t, aggregator.MeasureOperations, 1)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, measureCol)
 	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, aggFunc)
+}
+
+func testPercAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions, percentStr string, measureCol string) {
+	query := []byte(`search A=1 | stats ` + aggFunc.String() + percentStr + `(` + measureCol + `)`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, pipeCommands.MeasureOperations, 1)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, measureCol)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, aggFunc)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].Param, percentStr)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+
+	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, aggregator.MeasureOperations, 1)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, measureCol)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, aggFunc)
+	assert.Equal(t, aggregator.MeasureOperations[0].Param, percentStr)
 }
 
 func Test_groupbyOneField(t *testing.T) {
