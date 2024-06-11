@@ -3162,7 +3162,8 @@ L_PAREN <- "(" EMPTY_OR_SPACE
 R_PAREN <- EMPTY_OR_SPACE ")"
 
 EOF <- !.
-SPACE <- (" "? COMMENT " "?) / " "+
+WHITESPACE <- " " / "\t" / "\n" / "\r"
+SPACE <- (WHITESPACE? COMMENT WHITESPACE?) / WHITESPACE+
 COMMENT <- "```" (!("```") .)* "```"
 EMPTY_OR_SPACE  <- SPACE / ""
 SPACE_OR_COMMA <- COMMA / SPACE
