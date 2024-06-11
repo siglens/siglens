@@ -73,9 +73,9 @@ type timeSeries struct {
 // This is used to generate the test data and every query must use this timestamp as the start timestamp
 // You can change this value to some other value or set it dynamically based on the current time. For example: uint32(time.Now().Unix() - 24*3600)
 // But this might cause the test cases to fail. But that does not mean there is an error with the code.
-// The problem is with the assumption of the test case. The timeseries at T1 and T2 has time diff = 1 second and in my below test cases
-// I am assuming them to be downsampled to the same time bucket. But sometimes when you use dynamic timestamp that might not happend and the test case might fail.
-// This will happend as we calculate the downsampledTime using this formula: downsampledTime = (ts / s.dsSeconds) * s.dsSeconds
+// The problem is with the assumption of the test case. The timeseries at T1 and T2 has time diff = 1 second.
+// The below test cases assume them to be downsampled to the same time bucket. But sometimes when you use dynamic timestamp that might not happen and the test case might fail.
+// This will happen because of how we calculate the downsampledTime using the formula: downsampledTime = (ts / s.dsSeconds) * s.dsSeconds
 // So, it is better to keep this value to be constant and not change this.
 const dataStartTimestamp uint32 = 1718052279
 
