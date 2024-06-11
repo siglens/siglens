@@ -341,18 +341,18 @@ async function addQueryElement() {
         var queryDetails = queries[queryName];
 
         if (queryDetails.state === 'builder') {
-            // Switch to raw mode and show the query string
-            const queryString = createQueryString(queryDetails);
-            queryDetails.rawQueryInput = queryString;
-            queryElement.find('.raw-query-input').val(queryString);
+            // Switch to raw mode
             queryDetails.state = 'raw';
+            const queryString = createQueryString(queryDetails);
+                if (!queryDetails.rawQueryExecuted){
+                    queryDetails.rawQueryInput = queryString;
+                    queryElement.find('.raw-query-input').val(queryString);
+                }
         } else {
             // Switch to builder mode
             queryDetails.state = 'builder';
             getQueryDetails(queryName, queryDetails);
         }
-        const queryString = createQueryString(queries[queryName]);
-        queryElement.find('.raw-query input').val(queryString);
     });
 
     queryElement.find('.raw-query').on('click', '#run-filter-btn', async function() {
@@ -360,7 +360,7 @@ async function addQueryElement() {
         var queryDetails = queries[queryName];
         var rawQuery = queryElement.find('.raw-query-input').val();
         queryDetails.rawQueryInput = rawQuery;
-        
+        queryDetails.rawQueryExecuted = true; // Set the flag to indicate that raw query has been executed
         // Perform the search with the raw query
         await getMetricsData(queryName, rawQuery);
         const chartData = await convertDataForChart(rawTimeSeriesData);
@@ -380,7 +380,8 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         aggFunction: 'avg by',
         functions: [],
         state: 'builder',
-        rawQueryInput: ''
+        rawQueryInput: '',
+        rawQueryExecuted: false
     };
     // Use details from the previous query if it exists
     if (!jQuery.isEmptyObject(previousQuery)) {
