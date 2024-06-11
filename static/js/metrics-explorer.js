@@ -362,9 +362,7 @@ async function addQueryElement() {
         queryDetails.rawQueryInput = rawQuery;
         queryDetails.rawQueryExecuted = true; // Set the flag to indicate that raw query has been executed
         // Perform the search with the raw query
-        await getMetricsData(queryName, rawQuery);
-        const chartData = await convertDataForChart(rawTimeSeriesData);
-        addVisualizationContainer(queryName, chartData, rawQuery);
+        await getQueryDetails(queryName, queryDetails);
     });
     
 }
@@ -1254,7 +1252,12 @@ function getTagKeyValue(metricName) {
 
 
 async function getQueryDetails(queryName, queryDetails){
-    const queryString = createQueryString(queryDetails);
+    let queryString;
+    if(queryDetails.state === "builder"){
+        queryString = createQueryString(queryDetails);
+    }else {
+        queryString = queryDetails.rawQueryInput;
+    }
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData)
     addVisualizationContainer(queryName, chartData, queryString);
