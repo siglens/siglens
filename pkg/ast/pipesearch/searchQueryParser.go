@@ -313,6 +313,7 @@ func parseGroupBySegLevelStats(node *structs.GroupByRequest, bucketLimit int, qi
 		tempMeasureAgg.MeasureFunc = parsedMeasureAgg.MeasureFunc
 		tempMeasureAgg.ValueColRequest = parsedMeasureAgg.ValueColRequest
 		tempMeasureAgg.StrEnc = parsedMeasureAgg.StrEnc
+		tempMeasureAgg.Param = parsedMeasureAgg.Param
 		aggNode.GroupByRequest.MeasureOperations = append(aggNode.GroupByRequest.MeasureOperations, tempMeasureAgg)
 	}
 	if node.GroupByColumns != nil {
@@ -332,6 +333,7 @@ func parseSegLevelStats(node []*structs.MeasureAggregator, qid uint64) (*QueryAg
 		tempMeasureAgg.MeasureFunc = parsedMeasureAgg.MeasureFunc
 		tempMeasureAgg.ValueColRequest = parsedMeasureAgg.ValueColRequest
 		tempMeasureAgg.StrEnc = parsedMeasureAgg.StrEnc
+		tempMeasureAgg.Param = parsedMeasureAgg.Param
 		aggNode.MeasureOperations = append(aggNode.MeasureOperations, tempMeasureAgg)
 	}
 	return aggNode, nil
