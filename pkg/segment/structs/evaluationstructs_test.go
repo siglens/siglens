@@ -1316,7 +1316,7 @@ func Test_StringExpr(t *testing.T) {
 			TextExpr: &TextExpr{
 				IsTerminal: false,
 				Op:         "urldecode",
-				Value: &StringExpr{
+				Param: &StringExpr{
 					StringExprMode: SEMRawString,
 					RawString:      "http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader",
 				},
@@ -1337,7 +1337,7 @@ func Test_StringExpr(t *testing.T) {
 			TextExpr: &TextExpr{
 				IsTerminal: false,
 				Op:         "split",
-				Value: &StringExpr{
+				Param: &StringExpr{
 					StringExprMode: SEMField,
 					FieldName:      "ident",
 				},
@@ -1474,7 +1474,7 @@ func Test_StringExpr(t *testing.T) {
 					TextExpr: &TextExpr{
 						IsTerminal: false,
 						Op:         "substr",
-						Value: &StringExpr{
+						Param: &StringExpr{
 							StringExprMode: SEMRawString,
 							RawString:      "splendid",
 						},
@@ -1497,7 +1497,7 @@ func Test_StringExpr(t *testing.T) {
 					TextExpr: &TextExpr{
 						IsTerminal: false,
 						Op:         "substr",
-						Value: &StringExpr{
+						Param: &StringExpr{
 							StringExprMode: SEMRawString,
 							RawString:      "chunk",
 						},
@@ -1572,7 +1572,7 @@ func Test_StringExpr(t *testing.T) {
 						Value:           "15",
 					},
 				},
-				Format: &StringExpr{
+				Param: &StringExpr{
 					StringExprMode: SEMRawString,
 					RawString:      "hex",
 				},
@@ -1599,7 +1599,7 @@ func Test_StringExpr(t *testing.T) {
 						Value:           "12345.6789",
 					},
 				},
-				Format: &StringExpr{
+				Param: &StringExpr{
 					StringExprMode: SEMRawString,
 					RawString:      "commas",
 				},
@@ -1626,7 +1626,7 @@ func Test_StringExpr(t *testing.T) {
 						Value:           "615",
 					},
 				},
-				Format: &StringExpr{
+				Param: &StringExpr{
 					StringExprMode: SEMRawString,
 					RawString:      "duration",
 				},

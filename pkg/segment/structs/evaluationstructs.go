@@ -180,7 +180,7 @@ type StringExpr struct {
 type TextExpr struct {
 	IsTerminal   bool
 	Op           string //lower, ltrim, rtrim
-	Value        *StringExpr
+	Param        *StringExpr
 	StrToRemove  string
 	Delimiter    *StringExpr
 	MaxMinValues []*StringExpr
@@ -1329,8 +1329,8 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		if err != nil {
 			return "", fmt.Errorf("TextExpr.EvaluateText: failed to evaluate value for 'tostring' operation: %v", err)
 		}
-		if self.Format != nil {
-			formatStr, err := self.Format.Evaluate(fieldToValue)
+		if self.Param != nil {
+			formatStr, err := self.Param.Evaluate(fieldToValue)
 			if err != nil {
 				return "", fmt.Errorf("TextExpr.EvaluateText: failed to evaluate format for 'tostring' operation: %v", err)
 			}
@@ -1365,7 +1365,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			return valueStr, nil
 		}
 	}
-	cellValueStr, err := self.Value.Evaluate(fieldToValue)
+	cellValueStr, err := self.Param.Evaluate(fieldToValue)
 	if err != nil {
 		return "", fmt.Errorf("TextExpr.EvaluateText: can not evaluate text as a str: %v", err)
 	}
@@ -1393,7 +1393,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		return strings.Join(strings.Split(cellValueStr, delimiterStr), "&nbsp"), nil
 
 	case "substr":
-		baseString, err := self.Value.Evaluate(fieldToValue)
+		baseString, err := self.Param.Evaluate(fieldToValue)
 		if err != nil {
 			return "", err
 		}
@@ -1488,8 +1488,8 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 func (self *TextExpr) GetFields() []string {
 	fields := make([]string, 0)
 	if self.IsTerminal || (self.Op != "max" && self.Op != "min") {
-		if self.Value != nil {
-			fields = append(fields, self.Value.GetFields()...)
+		if self.Param != nil {
+			fields = append(fields, self.Param.GetFields()...)
 		}
 		if self.Val != nil {
 			fields = append(fields, self.Val.GetFields()...)
@@ -1502,9 +1502,6 @@ func (self *TextExpr) GetFields() []string {
 		}
 		if self.LengthExpr != nil {
 			fields = append(fields, self.LengthExpr.GetFields()...)
-		}
-		if self.Format != nil {
-			fields = append(fields, self.Format.GetFields()...)
 		}
 		return fields
 	}

@@ -1301,7 +1301,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     }
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExpr.(*structs.StringExpr),
+        Param: stringExpr.(*structs.StringExpr),
         StrToRemove: "",
     }
 
@@ -1338,7 +1338,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     }
         node := &structs.TextExpr {
             Op: opNameStr,
-            Value: url.(*structs.StringExpr),
+            Param: url.(*structs.StringExpr),
             StrToRemove: "",
         }
         return node, nil
@@ -1350,7 +1350,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     }
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExpr.(*structs.StringExpr),
+        Param: stringExpr.(*structs.StringExpr),
         Delimiter: delim.(*structs.StringExpr),
     }
     return node, nil
@@ -1382,7 +1382,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     }
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExprConverted,
+        Param: stringExprConverted,
         StartIndex: startIndexConverted,
         LengthExpr: lengthConverted,
     }
@@ -1398,7 +1398,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
         IsTerminal: false,
         Op:         "tostring",
         Val:        value.(*structs.ValueExpr),
-        Format:     formatExpr,
+        Param:     formatExpr,
     }, nil
 }
 / (opName:("ltrim" / "rtrim") L_PAREN expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? R_PAREN) {
@@ -1419,7 +1419,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
 
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExpr,
+        Param: stringExpr,
         StrToRemove: removeQuotes(strToRemove),
     }
 

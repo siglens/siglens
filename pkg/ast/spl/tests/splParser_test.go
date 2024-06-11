@@ -3468,8 +3468,8 @@ func Test_evalFunctionsLower(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].Value, "Test concat:")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].IsField, false)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.Op, "lower")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.Value.StringExprMode), structs.SEMField)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.Value.FieldName, "state")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.Param.StringExprMode), structs.SEMField)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.Param.FieldName, "state")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].IsField, false)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[2].Value, "  end")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[2].IsField, false)
@@ -3497,8 +3497,8 @@ func Test_evalFunctionsLtrim(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.Op, "ltrim")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.StrToRemove, "Ma")
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.Value.FieldName, "state")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.Value.StringExprMode), structs.SEMField)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.Param.FieldName, "state")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.Param.StringExprMode), structs.SEMField)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].IsField, false)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].Value, " test end")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].IsField, false)
@@ -3529,8 +3529,8 @@ func Test_evalFunctionsRtrim(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].Value, " start:")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].IsField, false)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[2].TextExpr.Op, "rtrim")
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[2].TextExpr.Value.FieldName, "state")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[2].TextExpr.Value.StringExprMode), structs.SEMField)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[2].TextExpr.Param.FieldName, "state")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[2].TextExpr.Param.StringExprMode), structs.SEMField)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[2].TextExpr.StrToRemove, "nd")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[2].IsField, false)
 }
@@ -3895,8 +3895,8 @@ func Test_evalFunctionsUrldecode(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "urldecode")
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Value)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Value.RawString, "http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.RawString, "http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader")
 
 }
 
@@ -3919,9 +3919,9 @@ func Test_evalFunctionsSplit(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
 	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMStringExpr)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "split")
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Value)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Value.StringExprMode), structs.SEMField)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Value.FieldName, "ident")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), structs.SEMField)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.FieldName, "ident")
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Delimiter)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Delimiter.RawString, "-")
 
@@ -4033,9 +4033,9 @@ func Test_evalFunctionsSubstr(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].IsField, false)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.IsTerminal, false)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.Op, "substr")
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.Value)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.Value.StringExprMode), structs.SEMRawString)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.Value.RawString, "splendid")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.Param)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.Param.StringExprMode), structs.SEMRawString)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.Param.RawString, "splendid")
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.StartIndex)
 	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.StartIndex.NumericExprMode), structs.NEMNumber)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[0].TextExpr.StartIndex.IsTerminal, true)
@@ -4049,9 +4049,9 @@ func Test_evalFunctionsSubstr(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].IsField, false)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.IsTerminal, false)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.Op, "substr")
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.Value)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.Value.StringExprMode), structs.SEMRawString)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.Value.RawString, "chunk")
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.Param)
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.Param.StringExprMode), structs.SEMRawString)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.Param.RawString, "chunk")
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.StartIndex)
 	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.StartIndex.NumericExprMode), structs.NEMNumber)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.ConcatExpr.Atoms[1].TextExpr.StartIndex.IsTerminal, true)
@@ -4114,8 +4114,8 @@ func Test_evalFunctionsToStringHex(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.IsTerminal, true)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.ValueIsField, false)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.Value, "15")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Format.StringExprMode), structs.SEMRawString)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Format.RawString, "hex")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), structs.SEMRawString)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.RawString, "hex")
 }
 
 func Test_evalFunctionsToStringCommas(t *testing.T) {
@@ -4142,8 +4142,8 @@ func Test_evalFunctionsToStringCommas(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.IsTerminal, true)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.ValueIsField, false)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.Value, "12345.6789")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Format.StringExprMode), structs.SEMRawString)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Format.RawString, "commas")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), structs.SEMRawString)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.RawString, "commas")
 }
 
 func Test_evalFunctionsToStringDuration(t *testing.T) {
@@ -4170,8 +4170,8 @@ func Test_evalFunctionsToStringDuration(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.IsTerminal, true)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.ValueIsField, false)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.Value, "615")
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Format.StringExprMode), structs.SEMRawString)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Format.RawString, "duration")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.StringExprMode), structs.SEMRawString)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.RawString, "duration")
 }
 
 func Test_evalFunctionsExact(t *testing.T) {
