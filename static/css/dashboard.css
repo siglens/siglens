@@ -1111,7 +1111,8 @@ input:checked + .slider:before {
   color: var(--drop-down-text-color) !important;
 }
 .settings-btn{
-  width: 32px;
+  margin-left: 0px !important;
+  width: 32px !important;
   height: 32px !important;
   border: 1px solid var(--border-color-regular) !important;
   background: var(--top-setting-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
