@@ -202,7 +202,7 @@ func Test_ProcessQueryArithmeticAndLogical_v1(t *testing.T) {
 	// Test: query1 - query2 * query3 + query2
 	query := "node_cpu_seconds_total - node_memory_MemTotal_bytes * node_disk_reads_completed_total + node_memory_MemTotal_bytes"
 
-	mQueryReqs, _, queryArithmetic, err := convertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	mQueryReqs, _, queryArithmetic, err := ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(mQueryReqs))
 	assert.Equal(t, 1, len(queryArithmetic))

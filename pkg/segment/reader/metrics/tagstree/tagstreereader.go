@@ -209,6 +209,13 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 		return nil, err
 	}
 
+	metricName := mQuery.MetricName
+	if mQuery.IsRegexOnMetricName() && !mQuery.GroupByMetricName {
+		// If the metric name is a regex, we do not want to add the metric name to the tracker
+		// As this may affect the group by
+		metricName = STAR
+	}
+
 	for i := 0; i < len(mQuery.TagsFilters); i++ {
 		tf := mQuery.TagsFilters[i]
 		//  Check if the tag key exists in the tag tree
@@ -260,13 +267,7 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 							}
 							err = tracker.BulkAddStarTagsOnly(rawTagValueToTSIDs, initMetricName, tf.TagKey, numValueFiltersNonZero)
 						} else {
-							if mQuery.IsRegexOnMetricName() && !mQuery.GroupByMetricName {
-								// If the metric name is a regex, we do not want to add the metric name to the tracker
-								// As this may affect the group by
-								initMetricName = fmt.Sprintf("%v{", STAR)
-							} else {
-								initMetricName = fmt.Sprintf("%v{", mQuery.MetricName)
-							}
+							initMetricName = fmt.Sprintf("%v{", metricName)
 							if tf.IsRegex() {
 								err = tracker.BulkAdd(rawTagValueToTSIDs, mQuery.MetricName, tf.TagKey)
 							} else {
@@ -283,7 +284,7 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 				var grpIDStr string
 				if !mQuery.GetAllLabels && mQuery.SelectAllSeries && !mQuery.ExitAfterTagsSearch {
 					for tsid := range tsids {
-						err := tracker.AddTSID(tsid, mQuery.MetricName, tf.TagKey, false)
+						err := tracker.AddTSID(tsid, metricName, tf.TagKey, false)
 						if err != nil {
 							log.Errorf("FindTSIDS: failed to add tsid %v to tracker for the tag key: %v! Error %+v", tsid, tf.TagKey, err)
 							return nil, err
@@ -319,10 +320,6 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 			if mQuery.ExitAfterTagsSearch {
 				err = tracker.BulkAddTagsOnly(rawTagValueToTSIDs, mQuery.MetricName, tf.TagKey)
 			} else {
-				metricName := mQuery.MetricName
-				if mQuery.IsRegexOnMetricName() && !mQuery.GroupByMetricName {
-					metricName = STAR
-				}
 				err = tracker.BulkAdd(rawTagValueToTSIDs, metricName, tf.TagKey)
 			}
 			if err != nil {
