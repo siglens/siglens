@@ -130,6 +130,13 @@ type TransactionArguments struct {
 	EndsWith              *FilterStringExpr
 }
 
+type StatsOptions struct {
+	Delim          string
+	Partitions     uint64
+	DedupSplitvals bool
+	Allnum         bool
+}
+
 type TransactionGroupState struct {
 	Key       string
 	Open      bool
@@ -151,6 +158,7 @@ type QueryAggregators struct {
 	ShowRequest          *ShowRequest
 	TableName            string
 	TransactionArguments *TransactionArguments
+	StatsOptions         *StatsOptions
 	Next                 *QueryAggregators
 	Limit                int
 }
@@ -193,6 +201,7 @@ type MeasureAggregator struct {
 	StrEnc             string                   `json:"strEnc,omitempty"`
 	ValueColRequest    *ValueExpr               `json:"valueColRequest,omitempty"`
 	OverrodeMeasureAgg *MeasureAggregator       `json:"overrideFunc,omitempty"`
+	Param              string
 }
 
 type MathEvaluator struct {
@@ -671,4 +680,48 @@ func (qtype QueryType) String() string {
 	default:
 		return "invalid"
 	}
+}
+
+var unsupportedFuncs = []utils.AggregateFunctions{
+	utils.Estdc, utils.EstdcError, utils.ExactPerc, utils.Perc, utils.UpperPerc,
+	utils.Median, utils.Mode, utils.Stdev, utils.Stdevp, utils.Sumsq,
+	utils.Var, utils.Varp, utils.First, utils.Last, utils.Earliest,
+	utils.EarliestTime, utils.Latest, utils.LatestTime, utils.StatsRate,
+}
+
+func isUnsupported(funcName utils.AggregateFunctions) bool {
+	for _, f := range unsupportedFuncs {
+		if f == funcName {
+			return true
+		}
+	}
+	return false
+}
+
+func CheckUnsupportedFunctions(agg *QueryAggregators) error {
+	if agg == nil {
+		return nil
+	}
+
+	// Check if user has used the stats options
+	if agg.StatsOptions != nil {
+		if agg.StatsOptions.Delim != " " || agg.StatsOptions.Partitions != 1 || agg.StatsOptions.DedupSplitvals || agg.StatsOptions.Allnum {
+			return fmt.Errorf("checkUnsupportedFunctions: using options in stats is not yet supported")
+		}
+	}
+
+	if agg.GroupByRequest != nil {
+		for _, measureAgg := range agg.GroupByRequest.MeasureOperations {
+			if isUnsupported(measureAgg.MeasureFunc) {
+				return fmt.Errorf("checkUnsupportedFunctions: using %v in stats is not yet supported", measureAgg.MeasureFunc.String())
+			}
+		}
+	}
+
+	for _, measureAgg := range agg.MeasureOperations {
+		if isUnsupported(measureAgg.MeasureFunc) {
+			return fmt.Errorf("checkUnsupportedFunctions: using %v in stats is not yet supported", measureAgg.MeasureFunc.String())
+		}
+	}
+	return nil
 }
