@@ -703,17 +703,24 @@ func CheckUnsupportedFunctions(agg *QueryAggregators) error {
 		return nil
 	}
 
+	// Check if user has used the stats options
+	if agg.StatsOptions != nil {
+		if agg.StatsOptions.Delim != " " || agg.StatsOptions.Partitions != 1 || agg.StatsOptions.DedupSplitvals || agg.StatsOptions.Allnum {
+			return fmt.Errorf("checkUnsupportedFunctions: using options in stats is not yet supported")
+		}
+	}
+
 	if agg.GroupByRequest != nil {
 		for _, measureAgg := range agg.GroupByRequest.MeasureOperations {
 			if isUnsupported(measureAgg.MeasureFunc) {
-				return fmt.Errorf("checkUnsupportedFunctions: does not support using this stats function: %v", measureAgg.MeasureFunc.String())
+				return fmt.Errorf("checkUnsupportedFunctions: using %v in stats is not yet supported", measureAgg.MeasureFunc.String())
 			}
 		}
 	}
 
 	for _, measureAgg := range agg.MeasureOperations {
 		if isUnsupported(measureAgg.MeasureFunc) {
-			return fmt.Errorf("checkUnsupportedFunctions: does not support using this stats function: %v", measureAgg.MeasureFunc.String())
+			return fmt.Errorf("checkUnsupportedFunctions: using %v in stats is not yet supported", measureAgg.MeasureFunc.String())
 		}
 	}
 	return nil
