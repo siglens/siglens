@@ -1546,19 +1546,7 @@ EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "searchmatc
     }
     return expr, nil
 }
-
-BoolComparisonExpr <- left:ValueExpr op:EqualityOrInequality right:ValueExpr {
-    expr := &structs.BoolExpr {
-        IsTerminal: true,
-        LeftValue: left.(*structs.ValueExpr),
-        RightValue: right.(*structs.ValueExpr),
-        ValueOp: op.(string),
-    }
-
-    return expr, nil
-}
-
-InExpr <- left:ValueExpr SPACE "in" L_PAREN valueToJudge:ValueExpr rest:(COMMA ValueExpr)* R_PAREN {
+/ left:ValueExpr SPACE "in" L_PAREN valueToJudge:ValueExpr rest:(COMMA ValueExpr)* R_PAREN {
     restSlice := rest.([]any)
     slice := make([]*structs.ValueExpr, 1 + len(restSlice))
     slice[0] = valueToJudge.(*structs.ValueExpr)
@@ -1592,6 +1580,17 @@ InExpr <- left:ValueExpr SPACE "in" L_PAREN valueToJudge:ValueExpr rest:(COMMA V
         ValueList: slice,
         ValueOp: "in",
     }
+    return expr, nil
+}
+
+BoolComparisonExpr <- left:ValueExpr op:EqualityOrInequality right:ValueExpr {
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: left.(*structs.ValueExpr),
+        RightValue: right.(*structs.ValueExpr),
+        ValueOp: op.(string),
+    }
+
     return expr, nil
 }
 
