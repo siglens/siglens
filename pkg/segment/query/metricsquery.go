@@ -337,7 +337,7 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 
 			metricNames, err = getRegexMatchedMetricNames(allMSearchReqs[0], mQuery.MetricNameRegexPattern, mQuery.MetricOperator)
 			if err != nil {
-				mRes.AddError(err)
+				log.Errorf("qid=%d, applyMetricsOperatorOnSegments: Error getting regex matched metric names. Regex Pattern: %v, Error=%v", qid, mQuery.MetricNameRegexPattern, err)
 				continue
 			}
 		} else {
