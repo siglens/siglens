@@ -169,7 +169,6 @@ async function initializeIndexAutocomplete() {
                 const matchesIndex =  hasMatchingString(indexValues, matcher);
                 // If the typed value matches any index, add the option to index list
                 if (matchesIndex) {
-                    indexValues.unshift(typedValue);
                     addSelectedIndex(typedValue);
                     if (!selectedSearchIndex.split(',').includes(typedValue)) {
                         selectedSearchIndex += selectedSearchIndex ? ',' + typedValue : typedValue;
@@ -204,7 +203,7 @@ $(".index-container").on("click", ".remove-icon", function(e) {
     
     $(this).parent().remove();
 
-    if (!removedValue.endsWith('*')) {        
+    if (!removedValue.includes('*')) {        
         // If the removed value is not a wildcard option
         indexValues.push(removedValue);
         indexValues.sort();
