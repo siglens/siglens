@@ -44,8 +44,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
-    <link rel="stylesheet" href="./css/dashboard.css" />
-    <link rel="stylesheet" href="./css/siglens.css" />
+    <link rel="stylesheet" href="./css/dashboard.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
     
     
     <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
@@ -237,6 +237,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <div class="navbar-options">
                             <div class="index-container">
                                 <input type="text" name="" id="index-listing">
+                                <button id="add-index" class="add-con btn">+</button>
                             </div>
                             <div class="dropdown">
                                 <button class="btn dropdown-toggle btn-top" type="button" id="date-picker-btn" data-toggle="dropdown"

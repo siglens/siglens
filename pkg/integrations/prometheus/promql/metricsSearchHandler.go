@@ -1248,6 +1248,18 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Min
 				case "quantile":
 					mquery.Aggregator.AggregatorFunction = segutils.Quantile
+				case "topk":
+					mquery.Aggregator.AggregatorFunction = segutils.TopK
+					mquery.GetAllLabels = true
+				case "bottomk":
+					mquery.Aggregator.AggregatorFunction = segutils.BottomK
+					mquery.GetAllLabels = true
+				case "stddev":
+					mquery.Aggregator.AggregatorFunction = segutils.Stddev
+				case "stdvar":
+					mquery.Aggregator.AggregatorFunction = segutils.Stdvar
+				case "group":
+					mquery.Aggregator.AggregatorFunction = segutils.Group
 				default:
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for AggregateExpr (got %v)", aggFunc)
 					mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
@@ -1282,6 +1294,18 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Min
 				case "quantile":
 					mquery.Aggregator.AggregatorFunction = segutils.Quantile
+				case "topk":
+					mquery.Aggregator.AggregatorFunction = segutils.TopK
+					mquery.GetAllLabels = true
+				case "bottomk":
+					mquery.Aggregator.AggregatorFunction = segutils.BottomK
+					mquery.GetAllLabels = true
+				case "stddev":
+					mquery.Aggregator.AggregatorFunction = segutils.Stddev
+				case "stdvar":
+					mquery.Aggregator.AggregatorFunction = segutils.Stdvar
+				case "group":
+					mquery.Aggregator.AggregatorFunction = segutils.Group
 				default:
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for VectorSelector (got %v)", aggFunc)
 					mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}

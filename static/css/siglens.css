@@ -2721,6 +2721,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
  .ag-cell {
     padding: 3px 15px !important;
     font-size: 14px;
+    user-select: all;
 }
 
 .ag-theme-mycustomtheme .ag-row{
@@ -5292,6 +5293,22 @@ input.form-control {
 #index-listing:focus{
     outline: none;
     background: var(--ui-widget-bg-color);
+}
+
+.add-con {
+    border: 1px solid var(--border-btn-color);
+    font-size: 16px !important;
+    padding: 0px;
+    padding-bottom: 3px;
+    margin: 0 4px 0 10px;
+    height: 20px;
+    width: 20px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--default-tab);
+    color: var(--text-color);
 }
 
 /* Tippy.js Tooltip  */

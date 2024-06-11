@@ -448,7 +448,7 @@ func (agg Aggregation) ShallowClone() *Aggregation {
 }
 
 func (agg Aggregation) IsAggregateFromAllTimeseries() bool {
-	return agg.AggregatorFunction == utils.Count // Todo: Will add topk, bottomk
+	return agg.AggregatorFunction == utils.Count || agg.AggregatorFunction == utils.Stdvar || agg.AggregatorFunction == utils.Stddev || agg.AggregatorFunction == utils.TopK || agg.AggregatorFunction == utils.BottomK
 }
 
 func (mQuery *MetricsQuery) IsRegexOnMetricName() bool {

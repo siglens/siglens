@@ -392,7 +392,7 @@ function showPanelInfo(infoMsg) {
 
 function getQueryParamsData(scrollingTrigger) {
     let sFrom = 0;
-    let queryLanguage = $('.queryInput-container #query-language-btn span').html();
+    let queryLanguage = $('#query-language-options .query-language-option.active').html();
 
     if (scrollingTrigger) {
         sFrom = scrollFrom;
@@ -846,14 +846,6 @@ function setIndexDisplayValue(selectedSearchIndex){
             const indexIndex = indexValues.indexOf(index);
             if (indexIndex !== -1) {
                 indexValues.splice(indexIndex, 1);
-            }
-            if (index.endsWith('*')) {
-                const prefix = index.slice(0, -1); // Remove the '*'
-                const filteredIndexValues = indexValues.filter(function(option) {
-                    return !option.startsWith(prefix);
-                });
-                indexValues = filteredIndexValues;
-                $("#index-listing").autocomplete("option", "source", filteredIndexValues);
             }
         });
     }

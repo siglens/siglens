@@ -82,7 +82,7 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
 	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
 	if err != nil {
-		log.Errorf("doVolumeBasedDeletion: Failed to read segmeta, err: %v", err)
+		log.Errorf("DoRetentionBasedDeletion: Failed to read segmeta, filePath=%v, err: %v", currentSegmeta, err)
 		return
 	}
 
@@ -91,7 +91,7 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 
 	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)
 	if err != nil {
-		log.Errorf("doVolumeBasedDeletion: Failed to get all metric meta entries, err: %v", err)
+		log.Errorf("DoRetentionBasedDeletion: Failed to get all metric meta entries, FilePath=%v, err: %v", currentMetricsMeta, err)
 		return
 	}
 
@@ -173,7 +173,7 @@ func deleteEmptyIndices(ingestNodeDir string, myid uint64) {
 
 	segMetaEntries, err := writer.ReadSegmeta(currentSegmeta)
 	if err != nil {
-		log.Errorf("deleteEmptyIndices: Error in reading segmeta file, err: %v", err)
+		log.Errorf("deleteEmptyIndices: Error in reading segmeta file=%v, err: %v", currentSegmeta, err)
 		return
 	}
 	// Create a set of virtualTableName values from segMetaEntries
@@ -235,14 +235,14 @@ func doVolumeBasedDeletion(ingestNodeDir string, allowedVolumeGB uint64, deletio
 	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
 	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
 	if err != nil {
-		log.Errorf("doVolumeBasedDeletion: Failed to read segmeta, err: %v", err)
+		log.Errorf("doVolumeBasedDeletion: Failed to read segmeta, filepath=%v, err: %v", currentSegmeta, err)
 		return
 	}
 
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
 	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)
 	if err != nil {
-		log.Errorf("doVolumeBasedDeletion: Failed to get all metric meta entries, err: %v", err)
+		log.Errorf("doVolumeBasedDeletion: Failed to get all metric meta entries, filepath=%v, err: %v", currentMetricsMeta, err)
 		return
 	}
 
@@ -349,7 +349,7 @@ func DeleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.
 		for _, file := range filesToDelete {
 			err := blob.DeleteBlob(file)
 			if err != nil {
-				log.Infof("deleteSegmentData: Error in deleting segment file %v in s3", file)
+				log.Errorf("deleteSegmentData: Error in deleting segment file %v in s3", file)
 				continue
 			}
 		}
