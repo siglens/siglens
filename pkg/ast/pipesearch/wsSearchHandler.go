@@ -109,6 +109,13 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Log QL", indexNameIn)
 	} else if queryLanguageType == "Splunk QL" {
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
+		if err != nil {
+			wErr := conn.WriteJSON(createErrorResponse(err.Error()))
+			if wErr != nil {
+				log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! err: %+v", qid, wErr)
+			}
+		}
+		err = structs.CheckUnsupportedFunctions(aggs)
 	} else {
 		log.Infof("ProcessPipeSearchWebsocket: unknown queryLanguageType: %v; using Splunk QL instead", queryLanguageType)
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)

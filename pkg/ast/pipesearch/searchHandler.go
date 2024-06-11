@@ -379,6 +379,16 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Log QL", indexNameIn)
 	} else if queryLanguageType == "Splunk QL" {
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
+		if err != nil {
+			ctx.SetStatusCode(fasthttp.StatusBadRequest)
+			_, err = ctx.WriteString(err.Error())
+			if err != nil {
+				log.Errorf("qid=%v, ProcessPipeSearchRequest: could not write error message, err: %v", qid, err)
+			}
+			log.Errorf("qid=%v, ProcessPipeSearchRequest: Error parsing query, err: %+v", qid, err)
+			return
+		}
+		err = structs.CheckUnsupportedFunctions(aggs)
 	} else {
 		log.Infof("ProcessPipeSearchRequest: unknown queryLanguageType: %v; using Splunk QL instead", queryLanguageType)
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)

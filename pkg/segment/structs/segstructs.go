@@ -681,3 +681,40 @@ func (qtype QueryType) String() string {
 		return "invalid"
 	}
 }
+
+var unsupportedFuncs = []utils.AggregateFunctions{
+	utils.Estdc, utils.EstdcError, utils.ExactPerc, utils.Perc, utils.UpperPerc,
+	utils.Median, utils.Mode, utils.Stdev, utils.Stdevp, utils.Sumsq,
+	utils.Var, utils.Varp, utils.First, utils.Last, utils.Earliest,
+	utils.EarliestTime, utils.Latest, utils.LatestTime, utils.StatsRate,
+}
+
+func isUnsupported(funcName utils.AggregateFunctions) bool {
+	for _, f := range unsupportedFuncs {
+		if f == funcName {
+			return true
+		}
+	}
+	return false
+}
+
+func CheckUnsupportedFunctions(agg *QueryAggregators) error {
+	if agg == nil {
+		return nil
+	}
+
+	if agg.GroupByRequest != nil {
+		for _, measureAgg := range agg.GroupByRequest.MeasureOperations {
+			if isUnsupported(measureAgg.MeasureFunc) {
+				return fmt.Errorf("checkUnsupportedFunctions: does not support using this stats function: %v", measureAgg.MeasureFunc.String())
+			}
+		}
+	}
+
+	for _, measureAgg := range agg.MeasureOperations {
+		if isUnsupported(measureAgg.MeasureFunc) {
+			return fmt.Errorf("checkUnsupportedFunctions: does not support using this stats function: %v", measureAgg.MeasureFunc.String())
+		}
+	}
+	return nil
+}

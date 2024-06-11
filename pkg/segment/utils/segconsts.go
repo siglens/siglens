@@ -415,8 +415,60 @@ func (e AggregateFunctions) String() string {
 		return "sum"
 	case Cardinality:
 		return "cardinality"
+	case Quantile:
+		return "quantile"
+	case TopK:
+		return "topk"
+	case BottomK:
+		return "bottomk"
+	case Stddev:
+		return "stddev"
+	case Stdvar:
+		return "stdvar"
+	case Group:
+		return "group"
 	case Values:
 		return "values"
+	case List:
+		return "list"
+	case Estdc:
+		return "estdc"
+	case EstdcError:
+		return "estdc_error"
+	case ExactPerc:
+		return "exactperc"
+	case Median:
+		return "median"
+	case Mode:
+		return "mode"
+	case Perc:
+		return "perc"
+	case UpperPerc:
+		return "upperperc"
+	case Stdev:
+		return "stdev"
+	case Stdevp:
+		return "stdevp"
+	case Sumsq:
+		return "sumsq"
+	case Var:
+		return "var"
+	case Varp:
+		return "varp"
+	case First:
+		return "first"
+	case Last:
+		return "last"
+	case Earliest:
+		return "earliest"
+	case EarliestTime:
+		return "earliest_time"
+	case Latest:
+		return "latest"
+	case LatestTime:
+		return "latest_time"
+	case StatsRate:
+		return "rate"
 	default:
 		return fmt.Sprintf("%d", int(e))
 	}
