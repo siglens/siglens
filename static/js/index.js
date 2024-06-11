@@ -81,10 +81,10 @@ async function initializeIndexAutocomplete() {
             }
             
             // Update selectedSearchIndex
-            if (!selectedSearchIndex.includes(selectedValue)) {
+            if (!selectedSearchIndex.split(',').includes(selectedValue)) {
                 selectedSearchIndex += selectedSearchIndex ? ',' + selectedValue : selectedValue;
             }
-            
+
             $(this).val('');
             $(this).blur();
 
@@ -148,7 +148,7 @@ async function initializeIndexAutocomplete() {
             let typedValue = $(this).val();
             if (indexValues.includes(typedValue)) {
                 addSelectedIndex(typedValue);
-                if (!selectedSearchIndex.includes(typedValue)) {
+                if (!selectedSearchIndex.split(',').includes(typedValue)) {
                     selectedSearchIndex += selectedSearchIndex ? ',' + typedValue : typedValue;
                 }
                 $(this).val('');
@@ -171,7 +171,7 @@ async function initializeIndexAutocomplete() {
                 if (matchesIndex) {
                     indexValues.unshift(typedValue);
                     addSelectedIndex(typedValue);
-                    if (!selectedSearchIndex.includes(typedValue)) {
+                    if (!selectedSearchIndex.split(',').includes(typedValue)) {
                         selectedSearchIndex += selectedSearchIndex ? ',' + typedValue : typedValue;
                     }
                 }
