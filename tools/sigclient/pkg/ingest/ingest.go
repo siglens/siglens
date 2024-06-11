@@ -57,8 +57,6 @@ func (q IngestType) String() string {
 
 const PRINT_FREQ = 100_000
 
-var seriesId uint64
-
 // returns any errors encountered. It is the caller's responsibility to attempt retries
 func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) error {
 
@@ -204,11 +202,12 @@ func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string) 
 	return nil
 }
 
-func generateBodyFromPredefinedSeries(recs int, preGeneratedSeriesLength uint64) ([]byte, error) {
+func generateBodyFromPredefinedSeries(recs int, seriesId *uint64) ([]byte, error) {
 	finalPayLoad := make([]interface{}, recs)
 	for i := 0; i < recs; i++ {
-		series := preGeneratedSeries[seriesId%preGeneratedSeriesLength]
+		series := preGeneratedSeries[*seriesId%uint64(len(preGeneratedSeries))]
 		finalPayLoad[i] = series
+		*seriesId++
 	}
 	retVal, err := json.Marshal(finalPayLoad)
 	if err != nil {
@@ -224,7 +223,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 	t.MaxIdleConns = 500
 	t.MaxConnsPerHost = 100
 	t.MaxIdleConnsPerHost = 100
-	preGeneratedSeriesLength := uint64(len(preGeneratedSeries))
+	seriesId := uint64(0)
 	client := &http.Client{
 		Timeout:   100 * time.Second,
 		Transport: t,
@@ -251,8 +250,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			bb = bytebufferpool.Get()
 		}
 		if iType == OpenTSDB {
-			payload, err = generateBodyFromPredefinedSeries(recsInBatch, preGeneratedSeriesLength)
-			seriesId += uint64(recsInBatch)
+			payload, err = generateBodyFromPredefinedSeries(recsInBatch, &seriesId)
 		} else {
 			payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
 		}
