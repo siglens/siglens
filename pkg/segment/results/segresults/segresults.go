@@ -370,6 +370,9 @@ func (sr *SearchResults) UpdateSegmentStats(sstMap map[string]*structs.SegStats,
 				CVal:  strVal,
 			}
 			continue
+		default:
+			log.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid: %v", aggOp, sr.qid)
+			return err
 		}
 		if err != nil {
 			log.Errorf("UpdateSegmentStats: error getting segment level stats %+v, qid: %v", err, sr.qid)
