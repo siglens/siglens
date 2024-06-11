@@ -242,9 +242,9 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	return nil
 }
 
-// extractGroupByFieldsFromSeriesId extracts the groupByFields from the seriesId
+// ExtractGroupByFieldsFromSeriesId extracts the groupByFields from the seriesId
 // And returns the slice of Group By Fields as key-value pairs.
-func extractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) []string {
+func ExtractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) []string {
 	var groupKeyValuePairs []string
 	for _, field := range groupByFields {
 		start := strings.Index(seriesId, field+":")
@@ -273,7 +273,7 @@ func getAggSeriesId(metricName string, seriesId string, groupByFields []string) 
 	if len(groupByFields) == 0 {
 		return metricName + "{"
 	}
-	groupKeyValuePairs := extractGroupByFieldsFromSeriesId(seriesId, groupByFields)
+	groupKeyValuePairs := ExtractGroupByFieldsFromSeriesId(seriesId, groupByFields)
 	seriesId = metricName + "{" + strings.Join(groupKeyValuePairs, ",")
 	return seriesId
 }
@@ -498,7 +498,7 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 	var pqldata structs.Data
 
 	switch pqlQuerytype {
-	case parser.ValueTypeVector:
+	case parser.ValueTypeVector, parser.ValueTypeMatrix:
 		pqldata.ResultType = parser.ValueType("vector")
 		for grpId, results := range r.Results {
 

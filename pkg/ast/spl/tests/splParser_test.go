@@ -1731,38 +1731,7 @@ func Test_regexAnyColumn(t *testing.T) {
 }
 
 func Test_aggCountWithField(t *testing.T) {
-	query := []byte(`search A=1 | stats count(city)`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
-	assert.Equal(t, filterNode.Comparison.Field, "A")
-	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
-
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Count)
-
-	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-
-	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
-
-	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "city")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Count)
+	testSingleAggregateFunction(t, utils.Count, "city")
 }
 
 func Test_aggCountWithoutField(t *testing.T) {
@@ -1906,182 +1875,55 @@ func Test_aggDistinctCountAlias(t *testing.T) {
 }
 
 func Test_aggAvg(t *testing.T) {
-	query := []byte(`search A=1 | stats avg(latency)`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
-	assert.Equal(t, filterNode.Comparison.Field, "A")
-	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
-
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Avg)
-
-	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-
-	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
-
-	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Avg)
+	testSingleAggregateFunction(t, utils.Avg, "latency")
 }
 
 func Test_aggMin(t *testing.T) {
-	query := []byte(`search A=1 | stats min(latency)`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
-	assert.Equal(t, filterNode.Comparison.Field, "A")
-	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
-
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Min)
-
-	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-
-	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
-
-	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Min)
+	testSingleAggregateFunction(t, utils.Min, "latency")
 }
 
 func Test_aggMax(t *testing.T) {
-	query := []byte(`search A=1 | stats max(latency)`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
-	assert.Equal(t, filterNode.Comparison.Field, "A")
-	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
-
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Max)
-
-	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-
-	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
-
-	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Max)
+	testSingleAggregateFunction(t, utils.Max, "latency")
 }
 
 func Test_aggRange(t *testing.T) {
-	query := []byte(`search A=1 | stats range(latency)`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
-	assert.Equal(t, filterNode.Comparison.Field, "A")
-	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
-
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Range)
-
-	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-
-	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
-
-	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Range)
+	testSingleAggregateFunction(t, utils.Range, "latency")
 }
 
 func Test_aggValues(t *testing.T) {
-	query := []byte(`search A=1 | stats values(latency)`)
-	res, err := spl.Parse("", query)
-	assert.Nil(t, err)
-	filterNode := res.(ast.QueryStruct).SearchFilter
-	assert.NotNil(t, filterNode)
-
-	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
-	assert.Equal(t, filterNode.Comparison.Field, "A")
-	assert.Equal(t, filterNode.Comparison.Op, "=")
-	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
-
-	pipeCommands := res.(ast.QueryStruct).PipeCommands
-	assert.NotNil(t, pipeCommands)
-	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Values)
-
-	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-	assert.Nil(t, err)
-	assert.NotNil(t, astNode)
-	assert.NotNil(t, aggregator)
-
-	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
-	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
-
-	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
-	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Values)
+	testSingleAggregateFunction(t, utils.Values, "latency")
 }
 
 func Test_aggSum(t *testing.T) {
-	query := []byte(`search A=1 | stats sum(latency)`)
+	testSingleAggregateFunction(t, utils.Sum, "latency")
+}
+
+// These aggregation functions only have their parsing logic implemented.
+func Test_unimplementedAgg(t *testing.T) {
+	testSingleAggregateFunction(t, utils.Estdc, "latency")
+	testSingleAggregateFunction(t, utils.EstdcError, "latency")
+	testSingleAggregateFunction(t, utils.Median, "latency")
+	testSingleAggregateFunction(t, utils.Mode, "latency")
+	testSingleAggregateFunction(t, utils.Stdev, "latency")
+	testSingleAggregateFunction(t, utils.Stdevp, "latency")
+	testSingleAggregateFunction(t, utils.Sumsq, "latency")
+	testSingleAggregateFunction(t, utils.Var, "latency")
+	testSingleAggregateFunction(t, utils.Varp, "latency")
+	testSingleAggregateFunction(t, utils.First, "latency")
+	testSingleAggregateFunction(t, utils.Last, "latency")
+	testSingleAggregateFunction(t, utils.List, "latency")
+	testSingleAggregateFunction(t, utils.Earliest, "latency")
+	testSingleAggregateFunction(t, utils.EarliestTime, "latency")
+	testSingleAggregateFunction(t, utils.Latest, "latency")
+	testSingleAggregateFunction(t, utils.LatestTime, "latency")
+	testSingleAggregateFunction(t, utils.StatsRate, "latency")
+	testPercAggregateFunction(t, utils.ExactPerc, "6.6", "latency")
+	testPercAggregateFunction(t, utils.Perc, "99", "latency")
+	testPercAggregateFunction(t, utils.UpperPerc, "5", "latency")
+}
+
+func testSingleAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions, measureCol string) {
+	query := []byte(`search A=1 | stats ` + aggFunc.String() + `(` + measureCol + `)`)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -2096,8 +1938,8 @@ func Test_aggSum(t *testing.T) {
 	assert.NotNil(t, pipeCommands)
 	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, pipeCommands.MeasureOperations, 1)
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, utils.Sum)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, measureCol)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, aggFunc)
 
 	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
@@ -2111,8 +1953,45 @@ func Test_aggSum(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
 	assert.Len(t, aggregator.MeasureOperations, 1)
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, utils.Sum)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, measureCol)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, aggFunc)
+}
+
+func testPercAggregateFunction(t *testing.T, aggFunc utils.AggregateFunctions, percentStr string, measureCol string) {
+	query := []byte(`search A=1 | stats ` + aggFunc.String() + percentStr + `(` + measureCol + `)`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	assert.Equal(t, filterNode.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Comparison.Values, json.Number("1"))
+
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.Equal(t, pipeCommands.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, pipeCommands.MeasureOperations, 1)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureCol, measureCol)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].MeasureFunc, aggFunc)
+	assert.Equal(t, pipeCommands.MeasureOperations[0].Param, percentStr)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+
+	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 1)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.MeasureAggsType)
+	assert.Len(t, aggregator.MeasureOperations, 1)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureCol, measureCol)
+	assert.Equal(t, aggregator.MeasureOperations[0].MeasureFunc, aggFunc)
+	assert.Equal(t, aggregator.MeasureOperations[0].Param, percentStr)
 }
 
 func Test_groupbyOneField(t *testing.T) {
@@ -4877,6 +4756,49 @@ func Test_evalWithMultipleSpaces2(t *testing.T) {
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "C")
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
 	assert.Equal(t, astNode.OrFilterCondition.NestedNodes[0].AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(3))
+}
+
+func Test_multilineQuery(t *testing.T) {
+	query := []byte(`A=1
+	|
+	regex
+	B="^\d$"
+
+	`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, ast.NodeAnd, filterNode.NodeType)
+
+	assert.Equal(t, filterNode.Left.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Left.Comparison.Field, "A")
+	assert.Equal(t, filterNode.Left.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Left.Comparison.Values, json.Number("1"))
+
+	assert.Equal(t, filterNode.Right.NodeType, ast.NodeTerminal)
+	assert.Equal(t, filterNode.Right.Comparison.Field, "B")
+	assert.Equal(t, filterNode.Right.Comparison.Op, "=")
+	assert.Equal(t, filterNode.Right.Comparison.Values, `^\d$`)
+	assert.Equal(t, filterNode.Right.Comparison.ValueIsRegex, true)
+
+	astNode := &structs.ASTNode{}
+	err = pipesearch.SearchQueryToASTnode(filterNode, astNode, 0)
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode.AndFilterCondition.FilterCriteria)
+	assert.Len(t, astNode.AndFilterCondition.FilterCriteria, 2)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "A")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.UnsignedVal, uint64(1))
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "B")
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, utils.Equals)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, `^\d$`)
+
+	compiledRegex, err := regexp.Compile(`^\d$`)
+	assert.Nil(t, err)
+	assert.NotNil(t, compiledRegex)
+	assert.Equal(t, astNode.AndFilterCondition.FilterCriteria[1].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.GetRegexp(), compiledRegex)
 }
 
 func Test_SimpleNumericEval(t *testing.T) {

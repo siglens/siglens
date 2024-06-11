@@ -847,14 +847,6 @@ function setIndexDisplayValue(selectedSearchIndex){
             if (indexIndex !== -1) {
                 indexValues.splice(indexIndex, 1);
             }
-            if (index.endsWith('*')) {
-                const prefix = index.slice(0, -1); // Remove the '*'
-                const filteredIndexValues = indexValues.filter(function(option) {
-                    return !option.startsWith(prefix);
-                });
-                indexValues = filteredIndexValues;
-                $("#index-listing").autocomplete("option", "source", filteredIndexValues);
-            }
         });
     }
 }

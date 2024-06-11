@@ -148,6 +148,15 @@ func getRexColNames(pattern string) ([]string, error) {
     return rexColNames, nil
 }
 
+func initializeStatsOptions() *structs.StatsOptions {
+    return &structs.StatsOptions {
+        Delim: " ",
+        Partitions: 1,
+        DedupSplitvals: false,
+        Allnum: false,
+    }
+}
+
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
@@ -278,7 +287,7 @@ FieldSelectBlock <- PIPE CMD_FIELDS op:("-" / "+")? EMPTY_OR_SPACE fields:FieldN
     return queryAggregator, nil
 }
 
-AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? {
+AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? options:(StatsOptions)?{
     aggNode := &structs.QueryAggregators{}
 
     // Extract the MeasureAggregators and check if any of the aggregation fields
@@ -320,7 +329,66 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
         aggNode.BucketLimit = query.MAX_GRP_BUCKS
     }
 
+    if options != nil {
+        aggNode.StatsOptions = options.(*structs.StatsOptions)
+    } else {
+        aggNode.StatsOptions = initializeStatsOptions()
+    }
+
     return aggNode, nil
+}
+
+// Todo: implement the processing logic
+// Optional arguments for stats block
+StatsOptions <- option:(StatsOption)*
+{
+    //Default value
+    options := initializeStatsOptions()
+
+    optionSlice := option.([]any)
+    for _, opt := range optionSlice {
+        optArr :=  opt.([]string)
+        // Check for matching option types
+        switch optArr[0] {
+        case "dedup_splitvals":
+            dedupSplitvalsBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatsBlock: Options: invalid param for dedup_splitvals option, param: %v, err: %v", optArr[1], err)
+            }
+            options.DedupSplitvals = dedupSplitvalsBool
+        case "partitions":
+            pVal, err := strconv.ParseUint(optArr[1], 10, 64)
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatsBlock: Options: invalid param for partitions option, param: %v, err: %v", optArr[1], err)
+            }
+            options.Partitions = pVal
+        case "allnum":
+            allnumBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatsBlock: Options: invalid param for allnum option, param: %v, err: %v", optArr[1], err)
+            }
+            options.Allnum = allnumBool
+        case "delim":
+            options.Delim = optArr[1]
+        default:
+            return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: invalid option: %v", optArr[0])
+        }
+    }
+
+    return options, nil
+}
+
+StatsOption <- SPACE optionCMD:StatsOptionCMD EQUAL str:(IntegerAsString / EvalFieldToRead / QuotedString) {
+    optionArr := []string{optionCMD.(string), str.(string)}
+    return optionArr, nil
+}
+
+StatsOptionCMD <- option:("allnum" / "dedup_splitvals" / "delim" / "partitions") {
+    optionStr, err := transferUint8ToString(option)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: StatsOptionCMD: %v", err)
+    }
+    return optionStr, nil
 }
 
 GroupbyBlock <- BY fields:FieldNameList {
@@ -2097,7 +2165,8 @@ Aggregator <- aggFunc:AggFunction asField:AsField? {
 // 1. min, max, sum, avg, and range can only evaluate boolComparisonExpr, as they need to compute the field value inside the expression. There should be only one field.
 // 2. count can evaluate boolExpr because it does not care about the field value inside the expression. It only cares about whether the current row should be counted or not.
 // 3. distinctCount and values can evaluate valueExpr because they just need to find out the distinct values of the result of the expression. As for the type of the expression result, it is not important.
-AggFunction <- agg:(AggCount / AggDistinctCount / AggAvg / AggMin / AggMax / AggRange / AggSum / AggValues) {
+AggFunction <- agg:(AggCount / AggDistinctCount / AggAvg / AggMin / AggMax / AggRange / AggSum / AggValues / AggEstdc / AggEstdcError / AggExactPerc / AggMedian / AggMode / AggPerc /
+AggStdev / AggStdevp / AggSumsq / AggUpperPerc / AggVar / AggVarp / AggFirst / AggLast / AggList / AggEarliest / AggEarliestTime / AggLatest / AggLatestTime / AggRate) {
     return agg, nil
 }
 
@@ -2280,6 +2349,507 @@ AggSum <- "sum" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_P
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Sum,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggEstdc <- "estdc" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Estdc,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "estdc" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Estdc,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggEstdcError <- "estdc_error" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.EstdcError,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "estdc_error" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.EstdcError,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggExactPerc <- "exactperc" numStr:(FloatAsString / IntegerAsString) L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.ExactPerc,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+/ "exactperc" numStr:(FloatAsString / IntegerAsString) L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.ExactPerc,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggPerc <- "perc" numStr:(FloatAsString / IntegerAsString) L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Perc,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+/ "perc" numStr:(FloatAsString / IntegerAsString) L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Perc,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggUpperPerc <- "upperperc" numStr:(FloatAsString / IntegerAsString) L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.UpperPerc,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+/ "upperperc" numStr:(FloatAsString / IntegerAsString) L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.UpperPerc,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggMedian <- "median" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Median,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "median" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Median,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggMode <- "mode" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Mode,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "mode" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Mode,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggStdev <- "stdev" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Stdev,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "stdev" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Stdev,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggStdevp <- "stdevp" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Stdevp,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "stdevp" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Stdevp,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggSumsq <- "sumsq" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Sumsq,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "sumsq" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Sumsq,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggVar <- "var" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Var,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "var" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Var,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggVarp <- "varp" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Varp,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "varp" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Varp,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggFirst <- "first" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.First,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "first" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.First,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggLast <- "last" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Last,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "last" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Last,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggList <- "list" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.List,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
+    }
+
+    return agg, nil
+}
+/ "list" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.List,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggEarliest <- "earliest" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Earliest,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "earliest" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Earliest,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggEarliestTime <- "earliest_time" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.EarliestTime,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "earliest_time" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.EarliestTime,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggLatest <- "latest" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Latest,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "latest" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Latest,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggLatestTime <- "latest_time" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.LatestTime,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "latest_time" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.LatestTime,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggRate <- "rate" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.StatsRate,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "rate" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.StatsRate,
     }
 
     return agg, nil
@@ -2720,7 +3290,8 @@ L_PAREN <- "(" EMPTY_OR_SPACE
 R_PAREN <- EMPTY_OR_SPACE ")"
 
 EOF <- !.
-SPACE <- (" "? COMMENT " "?) / " "+
+WHITESPACE <- " " / "\t" / "\n" / "\r"
+SPACE <- (WHITESPACE? COMMENT WHITESPACE?) / WHITESPACE+
 COMMENT <- "```" (!("```") .)* "```"
 EMPTY_OR_SPACE  <- SPACE / ""
 SPACE_OR_COMMA <- COMMA / SPACE
