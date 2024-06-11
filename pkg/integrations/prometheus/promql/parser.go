@@ -58,7 +58,7 @@ func extractTimeWindow(args parser.Expressions) (float64, float64, error) {
 	return 0, 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
 }
 
-func convertPromQLToMetricsQuery(query string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
+func ConvertPromQLToMetricsQuery(query string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
 	mQueryReqs, pqlQuerytype, queryArithmetic, err := parsePromQLQuery(query, startTime, endTime, myid)
 	if err != nil {
 		return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
@@ -326,6 +326,7 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 	for _, group := range expr.Grouping {
 		if group == "__name__" {
 			mQuery.GroupByMetricName = true
+			continue
 		}
 		tagFilter := structs.TagsFilter{
 			TagKey:          group,

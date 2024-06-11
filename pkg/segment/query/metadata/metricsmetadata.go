@@ -339,3 +339,11 @@ func (hm *allMetricsSegmentMetadata) deleteMetricsSegmentKey(dirPath string) err
 
 	return nil
 }
+
+func ResetMetricsMetadata_TestOnly() {
+	globalMetricsMetadata = &allMetricsSegmentMetadata{
+		sortedMetricsSegmentMeta: make([]*MetricsSegmentMetadata, 0),
+		metricsSegmentMetaMap:    make(map[string]*MetricsSegmentMetadata),
+		updateLock:               &sync.RWMutex{},
+	}
+}
