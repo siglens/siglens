@@ -153,6 +153,7 @@ func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
 
 var preGeneratedSeries []map[string]interface{}
 var uniqueSeriesMap = make(map[string]struct{})
+var seriesId uint64
 
 func generateUniquePayload(rdr *utils.MetricsGenerator) (map[string]interface{}, error) {
 	var currPayload map[string]interface{}
@@ -202,12 +203,11 @@ func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string) 
 	return nil
 }
 
-func generateBodyFromPredefinedSeries(recs int, seriesId *uint64) ([]byte, error) {
+func generateBodyFromPredefinedSeries(recs int, preGeneratedSeriesLength uint64) ([]byte, error) {
 	finalPayLoad := make([]interface{}, recs)
 	for i := 0; i < recs; i++ {
-		series := preGeneratedSeries[*seriesId%uint64(len(preGeneratedSeries))]
+		series := preGeneratedSeries[(seriesId+uint64(i))%preGeneratedSeriesLength]
 		finalPayLoad[i] = series
-		*seriesId++
 	}
 	retVal, err := json.Marshal(finalPayLoad)
 	if err != nil {
@@ -250,7 +250,8 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			bb = bytebufferpool.Get()
 		}
 		if iType == OpenTSDB {
-			payload, err = generateBodyFromPredefinedSeries(recsInBatch, &seriesId)
+			payload, err = generateBodyFromPredefinedSeries(recsInBatch, uint64(len(preGeneratedSeries)))
+			seriesId += uint64(recsInBatch)
 		} else {
 			payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
 		}
