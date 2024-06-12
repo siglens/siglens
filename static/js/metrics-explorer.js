@@ -213,7 +213,7 @@ async function addQueryElement() {
                 </div>
             </div>
             <div class="raw-query" style="display: none;">
-                <input type="text" readonly class="raw-query-input">
+                <input type="text" class="raw-query-input"><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search"> </button>
             </div>
         </div>
         <div>
@@ -338,9 +338,33 @@ async function addQueryElement() {
         queryElement.find('.query-builder').toggle();
         queryElement.find('.raw-query').toggle();
         var queryName = queryElement.find('.query-name').text();
-        const queryString = createQueryString(queries[queryName]);
-        queryElement.find('.raw-query input').val(queryString);
+        var queryDetails = queries[queryName];
+
+        if (queryDetails.state === 'builder') {
+            // Switch to raw mode
+            queryDetails.state = 'raw';
+            const queryString = createQueryString(queryDetails);
+                if (!queryDetails.rawQueryExecuted){
+                    queryDetails.rawQueryInput = queryString;
+                    queryElement.find('.raw-query-input').val(queryString);
+                }
+        } else {
+            // Switch to builder mode
+            queryDetails.state = 'builder';
+            getQueryDetails(queryName, queryDetails);
+        }
     });
+
+    queryElement.find('.raw-query').on('click', '#run-filter-btn', async function() {
+        var queryName = queryElement.find('.query-name').text();
+        var queryDetails = queries[queryName];
+        var rawQuery = queryElement.find('.raw-query-input').val();
+        queryDetails.rawQueryInput = rawQuery;
+        queryDetails.rawQueryExecuted = true; // Set the flag to indicate that raw query has been executed
+        // Perform the search with the raw query
+        await getQueryDetails(queryName, queryDetails);
+    });
+    
 }
 
 async function initializeAutocomplete(queryElement, previousQuery = {}) {
@@ -352,7 +376,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         everywhere: [],
         everything: [],
         aggFunction: 'avg by',
-        functions: []
+        functions: [],
+        state: 'builder',
+        rawQueryInput: '',
+        rawQueryExecuted: false
     };
     // Use details from the previous query if it exists
     if (!jQuery.isEmptyObject(previousQuery)) {
@@ -1225,7 +1252,12 @@ function getTagKeyValue(metricName) {
 
 
 async function getQueryDetails(queryName, queryDetails){
-    const queryString = createQueryString(queryDetails);
+    let queryString;
+    if(queryDetails.state === "builder"){
+        queryString = createQueryString(queryDetails);
+    }else {
+        queryString = queryDetails.rawQueryInput;
+    }
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData)
     addVisualizationContainer(queryName, chartData, queryString);

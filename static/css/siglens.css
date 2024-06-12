@@ -3021,7 +3021,7 @@ float: right;
 
 .settings-btn{
     width: 26px;
-    height: 26px !important;
+    height: 26px;
     margin-left: 10px;
     cursor: pointer;
     border: 1px solid var(--border-color-regular) !important;
