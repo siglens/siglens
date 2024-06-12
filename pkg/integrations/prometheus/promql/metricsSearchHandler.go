@@ -179,16 +179,9 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
-	metricQueryRequest, pqlQuerytype, _, err := ConvertPromQLToMetricsQuery(searchText, endTime-1, endTime, myid)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, endTime-1, endTime, myid)
 	if err != nil {
-		ctx.SetContentType(ContentJson)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		WriteJsonResponse(ctx, nil)
-		log.Errorf("qid=%v, ProcessPromqlMetricsSearchRequest: Error parsing query err=%+v", qid, err)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("qid=%v, ProcessPromqlMetricsSearchRequest: could not write error message err=%v", qid, err)
-		}
+		utils.SendError(ctx, "Error parsing promql query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, searchText), err)
 		return
 	}
 	if len(metricQueryRequest) == 0 {
@@ -196,8 +189,18 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		WriteJsonResponse(ctx, map[string]interface{}{})
 		return
 	}
-	segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[0], qid)
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
+
+	metricQueriesList := make([]*structs.MetricsQuery, 0)
+	var timeRange *dtu.MetricsTimeRange
+	hashList := make([]uint64, 0)
+	for i := range metricQueryRequest {
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.QueryHash)
+		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
+		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
+		timeRange = &metricQueryRequest[i].TimeRange
+	}
+	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
+	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, false)
 
 	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
 	if err != nil {
@@ -252,20 +255,23 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 
 	log.Infof("qid=%v, ProcessPromqlMetricsRangeSearchRequest:  searchString=[%v] startEpochs=[%v] endEpochs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	metricQueryRequest, pqlQuerytype, _, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
-		ctx.SetContentType(ContentJson)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		WriteJsonResponse(ctx, nil)
-		log.Errorf("qid=%v, ProcessPromqlMetricsRangeSearchRequest: Error parsing query err=%+v", qid, err)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("qid=%v, ProcessPromqlMetricsRangeSearchRequest: could not write error message err=%v", qid, err)
-		}
+		utils.SendError(ctx, "Error parsing promql query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, searchText), err)
 		return
 	}
-	segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[0], qid)
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
+
+	metricQueriesList := make([]*structs.MetricsQuery, 0)
+	var timeRange *dtu.MetricsTimeRange
+	hashList := make([]uint64, 0)
+	for i := range metricQueryRequest {
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.QueryHash)
+		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
+		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
+		timeRange = &metricQueryRequest[i].TimeRange
+	}
+	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
+	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, false)
 
 	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
 	if err != nil {
