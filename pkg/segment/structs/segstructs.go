@@ -752,8 +752,8 @@ func (c EvalFuncChecker) IsUnsupported(funcName interface{}) bool {
 
 func CheckUnsupportedFunctions(post *QueryAggregators) error {
 
-	statsChecker := StatsFuncChecker{}
-	evalChecker := EvalFuncChecker{}
+	var statsChecker UnsupportedFuncChecker = StatsFuncChecker{}
+	var evalChecker UnsupportedFuncChecker = EvalFuncChecker{}
 
 	for agg := post; agg != nil; agg = agg.Next {
 		if agg == nil {
