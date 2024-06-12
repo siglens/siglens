@@ -52,7 +52,7 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 	return res
 }
 
-func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQuery, queryOps []structs.QueryArithmetic, timeRange *dtu.MetricsTimeRange, qid uint64, opLabelsMayNotMatch bool) *mresults.MetricsResult {
+func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQuery, queryOps []structs.QueryArithmetic, timeRange *dtu.MetricsTimeRange, qid uint64, opLabelsDoNotNeedToMatch bool) *mresults.MetricsResult {
 	resMap := make(map[uint64]*mresults.MetricsResult)
 	for index, mQuery := range mQueries {
 		if _, ok := resMap[hashList[index]]; ok {
@@ -77,10 +77,10 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		}
 	}
 
-	return ProcessQueryArithmeticAndLogical(queryOps, resMap, opLabelsMayNotMatch)
+	return ProcessQueryArithmeticAndLogical(queryOps, resMap, opLabelsDoNotNeedToMatch)
 }
 
-func ProcessQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, opLabelsMayNotMatch bool) *mresults.MetricsResult {
+func ProcessQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, opLabelsDoNotNeedToMatch bool) *mresults.MetricsResult {
 
 	if len(queryOps) > 1 {
 		log.Errorf("processQueryArithmeticAndLogical: len(queryOps) should be 1, but got %d", len(queryOps))
@@ -89,7 +89,7 @@ func ProcessQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap
 
 	operationCounter := 0
 
-	finalResult, err := processQueryArithmeticNodeOp(&queryOps[0], resMap, &operationCounter, opLabelsMayNotMatch)
+	finalResult, err := processQueryArithmeticNodeOp(&queryOps[0], resMap, &operationCounter, opLabelsDoNotNeedToMatch)
 	if err != nil {
 		log.Errorf("ProcessQueryArithmeticAndLogical: Error processing query arithmetic node operation: %v", err)
 		return &mresults.MetricsResult{
@@ -105,7 +105,7 @@ func ProcessQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap
 	return &mresults.MetricsResult{Results: finalResult, State: mresults.AGGREGATED}
 }
 
-func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, operationCounter *int, opLabelsMayNotMatch bool) (map[string]map[uint32]float64, error) {
+func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, operationCounter *int, opLabelsDoNotNeedToMatch bool) (map[string]map[uint32]float64, error) {
 	if queryOp == nil {
 		return nil, fmt.Errorf("processQueryArithmeticNodeOp: queryOp is nil")
 	}
@@ -113,7 +113,7 @@ func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[u
 	if queryOp.LHSExpr != nil {
 		var metricName string
 		// process the LHS expression first
-		result, err := processQueryArithmeticNodeOp(queryOp.LHSExpr, resMap, operationCounter, opLabelsMayNotMatch)
+		result, err := processQueryArithmeticNodeOp(queryOp.LHSExpr, resMap, operationCounter, opLabelsDoNotNeedToMatch)
 		if err != nil {
 			return nil, err
 		}
@@ -135,7 +135,7 @@ func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[u
 	if queryOp.RHSExpr != nil {
 		var metricName string
 		// process the RHS expression first
-		result, err := processQueryArithmeticNodeOp(queryOp.RHSExpr, resMap, operationCounter, opLabelsMayNotMatch)
+		result, err := processQueryArithmeticNodeOp(queryOp.RHSExpr, resMap, operationCounter, opLabelsDoNotNeedToMatch)
 		if err != nil {
 			return nil, err
 		}
@@ -156,10 +156,10 @@ func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[u
 
 	*operationCounter++
 
-	return HelperQueryArithmeticAndLogical(queryOp, resMap, opLabelsMayNotMatch)
+	return HelperQueryArithmeticAndLogical(queryOp, resMap, opLabelsDoNotNeedToMatch)
 }
 
-func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, opLabelsMayNotMatch bool) (map[string]map[uint32]float64, error) {
+func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, opLabelsDoNotNeedToMatch bool) (map[string]map[uint32]float64, error) {
 	finalResult := make(map[string]map[uint32]float64)
 
 	resultLHS := resMap[queryOp.LHS]
@@ -240,7 +240,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 				matchingLabelValTorightGroupID[matchingLabelValStr] = rGroupID
 			}
 
-		} else if opLabelsMayNotMatch {
+		} else if opLabelsDoNotNeedToMatch {
 			// Then regardless of whether there is a match or not, we should perform the operation on the two vectors.
 			// if it is one to one, we need to perform the operation on these two series.
 			// If it is one to many, we need to perform the operation on each series in the left vector with each series in the right vector.
@@ -278,7 +278,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 			// So, if we want to determine whether there are elements with the same labels in another metric, we need to appropriately modify the group ID.
 			rGroupID := ""
 
-			if hasVectorMatchingOp || opLabelsMayNotMatch {
+			if hasVectorMatchingOp || opLabelsDoNotNeedToMatch {
 				matchingLabelVal, exists := idToMatchingLabelSet[lGroupID]
 				if !exists {
 					continue
