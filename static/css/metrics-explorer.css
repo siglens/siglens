@@ -122,7 +122,7 @@ input:checked + .slider:before {
     width: 200px;
     border-radius: 0 5px 5px 0;
 }
-.formula-box .formula:focus,.raw-query input{
+.formula-box .formula:focus{
     border-radius: 0 5px 5px 0;
 }
 .formula-box .formula.error-border{
@@ -481,6 +481,16 @@ input:checked + .slider:before {
     z-index: 999;
 }
 .raw-query{
-    width: 80%;
-    
+    width: 90%;
+}
+#metrics-explorer .run-filter-btn {
+    background-image: url("../assets/search-img.svg");
+    height: 32px;
+    width: 32px;
+    background-color: var(--purple-2);
+    background-repeat: no-repeat;
+    background-size: 45%;
+    background-position: center;
+    border-radius: 0 5px 5px 0;
+    border: none;
 }
