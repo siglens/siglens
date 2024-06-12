@@ -148,6 +148,15 @@ func getRexColNames(pattern string) ([]string, error) {
     return rexColNames, nil
 }
 
+func initializeStatsOptions() *structs.StatsOptions {
+    return &structs.StatsOptions {
+        Delim: " ",
+        Partitions: 1,
+        DedupSplitvals: false,
+        Allnum: false,
+    }
+}
+
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
@@ -278,7 +287,7 @@ FieldSelectBlock <- PIPE CMD_FIELDS op:("-" / "+")? EMPTY_OR_SPACE fields:FieldN
     return queryAggregator, nil
 }
 
-AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? {
+AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? options:(StatsOptions)?{
     aggNode := &structs.QueryAggregators{}
 
     // Extract the MeasureAggregators and check if any of the aggregation fields
@@ -320,7 +329,66 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
         aggNode.BucketLimit = query.MAX_GRP_BUCKS
     }
 
+    if options != nil {
+        aggNode.StatsOptions = options.(*structs.StatsOptions)
+    } else {
+        aggNode.StatsOptions = initializeStatsOptions()
+    }
+
     return aggNode, nil
+}
+
+// Todo: implement the processing logic
+// Optional arguments for stats block
+StatsOptions <- option:(StatsOption)*
+{
+    //Default value
+    options := initializeStatsOptions()
+
+    optionSlice := option.([]any)
+    for _, opt := range optionSlice {
+        optArr :=  opt.([]string)
+        // Check for matching option types
+        switch optArr[0] {
+        case "dedup_splitvals":
+            dedupSplitvalsBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatsBlock: Options: invalid param for dedup_splitvals option, param: %v, err: %v", optArr[1], err)
+            }
+            options.DedupSplitvals = dedupSplitvalsBool
+        case "partitions":
+            pVal, err := strconv.ParseUint(optArr[1], 10, 64)
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatsBlock: Options: invalid param for partitions option, param: %v, err: %v", optArr[1], err)
+            }
+            options.Partitions = pVal
+        case "allnum":
+            allnumBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatsBlock: Options: invalid param for allnum option, param: %v, err: %v", optArr[1], err)
+            }
+            options.Allnum = allnumBool
+        case "delim":
+            options.Delim = optArr[1]
+        default:
+            return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: invalid option: %v", optArr[0])
+        }
+    }
+
+    return options, nil
+}
+
+StatsOption <- SPACE optionCMD:StatsOptionCMD EQUAL str:(IntegerAsString / EvalFieldToRead / QuotedString) {
+    optionArr := []string{optionCMD.(string), str.(string)}
+    return optionArr, nil
+}
+
+StatsOptionCMD <- option:("allnum" / "dedup_splitvals" / "delim" / "partitions") {
+    optionStr, err := transferUint8ToString(option)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: StatsOptionCMD: %v", err)
+    }
+    return optionStr, nil
 }
 
 GroupbyBlock <- BY fields:FieldNameList {
@@ -1233,6 +1301,7 @@ ConditionExpr <- "if" L_PAREN condition:BoolExpr COMMA trueValue:ValueExpr COMMA
     return node, nil
 }
 
+//Todo: implement the processing logic for: mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
 TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
@@ -1246,43 +1315,41 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
 
     return node, nil
 }
+/ (opName:("max" / "min" / "mvappend" / "mvfind") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    if rest == nil {
+        return firstVal, nil
+    }
+    restSlice := rest.([]any)
+    values := make([]*structs.StringExpr, 1 + len(restSlice))
+    values[0] = firstVal.(*structs.StringExpr)
 
-/ (opName:("max" / "min") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN )
-      {
-        opNameStr, err := transferUint8ToString(opName)
-        if err != nil {
-            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-        }
-        if rest == nil {
-            return firstVal, nil
-        }
-        restSlice := rest.([]any)
-        values := make([]*structs.StringExpr, 1 + len(restSlice))
-        values[0] = firstVal.(*structs.StringExpr)
-
-        for i := range restSlice {
-            stringAtom := restSlice[i].([]any)
-            values[i + 1] = stringAtom[1].(*structs.StringExpr)
-        }
-        node := &structs.TextExpr {
-            Op: opNameStr,
-            MaxMinValues: values,
-        }
-        return node, nil
-      }
-/ (opName:("urldecode") L_PAREN url:StringExpr R_PAREN ){
-        opNameStr, err := transferUint8ToString(opName)
+    for i := range restSlice {
+        stringAtom := restSlice[i].([]any)
+        values[i + 1] = stringAtom[1].(*structs.StringExpr)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        ValueList: values,
+    }
+    return node, nil
+}
+/ (opName:("urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN url:StringExpr R_PAREN ){
+    opNameStr, err := transferUint8ToString(opName)
         if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
-        node := &structs.TextExpr {
-            Op: opNameStr,
-            Value: url.(*structs.StringExpr),
-            StrToRemove: "",
-        }
-        return node, nil
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Value: url.(*structs.StringExpr),
+        StrToRemove: "",
     }
-/ (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
+    return node, nil
+}
+/ (opName:("split" / "mvjoin") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -1299,15 +1366,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
-    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr")
-    }
-    startIndexConverted, ok := startIndex.(*structs.NumericExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert startIndex as *structs.NumericExpr")
-    }
-  var lengthConverted *structs.NumericExpr
+    var lengthConverted *structs.NumericExpr
     if lengthParam != nil {
         lengthSlice, ok := lengthParam.([]interface{})
         if ok && len(lengthSlice) > 1 {
@@ -1321,8 +1380,8 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     }
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExprConverted,
-        StartIndex: startIndexConverted,
+        Value: stringExpr.(*structs.StringExpr),
+        StartIndex: startIndex.(*structs.NumericExpr),
         LengthExpr: lengthConverted,
     }
     return node, nil
@@ -1346,11 +1405,6 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
 
-    stringExpr, ok := expr.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert expr as *structs.StringExpr: %v", err)
-    }
-
     strToRemove := " \t"
     if strToRemoveExpr != nil {
         strToRemove = strToRemoveExpr.(string)
@@ -1358,8 +1412,112 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
 
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExpr,
+        Value: expr.(*structs.StringExpr),
         StrToRemove: removeQuotes(strToRemove),
+    }
+
+    return node, nil
+}
+/ (opName:("mvfilter") L_PAREN condition:BoolExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to recognize operator: %v, err= %v", opName, err)
+    }
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Condition: condition.(*structs.BoolExpr),
+    }
+
+    return node, nil
+}
+/ (opName:("mvindex") L_PAREN stringExpr:StringExpr COMMA startIndex:NumericExpr endIndex:(NumericParamExpr)? R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Value: stringExpr.(*structs.StringExpr),
+        StartIndex: startIndex.(*structs.NumericExpr),
+    }
+    if endIndex != nil {
+        node.EndIndex = endIndex.(*structs.NumericExpr)
+    }
+
+    return node, nil
+}
+/ (opName:("mvmap") L_PAREN stringExpr:StringExpr COMMA expr:ValueExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Val: expr.(*structs.ValueExpr),
+        Value: stringExpr.(*structs.StringExpr),
+    }
+
+    return node, nil
+}
+/ (opName:("mvrange") L_PAREN startIndex:NumericExpr COMMA endIndex:NumericExpr COMMA stringExpr:(StringExpr)? R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        StartIndex: startIndex.(*structs.NumericExpr),
+        EndIndex: endIndex.(*structs.NumericExpr),
+    }
+    if stringExpr != nil {
+        node.Value = stringExpr.(*structs.StringExpr)
+    }
+
+    return node, nil
+}
+/ (opName:("mvzip") L_PAREN mvLeft:StringExpr COMMA mvRight:StringExpr rest:(COMMA StringExpr)? R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    values := make([]*structs.StringExpr, 2)
+    values[0] = mvLeft.(*structs.StringExpr)
+    values[1] = mvRight.(*structs.StringExpr)
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        ValueList: values,
+    }
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        node.Delimiter = restSlice[1].(*structs.StringExpr)
+    }
+
+    return node, nil
+}
+/ (opName:("mv_to_json_array") L_PAREN stringExpr:StringExpr rest:(COMMA ("true" / "false") "()")? R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Value: stringExpr.(*structs.StringExpr),
+        InferTypes: false, // default value
+    }
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        inferTypes, err := transferUint8ToString(restSlice[1])
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        }
+        if inferTypes == "true" {
+            node.InferTypes = true
+        }
     }
 
     return node, nil
@@ -1757,7 +1915,7 @@ NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv) NumericExprLe
     return cur, nil
 }
 
-RoundPrecisionExpr <- COMMA expr:NumericExprLevel3 {
+NumericParamExpr <- COMMA expr:NumericExprLevel3 {
     rightNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1794,8 +1952,9 @@ NumericExprLevel1 <- L_PAREN expr:NumericExprLevel3 R_PAREN {
     return expr, nil
 }
 
+// Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random
 //Currently involves abs, ceil, round, sqrt
-NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
+NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" / "floor" / "ln" / "sigfig") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1815,7 +1974,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
 
     return node, nil
 }
-/ roundExpr:"round" L_PAREN expr:(NumericExprLevel3) roundPrecision:(RoundPrecisionExpr)? R_PAREN {
+/ roundExpr:"round" L_PAREN expr:(NumericExprLevel3) roundPrecision:(NumericParamExpr)? R_PAREN {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1836,10 +1995,17 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
 
     return node, nil
 }
-/ "now" "()" {
+/ (opName:("now" / "pi" / "random") L_PAREN R_PAREN) {
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
     return &structs.NumericExpr{
         IsTerminal: true,
-        Op:         "now",
+        Op: opNameStr,
     }, nil
 }
 / "tonumber" L_PAREN stringExpr:StringExpr baseExpr:(COMMA NumericExprLevel3)? R_PAREN {
@@ -1872,6 +2038,36 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
 }
 / lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
     return expr, nil
+}
+/ (opName:("log" / "pow") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
+    leftNumericExpr, ok := expr.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
+    }
+
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
+
+    var rightNumericExpr *structs.NumericExpr
+    if param == nil {
+        return nil, fmt.Errorf("Function: %v 's param can not be nil", opNameStr)
+    }
+    rightNumericExpr, ok = param.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert param as *structs.NumericExpr")
+    }
+
+    node, err := createNumericExpr(opNameStr, leftNumericExpr, rightNumericExpr, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+
+    return node, nil
 }
 
 LenExpr <- str:QuotedString !(EVAL_CONCAT) {
@@ -1969,7 +2165,8 @@ Aggregator <- aggFunc:AggFunction asField:AsField? {
 // 1. min, max, sum, avg, and range can only evaluate boolComparisonExpr, as they need to compute the field value inside the expression. There should be only one field.
 // 2. count can evaluate boolExpr because it does not care about the field value inside the expression. It only cares about whether the current row should be counted or not.
 // 3. distinctCount and values can evaluate valueExpr because they just need to find out the distinct values of the result of the expression. As for the type of the expression result, it is not important.
-AggFunction <- agg:(AggCount / AggDistinctCount / AggAvg / AggMin / AggMax / AggRange / AggSum / AggValues) {
+AggFunction <- agg:(AggCount / AggDistinctCount / AggAvg / AggMin / AggMax / AggRange / AggSum / AggValues / AggEstdc / AggEstdcError / AggExactPerc / AggMedian / AggMode / AggPerc /
+AggStdev / AggStdevp / AggSumsq / AggUpperPerc / AggVar / AggVarp / AggFirst / AggLast / AggList / AggEarliest / AggEarliestTime / AggLatest / AggLatestTime / AggRate) {
     return agg, nil
 }
 
@@ -2152,6 +2349,507 @@ AggSum <- "sum" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_P
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
         MeasureFunc: utils.Sum,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggEstdc <- "estdc" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Estdc,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "estdc" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Estdc,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggEstdcError <- "estdc_error" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.EstdcError,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "estdc_error" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.EstdcError,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggExactPerc <- "exactperc" numStr:(FloatAsString / IntegerAsString) L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.ExactPerc,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+/ "exactperc" numStr:(FloatAsString / IntegerAsString) L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.ExactPerc,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggPerc <- "perc" numStr:(FloatAsString / IntegerAsString) L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Perc,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+/ "perc" numStr:(FloatAsString / IntegerAsString) L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Perc,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggUpperPerc <- "upperperc" numStr:(FloatAsString / IntegerAsString) L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.UpperPerc,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+/ "upperperc" numStr:(FloatAsString / IntegerAsString) L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.UpperPerc,
+        Param: numStr.(string),
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggMedian <- "median" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Median,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "median" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Median,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggMode <- "mode" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Mode,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "mode" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Mode,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggStdev <- "stdev" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Stdev,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "stdev" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Stdev,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggStdevp <- "stdevp" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Stdevp,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "stdevp" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Stdevp,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggSumsq <- "sumsq" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Sumsq,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "sumsq" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Sumsq,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggVar <- "var" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Var,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "var" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Var,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggVarp <- "varp" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Varp,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "varp" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Varp,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggFirst <- "first" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.First,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "first" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.First,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggLast <- "last" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Last,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "last" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Last,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggList <- "list" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.List,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
+    }
+
+    return agg, nil
+}
+/ "list" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.List,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggEarliest <- "earliest" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Earliest,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "earliest" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Earliest,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggEarliestTime <- "earliest_time" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.EarliestTime,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "earliest_time" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.EarliestTime,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggLatest <- "latest" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.Latest,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "latest" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.Latest,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggLatestTime <- "latest_time" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.LatestTime,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "latest_time" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.LatestTime,
+    }
+
+    return agg, nil
+}
+
+// Todo: implement the processing logic
+AggRate <- "rate" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
+    valueExpr := &structs.ValueExpr {
+        ValueExprMode: structs.VEMBooleanExpr,
+        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+    }
+
+    agg := &structs.MeasureAggregator {
+        MeasureCol: "",
+        MeasureFunc: utils.StatsRate,
+        StrEnc: string(c.text),
+        ValueColRequest: valueExpr,
+    }
+
+    return agg, nil
+}
+/ "rate" L_PAREN field:FieldName R_PAREN {
+    agg := &structs.MeasureAggregator {
+        MeasureCol: field.(string),
+        MeasureFunc: utils.StatsRate,
     }
 
     return agg, nil
@@ -2592,7 +3290,8 @@ L_PAREN <- "(" EMPTY_OR_SPACE
 R_PAREN <- EMPTY_OR_SPACE ")"
 
 EOF <- !.
-SPACE <- (" "? COMMENT " "?) / " "+
+WHITESPACE <- " " / "\t" / "\n" / "\r"
+SPACE <- (WHITESPACE? COMMENT WHITESPACE?) / WHITESPACE+
 COMMENT <- "```" (!("```") .)* "```"
 EMPTY_OR_SPACE  <- SPACE / ""
 SPACE_OR_COMMA <- COMMA / SPACE
