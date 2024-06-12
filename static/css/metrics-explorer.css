@@ -1,10 +1,14 @@
 
 :root{
    --db-options-bg-color:var(--black-3);
+   --container-focus-bg-color: var(--black-1);
+   --input-box-bg-color: var(--black-2);
 }
 
 [data-theme='light']{
     --db-options-bg-color:var(--white-3);
+    --container-focus-bg-color: #F6FCFF;
+    --input-box-bg-color: var(--white-0);
 }
 /* TOGGLE SWITCH  */
 .switch {
@@ -116,6 +120,7 @@ input:checked + .slider:before {
     color: var(--text-color) !important;
     outline: none;
     border-radius: 0;
+    background-color: var(--input-box-bg-color);
 }
 
 .formula-box .formula{
@@ -124,6 +129,8 @@ input:checked + .slider:before {
 }
 .formula-box .formula:focus{
     border-radius: 0 5px 5px 0;
+    background-color: var( --container-focus-bg-color );
+    border-color:  #2D69BC;
 }
 .formula-box .formula.error-border{
     border: 1px solid #EB364B;
@@ -173,10 +180,10 @@ input:checked + .slider:before {
     position: relative;
 }
 .metrics-query div .tag{
-    background-color: #ECF6FB;
+    background-color: var(--selected-filter-blue);
 }
 .metrics-query div .value{
-    background-color: #FBE7F4;
+    background-color: var(--selected-filter-red);
 }
 .tag-container,.value-container {
     min-width: 200px;
@@ -215,15 +222,14 @@ input:checked + .slider:before {
 .metrics-query .metrics{
     min-width: 230px;
     width: auto !important;
-    background-color: #FFFFCC;
+    background-color: var(--selected-filter-yellow);
 }
 .metrics-query .metrics:focus{
-    background-color: #F6FCFF;
+    background-color: var( --container-focus-bg-color );
     outline: 1px solid #2D69BC;
 }
 .metrics-query .agg-function{
-    width: 78px !important;
-    padding: 12px;
+    width: 70px !important;
     background-color: var(--drop-down-btn-bg-regular);
 }
 .metrics-query .agg-function:focus{
@@ -278,6 +284,8 @@ input:checked + .slider:before {
     padding: 10px;
     border-bottom: 1px solid var(--border-btn-color);
     font-weight: 600;
+    background-color: var(--drop-down-btn-bg-regular);
+    border-radius: 5px 5px 0 0;
 }
 #visualization-options div{
     margin-right: 24px;
@@ -334,13 +342,13 @@ input:checked + .slider:before {
 
 .metrics-query .query-box .tag-container:focus-within,  .everywhere:focus ,
 .metrics-query .query-box .value-container:focus-within,  .everything:focus  {
-    background: #F6FCFF !important;/* Change background color when input is focused */
+    background: var( --container-focus-bg-color) !important;/* Change background color when input is focused */
 }
 
 .metrics-query .query-box .tag-container:focus-within,
 .metrics-query .query-box .value-container:focus-within{
     border: 1px solid #2D69BC;
-    background-color: #F6FCFF !important;
+    background: var( --container-focus-bg-color) !important;
 }
 
 .metrics-query .tag .close, .metrics-query .value .close{
@@ -377,12 +385,6 @@ input:checked + .slider:before {
     list-style: none;
     font-size: 14px;
     text-align: left;
-    background-color: #ffffff;
-    border: 1px solid #cccccc;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    border-radius: 4px;
-    -webkit-box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
     background-clip: padding-box;
 }
   
@@ -433,13 +435,16 @@ input:checked + .slider:before {
     border: 1px solid #fff;
 }
 .show-functions{
+    width: 32px;
     border-right: 1px solid var(--border-btn-color) !important;
     cursor: pointer;
     position: relative;
     border-radius: 0 5px 5px 0;
-}
-.show-functions img{
-    height: 14px;
+    background-image: var(--metrics-function-icon);
+    background-repeat: no-repeat;
+    background-size: 35%;
+    background-position: center;
+    background-color: var(--drop-down-btn-bg-regular);
 }
 
 .functions-container{
@@ -493,4 +498,7 @@ input:checked + .slider:before {
     background-position: center;
     border-radius: 0 5px 5px 0;
     border: none;
+}
+.alias-filling-box input{
+    height: 30px;
 }
