@@ -61,25 +61,7 @@ async function metricsExplorerDatePickerHandler(evt) {
     $(evt.currentTarget).addClass('active');
     datePickerHandler(selectedId, "now", selectedId);
 
-    const newMetricNames = await getMetricNames();
-    newMetricNames.metricNames.sort();
-  
-    $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
-    
-    // Update graph for each query
-   
-    Object.keys(queries).forEach(async function(queryName) {
-        var queryDetails = queries[queryName];
-
-        const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
-        availableEverywhere = tagsAndValue.availableEverywhere.sort();
-        availableEverything = tagsAndValue.availableEverything[0].sort();
-        const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
-        queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
-        queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
-        
-        await getQueryDetails(queryName, queryDetails);
-    });
+    await refreshMetricsGraphs();
 
     $('#daterangepicker').hide();
 }
@@ -87,6 +69,8 @@ async function metricsExplorerDatePickerHandler(evt) {
 $('#add-query').on('click', addQueryElement);
 
 $('#add-formula').on('click', addFormulaElement);
+
+$('.refresh-btn').on("click", refreshMetricsGraphs);
 
 // Toggle switch between merged graph and single graphs 
 $('#toggle-switch').on('change', function() {
@@ -1319,6 +1303,28 @@ async function getFunctions() {
     });
     if(res)
         return res; 
+}
+
+async function refreshMetricsGraphs(){
+    const newMetricNames = await getMetricNames();
+    newMetricNames.metricNames.sort();
+  
+    $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
+    if(queries["a"].metrics){ // only if the first query is not empty
+        // Update graph for each query
+        Object.keys(queries).forEach(async function(queryName) {
+            var queryDetails = queries[queryName];
+    
+            const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
+            availableEverywhere = tagsAndValue.availableEverywhere.sort();
+            availableEverything = tagsAndValue.availableEverything[0].sort();
+            const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
+            queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
+            queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
+            
+            await getQueryDetails(queryName, queryDetails);
+        });
+   }
 }
 
 function updateChartColorsBasedOnTheme() {

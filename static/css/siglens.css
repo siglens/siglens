@@ -5082,6 +5082,11 @@ input.form-control {
     background-size: 46% !important;
 }
 
+.refresh-btn:hover{
+    background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
+    background-size: 46% !important;
+}
+
 #delbutton.default-dashboard-delete:hover {
     background-image: url(../assets/dark-delete-icon-regular.svg);
 }
