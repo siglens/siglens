@@ -47,6 +47,7 @@ $(document).ready(async function() {
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
     
     $('.theme-btn').on('click', themePickerHandler);
+    $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
     allFunctions = await getFunctions();
     addQueryElement();
 });
@@ -204,7 +205,6 @@ async function addQueryElement() {
                     </div>
                     <div class="position-container">
                         <div class="show-functions">
-                            <img src="../assets/function-icon.svg" alt="">
                         </div>
                         <div class="options-container">
                             <input type="text" id="functions-search-box" class="search-box" placeholder="Search...">
@@ -790,6 +790,8 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
     // Save chart data to the global variable
     chartDataCollection[queryName] = chartData;
 
+    const { gridLineColor, tickColor } = getGraphGridColors();
+
     var lineChart = new Chart(ctx, {
         type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
         data: chartData,
@@ -816,13 +818,16 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
                     },
                     grid: {
                         display: false
-                    }
+                    },
+                    ticks: { color: tickColor }
                 },
                 y: {
                     display: true,
                     title: {
                         display: false,
-                    }
+                    },
+                    grid: { color: gridLineColor },
+                    ticks: { color: tickColor }
                 }
             }
         }
@@ -1098,6 +1103,7 @@ function mergeGraphs(chartType) {
         }
     } 
     $('.merged-graph-name').html(graphNames.join(', '));
+    const { gridLineColor, tickColor } = getGraphGridColors();
     var mergedLineChart = new Chart(mergedCtx, {
         type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
         data: mergedData,
@@ -1123,14 +1129,17 @@ function mergeGraphs(chartType) {
                         text: ''
                     },
                     grid: {
-                        display: false 
-                    }
+                        display: false
+                    },
+                    ticks: { color: tickColor }
                 },
                 y: {
                     display: true,
                     title: {
                         display: false,
-                    }
+                    },
+                    grid: { color: gridLineColor },
+                    ticks: { color: tickColor }
                 }
             }
         }
@@ -1312,4 +1321,33 @@ async function getFunctions() {
         return res; 
 }
 
+function updateChartColorsBasedOnTheme() {
+    const { gridLineColor, tickColor } = getGraphGridColors();
+
+    for (const queryName in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(queryName)) {
+            const lineChart = lineCharts[queryName];
+            lineChart.options.scales.x.ticks.color = tickColor;
+            lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.y.grid.color = gridLineColor;
+            lineChart.update();
+        }
+    }
+
+    if (mergedGraph) {
+        mergedGraph.options.scales.x.ticks.color = tickColor;
+        mergedGraph.options.scales.y.ticks.color = tickColor;
+        mergedGraph.options.scales.y.grid.color = gridLineColor;
+        mergedGraph.update();
+    }
+}
+
+function getGraphGridColors() {
+    const rootStyles = getComputedStyle(document.documentElement);
+    const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-3');
+    const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
+
+    return { gridLineColor, tickColor };
+}
 
