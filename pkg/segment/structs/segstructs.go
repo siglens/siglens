@@ -537,6 +537,10 @@ func (qa *QueryAggregators) HasDedupBlock() bool {
 }
 
 func (qa *QueryAggregators) HasDedupBlockInChain() bool {
+	if qa == nil {
+		return false
+	}
+
 	if qa.HasDedupBlock() {
 		return true
 	}
@@ -569,6 +573,9 @@ func (qa *QueryAggregators) HasSortBlock() bool {
 }
 
 func (qa *QueryAggregators) HasSortBlockInChain() bool {
+	if qa == nil {
+		return false
+	}
 	if qa.HasSortBlock() {
 		return true
 	}
@@ -616,6 +623,9 @@ func (qa *QueryAggregators) HasGroupByOrMeasureAggsInChain() bool {
 }
 
 func (qa *QueryAggregators) HasRexBlockInChainWithStats() bool {
+	if qa == nil {
+		return false
+	}
 	if qa.HasRexBlockInQA() {
 		return qa.Next != nil && qa.Next.HasGroupByOrMeasureAggsInChain()
 	}
