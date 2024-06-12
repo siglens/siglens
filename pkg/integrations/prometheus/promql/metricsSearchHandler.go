@@ -573,7 +573,7 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
 		timeRange = &metricQueryRequest[i].TimeRange
 	}
-	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
+	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, false)
 	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, startTime, endTime)
 	if err != nil {
 		utils.SendError(ctx, "Failed to get results", fmt.Sprintf("Query: %s", searchText), err)
@@ -748,7 +748,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		timeRange = &metricQueryRequest[i].TimeRange
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
-	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
+	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, true)
 
 	if len(res.ErrList) > 0 {
 		var errorMessages []string
