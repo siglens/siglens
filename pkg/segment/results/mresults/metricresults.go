@@ -507,7 +507,7 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 			var result structs.Result
 			var keyValue []string
 			result.Metric = make(map[string]string)
-			result.Metric["__name__"] = mQuery.MetricName
+			result.Metric["__name__"] = ExtractMetricNameFromGroupID(grpId)
 			for idx, val := range tagValues {
 				if idx == 0 {
 					keyValue = strings.Split(removeMetricNameFromGroupID(val), ":")
