@@ -734,6 +734,15 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"log":              {},
 	"sigfig":           {},
 	"pow":              {},
+	"case":             {},
+	"coalesce":         {},
+	"searchmatch":      {},
+	"validate":         {},
+	"nullif":           {},
+	"ipmask":           {},
+	"object_to_array":  {},
+	"printf":           {},
+	"tojson":           {},
 }
 
 type StatsFuncChecker struct{}
@@ -752,8 +761,8 @@ func (c EvalFuncChecker) IsUnsupported(funcName string) bool {
 
 func CheckUnsupportedFunctions(post *QueryAggregators) error {
 
-	var statsChecker = StatsFuncChecker{}
-	var evalChecker = EvalFuncChecker{}
+	statsChecker := StatsFuncChecker{}
+	evalChecker := EvalFuncChecker{}
 
 	for agg := post; agg != nil; agg = agg.Next {
 		if agg == nil {
@@ -791,6 +800,11 @@ func CheckUnsupportedFunctions(post *QueryAggregators) error {
 			if valueCol.NumericExpr != nil {
 				if evalChecker.IsUnsupported(valueCol.NumericExpr.Op) {
 					return fmt.Errorf("checkUnsupportedFunctions: using %v in eval cmd is not yet supported", valueCol.NumericExpr.Op)
+				}
+			}
+			if valueCol.ConditionExpr != nil {
+				if evalChecker.IsUnsupported(valueCol.ConditionExpr.Op) {
+					return fmt.Errorf("checkUnsupportedFunctions: using %v in eval cmd is not yet supported", valueCol.ConditionExpr.Op)
 				}
 			}
 		}
