@@ -682,10 +682,6 @@ func (qtype QueryType) String() string {
 	}
 }
 
-type UnsupportedFuncChecker interface {
-	IsUnsupported(funcName interface{}) bool
-}
-
 var unsupportedStatsFuncs = map[utils.AggregateFunctions]struct{}{
 	utils.Estdc:        {},
 	utils.EstdcError:   {},
@@ -741,22 +737,16 @@ var unsupportedEvalFuncs = map[string]struct{}{
 
 type StatsFuncChecker struct{}
 
-func (c StatsFuncChecker) IsUnsupported(funcName interface{}) bool {
-	if name, ok := funcName.(utils.AggregateFunctions); ok {
-		_, found := unsupportedStatsFuncs[name]
-		return found
-	}
-	return false
+func (c StatsFuncChecker) IsUnsupported(funcName utils.AggregateFunctions) bool {
+	_, found := unsupportedStatsFuncs[funcName]
+	return found
 }
 
 type EvalFuncChecker struct{}
 
-func (c EvalFuncChecker) IsUnsupported(funcName interface{}) bool {
-	if name, ok := funcName.(string); ok {
-		_, found := unsupportedEvalFuncs[name]
-		return found
-	}
-	return false
+func (c EvalFuncChecker) IsUnsupported(funcName string) bool {
+	_, found := unsupportedEvalFuncs[funcName]
+	return found
 }
 
 func CheckUnsupportedFunctions(post *QueryAggregators) error {

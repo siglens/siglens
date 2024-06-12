@@ -1179,7 +1179,7 @@ func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap
 
 	res, err := segment.HelperQueryArithmeticAndLogical(&queryOps[0], map[uint64]*mresults.MetricsResult{
 		1: metricsResults,
-	})
+	}, false)
 	assert.Nil(t, err)
 	assert.Len(t, res, 1)
 	for _, resMap := range res {
@@ -1404,7 +1404,7 @@ func initialize_Multiple_Metric_Results(t *testing.T, initialEntries1 map[uint32
 }
 
 func test_GetResults_LogicalAndVectorMatchingOps(t *testing.T, initialEntries1 map[uint32]float64, initialEntries2 map[uint32]float64, labelStrs1 []string, labelStrs2 []string, ansMap map[string]map[uint32]float64, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler, aggregator structs.Aggregation) {
-	res, err := segment.HelperQueryArithmeticAndLogical(&queryOps[0], initialize_Multiple_Metric_Results(t, initialEntries1, initialEntries2, labelStrs1, labelStrs2, queryOps, downsampler, aggregator))
+	res, err := segment.HelperQueryArithmeticAndLogical(&queryOps[0], initialize_Multiple_Metric_Results(t, initialEntries1, initialEntries2, labelStrs1, labelStrs2, queryOps, downsampler, aggregator), false)
 	assert.Nil(t, err)
 	validateResults(t, res, ansMap)
 }

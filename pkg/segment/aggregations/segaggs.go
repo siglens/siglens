@@ -127,8 +127,11 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     1.1 stats options: dedup_splitvals, allnum, partitions, delim
     1.2 stats functions: estdc, estdc_error, exactperc99, perc66.6, median, stdev, stdevp, sumsq, upperperc6.6, var, varp, first, last, list, earliest, earliest_time, latest, latest_time, rate
  2. Eval cmd:
-    2.1 Comparison and Conditional functions: case, coalesce, searchmatch, validate, nullif
-    2.2 Conversion functions: ipmask, object_to_array, printf, tojson
+    2.1 Mathematical functions: floor, pi, ln, log, sigfig, pow
+    2.2 Statistical eval functions: random
+    2.3 Multivalue eval functions: mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
+    2.4 Comparison and Conditional functions: case, coalesce, searchmatch, validate, nullif
+    2.5 Conversion functions: ipmask, object_to_array, printf, tojson
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {

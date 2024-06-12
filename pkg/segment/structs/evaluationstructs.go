@@ -163,7 +163,7 @@ type NumericExpr struct {
 	Value        string
 
 	// Only used when IsTerminal is false.
-	Op    string // Either +, -, /, *, abs, ceil, round, sqrt, len
+	Op    string // Including arithmetic, mathematical and text functions ops
 	Left  *NumericExpr
 	Right *NumericExpr
 	Val   *StringExpr
@@ -179,16 +179,18 @@ type StringExpr struct {
 }
 
 type TextExpr struct {
-	IsTerminal   bool
-	Op           string //lower, ltrim, rtrim
-	Param        *StringExpr
-	StrToRemove  string
-	Delimiter    *StringExpr
-	MaxMinValues []*StringExpr
-	StartIndex   *NumericExpr
-	LengthExpr   *NumericExpr
-	Val          *ValueExpr
-	ValueList    []*ValueExpr
+	IsTerminal  bool
+	Op          string //lower, ltrim, rtrim
+	Param       *StringExpr
+	StrToRemove string
+	Delimiter   *StringExpr
+	ValueList   []*StringExpr
+	StartIndex  *NumericExpr
+	EndIndex    *NumericExpr
+	LengthExpr  *NumericExpr
+	Val         *ValueExpr
+	Condition   *BoolExpr // To filter out values that do not meet the criteria within a multivalue field
+	InferTypes  bool      // To specify that the mv_to_json_array function should attempt to infer JSON data types when it converts field values into array elements.
 }
 
 type ConditionExpr struct {
@@ -1294,12 +1296,39 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 }
 
 func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+	// Todo: implement the processing logic for these functions:
+	switch self.Op {
+	case "mvappend":
+		fallthrough
+	case "mvcount":
+		fallthrough
+	case "mvdedup":
+		fallthrough
+	case "mvfilter":
+		fallthrough
+	case "mvfind":
+		fallthrough
+	case "mvindex":
+		fallthrough
+	case "mvjoin":
+		fallthrough
+	case "mvmap":
+		fallthrough
+	case "mvrange":
+		fallthrough
+	case "mvsort":
+		fallthrough
+	case "mvzip":
+		fallthrough
+	case "mv_to_json_array":
+		return "", fmt.Errorf("TextExpr.EvaluateText: dose not support functions:%v: right now", self.Op)
+	}
 	if self.Op == "max" {
-		if len(self.MaxMinValues) == 0 {
+		if len(self.ValueList) == 0 {
 			return "", fmt.Errorf("TextExpr.EvaluateText: no values provided for 'max' operation")
 		}
 		maxString := ""
-		for _, expr := range self.MaxMinValues {
+		for _, expr := range self.ValueList {
 			result, err := expr.Evaluate(fieldToValue)
 			if err != nil {
 				return "", err
@@ -1311,11 +1340,11 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		return maxString, nil
 
 	} else if self.Op == "min" {
-		if len(self.MaxMinValues) == 0 {
+		if len(self.ValueList) == 0 {
 			return "", fmt.Errorf("TextExpr.EvaluateText: no values provided for 'min' operation")
 		}
 		minString := ""
-		for _, expr := range self.MaxMinValues {
+		for _, expr := range self.ValueList {
 			result, err := expr.Evaluate(fieldToValue)
 			if err != nil {
 				return "", err
@@ -1507,7 +1536,7 @@ func (self *TextExpr) GetFields() []string {
 		}
 		return fields
 	}
-	for _, expr := range self.MaxMinValues {
+	for _, expr := range self.ValueList {
 		fields = append(fields, expr.GetFields()...)
 	}
 	return fields

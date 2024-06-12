@@ -45,6 +45,7 @@ Options:
   -d, --dest string          Server URL.
   -p, --processCount int     Number of parallel process to ingest data from. (default 1)
   -t, --totalEvents int      Total number of events to send (default 1000000)
+  -u, --uniqueness int       Cardinality (uniqueness) of the data (default 2000000)
 ```
 
 ## Query

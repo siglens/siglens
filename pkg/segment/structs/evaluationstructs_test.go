@@ -1365,7 +1365,7 @@ func Test_StringExpr(t *testing.T) {
 			TextExpr: &TextExpr{
 				IsTerminal: false,
 				Op:         "max",
-				MaxMinValues: []*StringExpr{
+				ValueList: []*StringExpr{
 					{
 						StringExprMode: SEMConcatExpr,
 						ConcatExpr: &ConcatExpr{
@@ -1418,7 +1418,7 @@ func Test_StringExpr(t *testing.T) {
 			TextExpr: &TextExpr{
 				IsTerminal: false,
 				Op:         "min",
-				MaxMinValues: []*StringExpr{
+				ValueList: []*StringExpr{
 					{
 						StringExprMode: SEMConcatExpr,
 						ConcatExpr: &ConcatExpr{
