@@ -692,46 +692,109 @@ func (qtype QueryType) String() string {
 	}
 }
 
-var unsupportedFuncs = []utils.AggregateFunctions{
-	utils.Estdc, utils.EstdcError, utils.ExactPerc, utils.Perc, utils.UpperPerc,
-	utils.Median, utils.Mode, utils.Stdev, utils.Stdevp, utils.Sumsq,
-	utils.Var, utils.Varp, utils.First, utils.Last, utils.Earliest,
-	utils.EarliestTime, utils.Latest, utils.LatestTime, utils.StatsRate,
+var unsupportedStatsFuncs = map[utils.AggregateFunctions]struct{}{
+	utils.Estdc:        {},
+	utils.EstdcError:   {},
+	utils.ExactPerc:    {},
+	utils.Perc:         {},
+	utils.UpperPerc:    {},
+	utils.Median:       {},
+	utils.Mode:         {},
+	utils.Stdev:        {},
+	utils.Stdevp:       {},
+	utils.Sumsq:        {},
+	utils.Var:          {},
+	utils.Varp:         {},
+	utils.First:        {},
+	utils.Last:         {},
+	utils.Earliest:     {},
+	utils.EarliestTime: {},
+	utils.Latest:       {},
+	utils.LatestTime:   {},
+	utils.StatsRate:    {},
 }
 
-func isUnsupported(funcName utils.AggregateFunctions) bool {
-	for _, f := range unsupportedFuncs {
-		if f == funcName {
-			return true
-		}
-	}
-	return false
+var unsupportedEvalFuncs = map[string]struct{}{
+	"mvappend":         {},
+	"mvcount":          {},
+	"mvdedup":          {},
+	"mvfilter":         {},
+	"mvfind":           {},
+	"mvindex":          {},
+	"mvjoin":           {},
+	"mvmap":            {},
+	"mvrange":          {},
+	"mvsort":           {},
+	"mvzip":            {},
+	"mv_to_json_array": {},
+	"random":           {},
+	"floor":            {},
+	"pi":               {},
+	"ln":               {},
+	"log":              {},
+	"sigfig":           {},
+	"pow":              {},
 }
 
-func CheckUnsupportedFunctions(agg *QueryAggregators) error {
-	if agg == nil {
-		return nil
-	}
+type StatsFuncChecker struct{}
 
-	// Check if user has used the stats options
-	if agg.StatsOptions != nil {
-		if agg.StatsOptions.Delim != " " || agg.StatsOptions.Partitions != 1 || agg.StatsOptions.DedupSplitvals || agg.StatsOptions.Allnum {
-			return fmt.Errorf("checkUnsupportedFunctions: using options in stats is not yet supported")
+func (c StatsFuncChecker) IsUnsupported(funcName utils.AggregateFunctions) bool {
+	_, found := unsupportedStatsFuncs[funcName]
+	return found
+}
+
+type EvalFuncChecker struct{}
+
+func (c EvalFuncChecker) IsUnsupported(funcName string) bool {
+	_, found := unsupportedEvalFuncs[funcName]
+	return found
+}
+
+func CheckUnsupportedFunctions(post *QueryAggregators) error {
+
+	var statsChecker = StatsFuncChecker{}
+	var evalChecker = EvalFuncChecker{}
+
+	for agg := post; agg != nil; agg = agg.Next {
+		if agg == nil {
+			return nil
 		}
-	}
 
-	if agg.GroupByRequest != nil {
-		for _, measureAgg := range agg.GroupByRequest.MeasureOperations {
-			if isUnsupported(measureAgg.MeasureFunc) {
-				return fmt.Errorf("checkUnsupportedFunctions: using %v in stats is not yet supported", measureAgg.MeasureFunc.String())
+		// Check if user has used the stats options
+		if agg.StatsOptions != nil {
+			if agg.StatsOptions.Delim != " " || agg.StatsOptions.Partitions != 1 || agg.StatsOptions.DedupSplitvals || agg.StatsOptions.Allnum {
+				return fmt.Errorf("checkUnsupportedFunctions: using options in stats cmd is not yet supported")
+			}
+		}
+
+		if agg.GroupByRequest != nil {
+			for _, measureAgg := range agg.GroupByRequest.MeasureOperations {
+				if statsChecker.IsUnsupported(measureAgg.MeasureFunc) {
+					return fmt.Errorf("checkUnsupportedFunctions: using %v in stats cmd is not yet supported", measureAgg.MeasureFunc.String())
+				}
+			}
+		}
+
+		for _, measureAgg := range agg.MeasureOperations {
+			if statsChecker.IsUnsupported(measureAgg.MeasureFunc) {
+				return fmt.Errorf("checkUnsupportedFunctions: using %v in stats cmd is not yet supported", measureAgg.MeasureFunc.String())
+			}
+		}
+
+		if agg.hasLetColumnsRequest() && agg.OutputTransforms.LetColumns.ValueColRequest != nil {
+			valueCol := agg.OutputTransforms.LetColumns.ValueColRequest
+			if valueCol.StringExpr != nil && valueCol.StringExpr.TextExpr != nil {
+				if evalChecker.IsUnsupported(valueCol.StringExpr.TextExpr.Op) {
+					return fmt.Errorf("checkUnsupportedFunctions: using %v in eval cmd is not yet supported", valueCol.StringExpr.TextExpr.Op)
+				}
+			}
+			if valueCol.NumericExpr != nil {
+				if evalChecker.IsUnsupported(valueCol.NumericExpr.Op) {
+					return fmt.Errorf("checkUnsupportedFunctions: using %v in eval cmd is not yet supported", valueCol.NumericExpr.Op)
+				}
 			}
 		}
 	}
 
-	for _, measureAgg := range agg.MeasureOperations {
-		if isUnsupported(measureAgg.MeasureFunc) {
-			return fmt.Errorf("checkUnsupportedFunctions: using %v in stats is not yet supported", measureAgg.MeasureFunc.String())
-		}
-	}
 	return nil
 }

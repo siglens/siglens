@@ -193,6 +193,8 @@ func Test_PromQLBuildInfoJson(t *testing.T) {
 	assert.Nil(t, err, "The PromQL build info should be valid JSON: %v", err)
 }
 
+// One to One
+// Multiple Queries, nested operations
 func Test_ProcessQueryArithmeticAndLogical_v1(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
@@ -272,7 +274,7 @@ func Test_ProcessQueryArithmeticAndLogical_v1(t *testing.T) {
 	queryResultsMap[queryHash2] = queryResult2
 	queryResultsMap[queryHash3] = queryResult3
 
-	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap)
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, false)
 	assert.NotNil(t, mResult)
 	assert.Equal(t, 1, len(mResult.Results))
 
@@ -287,6 +289,414 @@ func Test_ProcessQueryArithmeticAndLogical_v1(t *testing.T) {
 	for _, tsMap := range mResult.Results {
 		for ts, val := range tsMap {
 			assert.Equal(t, expectedResults[ts], val, "At timestamp %d", ts)
+		}
+	}
+}
+
+// One to One
+// two queries, no nested operations
+func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v1(t *testing.T) {
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 86400 // 1 day
+
+	myId := uint64(0)
+
+	// Test: query1 + query2
+	query := "node_cpu_seconds_total + node_memory_MemTotal_bytes"
+
+	mQueryReqs, _, queryArithmetic, err := ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(mQueryReqs))
+	assert.Equal(t, 1, len(queryArithmetic))
+
+	queryHash1 := xxhash.Sum64String("node_cpu_seconds_total")
+	queryHash2 := xxhash.Sum64String("node_memory_MemTotal_bytes")
+
+	queryHashes := []uint64{queryHash1, queryHash2}
+	sort.Slice(queryHashes, func(i, j int) bool {
+		return queryHashes[i] < queryHashes[j]
+	})
+
+	actualQueryHashes := []uint64{}
+
+	for _, mQueryReq := range mQueryReqs {
+		actualQueryHashes = append(actualQueryHashes, mQueryReq.MetricsQuery.QueryHash)
+	}
+
+	sort.Slice(actualQueryHashes, func(i, j int) bool {
+		return actualQueryHashes[i] < actualQueryHashes[j]
+	})
+
+	assert.Equal(t, queryHashes, actualQueryHashes)
+
+	queryResMap1 := make(map[string]map[uint32]float64)
+	queryResMap1["node_cpu_seconds_total{tk1:v1,tk2:v2"] = map[uint32]float64{
+		1: 100.0,
+		2: 200.0,
+		3: 300.0,
+		4: 400.0,
+		5: 500.0,
+	}
+	queryResult1 := &mresults.MetricsResult{
+		MetricName: "node_cpu_seconds_total",
+		Results:    queryResMap1,
+	}
+
+	queryResMap2 := make(map[string]map[uint32]float64)
+	queryResMap2["node_memory_MemTotal_bytes{tk3:v1,tk4:v2"] = map[uint32]float64{
+		1: 1000.0,
+		2: 2000.0,
+		3: 3000.0,
+		4: 4000.0,
+		5: 5000.0,
+	}
+	queryResult2 := &mresults.MetricsResult{
+		MetricName: "node_memory_MemTotal_bytes",
+		Results:    queryResMap2,
+	}
+
+	queryResultsMap := make(map[uint64]*mresults.MetricsResult)
+	queryResultsMap[queryHash1] = queryResult1
+	queryResultsMap[queryHash2] = queryResult2
+
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true)
+	assert.NotNil(t, mResult)
+	assert.Equal(t, 1, len(mResult.Results))
+
+	expectedResults := map[uint32]float64{
+		1: 100.0 + 1000.0,
+		2: 200.0 + 2000.0,
+		3: 300.0 + 3000.0,
+		4: 400.0 + 4000.0,
+		5: 500.0 + 5000.0,
+	}
+
+	for _, tsMap := range mResult.Results {
+		for ts, val := range tsMap {
+			assert.Equal(t, expectedResults[ts], val, "At timestamp %d", ts)
+		}
+	}
+}
+
+// One to One
+// Multiple Queries, nested operations
+func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v2(t *testing.T) {
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 86400 // 1 day
+
+	myId := uint64(0)
+
+	// Test: query1 - query2 * query3 + query2
+	query := "node_cpu_seconds_total - node_memory_MemTotal_bytes * node_disk_reads_completed_total + node_memory_MemTotal_bytes"
+
+	mQueryReqs, _, queryArithmetic, err := ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 4, len(mQueryReqs))
+	assert.Equal(t, 1, len(queryArithmetic))
+
+	queryHash1 := xxhash.Sum64String("node_cpu_seconds_total")
+	queryHash2 := xxhash.Sum64String("node_memory_MemTotal_bytes")
+	queryHash3 := xxhash.Sum64String("node_disk_reads_completed_total")
+
+	queryHashes := []uint64{queryHash1, queryHash2, queryHash3, queryHash2}
+	sort.Slice(queryHashes, func(i, j int) bool {
+		return queryHashes[i] < queryHashes[j]
+	})
+
+	actualQueryHashes := []uint64{}
+
+	for _, mQueryReq := range mQueryReqs {
+		actualQueryHashes = append(actualQueryHashes, mQueryReq.MetricsQuery.QueryHash)
+	}
+
+	sort.Slice(actualQueryHashes, func(i, j int) bool {
+		return actualQueryHashes[i] < actualQueryHashes[j]
+	})
+
+	assert.Equal(t, queryHashes, actualQueryHashes)
+
+	queryResMap1 := make(map[string]map[uint32]float64)
+	queryResMap1["node_cpu_seconds_total{tk1:v1,tk2:v2"] = map[uint32]float64{
+		1: 100.0,
+		2: 200.0,
+		3: 300.0,
+		4: 400.0,
+		5: 500.0,
+	}
+	queryResult1 := &mresults.MetricsResult{
+		MetricName: "node_cpu_seconds_total",
+		Results:    queryResMap1,
+	}
+
+	queryResMap2 := make(map[string]map[uint32]float64)
+	queryResMap2["node_memory_MemTotal_bytes{tk3:v1,tk4:v2"] = map[uint32]float64{
+		1: 1000.0,
+		2: 2000.0,
+		3: 3000.0,
+		4: 4000.0,
+		5: 5000.0,
+	}
+	queryResult2 := &mresults.MetricsResult{
+		MetricName: "node_memory_MemTotal_bytes",
+		Results:    queryResMap2,
+	}
+
+	queryResMap3 := make(map[string]map[uint32]float64)
+	queryResMap3["node_disk_reads_completed_total{tk5:v1,tk6:v2"] = map[uint32]float64{
+		1: 10.0,
+		2: 20.0,
+		3: 30.0,
+		4: 40.0,
+		5: 50.0,
+	}
+	queryResult3 := &mresults.MetricsResult{
+		MetricName: "node_disk_reads_completed_total",
+		Results:    queryResMap3,
+	}
+
+	queryResultsMap := make(map[uint64]*mresults.MetricsResult)
+	queryResultsMap[queryHash1] = queryResult1
+	queryResultsMap[queryHash2] = queryResult2
+	queryResultsMap[queryHash3] = queryResult3
+
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true)
+	assert.NotNil(t, mResult)
+	assert.Equal(t, 1, len(mResult.Results))
+
+	expectedResults := map[uint32]float64{
+		1: 100.0 - 1000.0*10.0 + 1000.0,
+		2: 200.0 - 2000.0*20.0 + 2000.0,
+		3: 300.0 - 3000.0*30.0 + 3000.0,
+		4: 400.0 - 4000.0*40.0 + 4000.0,
+		5: 500.0 - 5000.0*50.0 + 5000.0,
+	}
+
+	for _, tsMap := range mResult.Results {
+		for ts, val := range tsMap {
+			assert.Equal(t, expectedResults[ts], val, "At timestamp %d", ts)
+		}
+	}
+}
+
+// One to Many
+// two queries, no nested operations
+func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v3(t *testing.T) {
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 86400 // 1 day
+
+	myId := uint64(0)
+
+	// Test: query1 + query2
+	query := "node_cpu_seconds_total + node_memory_MemTotal_bytes"
+
+	mQueryReqs, _, queryArithmetic, err := ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(mQueryReqs))
+	assert.Equal(t, 1, len(queryArithmetic))
+
+	queryHash1 := xxhash.Sum64String("node_cpu_seconds_total")
+	queryHash2 := xxhash.Sum64String("node_memory_MemTotal_bytes")
+
+	queryHashes := []uint64{queryHash1, queryHash2}
+	sort.Slice(queryHashes, func(i, j int) bool {
+		return queryHashes[i] < queryHashes[j]
+	})
+
+	actualQueryHashes := []uint64{}
+
+	for _, mQueryReq := range mQueryReqs {
+		actualQueryHashes = append(actualQueryHashes, mQueryReq.MetricsQuery.QueryHash)
+	}
+
+	sort.Slice(actualQueryHashes, func(i, j int) bool {
+		return actualQueryHashes[i] < actualQueryHashes[j]
+	})
+
+	assert.Equal(t, queryHashes, actualQueryHashes)
+
+	queryResMap1 := make(map[string]map[uint32]float64)
+	queryResMap1["node_cpu_seconds_total{tk1:v1,tk2:v2"] = map[uint32]float64{
+		1: 100.0,
+		2: 200.0,
+		3: 300.0,
+		4: 400.0,
+		5: 500.0,
+	}
+	queryResMap1["node_cpu_seconds_total{tk3:v1,tk4:v2"] = map[uint32]float64{
+		1: 1000.0,
+		2: 2000.0,
+		3: 3000.0,
+		4: 4000.0,
+		5: 5000.0,
+	}
+	queryResult1 := &mresults.MetricsResult{
+		MetricName: "node_cpu_seconds_total",
+		Results:    queryResMap1,
+	}
+
+	queryResMap2 := make(map[string]map[uint32]float64)
+	queryResMap2["node_memory_MemTotal_bytes{tk4:v1,tk5:v2"] = map[uint32]float64{
+		1: 1000.0,
+		2: 2000.0,
+		3: 3000.0,
+		4: 4000.0,
+		5: 5000.0,
+	}
+	queryResult2 := &mresults.MetricsResult{
+		MetricName: "node_memory_MemTotal_bytes",
+		Results:    queryResMap2,
+	}
+
+	queryResultsMap := make(map[uint64]*mresults.MetricsResult)
+	queryResultsMap[queryHash1] = queryResult1
+	queryResultsMap[queryHash2] = queryResult2
+
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true)
+	assert.NotNil(t, mResult)
+	assert.Equal(t, 2, len(mResult.Results))
+
+	expectedResults1 := map[uint32]float64{
+		1: 100.0 + 1000.0,
+		2: 200.0 + 2000.0,
+		3: 300.0 + 3000.0,
+		4: 400.0 + 4000.0,
+		5: 500.0 + 5000.0,
+	}
+
+	expectedResults2 := map[uint32]float64{
+		1: 1000.0 + 1000.0,
+		2: 2000.0 + 2000.0,
+		3: 3000.0 + 3000.0,
+		4: 4000.0 + 4000.0,
+		5: 5000.0 + 5000.0,
+	}
+
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults["node_cpu_seconds_total{tk1:v1,tk2:v2"] = expectedResults1
+	expectedResults["node_cpu_seconds_total{tk3:v1,tk4:v2"] = expectedResults2
+
+	for seriesId, tsMap := range mResult.Results {
+		for ts, val := range tsMap {
+			assert.Equal(t, expectedResults[seriesId][ts], val, "At timestamp %d", ts)
+		}
+	}
+}
+
+// One to Many
+// Multiple Queries, nested operations
+func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v4(t *testing.T) {
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 86400 // 1 day
+
+	myId := uint64(0)
+
+	// Test: query1 - query2 * query3 + query2
+	query := "node_cpu_seconds_total - node_memory_MemTotal_bytes * node_disk_reads_completed_total + node_memory_MemTotal_bytes"
+
+	mQueryReqs, _, queryArithmetic, err := ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 4, len(mQueryReqs))
+	assert.Equal(t, 1, len(queryArithmetic))
+
+	queryHash1 := xxhash.Sum64String("node_cpu_seconds_total")
+	queryHash2 := xxhash.Sum64String("node_memory_MemTotal_bytes")
+	queryHash3 := xxhash.Sum64String("node_disk_reads_completed_total")
+
+	queryHashes := []uint64{queryHash1, queryHash2, queryHash3, queryHash2}
+	sort.Slice(queryHashes, func(i, j int) bool {
+		return queryHashes[i] < queryHashes[j]
+	})
+
+	actualQueryHashes := []uint64{}
+
+	for _, mQueryReq := range mQueryReqs {
+		actualQueryHashes = append(actualQueryHashes, mQueryReq.MetricsQuery.QueryHash)
+	}
+
+	sort.Slice(actualQueryHashes, func(i, j int) bool {
+		return actualQueryHashes[i] < actualQueryHashes[j]
+	})
+
+	assert.Equal(t, queryHashes, actualQueryHashes)
+
+	queryResMap1 := make(map[string]map[uint32]float64)
+	queryResMap1["node_cpu_seconds_total{tk1:v1,tk2:v2"] = map[uint32]float64{
+		1: 100.0,
+		2: 200.0,
+		3: 300.0,
+		4: 400.0,
+		5: 500.0,
+	}
+	queryResMap1["node_cpu_seconds_total{tk3:v1,tk4:v2"] = map[uint32]float64{
+		1: 1000.0,
+		2: 2000.0,
+		3: 3000.0,
+		4: 4000.0,
+		5: 5000.0,
+	}
+	queryResult := &mresults.MetricsResult{
+		MetricName: "node_cpu_seconds_total",
+		Results:    queryResMap1,
+	}
+
+	queryResMap2 := make(map[string]map[uint32]float64)
+	queryResMap2["node_memory_MemTotal_bytes{tk4:v1,tk5:v2"] = map[uint32]float64{
+		1: 1000.0,
+		2: 2000.0,
+		3: 3000.0,
+		4: 4000.0,
+		5: 5000.0,
+	}
+	queryResult2 := &mresults.MetricsResult{
+		MetricName: "node_memory_MemTotal_bytes",
+		Results:    queryResMap2,
+	}
+
+	queryResMap3 := make(map[string]map[uint32]float64)
+	queryResMap3["node_disk_reads_completed_total{tk5:v1,tk6:v2"] = map[uint32]float64{
+		1: 10.0,
+		2: 20.0,
+		3: 30.0,
+		4: 40.0,
+		5: 50.0,
+	}
+	queryResult3 := &mresults.MetricsResult{
+		MetricName: "node_disk_reads_completed_total",
+		Results:    queryResMap3,
+	}
+
+	queryResultsMap := make(map[uint64]*mresults.MetricsResult)
+	queryResultsMap[queryHash1] = queryResult
+	queryResultsMap[queryHash2] = queryResult2
+	queryResultsMap[queryHash3] = queryResult3
+
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true)
+	assert.NotNil(t, mResult)
+	assert.Equal(t, 2, len(mResult.Results))
+
+	expectedResults1 := map[uint32]float64{
+		1: 100.0 - 1000.0*10.0 + 1000.0,
+		2: 200.0 - 2000.0*20.0 + 2000.0,
+		3: 300.0 - 3000.0*30.0 + 3000.0,
+		4: 400.0 - 4000.0*40.0 + 4000.0,
+		5: 500.0 - 5000.0*50.0 + 5000.0,
+	}
+
+	expectedResults2 := map[uint32]float64{
+		1: 1000.0 - 1000.0*10.0 + 1000.0,
+		2: 2000.0 - 2000.0*20.0 + 2000.0,
+		3: 3000.0 - 3000.0*30.0 + 3000.0,
+		4: 4000.0 - 4000.0*40.0 + 4000.0,
+		5: 5000.0 - 5000.0*50.0 + 5000.0,
+	}
+
+	expectedResults := make(map[string]map[uint32]float64)
+	expectedResults["node_cpu_seconds_total{tk1:v1,tk2:v2"] = expectedResults1
+	expectedResults["node_cpu_seconds_total{tk3:v1,tk4:v2"] = expectedResults2
+
+	for seriesId, tsMap := range mResult.Results {
+		for ts, val := range tsMap {
+			assert.Equal(t, expectedResults[seriesId][ts], val, "At timestamp %d", ts)
 		}
 	}
 }
