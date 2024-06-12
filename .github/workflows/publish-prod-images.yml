@@ -75,7 +75,7 @@ jobs:
               context: .
               file: tools/sigclient/Dockerfile
               push: true
-              tags: siglens/sigclient:latest
+              tags: sigclient/sigclient:latest
   sigscalr-release-assets:
       runs-on: ubuntu-latest
       environment: build-environment
