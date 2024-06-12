@@ -256,7 +256,11 @@
     --new-tab-icon: url("../assets/new-tab-icon-dark.svg");
     --copy-icon: url("../assets/copy-icon-dark-mode.svg");
     --top-setting-btn-bg-img: url("../assets/settings-icon.svg");
+    --metrics-function-icon: url("../assets/function-icon-dark.svg");
     --selected-index-container: var(--black-1);
+    --selected-filter-yellow: rgb(102, 72, 17);
+    --selected-filter-blue: rgb(10, 42, 105);
+    --selected-filter-red: rgb(102, 0, 61);
 }
 
 /* end aliases */
@@ -398,7 +402,11 @@
     --new-tab-icon: url("../assets/new-tab-icon-light.svg");
     --copy-icon: url("../assets/copy-icon.svg");
     --top-setting-btn-bg-img: url("../assets/setting-icon.svg");
+    --metrics-function-icon: url("../assets/function-icon.svg");
     --selected-index-container: var(--blue-1);
+    --selected-filter-blue: var(--blue-1);
+    --selected-filter-yellow: #FFFFCC;
+    --selected-filter-red: #FBE7F4;
 }
 
 
@@ -3021,7 +3029,7 @@ float: right;
 
 .settings-btn{
     width: 26px;
-    height: 26px !important;
+    height: 26px;
     margin-left: 10px;
     cursor: pointer;
     border: 1px solid var(--border-color-regular) !important;

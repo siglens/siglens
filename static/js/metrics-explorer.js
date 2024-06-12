@@ -47,6 +47,7 @@ $(document).ready(async function() {
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
     
     $('.theme-btn').on('click', themePickerHandler);
+    $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
     allFunctions = await getFunctions();
     addQueryElement();
 });
@@ -204,7 +205,6 @@ async function addQueryElement() {
                     </div>
                     <div class="position-container">
                         <div class="show-functions">
-                            <img src="../assets/function-icon.svg" alt="">
                         </div>
                         <div class="options-container">
                             <input type="text" id="functions-search-box" class="search-box" placeholder="Search...">
@@ -213,7 +213,7 @@ async function addQueryElement() {
                 </div>
             </div>
             <div class="raw-query" style="display: none;">
-                <input type="text" readonly class="raw-query-input">
+                <input type="text" class="raw-query-input"><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search"> </button>
             </div>
         </div>
         <div>
@@ -338,9 +338,33 @@ async function addQueryElement() {
         queryElement.find('.query-builder').toggle();
         queryElement.find('.raw-query').toggle();
         var queryName = queryElement.find('.query-name').text();
-        const queryString = createQueryString(queries[queryName]);
-        queryElement.find('.raw-query input').val(queryString);
+        var queryDetails = queries[queryName];
+
+        if (queryDetails.state === 'builder') {
+            // Switch to raw mode
+            queryDetails.state = 'raw';
+            const queryString = createQueryString(queryDetails);
+                if (!queryDetails.rawQueryExecuted){
+                    queryDetails.rawQueryInput = queryString;
+                    queryElement.find('.raw-query-input').val(queryString);
+                }
+        } else {
+            // Switch to builder mode
+            queryDetails.state = 'builder';
+            getQueryDetails(queryName, queryDetails);
+        }
     });
+
+    queryElement.find('.raw-query').on('click', '#run-filter-btn', async function() {
+        var queryName = queryElement.find('.query-name').text();
+        var queryDetails = queries[queryName];
+        var rawQuery = queryElement.find('.raw-query-input').val();
+        queryDetails.rawQueryInput = rawQuery;
+        queryDetails.rawQueryExecuted = true; // Set the flag to indicate that raw query has been executed
+        // Perform the search with the raw query
+        await getQueryDetails(queryName, queryDetails);
+    });
+    
 }
 
 async function initializeAutocomplete(queryElement, previousQuery = {}) {
@@ -352,7 +376,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         everywhere: [],
         everything: [],
         aggFunction: 'avg by',
-        functions: []
+        functions: [],
+        state: 'builder',
+        rawQueryInput: '',
+        rawQueryExecuted: false
     };
     // Use details from the previous query if it exists
     if (!jQuery.isEmptyObject(previousQuery)) {
@@ -763,6 +790,8 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
     // Save chart data to the global variable
     chartDataCollection[queryName] = chartData;
 
+    const { gridLineColor, tickColor } = getGraphGridColors();
+
     var lineChart = new Chart(ctx, {
         type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
         data: chartData,
@@ -789,13 +818,16 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
                     },
                     grid: {
                         display: false
-                    }
+                    },
+                    ticks: { color: tickColor }
                 },
                 y: {
                     display: true,
                     title: {
                         display: false,
-                    }
+                    },
+                    grid: { color: gridLineColor },
+                    ticks: { color: tickColor }
                 }
             }
         }
@@ -1071,6 +1103,7 @@ function mergeGraphs(chartType) {
         }
     } 
     $('.merged-graph-name').html(graphNames.join(', '));
+    const { gridLineColor, tickColor } = getGraphGridColors();
     var mergedLineChart = new Chart(mergedCtx, {
         type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
         data: mergedData,
@@ -1096,14 +1129,17 @@ function mergeGraphs(chartType) {
                         text: ''
                     },
                     grid: {
-                        display: false 
-                    }
+                        display: false
+                    },
+                    ticks: { color: tickColor }
                 },
                 y: {
                     display: true,
                     title: {
                         display: false,
-                    }
+                    },
+                    grid: { color: gridLineColor },
+                    ticks: { color: tickColor }
                 }
             }
         }
@@ -1225,7 +1261,12 @@ function getTagKeyValue(metricName) {
 
 
 async function getQueryDetails(queryName, queryDetails){
-    const queryString = createQueryString(queryDetails);
+    let queryString;
+    if(queryDetails.state === "builder"){
+        queryString = createQueryString(queryDetails);
+    }else {
+        queryString = queryDetails.rawQueryInput;
+    }
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData)
     addVisualizationContainer(queryName, chartData, queryString);
@@ -1280,4 +1321,33 @@ async function getFunctions() {
         return res; 
 }
 
+function updateChartColorsBasedOnTheme() {
+    const { gridLineColor, tickColor } = getGraphGridColors();
+
+    for (const queryName in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(queryName)) {
+            const lineChart = lineCharts[queryName];
+            lineChart.options.scales.x.ticks.color = tickColor;
+            lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.y.grid.color = gridLineColor;
+            lineChart.update();
+        }
+    }
+
+    if (mergedGraph) {
+        mergedGraph.options.scales.x.ticks.color = tickColor;
+        mergedGraph.options.scales.y.ticks.color = tickColor;
+        mergedGraph.options.scales.y.grid.color = gridLineColor;
+        mergedGraph.update();
+    }
+}
+
+function getGraphGridColors() {
+    const rootStyles = getComputedStyle(document.documentElement);
+    const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-3');
+    const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
+
+    return { gridLineColor, tickColor };
+}
 
