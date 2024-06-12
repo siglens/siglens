@@ -329,15 +329,10 @@ function editPanelInit(redirectedFromViewScreen) {
 		panelInfoCorner.hover(function () {panelDescIcon.tooltip('show');},
 		function () {panelDescIcon.tooltip('hide');});
 	}
-
+	queryStr = "";
 	if (currentPanel.queryData && (currentPanel.queryData.searchText != undefined || currentPanel.queryData?.queries?.[0]?.query != undefined)) {
-		if(currentPanel.queryType==='metrics')
-			queryStr = currentPanel.queryData.queries[0].query;
-		else
+		if(currentPanel.queryType!=='metrics')
 			queryStr = currentPanel.queryData.searchText;
-	}
-	else {
-		queryStr = "";
 	}
 	$('.queryInput').val(queryStr);
 
@@ -1321,11 +1316,7 @@ async function runQueryBtnHandler() {
 	$('.panelDisplay .big-number-display-container').hide();
 
 	// runs the query according to the query type selected and irrespective of chart type
-	if (currentPanel.queryType == 'metrics'){
-		data = getMetricsQData();
-		currentPanel.queryData = data;
-		runMetricsQuery(data, -1, currentPanel);
-	}else if (currentPanel.queryType == 'logs'){
+	 if (currentPanel.queryType == 'logs'){
 		data = getQueryParamsData();
 		currentPanel.queryData = data;
 		$('.panelDisplay .panEdit-panel').hide();
@@ -1430,10 +1421,10 @@ function displayPanelView(panelIndex) {
         $("#panelLogResultsGrid").show();
 		runPanelLogsQuery(localPanel.queryData, panelId,localPanel);
     } else if (localPanel.chartType == 'Line Chart') {
-        let panEl = $(`#panel${panelId} .panel-body`)
-        let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`
-        panEl.append(responseDiv)
-		runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+        // let panEl = $(`#panel${panelId} .panel-body`)
+        // let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`
+        // panEl.append(responseDiv)
+		// runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
     } else if (localPanel.chartType == 'number') {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div class="big-number-display-container"></div>

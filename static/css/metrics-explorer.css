@@ -263,13 +263,24 @@ input:checked + .slider:before {
     border: none;
 }
 
-.metrics-graph, #merged-graph-container {
+.metrics-graph, #metrics-container #merged-graph-container {
     height: 400px;
     border: 1px solid var(--border-btn-color);
     box-sizing: border-box; 
     border-radius: 5px;
     box-shadow: var(--box-shadow);
 }
+
+.panelDisplay #merged-graph-container {
+    height: 270px;
+    width: 100%;
+    background-color: var(--db-bg-color);
+    margin: 0;
+    border-radius: 5px;
+    padding: 10px;
+    overflow: hidden;
+}
+
 
 .metrics-graph.full-width {
     grid-column: span 2; 

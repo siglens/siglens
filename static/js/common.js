@@ -806,9 +806,11 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
             renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
             break;
         case "Line Chart":
-            let startTime = (new Date()).getTime();
-            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,"")
-            break;
+            // $('.panelDisplay .panEdit-panel').hide();
+            // $('#merged-graph-container').show();
+            // let startTime = (new Date()).getTime();
+            // processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,"")
+            // break;
         case "number":
             
             if (currentPanel.unit === "" || currentPanel.dataType === "none" || currentPanel.dataType === ""){
@@ -816,8 +818,8 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
                 currentPanel.dataType = "none"
             }
             if (currentPanel.queryType == 'metrics'){
-                let startTime = (new Date()).getTime();
-                processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,currentPanel.dataType)
+                // let startTime = (new Date()).getTime();
+                // processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,currentPanel.dataType)
             }else{
                 renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
             }

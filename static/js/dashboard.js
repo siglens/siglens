@@ -561,19 +561,19 @@ function displayPanels() {
             else
                 runPanelLogsQuery(localPanel.queryData, idpanel,localPanel);
         } else if (localPanel.chartType == 'Line Chart') {
-            let panEl = $(`#panel${idpanel} .panel-body`)
-            let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>
-            <div id="panel-loading"></div>`
-            panEl.append(responseDiv)
-            if (localPanel.queryRes){
-                runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
-            }
-            else {
-                //remove startEpoch from from localPanel.queryData
-                delete localPanel.queryData.startEpoch
-                delete localPanel.queryData.endEpoch
-                runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
-            }
+            // let panEl = $(`#panel${idpanel} .panel-body`)
+            // let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>
+            // <div id="panel-loading"></div>`
+            // panEl.append(responseDiv)
+            // if (localPanel.queryRes){
+            //     runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
+            // }
+            // else {
+            //     //remove startEpoch from from localPanel.queryData
+            //     delete localPanel.queryData.startEpoch
+            //     delete localPanel.queryData.endEpoch
+            //     runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+            // }
         } else if (localPanel.chartType == 'number') {
             let panEl = $(`#panel${idpanel} .panel-body`)
             let responseDiv = `<div class="big-number-display-container"></div>
@@ -584,17 +584,17 @@ function displayPanels() {
             $('.big-number-display-container').show();
             if (localPanel.queryType === "metrics"){
 
-                if (localPanel.queryRes){
-                    delete localPanel.queryData.startEpoch
-                    delete localPanel.queryData.endEpoch
-                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
-                }
-                else {
-                    //remove startEpoch from from localPanel.queryData
-                    delete localPanel.queryData.startEpoch
-                    delete localPanel.queryData.endEpoch
-                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
-                }
+                // if (localPanel.queryRes){
+                //     delete localPanel.queryData.startEpoch
+                //     delete localPanel.queryData.endEpoch
+                //     runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
+                // }
+                // else {
+                //     //remove startEpoch from from localPanel.queryData
+                //     delete localPanel.queryData.startEpoch
+                //     delete localPanel.queryData.endEpoch
+                //     runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+                // }
             }else {
                 if (localPanel.queryRes)
                     runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);

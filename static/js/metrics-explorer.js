@@ -28,7 +28,7 @@ let previousStartEpoch = null;
 let previousEndEpoch = null;
 let rawTimeSeriesData=[];
 let allFunctions=[];
-
+let mergedGraphContainer=$('#merged-graph-container')
 
 // Theme
 let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
@@ -48,9 +48,18 @@ $(document).ready(async function() {
     
     $('.theme-btn').on('click', themePickerHandler);
     allFunctions = await getFunctions();
+    checkCurrentPage();
     addQueryElement();
 });
 
+function checkCurrentPage() {
+    var currentPage = window.location.pathname;
+    if (currentPage.includes("dashboard.html")) {
+        mergedGraphContainer.show();
+        $('#panEdit-panel').hide();
+        $('.queryInputs').hide();
+    } 
+}
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
     $.each($(".range-item.active"), function () {
@@ -88,13 +97,13 @@ $('#add-query').on('click', addQueryElement);
 $('#add-formula').on('click', addFormulaElement);
 
 // Toggle switch between merged graph and single graphs 
-$('#toggle-switch').on('change', function() {
+$('#graph-toggle-switch').on('change', function() {
     if ($(this).is(':checked')) {
         $('#metrics-graphs').show();
-        $('#merged-graph-container').hide();
+        mergedGraphContainer.hide();
     } else {
         $('#metrics-graphs').hide();
-        $('#merged-graph-container').show();
+        mergedGraphContainer.show();
     }
 });
 
@@ -1063,7 +1072,10 @@ function mergeGraphs(chartType) {
         <div class="merged-graph-name"></div>
         <div class="merged-graph"></div>`);
 
-    $('#merged-graph-container').empty().append(visualizationContainer);
+    // $('#merged-graph-container').empty().append(visualizationContainer);
+    $('.panelDisplay .panEdit-panel').hide();
+    $('#merged-graph-container').show();
+    mergedGraphContainer.empty().append(visualizationContainer)
     
     var mergedCanvas = $('<canvas></canvas>');
 
