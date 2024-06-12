@@ -223,7 +223,6 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 	t.MaxIdleConns = 500
 	t.MaxConnsPerHost = 100
 	t.MaxIdleConnsPerHost = 100
-	seriesId := uint64(0)
 	client := &http.Client{
 		Timeout:   100 * time.Second,
 		Transport: t,
