@@ -92,52 +92,57 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div>
                         <h1 class="myOrg-heading">Metrics Explorer</h1>
                     </div>
-                    <div class="dropdown">
-                        <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown"
-                            aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
-                            title="Pick the time window">
-                            <span>Time Picker</span>
-                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                        </button>
-                        <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
-                            <p class="dt-header">Search the last</p>
-                            <div class="ranges">
-                                <div class="inner-range">
-                                    <div id="now-5m" class="range-item ">5 Mins</div>
-                                    <div id="now-3h" class="range-item">3 Hrs</div>
-                                    <div id="now-2d" class="range-item">2 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-15m" class="range-item">15 Mins</div>
-                                    <div id="now-6h" class="range-item">6 Hrs</div>
-                                    <div id="now-7d" class="range-item">7 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-30m" class="range-item">30 Mins</div>
-                                    <div id="now-12h" class="range-item">12 Hrs</div>
-                                    <div id="now-30d" class="range-item">30 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-1h" class="range-item">1 Hr</div>
-                                    <div id="now-24h" class="range-item">24 Hrs</div>
-                                    <div id="now-90d" class="range-item">90 Days</div>
-                                </div>
-                                <hr>
-                                </hr>
-                                <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span>
-                                </div>
-                                <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
-                                    <input type="date" id="date-start" />
-                                    <input type="time" id="time-start" value="00:00" />
-                                </div>
-                                <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
-                                    <input type="date" id="date-end">
-                                    <input type="time" id="time-end" value="00:00">
-                                </div>
-                                <div class="drp-buttons">
-                                    <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn"
-                                        type="button">Apply</button>
+                    <div class="d-flex">
+                        <div>
+                            <button class="btn refresh-btn" title="Refresh dashboard"></button>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown"
+                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
+                                title="Pick the time window">
+                                <span>Time Picker</span>
+                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                            </button>
+                            <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
+                                <p class="dt-header">Search the last</p>
+                                <div class="ranges">
+                                    <div class="inner-range">
+                                        <div id="now-5m" class="range-item ">5 Mins</div>
+                                        <div id="now-3h" class="range-item">3 Hrs</div>
+                                        <div id="now-2d" class="range-item">2 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-15m" class="range-item">15 Mins</div>
+                                        <div id="now-6h" class="range-item">6 Hrs</div>
+                                        <div id="now-7d" class="range-item">7 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-30m" class="range-item">30 Mins</div>
+                                        <div id="now-12h" class="range-item">12 Hrs</div>
+                                        <div id="now-30d" class="range-item">30 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-1h" class="range-item">1 Hr</div>
+                                        <div id="now-24h" class="range-item">24 Hrs</div>
+                                        <div id="now-90d" class="range-item">90 Days</div>
+                                    </div>
+                                    <hr>
+                                    </hr>
+                                    <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span>
+                                    </div>
+                                    <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
+                                        <input type="date" id="date-start" />
+                                        <input type="time" id="time-start" value="00:00" />
+                                    </div>
+                                    <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
+                                        <input type="date" id="date-end">
+                                        <input type="time" id="time-end" value="00:00">
+                                    </div>
+                                    <div class="drp-buttons">
+                                        <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn"
+                                            type="button">Apply</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
