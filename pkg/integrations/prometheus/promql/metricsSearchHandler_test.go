@@ -193,6 +193,101 @@ func Test_PromQLBuildInfoJson(t *testing.T) {
 	assert.Nil(t, err, "The PromQL build info should be valid JSON: %v", err)
 }
 
+func Test_buildMetricQueryFromFormulaAndQueries(t *testing.T) {
+	testCases := []struct {
+		formula  string
+		queries  map[string]string
+		expected string
+	}{
+		{
+			formula: "a + b",
+			queries: map[string]string{
+				"a": `avg by (car_type) (testmetric0{car_type="Passenger car heavy"})`,
+				"b": `avg by (car_type) (testmetric0{car_type="Passenger car heavy"})`,
+			},
+			expected: `avg by (car_type) (testmetric0{car_type="Passenger car heavy"}) + avg by (car_type) (testmetric0{car_type="Passenger car heavy"})`,
+		},
+		{
+			formula: "a - b",
+			queries: map[string]string{
+				"a": `sum by (region) (testmetric1{region="North"})`,
+				"b": `sum by (region) (testmetric1{region="South"})`,
+			},
+			expected: `sum by (region) (testmetric1{region="North"}) - sum by (region) (testmetric1{region="South"})`,
+		},
+		{
+			formula: "a + a",
+			queries: map[string]string{
+				"a": `sum by (region) (testmetric1{region="North"})`,
+			},
+			expected: `sum by (region) (testmetric1{region="North"}) + sum by (region) (testmetric1{region="North"})`,
+		},
+		{
+			formula: "a + b * a",
+			queries: map[string]string{
+				"a": `sum by (region) (testmetric1{region="North"})`,
+				"b": `sum by (region) (testmetric1{region="South"})`,
+			},
+			expected: `sum by (region) (testmetric1{region="North"}) + sum by (region) (testmetric1{region="South"}) * sum by (region) (testmetric1{region="North"})`,
+		},
+		{
+			formula:  "a + b",
+			queries:  map[string]string{},
+			expected: "a + b",
+		},
+		{
+			formula: "a / b",
+			queries: map[string]string{
+				"a": `sum by (region) (testmetric1{region="North"})`,
+				"b": `sum by (region) (testmetric1{region="South"})`,
+			},
+			expected: `sum by (region) (testmetric1{region="North"}) / sum by (region) (testmetric1{region="South"})`,
+		},
+		{
+			formula: "a + b",
+			queries: map[string]string{
+				"a": `sum by (region) (testmetric1{region="North"})`,
+				"b": `avg by (region) (rate(testmetric1{region="North"}[5m])`,
+			},
+			expected: `sum by (region) (testmetric1{region="North"}) + avg by (region) (rate(testmetric1{region="North"}[5m])`,
+		},
+		{
+			formula: "(a * b) / (c - d)",
+			queries: map[string]string{
+				"a": `avg by (type) (metric1)`,
+				"b": `max by (type) (metric2)`,
+				"c": `min by (type) (metric3)`,
+				"d": `sum by (type) (metric4)`,
+			},
+			expected: `(avg by (type) (metric1) * max by (type) (metric2)) / (min by (type) (metric3) - sum by (type) (metric4))`,
+		},
+		{
+			formula: "a + c + b",
+			queries: map[string]string{
+				"a": `metric1`,
+				"c": `metric2`,
+				"b": `metric3`,
+			},
+			expected: `metric1 + metric2 + metric3`,
+		},
+		{
+			formula: "a + b",
+			queries: map[string]string{
+				"a": `avg(rate(metric1[5m]))`,
+				"b": `sum by (type) (metric2{type="test"})`,
+			},
+			expected: `avg(rate(metric1[5m])) + sum by (type) (metric2{type="test"})`,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Logf("Test case %d", i)
+		actual, err := buildMetricQueryFromFormulaAndQueries(tc.formula, tc.queries)
+		assert.Nil(t, err)
+		assert.Equal(t, tc.expected, actual)
+	}
+}
+
 // One to One
 // Multiple Queries, nested operations
 func Test_ProcessQueryArithmeticAndLogical_v1(t *testing.T) {

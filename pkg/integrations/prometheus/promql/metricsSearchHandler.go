@@ -724,8 +724,6 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	// Todo:
-	// Some of the Formulas are not being executed properly. Need to fix.
 	queryFormulaMap := make(map[string]string)
 
 	for _, query := range queries {
@@ -779,8 +777,14 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]string) (string, error) {
 
 	finalSearchText := formula
+	for key := range queries {
+		placeholder := fmt.Sprintf("${%s}", key)
+		finalSearchText = strings.ReplaceAll(finalSearchText, key, fmt.Sprintf("%v", placeholder))
+	}
+
 	for key, value := range queries {
-		finalSearchText = strings.ReplaceAll(finalSearchText, key, fmt.Sprintf("%v", value))
+		placeholder := fmt.Sprintf("${%s}", key)
+		finalSearchText = strings.ReplaceAll(finalSearchText, placeholder, fmt.Sprintf("%v", value))
 	}
 
 	log.Infof("buildMetricQueryFromFormulAndQueries: finalSearchText=%v", finalSearchText)
