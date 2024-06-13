@@ -1244,8 +1244,13 @@ async function getMetricsDataForFormula(formulaId, formulaDetails){
     let queriesData = [];
     let formulas = [];
     for (let queryName of formulaDetails.queryNames) {
-        console.log(queries[queryName]);
-        const queryString = createQueryString(queries[queryName]);
+        let queryDetails = queries[queryName];
+        let queryString;
+        if(queryDetails.state === "builder"){
+            queryString = createQueryString(queryDetails);
+        }else {
+            queryString = queryDetails.rawQueryInput;
+        }
         const query = {
             name: queryName,
             query: queryString,
@@ -1328,6 +1333,13 @@ async function getQueryDetails(queryName, queryDetails){
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData)
     addVisualizationContainer(queryName, chartData, queryString);
+
+    // Check if the query name is present in any formulas and re-run the formula if so
+    for (let formulaId in formulas) {
+        if (formulas[formulaId].queryNames.includes(queryName)) {
+            await getMetricsDataForFormula(formulaId, formulas[formulaId]);
+        }
+    }
 }
 
 function createQueryString(queryObject) {
