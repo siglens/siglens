@@ -779,7 +779,7 @@ func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]st
 	finalSearchText := formula
 	for key := range queries {
 		placeholder := fmt.Sprintf("${%s}", key)
-		finalSearchText = strings.ReplaceAll(finalSearchText, key, fmt.Sprintf("%v", placeholder))
+		finalSearchText = strings.ReplaceAll(finalSearchText, key, placeholder)
 	}
 
 	for key, value := range queries {
