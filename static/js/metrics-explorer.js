@@ -117,7 +117,7 @@ function addFormulaElement() {
 
     // Validate formula on input change
     let input = formulaElement.find('.formula');
-    input.on('input', function() {
+    input.on('input', async function() {
         let formula = input.val().trim();
         let errorMessage = formulaElement.find('.formula-error-message');
         if (formula === '') {
@@ -126,7 +126,6 @@ function addFormulaElement() {
             disableQueryRemoval();
             // Run a different function when the formula is erased
             onFormulaErased(uniqueId);
-            console.log("Formulas after erasing all things - ", formulas);
             return;
         }
         let validationResult = validateFormula(formula);
@@ -135,11 +134,10 @@ function addFormulaElement() {
             input.removeClass('error-border');
             // Add or update the formula and query names in the object
             formulas[uniqueId] = validationResult;
-            console.log("Formulas after valid input - ", formulas);
             // Check if validationResult.queryNames is an array
             if (Array.isArray(validationResult.queryNames)) {
                 // Run your function with the formula and query names
-                onQueryNamesFound(uniqueId, validationResult);
+                await getMetricsDataForFormula(uniqueId,validationResult);
             }
         } else {
             errorMessage.show();
@@ -150,12 +148,6 @@ function addFormulaElement() {
     });
 }
 
-// Function to call when query names are found
-async function onQueryNamesFound(formulaId, formulaDetails) {
-    console.log("formulaId:", formulaId);
-    console.log("formulaDetails:", formulaDetails);
-    await getMetricsDataForFormula(formulaId,formulaDetails)
-}
 
 // Function to call when the formula is erased
 function onFormulaErased(uniqueId) {
@@ -181,7 +173,7 @@ function validateFormula(formula) {
         if (queryNames.includes(part)) {
             usedQueryNames.push(part);
         } else if (isNaN(part)) {
-            return false;
+            return false; // Todo: if only numeric value is present in formula
         }
     }
 
@@ -780,14 +772,33 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
             <div class="graph-canvas"></div>
         </div>`);
 
-        $('#metrics-graphs').append(visualizationContainer);
-        
+        // Determine where to insert the new container
+        if (queryName.startsWith('formula')) {
+            // Insert after all formula queries
+            var lastFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:last');
+            if (lastFormula.length) {
+                lastFormula.after(visualizationContainer);
+            } else {
+                // If no formula queries exist, append to the end
+                $('#metrics-graphs').append(visualizationContainer);
+            }
+        } else {
+            // Insert before the first formula query
+            var firstFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:first');
+            if (firstFormula.length) {
+                firstFormula.before(visualizationContainer);
+            } else {
+                // If no formula queries exist, append to the end
+                $('#metrics-graphs').append(visualizationContainer);
+            }
+        }
+
         var canvas = $('<canvas></canvas>');
-        $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
+        visualizationContainer.find('.graph-canvas').append(canvas);
     } else{
         existingContainer.find('.query-string').text(queryString);
         var canvas = $('<canvas></canvas>');
-        $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).empty().append(canvas);
+        existingContainer.find('.graph-canvas').empty().append(canvas);
     }
     var ctx = canvas[0].getContext('2d');
     
