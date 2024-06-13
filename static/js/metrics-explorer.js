@@ -131,7 +131,8 @@ function addFormulaElement(){
 }
 
 function validateFormula(formula) {
-    let pattern = /^(\w+\s*([-+*/]\s*\w+\s*)*)*$/;
+    // Regular expression to include numbers and query names
+    let pattern = /^(\s*\w+\s*|\s*\d+\s*)(\s*[-+*/]\s*(\s*\w+\s*|\s*\d+\s*))*$/;
     let matches = formula.match(pattern);
     if (!matches) {
         return false;
@@ -140,7 +141,9 @@ function validateFormula(formula) {
     let queryNames = Object.keys(chartDataCollection);
     let parts = formula.split(/[-+*/]/);
     for (let part of parts) {
-        if (!queryNames.includes(part.trim())) {
+        part = part.trim();
+        // Check if the part is a query name or a number
+        if (!queryNames.includes(part) && isNaN(part)) {
             return false;
         }
     }
