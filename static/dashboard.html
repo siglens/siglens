@@ -304,7 +304,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                     <div class="panelDisplay">
                         <div id="panEdit-panel" class="panEdit-panel"></div>
-                        <div id="merged-graph-container" style="display: none;" ></div>
+                        <div id="merged-graph-container" class="merged-graph-container" style="display: none;" ></div>
                         <div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
                         <div id="empty-response"></div>
                         <div class="big-number-display-container"></div>
@@ -355,31 +355,32 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <div>Graph your data</div>
                         </div>
                         <div class="section-content">
-                            <div id="metrics-explorer">
-                                <div id="metrics-queries"></div>
-                                <div id="metrics-formula"></div>
-                                 <div class="mt-3 d-flex ">
-                                     <button id="add-query" class="btn"><span class="plus-icon">+</span> Add Query</button>
-                                     <button id="add-formula" class="btn"><span class="plus-icon">+</span> Add Formula</button>
-                                 </div>
-                             </div>
-                             <hr>
-                             <div id="visualization-options" class="d-flex mb-3 mt-3">
-                                 <div>
-                                   Display : <input id="display-input" type="text" value="Line chart">
-                                 </div>
-                                 <div>
-                                   Color : <input id="color-input" type="text" value="Classic">
-                                 </div>
-                                 <div id="line-style-div">
-                                   Style : <input id="line-style-input" type="text" value="Solid">
-                                 </div>
-                                 <div id="stroke-div">
-                                   Stroke : <input id="stroke-input" type="text" value="Normal">
-                                 </div>
-                             </div>
-                             <hr>
-                         </div>
+                            <div class="metricsQueryInputs" id ="metricsQueryInputs" style="display: none;">
+                                <div id="metrics-explorer">
+                                    <div id="metrics-queries"></div>
+                                    <div id="metrics-formula"></div>
+                                    <div class="mt-3 d-flex ">
+                                        <button id="add-query" class="btn"><span class="plus-icon">+</span> Add Query</button>
+                                        <button id="add-formula" class="btn"><span class="plus-icon">+</span> Add Formula</button>
+                                    </div>
+                                </div>
+                                <hr>
+                                <div id="visualization-options" class="d-flex mb-3 mt-3">
+                                    <div>
+                                    Display : <input id="display-input" type="text" value="Line chart">
+                                    </div>
+                                    <div>
+                                    Color : <input id="color-input" type="text" value="Classic">
+                                    </div>
+                                    <div id="line-style-div">
+                                    Style : <input id="line-style-input" type="text" value="Solid">
+                                    </div>
+                                    <div id="stroke-div">
+                                    Stroke : <input id="stroke-input" type="text" value="Normal">
+                                    </div>
+                                </div>
+                                <hr>
+                            </div>
                             <div class="queryInputs">
                                 <div class="dropDown-container">
                                     <div class="dropDownTitle dropDown-dataSource active">

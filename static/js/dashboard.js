@@ -709,9 +709,12 @@ function addPanel(chartIndex) {
     let queryData = {};
     let logLinesViewType = "";
     let unit = "";
-
+    $('.queryInputs').show();
+    $('.metricsQueryInputs').hide();
     switch (chartIndex) {
         case 0: // Line chart
+            $('.queryInputs').hide();
+            $('.metricsQueryInputs').show();
             chartType = "Line Chart";
             queryType = "metrics";
             queryData = {

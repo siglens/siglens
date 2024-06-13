@@ -57,7 +57,6 @@ function checkCurrentPage() {
     if (currentPage.includes("dashboard.html")) {
         mergedGraphContainer.show();
         $('#panEdit-panel').hide();
-        $('.queryInputs').hide();
     } 
 }
 async function metricsExplorerDatePickerHandler(evt) {

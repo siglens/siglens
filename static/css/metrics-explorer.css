@@ -278,7 +278,8 @@ input:checked + .slider:before {
     margin: 0;
     border-radius: 5px;
     padding: 10px;
-    overflow: hidden;
+    overflow: auto;
+    display: none;
 }
 
 

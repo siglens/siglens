@@ -795,6 +795,8 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
     if(!currentPanel.chartType){
         panelProcessEmptyQueryResults("Please select a suitable chart type.",panelId)
     }
+    $('#merged-graph-container').hide();
+    
     switch (currentPanel.chartType) {
         case "Data Table":
         case "loglines":

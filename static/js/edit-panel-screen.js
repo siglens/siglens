@@ -763,6 +763,7 @@ $(".editPanelMenu-dataSource .editPanelMenu-options").on('click', function () {
 		$("#metrics-query-language-btn").css('display', 'inline-block');
 		$(".index-container").css('display', 'none');
 		$("#query-language-btn").css('display', 'none');
+		$('#merged-graph-container').css('display', 'block');
 	}
 	else{
 		$(".index-container").css('display', 'none');
@@ -776,16 +777,23 @@ $(".editPanelMenu-dataSource .editPanelMenu-options").on('click', function () {
 $(".editPanelMenu-chart #chart-type-options").on('click', function () {
 	selectedChartTypeIndex = $(this).data('index');
 	currentPanel.chartType = mapIndexToChartType.get(selectedChartTypeIndex);
+	$('.queryInputs').show();
+	$('.metricsQueryInputs').hide();
 	if (selectedChartTypeIndex === 4) {
 		$('.dropDown-unit').css('display','flex')
 		$('#nestedDropDownContainer').css('display','flex')
 		$('.dropDown-logLinesView').css('display','none');
-
+	}else if (selectedChartTypeIndex === 0){
+		$('#nestedDropDownContainer').css('display','none')
+		$('.dropDown-unit').css('display','none')
+		$('.dropDown-logLinesView').css('display','none');
+		$('.queryInputs').hide();
+		$('.metricsQueryInputs').show();
 	}else if (selectedChartTypeIndex === 5){
 		currentPanel.logLinesViewType="Single line display view";
 		$('.dropDown-logLinesView').css('display','flex')
 		$('#nestedDropDownContainer').css('display','none')
-		$('.dropDown-unit').css('display','none')
+		$('.dropDown-unit').css('display','none');
 	}else if (selectedChartTypeIndex === 3){
 		currentPanel.logLinesViewType="Table view";
 		$('#nestedDropDownContainer').css('display','none')
@@ -798,6 +806,8 @@ $(".editPanelMenu-chart #chart-type-options").on('click', function () {
 		if (selectedUnitTypeIndex !== 0)
 			$('.dropDown-unit span').html('Unit');
 		$('.dropDown-logLinesView').css('display','none');
+		$('#merged-graph-container').css('display','none');
+
 	}
 	$('.editPanelMenu-inner-options').css('display',"none");
 	$('.horizontalCaret').css('rotate','90deg');
@@ -1314,9 +1324,10 @@ async function runQueryBtnHandler() {
 	$('.panelDisplay #corner-popup').hide();
 	$('.panelDisplay #panelLogResultsGrid').hide();
 	$('.panelDisplay .big-number-display-container').hide();
-
 	// runs the query according to the query type selected and irrespective of chart type
-	 if (currentPanel.queryType == 'logs'){
+	if (currentPanel.queryType === 'metrics'){
+		$('#merged-graph-container').show();
+	}else if (currentPanel.queryType === 'logs'){
 		data = getQueryParamsData();
 		currentPanel.queryData = data;
 		$('.panelDisplay .panEdit-panel').hide();
