@@ -35,6 +35,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/common/fileutils"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -233,7 +234,7 @@ func cleanRecentlyRotatedInfo() {
 // place where we play with the locks
 
 func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
-	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64) error {
+	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64, rid uint64) error {
 
 	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid)
 	if err != nil {
@@ -260,6 +261,10 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 		return err
 	}
 	segstore.BytesReceivedCount += bytesReceived
+
+	if hook := hooks.GlobalHooks.AfterWritingToSegment; hook != nil {
+		hook(rid, segstore, rawJson, ts_millis, signalType)
+	}
 
 	if flush {
 		err = segstore.AppendWipToSegfile(streamid, false, false, false)
