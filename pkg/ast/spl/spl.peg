@@ -1362,9 +1362,9 @@ ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
     return conditionValuePair, nil
 }
 
-//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster
+//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim
 // mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
-TextExpr <- (opName:("lower" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
+TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
     opNameStr, err := transferUint8ToString(opName)
         if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -1448,7 +1448,7 @@ TextExpr <- (opName:("lower" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L
         Param:     formatExpr,
     }, nil
 }
-/ (opName:("ltrim" / "rtrim") L_PAREN expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? R_PAREN) {
+/ (opName:("ltrim" / "rtrim" / "trim") L_PAREN expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -1684,6 +1684,20 @@ TextExpr <- (opName:("lower" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L
     return &structs.TextExpr {
         Op: "typeof",
         Val: valueExpr.(*structs.ValueExpr),
+    }, nil
+}
+/ "replace" L_PAREN val:ValueExpr COMMA regex:StringExpr COMMA replacement:StringExpr R_PAREN {
+    return &structs.TextExpr {
+        Op: "replace",
+        Val: val.(*structs.ValueExpr),
+        ValueList: []*structs.StringExpr{regex.(*structs.StringExpr), replacement.(*structs.StringExpr)},
+    }, nil
+}
+/ "spath" L_PAREN val:ValueExpr COMMA path:StringExpr R_PAREN {
+    return &structs.TextExpr {
+        Op: "spath",
+        Val: val.(*structs.ValueExpr),
+        Param: path.(*structs.StringExpr),
     }, nil
 }
 
