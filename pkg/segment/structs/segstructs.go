@@ -253,6 +253,7 @@ type SingleColLetRequest struct {
 }
 
 type MultiValueColLetRequest struct {
+	Command         string // name of the command: makemv, mvcombine, mvexpand, etc.
 	ColName         string
 	DelimiterString string // delimiter string to split the column value. default is " " (single space)
 	IsRegex         bool
