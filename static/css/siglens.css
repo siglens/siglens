@@ -3227,11 +3227,12 @@ float: right;
 .dbSet-textareaContainer .copy{
     background-image: url(../assets/copy-icon.svg);
     background-size: contain;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     position: absolute;
-    right: calc(20% + 20px);
-    top: 20px;
+    right: calc(20% + 10px);
+    top: 12px;
+    cursor: pointer;
 }
 
 [data-theme='dark'] .dbSet-textareaContainer .copy{
@@ -5095,6 +5096,7 @@ input.form-control {
 
 #delbutton.default-dashboard-delete:hover {
     background-image: url(../assets/dark-delete-icon-regular.svg);
+    cursor: not-allowed;
 }
 #data-ingestion .myOrg-heading{
     font-size: 16px;

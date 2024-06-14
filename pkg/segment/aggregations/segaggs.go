@@ -134,6 +134,8 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     2.5 Conversion functions: ipmask, object_to_array, printf, tojson
     2.6 Date and Time functions: relative_time, time, strftime, strptime
     2.7 Trig and Hyperbolic functions: acos, acosh, asin, asinh, atan, atanh, cos, cosh, sin, sinh, tan, tanh, atan2, hypot
+    2.8 Informational functions: cluster, getfields, isnotnull, isnum, typeof
+    2.9 Text functions: replace, spath, upper, trim
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
