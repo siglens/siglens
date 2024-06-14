@@ -1179,21 +1179,17 @@ func GetRenameGroupByCols(aggGroupByCols []string, agg *QueryAggregators) []stri
 }
 
 func handleNoArgFunction(op string) (float64, error) {
-	var result float64
-	var err error
 	switch op {
 	case "now":
-		result = float64(time.Now().Unix())
+		return float64(time.Now().Unix()), nil
 	case "random":
-		result = float64(rand.Int31())
+		return float64(rand.Int31()), nil
 	case "pi":
-		result = math.Pi
+		return math.Pi, nil
 	default:
-		result = 0
-		log.Errorf("handleNoArgFunc: Unsupported no argument function: %v", op)
-		err = fmt.Errorf("handleNoArgFunc: Unsupported no argument function: %v", op)
+		log.Errorf("handleNoArgFunction: Unsupported no argument function: %v", op)
+		return 0, fmt.Errorf("handleNoArgFunction: Unsupported no argument function: %v", op)
 	}
-	return result, err
 }
 
 // Evaluate this NumericExpr to a float, replacing each field in the expression
