@@ -79,7 +79,6 @@ func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *str
 // This will make sure all buckets respect the minCount & is returned in a sorted order
 func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) *structs.NodeResult {
-	log.Infof("Mani: PostQueryBucketCleaning: post.PipeCommandType=%v", post.PipeCommandType)
 	if post == nil {
 		return nodeResult
 	}
@@ -102,7 +101,6 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	if !post.HasQueryAggergatorBlock() && post.TransactionArguments == nil {
 		post = post.Next
 	}
-	log.Infof("Mani: PostQueryBucketCleaning: After Check: post.PipeCommandType=%v", post)
 
 	for agg := post; agg != nil; agg = agg.Next {
 		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
@@ -138,7 +136,6 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
-	log.Infof("Mani: performAggOnResult: agg.PipeCommand=%v", agg.PipeCommandType)
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -584,7 +581,6 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else if letColReq.MultiValueColRequest != nil {
-		log.Infof("Mani: performLetColumnsRequest: processing LetColumnsRequest.MultiValueColRequest")
 		if err := performMultiValueColRequest(nodeResult, letColReq, recs); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
@@ -1499,8 +1495,6 @@ func performMultiValueColRequest(nodeResult *structs.NodeResult, letColReq *stru
 		return nil
 
 	}
-
-	log.Infof("Mani: performMultiValueColRequest: recs is nil: len(recs): %d", len(recs))
 
 	if err := performMultiValueColRequestOnHistogram(nodeResult, letColReq); err != nil {
 		return fmt.Errorf("performMultiValueColRequest: %v", err)
