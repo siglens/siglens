@@ -228,15 +228,16 @@ type IncludeValue struct {
 
 // Only NewColName and one of the other fields should have a value
 type LetColumnsRequest struct {
-	MultiColsRequest    *MultiColLetRequest
-	SingleColRequest    *SingleColLetRequest
-	ValueColRequest     *ValueExpr
-	RexColRequest       *RexExpr
-	StatisticColRequest *StatisticExpr
-	RenameColRequest    *RenameExpr
-	DedupColRequest     *DedupExpr
-	SortColRequest      *SortExpr
-	NewColName          string
+	MultiColsRequest     *MultiColLetRequest
+	SingleColRequest     *SingleColLetRequest
+	ValueColRequest      *ValueExpr
+	RexColRequest        *RexExpr
+	StatisticColRequest  *StatisticExpr
+	RenameColRequest     *RenameExpr
+	DedupColRequest      *DedupExpr
+	SortColRequest       *SortExpr
+	NewColName           string
+	MultiValueColRequest *MultiValueColLetRequest
 }
 
 type MultiColLetRequest struct {
@@ -249,6 +250,14 @@ type SingleColLetRequest struct {
 	CName string
 	Oper  utils.LogicalAndArithmeticOperator
 	Value *utils.DtypeEnclosure
+}
+
+type MultiValueColLetRequest struct {
+	ColName         string
+	DelimiterString string // delimiter string to split the column value. default is " " (single space)
+	IsRegex         bool
+	AllowEmpty      bool // if true, empty strings are allowed in the split values. default is false
+	Setsv           bool // if true, split values are combined into a single value. default is false
 }
 
 type BucketResult struct {
