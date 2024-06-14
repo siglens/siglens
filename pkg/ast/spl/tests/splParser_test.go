@@ -7315,3 +7315,36 @@ func Test_SPath_In_Eval_IsPath(t *testing.T) {
 	assert.False(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.IsPathFieldName)
 	assert.Equal(t, "hashtags", aggregator.OutputTransforms.LetColumns.NewColName)
 }
+
+func Test_Spath_Extract_PathTest(t *testing.T) {
+	queries := []string{
+		`* | spath pathApple`,
+		`* | spath path= pathApple`,
+		`* | spath path = pathApple`,
+		`* | spath path =pathApple`,
+	}
+
+	for _, query := range queries {
+		res, err := spl.Parse("", []byte(query))
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNpde, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNpde)
+		assert.NotNil(t, aggregator)
+		assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+		assert.NotNil(t, aggregator.OutputTransforms)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+		assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+		assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+		assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+		assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+		assert.Equal(t, "pathApple", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	}
+}

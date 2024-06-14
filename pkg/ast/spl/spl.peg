@@ -3647,8 +3647,8 @@ OutputField <- "output" EQUAL field:FieldName {
 PathField <- ("path" EQUAL SPathFieldString / SPathFieldString ) {
      pathField := string(c.text)
     if strings.HasPrefix(pathField, "path") {
-        pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path"))
-        pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "="))
+        pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path="))
+        pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path ="))
         if pathField != "" && pathField[0] == '"' {
             pathField = removeQuotes(pathField)
         }
