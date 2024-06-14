@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -78,6 +79,7 @@ func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *str
 // This will make sure all buckets respect the minCount & is returned in a sorted order
 func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) *structs.NodeResult {
+	log.Infof("Mani: PostQueryBucketCleaning: post.PipeCommandType=%v", post.PipeCommandType)
 	if post == nil {
 		return nodeResult
 	}
@@ -100,6 +102,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 	if !post.HasQueryAggergatorBlock() && post.TransactionArguments == nil {
 		post = post.Next
 	}
+	log.Infof("Mani: PostQueryBucketCleaning: After Check: post.PipeCommandType=%v", post)
 
 	for agg := post; agg != nil; agg = agg.Next {
 		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
@@ -135,6 +138,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+	log.Infof("Mani: performAggOnResult: agg.PipeCommand=%v", agg.PipeCommandType)
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -577,6 +581,11 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		}
 	} else if letColReq.SortColRequest != nil {
 		if err := performSortColRequest(nodeResult, aggs, letColReq, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment); err != nil {
+			return fmt.Errorf("performLetColumnsRequest: %v", err)
+		}
+	} else if letColReq.MultiValueColRequest != nil {
+		log.Infof("Mani: performLetColumnsRequest: processing LetColumnsRequest.MultiValueColRequest")
+		if err := performMultiValueColRequest(nodeResult, letColReq, recs); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else {
@@ -1480,6 +1489,126 @@ func performSortColRequestOnMeasureResults(nodeResult *structs.NodeResult, letCo
 
 	nodeResult.MeasureResults = resInOrder
 	return nil
+}
+
+func performMultiValueColRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
+	if recs != nil {
+		if err := performMultiValueColRequestWithoutGroupby(letColReq, recs); err != nil {
+			return fmt.Errorf("performMultiValueColRequest: %v", err)
+		}
+		return nil
+
+	}
+
+	log.Infof("Mani: performMultiValueColRequest: recs is nil: len(recs): %d", len(recs))
+
+	if err := performMultiValueColRequestOnHistogram(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performMultiValueColRequest: %v", err)
+
+	}
+
+	return nil
+}
+
+func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
+	mvColReq := letColReq.MultiValueColRequest
+
+	for _, rec := range recs {
+		fieldValue, ok := rec[mvColReq.ColName]
+		if !ok {
+			continue
+		}
+
+		fieldValueStr, ok := fieldValue.(string)
+		if !ok {
+			fieldValueStr = fmt.Sprintf("%v", fieldValue) // Convert to string
+		}
+
+		switch mvColReq.Command {
+		case "makemv":
+			finalValue := performMakeMV(fieldValueStr, mvColReq)
+			rec[mvColReq.ColName] = finalValue
+		default:
+			return fmt.Errorf("performMultiValueColRequestWithoutGroupby: unknown command %s", mvColReq.Command)
+		}
+	}
+
+	return nil
+}
+
+func performMultiValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+	// mvColReq := letColReq.MultiValueColRequest
+
+	for _, aggregationResult := range nodeResult.Histogram {
+		for _, bucketResult := range aggregationResult.Results {
+			fieldValue, index, isStatRes := bucketResult.GetBucketValueForGivenField(letColReq.MultiValueColRequest.ColName)
+			if fieldValue == nil {
+				continue
+			}
+
+			if isStatRes {
+				return fmt.Errorf("performMultiValueColRequestOnHistogram: field %s is a statistic result. Cannot perform Multi value string operations on a Statistic result", letColReq.MultiValueColRequest.ColName)
+			}
+
+			fieldValueStr, ok := fieldValue.(string)
+			if !ok {
+				fieldValueStr = fmt.Sprintf("%v", fieldValue) // Convert to string
+			}
+
+			switch letColReq.MultiValueColRequest.Command {
+			case "makemv":
+				finalValue := performMakeMV(fieldValueStr, letColReq.MultiValueColRequest)
+				err := bucketResult.SetBucketValueForGivenField(letColReq.MultiValueColRequest.ColName, finalValue, index, isStatRes)
+				if err != nil {
+					log.Errorf("performMultiValueColRequestOnHistogram: error setting bucket value for field %s: %v", letColReq.MultiValueColRequest.ColName, err)
+					continue
+				}
+			default:
+				return fmt.Errorf("performMultiValueColRequestOnHistogram: unknown command %s", letColReq.MultiValueColRequest.Command)
+			}
+		}
+	}
+
+	return nil
+
+}
+
+func performMakeMV(strVal string, mvColReq *structs.MultiValueColLetRequest) interface{} {
+	if strVal == "" {
+		return ""
+	}
+
+	var values []string
+	if mvColReq.IsRegex {
+		re := regexp.MustCompile(mvColReq.DelimiterString)
+		matches := re.FindAllStringSubmatch(strVal, -1)
+		for _, match := range matches {
+			if len(match) > 1 {
+				values = append(values, match[1])
+			}
+		}
+	} else {
+		values = strings.Split(strVal, mvColReq.DelimiterString)
+	}
+
+	if !mvColReq.AllowEmpty {
+		// Remove empty values
+		var nonEmptyValues []string
+		for _, value := range values {
+			if value != "" {
+				nonEmptyValues = append(nonEmptyValues, value)
+			}
+		}
+		values = nonEmptyValues
+	}
+
+	if mvColReq.Setsv {
+		// Combine values into a single string
+		return strings.Join(values, " ")
+	} else {
+		// Store the split values
+		return values
+	}
 }
 
 func performStatisticColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
@@ -2454,7 +2583,7 @@ func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *stru
 			nodeResult.TransactionEventRecords = make(map[string]map[string]interface{})
 
 			// Creating a single Map after processing the segment.
-			// This tells the PostBucketQueryCleaning function to return to the rrcreader.go to process the further segments.
+			// This tells the PostQueryBucketCleaning function to return to the rrcreader.go to process the further segments.
 			nodeResult.TransactionEventRecords["PROCESSED_SEGMENT_"+fmt.Sprint(nodeResult.RecsAggsProcessedSegments)] = make(map[string]interface{})
 
 			aggs.TransactionArguments.SortedRecordsSlice = nil // Clear the sorted records slice.
