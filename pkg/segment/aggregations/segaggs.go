@@ -133,6 +133,8 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     2.3 Multivalue eval functions: mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
     2.4 Comparison and Conditional functions: case, coalesce, searchmatch, validate, nullif
     2.5 Conversion functions: ipmask, object_to_array, printf, tojson
+    2.6 Informational functions: cluster, getfields, isnotnull, isnum, typeof
+    2.7 Text functions: replace, spath, upper, trim
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {

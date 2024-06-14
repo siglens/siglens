@@ -1368,8 +1368,9 @@ ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
     return conditionValuePair, nil
 }
 
-//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
-TextExpr <- (opName:("lower" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
+//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim
+// mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
+TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
     opNameStr, err := transferUint8ToString(opName)
         if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -1453,7 +1454,7 @@ TextExpr <- (opName:("lower" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L
         Param:     formatExpr,
     }, nil
 }
-/ (opName:("ltrim" / "rtrim") L_PAREN expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? R_PAREN) {
+/ (opName:("ltrim" / "rtrim" / "trim") L_PAREN expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
@@ -1634,6 +1635,77 @@ TextExpr <- (opName:("lower" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L
 
     return node, nil
 }
+/ "cluster" L_PAREN field:EvalFieldToRead threshold:(COMMA "threshold:" FloatAsString)? match:(COMMA "match:" ("termlist" / "termset" / "ngramset"))? delims:(COMMA "delims:" QuotedString)? R_PAREN {
+    textExpr := &structs.TextExpr {
+        Op: "cluster",
+    }
+
+    cluster := &structs.Cluster {
+        Field: field.(string),
+        Threshold: 0.8,
+        Match: "termlist",
+    }
+
+    if threshold != nil {
+        slice := threshold.([]interface{})
+        thresholdStr := slice[2].(string)
+        val, err := strconv.ParseFloat(thresholdStr, 64)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: invalid threshold: %v", thresholdStr)
+        }
+        cluster.Threshold = val
+    }
+
+    if match != nil {
+        slice := match.([]interface{})
+        matchStr, err := transferUint8ToString(slice[2])
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        }
+        cluster.Match = matchStr
+    }
+
+    if delims != nil {
+        slice := delims.([]interface{})
+        delimsStr := slice[2].(string)
+        cluster.Delims = delimsStr
+    }
+
+    textExpr.Cluster = cluster
+
+    return textExpr, nil
+}
+/ "getfields" L_PAREN filter:(StringExpr)? R_PAREN {
+    textExpr := &structs.TextExpr {
+        Op: "getfields",
+    }
+
+    if filter != nil {
+        textExpr.Param = filter.(*structs.StringExpr)
+    }
+
+    return textExpr, nil
+}
+/ "typeof" L_PAREN valueExpr:ValueExpr R_PAREN {
+    return &structs.TextExpr {
+        Op: "typeof",
+        Val: valueExpr.(*structs.ValueExpr),
+    }, nil
+}
+/ "replace" L_PAREN val:ValueExpr COMMA regex:StringExpr COMMA replacement:StringExpr R_PAREN {
+    return &structs.TextExpr {
+        Op: "replace",
+        Val: val.(*structs.ValueExpr),
+        ValueList: []*structs.StringExpr{regex.(*structs.StringExpr), replacement.(*structs.StringExpr)},
+    }, nil
+}
+/ "spath" L_PAREN val:ValueExpr COMMA path:StringExpr R_PAREN {
+    return &structs.TextExpr {
+        Op: "spath",
+        Val: val.(*structs.ValueExpr),
+        Param: path.(*structs.StringExpr),
+    }, nil
+}
 
 StrToRemoveExpr <- COMMA strToRemove:String {
     return strToRemove, nil
@@ -1728,8 +1800,8 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
     return expr, nil
 }
 
-//TODO: implement the processing logic for: searchmatch
-EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "searchmatch") L_PAREN value:ValueExpr R_PAREN ) {
+//TODO: implement the processing logic for: searchmatch, isnotnull, isnum
+EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "isnotnull" / "isnum" / "searchmatch") L_PAREN value:ValueExpr R_PAREN ) {
     opNameStr, err := transferUint8ToString(op)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
