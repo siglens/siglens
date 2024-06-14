@@ -157,6 +157,37 @@ func initializeStatsOptions() *structs.StatsOptions {
     }
 }
 
+func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryAggregators, error) {
+
+    if inputField == "" {
+        inputField = "_raw"
+    }
+
+    spathExpr := &structs.SPathExpr{
+        InputColName: inputField,
+        Path: pathField,
+        OutputColName: outputField,
+    }
+    return &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                ValueColRequest: &structs.ValueExpr{
+                    ValueExprMode: structs.VEMStringExpr,
+                    StringExpr: &structs.StringExpr{
+                        StringExprMode: structs.SEMTextExpr,
+                        TextExpr: &structs.TextExpr{
+                            IsTerminal: true,
+                            Op: "spath",
+                            SPathExpr: spathExpr,
+                        },
+                    },
+                },
+            },
+        },
+    }, nil
+}
+
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
@@ -270,7 +301,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -3456,9 +3487,69 @@ SetSvOption <- "setsv" EQUAL boolVal:Boolean {
     return mvColOptionArgs, nil
 }
 
+// returns *structs.QueryAggregators
+SPathBlock <- PIPE CMD_SPATH spathExpr:SPathArgumentsList? {
+    if spathExpr == nil {
+        return createSPathExpr("", "", "")
+    }
+    return spathExpr, nil
+}
+
+SPathArgumentsList <- SPACE first:SPathArgument rest:(SPACE SPathArgument)* {
+
+    restSlice := rest.([]any)
+
+    inputField, pathField, outputField := "", "", ""
+
+    numArgs := 1 + len(restSlice)
+
+    for i := 0; i < numArgs; i++ {
+        var arg string
+        if i == 0 {
+            arg = first.(string)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            arg = separator[1].(string)
+        }
+
+        switch {
+        case strings.HasPrefix(arg, "input="):
+            inputField = strings.TrimPrefix(arg, "input=")
+        case strings.HasPrefix(arg, "output="):
+            outputField = strings.TrimPrefix(arg, "output=")
+        case strings.HasPrefix(arg, "path="):
+            pathField = strings.TrimPrefix(arg, "path=")
+        default:
+            return nil, fmt.Errorf("SPathArguments: Invalid Spath Argument: %v", arg)
+        }
+    }
+    
+    return createSPathExpr(inputField, pathField, outputField)
+}
+
+SPathArgument <- arg:(InputField / OutputField / PathField) {
+    return arg, nil
+}
+
+InputField <- "input" EQUAL field:FieldName {
+    return "input=" + field.(string), nil
+}
+OutputField <- "output" EQUAL field:FieldName {
+    return "output=" + field.(string), nil
+}
+PathField <- ("path" EQUAL String / String ) {
+     pathField := string(c.text)
+    if strings.HasPrefix(pathField, "path") {
+        pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path"))
+        pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "="))
+        pathField = removeQuotes(pathField)
+    }
+    return "path=" + pathField, nil
+}
+
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -3478,6 +3569,7 @@ CMD_TRANSACTION <- "transaction" SPACE
 CMD_DEDUP <- "dedup"
 CMD_DEDUP_SORTBY <- SPACE "sortby" SPACE
 CMD_MAKEMV <- "makemv"
+CMD_SPATH <- "spath"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

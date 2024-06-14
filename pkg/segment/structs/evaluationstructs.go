@@ -189,8 +189,9 @@ type TextExpr struct {
 	EndIndex    *NumericExpr
 	LengthExpr  *NumericExpr
 	Val         *ValueExpr
-	Condition   *BoolExpr // To filter out values that do not meet the criteria within a multivalue field
-	InferTypes  bool      // To specify that the mv_to_json_array function should attempt to infer JSON data types when it converts field values into array elements.
+	Condition   *BoolExpr  // To filter out values that do not meet the criteria within a multivalue field
+	InferTypes  bool       // To specify that the mv_to_json_array function should attempt to infer JSON data types when it converts field values into array elements.
+	SPathExpr   *SPathExpr // To extract information from the structured data formats XML and JSON.
 }
 
 type ConditionExpr struct {
@@ -261,6 +262,13 @@ type TMLimitResult struct {
 	Hll              *hyperloglog.Sketch
 	StrSet           map[string]struct{}
 	OtherCValArr     []*utils.CValueEnclosure
+}
+
+// To extract information from the structured data formats XML and JSON.
+type SPathExpr struct {
+	InputColName  string // default is set to _raw
+	Path          string // the path to the field from which the values need to be extracted.
+	OutputColName string // the name of the column in the output table to which the extracted values will be written. By Default it is set the same as the path.
 }
 
 type BoolOperator uint8
