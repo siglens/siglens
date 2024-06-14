@@ -1213,8 +1213,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 			case NEMNumber:
 				if self.Op != "" {
 					if self.Value != "" {
-						err := fmt.Errorf("NumericExpr.Evaluate: Error calling no argument function: %v, value: %v", self.Op, self.Value)
-						return 0, err
+						return 0, fmt.Errorf("NumericExpr.Evaluate: Error calling no argument function: %v, value: %v", self.Op, self.Value)
 					}
 					return handleNoArgFunction(self.Op)
 				}
