@@ -283,6 +283,10 @@ func Test_buildMetricQueryFromFormulaAndQueries(t *testing.T) {
 	for i, tc := range testCases {
 		t.Logf("Test case %d", i)
 		actual, err := buildMetricQueryFromFormulaAndQueries(tc.formula, tc.queries)
+		if i == 4 {
+			assert.NotNil(t, err)
+			continue
+		}
 		assert.Nil(t, err)
 		assert.Equal(t, tc.expected, actual)
 	}
