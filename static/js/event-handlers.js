@@ -38,6 +38,7 @@ function setupEventHandlers() {
     $('#query-language-btn').on('show.bs.dropdown', qLangOnShowHandler);
     $('#query-language-btn').on('hide.bs.dropdown', qLangOnHideHandler);
     $('#query-language-options .query-language-option').on('click', setQueryLangHandler);
+    $('#query-mode-options .query-mode-option').on('click', setQueryModeHandler);
 
     $('#index-btn').on('show.bs.dropdown', indexOnShowHandler);
     $('#index-btn').on('hide.bs.dropdown', indexOnHideHandler);
@@ -230,7 +231,10 @@ async function dashboardRangeItemHandler(evt){
             })
             
         displayPanels();
-        await updateDashboard();
+        // Don't update if its a default dashboard
+        if (!isDefaultDashboard) {
+            await updateDashboard();
+        }
     }
 }
 function resetCustomDateRange(){
@@ -264,7 +268,16 @@ function setQueryLangHandler(e) {
     if (!(previousQueryLanguageId === selectedQueryLanguageId)) {
         $('#filter-input').val("");
     }
+    $('#query-language-btn span').html($(this).html());
     handleTabAndTooltip(selectedQueryLanguageId, currentTab);
+    $(this).addClass('active');
+}
+
+function setQueryModeHandler(e) {
+    $('.query-mode-option').removeClass('active');
+    $("#setting-container").hide();
+    Cookies.set('queryMode',$(this).html());
+    $('#query-mode-btn span').html($(this).html());
     $(this).addClass('active');
 }
 
