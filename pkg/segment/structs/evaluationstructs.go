@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"math/rand"
 	"net"
 	"net/url"
 	"regexp"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/dustin/go-humanize"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/siglens/siglens/pkg/segment/utils"
 )
@@ -189,8 +191,10 @@ type TextExpr struct {
 	EndIndex    *NumericExpr
 	LengthExpr  *NumericExpr
 	Val         *ValueExpr
-	Condition   *BoolExpr // To filter out values that do not meet the criteria within a multivalue field
-	InferTypes  bool      // To specify that the mv_to_json_array function should attempt to infer JSON data types when it converts field values into array elements.
+	Condition   *BoolExpr  // To filter out values that do not meet the criteria within a multivalue field
+	InferTypes  bool       // To specify that the mv_to_json_array function should attempt to infer JSON data types when it converts field values into array elements.
+	Cluster     *Cluster   // generates a cluster label
+	SPathExpr   *SPathExpr // To extract information from the structured data formats XML and JSON.
 }
 
 type ConditionExpr struct {
@@ -254,6 +258,13 @@ type SplitByClause struct {
 	// Where clause: to be finished
 }
 
+type Cluster struct {
+	Field     string
+	Threshold float64
+	Match     string // termlist, termset, ngramset
+	Delims    string
+}
+
 // This structure is used to store values which are not within limit. And These values will be merged into the 'other' category.
 type TMLimitResult struct {
 	ValIsInLimit     map[string]bool
@@ -261,6 +272,14 @@ type TMLimitResult struct {
 	Hll              *hyperloglog.Sketch
 	StrSet           map[string]struct{}
 	OtherCValArr     []*utils.CValueEnclosure
+}
+
+// To extract information from the structured data formats XML and JSON.
+type SPathExpr struct {
+	InputColName    string // default is set to _raw
+	Path            string // the path to the field from which the values need to be extracted.
+	IsPathFieldName bool   // If true, the path is the field name and the value is the field value
+	OutputColName   string // the name of the column in the output table to which the extracted values will be written. By Default it is set the same as the path.
 }
 
 type BoolOperator uint8
@@ -345,6 +364,10 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 	// TODO: Implement the operator in the switch cases below, and replace the if statements with case statements
 	switch self.ValueOp {
 	case "searchmatch":
+		fallthrough
+	case "isnotnull":
+		fallthrough
+	case "isnum":
 		return false, fmt.Errorf("BoolExpr.Evaluate: does support using this operator: %v", self.ValueOp)
 	}
 
@@ -1176,14 +1199,24 @@ func GetRenameGroupByCols(aggGroupByCols []string, agg *QueryAggregators) []stri
 	return aggGroupByCols
 }
 
+func handleNoArgFunction(op string) (float64, error) {
+	switch op {
+	case "now":
+		return float64(time.Now().Unix()), nil
+	case "random":
+		return float64(rand.Int31()), nil
+	case "pi":
+		return math.Pi, nil
+	default:
+		log.Errorf("handleNoArgFunction: Unsupported no argument function: %v", op)
+		return 0, fmt.Errorf("handleNoArgFunction: Unsupported no argument function: %v", op)
+	}
+}
+
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
 func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (float64, error) {
-	if self.Op == "now" {
-		timestamp := time.Now().Unix()
-		return float64(timestamp), nil
-	}
 	if self.IsTerminal {
 		if self.ValueIsField {
 			switch self.NumericExprMode {
@@ -1195,6 +1228,13 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 		} else {
 			switch self.NumericExprMode {
 			case NEMNumber:
+				if self.Op != "" {
+					if self.Value != "" {
+						return 0, fmt.Errorf("NumericExpr.Evaluate: Error calling no argument function: %v, value: %v", self.Op, self.Value)
+					}
+					return handleNoArgFunction(self.Op)
+				}
+
 				value, err := strconv.ParseFloat(self.Value, 64)
 				if err != nil {
 					return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert %v to float", self.Value)
@@ -1321,6 +1361,12 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	case "mvzip":
 		fallthrough
 	case "mv_to_json_array":
+		fallthrough
+	case "cluster":
+		fallthrough
+	case "getfields":
+		fallthrough
+	case "typeof":
 		return "", fmt.Errorf("TextExpr.EvaluateText: dose not support functions:%v: right now", self.Op)
 	}
 	if self.Op == "max" {
