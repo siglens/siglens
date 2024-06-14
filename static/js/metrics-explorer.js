@@ -135,7 +135,7 @@ function addFormulaElement() {
             // Add or update the formula and query names in the object
             formulas[uniqueId] = validationResult;
             // Check if validationResult.queryNames is an array
-            if (Array.isArray(validationResult.queryNames)) {
+            if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length>0) {
                 // Run your function with the formula and query names
                 await getMetricsDataForFormula(uniqueId,validationResult);
             }
