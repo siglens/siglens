@@ -1404,6 +1404,9 @@ function toggleTableView() {
 
 
 function displayPanelView(panelIndex) {
+	if (isDefaultDashboard) { // Hide save and cancel button for default dashboard
+        $('.button-section, #edit-button').hide();
+    }
 	let panelLayout =`<div class="panel-body">
     <div class="panEdit-panel"></div>
     </div>

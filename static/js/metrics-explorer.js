@@ -409,7 +409,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         queryDetails.functions = previousQuery.functions.slice(); 
     }
 
-    var availableOptions = ["max by", "min by", "avg by", "sum by"];
+    var availableOptions = ["max by", "min by", "avg by", "sum by", "count by", "stddev by", "stdvar by", "group by"];
 
     var currentMetricsValue = queryElement.find('.metrics').val();
 
