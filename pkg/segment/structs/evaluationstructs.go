@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"math/rand"
 	"net"
 	"net/url"
 	"regexp"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/dustin/go-humanize"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/siglens/siglens/pkg/segment/utils"
 )
@@ -1176,14 +1178,28 @@ func GetRenameGroupByCols(aggGroupByCols []string, agg *QueryAggregators) []stri
 	return aggGroupByCols
 }
 
+func handleNoArgFunction(op string) (float64, error) {
+	var result float64
+	var err error
+	switch op {
+	case "now":
+		result = float64(time.Now().Unix())
+	case "random":
+		result = float64(rand.Int31())
+	case "pi":
+		result = math.Pi
+	default:
+		result = 0
+		log.Errorf("handleNoArgFunc: Unsupported no argument function: %v", op)
+		err = fmt.Errorf("handleNoArgFunc: Unsupported no argument function: %v", op)
+	}
+	return result, err
+}
+
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
 func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (float64, error) {
-	if self.Op == "now" {
-		timestamp := time.Now().Unix()
-		return float64(timestamp), nil
-	}
 	if self.IsTerminal {
 		if self.ValueIsField {
 			switch self.NumericExprMode {
@@ -1195,6 +1211,14 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 		} else {
 			switch self.NumericExprMode {
 			case NEMNumber:
+				if self.Op != "" {
+					if self.Value != "" {
+						err := fmt.Errorf("NumericExpr.Evaluate: Error calling no argument function: %v, value: %v", self.Op, self.Value)
+						return 0, err
+					}
+					return handleNoArgFunction(self.Op)
+				}
+
 				value, err := strconv.ParseFloat(self.Value, 64)
 				if err != nil {
 					return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert %v to float", self.Value)
