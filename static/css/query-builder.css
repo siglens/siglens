@@ -48,7 +48,7 @@
     --qb-box-bg: var(--white-0);
     --cross-button: var(--purple-3);
     }
-#query-language-btn{
+#query-language-btn, #query-mode-btn{
     margin-left: 0px;
     width: 93px;
     height: 32px;
@@ -840,12 +840,18 @@ div.show-record-popup {
 #empty-response{
     display: none;
 }
-#query-language-options{
+#query-language-options, #query-mode-options{
     width: 93px;
     padding: 0px;
     padding-top: 0px;
     position: relative;
+    font-size: 12px !important;
+    background: var(--index-drop-down-box-bg-color);
+    padding: 0px 5px 5px 5px;
+    border: 1px solid var(--timepicker-border-color);
+}
+
+#query-language-btn span, #query-mode-btn span{    
     display: block;
     font-size: 12px !important;
-    border: none;
 }
