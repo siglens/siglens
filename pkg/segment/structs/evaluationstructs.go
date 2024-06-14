@@ -1240,11 +1240,13 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 		case "ceil":
 			return math.Ceil(left), nil
 		case "log":
-			if left < 0 {
-				return -1, fmt.Errorf("NumericExpr.Evaluate: Negative values cannot be used for logarithm: %v", left)
-			}
-			if right != 2 && right != 10 {
-				return -1, fmt.Errorf("NumericExpr.Evaluate: Logarithm base must be either 2 or 10: %v", right)
+			switch {
+			case left <= 0:
+				return -1, fmt.Errorf("NumericExpr.Evaluate: Non-positive values cannot be used for logarithm: %v", left)
+			case right < 0, right == 1:
+				return -1, fmt.Errorf("NumericExpr.Evaluate: Invalid base for logarithm: %v", right)
+			case right == 0:
+				right = 10
 			}
 			return math.Log(left) / math.Log(right), nil
 		case "ln":
