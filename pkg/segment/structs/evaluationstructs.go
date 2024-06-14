@@ -193,6 +193,7 @@ type TextExpr struct {
 	Val         *ValueExpr
 	Condition   *BoolExpr  // To filter out values that do not meet the criteria within a multivalue field
 	InferTypes  bool       // To specify that the mv_to_json_array function should attempt to infer JSON data types when it converts field values into array elements.
+	Cluster     *Cluster   // generates a cluster label
 	SPathExpr   *SPathExpr // To extract information from the structured data formats XML and JSON.
 }
 
@@ -255,6 +256,13 @@ type SplitByClause struct {
 	Field     string
 	TcOptions *TcOptions
 	// Where clause: to be finished
+}
+
+type Cluster struct {
+	Field     string
+	Threshold float64
+	Match     string // termlist, termset, ngramset
+	Delims    string
 }
 
 // This structure is used to store values which are not within limit. And These values will be merged into the 'other' category.
@@ -356,6 +364,10 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 	// TODO: Implement the operator in the switch cases below, and replace the if statements with case statements
 	switch self.ValueOp {
 	case "searchmatch":
+		fallthrough
+	case "isnotnull":
+		fallthrough
+	case "isnum":
 		return false, fmt.Errorf("BoolExpr.Evaluate: does support using this operator: %v", self.ValueOp)
 	}
 
@@ -1349,6 +1361,12 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	case "mvzip":
 		fallthrough
 	case "mv_to_json_array":
+		fallthrough
+	case "cluster":
+		fallthrough
+	case "getfields":
+		fallthrough
+	case "typeof":
 		return "", fmt.Errorf("TextExpr.EvaluateText: dose not support functions:%v: right now", self.Op)
 	}
 	if self.Op == "max" {
