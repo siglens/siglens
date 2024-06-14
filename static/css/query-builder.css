@@ -845,9 +845,10 @@ div.show-record-popup {
     padding: 0px;
     padding-top: 0px;
     position: relative;
-    /* display: block; */
     font-size: 12px !important;
-    border: none;
+    background: var(--index-drop-down-box-bg-color);
+    padding: 0px 5px 5px 5px;
+    border: 1px solid var(--timepicker-border-color);
 }
 
 #query-language-btn span, #query-mode-btn span{    
