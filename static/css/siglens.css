@@ -772,6 +772,7 @@ body {
 #alert-btn,
 #index-btn,
 #query-language-btn,
+#query-mode-btn,
 #date-picker-btn,
 #cancel-loading,
 #live-tail-btn,
@@ -792,7 +793,7 @@ body {
     border: none;
     height: 32px;
 }
-#query-language-btn {
+#query-language-btn, #query-mode-btn {
     width: 108px;
     margin-left: 16px;
 }
@@ -805,6 +806,7 @@ body {
 #alert-btn:hover,
 #index-btn:hover,
 #query-language-btn:hover,
+#query-mode-btn:hover,
 #date-picker-btn:hover,
 #avail-fields-btn:hover {
     background: var(--drop-down-btn-bg-hover);
@@ -814,6 +816,7 @@ body {
 #alert-btn.active,
 #index-btn.active,
 #query-language-btn.active,
+#query-mode-btn.active,
 #date-picker-btn.active,
 #avail-fields-btn.active
 #source-selection.active {
@@ -831,6 +834,7 @@ body {
 }
 
 #query-language-btn.active .dropdown-arrow.orange, 
+#query-mode-btn.active .dropdown-arrow.orange, 
 #alert-btn.active .dropdown-arrow.orange,
 #index-btn.active .dropdown-arrow.orange,
 #date-picker-btn.active .dropdown-arrow.orange,
@@ -1693,6 +1697,7 @@ div.dts div.dataTables_scrollBody table {
 }
 #save-query-options,
 #query-language-options,
+#query-mode-options,
 #source-options {
     width: 130px;
     background: var(--index-drop-down-box-bg-color);
@@ -1701,7 +1706,7 @@ div.dts div.dataTables_scrollBody table {
     border: 1px solid var(--timepicker-border-color);
 }
 
-.index-dropdown-item,.alert-dropdown-item, .query-language-option ,.panEdit-query-language-option, .source-option {
+.index-dropdown-item,.alert-dropdown-item, .query-language-option, .query-mode-option, .panEdit-query-language-option, .source-option {
     width: 241px;
     background: var(--index-drop-down-item-inactive-bg-color);
     color: var(--index-drop-down-item-inactive-text-color);
@@ -1717,18 +1722,18 @@ div.dts div.dataTables_scrollBody table {
     border-radius: 4px;
 }
 
-.query-language-option , .panEdit-query-language-option{
+.query-language-option ,.query-mode-option, .panEdit-query-language-option{
     width: 100%;
     margin: 0;
     margin-top: 5px;
 }
 
-.index-dropdown-item:hover,.alert-dropdown-item:hover,.panEdit-query-language-option:hover, .query-language-option:hover,.source-option:hover{
+.index-dropdown-item:hover,.alert-dropdown-item:hover,.panEdit-query-language-option:hover, .query-language-option:hover, .query-mode-option:hover, .source-option:hover{
     background: var(--index-drop-down-item-hover-bg-color);
     color: var(--index-drop-down-item-hover-text-color);
 }
 
-.index-dropdown-item.active,.alert-dropdown-item.active,.panEdit-query-language-option.active, .query-language-option.active,.source-option.active{
+.index-dropdown-item.active,.alert-dropdown-item.active,.panEdit-query-language-option.active, .query-language-option.active, .query-mode-option.active, .source-option.active{
     background: var(--index-drop-down-item-active-bg-color);
     color: var(--index-drop-down-item-active-text-color);
 }
@@ -4982,7 +4987,8 @@ color: #C8C7CC;
     transform: translate(-50%, -50%);
 }
 .avail-fields-btn,
-.query-language-btn,
+.query-mode-btn,
+.query-language-btn, 
 .index-btn,
 .filter-input,
 .metrics-graph-container,
