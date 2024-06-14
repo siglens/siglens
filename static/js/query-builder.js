@@ -42,6 +42,7 @@ $("#custom-code-tab").tabs({
       }
       $(".query-language-option").removeClass("active");
       $("#query-language-options #option-3").addClass("active");
+      $('#query-language-btn span').html("Splunk QL");
       displayQueryLangToolTip("3");
     }else{
       // Free Text Tab
