@@ -183,6 +183,7 @@ func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryA
                         },
                     },
                 },
+                NewColName: outputField,
             },
         },
     }, nil
@@ -213,6 +214,11 @@ type TimechartArgs struct {
 type MultiValueColOptionArgs struct {
     argOption string
     mvColExpr *structs.MultiValueColLetRequest
+}
+
+type SPathFieldExpr struct {
+    PathValue string
+    IsPathFieldName bool  
 }
 
 }
@@ -1503,6 +1509,17 @@ TextExpr <- (opName:("lower" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L
 
     return node, nil
 }
+/ "spath" L_PAREN inputField:FieldNameStartWith_ COMMA path:(QuotedPathString / UnquotedPathValue) R_PAREN {
+    pathExpr := path.(*SPathFieldExpr)
+    return &structs.TextExpr{
+        Op: "spath",
+        SPathExpr: &structs.SPathExpr{
+            InputColName: inputField.(string),
+            Path: pathExpr.PathValue,
+            IsPathFieldName: pathExpr.IsPathFieldName,
+        },
+    }, nil
+}
 / "ipmask" L_PAREN mask:StringExpr COMMA ip:ValueExpr R_PAREN {
     return &structs.TextExpr{
         Op: "ipmask",
@@ -1664,6 +1681,20 @@ TextExpr <- (opName:("lower" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L
     }
 
     return node, nil
+}
+
+QuotedPathString <- str:QuotedString {
+    return &SPathFieldExpr{
+        PathValue: removeQuotes(str),
+        IsPathFieldName: false,
+    }, nil
+}
+
+UnquotedPathValue <- str:UnquotedString {
+    return &SPathFieldExpr{
+        PathValue: removeQuotes(str),
+        IsPathFieldName: true,
+    }, nil
 }
 
 StrToRemoveExpr <- COMMA strToRemove:String {
@@ -3085,6 +3116,10 @@ FieldName <- [a-zA-Z0-9:*][a-zA-Z0-9:_.*]* {
     return string(c.text), nil
 }
 
+FieldNameStartWith_ <- [a-zA-Z0-9:_.*][a-zA-Z0-9:_.*]* {
+    return string(c.text), nil
+}
+
 String <- str:(QuotedString / UnquotedString) {
     return str, nil
 }
@@ -3094,15 +3129,22 @@ QuotedString <- '"' [^"]* '"' {
     return string(c.text), nil
 }
 
-Boolean <- ("true" / "false") {
-    boolValue, _ := strconv.ParseBool(string(c.text))
-    return boolValue, nil
-}
-
 UnquotedString <- ("*" / (!(MAJOR_BREAK / "|" / EOF) .))+ {
     // Return the string wrapped in quotes.
     str := "\"" + string(c.text) + "\""
     return str, nil
+}
+
+
+AllowedChar <- [a-zA-Z0-9:_{}@.] / ("{" [0-9]* "}")
+
+UnquotedStringWithTemplateWildCard <- (AllowedChar / !(MAJOR_BREAK / "|" / EOF) .)+ {
+    return string(c.text), nil
+}
+
+Boolean <- ("true" / "false") {
+    boolValue, _ := strconv.ParseBool(string(c.text))
+    return boolValue, nil
 }
 
 //Can recognize fieldName or Regex Pattern for Rename Block
@@ -3537,15 +3579,19 @@ InputField <- "input" EQUAL field:FieldName {
 OutputField <- "output" EQUAL field:FieldName {
     return "output=" + field.(string), nil
 }
-PathField <- ("path" EQUAL String / String ) {
+PathField <- ("path" EQUAL SPathFieldString / SPathFieldString ) {
      pathField := string(c.text)
     if strings.HasPrefix(pathField, "path") {
         pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path"))
         pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "="))
-        pathField = removeQuotes(pathField)
+        if pathField != "" && pathField[0] == '"' {
+            pathField = removeQuotes(pathField)
+        }
     }
     return "path=" + pathField, nil
 }
+
+SPathFieldString <- QuotedString / UnquotedStringWithTemplateWildCard
 
 
 // All cmd expect CMD_SEARCH

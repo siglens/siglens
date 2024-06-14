@@ -266,9 +266,10 @@ type TMLimitResult struct {
 
 // To extract information from the structured data formats XML and JSON.
 type SPathExpr struct {
-	InputColName  string // default is set to _raw
-	Path          string // the path to the field from which the values need to be extracted.
-	OutputColName string // the name of the column in the output table to which the extracted values will be written. By Default it is set the same as the path.
+	InputColName    string // default is set to _raw
+	Path            string // the path to the field from which the values need to be extracted.
+	IsPathFieldName bool   // If true, the path is the field name and the value is the field value
+	OutputColName   string // the name of the column in the output table to which the extracted values will be written. By Default it is set the same as the path.
 }
 
 type BoolOperator uint8
