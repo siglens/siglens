@@ -2044,7 +2044,7 @@ NumericExprLevel1 <- L_PAREN expr:NumericExprLevel3 R_PAREN {
 
 // Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random, time, relative_time, strftime
 //Currently involves abs, ceil, round, sqrt
-NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" / "floor" / "ln" / "sigfig") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
+NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp" / "floor" / "ln" / "sigfig" / "acosh" / "acos" / "asinh" / "asin" / "atanh" / "atan" / "cosh" / "cos" / "sinh" / "sin" / "tanh" / "tan") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -2129,7 +2129,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
 / lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
     return expr, nil
 }
-/ (opName:("log" / "pow") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
+/ (opName:("log" / "pow" / "atan2" / "hypot") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
