@@ -3520,8 +3520,10 @@ func Test_evalFunctionsSpath(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "spath")
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.Value, "_raw")
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.RawString, `vendorProductSet.product.desc.locDesc`)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName, "_raw")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path, `vendorProductSet.product.desc.locDesc`)
+	assert.False(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.IsPathFieldName)
 }
 
 func Test_evalFunctionsIf(t *testing.T) {
@@ -7030,4 +7032,325 @@ func Test_MakeMVWithFieldAndDelimiterPlusAllowEmpty(t *testing.T) {
 	assert.False(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.IsRegex)
 	assert.True(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.AllowEmpty)
 	assert.True(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Setsv)
+}
+
+func Test_SPath_Input_Output_dataPath(t *testing.T) {
+	query := `* | spath input=rawjson output=user user.name`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, "rawjson", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+	assert.Equal(t, "user", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.OutputColName)
+	assert.Equal(t, "user.name", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	assert.Equal(t, "user", aggregator.OutputTransforms.LetColumns.NewColName)
+}
+
+func Test_SPath_Input_Output_Path(t *testing.T) {
+	query := `* | spath input=rawjson output=user path="user.name"`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, "rawjson", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+	assert.Equal(t, "user", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.OutputColName)
+	assert.Equal(t, "user.name", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	assert.Equal(t, "user", aggregator.OutputTransforms.LetColumns.NewColName)
+
+	query = `* | spath input=rawjson output=user path = "user.name"`
+	res, err = spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode = res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err = pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, "rawjson", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+	assert.Equal(t, "user", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.OutputColName)
+	assert.Equal(t, "user.name", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	assert.Equal(t, "user", aggregator.OutputTransforms.LetColumns.NewColName)
+}
+
+func Test_SPath_NoArgs(t *testing.T) {
+	query := `* | spath`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+}
+
+func Test_SPath_Input_Path(t *testing.T) {
+	query := `* | spath input=rawjson path="user.name"`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, "rawjson", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+	assert.Equal(t, "user.name", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+}
+
+func Test_SPath_Output_dataPath(t *testing.T) {
+	query := `* | spath output=user user.name`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+	assert.Equal(t, "user", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.OutputColName)
+	assert.Equal(t, "user.name", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	assert.Equal(t, "user", aggregator.OutputTransforms.LetColumns.NewColName)
+}
+
+func Test_SPath_Output_Path_With_WildCards_Quoted(t *testing.T) {
+	query := `* | spath output=myfield path="vendorProductSet.product{}.locDesc"`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+	assert.Equal(t, "myfield", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.OutputColName)
+	assert.Equal(t, "vendorProductSet.product{}.locDesc", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	assert.Equal(t, "myfield", aggregator.OutputTransforms.LetColumns.NewColName)
+}
+
+func Test_SPath_Output_dataPath_With_WildCards_Unquoted_v1(t *testing.T) {
+	query := `* | spath output=myfield vendorProductSet.product{1}.locDesc`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+	assert.Equal(t, "myfield", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.OutputColName)
+	assert.Equal(t, "vendorProductSet.product{1}.locDesc", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	assert.Equal(t, "myfield", aggregator.OutputTransforms.LetColumns.NewColName)
+}
+
+func Test_SPath_Output_dataPath_With_WildCards_Unquoted_v2(t *testing.T) {
+	query := `* | spath output=myfield vendorProductSet.product{@year}.locDesc`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+	assert.Equal(t, "myfield", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.OutputColName)
+	assert.Equal(t, "vendorProductSet.product{@year}.locDesc", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	assert.Equal(t, "myfield", aggregator.OutputTransforms.LetColumns.NewColName)
+}
+
+func Test_SPath_In_Eval_PathIsFieldName(t *testing.T) {
+	query := `* | eval locDesc=spath(_raw, locDesc)`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+	assert.Equal(t, "locDesc", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	assert.True(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.IsPathFieldName)
+	assert.Equal(t, "locDesc", aggregator.OutputTransforms.LetColumns.NewColName)
+}
+
+func Test_SPath_In_Eval_IsPath(t *testing.T) {
+	query := `* | eval hashtags=spath(_raw, "entities.hashtags")`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+	assert.Equal(t, "entities.hashtags", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	assert.False(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.IsPathFieldName)
+	assert.Equal(t, "hashtags", aggregator.OutputTransforms.LetColumns.NewColName)
+}
+
+func Test_Spath_Extract_PathTest(t *testing.T) {
+	queries := []string{
+		`* | spath pathApple`,
+		`* | spath path= pathApple`,
+		`* | spath path = pathApple`,
+		`* | spath path =pathApple`,
+	}
+
+	for _, query := range queries {
+		res, err := spl.Parse("", []byte(query))
+		assert.Nil(t, err)
+		filterNode := res.(ast.QueryStruct).SearchFilter
+		assert.NotNil(t, filterNode)
+
+		astNpde, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+		assert.Nil(t, err)
+		assert.NotNil(t, astNpde)
+		assert.NotNil(t, aggregator)
+		assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+		assert.NotNil(t, aggregator.OutputTransforms)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+		assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+		assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+		assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+		assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+		assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+		assert.Equal(t, "pathApple", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	}
 }
