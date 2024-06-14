@@ -144,12 +144,34 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <button class="btn settings-btn" id="logs-settings">
                         </button>
                         <div class="" id="setting-container">
-                            <div style="margin-bottom: 3px;">Query Lanuage:</div>
-                            <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
-                                <li id="option-1" class="query-language-option">SQL</li>
-                                <li id="option-2" class="query-language-option">Log QL</li>
-                                <li id="option-3" class="query-language-option active">Splunk QL</li>
+                            <div style="margin-bottom: 3px;">Query Language:</div>
+                            <div class="dropdown">
+                                <button class="btn dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
+                                    aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
+                                    <span>Splunk QL</span>
+                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                    <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                </button>
+                                <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
+                                    <li id="option-1" class="query-language-option">SQL</li>
+                                    <li id="option-2" class="query-language-option">Log QL</li>
+                                    <li id="option-3" class="query-language-option active">Splunk QL</li>
+                                </div>
                             </div>
+                            <div style="margin-bottom: 3px;">Query Mode:</div>
+                            <div class="dropdown">
+                                <button class="btn dropdown-toggle" type="button" id="query-mode-btn" data-toggle="dropdown"
+                                    aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Mode">
+                                    <span>Builder</span>
+                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                    <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                </button>
+                                <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-mode-options">
+                                    <li id="mode-option-1" class="query-mode-option">Builder</li>
+                                    <li id="mode-option-2" class="query-mode-option">Code</li>
+                                </div>
+                            </div>
+                            
                         </div>
                     </div>
                     <div class="d-flex">
