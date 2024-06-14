@@ -385,16 +385,15 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 }
 
 func getRegexMatchedMetricNames(mSegSearchReq *structs.MetricsSearchRequest, regexPattern string, operator utils.TagOperator) ([]string, error) {
-	mNamesMap, err := series.GetAllMetricNames(mSegSearchReq.MetricsKeyBaseDir)
-	if err != nil {
-		return nil, err
-	}
+	var mNamesMap map[string]bool
+	var err error
 
 	if len(mSegSearchReq.UnrotatedMetricNames) > 0 {
-		for mName := range mSegSearchReq.UnrotatedMetricNames {
-			if _, ok := mNamesMap[mName]; !ok {
-				mNamesMap[mName] = true
-			}
+		mNamesMap = mSegSearchReq.UnrotatedMetricNames
+	} else {
+		mNamesMap, err = series.GetAllMetricNames(mSegSearchReq.MetricsKeyBaseDir)
+		if err != nil {
+			return nil, err
 		}
 	}
 

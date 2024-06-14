@@ -6651,3 +6651,125 @@ func Test_TransactionRequestWithFilterStringExpr(t *testing.T) {
 		assert.Equal(t, results[ind].EndsWith, transactionRequest.EndsWith)
 	}
 }
+
+func Test_MakeMVWithOnlyField(t *testing.T) {
+	query := `* | makemv senders`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "senders", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, " ", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.DelimiterString)
+}
+
+func Test_MakeMVWithFieldAndDelimiter(t *testing.T) {
+	query := `* | makemv delim="," senders`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "senders", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, ",", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.DelimiterString)
+	assert.False(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.IsRegex)
+}
+
+func Test_MakeMVWithFieldAndDelimiterAndSetSv(t *testing.T) {
+	query := `* | makemv setsv=true delim="," senders`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "senders", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, ",", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.DelimiterString)
+	assert.False(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.IsRegex)
+	assert.True(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Setsv)
+}
+
+func Test_MakeMVWithFieldAndRegexDelimiterAndSetSv(t *testing.T) {
+	query := `* | makemv tokenizer="([^,]+),?" setsv=true senders`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "senders", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, "([^,]+),?", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.DelimiterString)
+	assert.True(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.IsRegex)
+	assert.True(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Setsv)
+}
+
+func Test_MakeMVWithFieldAndDelimiterPlusAllowEmpty(t *testing.T) {
+	query := `* | makemv delim="," allowempty=true senders`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "senders", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, ",", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.DelimiterString)
+	assert.False(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.IsRegex)
+	assert.True(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.AllowEmpty)
+
+	query = `* | makemv allowempty=true setsv=true delim="," senders`
+	res, err = spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode = res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err = pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest)
+	assert.Equal(t, "senders", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.ColName)
+	assert.Equal(t, ",", aggregator.OutputTransforms.LetColumns.MultiValueColRequest.DelimiterString)
+	assert.False(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.IsRegex)
+	assert.True(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.AllowEmpty)
+	assert.True(t, aggregator.OutputTransforms.LetColumns.MultiValueColRequest.Setsv)
+}
