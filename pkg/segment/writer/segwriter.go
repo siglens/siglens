@@ -263,7 +263,10 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	segstore.BytesReceivedCount += bytesReceived
 
 	if hook := hooks.GlobalHooks.AfterWritingToSegment; hook != nil {
-		hook(rid, segstore, rawJson, ts_millis, signalType)
+		err := hook(rid, segstore, rawJson, ts_millis, signalType)
+		if err != nil {
+			log.Errorf("AddEntryToInMemBuf: error from AfterWritingToSegment hook: %v", err)
+		}
 	}
 
 	if flush {
