@@ -1333,7 +1333,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 }
 
 func handleTrimFunctions(op string, value string, trim_chars string) string {
-	if (trim_chars == "") {
+	if trim_chars == "" {
 		trim_chars = "\t\n\v\f\r "
 	}
 	switch op {
@@ -1347,7 +1347,6 @@ func handleTrimFunctions(op string, value string, trim_chars string) string {
 		return value
 	}
 }
-
 
 func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 	// Todo: implement the processing logic for these functions:
