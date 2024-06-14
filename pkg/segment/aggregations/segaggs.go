@@ -1531,7 +1531,6 @@ func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequ
 }
 
 func performMultiValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
-	// mvColReq := letColReq.MultiValueColRequest
 
 	for _, aggregationResult := range nodeResult.Histogram {
 		for _, bucketResult := range aggregationResult.Results {
