@@ -6954,8 +6954,8 @@ func Test_SPath_Output_Path_With_WildCards_Quoted(t *testing.T) {
 	assert.Equal(t, "myfield", aggregator.OutputTransforms.LetColumns.NewColName)
 }
 
-func Test_SPath_Output_dataPath_With_WildCards_Unquoted(t *testing.T) {
-	query := `* | spath output=myfield vendorProductSet.product{}.locDesc`
+func Test_SPath_Output_dataPath_With_WildCards_Unquoted_v1(t *testing.T) {
+	query := `* | spath output=myfield vendorProductSet.product{1}.locDesc`
 	res, err := spl.Parse("", []byte(query))
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -6977,7 +6977,34 @@ func Test_SPath_Output_dataPath_With_WildCards_Unquoted(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
 	assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
 	assert.Equal(t, "myfield", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.OutputColName)
-	assert.Equal(t, "vendorProductSet.product{}.locDesc", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	assert.Equal(t, "vendorProductSet.product{1}.locDesc", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
+	assert.Equal(t, "myfield", aggregator.OutputTransforms.LetColumns.NewColName)
+}
+
+func Test_SPath_Output_dataPath_With_WildCards_Unquoted_v2(t *testing.T) {
+	query := `* | spath output=myfield vendorProductSet.product{@year}.locDesc`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
+	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, "spath", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr)
+	assert.Equal(t, "_raw", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.InputColName)
+	assert.Equal(t, "myfield", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.OutputColName)
+	assert.Equal(t, "vendorProductSet.product{@year}.locDesc", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
 	assert.Equal(t, "myfield", aggregator.OutputTransforms.LetColumns.NewColName)
 }
 
