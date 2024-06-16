@@ -238,9 +238,10 @@ type LetColumnsRequest struct {
 	SortColRequest       *SortExpr
 	NewColName           string
 	MultiValueColRequest *MultiValueColLetRequest
-	FormatResults        *FormatResultsRequest // format the output results
+	FormatResults        *FormatResultsRequest // formats the results into a single result and places that result into a new field called search.
 }
 
+// formats the results into a single result and places that result into a new field called search.
 type FormatResultsRequest struct {
 	MVSeparator   string         // separator for multi-value fields. Default= "OR"
 	MaxResults    uint64         // max number of results to return
