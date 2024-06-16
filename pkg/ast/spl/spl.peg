@@ -189,6 +189,22 @@ func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryA
     }, nil
 }
 
+func getDefaultFormatResultsExpr() *structs.FormatResultsRequest {
+    return &structs.FormatResultsRequest{
+        MVSeparator: "OR",
+        MaxResults: 0,
+        EmptyString: "NOT()",
+        RowColOptions: &structs.RowColOptions{
+            RowPrefix: "(",
+            ColumnPrefix: "(",
+            ColumnSeparator: "AND",
+            ColumnEnd: ")",
+            RowSeparator: "OR",
+            RowEnd: ")",
+        },
+    }
+}
+
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
@@ -219,6 +235,11 @@ type MultiValueColOptionArgs struct {
 type SPathFieldExpr struct {
     PathValue string
     IsPathFieldName bool  
+}
+
+type FormatResultsRequestArguments struct {
+    argOption string
+    formatResultExpr *structs.FormatResultsRequest
 }
 
 }
@@ -307,7 +328,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -3658,9 +3679,119 @@ PathField <- ("path" EQUAL SPathFieldString / SPathFieldString ) {
 
 SPathFieldString <- QuotedString / UnquotedStringWithTemplateWildCard
 
+// Returns *structs.QueryAggregators
+FormatBlock <- PIPE CMD_FORMAT formatArgExpr:FormatArgumentsList? {
+    var formatResultExpr *structs.FormatResultsRequest
+
+    if formatArgExpr != nil {
+        formatResultExpr = formatArgExpr.(*structs.FormatResultsRequest)
+    } else {
+        formatResultExpr = getDefaultFormatResultsExpr()
+    }
+
+    queryAgg := &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                NewColName: "search",
+                FormatResults: formatResultExpr,
+            },
+        },
+    }
+
+    return queryAgg, nil
+}
+
+FormatArgumentsList <- SPACE first: FormatArgument rest:(SPACE FormatArgument)* {
+    restSlice := rest.([]any)
+
+    numOptions := 1 + len(restSlice)
+
+    formatResultExpr := getDefaultFormatResultsExpr()
+
+    for i := 0; i < numOptions; i++ {
+        var currFormatExpr *FormatResultsRequestArguments
+
+        if i == 0{
+            currFormatExpr = first.(*FormatResultsRequestArguments)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            currFormatExpr = separator[1].(*FormatResultsRequestArguments)
+        }
+
+        switch currFormatExpr.argOption {
+            case "mvsep":
+                formatResultExpr.MVSeparator = currFormatExpr.formatResultExpr.MVSeparator
+            case "maxresults":
+                formatResultExpr.MaxResults = currFormatExpr.formatResultExpr.MaxResults
+            case "emptystr":
+                formatResultExpr.EmptyString = currFormatExpr.formatResultExpr.EmptyString
+            case "rowColOptions":
+                formatResultExpr.RowColOptions = currFormatExpr.formatResultExpr.RowColOptions
+            default:
+                return nil, fmt.Errorf("not a valid Format Result Argument: %v", currFormatExpr.argOption)
+        }
+    }
+
+    return formatResultExpr, nil
+}
+
+FormatArgument <- argExpr:(FormatSeparator / FormatMaxResults / FormatEmptyStr / FormatRowColOptions) {
+    return argExpr, nil
+}
+
+FormatSeparator <- "mvsep" EQUAL str:QuotedString {
+    return &FormatResultsRequestArguments{
+        argOption: "mvsep",
+        formatResultExpr: &structs.FormatResultsRequest{
+            MVSeparator: removeQuotes(str),
+        },
+    }, nil
+}
+
+FormatMaxResults <- "maxresults" EQUAL numStr:IntegerAsString {
+    num, err := strconv.ParseUint(numStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid Max results value is set for format: (%v): Error=%v", numStr.(string), err)
+    }
+    return &FormatResultsRequestArguments{
+        argOption: "maxresults",
+        formatResultExpr: &structs.FormatResultsRequest{
+            MaxResults: num,
+        },
+    }, nil
+}
+
+FormatEmptyStr <- "emptystr" EQUAL str:QuotedString {
+    return &FormatResultsRequestArguments{
+        argOption: "emptystr",
+        formatResultExpr: &structs.FormatResultsRequest{
+            EmptyString: removeQuotes(str),
+        },
+    }, nil
+}
+
+FormatRowColOptions <- rowPrefix:QuotedString SPACE colPrefix:QuotedString SPACE colSeparator:QuotedString SPACE colEnd:QuotedString SPACE rowSeparator:QuotedString SPACE rowEnd:QuotedString {
+    rowColOptions := &structs.RowColOptions{
+        RowPrefix: removeQuotes(rowPrefix),       
+        ColumnPrefix: removeQuotes(colPrefix),    
+        ColumnSeparator: removeQuotes(colSeparator), 
+        ColumnEnd: removeQuotes(colEnd),       
+        RowSeparator: removeQuotes(rowSeparator),    
+        RowEnd: removeQuotes(rowEnd),          
+    }
+
+    return &FormatResultsRequestArguments{
+        argOption: "rowColOptions",
+        formatResultExpr: &structs.FormatResultsRequest{
+            RowColOptions: rowColOptions,
+        },
+    }, nil
+}
+
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -3681,6 +3812,7 @@ CMD_DEDUP <- "dedup"
 CMD_DEDUP_SORTBY <- SPACE "sortby" SPACE
 CMD_MAKEMV <- "makemv"
 CMD_SPATH <- "spath"
+CMD_FORMAT <- "format"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

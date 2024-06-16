@@ -238,6 +238,23 @@ type LetColumnsRequest struct {
 	SortColRequest       *SortExpr
 	NewColName           string
 	MultiValueColRequest *MultiValueColLetRequest
+	FormatResults        *FormatResultsRequest // format the output results
+}
+
+type FormatResultsRequest struct {
+	MVSeparator   string         // separator for multi-value fields. Default= "OR"
+	MaxResults    uint64         // max number of results to return
+	EmptyString   string         // string to return if no results are found. Default= "NOT()"
+	RowColOptions *RowColOptions // options for row column
+}
+
+type RowColOptions struct {
+	RowPrefix       string // prefix for row column. Default= "("
+	ColumnPrefix    string // prefix for column column. Default= "("
+	ColumnSeparator string // separator for column column. Default= "AND"
+	ColumnEnd       string // end for column column. Default= ")"
+	RowSeparator    string // separator for row column. Default= "OR"
+	RowEnd          string // end for row column. Default= ")"
 }
 
 type MultiColLetRequest struct {

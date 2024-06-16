@@ -210,6 +210,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 }
 
 func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
+	fmt.Println("Mani: ProcessAlertsPipeSearchRequest: queryParams: ", queryParams)
 
 	queryData := fmt.Sprintf(`{
 		"from": "0",
@@ -248,10 +249,12 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	}
 
 	ti := structs.InitTableInfo(indexNameIn, orgid, false)
-	log.Infof("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: index=[%s], searchString=[%v] ",
-		qid, ti.String(), searchText)
-
 	queryLanguageType := readJSON["queryLanguage"]
+	fmt.Println("Mani: ProcessAlertsPipeSearchRequest: readJson: ", readJSON)
+
+	log.Infof("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: queryLanguageType=[%v] index=[%s], searchString=[%v] ",
+		qid, queryLanguageType, ti.String(), searchText)
+
 	var simpleNode *structs.ASTNode
 	var aggs *structs.QueryAggregators
 	if queryLanguageType == "Pipe QL" {
@@ -302,7 +305,13 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 					return -1
 				}
 				return int(measureNum)
+			} else {
+				log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing int from a string: %s", err)
+				return -1
 			}
+		} else {
+			log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: MeasureResults is nil")
+			return -1
 		}
 	} else {
 		log.Infof("ProcessAlertsPipeSearchRequest: unknown queryLanguageType: %v", queryLanguageType)
