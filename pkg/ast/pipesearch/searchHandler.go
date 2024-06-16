@@ -210,7 +210,6 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 }
 
 func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
-	fmt.Println("Mani: ProcessAlertsPipeSearchRequest: queryParams: ", queryParams)
 
 	queryData := fmt.Sprintf(`{
 		"from": "0",
@@ -250,7 +249,6 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 
 	ti := structs.InitTableInfo(indexNameIn, orgid, false)
 	queryLanguageType := readJSON["queryLanguage"]
-	fmt.Println("Mani: ProcessAlertsPipeSearchRequest: readJson: ", readJSON)
 
 	log.Infof("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: queryLanguageType=[%v] index=[%s], searchString=[%v] ",
 		qid, queryLanguageType, ti.String(), searchText)
@@ -301,12 +299,12 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 				measureVal = strings.ReplaceAll(measureVal, ",", "")
 				measureNum, err := strconv.ParseFloat(measureVal, 64)
 				if err != nil {
-					log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing int from a string: %s", err)
+					log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing int from a string: %s. Error=%v", measureVal, err)
 					return -1
 				}
 				return int(measureNum)
 			} else {
-				log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing int from a string: %s", err)
+				log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing measure function Val as string: %s", err)
 				return -1
 			}
 		} else {
