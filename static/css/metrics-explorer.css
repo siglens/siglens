@@ -229,7 +229,7 @@ input:checked + .slider:before {
     outline: 1px solid #2D69BC;
 }
 .metrics-query .agg-function{
-    width: 70px !important;
+    width: 90px !important;
     background-color: var(--drop-down-btn-bg-regular);
 }
 .metrics-query .agg-function:focus{

@@ -464,7 +464,7 @@ func ProcessRedTracesIngest() {
 		orgId := uint64(0)
 
 		// Ingest red metrics
-		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
+		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */)
 		if err != nil {
 			log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
 			continue
@@ -568,7 +568,7 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 	orgId := uint64(0)
 
 	// Ingest
-	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
+	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */)
 	if err != nil {
 		log.Errorf("MakeTracesDependancyGraph: failed to process ingest request: %v", err)
 

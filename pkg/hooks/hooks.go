@@ -24,6 +24,7 @@ import (
 	"github.com/fasthttp/router"
 	commonconfig "github.com/siglens/siglens/pkg/config/common"
 	"github.com/siglens/siglens/pkg/grpc"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/valyala/fasthttp"
 )
@@ -101,6 +102,11 @@ type Hooks struct {
 
 	// Distributed query
 	InitDistributedQueryServiceHook func(querySummary interface{}, allSegFileResults interface{}) interface{}
+
+	// Handling ingestion
+	BeforeHandlingBulkRequest func(ctx *fasthttp.RequestCtx, myid uint64) (bool, uint64)
+	AfterWritingToSegment     func(rid uint64, segstore interface{}, record []byte, ts uint64, signalType segutils.SIGNAL_TYPE) error
+	AfterHandlingBulkRequest  func(ctx *fasthttp.RequestCtx, rid uint64) bool
 }
 
 type HtmlSnippets struct {
