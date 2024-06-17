@@ -1534,12 +1534,12 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 }
 
 func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
-	
+
 	for _, cvPair := range self.ConditionValuePairs {
 		res, err := cvPair.Condition.Evaluate(fieldToValue)
 		if err != nil {
 			return "", fmt.Errorf("handleCaseFunction: Error while evaluating condition, err: %v", err)
-		} 
+		}
 		if res {
 			val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
 			if err != nil {
@@ -1555,7 +1555,7 @@ func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValu
 func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 	for _, valueExpr := range self.ValueList {
 		fields := valueExpr.GetFields()
-		
+
 		skip := false
 		for _, field := range fields {
 			val, ok := fieldToValue[field]
