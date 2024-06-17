@@ -1538,7 +1538,7 @@ func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValu
 	for _, cvPair := range self.ConditionValuePairs {
 		res, err := cvPair.Condition.Evaluate(fieldToValue)
 		if err != nil {
-			return "", fmt.Errorf("handleCaseFunction: Error while evaluating condition, err: %v", err)
+			continue
 		}
 		if res {
 			val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
