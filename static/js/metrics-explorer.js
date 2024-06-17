@@ -608,7 +608,8 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         minLength: 0,
         select: function(event, ui) {
             queryDetails.aggFunction = ui.item.value;
-            getQueryDetails(queryName,queryDetails)
+            getQueryDetails(queryName,queryDetails);
+            $(this).blur(); 
         }
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
