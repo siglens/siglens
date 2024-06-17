@@ -1554,19 +1554,26 @@ func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValu
 
 func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 	for _, valueExpr := range self.ValueList {
-		if valueExpr.ValueExprMode > 1 {
-			return "", fmt.Errorf("handleCoalesceFunction: Expected: a field or a value got: %v", valueExpr.ValueExprMode)
-		}
 		fields := valueExpr.GetFields()
-
-		// only one field is expected because the valueExpr has to be either a field or value
-		if len(fields) == 0 || fieldToValue[fields[0]].Dtype != utils.SS_DT_BACKFILL{
-			val, err := valueExpr.EvaluateValueExprAsString(fieldToValue)
-			if err != nil {
-				return "", fmt.Errorf("handleCoalesceFunction: Error while evaluating value, err: %v", err)
+		
+		skip := false
+		for _, field := range fields {
+			val, ok := fieldToValue[field]
+			// if a field has a NIL value in the expression we do not want that expression to be considered
+			if !ok || val.Dtype == utils.SS_DT_BACKFILL {
+				skip = true
+				break
 			}
-			return val, nil
 		}
+		if skip {
+			continue
+		}
+
+		val, err := valueExpr.EvaluateValueExprAsString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("handleCoalesceFunction: Error while evaluating value, err: %v", err)
+		}
+		return val, nil
 	}
 
 	return "", nil
@@ -1646,6 +1653,9 @@ func (self *ConditionExpr) GetFields() []string {
 	}
 	for _, pair := range self.ConditionValuePairs {
 		fields = append(fields, pair.Condition.GetFields()...)
+	}
+	for _, valueExpr := range self.ValueList {
+		fields = append(fields, valueExpr.GetFields()...)
 	}
 	return fields
 }
