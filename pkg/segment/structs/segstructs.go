@@ -736,6 +736,9 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"mvsort":           {},
 	"mvzip":            {},
 	"mv_to_json_array": {},
+	"floor":            {},
+	"ln":               {},
+	"log":              {},
 	"random":           {},
 	"pi":               {},
 	"sigfig":           {},
@@ -748,6 +751,15 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"object_to_array":  {},
 	"printf":           {},
 	"tojson":           {},
+	"cluster":          {},
+	"getfields":        {},
+	"isnotnull":        {},
+	"isnum":            {},
+	"typeof":           {},
+	"replace":          {},
+	"spath":            {},
+	"upper":            {},
+	"trim":             {},
 }
 
 type StatsFuncChecker struct{}
