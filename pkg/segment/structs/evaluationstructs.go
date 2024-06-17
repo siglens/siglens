@@ -363,8 +363,6 @@ func (self *SortExpr) ReleaseProcessedSegmentsLock() {
 func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
 	// TODO: Implement the operator in the switch cases below, and replace the if statements with case statements
 	switch self.ValueOp {
-	case "searchmatch":
-		fallthrough
 	case "isnotnull":
 		fields := self.GetFields()
 		if len(fields) == 0 {
@@ -379,8 +377,8 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			return true, nil
 		}
 		return false, nil
-	case "isnum":
-		return false, fmt.Errorf("BoolExpr.Evaluate: does support using this operator: %v", self.ValueOp)
+	case "searchmatch", "isnum":
+		return false, fmt.Errorf("BoolExpr.Evaluate: does not support using this operator: %v", self.ValueOp)
 	}
 
 	if self.IsTerminal {
@@ -1376,16 +1374,19 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		if err != nil {
 			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate replacement as a string: %v", err)
 		}
-
-		baseString, exists := fieldToValue[self.Val.NumericExpr.Value]
+		baseValue, exists := fieldToValue[self.Val.NumericExpr.Value]
 		if !exists {
-			return "", fmt.Errorf("TextExpr.EvaluateText: field '%s' not found in data", self.Param.RawString)
+			return "", fmt.Errorf("TextExpr.EvaluateText: field '%s' not found in data", self.Val.NumericExpr.Value)
+		}
+		baseStr, ok := baseValue.CVal.(string)
+		if !ok {
+			return "", fmt.Errorf("TextExpr.EvaluateText: expected baseValue.CVal to be a string, got %T with value %v", baseValue.CVal, baseValue.CVal)
 		}
 		regex, err := regexp.Compile(regexStr)
 		if err != nil {
-			return "", fmt.Errorf("TextExpr.EvaluateText: failed to compile regex: %v", err)
+			return "", fmt.Errorf("TextExpr.EvaluateText: failed to compile regex '%s': %v", regexStr, err)
 		}
-		return regex.ReplaceAllString(baseString.CVal.(string), replacementStr), nil
+		return regex.ReplaceAllString(baseStr, replacementStr), nil
 	case "mvappend":
 		fallthrough
 	case "mvcount":
