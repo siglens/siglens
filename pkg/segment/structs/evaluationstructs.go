@@ -1328,6 +1328,11 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 				return -1, fmt.Errorf("NumericExpr.Evaluate: atan2 requires two values, got: left=%v, right=%v", self.Left, self.Right)
 			}
 			return math.Atan2(left, right), nil
+		case "hypot":
+			if self.Left == nil || self.Right == nil {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: hypot requires two values, got: left=%v, right=%v", self.Left, self.Right)
+			}
+			return math.Hypot(left, right), nil
 		case "round":
 			if self.Right != nil {
 				return round(left, int(right)), nil
