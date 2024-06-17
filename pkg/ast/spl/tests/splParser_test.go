@@ -3354,7 +3354,7 @@ func Test_EvalAtan2(t *testing.T) {
 	assert.True(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.IsTerminal, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Right.IsTerminal)
 }
 
-func Test_EvalHyoit(t *testing.T) {
+func Test_EvalHypot(t *testing.T) {
 	query := []byte(`city=Columbus | stats count AS Count BY http_status | eval newField=hypot(3, 4)`)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
