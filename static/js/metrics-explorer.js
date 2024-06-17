@@ -83,14 +83,21 @@ $('#toggle-switch').on('change', function() {
     }
 });
 
-function addFormulaElement(){
+let formulas = {};
+
+function generateUniqueId() {
+    return 'formula_' + Math.random().toString(36).substr(2, 9);
+}
+
+function addFormulaElement() {
+    let uniqueId = generateUniqueId();
     let formulaElement = $(`
-    <div class="formula-box">
+    <div class="formula-box" data-id="${uniqueId}">
         <div style="position: relative;" class="d-flex">
             <div class="formula-arrow">↓</div>
             <input class="formula" placeholder="Formula, eg. 2*a">
             <div class="formula-error-message" style="display: none;">
-                <div class="d-flex justify-content-center align-items-center "><i class="fas fa-exclamation"></i></div>
+                <div class="d-flex justify-content-center align-items-center"><i class="fas fa-exclamation"></i></div>
             </div>
         </div>
         <div>
@@ -102,36 +109,64 @@ function addFormulaElement(){
 
     // Remove the formula element
     formulaElement.find('.remove-query').on('click', function() {
+        delete formulas[uniqueId];
         formulaElement.remove();
-        $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');;
+        removeVisualizationContainer(uniqueId);
+        $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
     });
 
     // Validate formula on input change
     let input = formulaElement.find('.formula');
-    input.on('input', function() {
+    input.on('input', debounce(async function() {
         let formula = input.val().trim();
         let errorMessage = formulaElement.find('.formula-error-message');
         if (formula === '') {
             errorMessage.hide();
             input.removeClass('error-border');
             disableQueryRemoval();
-            return
+            // Run a different function when the formula is erased
+            onFormulaErased(uniqueId);
+            return;
         }
-        let valid = validateFormula(formula);
-        if (valid) {
+        let validationResult = validateFormula(formula);
+        if (validationResult !== false) {
             errorMessage.hide();
             input.removeClass('error-border');
+            // Add or update the formula and query names in the object
+            formulas[uniqueId] = validationResult;
+            // Check if validationResult.queryNames is an array
+            if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length>0) {
+                // Run your function with the formula and query names
+                await getMetricsDataForFormula(uniqueId,validationResult);
+            }
         } else {
             errorMessage.show();
             input.addClass('error-border');
         }
         // Disable remove button if the query name exists in any formula
         disableQueryRemoval();
-    });
+    }, 500)); // debounce delay
+    
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+// Function to call when the formula is erased
+function onFormulaErased(uniqueId) {
+    delete formulas[uniqueId];
+    removeVisualizationContainer(uniqueId);
+    updateCloseIconVisibility();
 }
 
 function validateFormula(formula) {
-    let pattern = /^(\w+\s*([-+*/]\s*\w+\s*)*)*$/;
+    // Regular expression to include numbers and query names
+    let pattern = /^(\s*\w+\s*|\s*\d+\s*)(\s*[-+*/]\s*(\s*\w+\s*|\s*\d+\s*))*$/;
     let matches = formula.match(pattern);
     if (!matches) {
         return false;
@@ -139,13 +174,21 @@ function validateFormula(formula) {
 
     let queryNames = Object.keys(chartDataCollection);
     let parts = formula.split(/[-+*/]/);
+    let usedQueryNames = [];
     for (let part of parts) {
-        if (!queryNames.includes(part.trim())) {
-            return false;
+        part = part.trim();
+        // Check if the part is a query name or a number
+        if (queryNames.includes(part)) {
+            usedQueryNames.push(part);
+        } else if (isNaN(part)) {
+            return false; // Todo: if only numeric value is present in formula
         }
     }
 
-    return true;
+    return {
+        formula: formula,
+        queryNames: usedQueryNames
+    };
 }
 
 function disableQueryRemoval(){
@@ -565,7 +608,8 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         minLength: 0,
         select: function(event, ui) {
             queryDetails.aggFunction = ui.item.value;
-            getQueryDetails(queryName,queryDetails)
+            getQueryDetails(queryName,queryDetails);
+            $(this).blur(); 
         }
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
@@ -737,14 +781,33 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
             <div class="graph-canvas"></div>
         </div>`);
 
-        $('#metrics-graphs').append(visualizationContainer);
-        
+        // Determine where to insert the new container
+        if (queryName.startsWith('formula')) {
+            // Insert after all formula queries
+            var lastFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:last');
+            if (lastFormula.length) {
+                lastFormula.after(visualizationContainer);
+            } else {
+                // If no formula queries exist, append to the end
+                $('#metrics-graphs').append(visualizationContainer);
+            }
+        } else {
+            // Insert before the first formula query
+            var firstFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:first');
+            if (firstFormula.length) {
+                firstFormula.before(visualizationContainer);
+            } else {
+                // If no formula queries exist, append to the end
+                $('#metrics-graphs').append(visualizationContainer);
+            }
+        }
+
         var canvas = $('<canvas></canvas>');
-        $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).append(canvas);
+        visualizationContainer.find('.graph-canvas').append(canvas);
     } else{
         existingContainer.find('.query-string').text(queryString);
         var canvas = $('<canvas></canvas>');
-        $(`.metrics-graph[data-query="${queryName}"] .graph-canvas`).empty().append(canvas);
+        existingContainer.find('.graph-canvas').empty().append(canvas);
     }
     var ctx = canvas[0].getContext('2d');
     
@@ -845,11 +908,11 @@ function removeVisualizationContainer(queryName) {
 }
 
 function updateGraphWidth() {
-    var numQueries = $('#metrics-queries').children('.metrics-query').length;
+    var numQueries = $('#metrics-graphs .metrics-graph').length; // Count the number of .metrics-graph elements
     if (numQueries === 1) {
-        $('.metrics-graph').addClass('full-width');
+        $('#metrics-graphs .metrics-graph').addClass('full-width');
     } else {
-        $('.metrics-graph').removeClass('full-width');
+        $('#metrics-graphs .metrics-graph').removeClass('full-width');
     }
 }
 
@@ -1190,7 +1253,48 @@ async function getMetricsData(queryName, metricName) {
     const formulas = [formula];
     const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
 
-    const res = await $.ajax({
+    const res = await fetchTimeSeriesData(data);
+
+    if (res) {
+        rawTimeSeriesData = res;
+    }
+}
+
+async function getMetricsDataForFormula(formulaId, formulaDetails){
+    let queriesData = [];
+    let formulas = [];
+    for (let queryName of formulaDetails.queryNames) {
+        let queryDetails = queries[queryName];
+        let queryString;
+        if(queryDetails.state === "builder"){
+            queryString = createQueryString(queryDetails);
+        }else {
+            queryString = queryDetails.rawQueryInput;
+        }
+        const query = {
+            name: queryName,
+            query: queryString,
+            qlType: "promql"
+        };
+        queriesData.push(query);
+    }
+    const formula = {
+        formula: formulaDetails.formula 
+    };
+    formulas.push(formula);
+    const data = { start: filterStartDate, end: filterEndDate, queries: queriesData, formulas: formulas };
+
+    const res = await fetchTimeSeriesData(data);
+    if (res) {
+        rawTimeSeriesData = res;
+    }
+
+    const chartData = await convertDataForChart(rawTimeSeriesData)
+    addVisualizationContainer(formulaId, chartData, formulaDetails.formula);
+}
+
+async function fetchTimeSeriesData(data) {
+    return $.ajax({
         method: "post",
         url: "metrics-explorer/api/v1/timeseries",
         headers: { "Content-Type": "application/json; charset=utf-8", Accept: "*/*" },
@@ -1198,11 +1302,6 @@ async function getMetricsData(queryName, metricName) {
         dataType: "json",
         data: JSON.stringify(data)
     });
-
-    if (res) {
-        rawTimeSeriesData = res;
-    }
-
 }
 
 function getTagKeyValue(metricName) {
@@ -1243,8 +1342,7 @@ function getTagKeyValue(metricName) {
     });
 }
 
-
-async function getQueryDetails(queryName, queryDetails){
+async function handleQueryAndVisualize(queryName, queryDetails) {
     let queryString;
     if(queryDetails.state === "builder"){
         queryString = createQueryString(queryDetails);
@@ -1252,8 +1350,20 @@ async function getQueryDetails(queryName, queryDetails){
         queryString = queryDetails.rawQueryInput;
     }
     await getMetricsData(queryName, queryString);
-    const chartData = await convertDataForChart(rawTimeSeriesData)
+    const chartData = await convertDataForChart(rawTimeSeriesData);
     addVisualizationContainer(queryName, chartData, queryString);
+}
+
+async function getQueryDetails(queryName, queryDetails){
+
+    await handleQueryAndVisualize(queryName, queryDetails)
+
+    // Check if the query name is present in any formulas and re-run the formula if so
+    for (let formulaId in formulas) {
+        if (formulas[formulaId].queryNames.includes(queryName)) {
+            await getMetricsDataForFormula(formulaId, formulas[formulaId]);
+        }
+    }
 }
 
 function createQueryString(queryObject) {
@@ -1322,7 +1432,14 @@ async function refreshMetricsGraphs(){
             queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
             queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
             
-            await getQueryDetails(queryName, queryDetails);
+            await handleQueryAndVisualize(queryName, queryDetails);
+        });
+   }
+
+   if(Object.keys(formulas).length > 0){
+        // Update graph for each formula
+        Object.keys(formulas).forEach(function(formulaId){
+            getMetricsDataForFormula(formulaId, formulas[formulaId])
         });
    }
 }
