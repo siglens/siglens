@@ -2101,3 +2101,335 @@ func Test_performArithmeticOperation_WrongOp(t *testing.T) {
 	_, err := performArithmeticOperation(5, 3, 100)
 	assert.Equal(t, errors.New("performArithmeticOperation: invalid arithmetic operator"), err)
 }
+
+func Test_performMultiValueColRequestWithoutGroupby_OnlyDelimiter(t *testing.T) {
+	recs := map[string]map[string]interface{}{
+		"1": {"senders": "john@example.com,jane@example.com,doe@example.com"},
+		"2": {"senders": "foo@example.com,,bar@example.com"},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: ",",
+			IsRegex:         false,
+			AllowEmpty:      false,
+			Setsv:           false,
+		},
+	}
+
+	expectedResults := make(map[string]map[string][]string)
+	expectedResults["1"] = map[string][]string{
+		"senders": {"john@example.com", "jane@example.com", "doe@example.com"},
+	}
+	expectedResults["2"] = map[string][]string{
+		"senders": {"foo@example.com", "bar@example.com"},
+	}
+
+	err := performMultiValueColRequestWithoutGroupby(letColReq, recs)
+	assert.Nil(t, err)
+
+	for recNum, rec := range recs {
+		for colName, values := range rec {
+			assert.Equal(t, expectedResults[recNum][colName], values)
+		}
+	}
+}
+
+func Test_performMultiValueColRequestWithoutGroupby_OnlyRegexDelimiter(t *testing.T) {
+	recs := map[string]map[string]interface{}{
+		"1": {"senders": "john@example.com|jane@example.com|doe@example.com"},
+		"2": {"senders": "foo@example.com||bar@example.com"},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: `([^|]+)\|?`,
+			IsRegex:         true,
+			AllowEmpty:      false,
+			Setsv:           false,
+		},
+	}
+
+	expectedResults := map[string]map[string][]string{
+		"1": {"senders": {"john@example.com", "jane@example.com", "doe@example.com"}},
+		"2": {"senders": {"foo@example.com", "bar@example.com"}},
+	}
+
+	err := performMultiValueColRequestWithoutGroupby(letColReq, recs)
+	assert.Nil(t, err)
+
+	// Verify the results
+	for recNum, rec := range recs {
+		for colName, values := range rec {
+			assert.Equal(t, expectedResults[recNum][colName], values)
+		}
+	}
+}
+
+func Test_performMultiValueColRequestWithoutGroupby_DelimiterWithAllowEmptyValues(t *testing.T) {
+	recs := map[string]map[string]interface{}{
+		"1": {"senders": "john@example.com,jane@example.com,,doe@example.com"},
+		"2": {"senders": ",foo@example.com,,bar@example.com,"},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: ",",
+			IsRegex:         false,
+			AllowEmpty:      true,
+			Setsv:           false,
+		},
+	}
+
+	expectedResults := map[string]map[string][]string{
+		"1": {"senders": {"john@example.com", "jane@example.com", "", "doe@example.com"}},
+		"2": {"senders": {"", "foo@example.com", "", "bar@example.com", ""}},
+	}
+
+	err := performMultiValueColRequestWithoutGroupby(letColReq, recs)
+	assert.Nil(t, err)
+
+	// Verify the results
+	for recNum, rec := range recs {
+		for colName, values := range rec {
+			assert.Equal(t, expectedResults[recNum][colName], values)
+		}
+	}
+}
+
+func Test_performMultiValueColRequestWithoutGroupby_Setsv(t *testing.T) {
+	recs := map[string]map[string]interface{}{
+		"1": {"senders": "john@example.com jane@example.com  doe@example.com"},
+		"2": {"senders": "foo@example.com  bar@example.com"},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: " ",
+			IsRegex:         false,
+			AllowEmpty:      false,
+			Setsv:           true,
+		},
+	}
+
+	expectedResults := map[string]map[string]string{
+		"1": {"senders": "john@example.com jane@example.com doe@example.com"},
+		"2": {"senders": "foo@example.com bar@example.com"},
+	}
+
+	err := performMultiValueColRequestWithoutGroupby(letColReq, recs)
+	assert.Nil(t, err)
+
+	// Verify the results
+	for recNum, rec := range recs {
+		for colName, value := range rec {
+			assert.Equal(t, expectedResults[recNum][colName], value)
+		}
+	}
+}
+
+func Test_performMultiValueColRequestOnHistogram_OnlyDelimiter(t *testing.T) {
+
+	nodeRes := &structs.NodeResult{
+		Histogram: map[string]*structs.AggregationResult{
+			"1": {
+				Results: []*structs.BucketResult{
+					{
+						ElemCount: 1,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"john@example.com,jane@example.com,doe@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+					{
+						ElemCount: 2,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"foo@example.com,,bar@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+				},
+			},
+		},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: ",",
+			IsRegex:         false,
+			AllowEmpty:      false,
+			Setsv:           false,
+		},
+	}
+
+	expectedResults := make(map[uint64][]string)
+	expectedResults[1] = []string{`[ "john@example.com", "jane@example.com", "doe@example.com" ]`, "host@id.com"}
+
+	expectedResults[2] = []string{`[ "foo@example.com", "bar@example.com" ]`, "host@id.com"}
+
+	err := performMultiValueColRequestOnHistogram(nodeRes, letColReq)
+	assert.Nil(t, err)
+
+	for _, bucketResult := range nodeRes.Histogram["1"].Results {
+		assert.Equal(t, expectedResults[bucketResult.ElemCount], bucketResult.BucketKey)
+	}
+}
+
+func Test_performMultiValueColRequestOnHistogram_OnlyRegexDelimiter(t *testing.T) {
+	nodeRes := &structs.NodeResult{
+		Histogram: map[string]*structs.AggregationResult{
+			"1": {
+				Results: []*structs.BucketResult{
+					{
+						ElemCount: 1,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"john@example.com|jane@example.com|doe@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+					{
+						ElemCount: 2,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"foo@example.com||bar@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+				},
+			},
+		},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: `([^|]+)\|?`,
+			IsRegex:         true,
+			AllowEmpty:      false,
+			Setsv:           false,
+		},
+	}
+
+	expectedResults := make(map[uint64][]string)
+	expectedResults[1] = []string{`[ "john@example.com", "jane@example.com", "doe@example.com" ]`, "host@id.com"}
+	expectedResults[2] = []string{`[ "foo@example.com", "bar@example.com" ]`, "host@id.com"}
+
+	err := performMultiValueColRequestOnHistogram(nodeRes, letColReq)
+	assert.Nil(t, err)
+
+	for _, bucketResult := range nodeRes.Histogram["1"].Results {
+		assert.Equal(t, expectedResults[bucketResult.ElemCount], bucketResult.BucketKey)
+	}
+}
+
+func Test_performMultiValueColRequestOnHistogram_DelimiterWithAllowEmptyValues(t *testing.T) {
+	nodeRes := &structs.NodeResult{
+		Histogram: map[string]*structs.AggregationResult{
+			"1": {
+				Results: []*structs.BucketResult{
+					{
+						ElemCount: 1,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"john@example.com,jane@example.com,,doe@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+					{
+						ElemCount: 2,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							",foo@example.com,,bar@example.com,", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+				},
+			},
+		},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: ",",
+			IsRegex:         false,
+			AllowEmpty:      true,
+			Setsv:           false,
+		},
+	}
+
+	expectedResults := make(map[uint64][]string)
+	expectedResults[1] = []string{`[ "john@example.com", "jane@example.com", "", "doe@example.com" ]`, "host@id.com"}
+	expectedResults[2] = []string{`[ "", "foo@example.com", "", "bar@example.com", "" ]`, "host@id.com"}
+
+	err := performMultiValueColRequestOnHistogram(nodeRes, letColReq)
+	assert.Nil(t, err)
+
+	for _, bucketResult := range nodeRes.Histogram["1"].Results {
+		assert.Equal(t, expectedResults[bucketResult.ElemCount], bucketResult.BucketKey)
+	}
+}
+
+func Test_performMultiValueColRequestOnHistogram_Setsv(t *testing.T) {
+	nodeRes := &structs.NodeResult{
+		Histogram: map[string]*structs.AggregationResult{
+			"1": {
+				Results: []*structs.BucketResult{
+					{
+						ElemCount: 1,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"john@example.com jane@example.com  doe@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+					{
+						ElemCount: 2,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"foo@example.com  bar@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+				},
+			},
+		},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: " ",
+			IsRegex:         false,
+			AllowEmpty:      false,
+			Setsv:           true,
+		},
+	}
+
+	expectedResults := make(map[uint64][]string)
+	expectedResults[1] = []string{"john@example.com jane@example.com doe@example.com", "host@id.com"}
+	expectedResults[2] = []string{"foo@example.com bar@example.com", "host@id.com"}
+
+	err := performMultiValueColRequestOnHistogram(nodeRes, letColReq)
+	assert.Nil(t, err)
+
+	for _, bucketResult := range nodeRes.Histogram["1"].Results {
+		assert.Equal(t, expectedResults[bucketResult.ElemCount], bucketResult.BucketKey)
+	}
+}
