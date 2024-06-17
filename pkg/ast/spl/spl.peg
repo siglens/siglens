@@ -3501,6 +3501,7 @@ MakeMVBlock <- CMD_MAKEMV SPACE mvColOptionExpr: MVBlockOptionsList? EMPTY_OR_SP
         mvColExpr = &structs.MultiValueColLetRequest{}
     }
 
+    mvColExpr.Command = "makemv"
     mvColExpr.ColName = field.(string)
 
     if mvColExpr.DelimiterString == "" {
