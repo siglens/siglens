@@ -157,6 +157,38 @@ func initializeStatsOptions() *structs.StatsOptions {
     }
 }
 
+func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryAggregators, error) {
+
+    if inputField == "" {
+        inputField = "_raw"
+    }
+
+    spathExpr := &structs.SPathExpr{
+        InputColName: inputField,
+        Path: pathField,
+        OutputColName: outputField,
+    }
+    return &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                ValueColRequest: &structs.ValueExpr{
+                    ValueExprMode: structs.VEMStringExpr,
+                    StringExpr: &structs.StringExpr{
+                        StringExprMode: structs.SEMTextExpr,
+                        TextExpr: &structs.TextExpr{
+                            IsTerminal: true,
+                            Op: "spath",
+                            SPathExpr: spathExpr,
+                        },
+                    },
+                },
+                NewColName: outputField,
+            },
+        },
+    }, nil
+}
+
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
@@ -175,9 +207,20 @@ type TxnArgs struct {
 
 type TimechartArgs struct {
     singleAggExpr *singleAggTemp
-    // Todo: Add eval clause expr.
+    // TODO: Add eval clause expr.
     tcOptions     *structs.TcOptions
 }
+
+type MultiValueColOptionArgs struct {
+    argOption string
+    mvColExpr *structs.MultiValueColLetRequest
+}
+
+type SPathFieldExpr struct {
+    PathValue string
+    IsPathFieldName bool  
+}
+
 }
 
 Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
@@ -264,7 +307,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -510,7 +553,7 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
     
     timechartArgs := tcArgs.(*TimechartArgs)
     
-    // Todo: Should add || timechartArgs.evalExpr == nil
+    // TODO: Should add || timechartArgs.evalExpr == nil
     if timechartArgs.singleAggExpr == nil {
         return nil, fmt.Errorf("spl peg: timechart: either single-agg or eval-expression by split-by-clause is required")
     }
@@ -1289,6 +1332,7 @@ EvalExpression <- value:ValueExpr {
     return letColReq, nil
 }
 
+//TODO: implement the processing logic for: case, coalesce, validate, nullif
 ConditionExpr <- "if" L_PAREN condition:BoolExpr COMMA trueValue:ValueExpr COMMA falseValue:ValueExpr R_PAREN {
 
     node := &structs.ConditionExpr {
@@ -1300,64 +1344,111 @@ ConditionExpr <- "if" L_PAREN condition:BoolExpr COMMA trueValue:ValueExpr COMMA
 
     return node, nil
 }
-
-TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
+/ opName:("case" / "validate") L_PAREN pair:ConditionValuePair rest:(COMMA ConditionValuePair)* R_PAREN {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
-        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        return nil, fmt.Errorf("Spl peg: ConditionExpr: %v", err)
     }
-    node := &structs.TextExpr {
+    pairs := make([]*structs.ConditionValuePair, 1)
+    pairs[0] = pair.(*structs.ConditionValuePair)
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        for i := range restSlice {
+            ele := restSlice[i].([]any)
+            pairs = append(pairs, ele[1].(*structs.ConditionValuePair))
+        }
+    }
+
+    node := &structs.ConditionExpr {
         Op: opNameStr,
-        Value: stringExpr.(*structs.StringExpr),
-        StrToRemove: "",
+        ConditionValuePairs: pairs,
+    }
+
+    return node, nil
+}
+/ "coalesce" L_PAREN valueExpr:ValueExpr rest:(COMMA ValueExpr)* R_PAREN {
+    restSlice := rest.([]any)
+    valueList := make([]*structs.ValueExpr, 1 + len(restSlice))
+    valueList[0] = valueExpr.(*structs.ValueExpr)
+
+    for i := range restSlice {
+        valueAtom := restSlice[i].([]any)
+        valueList[i + 1] = valueAtom[1].(*structs.ValueExpr)
+    }
+
+    node := &structs.ConditionExpr {
+        Op: "coalesce",
+        ValueList: valueList,
+    }
+
+    return node, nil
+}
+/ "nullif" L_PAREN leftValue:ValueExpr COMMA rightValue:ValueExpr R_PAREN {
+    valueList := make([]*structs.ValueExpr, 2)
+    valueList[0] = leftValue.(*structs.ValueExpr)
+    valueList[1] = rightValue.(*structs.ValueExpr)
+
+    node := &structs.ConditionExpr {
+        Op: "nullif",
+        ValueList: valueList,
     }
 
     return node, nil
 }
 
-/ (opName:("max" / "min") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN )
-      {
-        opNameStr, err := transferUint8ToString(opName)
-        if err != nil {
-            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-        }
-        if rest == nil {
-            return firstVal, nil
-        }
-        restSlice := rest.([]any)
-        values := make([]*structs.StringExpr, 1 + len(restSlice))
-        values[0] = firstVal.(*structs.StringExpr)
+ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
+    conditionValuePair := &structs.ConditionValuePair {
+        Condition: condition.(*structs.BoolExpr),
+        Value: value.(*structs.ValueExpr),
+    }
+    return conditionValuePair, nil
+}
 
-        for i := range restSlice {
-            stringAtom := restSlice[i].([]any)
-            values[i + 1] = stringAtom[1].(*structs.StringExpr)
-        }
-        node := &structs.TextExpr {
-            Op: opNameStr,
-            MaxMinValues: values,
-        }
-        return node, nil
-      }
-/ (opName:("urldecode") L_PAREN url:StringExpr R_PAREN ){
-        opNameStr, err := transferUint8ToString(opName)
+//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim
+// mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
+TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
+    opNameStr, err := transferUint8ToString(opName)
         if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
-        node := &structs.TextExpr {
-            Op: opNameStr,
-            Value: url.(*structs.StringExpr),
-            StrToRemove: "",
-        }
-        return node, nil
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Param: stringExpr.(*structs.StringExpr),
+        StrToRemove: "",
     }
-/ (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
+    return node, nil
+}
+/ (opName:("max" / "min" / "mvappend" / "mvfind") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    if rest == nil {
+        return firstVal, nil
+    }
+    restSlice := rest.([]any)
+    values := make([]*structs.StringExpr, 1 + len(restSlice))
+    values[0] = firstVal.(*structs.StringExpr)
+
+    for i := range restSlice {
+        stringAtom := restSlice[i].([]any)
+        values[i + 1] = stringAtom[1].(*structs.StringExpr)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        ValueList: values,
+    }
+    return node, nil
+}
+/ (opName:("split" / "mvjoin") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExpr.(*structs.StringExpr),
+        Param: stringExpr.(*structs.StringExpr),
         Delimiter: delim.(*structs.StringExpr),
     }
     return node, nil
@@ -1367,15 +1458,7 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
-    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr")
-    }
-    startIndexConverted, ok := startIndex.(*structs.NumericExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert startIndex as *structs.NumericExpr")
-    }
-  var lengthConverted *structs.NumericExpr
+    var lengthConverted *structs.NumericExpr
     if lengthParam != nil {
         lengthSlice, ok := lengthParam.([]interface{})
         if ok && len(lengthSlice) > 1 {
@@ -1389,13 +1472,13 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     }
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExprConverted,
-        StartIndex: startIndexConverted,
+        Param: stringExpr.(*structs.StringExpr),
+        StartIndex: startIndex.(*structs.NumericExpr),
         LengthExpr: lengthConverted,
     }
     return node, nil
 }
-/ "tostring" L_PAREN value:ValueExpr format:(COMMA StringExpr )? R_PAREN {
+/ "tostring" L_PAREN value:ValueExpr format:(COMMA StringExpr)? R_PAREN {
     var formatExpr *structs.StringExpr
     if format != nil {
         formatSlice := format.([]interface{})
@@ -1405,18 +1488,13 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
         IsTerminal: false,
         Op:         "tostring",
         Val:        value.(*structs.ValueExpr),
-        Format:     formatExpr,
+        Param:     formatExpr,
     }, nil
 }
-/ (opName:("ltrim" / "rtrim") L_PAREN expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? R_PAREN) {
+/ (opName:("ltrim" / "rtrim" / "trim") L_PAREN expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-    }
-
-    stringExpr, ok := expr.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert expr as *structs.StringExpr: %v", err)
     }
 
     strToRemove := " \t"
@@ -1426,11 +1504,262 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
 
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExpr,
+        Param: expr.(*structs.StringExpr),
         StrToRemove: removeQuotes(strToRemove),
     }
 
     return node, nil
+}
+/ "spath" L_PAREN inputField:FieldNameStartWith_ COMMA path:(QuotedPathString / UnquotedPathValue) R_PAREN {
+    pathExpr := path.(*SPathFieldExpr)
+    return &structs.TextExpr{
+        Op: "spath",
+        SPathExpr: &structs.SPathExpr{
+            InputColName: inputField.(string),
+            Path: pathExpr.PathValue,
+            IsPathFieldName: pathExpr.IsPathFieldName,
+        },
+    }, nil
+}
+/ "ipmask" L_PAREN mask:StringExpr COMMA ip:ValueExpr R_PAREN {
+    return &structs.TextExpr{
+        Op: "ipmask",
+        Val: ip.(*structs.ValueExpr),
+        Param: mask.(*structs.StringExpr),
+    }, nil
+}
+/ "object_to_array" L_PAREN obj:ValueExpr COMMA key:QuotedString COMMA value:QuotedString R_PAREN {
+    stringExpr := &structs.StringExpr {
+        StringExprMode: structs.SEMRawStringList,
+        StringList: []string{key.(string), value.(string)},
+    }
+    return &structs.TextExpr{
+        Op: "object_to_array",
+        Val: obj.(*structs.ValueExpr),
+        Param: stringExpr,
+    }, nil
+}
+/ "printf" L_PAREN format:StringExpr rest:(COMMA StringExpr)* R_PAREN {
+    textExpr := &structs.TextExpr{
+        Op: "printf",
+        Param: format.(*structs.StringExpr),
+    }
+    if rest != nil {
+        restSlice := rest.([]any)
+        valueList := make([]*structs.StringExpr, len(restSlice))
+
+        for i := range restSlice {
+            valueAtom := restSlice[i].([]any)
+            valueList[i] = valueAtom[1].(*structs.StringExpr)
+        }
+        textExpr.ValueList = valueList
+    }
+
+    return textExpr, nil
+}
+/ "tojson" L_PAREN containInternalFields:(("true" / "false") "()")? R_PAREN {
+    expr := &structs.StringExpr {
+        StringExprMode: structs.SEMRawString,
+        RawString: "true", // default value
+    }
+
+    if containInternalFields != nil {
+        restSlice := containInternalFields.([]any)
+        containInternalFieldsStr, err := transferUint8ToString(restSlice[0])
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        }
+        if containInternalFieldsStr == "false" {
+            expr.RawString = "false"
+        }
+    }
+
+    return &structs.TextExpr{
+        Op: "tojson",
+        Param: expr,
+    }, nil
+}
+/ (opName:("mvfilter") L_PAREN condition:BoolExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to recognize operator: %v, err= %v", opName, err)
+    }
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Condition: condition.(*structs.BoolExpr),
+    }
+
+    return node, nil
+}
+/ (opName:("mvindex") L_PAREN stringExpr:StringExpr COMMA startIndex:NumericExpr endIndex:(NumericParamExpr)? R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Param: stringExpr.(*structs.StringExpr),
+        StartIndex: startIndex.(*structs.NumericExpr),
+    }
+    if endIndex != nil {
+        node.EndIndex = endIndex.(*structs.NumericExpr)
+    }
+
+    return node, nil
+}
+/ (opName:("mvmap") L_PAREN stringExpr:StringExpr COMMA expr:ValueExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Val: expr.(*structs.ValueExpr),
+        Param: stringExpr.(*structs.StringExpr),
+    }
+
+    return node, nil
+}
+/ (opName:("mvrange") L_PAREN startIndex:NumericExpr COMMA endIndex:NumericExpr COMMA stringExpr:(StringExpr)? R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        StartIndex: startIndex.(*structs.NumericExpr),
+        EndIndex: endIndex.(*structs.NumericExpr),
+    }
+    if stringExpr != nil {
+        node.Param = stringExpr.(*structs.StringExpr)
+    }
+
+    return node, nil
+}
+/ (opName:("mvzip") L_PAREN mvLeft:StringExpr COMMA mvRight:StringExpr rest:(COMMA StringExpr)? R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    values := make([]*structs.StringExpr, 2)
+    values[0] = mvLeft.(*structs.StringExpr)
+    values[1] = mvRight.(*structs.StringExpr)
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        ValueList: values,
+    }
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        node.Delimiter = restSlice[1].(*structs.StringExpr)
+    }
+
+    return node, nil
+}
+/ (opName:("mv_to_json_array") L_PAREN stringExpr:StringExpr rest:(COMMA ("true" / "false") "()")? R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Param: stringExpr.(*structs.StringExpr),
+        InferTypes: false, // default value
+    }
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        inferTypes, err := transferUint8ToString(restSlice[1])
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        }
+        if inferTypes == "true" {
+            node.InferTypes = true
+        }
+    }
+
+    return node, nil
+}
+/ "cluster" L_PAREN field:EvalFieldToRead threshold:(COMMA "threshold:" FloatAsString)? match:(COMMA "match:" ("termlist" / "termset" / "ngramset"))? delims:(COMMA "delims:" QuotedString)? R_PAREN {
+    textExpr := &structs.TextExpr {
+        Op: "cluster",
+    }
+
+    cluster := &structs.Cluster {
+        Field: field.(string),
+        Threshold: 0.8,
+        Match: "termlist",
+    }
+
+    if threshold != nil {
+        slice := threshold.([]interface{})
+        thresholdStr := slice[2].(string)
+        val, err := strconv.ParseFloat(thresholdStr, 64)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: invalid threshold: %v", thresholdStr)
+        }
+        cluster.Threshold = val
+    }
+
+    if match != nil {
+        slice := match.([]interface{})
+        matchStr, err := transferUint8ToString(slice[2])
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        }
+        cluster.Match = matchStr
+    }
+
+    if delims != nil {
+        slice := delims.([]interface{})
+        delimsStr := slice[2].(string)
+        cluster.Delims = delimsStr
+    }
+
+    textExpr.Cluster = cluster
+
+    return textExpr, nil
+}
+/ "getfields" L_PAREN filter:(StringExpr)? R_PAREN {
+    textExpr := &structs.TextExpr {
+        Op: "getfields",
+    }
+
+    if filter != nil {
+        textExpr.Param = filter.(*structs.StringExpr)
+    }
+
+    return textExpr, nil
+}
+/ "typeof" L_PAREN valueExpr:ValueExpr R_PAREN {
+    return &structs.TextExpr {
+        Op: "typeof",
+        Val: valueExpr.(*structs.ValueExpr),
+    }, nil
+}
+/ "replace" L_PAREN val:ValueExpr COMMA regex:StringExpr COMMA replacement:StringExpr R_PAREN {
+    return &structs.TextExpr {
+        Op: "replace",
+        Val: val.(*structs.ValueExpr),
+        ValueList: []*structs.StringExpr{regex.(*structs.StringExpr), replacement.(*structs.StringExpr)},
+    }, nil
+}
+
+QuotedPathString <- str:QuotedString {
+    return &SPathFieldExpr{
+        PathValue: removeQuotes(str),
+        IsPathFieldName: false,
+    }, nil
+}
+
+UnquotedPathValue <- str:UnquotedString {
+    return &SPathFieldExpr{
+        PathValue: removeQuotes(str),
+        IsPathFieldName: true,
+    }, nil
 }
 
 StrToRemoveExpr <- COMMA strToRemove:String {
@@ -1522,7 +1851,12 @@ BoolExprLevel2 <- NOT L_PAREN first:BoolExprLevel1 R_PAREN {
 BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
     return first, nil
 }
-/ (op:("isbool" / "isint" / "isstr" / "isnull") L_PAREN value:ValueExpr R_PAREN ) {
+/ expr: (EvalComparisonExpr / BoolComparisonExpr) {
+    return expr, nil
+}
+
+//TODO: implement the processing logic for: searchmatch, isnotnull, isnum
+EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "isnotnull" / "isnum" / "searchmatch") L_PAREN value:ValueExpr R_PAREN ) {
     opNameStr, err := transferUint8ToString(op)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
@@ -1535,65 +1869,20 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
     }
     return expr, nil
 }
-/ likeExpr: LikeExpr {
-    return likeExpr, nil
-}
-LikeExpr <- left:ValueExpr SPACE "LIKE" SPACE right:ValueExpr {
+/ opName:("like" / "Like" / "match" / "cidrmatch") L_PAREN leftValue:ValueExpr COMMA rightValue:ValueExpr R_PAREN {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
+    }
     expr := &structs.BoolExpr {
         IsTerminal: true,
-        LeftValue: left.(*structs.ValueExpr),
-        RightValue: right.(*structs.ValueExpr),
-        ValueOp: "like",
+        LeftValue: leftValue.(*structs.ValueExpr),
+        RightValue: rightValue.(*structs.ValueExpr),
+        ValueOp: opNameStr,
     }
     return expr, nil
 }
-/ "like" L_PAREN stringr:ValueExpr COMMA pattern:ValueExpr R_PAREN {
-     expr := &structs.BoolExpr {
-         IsTerminal: true,
-         LeftValue: stringr.(*structs.ValueExpr),
-         RightValue: pattern.(*structs.ValueExpr),
-         ValueOp: "like",
-     }
-     return expr, nil
- }
-/ "match" L_PAREN stringVal:ValueExpr COMMA pattern:ValueExpr R_PAREN {
-     expr := &structs.BoolExpr {
-         IsTerminal: true,
-         LeftValue: stringVal.(*structs.ValueExpr),
-         RightValue: pattern.(*structs.ValueExpr),
-         ValueOp: "match",
-     }
-     return expr, nil
- }
-/ "cidrmatch" L_PAREN cidr:ValueExpr COMMA ip:ValueExpr R_PAREN {
-    expr := &structs.BoolExpr {
-        IsTerminal: true,
-        LeftValue: cidr.(*structs.ValueExpr),
-        RightValue: ip.(*structs.ValueExpr),
-        ValueOp: "cidrmatch",
-    }
-    return expr, nil
-}
-/ inExpr: InExpr {
-    return inExpr, nil
-}
-/ boolComparisonExpr:BoolComparisonExpr {
-    return boolComparisonExpr, nil
-}
-
-BoolComparisonExpr <- left:ValueExpr op:EqualityOrInequality right:ValueExpr {
-    expr := &structs.BoolExpr {
-        IsTerminal: true,
-        LeftValue: left.(*structs.ValueExpr),
-        RightValue: right.(*structs.ValueExpr),
-        ValueOp: op.(string),
-    }
-
-    return expr, nil
-}
-
-
-InExpr <- left:ValueExpr SPACE "in" L_PAREN valueToJudge:ValueExpr rest:(COMMA ValueExpr)* R_PAREN {
+/ left:ValueExpr SPACE "in" L_PAREN valueToJudge:ValueExpr rest:(COMMA ValueExpr)* R_PAREN {
     restSlice := rest.([]any)
     slice := make([]*structs.ValueExpr, 1 + len(restSlice))
     slice[0] = valueToJudge.(*structs.ValueExpr)
@@ -1627,6 +1916,17 @@ InExpr <- left:ValueExpr SPACE "in" L_PAREN valueToJudge:ValueExpr rest:(COMMA V
         ValueList: slice,
         ValueOp: "in",
     }
+    return expr, nil
+}
+
+BoolComparisonExpr <- left:ValueExpr op:EqualityOrInequality right:ValueExpr {
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: left.(*structs.ValueExpr),
+        RightValue: right.(*structs.ValueExpr),
+        ValueOp: op.(string),
+    }
+
     return expr, nil
 }
 
@@ -1825,7 +2125,7 @@ NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv) NumericExprLe
     return cur, nil
 }
 
-RoundPrecisionExpr <- COMMA expr:NumericExprLevel3 {
+NumericParamExpr <- COMMA expr:NumericExprLevel3 {
     rightNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1862,8 +2162,9 @@ NumericExprLevel1 <- L_PAREN expr:NumericExprLevel3 R_PAREN {
     return expr, nil
 }
 
+// Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random
 //Currently involves abs, ceil, round, sqrt
-NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
+NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" / "floor" / "ln" / "sigfig") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1883,7 +2184,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
 
     return node, nil
 }
-/ roundExpr:"round" L_PAREN expr:(NumericExprLevel3) roundPrecision:(RoundPrecisionExpr)? R_PAREN {
+/ roundExpr:"round" L_PAREN expr:(NumericExprLevel3) roundPrecision:(NumericParamExpr)? R_PAREN {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1904,10 +2205,17 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
 
     return node, nil
 }
-/ "now" "()" {
+/ (opName:("now" / "pi" / "random") L_PAREN R_PAREN) {
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
     return &structs.NumericExpr{
         IsTerminal: true,
-        Op:         "now",
+        Op: opNameStr,
     }, nil
 }
 / "tonumber" L_PAREN stringExpr:StringExpr baseExpr:(COMMA NumericExprLevel3)? R_PAREN {
@@ -1940,6 +2248,36 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
 }
 / lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
     return expr, nil
+}
+/ (opName:("log" / "pow") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
+    leftNumericExpr, ok := expr.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
+    }
+
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
+
+    var rightNumericExpr *structs.NumericExpr
+    if param == nil {
+        return nil, fmt.Errorf("Function: %v 's param can not be nil", opNameStr)
+    }
+    rightNumericExpr, ok = param.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert param as *structs.NumericExpr")
+    }
+
+    node, err := createNumericExpr(opNameStr, leftNumericExpr, rightNumericExpr, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+
+    return node, nil
 }
 
 LenExpr <- str:QuotedString !(EVAL_CONCAT) {
@@ -2843,6 +3181,10 @@ FieldName <- [a-zA-Z0-9:*][a-zA-Z0-9:_.*]* {
     return string(c.text), nil
 }
 
+FieldNameStartWith_ <- [a-zA-Z0-9:_.*][a-zA-Z0-9:_.*]* {
+    return string(c.text), nil
+}
+
 String <- str:(QuotedString / UnquotedString) {
     return str, nil
 }
@@ -2852,15 +3194,22 @@ QuotedString <- '"' [^"]* '"' {
     return string(c.text), nil
 }
 
-Boolean <- ("true" / "false") {
-    boolValue, _ := strconv.ParseBool(string(c.text))
-    return boolValue, nil
-}
-
 UnquotedString <- ("*" / (!(MAJOR_BREAK / "|" / EOF) .))+ {
     // Return the string wrapped in quotes.
     str := "\"" + string(c.text) + "\""
     return str, nil
+}
+
+
+AllowedChar <- [a-zA-Z0-9:_{}@.] / ("{" [0-9]* "}")
+
+UnquotedStringWithTemplateWildCard <- (AllowedChar / !(MAJOR_BREAK / "|" / EOF) .)+ {
+    return string(c.text), nil
+}
+
+Boolean <- ("true" / "false") {
+    boolValue, _ := strconv.ParseBool(string(c.text))
+    return boolValue, nil
 }
 
 //Can recognize fieldName or Regex Pattern for Rename Block
@@ -3118,9 +3467,200 @@ TransactionEval <- "eval" EMPTY_OR_SPACE L_PAREN condition:BoolExpr R_PAREN {
     return filterStrExpr, nil
 }
 
+// Returns *structs.QueryAggregators
+// Can Add more Multi Value StandAlone Commands by setting => mvQueryAggNode: (MakeMVBlock / MVCombineBlock / ...)
+MultiValueBlock <- PIPE mvQueryAggNode: (MakeMVBlock) {
+    return mvQueryAggNode, nil
+}
+
+MakeMVBlock <- CMD_MAKEMV SPACE mvColOptionExpr: MVBlockOptionsList? EMPTY_OR_SPACE field:FieldName {
+    var mvColExpr *structs.MultiValueColLetRequest
+
+    if mvColOptionExpr != nil {
+        mvColExpr = mvColOptionExpr.(*structs.MultiValueColLetRequest)
+    } else {
+        mvColExpr = &structs.MultiValueColLetRequest{}
+    }
+
+    mvColExpr.ColName = field.(string)
+
+    if mvColExpr.DelimiterString == "" {
+        mvColExpr.DelimiterString = " "  // default single space
+    }
+
+    queryAgg := &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                MultiValueColRequest: mvColExpr,
+            },
+        },
+    }
+
+    return queryAgg, nil
+}
+
+MVBlockOptionsList <- first: (MVBlockOption) rest: (SPACE MVBlockOption)* {
+    restSlice := rest.([]any)
+
+    numOptions := 1 + len(restSlice)
+
+    mvColExpr := &structs.MultiValueColLetRequest{}
+
+    for i := 0; i < numOptions; i++ {
+        var currMvColExpr *MultiValueColOptionArgs
+        if i == 0 {
+            currMvColExpr = first.(*MultiValueColOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            currMvColExpr = separator[1].(*MultiValueColOptionArgs)
+        }
+
+        argOption := currMvColExpr.argOption
+
+        switch argOption {
+            case "delimiter":
+                mvColExpr.DelimiterString = currMvColExpr.mvColExpr.DelimiterString
+                mvColExpr.IsRegex = currMvColExpr.mvColExpr.IsRegex
+            case "allowempty":
+                mvColExpr.AllowEmpty = currMvColExpr.mvColExpr.AllowEmpty
+            case "setsv":
+                mvColExpr.Setsv = currMvColExpr.mvColExpr.Setsv
+            default:
+                return nil, fmt.Errorf("Not a Valid MVBlockOption: %v", argOption)
+        }
+    }
+
+    return mvColExpr, nil
+}
+
+MVBlockOption <- option: (DelimOption / AllowEmptyOption / SetSvOption) {
+    return option, nil
+}
+
+DelimOption <- delimExpr: (StringDelimiter / RegexDelimiter) {
+    return delimExpr, nil
+}
+
+StringDelimiter <- "delim" EQUAL str:QuotedString {
+    mvColOptionArgs := &MultiValueColOptionArgs{
+        argOption: "delimiter",
+        mvColExpr : &structs.MultiValueColLetRequest{
+            DelimiterString: removeQuotes(str),
+        },
+    }
+
+    return mvColOptionArgs, nil
+}
+
+RegexDelimiter <- "tokenizer" EQUAL str:QuotedString {
+    pattern := removeQuotes(str)
+    _, err := regexp.Compile(pattern)
+    if err != nil {
+        return nil, fmt.Errorf("Error parsing tokenizer regular expression: %v. Error: %v", pattern, err)
+    }
+
+    mvColOptionArgs := &MultiValueColOptionArgs{
+        argOption: "delimiter",
+        mvColExpr: &structs.MultiValueColLetRequest{
+            DelimiterString: pattern,
+            IsRegex: true,
+        },
+    }
+
+    return mvColOptionArgs, nil
+}
+
+AllowEmptyOption <- "allowempty" EQUAL boolVal:Boolean {
+
+    mvColOptionArgs := &MultiValueColOptionArgs{
+        argOption: "allowempty", 
+        mvColExpr: &structs.MultiValueColLetRequest{
+            AllowEmpty: boolVal.(bool),
+        },
+    }
+
+    return mvColOptionArgs, nil
+}
+
+SetSvOption <- "setsv" EQUAL boolVal:Boolean {
+    mvColOptionArgs := &MultiValueColOptionArgs{
+        argOption: "setsv",
+        mvColExpr: &structs.MultiValueColLetRequest{
+            Setsv: boolVal.(bool),
+        },
+    }
+
+    return mvColOptionArgs, nil
+}
+
+// returns *structs.QueryAggregators
+SPathBlock <- PIPE CMD_SPATH spathExpr:SPathArgumentsList? {
+    if spathExpr == nil {
+        return createSPathExpr("", "", "")
+    }
+    return spathExpr, nil
+}
+
+SPathArgumentsList <- SPACE first:SPathArgument rest:(SPACE SPathArgument)* {
+
+    restSlice := rest.([]any)
+
+    inputField, pathField, outputField := "", "", ""
+
+    numArgs := 1 + len(restSlice)
+
+    for i := 0; i < numArgs; i++ {
+        var arg string
+        if i == 0 {
+            arg = first.(string)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            arg = separator[1].(string)
+        }
+
+        switch {
+        case strings.HasPrefix(arg, "input="):
+            inputField = strings.TrimPrefix(arg, "input=")
+        case strings.HasPrefix(arg, "output="):
+            outputField = strings.TrimPrefix(arg, "output=")
+        case strings.HasPrefix(arg, "path="):
+            pathField = strings.TrimPrefix(arg, "path=")
+        default:
+            return nil, fmt.Errorf("SPathArguments: Invalid Spath Argument: %v", arg)
+        }
+    }
+    
+    return createSPathExpr(inputField, pathField, outputField)
+}
+
+SPathArgument <- arg:(InputField / OutputField / PathField) {
+    return arg, nil
+}
+
+InputField <- "input" EQUAL field:FieldName {
+    return "input=" + field.(string), nil
+}
+OutputField <- "output" EQUAL field:FieldName {
+    return "output=" + field.(string), nil
+}
+PathField <- ("path" EQUAL SPathFieldString / SPathFieldString ) {
+     pathField := string(c.text)
+    if strings.HasPrefix(pathField, "path") {
+        pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path="))
+        pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path ="))
+        if pathField != "" && pathField[0] == '"' {
+            pathField = removeQuotes(pathField)
+        }
+    }
+    return "path=" + pathField, nil
+}
+
+SPathFieldString <- QuotedString / UnquotedStringWithTemplateWildCard
+
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -3139,6 +3679,8 @@ CMD_SPAN <- "span"
 CMD_TRANSACTION <- "transaction" SPACE
 CMD_DEDUP <- "dedup"
 CMD_DEDUP_SORTBY <- SPACE "sortby" SPACE
+CMD_MAKEMV <- "makemv"
+CMD_SPATH <- "spath"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

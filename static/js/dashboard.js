@@ -26,6 +26,7 @@ let panelContainer;
 let panelContainerWidthGlobal;
 let originalIndexValues = [];
 let indexValues = [];
+let isDefaultDashboard = false;
 $(document).ready(async function () {
     let indexes = await getListIndices();
     if (indexes){
@@ -43,6 +44,10 @@ $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
     setupEventHandlers();
     dbId = getDashboardId();
+    if (defaultDashboardIds.includes(dbId)) {
+        isDefaultDashboard = true;
+        $('#save-db-btn, #add-panel-btn, #add-widget-options .editPanelMenu').hide();
+    }
 
     $("#add-panel-btn, .close-widget-popup").click(() => {
       
@@ -511,16 +516,26 @@ function displayPanels() {
 
     localPanels.forEach((localPanel) => {
         let idpanel = localPanel.panelId;
-        
-        var newItem = grid.addWidget(`<div class="grid-stack-item" id="${idpanel}"><div class="grid-stack-item-content"></div></div>`, {
+        let widgetOptions = {
             width: parseInt(localPanel.gridpos.w),
             height: parseInt(localPanel.gridpos.h),
             x: parseInt(localPanel.gridpos.y),
-            y: parseInt(localPanel.gridpos.x)
-        });
-        
+            y: parseInt(localPanel.gridpos.x),
+        };
+        if(isDefaultDashboard){
+            widgetOptions.noResize = true;
+            widgetOptions.noMove = true;
+        }
+        var newItem = grid.addWidget(`<div class="grid-stack-item" id="${idpanel}"><div class="grid-stack-item-content"></div></div>`,
+            widgetOptions
+        );
+        let panelDiv;
         // Append panel layout to the new grid-stack-item
-        var panelDiv = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", localPanel.panelIndex);
+        if (isDefaultDashboard) {
+            panelDiv = $("<div>").append(defaultPanelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", localPanel.panelIndex);
+        }else{
+            panelDiv = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", localPanel.panelIndex);
+        }
         newItem.firstChild.appendChild(panelDiv[0]);
 
         $("#panel" + idpanel).on('mouseenter',function(){
@@ -622,8 +637,10 @@ function displayPanels() {
     if(allResultsDisplayed === 0) {
         $('body').css('cursor', 'default');
     }
-    
-    addDefaultPanel();
+    // Remove the Add Panel Widgets from the default dashboards
+    if (!isDefaultDashboard) {
+        addDefaultPanel();
+    }
 }   
 
 function showToast(msg) {
@@ -664,6 +681,21 @@ var panelLayout =
                 '<li data-value="remove" class="panel-remove-li"><span class="remove"></span>Remove</li>' +
                 '</ul>' +
             '</div>' +
+        '</div>' +
+    '</div>' +
+    `<div class="panel-body">
+    <div class="panEdit-panel"></div>
+    </div>
+    <div class="panel-info-corner"><i class="fa fa-info" aria-hidden="true" id="panel-desc-info"></i></div>
+`;
+
+var defaultPanelLayout =
+    '<div class="panel-header">' +
+        '<div>'+
+            '<p>Panel Title</p>'+
+        '</div>' +
+        '<div class="panel-icons">'+
+            '<div><img src="../assets/resize-icon.svg" alt="" class="panel-view-li" /></div>'+
         '</div>' +
     '</div>' +
     `<div class="panel-body">
@@ -885,8 +917,11 @@ function addDuplicatePanel(panelToDuplicate) {
     handlePanelRemove(idpanel);
     handlePanelDuplicate();
     $(`#panel${idpanel}`).get(0).scrollIntoView({ behavior: 'smooth' });
-
-    addDefaultPanel();
+    
+    // Remove the Add Panel Widgets from the default dashboards
+    if (!isDefaultDashboard) {
+        addDefaultPanel();
+    }
 }
 
 function addDefaultPanel(){
@@ -942,25 +977,12 @@ function handleDbSettings() {
         }), null, 2))
     })
 
-    $.ajax({
-        method: "get",
-        url: "api/dashboards/defaultlistall",
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
-        },
-        dataType: 'json',
-        crossDomain: true,
-    }).then(function (res) {
-        for (let [key, value] of Object.entries(res)) {
-            if (key == dbId ){
-                $(".dbSet-dbName").prop('readonly', true);
-                $('.dbSet-dbDescr').prop('readonly', true);
-		    
-                break
-            }
-        }
-    })
+    if (isDefaultDashboard) {
+        $(".dbSet-dbName").prop('readonly', true);
+        $('.dbSet-dbDescr').prop('readonly', true);
+
+        $('#dbSet-discard,#dbSet-save').hide();
+    }
 
     //get dashboard data from database
     $.ajax({

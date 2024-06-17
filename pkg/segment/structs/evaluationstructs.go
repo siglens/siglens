@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"math/rand"
 	"net"
 	"net/url"
 	"regexp"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/dustin/go-humanize"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/siglens/siglens/pkg/segment/utils"
 )
@@ -163,7 +165,7 @@ type NumericExpr struct {
 	Value        string
 
 	// Only used when IsTerminal is false.
-	Op    string // Either +, -, /, *, abs, ceil, round, sqrt, len
+	Op    string // Including arithmetic, mathematical and text functions ops
 	Left  *NumericExpr
 	Right *NumericExpr
 	Val   *StringExpr
@@ -172,29 +174,41 @@ type NumericExpr struct {
 type StringExpr struct {
 	StringExprMode StringExprMode
 	RawString      string      // only used when mode is RawString
+	StringList     []string    // only used when mode is RawStringList
 	FieldName      string      // only used when mode is Field
 	ConcatExpr     *ConcatExpr // only used when mode is Concat
 	TextExpr       *TextExpr   // only used when mode is TextExpr
 }
 
 type TextExpr struct {
-	IsTerminal   bool
-	Op           string //lower, ltrim, rtrim
-	Value        *StringExpr
-	StrToRemove  string
-	Delimiter    *StringExpr
-	MaxMinValues []*StringExpr
-	StartIndex   *NumericExpr
-	LengthExpr   *NumericExpr
-	Val          *ValueExpr
-	Format       *StringExpr
+	IsTerminal  bool
+	Op          string //lower, ltrim, rtrim
+	Param       *StringExpr
+	StrToRemove string
+	Delimiter   *StringExpr
+	ValueList   []*StringExpr
+	StartIndex  *NumericExpr
+	EndIndex    *NumericExpr
+	LengthExpr  *NumericExpr
+	Val         *ValueExpr
+	Condition   *BoolExpr  // To filter out values that do not meet the criteria within a multivalue field
+	InferTypes  bool       // To specify that the mv_to_json_array function should attempt to infer JSON data types when it converts field values into array elements.
+	Cluster     *Cluster   // generates a cluster label
+	SPathExpr   *SPathExpr // To extract information from the structured data formats XML and JSON.
 }
 
 type ConditionExpr struct {
-	Op         string //if
-	BoolExpr   *BoolExpr
-	TrueValue  *ValueExpr //if bool expr is true, take this value
-	FalseValue *ValueExpr
+	Op                  string //if, case, coalesce
+	BoolExpr            *BoolExpr
+	TrueValue           *ValueExpr //if bool expr is true, take this value
+	FalseValue          *ValueExpr
+	ConditionValuePairs []*ConditionValuePair
+	ValueList           []*ValueExpr
+}
+
+type ConditionValuePair struct {
+	Condition *BoolExpr
+	Value     *ValueExpr
 }
 
 type TimechartExpr struct {
@@ -244,6 +258,13 @@ type SplitByClause struct {
 	// Where clause: to be finished
 }
 
+type Cluster struct {
+	Field     string
+	Threshold float64
+	Match     string // termlist, termset, ngramset
+	Delims    string
+}
+
 // This structure is used to store values which are not within limit. And These values will be merged into the 'other' category.
 type TMLimitResult struct {
 	ValIsInLimit     map[string]bool
@@ -251,6 +272,14 @@ type TMLimitResult struct {
 	Hll              *hyperloglog.Sketch
 	StrSet           map[string]struct{}
 	OtherCValArr     []*utils.CValueEnclosure
+}
+
+// To extract information from the structured data formats XML and JSON.
+type SPathExpr struct {
+	InputColName    string // default is set to _raw
+	Path            string // the path to the field from which the values need to be extracted.
+	IsPathFieldName bool   // If true, the path is the field name and the value is the field value
+	OutputColName   string // the name of the column in the output table to which the extracted values will be written. By Default it is set the same as the path.
 }
 
 type BoolOperator uint8
@@ -295,10 +324,11 @@ const (
 type StringExprMode uint8
 
 const (
-	SEMRawString  = iota // only used when mode is RawString
-	SEMField             // only used when mode is Field
-	SEMConcatExpr        // only used when mode is Concat
-	SEMTextExpr          // only used when mode is TextExpr
+	SEMRawString     = iota // only used when mode is RawString
+	SEMRawStringList        // only used when mode is RawStringList
+	SEMField                // only used when mode is Field
+	SEMConcatExpr           // only used when mode is Concat
+	SEMTextExpr             // only used when mode is TextExpr
 )
 
 type NumericExprMode uint8
@@ -331,6 +361,16 @@ func (self *SortExpr) ReleaseProcessedSegmentsLock() {
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
 func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
+	// TODO: Implement the operator in the switch cases below, and replace the if statements with case statements
+	switch self.ValueOp {
+	case "searchmatch":
+		fallthrough
+	case "isnotnull":
+		fallthrough
+	case "isnum":
+		return false, fmt.Errorf("BoolExpr.Evaluate: does support using this operator: %v", self.ValueOp)
+	}
+
 	if self.IsTerminal {
 		if self.ValueOp == "in" {
 			inFlag, err := isInValueList(fieldToValue, self.LeftValue, self.ValueList)
@@ -1159,14 +1199,24 @@ func GetRenameGroupByCols(aggGroupByCols []string, agg *QueryAggregators) []stri
 	return aggGroupByCols
 }
 
+func handleNoArgFunction(op string) (float64, error) {
+	switch op {
+	case "now":
+		return float64(time.Now().Unix()), nil
+	case "random":
+		return float64(rand.Int31()), nil
+	case "pi":
+		return math.Pi, nil
+	default:
+		log.Errorf("handleNoArgFunction: Unsupported no argument function: %v", op)
+		return 0, fmt.Errorf("handleNoArgFunction: Unsupported no argument function: %v", op)
+	}
+}
+
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
 func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (float64, error) {
-	if self.Op == "now" {
-		timestamp := time.Now().Unix()
-		return float64(timestamp), nil
-	}
 	if self.IsTerminal {
 		if self.ValueIsField {
 			switch self.NumericExprMode {
@@ -1178,6 +1228,13 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 		} else {
 			switch self.NumericExprMode {
 			case NEMNumber:
+				if self.Op != "" {
+					if self.Value != "" {
+						return 0, fmt.Errorf("NumericExpr.Evaluate: Error calling no argument function: %v, value: %v", self.Op, self.Value)
+					}
+					return handleNoArgFunction(self.Op)
+				}
+
 				value, err := strconv.ParseFloat(self.Value, 64)
 				if err != nil {
 					return 0, fmt.Errorf("NumericExpr.Evaluate: cannot convert %v to float", self.Value)
@@ -1279,12 +1336,45 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 }
 
 func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+	// Todo: implement the processing logic for these functions:
+	switch self.Op {
+	case "mvappend":
+		fallthrough
+	case "mvcount":
+		fallthrough
+	case "mvdedup":
+		fallthrough
+	case "mvfilter":
+		fallthrough
+	case "mvfind":
+		fallthrough
+	case "mvindex":
+		fallthrough
+	case "mvjoin":
+		fallthrough
+	case "mvmap":
+		fallthrough
+	case "mvrange":
+		fallthrough
+	case "mvsort":
+		fallthrough
+	case "mvzip":
+		fallthrough
+	case "mv_to_json_array":
+		fallthrough
+	case "cluster":
+		fallthrough
+	case "getfields":
+		fallthrough
+	case "typeof":
+		return "", fmt.Errorf("TextExpr.EvaluateText: dose not support functions:%v: right now", self.Op)
+	}
 	if self.Op == "max" {
-		if len(self.MaxMinValues) == 0 {
+		if len(self.ValueList) == 0 {
 			return "", fmt.Errorf("TextExpr.EvaluateText: no values provided for 'max' operation")
 		}
 		maxString := ""
-		for _, expr := range self.MaxMinValues {
+		for _, expr := range self.ValueList {
 			result, err := expr.Evaluate(fieldToValue)
 			if err != nil {
 				return "", err
@@ -1296,11 +1386,11 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		return maxString, nil
 
 	} else if self.Op == "min" {
-		if len(self.MaxMinValues) == 0 {
+		if len(self.ValueList) == 0 {
 			return "", fmt.Errorf("TextExpr.EvaluateText: no values provided for 'min' operation")
 		}
 		minString := ""
-		for _, expr := range self.MaxMinValues {
+		for _, expr := range self.ValueList {
 			result, err := expr.Evaluate(fieldToValue)
 			if err != nil {
 				return "", err
@@ -1316,8 +1406,8 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		if err != nil {
 			return "", fmt.Errorf("TextExpr.EvaluateText: failed to evaluate value for 'tostring' operation: %v", err)
 		}
-		if self.Format != nil {
-			formatStr, err := self.Format.Evaluate(fieldToValue)
+		if self.Param != nil {
+			formatStr, err := self.Param.Evaluate(fieldToValue)
 			if err != nil {
 				return "", fmt.Errorf("TextExpr.EvaluateText: failed to evaluate format for 'tostring' operation: %v", err)
 			}
@@ -1352,7 +1442,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			return valueStr, nil
 		}
 	}
-	cellValueStr, err := self.Value.Evaluate(fieldToValue)
+	cellValueStr, err := self.Param.Evaluate(fieldToValue)
 	if err != nil {
 		return "", fmt.Errorf("TextExpr.EvaluateText: can not evaluate text as a str: %v", err)
 	}
@@ -1380,7 +1470,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		return strings.Join(strings.Split(cellValueStr, delimiterStr), "&nbsp"), nil
 
 	case "substr":
-		baseString, err := self.Value.Evaluate(fieldToValue)
+		baseString, err := self.Param.Evaluate(fieldToValue)
 		if err != nil {
 			return "", err
 		}
@@ -1445,29 +1535,29 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 
 // Field may come from BoolExpr or ValueExpr
 func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
-	predicateFlag, err := self.BoolExpr.Evaluate(fieldToValue)
-	if err != nil {
-		return "", fmt.Errorf("ConditionExpr.EvaluateCondition cannot evaluate BoolExpr: %v", err)
-	}
-
-	trueValue, err := self.TrueValue.EvaluateValueExprAsString(fieldToValue)
-	if err != nil {
-		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate trueValue to a ValueExpr: %v", err)
-	}
-	falseValue, err := self.FalseValue.EvaluateValueExprAsString(fieldToValue)
-	if err != nil {
-		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate falseValue to a ValueExpr: %v", err)
-	}
 
 	switch self.Op {
 	case "if":
+		predicateFlag, err := self.BoolExpr.Evaluate(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("ConditionExpr.EvaluateCondition cannot evaluate BoolExpr: %v", err)
+		}
+
+		trueValue, err := self.TrueValue.EvaluateValueExprAsString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate trueValue to a ValueExpr: %v", err)
+		}
+		falseValue, err := self.FalseValue.EvaluateValueExprAsString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("ConditionExpr.EvaluateCondition: can not evaluate falseValue to a ValueExpr: %v", err)
+		}
 		if predicateFlag {
 			return trueValue, nil
 		} else {
 			return falseValue, nil
 		}
 	default:
-		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: unexpected operation: %v", self.Op)
+		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: unsupported operation: %v", self.Op)
 	}
 
 }
@@ -1475,8 +1565,8 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 func (self *TextExpr) GetFields() []string {
 	fields := make([]string, 0)
 	if self.IsTerminal || (self.Op != "max" && self.Op != "min") {
-		if self.Value != nil {
-			fields = append(fields, self.Value.GetFields()...)
+		if self.Param != nil {
+			fields = append(fields, self.Param.GetFields()...)
 		}
 		if self.Val != nil {
 			fields = append(fields, self.Val.GetFields()...)
@@ -1490,12 +1580,9 @@ func (self *TextExpr) GetFields() []string {
 		if self.LengthExpr != nil {
 			fields = append(fields, self.LengthExpr.GetFields()...)
 		}
-		if self.Format != nil {
-			fields = append(fields, self.Format.GetFields()...)
-		}
 		return fields
 	}
-	for _, expr := range self.MaxMinValues {
+	for _, expr := range self.ValueList {
 		fields = append(fields, expr.GetFields()...)
 	}
 	return fields
@@ -1505,9 +1592,18 @@ func (self *TextExpr) GetFields() []string {
 // Append all the fields in ConditionExpr
 func (self *ConditionExpr) GetFields() []string {
 	fields := make([]string, 0)
-	fields = append(fields, self.BoolExpr.GetFields()...)
-	fields = append(fields, self.TrueValue.GetFields()...)
-	fields = append(fields, self.FalseValue.GetFields()...)
+	if self.BoolExpr != nil {
+		fields = append(fields, self.BoolExpr.GetFields()...)
+	}
+	if self.TrueValue != nil {
+		fields = append(fields, self.TrueValue.GetFields()...)
+	}
+	if self.FalseValue != nil {
+		fields = append(fields, self.FalseValue.GetFields()...)
+	}
+	for _, pair := range self.ConditionValuePairs {
+		fields = append(fields, pair.Condition.GetFields()...)
+	}
 	return fields
 }
 

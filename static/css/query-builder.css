@@ -32,9 +32,6 @@
     --code-input-box-color: var(--black-1);
     --qb-input-box-color: var(--black-2);
     --qb-box-bg: var(--black-1);
-    --selected-filter-yellow: rgb(102, 72, 17);
-    --selected-filter-blue: rgb(10, 42, 105);
-    --selected-filter-red: rgb(102, 0, 61);
     --cross-button: var(--white-0);
     }
 
@@ -49,12 +46,9 @@
     --code-input-box-color: var(--white-1);
     --qb-input-box-color: var(--white-1);
     --qb-box-bg: var(--white-0);
-    --selected-filter-blue: var(--blue-1);
-    --selected-filter-yellow: #FFFFCC;
-    --selected-filter-red: #FBE7F4;
     --cross-button: var(--purple-3);
     }
-#query-language-btn{
+#query-language-btn, #query-mode-btn{
     margin-left: 0px;
     width: 93px;
     height: 32px;
@@ -846,12 +840,18 @@ div.show-record-popup {
 #empty-response{
     display: none;
 }
-#query-language-options{
+#query-language-options, #query-mode-options{
     width: 93px;
     padding: 0px;
     padding-top: 0px;
     position: relative;
+    font-size: 12px !important;
+    background: var(--index-drop-down-box-bg-color);
+    padding: 0px 5px 5px 5px;
+    border: 1px solid var(--timepicker-border-color);
+}
+
+#query-language-btn span, #query-mode-btn span{    
     display: block;
     font-size: 12px !important;
-    border: none;
 }

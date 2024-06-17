@@ -39,7 +39,6 @@
   --db-setting-text:var(--white-2);
   --legend-element-hover: var(--white-1);
   --top-save-btn-bg-img: url("../assets/save-icon.svg");
-  --top-refresh-btn-bg-img: url("../assets/refresh-icon.svg");
   --arrow-dashboard-img: url("../assets/arrow-dashboard-light.svg");
   --panel-container: var(--white-5);
   --front-arrow :  url('../assets/front-arrow-icon-dark.svg');
@@ -63,7 +62,6 @@
   --db-setting-text:var(--black-4);
   --legend-element-hover: var(--black-1);
   --top-save-btn-bg-img: url("../assets/save-btn.svg");
-  --top-refresh-btn-bg-img: url("../assets/refreshy-icon.svg");
   --arrow-dashboard-img: url("../assets/arrow-dashboard-black.svg");
   --panel-container: var(--white-9);
   --front-arrow:  url('../assets/front-arrow-icon-light.svg');
@@ -786,13 +784,12 @@
   align-items: flex-end;
   width: 80%;
   height: 15%;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .dbSet-textareaContainer {
   width: 80%;
   height: 70%;
-  margin-top: 1rem;
   position: relative;
 }
 
@@ -910,8 +907,8 @@
 
 .dbSet-name,.dbSet-heading{
   white-space: nowrap;
-  font-weight: 500;
-  font-size: 18px;
+  font-weight: 600;
+  font-size: 16px;
 }
 
 #metrics-query-language-btn{
@@ -1146,11 +1143,8 @@ input:checked + .slider:before {
 .settings-btn:hover{
   background: var(--top-setting-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
   background-size: 50% !important;
-  }
-.refresh-btn:hover{
-  background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
-  background-size: 46% !important;
-  }
+}
+
 #save-db-btn:hover{
   background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
   background-size: 45% !important;
@@ -1393,12 +1387,6 @@ input:checked + .slider:before {
   list-style: none;
   font-size: 14px;
   text-align: left;
-  background-color: #ffffff;
-  border: 1px solid #cccccc;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 4px;
-  -webkit-box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
   background-clip: padding-box;
 }
 
