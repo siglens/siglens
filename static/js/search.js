@@ -349,8 +349,9 @@
      let endDate = queryParams.get("endEpoch") || Cookies.get('endEpoch') || "now";
      let selIndexName = queryParams.get('indexName');
      let queryLanguage = queryParams.get("queryLanguage");
-     let queryMode = Cookies.get('queryMode');
+     let queryMode = Cookies.get('queryMode') || "Builder";
      queryLanguage = queryLanguage.replace('"', '');
+     $("#query-language-btn span").html(queryLanguage);
     $(".query-language-option").removeClass("active");
     let selectedQueryLanguageId;
      if (queryLanguage == "SQL") {
