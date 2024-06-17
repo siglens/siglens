@@ -385,6 +385,62 @@ const metricFunctions = `[
 		"desc": "The value 1 for any series in the specified interval.", 
 		"eg": "present_over_time(avg (system.disk.used[5m]))",
 		"isTimeRangeFunc": true
+	},
+	{
+		"fn": "sum", 
+		"name": "Sum", 
+		"desc": "Calculate sum over dimensions.", 
+		"eg": "sum(system.disk.used)",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "min", 
+		"name": "Minimum", 
+		"desc": "Select minimum over dimensions.", 
+		"eg": "min(system.disk.used)",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "max", 
+		"name": "Maximum", 
+		"desc": "Select maximum over dimensions.", 
+		"eg": "max(system.disk.used)",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "avg", 
+		"name": "Average", 
+		"desc": "Calculate the average over dimensions.", 
+		"eg": "avg(system.disk.used)",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "group", 
+		"name": "Group", 
+		"desc": "All values in the resulting vector are 1.", 
+		"eg": "group(system.disk.used)",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "stddev", 
+		"name": "Standard deviation", 
+		"desc": "Calculate population standard deviation over dimensions.", 
+		"eg": "stddev(system.disk.used)",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "stdvar", 
+		"name": "Standard variance", 
+		"desc": "Calculate population standard variance over dimensions.", 
+		"eg": "stdvar(system.disk.used)",
+		"isTimeRangeFunc": false
+	},
+	{
+		"fn": "count", 
+		"name": "Count", 
+		"desc": "Count number of elements in the vector.", 
+		"eg": "count(system.disk.used)",
+		"isTimeRangeFunc": false
 	}
 ]`
 

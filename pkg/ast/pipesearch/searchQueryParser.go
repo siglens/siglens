@@ -449,6 +449,9 @@ func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregat
 		if node.LetColumns.SortColRequest != nil {
 			aggNode.OutputTransforms.LetColumns.SortColRequest = node.LetColumns.SortColRequest
 		}
+		if node.LetColumns.MultiValueColRequest != nil {
+			aggNode.OutputTransforms.LetColumns.MultiValueColRequest = node.LetColumns.MultiValueColRequest
+		}
 	}
 	if node.FilterRows != nil {
 		aggNode.OutputTransforms.FilterRows = node.FilterRows

@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -724,8 +725,6 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	// Todo:
-	// Some of the Formulas are not being executed properly. Need to fix.
 	queryFormulaMap := make(map[string]string)
 
 	for _, query := range queries {
@@ -778,10 +777,27 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]string) (string, error) {
 
-	finalSearchText := formula
-	for key, value := range queries {
-		finalSearchText = strings.ReplaceAll(finalSearchText, key, fmt.Sprintf("%v", value))
+	pattern := ""
+	for key := range queries {
+		pattern = fmt.Sprintf("%s|%s", pattern, key)
 	}
+
+	if pattern == "" {
+		return "", errors.New("no queries found")
+	}
+
+	pattern = fmt.Sprintf("(%s)", pattern[1:])
+
+	regEx, err := regexp.Compile(pattern)
+	if err != nil {
+		return "", fmt.Errorf("failed to compile regex pattern: %v, Error=%v", pattern, err)
+	}
+
+	replacer := func(match string) string {
+		return queries[match]
+	}
+
+	finalSearchText := regEx.ReplaceAllStringFunc(formula, replacer)
 
 	log.Infof("buildMetricQueryFromFormulAndQueries: finalSearchText=%v", finalSearchText)
 

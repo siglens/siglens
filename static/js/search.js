@@ -349,7 +349,9 @@
      let endDate = queryParams.get("endEpoch") || Cookies.get('endEpoch') || "now";
      let selIndexName = queryParams.get('indexName');
      let queryLanguage = queryParams.get("queryLanguage");
+     let queryMode = Cookies.get('queryMode') || "Builder";
      queryLanguage = queryLanguage.replace('"', '');
+     $("#query-language-btn span").html(queryLanguage);
     $(".query-language-option").removeClass("active");
     let selectedQueryLanguageId;
      if (queryLanguage == "SQL") {
@@ -362,6 +364,16 @@
        $("#option-3").addClass("active");
        selectedQueryLanguageId = "3";
      }
+     queryMode = queryMode.replace('"', '');
+     if (queryMode == "Builder") {
+       $(".query-mode-option").removeClass("active");
+       $("#query-mode-options #mode-option-1").addClass("active");
+       $('#query-mode-btn span').html("Builder");
+     } else if (queryLanguage == "Code") {
+       $(".query-mode-option").removeClass("active");
+       $("#query-mode-options #mode-option-2").addClass("active");
+       $('#query-mode-btn span').html("Code");
+     } 
      let filterTab = queryParams.get("filterTab");
      handleTabAndTooltip(selectedQueryLanguageId, parseInt(filterTab))
      let filterValue = queryParams.get('searchText');

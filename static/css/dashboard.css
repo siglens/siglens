@@ -783,13 +783,12 @@
   align-items: flex-end;
   width: 80%;
   height: 15%;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .dbSet-textareaContainer {
   width: 80%;
   height: 70%;
-  margin-top: 1rem;
   position: relative;
 }
 
@@ -907,8 +906,8 @@
 
 .dbSet-name,.dbSet-heading{
   white-space: nowrap;
-  font-weight: 500;
-  font-size: 18px;
+  font-weight: 600;
+  font-size: 16px;
 }
 
 #metrics-query-language-btn{
@@ -1294,6 +1293,9 @@ input:checked + .slider:before {
 .graph-customization{
   width: 320px;
 }
+#add-widget-options{
+  display: none;
+}
 #add-widget-options .editPanelMenu{
     width: 20%;
     padding: 10px 10px;
@@ -1440,7 +1442,6 @@ input:checked + .slider:before {
 .add-panel-div .plus-icon{
   font-size: 40px;
   color: var(--lavender-2);
-  display: none;
 }
 .add-panel-div .text{
   font-size: 15px;

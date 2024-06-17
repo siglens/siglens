@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/config"
@@ -228,15 +229,16 @@ type IncludeValue struct {
 
 // Only NewColName and one of the other fields should have a value
 type LetColumnsRequest struct {
-	MultiColsRequest    *MultiColLetRequest
-	SingleColRequest    *SingleColLetRequest
-	ValueColRequest     *ValueExpr
-	RexColRequest       *RexExpr
-	StatisticColRequest *StatisticExpr
-	RenameColRequest    *RenameExpr
-	DedupColRequest     *DedupExpr
-	SortColRequest      *SortExpr
-	NewColName          string
+	MultiColsRequest     *MultiColLetRequest
+	SingleColRequest     *SingleColLetRequest
+	ValueColRequest      *ValueExpr
+	RexColRequest        *RexExpr
+	StatisticColRequest  *StatisticExpr
+	RenameColRequest     *RenameExpr
+	DedupColRequest      *DedupExpr
+	SortColRequest       *SortExpr
+	NewColName           string
+	MultiValueColRequest *MultiValueColLetRequest
 }
 
 type MultiColLetRequest struct {
@@ -249,6 +251,15 @@ type SingleColLetRequest struct {
 	CName string
 	Oper  utils.LogicalAndArithmeticOperator
 	Value *utils.DtypeEnclosure
+}
+
+type MultiValueColLetRequest struct {
+	Command         string // name of the command: makemv, mvcombine, mvexpand, etc.
+	ColName         string
+	DelimiterString string // delimiter string to split the column value. default is " " (single space)
+	IsRegex         bool
+	AllowEmpty      bool // if true, empty strings are allowed in the split values. default is false
+	Setsv           bool // if true, split values are combined into a single value. default is false
 }
 
 type BucketResult struct {
@@ -502,7 +513,7 @@ func (qa *QueryAggregators) IsStatisticBlockEmpty() bool {
 func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
-			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil)
+			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil)
 }
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
@@ -727,9 +738,7 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"mvsort":           {},
 	"mvzip":            {},
 	"mv_to_json_array": {},
-	"random":           {},
 	"floor":            {},
-	"pi":               {},
 	"ln":               {},
 	"log":              {},
 	"sigfig":           {},
@@ -743,6 +752,15 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"object_to_array":  {},
 	"printf":           {},
 	"tojson":           {},
+	"cluster":          {},
+	"getfields":        {},
+	"isnotnull":        {},
+	"isnum":            {},
+	"typeof":           {},
+	"replace":          {},
+	"spath":            {},
+	"upper":            {},
+	"trim":             {},
 }
 
 type StatsFuncChecker struct{}
@@ -809,6 +827,116 @@ func CheckUnsupportedFunctions(post *QueryAggregators) error {
 			}
 		}
 	}
+
+	return nil
+}
+
+// GetBucketValueForGivenField returns the value of the bucket for the given field name.
+// It checks for the field in the statistic results and group by keys.
+// If the field is not found, it returns nil.
+// The first return value is the value of the field.
+// The second return value is the index of the field in the group by keys.
+// The third return value is a boolean indicating if the field was found in the Statistic results.
+// For Statistic results, the index is -1. and Bool is true.
+// For GroupBy keys, the index is the index of the field in the group by keys; given that the Bucket key is a List Type. and Bool is false.
+// Otherwise, the index is -1 and Bool is false.
+func (br *BucketResult) GetBucketValueForGivenField(fieldName string) (interface{}, int, bool) {
+
+	if value, ok := br.StatRes[fieldName]; ok {
+		return value, -1, true
+	}
+
+	index := -1
+
+	for i, key := range br.GroupByKeys {
+		if key == fieldName {
+			index = i
+			break
+		}
+	}
+
+	if index == -1 {
+		return nil, -1, false
+	}
+
+	isListType, bucketKeyReflectVal, _ := sutils.IsArrayOrSlice(br.BucketKey)
+
+	if !isListType {
+		if index == 0 {
+			return br.BucketKey, -1, false
+		} else {
+			return nil, -1, false
+		}
+	}
+
+	if index >= bucketKeyReflectVal.Len() {
+		return nil, -1, false
+	}
+
+	return bucketKeyReflectVal.Index(index).Interface(), index, false
+}
+
+// Can only be used for GroupBy keys.
+// SetBucketValueForGivenField sets the value of the bucket for the given field name.
+// The Value must be of type string or []string.
+// If the value is of type []string, it is converted to a string.
+func (br *BucketResult) SetBucketValueForGivenField(fieldName string, value interface{}, index int, isStatRes bool) error {
+
+	if isStatRes {
+		// Should not set the value, if the field is a Statistic result.
+		return nil
+	}
+
+	// value can be either a string or a list of strings.
+	if valueList, ok := value.([]string); ok {
+		tempValList := make([]string, len(valueList))
+
+		for i, val := range valueList {
+			tempValList[i] = fmt.Sprintf(`"%s"`, val)
+		}
+
+		value = fmt.Sprintf("[ %v ]", strings.Join(tempValList, ", "))
+	}
+
+	if index == -1 {
+		// Implies that the bucket key is not a list type.
+		if fieldName == br.GroupByKeys[0] {
+			br.BucketKey = value
+			return nil
+		} else {
+			return fmt.Errorf("SetBucketValueForGivenField: Field %v not found in the bucket Group by keys", fieldName)
+		}
+	}
+
+	if index >= len(br.GroupByKeys) {
+		return fmt.Errorf("SetBucketValueForGivenField: Field %v not found in the bucket Group by keys", fieldName)
+	}
+
+	if fieldName != br.GroupByKeys[index] {
+		return fmt.Errorf("SetBucketValueForGivenField: Field %v not found in the bucket Group by keys at index: %v", fieldName, index)
+	}
+
+	isListType, bucketKeyReflectVal, _ := sutils.IsArrayOrSlice(br.BucketKey)
+	if !isListType {
+		return fmt.Errorf("SetBucketValueForGivenField: Bucket key is not a list type")
+	}
+
+	if index >= bucketKeyReflectVal.Len() {
+		return fmt.Errorf("SetBucketValueForGivenField: Field %v not found in the bucket key. Index: %v is greater than the bucket key Size: %v", fieldName, index, bucketKeyReflectVal.Len())
+	}
+
+	_, ok := br.BucketKey.([]string)
+	if !ok {
+		// Convert the bucket key to a list type.
+		tempBucketKey := make([]string, len(br.GroupByKeys))
+		for i := range br.GroupByKeys {
+			tempBucketKey[i] = bucketKeyReflectVal.Index(i).Interface().(string)
+		}
+		br.BucketKey = tempBucketKey
+	}
+
+	bucketKeyList := br.BucketKey.([]string)
+	bucketKeyList[index] = value.(string)
 
 	return nil
 }
