@@ -1533,6 +1533,45 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 	return str, nil
 }
 
+func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+	
+	for _, cvPair := range self.ConditionValuePairs {
+		res, err := cvPair.Condition.Evaluate(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("handleCaseFunction: Error while evaluating condition, err: %v", err)
+		} 
+		if res {
+			val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
+			if err != nil {
+				return "", fmt.Errorf("handleCaseFunction: Error while evaluating value, err: %v", err)
+			}
+			return val, nil
+		}
+	}
+
+	return "", nil
+}
+
+func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+	for _, valueExpr := range self.ValueList {
+		if valueExpr.ValueExprMode > 1 {
+			return "", fmt.Errorf("handleCoalesceFunction: Expected: a field or a value got: %v", valueExpr.ValueExprMode)
+		}
+		fields := valueExpr.GetFields()
+
+		// only one field is expected because the valueExpr has to be either a field or value
+		if len(fields) == 0 || fieldToValue[fields[0]].Dtype != utils.SS_DT_BACKFILL{
+			val, err := valueExpr.EvaluateValueExprAsString(fieldToValue)
+			if err != nil {
+				return "", fmt.Errorf("handleCoalesceFunction: Error while evaluating value, err: %v", err)
+			}
+			return val, nil
+		}
+	}
+
+	return "", nil
+}
+
 // Field may come from BoolExpr or ValueExpr
 func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 
@@ -1556,6 +1595,10 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 		} else {
 			return falseValue, nil
 		}
+	case "case":
+		return handleCaseFunction(self, fieldToValue)
+	case "coalesce":
+		return handleCoalesceFunction(self, fieldToValue)
 	default:
 		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: unsupported operation: %v", self.Op)
 	}
