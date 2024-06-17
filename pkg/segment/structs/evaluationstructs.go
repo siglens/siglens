@@ -366,7 +366,19 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 	case "searchmatch":
 		fallthrough
 	case "isnotnull":
-		fallthrough
+		fields := self.GetFields()
+		if len(fields) == 0 {
+			return false, fmt.Errorf("BoolExpr.Evaluate: No fields found for isnotnull operation")
+		}
+
+		value, exists := fieldToValue[fields[0]]
+		if !exists {
+			return false, fmt.Errorf("BoolExpr.Evaluate: Field '%s' not found in data", fields[0])
+		}
+		if value.Dtype != utils.SS_DT_BACKFILL {
+			return true, nil
+		}
+		return false, nil
 	case "isnum":
 		return false, fmt.Errorf("BoolExpr.Evaluate: does support using this operator: %v", self.ValueOp)
 	}
@@ -1338,6 +1350,42 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
+	case "ipmask":
+		mask := net.ParseIP(self.Param.RawString).To4()
+		ip := net.ParseIP(self.Val.StringExpr.RawString).To4()
+		if mask == nil || ip == nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: invalid mask or IP address for 'ipmask' operation")
+		}
+		if len(ip) != len(mask) {
+			return "", fmt.Errorf("TextExpr.EvaluateText: IP address and mask are of different lengths")
+		}
+		for i := range ip {
+			ip[i] &= mask[i]
+		}
+		return ip.String(), nil
+	case "replace":
+		if len(self.ValueList) < 2 {
+			return "", fmt.Errorf("TextExpr.EvaluateText: 'replace' operation requires a regex and a replacement")
+		}
+
+		regexStr, err := self.ValueList[0].Evaluate(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate regex as a string: %v", err)
+		}
+		replacementStr, err := self.ValueList[1].Evaluate(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate replacement as a string: %v", err)
+		}
+
+		baseString, exists := fieldToValue[self.Val.NumericExpr.Value]
+		if !exists {
+			return "", fmt.Errorf("TextExpr.EvaluateText: field '%s' not found in data", self.Param.RawString)
+		}
+		regex, err := regexp.Compile(regexStr)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: failed to compile regex: %v", err)
+		}
+		return regex.ReplaceAllString(baseString.CVal.(string), replacementStr), nil
 	case "mvappend":
 		fallthrough
 	case "mvcount":
