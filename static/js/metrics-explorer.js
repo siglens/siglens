@@ -117,7 +117,7 @@ function addFormulaElement() {
 
     // Validate formula on input change
     let input = formulaElement.find('.formula');
-    input.on('input', async function() {
+    input.on('input', debounce(async function() {
         let formula = input.val().trim();
         let errorMessage = formulaElement.find('.formula-error-message');
         if (formula === '') {
@@ -145,9 +145,17 @@ function addFormulaElement() {
         }
         // Disable remove button if the query name exists in any formula
         disableQueryRemoval();
-    });
+    }, 500)); // debounce delay
+    
 }
 
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
 
 // Function to call when the formula is erased
 function onFormulaErased(uniqueId) {
@@ -1333,8 +1341,7 @@ function getTagKeyValue(metricName) {
     });
 }
 
-
-async function getQueryDetails(queryName, queryDetails){
+async function handleQueryAndVisualize(queryName, queryDetails) {
     let queryString;
     if(queryDetails.state === "builder"){
         queryString = createQueryString(queryDetails);
@@ -1342,8 +1349,13 @@ async function getQueryDetails(queryName, queryDetails){
         queryString = queryDetails.rawQueryInput;
     }
     await getMetricsData(queryName, queryString);
-    const chartData = await convertDataForChart(rawTimeSeriesData)
+    const chartData = await convertDataForChart(rawTimeSeriesData);
     addVisualizationContainer(queryName, chartData, queryString);
+}
+
+async function getQueryDetails(queryName, queryDetails){
+
+    await handleQueryAndVisualize(queryName, queryDetails)
 
     // Check if the query name is present in any formulas and re-run the formula if so
     for (let formulaId in formulas) {
@@ -1419,7 +1431,14 @@ async function refreshMetricsGraphs(){
             queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
             queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
             
-            await getQueryDetails(queryName, queryDetails);
+            await handleQueryAndVisualize(queryName, queryDetails);
+        });
+   }
+
+   if(Object.keys(formulas).length > 0){
+        // Update graph for each formula
+        Object.keys(formulas).forEach(function(formulaId){
+            getMetricsDataForFormula(formulaId, formulas[formulaId])
         });
    }
 }
