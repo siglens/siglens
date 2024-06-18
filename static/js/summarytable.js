@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const metricsPerPage = 30;
+    const metricsPerPage = 28;
     let currentPage = 1;
     let metrics = [];
     let sortedMetrics = [];
@@ -36,9 +36,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${metric}</td>
                 <td style="display: flex; flex-direction: row; justify-content: space-between;">
                     -
-                    <span class="icon">
-                        <img src="./assets/tag.png" alt="Tag Icon">
-                    </span>
                 </td>
             `;
             metricsTable.appendChild(row);

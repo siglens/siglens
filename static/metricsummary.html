@@ -2,10 +2,10 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <title>Summary Table</title>
-  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-   
+    <meta charset="UTF-8">
+    <title>Summary Table</title>
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+
     <link rel="stylesheet" href="./css/summary.css">
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
@@ -26,7 +26,7 @@
     </script>
     {{ .RunCheck1 | safeHTML }}
     <script src="./js/summarytable.js"></script>
-    
+
 </head>
 
 <body>
@@ -35,52 +35,64 @@
             <!-- Add your sidebar content here -->
         </div>
         <div id="dashboard" class="launch-dashboard">
-          <div class="summary">
-              <div style="display: flex; align-items: center;">
-                  <h2 style="margin-right: 10px;">
-                      All metrics reporting across your infrastructure in the past
-                  </h2>
-                  <div class="firstdrop" style="margin-right: 10px;">
-                      <select>
-                          <option value="">1 hour</option>
-                          <option value="">3 hour</option>
-                          <option value="">6 hour</option>
-                          <option value="">12 hour</option>
-                      </select>
-                  </div>
-              </div>
-              <div class="container">
-                  <div class="input-field">
-                      <label for="metric" class="input-label">Metric</label>
-                      <input type="text" id="metric" name="metric" placeholder="🔍 Search metrics">
-                  </div>
-                  <div class="input-field">
-                      <label for="tag" class="input-label">Tag</label>
-                      <input type="text" id="tag" name="tag" placeholder="Filter by Tag Value">
-                  </div>
-              </div>
-              <table>
-                  <thead>
-                      <tr>
-                          <th>↑ METRIC NAME</th>
-                          <th>LAST CONFIGURED</th>
-                      </tr>
-                  </thead>
-                  <tbody id="metricsTable">
-                      <!-- Metrics will be dynamically inserted here -->
-                  </tbody>
-              </table>
-              <div class="pagination" id="pagination">
-                  <!-- Pagination buttons will be dynamically inserted here -->
-              </div>
-          </div>
-      </div>
+            <div class="summary">
+                <div style="display: flex; align-items: center;">
+                    <h5 style="margin-right: 10px;">
+                        All metrics reporting across your infrastructure in the past
+                    </h5>
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle" type="button" id="checktimebtn" data-toggle="dropdown"
+                            aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
+                            title="Select Time">
+                            <span>1hr</span>
+                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                        </button>
+                        <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="checktimeopts">
+                            <li id="option-1" class="checktimeopt">2hr</li>
+                            <li id="option-2" class="checktimeopt">3hr</li>
+                            <li id="option-3" class="checktimeopt active">4</li>
+                        </div>
+                    </div>
+                </div>
+                <div class="searchcontainer" style="display:flex;flex-direction:row;flex-wrap: wrap;
+  justify-content: flex-start;gap:5px;margin-top:1%;margin-bottom:0.5%">
+                    <div class="search1" style="width:25%">
+                        <input type="text" class="form-control search-db-input" placeholder="Search Metric Name"
+                            title="Search your dashboards" id="metric">
+                    </div>
+                    <div class="search2" style="width:25%">
+                        <input type="text" class="form-control search-db-input" placeholder="Filter by Tag Value"
+                            title="Search your dashboards">
+                    </div>
+                </div>
+                <div class="metric-container" style="font-size:16px;">
+                    <div class="metric-stats">
+                        <table id="metrics-data-table" class="index-data-table">
+                            <thead>
+                                <tr>
+                                    <th>Metric Name</th>
+                                    <th>Last Configured</th>
+                                </tr>
+                            </thead>
+                            <tbody id="metricsTable">
+                                <!-- Metrics will be dynamically inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+               
+                <div class="pagination" id="pagination">
+                    <!-- Pagination buttons will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
         <div id="app-footer">
-          2024 &copy; SigLens
-      </div>
+            2024 &copy; SigLens
+        </div>
     </div>
-   
-    
+
+
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/common.js?cb=1_1_10"></script>
     <script src="./js/event-handlers.js?cb=1_1_10"></script>

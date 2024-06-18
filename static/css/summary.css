@@ -6,27 +6,7 @@
   -ms-overflow-style: none; 
 }
 
-table {
-  width: 85vw;
-  border: 0.5px solid #c5c5c5;
-}
 
-td, th {
-  border: none;
-}
-
-table, tr {
-  border: 0.2px solid rgb(211, 211, 211);
-}
-
-th, td {
-  padding: 10px;
-  text-align: left;
-}
-
-.met:hover {
-  background-color: rgb(228, 249, 249);
-}
 
 .pagination {
   display: flex;
@@ -75,40 +55,86 @@ th, td {
 .icon {
   visibility: hidden;
 }
-
-.met:hover .icon {
-  visibility: visible;
+.checktimeopt{
+  width: 100%;
+    margin: 0;
+    margin-top: 5px;
+    width: 241px;
+    background: var(--index-drop-down-item-inactive-bg-color);
+    color: var(--index-drop-down-item-inactive-text-color);
+    margin-bottom: 10px;
+    margin-top: 10px;
+    cursor: pointer;
+    margin-left: 12px;
+    margin-right: 12px;
+    padding: 4px 0;
+    padding-left: 9px;
+    font-weight: var(--fw-400);
+    font-family: "DINpro", Arial, sans-serif;
+    border-radius: 4px;
 }
-
-.container {
+.checktimeopt:hover{
+  background: var(--index-drop-down-item-hover-bg-color);
+    color: var(--index-drop-down-item-hover-text-color);
+}
+.checktimeopt.active{
+  background: var(--index-drop-down-item-active-bg-color);
+  color: var(--index-drop-down-item-active-text-color);
+}
+#checktimeopts{
+  width: 130px;
+  background: var(--index-drop-down-box-bg-color);
+  overflow: hidden;
+  padding: 0px 10px 10px 10px;
+  border: 1px solid var(--timepicker-border-color);
+}
+#checktimebtn{
+  margin: 0;
+  text-decoration: none;
+  height: 30px;
   display: flex;
-  gap: 10px;
-  justify-content: flex-start !important;
-  margin: 1%;
+  justify-content: space-evenly;
+  align-items: center;
+  width: 108px;
+  margin-left: 16px;
+}
+#checktimebtn:hover{
+  background: var(--drop-down-btn-bg-hover);
+}
+#checktimebtn.active{
+  background: var(--drop-down-btn-bg-active) !important;
+  outline: 1px solid var(--drop-down-btn-border-active);
+  outline-offset: -1pt;
+  padding-left: 0;
+  padding-right: 5px;
+  transform: rotate(180deg);
+}
+.searchcontainer{
+  display:flex !important;
+  flex-direction: row;
   flex-wrap: wrap;
-  width:"fit-content";
+  justify-content: space-between;
+}
+.search1, .search2{
+  width:50%;
 }
 
-.input-field {
+.metric-container{
   display: flex;
+    justify-content:left;
+    flex-direction: column;
+    align-items: left;
+    width: 100%;
+    margin-top: 20px;
+    margin-bottom: 40px;
+    font-size: 15px;
+    font-family: "DINpro", Arial, sans-serif;
+}
+.metric-stats{
+  margin: auto;
+  float: left;
+  width: 95%;
 }
 
-.input-field input {
-  padding: 1%;
-  width: 500px;
-  height: 35.53px;
-  border: 0.5px solid rgb(197, 195, 195);
-  box-sizing: border-box;
-}
 
-.input-field input:hover {
-  background-color: rgb(223, 244, 248);
-  border: 0.5px solid rgb(0, 153, 255);
-}
 
-.input-label {
-  color: #595858;
-  padding: 1%;
-  border-radius: 8px 0px 0px 8px;
-  background-color: rgb(205, 203, 203);
-}

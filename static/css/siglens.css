@@ -809,9 +809,10 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 #cancel-loading.active {
     background: var(--btn-hover-or-click-bg-color);
 }
+
 #alert-btn,
 #index-btn,
-#query-language-btn,
+#query-language-btn,#checktimebtn,
 #query-mode-btn,
 #date-picker-btn,
 #cancel-loading,
@@ -833,7 +834,7 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
     border: none;
     height: 32px;
 }
-#query-language-btn, #query-mode-btn {
+#query-language-btn, #checktimebtn,#query-mode-btn {
     width: 108px;
     margin-left: 16px;
 }
@@ -846,6 +847,7 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 #alert-btn:hover,
 #index-btn:hover,
 #query-language-btn:hover,
+#checktimebtn:hover,
 #query-mode-btn:hover,
 #date-picker-btn:hover,
 #avail-fields-btn:hover {
@@ -856,6 +858,7 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 #alert-btn.active,
 #index-btn.active,
 #query-language-btn.active,
+#checktimebtn.active,
 #query-mode-btn.active,
 #date-picker-btn.active,
 #avail-fields-btn.active
@@ -874,6 +877,7 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 }
 
 #query-language-btn.active .dropdown-arrow.orange, 
+#checktimebtn.active,
 #query-mode-btn.active .dropdown-arrow.orange, 
 #alert-btn.active .dropdown-arrow.orange,
 #index-btn.active .dropdown-arrow.orange,
@@ -1736,7 +1740,7 @@ div.dts div.dataTables_scrollBody table {
     border: 1px solid var(--timepicker-border-color);
 }
 #save-query-options,
-#query-language-options,
+#query-language-options,#checktimeopts,
 #query-mode-options,
 #source-options {
     width: 130px;
@@ -1746,7 +1750,7 @@ div.dts div.dataTables_scrollBody table {
     border: 1px solid var(--timepicker-border-color);
 }
 
-.index-dropdown-item,.alert-dropdown-item, .query-language-option, .query-mode-option, .panEdit-query-language-option, .source-option {
+.index-dropdown-item,.alert-dropdown-item, .query-language-option, .query-mode-option, .panEdit-query-language-option, .source-option,.checktimeopt {
     width: 241px;
     background: var(--index-drop-down-item-inactive-bg-color);
     color: var(--index-drop-down-item-inactive-text-color);
@@ -1762,18 +1766,19 @@ div.dts div.dataTables_scrollBody table {
     border-radius: 4px;
 }
 
-.query-language-option ,.query-mode-option, .panEdit-query-language-option{
+.query-language-option ,.checktimeopt,.query-mode-option, .panEdit-query-language-option{
     width: 100%;
     margin: 0;
     margin-top: 5px;
 }
 
-.index-dropdown-item:hover,.alert-dropdown-item:hover,.panEdit-query-language-option:hover, .query-language-option:hover, .query-mode-option:hover, .source-option:hover{
+.index-dropdown-item:hover,.alert-dropdown-item:hover,.panEdit-query-language-option:hover, .query-language-option:hover, .checktimeopt:hover,.query-mode-option:hover, .source-option:hover{
     background: var(--index-drop-down-item-hover-bg-color);
     color: var(--index-drop-down-item-hover-text-color);
 }
 
-.index-dropdown-item.active,.alert-dropdown-item.active,.panEdit-query-language-option.active, .query-language-option.active, .query-mode-option.active, .source-option.active{
+
+.index-dropdown-item.active,.alert-dropdown-item.active,.panEdit-query-language-option.active, .query-language-option.active, .checktimeopt.active,.query-mode-option.active, .source-option.active{
     background: var(--index-drop-down-item-active-bg-color);
     color: var(--index-drop-down-item-active-text-color);
 }
