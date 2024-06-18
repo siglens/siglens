@@ -436,7 +436,12 @@
             tags.appendChild(tag);
           });
         }
-      $("#search-filter-text, #aggregate-attribute-text, #aggregations").hide();
+        if (thirdBoxSet.size > 0) $("#aggregations").hide();
+        else $("#aggregations").show();
+        if (secondBoxSet.size > 0) $("#aggregate-attribute-text").hide();
+        else $("#aggregate-attribute-text").show();
+        if (firstBoxSet.size > 0) $("#search-filter-text").hide();
+        else $("#search-filter-text").show();
       $("#filter-input").val(filterValue).change();
       isQueryBuilderSearch = true;
       }
@@ -766,6 +771,7 @@
          if (res && res.hits && res.hits.totalMatched) {
              totalHits = res.hits.totalMatched
          }
+         $('#views-container').show();
     } else if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
       let columnOrder =[]
         if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
@@ -783,6 +789,7 @@
  
          aggsColumnDefs=[];
          segStatsRowData=[]; 
+         $('#views-container').hide();
          renderMeasuresGrid(columnOrder, res);
  
      }
@@ -902,6 +909,7 @@
          renderMeasuresGrid(columnOrder, res);
          if ((res.qtype ==="aggs-query" || res.qtype === "segstats-query") && res.bucketCount){
              totalHits = res.bucketCount;
+           $('#views-container').hide();
          }
      }else{
       measureInfo = [];
