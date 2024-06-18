@@ -1213,24 +1213,28 @@ func handleNoArgFunction(op string) (float64, error) {
 	}
 }
 
-func handleValidateFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
-
-	for _, cvPair := range self.ConditionValuePairs {
-		res, err := cvPair.Condition.Evaluate(fieldToValue)
-		if err != nil {
-			continue
-		}
-		if !res {
-			val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
+func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure, functionName string) (string, error) {
+	switch functionName {
+	case "validate":
+		for _, cvPair := range self.ConditionValuePairs {
+			res, err := cvPair.Condition.Evaluate(fieldToValue)
 			if err != nil {
-				return "", fmt.Errorf("handleValidateFunction: Error while evaluating value, err: %v", err)
+				continue
 			}
-			return val, nil
+			if !res {
+				val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
+				if err != nil {
+					return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating value, err: %v", err)
+				}
+				return val, nil
+			}
 		}
+		return "", nil
+	default:
+		return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Unknown function name: %s", functionName)
 	}
-
-	return "", nil
 }
+
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
@@ -1575,7 +1579,7 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 			return falseValue, nil
 		}
 	case "validate":
-		return handleValidateFunction(self, fieldToValue)
+		return handleComparisonAndConditionalFunctions(self, fieldToValue, self.Op)
 	default:
 		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: unsupported operation: %v", self.Op)
 	}
