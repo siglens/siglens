@@ -65,6 +65,7 @@ $(document).ready(async () => {
         $('#run-filter-btn').html(' ');
         $("#query-builder-btn").html(" ");
         $("#custom-chart-tab").hide();
+        $('#initial-response').show();
     }
 
     $('body').css('cursor', 'default');
