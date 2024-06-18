@@ -792,12 +792,9 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"cluster":          {},
 	"getfields":        {},
 	"isnotnull":        {},
-	"isnum":            {},
 	"typeof":           {},
 	"replace":          {},
 	"spath":            {},
-	"upper":            {},
-	"trim":             {},
 }
 
 type StatsFuncChecker struct{}
