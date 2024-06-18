@@ -39,7 +39,7 @@ let navbarComponent = `
     </a>
   <ul class="metrics-dropdown">
                 <a href="./metrics-explorer.html"><li class="di">Explorer</li></a>
-                <a href="./summary.html"><li class="di">Summary</li></a>
+                <a href="./metricsummary.html"><li class="di">Summary</li></a>
             </ul>
 </div>
 
@@ -161,7 +161,7 @@ $(document).ready(function () {
     } else if (currentUrl.includes("metrics-explorer.html")) {
         $(".nav-metrics").addClass("active");
     }
-    else if (currentUrl.includes("summary.html")) {
+    else if (currentUrl.includes("metricsummary.html")) {
         $(".nav-metrics").addClass("active");
     } else if (currentUrl.includes("dashboards-home.html") || currentUrl.includes("dashboard.html")) {
         $(".nav-ldb").addClass("active");
