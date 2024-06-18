@@ -531,7 +531,8 @@ func (qa *QueryAggregators) IsStatisticBlockEmpty() bool {
 func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
-			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil)
+			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
+			qa.OutputTransforms.LetColumns.FormatResults != nil)
 }
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
@@ -861,6 +862,10 @@ func CheckUnsupportedFunctions(post *QueryAggregators) error {
 					return fmt.Errorf("checkUnsupportedFunctions: using %v in eval cmd is not yet supported", valueCol.ConditionExpr.Op)
 				}
 			}
+		}
+
+		if agg.hasLetColumnsRequest() && agg.OutputTransforms.LetColumns.FormatResults != nil {
+			return fmt.Errorf("checkUnsupportedFunctions: using format command is not yet supported")
 		}
 	}
 
