@@ -589,6 +589,20 @@ function logOptionSingleHandler() {
         if (colDef.field === "logs"){
             colDef.cellStyle = null;
             colDef.autoHeight = null;
+            colDef.cellRenderer = function(params) {
+                const data = params.data || {};
+                let logString = '';
+                let counter = 0;
+                Object.entries(data)
+                    .filter(([key]) => key !== 'timestamp')
+                    .forEach(([key, value]) => {
+                        let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
+                        logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${value}</span>`;
+                        counter++;
+                    });
+            
+                return `<div style="white-space: nowrap;">${logString}</div>`;
+            }; 
         }
     });
     gridOptions.api.setColumnDefs(logsColumnDefs);
@@ -614,6 +628,21 @@ function logOptionMultiHandler() {
             
             colDef.cellStyle = {'white-space': 'normal'};
             colDef.autoHeight = true;
+            colDef.cellRenderer = function(params) {
+                const data = params.data || {};
+                let logString = '';
+                let counter = 0;
+                Object.entries(data)
+                    .filter(([key]) => key !== 'timestamp')
+                    .forEach(([key, value]) => {
+                        let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
+                        let formattedValue = formatLogsValue(value);
+                        logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${formattedValue}</span>`;
+                        counter++;
+                    });
+            
+                return `<div style="white-space: pre-wrap;">${logString}</div>`;
+            }; 
         }
     });
     gridOptions.api.setColumnDefs(logsColumnDefs);
@@ -628,6 +657,15 @@ function logOptionMultiHandler() {
     hideOrShowFieldsInLineViews();
     gridOptions.api.sizeColumnsToFit();
     Cookies.set('log-view', 'multi-line',  {expires: 365});
+}
+
+// Function to format logs value, replacing newlines with <br> tags
+function formatLogsValue(value) {
+    if (typeof value === 'string') {
+        return value.replace(/\n/g, '<br>');
+    } else {
+        return JSON.stringify(JSON.unflatten(value), null, 2);
+    }
 }
 
 function logOptionTableHandler() {
