@@ -592,13 +592,13 @@ function logOptionSingleHandler() {
             colDef.cellRenderer = function(params) {
                 const data = params.data || {};
                 let logString = '';
-                let counter = 0;
+                let addSeparator = false;
                 Object.entries(data)
                     .filter(([key]) => key !== 'timestamp')
                     .forEach(([key, value]) => {
-                        let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
+                        let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
                         logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${value}</span>`;
-                        counter++;
+                        addSeparator = true;
                     });
             
                 return `<div style="white-space: nowrap;">${logString}</div>`;
@@ -631,14 +631,14 @@ function logOptionMultiHandler() {
             colDef.cellRenderer = function(params) {
                 const data = params.data || {};
                 let logString = '';
-                let counter = 0;
+                let addSeparator = false;
                 Object.entries(data)
                     .filter(([key]) => key !== 'timestamp')
                     .forEach(([key, value]) => {
-                        let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
+                        let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
                         let formattedValue = formatLogsValue(value);
                         logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${formattedValue}</span>`;
-                        counter++;
+                        addSeparator = true;
                     });
             
                 return `<div style="white-space: pre-wrap;">${logString}</div>`;
