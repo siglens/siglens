@@ -864,6 +864,8 @@ func CheckUnsupportedFunctions(post *QueryAggregators) error {
 			}
 		}
 
+		// Remove this check once the format command is supported.
+		// Refactor this, if there are more commands that are not supported directly under LetColumnsRequest.
 		if agg.hasLetColumnsRequest() && agg.OutputTransforms.LetColumns.FormatResults != nil {
 			return fmt.Errorf("checkUnsupportedFunctions: using format command is not yet supported")
 		}
