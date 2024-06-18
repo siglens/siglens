@@ -244,7 +244,7 @@ func Benchmark_esBulkIngest(b *testing.B) {
 	b.ResetTimer()
 	b.SetParallelism(2)
 	for i := 0; i < b.N; i++ {
-		processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, false)
+		processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, 0, false)
 		if err != nil {
 			log.Errorf("ERROR: err=%v", err)
 			break
@@ -337,7 +337,7 @@ func Benchmark_agileTreeIngest(b *testing.B) {
 	b.ResetTimer()
 	b.SetParallelism(2)
 	for i := 0; i < b.N; i++ {
-		processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, false)
+		processedCount, response, err := eswriter.HandleBulkBody(bulkData, nil, 0, 0, false)
 		if err != nil {
 			log.Errorf("ERROR: err=%v", err)
 			break

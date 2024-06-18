@@ -251,12 +251,12 @@ type FormatResultsRequest struct {
 }
 
 type RowColOptions struct {
-	RowPrefix       string // prefix for row column. Default= "("
-	ColumnPrefix    string // prefix for column column. Default= "("
-	ColumnSeparator string // separator for column column. Default= "AND"
-	ColumnEnd       string // end for column column. Default= ")"
-	RowSeparator    string // separator for row column. Default= "OR"
-	RowEnd          string // end for row column. Default= ")"
+	RowPrefix       string // prefix for row. Default= "("
+	ColumnPrefix    string // prefix for column. Default= "("
+	ColumnSeparator string // separator for column. Default= "AND"
+	ColumnEnd       string // end for column. Default= ")"
+	RowSeparator    string // separator for row. Default= "OR"
+	RowEnd          string // end for row. Default= ")"
 }
 
 type MultiColLetRequest struct {
@@ -770,6 +770,24 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"object_to_array":  {},
 	"printf":           {},
 	"tojson":           {},
+	"relative_time":    {},
+	"time":             {},
+	"strftime":         {},
+	"strptime":         {},
+	"acos":             {},
+	"acosh":            {},
+	"asin":             {},
+	"asinh":            {},
+	"atan":             {},
+	"atanh":            {},
+	"cos":              {},
+	"cosh":             {},
+	"sin":              {},
+	"sinh":             {},
+	"tan":              {},
+	"tanh":             {},
+	"atan2":            {},
+	"hypot":            {},
 	"cluster":          {},
 	"getfields":        {},
 	"isnotnull":        {},

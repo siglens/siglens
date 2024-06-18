@@ -270,6 +270,10 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	return nil
 }
 
+func (segstore *SegStore) GetBaseDir() string {
+	return segstore.segbaseDir
+}
+
 // For some types we use a bloom index and for others we use range indices. If
 // a column has both, we should convert all the values to one type.
 func consolidateColumnTypes(wipBlock *WipBlock, segmentKey string) {

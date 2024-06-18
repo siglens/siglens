@@ -1426,7 +1426,7 @@ ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
     return conditionValuePair, nil
 }
 
-//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim
+//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim, strptime
 // mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
 TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
     opNameStr, err := transferUint8ToString(opName)
@@ -1766,6 +1766,13 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
         Op: "replace",
         Val: val.(*structs.ValueExpr),
         ValueList: []*structs.StringExpr{regex.(*structs.StringExpr), replacement.(*structs.StringExpr)},
+    }, nil
+}
+/ "strptime" L_PAREN val:ValueExpr COMMA format:StringExpr R_PAREN {
+    return &structs.TextExpr{
+        Op: "strptime",
+        Val: val.(*structs.ValueExpr),
+        Param: format.(*structs.StringExpr),
     }, nil
 }
 
@@ -2183,9 +2190,9 @@ NumericExprLevel1 <- L_PAREN expr:NumericExprLevel3 R_PAREN {
     return expr, nil
 }
 
-// Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random
+// Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random, time, relative_time, strftime
 //Currently involves abs, ceil, round, sqrt
-NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" / "floor" / "ln" / "sigfig") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
+NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp" / "floor" / "ln" / "sigfig" / "acosh" / "acos" / "asinh" / "asin" / "atanh" / "atan" / "cosh" / "cos" / "sinh" / "sin" / "tanh" / "tan") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -2226,7 +2233,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
 
     return node, nil
 }
-/ (opName:("now" / "pi" / "random") L_PAREN R_PAREN) {
+/ (opName:("now" / "pi" / "random" / "time") L_PAREN R_PAREN) {
     //transfer []uint8 to string
     strData, ok := opName.([]byte)
     if !ok {
@@ -2270,7 +2277,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
 / lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
     return expr, nil
 }
-/ (opName:("log" / "pow") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
+/ (opName:("log" / "pow" / "atan2" / "hypot") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -2298,6 +2305,18 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
         return nil, err
     }
 
+    return node, nil
+}
+/ opName:("relative_time" / "strftime") L_PAREN expr:(NumericExprLevel3) COMMA specifier:StringExpr R_PAREN {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: NumericExpr: %v", err)
+    }
+    node, err := createNumericExpr(opNameStr, expr.(*structs.NumericExpr), nil, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+    node.Val = specifier.(*structs.StringExpr)
     return node, nil
 }
 
