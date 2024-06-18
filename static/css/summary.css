@@ -1,0 +1,114 @@
+/* Add existing styles */
+.summary {
+  padding: 20px !important;
+  overflow-y: scroll;
+  scrollbar-width: none; 
+  -ms-overflow-style: none; 
+}
+
+table {
+  width: 85vw;
+  border: 0.5px solid #c5c5c5;
+}
+
+td, th {
+  border: none;
+}
+
+table, tr {
+  border: 0.2px solid rgb(211, 211, 211);
+}
+
+th, td {
+  padding: 10px;
+  text-align: left;
+}
+
+.met:hover {
+  background-color: rgb(228, 249, 249);
+}
+
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.pagination button {
+  border: none;
+  background-color: transparent;
+  color: #007bff;
+  padding: 10px 15px;
+  margin: 0 5px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.pagination button:hover {
+  background-color: #f1f1f1;
+  border-radius: 5px;
+}
+
+.pagination button.active {
+  background-color: #007bff;
+  color: white;
+  border-radius: 5px;
+}
+
+.pagination button[disabled] {
+  color: #ccc;
+  cursor: not-allowed;
+}
+
+.firstdrop {
+  padding: 0;
+  margin-top: 0.5%;
+}
+
+.firstdrop select {
+  padding: 4% !important;
+  border-radius: 5px;
+  border: 0.3px solid rgb(181, 181, 181);
+}
+
+.icon {
+  visibility: hidden;
+}
+
+.met:hover .icon {
+  visibility: visible;
+}
+
+.container {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start !important;
+  margin: 1%;
+  flex-wrap: wrap;
+  width:"fit-content";
+}
+
+.input-field {
+  display: flex;
+}
+
+.input-field input {
+  padding: 1%;
+  width: 500px;
+  height: 35.53px;
+  border: 0.5px solid rgb(197, 195, 195);
+  box-sizing: border-box;
+}
+
+.input-field input:hover {
+  background-color: rgb(223, 244, 248);
+  border: 0.5px solid rgb(0, 153, 255);
+}
+
+.input-label {
+  color: #595858;
+  padding: 1%;
+  border-radius: 8px 0px 0px 8px;
+  background-color: rgb(205, 203, 203);
+}

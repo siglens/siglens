@@ -32,10 +32,17 @@ let navbarComponent = `
             <a href="./service-health.html" class="nav-links"><span class="icon-traces"></span><span
                     class="nav-link-text">Tracing</span></a>
          </div>
-        <div class="menu nav-metrics" title="Metrics">
-            <a href="./metrics-explorer.html" class="nav-links"><span class="icon-metrics"></span><span
-                    class="nav-link-text">Metrics</span></a>
-        </div>
+      <div class="menu nav-metrics metrics-dropdown-toggle" title="Metrics" style="display:flex;flex-direction:row">
+    <a class="nav-links">
+        <span class="icon-metrics"></span>
+        <span class="nav-link-text">Metrics</span>
+    </a>
+  <ul class="metrics-dropdown">
+                <a href="./metrics-explorer.html"><li class="di">Explorer</li></a>
+                <a href="./summary.html"><li class="di">Summary</li></a>
+            </ul>
+</div>
+
         <div class="menu nav-slos" title="SLOs">
             <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
                     class="nav-link-text">SLOs</span></a>
@@ -153,6 +160,9 @@ $(document).ready(function () {
         $(".nav-search").addClass("active");
     } else if (currentUrl.includes("metrics-explorer.html")) {
         $(".nav-metrics").addClass("active");
+    }
+    else if (currentUrl.includes("summary.html")) {
+        $(".nav-metrics").addClass("active");
     } else if (currentUrl.includes("dashboards-home.html") || currentUrl.includes("dashboard.html")) {
         $(".nav-ldb").addClass("active");
     } else if (currentUrl.includes("saved-queries.html")) {
@@ -186,6 +196,9 @@ $(document).ready(function () {
         $(".help-options").slideToggle(200);
     });
 
+    $(".metrics-dropdown-toggle").click(function () {
+        $(".metrics-dropdown").toggle();
+    });
     $(document).on("click", function(event) {
         var helpOptions = $(".help-options");
         var menu = $(".nav-help");
@@ -197,6 +210,13 @@ $(document).ready(function () {
 
     $(".help-options").on("click", "a", function(event) {
         $(".help-options").slideUp(200);
+    });
+    const currentLocation = window.location.href;
+    const menuItem = document.querySelectorAll('.metrics-dropdown a');
+    menuItem.forEach(item => {
+        if(item.href === currentLocation) {
+            item.classList.add('active');
+        }
     });
 });
 

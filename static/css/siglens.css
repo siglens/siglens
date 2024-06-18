@@ -427,6 +427,44 @@ body {
     font-family: "DINpro", Arial, sans-serif;
     min-height: 100%;
 }
+.nav-metrics {
+    position: relative;
+}
+.metrics-dropdown{
+    list-style-type: none;
+    padding: 10% !important;
+    margin: 0;
+    background-color: var(--side-nav-bg-color-regular);
+    position: absolute;
+    top: 0;
+    left: 100%;
+    width: 300px; /* Adjust width as needed */
+    z-index: 1;
+}
+ul.metrics-dropdown li, ul.metrics-dropdown li a{
+    color:white;
+    text-decoration: none;
+}
+.submenu {
+    display: none;
+    position: absolute;
+    left: 0;
+    top: 100%;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    z-index: 1000;
+}
+
+.submenu a {
+    display: block;
+    white-space: nowrap;
+    text-decoration: none;
+    color: #000;
+}
+
+.submenu a:hover {
+    background-color: #f0f0f0;
+}
 
 @font-face {
     font-family: "DINpro";
@@ -546,6 +584,8 @@ body {
     color: var(--text-color);
     position: relative;
     display: flex;
+    padding:0% !important
+    ;
     flex-direction: column;
     justify-content: space-between;
     width: 176px !important;
@@ -2083,6 +2123,45 @@ div.dts div.dataTables_scrollBody table {
 }
 #available-fields::-webkit-scrollbar {
     width: 0;
+}
+.metrics-dropdown {
+    display: none;
+    color: white;
+    text-decoration: none;
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    border-radius: 12px;
+}
+.metrics-dropdown a {
+    color: white;
+    text-decoration: none;
+} .metrics-dropdown li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: transparent; 
+}
+.metrics-dropdown-toggle{
+    cursor:pointer;
+}
+.metrics-dropdown a:hover li::before,
+.metrics-dropdown a.active li::before {
+    border-left: 5px solid var(--side-nav-selected-border-color); 
+}
+.metrics-dropdown li:hover {
+    background-color: var(--side-nav-selected-border-color); 
+    color:black;
+    border-radius: 12px;
+}
+.metrics-dropdown li {
+    padding: 10px;
+}
+.metrics-dropdown li.di {
+    padding-left: 20px; /* Additional padding for left indent */
 }
 .available-fields-dropdown-item {
     height: 32px;
