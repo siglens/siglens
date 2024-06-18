@@ -7538,3 +7538,257 @@ func Test_Spath_Extract_PathTest(t *testing.T) {
 		assert.Equal(t, "pathApple", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.SPathExpr.Path)
 	}
 }
+
+func Test_Format_cmd_No_Argumenst(t *testing.T) {
+	query := `* | format`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNpde, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNpde)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "search", aggregator.OutputTransforms.LetColumns.NewColName)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FormatResults)
+	assert.Equal(t, "OR", aggregator.OutputTransforms.LetColumns.FormatResults.MVSeparator)
+	assert.Equal(t, uint64(0), aggregator.OutputTransforms.LetColumns.FormatResults.MaxResults)
+	assert.Equal(t, "NOT()", aggregator.OutputTransforms.LetColumns.FormatResults.EmptyString)
+
+	rowColOptions := aggregator.OutputTransforms.LetColumns.FormatResults.RowColOptions
+
+	assert.NotNil(t, rowColOptions)
+	assert.Equal(t, "(", rowColOptions.RowPrefix)
+	assert.Equal(t, "(", rowColOptions.ColumnPrefix)
+	assert.Equal(t, "AND", rowColOptions.ColumnSeparator)
+	assert.Equal(t, ")", rowColOptions.ColumnEnd)
+	assert.Equal(t, "OR", rowColOptions.RowSeparator)
+	assert.Equal(t, ")", rowColOptions.RowEnd)
+}
+
+func Test_Format_cmd_Custom_Row_Col_Options(t *testing.T) {
+	query := `* | format "[" "[" "&&" "]" "||" "]"`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "search", aggregator.OutputTransforms.LetColumns.NewColName)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FormatResults)
+	assert.Equal(t, "OR", aggregator.OutputTransforms.LetColumns.FormatResults.MVSeparator)
+	assert.Equal(t, uint64(0), aggregator.OutputTransforms.LetColumns.FormatResults.MaxResults)
+	assert.Equal(t, "NOT()", aggregator.OutputTransforms.LetColumns.FormatResults.EmptyString)
+
+	rowColOptions := aggregator.OutputTransforms.LetColumns.FormatResults.RowColOptions
+
+	assert.NotNil(t, rowColOptions)
+	assert.Equal(t, "[", rowColOptions.RowPrefix)
+	assert.Equal(t, "[", rowColOptions.ColumnPrefix)
+	assert.Equal(t, "&&", rowColOptions.ColumnSeparator)
+	assert.Equal(t, "]", rowColOptions.ColumnEnd)
+	assert.Equal(t, "||", rowColOptions.RowSeparator)
+	assert.Equal(t, "]", rowColOptions.RowEnd)
+}
+
+func Test_Format_cmd_MVSeparator_And_Custom_Row_Col_Options(t *testing.T) {
+	query := `* | format mvsep="mvseparator" "{" "[" "AND" "]" "AND" "}"`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "search", aggregator.OutputTransforms.LetColumns.NewColName)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FormatResults)
+	assert.Equal(t, "mvseparator", aggregator.OutputTransforms.LetColumns.FormatResults.MVSeparator)
+	assert.Equal(t, uint64(0), aggregator.OutputTransforms.LetColumns.FormatResults.MaxResults)
+	assert.Equal(t, "NOT()", aggregator.OutputTransforms.LetColumns.FormatResults.EmptyString)
+
+	rowColOptions := aggregator.OutputTransforms.LetColumns.FormatResults.RowColOptions
+
+	assert.NotNil(t, rowColOptions)
+	assert.Equal(t, "{", rowColOptions.RowPrefix)
+	assert.Equal(t, "[", rowColOptions.ColumnPrefix)
+	assert.Equal(t, "AND", rowColOptions.ColumnSeparator)
+	assert.Equal(t, "]", rowColOptions.ColumnEnd)
+	assert.Equal(t, "AND", rowColOptions.RowSeparator)
+	assert.Equal(t, "}", rowColOptions.RowEnd)
+}
+
+func Test_Format_cmd_EmptyStr_Option(t *testing.T) {
+	query := `* | format emptystr="Error Found"`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "search", aggregator.OutputTransforms.LetColumns.NewColName)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FormatResults)
+	assert.Equal(t, "OR", aggregator.OutputTransforms.LetColumns.FormatResults.MVSeparator)
+	assert.Equal(t, uint64(0), aggregator.OutputTransforms.LetColumns.FormatResults.MaxResults)
+	assert.Equal(t, "Error Found", aggregator.OutputTransforms.LetColumns.FormatResults.EmptyString)
+
+	rowColOptions := aggregator.OutputTransforms.LetColumns.FormatResults.RowColOptions
+
+	assert.NotNil(t, rowColOptions)
+	assert.Equal(t, "(", rowColOptions.RowPrefix)
+	assert.Equal(t, "(", rowColOptions.ColumnPrefix)
+	assert.Equal(t, "AND", rowColOptions.ColumnSeparator)
+	assert.Equal(t, ")", rowColOptions.ColumnEnd)
+	assert.Equal(t, "OR", rowColOptions.RowSeparator)
+	assert.Equal(t, ")", rowColOptions.RowEnd)
+}
+
+func Test_Format_cmd_MaxResults(t *testing.T) {
+	query := `* | format maxresults=5`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "search", aggregator.OutputTransforms.LetColumns.NewColName)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FormatResults)
+	assert.Equal(t, "OR", aggregator.OutputTransforms.LetColumns.FormatResults.MVSeparator)
+	assert.Equal(t, uint64(5), aggregator.OutputTransforms.LetColumns.FormatResults.MaxResults)
+	assert.Equal(t, "NOT()", aggregator.OutputTransforms.LetColumns.FormatResults.EmptyString)
+
+	rowColOptions := aggregator.OutputTransforms.LetColumns.FormatResults.RowColOptions
+
+	assert.NotNil(t, rowColOptions)
+	assert.Equal(t, "(", rowColOptions.RowPrefix)
+	assert.Equal(t, "(", rowColOptions.ColumnPrefix)
+	assert.Equal(t, "AND", rowColOptions.ColumnSeparator)
+	assert.Equal(t, ")", rowColOptions.ColumnEnd)
+	assert.Equal(t, "OR", rowColOptions.RowSeparator)
+	assert.Equal(t, ")", rowColOptions.RowEnd)
+}
+
+func Test_Format_cmd_Custom_MVSeparator(t *testing.T) {
+	query := `* | format mvsep=";"`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "search", aggregator.OutputTransforms.LetColumns.NewColName)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FormatResults)
+	assert.Equal(t, ";", aggregator.OutputTransforms.LetColumns.FormatResults.MVSeparator)
+	assert.Equal(t, uint64(0), aggregator.OutputTransforms.LetColumns.FormatResults.MaxResults)
+	assert.Equal(t, "NOT()", aggregator.OutputTransforms.LetColumns.FormatResults.EmptyString)
+
+	rowColOptions := aggregator.OutputTransforms.LetColumns.FormatResults.RowColOptions
+
+	assert.NotNil(t, rowColOptions)
+	assert.Equal(t, "(", rowColOptions.RowPrefix)
+	assert.Equal(t, "(", rowColOptions.ColumnPrefix)
+	assert.Equal(t, "AND", rowColOptions.ColumnSeparator)
+	assert.Equal(t, ")", rowColOptions.ColumnEnd)
+	assert.Equal(t, "OR", rowColOptions.RowSeparator)
+	assert.Equal(t, ")", rowColOptions.RowEnd)
+}
+
+func Test_Format_cmd_Custom_EmptyStr_MaxResults(t *testing.T) {
+	query := `* | format emptystr="No Results" maxresults=3`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "search", aggregator.OutputTransforms.LetColumns.NewColName)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FormatResults)
+	assert.Equal(t, "OR", aggregator.OutputTransforms.LetColumns.FormatResults.MVSeparator)
+	assert.Equal(t, uint64(3), aggregator.OutputTransforms.LetColumns.FormatResults.MaxResults)
+	assert.Equal(t, "No Results", aggregator.OutputTransforms.LetColumns.FormatResults.EmptyString)
+
+	rowColOptions := aggregator.OutputTransforms.LetColumns.FormatResults.RowColOptions
+
+	assert.NotNil(t, rowColOptions)
+	assert.Equal(t, "(", rowColOptions.RowPrefix)
+	assert.Equal(t, "(", rowColOptions.ColumnPrefix)
+	assert.Equal(t, "AND", rowColOptions.ColumnSeparator)
+	assert.Equal(t, ")", rowColOptions.ColumnEnd)
+	assert.Equal(t, "OR", rowColOptions.RowSeparator)
+	assert.Equal(t, ")", rowColOptions.RowEnd)
+}
+
+func Test_Format_cmd_All_Arguments(t *testing.T) {
+	query := `* | format mvsep="|" maxresults=10 "[" "{" "&&" "}" "||" "]" emptystr="Empty"`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "search", aggregator.OutputTransforms.LetColumns.NewColName)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.FormatResults)
+	assert.Equal(t, "|", aggregator.OutputTransforms.LetColumns.FormatResults.MVSeparator)
+	assert.Equal(t, uint64(10), aggregator.OutputTransforms.LetColumns.FormatResults.MaxResults)
+	assert.Equal(t, "Empty", aggregator.OutputTransforms.LetColumns.FormatResults.EmptyString)
+
+	rowColOptions := aggregator.OutputTransforms.LetColumns.FormatResults.RowColOptions
+
+	assert.NotNil(t, rowColOptions)
+	assert.Equal(t, "[", rowColOptions.RowPrefix)
+	assert.Equal(t, "{", rowColOptions.ColumnPrefix)
+	assert.Equal(t, "&&", rowColOptions.ColumnSeparator)
+	assert.Equal(t, "}", rowColOptions.ColumnEnd)
+	assert.Equal(t, "||", rowColOptions.RowSeparator)
+	assert.Equal(t, "]", rowColOptions.RowEnd)
+}
+
+func Test_Format_cmd_Incomplete_RowCol_Options(t *testing.T) {
+	query := `* | format "[" "[" "&&"`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
