@@ -436,7 +436,12 @@
             tags.appendChild(tag);
           });
         }
-      $("#search-filter-text, #aggregate-attribute-text, #aggregations").hide();
+        if (thirdBoxSet.size > 0) $("#aggregations").hide();
+        else $("#aggregations").show();
+        if (secondBoxSet.size > 0) $("#aggregate-attribute-text").hide();
+        else $("#aggregate-attribute-text").show();
+        if (firstBoxSet.size > 0) $("#search-filter-text").hide();
+        else $("#search-filter-text").show();
       $("#filter-input").val(filterValue).change();
       isQueryBuilderSearch = true;
       }
