@@ -771,6 +771,7 @@
          if (res && res.hits && res.hits.totalMatched) {
              totalHits = res.hits.totalMatched
          }
+         $('#views-container').show();
     } else if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
       let columnOrder =[]
         if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
@@ -788,6 +789,7 @@
  
          aggsColumnDefs=[];
          segStatsRowData=[]; 
+         $('#views-container').hide();
          renderMeasuresGrid(columnOrder, res);
  
      }
@@ -907,6 +909,7 @@
          renderMeasuresGrid(columnOrder, res);
          if ((res.qtype ==="aggs-query" || res.qtype === "segstats-query") && res.bucketCount){
              totalHits = res.bucketCount;
+           $('#views-container').hide();
          }
      }else{
       measureInfo = [];
