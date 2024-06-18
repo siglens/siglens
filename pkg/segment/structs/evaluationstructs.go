@@ -1334,7 +1334,7 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 
 func handleTrimFunctions(op string, value string, trim_chars string) string {
 	if trim_chars == "" {
-		trim_chars = "\t\n\v\f\r "
+		trim_chars = "\t "
 	}
 	switch op {
 	case "ltrim":
