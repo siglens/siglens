@@ -157,6 +157,38 @@ func initializeStatsOptions() *structs.StatsOptions {
     }
 }
 
+func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryAggregators, error) {
+
+    if inputField == "" {
+        inputField = "_raw"
+    }
+
+    spathExpr := &structs.SPathExpr{
+        InputColName: inputField,
+        Path: pathField,
+        OutputColName: outputField,
+    }
+    return &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                ValueColRequest: &structs.ValueExpr{
+                    ValueExprMode: structs.VEMStringExpr,
+                    StringExpr: &structs.StringExpr{
+                        StringExprMode: structs.SEMTextExpr,
+                        TextExpr: &structs.TextExpr{
+                            IsTerminal: true,
+                            Op: "spath",
+                            SPathExpr: spathExpr,
+                        },
+                    },
+                },
+                NewColName: outputField,
+            },
+        },
+    }, nil
+}
+
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
@@ -182,6 +214,11 @@ type TimechartArgs struct {
 type MultiValueColOptionArgs struct {
     argOption string
     mvColExpr *structs.MultiValueColLetRequest
+}
+
+type SPathFieldExpr struct {
+    PathValue string
+    IsPathFieldName bool  
 }
 
 }
@@ -270,7 +307,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -1368,7 +1405,7 @@ ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
     return conditionValuePair, nil
 }
 
-//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim
+//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim, strptime
 // mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
 TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
     opNameStr, err := transferUint8ToString(opName)
@@ -1472,6 +1509,17 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
     }
 
     return node, nil
+}
+/ "spath" L_PAREN inputField:FieldNameStartWith_ COMMA path:(QuotedPathString / UnquotedPathValue) R_PAREN {
+    pathExpr := path.(*SPathFieldExpr)
+    return &structs.TextExpr{
+        Op: "spath",
+        SPathExpr: &structs.SPathExpr{
+            InputColName: inputField.(string),
+            Path: pathExpr.PathValue,
+            IsPathFieldName: pathExpr.IsPathFieldName,
+        },
+    }, nil
 }
 / "ipmask" L_PAREN mask:StringExpr COMMA ip:ValueExpr R_PAREN {
     return &structs.TextExpr{
@@ -1699,11 +1747,25 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
         ValueList: []*structs.StringExpr{regex.(*structs.StringExpr), replacement.(*structs.StringExpr)},
     }, nil
 }
-/ "spath" L_PAREN val:ValueExpr COMMA path:StringExpr R_PAREN {
-    return &structs.TextExpr {
-        Op: "spath",
+/ "strptime" L_PAREN val:ValueExpr COMMA format:StringExpr R_PAREN {
+    return &structs.TextExpr{
+        Op: "strptime",
         Val: val.(*structs.ValueExpr),
-        Param: path.(*structs.StringExpr),
+        Param: format.(*structs.StringExpr),
+    }, nil
+}
+
+QuotedPathString <- str:QuotedString {
+    return &SPathFieldExpr{
+        PathValue: removeQuotes(str),
+        IsPathFieldName: false,
+    }, nil
+}
+
+UnquotedPathValue <- str:UnquotedString {
+    return &SPathFieldExpr{
+        PathValue: removeQuotes(str),
+        IsPathFieldName: true,
     }, nil
 }
 
@@ -2107,9 +2169,9 @@ NumericExprLevel1 <- L_PAREN expr:NumericExprLevel3 R_PAREN {
     return expr, nil
 }
 
-// Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random
+// Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random, time, relative_time, strftime
 //Currently involves abs, ceil, round, sqrt
-NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" / "floor" / "ln" / "sigfig") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
+NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp" / "floor" / "ln" / "sigfig" / "acosh" / "acos" / "asinh" / "asin" / "atanh" / "atan" / "cosh" / "cos" / "sinh" / "sin" / "tanh" / "tan") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -2150,7 +2212,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
 
     return node, nil
 }
-/ (opName:("now" / "pi" / "random") L_PAREN R_PAREN) {
+/ (opName:("now" / "pi" / "random" / "time") L_PAREN R_PAREN) {
     //transfer []uint8 to string
     strData, ok := opName.([]byte)
     if !ok {
@@ -2194,7 +2256,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
 / lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
     return expr, nil
 }
-/ (opName:("log" / "pow") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
+/ (opName:("log" / "pow" / "atan2" / "hypot") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -2222,6 +2284,18 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
         return nil, err
     }
 
+    return node, nil
+}
+/ opName:("relative_time" / "strftime") L_PAREN expr:(NumericExprLevel3) COMMA specifier:StringExpr R_PAREN {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: NumericExpr: %v", err)
+    }
+    node, err := createNumericExpr(opNameStr, expr.(*structs.NumericExpr), nil, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+    node.Val = specifier.(*structs.StringExpr)
     return node, nil
 }
 
@@ -3126,6 +3200,10 @@ FieldName <- [a-zA-Z0-9:*][a-zA-Z0-9:_.*]* {
     return string(c.text), nil
 }
 
+FieldNameStartWith_ <- [a-zA-Z0-9:_.*][a-zA-Z0-9:_.*]* {
+    return string(c.text), nil
+}
+
 String <- str:(QuotedString / UnquotedString) {
     return str, nil
 }
@@ -3135,15 +3213,22 @@ QuotedString <- '"' [^"]* '"' {
     return string(c.text), nil
 }
 
-Boolean <- ("true" / "false") {
-    boolValue, _ := strconv.ParseBool(string(c.text))
-    return boolValue, nil
-}
-
 UnquotedString <- ("*" / (!(MAJOR_BREAK / "|" / EOF) .))+ {
     // Return the string wrapped in quotes.
     str := "\"" + string(c.text) + "\""
     return str, nil
+}
+
+
+AllowedChar <- [a-zA-Z0-9:_{}@.] / ("{" [0-9]* "}")
+
+UnquotedStringWithTemplateWildCard <- (AllowedChar / !(MAJOR_BREAK / "|" / EOF) .)+ {
+    return string(c.text), nil
+}
+
+Boolean <- ("true" / "false") {
+    boolValue, _ := strconv.ParseBool(string(c.text))
+    return boolValue, nil
 }
 
 //Can recognize fieldName or Regex Pattern for Rename Block
@@ -3416,6 +3501,7 @@ MakeMVBlock <- CMD_MAKEMV SPACE mvColOptionExpr: MVBlockOptionsList? EMPTY_OR_SP
         mvColExpr = &structs.MultiValueColLetRequest{}
     }
 
+    mvColExpr.Command = "makemv"
     mvColExpr.ColName = field.(string)
 
     if mvColExpr.DelimiterString == "" {
@@ -3528,9 +3614,73 @@ SetSvOption <- "setsv" EQUAL boolVal:Boolean {
     return mvColOptionArgs, nil
 }
 
+// returns *structs.QueryAggregators
+SPathBlock <- PIPE CMD_SPATH spathExpr:SPathArgumentsList? {
+    if spathExpr == nil {
+        return createSPathExpr("", "", "")
+    }
+    return spathExpr, nil
+}
+
+SPathArgumentsList <- SPACE first:SPathArgument rest:(SPACE SPathArgument)* {
+
+    restSlice := rest.([]any)
+
+    inputField, pathField, outputField := "", "", ""
+
+    numArgs := 1 + len(restSlice)
+
+    for i := 0; i < numArgs; i++ {
+        var arg string
+        if i == 0 {
+            arg = first.(string)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            arg = separator[1].(string)
+        }
+
+        switch {
+        case strings.HasPrefix(arg, "input="):
+            inputField = strings.TrimPrefix(arg, "input=")
+        case strings.HasPrefix(arg, "output="):
+            outputField = strings.TrimPrefix(arg, "output=")
+        case strings.HasPrefix(arg, "path="):
+            pathField = strings.TrimPrefix(arg, "path=")
+        default:
+            return nil, fmt.Errorf("SPathArguments: Invalid Spath Argument: %v", arg)
+        }
+    }
+    
+    return createSPathExpr(inputField, pathField, outputField)
+}
+
+SPathArgument <- arg:(InputField / OutputField / PathField) {
+    return arg, nil
+}
+
+InputField <- "input" EQUAL field:FieldName {
+    return "input=" + field.(string), nil
+}
+OutputField <- "output" EQUAL field:FieldName {
+    return "output=" + field.(string), nil
+}
+PathField <- ("path" EQUAL SPathFieldString / SPathFieldString ) {
+     pathField := string(c.text)
+    if strings.HasPrefix(pathField, "path") {
+        pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path="))
+        pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path ="))
+        if pathField != "" && pathField[0] == '"' {
+            pathField = removeQuotes(pathField)
+        }
+    }
+    return "path=" + pathField, nil
+}
+
+SPathFieldString <- QuotedString / UnquotedStringWithTemplateWildCard
+
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -3550,6 +3700,7 @@ CMD_TRANSACTION <- "transaction" SPACE
 CMD_DEDUP <- "dedup"
 CMD_DEDUP_SORTBY <- SPACE "sortby" SPACE
 CMD_MAKEMV <- "makemv"
+CMD_SPATH <- "spath"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

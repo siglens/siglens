@@ -62,10 +62,26 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook boo
 		}
 	}
 
-	processedCount, response, err := HandleBulkBody(ctx.PostBody(), ctx, myid, useIngestHook)
+	var rid uint64
+	if hook := hooks.GlobalHooks.BeforeHandlingBulkRequest; hook != nil {
+		var alreadyHandled bool
+		alreadyHandled, rid = hook(ctx, myid)
+		if alreadyHandled {
+			return
+		}
+	}
+
+	processedCount, response, err := HandleBulkBody(ctx.PostBody(), ctx, rid, myid, useIngestHook)
 	if err != nil {
 		PostBulkErrorResponse(ctx)
 		return
+	}
+
+	if hook := hooks.GlobalHooks.AfterHandlingBulkRequest; hook != nil {
+		alreadyHandled := hook(ctx, rid)
+		if alreadyHandled {
+			return
+		}
 	}
 
 	//request body empty
@@ -76,7 +92,7 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook boo
 	}
 }
 
-func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) (int, map[string]interface{}, error) {
+func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid uint64, useIngestHook bool) (int, map[string]interface{}, error) {
 
 	r := bytes.NewReader(postBody)
 
@@ -136,7 +152,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useI
 						}
 					}
 				} else {
-					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes), false, localIndexMap, myid)
+					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes), false, localIndexMap, myid, rid)
 					if err != nil {
 						log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
 						success = false
@@ -263,7 +279,7 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 }
 
 func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
-	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64) error {
+	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64, rid uint64) error {
 
 	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
 	cfgkey := config.GetTimeStampKey()
@@ -287,7 +303,7 @@ func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
 	// OR in json-resp creation we add it in the resp using the vtable name
 
 	err := writer.AddEntryToInMemBuf(streamid, rawJson, ts_millis, indexNameConverted, bytesReceived, flush,
-		docType, myid)
+		docType, myid, rid)
 	if err != nil {
 		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, rawJson=%v, err=%v", streamid, rawJson, err)
 		return err
