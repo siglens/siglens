@@ -502,6 +502,18 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			}
 		} else {
 			if errLeftStr != nil && errLeftFloat != nil {
+				leftField := self.LeftValue.GetFields()
+				if len(leftField) == 1 {
+					// Check the left field value in the fieldToValue map
+					value, exists := fieldToValue[leftField[0]]
+					if !exists {
+						return false, fmt.Errorf("BoolExpr.Evaluate: Field '%s' not found in data", leftField[0])
+					}
+					// Check if the value's Dtype is SS_DT_BACKFILL
+					if value.Dtype == utils.SS_DT_BACKFILL {
+						return false, nil
+					}
+				}
 				return false, fmt.Errorf("BoolExpr.Evaluate: left cannot be evaluated to a string or float")
 			}
 			if errRightStr != nil && errRightFloat != nil {
@@ -1538,7 +1550,7 @@ func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValu
 	for _, cvPair := range self.ConditionValuePairs {
 		res, err := cvPair.Condition.Evaluate(fieldToValue)
 		if err != nil {
-			continue
+			return "", fmt.Errorf("handleCaseFunction: Error while evaluating condition, err: %v", err)
 		}
 		if res {
 			val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
