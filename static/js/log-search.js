@@ -47,6 +47,7 @@ $(document).ready(async () => {
     // If query string found , then do search
     if (window.location.search) {
         data = getInitialSearchFilter(false, false);
+        initialSearchData = data;
         doSearch(data);
     } else {
         setIndexDisplayValue(selectedSearchIndex);
