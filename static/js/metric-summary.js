@@ -8,7 +8,6 @@ $(document).ready(() => {
     getMetricNames();
 });
 
-
 function isMetricsDatePickerHandler(evt) {
     evt.preventDefault();
     $.each($(".range-item.active"), function () {
@@ -19,17 +18,19 @@ function isMetricsDatePickerHandler(evt) {
     getMetricNames();
     $('#daterangepicker').hide();
 }
+
 function getTimeRange() {
     return {
         'startEpoch': filterStartDate || "now-1h",
         'endEpoch': filterEndDate || "now",
     };
 }
+
 function getMetricNames() {
     const data = getTimeRange();
-    const pl={
-        start:data.startEpoch,
-        end:data.endEpoch,
+    const pl = {
+        start: data.startEpoch,
+        end: data.endEpoch,
     };
     $.ajax({
         method: "post",
@@ -41,10 +42,11 @@ function getMetricNames() {
         crossDomain: true,
         dataType: "json",
         data: JSON.stringify(pl),
-    }).then(function (res){
+    }).then(function (res) {
         displaydata(res);
-    })
+    });
 }
+
 function displaydata(res) {
     if (!res || !res.metricNames || !Array.isArray(res.metricNames)) {
         console.error('Invalid response format:', res);
@@ -67,3 +69,23 @@ function displaydata(res) {
     gridOptions.api.sizeColumnsToFit();
 }
 
+// AG Grid options with pagination enabled
+var gridOptions = {
+    pagination: true,
+    paginationPageSize: 10, // Number of rows per page
+    defaultColDef: {
+        sortable: true,
+        filter: true,
+        resizable: true,
+    },
+    onGridReady: function(params) {
+        params.api.sizeColumnsToFit();
+    },
+    columnDefs: [
+        { headerName: "Metric Name", field: "metricName" }
+    ],
+    rowData: []
+};
+
+var gridDiv = document.querySelector('#ag-grid');
+new agGrid.Grid(gridDiv, gridOptions);
