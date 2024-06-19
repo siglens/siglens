@@ -29,6 +29,15 @@ import (
     "github.com/siglens/siglens/pkg/segment/utils"
     log "github.com/sirupsen/logrus"
 )
+// ConvertCustomDateTimeFormatToEpochMs converts a date string in the format "MM/DD/YYYY:HH:MM:SS" 
+// to Unix time in milliseconds (epoch ms).
+func ConvertCustomDateTimeFormatToEpochMs(dateStr string) (int64, error) {
+    t, err := time.Parse("01/02/2006:15:04:05", dateStr)
+    if err != nil {
+        return 0, err
+    }
+    return t.UnixMilli(), nil
+}
 
 func getParseError(err error) error {
     switch ev := err.(type) {
@@ -323,7 +332,7 @@ SearchBlock <- !(ALLCMD) CMD_SEARCH? clause:ClauseLevel4 {
     return clause, nil
 }
 
-FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
+FilterBlock <- PIPE block:(SearchBlock / RegexBlock / EarliestAndLatest / EarliestOnly) {
     return block, nil
 }
 
@@ -3243,6 +3252,52 @@ FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
     return fields, nil
 }
 
+TimeModifiers <- EarliestAndLatest / EarliestOnly
+
+EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:AbsoluteTimestamp SPACE CMD_LATEST EQUAL latestTime:AbsoluteTimestamp !. {
+    startEpoch, err := ConvertCustomDateTimeFormatToEpochMs(earliestTime.(string))
+    if err != nil {
+        return nil, err
+    }
+    endEpoch, err := ConvertCustomDateTimeFormatToEpochMs(latestTime.(string))
+    if err != nil {
+        return nil, err
+    }
+
+    // Create AST node
+    node := &ast.Node{
+        NodeType: ast.TimeModifierNode,
+        TimeModifiers: &ast.TimeModifiers{
+            StartEpoch: uint64(startEpoch),
+            EndEpoch: uint64(endEpoch),
+        },
+    }
+
+    return node, nil
+}
+
+EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:AbsoluteTimestamp !. {
+    startEpoch, err := ConvertCustomDateTimeFormatToEpochMs(earliestTime.(string))
+    if err != nil {
+        return nil, err
+    }
+
+    // Create AST node
+    node := &ast.Node{
+        NodeType: ast.TimeModifierNode,
+        TimeModifiers: &ast.TimeModifiers{
+            StartEpoch: uint64(startEpoch),
+            EndEpoch: uint64(time.Now().UnixNano() / int64(time.Millisecond)),
+        },
+    }
+
+    return node, nil
+}
+
+AbsoluteTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] {
+    return string(c.text), nil
+}
+
 // From https://docs.splunk.com/Documentation/Splunk/7.3.1/Knowledge/Aboutregularexpressionswithfieldextractions
 // This allows wildcards in a FieldName, but wildcard fields are not allowed in
 // some places; those rules should check whether the field has a wildcard.
@@ -3862,6 +3917,8 @@ CMD_DEDUP_SORTBY <- SPACE "sortby" SPACE
 CMD_MAKEMV <- "makemv"
 CMD_SPATH <- "spath"
 CMD_FORMAT <- "format"
+CMD_EARLIEST <- "earliest"
+CMD_LATEST <- "latest"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
