@@ -242,8 +242,8 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 		return err
 	}
 
-	segstore.lock.Lock()
-	defer segstore.lock.Unlock()
+	segstore.Lock.Lock()
+	defer segstore.Lock.Unlock()
 	if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
 		segstore.wipBlock.blockSummary.RecCount >= MAX_RECS_PER_WIP {
 		err = segstore.AppendWipToSegfile(streamid, false, false, false)
@@ -311,13 +311,13 @@ func ForcedFlushToSegfile() {
 	log.Warnf("Flushing %+v segment files on server exit", len(allSegStores))
 	allSegStoresLock.Lock()
 	for streamid, segstore := range allSegStores {
-		segstore.lock.Lock()
+		segstore.Lock.Lock()
 		err := segstore.AppendWipToSegfile(streamid, true, false, false)
 		if err != nil {
 			log.Errorf("ForcedFlushToSegfile: failed to append err=%v", err)
 		}
 		log.Warnf("Flushing segment file for streamid %s server exit", streamid)
-		segstore.lock.Unlock()
+		segstore.Lock.Unlock()
 		delete(allSegStores, streamid)
 	}
 	allSegStoresLock.Unlock()
@@ -354,7 +354,7 @@ func rotateSegmentOnTime() {
 		wg.Add(1)
 		go func(streamid string, segstore *SegStore) {
 			defer wg.Done()
-			segstore.lock.Lock()
+			segstore.Lock.Lock()
 			segstore.firstTime = false
 			err := segstore.AppendWipToSegfile(streamid, false, false, true)
 			if err != nil {
@@ -367,7 +367,7 @@ func rotateSegmentOnTime() {
 					log.Infof("Rotating segment due to time. streamid=%s and table=%s", streamid, segstore.VirtualTableName)
 				}
 			}
-			segstore.lock.Unlock()
+			segstore.Lock.Unlock()
 		}(sid, ss)
 	}
 	wg.Wait()
@@ -377,14 +377,14 @@ func rotateSegmentOnTime() {
 func ForceRotateSegmentsForTest() {
 	allSegStoresLock.Lock()
 	for streamid, segstore := range allSegStores {
-		segstore.lock.Lock()
+		segstore.Lock.Lock()
 		err := segstore.AppendWipToSegfile(streamid, false, false, true)
 		if err != nil {
 			log.Errorf("ForceRotateSegmentsForTest: failed to append,  streamid=%s err=%v", err, streamid)
 		} else {
 			log.Infof("Rotating segment due to time. streamid=%s and table=%s", streamid, segstore.VirtualTableName)
 		}
-		segstore.lock.Unlock()
+		segstore.Lock.Unlock()
 	}
 	allSegStoresLock.Unlock()
 }
@@ -400,7 +400,7 @@ func timeBasedRotateSegment() {
 func FlushWipBufferToFile(sleepDuration *time.Duration) {
 	allSegStoresLock.RLock()
 	for streamid, segstore := range allSegStores {
-		segstore.lock.Lock()
+		segstore.Lock.Lock()
 		if segstore.wipBlock.maxIdx > 0 && time.Since(segstore.lastUpdated) > *sleepDuration {
 			err := segstore.AppendWipToSegfile(streamid, false, false, false)
 			if err != nil {
@@ -408,7 +408,7 @@ func FlushWipBufferToFile(sleepDuration *time.Duration) {
 			}
 			log.Infof("Flushed WIP buffer due to time. streamid=%s and table=%s", streamid, segstore.VirtualTableName)
 		}
-		segstore.lock.Unlock()
+		segstore.Lock.Unlock()
 	}
 	allSegStoresLock.RUnlock()
 }
@@ -443,7 +443,7 @@ func getSegStore(streamid string, ts_millis uint64, table string, orgId uint64) 
 		if err != nil {
 			return nil, err
 		}
-		segstore = &SegStore{suffix: suffIndex, lock: sync.Mutex{}, OrgId: orgId, firstTime: true}
+		segstore = &SegStore{suffix: suffIndex, Lock: sync.Mutex{}, OrgId: orgId, firstTime: true}
 		segstore.initWipBlock()
 		err = segstore.resetSegStore(streamid, table)
 		if err != nil {
@@ -498,16 +498,14 @@ func getActiveBaseSegDir(streamid string, virtualTableName string, suffix uint64
 	return basedir
 }
 
-func getFinalBaseSegDir(streamid string, virtualTableName string, suffix uint64) string {
-	var sb strings.Builder
-	sb.WriteString(config.GetDataPath())
-	sb.WriteString(config.GetHostID())
-	sb.WriteString("/final/")
-	sb.WriteString(virtualTableName + "/")
-	sb.WriteString(streamid + "/")
-	sb.WriteString(strconv.FormatUint(suffix, 10) + "/")
-	basedir := sb.String()
-	return basedir
+func getFinalBaseSegDirFromActive(activeBaseSegDir string) (string, error) {
+	if !strings.Contains(activeBaseSegDir, "/active/") {
+		err := fmt.Errorf("getFinalBaseSegDirFromActive: invalid activeBaseSegDir=%v does not contain /active/", activeBaseSegDir)
+		log.Errorf(err.Error())
+		return "", err
+	}
+
+	return strings.Replace(activeBaseSegDir, "/active/", "/final/", 1), nil
 }
 
 /*
