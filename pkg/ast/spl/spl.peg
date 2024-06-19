@@ -32,7 +32,8 @@ import (
 // ConvertCustomDateTimeFormatToEpochMs converts a date string in the format "MM/DD/YYYY:HH:MM:SS" 
 // to Unix time in milliseconds (epoch ms).
 func ConvertCustomDateTimeFormatToEpochMs(dateStr string) (int64, error) {
-    t, err := time.Parse("01/02/2006:15:04:05", dateStr)
+    loc, _ := time.LoadLocation("Local")
+    t, err := time.ParseInLocation("01/02/2006:15:04:05", dateStr, loc)
     if err != nil {
         return 0, err
     }
