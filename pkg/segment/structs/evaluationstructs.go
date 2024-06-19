@@ -366,8 +366,6 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 	case "searchmatch":
 		fallthrough
 	case "isnotnull":
-		fallthrough
-	case "isnum":
 		return false, fmt.Errorf("BoolExpr.Evaluate: does support using this operator: %v", self.ValueOp)
 	}
 
@@ -393,6 +391,14 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			}
 
 			_, parseErr := strconv.Atoi(val)
+			return parseErr == nil, nil
+		} else if self.ValueOp == "isnum" {
+			val, err := self.LeftValue.EvaluateToString(fieldToValue)
+			if err != nil {
+				return false, err
+			}
+
+			_, parseErr := strconv.ParseFloat(val, 64)
 			return parseErr == nil, nil
 		} else if self.ValueOp == "isstr" {
 			_, floatErr := self.LeftValue.EvaluateToFloat(fieldToValue)
@@ -1335,6 +1341,22 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 	}
 }
 
+func handleTrimFunctions(op string, value string, trim_chars string) string {
+	if trim_chars == "" {
+		trim_chars = "\t "
+	}
+	switch op {
+	case "ltrim":
+		return strings.TrimLeft(value, trim_chars)
+	case "rtrim":
+		return strings.TrimRight(value, trim_chars)
+	case "trim":
+		return strings.Trim(value, trim_chars)
+	default:
+		return value
+	}
+}
+
 func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
@@ -1450,10 +1472,10 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	switch self.Op {
 	case "lower":
 		return strings.ToLower(cellValueStr), nil
-	case "ltrim":
-		return strings.TrimLeft(cellValueStr, self.StrToRemove), nil
-	case "rtrim":
-		return strings.TrimRight(cellValueStr, self.StrToRemove), nil
+	case "upper":
+		return strings.ToUpper(cellValueStr), nil
+	case "ltrim", "rtrim", "trim":
+		return handleTrimFunctions(self.Op, cellValueStr, self.StrToRemove), nil
 	case "urldecode":
 		decodedStr, decodeErr := url.QueryUnescape(cellValueStr)
 		if decodeErr != nil {

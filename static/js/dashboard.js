@@ -46,7 +46,7 @@ $(document).ready(async function () {
     dbId = getDashboardId();
     if (defaultDashboardIds.includes(dbId)) {
         isDefaultDashboard = true;
-        $('#save-db-btn, #add-panel-btn, #add-widget-options .editPanelMenu').hide();
+        $('#save-db-btn, #add-panel-btn').hide();
     }
 
     $("#add-panel-btn, .close-widget-popup").click(() => {
@@ -410,6 +410,15 @@ async function getDashboardData() {
         setFavoriteValue(dbData.isFavorite);
         updateTimeRangeForPanels();
         setRefreshItemHandler();
+
+        if (!(localPanels.length > 0)) {
+            $('.default-item').addClass('active');
+            $('#add-widget-options').toggle();
+            $('.add-icon').toggleClass('rotate-icon');
+            $('#add-panel-btn').toggleClass('active'); 
+            $('.default-item').find('.text').text('Select the panel type');
+            $('.plus-icon').hide();
+        }
     }
 }
 
@@ -925,16 +934,15 @@ function addDuplicatePanel(panelToDuplicate) {
 }
 
 function addDefaultPanel(){
-    var defaultItem = grid.addWidget(`<div class="grid-stack-item default-item active"><div class="add-panel-div">
+    var defaultItem = grid.addWidget(`<div class="grid-stack-item default-item"><div class="add-panel-div">
     <div class="plus-icon">+</div>
-    <div class="text">Select the Panel Type</div>
+    <div class="text">Add Panel</div>
     </div></div>`, 
     {   width: 4, 
         height:2,  
         noResize: true,
         noMove: true,
     });
-    $('#add-widget-options').show();
 }
 
 

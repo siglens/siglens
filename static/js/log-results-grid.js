@@ -46,6 +46,10 @@ class ReadOnlyCellEditor {
         this.eInput.value = params.value;
 
         this.gridApi = params.api;
+
+        // event listener for clicks outside the popup
+        this.onClickOutside = this.onClickOutside.bind(this);
+        document.addEventListener('mousedown', this.onClickOutside);
     }
     // gets called once when grid ready to insert the element
     getGui() {
@@ -69,6 +73,7 @@ class ReadOnlyCellEditor {
       }
     destroy() {
         this.eInput.classList.remove(cellEditingClass);
+        document.removeEventListener('mousedown', this.onClickOutside);
     }
     addCopyIcon() {
         // Remove any existing copy icons
@@ -76,7 +81,7 @@ class ReadOnlyCellEditor {
       
         // Add copy icon to the textarea
         $('.copyable').each(function() {
-          var copyIcon = $('<span style="margin-right: 14px;" class="copy-icon"></span>');
+          var copyIcon = $('<span class="copy-icon"></span>');
           $(this).after(copyIcon);
         });
       
@@ -99,6 +104,12 @@ class ReadOnlyCellEditor {
           }, 1000);
         });
       }
+
+      onClickOutside(event) {
+        if (this.eInput && !this.eInput.contains(event.target) && !document.querySelector('.ag-popup-editor').contains(event.target)) {
+            this.gridApi.stopEditing();
+        }
+    }
   }
 
 const cellEditorParams = (params) => {

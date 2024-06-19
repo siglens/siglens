@@ -17,7 +17,11 @@
 
 package utils
 
-import log "github.com/sirupsen/logrus"
+import (
+	"reflect"
+
+	log "github.com/sirupsen/logrus"
+)
 
 func SliceContainsString(slice []string, s string) bool {
 	for _, v := range slice {
@@ -61,4 +65,16 @@ func ResizeSlice[T any](slice []T, newLength int) []T {
 	}
 
 	return append(slice, make([]T, newLength-len(slice))...)
+}
+
+func IsArrayOrSlice(val interface{}) (bool, reflect.Value, string) {
+	v := reflect.ValueOf(val)
+	switch v.Kind() {
+	case reflect.Array:
+		return true, v, "array"
+	case reflect.Slice:
+		return true, v, "slice"
+	default:
+		return false, v, "neither"
+	}
 }

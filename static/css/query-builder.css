@@ -687,6 +687,7 @@ div.show-record-popup {
     position: relative;
     height: 100%;
     background: none;
+    display: none;
 }
 .tab-chart-list{
     height: 30px;
@@ -836,6 +837,7 @@ div.show-record-popup {
     padding: 40px;
     border-radius: 5px;
     color: var(--empty-response-text-color);
+    display: none;
 }
 #empty-response{
     display: none;

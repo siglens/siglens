@@ -1294,6 +1294,9 @@ input:checked + .slider:before {
 .graph-customization{
   width: 320px;
 }
+#add-widget-options{
+  display: none;
+}
 #add-widget-options .editPanelMenu{
     width: 20%;
     padding: 10px 10px;
@@ -1440,7 +1443,6 @@ input:checked + .slider:before {
 .add-panel-div .plus-icon{
   font-size: 40px;
   color: var(--lavender-2);
-  display: none;
 }
 .add-panel-div .text{
   font-size: 15px;
