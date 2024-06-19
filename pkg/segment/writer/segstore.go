@@ -144,6 +144,8 @@ func NewSegStore(baseDir string, suffix uint64, virtualTableName string, orgId u
 		firstTime:         true,
 	}
 
+	segstore.initWipBlock()
+
 	return segstore
 }
 

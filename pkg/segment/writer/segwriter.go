@@ -242,13 +242,20 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 		return err
 	}
 
+	return segstore.AddEntry(streamid, rawJson, ts_millis, indexName, bytesReceived, flush, signalType, orgid, rid)
+}
+
+func (segstore *SegStore) AddEntry(streamid string, rawJson []byte, ts_millis uint64,
+	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64, rid uint64) error {
+
 	segstore.Lock.Lock()
 	defer segstore.Lock.Unlock()
+
 	if segstore.wipBlock.maxIdx+MAX_RECORD_SIZE >= WIP_SIZE ||
 		segstore.wipBlock.blockSummary.RecCount >= MAX_RECS_PER_WIP {
-		err = segstore.AppendWipToSegfile(streamid, false, false, false)
+		err := segstore.AppendWipToSegfile(streamid, false, false, false)
 		if err != nil {
-			log.Errorf("AddEntryToInMemBuf: failed to append segkey=%v, err=%v", segstore.SegmentKey, err)
+			log.Errorf("SegStore.AddEntry: failed to append segkey=%v, err=%v", segstore.SegmentKey, err)
 			return err
 		}
 		instrumentation.IncrementInt64Counter(instrumentation.WIP_BUFFER_FLUSH_COUNT, 1)
@@ -256,7 +263,7 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 
 	segstore.adjustEarliestLatestTimes(ts_millis)
 	segstore.wipBlock.adjustEarliestLatestTimes(ts_millis)
-	err = segstore.WritePackedRecord(rawJson, ts_millis, signalType)
+	err := segstore.WritePackedRecord(rawJson, ts_millis, signalType)
 	if err != nil {
 		return err
 	}
@@ -265,14 +272,14 @@ func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
 	if hook := hooks.GlobalHooks.AfterWritingToSegment; hook != nil {
 		err := hook(rid, segstore, rawJson, ts_millis, signalType)
 		if err != nil {
-			log.Errorf("AddEntryToInMemBuf: error from AfterWritingToSegment hook: %v", err)
+			log.Errorf("SegStore.AddEntry: error from AfterWritingToSegment hook: %v", err)
 		}
 	}
 
 	if flush {
 		err = segstore.AppendWipToSegfile(streamid, false, false, false)
 		if err != nil {
-			log.Errorf("AddEntryToInMemBuf: failed to append during flush segkey=%v, err=%v", segstore.SegmentKey, err)
+			log.Errorf("SegStore.AddEntry: failed to append during flush segkey=%v, err=%v", segstore.SegmentKey, err)
 			return err
 		}
 	}
