@@ -295,14 +295,6 @@ func (segstore *SegStore) GetBaseDir() string {
 	return segstore.segbaseDir
 }
 
-func (segstore *SegStore) SetBaseDir(basedir string) {
-	segstore.segbaseDir = basedir
-}
-
-func (segstore *SegStore) SetSuffix(suffix uint64) {
-	segstore.suffix = suffix
-}
-
 // For some types we use a bloom index and for others we use range indices. If
 // a column has both, we should convert all the values to one type.
 func consolidateColumnTypes(wipBlock *WipBlock, segmentKey string) {
