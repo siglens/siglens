@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/ast/logql"
 	"github.com/siglens/siglens/pkg/ast/spl"
 	"github.com/siglens/siglens/pkg/ast/sql"
+	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
@@ -237,6 +238,12 @@ func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 		} else {
 			boolNode.AndFilterCondition.JoinCondition(filtercond)
 		}
+	case ast.TimeModifierNode:
+		if boolNode.TimeRange == nil {
+			boolNode.TimeRange = &dtu.TimeRange{}
+		}
+		boolNode.TimeRange.StartEpochMs = node.TimeModifiers.StartEpoch
+		boolNode.TimeRange.EndEpochMs = node.TimeModifiers.EndEpoch
 	default:
 		log.Errorf("SearchQueryToASTnode: node type %d not supported", node.NodeType)
 		return errors.New("SearchQueryToASTnode: node type not supported")
@@ -563,6 +570,13 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 		} else {
 			boolNode.AndFilterCondition.JoinCondition(filtercond)
 		}
+		return nil
+	case ast.TimeModifierNode:
+		if boolNode.TimeRange == nil {
+			boolNode.TimeRange = &dtu.TimeRange{}
+		}
+		boolNode.TimeRange.StartEpochMs = node.TimeModifiers.StartEpoch
+		boolNode.TimeRange.EndEpochMs = node.TimeModifiers.EndEpoch
 		return nil
 	default:
 		log.Errorf("parseANDCondition: node type %d not supported", node.NodeType)
