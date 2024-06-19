@@ -1339,6 +1339,25 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 				return -1, fmt.Errorf("NumericExpr.Evaluate: hypot requires two values, got: left=%v, right=%v", self.Left, self.Right)
 			}
 			return math.Hypot(left, right), nil
+		case "log":
+			switch {
+			case left <= 0:
+				return -1, fmt.Errorf("NumericExpr.Evaluate: Non-positive values cannot be used for logarithm: %v", left)
+			case right < 0, right == 1:
+				return -1, fmt.Errorf("NumericExpr.Evaluate: Invalid base for logarithm: %v", right)
+			case right == 0:
+				right = 10
+			}
+			return math.Log(left) / math.Log(right), nil
+		case "ln":
+			if left < 0 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: Negative values cannot be used for natural logarithm: %v", left)
+			}
+			return math.Log(left), nil
+		case "floor":
+			return math.Floor(left), nil
+		case "pow":
+			return math.Pow(left, right), nil
 		case "round":
 			if self.Right != nil {
 				return round(left, int(right)), nil

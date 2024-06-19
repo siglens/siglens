@@ -407,11 +407,13 @@ function runFilterBtnHandler(evt) {
       logsRowData = [];
       wsState = "query";
       data = getSearchFilter(false, false);
+      initialSearchData = data;
       availColNames = [];
       doSearch(data);
     } else {
       wsState = "cancel";
       data = getSearchFilter(false, false);
+      initialSearchData = data;
       doCancel(data);
     }
     $('#daterangepicker').hide();
@@ -427,6 +429,7 @@ function filterInputHandler(evt) {
       resetDashboard();
       logsRowData = [];
       data = getSearchFilter(false, false);
+      initialSearchData = data;
       availColNames = [];
       doSearch(data);
     }
