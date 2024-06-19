@@ -69,7 +69,7 @@ function displaydata(res) {
     gridOptions.api.sizeColumnsToFit();
 }
 
-// AG Grid options with pagination enabled
+// AG Grid options with pagination and sorting icons enabled
 var gridOptions = {
     pagination: true,
     paginationPageSize: 10, // Number of rows per page
@@ -77,12 +77,20 @@ var gridOptions = {
         sortable: true,
         filter: true,
         resizable: true,
+        icons: {
+            sortAscending: '<i class="fa fa-sort-alpha-down"/>',
+            sortDescending: '<i class="fa fa-sort-alpha-up"/>'
+        },
     },
     onGridReady: function(params) {
         params.api.sizeColumnsToFit();
     },
     columnDefs: [
-        { headerName: "Metric Name", field: "metricName" }
+        { 
+            headerName: "Metric Name", 
+            field: "metricName",
+            sort: 'asc' // Initial sort order set to ascending
+        }
     ],
     rowData: []
 };

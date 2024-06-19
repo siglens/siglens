@@ -1,22 +1,3 @@
-/* 
- * Copyright (c) 2021-2024 SigScalr, Inc.
- *
- * This file is part of SigLens Observability Solution
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 let navbarComponent = `
     <div>
         <div class="menu logo" title="">
@@ -196,13 +177,21 @@ $(document).ready(function () {
         $(".help-options").slideToggle(200);
     });
 
-    $(".metrics-dropdown-toggle").click(function () {
+    $(".metrics-dropdown-toggle").click(function (event) {
+        event.stopPropagation();
         $(".metrics-dropdown").toggle();
     });
+
     $(document).on("click", function(event) {
         var helpOptions = $(".help-options");
-        var menu = $(".nav-help");
+        var metricsDropdown = $(".metrics-dropdown");
+        var metricsToggle = $(".metrics-dropdown-toggle");
+
+        if (!metricsToggle.is(event.target) && !metricsDropdown.is(event.target) && metricsDropdown.has(event.target).length === 0) {
+            metricsDropdown.hide();
+        }
         
+        var menu = $(".nav-help");
         if (!menu.is(event.target) && !helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
             helpOptions.slideUp(200);
         }
@@ -211,6 +200,7 @@ $(document).ready(function () {
     $(".help-options").on("click", "a", function(event) {
         $(".help-options").slideUp(200);
     });
+
     const currentLocation = window.location.href;
     const menuItem = document.querySelectorAll('.metrics-dropdown a');
     menuItem.forEach(item => {
@@ -219,5 +209,3 @@ $(document).ready(function () {
         }
     });
 });
-
-
