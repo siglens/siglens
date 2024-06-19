@@ -332,7 +332,7 @@ SearchBlock <- !(ALLCMD) CMD_SEARCH? clause:ClauseLevel4 {
     return clause, nil
 }
 
-FilterBlock <- PIPE block:(SearchBlock / RegexBlock / EarliestAndLatest / EarliestOnly) {
+FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
     return block, nil
 }
 
@@ -3287,7 +3287,7 @@ EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:AbsoluteTimestamp !. {
         NodeType: ast.TimeModifierNode,
         TimeModifiers: &ast.TimeModifiers{
             StartEpoch: uint64(startEpoch),
-            EndEpoch: uint64(time.Now().UnixNano() / int64(time.Millisecond)),
+            EndEpoch: uint64(time.Now().UnixMilli()),
         },
     }
 
