@@ -72,42 +72,41 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div class="cstats-data-container myOrg-container">
                 <div class="org-nav-tab subsection-navbar align-items-end justify-content-between">
                     {{ .Button1 | safeHTML }}
-                <div class="dropdown" id="cstats-time-picker">
-                    <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
-                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                        data-bs-toggle="dropdown" title="Pick the time window">
-                        <span>Time Picker</span>
-                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                    </button>
-                    <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
-                        id="daterangepicker ">
-                        <p class="dt-header">Ingestion Stats for the last</p>
-                        <div class="ranges">
-                            <div class="inner-range">
-                                <div id="now-1h" class="range-item">1 Hr</div>
-                                <div id="now-7d" class="range-item active">7 Days</div>
-                            </div>
-                            <div class="inner-range">
-                                <div id="now-3h" class="range-item">3 Hrs</div>
-                                <div id="now-30d" class="range-item">30 Days</div>
-                            </div>
-                            <div class="inner-range">
-                                <div id="now-6h" class="range-item">6 Hrs</div>
-                                <div id="now-90d" class="range-item">90 Days</div>
-                            </div>
-                            <div class="inner-range">
-                                <div id="now-12h" class="range-item">12 Hrs</div>
-                                <div id="now-180d" class="range-item">180 Days</div>
-                            </div>
-                            <div class="inner-range">
-                                <div id="now-24h" class="range-item">24 Hrs</div>
-                                <div id="now-365d" class="range-item">1 Year</div>
+                    <div class="dropdown" id="cstats-time-picker">
+                        <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown"
+                            aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
+                            title="Pick the time window">
+                            <span>Time Picker</span>
+                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                        </button>
+                        <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
+                            <p class="dt-header">Ingestion Stats for the last</p>
+                            <div class="ranges">
+                                <div class="inner-range">
+                                    <div id="now-1h" class="range-item">1 Hr</div>
+                                    <div id="now-7d" class="range-item active">7 Days</div>
+                                </div>
+                                <div class="inner-range">
+                                    <div id="now-3h" class="range-item">3 Hrs</div>
+                                    <div id="now-30d" class="range-item">30 Days</div>
+                                </div>
+                                <div class="inner-range">
+                                    <div id="now-6h" class="range-item">6 Hrs</div>
+                                    <div id="now-90d" class="range-item">90 Days</div>
+                                </div>
+                                <div class="inner-range">
+                                    <div id="now-12h" class="range-item">12 Hrs</div>
+                                    <div id="now-180d" class="range-item">180 Days</div>
+                                </div>
+                                <div class="inner-range">
+                                    <div id="now-24h" class="range-item">24 Hrs</div>
+                                    <div id="now-365d" class="range-item">1 Year</div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
                 <div class="myOrg-inner-container">
                     <div class="usage-stats-header">
                         <p class="caption">Track progress and performance </p>
@@ -162,8 +161,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <div class="popupContent" id="confirm-del-index-prompt">
                             <h3 class="header">Delete Index</h3>
                             <div class="del-org-prompt-text-container">
-                                <div class="prompt-text">Are you sure you want to delete the "<span class="index-name"></span>" index?</div>
-                                <div class="prompt-text prompt-text-bottom">To confirm the action, please type "<b>delete </b><span class="index-name"></span>".</div>
+                                <div class="prompt-text">Are you sure you want to delete the "<span
+                                        class="index-name"></span>" index?</div>
+                                <div class="prompt-text prompt-text-bottom">To confirm the action, please type
+                                    "<b>delete </b><span class="index-name"></span>".</div>
                             </div>
                             <input type="text" id="del-index-name-input" class="prompt-input">
                             <div class="buttons-prompt">
@@ -185,13 +186,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </div>
                     </div>
                     <div class="query-stats-container">
-                    <div class="query-stats">
-                        <p class="query-stats-header">Query Stats</p>
-                        <table class="query-table" id="query-table">
-                            <tbody>
-                            </tbody>
-                        </table>
-                    </div>
+                        <div class="query-stats">
+                            <p class="query-stats-header">Query Stats</p>
+                            <table class="query-table" id="query-table">
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                     <div id="cstats-app-footer">
                         2024 &copy; SigLens
