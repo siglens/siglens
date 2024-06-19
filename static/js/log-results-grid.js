@@ -226,11 +226,21 @@ const gridOptions = {
             let diff = logsRowData.length - evt.api.getLastDisplayedRow();
             // if we're less than 5 items from the end...fetch more data
             if(diff <= 5) {
-                isFetching = true;
-                showLoadingIndicator();
-
                 let scrollingTrigger = true;
                 data = getSearchFilter(false, scrollingTrigger);
+                if (
+                    data.searchText !== initialSearchData.searchText ||
+                    data.indexName !== initialSearchData.indexName ||
+                    data.startEpoch !== initialSearchData.startEpoch ||
+                    data.endEpoch !== initialSearchData.endEpoch ||
+                    data.queryLanguage !== initialSearchData.queryLanguage
+                ) {
+                    scrollingErrorPopup();
+                    return; // Prevent further scrolling
+                }
+                
+                isFetching = true;
+                showLoadingIndicator();
                 if (data && data.searchText == "error") {
                   alert("Error");
                   hideLoadingIndicator(); // Hide loading indicator on error
@@ -445,3 +455,13 @@ JSON.unflatten = function (data) {
     }
     return resultholder[""] || resultholder;
 };
+
+function scrollingErrorPopup(){
+    $('.popupOverlay').addClass('active');
+    $('#error-popup.popupContent').addClass('active');
+
+    $('#okay-button').on('click', function(){
+        $('.popupOverlay').removeClass('active');
+        $('#error-popup.popupContent').removeClass('active');
+    });
+}

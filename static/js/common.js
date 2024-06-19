@@ -71,6 +71,7 @@ let defaultDashboardIds = [
     "bd74f11e-26c8-4827-bf65-c0b464e1f2a4",
     "53cb3dde-fd78-4253-808c-18e4077ef0f1"
 ];
+let initialSearchData = {};
 
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,
