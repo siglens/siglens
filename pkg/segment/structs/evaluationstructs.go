@@ -1219,12 +1219,12 @@ func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue m
 		for _, cvPair := range self.ConditionValuePairs {
 			res, err := cvPair.Condition.Evaluate(fieldToValue)
 			if err != nil {
-				continue
+				return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating condition, err: %v fieldToValue: %v", err, fieldToValue)
 			}
 			if !res {
 				val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
 				if err != nil {
-					return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating value, err: %v", err)
+					return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating value, err: %v fieldToValue: %v", err, fieldToValue)
 				}
 				return val, nil
 			}
