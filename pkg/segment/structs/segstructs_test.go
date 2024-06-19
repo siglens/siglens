@@ -20,6 +20,7 @@ package structs
 import (
 	"testing"
 
+	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -451,4 +452,198 @@ func Test_HasDedupBlockInChain_HasNoDedupBlockAndNilNext(t *testing.T) {
 	}
 
 	assert.False(t, qa.HasDedupBlockInChain())
+}
+
+func Test_GetBucketValueForGivenField_StatRes(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("field1")
+	assert.True(t, foundInStat)
+	assert.Equal(t, "value1", value.(utils.CValueEnclosure).CVal)
+	assert.Equal(t, -1, index)
+}
+
+func Test_GetBucketValueForGivenField_GroupByKey(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("groupKey2")
+	assert.Equal(t, "key2", value)
+	assert.Equal(t, 1, index)
+	assert.False(t, foundInStat)
+}
+
+func Test_GetBucketValueForGivenField_GroupByKey_Int(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   []int{1, 2},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("groupKey2")
+	assert.Equal(t, 2, value)
+	assert.Equal(t, 1, index)
+	assert.False(t, foundInStat)
+}
+
+func Test_GetBucketValueForGivenField_NotFound(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("nonExistentField")
+	assert.Nil(t, value)
+	assert.Equal(t, -1, index)
+	assert.False(t, foundInStat)
+}
+
+func Test_GetBucketValueForGivenField_SingleBucketKey(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   "singleKey",
+		GroupByKeys: []string{"groupKey1"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("groupKey1")
+	assert.Equal(t, "singleKey", value)
+	assert.Equal(t, -1, index)
+	assert.False(t, foundInStat)
+}
+
+func Test_GetBucketValueForGivenField_IndexOutOfRange(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   []string{"key1"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("groupKey2")
+	assert.Nil(t, value)
+	assert.Equal(t, -1, index)
+	assert.False(t, foundInStat)
+}
+
+func Test_GetBucketValueForGivenField_GroupByKeyNotList(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   "notAList",
+		GroupByKeys: []string{"groupKey1"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("groupKey1")
+	assert.Equal(t, "notAList", value)
+	assert.Equal(t, -1, index)
+	assert.False(t, foundInStat)
+}
+
+func Test_SetBucketValueForGivenField_ValidString(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("groupKey2", "newKey2", 1, false)
+	assert.Nil(t, err)
+	assert.Equal(t, []string{"key1", "newKey2"}, br.BucketKey)
+}
+
+func Test_SetBucketValueForGivenField_ValidStringList(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("groupKey2", []string{"newKey2", "anotherKey2"}, 1, false)
+	assert.Nil(t, err)
+	assert.Equal(t, []string{"key1", `[ "newKey2", "anotherKey2" ]`}, br.BucketKey)
+}
+
+func Test_SetBucketValueForGivenField_InvalidIndex(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("groupKey2", "newKey2", 2, false)
+	assert.NotNil(t, err)
+}
+
+func Test_SetBucketValueForGivenField_FieldNotFound(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("nonExistentField", "value", 1, false)
+	assert.NotNil(t, err)
+}
+
+func Test_SetBucketValueForGivenField_NotListType(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   "notAList",
+		GroupByKeys: []string{"groupKey1"},
+	}
+
+	err := br.SetBucketValueForGivenField("groupKey1", "newValue", -1, false)
+	assert.Nil(t, err)
+	assert.Equal(t, "newValue", br.BucketKey)
+}
+
+func Test_SetBucketValueForGivenField_StatisticResult(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("field1", "value", 1, true)
+	assert.Nil(t, err)
+	assert.Equal(t, []string{"key1", "key2"}, br.BucketKey)
+	assert.Equal(t, "value1", br.StatRes["field1"].CVal)
+}
+
+func Test_SetBucketValueForGivenField_ConvertToSlice(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   []interface{}{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("groupKey2", "newKey2", 1, false)
+	assert.Nil(t, err)
+	assert.Equal(t, []string{"key1", "newKey2"}, br.BucketKey)
+}
+
+func Test_SetBucketValueForGivenField_IndexOutOfRange(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   []string{"key1"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("groupKey2", "newKey2", 1, false)
+	assert.NotNil(t, err)
 }

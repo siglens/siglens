@@ -77,7 +77,7 @@ func Test_writePQSFiles(t *testing.T) {
 				record["col5"] = strconv.Itoa(stremNum)
 				streamid := fmt.Sprintf("stream-%d", stremNum)
 				raw, _ := json.Marshal(record)
-				err := AddEntryToInMemBuf(streamid, raw, uint64(rec), "test", 10, false, utils.SIGNAL_EVENTS, 0)
+				err := AddEntryToInMemBuf(streamid, raw, uint64(rec), "test", 10, false, utils.SIGNAL_EVENTS, 0, 0)
 				assert.Nil(t, err)
 			}
 		}

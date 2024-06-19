@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -132,8 +133,10 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     2.3 Multivalue eval functions: mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
     2.4 Comparison and Conditional functions: case, coalesce, searchmatch, validate, nullif
     2.5 Conversion functions: ipmask, object_to_array, printf, tojson
-    2.6 Informational functions: cluster, getfields, isnotnull, isnum, typeof
-    2.7 Text functions: replace, spath, upper, trim
+    2.6 Date and Time functions: relative_time, time, strftime, strptime
+    2.7 Trig and Hyperbolic functions: acos, acosh, asin, asinh, atan, atanh, cos, cosh, sin, sinh, tan, tanh, atan2, hypot
+    2.8 Informational functions: cluster, getfields, isnotnull, isnum, typeof
+    2.9 Text functions: replace, spath, upper, trim
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
@@ -579,6 +582,10 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		}
 	} else if letColReq.SortColRequest != nil {
 		if err := performSortColRequest(nodeResult, aggs, letColReq, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment); err != nil {
+			return fmt.Errorf("performLetColumnsRequest: %v", err)
+		}
+	} else if letColReq.MultiValueColRequest != nil {
+		if err := performMultiValueColRequest(nodeResult, letColReq, recs); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else {
@@ -1482,6 +1489,123 @@ func performSortColRequestOnMeasureResults(nodeResult *structs.NodeResult, letCo
 
 	nodeResult.MeasureResults = resInOrder
 	return nil
+}
+
+func performMultiValueColRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
+	if recs != nil {
+		if err := performMultiValueColRequestWithoutGroupby(letColReq, recs); err != nil {
+			return fmt.Errorf("performMultiValueColRequest: %v", err)
+		}
+		return nil
+
+	}
+
+	if err := performMultiValueColRequestOnHistogram(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performMultiValueColRequest: %v", err)
+
+	}
+
+	return nil
+}
+
+func performMultiValueColRequestWithoutGroupby(letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
+	mvColReq := letColReq.MultiValueColRequest
+
+	for _, rec := range recs {
+		fieldValue, ok := rec[mvColReq.ColName]
+		if !ok {
+			continue
+		}
+
+		fieldValueStr, ok := fieldValue.(string)
+		if !ok {
+			fieldValueStr = fmt.Sprintf("%v", fieldValue) // Convert to string
+		}
+
+		switch mvColReq.Command {
+		case "makemv":
+			finalValue := performMakeMV(fieldValueStr, mvColReq)
+			rec[mvColReq.ColName] = finalValue
+		default:
+			return fmt.Errorf("performMultiValueColRequestWithoutGroupby: unknown command %s", mvColReq.Command)
+		}
+	}
+
+	return nil
+}
+
+func performMultiValueColRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+
+	for _, aggregationResult := range nodeResult.Histogram {
+		for _, bucketResult := range aggregationResult.Results {
+			fieldValue, index, isStatRes := bucketResult.GetBucketValueForGivenField(letColReq.MultiValueColRequest.ColName)
+			if fieldValue == nil {
+				continue
+			}
+
+			if isStatRes {
+				return fmt.Errorf("performMultiValueColRequestOnHistogram: field %s is a statistic result. Cannot perform Multi value string operations on a Statistic result", letColReq.MultiValueColRequest.ColName)
+			}
+
+			fieldValueStr, ok := fieldValue.(string)
+			if !ok {
+				fieldValueStr = fmt.Sprintf("%v", fieldValue) // Convert to string
+			}
+
+			switch letColReq.MultiValueColRequest.Command {
+			case "makemv":
+				finalValue := performMakeMV(fieldValueStr, letColReq.MultiValueColRequest)
+				err := bucketResult.SetBucketValueForGivenField(letColReq.MultiValueColRequest.ColName, finalValue, index, isStatRes)
+				if err != nil {
+					log.Errorf("performMultiValueColRequestOnHistogram: error setting bucket value for field %s: %v", letColReq.MultiValueColRequest.ColName, err)
+					continue
+				}
+			default:
+				return fmt.Errorf("performMultiValueColRequestOnHistogram: unknown command %s", letColReq.MultiValueColRequest.Command)
+			}
+		}
+	}
+
+	return nil
+
+}
+
+func performMakeMV(strVal string, mvColReq *structs.MultiValueColLetRequest) interface{} {
+	if strVal == "" {
+		return ""
+	}
+
+	var values []string
+	if mvColReq.IsRegex {
+		re := regexp.MustCompile(mvColReq.DelimiterString)
+		matches := re.FindAllStringSubmatch(strVal, -1)
+		for _, match := range matches {
+			if len(match) > 1 {
+				values = append(values, match[1])
+			}
+		}
+	} else {
+		values = strings.Split(strVal, mvColReq.DelimiterString)
+	}
+
+	if !mvColReq.AllowEmpty {
+		// Remove empty values
+		var nonEmptyValues []string
+		for _, value := range values {
+			if value != "" {
+				nonEmptyValues = append(nonEmptyValues, value)
+			}
+		}
+		values = nonEmptyValues
+	}
+
+	if mvColReq.Setsv {
+		// Combine values into a single string
+		return strings.Join(values, " ")
+	} else {
+		// Store the split values
+		return values
+	}
 }
 
 func performStatisticColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}) error {
@@ -2456,7 +2580,7 @@ func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *stru
 			nodeResult.TransactionEventRecords = make(map[string]map[string]interface{})
 
 			// Creating a single Map after processing the segment.
-			// This tells the PostBucketQueryCleaning function to return to the rrcreader.go to process the further segments.
+			// This tells the PostQueryBucketCleaning function to return to the rrcreader.go to process the further segments.
 			nodeResult.TransactionEventRecords["PROCESSED_SEGMENT_"+fmt.Sprint(nodeResult.RecsAggsProcessedSegments)] = make(map[string]interface{})
 
 			aggs.TransactionArguments.SortedRecordsSlice = nil // Clear the sorted records slice.
