@@ -5363,4 +5363,5 @@ input.form-control {
 #okay-button{
     background: var(--component-bg-color);
     color: var(--component-text-color) !important;
+    width: 100px;
 }
