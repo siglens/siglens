@@ -56,6 +56,7 @@ $(document).ready(async function() {
 function checkCurrentPage() {
     var currentPage = window.location.pathname;
     if (currentPage.includes("dashboard.html")) {
+        mergedGraphContainer = $('.panelDisplay #merged-graph-container')
         mergedGraphContainer.show();
         $('#panEdit-panel').hide();
     } 
@@ -84,10 +85,10 @@ $('.refresh-btn').on("click", refreshMetricsGraphs);
 $('#graph-toggle-switch').on('change', function() {
     if ($(this).is(':checked')) {
         $('#metrics-graphs').show();
-        mergedGraphContainer.hide();
+        $('#merged-graph-container').hide();
     } else {
         $('#metrics-graphs').hide();
-        mergedGraphContainer.show();
+        $('#merged-graph-container').show();
     }
 });
 
@@ -779,7 +780,7 @@ function updateCloseIconVisibility() {
     $('.remove-query').toggle(numQueries > 1);
 }
 
-function addVisualizationContainer(queryName, seriesData, queryString) {
+function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
      
     var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
     if (existingContainer.length === 0){
@@ -903,7 +904,7 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
 
     lineCharts[queryName] = lineChart;
     updateGraphWidth();
-    mergeGraphs(chartType)
+    mergeGraphs(chartType, panelId)
 }
 
 function removeVisualizationContainer(queryName) {
@@ -1118,16 +1119,17 @@ function updateLineCharts(lineStyle, stroke) {
 }
 
 // Merge Graphs in one
-function mergeGraphs(chartType) {
+function mergeGraphs(chartType, panelId) {
     var visualizationContainer = $(`
         <div class="merged-graph-name"></div>
         <div class="merged-graph"></div>`);
 
     // $('#merged-graph-container').empty().append(visualizationContainer);
-    $('.panelDisplay .panEdit-panel').hide();
-    $('#merged-graph-container').show();
-    mergedGraphContainer.empty().append(visualizationContainer)
-    
+    if(panelId !== undefined){
+        $(`#panel${panelId} #merged-graph-container`).empty().append(visualizationContainer);
+    }else{
+        mergedGraphContainer.empty().append(visualizationContainer)
+    }
     var mergedCanvas = $('<canvas></canvas>');
 
     $('.merged-graph').empty().append(mergedCanvas);
@@ -1484,4 +1486,3 @@ function getGraphGridColors() {
 
     return { gridLineColor, tickColor };
 }
-
