@@ -52,7 +52,7 @@ func AddCronJob(alertDataObj *alertutils.AlertDetails) (*gocron.Job, error) {
 	} else if alertDataObj.AlertType == alertutils.AlertTypeMetrics {
 		evaluateFunc = evaluateMetricsAlert
 	} else {
-		log.Errorf("AddCronJob: AlertType is not Logs or Metrics. Alert=%+v", alertDataObj.AlertName)
+		log.Errorf("AddCronJob: AlertType=%v is not Logs or Metrics. Alert=%+v", alertDataObj.AlertType, alertDataObj.AlertName)
 		return nil, fmt.Errorf("AlertType is not Logs or Metrics. Alert=%+v", alertDataObj.AlertName)
 	}
 
