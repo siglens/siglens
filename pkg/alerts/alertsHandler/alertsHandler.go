@@ -18,11 +18,9 @@
 package alertsHandler
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -184,7 +182,7 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 func ProcessTestContactPointRequest(ctx *fasthttp.RequestCtx) {
 	var testContactRequest TestContactPointRequest
 	if err := json.Unmarshal(ctx.PostBody(), &testContactRequest); err != nil {
-		utils.SendError(ctx, "Failed to unmarshal json", "ProcessTestContactPointRequest: Request Body: "+string(ctx.PostBody()), err)
+		utils.SendError(ctx, "Failed to unmarshal json", "Request Body: "+string(ctx.PostBody()), err)
 		return
 	}
 
@@ -192,23 +190,27 @@ func ProcessTestContactPointRequest(ctx *fasthttp.RequestCtx) {
 	case "slack":
 		channelID, ok := testContactRequest.Settings["channel_id"].(string)
 		if !ok {
-			utils.SendError(ctx, "channel_id is required but is missing", "ProcessTestContactPointRequest: Slack Channel ID is missing. Request Body: "+string(ctx.PostBody()), nil)
+			utils.SendError(ctx, "channel_id is required but is missing", "Request Body: "+string(ctx.PostBody()), nil)
 			return
 		}
 		slackToken, ok := testContactRequest.Settings["slack_token"].(string)
 		if !ok {
-			utils.SendError(ctx, "slack_token is required but is missing", "ProcessTestContactPointRequest: Slack token is missing. Request Body: "+string(ctx.PostBody()), nil)
+			utils.SendError(ctx, "slack_token is required but is missing", "Request Body: "+string(ctx.PostBody()), nil)
 			return
 		}
-		err := sendTestMessageToSlack(channelID, slackToken)
+		channel := alertutils.SlackTokenConfig{
+			ChannelId: channelID,
+			SlToken:   slackToken,
+		}
+		err := sendSlack("Test Alert", "This is a test message to verify the Slack integration.", channel)
 		if err != nil {
-			utils.SendError(ctx, err.Error(), "ProcessTestContactPointRequest: Error sending test message to slack. Request Body:"+string(ctx.PostBody()), err)
+			utils.SendError(ctx, err.Error(), "Error sending test message to slack. Request Body:"+string(ctx.PostBody()), err)
 			return
 		}
 	case "webhook":
 		webhookURL, ok := testContactRequest.Settings["webhook"].(string)
 		if !ok {
-			utils.SendError(ctx, "webhook is required but is missing", "ProcessTestContactPointRequest: Webhook URL is missing Request Body: "+string(ctx.PostBody()), nil)
+			utils.SendError(ctx, "webhook is required but is missing", "Request Body: "+string(ctx.PostBody()), nil)
 			return
 		}
 		if err := testWebhookURL(webhookURL); err != nil {
@@ -216,63 +218,12 @@ func ProcessTestContactPointRequest(ctx *fasthttp.RequestCtx) {
 			return
 		}
 	default:
-		utils.SendError(ctx, "Invalid type", "ProcessTestContactPointRequest: Received unsupported test contact request type Request Body:"+string(ctx.PostBody()), nil)
+		utils.SendError(ctx, "Invalid type", "Request Body:"+string(ctx.PostBody()), nil)
 		return
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, map[string]interface{}{"message": "Successfully verified contact point"})
-}
-
-func sendTestMessageToSlack(channelID, slackToken string) error {
-	url := "https://slack.com/api/chat.postMessage"
-	data := map[string]string{
-		"channel": channelID,
-		"text":    "This is a test message to verify the Slack integration.",
-	}
-
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		log.Errorf("sendTestMessageToSlack: failed to marshal json data: %v err: %v", data, err)
-		return err
-	}
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+slackToken)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Errorf("sendTestMessageToSlack: failed to send test message to Slack: %v", err)
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to send test message to Slack. Received status code: %v", resp.Status)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Errorf("sendTestMessageToSlack: failed to read response body. Response Body: %v Err: %v", resp.Body, err)
-		return err
-	}
-
-	var result map[string]interface{}
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		log.Errorf("sendTestMessageToSlack: failed to unmarshal response body. Body: %v err:%v", body, err)
-		return err
-	}
-
-	if !result["ok"].(bool) {
-		return fmt.Errorf("failed to send test message to Slack: %v", result["error"])
-	}
-
-	return nil
 }
 
 func testWebhookURL(webhookURL string) error {
