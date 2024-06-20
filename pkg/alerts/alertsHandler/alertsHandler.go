@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -67,6 +68,11 @@ type database interface {
 var databaseObj database
 
 var invalidDatabaseProvider = "database provider is not configured in server.yaml"
+
+type TestContactPointRequest struct {
+	Type     string                 `json:"type"`
+	Settings map[string]interface{} `json:"settings"`
+}
 
 func ConnectSiglensDB() error {
 	databaseObj = &alertsqlite.Sqlite{}
@@ -199,6 +205,68 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	responseBody["message"] = "Successfully updated silence period"
 	utils.WriteJsonResponse(ctx, responseBody)
+}
+
+func ProcessTestContactPointRequest(ctx *fasthttp.RequestCtx) {
+	var testContactRequest TestContactPointRequest
+	if err := json.Unmarshal(ctx.PostBody(), &testContactRequest); err != nil {
+		utils.SendError(ctx, "Failed to unmarshal json", "Request Body: "+string(ctx.PostBody()), err)
+		return
+	}
+
+	switch testContactRequest.Type {
+	case "slack":
+		channelID, ok := testContactRequest.Settings["channel_id"].(string)
+		if !ok {
+			utils.SendError(ctx, "channel_id is required but is missing", "Request Body: "+string(ctx.PostBody()), nil)
+			return
+		}
+		slackToken, ok := testContactRequest.Settings["slack_token"].(string)
+		if !ok {
+			utils.SendError(ctx, "slack_token is required but is missing", "Request Body: "+string(ctx.PostBody()), nil)
+			return
+		}
+		channel := alertutils.SlackTokenConfig{
+			ChannelId: channelID,
+			SlToken:   slackToken,
+		}
+		err := sendSlack("Test Alert", "This is a test message to verify the Slack integration.", channel)
+		if err != nil {
+			utils.SendError(ctx, err.Error(), "Error sending test message to slack. Request Body:"+string(ctx.PostBody()), err)
+			return
+		}
+	case "webhook":
+		webhookURL, ok := testContactRequest.Settings["webhook"].(string)
+		if !ok {
+			utils.SendError(ctx, "webhook is required but is missing", "Request Body: "+string(ctx.PostBody()), nil)
+			return
+		}
+		if err := testWebhookURL(webhookURL); err != nil {
+			utils.SendError(ctx, "Failed to verify webhook URL", "", err)
+			return
+		}
+	default:
+		utils.SendError(ctx, "Invalid type", "Request Body:"+string(ctx.PostBody()), nil)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, map[string]interface{}{"message": "Successfully verified contact point"})
+}
+
+func testWebhookURL(webhookURL string) error {
+	resp, err := http.Get(webhookURL)
+	if err != nil {
+		log.Errorf("testWebhookURL: failed to test webhook URL. URL: %v err: %v", webhookURL, err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to test webhook URL: %v", resp.Status)
+	}
+
+	return nil
 }
 
 func ProcessGetAlertRequest(ctx *fasthttp.RequestCtx) {
