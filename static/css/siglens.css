@@ -445,26 +445,7 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
     color:#6F6B7B;
     text-decoration: none;
 }
-.submenu {
-    display: none;
-    position: absolute;
-    left: 0;
-    top: 100%;
-    background-color: #fff;
-    border: 1px solid #ccc;
-    z-index: 1000;
-}
 
-.submenu a {
-    display: block;
-    white-space: nowrap;
-    text-decoration: none;
-    color: #000;
-}
-
-.submenu a:hover {
-    background-color: #f0f0f0;
-}
 
 @font-face {
     font-family: "DINpro";
@@ -2136,7 +2117,10 @@ div.dts div.dataTables_scrollBody table {
     list-style-type: none;
     padding: 0;
     margin: 0;
+    left: 154px;
     border-radius: 5px;
+    box-shadow: 0px 2px 8px 0px var(--border-shadow);
+    border: 1px solid var(--border-btn-color);
 }
 .metrics-dropdown a {
     color: var(--navbar-link-text) !important;
@@ -2154,11 +2138,7 @@ div.dts div.dataTables_scrollBody table {
 .metrics-dropdown-toggle{
     cursor:pointer;
 }
-.metrics-dropdown a:hover li::before,
-.metrics-dropdown a.active li::before {
 
-    border-left: 5px solid var(--side-nav-selected-border-color); 
-}
 .metrics-dropdown li:hover {
     background-color: var(--side-nav-bg-color-selected); 
     color:rgb(255, 255, 255);
