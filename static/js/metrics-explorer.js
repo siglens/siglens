@@ -69,7 +69,7 @@ async function metricsExplorerDatePickerHandler(evt) {
     var selectedId = $(evt.currentTarget).attr("id");
     $(evt.currentTarget).addClass('active');
     datePickerHandler(selectedId, "now", selectedId);
-
+    console.log("Selected date range: " + selectedId,filterStartDate);
     await refreshMetricsGraphs();
 
     $('#daterangepicker').hide();
@@ -904,6 +904,7 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
 
     lineCharts[queryName] = lineChart;
     updateGraphWidth();
+    console.log(panelId)
     mergeGraphs(chartType, panelId)
 }
 
@@ -1140,6 +1141,7 @@ function mergeGraphs(chartType, panelId) {
         labels: [],
         datasets: []
     };
+    console.log(chartDataCollection);
     var graphNames = [];
     // Loop through chartDataCollection to merge datasets
     for (var queryName in chartDataCollection) {
@@ -1405,16 +1407,12 @@ async function getFunctions() {
     if(res)
         return res; 
 }
-//ToDo - handle formula , display queries in builder
+
 async function refreshMetricsGraphs(metricsQueryData){
-    console.log("Refreshing metrics graphs",metricsQueryData);
     if(metricsQueryData !== undefined){
         queries = metricsQueryData;
         Object.keys(metricsQueryData).forEach(async function(queryName) {
-
             var queryDetails = metricsQueryData[queryName];
-            console.log("Refreshing metrics graphs",queryDetails);
-
             const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
             availableEverywhere = tagsAndValue.availableEverywhere.sort();
             availableEverything = tagsAndValue.availableEverything[0].sort();
@@ -1429,7 +1427,7 @@ async function refreshMetricsGraphs(metricsQueryData){
         newMetricNames.metricNames.sort();
     
         $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
-        if(queries.length>0 && queries["a"].metrics){ // only if the first query is not empty
+        if(queries["a"].metrics){ // only if the first query is not empty
             // Update graph for each query
             Object.keys(queries).forEach(async function(queryName) {
                 var queryDetails = queries[queryName];
@@ -1444,7 +1442,7 @@ async function refreshMetricsGraphs(metricsQueryData){
                 await handleQueryAndVisualize(queryName, queryDetails);
             });
         }
-        if(formulas && Object.keys(formulas).length > 0){
+        if(Object.keys(formulas).length > 0){
                 // Update graph for each formula
                 Object.keys(formulas).forEach(function(formulaId){
                     getMetricsDataForFormula(formulaId, formulas[formulaId])

@@ -71,8 +71,6 @@ let defaultDashboardIds = [
     "bd74f11e-26c8-4827-bf65-c0b464e1f2a4",
     "53cb3dde-fd78-4253-808c-18e4077ef0f1"
 ];
-var dashboardqueries = {};
-
 
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,
@@ -275,10 +273,7 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
 
 async function runPanelMetricsQuery(data, panelId) {
     $('body').css('cursor', 'progress');
-    dashboardqueries = data;
-    console.log("in runPanelMetricsQuery", data,dashboardqueries)
-    await refreshMetricsGraphs(dashboardqueries);
-
+    console.log("in runPanelMetricsQuery", data)
     if(data !== null){
         if(data.length > 0){
             filterStartDate = data[0].start;
@@ -845,7 +840,6 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
         case "Pie Chart":
             renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
             break;
-            //ToDo : check and remove below code
         case "Line Chart":
             $('.panelDisplay .panEdit-panel').hide();
             $(`#panel${panelId} #panelLogResultsGrid`).hide();
@@ -913,7 +907,7 @@ async function handleQueryAndVisualize(queryName, queryDetails, panelId) {
 }
 
 async function getQueryDetails(queryName, queryDetails, panelId){
-    console.log("getQueryDetails", queryName, queryDetails, panelId)
+console.log("getQueryDetails", queryName, queryDetails, panelId)
     await handleQueryAndVisualize(queryName, queryDetails, panelId)
 
     // Check if the query name is present in any formulas and re-run the formula if so

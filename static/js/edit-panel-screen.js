@@ -290,6 +290,7 @@ $(document).ready(function () {
 })
 
 function editPanelInit(redirectedFromViewScreen) {
+	console.log("editPanelInit",redirectedFromViewScreen);
 	if(redirectedFromViewScreen === -1){
 		$('#panel-editor-left').hide();
         $('#viewPanel-container').show();
@@ -311,6 +312,7 @@ function editPanelInit(redirectedFromViewScreen) {
 	$('.panelDisplay #merged-graph-container').hide();
 	$('.panelDisplay .panel-info-corner').hide();
 	currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));	
+	console.log("currentPanel",currentPanel);
 	$('.panEdit-navBar .panEdit-dbName').html(`${dbName}`);
 	// reset inputs to show placeholders
 	$('.panEdit-navBar .panelTitle').html(currentPanel.name)
@@ -336,7 +338,7 @@ function editPanelInit(redirectedFromViewScreen) {
 	if (currentPanel.queryData && (currentPanel.queryData.searchText != undefined || currentPanel.queryData?.queries?.[0]?.query != undefined)) {
 		if(currentPanel.queryType==='metrics'){
 			queryStr = currentPanel.queryData.queries[0].query;
-			//ToDo - fix this , iterate over all queries and add elements to the form
+			//fix this , iterate over all queries and add elements to the form
 			// $('.metricsQueryInputs').val(queryStr);
 		}else{
 			queryStr = currentPanel.queryData.searchText;
@@ -1173,8 +1175,9 @@ function goToViewScreen(panelIndex) {
 	displayPanelView(panelIndex);
 }
 
-//ToDo - check where this is called from - global refresh??
+//check where this is called from - global refresh??
 function goToDashboard(redirectedFromViewScreen) {
+	console.log("goToDashboard",redirectedFromViewScreen)
 	// Don't add panel if cancel is clicked.
 	let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
 	if (!flagDBSaved) {
@@ -1237,6 +1240,7 @@ function goToDashboard(redirectedFromViewScreen) {
 }
 
 function resetPanelTimeRanges() {
+	console.log("resetPanelTimeRanges",filterStartDate,filterEndDate)
 	for (let i = 0; i < localPanels.length; i++) {
 		if (localPanels[i].queryData) {
 			((localPanels[i].chartType === "Line Chart" || localPanels[i].chartType === "number" ) && localPanels[i].queryType === "metrics")
@@ -1297,12 +1301,10 @@ function resetOptions(){
 	})
 }
 function getMetricsQData() {
-	//ToDo - handle saving formula
 	let endDate = filterEndDate || "now";
 	let stDate = filterStartDate || "now-15m";
 	//loop over all queries and add them to the queryData object
 	let queryData = [];
-
 	let queryName;
 	$('.query-box').each(function(index, item) {
 		$(item).children('.query-name').each(function(){ 
@@ -1370,10 +1372,12 @@ async function runQueryBtnHandler() {
 	$('.panelDisplay .big-number-display-container').hide();
 	// runs the query according to the query type selected and irrespective of chart type
 	if (currentPanel.queryType === 'metrics'){
+		console.log("here in run query currentPanel ",currentPanel);
 		// updateChartTheme("Palette");
 		$('.panelDisplay .panEdit-panel').hide();
 		$('.panelDisplay #merged-graph-container').show();
 		await runPanelMetricsQuery(currentPanel.queryData, -1,currentPanel);
+
 	}else if (currentPanel.queryType === 'logs'){
 		data = getQueryParamsData();
 		currentPanel.queryData = data;
@@ -1452,7 +1456,7 @@ function toggleTableView() {
 };
 
 
-async function displayPanelView(panelIndex) {
+function displayPanelView(panelIndex) {
 	if (isDefaultDashboard) { // Hide save and cancel button for default dashboard
         $('.button-section, #edit-button').hide();
     }
@@ -1466,6 +1470,7 @@ async function displayPanelView(panelIndex) {
 	}else{
 		localPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));	
 	}
+	console.log("in display panel view",localPanel);
     let panelId = localPanel.panelId;
     $(`#panel-container #panel${panelId}`).remove();
     $(`#viewPanel-container`).empty();
@@ -1487,7 +1492,7 @@ async function displayPanelView(panelIndex) {
 		<div id="empty-response"></div></div><div id="corner-popup"></div>
 		<div id="panel-loading"></div>`
 		panEl.append(responseDiv);
-		await runPanelMetricsQuery(localPanel.queryData, panelId);
+		runPanelMetricsQuery(localPanel.queryData, panelId);
     } else if (localPanel.chartType === 'number') {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div class="big-number-display-container"></div>

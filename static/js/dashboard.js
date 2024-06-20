@@ -527,6 +527,7 @@ function displayPanels() {
         if (panelEndX > maxCoord.x) maxCoord.x = panelEndX;
         if (panelEndY > maxCoord.y) maxCoord.y = panelEndY;
     });
+console.log(localPanels);
     localPanels.forEach(async (localPanel) => {
         console.log(localPanel);
         let idpanel = localPanel.panelId;
