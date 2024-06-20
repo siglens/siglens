@@ -39,6 +39,10 @@ const contactFormHTML = `
     </div>
     <div id="main-container">
         <div class="contact-container">
+            <button class="btn d-flex align-items-center justify-content-center test-contact-btn" type="button">
+                <div class="send-icon"></div>
+                <div class="mb-0">Test</div>
+            </button>
             <div>
                 <label for="type">Type</label>
                 <div class="dropdown">
@@ -173,6 +177,12 @@ function initializeContactForm(contactId) {
     //remove contact type container
     $("#main-container").on("click", ".del-contact-type", function () {
         $(this).closest(".contact-container").remove();
+    });
+
+    // test contact point
+    $("#main-container").on("click", ".test-contact-btn", function () {
+        const container = $(this).closest('.contact-container');
+        getContactPointTestData(container);
     });
 }
 
@@ -553,3 +563,56 @@ function showContactFormForEdit(contactId) {
     });
     if(contactEditFlag){contactData.contact_id=data.contact_id;}
 }
+
+function getContactPointTestData(container){
+    let contactData = {};
+    let contactType = container.find('#contact-types span').text();
+    
+    if (contactType === 'Slack') {
+        let slackValue = container.find('#slack-channel-id').val();
+        let slackToken = container.find('#slack-token').val();
+        if (slackValue && slackToken) {
+            contactData = {
+                type: 'slack',
+                settings: {
+                    channel_id: slackValue,
+                    slack_token: slackToken
+                }
+            };
+        }
+    } else if (contactType === 'Webhook') {
+        let webhookValue = container.find('#webhook-id').val();
+        if (webhookValue) {
+            contactData = {
+                type: 'webhook',
+                settings: {
+                    webhook: webhookValue
+                }
+            };
+        }
+    }
+    testContactPointHandler(contactData);
+}
+
+function testContactPointHandler(testContactPointData) {
+    $.ajax({
+        method: 'POST',
+        url: '/api/alerts/testContactPoint',
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            Accept: '*/*',
+        },
+        data: JSON.stringify(testContactPointData),
+        crossDomain: true,
+    }).then(function (res) {
+        if (res.message) {
+            showToast(res.message);
+        }
+    }).fail(function (jqXHR) {
+        let response = jqXHR.responseJSON;
+        if (response && response.error) {
+            showToast(response.error);
+        }
+    });
+}
+
