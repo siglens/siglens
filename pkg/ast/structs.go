@@ -80,6 +80,13 @@ type ParseError struct {
 	Expected []string `json:"expected"`
 }
 
+type RelativeTimeModifier struct {
+	Offset int64
+	TUOffset utils.TimeUnit
+	SnapTimeUnit utils.TimeUnit
+	SnapWeek string
+}
+
 func MakeValue(val interface{}) (interface{}, error) {
 	return val, nil
 }

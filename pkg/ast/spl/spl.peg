@@ -3295,6 +3295,64 @@ EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:AbsoluteTimestamp !. {
     return node, nil
 }
 
+RelIntegerAsString <- [-+]? [0-9]* {
+    return string(c.text), nil
+}
+
+WeekSnap <- ('w' [0-7]) {
+    return string(c.text), nil
+}
+
+RelTimeUnit <- timeUnit:(Second / Minute / Hour / Day/ Week / Month / Quarter/ Year) {
+    return timeUnit, nil
+}
+
+Snap <- '@' (ws:WeekSnap / tu:RelTimeUnit) {
+    if ws != nil {
+        return ws.(string), nil
+    } else {
+        return strconv.Itoa(tu.(utils.TimeUnit)), nil
+    }
+}
+
+
+RelativeTimestamp <- offStr:(RelIntegerAsString)? (tuOff:RelTimeUnit)? (snapParam:Snap)? {
+    if offStr == nil && tuOff == nil && snapParam == nil {
+        return nil, nil
+    }
+    if offStr != nil && tuOff == nil {
+        nil, fmt.Errorf("Invalid Format time unit required for offset when there is magnitude of offset")
+    }
+
+    offsetNum := 0
+    if tuOff != nil {
+        offset = ""
+        offsetNum = 1
+        if offStr != nil {
+            offset := offStr.(string)
+        }
+        
+        if offset != "" {
+            if offset == "-" {
+                offsetNum = -1
+            } else {
+                offsetNum, err := strconv.ParseUint(offset, 10, 64)
+                if err != nil {
+                    return nil, fmt.Errorf("Invalid Max results value is set for format: (%v): Error=%v", offset, err)
+                }
+            }
+        }
+    }
+
+    relTimeModifier := &structs.RelativeTimeModifier{
+        Offset: offsetNum 
+        TUOffset: tuOff.(utils.TimeUnit)
+        Snap: snapParam.(string)
+    }
+
+    return relTimeModifier, nil
+}
+
 AbsoluteTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] {
     return string(c.text), nil
 }
@@ -3429,6 +3487,10 @@ Month <- ("months" / "month" / "mon") {
 
 Quarter <- ("quarters" / "quarter" / "qtrs" / "qtr" / "q") {
     return utils.TMQuarter, nil
+}
+
+Year <- ("years" / "year" / "yrs" / "yr" / "y") {
+    return utils.Year, nil
 }
 
 // Might not has effect for 'us', because smallest time unit for timestamp in siglens is ms
