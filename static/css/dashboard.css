@@ -327,6 +327,10 @@
   width: 100%;
 }
 
+#metrics-explorer .editPanelMenu-dataSource {
+  width: 12%;
+}
+
 .queryInput-container {
   margin-left: 10px;
   width: 100%;

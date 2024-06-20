@@ -71,6 +71,8 @@ let defaultDashboardIds = [
     "bd74f11e-26c8-4827-bf65-c0b464e1f2a4",
     "53cb3dde-fd78-4253-808c-18e4077ef0f1"
 ];
+var dashboardqueries = {};
+
 
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,
@@ -269,6 +271,36 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
     if (canScrollMore === false) {
         scrollFrom = 0;
     }
+}
+
+async function runPanelMetricsQuery(data, panelId) {
+    $('body').css('cursor', 'progress');
+    dashboardqueries = data;
+    console.log("in runPanelMetricsQuery", data,dashboardqueries)
+    await refreshMetricsGraphs(dashboardqueries);
+
+    if(data !== null){
+        if(data.length > 0){
+            filterStartDate = data[0].start;
+            filterEndDate = data[0].end;
+        }
+        for( let i = 0 ; i < data.length; i++ ) {
+            var queryDetails = data[i];
+            queryDetails.state = 'raw';
+            queryDetails.rawQueryInput = data[i].queries[0].query
+            await getQueryDetails(data[i].queries[0].name, queryDetails, panelId);
+            console.log("in runPanelMetricsQuery", queryDetails)
+        }
+    }
+    $(`#panel${panelId} #panelLogResultsGrid`).hide();
+    $(`#panel${panelId} #empty-response`).empty();
+    $(`#panel${panelId} #corner-popup`).hide();
+    $(`#panel${panelId} #empty-response`).hide();
+    $(`#panel${panelId} .panEdit-panel`).hide();
+    $(`#panel${panelId} #merged-graph-container`).show();
+    $('body').css('cursor', 'default');
+    $(`#panel${panelId} .panel-body #panel-loading`).hide();
+    
 }
 
 function runPanelLogsQuery(data, panelId,currentPanel,queryRes) {
@@ -801,6 +833,7 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
         panelProcessEmptyQueryResults("Please select a suitable chart type.",panelId)
     }
     $('#merged-graph-container').hide();
+    $(`#panel${panelId} #merged-graph-container`).hide();
     
     switch (currentPanel.chartType) {
         case "Data Table":
@@ -812,9 +845,15 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
         case "Pie Chart":
             renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
             break;
+            //ToDo : check and remove below code
         case "Line Chart":
-            // $('.panelDisplay .panEdit-panel').hide();
-            // $('#merged-graph-container').show();
+            $('.panelDisplay .panEdit-panel').hide();
+            $(`#panel${panelId} #panelLogResultsGrid`).hide();
+            $(`#panel${panelId} #empty-response`).empty();
+            $(`#panel${panelId} #corner-popup`).hide();
+            $(`#panel${panelId} #empty-response`).hide();
+            $(`#panel${panelId} .panEdit-panel`).hide();
+            $(`#panel${panelId} #merged-graph-container`).show();
             // let startTime = (new Date()).getTime();
             // processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,"")
             // break;
@@ -857,5 +896,30 @@ function setIndexDisplayValue(selectedSearchIndex){
                 indexValues.splice(indexIndex, 1);
             }
         });
+    }
+}
+
+async function handleQueryAndVisualize(queryName, queryDetails, panelId) {
+    let queryString;
+    if(queryDetails.state === "builder"){
+        queryString = createQueryString(queryDetails);
+    }else {
+        queryString = queryDetails.rawQueryInput;
+    }
+    await getMetricsData(queryName, queryString);
+    const chartData = await convertDataForChart(rawTimeSeriesData);
+    addVisualizationContainer(queryName, chartData, queryString, panelId);
+    mergedGraph.update();
+}
+
+async function getQueryDetails(queryName, queryDetails, panelId){
+    console.log("getQueryDetails", queryName, queryDetails, panelId)
+    await handleQueryAndVisualize(queryName, queryDetails, panelId)
+
+    // Check if the query name is present in any formulas and re-run the formula if so
+    for (let formulaId in formulas) {
+        if (formulas[formulaId].queryNames.includes(queryName)) {
+            await getMetricsDataForFormula(formulaId, formulas[formulaId]);
+        }
     }
 }

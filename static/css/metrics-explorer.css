@@ -277,7 +277,7 @@ input:checked + .slider:before {
     box-shadow: var(--box-shadow);
 }
 
-.panelDisplay #merged-graph-container {
+.panelDisplay #merged-graph-container, .panel-body #merged-graph-container {
     height: 270px;
     width: 100%;
     background-color: var(--db-bg-color);
@@ -298,6 +298,7 @@ input:checked + .slider:before {
     font-weight: 600;
     background-color: var(--drop-down-btn-bg-regular);
     border-radius: 5px 5px 0 0;
+    font-size: 14px;
 }
 #visualization-options div{
     margin-right: 24px;

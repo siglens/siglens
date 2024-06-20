@@ -304,7 +304,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                     <div class="panelDisplay">
                         <div id="panEdit-panel" class="panEdit-panel"></div>
-                        <div id="merged-graph-container" class="merged-graph-container" style="display: none;" ></div>
+                        <div id="merged-graph-container" style="display: none;" ></div>
                         <div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
                         <div id="empty-response"></div>
                         <div class="big-number-display-container"></div>
@@ -357,6 +357,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <div class="section-content">
                             <div class="metricsQueryInputs" id ="metricsQueryInputs" style="display: none;">
                                 <div id="metrics-explorer">
+                                    <div class="dropDown-container">
+                                        <div class="dropDownTitle dropDown-dataSource active">
+                                            <span>Data Source</span>
+                                            <div class="caret"></div>
+                                        </div>
+                                        <ul class="editPanelMenu editPanelMenu-dataSource">
+                                            <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="0">
+                                                <li data-value="Metrics">Metrics</li>
+                                            </div>
+                                            <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="1">
+                                                <li data-value="Logs">Logs</li>
+                                            </div>
+                                        </ul>
+                                    </div>
                                     <div id="metrics-queries"></div>
                                     <div id="metrics-formula"></div>
                                     <div class="mt-3 d-flex ">
@@ -744,8 +758,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./js/dashboard-charts.js?cb=1_1_10"></script>
     <script src="./js/dashboard.js?cb=1_1_10"></script>
-    <script src="./js/metrics-explorer.js?cb=1_1_10"></script>
     <script src="./js/edit-panel-screen.js?cb=1_1_10"></script>
+    <script src="./js/metrics-explorer.js?cb=1_1_10"></script>
     <script src="./js/dashboard-logs-results-grid.js?cb=1_1_10"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
 

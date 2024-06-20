@@ -228,6 +228,7 @@ function viewPanelInit() {
     $('.panelEditor-container').css('display', 'flex');
     $('.popupOverlay').addClass('active');
     $('.panelDisplay #panelLogResultsGrid').empty();
+    $('.panelDisplay #merged-graph-container').empty();
     $('.panelDisplay .big-number-display-container').hide();
     $('.panelDisplay #empty-response').hide();
     editPanelInit(-1);
@@ -242,6 +243,7 @@ function handlePanelEdit() {
         $('.panelEditor-container').css('display', 'flex');
         $('.popupOverlay').addClass('active');
         $('.panelDisplay #panelLogResultsGrid').empty();
+        $('.panelDisplay #merged-graph-container').empty();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
     })
@@ -286,10 +288,14 @@ function handlePanelRemove(panelId) {
     }
 }
 
-function handleDescriptionTooltip(panelId,description,searchText) {
+function handleDescriptionTooltip(panelId, description, searchText) {
     const panelInfoCorner = $(`#panel${panelId} .panel-info-corner`);
     const panelDescIcon = $(`#panel${panelId} .panel-info-corner #panel-desc-info`);
-    panelInfoCorner.show();
+    if (description || searchText) {
+        panelInfoCorner.show();
+    } else {
+        panelInfoCorner.hide();
+    }
     let tooltipText = '';
 
     // Check if description is provided
@@ -333,11 +339,10 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
     // only render the duplicated panel
     $(`#panel${localPanels[localPanels.length - 1].panelId} .panel-header p`).html(localPanels[duplicatedPanelIndex].name + "Copy");
 
-    if (localPanel.description||localPanel.queryData.searchText) {
-        handleDescriptionTooltip(panelId,localPanel.description,localPanel.queryData.searchText)
-    }
+    handleDescriptionTooltip(panelId,localPanel.description,localPanel.queryData.searchText)
     
-    if (localPanel.chartType == 'Data Table' || localPanel.chartType == 'loglines') {
+    
+    if (localPanel.chartType === 'Data Table' || localPanel.chartType === 'loglines') {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
         <div id="empty-response"></div>`
@@ -348,7 +353,7 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
             runPanelLogsQuery(localPanel.queryData, panelId,localPanel, localPanel.queryRes);
         else
             runPanelLogsQuery(localPanel.queryData, panelId,localPanel);
-    } else if (localPanel.chartType == 'Line Chart') {
+    } else if (localPanel.chartType === 'Line Chart') {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`
         panEl.append(responseDiv)
@@ -356,7 +361,7 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
             runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
         else
             runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
-    } else if (localPanel.chartType == 'number') {
+    } else if (localPanel.chartType === 'number') {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div class="big-number-display-container"></div>
         <div id="empty-response"></div><div id="corner-popup"></div>`
@@ -427,9 +432,9 @@ function updateTimeRangeForPanels() {
         delete panel.queryRes;
         if(panel.queryData) {
             if(panel.chartType === "Line Chart" || panel.queryType === "metrics") {
-                datePickerHandler(panel.queryData.start, panel.queryData.end, panel.queryData.start)
-                panel.queryData.start = filterStartDate.toString();
-                panel.queryData.end = filterEndDate.toString();
+                datePickerHandler(panel.queryData[0].start, panel.queryData[0].end, panel.queryData[0].start)
+                panel.queryData[0].start = filterStartDate.toString();
+                panel.queryData[0].end = filterEndDate.toString();
             } else {
                 datePickerHandler(panel.queryData.startEpoch, panel.queryData.endEpoch, panel.queryData.startEpoch)
                 panel.queryData.startEpoch = filterStartDate
@@ -522,8 +527,8 @@ function displayPanels() {
         if (panelEndX > maxCoord.x) maxCoord.x = panelEndX;
         if (panelEndY > maxCoord.y) maxCoord.y = panelEndY;
     });
-
-    localPanels.forEach((localPanel) => {
+    localPanels.forEach(async (localPanel) => {
+        console.log(localPanel);
         let idpanel = localPanel.panelId;
         let widgetOptions = {
             width: parseInt(localPanel.gridpos.w),
@@ -543,7 +548,11 @@ function displayPanels() {
         if (isDefaultDashboard) {
             panelDiv = $("<div>").append(defaultPanelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", localPanel.panelIndex);
         }else{
-            panelDiv = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", localPanel.panelIndex);
+            // if (localPanel.chartType === 'Line Chart'){
+            //     panelDiv = $("<div>").append(metricsPanelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", localPanel.panelIndex);
+            // }else{
+                panelDiv = $("<div>").append(panelLayout).addClass("panel temp").attr("id", `panel${idpanel}`).attr("panel-index", localPanel.panelIndex);
+            // }
         }
         newItem.firstChild.appendChild(panelDiv[0]);
 
@@ -572,7 +581,7 @@ function displayPanels() {
 
         handlePanelRemove(idpanel)
 
-        if (localPanel.chartType == 'Data Table'||localPanel.chartType == 'loglines') {
+        if (localPanel.chartType === 'Data Table'||localPanel.chartType === 'loglines') {
             let panEl = $(`#panel${idpanel} .panel-body`)
             let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
             <div id="empty-response"></div></div><div id="corner-popup"></div>
@@ -584,20 +593,13 @@ function displayPanels() {
                 runPanelLogsQuery(localPanel.queryData, idpanel,localPanel, localPanel.queryRes);
             else
                 runPanelLogsQuery(localPanel.queryData, idpanel,localPanel);
-        } else if (localPanel.chartType == 'Line Chart') {
-            // let panEl = $(`#panel${idpanel} .panel-body`)
-            // let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>
-            // <div id="panel-loading"></div>`
-            // panEl.append(responseDiv)
-            // if (localPanel.queryRes){
-            //     runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
-            // }
-            // else {
-            //     //remove startEpoch from from localPanel.queryData
-            //     delete localPanel.queryData.startEpoch
-            //     delete localPanel.queryData.endEpoch
-            //     runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
-            // }
+        } else if (localPanel.chartType === 'Line Chart') {
+            let panEl = $(`#panel${idpanel} .panel-body`);
+            let responseDiv = `<div id="merged-graph-container" class="merged-graph-container"></div>
+            <div id="empty-response"></div></div><div id="corner-popup"></div>
+            <div id="panel-loading"></div>`
+            panEl.append(responseDiv)
+            await runPanelMetricsQuery(localPanel.queryData, idpanel);
         } else if (localPanel.chartType == 'number') {
             let panEl = $(`#panel${idpanel} .panel-body`)
             let responseDiv = `<div class="big-number-display-container"></div>
@@ -694,6 +696,31 @@ var panelLayout =
     '</div>' +
     `<div class="panel-body">
     <div class="panEdit-panel"></div>
+    </div>
+    <div class="panel-info-corner"><i class="fa fa-info" aria-hidden="true" id="panel-desc-info"></i></div>
+`;
+
+var metricsPanelLayout =
+    '<div class="panel-header">' +
+        '<div>'+
+            '<p>Panel Title</p>'+
+        '</div>' +
+        '<div class="panel-icons">'+
+            '<div><img src="../assets/edit-panel-icon.svg" alt="" class="panel-edit-li" /></div>'+
+            '<div><img src="../assets/resize-icon.svg" alt="" class="panel-view-li" /></div>'+
+            '<div>'+
+                '<span class="dropdown-btn" id="panel-options-btn"></span>' +
+                '<ul class="dropdown-style hidden" id="panel-dropdown-modal">' +
+                '<li data-value="edit" class="panel-edit-li"><span class="edit"></span>Edit</li>' +
+                '<li data-value="duplicate" class="panel-dupl-li"><span class="duplicate"></span>Clone</li>' +
+                '<li data-value="remove" class="panel-remove-li"><span class="remove"></span>Remove</li>' +
+                '</ul>' +
+            '</div>' +
+        '</div>' +
+    '</div>' +
+    `<div class="panel-body">
+    <div class="panEdit-panel"></div>
+    <div id="merged-graph-container"></div>
     </div>
     <div class="panel-info-corner"><i class="fa fa-info" aria-hidden="true" id="panel-desc-info"></i></div>
 `;
@@ -917,9 +944,8 @@ function addDuplicatePanel(panelToDuplicate) {
     panelToDuplicate.gridpos.y = panelTop;
     panelToDuplicate.gridpos.h = panelHeight;
     panelToDuplicate.gridpos.w = panelWidth;
-    if (panelToDuplicate.description){
-        handleDescriptionTooltip(panelToDuplicate.panelId,panelToDuplicate.description)
-    }
+    handleDescriptionTooltip(panelToDuplicate.panelId,panelToDuplicate.description)
+    
     localPanels.push(JSON.parse(JSON.stringify(panelToDuplicate)))
     handlePanelView();
     handlePanelEdit();
