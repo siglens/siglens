@@ -357,6 +357,57 @@ func (self *SortExpr) ReleaseProcessedSegmentsLock() {
 	self.processedSegmentsLock.Unlock()
 }
 
+func findNullFields(fields []string, fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	nullFields := []string{}
+	for _, field := range fields {
+		val, exists := fieldToValue[field]
+		if !exists {
+			return []string{}, fmt.Errorf("findNullFields: Expression has a field for which value is not present")
+		}
+		if val.Dtype == utils.SS_DT_BACKFILL {
+			nullFields = append(nullFields, field)
+		}
+	}
+
+	return nullFields, nil
+}
+
+func (self *BoolExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *NumericExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *StringExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *RenameExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *ConcatExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *TextExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *ValueExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *ConditionExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *RexExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
 // Evaluate this BoolExpr to a boolean, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
@@ -502,18 +553,6 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			}
 		} else {
 			if errLeftStr != nil && errLeftFloat != nil {
-				leftField := self.LeftValue.GetFields()
-				if len(leftField) == 1 {
-					// Check the left field value in the fieldToValue map
-					value, exists := fieldToValue[leftField[0]]
-					if !exists {
-						return false, fmt.Errorf("BoolExpr.Evaluate: Field '%s' not found in data", leftField[0])
-					}
-					// Check if the value's Dtype is SS_DT_BACKFILL
-					if value.Dtype == utils.SS_DT_BACKFILL {
-						return false, nil
-					}
-				}
 				return false, fmt.Errorf("BoolExpr.Evaluate: left cannot be evaluated to a string or float")
 			}
 			if errRightStr != nil && errRightFloat != nil {
@@ -1550,6 +1589,10 @@ func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValu
 	for _, cvPair := range self.ConditionValuePairs {
 		res, err := cvPair.Condition.Evaluate(fieldToValue)
 		if err != nil {
+			nullFields, err2 := cvPair.Condition.GetNullFields(fieldToValue)
+			if err2 == nil && len(nullFields) > 0 {
+				continue
+			}
 			return "", fmt.Errorf("handleCaseFunction: Error while evaluating condition, err: %v", err)
 		}
 		if res {
@@ -1566,18 +1609,8 @@ func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValu
 
 func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 	for _, valueExpr := range self.ValueList {
-		fields := valueExpr.GetFields()
-
-		skip := false
-		for _, field := range fields {
-			val, ok := fieldToValue[field]
-			// if a field has a NIL value in the expression we do not want that expression to be considered
-			if !ok || val.Dtype == utils.SS_DT_BACKFILL {
-				skip = true
-				break
-			}
-		}
-		if skip {
+		nullFields, err := valueExpr.GetNullFields(fieldToValue)
+		if err != nil || len(nullFields) > 0 {
 			continue
 		}
 
