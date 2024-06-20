@@ -66,7 +66,33 @@ let mapIndexToAlertState=new Map([
 const alertForm =$('#alert-form');
 
 $(document).ready(function () {
+    $('#evaluate-every').tooltip({
+        title: 'How often the alert will be evaluated to see if it fires',
+        placement: 'top',
+        trigger: 'manual' // Use 'manual' trigger to control tooltip manually
+    });
 
+    $('#evaluate-for').tooltip({
+        title: 'Enter the value less than the previous one',
+        placement: 'top',
+        trigger: 'manual' // Use 'manual' trigger to control tooltip manually
+    });
+    $('#evaluate-for').on('input', function () {
+        let evaluateEveryValue = parseInt($('#evaluate-every').val());
+        let evaluateForValue = parseInt($(this).val());
+        let submitbtn=$("#save-alert-btn");
+
+        if (evaluateForValue > evaluateEveryValue) {
+            $(this).addClass('border-danger'); // Add red border
+            $(this).attr('title', 'Enter a value less than or equal to Evaluate Every');
+            $(this).tooltip('show'); // Show tooltip
+            submitbtn.prop('disabled',true);
+        } else {
+            $(this).removeClass('border-danger'); // Remove red border
+            $(this).tooltip('hide'); // Hide tooltip
+            submitbtn.prop('disabled',false);
+        }
+    });
     $('.theme-btn').on('click', themePickerHandler);
     $("#logs-language-btn").show();
     let startTime = "now-30m";

@@ -2135,6 +2135,11 @@ div.dts div.dataTables_scrollBody table {
     width: 2px;
     background-color: transparent; 
 }
+.border-danger {
+    border: 2px solid red !important; /* Adjust border style as needed */
+    background-color: rgb(252, 234, 234) !important;
+}
+
 .metrics-dropdown-toggle{
     cursor:pointer;
 }
