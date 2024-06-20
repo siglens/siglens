@@ -4522,6 +4522,7 @@ color: #C8C7CC;
     color: var(--white-0) !important;
     float: right;
     cursor: pointer;
+    margin-left: 12px;
 }
 
 .test-contact-btn .send-icon{

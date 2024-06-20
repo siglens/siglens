@@ -39,10 +39,12 @@ const contactFormHTML = `
     </div>
     <div id="main-container">
         <div class="contact-container">
-            <button class="btn d-flex align-items-center justify-content-center test-contact-btn" type="button">
-                <div class="send-icon"></div>
-                <div class="mb-0">Test</div>
-            </button>
+            <div class="button-container">
+                <button class="btn d-flex align-items-center justify-content-center test-contact-btn" type="button">
+                    <div class="send-icon"></div>
+                    <div class="mb-0">Test</div>
+                </button>
+            </div>
             <div>
                 <label for="type">Type</label>
                 <div class="dropdown">
@@ -155,7 +157,7 @@ function initializeContactForm(contactId) {
     $(".add-new-contact-type").on("click", function () {
         let newContactContainer = $(".contact-container").first().clone();
         newContactContainer.find(".form-control").val("");
-        newContactContainer.prepend(
+        newContactContainer.find(".button-container").append(
             '<button class="btn-simple del-contact-type" type="button"></button>',
         );
         newContactContainer.appendTo("#main-container");
@@ -540,7 +542,7 @@ function showContactFormForEdit(contactId) {
             isFirst = false;
         } else {
             contactContainer = $('.contact-container').first().clone();
-            contactContainer.prepend('<button class="btn-simple del-contact-type" type="button"></button>');
+            contactContainer.find('.button-container').append('<button class="btn-simple del-contact-type" type="button"></button>');
         }
         contactContainer.find('#contact-types span').text(key.charAt(0).toUpperCase() + key.slice(1));
         if (key === 'slack') {
