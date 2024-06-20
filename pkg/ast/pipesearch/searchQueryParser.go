@@ -54,12 +54,14 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 		return nil, nil, err
 	}
 
-	tRange, err := ast.ParseTimeRange(startEpoch, endEpoch, queryAggs, qid)
-	if err != nil {
-		log.Errorf("qid=%d, ParseRequest: parseTimeRange error: %v", qid, err)
-		return nil, nil, err
+	if boolNode.TimeRange == nil {
+		tRange, err := ast.ParseTimeRange(startEpoch, endEpoch, queryAggs, qid)
+		if err != nil {
+			log.Errorf("qid=%d, ParseRequest: parseTimeRange error: %v", qid, err)
+			return nil, nil, err
+		}
+		boolNode.TimeRange = tRange
 	}
-	boolNode.TimeRange = tRange
 
 	//aggs
 	if queryAggs != nil {

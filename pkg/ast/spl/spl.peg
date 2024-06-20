@@ -40,6 +40,96 @@ func ConvertCustomDateTimeFormatToEpochMs(dateStr string) (int64, error) {
     return t.UnixMilli(), nil
 }
 
+
+func applySnap(snap string, t time.Time) (time.Time, error) {
+    sec := t.Second()
+    min := t.Minute()
+    hour := t.Hour()
+    day := t.Day()
+    week := t.Weekday()
+    mon := t.Month()
+    year := t.Year()
+    
+    if snap[0] != 'w' {
+        tunit, err := strconv.Atoi(snap)
+        if err != nil {
+            return t, fmt.Errorf("Error while converting the snap to integer, err: %v", err)
+        }
+
+        switch utils.TimeUnit(tunit) {   
+            case utils.TMSecond:
+                return time.Date(year, mon, day, hour, min, sec, 0, time.Local), nil
+            case utils.TMMinute:
+                return time.Date(year, mon, day, hour, min, 0, 0, time.Local), nil
+            case utils.TMHour:
+                return time.Date(year, mon, day, hour, 0, 0, 0, time.Local), nil
+            case utils.TMDay:
+                return time.Date(year, mon, day, 0, 0, 0, 0, time.Local), nil
+            case utils.TMWeek:
+                diff := week - time.Sunday
+                return time.Date(year, mon, day-int(diff), 0, 0, 0, 0, time.Local), nil
+            case utils.TMMonth:
+                return time.Date(year, mon, 1, 0, 0, 0, 0, time.Local), nil
+            case utils.TMQuarter:
+                if mon >= time.October {
+                    mon = time.October
+                } else if mon >= time.July {
+                    mon = time.July
+                } else if mon >= time.April {
+                    mon = time.April
+                } else {
+                    mon = time.January
+                }
+                return time.Date(year, mon, 1, 0, 0, 0, 0, time.Local), nil
+            case utils.TMYear:
+                return time.Date(year, 1, 1, 0, 0, 0, 0, time.Local), nil
+            default:
+                return t, fmt.Errorf("Unsupported time unit for relative timestamp: %v", tunit)
+        }
+    } else {
+        if len(snap) != 2 {
+            return t, fmt.Errorf("Error for special week snap, should be of type w[0-7]")
+        }
+        weeknum := int(snap[1] - '0')
+        if weeknum == 7 {
+            weeknum = 0
+        }
+        diff := int(week)-weeknum
+        if diff < 0 {
+            diff += 7
+        }
+        return time.Date(year, mon, day, 0, 0, 0, 0, time.Local).AddDate(0, 0, -diff), nil
+    }
+}
+
+
+func applyOffset(num int64, unit utils.TimeUnit, t time.Time) (time.Time, error) {
+
+    durNum := time.Duration(num)
+
+    switch unit {
+        case utils.TMSecond:
+            return t.Add(durNum * time.Second), nil
+        case utils.TMMinute:
+            return t.Add(durNum * time.Minute), nil
+        case utils.TMHour:
+            return t.Add(durNum * time.Hour), nil
+        case utils.TMDay:
+            return t.AddDate(0, 0, int(num)), nil
+        case utils.TMWeek:
+            return t.AddDate(0, 0, 7 * int(num)), nil
+        case utils.TMMonth:
+            return t.AddDate(0, int(num), 0), nil
+        case utils.TMQuarter:
+            return t.AddDate(0, 4*int(num), 0), nil
+        case utils.TMYear:
+            return t.AddDate(int(num), 0, 0), nil
+        default:
+            return t, fmt.Errorf("Unsupported time unit for relative timestamp: %v", unit)
+    }
+}
+
+
 func getParseError(err error) error {
     switch ev := err.(type) {
     case errList:
@@ -3255,16 +3345,65 @@ FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
 
 TimeModifiers <- EarliestAndLatest / EarliestOnly
 
-EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:AbsoluteTimestamp SPACE CMD_LATEST EQUAL latestTime:AbsoluteTimestamp !. {
-    startEpoch, err := ConvertCustomDateTimeFormatToEpochMs(earliestTime.(string))
-    if err != nil {
-        return nil, err
-    }
-    endEpoch, err := ConvertCustomDateTimeFormatToEpochMs(latestTime.(string))
-    if err != nil {
-        return nil, err
-    }
+EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
+     var startEpoch int64 = 0
+     var endEpoch int64 = 0
+    var err error
 
+    earliestTimeModifier := earliestTime.(ast.RelativeTimeModifier)
+    latestTimeModifier := latestTime.(ast.RelativeTimeModifier)
+
+    currTime := time.Now()
+    if earliestTimeModifier.AbsoluteTime != "" {
+        startEpoch, err = ConvertCustomDateTimeFormatToEpochMs(earliestTimeModifier.AbsoluteTime)
+        if err != nil {
+            return nil, err
+        }
+    } else {
+        offsetNum := earliestTimeModifier.RelativeTimeOffset.Offset
+        offsetTimeUnit := earliestTimeModifier.RelativeTimeOffset.TimeUnit
+        snap := earliestTimeModifier.Snap
+        t := currTime
+        if offsetNum != 0 {
+            t, err = applyOffset(offsetNum, offsetTimeUnit, t)
+            if err != nil {
+                return nil, err
+            }
+        }
+        if snap != "" {
+            t, err = applySnap(snap, t)
+            if err != nil {
+                return nil, err
+            }
+        }
+        startEpoch = t.UnixMilli()
+    }
+   
+    if latestTimeModifier.AbsoluteTime != "" {
+        endEpoch, err = ConvertCustomDateTimeFormatToEpochMs(latestTimeModifier.AbsoluteTime)
+        if err != nil {
+            return nil, err
+        }
+    } else {
+        offsetNum := latestTimeModifier.RelativeTimeOffset.Offset
+        offsetTimeUnit := latestTimeModifier.RelativeTimeOffset.TimeUnit
+        snap := latestTimeModifier.Snap
+        t := currTime
+        if offsetNum != 0 {
+            t, err = applyOffset(offsetNum, offsetTimeUnit, t)
+            if err != nil {
+                return nil, err
+            }
+        }
+        if snap != "" {
+            t, err = applySnap(snap, t)
+            if err != nil {
+                return nil, err
+            }
+        }
+        endEpoch = t.UnixMilli()
+    }
+    
     // Create AST node
     node := &ast.Node{
         NodeType: ast.TimeModifierNode,
@@ -3277,10 +3416,29 @@ EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:AbsoluteTimestamp SPACE CMD
     return node, nil
 }
 
-EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:AbsoluteTimestamp !. {
-    startEpoch, err := ConvertCustomDateTimeFormatToEpochMs(earliestTime.(string))
-    if err != nil {
-        return nil, err
+EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
+    var startEpoch int64 = 0
+    var err error
+
+    earliestTimeModifier := earliestTime.(ast.RelativeTimeModifier)
+
+    if earliestTimeModifier.AbsoluteTime != "" {
+        startEpoch, err = ConvertCustomDateTimeFormatToEpochMs(earliestTimeModifier.AbsoluteTime)
+        if err != nil {
+            return nil, err
+        }
+    } else {
+        t := time.Now()
+        offsetNum := earliestTimeModifier.RelativeTimeOffset.Offset
+        offsetTimeUnit := earliestTimeModifier.RelativeTimeOffset.TimeUnit
+        snap := earliestTimeModifier.Snap
+        if offsetNum != 0 {
+            t, err = applyOffset(offsetNum, offsetTimeUnit, t)
+        }
+        if snap != "" {
+            t, err = applySnap(snap, t)
+        }
+        startEpoch = t.UnixMilli()
     }
 
     // Create AST node
@@ -3295,66 +3453,90 @@ EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:AbsoluteTimestamp !. {
     return node, nil
 }
 
-RelIntegerAsString <- [-+]? [0-9]* {
+RelIntegerAsString <- [-+][0-9]* {
     return string(c.text), nil
 }
 
-WeekSnap <- ('w' [0-7]) {
+WeekSnap <- ('w'[0-7]) {
     return string(c.text), nil
 }
 
-RelTimeUnit <- timeUnit:(Second / Minute / Hour / Day/ Week / Month / Quarter/ Year) {
-    return timeUnit, nil
+RelTimeUnit <- timeUnit:(Second / Month / Minute / Hour / Day / Week / Quarter / Year) {
+    return strconv.Itoa(int(timeUnit.(utils.TimeUnit))), nil
 }
 
-Snap <- '@' (ws:WeekSnap / tu:RelTimeUnit) {
-    if ws != nil {
-        return ws.(string), nil
-    } else {
-        return strconv.Itoa(tu.(utils.TimeUnit)), nil
-    }
+Snap <- '@' snap:(WeekSnap / RelTimeUnit) {
+    return snap.(string), nil
 }
 
-
-RelativeTimestamp <- offStr:(RelIntegerAsString)? (tuOff:RelTimeUnit)? (snapParam:Snap)? {
-    if offStr == nil && tuOff == nil && snapParam == nil {
-        return nil, nil
-    }
-    if offStr != nil && tuOff == nil {
-        nil, fmt.Errorf("Invalid Format time unit required for offset when there is magnitude of offset")
-    }
-
-    offsetNum := 0
-    if tuOff != nil {
-        offset = ""
+Offset <- off:(RelIntegerAsString) tuOff:(RelTimeUnit) {
+    var offsetNum int64 = 0
+    var err error
+    offStr := off.(string)
+    if offStr == "+" {
         offsetNum = 1
-        if offStr != nil {
-            offset := offStr.(string)
-        }
-        
-        if offset != "" {
-            if offset == "-" {
-                offsetNum = -1
-            } else {
-                offsetNum, err := strconv.ParseUint(offset, 10, 64)
-                if err != nil {
-                    return nil, fmt.Errorf("Invalid Max results value is set for format: (%v): Error=%v", offset, err)
-                }
-            }
+    } else if offStr == "-" {
+        offsetNum = -1
+    } else {
+        offsetNum, err = strconv.ParseInt(offStr, 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("Invalid Relative Time Format time unit value: (%v): , err: %v", offStr, err)
         }
     }
 
-    relTimeModifier := &structs.RelativeTimeModifier{
-        Offset: offsetNum 
-        TUOffset: tuOff.(utils.TimeUnit)
-        Snap: snapParam.(string)
+    timeUnit, err := strconv.Atoi(tuOff.(string))
+    if err != nil {
+        return nil, fmt.Errorf("Invalid Time Unit value: (%v), err: %v", tuOff.(string), err)
+    }
+
+    relTimeOffset := ast.RelativeTimeOffset{
+        Offset: offsetNum,
+        TimeUnit: utils.TimeUnit(timeUnit),
+    }
+
+    return relTimeOffset, nil
+}
+
+RelativeTimestamp <- offset:(Offset)? snapParam:(Snap)? {
+    if offset == nil && snapParam == nil {
+        return nil, fmt.Errorf("Invalid Relative Time Format: Need either offset or snap param")
+    }
+
+    relTimeOffset := ast.RelativeTimeOffset{
+        Offset: 0,
+        TimeUnit: 0,
+    }
+    snap := ""
+    if snapParam != nil {
+        snap = snapParam.(string)
+    }
+
+    if offset != nil {
+        relTimeOffset.Offset = offset.(ast.RelativeTimeOffset).Offset
+        relTimeOffset.TimeUnit = offset.(ast.RelativeTimeOffset).TimeUnit
+    } 
+
+    relTimeModifier := ast.RelativeTimeModifier{
+        RelativeTimeOffset: relTimeOffset,
+        Snap: snap,
+        AbsoluteTime: "",
     }
 
     return relTimeModifier, nil
 }
 
+
 AbsoluteTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] {
-    return string(c.text), nil
+    relTimeOffset := ast.RelativeTimeOffset{
+        Offset: 0,
+        TimeUnit: 0,
+    }
+    relTimeModifier := ast.RelativeTimeModifier{
+        RelativeTimeOffset: relTimeOffset,
+        Snap: "",
+        AbsoluteTime: string(c.text),
+    }
+    return relTimeModifier, nil
 }
 
 // From https://docs.splunk.com/Documentation/Splunk/7.3.1/Knowledge/Aboutregularexpressionswithfieldextractions
@@ -3490,7 +3672,7 @@ Quarter <- ("quarters" / "quarter" / "qtrs" / "qtr" / "q") {
 }
 
 Year <- ("years" / "year" / "yrs" / "yr" / "y") {
-    return utils.Year, nil
+    return utils.TMYear, nil
 }
 
 // Might not has effect for 'us', because smallest time unit for timestamp in siglens is ms
