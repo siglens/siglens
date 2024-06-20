@@ -39,13 +39,8 @@ const contactFormHTML = `
     </div>
     <div id="main-container">
         <div class="contact-container">
-            <div class="button-container">
-                <button class="btn d-flex align-items-center justify-content-center test-contact-btn" type="button">
-                    <div class="send-icon"></div>
-                    <div class="mb-0">Test</div>
-                </button>
-            </div>
-            <div>
+        <div class="mb-0 d-flex justify-content-between">
+            <div class="mb-0">
                 <label for="type">Type</label>
                 <div class="dropdown">
                     <button class="btn dropdown-toggle" type="button" id="contact-types"
@@ -61,6 +56,13 @@ const contactFormHTML = `
                     </div>
                 </div>
             </div>
+            <div class="button-container mb-0">
+                <button class="btn d-flex align-items-center justify-content-center test-contact-btn" type="button">
+                    <div class="send-icon"></div>
+                    <div class="mb-0">Test</div>
+                </button>
+            </div>
+        </div>
             <div class="slack-container">
                 <div>
                 <div style="position: relative;">
