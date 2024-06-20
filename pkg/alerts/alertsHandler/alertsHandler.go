@@ -26,6 +26,7 @@ import (
 	"github.com/google/uuid"
 	alertsqlite "github.com/siglens/siglens/pkg/alerts/alertsqlite"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	"gorm.io/gorm"
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
@@ -112,6 +113,16 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 		utils.SendError(ctx, "Failed to unmarshal json", "", err)
 		return
 	}
+
+	if alertToBeCreated.AlertType == alertutils.AlertTypeMetrics {
+		_, _, _, _, errorLog, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToBeCreated.MetricsQueryParamsString))
+		if err != nil {
+			log.Errorf("ALERTSERVICE: evaluateMetricsAlert: Error parsing metrics query. Alert=%+v, ErrLog=%v, err=%+v", alertToBeCreated.AlertName, errorLog, err)
+			utils.SendError(ctx, err.Error(), fmt.Sprintf("Error: %+v", errorLog), err)
+			return
+		}
+	}
+
 	alertDataObj, err := databaseObj.CreateAlert(&alertToBeCreated)
 	if err != nil {
 		utils.SendError(ctx, "Failed to create alert", fmt.Sprintf("alert name: %v", alertToBeCreated.AlertName), err)

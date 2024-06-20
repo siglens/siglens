@@ -209,7 +209,11 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom
 }
 
-func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
+// ProcessAlertsPipeSearchRequest processes the logs search request for alert queries.
+// Returns the measure value for the alert query. the first return value is the measure value
+// the second return value is a boolean indicating if the query returned empty results. Set to true if the query returned empty results.
+// the third return value is an error if any.
+func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) (int, bool, error) {
 
 	queryData := fmt.Sprintf(`{
 		"from": "0",
@@ -227,7 +231,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	rawJSON := []byte(queryData)
 	if rawJSON == nil {
 		log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: received empty search request body ")
-		return -1
+		return -1, false, fmt.Errorf("received empty search request body")
 	}
 
 	qid := rutils.GetNextQid()
@@ -238,13 +242,14 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 	err := decoder.Decode(&readJSON)
 	if err != nil {
 		log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: failed to decode search request body! err: %+v", qid, err)
+		return -1, false, fmt.Errorf("failed to decode search request body! err: %+v", err)
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
 
 	if scrollFrom > 10_000 {
-		return -1
+		return -1, false, fmt.Errorf("scrollFrom is greater than 10_000")
 	}
 
 	ti := structs.InitTableInfo(indexNameIn, orgid, false)
@@ -259,7 +264,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
 		if err != nil {
 			log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing query err: %+v", qid, err)
-			return -1
+			return -1, false, fmt.Errorf("Error parsing query err: %+v", err)
 		}
 
 		sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
@@ -275,16 +280,16 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 				measureNum, err := strconv.Atoi(measureVal)
 				if err != nil {
 					log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing int from a string: %s", err)
-					return -1
+					return -1, false, fmt.Errorf("Error parsing int from a string measureval: %s, Error=%v", measureVal, err)
 				}
-				return measureNum
+				return measureNum, false, nil
 			}
 		}
 	} else if queryLanguageType == "Splunk QL" {
 		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 		if err != nil {
 			log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing query err: %+v", qid, err)
-			return -1
+			return -1, false, fmt.Errorf("Error parsing query err: %+v", err)
 		}
 
 		if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
@@ -294,28 +299,33 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
 		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId)
 		if httpRespOuter.MeasureResults != nil && len(httpRespOuter.MeasureResults) > 0 && httpRespOuter.MeasureResults[0].MeasureVal != nil {
-			measureVal, ok := httpRespOuter.MeasureResults[0].MeasureVal[httpRespOuter.MeasureFunctions[0]].(string)
+			measureValStr := httpRespOuter.MeasureResults[0].MeasureVal[httpRespOuter.MeasureFunctions[0]]
+			if measureValStr == nil {
+				log.Warnf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: MeasureVal is nil. Measure Results: %v", *httpRespOuter.MeasureResults[0])
+				return -1, true, nil
+			}
+			measureVal, ok := measureValStr.(string)
 			if ok {
 				measureVal = strings.ReplaceAll(measureVal, ",", "")
 				measureNum, err := strconv.ParseFloat(measureVal, 64)
 				if err != nil {
 					log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing int from a string: %s. Error=%v", measureVal, err)
-					return -1
+					return -1, false, fmt.Errorf("Error parsing int from a string measureval: %s, Error=%v", measureVal, err)
 				}
-				return int(measureNum)
+				return int(measureNum), false, nil
 			} else {
-				log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing measure function Val as string: %s", err)
-				return -1
+				log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing measure function Val as string: %v, Error=%v", measureValStr, err)
+				return -1, false, fmt.Errorf("Error parsing measure function Val as string: %s", err)
 			}
 		} else {
-			log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: MeasureResults is nil")
-			return -1
+			// if the result is empty, then it should not be considered as an error
+			return -1, true, nil
 		}
 	} else {
 		log.Infof("ProcessAlertsPipeSearchRequest: unknown queryLanguageType: %v", queryLanguageType)
 	}
 
-	return -1
+	return -1, false, fmt.Errorf("unknown queryLanguageType: %v", queryLanguageType)
 }
 
 func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {

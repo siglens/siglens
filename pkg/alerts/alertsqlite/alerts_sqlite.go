@@ -384,9 +384,10 @@ func (p Sqlite) UpdateContactPoint(contact *alertutils.Contact) error {
 func (p Sqlite) GetContactDetails(alert_id string) (string, string, string, error) {
 
 	var alert alertutils.AlertDetails
-	if err := p.db.First(&alert).Where("alert_id = ?", alert_id).Error; err != nil {
+	if err := p.db.Where("alert_id = ?", alert_id).First(&alert).Error; err != nil {
 		return "", "", "", err
 	}
+
 	alert_name := alert.AlertName
 	contact_id := alert.ContactID
 	message := alert.Message
@@ -416,7 +417,7 @@ func (p Sqlite) GetContactDetails(alert_id string) (string, string, string, erro
 
 func (p Sqlite) GetCoolDownDetails(alert_id string) (uint64, time.Time, error) {
 	var notification alertutils.Notification
-	if err := p.db.First(&notification).Where("alert_id = ?", alert_id).Error; err != nil {
+	if err := p.db.Where("alert_id = ?", alert_id).First(&notification).Error; err != nil {
 		return 0, time.Time{}, err
 	}
 	cooldown_period := notification.CooldownPeriod
@@ -504,7 +505,7 @@ func (p Sqlite) UpdateAlertStateByAlertID(alert_id string, alertState alertutils
 func (p Sqlite) GetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []alertutils.WebHookConfig, error) {
 
 	var contact = &alertutils.Contact{}
-	if err := p.db.Preload("Slack").Preload("Webhook").First(&contact).Where("contact_id = ?", contact_id).Error; err != nil {
+	if err := p.db.Preload("Slack").Preload("Webhook").Where("contact_id = ?", contact_id).First(contact).Error; err != nil {
 		log.Errorf("GetEmailAndChannelID: unable to update contact, contact id: %v, err: %+v", contact_id, err)
 		return nil, nil, nil, fmt.Errorf("GetEmailAndChannelID: unable to update contact, contact id: %v, err: %+v", contact_id, err)
 	}
@@ -631,7 +632,7 @@ func (p Sqlite) GetAlertHistory(alertId string) ([]*alertutils.AlertHistoryDetai
 
 	alertHistory := make([]*alertutils.AlertHistoryDetails, 0)
 
-	err = p.db.First(&alertHistory).Where("alert_id = ?", alertId).Error
+	err = p.db.Where("alert_id = ?", alertId).First(&alertHistory).Error
 	return alertHistory, err
 
 }

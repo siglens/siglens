@@ -28,7 +28,7 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 		]
 	}`
 
-	start, end, queries, formulas, _, err := parseMetricTimeSeriesRequest([]byte(validJSON))
+	start, end, queries, formulas, _, err := ParseMetricTimeSeriesRequest([]byte(validJSON))
 	assert.NoError(t, err)
 	assert.Equal(t, uint32(1625248200), start)
 	assert.Equal(t, uint32(1625248300), end)
@@ -54,7 +54,7 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula": "formula2"}
 		]
 	}`
-	start, end, queries, formulas, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	start, end, queries, formulas, _, err = ParseMetricTimeSeriesRequest([]byte(invalidJSON))
 	assert.Error(t, err)
 	assert.NotNil(t, start)
 	assert.NotNil(t, end)
@@ -73,7 +73,7 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula": "formula2"}
 		]
 	}`
-	start, end, queries, formulas, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	start, end, queries, formulas, _, err = ParseMetricTimeSeriesRequest([]byte(invalidJSON))
 	assert.Error(t, err)
 	assert.NotNil(t, start)
 	assert.NotNil(t, end)
@@ -89,7 +89,7 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula": "formula2"}
 		]
 	}`
-	start, end, queries, formulas, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	start, end, queries, formulas, _, err = ParseMetricTimeSeriesRequest([]byte(invalidJSON))
 	assert.Error(t, err)
 	assert.NotNil(t, start)
 	assert.NotNil(t, end)
@@ -105,7 +105,7 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"name": "query2", "query": "SELECT * FROM table", "qlType": "SQL"}
 		]
 	}`
-	start, end, queries, formulas, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	start, end, queries, formulas, _, err = ParseMetricTimeSeriesRequest([]byte(invalidJSON))
 	assert.Error(t, err)
 	assert.NotNil(t, start)
 	assert.NotNil(t, end)
@@ -125,7 +125,7 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula": "formula2"}
 		]
 	}`
-	start, end, queries, formulas, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	start, end, queries, formulas, _, err = ParseMetricTimeSeriesRequest([]byte(invalidJSON))
 	assert.Error(t, err)
 	assert.NotNil(t, start)
 	assert.NotNil(t, end)
@@ -145,7 +145,7 @@ func Test_parseMetricTimeSeriesRequest(t *testing.T) {
 			{"formula2": "formula2"}
 		]
 	}`
-	start, end, queries, formulas, _, err = parseMetricTimeSeriesRequest([]byte(invalidJSON))
+	start, end, queries, formulas, _, err = ParseMetricTimeSeriesRequest([]byte(invalidJSON))
 	assert.Error(t, err)
 	assert.NotNil(t, start)
 	assert.NotNil(t, end)
