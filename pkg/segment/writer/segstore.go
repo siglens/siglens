@@ -36,6 +36,7 @@ import (
 	"github.com/siglens/siglens/pkg/blob/ssutils"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/querytracker"
 	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
@@ -58,7 +59,7 @@ const colWipsSizeLimit = 2000 // We shouldn't exceed this during normal usage.
 
 // SegStore Individual stream buffer
 type SegStore struct {
-	lock              sync.Mutex
+	Lock              sync.Mutex
 	earliest_millis   uint64 // earliest timestamp of a logline here
 	latest_millis     uint64 // latest timestamp of a logline here
 	wipBlock          WipBlock
@@ -104,7 +105,7 @@ func InitSegStore(
 ) *SegStore {
 	now := time.Now()
 	ss := SegStore{
-		lock:              sync.Mutex{},
+		Lock:              sync.Mutex{},
 		pqNonEmptyResults: make(map[string]bool),
 		SegmentKey:        segmentKey,
 		segbaseDir:        segbaseDir,
@@ -126,6 +127,26 @@ func InitSegStore(
 	ss.wipBlock.blockSummary.LowTs = lowTs
 
 	return &ss
+}
+
+func NewSegStore(baseDir string, suffix uint64, virtualTableName string, orgId uint64) *SegStore {
+	segstore := &SegStore{
+		pqNonEmptyResults: make(map[string]bool),
+		SegmentKey:        fmt.Sprintf("%s%d", baseDir, suffix),
+		segbaseDir:        baseDir,
+		suffix:            suffix,
+		VirtualTableName:  virtualTableName,
+		AllSeenColumns:    make(map[string]bool),
+		pqTracker:         initPQTracker(),
+		timeCreated:       time.Now(),
+		AllSst:            make(map[string]*structs.SegStats),
+		OrgId:             orgId,
+		firstTime:         true,
+	}
+
+	segstore.initWipBlock()
+
+	return segstore
 }
 
 func (segstore *SegStore) initWipBlock() {
@@ -635,13 +656,23 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 	}
 
 	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate {
+		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
+			err := hook(segstore)
+			if err != nil {
+				log.Errorf("checkAndRotateColFiles: failed to rotate segment %v, err=%v", segstore.SegmentKey, err)
+			}
+		}
 
 		instrumentation.IncrementInt64Counter(instrumentation.SEGFILE_ROTATE_COUNT, 1)
 		bytesWritten := segstore.flushStarTree()
 		segstore.OnDiskBytes += uint64(bytesWritten)
 
-		activeBasedir := getActiveBaseSegDir(streamid, segstore.VirtualTableName, segstore.suffix-1)
-		finalBasedir := getFinalBaseSegDir(streamid, segstore.VirtualTableName, segstore.suffix-1)
+		activeBasedir := segstore.segbaseDir
+		finalBasedir, err := getFinalBaseSegDirFromActive(activeBasedir)
+		if err != nil {
+			log.Errorf("checkAndRotateColFiles: failed to get finalBasedir from activeBasedir=%v; err=%v", activeBasedir, err)
+			return err
+		}
 
 		finalSegmentKey := fmt.Sprintf("%s%d", finalBasedir, segstore.suffix-1)
 
@@ -651,8 +682,9 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		// make sure the parent dir of final exists, the two path calls are because getFinal.. func
 		// returns a '/' at the end
-		err := os.MkdirAll(path.Dir(path.Dir(finalBasedir)), 0764)
+		err = os.MkdirAll(path.Dir(path.Dir(finalBasedir)), 0764)
 		if err != nil {
+			log.Errorf("checkAndRotateColFiles: failed to mkdir finalBasedir=%v; err=%v", finalBasedir, err)
 			return err
 		}
 		// delete pqmr files if empty and add to empty PQS
@@ -660,7 +692,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			if !hasMatchedAnyRecordInWip {
 				err := removePqmrFilesAndDirectory(pqid, segstore.SegmentKey)
 				if err != nil {
-					log.Errorf("Error deleting pqmr files and directory. Err: %v", err)
+					log.Errorf("checkAndRotateColFiles: Error deleting pqmr files and directory. Err: %v", err)
 				}
 				go pqsmeta.AddEmptyResults(pqid, segstore.SegmentKey, segstore.VirtualTableName)
 			}
