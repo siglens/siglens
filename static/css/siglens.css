@@ -5365,3 +5365,7 @@ input.form-control {
     color: var(--component-text-color) !important;
     width: 100px;
 }
+
+#index-del-btn-traces{
+    background-image: none;
+}
