@@ -26,7 +26,7 @@ import (
 type AlertType uint8 // type of the alert: Logs or Metrics
 
 const (
-	AlertTypeLogs AlertType = iota
+	AlertTypeLogs AlertType = iota + 1
 	AlertTypeMetrics
 	AlertTypeMinion
 )
@@ -45,8 +45,8 @@ type AlertDetails struct {
 	MetricsQueryParamsString string              `json:"metricsQueryParams"`
 	Condition                AlertQueryCondition `json:"condition"`
 	Value                    float32             `json:"value"`
-	EvalFor                  uint64              `json:"eval_for"`
-	EvalInterval             uint64              `json:"eval_interval"`
+	EvalFor                  uint64              `json:"eval_for"`      // in minutes
+	EvalInterval             uint64              `json:"eval_interval"` // in minutes
 	Message                  string              `json:"message"`
 	CronJob                  gocron.Job          `json:"cron_job" gorm:"embedded"`
 	NodeId                   uint64              `json:"node_id"`
