@@ -82,12 +82,12 @@ type ParseError struct {
 
 type RelativeTimeModifier struct {
 	RelativeTimeOffset RelativeTimeOffset
-	Snap string
-	AbsoluteTime string
+	Snap               string
+	AbsoluteTime       string
 }
 
 type RelativeTimeOffset struct {
-	Offset int64
+	Offset   int64
 	TimeUnit utils.TimeUnit
 }
 
