@@ -5486,6 +5486,7 @@ input.form-control {
 .tippy-box[data-placement^='right'] > .tippy-arrow::before {
     border-right-color:var(--side-nav-bg-color-regular);
 }
+
 /* Add existing styles */
 .summary {
     padding-bottom: 1%;
@@ -5631,4 +5632,13 @@ input.form-control {
 }
 
 
+#error-popup .fas{
+    font-size: 16px;
+    margin-right: 5px;
+}
 
+#okay-button{
+    background: var(--component-bg-color);
+    color: var(--component-text-color) !important;
+    width: 100px;
+}
