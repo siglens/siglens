@@ -23,7 +23,7 @@ import (
 	"github.com/go-co-op/gocron"
 )
 
-type AlertType uint8 // type of the alert: Logs or Metrics
+type AlertType uint8 // type of the alert: Logs or Metrics or Minion
 
 const (
 	AlertTypeLogs AlertType = iota + 1
