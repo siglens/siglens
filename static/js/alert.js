@@ -71,9 +71,10 @@ $(document).ready(function () {
         placement: 'top',
         trigger: 'manual' // Use 'manual' trigger to control tooltip manually
     });
-
+    const urlParams = new URLSearchParams(window.location.search);
+    $("#alert-rule-name").val(urlParams.get('alertRule_name'));
     $('#evaluate-for').tooltip({
-        title: 'Enter the value less than the previous one',
+        title: 'Enter the value less than the previous',
         placement: 'top',
         trigger: 'manual' // Use 'manual' trigger to control tooltip manually
     });

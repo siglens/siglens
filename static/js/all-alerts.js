@@ -32,10 +32,21 @@ $(document).ready(function () {
 
     $('.theme-btn').on('click', themePickerHandler);
     getAllAlerts();
-
-    $('#new-alert-rule').on('click', function () {
-        window.location.href = "../alert.html";
+    $('#new-alert-rule').click(function() {
+        $('.addrulepopupOverlay').fadeIn().css('display', 'flex');
+    
     });
+    $('#addrule-cancel-btn').click(function() {
+        $('.addrulepopupOverlay').fadeOut();
+    });
+    
+    $('#addrule-save-btn').click(function() {
+        var ruleName = $('#rule-name').val();
+        // Encode the ruleName to ensure proper URL encoding
+        var encodedRuleName = encodeURIComponent(ruleName);
+        window.location.href = "../alert.html?alertRule_name=" + encodedRuleName;
+    });
+    
 });
 
 // Get all alerts
