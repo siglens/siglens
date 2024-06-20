@@ -142,7 +142,7 @@ func (p Sqlite) verifyAlertExists(alert_id string) (bool, *alertutils.AlertDetai
 func (p Sqlite) verifyContactExists(contact_id string) (bool, *alertutils.Contact, error) {
 	if !isValid(contact_id) {
 		log.Errorf("verifyContactExists: data validation check failed for contact_id: %v", contact_id)
-		return false, nil, fmt.Errorf("verifyContactExists: data v,alidation check failed for contact_id: %v", contact_id)
+		return false, nil, fmt.Errorf("verifyContactExists: data validation check failed for contact_id: %v", contact_id)
 	}
 
 	var contact alertutils.Contact
