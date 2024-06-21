@@ -347,9 +347,14 @@ func PostBulkErrorResponse(ctx *fasthttp.RequestCtx) {
 // Accepts wildcard index names e.g. "ind-*"
 func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 	inIndexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
-
-	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid)
 	responseBody := make(map[string]interface{})
+	if inIndexName == "traces" {
+		ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
+		responseBody["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	}
+	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid)
 	if indicesNotFound == len(convertedIndexNames) {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		responseBody["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
