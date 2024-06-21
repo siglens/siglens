@@ -45,7 +45,7 @@ type AlertDetails struct {
 	MetricsQueryParamsString string              `json:"metricsQueryParams"`
 	Condition                AlertQueryCondition `json:"condition"`
 	Value                    float32             `json:"value"`
-	EvalFor                  uint64              `json:"eval_for"`      // in minutes
+	EvalWindow               uint64              `json:"eval_for"`      // in minutes; TODO: Rename json field to eval_window
 	EvalInterval             uint64              `json:"eval_interval"` // in minutes
 	Message                  string              `json:"message"`
 	CronJob                  gocron.Job          `json:"cron_job" gorm:"embedded"`
@@ -69,16 +69,31 @@ func (AlertLabel) TableName() string {
 }
 
 type AlertHistoryDetails struct {
-	ID               uint      `gorm:"primaryKey;autoIncrement:true"`
-	AlertId          string    `json:"alert_id"`
-	AlertType        AlertType `json:"alert_type"`
-	EventDescription string    `json:"event_description"`
-	UserName         string    `json:"user_name"`
-	EventTriggeredAt time.Time `json:"event_triggered_at"`
+	ID               uint       `gorm:"primaryKey;autoIncrement:true"`
+	AlertId          string     `json:"alert_id"`
+	AlertType        AlertType  `json:"alert_type"`
+	AlertState       AlertState `json:"alert_state"`
+	EventDescription string     `json:"event_description"`
+	UserName         string     `json:"user_name"`
+	EventTriggeredAt time.Time  `json:"event_triggered_at"`
 }
 
 func (AlertHistoryDetails) TableName() string {
 	return "alert_history_details"
+}
+
+type DB_SORT_ORDER string
+
+const (
+	ASC  DB_SORT_ORDER = "ASC"
+	DESC DB_SORT_ORDER = "DESC"
+)
+
+type AlertHistoryQueryParams struct {
+	AlertId   string        `json:"alert_id"` // mandatory
+	SortOrder DB_SORT_ORDER `json:"sort_order"`
+	Limit     uint64        `json:"limit"`
+	Offset    uint64        `json:"offset"`
 }
 
 type QueryParams struct {
@@ -152,12 +167,14 @@ const (
 type AlertState uint8 // state of the alerts
 const (
 	Inactive AlertState = iota
+	Normal
 	Pending
 	Firing
 	SystemGeneratedAlert = "System Generated"
 	UserModified         = "User Modified"
 	AlertFiring          = "Alert Firing"
 	AlertNormal          = "Alert Normal"
+	AlertPending         = "Alert Pending"
 	ConfigChange         = "Config Modified"
 )
 
@@ -217,4 +234,8 @@ type MetricAlertData struct {
 
 func (MinionSearch) TableName() string {
 	return "minion_searches"
+}
+
+func IsAlertStatePendingOrFiring(alertState AlertState) bool {
+	return alertState == Pending || alertState == Firing
 }
