@@ -1913,16 +1913,6 @@ div.dts div.dataTables_scrollBody table {
     background-size: contain;
 }
 
-#viewbutton {
-    background-image: url(../assets/view-icon.svg);
-    height: 14px;
-    width: 19px;
-    cursor: pointer;
-    background-color: transparent;
-    border-width: 0;
-    padding: 0px;
-    background-size: contain;
-}
 
 #duplicateButton{
     background-image: url(../assets/dashboard-duplicate-icon.svg);
