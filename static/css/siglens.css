@@ -5103,11 +5103,10 @@ input.form-control {
     background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
     background-size: 46% !important;
 }
-
-#delbutton.default-dashboard-delete:hover {
-    background-image: url(../assets/dark-delete-icon-regular.svg);
-    cursor: not-allowed;
+#delbutton.default-dashboard-delete {
+    background-image:none;
 }
+
 #data-ingestion .myOrg-heading{
     font-size: 16px;
     margin-top: 20px;
