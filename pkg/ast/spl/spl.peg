@@ -53,7 +53,7 @@ func applySnap(snap string, t time.Time) (time.Time, error) {
     if snap[0] != 'w' {
         tunit, err := strconv.Atoi(snap)
         if err != nil {
-            return t, fmt.Errorf("Error while converting the snap to integer, err: %v", err)
+            return t, fmt.Errorf("Error while converting the snap: %v to integer, err: %v", snap, err)
         }
 
         switch utils.TimeUnit(tunit) {   
@@ -88,7 +88,7 @@ func applySnap(snap string, t time.Time) (time.Time, error) {
         }
     } else {
         if len(snap) != 2 {
-            return t, fmt.Errorf("Error for special week snap, should be of type w[0-7]")
+            return t, fmt.Errorf("Error for special week snap, should be of type w[0-7] got: %v", snap)
         }
         weeknum := int(snap[1] - '0')
         if weeknum == 7 {
@@ -129,6 +129,40 @@ func applyOffset(num int64, unit utils.TimeUnit, t time.Time) (time.Time, error)
     }
 }
 
+func calculateRelativeTime(relTimeModifier ast.RelativeTimeModifier, currTime time.Time) (int64, error) {
+    var epoch int64 = 0
+    var err error
+    if relTimeModifier.AbsoluteTime == "now" {
+        epoch = currTime.UnixMilli()
+    } else if relTimeModifier.AbsoluteTime == "1" {
+        return 1, nil
+    } else if relTimeModifier.AbsoluteTime != "" {
+        epoch, err = ConvertCustomDateTimeFormatToEpochMs(relTimeModifier.AbsoluteTime)
+        if err != nil {
+            return 0, err
+        }
+    } else {
+        offsetNum := relTimeModifier.RelativeTimeOffset.Offset
+        offsetTimeUnit := relTimeModifier.RelativeTimeOffset.TimeUnit
+        snap := relTimeModifier.Snap
+        t := currTime
+        if offsetNum != 0 {
+            t, err = applyOffset(offsetNum, offsetTimeUnit, t)
+            if err != nil {
+                return 0, err
+            }
+        }
+        if snap != "" {
+            t, err = applySnap(snap, t)
+            if err != nil {
+                return 0, err
+            }
+        }
+        epoch = t.UnixMilli()
+    }
+
+    return epoch, nil
+}
 
 func getParseError(err error) error {
     switch ev := err.(type) {
@@ -3354,54 +3388,14 @@ EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / Relati
     latestTimeModifier := latestTime.(ast.RelativeTimeModifier)
 
     currTime := time.Now()
-    if earliestTimeModifier.AbsoluteTime != "" {
-        startEpoch, err = ConvertCustomDateTimeFormatToEpochMs(earliestTimeModifier.AbsoluteTime)
-        if err != nil {
-            return nil, err
-        }
-    } else {
-        offsetNum := earliestTimeModifier.RelativeTimeOffset.Offset
-        offsetTimeUnit := earliestTimeModifier.RelativeTimeOffset.TimeUnit
-        snap := earliestTimeModifier.Snap
-        t := currTime
-        if offsetNum != 0 {
-            t, err = applyOffset(offsetNum, offsetTimeUnit, t)
-            if err != nil {
-                return nil, err
-            }
-        }
-        if snap != "" {
-            t, err = applySnap(snap, t)
-            if err != nil {
-                return nil, err
-            }
-        }
-        startEpoch = t.UnixMilli()
+    startEpoch, err = calculateRelativeTime(earliestTimeModifier, currTime)
+    if err != nil {
+        return nil, err
     }
-   
-    if latestTimeModifier.AbsoluteTime != "" {
-        endEpoch, err = ConvertCustomDateTimeFormatToEpochMs(latestTimeModifier.AbsoluteTime)
-        if err != nil {
-            return nil, err
-        }
-    } else {
-        offsetNum := latestTimeModifier.RelativeTimeOffset.Offset
-        offsetTimeUnit := latestTimeModifier.RelativeTimeOffset.TimeUnit
-        snap := latestTimeModifier.Snap
-        t := currTime
-        if offsetNum != 0 {
-            t, err = applyOffset(offsetNum, offsetTimeUnit, t)
-            if err != nil {
-                return nil, err
-            }
-        }
-        if snap != "" {
-            t, err = applySnap(snap, t)
-            if err != nil {
-                return nil, err
-            }
-        }
-        endEpoch = t.UnixMilli()
+
+    endEpoch, err = calculateRelativeTime(latestTimeModifier, currTime)
+    if err != nil {
+        return nil, err
     }
     
     // Create AST node
@@ -3422,23 +3416,9 @@ EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTim
 
     earliestTimeModifier := earliestTime.(ast.RelativeTimeModifier)
 
-    if earliestTimeModifier.AbsoluteTime != "" {
-        startEpoch, err = ConvertCustomDateTimeFormatToEpochMs(earliestTimeModifier.AbsoluteTime)
-        if err != nil {
-            return nil, err
-        }
-    } else {
-        t := time.Now()
-        offsetNum := earliestTimeModifier.RelativeTimeOffset.Offset
-        offsetTimeUnit := earliestTimeModifier.RelativeTimeOffset.TimeUnit
-        snap := earliestTimeModifier.Snap
-        if offsetNum != 0 {
-            t, err = applyOffset(offsetNum, offsetTimeUnit, t)
-        }
-        if snap != "" {
-            t, err = applySnap(snap, t)
-        }
-        startEpoch = t.UnixMilli()
+    startEpoch, err = calculateRelativeTime(earliestTimeModifier, time.Now())
+    if err != nil {
+        return nil, err
     }
 
     // Create AST node
@@ -3497,15 +3477,32 @@ Offset <- off:(RelIntegerAsString) tuOff:(RelTimeUnit) {
     return relTimeOffset, nil
 }
 
-RelativeTimestamp <- offset:(Offset)? snapParam:(Snap)? {
+
+
+// TODO: Chained relative modifiers
+RelativeTimestamp <- defaultTime:("now" / "1")? offset:(Offset)? snapParam:(Snap)? {
+
+    if defaultTime != nil {
+        if offset != nil || snapParam != nil {
+            return nil, fmt.Errorf("Invalid Relative timestamp cannot combine default with offset or snap")
+        }
+        defTime, err := transferUint8ToString(defaultTime)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Relative timestamp for default time, err: %v", err)
+        }
+
+        relTimeModifier := ast.RelativeTimeModifier{
+            AbsoluteTime: defTime,
+        }
+
+        return relTimeModifier, nil
+    }
+
     if offset == nil && snapParam == nil {
         return nil, fmt.Errorf("Invalid Relative Time Format: Need either offset or snap param")
     }
 
-    relTimeOffset := ast.RelativeTimeOffset{
-        Offset: 0,
-        TimeUnit: 0,
-    }
+    relTimeOffset := ast.RelativeTimeOffset{}
     snap := ""
     if snapParam != nil {
         snap = snapParam.(string)
@@ -3519,7 +3516,6 @@ RelativeTimestamp <- offset:(Offset)? snapParam:(Snap)? {
     relTimeModifier := ast.RelativeTimeModifier{
         RelativeTimeOffset: relTimeOffset,
         Snap: snap,
-        AbsoluteTime: "",
     }
 
     return relTimeModifier, nil
@@ -3527,13 +3523,7 @@ RelativeTimestamp <- offset:(Offset)? snapParam:(Snap)? {
 
 
 AbsoluteTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] {
-    relTimeOffset := ast.RelativeTimeOffset{
-        Offset: 0,
-        TimeUnit: 0,
-    }
     relTimeModifier := ast.RelativeTimeModifier{
-        RelativeTimeOffset: relTimeOffset,
-        Snap: "",
         AbsoluteTime: string(c.text),
     }
     return relTimeModifier, nil
