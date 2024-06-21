@@ -7795,6 +7795,18 @@ func Test_Format_cmd_Incomplete_RowCol_Options(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func getTimeDiff() int64 {
+	localTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	edtLocation, _ := time.LoadLocation("America/New_York")
+	edtTime := localTime.In(edtLocation)
+
+	_, localOffset := localTime.Zone()
+	_, edtOffset := edtTime.Zone()
+
+	diff := (edtOffset - localOffset)
+	return int64(diff) * 1000
+}
+
 func Test_CalculateRelativeTime_1(t *testing.T) {
 	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
 	// w0
@@ -7804,7 +7816,7 @@ func Test_CalculateRelativeTime_1(t *testing.T) {
 	epoch, err := spl.CalculateRelativeTime(rtm, time)
 	assert.Nil(t, err)
 	// Sunday, June 2, 2024 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1717300800000), epoch)
+	assert.Equal(t, int64(1717300800000)+getTimeDiff(), epoch)
 }
 
 func Test_CalculateRelativeTime_2(t *testing.T) {
@@ -7820,7 +7832,7 @@ func Test_CalculateRelativeTime_2(t *testing.T) {
 	epoch, err := spl.CalculateRelativeTime(rtm, time)
 	assert.Nil(t, err)
 	// Wednesday, June 5, 2024 12:00:00 PM UTC-4
-	assert.Equal(t, int64(1717603200000), epoch)
+	assert.Equal(t, int64(1717603200000)+getTimeDiff(), epoch)
 }
 
 func Test_CalculateRelativeTime_3(t *testing.T) {
@@ -7835,7 +7847,7 @@ func Test_CalculateRelativeTime_3(t *testing.T) {
 	epoch, err := spl.CalculateRelativeTime(rtm, time)
 	assert.Nil(t, err)
 	// Tuesday, June 4, 2024 1:37:05 PM UTC-4
-	assert.Equal(t, int64(1717522625000), epoch)
+	assert.Equal(t, int64(1717522625000)+getTimeDiff(), epoch)
 }
 
 func Test_CalculateRelativeTime_4(t *testing.T) {
@@ -7851,7 +7863,7 @@ func Test_CalculateRelativeTime_4(t *testing.T) {
 	epoch, err := spl.CalculateRelativeTime(rtm, time)
 	assert.Nil(t, err)
 	// Sunday, June 4, 2023 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1685851200000), epoch)
+	assert.Equal(t, int64(1685851200000)+getTimeDiff(), epoch)
 }
 
 func Test_CalculateRelativeTime_5(t *testing.T) {
@@ -7863,7 +7875,7 @@ func Test_CalculateRelativeTime_5(t *testing.T) {
 	epoch, err := spl.CalculateRelativeTime(rtm, time)
 	assert.Nil(t, err)
 	// Wednesday, June 5, 2024 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1717560000000), epoch)
+	assert.Equal(t, int64(1717560000000)+getTimeDiff(), epoch)
 }
 
 func Test_CalculateRelativeTime_6(t *testing.T) {
@@ -7879,7 +7891,7 @@ func Test_CalculateRelativeTime_6(t *testing.T) {
 	epoch, err := spl.CalculateRelativeTime(rtm, time)
 	assert.Nil(t, err)
 	// Wednesday, May 29, 2024 1:37:00 PM UTC-4
-	assert.Equal(t, int64(1717004220000), epoch)
+	assert.Equal(t, int64(1717004220000)+getTimeDiff(), epoch)
 }
 
 func Test_CalculateRelativeTime_7(t *testing.T) {
@@ -7895,7 +7907,7 @@ func Test_CalculateRelativeTime_7(t *testing.T) {
 	epoch, err := spl.CalculateRelativeTime(rtm, time)
 	assert.Nil(t, err)
 	// Sunday, January 1, 2023 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1672549200000), epoch)
+	assert.Equal(t, int64(1672549200000)+getTimeDiff(), epoch)
 }
 
 func Test_CalculateRelativeTime_8(t *testing.T) {
@@ -7907,7 +7919,7 @@ func Test_CalculateRelativeTime_8(t *testing.T) {
 	epoch, err := spl.CalculateRelativeTime(rtm, time)
 	assert.Nil(t, err)
 	// Monday, April 1, 2024 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1711944000000), epoch)
+	assert.Equal(t, int64(1711944000000)+getTimeDiff(), epoch)
 }
 
 func Test_CalculateRelativeTime_9(t *testing.T) {
@@ -7923,7 +7935,7 @@ func Test_CalculateRelativeTime_9(t *testing.T) {
 	epoch, err := spl.CalculateRelativeTime(rtm, time)
 	assert.Nil(t, err)
 	// Wednesday, May 1, 2024 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1714536000000), epoch)
+	assert.Equal(t, int64(1714536000000)+getTimeDiff(), epoch)
 }
 
 func Test_CalculateRelativeTime_10(t *testing.T) {
@@ -7939,7 +7951,7 @@ func Test_CalculateRelativeTime_10(t *testing.T) {
 	epoch, err := spl.CalculateRelativeTime(rtm, time)
 	assert.Nil(t, err)
 	// Thursday, February 1, 2024 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1706763600000), epoch)
+	assert.Equal(t, int64(1706763600000)+getTimeDiff(), epoch)
 }
 
 func Test_CalculateRelativeTime_11(t *testing.T) {
@@ -7951,7 +7963,7 @@ func Test_CalculateRelativeTime_11(t *testing.T) {
 	epoch, err := spl.CalculateRelativeTime(rtm, time)
 	assert.Nil(t, err)
 	// Wednesday, June 19, 2024 6:55:00 PM UTC-4
-	assert.Equal(t, int64(1718837700000), epoch)
+	assert.Equal(t, int64(1718837700000)+getTimeDiff(), epoch)
 }
 
 func Test_CalculateRelativeTime_12(t *testing.T) {
