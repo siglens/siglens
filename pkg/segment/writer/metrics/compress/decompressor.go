@@ -114,7 +114,9 @@ func (d *Decompressor) decompressFirst() (t uint32, v float64, err error) {
 func (d *Decompressor) decompress() (t uint32, v float64, err error) {
 	t, err = d.decompressTimestamp()
 	if err != nil {
-		log.Errorf("Decompressor.decompress: failed to decompress timestamp, err=%v", err)
+		if err.Error() != "EOF" {
+			log.Errorf("Decompressor.decompress: failed to decompress timestamp, err=%v", err)
+		}
 		return 0, 0, err
 	}
 
