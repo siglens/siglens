@@ -1,3 +1,4 @@
+
 <!-- 
 Copyright (c) 2021-2024 SigScalr, Inc.
 
@@ -64,6 +65,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
+        
     </script>
     {{ .RunCheck1 | safeHTML }}
 </head>
@@ -265,7 +267,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
             <div id="progress-div"></div>
 
-            
+            <div class="addrulepopupOverlay">
+                <div class="addrulepopupContent">
+                    <h3 class="header">Add Rule</h3>
+                    <label for="rule-name">Rule Name:</label>
+                    <input type="text" id="rule-name" name="rule-name" required>
+                    <button type="button" id="addrule-cancel-btn">Cancel</button>
+                    <button type="button" id="addrule-save-btn">Save</button>
+                </div>
+            </div>
             <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
                 <ul class="tab-chart-list">
                     <li class="tab-li" id="tab-table-title"><a href="#showTable" class="custom-query-builder">Table</a>
