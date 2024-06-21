@@ -36,7 +36,7 @@ $(document).ready(function () {
             {{ if .TestDataSendData }}
                 {{ .TestDataSendData }}
             {{ else }}
-                myOrgSendTestData(token);z
+                myOrgSendTestData(token);
             {{ end }}
         })
         .catch((err) => {

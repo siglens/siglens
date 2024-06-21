@@ -2167,11 +2167,7 @@ div.dts div.dataTables_scrollBody table {
     font-size: 1.5em;
   }
   
-  label {
-    display: block;
-    margin-bottom: 10px;
-    text-align: left;
-  }
+
   
   input[type="text"] {
     width: 100%;
@@ -2181,13 +2177,7 @@ div.dts div.dataTables_scrollBody table {
     border-radius: 5px;
   }
   
-  button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1em;
-  }
+
   
   #addrule-cancel-btn {
     background: var(--btn-regular-bg-color); 
@@ -5502,39 +5492,7 @@ input.form-control {
 }
 
 
-.pagination {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  margin-top: 5px;
-  margin-right: 3%;
-}
 
-.pagination button {
-  border: none;
-  background-color: transparent;
-  color: var(--progress-bar-value-color);
-  padding: 10px 15px;
-  margin: 0 5px;
-  cursor: pointer;
-  font-size: 16px;
-}
-
-.pagination button:hover {
-  background-color: #f1f1f1;
-  border-radius: 5px;
-}
-
-.pagination button.active {
-  background-color: #6449D6 !important;
-  color: white;
-  border-radius: 5px;
-}
-
-.pagination button[disabled] {
-  color: #ccc;
-  cursor: not-allowed;
-}
 
 .firstdrop {
   padding: 0;
@@ -5550,60 +5508,7 @@ input.form-control {
 .icon {
   visibility: hidden;
 }
-.checktimeopt{
-  width: 100%;
-    margin: 0;
-    margin-top: 5px;
-    width: 241px;
-    background: var(--index-drop-down-item-inactive-bg-color);
-    color: var(--index-drop-down-item-inactive-text-color);
-    margin-bottom: 10px;
-    margin-top: 10px;
-    cursor: pointer;
-    margin-left: 12px;
-    margin-right: 12px;
-    padding: 4px 0;
-    padding-left: 9px;
-    font-weight: var(--fw-400);
-    font-family: "DINpro", Arial, sans-serif;
-    border-radius: 4px;
-}
-.checktimeopt:hover{
-  background: var(--index-drop-down-item-hover-bg-color);
-    color: var(--index-drop-down-item-hover-text-color);
-}
-.checktimeopt.active{
-  background: var(--index-drop-down-item-active-bg-color);
-  color: var(--index-drop-down-item-active-text-color);
-}
-#checktimeopts{
-  width: 130px;
-  background: var(--index-drop-down-box-bg-color);
-  overflow: hidden;
-  padding: 0px 10px 10px 10px;
-  border: 1px solid var(--timepicker-border-color);
-}
-#checktimebtn{
-  margin: 0;
-  text-decoration: none;
-  height: 30px;
-  display: flex;
-  justify-content: space-evenly;
-  align-items: center;
-  width: 108px;
-  margin-left: 16px;
-}
-#checktimebtn:hover{
-  background: var(--drop-down-btn-bg-hover);
-}
-#checktimebtn.active{
-  background: var(--drop-down-btn-bg-active) !important;
-  outline: 1px solid var(--drop-down-btn-border-active);
-  outline-offset: -1pt;
-  padding-left: 0;
-  padding-right: 5px;
-  transform: rotate(180deg);
-}
+
 .searchcontainer{
   display:flex !important;
   flex-direction: row;
