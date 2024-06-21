@@ -111,7 +111,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 				}
 
 				lenJsonData := uint64(len(jsonData))
-				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
+				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, 0 /* TODO */)
 				if err != nil {
 					log.Errorf("ProcessTraceIngest: failed to process ingest request with err: %v. JSON Data: %s", err, string(jsonData))
 					numFailedSpans++

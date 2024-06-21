@@ -4649,6 +4649,26 @@ color: #C8C7CC;
     float: right;
 }
 
+.test-contact-btn {
+    background-color: var(--purple-2);
+    height: 30px;
+    margin-bottom: 0px;
+    color: var(--white-0) !important;
+    float: right;
+    cursor: pointer;
+    margin-left: 12px;
+}
+
+.test-contact-btn .send-icon{
+    background-image: url(../assets/send-icon.svg);
+    height: 15px;
+    background-size: 100%;
+    width: 15px;
+    background-repeat: no-repeat;
+    margin-bottom: 0px;
+    margin-right: 6px;
+}
+
 #alerting input,.add-label-container{
     height: 32px;
 }
@@ -5488,6 +5508,7 @@ input.form-control {
 .tippy-box[data-placement^='right'] > .tippy-arrow::before {
     border-right-color:var(--side-nav-bg-color-regular);
 }
+
 /* Add existing styles */
 .summary {
     padding-bottom: 1%;
@@ -5633,4 +5654,13 @@ input.form-control {
 }
 
 
+#error-popup .fas{
+    font-size: 16px;
+    margin-right: 5px;
+}
 
+#okay-button{
+    background: var(--component-bg-color);
+    color: var(--component-text-color) !important;
+    width: 100px;
+}
