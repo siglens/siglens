@@ -139,3 +139,28 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 </body>
 
 </html>
+
+<div class="mb-0 d-flex justify-content-between align-items-center">
+    <div class="mb-0">
+        <label for="type">Type</label>
+        <div class="dropdown">
+            <button class="btn dropdown-toggle" type="button" id="contact-types"
+                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                data-bs-toggle="dropdown">
+                <span>Slack</span>
+                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+            </button>
+            <div class="dropdown-menu box-shadow contact-options">
+                <li id="option-0" class="contact-option active">Slack</li>
+                <li id="option-1" class="contact-option">Webhook</li>
+            </div>
+        </div>
+    </div>
+    <div class="button-container mb-0">
+        <button class="btn d-flex align-items-center justify-content-center test-contact-btn" type="button">
+            <div class="send-icon"></div>
+            <div class="mb-0">Test</div>
+        </button>
+    </div>
+</div>
