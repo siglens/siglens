@@ -855,7 +855,7 @@ func CheckUnsupportedFunctions(post *QueryAggregators) error {
 			return err
 		}
 
-		err = checkUnsupportedLetColumnCommand(agg, "EventCountResults")
+		err = checkUnsupportedLetColumnCommand(agg, "EventCountRequest")
 		if err != nil {
 			return err
 		}
@@ -871,7 +871,7 @@ func checkUnsupportedLetColumnCommand(agg *QueryAggregators, command string) err
 			if letColumns.FormatResults != nil {
 				return fmt.Errorf("checkUnsupportedFunctions: using format command is not yet supported")
 			}
-		case "EventCountResults":
+		case "EventCountRequest":
 			if letColumns.EventCountRequest != nil {
 				return fmt.Errorf("checkUnsupportedFunctions: using eventcount command is not yet supported")
 			}
