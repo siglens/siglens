@@ -777,6 +777,7 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"typeof":           {},
 	"replace":          {},
 	"spath":            {},
+	"eventcount":       {},
 }
 
 type StatsFuncChecker struct{}

@@ -198,7 +198,32 @@ func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryA
         },
     }, nil
 }
-
+func createEventCountExpr(index string, list_vix, report_size, summarize bool) (*structs.QueryAggregators, error) {
+    eventCountExpr := &structs.EventCountExpr{
+        Index: index,
+        ListVix: list_vix,
+        ReportSize: report_size,
+        Summarize: summarize,
+    }
+    return &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                ValueColRequest: &structs.ValueExpr{
+                    ValueExprMode: structs.VEMStringExpr,
+                    StringExpr: &structs.StringExpr{
+                        StringExprMode: structs.SEMTextExpr,
+                        TextExpr: &structs.TextExpr{
+                            IsTerminal: true,
+                            Op: "eventcount",
+                            EventCountExpr: eventCountExpr,
+                        },
+                    },
+                },
+            },
+        },
+    }, nil
+}
 func getDefaultFormatResultsExpr() *structs.FormatResultsRequest {
     return &structs.FormatResultsRequest{
         MVSeparator: "OR",
@@ -338,7 +363,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -3894,9 +3919,83 @@ FormatRowColOptions <- rowPrefix:QuotedString SPACE colPrefix:QuotedString SPACE
     }, nil
 }
 
+EventCountBlock <- PIPE CMD_EVENTCOUNT eventCountExpr:EventCountArgumentsList? {
+    if eventCountExpr == nil {
+        return createEventCountExpr("*", true, false, true)
+    }
+    return eventCountExpr, nil
+}
+
+EventCountArgumentsList <- SPACE first:EventCountArgument? rest:(SPACE EventCountArgument)* {
+
+    restSlice := rest.([]any)
+
+    index, list_vix, report_size, summarize := "*", true, false, true
+
+    numArgs := 0
+    if first != nil {
+        numArgs++
+    }
+    numArgs += len(restSlice)
+
+    for i := 0; i < numArgs; i++ {
+        var arg string
+        if i == 0 && first != nil {
+            arg = first.(string)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            arg = separator[1].(string)
+        }
+
+        switch {
+        case strings.HasPrefix(arg, "index="):
+            index = strings.TrimPrefix(arg, "index=")
+        case strings.HasPrefix(arg, "list_vix="):
+            var err error
+            list_vix, err = strconv.ParseBool(strings.TrimPrefix(arg, "list_vix="))
+            if err != nil {
+                return nil, fmt.Errorf("EventCountArguments: Invalid value for list_vix: %v", err)
+            }
+        case strings.HasPrefix(arg, "report_size="):
+            var err error
+            report_size, err = strconv.ParseBool(strings.TrimPrefix(arg, "report_size="))
+            if err != nil {
+                return nil, fmt.Errorf("EventCountArguments: Invalid value for report_size: %v", err)
+            }
+        case strings.HasPrefix(arg,"summarize="):
+            var err error
+            summarize, err = strconv.ParseBool(strings.TrimPrefix(arg, "summarize="))
+            if err != nil {
+                return nil, fmt.Errorf("EventCountArguments: Invalid value for summarize: %v", err)
+            }
+        default:
+            return nil, fmt.Errorf("EventCountArguments: Invalid EventCount Argument: %v", arg)
+        }
+    }
+
+    return createEventCountExpr(index, list_vix, report_size, summarize)
+}
+
+EventCountArgument <- arg:(IndexField / SummarizeField / ReportSizeField / ListVixField) {
+    return arg, nil
+}
+
+IndexField <- "index" EQUAL field:FieldName {
+    return "index=" + field.(string), nil
+}
+SummarizeField <- "summarize" EQUAL field:Boolean {
+    return "summarize=" + strconv.FormatBool(field.(bool)), nil
+}
+ReportSizeField <- "report_size" EQUAL field:Boolean {
+    return "report_size=" + strconv.FormatBool(field.(bool)), nil
+}
+ListVixField <- "list_vix" EQUAL field:Boolean {
+    return "list_vix=" + strconv.FormatBool(field.(bool)), nil
+}
+
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EVENTCOUNT)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -3920,6 +4019,7 @@ CMD_SPATH <- "spath"
 CMD_FORMAT <- "format"
 CMD_EARLIEST <- "earliest"
 CMD_LATEST <- "latest"
+CMD_EVENTCOUNT <- "eventcount"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
