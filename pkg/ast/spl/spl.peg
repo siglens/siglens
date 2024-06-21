@@ -40,7 +40,20 @@ func ConvertCustomDateTimeFormatToEpochMs(dateStr string) (int64, error) {
     return t.UnixMilli(), nil
 }
 
-
+// This function would snap backwards based on unit present.
+// For e.x. Consider the time (Wednesday) 06/05/2024:13:37:05.123 (mm/dd/yyyy:hh:mm:ss)
+// Snapping on Second would be 06/05/2024:13:37:05.000
+// Snapping on Minute would be 06/05/2024:13:37:00.000
+// Snapping on Hour would be 06/05/2024:13:00:00.000
+// Snapping on Day would be 06/05/2024:00:00:00.000
+// Snapping on Month would be 06/05/2024:00:00:00.000
+// Snapping on Quarter (would snap to recent most quarter out of Jan 1, Apr 1, Jul 1, Oct 1) would be 04/01/2024:00:00:00.000
+// Snapping on Year would be 01/01/2024:00:00:00.000
+// Snapping on weekdays (w0 to w7) would snap backward to that weekday.
+// Snapping on w0 would be (Sunday) 06/02/2024:00:00:00.000
+// Snapping on w1 would be (Monday) 06/03/2024:00:00:00.000 and so on.
+// Snap on w0 and w7 is same.
+// snap parameter would be a string of the form w0 or it would be utils.TimeUnit constant integers converted to string type (see Rule: RelTimeUnit)
 func applySnap(snap string, t time.Time) (time.Time, error) {
     sec := t.Second()
     min := t.Minute()
@@ -88,7 +101,7 @@ func applySnap(snap string, t time.Time) (time.Time, error) {
         }
     } else {
         if len(snap) != 2 {
-            return t, fmt.Errorf("Error for special week snap, should be of type w[0-7] got: %v", snap)
+            return t, fmt.Errorf("Error for special week snap, should follow the regex w[0-7] got: %v", snap)
         }
         weeknum := int(snap[1] - '0')
         if weeknum == 7 {
@@ -129,7 +142,7 @@ func applyOffset(num int64, unit utils.TimeUnit, t time.Time) (time.Time, error)
     }
 }
 
-func calculateRelativeTime(relTimeModifier ast.RelativeTimeModifier, currTime time.Time) (int64, error) {
+func CalculateRelativeTime(relTimeModifier ast.RelativeTimeModifier, currTime time.Time) (int64, error) {
     var epoch int64 = 0
     var err error
     if relTimeModifier.AbsoluteTime == "now" {
@@ -145,20 +158,20 @@ func calculateRelativeTime(relTimeModifier ast.RelativeTimeModifier, currTime ti
         offsetNum := relTimeModifier.RelativeTimeOffset.Offset
         offsetTimeUnit := relTimeModifier.RelativeTimeOffset.TimeUnit
         snap := relTimeModifier.Snap
-        t := currTime
+        finalTime := currTime
         if offsetNum != 0 {
-            t, err = applyOffset(offsetNum, offsetTimeUnit, t)
+            finalTime, err = applyOffset(offsetNum, offsetTimeUnit, finalTime)
             if err != nil {
                 return 0, err
             }
         }
         if snap != "" {
-            t, err = applySnap(snap, t)
+            finalTime, err = applySnap(snap, finalTime)
             if err != nil {
                 return 0, err
             }
         }
-        epoch = t.UnixMilli()
+        epoch = finalTime.UnixMilli()
     }
 
     return epoch, nil
@@ -3380,20 +3393,20 @@ FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
 TimeModifiers <- EarliestAndLatest / EarliestOnly
 
 EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
-     var startEpoch int64 = 0
-     var endEpoch int64 = 0
+    var startEpoch int64 = 0
+    var endEpoch int64 = 0
     var err error
 
     earliestTimeModifier := earliestTime.(ast.RelativeTimeModifier)
     latestTimeModifier := latestTime.(ast.RelativeTimeModifier)
 
     currTime := time.Now()
-    startEpoch, err = calculateRelativeTime(earliestTimeModifier, currTime)
+    startEpoch, err = CalculateRelativeTime(earliestTimeModifier, currTime)
     if err != nil {
         return nil, err
     }
 
-    endEpoch, err = calculateRelativeTime(latestTimeModifier, currTime)
+    endEpoch, err = CalculateRelativeTime(latestTimeModifier, currTime)
     if err != nil {
         return nil, err
     }
@@ -3416,7 +3429,7 @@ EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTim
 
     earliestTimeModifier := earliestTime.(ast.RelativeTimeModifier)
 
-    startEpoch, err = calculateRelativeTime(earliestTimeModifier, time.Now())
+    startEpoch, err = CalculateRelativeTime(earliestTimeModifier, time.Now())
     if err != nil {
         return nil, err
     }
@@ -3478,7 +3491,7 @@ Offset <- off:(RelIntegerAsString) tuOff:(RelTimeUnit) {
 }
 
 
-
+// Reference Doc: https://docs.splunk.com/Documentation/Splunk/9.1.2/Search/Specifytimemodifiersinyoursearch 
 // TODO: Chained relative modifiers
 RelativeTimestamp <- defaultTime:("now" / "1")? offset:(Offset)? snapParam:(Snap)? {
 

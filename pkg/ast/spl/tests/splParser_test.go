@@ -22,7 +22,9 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/siglens/siglens/pkg/ast"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
@@ -7791,4 +7793,288 @@ func Test_Format_cmd_Incomplete_RowCol_Options(t *testing.T) {
 	query := `* | format "[" "[" "&&"`
 	_, err := spl.Parse("", []byte(query))
 	assert.NotNil(t, err)
+}
+
+func Test_CalculateRelativeTime_1(t *testing.T) {
+	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	// w0
+	rtm := ast.RelativeTimeModifier{
+		Snap: "w0",
+	}
+	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	assert.Nil(t, err)
+	// Sunday, June 2, 2024 12:00:00 AM UTC-4
+	assert.Equal(t, int64(1717300800000), epoch)
+}
+
+func Test_CalculateRelativeTime_2(t *testing.T) {
+	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	// -1h@h
+	rtm := ast.RelativeTimeModifier{
+		RelativeTimeOffset: ast.RelativeTimeOffset{
+			Offset:   -1,
+			TimeUnit: utils.TMHour,
+		},
+		Snap: strconv.Itoa(int(utils.TMHour)),
+	}
+	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	assert.Nil(t, err)
+	// Wednesday, June 5, 2024 12:00:00 PM UTC-4
+	assert.Equal(t, int64(1717603200000), epoch)
+}
+
+func Test_CalculateRelativeTime_3(t *testing.T) {
+	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	// @-24hr
+	rtm := ast.RelativeTimeModifier{
+		RelativeTimeOffset: ast.RelativeTimeOffset{
+			Offset:   -24,
+			TimeUnit: utils.TMHour,
+		},
+	}
+	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	assert.Nil(t, err)
+	// Tuesday, June 4, 2024 1:37:05 PM UTC-4
+	assert.Equal(t, int64(1717522625000), epoch)
+}
+
+func Test_CalculateRelativeTime_4(t *testing.T) {
+	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	// -y@w0
+	rtm := ast.RelativeTimeModifier{
+		RelativeTimeOffset: ast.RelativeTimeOffset{
+			Offset:   -1,
+			TimeUnit: utils.TMYear,
+		},
+		Snap: "w0",
+	}
+	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	assert.Nil(t, err)
+	// Sunday, June 4, 2023 12:00:00 AM UTC-4
+	assert.Equal(t, int64(1685851200000), epoch)
+}
+
+func Test_CalculateRelativeTime_5(t *testing.T) {
+	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	// @w3
+	rtm := ast.RelativeTimeModifier{
+		Snap: "w3",
+	}
+	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	assert.Nil(t, err)
+	// Wednesday, June 5, 2024 12:00:00 AM UTC-4
+	assert.Equal(t, int64(1717560000000), epoch)
+}
+
+func Test_CalculateRelativeTime_6(t *testing.T) {
+	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	// -7d@m
+	rtm := ast.RelativeTimeModifier{
+		RelativeTimeOffset: ast.RelativeTimeOffset{
+			Offset:   -7,
+			TimeUnit: utils.TMDay,
+		},
+		Snap: strconv.Itoa(int(utils.TMMinute)),
+	}
+	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	assert.Nil(t, err)
+	// Wednesday, May 29, 2024 1:37:00 PM UTC-4
+	assert.Equal(t, int64(1717004220000), epoch)
+}
+
+func Test_CalculateRelativeTime_7(t *testing.T) {
+	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	// -years@year
+	rtm := ast.RelativeTimeModifier{
+		RelativeTimeOffset: ast.RelativeTimeOffset{
+			Offset:   -1,
+			TimeUnit: utils.TMYear,
+		},
+		Snap: strconv.Itoa(int(utils.TMYear)),
+	}
+	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	assert.Nil(t, err)
+	// Sunday, January 1, 2023 12:00:00 AM UTC-4
+	assert.Equal(t, int64(1672549200000), epoch)
+}
+
+func Test_CalculateRelativeTime_8(t *testing.T) {
+	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	// @quarter
+	rtm := ast.RelativeTimeModifier{
+		Snap: strconv.Itoa(int(utils.TMQuarter)),
+	}
+	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	assert.Nil(t, err)
+	// Monday, April 1, 2024 12:00:00 AM UTC-4
+	assert.Equal(t, int64(1711944000000), epoch)
+}
+
+func Test_CalculateRelativeTime_9(t *testing.T) {
+	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	// -week@mon
+	rtm := ast.RelativeTimeModifier{
+		RelativeTimeOffset: ast.RelativeTimeOffset{
+			Offset:   -1,
+			TimeUnit: utils.TMWeek,
+		},
+		Snap: strconv.Itoa(int(utils.TMMonth)),
+	}
+	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	assert.Nil(t, err)
+	// Wednesday, May 1, 2024 12:00:00 AM UTC-4
+	assert.Equal(t, int64(1714536000000), epoch)
+}
+
+func Test_CalculateRelativeTime_10(t *testing.T) {
+	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	// -qtr@month
+	rtm := ast.RelativeTimeModifier{
+		RelativeTimeOffset: ast.RelativeTimeOffset{
+			Offset:   -1,
+			TimeUnit: utils.TMQuarter,
+		},
+		Snap: strconv.Itoa(int(utils.TMMonth)),
+	}
+	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	assert.Nil(t, err)
+	// Thursday, February 1, 2024 12:00:00 AM UTC-4
+	assert.Equal(t, int64(1706763600000), epoch)
+}
+
+func Test_CalculateRelativeTime_11(t *testing.T) {
+	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	// "06/19/2024:18:55:00"
+	rtm := ast.RelativeTimeModifier{
+		AbsoluteTime: "06/19/2024:18:55:00",
+	}
+	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	assert.Nil(t, err)
+	// Wednesday, June 19, 2024 6:55:00 PM UTC-4
+	assert.Equal(t, int64(1718837700000), epoch)
+}
+
+func Test_CalculateRelativeTime_12(t *testing.T) {
+	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	rtm := ast.RelativeTimeModifier{
+		AbsoluteTime: "1",
+	}
+	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	assert.Nil(t, err)
+	// Thursday, January 1, 1970 12:00:01 AM UTC
+	assert.Equal(t, int64(1), epoch)
+}
+
+func Test_ParseRelativeTimeModifier_1(t *testing.T) {
+	query := `* | earliest=+1d@w3 latest=+1d@d`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_2(t *testing.T) {
+	query := `* | earliest=+1d@w3 latest=+1d@d`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_3(t *testing.T) {
+	query := `* | earliest=-1d@w4 latest=+24h`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_4(t *testing.T) {
+	query := `* | earliest=06/19/2024:18:55:00 latest=+24h`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_5(t *testing.T) {
+	query := `* | earliest=06/19/2024:18:55:00 latest=06/20/2024:18:55:00`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_6(t *testing.T) {
+	query := `* | earliest=-month@year latest=-2days@minute`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_7(t *testing.T) {
+	query := `* | latest=-2days@minute`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_ParseRelativeTimeModifier_8(t *testing.T) {
+	query := `* | earliest=-60m`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_9(t *testing.T) {
+	query := `address = "4852 Lake Ridge port, Santa Ana, Nebraska 13548" | earliest=-week@mon latest=@s`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_10(t *testing.T) {
+	query := `city = Boston | earliest=@w5 latest=@w0`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
 }
