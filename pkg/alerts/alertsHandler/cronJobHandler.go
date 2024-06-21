@@ -19,6 +19,7 @@ package alertsHandler
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-co-op/gocron"
@@ -85,6 +86,9 @@ func RemoveCronJob(alertId string) error {
 	err := s.RemoveByTag(alertId)
 	if err != nil {
 		log.Errorf("ALERTSERVICE: RemoveCronJob error %v.", err)
+		if strings.Contains(err.Error(), "no jobs found") {
+			return nil
+		}
 		return err
 	}
 	return nil

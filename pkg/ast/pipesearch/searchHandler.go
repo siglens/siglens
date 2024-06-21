@@ -299,24 +299,19 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) (int, bo
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
 		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId)
 		if httpRespOuter.MeasureResults != nil && len(httpRespOuter.MeasureResults) > 0 && httpRespOuter.MeasureResults[0].MeasureVal != nil {
-			measureValStr := httpRespOuter.MeasureResults[0].MeasureVal[httpRespOuter.MeasureFunctions[0]]
-			if measureValStr == nil {
+			iMeasureVal := httpRespOuter.MeasureResults[0].MeasureVal[httpRespOuter.MeasureFunctions[0]]
+			if iMeasureVal == nil {
 				log.Warnf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: MeasureVal is nil. Measure Results: %v", *httpRespOuter.MeasureResults[0])
 				return -1, true, nil
 			}
-			measureVal, ok := measureValStr.(string)
-			if ok {
-				measureVal = strings.ReplaceAll(measureVal, ",", "")
-				measureNum, err := strconv.ParseFloat(measureVal, 64)
-				if err != nil {
-					log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing int from a string: %s. Error=%v", measureVal, err)
-					return -1, false, fmt.Errorf("Error parsing int from a string measureval: %s, Error=%v", measureVal, err)
-				}
-				return int(measureNum), false, nil
-			} else {
-				log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing measure function Val as string: %v, Error=%v", measureValStr, err)
-				return -1, false, fmt.Errorf("Error parsing measure function Val as string: %s", err)
+			measureVal := fmt.Sprintf("%v", iMeasureVal) // convert to string. The iMeasureVal can be a string, float64, int, etc.
+			measureVal = strings.ReplaceAll(measureVal, ",", "")
+			measureNum, err := strconv.ParseFloat(measureVal, 64)
+			if err != nil {
+				log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing int from a string: %s. Error=%v", measureVal, err)
+				return -1, false, fmt.Errorf("Error parsing int from a string measureval: %s, Error=%v", measureVal, err)
 			}
+			return int(measureNum), false, nil
 		} else {
 			// if the result is empty, then it should not be considered as an error
 			return -1, true, nil
