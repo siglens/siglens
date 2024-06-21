@@ -209,7 +209,7 @@ func createEventCountExpr(indices []string, list_vix, report_size, summarize boo
             PipeCommandType: structs.OutputTransformType,
             OutputTransforms: &structs.OutputTransforms{
                 LetColumns: &structs.LetColumnsRequest{
-                    EventCountResults: eventCountExpr,
+                    EventCountRequest: eventCountExpr,
                 },
             },
         }, nil
