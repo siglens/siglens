@@ -299,12 +299,12 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) (int, bo
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
 		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId)
 		if httpRespOuter.MeasureResults != nil && len(httpRespOuter.MeasureResults) > 0 && httpRespOuter.MeasureResults[0].MeasureVal != nil {
-			iMeasureVal := httpRespOuter.MeasureResults[0].MeasureVal[httpRespOuter.MeasureFunctions[0]]
-			if iMeasureVal == nil {
+			measureValAsAny := httpRespOuter.MeasureResults[0].MeasureVal[httpRespOuter.MeasureFunctions[0]]
+			if measureValAsAny == nil {
 				log.Warnf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: MeasureVal is nil. Measure Results: %v", *httpRespOuter.MeasureResults[0])
 				return -1, true, nil
 			}
-			measureVal := fmt.Sprintf("%v", iMeasureVal) // convert to string. The iMeasureVal can be a string, float64, int, etc.
+			measureVal := fmt.Sprintf("%v", measureValAsAny) // convert to string. The iMeasureVal can be a string, float64, int, etc.
 			measureVal = strings.ReplaceAll(measureVal, ",", "")
 			measureNum, err := strconv.ParseFloat(measureVal, 64)
 			if err != nil {
