@@ -7795,41 +7795,66 @@ func Test_Format_cmd_Incomplete_RowCol_Options(t *testing.T) {
 
 func Test_EventCount_Defaults(t *testing.T) {
 	query := `* | eventcount`
-	performEventCountTest(t, query, "*", true, false, true)
+	performEventCountTest(t, query, []string{"*"}, true, false, true)
 }
 
 func Test_EventCount_IndexSpecified(t *testing.T) {
 	query := `* | eventcount index=my_index`
-	performEventCountTest(t, query, "my_index", true, false, true)
+	performEventCountTest(t, query, []string{"my_index"}, true, false, true)
 }
 
 func Test_EventCount_SummarizeFalse(t *testing.T) {
 	query := `* | eventcount summarize=false`
-	performEventCountTest(t, query, "*", false, false, true)
+	performEventCountTest(t, query, []string{"*"}, false, false, true)
 }
 
 func Test_EventCount_ReportSizeTrue(t *testing.T) {
 	query := `* | eventcount report_size=true`
-	performEventCountTest(t, query, "*", true, true, true)
+	performEventCountTest(t, query, []string{"*"}, true, true, true)
 }
 
 func Test_EventCount_ListVixFalse(t *testing.T) {
 	query := `* | eventcount list_vix=false`
-	performEventCountTest(t, query, "*", true, false, false)
+	performEventCountTest(t, query, []string{"*"}, true, false, false)
 }
 
 func Test_EventCount_Combination1(t *testing.T) {
 	query := `* | eventcount index=my_index summarize=false report_size=true`
-	performEventCountTest(t, query, "my_index", false, true, true)
+	performEventCountTest(t, query, []string{"my_index"}, false, true, true)
 }
 
 func Test_EventCount_Combination2(t *testing.T) {
 	query := `* | eventcount index=my_index summarize=true report_size=false list_vix=false`
-	performEventCountTest(t, query, "my_index", true, false, false)
+	performEventCountTest(t, query, []string{"my_index"}, true, false, false)
+}
+
+func Test_EventCount_Combination3(t *testing.T) {
+	query := `* | eventcount report_size=true index=my_index summarize=false list_vix=false`
+	performEventCountTest(t, query, []string{"my_index"}, false, true, false)
+}
+
+func Test_EventCount_Combination4(t *testing.T) {
+	query := `* | eventcount list_vix=false report_size=true index=my_index summarize=false`
+	performEventCountTest(t, query, []string{"my_index"}, false, true, false)
+}
+
+func Test_EventCount_Combination5(t *testing.T) {
+	query := `* | eventcount summarize=false list_vix=false report_size=true index=my_index`
+	performEventCountTest(t, query, []string{"my_index"}, false, true, false)
+}
+
+func Test_EventCount_MultipleIndices1(t *testing.T) {
+	query := `* | eventcount index=my_index index=my_index2 list_vix=false`
+	performEventCountTest(t, query, []string{"my_index", "my_index2"}, true, false, false)
+}
+
+func Test_EventCount_MultipleIndices2(t *testing.T) {
+	query := `* | eventcount index=my_index index=my_index2 summarize=false index=ind-0`
+	performEventCountTest(t, query, []string{"my_index", "my_index2", "ind-0"}, false, false, true)
 }
 
 // This helper function encapsulates the common test logic for eventcount command
-func performEventCountTest(t *testing.T, query string, expectedIndex string, expectedSummarize bool, expectedReportSize bool, expectedListVix bool) {
+func performEventCountTest(t *testing.T, query string, expectedIndices []string, expectedSummarize bool, expectedReportSize bool, expectedListVix bool) {
 	_, err := spl.Parse("", []byte(query))
 	assert.Nil(t, err)
 
@@ -7840,14 +7865,9 @@ func performEventCountTest(t *testing.T, query string, expectedIndex string, exp
 	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
 	assert.NotNil(t, aggregator.OutputTransforms)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
-	assert.Equal(t, structs.ValueExprMode(structs.VEMStringExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr)
-	assert.Equal(t, structs.StringExprMode(structs.SEMTextExpr), aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.StringExprMode)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
-	assert.Equal(t, "eventcount", aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op)
-	assert.Equal(t, expectedIndex, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.EventCountExpr.Index)
-	assert.Equal(t, expectedSummarize, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.EventCountExpr.Summarize)
-	assert.Equal(t, expectedReportSize, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.EventCountExpr.ReportSize)
-	assert.Equal(t, expectedListVix, aggregator.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.EventCountExpr.ListVix)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.EventCountRequest)
+	assert.Equal(t, expectedIndices, aggregator.OutputTransforms.LetColumns.EventCountRequest.Indices)
+	assert.Equal(t, expectedSummarize, aggregator.OutputTransforms.LetColumns.EventCountRequest.Summarize)
+	assert.Equal(t, expectedReportSize, aggregator.OutputTransforms.LetColumns.EventCountRequest.ReportSize)
+	assert.Equal(t, expectedListVix, aggregator.OutputTransforms.LetColumns.EventCountRequest.ListVix)
 }

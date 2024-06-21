@@ -181,21 +181,20 @@ type StringExpr struct {
 }
 
 type TextExpr struct {
-	IsTerminal     bool
-	Op             string //lower, ltrim, rtrim
-	Param          *StringExpr
-	StrToRemove    string
-	Delimiter      *StringExpr
-	ValueList      []*StringExpr
-	StartIndex     *NumericExpr
-	EndIndex       *NumericExpr
-	LengthExpr     *NumericExpr
-	Val            *ValueExpr
-	Condition      *BoolExpr       // To filter out values that do not meet the criteria within a multivalue field
-	InferTypes     bool            // To specify that the mv_to_json_array function should attempt to infer JSON data types when it converts field values into array elements.
-	Cluster        *Cluster        // generates a cluster label
-	SPathExpr      *SPathExpr      // To extract information from the structured data formats XML and JSON.
-	EventCountExpr *EventCountExpr // To count the number of events in an index
+	IsTerminal  bool
+	Op          string //lower, ltrim, rtrim
+	Param       *StringExpr
+	StrToRemove string
+	Delimiter   *StringExpr
+	ValueList   []*StringExpr
+	StartIndex  *NumericExpr
+	EndIndex    *NumericExpr
+	LengthExpr  *NumericExpr
+	Val         *ValueExpr
+	Condition   *BoolExpr  // To filter out values that do not meet the criteria within a multivalue field
+	InferTypes  bool       // To specify that the mv_to_json_array function should attempt to infer JSON data types when it converts field values into array elements.
+	Cluster     *Cluster   // generates a cluster label
+	SPathExpr   *SPathExpr // To extract information from the structured data formats XML and JSON.
 }
 
 type ConditionExpr struct {
@@ -281,13 +280,6 @@ type SPathExpr struct {
 	Path            string // the path to the field from which the values need to be extracted.
 	IsPathFieldName bool   // If true, the path is the field name and the value is the field value
 	OutputColName   string // the name of the column in the output table to which the extracted values will be written. By Default it is set the same as the path.
-}
-
-type EventCountExpr struct {
-	Index      string
-	Summarize  bool
-	ReportSize bool
-	ListVix    bool
 }
 
 type BoolOperator uint8

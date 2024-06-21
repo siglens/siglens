@@ -198,31 +198,21 @@ func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryA
         },
     }, nil
 }
-func createEventCountExpr(index string, list_vix, report_size, summarize bool) (*structs.QueryAggregators, error) {
+func createEventCountExpr(indices []string, list_vix, report_size, summarize bool) (*structs.QueryAggregators, error) {
     eventCountExpr := &structs.EventCountExpr{
-        Index: index,
+        Indices: indices,
         ListVix: list_vix,
         ReportSize: report_size,
         Summarize: summarize,
     }
     return &structs.QueryAggregators{
-        PipeCommandType: structs.OutputTransformType,
-        OutputTransforms: &structs.OutputTransforms{
-            LetColumns: &structs.LetColumnsRequest{
-                ValueColRequest: &structs.ValueExpr{
-                    ValueExprMode: structs.VEMStringExpr,
-                    StringExpr: &structs.StringExpr{
-                        StringExprMode: structs.SEMTextExpr,
-                        TextExpr: &structs.TextExpr{
-                            IsTerminal: true,
-                            Op: "eventcount",
-                            EventCountExpr: eventCountExpr,
-                        },
-                    },
+            PipeCommandType: structs.OutputTransformType,
+            OutputTransforms: &structs.OutputTransforms{
+                LetColumns: &structs.LetColumnsRequest{
+                    EventCountResults: eventCountExpr,
                 },
             },
-        },
-    }, nil
+        }, nil
 }
 func getDefaultFormatResultsExpr() *structs.FormatResultsRequest {
     return &structs.FormatResultsRequest{
@@ -3920,17 +3910,18 @@ FormatRowColOptions <- rowPrefix:QuotedString SPACE colPrefix:QuotedString SPACE
 }
 
 EventCountBlock <- PIPE CMD_EVENTCOUNT eventCountExpr:EventCountArgumentsList? {
-    if eventCountExpr == nil {
-        return createEventCountExpr("*", true, false, true)
-    }
-    return eventCountExpr, nil
+	if eventCountExpr == nil {
+		return createEventCountExpr([]string{"*"}, true, false, true)
+	}
+	return eventCountExpr, nil
 }
 
 EventCountArgumentsList <- SPACE first:EventCountArgument? rest:(SPACE EventCountArgument)* {
 
     restSlice := rest.([]any)
 
-    index, list_vix, report_size, summarize := "*", true, false, true
+    indices := []string{}
+    list_vix, report_size, summarize := true, false, true
 
     numArgs := 0
     if first != nil {
@@ -3949,7 +3940,7 @@ EventCountArgumentsList <- SPACE first:EventCountArgument? rest:(SPACE EventCoun
 
         switch {
         case strings.HasPrefix(arg, "index="):
-            index = strings.TrimPrefix(arg, "index=")
+            indices = append(indices, strings.TrimPrefix(arg, "index="))
         case strings.HasPrefix(arg, "list_vix="):
             var err error
             list_vix, err = strconv.ParseBool(strings.TrimPrefix(arg, "list_vix="))
@@ -3973,15 +3964,20 @@ EventCountArgumentsList <- SPACE first:EventCountArgument? rest:(SPACE EventCoun
         }
     }
 
-    return createEventCountExpr(index, list_vix, report_size, summarize)
+    // If no indices were provided, use the default value "*"
+    if len(indices) == 0 {
+        indices = append(indices, "*")
+    }
+
+    return createEventCountExpr(indices, list_vix, report_size, summarize)
 }
 
 EventCountArgument <- arg:(IndexField / SummarizeField / ReportSizeField / ListVixField) {
     return arg, nil
 }
 
-IndexField <- "index" EQUAL field:FieldName {
-    return "index=" + field.(string), nil
+IndexField <- "index" EQUAL index:IndexName {
+    return "index=" + index.(string), nil
 }
 SummarizeField <- "summarize" EQUAL field:Boolean {
     return "summarize=" + strconv.FormatBool(field.(bool)), nil
@@ -3993,6 +3989,9 @@ ListVixField <- "list_vix" EQUAL field:Boolean {
     return "list_vix=" + strconv.FormatBool(field.(bool)), nil
 }
 
+IndexName <- (!SPACE .)+ {
+	return string(c.text), nil
+}
 
 // All cmd expect CMD_SEARCH
 ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EVENTCOUNT)
