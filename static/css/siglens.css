@@ -4207,6 +4207,9 @@ color: #C8C7CC;
     margin: 20px;
     margin-bottom: 10px;
 }
+.ingestion-nav-tab{
+    font-size: 18px;
+}
 
 .usage-stats{
     display:flex;
@@ -5364,4 +5367,20 @@ input.form-control {
     background: var(--component-bg-color);
     color: var(--component-text-color) !important;
     width: 100px;
+}
+.ingest-inner-container {
+    font-size: 14px;
+    padding: 30px;
+    height: 100%;
+}
+.ingest-inner-container  .ui-tabs-panel{
+    margin-top: 50px;
+    border: none;
+}
+
+#ingest-source-tab .ui-tabs .ui-tabs-nav .ui-tabs-anchor {
+    width: max-content;
+}
+#sample-data{
+    display: flex;
 }
