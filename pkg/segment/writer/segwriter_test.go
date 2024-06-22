@@ -105,7 +105,7 @@ func isTimeRangeOverlapping(start1, end1, start2, end2 uint64) bool {
 	return utils.Max(start1, start2) <= utils.Min(end1, end2)
 }
 
-func Test_getBaseSegDir(t *testing.T) {
+func Test_getActiveBaseSegDir(t *testing.T) {
 	config.InitializeDefaultConfig()
 	virtualTableName := "evts"
 	streamid := "10005995996882630313"
@@ -114,13 +114,15 @@ func Test_getBaseSegDir(t *testing.T) {
 	assert.EqualValues(t, "data/"+config.GetHostID()+"/active/"+virtualTableName+"/"+streamid+"/1/", basedir)
 }
 
-func Test_getFinalBaseSegDir(t *testing.T) {
+func Test_getFinalBaseSegDirFromActive(t *testing.T) {
 	config.InitializeDefaultConfig()
 	virtualTableName := "evts"
 	streamid := "10005995996882630313"
 	nextsuff_idx := uint64(1)
-	basedir := getFinalBaseSegDir(streamid, virtualTableName, nextsuff_idx)
-	assert.EqualValues(t, "data/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", basedir)
+	activeBasedir := getActiveBaseSegDir(streamid, virtualTableName, nextsuff_idx)
+	finalBasedir, err := getFinalBaseSegDirFromActive(activeBasedir)
+	assert.Nil(t, err)
+	assert.EqualValues(t, "data/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", finalBasedir)
 }
 
 func Test_getNumberTypeAndVal(t *testing.T) {

@@ -29,6 +29,16 @@ import (
     "github.com/siglens/siglens/pkg/segment/utils"
     log "github.com/sirupsen/logrus"
 )
+// ConvertCustomDateTimeFormatToEpochMs converts a date string in the format "MM/DD/YYYY:HH:MM:SS" 
+// to Unix time in milliseconds (epoch ms).
+func ConvertCustomDateTimeFormatToEpochMs(dateStr string) (int64, error) {
+    loc, _ := time.LoadLocation("Local")
+    t, err := time.ParseInLocation("01/02/2006:15:04:05", dateStr, loc)
+    if err != nil {
+        return 0, err
+    }
+    return t.UnixMilli(), nil
+}
 
 func getParseError(err error) error {
     switch ev := err.(type) {
@@ -323,7 +333,7 @@ SearchBlock <- !(ALLCMD) CMD_SEARCH? clause:ClauseLevel4 {
     return clause, nil
 }
 
-FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
+FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
     return block, nil
 }
 
@@ -2277,7 +2287,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
 / lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
     return expr, nil
 }
-/ (opName:("log" / "pow" / "atan2" / "hypot") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
+/ (opName:("pow" / "atan2" / "hypot") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -2298,6 +2308,35 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
     rightNumericExpr, ok = param.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert param as *structs.NumericExpr")
+    }
+
+    node, err := createNumericExpr(opNameStr, leftNumericExpr, rightNumericExpr, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+
+    return node, nil
+}
+/ (opName:"log" L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr)? R_PAREN) {
+    leftNumericExpr, ok := expr.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
+    }
+
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
+
+    var rightNumericExpr *structs.NumericExpr
+    if param != nil {
+        rightNumericExpr, ok = param.(*structs.NumericExpr)
+        if !ok {
+            return nil, fmt.Errorf("Failed to assert param as *structs.NumericExpr")
+        }
     }
 
     node, err := createNumericExpr(opNameStr, leftNumericExpr, rightNumericExpr, structs.NEMNumericExpr)
@@ -3214,6 +3253,52 @@ FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
     return fields, nil
 }
 
+TimeModifiers <- EarliestAndLatest / EarliestOnly
+
+EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:AbsoluteTimestamp SPACE CMD_LATEST EQUAL latestTime:AbsoluteTimestamp !. {
+    startEpoch, err := ConvertCustomDateTimeFormatToEpochMs(earliestTime.(string))
+    if err != nil {
+        return nil, err
+    }
+    endEpoch, err := ConvertCustomDateTimeFormatToEpochMs(latestTime.(string))
+    if err != nil {
+        return nil, err
+    }
+
+    // Create AST node
+    node := &ast.Node{
+        NodeType: ast.TimeModifierNode,
+        TimeModifiers: &ast.TimeModifiers{
+            StartEpoch: uint64(startEpoch),
+            EndEpoch: uint64(endEpoch),
+        },
+    }
+
+    return node, nil
+}
+
+EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:AbsoluteTimestamp !. {
+    startEpoch, err := ConvertCustomDateTimeFormatToEpochMs(earliestTime.(string))
+    if err != nil {
+        return nil, err
+    }
+
+    // Create AST node
+    node := &ast.Node{
+        NodeType: ast.TimeModifierNode,
+        TimeModifiers: &ast.TimeModifiers{
+            StartEpoch: uint64(startEpoch),
+            EndEpoch: uint64(time.Now().UnixMilli()),
+        },
+    }
+
+    return node, nil
+}
+
+AbsoluteTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] {
+    return string(c.text), nil
+}
+
 // From https://docs.splunk.com/Documentation/Splunk/7.3.1/Knowledge/Aboutregularexpressionswithfieldextractions
 // This allows wildcards in a FieldName, but wildcard fields are not allowed in
 // some places; those rules should check whether the field has a wildcard.
@@ -3811,7 +3896,7 @@ FormatRowColOptions <- rowPrefix:QuotedString SPACE colPrefix:QuotedString SPACE
 
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -3833,6 +3918,8 @@ CMD_DEDUP_SORTBY <- SPACE "sortby" SPACE
 CMD_MAKEMV <- "makemv"
 CMD_SPATH <- "spath"
 CMD_FORMAT <- "format"
+CMD_EARLIEST <- "earliest"
+CMD_LATEST <- "latest"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
