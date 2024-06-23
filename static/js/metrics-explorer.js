@@ -1474,3 +1474,9 @@ function getGraphGridColors() {
     return { gridLineColor, tickColor };
 }
 
+$('#alert-from-metrics-container').click(function() {
+    var queryString = "";
+    // // Open the alert.html in a new tab
+    var newTab = window.open("../alert.html" + "?" + queryString, '_blank');
+    newTab.focus();
+});
