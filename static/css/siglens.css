@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-:root {
+ :root {
     --black: #000;
     --white: #fff;
     --error: #f00;
@@ -3538,7 +3538,6 @@ float: right;
     padding: 4px;
     margin-top: 10px;
     background: var(--myOrg-input);
-
 }
 
 .section-button {
@@ -3550,6 +3549,7 @@ float: right;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
     margin: 0px;
 }
 
@@ -3560,6 +3560,7 @@ float: right;
 
 .section-button.active a{
     color:  var(--datatable-header-text-color);
+    cursor: pointer;
 }
 
 .section-button.active {

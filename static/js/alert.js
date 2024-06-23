@@ -16,10 +16,9 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 'use strict';
 
-let alertData = {queryParams :{}};
+let alertData = {queryParams: {}};
 let alertEditFlag = 0;
 let alertID;
 let alertRule_name = "alertRule_name";
@@ -33,40 +32,65 @@ let messageTemplateInfo =
 '\n' + inDoubleBrackets('condition') +
 '\n' + inDoubleBrackets('queryLanguage') + '"></i>';
 let messageInputBox = document.getElementById("message-info");
-if(messageInputBox)
+if (messageInputBox)
     messageInputBox.innerHTML += messageTemplateInfo;
 
-// If there's double brackets next to each other, the templating system will
-// try to replace what's inside the brackets with a value. We don't want that
-// in this case.
 function inDoubleBrackets(str) {
     return "{" + "{" + str + "}" + "}";
 }
 
-let mapConditionTypeToIndex =new Map([
-    ["Is above",0],
-    ["Is below",1],
-    ["Equal to",2],
-    ["Not equal to",3]
+let mapConditionTypeToIndex = new Map([
+    ["Is above", 0],
+    ["Is below", 1],
+    ["Equal to", 2],
+    ["Not equal to", 3]
 ]);
 
-let mapIndexToConditionType =new Map([
-    [0,"Is above"],
-    [1,"Is below"],
-    [2,"Equal to"],
-    [3,"Not equal to"]
+let mapIndexToConditionType = new Map([
+    [0, "Is above"],
+    [1, "Is below"],
+    [2, "Equal to"],
+    [3, "Not equal to"]
 ]);
 
-let mapIndexToAlertState=new Map([
-    [0,"Normal"],
-    [1,"Pending"],
-    [2,"Firing"],
+let mapIndexToAlertState = new Map([
+    [0, "Normal"],
+    [1, "Pending"],
+    [2, "Firing"],
 ]);
 
-const alertForm =$('#alert-form');
+const alertForm = $('#alert-form');
+
+const propertiesGridOptions = {
+    columnDefs: [
+        { headerName: "Config Variable Name", field: "name", sortable: true, filter: true },
+        { headerName: "Config Variable Value", field: "value", sortable: true, filter: true }
+    ],
+    defaultColDef: {
+        resizable: true,
+        flex: 1,
+        minWidth: 150
+    },
+    rowData: [],
+    domLayout: 'autoHeight'
+};
+
+const historyGridOptions = {
+    columnDefs: [
+        { headerName: "Timestamp", field: "timestamp", sortable: true, filter: true },
+        { headerName: "Action", field: "action", sortable: true, filter: true },
+        { headerName: "State", field: "state", sortable: true, filter: true }
+    ],
+    defaultColDef: {
+        resizable: true,
+        flex: 1,
+        minWidth: 150
+    },
+    rowData: [],
+    domLayout: 'autoHeight'
+};
 
 $(document).ready(function () {
-
     $('.theme-btn').on('click', themePickerHandler);
     $("#logs-language-btn").show();
     let startTime = "now-30m";
@@ -74,26 +98,40 @@ $(document).ready(function () {
     datePickerHandler(startTime, endTime, startTime);
     setupEventHandlers();
 
-    $('.alert-condition-options li').on('click', setAlertConditionHandler);
-    $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
-    $('#logs-language-options li').on('click', setLogsLangHandler);
-    $('#data-source-options li').on('click', setDataSourceHandler);
-    $('#cancel-alert-btn').on('click',function(){
-        window.location.href='../all-alerts.html';
-        resetAddAlertForm();
-    });
-    
-    alertForm.on('submit',(e)=>submitAddAlertForm(e));
-  
+    // Ensure elements exist before attaching event listeners
+    if ($('.alert-condition-options li').length) {
+        $('.alert-condition-options li').on('click', setAlertConditionHandler);
+    }
+    if ($('#contact-points-dropdown').length) {
+        $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
+    }
+    if ($('#logs-language-options li').length) {
+        $('#logs-language-options li').on('click', setLogsLangHandler);
+    }
+    if ($('#data-source-options li').length) {
+        $('#data-source-options li').on('click', setDataSourceHandler);
+    }
+    if ($('#cancel-alert-btn').length) {
+        $('#cancel-alert-btn').on('click', function () {
+            window.location.href = '../all-alerts.html';
+            resetAddAlertForm();
+        });
+    }
+    if (alertForm.length) {
+        alertForm.on('submit', (e) => submitAddAlertForm(e));
+    }
+
     const tooltipIds = ["info-icon-spl", "info-icon-msg", "info-evaluate-every", "info-evaluate-for"];
 
     tooltipIds.forEach(id => {
-        $(`#${id}`).tooltip({
-            delay: { show: 0, hide: 300 },
-            trigger: "click"
-        }).on("click", function () {
-            $(`#${id}`).tooltip("show");
-        });
+        if ($(`#${id}`).length) {
+            $(`#${id}`).tooltip({
+                delay: { show: 0, hide: 300 },
+                trigger: "click"
+            }).on("click", function () {
+                $(`#${id}`).tooltip("show");
+            });
+        }
     });
 
     $(document).mouseup(function (e) {
@@ -101,9 +139,45 @@ $(document).ready(function () {
             tooltipIds.forEach(id => $(`#${id}`).tooltip("hide"));
         }
     });
+
+    // Initialize ag-Grid only if the elements exist
+    if ($('#properties-grid').length) {
+        new agGrid.Grid(document.querySelector('#properties-grid'), propertiesGridOptions);
+    }
+    if ($('#history-grid').length) {
+        new agGrid.Grid(document.querySelector('#history-grid'), historyGridOptions);
+    }
+
+    if (document.getElementById('properties-btn') && document.getElementById('history-btn')) {
+        const propertiesBtn = document.getElementById('properties-btn');
+        const historyBtn = document.getElementById('history-btn');
+    
+        if (propertiesBtn) {
+            propertiesBtn.addEventListener('click', function() {
+                document.getElementById('properties-grid').style.display = 'block';
+                document.getElementById('history-grid').style.display = 'none';
+                propertiesBtn.classList.add('active');
+                historyBtn.classList.remove('active');
+                fetchAlertProperties();
+            });
+        }
+    
+        if (historyBtn) {
+            historyBtn.addEventListener('click', function() {
+                document.getElementById('properties-grid').style.display = 'none';
+                document.getElementById('history-grid').style.display = 'block';
+                historyBtn.classList.add('active');
+                propertiesBtn.classList.remove('active');
+                displayHistoryData();
+            });
+        }
+    }    
+
     getAlertId();
-    if(window.location.href.includes("alert-details.html")){
+    if (window.location.href.includes("alert-details.html")) {
         alertDetailsFunctions();
+        fetchAlertProperties();
+        displayHistoryData();
     }
 });
 
@@ -119,12 +193,82 @@ function getAlertId() {
         const searchText = urlParams.get('searchText');
         const startEpoch = urlParams.get('startEpoch');
         const endEpoch = urlParams.get('endEpoch');
-    
+
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
     }
 }
 
-function editAlert(alertId){
+function fetchAlertProperties() {
+    if (alertID) {
+        $.ajax({
+            method: "get",
+            url: "api/alerts/" + alertID,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': '*/*'
+            },
+            dataType: 'json',
+            crossDomain: true,
+        }).then(function (res) {
+            const propertiesData = [
+                { name: "Query", value: res.alert.queryParams.queryText },
+                { name: "Status", value: mapIndexToAlertState.get(res.alert.state) },
+                { name: "Type", value: res.alert.queryParams.data_source },
+                { name: "Query Language", value: res.alert.queryParams.queryLanguage },
+                { name: "Condition", value: mapIndexToConditionType.get(res.alert.condition) },
+                { name: "Evaluate", value: `every ${res.alert.eval_interval} minutes for ${res.alert.eval_for} minutes` },
+                { name: "Contact Point", value: res.alert.contact_name }
+            ];
+
+            res.alert.labels.forEach(label => {
+                propertiesData.push({ name: `Label: ${label.label_name}`, value: label.label_value });
+            });
+
+            if (propertiesGridOptions.api) {
+                propertiesGridOptions.api.setRowData(propertiesData);
+            } else {
+                console.error("propertiesGridOptions.api is not defined");
+            }
+        });
+    }
+}
+
+function displayHistoryData() {
+    if (alertID) {
+        $.ajax({
+            method: "get",
+            url: "api/alerts/" + alertID,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': '*/*'
+            },
+            dataType: 'json',
+            crossDomain: true,
+        }).then(function (res) {
+            // Ignore the response and use dummy data
+            const historyData = [
+                { timestamp: '12:22:31 pm', action: 'config change', state: 'nil' },
+                { timestamp: '11:32:41 am', action: 'evaluation', state: 'normal' },
+                { timestamp: '09:23:21 am', action: 'evaluation', state: 'firing' },
+                { timestamp: '08:12:21 am', action: 'config change', state: 'nil' },
+                { timestamp: '07:53:11 am', action: 'evaluation', state: 'pending' },
+                { timestamp: '06:44:01 am', action: 'evaluation', state: 'normal' },
+                { timestamp: '05:35:31 am', action: 'config change', state: 'nil' },
+                { timestamp: '04:26:21 am', action: 'evaluation', state: 'firing' },
+                { timestamp: '03:17:11 am', action: 'evaluation', state: 'pending' },
+                { timestamp: '02:08:01 am', action: 'config change', state: 'nil' }
+            ];
+
+            if (historyGridOptions.api) {
+                historyGridOptions.api.setRowData(historyData);
+            } else {
+                console.error("historyGridOptions.api is not defined");
+            }
+        });
+    }
+}
+
+function editAlert(alertId) {
     $.ajax({
         method: "get",
         url: "api/alerts/" + alertId,
@@ -135,9 +279,9 @@ function editAlert(alertId){
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        if(window.location.href.includes("alert-details.html")){
+        if (window.location.href.includes("alert-details.html")) {
             displayAlertProperties(res.alert)
-        }else{
+        } else {
             alertEditFlag = 1;
             displayAlert(res.alert);
         }
@@ -148,11 +292,10 @@ function setAlertConditionHandler(e) {
     $('.alert-condition-option').removeClass('active');
     $('#alert-condition span').html($(this).html());
     $(this).addClass('active');
-    let optionId = $(this).attr('id');  
+    let optionId = $(this).attr('id');
 }
 
 function contactPointsDropdownHandler() {
-    //get all contact points 
     $.ajax({
         method: "get",
         url: "api/alerts/allContacts",
@@ -163,17 +306,19 @@ function contactPointsDropdownHandler() {
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        if (res.contacts) {
-        let dropdown = $('.contact-points-options');
-        
-        res.contacts.forEach((cp) => {
-            if (!$(`.contact-points-option:contains(${cp.contact_name})`).length) {
-                dropdown.append(`<li class="contact-points-option" id="${cp.contact_id}">${cp.contact_name}</li>`);
-            }
-        });
-    }
-})}
-
+        if (res.contacts && Array.isArray(res.contacts)) {
+            let dropdown = $('.contact-points-options');
+            
+            res.contacts.forEach((cp) => {
+                if (cp && cp.contact_name && !$(`.contact-points-option:contains(${cp.contact_name})`).length) {
+                    dropdown.append(`<li class="contact-points-option" id="${cp.contact_id}">${cp.contact_name}</li>`);
+                }
+            });
+        }
+    }).catch(function (error) {
+        console.error('Error fetching contacts:', error);
+    });    
+}
 
 $('.contact-points-options').on('click', 'li', function () {
     $('.contact-points-option').removeClass('active');
@@ -193,47 +338,67 @@ $(document).keyup(function(e) {
     }
 });
 
+const propertiesBtn = document.getElementById('properties-btn');
+const historyBtn = document.getElementById('history-btn');
 
+if (propertiesBtn) {
+    propertiesBtn.addEventListener('click', function() {
+        document.getElementById('properties-grid').style.display = 'block';
+        document.getElementById('history-grid').style.display = 'none';
+        propertiesBtn.classList.add('active');
+        historyBtn.classList.remove('active');
+        fetchAlertProperties();
+    });
+}
 
-//create new alert rule
-function submitAddAlertForm(e){
+if (historyBtn) {
+    historyBtn.addEventListener('click', function() {
+        document.getElementById('properties-grid').style.display = 'none';
+        document.getElementById('history-grid').style.display = 'block';
+        historyBtn.classList.add('active');
+        propertiesBtn.classList.remove('active');
+        displayHistoryData();
+    });
+}
+
+function submitAddAlertForm(e) {
     e.preventDefault();
     setAlertRule();
     alertEditFlag ? updateAlertRule(alertData) : createNewAlertRule(alertData);
 }
 
-function setAlertRule(){
+function setAlertRule() {
     let dataSource = $('#alert-data-source span').text();
     alertData.alert_name = $('#alert-rule-name').val(),
     alertData.queryParams.data_source = dataSource;
     alertData.queryParams.queryLanguage = $('#logs-language-btn span').text();
-    alertData.queryParams.queryText= $('#query').val(),
-    alertData.queryParams.startTime= filterStartDate,
-    alertData.queryParams.endTime= filterEndDate,
-    alertData.condition= mapConditionTypeToIndex.get($('#alert-condition span').text()),
-    alertData.eval_interval= parseInt($('#evaluate-every').val()),
-    alertData.eval_for= parseInt($('#evaluate-for').val()),
-    alertData.contact_name= $('#contact-points-dropdown span').text(),
-    alertData.contact_id= $('#contact-points-dropdown span').attr('id'),
-    alertData.message= $('.message').val()
+    alertData.queryParams.queryText = $('#query').val(),
+    alertData.queryParams.startTime = filterStartDate,
+    alertData.queryParams.endTime = filterEndDate,
+    alertData.condition = mapConditionTypeToIndex.get($('#alert-condition span').text()),
+    alertData.eval_interval = parseInt($('#evaluate-every').val()),
+    alertData.eval_for = parseInt($('#evaluate-for').val()),
+    alertData.contact_name = $('#contact-points-dropdown span').text(),
+    alertData.contact_id = $('#contact-points-dropdown span').attr('id'),
+    alertData.message = $('.message').val()
     alertData.value = parseFloat($('#threshold-value').val());
     alertData.message = $(".message").val();
-    alertData.labels =[]
-    
+    alertData.labels = []
+
     $('.label-container').each(function() {
-      let labelName = $(this).find('#label-key').val();
-      let labelVal = $(this).find('#label-value').val();
+        let labelName = $(this).find('#label-key').val();
+        let labelVal = $(this).find('#label-value').val();
         if (labelName && labelVal) {
-            let labelEntry  = {
+            let labelEntry = {
                 label_name: labelName,
                 label_value: labelVal
-              };
-              alertData.labels.push(labelEntry);
+            };
+            alertData.labels.push(labelEntry);
         }
     })
 }
 
-function createNewAlertRule(alertData){
+function createNewAlertRule(alertData) {
     if (!alertData.alert_type) {
         alertData.alert_type = 1;
     }
@@ -247,17 +412,16 @@ function createNewAlertRule(alertData){
         data: JSON.stringify(alertData),
         dataType: 'json',
         crossDomain: true,
-    }).then((res)=>{
+    }).then((res) => {
         resetAddAlertForm();
-        window.location.href='../all-alerts.html';
-    }).catch((err)=>{
+        window.location.href = '../all-alerts.html';
+    }).catch((err) => {
         showToast(err.responseJSON.error)
     });
 }
 
-// update alert rule
-function updateAlertRule(alertData){
-        $.ajax({
+function updateAlertRule(alertData) {
+    $.ajax({
         method: "post",
         url: "api/alerts/update",
         headers: {
@@ -267,20 +431,19 @@ function updateAlertRule(alertData){
         data: JSON.stringify(alertData),
         dataType: 'json',
         crossDomain: true,
-    }).then((res)=>{
+    }).then((res) => {
         resetAddAlertForm();
-        window.location.href='../all-alerts.html';
-    }).catch((err)=>{
+        window.location.href = '../all-alerts.html';
+    }).catch((err) => {
         showToast(err.responseJSON.error)
     });
 }
 
-//reset alert form
-function resetAddAlertForm(){
+function resetAddAlertForm() {
     alertForm[0].reset();
 }
 
-function displayAlert(res){
+function displayAlert(res) {
     $('#alert-rule-name').val(res.alert_name);
     $('#alert-data-source span').html(res.queryParams.data_source);
     const queryLanguage = res.queryParams.queryLanguage;
@@ -299,14 +462,14 @@ function displayAlert(res){
     $('#evaluate-every').val(res.eval_interval);
     $('#evaluate-for').val(res.eval_for);
     $('.message').val(res.message);
-    if(alertEditFlag){
+    if (alertEditFlag) {
         alertData.alert_id = res.alert_id;
     }
     $('#contact-points-dropdown span').html(res.contact_name);
     $('#contact-points-dropdown span').attr('id', res.contact_id);
-    
+
     let isFirst = true;
-    (res.labels).forEach(function(label){
+    (res.labels).forEach(function(label) {
         let labelContainer;
         if (isFirst) {
             labelContainer = $('.label-container');
@@ -319,7 +482,6 @@ function displayAlert(res){
         labelContainer.find("#label-value").val(label.label_value);
         labelContainer.appendTo('.label-main-container');
     })
-
 }
 
 function showToast(msg) {
@@ -359,7 +521,6 @@ function displayQueryToolTip(selectedQueryLang) {
     }
 }
 
-// Display Alert Details
 function displayAlertProperties(res) {
     const queryParams = res.queryParams;
     $('.alert-name').text(res.alert_name);
@@ -380,8 +541,7 @@ function displayAlertProperties(res) {
     })
 }
 
-// Add Label
-$(".add-label-container").on("click", function () {
+$(".add-label-container").on("click", function() {
     var labelContainer = $(".label-container").first().clone();
     labelContainer.find("#label-key").val("");
     labelContainer.find("#label-value").val("");
@@ -389,14 +549,12 @@ $(".add-label-container").on("click", function () {
     labelContainer.appendTo(".label-main-container");
 });
 
-// Delete Label
-$(".label-main-container").on("click", ".delete-icon", function () {
+$(".label-main-container").on("click", ".delete-icon", function() {
     $(this).closest(".label-container").remove();
 });
 
-//On Alert Details Page 
-function alertDetailsFunctions(){
-    function editAlert(event){        
+function alertDetailsFunctions() {
+    function editAlert(event) {
         var queryString = "?id=" + alertID;
         window.location.href = "../alert.html" + queryString;
         event.stopPropagation();
@@ -414,9 +572,9 @@ function alertDetailsFunctions(){
                 alert_id: alertID
             }),
             crossDomain: true,
-        }).then(function (res) {
+        }).then(function(res) {
             showToast(res.message)
-            window.location.href='../all-alerts.html';
+            window.location.href = '../all-alerts.html';
         });
     }
 
@@ -424,23 +582,22 @@ function alertDetailsFunctions(){
         event.stopPropagation();
         $('.popupOverlay, .popupContent').addClass('active');
 
-        $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {
+        $('#cancel-btn, .popupOverlay, #delete-btn').click(function() {
             $('.popupOverlay, .popupContent').removeClass('active');
         });
         $('#delete-btn').click(deleteAlert)
     }
 
-    $('#edit-alert-btn').on('click',editAlert)
-    $('#delete-alert').on('click',showPrompt)
-    $('#cancel-alert-details').on('click',function(){
-        window.location.href='../all-alerts.html';
+    $('#edit-alert-btn').on('click', editAlert)
+    $('#delete-alert').on('click', showPrompt)
+    $('#cancel-alert-details').on('click', function() {
+        window.location.href = '../all-alerts.html';
     })
 }
 
-//Create alert from logs
-function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch){
+function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch) {
     $('#alert-rule-name').focus();
     $('#query').val(query);
     $(`.ranges .inner-range #${startEpoch}`).addClass('active');
-    datePickerHandler(startEpoch, endEpoch , startEpoch)
+    datePickerHandler(startEpoch, endEpoch, startEpoch)
 }

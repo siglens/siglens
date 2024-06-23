@@ -76,6 +76,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <div class="alert-rule-ctn">
                             Alert Rule : <span class="alert-name fw-bold"></span>
                         </div>
+                        <div class="section-buttons">
+                            <div class="section-button active" id="properties-btn" data-section="properties">Properties</div>
+                            <div class="section-button" id="history-btn" data-section="history">History</div>
+                        </div>
                     </div>
                     <div class="btn-container">
                         <button class="btn" type="button" id="cancel-alert-details">Cancel</button>
@@ -83,37 +87,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <button class="btn" type="button" id="delete-alert">Delete</button>
                     </div>
                 </div>
-                <div class="alert-properties">
-                    <div>
-                        <h3 class="alert-rule-ctn mb-2">Properties</h3>
-                    </div>
-                    <div>
-                        <h4>Query: </h4><input class="alert-query" readonly/>
-                    </div>
-                    <div>
-                        <h4>Status: </h4><span class="alert-status"></span>
-                    </div>
-                    <div>
-                        <h4>Type: </h4><span class="alert-type"></span>
-                    </div>
-                    <div>
-                        <h4>Query Language: </h4><span class="alert-query-language"></span>
-                    </div>
-                    <div>
-                        <h4>Condition: </h4><span class="alert-condition"></span><span class="alert-value mx-2"></span>
-                    </div>
-                    <div>
-                        <h4>Evaluate: </h4> every <h4 class="alert-every mx-1"></h4><span class="fw-bold mx-1">minutes </span> for <h4
-                            class="alert-for mx-1"></h4><div class="fw-bold">minutes</div>
-                    </div>
-                    <div>
-                        <h4>Contact Point: </h4><span class="alert-contact-point"></span>
-                    </div>
-                    <div>
-                        <h4>Labels: </h4><span class="alert-labels-container"></span>
-                    </div>
-                </div>
-            </div>
+                <div id="properties-grid" class="ag-theme-mycustomtheme" style="height: 500px; width: 100%; padding-top: 20px;"></div>
+                <div id="history-grid" class="ag-theme-mycustomtheme" style="height: 500px; width: 100%; display: none; padding-top: 20px;"></div>                                
+            </div>                      
         </div>
         <div class="popupOverlay">
         </div>
