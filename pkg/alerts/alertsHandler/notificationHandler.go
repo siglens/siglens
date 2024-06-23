@@ -35,10 +35,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func NotifyAlertHandlerRequest(alertID string) error {
+func NotifyAlertHandlerRequest(alertID string, alertDataMessage string) error {
 	if alertID == "" {
 		log.Errorf("NotifyAlertHandlerRequest: Missing alert_id")
-		return errors.New("Alert ID is empty")
+		return errors.New("alert ID is empty")
 	}
 	cooldownOver, err := isCooldownOver(alertID)
 	if err != nil {
@@ -71,7 +71,7 @@ func NotifyAlertHandlerRequest(alertID string) error {
 	webhookSent := false
 	if len(emailIDs) > 0 {
 		for _, emailID := range emailIDs {
-			err = sendAlertEmail(emailID, subject, message)
+			err = sendAlertEmail(emailID, subject, message, alertDataMessage)
 			if err != nil {
 				log.Errorf("NotifyAlertHandlerRequest: Error sending email to- %s for alert id- %s, err=%v", emailID, alertID, err)
 			} else {
@@ -81,7 +81,7 @@ func NotifyAlertHandlerRequest(alertID string) error {
 	}
 	if len(channelIDs) > 0 {
 		for _, channelID := range channelIDs {
-			err = sendSlack(subject, message, channelID)
+			err = sendSlack(subject, message, channelID, alertDataMessage)
 			if err != nil {
 				log.Errorf("NotifyAlertHandlerRequest: Error sending Slack message to channelID- %v for alert id- %v, err=%v", channelID, alertID, err)
 			} else {
@@ -91,7 +91,7 @@ func NotifyAlertHandlerRequest(alertID string) error {
 	}
 	if len(webhooks) > 0 {
 		for _, webhook := range webhooks {
-			err = sendWebhooks(webhook.Webhook, subject, message)
+			err = sendWebhooks(webhook.Webhook, subject, message, alertDataMessage)
 			if err != nil {
 				log.Errorf("NotifyAlertHandlerRequest: Error sending Webhook message to webhook- %s for alert id- %s, err=%v", webhook.Webhook, alertID, err)
 			} else {
@@ -101,7 +101,7 @@ func NotifyAlertHandlerRequest(alertID string) error {
 	}
 
 	if !emailSent && !slackSent && !webhookSent {
-		return errors.New("Neither emails or slack message or webhook sent for this notification")
+		return errors.New("neither emails or slack message or webhook sent for this notification")
 
 	}
 
@@ -113,17 +113,24 @@ func NotifyAlertHandlerRequest(alertID string) error {
 	return nil
 }
 
-func sendAlertEmail(emailID, subject, message string) error {
+func sendAlertEmail(emailID, subject, message string, alertDataMessage string) error {
 	host, port, senderEmail, senderPassword := config.GetEmailConfig()
 	auth := smtp.PlainAuth("", senderEmail, senderPassword, host)
 	body := "To: " + emailID + "\r\n" +
 		"Subject: " + subject + "\r\n" +
 		"\r\n" +
 		message + "\r\n"
+	if alertDataMessage != "" {
+		body = body + "Alert Data: " + alertDataMessage + "\r\n"
+	}
 	err := smtp.SendMail(host+":"+strconv.Itoa(port), auth, senderEmail, []string{emailID}, []byte(body))
 	return err
 }
-func sendWebhooks(webhookUrl, subject, message string) error {
+func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string) error {
+	if alertDataMessage != "" {
+		message = message + "\nAlert Data: " + alertDataMessage
+	}
+
 	webhookBody := alertutils.WebhookBody{
 		Receiver: "My Super Webhook",
 		Status:   "firing",
@@ -192,7 +199,7 @@ func isCooldownOver(alertID string) (bool, error) {
 	return false, nil
 }
 
-func sendSlack(alertName string, message string, channel alertutils.SlackTokenConfig) error {
+func sendSlack(alertName string, message string, channel alertutils.SlackTokenConfig, alertDataMessage string) error {
 
 	channelID := channel.ChannelId
 	token := channel.SlToken
@@ -210,6 +217,14 @@ func sendSlack(alertName string, message string, channel alertutils.SlackTokenCo
 			},
 		},
 	}
+
+	if alertDataMessage != "" {
+		attachment.Fields = append(attachment.Fields, slack.AttachmentField{
+			Title: "Alert Data",
+			Value: alertDataMessage,
+		})
+	}
+
 	_, _, err := client.PostMessage(
 		channelID,
 		slack.MsgOptionText("New message from Alert System", false),
