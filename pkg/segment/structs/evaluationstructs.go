@@ -366,8 +366,6 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 	case "searchmatch":
 		fallthrough
 	case "isnotnull":
-		fallthrough
-	case "isnum":
 		return false, fmt.Errorf("BoolExpr.Evaluate: does support using this operator: %v", self.ValueOp)
 	}
 
@@ -393,6 +391,14 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			}
 
 			_, parseErr := strconv.Atoi(val)
+			return parseErr == nil, nil
+		} else if self.ValueOp == "isnum" {
+			val, err := self.LeftValue.EvaluateToString(fieldToValue)
+			if err != nil {
+				return false, err
+			}
+
+			_, parseErr := strconv.ParseFloat(val, 64)
 			return parseErr == nil, nil
 		} else if self.ValueOp == "isstr" {
 			_, floatErr := self.LeftValue.EvaluateToFloat(fieldToValue)
@@ -1279,6 +1285,79 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 			return math.Abs(left), nil
 		case "ceil":
 			return math.Ceil(left), nil
+		case "acosh":
+			if left < 1 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: acosh requires values >= 1, got: %v", left)
+			}
+			return math.Acosh(left), nil
+		case "acos":
+			if left < -1 || left > 1 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: acos requires values between -1 and 1, got: %v", left)
+			}
+			return math.Acos(left), nil
+		case "asin":
+			if left < -1 || left > 1 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: asin requires values between -1 and 1, got: %v", left)
+			}
+			return math.Asin(left), nil
+		case "asinh":
+			return math.Asinh(left), nil
+		case "atan":
+			return math.Atan(left), nil
+		case "atanh":
+			if left <= -1 || left >= 1 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: atanh requires values between -1 and 1 exclusive, got: %v", left)
+			}
+			return math.Atanh(left), nil
+		case "cos":
+			return math.Cos(left), nil
+		case "cosh":
+			return math.Cosh(left), nil
+		case "sin":
+			return math.Sin(left), nil
+		case "sinh":
+			return math.Sinh(left), nil
+		case "tan":
+			// Check for points where cos(x) = 0, which would cause tan to be undefined.
+			// These are points (pi/2 + k*pi) where k is an integer.
+			// To check for this, see if left modulo pi is pi/2 (or very close due to floating point precision).
+			halfPi := math.Pi / 2
+			mod := math.Mod(left, math.Pi)
+			if math.Abs(mod-halfPi) < 0.0000001 || math.Abs(mod+halfPi) < 0.0000001 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: tan is undefined at pi/2 + k*pi, got: %v", left)
+			}
+			return math.Tan(left), nil
+		case "tanh":
+			return math.Tanh(left), nil
+		case "atan2":
+			if self.Left == nil || self.Right == nil {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: atan2 requires two values, got: left=%v, right=%v", self.Left, self.Right)
+			}
+			return math.Atan2(left, right), nil
+		case "hypot":
+			if self.Left == nil || self.Right == nil {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: hypot requires two values, got: left=%v, right=%v", self.Left, self.Right)
+			}
+			return math.Hypot(left, right), nil
+		case "log":
+			switch {
+			case left <= 0:
+				return -1, fmt.Errorf("NumericExpr.Evaluate: Non-positive values cannot be used for logarithm: %v", left)
+			case right < 0, right == 1:
+				return -1, fmt.Errorf("NumericExpr.Evaluate: Invalid base for logarithm: %v", right)
+			case right == 0:
+				right = 10
+			}
+			return math.Log(left) / math.Log(right), nil
+		case "ln":
+			if left < 0 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: Negative values cannot be used for natural logarithm: %v", left)
+			}
+			return math.Log(left), nil
+		case "floor":
+			return math.Floor(left), nil
+		case "pow":
+			return math.Pow(left, right), nil
 		case "round":
 			if self.Right != nil {
 				return round(left, int(right)), nil
@@ -1332,6 +1411,22 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 		default:
 			return 0, fmt.Errorf("NumericExpr.Evaluate: unexpected operation: %v", self.Op)
 		}
+	}
+}
+
+func handleTrimFunctions(op string, value string, trim_chars string) string {
+	if trim_chars == "" {
+		trim_chars = "\t "
+	}
+	switch op {
+	case "ltrim":
+		return strings.TrimLeft(value, trim_chars)
+	case "rtrim":
+		return strings.TrimRight(value, trim_chars)
+	case "trim":
+		return strings.Trim(value, trim_chars)
+	default:
+		return value
 	}
 }
 
@@ -1450,10 +1545,10 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	switch self.Op {
 	case "lower":
 		return strings.ToLower(cellValueStr), nil
-	case "ltrim":
-		return strings.TrimLeft(cellValueStr, self.StrToRemove), nil
-	case "rtrim":
-		return strings.TrimRight(cellValueStr, self.StrToRemove), nil
+	case "upper":
+		return strings.ToUpper(cellValueStr), nil
+	case "ltrim", "rtrim", "trim":
+		return handleTrimFunctions(self.Op, cellValueStr, self.StrToRemove), nil
 	case "urldecode":
 		decodedStr, decodeErr := url.QueryUnescape(cellValueStr)
 		if decodeErr != nil {

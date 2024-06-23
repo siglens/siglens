@@ -1,5 +1,3 @@
-
-
 /* 
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
@@ -1941,16 +1939,6 @@ div.dts div.dataTables_scrollBody table {
     background-size: contain;
 }
 
-#viewbutton {
-    background-image: url(../assets/view-icon.svg);
-    height: 14px;
-    width: 19px;
-    cursor: pointer;
-    background-color: transparent;
-    border-width: 0;
-    padding: 0px;
-    background-size: contain;
-}
 
 #duplicateButton{
     background-image: url(../assets/dashboard-duplicate-icon.svg);
@@ -2158,16 +2146,11 @@ div.dts div.dataTables_scrollBody table {
     background: #fff;
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    text-align: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) 
     width: 300px;
   }
   
-  .header {
-    margin-top: 0;
-    margin-bottom: 20px;
-    font-size: 1.5em;
-  }
+
   
 
   
@@ -2182,14 +2165,22 @@ div.dts div.dataTables_scrollBody table {
 
   
   #addrule-cancel-btn {
-    background: var(--btn-regular-bg-color); 
+    background: #A9A9A9; 
     color: #fff;
     margin-right: 10px;
-  }
+    border: none;
+    padding: 2%;
+    border-radius: 5px;
+}
+  
   
   #addrule-save-btn {
-    background: #A9A9A9; /* similar gray color as in the image */
+    background:var(--btn-regular-bg-color) ; /* similar gray color as in the image */
     color: #fff;
+    border: none;
+    padding: 2%;
+    border-radius: 5px;
+
   }
   
 
@@ -4639,6 +4630,26 @@ color: #C8C7CC;
     float: right;
 }
 
+.test-contact-btn {
+    background-color: var(--purple-2);
+    height: 30px;
+    margin-bottom: 0px;
+    color: var(--white-0) !important;
+    float: right;
+    cursor: pointer;
+    margin-left: 12px;
+}
+
+.test-contact-btn .send-icon{
+    background-image: url(../assets/send-icon.svg);
+    height: 15px;
+    background-size: 100%;
+    width: 15px;
+    background-repeat: no-repeat;
+    margin-bottom: 0px;
+    margin-right: 6px;
+}
+
 #alerting input,.add-label-container{
     height: 32px;
 }
@@ -5217,11 +5228,10 @@ input.form-control {
     background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
     background-size: 46% !important;
 }
-
-#delbutton.default-dashboard-delete:hover {
-    background-image: url(../assets/dark-delete-icon-regular.svg);
-    cursor: not-allowed;
+#delbutton.default-dashboard-delete {
+    background-image:none;
 }
+
 #data-ingestion .myOrg-heading{
     font-size: 16px;
     margin-top: 20px;

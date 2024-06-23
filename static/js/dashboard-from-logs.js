@@ -1,4 +1,3 @@
-
 /* 
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
@@ -85,7 +84,7 @@ function showExistingDashboard() {
 }
 
 function openPopup() {
-    $(".popupOverlay, .popupContent").addClass("active");
+    $(".popupOverlay, #create-db-popup.popupContent").addClass("active");
 }
 
 function closePopup() {

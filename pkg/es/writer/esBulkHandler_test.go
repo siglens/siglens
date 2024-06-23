@@ -43,7 +43,7 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 
 	flush := func() {
 		jsonBytes := []byte(`{"hello": "world"}`)
-		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), true, localIndexMap, orgId)
+		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), true, localIndexMap, orgId, 0)
 		assert.Nil(t, err)
 	}
 
@@ -61,7 +61,7 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	}
 
 	for _, jsonBytes := range jsons {
-		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId)
+		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId, 0)
 		assert.Nil(t, err)
 	}
 	flush()
@@ -80,7 +80,7 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	}
 
 	for _, jsonBytes := range jsons {
-		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId)
+		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId, 0)
 		assert.Nil(t, err)
 	}
 	flush()

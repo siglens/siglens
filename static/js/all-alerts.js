@@ -1,5 +1,3 @@
-
-
 /* 
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
@@ -38,11 +36,11 @@ $(document).ready(function () {
     $('#new-alert-rule').on('click', function () {
         window.location.href = "../alert.html";
     });
-    $('#addrule-cancel-btn').click(function() {
+    $('#addrule-cancel-btn').click(function () {
         $('.addrulepopupOverlay').fadeOut();
     });
-    
-    $('#addrule-save-btn').click(function() {
+
+    $('#addrule-save-btn').click(function () {
         var ruleName = $('#rule-name').val();
         window.location.href = "../alert.html?alertRule_name=";
     });
@@ -151,34 +149,34 @@ class BtnRenderer {
 }
 
 let alertColumnDefs = [{
-        field: "rowId",
-        hide: true
-    },
-    {
-        field: "alertId",
-        hide: true
-    },
-    {
-        headerName: "State",
-        field: "alertState",
-        width: 100,
-        cellRenderer: stateCellRenderer
-    },
-    {
-        headerName: "Alert Name",
-        field: "alertName",
-        width: 200,
-    },
-    {
-        headerName: "Labels",
-        field: "labels",
-        width: 200,
-    },
-    {
-        headerName: "Actions",
-        cellRenderer: BtnRenderer,
-        width: 100,
-    },
+    field: "rowId",
+    hide: true
+},
+{
+    field: "alertId",
+    hide: true
+},
+{
+    headerName: "State",
+    field: "alertState",
+    width: 100,
+    cellRenderer: stateCellRenderer
+},
+{
+    headerName: "Alert Name",
+    field: "alertName",
+    width: 200,
+},
+{
+    headerName: "Labels",
+    field: "labels",
+    width: 200,
+},
+{
+    headerName: "Actions",
+    cellRenderer: BtnRenderer,
+    width: 100,
+},
 ];
 
 const alertGridOptions = {
