@@ -19,15 +19,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 <!DOCTYPE html>
 <html lang="en">
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-    
-        gtag('config', 'G-5SBJC04YFB');
-    </script>
-    
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-5SBJC04YFB');
+</script>
+
 <head>
     <meta charset="UTF-8">
     <title>SigLens</title>
@@ -63,10 +63,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 <body>
     <div id="app-container">
-
         <div id="app-side-nav">
         </div>
-
         <div id="alerting">
             <div class="alerts-nav-tab">
             </div>
@@ -77,7 +75,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             Alert Rule : <span class="alert-name fw-bold"></span>
                         </div>
                         <div class="section-buttons">
-                            <div class="section-button active" id="properties-btn" data-section="properties">Properties</div>
+                            <div class="section-button active" id="properties-btn" data-section="properties">Properties
+                            </div>
                             <div class="section-button" id="history-btn" data-section="history">History</div>
                         </div>
                     </div>
@@ -87,9 +86,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <button class="btn" type="button" id="delete-alert">Delete</button>
                     </div>
                 </div>
-                <div id="properties-grid" class="ag-theme-mycustomtheme" style="height: 500px; width: 100%; padding-top: 20px;"></div>
-                <div id="history-grid" class="ag-theme-mycustomtheme" style="height: 500px; width: 100%; display: none; padding-top: 20px;"></div>                                
-            </div>                      
+                <div id="properties-grid" class="ag-theme-mycustomtheme"
+                    style="height: 500px; width: 100%; padding-top: 20px;"></div>
+                <div id="history-grid" class="ag-theme-mycustomtheme"
+                    style="height: 500px; width: 100%; display: none; padding-top: 20px;"></div>
+            </div>
         </div>
         <div class="popupOverlay">
         </div>
@@ -99,13 +100,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <button type="button" id="cancel-btn">Cancel</button>
             <button type="button" id="delete-btn">Delete</button>
         </div>
-
         <div id="app-footer">
             2024 &copy; SigLens
         </div>
-
     </div>
-
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/common.js?cb=1_1_10"></script>
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
