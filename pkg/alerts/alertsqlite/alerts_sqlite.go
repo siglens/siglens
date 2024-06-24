@@ -28,6 +28,7 @@ import (
 	"gorm.io/driver/sqlite"
 	_ "gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/sirupsen/logrus"
@@ -654,26 +655,41 @@ func (p Sqlite) CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryD
 	return alertHistoryDetails, nil
 }
 
-func (p Sqlite) GetAlertHistory(alertId string) ([]*alertutils.AlertHistoryDetails, error) {
-	if !isValid(alertId) {
-		log.Errorf("GetAlertHistory: data validation check failed for alert id: %v", alertId)
-		return nil, fmt.Errorf("GetAlertHistory: data validation check failed for alert id: %v", alertId)
+func (p Sqlite) GetAlertHistoryByAlertID(alertHistoryParams *alertutils.AlertHistoryQueryParams) ([]*alertutils.AlertHistoryDetails, error) {
+	if !isValid(alertHistoryParams.AlertId) {
+		log.Errorf("GetAlertHistory: data validation check failed for alert Query Params: %v", *alertHistoryParams)
+		return nil, fmt.Errorf("GetAlertHistory: data validation check failed for alert Query Params: %v", *alertHistoryParams)
 	}
 
-	alertExists, _, err := p.verifyAlertExists(alertId)
+	alertExists, _, err := p.verifyAlertExists(alertHistoryParams.AlertId)
 	if err != nil {
-		log.Errorf("GetAlertHistory: unable to verify if alert exists, alert id: %v, err: %+v", alertId, err)
-		return nil, fmt.Errorf("GetAlertHistory: unable to verify if alert exists, alert id: %v, err: %+v", alertId, err)
+		log.Errorf("GetAlertHistory: unable to verify if alert exists, alert id: %v, err: %+v", alertHistoryParams.AlertId, err)
+		return nil, fmt.Errorf("GetAlertHistory: unable to verify if alert exists, alert id: %v, err: %+v", alertHistoryParams.AlertId, err)
 	}
 
 	if !alertExists {
-		log.Errorf("GetAlertHistory: alert does not exist, alert id: %v", alertId)
-		return nil, fmt.Errorf("GetAlertHistory: alert does not exist, alert id: %v", alertId)
+		log.Errorf("GetAlertHistory: alert does not exist, alert id: %v", alertHistoryParams.AlertId)
+		return nil, fmt.Errorf("GetAlertHistory: alert does not exist, alert id: %v", alertHistoryParams.AlertId)
+	}
+
+	if alertHistoryParams.Limit == 0 {
+		alertHistoryParams.Limit = 20
+	}
+
+	if alertHistoryParams.SortOrder == "" {
+		alertHistoryParams.SortOrder = alertutils.DESC
 	}
 
 	alertHistory := make([]*alertutils.AlertHistoryDetails, 0)
 
-	err = p.db.Where("alert_id = ?", alertId).First(&alertHistory).Error
-	return alertHistory, err
+	query := p.db.Where("alert_id = ?", alertHistoryParams.AlertId).Order(
+		clause.OrderByColumn{Column: clause.Column{Name: clause.PrimaryColumn.Name}, Desc: alertHistoryParams.SortOrder == alertutils.DESC}).Offset(int(alertHistoryParams.Offset)).Limit(int(alertHistoryParams.Limit))
 
+	err = query.Find(&alertHistory).Error
+	if err != nil {
+		log.Errorf("GetAlertHistory: unable to fetch alert history for Alert Query Params: %v, err: %+v", *alertHistoryParams, err)
+		return nil, fmt.Errorf("GetAlertHistory: unable to fetch alert history, alert id: %v, err: %+v", alertHistoryParams.AlertId, err)
+	}
+
+	return alertHistory, nil
 }
