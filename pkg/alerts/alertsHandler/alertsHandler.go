@@ -139,6 +139,11 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 		return
 	}
 
+	if alertToBeCreated.EvalWindow < alertToBeCreated.EvalInterval {
+		utils.SendError(ctx, "EvalWindow should be greater than or equal to EvalInterval", fmt.Sprintf("EvalWindow: %v, EvalInterval:%v", alertToBeCreated.EvalWindow, alertToBeCreated.EvalInterval), nil)
+		return
+	}
+
 	// Validate Alert Type and Query
 	extraMsgToLog, err := validateAlertTypeAndQuery(&alertToBeCreated)
 	if err != nil {
@@ -340,6 +345,11 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 	err := json.Unmarshal(rawJSON, &alertToBeUpdated)
 	if err != nil {
 		utils.SendError(ctx, "Failed to unmarshal json", "", err)
+		return
+	}
+
+	if alertToBeUpdated.EvalWindow < alertToBeUpdated.EvalInterval {
+		utils.SendError(ctx, "EvalWindow should be greater than or equal to EvalInterval", fmt.Sprintf("EvalWindow: %v, EvalInterval:%v", alertToBeUpdated.EvalWindow, alertToBeUpdated.EvalInterval), nil)
 		return
 	}
 
