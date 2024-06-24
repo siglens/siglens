@@ -240,6 +240,14 @@ type LetColumnsRequest struct {
 	NewColName           string
 	MultiValueColRequest *MultiValueColLetRequest
 	FormatResults        *FormatResultsRequest // formats the results into a single result and places that result into a new field called search.
+	EventCountRequest    *EventCountExpr       // To count the number of events in an index
+}
+
+type EventCountExpr struct {
+	Indices    []string
+	Summarize  bool
+	ReportSize bool
+	ListVix    bool
 }
 
 // formats the results into a single result and places that result into a new field called search.
@@ -532,7 +540,7 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
-			qa.OutputTransforms.LetColumns.FormatResults != nil)
+			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil)
 }
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
@@ -773,6 +781,7 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"isnotnull":        {},
 	"typeof":           {},
 	"spath":            {},
+	"eventcount":       {},
 }
 
 type StatsFuncChecker struct{}
@@ -788,6 +797,8 @@ func (c EvalFuncChecker) IsUnsupported(funcName string) bool {
 	_, found := unsupportedEvalFuncs[funcName]
 	return found
 }
+
+var unsupportedLetColumnCommands = []string{"FormatResults", "EventCountRequest"}
 
 func CheckUnsupportedFunctions(post *QueryAggregators) error {
 
@@ -839,13 +850,30 @@ func CheckUnsupportedFunctions(post *QueryAggregators) error {
 			}
 		}
 
-		// Remove this check once the format command is supported.
-		// Refactor this, if there are more commands that are not supported directly under LetColumnsRequest.
-		if agg.hasLetColumnsRequest() && agg.OutputTransforms.LetColumns.FormatResults != nil {
-			return fmt.Errorf("checkUnsupportedFunctions: using format command is not yet supported")
+		err := checkUnsupportedLetColumnCommand(agg)
+		if err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+func checkUnsupportedLetColumnCommand(agg *QueryAggregators) error {
+	if agg.hasLetColumnsRequest() {
+		letColumns := agg.OutputTransforms.LetColumns
+		for _, command := range unsupportedLetColumnCommands {
+			switch command {
+			case "FormatResults":
+				if letColumns.FormatResults != nil {
+					return fmt.Errorf("checkUnsupportedFunctions: using format command is not yet supported")
+				}
+			case "EventCountRequest":
+				if letColumns.EventCountRequest != nil {
+					return fmt.Errorf("checkUnsupportedFunctions: using eventcount command is not yet supported")
+				}
+			}
+		}
+	}
 	return nil
 }
 
