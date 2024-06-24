@@ -69,14 +69,14 @@ $(document).ready(function () {
     $('#evaluate-every').tooltip({
         title: 'How often the alert will be evaluated to see if it fires',
         placement: 'top',
-        trigger: 'manual' // Use 'manual' trigger to control tooltip manually
+        trigger: 'manual'
     });
     const urlParams = new URLSearchParams(window.location.search);
     $("#alert-rule-name").val(urlParams.get('alertRule_name'));
     $('#evaluate-for').tooltip({
-        title: 'Enter the value less than the previous',
+        title: 'Evaluate for interval must be greater than evaluation interval',
         placement: 'top',
-        trigger: 'manual' // Use 'manual' trigger to control tooltip manually
+        trigger: 'manual' 
     });
     $('#evaluate-for').on('input', function () {
         let evaluateEveryValue = parseInt($('#evaluate-every').val());
@@ -85,7 +85,7 @@ $(document).ready(function () {
 
         if (evaluateForValue > evaluateEveryValue) {
             $(this).addClass('border-danger'); // Add red border
-            $(this).attr('title', 'Enter a value less than or equal to Evaluate Every');
+            $(this).attr('title', 'Evaluate for interval must be greater than evaluation interval');
             $(this).tooltip('show'); // Show tooltip
             submitbtn.prop('disabled',true);
         } else {
