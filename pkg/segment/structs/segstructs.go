@@ -768,7 +768,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"sigfig":           {},
 	"searchmatch":      {},
 	"nullif":           {},
-	"ipmask":           {},
 	"object_to_array":  {},
 	"printf":           {},
 	"tojson":           {},
@@ -778,9 +777,9 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"strptime":         {},
 	"cluster":          {},
 	"getfields":        {},
+	"isnum":            {},
 	"isnotnull":        {},
 	"typeof":           {},
-	"replace":          {},
 	"spath":            {},
 	"eventcount":       {},
 }
