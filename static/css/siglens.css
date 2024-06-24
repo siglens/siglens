@@ -30,6 +30,10 @@
     --fw-500: 500;
     --fw-900: 900;
 
+    --color-normal: #53DB6E;
+    --color-pending: #F4BB20;
+    --color-firing: #F55759;
+
     --lavender-1: #B4A6E6;
     --lavender-2: #826CE1;
     --orange-1: #F2A52B;
