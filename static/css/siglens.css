@@ -5419,9 +5419,6 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 .metrics-dropdown li {
     padding: 10px;
 }
-.metrics-dropdown li.di {
-    padding-left: 20px; /* Additional padding for left indent */
-}
 .metrics-dropdown li.metrics-summary-metrics-link {
     padding-left: 20px; /* Additional padding for left indent */
 }
@@ -5442,14 +5439,14 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 }
 
 .metric-summary-searchcontainer{
-    display:flex !important;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: space-between;
-  }
-  .metric-summary-search{
-    width:100%;
-  }
+  display:flex !important;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.metric-summary-search{
+  width:100%;
+}
 
 .metric-container{
   display: flex;
