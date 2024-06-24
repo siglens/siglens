@@ -38,8 +38,8 @@ let navbarComponent = `
                 <span class="nav-link-text">Metrics</span>
             </a>
             <ul class="metrics-dropdown">
-                <a href="./metrics-explorer.html"><li class="di">Explorer</li></a>
-                <a href="./metric-summary.html"><li class="di">Summary</li></a>
+                <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
+                <a href="./metric-summary.html"><li class="metrics-summary-metrics-link">Summary</li></a>
             </ul>
         </div>
         <div class="menu nav-slos" title="SLOs">
@@ -196,6 +196,11 @@ $(document).ready(function () {
         event.preventDefault();
         $(".help-options").slideToggle(200);
     });
+    $(".nav-links").on("click", function () {
+        $(".metrics-dropdown").hide();
+        $(".help-options").slideUp(200);
+    });
+    
     $(".metrics-dropdown-toggle").click(function (event) {
         event.stopPropagation();
         $(".metrics-dropdown").toggle();
