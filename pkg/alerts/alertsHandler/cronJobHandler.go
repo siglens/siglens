@@ -223,7 +223,7 @@ func evaluateLogAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) 
 
 	if isResultsEmpty {
 		// Should not return here, as this can mean, there are no valid logs that satisfies the Alert Query.
-		// This should be considered as a normal state. And we should update the alert state to Inactive.
+		// This should be considered as a normal state. And we should update the alert state to Normal.
 		log.Warnf("ALERTSERVICE: evaluateLogAlert: Empty response returned by server.")
 
 		// We should call the update here instead of letting the execution go to the evaluation of the conditions.
@@ -350,15 +350,15 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 
 	if isResultsEmpty {
 		// Should not return here, as this can mean, there are no valid logs that satisfies the Alert Query.
-		// This should be considered as a normal state. And we should update the alert state to Inactive.
+		// This should be considered as a normal state. And we should update the alert state to Normal.
 		log.Warnf("MinionSearch: evaluate: Empty response returned by server.")
 
 		// We should call the update here instead of letting the execution go to the evaluation of the conditions.
 		// This is because, we return -1 as the result, when there are no logs that satisfies the query.
 		// And the condition in the evaluation can be looking for a value that is (>, <, =, !=) -1.
-		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Inactive, alertutils.AlertNormal)
+		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Normal, alertutils.AlertNormal)
 		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateMinionSearch: Error in updateMinionSearchStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Inactive, msToEvaluate.AlertName, err)
+			log.Errorf("ALERTSERVICE: evaluateMinionSearch: Error in updateMinionSearchStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Normal, msToEvaluate.AlertName, err)
 		}
 		return
 	}
@@ -375,9 +375,9 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 			return
 		}
 	} else {
-		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Inactive, alertutils.AlertNormal)
+		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Normal, alertutils.AlertNormal)
 		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateMinionSearch: Error in updateMinionSearchStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Inactive, msToEvaluate.AlertName, err)
+			log.Errorf("ALERTSERVICE: evaluateMinionSearch: Error in updateMinionSearchStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Normal, msToEvaluate.AlertName, err)
 		}
 	}
 }
