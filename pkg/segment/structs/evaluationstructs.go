@@ -357,6 +357,57 @@ func (self *SortExpr) ReleaseProcessedSegmentsLock() {
 	self.processedSegmentsLock.Unlock()
 }
 
+func findNullFields(fields []string, fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	nullFields := []string{}
+	for _, field := range fields {
+		val, exists := fieldToValue[field]
+		if !exists {
+			return []string{}, fmt.Errorf("findNullFields: Expression has a field for which value is not present")
+		}
+		if val.Dtype == utils.SS_DT_BACKFILL {
+			nullFields = append(nullFields, field)
+		}
+	}
+
+	return nullFields, nil
+}
+
+func (self *BoolExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *NumericExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *StringExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *RenameExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *ConcatExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *TextExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *ValueExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *ConditionExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *RexExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
 // Evaluate this BoolExpr to a boolean, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
@@ -1219,6 +1270,35 @@ func handleNoArgFunction(op string) (float64, error) {
 	}
 }
 
+func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure, functionName string) (string, error) {
+	switch functionName {
+	case "validate":
+		for _, cvPair := range self.ConditionValuePairs {
+			res, err := cvPair.Condition.Evaluate(fieldToValue)
+			if err != nil {
+				nullFields, nullFieldsErr := cvPair.Condition.GetNullFields(fieldToValue)
+				if nullFieldsErr != nil {
+					return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while getting null fields, err: %v fieldToValue: %v", nullFieldsErr, fieldToValue)
+				}
+				if len(nullFields) > 0 {
+					continue
+				}
+				return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating condition, err: %v fieldToValue: %v", err, fieldToValue)
+			}
+			if !res {
+				val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
+				if err != nil {
+					return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating value, err: %v fieldToValue: %v", err, fieldToValue)
+				}
+				return val, nil
+			}
+		}
+		return "", nil
+	default:
+		return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Unknown function name: %s", functionName)
+	}
+}
+
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
@@ -1628,6 +1708,46 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 	return str, nil
 }
 
+func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+
+	for _, cvPair := range self.ConditionValuePairs {
+		res, err := cvPair.Condition.Evaluate(fieldToValue)
+		if err != nil {
+			nullFields, err2 := cvPair.Condition.GetNullFields(fieldToValue)
+			if err2 == nil && len(nullFields) > 0 {
+				continue
+			}
+			return "", fmt.Errorf("handleCaseFunction: Error while evaluating condition, err: %v", err)
+		}
+		if res {
+			val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
+			if err != nil {
+				return "", fmt.Errorf("handleCaseFunction: Error while evaluating value, err: %v", err)
+			}
+			return val, nil
+		}
+	}
+
+	return "", nil
+}
+
+func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+	for _, valueExpr := range self.ValueList {
+		nullFields, err := valueExpr.GetNullFields(fieldToValue)
+		if err != nil || len(nullFields) > 0 {
+			continue
+		}
+
+		val, err := valueExpr.EvaluateValueExprAsString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("handleCoalesceFunction: Error while evaluating value, err: %v", err)
+		}
+		return val, nil
+	}
+
+	return "", nil
+}
+
 // Field may come from BoolExpr or ValueExpr
 func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 
@@ -1651,6 +1771,12 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 		} else {
 			return falseValue, nil
 		}
+	case "validate":
+		return handleComparisonAndConditionalFunctions(self, fieldToValue, self.Op)
+	case "case":
+		return handleCaseFunction(self, fieldToValue)
+	case "coalesce":
+		return handleCoalesceFunction(self, fieldToValue)
 	default:
 		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: unsupported operation: %v", self.Op)
 	}
@@ -1698,6 +1824,9 @@ func (self *ConditionExpr) GetFields() []string {
 	}
 	for _, pair := range self.ConditionValuePairs {
 		fields = append(fields, pair.Condition.GetFields()...)
+	}
+	for _, valueExpr := range self.ValueList {
+		fields = append(fields, valueExpr.GetFields()...)
 	}
 	return fields
 }
