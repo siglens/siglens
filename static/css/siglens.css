@@ -19,6 +19,9 @@
 
 :root {
     --black: #000;
+        --color-normal: #53DB6E;
+    --color-pending: #F4BB20;
+    --color-firing: #F55759;
     --white: #fff;
     --error: #f00;
     --error-trace: #E93125;
