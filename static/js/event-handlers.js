@@ -207,8 +207,7 @@ async function dashboardRangeItemHandler(evt){
     if(currentPanel) {
         if(currentPanel.queryData) {
             if(currentPanel.chartType === "Line Chart" || currentPanel.queryType === "metrics") {
-                currentPanel.queryData.start = filterStartDate.toString();
-                currentPanel.queryData.end = filterEndDate.toString();
+                metricsExplorerDatePickerHandler(evt);
             } else {
                 currentPanel.queryData.startEpoch = filterStartDate
                 currentPanel.queryData.endEpoch = filterEndDate
@@ -223,6 +222,7 @@ async function dashboardRangeItemHandler(evt){
                     if(panel.chartType === "Line Chart" || panel.queryType === "metrics") {
                         panel.queryData.start = filterStartDate.toString();
                         panel.queryData.end = filterEndDate.toString();
+                        metricsExplorerDatePickerHandler(evt);
                     } else {
                         panel.queryData.startEpoch = filterStartDate
                         panel.queryData.endEpoch = filterEndDate

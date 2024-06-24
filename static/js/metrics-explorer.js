@@ -28,8 +28,8 @@ let previousStartEpoch = null;
 let previousEndEpoch = null;
 let rawTimeSeriesData=[];
 let allFunctions=[];
-
-
+let mergedGraphContainer=$('#merged-graph-container')
+let mergedGraphDiv = $('.merged-graph')
 // Theme
 let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
 let purple = ["#dbcdfa", "#c8b3fb", "#a082fa", "#8862eb", "#764cd8", "#5f36ac", "#27064c"]
@@ -49,9 +49,18 @@ $(document).ready(async function() {
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
     allFunctions = await getFunctions();
+    checkCurrentPage();
     addQueryElement();
 });
 
+async function checkCurrentPage() {
+    var currentPage = window.location.pathname;
+    if (currentPage.includes("dashboard.html")) {
+        mergedGraphContainer = $('.panelDisplay #merged-graph-container')
+        mergedGraphContainer.show();
+        $('#panEdit-panel').hide();
+    } 
+}
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
     $.each($(".range-item.active"), function () {
@@ -60,7 +69,7 @@ async function metricsExplorerDatePickerHandler(evt) {
     var selectedId = $(evt.currentTarget).attr("id");
     $(evt.currentTarget).addClass('active');
     datePickerHandler(selectedId, "now", selectedId);
-
+    console.log("Selected date range: " + selectedId,filterStartDate);
     await refreshMetricsGraphs();
 
     $('#daterangepicker').hide();
@@ -73,7 +82,7 @@ $('#add-formula').on('click', addFormulaElement);
 $('.refresh-btn').on("click", refreshMetricsGraphs);
 
 // Toggle switch between merged graph and single graphs 
-$('#toggle-switch').on('change', function() {
+$('#graph-toggle-switch').on('change', function() {
     if ($(this).is(':checked')) {
         $('#metrics-graphs').show();
         $('#merged-graph-container').hide();
@@ -771,7 +780,7 @@ function updateCloseIconVisibility() {
     $('.remove-query').toggle(numQueries > 1);
 }
 
-function addVisualizationContainer(queryName, seriesData, queryString) {
+function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
      
     var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
     if (existingContainer.length === 0){
@@ -895,7 +904,8 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
 
     lineCharts[queryName] = lineChart;
     updateGraphWidth();
-    mergeGraphs(chartType)
+    console.log(panelId)
+    mergeGraphs(chartType, panelId)
 }
 
 function removeVisualizationContainer(queryName) {
@@ -1110,24 +1120,29 @@ function updateLineCharts(lineStyle, stroke) {
 }
 
 // Merge Graphs in one
-function mergeGraphs(chartType) {
+function mergeGraphs(chartType, panelId) {
     var visualizationContainer = $(`
         <div class="merged-graph-name"></div>
         <div class="merged-graph"></div>`);
-
-    $('#merged-graph-container').empty().append(visualizationContainer);
-    
+    // $('#merged-graph-container').empty().append(visualizationContainer);
+    if(panelId !== undefined && panelId !== -1){
+        $(`#panel${panelId} #merged-graph-container`).empty().append(visualizationContainer);
+        mergedGraphDiv = $(`#panel${panelId} .merged-graph`);
+    }else{
+        mergedGraphContainer.empty().append(visualizationContainer)
+        mergedGraphDiv = $('.panelDisplay .merged-graph');
+    }
     var mergedCanvas = $('<canvas></canvas>');
 
-    $('.merged-graph').empty().append(mergedCanvas);
+    mergedGraphDiv.empty().append(mergedCanvas);
     var mergedCtx = mergedCanvas[0].getContext('2d');
 
     var mergedData = {
         labels: [],
         datasets: []
     };
+    console.log(chartDataCollection);
     var graphNames = [];
-
     // Loop through chartDataCollection to merge datasets
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
@@ -1342,29 +1357,7 @@ function getTagKeyValue(metricName) {
     });
 }
 
-async function handleQueryAndVisualize(queryName, queryDetails) {
-    let queryString;
-    if(queryDetails.state === "builder"){
-        queryString = createQueryString(queryDetails);
-    }else {
-        queryString = queryDetails.rawQueryInput;
-    }
-    await getMetricsData(queryName, queryString);
-    const chartData = await convertDataForChart(rawTimeSeriesData);
-    addVisualizationContainer(queryName, chartData, queryString);
-}
 
-async function getQueryDetails(queryName, queryDetails){
-
-    await handleQueryAndVisualize(queryName, queryDetails)
-
-    // Check if the query name is present in any formulas and re-run the formula if so
-    for (let formulaId in formulas) {
-        if (formulas[formulaId].queryNames.includes(queryName)) {
-            await getMetricsDataForFormula(formulaId, formulas[formulaId]);
-        }
-    }
-}
 
 function createQueryString(queryObject) {
     const { metrics, everywhere, everything, aggFunction, functions } = queryObject;
@@ -1415,16 +1408,11 @@ async function getFunctions() {
         return res; 
 }
 
-async function refreshMetricsGraphs(){
-    const newMetricNames = await getMetricNames();
-    newMetricNames.metricNames.sort();
-  
-    $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
-    if(queries["a"].metrics){ // only if the first query is not empty
-        // Update graph for each query
-        Object.keys(queries).forEach(async function(queryName) {
-            var queryDetails = queries[queryName];
-    
+async function refreshMetricsGraphs(metricsQueryData){
+    if(metricsQueryData !== undefined){
+        queries = metricsQueryData;
+        Object.keys(metricsQueryData).forEach(async function(queryName) {
+            var queryDetails = metricsQueryData[queryName];
             const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
             availableEverywhere = tagsAndValue.availableEverywhere.sort();
             availableEverything = tagsAndValue.availableEverything[0].sort();
@@ -1434,14 +1422,33 @@ async function refreshMetricsGraphs(){
             
             await handleQueryAndVisualize(queryName, queryDetails);
         });
-   }
-
-   if(Object.keys(formulas).length > 0){
-        // Update graph for each formula
-        Object.keys(formulas).forEach(function(formulaId){
-            getMetricsDataForFormula(formulaId, formulas[formulaId])
-        });
-   }
+    }else{
+        const newMetricNames = await getMetricNames();
+        newMetricNames.metricNames.sort();
+    
+        $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
+        if(queries["a"].metrics){ // only if the first query is not empty
+            // Update graph for each query
+            Object.keys(queries).forEach(async function(queryName) {
+                var queryDetails = queries[queryName];
+        
+                const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
+                availableEverywhere = tagsAndValue.availableEverywhere.sort();
+                availableEverything = tagsAndValue.availableEverything[0].sort();
+                const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
+                queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
+                queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
+                
+                await handleQueryAndVisualize(queryName, queryDetails);
+            });
+        }
+        if(Object.keys(formulas).length > 0){
+                // Update graph for each formula
+                Object.keys(formulas).forEach(function(formulaId){
+                    getMetricsDataForFormula(formulaId, formulas[formulaId])
+                });
+        }
+    }
 }
 
 function updateChartColorsBasedOnTheme() {
@@ -1473,4 +1480,3 @@ function getGraphGridColors() {
 
     return { gridLineColor, tickColor };
 }
-

@@ -272,6 +272,33 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
     }
 }
 
+async function runPanelMetricsQuery(data, panelId) {
+    $('body').css('cursor', 'progress');
+    console.log("in runPanelMetricsQuery", data)
+    if(data !== null){
+        if(data.length > 0){
+            filterStartDate = data[0].start;
+            filterEndDate = data[0].end;
+        }
+        for( let i = 0 ; i < data.length; i++ ) {
+            var queryDetails = data[i];
+            queryDetails.state = 'raw';
+            queryDetails.rawQueryInput = data[i].queries[0].query
+            await getQueryDetails(data[i].queries[0].name, queryDetails, panelId);
+            console.log("in runPanelMetricsQuery", queryDetails)
+        }
+    }
+    $(`#panel${panelId} #panelLogResultsGrid`).hide();
+    $(`#panel${panelId} #empty-response`).empty();
+    $(`#panel${panelId} #corner-popup`).hide();
+    $(`#panel${panelId} #empty-response`).hide();
+    $(`#panel${panelId} .panEdit-panel`).hide();
+    $(`#panel${panelId} #merged-graph-container`).show();
+    $('body').css('cursor', 'default');
+    $(`#panel${panelId} .panel-body #panel-loading`).hide();
+    
+}
+
 function runPanelLogsQuery(data, panelId,currentPanel,queryRes) {
     return new Promise(function(resolve, reject) {
         $('body').css('cursor', 'progress');
@@ -801,6 +828,9 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
     if(!currentPanel.chartType){
         panelProcessEmptyQueryResults("Please select a suitable chart type.",panelId)
     }
+    $('#merged-graph-container').hide();
+    $(`#panel${panelId} #merged-graph-container`).hide();
+    
     switch (currentPanel.chartType) {
         case "Data Table":
         case "loglines":
@@ -812,9 +842,16 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
             renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
             break;
         case "Line Chart":
-            let startTime = (new Date()).getTime();
-            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,"")
-            break;
+            $('.panelDisplay .panEdit-panel').hide();
+            $(`#panel${panelId} #panelLogResultsGrid`).hide();
+            $(`#panel${panelId} #empty-response`).empty();
+            $(`#panel${panelId} #corner-popup`).hide();
+            $(`#panel${panelId} #empty-response`).hide();
+            $(`#panel${panelId} .panEdit-panel`).hide();
+            $(`#panel${panelId} #merged-graph-container`).show();
+            // let startTime = (new Date()).getTime();
+            // processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,"")
+            // break;
         case "number":
             
             if (currentPanel.unit === "" || currentPanel.dataType === "none" || currentPanel.dataType === ""){
@@ -822,8 +859,8 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
                 currentPanel.dataType = "none"
             }
             if (currentPanel.queryType == 'metrics'){
-                let startTime = (new Date()).getTime();
-                processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,currentPanel.dataType)
+                // let startTime = (new Date()).getTime();
+                // processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,currentPanel.dataType)
             }else{
                 renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
             }
@@ -854,5 +891,30 @@ function setIndexDisplayValue(selectedSearchIndex){
                 indexValues.splice(indexIndex, 1);
             }
         });
+    }
+}
+
+async function handleQueryAndVisualize(queryName, queryDetails, panelId) {
+    let queryString;
+    if(queryDetails.state === "builder"){
+        queryString = createQueryString(queryDetails);
+    }else {
+        queryString = queryDetails.rawQueryInput;
+    }
+    await getMetricsData(queryName, queryString);
+    const chartData = await convertDataForChart(rawTimeSeriesData);
+    addVisualizationContainer(queryName, chartData, queryString, panelId);
+    mergedGraph.update();
+}
+
+async function getQueryDetails(queryName, queryDetails, panelId){
+console.log("getQueryDetails", queryName, queryDetails, panelId)
+    await handleQueryAndVisualize(queryName, queryDetails, panelId)
+
+    // Check if the query name is present in any formulas and re-run the formula if so
+    for (let formulaId in formulas) {
+        if (formulas[formulaId].queryNames.includes(queryName)) {
+            await getMetricsDataForFormula(formulaId, formulas[formulaId]);
+        }
     }
 }
