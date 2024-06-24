@@ -23,25 +23,35 @@ import (
 	"github.com/go-co-op/gocron"
 )
 
+type AlertType uint8
+
+const (
+	AlertTypeLogs AlertType = iota + 1
+	AlertTypeMetrics
+	AlertTypeMinion
+)
+
 type AlertDetails struct {
-	AlertId         string              `json:"alert_id" gorm:"primaryKey"`
-	AlertName       string              `json:"alert_name" gorm:"not null;unique"`
-	State           AlertState          `json:"state"`
-	CreateTimestamp time.Time           `json:"create_timestamp" gorm:"autoCreateTime:milli" `
-	ContactID       string              `json:"contact_id" gorm:"foreignKey:ContactId;"`
-	ContactName     string              `json:"contact_name"`
-	Labels          []AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
-	SilenceMinutes  uint64              `json:"silence_minutes"`
-	QueryParams     QueryParams         `json:"queryParams" gorm:"embedded"`
-	Condition       AlertQueryCondition `json:"condition"`
-	Value           float32             `json:"value"`
-	EvalFor         uint64              `json:"eval_for"`
-	EvalInterval    uint64              `json:"eval_interval"`
-	Message         string              `json:"message"`
-	CronJob         gocron.Job          `json:"cron_job" gorm:"embedded"`
-	NodeId          uint64              `json:"node_id"`
-	NotificationID  string              `json:"notification_id" gorm:"foreignKey:NotificationId;"`
-	OrgId           uint64              `json:"org_id"`
+	AlertId                  string              `json:"alert_id" gorm:"primaryKey"`
+	AlertType                AlertType           `json:"alert_type"`
+	AlertName                string              `json:"alert_name" gorm:"not null;unique"`
+	State                    AlertState          `json:"state"`
+	CreateTimestamp          time.Time           `json:"create_timestamp" gorm:"autoCreateTime:milli" `
+	ContactID                string              `json:"contact_id" gorm:"foreignKey:ContactId;"`
+	ContactName              string              `json:"contact_name"`
+	Labels                   []AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
+	SilenceMinutes           uint64              `json:"silence_minutes"`
+	QueryParams              QueryParams         `json:"queryParams" gorm:"embedded"`
+	MetricsQueryParamsString string              `json:"metricsQueryParams"`
+	Condition                AlertQueryCondition `json:"condition"`
+	Value                    float32             `json:"value"`
+	EvalFor                  uint64              `json:"eval_for"`      // in minutes
+	EvalInterval             uint64              `json:"eval_interval"` // in minutes
+	Message                  string              `json:"message"`
+	CronJob                  gocron.Job          `json:"cron_job" gorm:"embedded"`
+	NodeId                   uint64              `json:"node_id"`
+	NotificationID           string              `json:"notification_id" gorm:"foreignKey:NotificationId;"`
+	OrgId                    uint64              `json:"org_id"`
 }
 
 func (AlertDetails) TableName() string {
@@ -61,6 +71,7 @@ func (AlertLabel) TableName() string {
 type AlertHistoryDetails struct {
 	ID               uint      `gorm:"primaryKey;autoIncrement:true"`
 	AlertId          string    `json:"alert_id"`
+	AlertType        AlertType `json:"alert_type"`
 	EventDescription string    `json:"event_description"`
 	UserName         string    `json:"user_name"`
 	EventTriggeredAt time.Time `json:"event_triggered_at"`
@@ -196,6 +207,12 @@ type MinionSearch struct {
 	LogTextHash     string              `json:"log_text_hash,omitempty"`
 	LogLevel        string              `json:"log_level,omitempty"`
 	OrgId           uint64              `json:"org_id"`
+}
+
+type MetricAlertData struct {
+	SeriesId  string  `json:"series_id"`
+	Timestamp uint32  `json:"timestamp"`
+	Value     float64 `json:"value"`
 }
 
 func (MinionSearch) TableName() string {

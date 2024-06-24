@@ -47,6 +47,7 @@ $(document).ready(async () => {
     // If query string found , then do search
     if (window.location.search) {
         data = getInitialSearchFilter(false, false);
+        initialSearchData = data;
         doSearch(data);
     } else {
         setIndexDisplayValue(selectedSearchIndex);
@@ -65,6 +66,7 @@ $(document).ready(async () => {
         $('#run-filter-btn').html(' ');
         $("#query-builder-btn").html(" ");
         $("#custom-chart-tab").hide();
+        $('#initial-response').show();
     }
 
     $('body').css('cursor', 'default');
