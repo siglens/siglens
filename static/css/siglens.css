@@ -1913,16 +1913,6 @@ div.dts div.dataTables_scrollBody table {
     background-size: contain;
 }
 
-#viewbutton {
-    background-image: url(../assets/view-icon.svg);
-    height: 14px;
-    width: 19px;
-    cursor: pointer;
-    background-color: transparent;
-    border-width: 0;
-    padding: 0px;
-    background-size: contain;
-}
 
 #duplicateButton{
     background-image: url(../assets/dashboard-duplicate-icon.svg);
@@ -4518,6 +4508,26 @@ color: #C8C7CC;
     float: right;
 }
 
+.test-contact-btn {
+    background-color: var(--purple-2);
+    height: 30px;
+    margin-bottom: 0px;
+    color: var(--white-0) !important;
+    float: right;
+    cursor: pointer;
+    margin-left: 12px;
+}
+
+.test-contact-btn .send-icon{
+    background-image: url(../assets/send-icon.svg);
+    height: 15px;
+    background-size: 100%;
+    width: 15px;
+    background-repeat: no-repeat;
+    margin-bottom: 0px;
+    margin-right: 6px;
+}
+
 #alerting input,.add-label-container{
     height: 32px;
 }
@@ -5096,11 +5106,10 @@ input.form-control {
     background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-hover) center center no-repeat !important;
     background-size: 46% !important;
 }
-
-#delbutton.default-dashboard-delete:hover {
-    background-image: url(../assets/dark-delete-icon-regular.svg);
-    cursor: not-allowed;
+#delbutton.default-dashboard-delete {
+    background-image:none;
 }
+
 #data-ingestion .myOrg-heading{
     font-size: 16px;
     margin-top: 20px;
@@ -5383,4 +5392,8 @@ input.form-control {
 }
 #sample-data{
     display: flex;
+}
+
+#index-del-btn-traces{
+    background-image: none;
 }
