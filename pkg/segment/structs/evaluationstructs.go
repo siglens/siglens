@@ -1276,6 +1276,13 @@ func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue m
 		for _, cvPair := range self.ConditionValuePairs {
 			res, err := cvPair.Condition.Evaluate(fieldToValue)
 			if err != nil {
+				nullFields, nullFieldsErr := cvPair.Condition.GetNullFields(fieldToValue)
+				if nullFieldsErr != nil {
+					return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while getting null fields, err: %v fieldToValue: %v", nullFieldsErr, fieldToValue)
+				}
+				if len(nullFields) > 0 {
+					continue
+				}
 				return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating condition, err: %v fieldToValue: %v", err, fieldToValue)
 			}
 			if !res {
