@@ -197,23 +197,16 @@ func handleAlertCondition(alertToEvaluate *alertutils.AlertDetails, isAlertCondi
 			}
 		}
 	} else {
-		lastAlertHistory, err := GetLatestAlertHistory(alertToEvaluate.AlertId)
-		if err != nil {
-			log.Errorf("handleAlertCondition: Error getting latest alert history. Alert=%+v & err=%+v", alertToEvaluate.AlertName, err)
-		}
-
-		err = updateAlertStateAndCreateAlertHistory(alertToEvaluate, alertutils.Normal, alertutils.AlertNormal)
+		err := updateAlertStateAndCreateAlertHistory(alertToEvaluate, alertutils.Normal, alertutils.AlertNormal)
 		if err != nil {
 			log.Errorf("ALERTSERVICE: handleAlertCondition: Error in updateAlertStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v", alertutils.Normal, alertToEvaluate.AlertName, err)
 		}
 
-		// If the previous state was Firing, then we should send the Alert Notification.
+		// The Alert state is Normal, then we should send the Alert Notification.
 		// The cooldown period on the Notification Handler will decide if the notification should be sent. So that false positives are avoided.
-		if lastAlertHistory != nil && lastAlertHistory.AlertState == alertutils.Firing {
-			err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId, "The Alert State has been updated to Normal.")
-			if err != nil {
-				return fmt.Errorf("handleAlertCondition: Could not send Alert Notification. found error = %v", err)
-			}
+		err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId, "The Alert State has been updated to Normal.")
+		if err != nil {
+			return fmt.Errorf("handleAlertCondition: Could not send Alert Notification. found error = %v", err)
 		}
 	}
 
@@ -235,9 +228,9 @@ func evaluateLogAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) 
 		// We should call the update here instead of letting the execution go to the evaluation of the conditions.
 		// This is because, we return -1 as the result, when there are no logs that satisfies the query.
 		// And the condition in the evaluation can be looking for a value that is (>, <, =, !=) -1.
-		err := updateAlertStateAndCreateAlertHistory(alertToEvaluate, alertutils.Normal, alertutils.AlertNormal)
+		err := handleAlertCondition(alertToEvaluate, false, "")
 		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateLogAlert: Error in updateAlertStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Inactive, alertToEvaluate.AlertName, err)
+			log.Errorf("ALERTSERVICE: evaluateLogAlert: Error in handleAlertCondition. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
 		}
 		return
 	}
