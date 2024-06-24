@@ -142,22 +142,22 @@ func applyOffset(num int64, unit utils.TimeUnit, t time.Time) (time.Time, error)
     }
 }
 
-func CalculateRelativeTime(relTimeModifier ast.RelativeTimeModifier, currTime time.Time) (int64, error) {
+func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (int64, error) {
     var epoch int64 = 0
     var err error
-    if relTimeModifier.AbsoluteTime == "now" {
+    if timeModifier.AbsoluteTime == "now" {
         epoch = currTime.UnixMilli()
-    } else if relTimeModifier.AbsoluteTime == "1" {
+    } else if timeModifier.AbsoluteTime == "1" {
         return 1, nil
-    } else if relTimeModifier.AbsoluteTime != "" {
-        epoch, err = ConvertCustomDateTimeFormatToEpochMs(relTimeModifier.AbsoluteTime)
+    } else if timeModifier.AbsoluteTime != "" {
+        epoch, err = ConvertCustomDateTimeFormatToEpochMs(timeModifier.AbsoluteTime)
         if err != nil {
             return 0, err
         }
     } else {
-        offsetNum := relTimeModifier.RelativeTimeOffset.Offset
-        offsetTimeUnit := relTimeModifier.RelativeTimeOffset.TimeUnit
-        snap := relTimeModifier.Snap
+        offsetNum := timeModifier.RelativeTime.RelativeTimeOffset.Offset
+        offsetTimeUnit := timeModifier.RelativeTime.RelativeTimeOffset.TimeUnit
+        snap := timeModifier.RelativeTime.Snap
         finalTime := currTime
         if offsetNum != 0 {
             finalTime, err = applyOffset(offsetNum, offsetTimeUnit, finalTime)
@@ -3412,8 +3412,8 @@ EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / Relati
     var endEpoch int64 = 0
     var err error
 
-    earliestTimeModifier := earliestTime.(ast.RelativeTimeModifier)
-    latestTimeModifier := latestTime.(ast.RelativeTimeModifier)
+    earliestTimeModifier := earliestTime.(ast.TimeModifier)
+    latestTimeModifier := latestTime.(ast.TimeModifier)
 
     currTime := time.Now()
     startEpoch, err = CalculateRelativeTime(earliestTimeModifier, currTime)
@@ -3442,7 +3442,7 @@ EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTim
     var startEpoch int64 = 0
     var err error
 
-    earliestTimeModifier := earliestTime.(ast.RelativeTimeModifier)
+    earliestTimeModifier := earliestTime.(ast.TimeModifier)
 
     startEpoch, err = CalculateRelativeTime(earliestTimeModifier, time.Now())
     if err != nil {
@@ -3519,11 +3519,11 @@ RelativeTimestamp <- defaultTime:("now" / "1")? offset:(Offset)? snapParam:(Snap
             return nil, fmt.Errorf("Spl peg: Relative timestamp for default time, err: %v", err)
         }
 
-        relTimeModifier := ast.RelativeTimeModifier{
+        timeModifier := ast.TimeModifier{
             AbsoluteTime: defTime,
         }
 
-        return relTimeModifier, nil
+        return timeModifier, nil
     }
 
     if offset == nil && snapParam == nil {
@@ -3541,17 +3541,19 @@ RelativeTimestamp <- defaultTime:("now" / "1")? offset:(Offset)? snapParam:(Snap
         relTimeOffset.TimeUnit = offset.(ast.RelativeTimeOffset).TimeUnit
     } 
 
-    relTimeModifier := ast.RelativeTimeModifier{
-        RelativeTimeOffset: relTimeOffset,
-        Snap: snap,
+    timeModifier := ast.TimeModifier{
+        RelativeTime: ast.RelativeTimeModifier{
+            RelativeTimeOffset: relTimeOffset,
+            Snap: snap,
+        },
     }
 
-    return relTimeModifier, nil
+    return timeModifier, nil
 }
 
 
 AbsoluteTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] {
-    relTimeModifier := ast.RelativeTimeModifier{
+    relTimeModifier := ast.TimeModifier{
         AbsoluteTime: string(c.text),
     }
     return relTimeModifier, nil

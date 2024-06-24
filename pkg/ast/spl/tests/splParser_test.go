@@ -7795,189 +7795,194 @@ func Test_Format_cmd_Incomplete_RowCol_Options(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func getTimeDiff(daylight bool) int64 {
-	localTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	if daylight {
-		localTime = time.Date(2024, time.January, 1, 0, 0, 0, 0, time.Local)
-	}
-
-	edtLocation, _ := time.LoadLocation("America/New_York")
-	edtTime := localTime.In(edtLocation)
-
-	_, localOffset := localTime.Zone()
-	_, edtOffset := edtTime.Zone()
-
-	diff := (edtOffset - localOffset)
-	return int64(diff) * 1000
-}
-
 func Test_CalculateRelativeTime_1(t *testing.T) {
-	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	// w0
-	rtm := ast.RelativeTimeModifier{
-		Snap: "w0",
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			Snap: "w0",
+		},
 	}
-	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
 	assert.Nil(t, err)
-	// Sunday, June 2, 2024 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1717300800000)+getTimeDiff(false), epoch)
+	// Sunday
+	expectedEpoch := time.Date(2024, time.June, 2, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
 }
 
 func Test_CalculateRelativeTime_2(t *testing.T) {
-	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	// -1h@h
-	rtm := ast.RelativeTimeModifier{
-		RelativeTimeOffset: ast.RelativeTimeOffset{
-			Offset:   -1,
-			TimeUnit: utils.TMHour,
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -1,
+				TimeUnit: utils.TMHour,
+			},
+			Snap: strconv.Itoa(int(utils.TMHour)),
 		},
-		Snap: strconv.Itoa(int(utils.TMHour)),
 	}
-	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
 	assert.Nil(t, err)
-	// Wednesday, June 5, 2024 12:00:00 PM UTC-4
-	assert.Equal(t, int64(1717603200000)+getTimeDiff(false), epoch)
+
+	expectedEpoch := time.Date(2024, time.June, 5, 12, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
 }
 
 func Test_CalculateRelativeTime_3(t *testing.T) {
-	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	// @-24hr
-	rtm := ast.RelativeTimeModifier{
-		RelativeTimeOffset: ast.RelativeTimeOffset{
-			Offset:   -24,
-			TimeUnit: utils.TMHour,
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -24,
+				TimeUnit: utils.TMHour,
+			},
 		},
 	}
-	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
 	assert.Nil(t, err)
-	// Tuesday, June 4, 2024 1:37:05 PM UTC-4
-	assert.Equal(t, int64(1717522625000)+getTimeDiff(false), epoch)
+
+	expectedEpoch := time.Date(2024, time.June, 4, 13, 37, 5, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
 }
 
 func Test_CalculateRelativeTime_4(t *testing.T) {
-	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	// -y@w0
-	rtm := ast.RelativeTimeModifier{
-		RelativeTimeOffset: ast.RelativeTimeOffset{
-			Offset:   -1,
-			TimeUnit: utils.TMYear,
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -1,
+				TimeUnit: utils.TMYear,
+			},
+			Snap: "w0",
 		},
-		Snap: "w0",
 	}
-	epoch, err := spl.CalculateRelativeTime(rtm, time)
+
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
 	assert.Nil(t, err)
-	// Sunday, June 4, 2023 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1685851200000)+getTimeDiff(false), epoch)
+	// Sunday
+	expectedEpoch := time.Date(2023, time.June, 4, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
 }
 
 func Test_CalculateRelativeTime_5(t *testing.T) {
-	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	// @w3
-	rtm := ast.RelativeTimeModifier{
-		Snap: "w3",
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			Snap: "w3",
+		},
 	}
-	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
 	assert.Nil(t, err)
-	// Wednesday, June 5, 2024 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1717560000000)+getTimeDiff(false), epoch)
+	// Wednesday
+	expectedEpoch := time.Date(2024, time.June, 5, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
 }
 
 func Test_CalculateRelativeTime_6(t *testing.T) {
-	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	// -7d@m
-	rtm := ast.RelativeTimeModifier{
-		RelativeTimeOffset: ast.RelativeTimeOffset{
-			Offset:   -7,
-			TimeUnit: utils.TMDay,
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -7,
+				TimeUnit: utils.TMDay,
+			},
+			Snap: strconv.Itoa(int(utils.TMMinute)),
 		},
-		Snap: strconv.Itoa(int(utils.TMMinute)),
 	}
-	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
 	assert.Nil(t, err)
-	// Wednesday, May 29, 2024 1:37:00 PM UTC-4
-	assert.Equal(t, int64(1717004220000)+getTimeDiff(false), epoch)
+
+	expectedEpoch := time.Date(2024, time.May, 29, 13, 37, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
 }
 
 func Test_CalculateRelativeTime_7(t *testing.T) {
-	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	// -years@year
-	rtm := ast.RelativeTimeModifier{
-		RelativeTimeOffset: ast.RelativeTimeOffset{
-			Offset:   -1,
-			TimeUnit: utils.TMYear,
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -1,
+				TimeUnit: utils.TMYear,
+			},
+			Snap: strconv.Itoa(int(utils.TMYear)),
 		},
-		Snap: strconv.Itoa(int(utils.TMYear)),
 	}
-	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
 	assert.Nil(t, err)
-	// Sunday, January 1, 2023 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1672549200000)+getTimeDiff(true), epoch)
+
+	expectedEpoch := time.Date(2023, time.January, 1, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
 }
 
 func Test_CalculateRelativeTime_8(t *testing.T) {
-	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	// @quarter
-	rtm := ast.RelativeTimeModifier{
-		Snap: strconv.Itoa(int(utils.TMQuarter)),
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			Snap: strconv.Itoa(int(utils.TMQuarter)),
+		},
 	}
-	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
 	assert.Nil(t, err)
-	// Monday, April 1, 2024 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1711944000000)+getTimeDiff(false), epoch)
+
+	expectedEpoch := time.Date(2024, time.April, 1, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
 }
 
 func Test_CalculateRelativeTime_9(t *testing.T) {
-	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	// -week@mon
-	rtm := ast.RelativeTimeModifier{
-		RelativeTimeOffset: ast.RelativeTimeOffset{
-			Offset:   -1,
-			TimeUnit: utils.TMWeek,
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -1,
+				TimeUnit: utils.TMWeek,
+			},
+			Snap: strconv.Itoa(int(utils.TMMonth)),
 		},
-		Snap: strconv.Itoa(int(utils.TMMonth)),
 	}
-	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
 	assert.Nil(t, err)
-	// Wednesday, May 1, 2024 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1714536000000)+getTimeDiff(false), epoch)
+
+	expectedEpoch := time.Date(2024, time.May, 1, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
 }
 
 func Test_CalculateRelativeTime_10(t *testing.T) {
-	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	// -qtr@month
-	rtm := ast.RelativeTimeModifier{
-		RelativeTimeOffset: ast.RelativeTimeOffset{
-			Offset:   -1,
-			TimeUnit: utils.TMQuarter,
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -1,
+				TimeUnit: utils.TMQuarter,
+			},
+			Snap: strconv.Itoa(int(utils.TMMonth)),
 		},
-		Snap: strconv.Itoa(int(utils.TMMonth)),
 	}
-	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
 	assert.Nil(t, err)
-	// Thursday, February 1, 2024 12:00:00 AM UTC-4
-	assert.Equal(t, int64(1706763600000)+getTimeDiff(true), epoch)
+
+	expectedEpoch := time.Date(2024, time.February, 1, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
 }
 
 func Test_CalculateRelativeTime_11(t *testing.T) {
-	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	// "06/19/2024:18:55:00"
-	rtm := ast.RelativeTimeModifier{
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
 		AbsoluteTime: "06/19/2024:18:55:00",
 	}
-	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
 	assert.Nil(t, err)
-	// Wednesday, June 19, 2024 6:55:00 PM UTC-4
-	assert.Equal(t, int64(1718837700000)+getTimeDiff(false), epoch)
+
+	expectedEpoch := time.Date(2024, time.June, 19, 18, 55, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
 }
 
 func Test_CalculateRelativeTime_12(t *testing.T) {
-	time := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
-	rtm := ast.RelativeTimeModifier{
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
 		AbsoluteTime: "1",
 	}
-	epoch, err := spl.CalculateRelativeTime(rtm, time)
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
 	assert.Nil(t, err)
-	// Thursday, January 1, 1970 12:00:01 AM UTC
+	// Epoch 1: January 1, 1970 12:00:01 AM UTC
 	assert.Equal(t, int64(1), epoch)
 }
 
@@ -8006,7 +8011,7 @@ func Test_ParseRelativeTimeModifier_2(t *testing.T) {
 }
 
 func Test_ParseRelativeTimeModifier_3(t *testing.T) {
-	query := `* | earliest=-1d@w4 latest=+24h`
+	query := `* | earliest=-1d@w4 latest=+1mon`
 	_, err := spl.Parse("", []byte(query))
 	assert.Nil(t, err)
 
@@ -8015,6 +8020,10 @@ func Test_ParseRelativeTimeModifier_3(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, astNode.TimeRange)
+
+	expEndTime := time.Now().AddDate(0, 1, 0).UnixMilli()
+	endTimeDiff := expEndTime - int64(astNode.TimeRange.EndEpochMs)
+	assert.True(t, endTimeDiff <= int64(1000))
 }
 
 func Test_ParseRelativeTimeModifier_4(t *testing.T) {
@@ -8027,6 +8036,13 @@ func Test_ParseRelativeTimeModifier_4(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, astNode.TimeRange)
+
+	expStartTime := time.Date(2024, time.June, 19, 18, 55, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expStartTime, int64(astNode.TimeRange.StartEpochMs))
+
+	expEndTime := time.Now().Add(24 * time.Hour).UnixMilli()
+	endTimeDiff := expEndTime - int64(astNode.TimeRange.EndEpochMs)
+	assert.True(t, endTimeDiff <= int64(1000))
 }
 
 func Test_ParseRelativeTimeModifier_5(t *testing.T) {
@@ -8039,6 +8055,12 @@ func Test_ParseRelativeTimeModifier_5(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, astNode.TimeRange)
+
+	expStartTime := time.Date(2024, time.June, 19, 18, 55, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expStartTime, int64(astNode.TimeRange.StartEpochMs))
+
+	expEndTime := time.Date(2024, time.June, 20, 18, 55, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expEndTime, int64(astNode.TimeRange.EndEpochMs))
 }
 
 func Test_ParseRelativeTimeModifier_6(t *testing.T) {
@@ -8069,6 +8091,14 @@ func Test_ParseRelativeTimeModifier_8(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, astNode.TimeRange)
+
+	expStartTime := time.Now().Add(-60 * time.Minute).UnixMilli()
+	timeDiff := expStartTime - int64(astNode.TimeRange.StartEpochMs)
+	assert.True(t, timeDiff <= int64(1000))
+
+	expEndTime := time.Now().UnixMilli()
+	endTimeDiff := expEndTime - int64(astNode.TimeRange.EndEpochMs)
+	assert.True(t, endTimeDiff <= int64(1000))
 }
 
 func Test_ParseRelativeTimeModifier_9(t *testing.T) {
@@ -8093,6 +8123,46 @@ func Test_ParseRelativeTimeModifier_10(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, astNode)
 	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_11(t *testing.T) {
+	query := `* | earliest=-1y latest=-1quarter`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	expStartTime := time.Now().AddDate(-1, 0, 0).UnixMilli()
+	timeDiff := expStartTime - int64(astNode.TimeRange.StartEpochMs)
+	assert.True(t, timeDiff <= int64(1000))
+
+	expEndTime := time.Now().AddDate(0, -4, 0).UnixMilli()
+	endTimeDiff := expEndTime - int64(astNode.TimeRange.EndEpochMs)
+	assert.True(t, endTimeDiff <= int64(1000))
+}
+
+func Test_ParseRelativeTimeModifier_12(t *testing.T) {
+	query := `* | earliest=-2mon latest=-1day`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	expStartTime := time.Now().AddDate(0, -2, 0).UnixMilli()
+	timeDiff := expStartTime - int64(astNode.TimeRange.StartEpochMs)
+	assert.True(t, timeDiff <= int64(1000))
+
+	expEndTime := time.Now().AddDate(0, 0, -1).UnixMilli()
+	endTimeDiff := expEndTime - int64(astNode.TimeRange.EndEpochMs)
+	assert.True(t, endTimeDiff <= int64(1000))
 }
 
 func Test_EventCount_Defaults(t *testing.T) {

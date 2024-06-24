@@ -80,10 +80,14 @@ type ParseError struct {
 	Expected []string `json:"expected"`
 }
 
+type TimeModifier struct {
+	RelativeTime RelativeTimeModifier
+	AbsoluteTime string
+}
+
 type RelativeTimeModifier struct {
 	RelativeTimeOffset RelativeTimeOffset
 	Snap               string
-	AbsoluteTime       string
 }
 
 type RelativeTimeOffset struct {
