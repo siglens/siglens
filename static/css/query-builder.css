@@ -466,8 +466,6 @@ a:visited.ui-button,
 .ui-tabs .ui-tabs-nav .ui-tabs-anchor{
     padding: 2px 5px;
     outline: none;
-    width: max-content;
-    text-decoration: none;
 }
 
 .disabled-tab {

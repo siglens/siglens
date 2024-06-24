@@ -5387,9 +5387,6 @@ input.form-control {
     border: none;
 }
 
-#ingest-source-tab .ui-tabs .ui-tabs-nav .ui-tabs-anchor {
-    width: max-content;
-}
 #sample-data{
     display: flex;
 }
