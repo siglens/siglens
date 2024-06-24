@@ -800,6 +800,8 @@ func (c EvalFuncChecker) IsUnsupported(funcName string) bool {
 	return found
 }
 
+var unsupportedLetColumnCommands = []string{"FormatResults", "EventCountRequest"}
+
 func CheckUnsupportedFunctions(post *QueryAggregators) error {
 
 	statsChecker := StatsFuncChecker{}
@@ -850,12 +852,7 @@ func CheckUnsupportedFunctions(post *QueryAggregators) error {
 			}
 		}
 
-		err := checkUnsupportedLetColumnCommand(agg, "FormatResults")
-		if err != nil {
-			return err
-		}
-
-		err = checkUnsupportedLetColumnCommand(agg, "EventCountRequest")
+		err := checkUnsupportedLetColumnCommand(agg)
 		if err != nil {
 			return err
 		}
@@ -863,17 +860,19 @@ func CheckUnsupportedFunctions(post *QueryAggregators) error {
 
 	return nil
 }
-func checkUnsupportedLetColumnCommand(agg *QueryAggregators, command string) error {
+func checkUnsupportedLetColumnCommand(agg *QueryAggregators) error {
 	if agg.hasLetColumnsRequest() {
 		letColumns := agg.OutputTransforms.LetColumns
-		switch command {
-		case "FormatResults":
-			if letColumns.FormatResults != nil {
-				return fmt.Errorf("checkUnsupportedFunctions: using format command is not yet supported")
-			}
-		case "EventCountRequest":
-			if letColumns.EventCountRequest != nil {
-				return fmt.Errorf("checkUnsupportedFunctions: using eventcount command is not yet supported")
+		for _, command := range unsupportedLetColumnCommands {
+			switch command {
+			case "FormatResults":
+				if letColumns.FormatResults != nil {
+					return fmt.Errorf("checkUnsupportedFunctions: using format command is not yet supported")
+				}
+			case "EventCountRequest":
+				if letColumns.EventCountRequest != nil {
+					return fmt.Errorf("checkUnsupportedFunctions: using eventcount command is not yet supported")
+				}
 			}
 		}
 	}
