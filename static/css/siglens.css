@@ -5354,3 +5354,117 @@ input.form-control {
 .tippy-box[data-placement^='right'] > .tippy-arrow::before {
     border-right-color:var(--side-nav-bg-color-regular);
 }
+.nav-metrics {
+    position: relative;
+}
+.metrics-dropdown{
+    list-style-type: none;
+    padding: 10% !important;
+    margin: 0;
+    background-color: var(--side-nav-bg-color-regular);
+    position: absolute;
+    top: 0;
+    left: 105%;
+    width: 205px;
+    z-index: 1;
+}
+ul.metrics-dropdown li, ul.metrics-dropdown li a{
+    color:#6F6B7B;
+    text-decoration: none;
+}.metrics-dropdown {
+    display: none;
+    color: var(--navbar-link-text) !important;
+    text-decoration: none;
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    left: 154px;
+    border-radius: 5px;
+    box-shadow: 0px 2px 8px 0px var(--border-shadow);
+    border: 1px solid var(--border-btn-color);
+}
+.metrics-dropdown a {
+    color: var(--navbar-link-text) !important;
+    text-decoration: none;
+} 
+.metrics-dropdown li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: transparent; 
+}
+.metrics-dropdown-toggle{
+    cursor:pointer;
+}
+
+.metrics-dropdown li:hover {
+    background-color: var(--side-nav-bg-color-selected); 
+    color:rgb(255, 255, 255);
+    border-radius: 12px;
+}
+.metrics-dropdown li {
+    padding: 10px;
+}
+.metrics-dropdown li.di {
+    padding-left: 20px; /* Additional padding for left indent */
+}
+.summary {
+    padding-bottom: 1%;
+  display:flex;
+  flex-direction: column;
+  justify-content: left;
+  overflow-y: scroll;
+  scrollbar-width: none; 
+  -ms-overflow-style: none; 
+}
+.head{
+  margin-top: 0.5%;
+}
+
+
+
+
+.firstdrop {
+  padding: 0;
+  margin-top: 0.5%;
+}
+
+.firstdrop select {
+  padding: 4% !important;
+  border-radius: 5px;
+  border: 0.3px solid rgb(181, 181, 181);
+}
+
+.icon {
+  visibility: hidden;
+}
+
+.searchcontainer{
+  display:flex !important;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.search1{
+  width:100%;
+}
+
+.metric-container{
+  display: flex;
+    justify-content:left;
+    flex-direction: column;
+    align-items: left;
+    width: 100%;
+    margin-top: 20px;
+    margin-bottom: 40px;
+    font-size: 15px;
+    font-family: "DINpro", Arial, sans-serif;
+}
+.metric-stats{
+  margin: auto;
+  float: left;
+  width: 95%;
+}
