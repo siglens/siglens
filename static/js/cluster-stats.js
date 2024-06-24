@@ -611,6 +611,9 @@ function processClusterStats(res) {
 
     function confirmIndexDeletion(e, indexName, allowDelete) {
         if(e) e.stopPropagation();
+        if (indexName && indexName.trim() === "traces") {
+            allowDelete = false;
+        }
         if($('#del-index-name-input').val().trim() === ("delete " + indexName )) {
             $('#del-index-btn').attr("disabled", false);
             allowDelete = true;

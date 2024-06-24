@@ -21,11 +21,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 	alertsqlite "github.com/siglens/siglens/pkg/alerts/alertsqlite"
+	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	"gorm.io/gorm"
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
@@ -66,6 +69,11 @@ var databaseObj database
 
 var invalidDatabaseProvider = "database provider is not configured in server.yaml"
 
+type TestContactPointRequest struct {
+	Type     string                 `json:"type"`
+	Settings map[string]interface{} `json:"settings"`
+}
+
 func ConnectSiglensDB() error {
 	databaseObj = &alertsqlite.Sqlite{}
 	if databaseObj == nil {
@@ -93,6 +101,24 @@ func ProcessVersionInfo(ctx *fasthttp.RequestCtx) {
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
+func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (string, error) {
+	if alertToBeCreated.AlertType == alertutils.AlertTypeLogs {
+		_, _, err := pipesearch.ParseQuery(alertToBeCreated.QueryParams.QueryText, 0, alertToBeCreated.QueryParams.QueryLanguage)
+		if err != nil {
+			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("error Parsing logs Query. Error=%v", err)
+		}
+		// TODO: Check if the query is a valid Stats Query. If not reject the Alert request.
+	} else if alertToBeCreated.AlertType == alertutils.AlertTypeMetrics {
+		_, _, _, _, errorLog, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToBeCreated.MetricsQueryParamsString))
+		if err != nil {
+			return errorLog, err
+		}
+	} else {
+		return fmt.Sprintf("Alert Type: %v", alertToBeCreated.AlertType), fmt.Errorf("invalid Alert Type. Alert Type must be logs or Metrics")
+	}
+	return "", nil
+}
+
 func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
@@ -112,9 +138,17 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 		utils.SendError(ctx, "Failed to unmarshal json", "", err)
 		return
 	}
+
+	// Validate Alert Type and Query
+	extraMsgToLog, err := validateAlertTypeAndQuery(&alertToBeCreated)
+	if err != nil {
+		utils.SendError(ctx, fmt.Sprintf("Failed to Create Alert. Error=%v", err), extraMsgToLog, err)
+		return
+	}
+
 	alertDataObj, err := databaseObj.CreateAlert(&alertToBeCreated)
 	if err != nil {
-		utils.SendError(ctx, "Failed to create alert", fmt.Sprintf("alert name: %v", alertToBeCreated.AlertName), err)
+		utils.SendError(ctx, fmt.Sprintf("Failed to Create Alert. Error=%v", err), fmt.Sprintf("alert name: %v", alertToBeCreated.AlertName), err)
 		return
 	}
 
@@ -171,6 +205,68 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	responseBody["message"] = "Successfully updated silence period"
 	utils.WriteJsonResponse(ctx, responseBody)
+}
+
+func ProcessTestContactPointRequest(ctx *fasthttp.RequestCtx) {
+	var testContactRequest TestContactPointRequest
+	if err := json.Unmarshal(ctx.PostBody(), &testContactRequest); err != nil {
+		utils.SendError(ctx, "Failed to unmarshal json", "Request Body: "+string(ctx.PostBody()), err)
+		return
+	}
+
+	switch testContactRequest.Type {
+	case "slack":
+		channelID, ok := testContactRequest.Settings["channel_id"].(string)
+		if !ok {
+			utils.SendError(ctx, "channel_id is required but is missing", "Request Body: "+string(ctx.PostBody()), nil)
+			return
+		}
+		slackToken, ok := testContactRequest.Settings["slack_token"].(string)
+		if !ok {
+			utils.SendError(ctx, "slack_token is required but is missing", "Request Body: "+string(ctx.PostBody()), nil)
+			return
+		}
+		channel := alertutils.SlackTokenConfig{
+			ChannelId: channelID,
+			SlToken:   slackToken,
+		}
+		err := sendSlack("Test Alert", "This is a test message to verify the Slack integration.", channel, "")
+		if err != nil {
+			utils.SendError(ctx, err.Error(), "Error sending test message to slack. Request Body:"+string(ctx.PostBody()), err)
+			return
+		}
+	case "webhook":
+		webhookURL, ok := testContactRequest.Settings["webhook"].(string)
+		if !ok {
+			utils.SendError(ctx, "webhook is required but is missing", "Request Body: "+string(ctx.PostBody()), nil)
+			return
+		}
+		if err := testWebhookURL(webhookURL); err != nil {
+			utils.SendError(ctx, "Failed to verify webhook URL", "", err)
+			return
+		}
+	default:
+		utils.SendError(ctx, "Invalid type", "Request Body:"+string(ctx.PostBody()), nil)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, map[string]interface{}{"message": "Successfully verified contact point"})
+}
+
+func testWebhookURL(webhookURL string) error {
+	resp, err := http.Get(webhookURL)
+	if err != nil {
+		log.Errorf("testWebhookURL: failed to test webhook URL. URL: %v err: %v", webhookURL, err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to test webhook URL: %v", resp.Status)
+	}
+
+	return nil
 }
 
 func ProcessGetAlertRequest(ctx *fasthttp.RequestCtx) {
@@ -247,9 +343,16 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	// Validate Alert Type and Query
+	extraMsgToLog, err := validateAlertTypeAndQuery(alertToBeUpdated)
+	if err != nil {
+		utils.SendError(ctx, fmt.Sprintf("Failed to update alert. Error=%v", err), extraMsgToLog, err)
+		return
+	}
+
 	err = databaseObj.UpdateAlert(alertToBeUpdated)
 	if err != nil {
-		utils.SendError(ctx, "Failed to update alert", fmt.Sprintf("alert name: %v", alertToBeUpdated.AlertName), err)
+		utils.SendError(ctx, fmt.Sprintf("Failed to update alert. Error=%v", err), fmt.Sprintf("alert name: %v", alertToBeUpdated.AlertName), err)
 		return
 	}
 

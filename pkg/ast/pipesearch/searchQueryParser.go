@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/ast/logql"
 	"github.com/siglens/siglens/pkg/ast/spl"
 	"github.com/siglens/siglens/pkg/ast/sql"
+	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
@@ -53,12 +54,14 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 		return nil, nil, err
 	}
 
-	tRange, err := ast.ParseTimeRange(startEpoch, endEpoch, queryAggs, qid)
-	if err != nil {
-		log.Errorf("qid=%d, ParseRequest: parseTimeRange error: %v", qid, err)
-		return nil, nil, err
+	if boolNode.TimeRange == nil {
+		tRange, err := ast.ParseTimeRange(startEpoch, endEpoch, queryAggs, qid)
+		if err != nil {
+			log.Errorf("qid=%d, ParseRequest: parseTimeRange error: %v", qid, err)
+			return nil, nil, err
+		}
+		boolNode.TimeRange = tRange
 	}
-	boolNode.TimeRange = tRange
 
 	//aggs
 	if queryAggs != nil {
@@ -237,6 +240,12 @@ func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 		} else {
 			boolNode.AndFilterCondition.JoinCondition(filtercond)
 		}
+	case ast.TimeModifierNode:
+		if boolNode.TimeRange == nil {
+			boolNode.TimeRange = &dtu.TimeRange{}
+		}
+		boolNode.TimeRange.StartEpochMs = node.TimeModifiers.StartEpoch
+		boolNode.TimeRange.EndEpochMs = node.TimeModifiers.EndEpoch
 	default:
 		log.Errorf("SearchQueryToASTnode: node type %d not supported", node.NodeType)
 		return errors.New("SearchQueryToASTnode: node type not supported")
@@ -452,6 +461,9 @@ func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregat
 		if node.LetColumns.MultiValueColRequest != nil {
 			aggNode.OutputTransforms.LetColumns.MultiValueColRequest = node.LetColumns.MultiValueColRequest
 		}
+		if node.LetColumns.FormatResults != nil {
+			aggNode.OutputTransforms.LetColumns.FormatResults = node.LetColumns.FormatResults
+		}
 	}
 	if node.FilterRows != nil {
 		aggNode.OutputTransforms.FilterRows = node.FilterRows
@@ -560,6 +572,13 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 		} else {
 			boolNode.AndFilterCondition.JoinCondition(filtercond)
 		}
+		return nil
+	case ast.TimeModifierNode:
+		if boolNode.TimeRange == nil {
+			boolNode.TimeRange = &dtu.TimeRange{}
+		}
+		boolNode.TimeRange.StartEpochMs = node.TimeModifiers.StartEpoch
+		boolNode.TimeRange.EndEpochMs = node.TimeModifiers.EndEpoch
 		return nil
 	default:
 		log.Errorf("parseANDCondition: node type %d not supported", node.NodeType)

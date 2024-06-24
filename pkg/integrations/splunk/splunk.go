@@ -99,7 +99,7 @@ func handleSingleRecord(record map[string]interface{}, myid uint64) (error, int)
 	}
 
 	localIndexMap := make(map[string]string)
-	err = writer.ProcessIndexRequest(recordAsBytes, tsNow, indexNameIn, uint64(len(recordAsString)), false, localIndexMap, myid)
+	err = writer.ProcessIndexRequest(recordAsBytes, tsNow, indexNameIn, uint64(len(recordAsString)), false, localIndexMap, myid, 0 /* TODO */)
 	if err != nil {
 		return fmt.Errorf("Failed to add entry to in mem buffer"), fasthttp.StatusServiceUnavailable
 	}

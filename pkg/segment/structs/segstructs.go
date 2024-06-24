@@ -239,6 +239,24 @@ type LetColumnsRequest struct {
 	SortColRequest       *SortExpr
 	NewColName           string
 	MultiValueColRequest *MultiValueColLetRequest
+	FormatResults        *FormatResultsRequest // formats the results into a single result and places that result into a new field called search.
+}
+
+// formats the results into a single result and places that result into a new field called search.
+type FormatResultsRequest struct {
+	MVSeparator   string         // separator for multi-value fields. Default= "OR"
+	MaxResults    uint64         // max number of results to return
+	EmptyString   string         // string to return if no results are found. Default= "NOT()"
+	RowColOptions *RowColOptions // options for row column
+}
+
+type RowColOptions struct {
+	RowPrefix       string // prefix for row. Default= "("
+	ColumnPrefix    string // prefix for column. Default= "("
+	ColumnSeparator string // separator for column. Default= "AND"
+	ColumnEnd       string // end for column. Default= ")"
+	RowSeparator    string // separator for row. Default= "OR"
+	RowEnd          string // end for row. Default= ")"
 }
 
 type MultiColLetRequest struct {
@@ -513,7 +531,8 @@ func (qa *QueryAggregators) IsStatisticBlockEmpty() bool {
 func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
-			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil)
+			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
+			qa.OutputTransforms.LetColumns.FormatResults != nil)
 }
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
@@ -738,13 +757,7 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"mvsort":           {},
 	"mvzip":            {},
 	"mv_to_json_array": {},
-	"floor":            {},
-	"ln":               {},
-	"log":              {},
 	"sigfig":           {},
-	"pow":              {},
-	"case":             {},
-	"coalesce":         {},
 	"searchmatch":      {},
 	"validate":         {},
 	"nullif":           {},
@@ -752,15 +765,16 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"object_to_array":  {},
 	"printf":           {},
 	"tojson":           {},
+	"relative_time":    {},
+	"time":             {},
+	"strftime":         {},
+	"strptime":         {},
 	"cluster":          {},
 	"getfields":        {},
 	"isnotnull":        {},
-	"isnum":            {},
 	"typeof":           {},
 	"replace":          {},
 	"spath":            {},
-	"upper":            {},
-	"trim":             {},
 }
 
 type StatsFuncChecker struct{}
@@ -825,6 +839,12 @@ func CheckUnsupportedFunctions(post *QueryAggregators) error {
 					return fmt.Errorf("checkUnsupportedFunctions: using %v in eval cmd is not yet supported", valueCol.ConditionExpr.Op)
 				}
 			}
+		}
+
+		// Remove this check once the format command is supported.
+		// Refactor this, if there are more commands that are not supported directly under LetColumnsRequest.
+		if agg.hasLetColumnsRequest() && agg.OutputTransforms.LetColumns.FormatResults != nil {
+			return fmt.Errorf("checkUnsupportedFunctions: using format command is not yet supported")
 		}
 	}
 

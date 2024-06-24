@@ -40,14 +40,22 @@ const (
 	NodeAnd
 	NodeOr
 	NodeTerminal
+	TimeModifierNode
 )
 
 // Node is a node in the query parse tree
 type Node struct {
-	NodeType   NodeType
-	Comparison Comparison
-	Left       *Node
-	Right      *Node
+	NodeType      NodeType
+	Comparison    Comparison
+	Left          *Node
+	Right         *Node
+	TimeModifiers *TimeModifiers
+}
+
+// TimeModifiers is a struct that holds the time modifiers for a query
+type TimeModifiers struct {
+	StartEpoch uint64
+	EndEpoch   uint64
 }
 
 // Comparison is an individual comparison operation on a terminal node
