@@ -412,34 +412,15 @@ func (self *RexExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
 func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
-	// TODO: Implement the operator in the switch cases below, and replace the if statements with case statements
-	switch self.ValueOp {
-	case "isnotnull":
-		fields := self.GetFields()
-		if len(fields) == 0 {
-			return false, fmt.Errorf("BoolExpr.Evaluate: No fields found for isnotnull operation")
-		}
-
-		value, exists := fieldToValue[fields[0]]
-		if !exists {
-			return false, fmt.Errorf("BoolExpr.Evaluate: Field '%s' not found in data", fields[0])
-		}
-		if value.Dtype != utils.SS_DT_BACKFILL {
-			return true, nil
-		}
-		return false, nil
-	case "searchmatch", "isnum":
-		return false, fmt.Errorf("BoolExpr.Evaluate: does not support using this operator: %v", self.ValueOp)
-	}
-
 	if self.IsTerminal {
-		if self.ValueOp == "in" {
+		switch self.ValueOp {
+		case "in":
 			inFlag, err := isInValueList(fieldToValue, self.LeftValue, self.ValueList)
 			if err != nil {
 				return false, fmt.Errorf("BoolExpr.Evaluate: can not evaluate Eval In function: %v", err)
 			}
 			return inFlag, err
-		} else if self.ValueOp == "isbool" {
+		case "isbool":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
 				return false, fmt.Errorf("BoolExpr.Evaluate: 'isbool' can not evaluate to String: %v", err)
@@ -447,7 +428,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			isBool := strings.ToLower(val) == "true" || strings.ToLower(val) == "false" || val == "0" || val == "1"
 			return isBool, nil
 
-		} else if self.ValueOp == "isint" {
+		case "isint":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
 				return false, err
@@ -455,7 +436,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 
 			_, parseErr := strconv.Atoi(val)
 			return parseErr == nil, nil
-		} else if self.ValueOp == "isnum" {
+		case "isnum":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
 				return false, err
@@ -463,7 +444,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 
 			_, parseErr := strconv.ParseFloat(val, 64)
 			return parseErr == nil, nil
-		} else if self.ValueOp == "isstr" {
+		case "isstr":
 			_, floatErr := self.LeftValue.EvaluateToFloat(fieldToValue)
 
 			if floatErr == nil {
@@ -472,7 +453,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 
 			_, strErr := self.LeftValue.EvaluateToString(fieldToValue)
 			return strErr == nil, nil
-		} else if self.ValueOp == "isnull" {
+		case "isnull":
 			// Get the fields associated with this expression
 			fields := self.GetFields()
 			if len(fields) == 0 {
@@ -489,7 +470,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 				return true, nil
 			}
 			return false, nil
-		} else if self.ValueOp == "like" {
+		case "like":
 			leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
 			if errLeftStr != nil {
 				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating left side of LIKE to string: %v", errLeftStr)
@@ -506,7 +487,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 				return false, fmt.Errorf("BoolExpr.Evaluate: regex error in LIKE operation pattern: %v, string: %v, err: %v", regexPattern, leftStr, err)
 			}
 			return matched, nil
-		} else if self.ValueOp == "match" {
+		case "match":
 			leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
 			if errLeftStr != nil {
 				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating left side of MATCH to string: %v", errLeftStr)
@@ -523,7 +504,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			}
 			return matched, nil
 
-		} else if self.ValueOp == "cidrmatch" {
+		case "cidrmatch":
 			cidrStr, errCidr := self.LeftValue.EvaluateToString(fieldToValue)
 			ipStr, errIp := self.RightValue.EvaluateToString(fieldToValue)
 			if errCidr != nil || errIp != nil {
@@ -535,6 +516,22 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 				return false, fmt.Errorf("BoolExpr.Evaluate: 'cidrmatch' error in matching is IP in CIDR: cidr: %v, ip: %v, err: %v", cidrStr, ipStr, err)
 			}
 			return match, nil
+		case "isnotnull":
+			fields := self.GetFields()
+			if len(fields) == 0 {
+				return false, fmt.Errorf("BoolExpr.Evaluate: No fields found for isnotnull operation")
+			}
+
+			value, exists := fieldToValue[fields[0]]
+			if !exists {
+				return false, fmt.Errorf("BoolExpr.Evaluate: Field '%s' not found in data", fields[0])
+			}
+			if value.Dtype != utils.SS_DT_BACKFILL {
+				return true, nil
+			}
+			return false, nil
+		case "searchmatch":
+			return false, fmt.Errorf("BoolExpr.Evaluate: does not support using this operator: %v", self.ValueOp)
 		}
 
 		leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
