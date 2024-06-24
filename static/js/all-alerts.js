@@ -54,24 +54,29 @@ function getAllAlerts(){
     })
 }
 // Custom cell renderer for State field
+function getCssVariableValue(variableName) {
+    return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+}
+
 function stateCellRenderer(params) {
     let state = params.value;
     let color;
     switch (state) {
         case 'Normal':
-            color = '#53DB6E';
+            color = getCssVariableValue('--color-normal');
             break;
         case 'Pending':
-            color = '#F4BB20';
+            color = getCssVariableValue('--color-pending');
             break;
         case 'Firing':
-            color = '#F55759';
+            color = getCssVariableValue('--color-firing');
             break;
         default:
             color = 'transparent';
     }
-    return `<div style="background-color: ${color}; padding: 5px; border-radius: 5px;color:white">${state}</div>`;
+    return `<div style="background-color: ${color}; padding: 5px; border-radius: 5px; color: white">${state}</div>`;
 }
+
 class btnRenderer {
 	init(params) {
         this.eGui = document.createElement('span');
