@@ -53,6 +53,25 @@ function getAllAlerts(){
         displayAllAlerts(res.alerts);
     })
 }
+// Custom cell renderer for State field
+function stateCellRenderer(params) {
+    let state = params.value;
+    let color;
+    switch (state) {
+        case 'Normal':
+            color = '#53DB6E';
+            break;
+        case 'Pending':
+            color = '#F4BB20';
+            break;
+        case 'Firing':
+            color = '#F55759';
+            break;
+        default:
+            color = 'transparent';
+    }
+    return `<div style="background-color: ${color}; padding: 5px; border-radius: 5px;color:white">${state}</div>`;
+}
 class btnRenderer {
 	init(params) {
         this.eGui = document.createElement('span');
@@ -129,22 +148,23 @@ let alertColumnDefs = [
     {
         headerName: "State",
         field: "alertState",
-        width:50,
+        width: 100,
+        cellRenderer: stateCellRenderer
     },
     {
         headerName: "Alert Name",
         field: "alertName",
-        width: 100,
+        width: 200,
     },
     {
         headerName: "Labels",
         field: "labels",
-        width:100,
+        width:200,
     },
     {
         headerName: "Actions",
         cellRenderer: btnRenderer,
-        width:50,
+        width:100,
     },
 ];
 

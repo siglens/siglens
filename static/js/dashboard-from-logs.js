@@ -35,6 +35,30 @@ $(document).ready(function () {
     $("#cancel-dbbtn, .popupOverlay").on("click", closePopup);
     $("#selected-dashboard").on("click", displayExistingDashboards);
 
+    $('#alert-from-logs-btn').click(function() {
+        $('.addrulepopupOverlay').fadeIn().css('display', 'flex');
+
+    });
+    $('#addrule-cancel-btn').click(function() {
+        $('.addrulepopupOverlay').fadeOut();
+    });
+
+    $('#addrule-save-btn').click(function() {
+        var ruleName = $('#rule-name').val();
+        var encodedRuleName = encodeURIComponent(ruleName);
+
+        // Assuming you have the `data` object available
+        var queryParams = {
+            "queryLanguage": data.queryLanguage,
+            "searchText": data.searchText,
+            "startEpoch": data.startEpoch,
+            "endEpoch": data.endEpoch,
+            "alertRule_name": encodedRuleName
+        };
+
+        var queryString = $.param(queryParams);
+        window.location.href = "../alert.html?" + queryString;
+    });
 });
 
 function showNewDashboard() {
@@ -276,17 +300,3 @@ function createPanel(panelIndex, startEpoch) {
     };
     return panel;
 }
-
-$('#alert-from-logs-btn').click(function() {
-    var queryParams = {
-        "queryLanguage": data.queryLanguage,
-        "searchText": data.searchText,
-        "startEpoch": data.startEpoch,
-        "endEpoch": data.endEpoch,
-    };
-    var queryString = $.param(queryParams);
-
-    // Open the alert.html in a new tab
-    var newTab = window.open("../alert.html" + "?" + queryString, '_blank');
-    newTab.focus();
-});
