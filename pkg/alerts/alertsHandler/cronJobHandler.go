@@ -204,6 +204,7 @@ func handleAlertCondition(alertToEvaluate *alertutils.AlertDetails, isAlertCondi
 
 		// The Alert state is Normal, then we should send the Alert Notification.
 		// The cooldown period on the Notification Handler will decide if the notification should be sent. So that false positives are avoided.
+		// The Notification handler is expected to send the Normal State Notification, only if the previous Notification sent was Firing.
 		err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId, "The Alert State has been updated to Normal.")
 		if err != nil {
 			return fmt.Errorf("handleAlertCondition: Could not send Alert Notification. found error = %v", err)
