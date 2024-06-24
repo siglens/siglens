@@ -397,7 +397,7 @@ function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
                 {
                     label: label,
                     data: [parseFloat(totalIncomingVolume),parseFloat(totalStorageUsed)],
-                    backgroundColor: ['rgba(99, 72, 217)'],
+                    backgroundColor: ['rgba(147, 112, 219)'],
                     borderWidth: 1,
                     categoryPercentage: 0.8,
                     barPercentage: 0.8,

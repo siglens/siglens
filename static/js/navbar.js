@@ -180,11 +180,18 @@ $(document).ready(function () {
         $('.ingestion-nav-tab').appendOrgNavTabs("Ingestion", ingestionUpperNavTabs);
     }
 
-    $(".nav-help").on("click", function(event) {
+    $(".nav-help").on("mouseenter", function(event) {
         event.stopPropagation();
         event.preventDefault();
-        $(".help-options").slideToggle(200);
+        $(".help-options").slideDown(200);
     });
+    
+    $(".nav-help").on("mouseleave", function(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        $(".help-options").slideUp(200);
+    });
+    
 
     $(document).on("click", function(event) {
         var helpOptions = $(".help-options");
