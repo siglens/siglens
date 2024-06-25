@@ -18,6 +18,7 @@
  */
 
  :root {
+ :root {
     --black: #000;
     --white: #fff;
     --error: #f00;
@@ -4525,6 +4526,26 @@ color: #C8C7CC;
     margin-right: 6px;
 }
 
+.test-contact-btn {
+    background-color: var(--purple-2);
+    height: 30px;
+    margin-bottom: 0px;
+    color: var(--white-0) !important;
+    float: right;
+    cursor: pointer;
+    margin-left: 12px;
+}
+
+.test-contact-btn .send-icon{
+    background-image: url(../assets/send-icon.svg);
+    height: 15px;
+    background-size: 100%;
+    width: 15px;
+    background-repeat: no-repeat;
+    margin-bottom: 0px;
+    margin-right: 6px;
+}
+
 #alerting input,.add-label-container{
     height: 32px;
 }
@@ -5106,7 +5127,10 @@ input.form-control {
 }
 #delbutton.default-dashboard-delete {
     background-image:none;
+#delbutton.default-dashboard-delete {
+    background-image:none;
 }
+
 
 #data-ingestion .myOrg-heading{
     font-size: 16px;
@@ -5365,6 +5389,7 @@ input.form-control {
     border-right-color:var(--side-nav-bg-color-regular);
 }
 
+
 .nav-metrics {
     position: relative;
 }
@@ -5419,6 +5444,9 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 .metrics-dropdown li {
     padding: 10px;
 }
+.metrics-dropdown li.di {
+    padding-left: 20px; /* Additional padding for left indent */
+}
 .metrics-dropdown li.metrics-summary-metrics-link {
     padding-left: 20px; /* Additional padding for left indent */
 }
@@ -5439,14 +5467,14 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 }
 
 .metric-summary-searchcontainer{
-  display:flex !important;
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: space-between;
-}
-.metric-summary-search{
-  width:100%;
-}
+    display:flex !important;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .metric-summary-search{
+    width:100%;
+  }
 
 .metric-container{
   display: flex;
@@ -5464,6 +5492,23 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
   float: left;
   width: 95%;
 }
+
+#error-popup .fas{
+    font-size: 16px;
+    margin-right: 5px;
+}
+
+#okay-button{
+    background: var(--component-bg-color);
+    color: var(--component-text-color) !important;
+    width: 100px;
+}
+
+#index-del-btn-traces{
+    background-image: none;
+
+}
+
 
 #error-popup .fas{
     font-size: 16px;
