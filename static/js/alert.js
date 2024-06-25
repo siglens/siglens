@@ -19,7 +19,7 @@
 
 'use strict';
 
-let alertData = {queryParams :{}};
+let alertData = {};
 let alertEditFlag = 0;
 let alertID;
 let alertRule_name = "alertRule_name";
@@ -77,7 +77,15 @@ $(document).ready(function () {
     $('.alert-condition-options li').on('click', setAlertConditionHandler);
     $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
     $('#logs-language-options li').on('click', setLogsLangHandler);
-    $('#data-source-options li').on('click', setDataSourceHandler);
+    $('#data-source-options li').on('click', function(){
+        let alertType;
+        if ($(this).html() === 'Logs'){
+            alertType = 1;
+        }else {
+            alertType = 2;
+        }
+        setDataSourceHandler(alertType)
+    });
     $('#cancel-alert-btn').on('click',function(){
         window.location.href='../all-alerts.html';
         resetAddAlertForm();
@@ -204,18 +212,26 @@ function submitAddAlertForm(e){
 
 function setAlertRule(){
     let dataSource = $('#alert-data-source span').text();
-    alertData.alert_name = $('#alert-rule-name').val(),
-    alertData.queryParams.data_source = dataSource;
-    alertData.queryParams.queryLanguage = $('#logs-language-btn span').text();
-    alertData.queryParams.queryText= $('#query').val(),
-    alertData.queryParams.startTime= filterStartDate,
-    alertData.queryParams.endTime= filterEndDate,
-    alertData.condition= mapConditionTypeToIndex.get($('#alert-condition span').text()),
-    alertData.eval_interval= parseInt($('#evaluate-every').val()),
-    alertData.eval_for= parseInt($('#evaluate-for').val()),
-    alertData.contact_name= $('#contact-points-dropdown span').text(),
-    alertData.contact_id= $('#contact-points-dropdown span').attr('id'),
-    alertData.message= $('.message').val()
+    if (dataSource === "Logs") {
+        alertData.alert_type = 1 ;
+        alertData.queryParams = {
+            data_source: dataSource,
+            queryLanguage: $('#logs-language-btn span').text(),
+            queryText: $('#query').val(),
+            startTime: filterStartDate,
+            endTime: filterEndDate
+        };
+    } else if (dataSource === "Metrics") {
+        alertData.alert_type = 2 ;
+        alertData.metricsQueryParams = JSON.stringify(metricsQueryParams);
+    }
+    alertData.alert_name = $('#alert-rule-name').val();
+    alertData.condition= mapConditionTypeToIndex.get($('#alert-condition span').text()) ;
+    alertData.eval_interval= parseInt($('#evaluate-every').val()) ;
+    alertData.eval_for= parseInt($('#evaluate-for').val()) ;
+    alertData.contact_name= $('#contact-points-dropdown span').text() ;
+    alertData.contact_id= $('#contact-points-dropdown span').attr('id') ;
+    alertData.message= $('.message').val() ;
     alertData.value = parseFloat($('#threshold-value').val());
     alertData.message = $(".message").val();
     alertData.labels =[]
@@ -231,6 +247,8 @@ function setAlertRule(){
               alertData.labels.push(labelEntry);
         }
     })
+
+    console.log(alertData);
 }
 
 function createNewAlertRule(alertData){
@@ -280,17 +298,35 @@ function resetAddAlertForm(){
     alertForm[0].reset();
 }
 
-function displayAlert(res){
+async function displayAlert(res){
+    console.log(res);
     $('#alert-rule-name').val(res.alert_name);
-    $('#alert-data-source span').html(res.queryParams.data_source);
-    const queryLanguage = res.queryParams.queryLanguage;
-    $('#logs-language-btn span').text(queryLanguage);
-    $('.logs-language-option').removeClass('active');
-    $(`.logs-language-option:contains(${queryLanguage})`).addClass('active');
-    displayQueryToolTip(queryLanguage);
-    $('#query').val(res.queryParams.queryText);
-    $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
-    datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime)
+    setDataSourceHandler(res.alert_type) 
+    if( res.alert_type === 1 ){
+        $('#alert-data-source span').html(res.queryParams.data_source);
+        const queryLanguage = res.queryParams.queryLanguage;
+        $('#logs-language-btn span').text(queryLanguage);
+        $('.logs-language-option').removeClass('active');
+        $(`.logs-language-option:contains(${queryLanguage})`).addClass('active');
+        displayQueryToolTip(queryLanguage);
+        $('#query').val(res.queryParams.queryText);
+        $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
+        datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime)
+    } else if (res.alert_type === 2){
+        let metricsQueryParams = JSON.parse(res.metricsQueryParams);
+        console.log(metricsQueryParams);
+        $(`.ranges .inner-range #${metricsQueryParams.start}`).addClass('active');
+        datePickerHandler(metricsQueryParams.start, metricsQueryParams.end, metricsQueryParams.start);
+        console.log("Length of metrics query",metricsQueryParams.queries.length);
+        for (const index in metricsQueryParams.queries) {
+            const query = metricsQueryParams.queries[index];
+            const parsedQueryObject = parsePromQL(query.query);
+            await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
+        }
+        if(metricsQueryParams.queries.length>1){
+            await addAlertsFormulaElement(metricsQueryParams.formulas[0].formula);
+        }
+    }
     let conditionType = mapIndexToConditionType.get(res.condition)
     $('.alert-condition-option').removeClass('active');
     $(`.alert-condition-options #option-${res.condition}`).addClass('active');
@@ -319,7 +355,6 @@ function displayAlert(res){
         labelContainer.find("#label-value").val(label.label_value);
         labelContainer.appendTo('.label-main-container');
     })
-
 }
 
 function showToast(msg) {
@@ -344,11 +379,25 @@ function setLogsLangHandler(e) {
     displayQueryToolTip($(this).html());
 }
 
-function setDataSourceHandler(e) {
+function setDataSourceHandler(alertType) {
     $('.data-source-option').removeClass('active');
-    $('#alert-data-source span').html($(this).html());
-    $(this).addClass('active');
+    const isLogs = alertType === 1;
+    const sourceText = isLogs ? "Logs" : "Metrics";
+    const $span = $('#alert-data-source span');
+
+    $span.html(sourceText);
+    $(`.data-source-option:contains("${sourceText}")`).addClass('active');
+    
+    $('.query-container, .logs-lang-container').toggle(isLogs);
+    $('#metrics-explorer, #metrics-graphs').toggle(!isLogs);
+    
+    if (isLogs) {
+        $('#query').attr('required', 'required');
+    } else {
+        $('#query').removeAttr('required');
+    }
 }
+
 
 function displayQueryToolTip(selectedQueryLang) {
     $('#info-icon-pipeQL, #info-icon-spl').hide();
@@ -443,4 +492,236 @@ function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch){
     $('#query').val(query);
     $(`.ranges .inner-range #${startEpoch}`).addClass('active');
     datePickerHandler(startEpoch, endEpoch , startEpoch)
+}
+
+
+async function addQueryElementOnAlertEdit(queryName, queryDetails) {
+    // Clone the first query element if it exists, otherwise create a new one
+    var queryElement;
+
+        queryElement = $(`
+    <div class="metrics-query">
+        <div class="query-box">
+            <div class="query-name active">${queryName}</div>
+            <div class="query-builder">
+                <input type="text" class="metrics" placeholder="Select a metric" >
+                <div>from</div>
+                <div class="tag-container">
+                    <input type="text" class="everywhere" placeholder="(everywhere)">
+                </div>
+                <input class="agg-function" value="avg by">
+                <div class="value-container">
+                    <input class="everything" placeholder="(everything)">
+                </div>
+                <div class="functions-container">
+                    <div class="all-selected-functions">
+                    </div>
+                    <div class="position-container">
+                        <div class="show-functions">
+                        </div>
+                        <div class="options-container">
+                            <input type="text" id="functions-search-box" class="search-box" placeholder="Search...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="raw-query" style="display: none;">
+                <input type="text" class="raw-query-input"><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search"> </button>
+            </div>
+        </div>
+        <div>
+            <div class="raw-query-btn">&lt;/&gt;</div>
+            <div class="remove-query">×</div>
+        </div>
+    </div>`);
+
+    $('#metrics-queries').append(queryElement);
+    await getMetricNames();
+    // Initialize autocomplete with the details of the previous query if it exists
+    await populateQueryElement(queryElement, queryDetails);
+    await initializeAutocomplete(queryElement, queryDetails);
+
+    // Show or hide the query close icon based on the number of queries
+    updateCloseIconVisibility();
+
+    queryIndex++;
+
+    // Remove query element
+    queryElement.find('.remove-query').on('click', function() {
+        var queryName = queryElement.find('.query-name').text();
+        // Check if the query name exists in any of the formula input fields
+        var queryNameExistsInFormula = $('.formula').toArray().some(function(formulaInput) {
+            return $(formulaInput).val().includes(queryName);
+        });
+
+        // If query name exists in any formula, prevent removal of the query element
+        if (queryNameExistsInFormula) {
+            $(this).addClass('disabled').css('cursor', 'not-allowed').attr('title', 'Query used in other formulas.');
+        } else {
+            delete queries[queryName];
+            queryElement.remove();
+            removeVisualizationContainer(queryName);
+            // Show or hide the close icon based on the number of queries
+            updateCloseIconVisibility();
+
+            // For Alerts Screen
+            if(isAlertScreen){
+                if ($('#metrics-formula .formula-box').length > 0 && $('#metrics-formula .formula-box .formula').val().trim() === "") {
+                    $('#metrics-queries .metrics-query:first').find('.query-name').addClass('active');
+                    let queryName = $('#metrics-queries .metrics-query:first').find('.query-name').html();
+                    let queryDetails = queries[queryName];
+                    getQueryDetails(queryName, queryDetails)
+                }
+            }
+        }
+    });
+
+    // Alias button
+    queryElement.find('.as-btn').on('click', function() {
+        $(this).hide(); // Hide the "as..." button
+        $(this).siblings('.alias-filling-box').show(); // Show alias input box
+    });
+
+    // Alias close button
+    queryElement.find('.alias-filling-box div').last().on('click', function() {
+        $(this).parent().hide();
+        $(this).parent().siblings('.as-btn').show();
+    });
+
+    // Hide or Show query element and graph on click on query name
+    queryElement.find('.query-name').on('click', function() {
+        var queryNameElement = $(this);
+        var queryName = queryNameElement.text();
+        var numberOfGraphVisible = $('#metrics-graphs').children('.metrics-graph').filter(':visible').length;
+        var metricsGraph = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
+
+        if (numberOfGraphVisible > 1 || !metricsGraph.is(':visible')) {
+            metricsGraph.toggle();
+            queryNameElement.toggleClass('active');
+        }
+        numberOfGraphVisible = $('#metrics-graphs').children('.metrics-graph').filter(':visible').length;
+        if (numberOfGraphVisible === 1) {
+            $('.metrics-graph').addClass('full-width');
+        } else {
+            $('.metrics-graph').removeClass('full-width');
+        }
+    });
+
+    queryElement.find('.show-functions').on('click', function() {
+        event.stopPropagation();
+        var inputField = queryElement.find('#functions-search-box');
+        var optionsContainer = queryElement.find('.options-container');
+        var isContainerVisible = optionsContainer.is(':visible');
+    
+        if (!isContainerVisible) {
+            optionsContainer.show();
+            inputField.val('')
+            inputField.focus();
+            inputField.autocomplete('search', '');
+        } else {
+            optionsContainer.hide();
+        }
+    });
+    
+    $('body').on('click', function(event) {
+        var optionsContainer = queryElement.find('.options-container');
+        var showFunctionsButton = queryElement.find('.show-functions');
+    
+        // Check if the clicked element is not part of the options container or the show-functions button
+        if (!$(event.target).closest(optionsContainer).length && !$(event.target).is(showFunctionsButton)) {
+            optionsContainer.hide(); // Hide the options container if clicked outside of it
+        }
+    });
+
+    queryElement.find('.raw-query-btn').on('click', function() {
+        queryElement.find('.query-builder').toggle();
+        queryElement.find('.raw-query').toggle();
+        var queryName = queryElement.find('.query-name').text();
+        var queryDetails = queries[queryName];
+
+        if (queryDetails.state === 'builder') {
+            // Switch to raw mode
+            queryDetails.state = 'raw';
+            const queryString = createQueryString(queryDetails);
+                if (!queryDetails.rawQueryExecuted){
+                    queryDetails.rawQueryInput = queryString;
+                    queryElement.find('.raw-query-input').val(queryString);
+                }
+        } else {
+            // Switch to builder mode
+            queryDetails.state = 'builder';
+            getQueryDetails(queryName, queryDetails);
+        }
+    });
+
+    queryElement.find('.raw-query').on('click', '#run-filter-btn', async function() {
+        var queryName = queryElement.find('.query-name').text();
+        var queryDetails = queries[queryName];
+        var rawQuery = queryElement.find('.raw-query-input').val();
+        queryDetails.rawQueryInput = rawQuery;
+        queryDetails.rawQueryExecuted = true; // Set the flag to indicate that raw query has been executed
+        // Perform the search with the raw query
+        await getQueryDetails(queryName, queryDetails);
+    });
+    
+}
+
+
+async function populateQueryElement(queryElement, queryDetails) {
+    console.log("queryDetails",queryDetails);
+    // Set the metric
+    queryElement.find('.metrics').val(queryDetails.metrics);
+
+    // Add 'everywhere' tags
+    queryDetails.everywhere.forEach(tag => {
+        addTagToContainer(queryElement, tag);
+    });
+
+    // Add 'everything' values
+    queryDetails.everything.forEach(value => {
+        addValueToContainer(queryElement, value);
+    });
+
+    // Set the aggregation function
+    if(queryDetails.aggFunction){
+        queryElement.find('.agg-function').val(queryDetails.aggFunction);
+    }
+
+    // Add functions
+    queryDetails.functions.forEach(fn => {
+        addFunctionToContainer(queryElement, fn);
+    });
+}
+
+function addTagToContainer(queryElement, value) {
+    var tagContainer = queryElement.find('.everywhere');
+    var tag = $('<span class="tag">' + value + '<span class="close">×</span></span>');
+    tagContainer.before(tag);
+
+    if (queryElement.find('.tag-container').find('.tag').length === 0) {
+        tagContainer.attr('placeholder', '(everywhere)');
+        tagContainer.css('width', '100%');
+    } else {
+        tagContainer.removeAttr('placeholder');
+        tagContainer.css('width', '5px');
+    }
+}
+
+function addValueToContainer(queryElement, value) {
+    var valueContainer = queryElement.find('.everything');
+    var value = $('<span class="value">' + value + '<span class="close">×</span></span>');
+    valueContainer.before(value);
+
+    if (queryElement.find('.value-container').find('.value').length === 0) {
+        valueContainer.attr('placeholder', '(everything)');
+        valueContainer.css('width', '100%');
+    } else {
+        valueContainer.removeAttr('placeholder');
+        valueContainer.css('width', '5px');
+    }
+}
+
+function addFunctionToContainer(queryElement, fnName) {
+    var newDiv = $('<div class="selected-function">' + fnName + '<span class="close">×</span></div>');
+    queryElement.find('.all-selected-functions').append(newDiv);
 }

@@ -133,7 +133,7 @@ input:checked + .slider:before {
     border-color:  #2D69BC;
 }
 .formula-box .formula.error-border{
-    border: 1px solid #EB364B;
+    border: 1px solid #EB364B !important;
     border-left: none ;
 }
 .formula-arrow{

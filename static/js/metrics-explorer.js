@@ -27,8 +27,10 @@ let availableMetrics = [];
 let previousStartEpoch = null;
 let previousEndEpoch = null;
 let rawTimeSeriesData=[];
-let allFunctions=[];
-
+let allFunctions,functionsArray =[];
+let isAlertScreen;
+let metricsQueryParams = {};
+var availableOptions = ["max by", "min by", "avg by", "sum by", "count by", "stddev by", "stdvar by", "group by"];
 
 // Theme
 let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
@@ -41,6 +43,12 @@ let gray = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#
 let palette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
 
 $(document).ready(async function() {
+
+    var currentPage = window.location.pathname;
+    if (currentPage === "/alert.html") {
+        isAlertScreen = true;
+    } 
+
     let stDate = "now-1h";
     let endDate = "now";
     datePickerHandler(stDate, endDate, stDate);
@@ -49,7 +57,10 @@ $(document).ready(async function() {
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
     allFunctions = await getFunctions();
-    addQueryElement();
+    functionsArray = allFunctions.map(function(item) {
+        return item.fn;
+    })
+    // addQueryElement();
 });
 
 async function metricsExplorerDatePickerHandler(evt) {
@@ -68,7 +79,13 @@ async function metricsExplorerDatePickerHandler(evt) {
 
 $('#add-query').on('click', addQueryElement);
 
-$('#add-formula').on('click', addFormulaElement);
+$('#add-formula').on('click', function(){
+    if(isAlertScreen){
+        addAlertsFormulaElement()
+    }else{
+        addMetricsFormulaElement()
+    }
+});
 
 $('.refresh-btn').on("click", refreshMetricsGraphs);
 
@@ -89,33 +106,47 @@ function generateUniqueId() {
     return 'formula_' + Math.random().toString(36).substr(2, 9);
 }
 
-function addFormulaElement() {
-    let uniqueId = generateUniqueId();
-    let formulaElement = $(`
-    <div class="formula-box" data-id="${uniqueId}">
-        <div style="position: relative;" class="d-flex">
-            <div class="formula-arrow">↓</div>
-            <input class="formula" placeholder="Formula, eg. 2*a">
-            <div class="formula-error-message" style="display: none;">
-                <div class="d-flex justify-content-center align-items-center"><i class="fas fa-exclamation"></i></div>
+function createFormulaElement(uniqueId, initialValue = '') {
+    return $(`
+        <div class="formula-box" data-id="${uniqueId}">
+            <div style="position: relative;" class="d-flex">
+                <div class="formula-arrow">↓</div>
+                <input class="formula" placeholder="Formula, eg. 2*a" value="${initialValue}">
+                <div class="formula-error-message" style="display: none;">
+                    <div class="d-flex justify-content-center align-items-center"><i class="fas fa-exclamation"></i></div>
+                </div>
             </div>
-        </div>
-        <div>
-            <div class="remove-query">×</div>
-        </div>
-    </div>`);
+            <div>
+                <div class="remove-query">×</div>
+            </div>
+        </div>`);
+}
 
-    $('#metrics-formula').append(formulaElement);
-
-    // Remove the formula element
+function attachRemoveHandler(formulaElement, uniqueId) {
     formulaElement.find('.remove-query').on('click', function() {
         delete formulas[uniqueId];
         formulaElement.remove();
         removeVisualizationContainer(uniqueId);
         $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
     });
+}
 
-    // Validate formula on input change
+function attachAlertRemoveHandler(formulaElement, uniqueId){
+    formulaElement.find('.remove-query').on('click', function() {
+        var formulaBtn = $("#add-formula");
+
+        formulas = {};
+        formulaElement.remove();
+        formulaBtn.prop('disabled',false);
+        $('#metrics-queries .metrics-query:first').find('.query-name').addClass('active');
+        let queryName = $('#metrics-queries .metrics-query:first').find('.query-name').html();
+        let queryDetails = queries[queryName];
+        getQueryDetails(queryName, queryDetails)
+        $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+    });
+}
+
+function attachInputHandler(formulaElement, uniqueId) {
     let input = formulaElement.find('.formula');
     input.on('input', debounce(async function() {
         let formula = input.val().trim();
@@ -124,6 +155,12 @@ function addFormulaElement() {
             errorMessage.hide();
             input.removeClass('error-border');
             disableQueryRemoval();
+            if(isAlertScreen){
+                $('#metrics-queries .metrics-query:first').find('.query-name').addClass('active');
+                let queryName = $('#metrics-queries .metrics-query:first').find('.query-name').html();
+                let queryDetails = queries[queryName];
+                getQueryDetails(queryName, queryDetails)
+            }
             // Run a different function when the formula is erased
             onFormulaErased(uniqueId);
             return;
@@ -134,6 +171,9 @@ function addFormulaElement() {
             input.removeClass('error-border');
             // Add or update the formula and query names in the object
             formulas[uniqueId] = validationResult;
+            if(isAlertScreen){
+                $('#metrics-queries .metrics-query .query-name').removeClass('active');
+            }
             // Check if validationResult.queryNames is an array
             if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length>0) {
                 // Run your function with the formula and query names
@@ -146,7 +186,46 @@ function addFormulaElement() {
         // Disable remove button if the query name exists in any formula
         disableQueryRemoval();
     }, 500)); // debounce delay
+}
+
+async function addAlertsFormulaElement(formulaInput) {
+    let uniqueId = generateUniqueId();
+    let queryNames = Object.keys(queries);
+    if(!formulaInput){
+        formulaInput = queryNames.join(" + ");
+    }
+
+    let formulaElement = $('#metrics-formula .formula-box').length > 0 
+        ? $('.formula').val(formulaInput).removeClass('error-border').siblings('.formula-error-message').hide()
+        : createFormulaElement(uniqueId, formulaInput);
+
+    if ($('#metrics-formula .formula-box').length === 0) {
+        $('#metrics-formula').append(formulaElement);
+    }
+
+    let validationResult = validateFormula(formulaInput);
     
+    formulas[uniqueId] = validationResult;
+    await getMetricsDataForFormula(uniqueId, validationResult);
+
+    let formulaElements = $('.formula-arrow');
+    let formulaBtn = $("#add-formula");
+    if (formulaElements.length > 0) {
+        formulaBtn.prop('disabled', true);
+        $('#metrics-queries .metrics-query .query-name').removeClass('active');
+    }
+
+    attachAlertRemoveHandler(formulaElement, uniqueId);
+    attachInputHandler(formulaElement, uniqueId);
+}
+
+function addMetricsFormulaElement() {
+    let uniqueId = generateUniqueId();
+    let formulaElement = createFormulaElement(uniqueId);
+
+    $('#metrics-formula').append(formulaElement);
+    attachRemoveHandler(formulaElement, uniqueId);
+    attachInputHandler(formulaElement, uniqueId);
 }
 
 function debounce(func, wait) {
@@ -171,8 +250,7 @@ function validateFormula(formula) {
     if (!matches) {
         return false;
     }
-
-    let queryNames = Object.keys(chartDataCollection);
+    let queryNames = Object.keys(queries);
     let parts = formula.split(/[-+*/]/);
     let usedQueryNames = [];
     for (let part of parts) {
@@ -261,6 +339,9 @@ async function addQueryElement() {
     const metricNames = await getMetricNames();
     metricNames.metricNames.sort();
     queryElement.find('.metrics').val(metricNames.metricNames[0]); // Initialize first query element with first metric name
+
+    // Initialize autocomplete with the details of the previous query if it exists
+    await initializeAutocomplete(queryElement, queryIndex > 0 ? queries[String.fromCharCode(97 + queryIndex - 1)] : undefined);
     } else {
         // Get the last query name
         var lastQueryName = $('#metrics-queries').find('.metrics-query:last .query-name').text();
@@ -273,13 +354,16 @@ async function addQueryElement() {
         queryElement.find('.query-builder').show();
         queryElement.find('.raw-query').hide();
         $('#metrics-queries').append(queryElement);
+        // Initialize autocomplete with the details of the previous query if it exists
+        await initializeAutocomplete(queryElement, queryIndex > 0 ? queries[String.fromCharCode(97 + queryIndex - 1)] : undefined);
+
+        if(isAlertScreen){
+           await addAlertsFormulaElement();
+        }
     }
 
     // Show or hide the query close icon based on the number of queries
     updateCloseIconVisibility();
-
-    // Initialize autocomplete with the details of the previous query if it exists
-    initializeAutocomplete(queryElement, queryIndex > 0 ? queries[String.fromCharCode(97 + queryIndex - 1)] : undefined);
 
     queryIndex++;
 
@@ -301,6 +385,16 @@ async function addQueryElement() {
 
             // Show or hide the close icon based on the number of queries
             updateCloseIconVisibility();
+
+            // For Alerts Screen
+            if(isAlertScreen){
+                if ($('#metrics-formula .formula-box').length > 0 && $('#metrics-formula .formula-box .formula').val().trim() === "") {
+                    $('#metrics-queries .metrics-query:first').find('.query-name').addClass('active');
+                    let queryName = $('#metrics-queries .metrics-query:first').find('.query-name').html();
+                    let queryDetails = queries[queryName];
+                    getQueryDetails(queryName, queryDetails)
+                }
+            }
         }
     });
 
@@ -417,8 +511,6 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         queryDetails.functions = previousQuery.functions.slice(); 
     }
 
-    var availableOptions = ["max by", "min by", "avg by", "sum by", "count by", "stddev by", "stdvar by", "group by"];
-
     var currentMetricsValue = queryElement.find('.metrics').val();
 
     if (currentMetricsValue) {
@@ -439,7 +531,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     }
 
     queryElement.find('.metrics').autocomplete({
-        source: availableMetrics,
+        source: availableMetrics.sort(),
         minLength: 0,
         focus: function (event, ui) {
             $(this).val(ui.item.value);
@@ -768,7 +860,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
 
 function updateCloseIconVisibility() {
     var numQueries = $('#metrics-queries').children('.metrics-query').length;
-    $('.remove-query').toggle(numQueries > 1);
+    $('.metrics-query .remove-query').toggle(numQueries > 1);
 }
 
 function addVisualizationContainer(queryName, seriesData, queryString) {
@@ -1254,6 +1346,7 @@ async function getMetricsData(queryName, metricName) {
     const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
 
     const res = await fetchTimeSeriesData(data);
+    metricsQueryParams = data;
 
     if (res) {
         rawTimeSeriesData = res;
@@ -1263,6 +1356,7 @@ async function getMetricsData(queryName, metricName) {
 async function getMetricsDataForFormula(formulaId, formulaDetails){
     let queriesData = [];
     let formulas = [];
+    let formulaString = formulaDetails.formula;
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
         let queryString;
@@ -1277,6 +1371,9 @@ async function getMetricsDataForFormula(formulaId, formulaDetails){
             qlType: "promql"
         };
         queriesData.push(query);
+
+        // Replace the query name in the formula string with the query string
+        formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
     const formula = {
         formula: formulaDetails.formula 
@@ -1284,13 +1381,19 @@ async function getMetricsDataForFormula(formulaId, formulaDetails){
     formulas.push(formula);
     const data = { start: filterStartDate, end: filterEndDate, queries: queriesData, formulas: formulas };
 
+    metricsQueryParams = data;
+
     const res = await fetchTimeSeriesData(data);
     if (res) {
         rawTimeSeriesData = res;
     }
 
     const chartData = await convertDataForChart(rawTimeSeriesData)
-    addVisualizationContainer(formulaId, chartData, formulaDetails.formula);
+    if(isAlertScreen){
+        addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
+    }else{
+        addVisualizationContainer(formulaId, chartData, formulaString);
+    }
 }
 
 async function fetchTimeSeriesData(data) {
@@ -1351,12 +1454,24 @@ async function handleQueryAndVisualize(queryName, queryDetails) {
     }
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData);
-    addVisualizationContainer(queryName, chartData, queryString);
+    if(isAlertScreen){
+        addVisualizationContainerToAlerts(queryName, chartData, queryString);
+    }else{
+        addVisualizationContainer(queryName, chartData, queryString);
+    }
 }
 
 async function getQueryDetails(queryName, queryDetails){
 
-    await handleQueryAndVisualize(queryName, queryDetails)
+    if(isAlertScreen){
+        let isActive = $('#metrics-queries .metrics-query:first').find(`.query-name:contains('${queryName}')`).hasClass('active');
+        if (isActive) {
+            await handleQueryAndVisualize(queryName, queryDetails)
+        }
+    } else{
+        await handleQueryAndVisualize(queryName, queryDetails)
+    }
+
 
     // Check if the query name is present in any formulas and re-run the formula if so
     for (let formulaId in formulas) {
@@ -1420,7 +1535,8 @@ async function refreshMetricsGraphs(){
     newMetricNames.metricNames.sort();
   
     $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
-    if(queries["a"].metrics){ // only if the first query is not empty
+    const firstKey = Object.keys(queries)[0];
+    if(queries[firstKey].metrics){ // only if the first query is not empty
         // Update graph for each query
         Object.keys(queries).forEach(async function(queryName) {
             var queryDetails = queries[queryName];
@@ -1474,3 +1590,159 @@ function getGraphGridColors() {
     return { gridLineColor, tickColor };
 }
 
+function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
+    var existingContainer = $(`.metrics-graph`)
+    if (existingContainer.length === 0){
+        var visualizationContainer = $(`
+        <div class="metrics-graph">
+            <div class="query-string">${queryString}</div>
+            <div class="graph-canvas"></div>
+        </div>`);
+
+        var canvas = $('<canvas></canvas>');
+        visualizationContainer.find('.graph-canvas').append(canvas);
+        $('#metrics-graphs').append(visualizationContainer);
+
+    } else{
+        existingContainer.find('.query-string').text(queryString);
+        var canvas = $('<canvas></canvas>');
+        existingContainer.find('.graph-canvas').empty().append(canvas);
+    }
+
+    var ctx = canvas[0].getContext('2d');
+    
+    // Extract labels and datasets from seriesData
+    if (seriesData.length > 0) {
+        var labels = Object.keys(seriesData[0].values);
+        var datasets = seriesData.map(function(series, index) {
+            return {
+                label: series.seriesName,
+                data: Object.values(series.values),
+                borderColor: classic[index % classic.length],
+                backgroundColor : classic[index % classic.length] + 70,
+                borderWidth: 2,
+                fill: false
+            };
+        });
+    }else{
+        var labels = [];
+        var datasets = [];
+    }
+    
+    var chartData = {
+        labels: labels,
+        datasets: datasets
+    };
+
+
+    const { gridLineColor, tickColor } = getGraphGridColors();
+
+    var lineChart = new Chart(ctx, {
+        type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    align: 'start',
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 2,
+                        fontSize: 10
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: ''
+                    },
+                    grid: {
+                        display: false
+                    },
+                    ticks: { color: tickColor }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: false,
+                    },
+                    grid: { color: gridLineColor },
+                    ticks: { color: tickColor }
+                }
+            }
+        }
+    });
+    
+    // Modify the fill property based on the chart type after chart initialization
+    if (chartType === 'Area chart') {
+        lineChart.config.data.datasets.forEach(function(dataset) {
+            dataset.fill = true;
+        });
+    } else {
+        lineChart.config.data.datasets.forEach(function(dataset) {
+            dataset.fill = false;
+        });
+    }
+
+    lineChart.update();
+}
+
+// Parsing function to convert the query string to query object
+function parsePromQL(query) {
+    const parseObject = {
+      metrics: "",
+      everywhere: [],
+      everything: [],
+      aggFunction: "avg by",
+    };
+  
+    // Handle the simplest case: if the query is just a metric name without any functions, aggregators, or tags
+    const simpleMetricPattern = /\(\(\s*(\w+)\s*\)\)/;
+    const simpleMetricMatch = query.match(simpleMetricPattern);
+    if (simpleMetricMatch) {
+      parseObject.metrics = simpleMetricMatch[1];
+      return parseObject;
+    }
+  
+    // Step 1: Extract the functions
+    const functionPattern = new RegExp(`(${functionsArray.join('|')})\\s*\\(`, 'g');
+    const functionsFound = [];
+    let functionMatch;
+    while ((functionMatch = functionPattern.exec(query)) !== null) {
+      functionsFound.push(functionMatch[1]);
+    }
+    parseObject.functions = [...new Set(functionsFound)].reverse(); // Reverse to maintain the correct order
+  
+    // Step 2: Extract the aggFunction and everything values
+    let innerQuery = query;
+    for (let aggregator of availableOptions) {
+      const aggPattern = new RegExp(`${aggregator.replace(' ', '\\s*')}\\s*\\(([^)]+)\\)\\s*\\(([^)]+)\\)`, 'i');
+      const aggMatch = query.match(aggPattern);
+      if (aggMatch) {
+        parseObject.aggFunction = aggregator;
+        parseObject.everything = aggMatch[1].split(',').map(val => val.trim());
+        innerQuery = aggMatch[2];
+        break;
+      }
+    }
+  
+    // Step 3: Extract the metric name and everywhere
+    const metricPattern = /(\w+)\{([^}]+)\}/;
+    const metricMatch = innerQuery.match(metricPattern);
+    if (metricMatch) {
+      parseObject.metrics = metricMatch[1];
+      parseObject.everywhere = metricMatch[2].split(',').map(tag => tag.replace(/"/g, '').replace('=', ':'));
+    } else {
+      // If no tags, just set the metric
+      parseObject.metrics = innerQuery.replace(/\(|\)/g, '').trim();
+    }
+
+    return parseObject;
+  }
+
+ 
