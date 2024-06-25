@@ -104,6 +104,7 @@ func updateAlertStateAndCreateAlertHistory(alertDetails *alertutils.AlertDetails
 	alertEvent := alertutils.AlertHistoryDetails{
 		AlertId:          alertDetails.AlertId,
 		AlertType:        alertDetails.AlertType,
+		AlertState:       alertState,
 		EventDescription: eventDesc,
 		UserName:         alertutils.SystemGeneratedAlert,
 		EventTriggeredAt: time.Now().UTC(),
@@ -116,6 +117,103 @@ func updateAlertStateAndCreateAlertHistory(alertDetails *alertutils.AlertDetails
 	return nil
 }
 
+// An Alert State can be updated to Firing, when the previous (IntervalCount - 1) Evaluations + Current Evaluation satisfies the conditions.
+// Meaning, the (IntervalCount - 1) evaluations and the current Evaluations State should be in either Pending or Firing.
+// The (IntervalCount - 1) evaluations will be Fetched from the AlertHistory Table.
+func shouldUpdateAlertStateToFiring(alertDetails *alertutils.AlertDetails, currentState alertutils.AlertState) bool {
+	if !alertutils.IsAlertStatePendingOrFiring(currentState) {
+		return false
+	}
+
+	intervalCount := alertDetails.EvalWindow / alertDetails.EvalInterval
+	if intervalCount == 0 {
+		log.Errorf("ALERTSERVICE: shouldUpdateAlertStateToFiring: EvalWindow=%v is less than EvalInterval=%v. Alert=%+v", alertDetails.EvalWindow, alertDetails.EvalInterval, alertDetails.AlertName)
+		return false
+	}
+
+	alertHistoryList, err := databaseObj.GetAlertHistoryByAlertID(&alertutils.AlertHistoryQueryParams{
+		AlertId:   alertDetails.AlertId,
+		Limit:     intervalCount - 1,
+		SortOrder: alertutils.DESC,
+	})
+	if err != nil {
+		log.Errorf("ALERTSERVICE: shouldUpdateAlertStateToFiring: Error getting AlertHistory. Alert=%+v & err=%+v.", alertDetails.AlertName, err)
+		return false
+	}
+
+	if len(alertHistoryList) < int(intervalCount-1) {
+		return false
+	}
+
+	for _, alertHistory := range alertHistoryList {
+		if !alertutils.IsAlertStatePendingOrFiring(alertHistory.AlertState) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func GetLatestAlertHistory(alertId string) (*alertutils.AlertHistoryDetails, error) {
+	alertHistoryList, err := databaseObj.GetAlertHistoryByAlertID(&alertutils.AlertHistoryQueryParams{
+		AlertId:   alertId,
+		Limit:     1,
+		SortOrder: alertutils.DESC,
+	})
+	if err != nil {
+		log.Errorf("ALERTSERVICE: GetLatestAlertHistory: Error getting AlertHistory. AlertId=%v & err=%+v.", alertId, err)
+		return nil, err
+	}
+
+	if len(alertHistoryList) == 0 {
+		return nil, nil
+	}
+
+	return alertHistoryList[0], nil
+}
+
+func handleAlertCondition(alertToEvaluate *alertutils.AlertDetails, isAlertConditionMatched bool, alertDataMessage string) error {
+	if isAlertConditionMatched {
+
+		newAlertState := alertutils.Pending
+		eventDesc := alertutils.AlertPending
+
+		if shouldUpdateAlertStateToFiring(alertToEvaluate, newAlertState) {
+			newAlertState = alertutils.Firing
+			eventDesc = alertutils.AlertFiring
+		}
+
+		err := updateAlertStateAndCreateAlertHistory(alertToEvaluate, newAlertState, eventDesc)
+		if err != nil {
+			log.Errorf("ALERTSERVICE: handleAlertCondition: Error in updateAlertStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v", newAlertState, alertToEvaluate.AlertName, err)
+		}
+
+		// If the Alert State is updated to Firing, then we should send the Alert Notification.
+		// If the previous state was Firing, then the cooldown period on the Notification Handler will decide if the notification should be sent.
+		if newAlertState == alertutils.Firing {
+			err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId, alertDataMessage)
+			if err != nil {
+				return fmt.Errorf("handleAlertCondition: Could not send Alert Notification. found error = %v", err)
+			}
+		}
+	} else {
+		err := updateAlertStateAndCreateAlertHistory(alertToEvaluate, alertutils.Normal, alertutils.AlertNormal)
+		if err != nil {
+			log.Errorf("ALERTSERVICE: handleAlertCondition: Error in updateAlertStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v", alertutils.Normal, alertToEvaluate.AlertName, err)
+		}
+
+		// The Alert state is Normal, then we should send the Alert Notification.
+		// The cooldown period on the Notification Handler will decide if the notification should be sent. So that false positives are avoided.
+		// The Notification handler is expected to send the Normal State Notification, only if the previous Notification sent was Firing.
+		err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId, "The Alert State has been updated to Normal.")
+		if err != nil {
+			return fmt.Errorf("handleAlertCondition: Could not send Alert Notification. found error = %v", err)
+		}
+	}
+
+	return nil
+}
+
 func evaluateLogAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
 	serResVal, isResultsEmpty, err := pipesearch.ProcessAlertsPipeSearchRequest(alertToEvaluate.QueryParams)
 	if err != nil {
@@ -125,37 +223,24 @@ func evaluateLogAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) 
 
 	if isResultsEmpty {
 		// Should not return here, as this can mean, there are no valid logs that satisfies the Alert Query.
-		// This should be considered as a normal state. And we should update the alert state to Inactive.
+		// This should be considered as a normal state. And we should update the alert state to Normal.
 		log.Warnf("ALERTSERVICE: evaluateLogAlert: Empty response returned by server.")
 
 		// We should call the update here instead of letting the execution go to the evaluation of the conditions.
 		// This is because, we return -1 as the result, when there are no logs that satisfies the query.
 		// And the condition in the evaluation can be looking for a value that is (>, <, =, !=) -1.
-		err := updateAlertStateAndCreateAlertHistory(alertToEvaluate, alertutils.Inactive, alertutils.AlertNormal)
+		err := handleAlertCondition(alertToEvaluate, false, "")
 		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateLogAlert: Error in updateAlertStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Inactive, alertToEvaluate.AlertName, err)
+			log.Errorf("ALERTSERVICE: evaluateLogAlert: Error in handleAlertCondition. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
 		}
 		return
 	}
 
-	isFiring := evaluateConditions(serResVal, &alertToEvaluate.Condition, alertToEvaluate.Value)
-	if isFiring {
+	isAlertConditionMatched := evaluateConditions(serResVal, &alertToEvaluate.Condition, alertToEvaluate.Value)
 
-		err := updateAlertStateAndCreateAlertHistory(alertToEvaluate, alertutils.Firing, alertutils.AlertFiring)
-		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateLogAlert: Error in updateAlertStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Firing, alertToEvaluate.AlertName, err)
-		}
-
-		err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId, "")
-		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateLogAlert: could not setup the notification handler. found error = %v", err)
-			return
-		}
-	} else {
-		err := updateAlertStateAndCreateAlertHistory(alertToEvaluate, alertutils.Inactive, alertutils.AlertNormal)
-		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateLogAlert: Error in updateAlertStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Inactive, alertToEvaluate.AlertName, err)
-		}
+	err = handleAlertCondition(alertToEvaluate, isAlertConditionMatched, "")
+	if err != nil {
+		log.Errorf("ALERTSERVICE: evaluateLogAlert: Error in handleAlertCondition. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
 	}
 }
 
@@ -181,24 +266,12 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 
 	alertsDataList := evaluateMetricsQueryConditions(queryRes, &alertToEvaluate.Condition, alertToEvaluate.Value)
 
-	if len(alertsDataList) > 0 {
+	isAlertConditionMatched := len(alertsDataList) > 0
 
-		err := updateAlertStateAndCreateAlertHistory(alertToEvaluate, alertutils.Firing, alertutils.AlertFiring)
-		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateMetricsAlert: Error in updateAlertStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Firing, alertToEvaluate.AlertName, err)
-		}
+	err = handleAlertCondition(alertToEvaluate, isAlertConditionMatched, fmt.Sprintf("%v", alertsDataList))
 
-		err = NotifyAlertHandlerRequest(alertToEvaluate.AlertId, fmt.Sprintf("%v", alertsDataList))
-		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateMetricsAlert: could not setup the notification handler. found error = %v", err)
-			return
-		}
-
-	} else {
-		err := updateAlertStateAndCreateAlertHistory(alertToEvaluate, alertutils.Inactive, alertutils.AlertNormal)
-		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateMetricsAlert: Error in updateAlertStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Inactive, alertToEvaluate.AlertName, err)
-		}
+	if err != nil {
+		log.Errorf("ALERTSERVICE: evaluateMetricsAlert: Error in handleAlertCondition. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
 	}
 }
 
@@ -255,6 +328,7 @@ func updateMinionSearchStateAndCreateAlertHistory(msToEvaluate *alertutils.Minio
 	alertEvent := alertutils.AlertHistoryDetails{
 		AlertId:          msToEvaluate.AlertId,
 		AlertType:        alertutils.AlertTypeMinion,
+		AlertState:       alertState,
 		EventDescription: eventDesc,
 		UserName:         alertutils.SystemGeneratedAlert,
 		EventTriggeredAt: time.Now().UTC(),
@@ -276,15 +350,15 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 
 	if isResultsEmpty {
 		// Should not return here, as this can mean, there are no valid logs that satisfies the Alert Query.
-		// This should be considered as a normal state. And we should update the alert state to Inactive.
+		// This should be considered as a normal state. And we should update the alert state to Normal.
 		log.Warnf("MinionSearch: evaluate: Empty response returned by server.")
 
 		// We should call the update here instead of letting the execution go to the evaluation of the conditions.
 		// This is because, we return -1 as the result, when there are no logs that satisfies the query.
 		// And the condition in the evaluation can be looking for a value that is (>, <, =, !=) -1.
-		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Inactive, alertutils.AlertNormal)
+		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Normal, alertutils.AlertNormal)
 		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateMinionSearch: Error in updateMinionSearchStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Inactive, msToEvaluate.AlertName, err)
+			log.Errorf("ALERTSERVICE: evaluateMinionSearch: Error in updateMinionSearchStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Normal, msToEvaluate.AlertName, err)
 		}
 		return
 	}
@@ -297,13 +371,13 @@ func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job)
 
 		err = NotifyAlertHandlerRequest(msToEvaluate.AlertId, "")
 		if err != nil {
-			log.Errorf("MinionSearch: evaluate: could not setup the notification handler. found error = %v", err)
+			log.Errorf("MinionSearch: evaluate: Could not send Alert Notification. found error = %v", err)
 			return
 		}
 	} else {
-		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Inactive, alertutils.AlertNormal)
+		err := updateMinionSearchStateAndCreateAlertHistory(msToEvaluate, alertutils.Normal, alertutils.AlertNormal)
 		if err != nil {
-			log.Errorf("ALERTSERVICE: evaluateMinionSearch: Error in updateMinionSearchStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Inactive, msToEvaluate.AlertName, err)
+			log.Errorf("ALERTSERVICE: evaluateMinionSearch: Error in updateMinionSearchStateAndCreateAlertHistory. AlertState=%v, Alert=%+v & err=%+v.", alertutils.Normal, msToEvaluate.AlertName, err)
 		}
 	}
 }

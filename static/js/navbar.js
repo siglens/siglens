@@ -175,10 +175,7 @@ $(document).ready(function () {
         if ($('.subsection-navbar').length) {
             $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
         }        
-    } else if (currentUrl.includes("test-data.html")) {
-        $(".nav-ingest").addClass("active");
-        $('.ingestion-nav-tab').appendOrgNavTabs("Ingestion", ingestionUpperNavTabs);
-    }
+    } 
 
     $(".nav-help").on("mouseenter", function(event) {
         event.stopPropagation();
