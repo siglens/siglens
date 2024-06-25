@@ -5398,10 +5398,10 @@ input.form-control {
 }
 
 
-.nav-metrics {
+.nav-metrics,.nav-traces,.nav-ingest {
     position: relative;
 }
-.metrics-dropdown{
+.metrics-dropdown,.ingestion-dropdown,.traces-dropdown{
     list-style-type: none;
     padding: 10% !important;
     margin: 0;
@@ -5415,7 +5415,8 @@ input.form-control {
 ul.metrics-dropdown li, ul.metrics-dropdown li a{
     color:#6F6B7B;
     text-decoration: none;
-}.metrics-dropdown {
+}
+.metrics-dropdown,.ingestion-dropdown,.traces-dropdown {
     display: none;
     color: var(--navbar-link-text) !important;
     text-decoration: none;
@@ -5427,11 +5428,11 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
     box-shadow: 0px 2px 8px 0px var(--border-shadow);
     border: 1px solid var(--border-btn-color);
 }
-.metrics-dropdown a {
+.metrics-dropdown a,.ingestion-dropdown a,.traces-dropdown a{
     color: var(--navbar-link-text) !important;
     text-decoration: none;
 } 
-.metrics-dropdown li::before {
+.metrics-dropdown li::before ,.ingestion-dropdown li::before, .traces-dropdown li::before{
     content: '';
     position: absolute;
     left: 0;
@@ -5440,22 +5441,20 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
     width: 2px;
     background-color: transparent; 
 }
-.metrics-dropdown-toggle{
+.metrics-dropdown-toggle,.ingestion-dropdown-toggle,.traces-dropdown-toggle{
     cursor:pointer;
 }
 
-.metrics-dropdown li:hover {
+.metrics-dropdown li:hover ,.ingestion-dropdown li:hover, .traces-dropdown li:hover{
     background-color: var(--side-nav-bg-color-selected); 
     color:rgb(255, 255, 255);
     border-radius: 12px;
 }
-.metrics-dropdown li {
+.metrics-dropdown li, .ingestion-dropdown li, .traces-dropdown li {
     padding: 10px;
 }
-.metrics-dropdown li.di {
-    padding-left: 20px; /* Additional padding for left indent */
-}
-.metrics-dropdown li.metrics-summary-metrics-link {
+
+.metrics-dropdown li.metrics-summary-metrics-link ,.traces-dropdown li.traces-link,.ingestion-dropdown li.ingestion-link{
     padding-left: 20px; /* Additional padding for left indent */
 }
 .metric-summary {

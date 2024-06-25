@@ -28,9 +28,16 @@ let navbarComponent = `
             <a href="./index.html" class="nav-links"><span class="icon-search"></span><span
                     class="nav-link-text">Logs</span></a>
         </div>
-        <div class="menu nav-traces" title="Tracing">
-            <a href="./service-health.html" class="nav-links"><span class="icon-traces"></span><span
-                    class="nav-link-text">Tracing</span></a>
+        <div class="menu nav-traces tracing-dropdown-toggle" title="Tracing" style="display:flex;flex-direction:row">
+            <a class="nav-links">
+                <span class="icon-traces"></span>
+                <span class="nav-link-text">Tracing</span>
+            </a>
+            <ul class="traces-dropdown">
+                <a href="./service-health.html"><li class="traces-link">Service Health</li></a>
+                <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
+                <a href="./search-traces.html"><li class="traces-link">Search Traces</li></a>
+            </ul>
          </div>
         <div class="menu nav-metrics metrics-dropdown-toggle" title="Metrics" style="display:flex;flex-direction:row">
             <a class="nav-links">
@@ -65,9 +72,15 @@ let navbarComponent = `
             <a href="./cluster-stats.html" class="nav-links"><span class="icon-myorg"></span><span
                     class="nav-link-text">My Org</span></a>
         </div>
-        <div class="menu nav-ingest" title="Ingestion">
-            <a href="./test-data.html" class="nav-links"><span class="icon-ingest"></span><span
-                    class="nav-link-text">Ingestion</span></a>
+        <div class="menu nav-ingest ingestion-dropdown-toggle" title="Ingestion" style="display:flex;flex-direction:row">
+            <a href="./test-data.html" class="nav-links">
+                <span class="icon-ingest"></span>
+                <span class="nav-link-text">Ingestion</span>
+            </a>
+            <ul class="ingestion-dropdown">
+                <a href="./log-sources.html"><li class="ingestion-link">Log Sources</li></a>
+                <a href="./data-ingestion.html"><li class="ingestion-link">Data Ingestion</li></a>
+            </ul>
         </div>
     </div>
     <div>
@@ -144,8 +157,8 @@ $(document).ready(function () {
         ".nav-search",
         ".nav-metrics",
         ".nav-ldb",
-        ".nav-usq", 
-        ".nav-slos", 
+        ".nav-usq",
+        ".nav-slos",
         ".nav-alerts",
         ".nav-myorg",
         ".nav-minion",
@@ -157,55 +170,134 @@ $(document).ready(function () {
         navItems.forEach((item) => $(item).removeClass("active"));
     };
 
-
     if (currentUrl.includes("index.html")) {
         $(".nav-search").addClass("active");
     } else if (currentUrl.includes("metrics-explorer.html")) {
         $(".nav-metrics").addClass("active");
     } else if (currentUrl.includes("metric-summary.html")) {
-            $(".nav-metrics").addClass("active");    
+        $(".nav-metrics").addClass("active");
     } else if (currentUrl.includes("dashboards-home.html") || currentUrl.includes("dashboard.html")) {
         $(".nav-ldb").addClass("active");
     } else if (currentUrl.includes("saved-queries.html")) {
         $(".nav-usq").addClass("active");
-    } else if (currentUrl.includes("alerts.html") || currentUrl.includes("alert.html") || currentUrl.includes("alert-details.html")   || currentUrl.includes("contacts.html")){
+    } else if (currentUrl.includes("alerts.html") || currentUrl.includes("alert.html") || currentUrl.includes("alert-details.html") || currentUrl.includes("contacts.html")) {
         $(".nav-alerts").addClass("active");
         $('.alerts-nav-tab').appendOrgNavTabs("Alerting", alertsUpperNavTabs);
-    } else if (currentUrl.includes("all-slos.html")){
+    } else if (currentUrl.includes("all-slos.html")) {
         $(".nav-slos").addClass("active");
-        $('.alerts-nav-tab').appendOrgNavTabs("SLOs",[]);
-    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("application-version.html") {{ .OrgUpperNavUrls}} ) {
+        $('.alerts-nav-tab').appendOrgNavTabs("SLOs", []);
+    } else if (currentUrl.includes("cluster-stats.html") || currentUrl.includes("org-settings.html") || currentUrl.includes("application-version.html")) {
         $(".nav-myorg").addClass("active");
         $('.org-nav-tab').appendOrgNavTabs("My Org", orgUpperNavTabs);
     } else if (currentUrl.includes("minion-searches.html")) {
         $(".nav-minion").addClass("active");
     } else if (currentUrl.includes("live-tail.html")) {
         $(".nav-live").addClass("active");
-    } else if (currentUrl.includes("service-health.html")|| currentUrl.includes("service-health-overview.html") || currentUrl.includes("dependency-graph.html")|| currentUrl.includes("search-traces.html")) {
+    } else if (currentUrl.includes("service-health.html") || currentUrl.includes("service-health-overview.html") || currentUrl.includes("dependency-graph.html") || currentUrl.includes("search-traces.html")) {
         $(".nav-traces").addClass("active");
         if ($('.subsection-navbar').length) {
             $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
-        }        
-    } 
+        }
+    }
 
     $(".nav-help").on("mouseenter", function(event) {
         event.stopPropagation();
         event.preventDefault();
-        $(".help-options").stop(true, true).slideDown(200);
+        $(".help-options").stop(true, true).slideDown(0);
     });
 
     $(".nav-links").on("click", function () {
         $(".metrics-dropdown").hide();
-        $(".help-options").slideUp(200);
-    });
-    
-    $(".metrics-dropdown-toggle").click(function (event) {
-        event.stopPropagation();
-        $(".metrics-dropdown").toggle();
-        removeActiveClasses(); // Remove active class from all other nav items
-        $(".nav-metrics").addClass("active"); // Add active class when metrics dropdown is clicked
+        $(".ingestion-dropdown").hide();
+        $(".traces-dropdown").hide();
+        $(".help-options").slideUp(0);
     });
 
+    $(".metrics-dropdown-toggle").on("mouseenter", function(event) {
+        event.stopPropagation();
+        $(".metrics-dropdown").stop(true, true).slideDown(0);
+        removeActiveClasses();
+        $(".nav-metrics").addClass("active");
+    });
+
+    $(".metrics-dropdown-toggle").on("mouseleave", function(event) {
+        event.stopPropagation();
+        setTimeout(function() {
+            if (!$(".metrics-dropdown:hover").length) {
+                $(".metrics-dropdown").stop(true, true).slideUp(0);
+                $(".nav-metrics").removeClass("active");
+            }
+        }, 0);
+    });
+
+    $(".metrics-dropdown").on("mouseenter", function(event) {
+        event.stopPropagation();
+        $(".metrics-dropdown").stop(true, true).slideDown(0);
+    });
+
+    $(".metrics-dropdown").on("mouseleave", function(event) {
+        event.stopPropagation();
+        $(".metrics-dropdown").stop(true, true).slideUp(0);
+        $(".nav-metrics").removeClass("active");
+    });
+
+    // Traces dropdown
+    $(".tracing-dropdown-toggle").on("mouseenter", function(event) {
+        event.stopPropagation();
+        $(".traces-dropdown").stop(true, true).slideDown(0);
+        removeActiveClasses();
+        $(".nav-traces").addClass("active");
+    });
+
+    $(".tracing-dropdown-toggle").on("mouseleave", function(event) {
+        event.stopPropagation();
+        setTimeout(function() {
+            if (!$(".traces-dropdown:hover").length) {
+                $(".traces-dropdown").stop(true, true).slideUp(0);
+                $(".nav-traces").removeClass("active");
+            }
+        }, 0);
+    });
+
+    $(".traces-dropdown").on("mouseenter", function(event) {
+        event.stopPropagation();
+        $(".traces-dropdown").stop(true, true).slideDown(0);
+    });
+
+    $(".traces-dropdown").on("mouseleave", function(event) {
+        event.stopPropagation();
+        $(".traces-dropdown").stop(true, true).slideUp(0);
+        $(".nav-traces").removeClass("active");
+    });
+
+    // Ingestion dropdown
+    $(".ingestion-dropdown-toggle").on("mouseenter", function(event) {
+        event.stopPropagation();
+        $(".ingestion-dropdown").stop(true, true).slideDown(0);
+        removeActiveClasses();
+        $(".nav-ingest").addClass("active");
+    });
+
+    $(".ingestion-dropdown-toggle").on("mouseleave", function(event) {
+        event.stopPropagation();
+        setTimeout(function() {
+            if (!$(".ingestion-dropdown:hover").length) {
+                $(".ingestion-dropdown").stop(true, true).slideUp(0);
+                $(".nav-ingest").removeClass("active");
+            }
+        }, 0);
+    });
+
+    $(".ingestion-dropdown").on("mouseenter", function(event) {
+        event.stopPropagation();
+        $(".ingestion-dropdown").stop(true, true).slideDown(0);
+    });
+
+    $(".ingestion-dropdown").on("mouseleave", function(event) {
+        event.stopPropagation();
+        $(".ingestion-dropdown").stop(true, true).slideUp(0);
+        $(".nav-ingest").removeClass("active");
+    });
 
     // Hide the help options when leaving the .nav-help element
     $(".nav-help").on("mouseleave", function(event) {
@@ -214,43 +306,53 @@ $(document).ready(function () {
         // Use a timeout to allow for the menu to be hovered over
         setTimeout(function() {
             if (!$(".help-options:hover").length) {
-                $(".help-options").stop(true, true).slideUp(200);
+                $(".help-options").stop(true, true).slideUp(0);
             }
-        }, 200);
+        }, 0);
     });
 
     // Keep the help options visible when hovering over it
     $(".help-options").on("mouseenter", function(event) {
         event.stopPropagation();
         event.preventDefault();
-        $(".help-options").stop(true, true).slideDown(200);
+        $(".help-options").stop(true, true).slideDown(0);
     });
 
     // Hide the help options when leaving it
     $(".help-options").on("mouseleave", function(event) {
         event.stopPropagation();
         event.preventDefault();
-        $(".help-options").stop(true, true).slideUp(200);
+        $(".help-options").stop(true, true).slideUp(0);
     });
-    
-
 
     $(document).on("click", function(event) {
         var helpOptions = $(".help-options");
         var menu = $(".nav-help");
         var metricsDropdown = $(".metrics-dropdown");
         var metricsToggle = $(".metrics-dropdown-toggle");
+        var tracesDropdown = $(".traces-dropdown");
+        var tracesToggle = $(".tracing-dropdown-toggle");
+        var ingestionDropdown = $(".ingestion-dropdown");
+        var ingestionToggle = $(".ingestion-dropdown-toggle");
 
         if (!metricsToggle.is(event.target) && !metricsDropdown.is(event.target) && metricsDropdown.has(event.target).length === 0) {
             metricsDropdown.hide();
         }
+        if (!tracesToggle.is(event.target) && !tracesDropdown.is(event.target) && tracesDropdown.has(event.target).length === 0) {
+            tracesDropdown.hide();
+        }
+        if (!ingestionToggle.is(event.target) && !ingestionDropdown.is(event.target) && ingestionDropdown.has(event.target).length === 0) {
+            ingestionDropdown.hide();
+        }
         if (!menu.is(event.target) && !helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
-            helpOptions.slideUp(200);
+            helpOptions.slideUp(0);
         }
     });
+
     $(".help-options").on("click", "a", function(event) {
-        $(".help-options").slideUp(200);
+        $(".help-options").slideUp(0);
     });
+
     const currentLocation = window.location.href;
     const menuItem = document.querySelectorAll('.metrics-dropdown a');
     menuItem.forEach(item => {
@@ -264,5 +366,3 @@ $(document).ready(function () {
         $(".nav-metrics").addClass("active");
     });
 });
-
-
