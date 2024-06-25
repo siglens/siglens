@@ -183,13 +183,33 @@ $(document).ready(function () {
     $(".nav-help").on("mouseenter", function(event) {
         event.stopPropagation();
         event.preventDefault();
-        $(".help-options").slideDown(200);
+        $(".help-options").stop(true, true).slideDown(200);
     });
-    
+
+    // Hide the help options when leaving the .nav-help element
     $(".nav-help").on("mouseleave", function(event) {
         event.stopPropagation();
         event.preventDefault();
-        $(".help-options").slideUp(200);
+        // Use a timeout to allow for the menu to be hovered over
+        setTimeout(function() {
+            if (!$(".help-options:hover").length) {
+                $(".help-options").stop(true, true).slideUp(200);
+            }
+        }, 200);
+    });
+
+    // Keep the help options visible when hovering over it
+    $(".help-options").on("mouseenter", function(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        $(".help-options").stop(true, true).slideDown(200);
+    });
+
+    // Hide the help options when leaving it
+    $(".help-options").on("mouseleave", function(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        $(".help-options").stop(true, true).slideUp(200);
     });
     
 

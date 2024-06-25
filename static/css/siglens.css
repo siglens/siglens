@@ -866,7 +866,8 @@ body {
 #cstats-app-footer {
     float: right;
     font-size: 0.7rem;
-    width: 126px;
+    width: 100%;
+    text-align: right;
     height: 23px;
     font-style: normal;
     font-weight: 500;
