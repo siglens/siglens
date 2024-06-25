@@ -1519,9 +1519,72 @@ func handleTrimFunctions(op string, value string, trim_chars string) string {
 	}
 }
 
+func formatTime(t time.Time, format string) string {
+	preReplacements := map[string]string{
+		"%e": "_2",
+		"%a": "Mon",
+		"%A": "Monday",
+		"%d": "02",
+		"%b": "Jan",
+		"%B": "January",
+		"%m": "01",
+		"%y": "06",
+		"%Y": "2006",
+		"%H": "15",
+		"%I": "03",
+		"%p": "PM",
+		"%M": "04",
+		"%S": "05",
+		"%f": ".999999",
+		"%z": "-0700",
+		"%Z": "MST",
+		"%c": "Mon Jan 2 15:04:05 2006",
+		"%x": "01/02/06",
+		"%X": "15:04:05",
+		"%%": "%",
+		"%k": "_15",
+		"%T": "15:04:05",
+		"%F": "2006-01-02", // The ISO 8601 date format
+	}
+	for k, v := range preReplacements {
+		format = strings.ReplaceAll(format, k, v)
+	}
+
+	timeStr := t.Format(format)
+
+	_, week := t.ISOWeek()
+	postReplacements := map[string]string{
+		"%w":  strconv.Itoa(int(t.Weekday())),                         // weekday as a decimal number
+		"%j":  strconv.Itoa(t.YearDay()),                              // day of the year as a decimal number
+		"%U":  strconv.Itoa(t.YearDay() / 7),                          // week number of the year (Sunday as the first day of the week)
+		"%W":  strconv.Itoa((int(t.Weekday()) - 1 + t.YearDay()) / 7), // week number of the year (Monday as the first day of the week)
+		"%V":  strconv.Itoa(week),                                     // ISO week number
+		"%+":  t.Format("Mon Jan 2 15:04:05 MST 2006"),                // date and time with timezone
+		"%N":  strconv.Itoa(t.Nanosecond()),                           // nanoseconds
+		"%Q":  strconv.Itoa(t.Nanosecond() / 1e6),                     // milliseconds
+		"%Ez": strconv.Itoa(int(t.Sub(time.Now().UTC()).Minutes())),   // timezone in minutes
+		"%s":  strconv.FormatInt(t.Unix(), 10),                        // Unix Epoch Time timestamp
+	}
+	for k, v := range postReplacements {
+		timeStr = strings.ReplaceAll(timeStr, k, v)
+	}
+
+	return timeStr
+}
+
 func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
+	case "strptime":
+		timestamp, err := self.Val.EvaluateToFloat(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate timestamp: %v", err)
+		}
+		// Create a time.Time value from the zero time plus the number of milliseconds
+		t := time.Unix(0, 0).Add(time.Duration(timestamp) * time.Millisecond)
+
+		timeStr := formatTime(t, self.Param.RawString)
+		return timeStr, nil
 	case "ipmask":
 		mask := net.ParseIP(self.Param.RawString).To4()
 		ip := net.ParseIP(self.Val.StringExpr.RawString).To4()

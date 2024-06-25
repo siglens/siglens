@@ -774,7 +774,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"relative_time":    {},
 	"time":             {},
 	"strftime":         {},
-	"strptime":         {},
 	"cluster":          {},
 	"getfields":        {},
 	"isnum":            {},
