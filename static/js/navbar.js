@@ -73,13 +73,15 @@ let navbarComponent = `
                     class="nav-link-text">My Org</span></a>
         </div>
         <div class="menu nav-ingest ingestion-dropdown-toggle" title="Ingestion" style="display:flex;flex-direction:row">
-            <a href="./test-data.html" class="nav-links">
+            <a class="nav-links">
                 <span class="icon-ingest"></span>
                 <span class="nav-link-text">Ingestion</span>
             </a>
             <ul class="ingestion-dropdown">
-                <a href="./log-sources.html"><li class="ingestion-link">Log Sources</li></a>
-                <a href="./data-ingestion.html"><li class="ingestion-link">Data Ingestion</li></a>
+                <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
+                <a href="https://www.siglens.com/siglens-docs/category/metric-ingestion"><li class="ingestion-link">Metrics Ingestion</li></a>
+                <a href="https://www.siglens.com/siglens-docs/category/instrumentation-for-traces"><li class="ingestion-link">Traces Ingestion</li></a>
+                
             </ul>
         </div>
     </div>
