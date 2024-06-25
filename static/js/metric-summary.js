@@ -2,6 +2,7 @@ let stDate = Cookies.get('startEpoch') || "now-3h";
 let endDate = Cookies.get('endEpoch') || "now";
 let allMetrics = [];  // To store all metrics initially
 
+let gridDiv=null;
 $(document).ready(() => {
     $('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
@@ -66,6 +67,7 @@ function filterMetrics() {
 }
 
 function displaydata(metrics) {
+    
     const metricRows = metrics.map(metric => ({ metricName: metric }));
 
     if (gridDiv === null) {
@@ -111,5 +113,4 @@ var gridOptions = {
     rowData: []
 };
 
-var gridDiv = document.querySelector('#ag-grid');
-new agGrid.Grid(gridDiv, gridOptions);
+
