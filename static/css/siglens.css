@@ -866,7 +866,8 @@ body {
 #cstats-app-footer {
     float: right;
     font-size: 0.7rem;
-    width: 126px;
+    width: 100%;
+    text-align: right;
     height: 23px;
     font-style: normal;
     font-weight: 500;
@@ -1352,7 +1353,7 @@ progress.hidden {
 }
 
 #app-content-area .graph-container {
-    margin-left: 23px;
+    
     display: flex;
     width: 97%;
     align-items: center;
@@ -1485,8 +1486,7 @@ progress.hidden {
 }
 
 .index-stats-header {
-    padding-left: 8px;
-    margin-bottom: 12px;
+    
     font-size: 18px;
     color: var(--cstats-header-text-color);
     font-weight: var(--fw-500) !important;
@@ -1619,16 +1619,15 @@ div.dts div.dataTables_scrollBody table {
 }
 
 .query-index-container{
-    display: flex;
+    
     justify-content: center;
     flex-direction: column;
     align-items: center;
-    width: 100%;
+    width: 105%;
     margin-top: 40px;
     margin-bottom: 40px;
 }
 .query-stats-container{
-    margin-left: 23px;
     display: flex;
     width: 97%;
 }
@@ -3485,6 +3484,11 @@ float: right;
 }
 
 .myOrg-inner-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: left;
+    align-items: left;
+    gap:10px;
     font-size: 14px;
     padding: 20px;
     padding-top: 0px;
