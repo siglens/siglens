@@ -81,12 +81,13 @@ function displaydata(metrics) {
 // AG Grid options with pagination and sorting icons enabled
 var gridOptions = {
     headerHeight: 32,
+    rowHeight:42,
     pagination: true,
     paginationAutoPageSize: true,
     defaultColDef: {
         sortable: true,
-        filter: true,
-        resizable: true,
+        filter: false,
+        resizable:false,
         cellStyle: { 'text-align': "left" },
         minWidth: 120,
         animateRows: true,
