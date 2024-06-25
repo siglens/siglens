@@ -1192,7 +1192,7 @@ func addRollup(rrmap map[uint64]*RolledRecs, rolledTs uint64, lastRecNum uint16)
 
 func WriteMockTsRollup(segkey string) error {
 
-	ss := &SegStore{suffix: 1, lock: sync.Mutex{}, SegmentKey: segkey}
+	ss := &SegStore{suffix: 1, Lock: sync.Mutex{}, SegmentKey: segkey}
 
 	wipBlock := createMockTsRollupWipBlock(segkey)
 	ss.wipBlock = *wipBlock

@@ -29,6 +29,16 @@ import (
     "github.com/siglens/siglens/pkg/segment/utils"
     log "github.com/sirupsen/logrus"
 )
+// ConvertCustomDateTimeFormatToEpochMs converts a date string in the format "MM/DD/YYYY:HH:MM:SS" 
+// to Unix time in milliseconds (epoch ms).
+func ConvertCustomDateTimeFormatToEpochMs(dateStr string) (int64, error) {
+    loc, _ := time.LoadLocation("Local")
+    t, err := time.ParseInLocation("01/02/2006:15:04:05", dateStr, loc)
+    if err != nil {
+        return 0, err
+    }
+    return t.UnixMilli(), nil
+}
 
 func getParseError(err error) error {
     switch ev := err.(type) {
@@ -189,6 +199,22 @@ func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryA
     }, nil
 }
 
+func getDefaultFormatResultsExpr() *structs.FormatResultsRequest {
+    return &structs.FormatResultsRequest{
+        MVSeparator: "OR",
+        MaxResults: 0,
+        EmptyString: "NOT()",
+        RowColOptions: &structs.RowColOptions{
+            RowPrefix: "(",
+            ColumnPrefix: "(",
+            ColumnSeparator: "AND",
+            ColumnEnd: ")",
+            RowSeparator: "OR",
+            RowEnd: ")",
+        },
+    }
+}
+
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
@@ -219,6 +245,11 @@ type MultiValueColOptionArgs struct {
 type SPathFieldExpr struct {
     PathValue string
     IsPathFieldName bool  
+}
+
+type FormatResultsRequestArguments struct {
+    argOption string
+    formatResultExpr *structs.FormatResultsRequest
 }
 
 }
@@ -302,12 +333,12 @@ SearchBlock <- !(ALLCMD) CMD_SEARCH? clause:ClauseLevel4 {
     return clause, nil
 }
 
-FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
+FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
     return block, nil
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -1405,7 +1436,7 @@ ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
     return conditionValuePair, nil
 }
 
-//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim
+//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim, strptime
 // mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
 TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
     opNameStr, err := transferUint8ToString(opName)
@@ -1745,6 +1776,13 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
         Op: "replace",
         Val: val.(*structs.ValueExpr),
         ValueList: []*structs.StringExpr{regex.(*structs.StringExpr), replacement.(*structs.StringExpr)},
+    }, nil
+}
+/ "strptime" L_PAREN val:ValueExpr COMMA format:StringExpr R_PAREN {
+    return &structs.TextExpr{
+        Op: "strptime",
+        Val: val.(*structs.ValueExpr),
+        Param: format.(*structs.StringExpr),
     }, nil
 }
 
@@ -2162,9 +2200,9 @@ NumericExprLevel1 <- L_PAREN expr:NumericExprLevel3 R_PAREN {
     return expr, nil
 }
 
-// Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random
+// Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random, time, relative_time, strftime
 //Currently involves abs, ceil, round, sqrt
-NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" / "floor" / "ln" / "sigfig") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
+NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp" / "floor" / "ln" / "sigfig" / "acosh" / "acos" / "asinh" / "asin" / "atanh" / "atan" / "cosh" / "cos" / "sinh" / "sin" / "tanh" / "tan") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -2205,7 +2243,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
 
     return node, nil
 }
-/ (opName:("now" / "pi" / "random") L_PAREN R_PAREN) {
+/ (opName:("now" / "pi" / "random" / "time") L_PAREN R_PAREN) {
     //transfer []uint8 to string
     strData, ok := opName.([]byte)
     if !ok {
@@ -2249,7 +2287,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
 / lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
     return expr, nil
 }
-/ (opName:("log" / "pow") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
+/ (opName:("pow" / "atan2" / "hypot") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -2277,6 +2315,47 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
         return nil, err
     }
 
+    return node, nil
+}
+/ (opName:"log" L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr)? R_PAREN) {
+    leftNumericExpr, ok := expr.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
+    }
+
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
+
+    var rightNumericExpr *structs.NumericExpr
+    if param != nil {
+        rightNumericExpr, ok = param.(*structs.NumericExpr)
+        if !ok {
+            return nil, fmt.Errorf("Failed to assert param as *structs.NumericExpr")
+        }
+    }
+
+    node, err := createNumericExpr(opNameStr, leftNumericExpr, rightNumericExpr, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+
+    return node, nil
+}
+/ opName:("relative_time" / "strftime") L_PAREN expr:(NumericExprLevel3) COMMA specifier:StringExpr R_PAREN {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: NumericExpr: %v", err)
+    }
+    node, err := createNumericExpr(opNameStr, expr.(*structs.NumericExpr), nil, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+    node.Val = specifier.(*structs.StringExpr)
     return node, nil
 }
 
@@ -3174,6 +3253,52 @@ FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
     return fields, nil
 }
 
+TimeModifiers <- EarliestAndLatest / EarliestOnly
+
+EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:AbsoluteTimestamp SPACE CMD_LATEST EQUAL latestTime:AbsoluteTimestamp !. {
+    startEpoch, err := ConvertCustomDateTimeFormatToEpochMs(earliestTime.(string))
+    if err != nil {
+        return nil, err
+    }
+    endEpoch, err := ConvertCustomDateTimeFormatToEpochMs(latestTime.(string))
+    if err != nil {
+        return nil, err
+    }
+
+    // Create AST node
+    node := &ast.Node{
+        NodeType: ast.TimeModifierNode,
+        TimeModifiers: &ast.TimeModifiers{
+            StartEpoch: uint64(startEpoch),
+            EndEpoch: uint64(endEpoch),
+        },
+    }
+
+    return node, nil
+}
+
+EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:AbsoluteTimestamp !. {
+    startEpoch, err := ConvertCustomDateTimeFormatToEpochMs(earliestTime.(string))
+    if err != nil {
+        return nil, err
+    }
+
+    // Create AST node
+    node := &ast.Node{
+        NodeType: ast.TimeModifierNode,
+        TimeModifiers: &ast.TimeModifiers{
+            StartEpoch: uint64(startEpoch),
+            EndEpoch: uint64(time.Now().UnixMilli()),
+        },
+    }
+
+    return node, nil
+}
+
+AbsoluteTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] {
+    return string(c.text), nil
+}
+
 // From https://docs.splunk.com/Documentation/Splunk/7.3.1/Knowledge/Aboutregularexpressionswithfieldextractions
 // This allows wildcards in a FieldName, but wildcard fields are not allowed in
 // some places; those rules should check whether the field has a wildcard.
@@ -3659,9 +3784,119 @@ PathField <- ("path" EQUAL SPathFieldString / SPathFieldString ) {
 
 SPathFieldString <- QuotedString / UnquotedStringWithTemplateWildCard
 
+// Returns *structs.QueryAggregators
+FormatBlock <- PIPE CMD_FORMAT formatArgExpr:FormatArgumentsList? {
+    var formatResultExpr *structs.FormatResultsRequest
+
+    if formatArgExpr != nil {
+        formatResultExpr = formatArgExpr.(*structs.FormatResultsRequest)
+    } else {
+        formatResultExpr = getDefaultFormatResultsExpr()
+    }
+
+    queryAgg := &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                NewColName: "search",
+                FormatResults: formatResultExpr,
+            },
+        },
+    }
+
+    return queryAgg, nil
+}
+
+FormatArgumentsList <- SPACE first: FormatArgument rest:(SPACE FormatArgument)* {
+    restSlice := rest.([]any)
+
+    numOptions := 1 + len(restSlice)
+
+    formatResultExpr := getDefaultFormatResultsExpr()
+
+    for i := 0; i < numOptions; i++ {
+        var currFormatExpr *FormatResultsRequestArguments
+
+        if i == 0{
+            currFormatExpr = first.(*FormatResultsRequestArguments)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            currFormatExpr = separator[1].(*FormatResultsRequestArguments)
+        }
+
+        switch currFormatExpr.argOption {
+            case "mvsep":
+                formatResultExpr.MVSeparator = currFormatExpr.formatResultExpr.MVSeparator
+            case "maxresults":
+                formatResultExpr.MaxResults = currFormatExpr.formatResultExpr.MaxResults
+            case "emptystr":
+                formatResultExpr.EmptyString = currFormatExpr.formatResultExpr.EmptyString
+            case "rowColOptions":
+                formatResultExpr.RowColOptions = currFormatExpr.formatResultExpr.RowColOptions
+            default:
+                return nil, fmt.Errorf("not a valid Format Result Argument: %v", currFormatExpr.argOption)
+        }
+    }
+
+    return formatResultExpr, nil
+}
+
+FormatArgument <- argExpr:(FormatSeparator / FormatMaxResults / FormatEmptyStr / FormatRowColOptions) {
+    return argExpr, nil
+}
+
+FormatSeparator <- "mvsep" EQUAL str:QuotedString {
+    return &FormatResultsRequestArguments{
+        argOption: "mvsep",
+        formatResultExpr: &structs.FormatResultsRequest{
+            MVSeparator: removeQuotes(str),
+        },
+    }, nil
+}
+
+FormatMaxResults <- "maxresults" EQUAL numStr:IntegerAsString {
+    num, err := strconv.ParseUint(numStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid Max results value is set for format: (%v): Error=%v", numStr.(string), err)
+    }
+    return &FormatResultsRequestArguments{
+        argOption: "maxresults",
+        formatResultExpr: &structs.FormatResultsRequest{
+            MaxResults: num,
+        },
+    }, nil
+}
+
+FormatEmptyStr <- "emptystr" EQUAL str:QuotedString {
+    return &FormatResultsRequestArguments{
+        argOption: "emptystr",
+        formatResultExpr: &structs.FormatResultsRequest{
+            EmptyString: removeQuotes(str),
+        },
+    }, nil
+}
+
+FormatRowColOptions <- rowPrefix:QuotedString SPACE colPrefix:QuotedString SPACE colSeparator:QuotedString SPACE colEnd:QuotedString SPACE rowSeparator:QuotedString SPACE rowEnd:QuotedString {
+    rowColOptions := &structs.RowColOptions{
+        RowPrefix: removeQuotes(rowPrefix),       
+        ColumnPrefix: removeQuotes(colPrefix),    
+        ColumnSeparator: removeQuotes(colSeparator), 
+        ColumnEnd: removeQuotes(colEnd),       
+        RowSeparator: removeQuotes(rowSeparator),    
+        RowEnd: removeQuotes(rowEnd),          
+    }
+
+    return &FormatResultsRequestArguments{
+        argOption: "rowColOptions",
+        formatResultExpr: &structs.FormatResultsRequest{
+            RowColOptions: rowColOptions,
+        },
+    }, nil
+}
+
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -3682,6 +3917,9 @@ CMD_DEDUP <- "dedup"
 CMD_DEDUP_SORTBY <- SPACE "sortby" SPACE
 CMD_MAKEMV <- "makemv"
 CMD_SPATH <- "spath"
+CMD_FORMAT <- "format"
+CMD_EARLIEST <- "earliest"
+CMD_LATEST <- "latest"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
