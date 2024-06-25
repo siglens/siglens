@@ -45,7 +45,7 @@ type database interface {
 	CreateAlert(alertInfo *alertutils.AlertDetails) (alertutils.AlertDetails, error)
 	GetAlert(alert_id string) (*alertutils.AlertDetails, error)
 	CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error)
-	GetAlertHistory(alertId string) ([]*alertutils.AlertHistoryDetails, error)
+	GetAlertHistoryByAlertID(alertHistoryParams *alertutils.AlertHistoryQueryParams) ([]*alertutils.AlertHistoryDetails, error)
 	GetAllAlerts(orgId uint64) ([]alertutils.AlertDetails, error)
 	CreateMinionSearch(alertInfo *alertutils.MinionSearch) (alertutils.MinionSearch, error)
 	GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error)
@@ -136,6 +136,11 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	err := json.Unmarshal(rawJSON, &alertToBeCreated)
 	if err != nil {
 		utils.SendError(ctx, "Failed to unmarshal json", "", err)
+		return
+	}
+
+	if alertToBeCreated.EvalWindow < alertToBeCreated.EvalInterval {
+		utils.SendError(ctx, "EvalWindow should be greater than or equal to EvalInterval", fmt.Sprintf("EvalWindow: %v, EvalInterval:%v", alertToBeCreated.EvalWindow, alertToBeCreated.EvalInterval), nil)
 		return
 	}
 
@@ -343,6 +348,11 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	if alertToBeUpdated.EvalWindow < alertToBeUpdated.EvalInterval {
+		utils.SendError(ctx, "EvalWindow should be greater than or equal to EvalInterval", fmt.Sprintf("EvalWindow: %v, EvalInterval:%v", alertToBeUpdated.EvalWindow, alertToBeUpdated.EvalInterval), nil)
+		return
+	}
+
 	// Validate Alert Type and Query
 	extraMsgToLog, err := validateAlertTypeAndQuery(alertToBeUpdated)
 	if err != nil {
@@ -393,12 +403,26 @@ func ProcessAlertHistoryRequest(ctx *fasthttp.RequestCtx) {
 
 	responseBody := make(map[string]interface{})
 	alertId := utils.ExtractParamAsString(ctx.UserValue("alertID"))
-	alertHistory, err := databaseObj.GetAlertHistory(alertId)
+	limit := ctx.QueryArgs().GetUintOrZero("limit")
+	offset := ctx.QueryArgs().GetUintOrZero("offset")
+	sortOrder := string(ctx.QueryArgs().Peek("sort_order"))
+
+	if sortOrder != string(alertutils.ASC) && sortOrder != string(alertutils.DESC) {
+		sortOrder = string(alertutils.DESC)
+	}
+
+	alertHistory, err := databaseObj.GetAlertHistoryByAlertID(&alertutils.AlertHistoryQueryParams{
+		AlertId:   alertId,
+		SortOrder: alertutils.DB_SORT_ORDER(sortOrder),
+		Limit:     uint64(limit),
+		Offset:    uint64(offset),
+	})
 	if err != nil {
 		utils.SendError(ctx, "Failed to get alert history", fmt.Sprintf("alert ID: %v", alertId), err)
 		return
 	}
 
+	responseBody["count"] = len(alertHistory)
 	responseBody["alertHistory"] = alertHistory
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, responseBody)

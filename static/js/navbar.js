@@ -186,16 +186,14 @@ $(document).ready(function () {
         if ($('.subsection-navbar').length) {
             $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
         }        
-    } else if (currentUrl.includes("test-data.html")) {
-        $(".nav-ingest").addClass("active");
-        $('.ingestion-nav-tab').appendOrgNavTabs("Ingestion", ingestionUpperNavTabs);
-    }
+    } 
 
-    $(".nav-help").on("click", function(event) {
+    $(".nav-help").on("mouseenter", function(event) {
         event.stopPropagation();
         event.preventDefault();
-        $(".help-options").slideToggle(200);
+        $(".help-options").stop(true, true).slideDown(200);
     });
+
     $(".nav-links").on("click", function () {
         $(".metrics-dropdown").hide();
         $(".help-options").slideUp(200);
@@ -207,6 +205,36 @@ $(document).ready(function () {
         removeActiveClasses(); // Remove active class from all other nav items
         $(".nav-metrics").addClass("active"); // Add active class when metrics dropdown is clicked
     });
+
+
+    // Hide the help options when leaving the .nav-help element
+    $(".nav-help").on("mouseleave", function(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        // Use a timeout to allow for the menu to be hovered over
+        setTimeout(function() {
+            if (!$(".help-options:hover").length) {
+                $(".help-options").stop(true, true).slideUp(200);
+            }
+        }, 200);
+    });
+
+    // Keep the help options visible when hovering over it
+    $(".help-options").on("mouseenter", function(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        $(".help-options").stop(true, true).slideDown(200);
+    });
+
+    // Hide the help options when leaving it
+    $(".help-options").on("mouseleave", function(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        $(".help-options").stop(true, true).slideUp(200);
+    });
+    
+
+
     $(document).on("click", function(event) {
         var helpOptions = $(".help-options");
         var menu = $(".nav-help");

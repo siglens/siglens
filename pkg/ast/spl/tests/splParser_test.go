@@ -22,7 +22,9 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/siglens/siglens/pkg/ast"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
@@ -7791,4 +7793,453 @@ func Test_Format_cmd_Incomplete_RowCol_Options(t *testing.T) {
 	query := `* | format "[" "[" "&&"`
 	_, err := spl.Parse("", []byte(query))
 	assert.NotNil(t, err)
+}
+
+func Test_CalculateRelativeTime_1(t *testing.T) {
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			Snap: "w0",
+		},
+	}
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
+	assert.Nil(t, err)
+	// Sunday
+	expectedEpoch := time.Date(2024, time.June, 2, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
+}
+
+func Test_CalculateRelativeTime_2(t *testing.T) {
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -1,
+				TimeUnit: utils.TMHour,
+			},
+			Snap: strconv.Itoa(int(utils.TMHour)),
+		},
+	}
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
+	assert.Nil(t, err)
+
+	expectedEpoch := time.Date(2024, time.June, 5, 12, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
+}
+
+func Test_CalculateRelativeTime_3(t *testing.T) {
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -24,
+				TimeUnit: utils.TMHour,
+			},
+		},
+	}
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
+	assert.Nil(t, err)
+
+	expectedEpoch := time.Date(2024, time.June, 4, 13, 37, 5, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
+}
+
+func Test_CalculateRelativeTime_4(t *testing.T) {
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -1,
+				TimeUnit: utils.TMYear,
+			},
+			Snap: "w0",
+		},
+	}
+
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
+	assert.Nil(t, err)
+	// Sunday
+	expectedEpoch := time.Date(2023, time.June, 4, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
+}
+
+func Test_CalculateRelativeTime_5(t *testing.T) {
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			Snap: "w3",
+		},
+	}
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
+	assert.Nil(t, err)
+	// Wednesday
+	expectedEpoch := time.Date(2024, time.June, 5, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
+}
+
+func Test_CalculateRelativeTime_6(t *testing.T) {
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -7,
+				TimeUnit: utils.TMDay,
+			},
+			Snap: strconv.Itoa(int(utils.TMMinute)),
+		},
+	}
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
+	assert.Nil(t, err)
+
+	expectedEpoch := time.Date(2024, time.May, 29, 13, 37, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
+}
+
+func Test_CalculateRelativeTime_7(t *testing.T) {
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -1,
+				TimeUnit: utils.TMYear,
+			},
+			Snap: strconv.Itoa(int(utils.TMYear)),
+		},
+	}
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
+	assert.Nil(t, err)
+
+	expectedEpoch := time.Date(2023, time.January, 1, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
+}
+
+func Test_CalculateRelativeTime_8(t *testing.T) {
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			Snap: strconv.Itoa(int(utils.TMQuarter)),
+		},
+	}
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
+	assert.Nil(t, err)
+
+	expectedEpoch := time.Date(2024, time.April, 1, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
+}
+
+func Test_CalculateRelativeTime_9(t *testing.T) {
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -1,
+				TimeUnit: utils.TMWeek,
+			},
+			Snap: strconv.Itoa(int(utils.TMMonth)),
+		},
+	}
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
+	assert.Nil(t, err)
+
+	expectedEpoch := time.Date(2024, time.May, 1, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
+}
+
+func Test_CalculateRelativeTime_10(t *testing.T) {
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		RelativeTime: ast.RelativeTimeModifier{
+			RelativeTimeOffset: ast.RelativeTimeOffset{
+				Offset:   -1,
+				TimeUnit: utils.TMQuarter,
+			},
+			Snap: strconv.Itoa(int(utils.TMMonth)),
+		},
+	}
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
+	assert.Nil(t, err)
+
+	expectedEpoch := time.Date(2024, time.February, 1, 0, 0, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
+}
+
+func Test_CalculateRelativeTime_11(t *testing.T) {
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		AbsoluteTime: "06/19/2024:18:55:00",
+	}
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
+	assert.Nil(t, err)
+
+	expectedEpoch := time.Date(2024, time.June, 19, 18, 55, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expectedEpoch, epoch)
+}
+
+func Test_CalculateRelativeTime_12(t *testing.T) {
+	currTime := time.Date(2024, time.June, 5, 13, 37, 5, 0, time.Local)
+	tm := ast.TimeModifier{
+		AbsoluteTime: "1",
+	}
+	epoch, err := spl.CalculateRelativeTime(tm, currTime)
+	assert.Nil(t, err)
+	// Epoch 1: January 1, 1970 12:00:01 AM UTC
+	assert.Equal(t, int64(1), epoch)
+}
+
+func Test_ParseRelativeTimeModifier_1(t *testing.T) {
+	query := `* | earliest=+1d@w3 latest=+1d@d`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_2(t *testing.T) {
+	query := `* | earliest=+1d@w3 latest=+1d@d`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_3(t *testing.T) {
+	query := `* | earliest=-1d@w4 latest=+1mon`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	expEndTime := time.Now().AddDate(0, 1, 0).UnixMilli()
+	endTimeDiff := expEndTime - int64(astNode.TimeRange.EndEpochMs)
+	assert.True(t, endTimeDiff <= int64(1000))
+}
+
+func Test_ParseRelativeTimeModifier_4(t *testing.T) {
+	query := `* | earliest=06/19/2024:18:55:00 latest=+24h`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	expStartTime := time.Date(2024, time.June, 19, 18, 55, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expStartTime, int64(astNode.TimeRange.StartEpochMs))
+
+	expEndTime := time.Now().Add(24 * time.Hour).UnixMilli()
+	endTimeDiff := expEndTime - int64(astNode.TimeRange.EndEpochMs)
+	assert.True(t, endTimeDiff <= int64(1000))
+}
+
+func Test_ParseRelativeTimeModifier_5(t *testing.T) {
+	query := `* | earliest=06/19/2024:18:55:00 latest=06/20/2024:18:55:00`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	expStartTime := time.Date(2024, time.June, 19, 18, 55, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expStartTime, int64(astNode.TimeRange.StartEpochMs))
+
+	expEndTime := time.Date(2024, time.June, 20, 18, 55, 0, 0, time.Local).UnixMilli()
+	assert.Equal(t, expEndTime, int64(astNode.TimeRange.EndEpochMs))
+}
+
+func Test_ParseRelativeTimeModifier_6(t *testing.T) {
+	query := `* | earliest=-month@year latest=-2days@minute`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_7(t *testing.T) {
+	query := `* | latest=-2days@minute`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_ParseRelativeTimeModifier_8(t *testing.T) {
+	query := `* | earliest=-60m`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	expStartTime := time.Now().Add(-60 * time.Minute).UnixMilli()
+	timeDiff := expStartTime - int64(astNode.TimeRange.StartEpochMs)
+	assert.True(t, timeDiff <= int64(1000))
+
+	expEndTime := time.Now().UnixMilli()
+	endTimeDiff := expEndTime - int64(astNode.TimeRange.EndEpochMs)
+	assert.True(t, endTimeDiff <= int64(1000))
+}
+
+func Test_ParseRelativeTimeModifier_9(t *testing.T) {
+	query := `address = "4852 Lake Ridge port, Santa Ana, Nebraska 13548" | earliest=-week@mon latest=@s`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_10(t *testing.T) {
+	query := `city = Boston | earliest=@w5 latest=@w0`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+}
+
+func Test_ParseRelativeTimeModifier_11(t *testing.T) {
+	query := `* | earliest=-1y latest=-1quarter`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	expStartTime := time.Now().AddDate(-1, 0, 0).UnixMilli()
+	timeDiff := expStartTime - int64(astNode.TimeRange.StartEpochMs)
+	assert.True(t, timeDiff <= int64(1000))
+
+	expEndTime := time.Now().AddDate(0, -4, 0).UnixMilli()
+	endTimeDiff := expEndTime - int64(astNode.TimeRange.EndEpochMs)
+	assert.True(t, endTimeDiff <= int64(1000))
+}
+
+func Test_ParseRelativeTimeModifier_12(t *testing.T) {
+	query := `* | earliest=-2mon latest=-1day`
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, _, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, astNode.TimeRange)
+
+	expStartTime := time.Now().AddDate(0, -2, 0).UnixMilli()
+	timeDiff := expStartTime - int64(astNode.TimeRange.StartEpochMs)
+	assert.True(t, timeDiff <= int64(1000))
+
+	expEndTime := time.Now().AddDate(0, 0, -1).UnixMilli()
+	endTimeDiff := expEndTime - int64(astNode.TimeRange.EndEpochMs)
+	assert.True(t, endTimeDiff <= int64(1000))
+}
+
+func Test_EventCount_Defaults(t *testing.T) {
+	query := `* | eventcount`
+	performEventCountTest(t, query, []string{"*"}, true, false, true)
+}
+
+func Test_EventCount_IndexSpecified(t *testing.T) {
+	query := `* | eventcount index=my_index`
+	performEventCountTest(t, query, []string{"my_index"}, true, false, true)
+}
+
+func Test_EventCount_SummarizeFalse(t *testing.T) {
+	query := `* | eventcount summarize=false`
+	performEventCountTest(t, query, []string{"*"}, false, false, true)
+}
+
+func Test_EventCount_ReportSizeTrue(t *testing.T) {
+	query := `* | eventcount report_size=true`
+	performEventCountTest(t, query, []string{"*"}, true, true, true)
+}
+
+func Test_EventCount_ListVixFalse(t *testing.T) {
+	query := `* | eventcount list_vix=false`
+	performEventCountTest(t, query, []string{"*"}, true, false, false)
+}
+
+func Test_EventCount_Combination1(t *testing.T) {
+	query := `* | eventcount index=my_index summarize=false report_size=true`
+	performEventCountTest(t, query, []string{"my_index"}, false, true, true)
+}
+
+func Test_EventCount_Combination2(t *testing.T) {
+	query := `* | eventcount index=my_index summarize=true report_size=false list_vix=false`
+	performEventCountTest(t, query, []string{"my_index"}, true, false, false)
+}
+
+func Test_EventCount_Combination3(t *testing.T) {
+	query := `* | eventcount report_size=true index=my_index summarize=false list_vix=false`
+	performEventCountTest(t, query, []string{"my_index"}, false, true, false)
+}
+
+func Test_EventCount_Combination4(t *testing.T) {
+	query := `* | eventcount list_vix=false report_size=true index=my_index summarize=false`
+	performEventCountTest(t, query, []string{"my_index"}, false, true, false)
+}
+
+func Test_EventCount_Combination5(t *testing.T) {
+	query := `* | eventcount summarize=false list_vix=false report_size=true index=my_index`
+	performEventCountTest(t, query, []string{"my_index"}, false, true, false)
+}
+
+func Test_EventCount_MultipleIndices1(t *testing.T) {
+	query := `* | eventcount index=my_index index=my_index2 list_vix=false`
+	performEventCountTest(t, query, []string{"my_index", "my_index2"}, true, false, false)
+}
+
+func Test_EventCount_MultipleIndices2(t *testing.T) {
+	query := `* | eventcount index=my_index index=my_index2 summarize=false index=ind-0`
+	performEventCountTest(t, query, []string{"my_index", "my_index2", "ind-0"}, false, false, true)
+}
+
+// This helper function encapsulates the common test logic for eventcount command
+func performEventCountTest(t *testing.T, query string, expectedIndices []string, expectedSummarize bool, expectedReportSize bool, expectedListVix bool) {
+	_, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(query, 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.EventCountRequest)
+	assert.Equal(t, expectedIndices, aggregator.OutputTransforms.LetColumns.EventCountRequest.Indices)
+	assert.Equal(t, expectedSummarize, aggregator.OutputTransforms.LetColumns.EventCountRequest.Summarize)
+	assert.Equal(t, expectedReportSize, aggregator.OutputTransforms.LetColumns.EventCountRequest.ReportSize)
+	assert.Equal(t, expectedListVix, aggregator.OutputTransforms.LetColumns.EventCountRequest.ListVix)
 }

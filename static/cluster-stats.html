@@ -108,7 +108,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                 </div>
             </div>
-                <div class="myOrg-inner-container">
+                <div class="myOrg-inner-container" >
                     <div class="usage-stats-header">
                         <p class="caption">Track progress and performance </p>
                     </div>
@@ -128,25 +128,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div class="query-index-container">
                         <div class="index-stats">
                             <table id="index-data-table" class="index-data-table"></table>
-                        </div>
-                    </div>
-                    <p class="index-stats-header">Metrics Stats</p>
-                    <div class="chart-container">
-                        <div class="graph-container mt-2">
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Metrics Datapoints Count</div>
-                                <canvas id="EventCountChart-metrics"></canvas>
-                            </div>
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Metrics Volume</div>
-                                <canvas id="GBCountChart-metrics"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="query-index-container">
-                        <div class="index-stats">
-                            <table id="metrics-data-table" class="index-data-table"></table>
                         </div>
                     </div>
                     <div class="graph-container mt-5 logs-container">
@@ -172,6 +153,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
                         </div>
                         <div class="popupOverlay"></div>
+                    </div>
+                    
+                    <p class="index-stats-header">Metrics Stats</p>
+                    <div class="chart-container">
+                        <div class="graph-container mt-2">
+                            <div class="chart_container">
+                                <div class="ingestion-stats-header">Incoming Metrics Datapoints Count</div>
+                                <canvas id="EventCountChart-metrics"></canvas>
+                            </div>
+                            <div class="chart_container">
+                                <div class="ingestion-stats-header">Incoming Metrics Volume</div>
+                                <canvas id="GBCountChart-metrics"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="query-index-container">
+                        <div class="index-stats">
+                            <table id="metrics-data-table" class="index-data-table"></table>
+                        </div>
                     </div>
                     <div class="graph-container mt-5 metrics-container">
                         <div class="bar_chart_container">
