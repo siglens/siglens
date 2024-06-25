@@ -32,9 +32,15 @@ let navbarComponent = `
             <a href="./service-health.html" class="nav-links"><span class="icon-traces"></span><span
                     class="nav-link-text">Tracing</span></a>
          </div>
-        <div class="menu nav-metrics" title="Metrics">
-            <a href="./metrics-explorer.html" class="nav-links"><span class="icon-metrics"></span><span
-                    class="nav-link-text">Metrics</span></a>
+        <div class="menu nav-metrics metrics-dropdown-toggle" title="Metrics" style="display:flex;flex-direction:row">
+            <a class="nav-links">
+                <span class="icon-metrics"></span>
+                <span class="nav-link-text">Metrics</span>
+            </a>
+            <ul class="metrics-dropdown">
+                <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
+                <a href="./metric-summary.html"><li class="metrics-summary-metrics-link">Summary</li></a>
+            </ul>
         </div>
         <div class="menu nav-slos" title="SLOs">
             <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
@@ -147,12 +153,17 @@ $(document).ready(function () {
         ".nav-traces",
         ".nav-ingest",
     ];
-    navItems.forEach((item) => $(item).removeClass("active"));
+    const removeActiveClasses = () => {
+        navItems.forEach((item) => $(item).removeClass("active"));
+    };
+
 
     if (currentUrl.includes("index.html")) {
         $(".nav-search").addClass("active");
     } else if (currentUrl.includes("metrics-explorer.html")) {
         $(".nav-metrics").addClass("active");
+    } else if (currentUrl.includes("metric-summary.html")) {
+            $(".nav-metrics").addClass("active");    
     } else if (currentUrl.includes("dashboards-home.html") || currentUrl.includes("dashboard.html")) {
         $(".nav-ldb").addClass("active");
     } else if (currentUrl.includes("saved-queries.html")) {
@@ -183,6 +194,19 @@ $(document).ready(function () {
         $(".help-options").stop(true, true).slideDown(200);
     });
 
+    $(".nav-links").on("click", function () {
+        $(".metrics-dropdown").hide();
+        $(".help-options").slideUp(200);
+    });
+    
+    $(".metrics-dropdown-toggle").click(function (event) {
+        event.stopPropagation();
+        $(".metrics-dropdown").toggle();
+        removeActiveClasses(); // Remove active class from all other nav items
+        $(".nav-metrics").addClass("active"); // Add active class when metrics dropdown is clicked
+    });
+
+
     // Hide the help options when leaving the .nav-help element
     $(".nav-help").on("mouseleave", function(event) {
         event.stopPropagation();
@@ -210,17 +234,34 @@ $(document).ready(function () {
     });
     
 
+
     $(document).on("click", function(event) {
         var helpOptions = $(".help-options");
         var menu = $(".nav-help");
-        
+        var metricsDropdown = $(".metrics-dropdown");
+        var metricsToggle = $(".metrics-dropdown-toggle");
+
+        if (!metricsToggle.is(event.target) && !metricsDropdown.is(event.target) && metricsDropdown.has(event.target).length === 0) {
+            metricsDropdown.hide();
+        }
         if (!menu.is(event.target) && !helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
             helpOptions.slideUp(200);
         }
     });
-
     $(".help-options").on("click", "a", function(event) {
         $(".help-options").slideUp(200);
+    });
+    const currentLocation = window.location.href;
+    const menuItem = document.querySelectorAll('.metrics-dropdown a');
+    menuItem.forEach(item => {
+        if (item.href === currentLocation) {
+            item.classList.add('active');
+        }
+    });
+
+    $(".metrics-dropdown a").on("click", function() {
+        removeActiveClasses(); // Remove active class from all other nav items
+        $(".nav-metrics").addClass("active");
     });
 });
 
