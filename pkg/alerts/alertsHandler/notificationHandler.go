@@ -116,9 +116,15 @@ func shouldSendNotification(alertID string, currentAlertState alertutils.AlertSt
 		return false, err
 	}
 
-	if alertNotification.LastAlertState == currentAlertState && currentAlertState == alertutils.Normal {
-		// If the current alert state is normal and the last alert notfication state is also normal, then we should not send the notification
-		return false, nil
+	if currentAlertState == alertutils.Normal {
+		if alertNotification.LastAlertState == alertutils.Inactive {
+			// If the last alert state is inactive and the current alert state is normal, then we should not send the notification
+			return false, nil
+		}
+		if alertNotification.LastAlertState == currentAlertState {
+			// If the last alert state is normal and the current alert state is also normal, then we should not send the notification
+			return false, nil
+		}
 	}
 
 	cooldownOver := isCooldownOver(alertNotification.CooldownPeriod, alertNotification.LastSentTime)
