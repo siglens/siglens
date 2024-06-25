@@ -524,7 +524,6 @@ func (p Sqlite) DeleteContactPoint(contact_id string) error {
 func (p Sqlite) UpdateLastSentTimeAndAlertState(alert_id string, alertState alertutils.AlertState) error {
 	currentTime := time.Now().UTC()
 
-	// Updating both last_sent_time and last_alert_state
 	if err := p.db.Model(&alertutils.Notification{}).Where("alert_id = ?", alert_id).
 		Updates(map[string]interface{}{
 			"last_sent_time":   currentTime,

@@ -133,7 +133,7 @@ func shouldSendNotification(alertID string, currentAlertState alertutils.AlertSt
 	}
 	silenceMinutesOver, err := isSilenceMinutesOver(alertID, alertNotification.LastSentTime)
 	if err != nil {
-		log.Errorf("NotifyAlertHandlerRequest:Error checking silence period for alert id- %s, err=%v", alertID, err)
+		log.Errorf("shouldSendNotification:Error checking silence period for alert id- %s, err=%v", alertID, err)
 		return false, err
 	}
 	if !silenceMinutesOver {
