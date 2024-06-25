@@ -78,12 +78,13 @@ $(document).ready(function () {
         placement: 'top',
         trigger: 'manual' 
     });
+    let evaluateForValue = 0;
     $('#evaluate-for').on('input', function () {
         let evaluateEveryValue = parseInt($('#evaluate-every').val());
-        let evaluateForValue = parseInt($(this).val());
+        evaluateForValue = parseInt($(this).val());
         let submitbtn=$("#save-alert-btn");
 
-        if (evaluateForValue > evaluateEveryValue) {
+        if (evaluateForValue >= evaluateEveryValue) {
             $(this).addClass('border-danger'); // Add red border
             $(this).attr('title', 'Evaluate for interval must be greater than evaluation interval');
             $(this).tooltip('show'); // Show tooltip
@@ -92,6 +93,14 @@ $(document).ready(function () {
             $(this).removeClass('border-danger'); // Remove red border
             $(this).tooltip('hide'); // Hide tooltip
             submitbtn.prop('disabled',false);
+        }
+    });
+    $('#evaluate-for').on('change', function () {
+        let evaluateEveryValue = parseInt($('#evaluate-every').val());
+        let evaluateForValue = parseInt($(this).val());
+
+        if (evaluateForValue >= evaluateEveryValue) { 
+            $(this).tooltip('dispose');
         }
     });
     $('.theme-btn').on('click', themePickerHandler);
