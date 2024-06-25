@@ -157,8 +157,8 @@ $(document).ready(function () {
         ".nav-search",
         ".nav-metrics",
         ".nav-ldb",
-        ".nav-usq",
-        ".nav-slos",
+        ".nav-usq", 
+        ".nav-slos", 
         ".nav-alerts",
         ".nav-myorg",
         ".nav-minion",
@@ -180,25 +180,25 @@ $(document).ready(function () {
         $(".nav-ldb").addClass("active");
     } else if (currentUrl.includes("saved-queries.html")) {
         $(".nav-usq").addClass("active");
-    } else if (currentUrl.includes("alerts.html") || currentUrl.includes("alert.html") || currentUrl.includes("alert-details.html") || currentUrl.includes("contacts.html")) {
+    } else if (currentUrl.includes("alerts.html") || currentUrl.includes("alert.html") || currentUrl.includes("alert-details.html")   || currentUrl.includes("contacts.html")){
         $(".nav-alerts").addClass("active");
         $('.alerts-nav-tab').appendOrgNavTabs("Alerting", alertsUpperNavTabs);
-    } else if (currentUrl.includes("all-slos.html")) {
+    } else if (currentUrl.includes("all-slos.html")){
         $(".nav-slos").addClass("active");
-        $('.alerts-nav-tab').appendOrgNavTabs("SLOs", []);
-    } else if (currentUrl.includes("cluster-stats.html") || currentUrl.includes("org-settings.html") || currentUrl.includes("application-version.html")) {
+        $('.alerts-nav-tab').appendOrgNavTabs("SLOs",[]);
+    } else if (currentUrl.includes("cluster-stats.html")|| currentUrl.includes("org-settings.html") || currentUrl.includes("application-version.html") {{ .OrgUpperNavUrls}} ) {
         $(".nav-myorg").addClass("active");
         $('.org-nav-tab').appendOrgNavTabs("My Org", orgUpperNavTabs);
     } else if (currentUrl.includes("minion-searches.html")) {
         $(".nav-minion").addClass("active");
     } else if (currentUrl.includes("live-tail.html")) {
         $(".nav-live").addClass("active");
-    } else if (currentUrl.includes("service-health.html") || currentUrl.includes("service-health-overview.html") || currentUrl.includes("dependency-graph.html") || currentUrl.includes("search-traces.html")) {
+    } else if (currentUrl.includes("service-health.html")|| currentUrl.includes("service-health-overview.html") || currentUrl.includes("dependency-graph.html")|| currentUrl.includes("search-traces.html")) {
         $(".nav-traces").addClass("active");
         if ($('.subsection-navbar').length) {
             $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
-        }
-    }
+        }        
+    } 
 
     $(".nav-help").on("mouseenter", function(event) {
         event.stopPropagation();
@@ -212,7 +212,7 @@ $(document).ready(function () {
         $(".traces-dropdown").hide();
         $(".help-options").slideUp(0);
     });
-
+    
     $(".metrics-dropdown-toggle").on("mouseenter", function(event) {
         event.stopPropagation();
         $(".metrics-dropdown").stop(true, true).slideDown(0);
@@ -366,3 +366,4 @@ $(document).ready(function () {
         $(".nav-metrics").addClass("active");
     });
 });
+
