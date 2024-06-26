@@ -1610,14 +1610,6 @@ function parsePromQL(query) {
       functions: [],
     };
   
-    // Handle the simplest case: if the query is just a metric name without any functions, aggregators, or tags
-    const simpleMetricPattern = /\(\(\s*(\w+)\s*\)\)/;
-    const simpleMetricMatch = query.match(simpleMetricPattern);
-    if (simpleMetricMatch) {
-      parseObject.metrics = simpleMetricMatch[1];
-      return parseObject;
-    }
-  
     // Step 1: Extract the functions
     const functionPattern = new RegExp(`(${functionsArray.join('|')})\\s*\\(`, 'g');
     const functionsFound = [];
@@ -1627,7 +1619,15 @@ function parsePromQL(query) {
     }
     parseObject.functions = [...new Set(functionsFound)].reverse(); // Reverse to maintain the correct order
   
-    // Step 2: Extract the aggFunction and everything values
+    // Handle the simplest case: if the query is just a metric name without any functions, aggregators, or tags
+    const simpleMetricPattern = /\(\(\s*(\w+)\s*\)\)/;
+    const simpleMetricMatch = query.match(simpleMetricPattern);
+    if (simpleMetricMatch) {
+      parseObject.metrics = simpleMetricMatch[1];
+      return parseObject;
+    }
+  
+    // Step 2: Check if there is an aggregator and extract it if present
     let innerQuery = query;
     for (let aggregator of availableOptions) {
       const aggPattern = new RegExp(`${aggregator.replace(' ', '\\s*')}\\s*\\(([^)]+)\\)\\s*\\(([^)]+)\\)`, 'i');
@@ -1640,7 +1640,7 @@ function parsePromQL(query) {
       }
     }
   
-    // Step 3: Extract the metric name and everywhere
+    // Step 3: Extract the metric name and tags from the inner query
     const metricPattern = /(\w+)\{([^}]+)\}/;
     const metricMatch = innerQuery.match(metricPattern);
     if (metricMatch) {
@@ -1648,11 +1648,23 @@ function parsePromQL(query) {
       parseObject.everywhere = metricMatch[2].split(',').map(tag => tag.replace(/"/g, '').replace('=', ':'));
     } else {
       // If no tags, just set the metric
-      parseObject.metrics = innerQuery.replace(/\(|\)/g, '').trim();
+      const metricNamePattern = /\(\s*(\w+)\s*\)/;
+      const metricNameMatch = innerQuery.match(metricNamePattern);
+      if (metricNameMatch) {
+        parseObject.metrics = metricNameMatch[1];
+      } else {
+        // Handle the case where metric name is wrapped with functions only
+        const wrappedMetricPattern = /\(\s*([\w_]+)\s*\)/;
+        let wrappedMetricMatch;
+        while ((wrappedMetricMatch = wrappedMetricPattern.exec(innerQuery)) !== null) {
+          parseObject.metrics = wrappedMetricMatch[1];
+          innerQuery = innerQuery.replace(wrappedMetricMatch[0], wrappedMetricMatch[1]);
+        }
+      }
     }
-    console.log("parseObject : ", parseObject);
+  
     return parseObject;
-}
+  }
 
 function activateFirstQuery() {
     $('#metrics-queries .metrics-query:first').find('.query-name').addClass('active');
