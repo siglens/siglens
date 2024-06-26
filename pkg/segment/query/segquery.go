@@ -387,7 +387,7 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 	}
 
 	// If we have a Transaction command, we want to search the segments from the oldest to the newest
-	if queryInfo.aggs != nil && (queryInfo.aggs.HasTransactionArgumentsInChain()) {
+	if queryInfo.aggs != nil && queryInfo.aggs.HasTransactionArgumentsInChain() {
 		reverseSortedQSRSlice(sortedQSRSlice)
 	}
 

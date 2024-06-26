@@ -1404,7 +1404,7 @@ func performSortColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAg
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 	// Without following a group by
 	if recs != nil {
-		if err := performSortColRequestWithoutGroupby(nodeResult, letColReq, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment, aggs.HasTailInChain()); err != nil {
+		if err := performSortColRequestWithoutGroupby(nodeResult, letColReq, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performSortColRequest: %v", err)
 		}
 		return nil
@@ -1423,7 +1423,7 @@ func performSortColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryAg
 }
 
 func performSortColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, hasTail bool) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
 
 	letColReq.SortColRequest.AcquireProcessedSegmentsLock()
 	defer letColReq.SortColRequest.ReleaseProcessedSegmentsLock()

@@ -447,7 +447,6 @@ func GetRawRecordInfoForQid(scroll int, qid uint64) ([]*utils.RecordResultContai
 	for k, v := range rQuery.searchRes.SegEncToKey {
 		skCopy[k] = v
 	}
-
 	return rQuery.rawRecords[scroll:], rQuery.queryCount.TotalCount, skCopy, nil
 }
 
