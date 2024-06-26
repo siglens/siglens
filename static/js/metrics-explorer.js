@@ -1692,8 +1692,6 @@ async function addQueryElementOnAlertEdit(queryName, queryDetails) {
 }
 
 async function populateQueryElement(queryElement, queryDetails) {
-    console.log(queryDetails);
-    
     // Set the metric
     queryElement.find('.metrics').val(queryDetails.metrics);
 

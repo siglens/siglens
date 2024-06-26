@@ -323,7 +323,6 @@ async function displayAlert(res){
         }
         for (const index in metricsQueryParams.queries) {
             const query = metricsQueryParams.queries[index];
-            console.log(query.query);
             const parsedQueryObject = parsePromQL(query.query);
             await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
         }
