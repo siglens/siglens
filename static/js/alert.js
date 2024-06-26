@@ -257,6 +257,9 @@ function createNewAlertRule(alertData){
 
 // update alert rule
 function updateAlertRule(alertData){
+    if (!alertData.alert_type) {
+        alertData.alert_type = 1;
+    }
         $.ajax({
         method: "post",
         url: "api/alerts/update",
