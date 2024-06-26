@@ -248,7 +248,7 @@ func clearTRollups(rrmap map[uint64]*RolledRecs) {
 func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string) error {
 	nextSuffix, err := suffix.GetNextSuffix(streamid, virtualTableName)
 	if err != nil {
-		log.Errorf("reset segstore: failed to get next suffix idx for stream%+v table%+v. err: %v", streamid, virtualTableName, err)
+		log.Errorf("resetSegStore: failed to get next suffix for stream=%+v table=%+v. err: %v", streamid, virtualTableName, err)
 		return err
 	}
 	segstore.suffix = nextSuffix
