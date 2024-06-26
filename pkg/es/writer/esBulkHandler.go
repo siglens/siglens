@@ -199,7 +199,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)
 	response["took"] = timeTook / 1000
-	response["error"] = overallError
+	response["errors"] = overallError
 	response["items"] = items
 
 	if atleastOneSuccess {

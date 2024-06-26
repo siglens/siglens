@@ -289,11 +289,6 @@ func (p Sqlite) UpdateAlert(editedAlert *alertutils.AlertDetails) error {
 		}
 	}
 
-	if currentAlertData.AlertType > 0 && editedAlert.AlertType != currentAlertData.AlertType {
-		log.Errorf("UpdateAlert: alert type cannot be updated for alert: %v. Given AlertType=%v, Expected AlertType=%v", editedAlert.AlertName, editedAlert.AlertType, currentAlertData.AlertType)
-		return fmt.Errorf("UpdateAlert: alert type cannot be updated for alert: %v. Given AlertType=%v, Expected AlertType=%v", editedAlert.AlertName, editedAlert.AlertType, currentAlertData.AlertType)
-	}
-
 	if editedAlert.AlertType == alertutils.AlertTypeLogs {
 		if !isValid(editedAlert.QueryParams.QueryText) {
 			log.Errorf("UpdateAlert: data validation check failed for alert: %v. Alert Query is not Valid: %v", editedAlert.AlertName, editedAlert.QueryParams.QueryText)
