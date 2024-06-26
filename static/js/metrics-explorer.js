@@ -28,7 +28,7 @@ let previousStartEpoch = null;
 let previousEndEpoch = null;
 let rawTimeSeriesData=[];
 let allFunctions,functionsArray =[];
-var availableOptions = ["max by", "min by", "avg by", "sum by", "count by", "stddev by", "stdvar by", "group by"];
+var aggregationOptions = ["max by", "min by", "avg by", "sum by", "count by", "stddev by", "stdvar by", "group by"];
 
 // Used for alert screen
 let isAlertScreen;
@@ -693,7 +693,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
 
     // Aggregation input 
     queryElement.find('.agg-function').autocomplete({
-        source: availableOptions.sort(),
+        source: aggregationOptions.sort(),
         minLength: 0,
         select: function(event, ui) {
             queryDetails.aggFunction = ui.item.value;
@@ -1629,7 +1629,7 @@ function parsePromQL(query) {
   
     // Step 2: Check if there is an aggregator and extract it if present
     let innerQuery = query;
-    for (let aggregator of availableOptions) {
+    for (let aggregator of aggregationOptions) {
       const aggPattern = new RegExp(`${aggregator.replace(' ', '\\s*')}\\s*\\(([^)]+)\\)\\s*\\(([^)]+)\\)`, 'i');
       const aggMatch = query.match(aggPattern);
       if (aggMatch) {
