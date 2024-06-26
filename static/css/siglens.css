@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
- 
  :root {
     --black: #000;
     --white: #fff;
@@ -746,6 +745,7 @@ body {
 #run-metrics-query-btn,
 #logout-btn,
 #search-query-btn,
+#search-history-btn,
 #test-data-btn{
     background: var(--btn-regular-bg-color);
 }
@@ -760,6 +760,7 @@ body {
 #live-tail-btn:hover,
 #cancel-loading:hover,
 #search-query-btn:hover,
+#search-history-btn:hover,
 #run-metrics-query-btn:hover{
     background: var(--btn-hover-or-click-bg-color);
 }
@@ -780,6 +781,7 @@ body {
 #create-db-btn,
 #logout-btn,
 #search-query-btn,
+#search-history-btn,
 #test-data-btn{
     margin: 0;
     text-decoration: none;
@@ -900,6 +902,7 @@ body {
 #run-metrics-query-btn,
 #logout-btn,
 #search-query-btn,
+#search-history-btn,
 #test-data-btn{
     color: var(--button-text-color) !important;
 }
@@ -1772,7 +1775,7 @@ div.dts div.dataTables_scrollBody table {
     overflow-x: hidden;
 }
 
-#sq-search-container ,#db-search-container, #metrics-container{
+#sq-search-container ,#db-search-container, #metrics-container {
     display: grid;
     grid-template-columns: 2fr auto auto;
     column-gap: 15px;
@@ -5177,6 +5180,25 @@ input.form-control {
 .ingestion-container a{
     color: var(--dashboard-title-color);
     font-weight: 600;
+}
+
+#history-search-container {
+    display: grid;
+    grid-template-columns: 2fr auto auto;
+    column-gap: 15px;
+    margin-top: 16px;
+    margin-left: 23px;
+    margin-right: 25px;
+    height: 44px;
+    background-color: var(--top-bar-bg-color-regular);
+}
+
+#history-filter-input {
+    margin: 5px 0 0 5px; 
+    padding: 10px 8px; 
+    text-decoration: none;
+    height: 20px;
+    line-height: 14px;
 }
 
 .help-options {
