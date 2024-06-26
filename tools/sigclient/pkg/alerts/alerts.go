@@ -30,18 +30,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// End to End Testing for Alerts:
-// Create a Contact Point: For this test purpose, we will create a web-hook contact point.
-// Verification of Contact Point: Verify that the contact point is created through Get All Contacts API.
-// Create an Alert for logs: With 1 min Eval Interval and 1 or 2 mins as Eval window.
-// Create an Alert for Metrics: With 1 min Eval Interval and 1 or 2 mins as Eval window.
-// Verify the Alerts are created by using the get API
-// Verify that the notifications are sent.
-// Verify Alert History by calling the Get Alert History API
-// Delete the Alerts.
-// Delete the Contact Points
-// Close
-
 type AllContactResponse struct {
 	Contacts []*alertutils.Contact `json:"contacts"`
 }
@@ -463,6 +451,18 @@ func verifyAlertHistory(host string, alerts []*alertutils.AlertDetails) error {
 	return nil
 }
 
+// End to End Testing for Alerts:
+// Start the WebServer to listen for Webhooks
+// Create a Contact Point: For this test purpose, we will create a web-hook contact point.
+// Verification of Contact Point: Verify that the contact point is created through Get All Contacts API.
+// Create an Alert for logs: With 1 min Eval Interval and 1 min as Eval window.
+// Create an Alert for Metrics: With 1 min Eval Interval and 1 min as Eval window.
+// Verify the Alerts are created by using the get API
+// Verify that the notifications are sent.
+// Verify Alert History by calling the Get Alert History API
+// Delete the Alerts.
+// Delete the Contact Points
+// Close the Webserver
 func RunAlertsTest(host string) {
 
 	webhookChan := make(chan alertutils.WebhookBody)
