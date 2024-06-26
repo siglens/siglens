@@ -239,10 +239,10 @@ func performTail(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators,
 	if tailExpr.TailRecords == nil {
 		tailExpr.TailRecords = make(map[string]map[string]interface{}, 0)
 	}
-	if tailExpr.TailCache == nil {
+	if tailExpr.TailPQ == nil {
 		pq := make(utils.PriorityQueue, 0)
-		tailExpr.TailCache = &pq
-		heap.Init(tailExpr.TailCache)
+		tailExpr.TailPQ = &pq
+		heap.Init(tailExpr.TailPQ)
 	}
 
 	if !hasSort {
@@ -251,13 +251,13 @@ func performTail(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators,
 			if !exists {
 				continue
 			}
-			heap.Push(tailExpr.TailCache, &utils.Item{
+			heap.Push(tailExpr.TailPQ, &utils.Item{
 				Priority: float64(timeVal.(uint64)),
 				Value:    k,
 			})
 			tailExpr.TailRecords[k] = v
-			if tailExpr.TailCache.Len() > int(aggs.OutputTransforms.TailRows) {
-				item := heap.Pop(tailExpr.TailCache).(*utils.Item)
+			if tailExpr.TailPQ.Len() > int(aggs.OutputTransforms.TailRows) {
+				item := heap.Pop(tailExpr.TailPQ).(*utils.Item)
 				delete(tailExpr.TailRecords, item.Value)
 			}
 			delete(recs, k)
@@ -298,9 +298,9 @@ func performTail(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators,
 			recs[k] = v
 		}
 
-		idx := tailExpr.TailCache.Len() - 1
-		for tailExpr.TailCache.Len() > 0 {
-			item := heap.Pop(tailExpr.TailCache).(*utils.Item)
+		idx := tailExpr.TailPQ.Len() - 1
+		for tailExpr.TailPQ.Len() > 0 {
+			item := heap.Pop(tailExpr.TailPQ).(*utils.Item)
 			recordIndexInFinal[item.Value] = idx
 			idx -= 1
 		}

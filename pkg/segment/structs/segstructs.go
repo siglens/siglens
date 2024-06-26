@@ -248,7 +248,7 @@ type LetColumnsRequest struct {
 
 type TailExpr struct {
 	TailRecords          map[string]map[string]interface{}
-	TailCache            *sutils.PriorityQueue
+	TailPQ               *sutils.PriorityQueue
 	NumProcessedSegments uint64
 }
 
