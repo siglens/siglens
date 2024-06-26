@@ -144,6 +144,38 @@ $(document).ready(async function () {
         new agGrid.Grid(document.querySelector('#history-grid'), historyGridOptions);
     }
 
+    $('#properties-btn').on('click', function() {
+        $('#properties-grid').show();
+        $('#history-grid').hide();
+        $('#history-search-container').hide();
+        $('#properties-btn').addClass('active');
+        $('#history-btn').removeClass('active');
+        fetchAlertProperties();
+    });
+
+    $('#history-btn').on('click', function() {
+        $('#properties-grid').hide();
+        $('#history-grid').show();
+        $('#history-search-container').show();
+        $('#history-btn').addClass('active');
+        $('#properties-btn').removeClass('active');
+        displayHistoryData();
+    });
+
+    $('#run-history-search').on('click', function() {
+        const searchTerm = $('.search-history-input').val().toLowerCase();
+        const filteredData = historyGridOptions.rowData.filter(item => 
+            item.action.toLowerCase().includes(searchTerm) ||
+            item.state.toLowerCase().includes(searchTerm)
+        );
+
+        if (historyGridOptions.api) {
+            historyGridOptions.api.setRowData(filteredData);
+        } else {
+            console.error("historyGridOptions.api is not defined");
+        }
+    });
+
     if (document.getElementById('properties-btn') && document.getElementById('history-btn')) {
         const propertiesBtn = document.getElementById('properties-btn');
         const historyBtn = document.getElementById('history-btn');
@@ -233,7 +265,7 @@ function displayHistoryData() {
     if (alertID) {
         $.ajax({
             method: "get",
-            url: "api/alerts/" + alertID,
+            url: `api/alerts/${alertID}/history`,
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
                 'Accept': '*/*'
@@ -241,28 +273,24 @@ function displayHistoryData() {
             dataType: 'json',
             crossDomain: true,
         }).then(function (res) {
-            // Ignore the response and use dummy data
-            const historyData = [
-                { timestamp: '12:22:31 pm', action: 'config change', state: 'nil' },
-                { timestamp: '11:32:41 am', action: 'evaluation', state: 'normal' },
-                { timestamp: '09:23:21 am', action: 'evaluation', state: 'firing' },
-                { timestamp: '08:12:21 am', action: 'config change', state: 'nil' },
-                { timestamp: '07:53:11 am', action: 'evaluation', state: 'pending' },
-                { timestamp: '06:44:01 am', action: 'evaluation', state: 'normal' },
-                { timestamp: '05:35:31 am', action: 'config change', state: 'nil' },
-                { timestamp: '04:26:21 am', action: 'evaluation', state: 'firing' },
-                { timestamp: '03:17:11 am', action: 'evaluation', state: 'pending' },
-                { timestamp: '02:08:01 am', action: 'config change', state: 'nil' }
-            ];
+            const historyData = res.alertHistory.map(item => ({
+                timestamp: new Date(item.event_triggered_at).toLocaleString(),
+                action: item.event_description,
+                state: mapIndexToAlertState.get(item.alert_state)
+            }));
 
             if (historyGridOptions.api) {
                 historyGridOptions.api.setRowData(historyData);
             } else {
                 console.error("historyGridOptions.api is not defined");
             }
+        }).catch(function (error) {
+            console.error('Error fetching history:', error);
         });
     }
 }
+
+
 
 function editAlert(alertId) {
     $.ajax({
@@ -426,11 +454,16 @@ function createNewAlertRule(alertData) {
 }
 
 // update alert rule
+<<<<<<< Updated upstream
 function updateAlertRule(alertData){
     if (!alertData.alert_type) {
         alertData.alert_type = 1;
     }
         $.ajax({
+=======
+function updateAlertRule(alertData) {
+    $.ajax({
+>>>>>>> Stashed changes
         method: "post",
         url: "api/alerts/update",
         headers: {
