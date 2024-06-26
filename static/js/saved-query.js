@@ -159,6 +159,7 @@
  class linkCellRenderer {
      // init method gets the details of the cell to be renderer
      init(params) {
+        Cookies.remove('queryMode');
         this.eGui = document.createElement('span');
         let href = "index.html?searchText=" +
           encodeURIComponent(params.data.searchText) +
@@ -281,7 +282,7 @@ $(document).ready(function () {
    {
      field: "filterTab",
      headerName: "FilterTab",
-     hide: true,
+     hide: false,
    },
    {
      field: "qdelete",
