@@ -89,7 +89,7 @@ func InitTagsTree(name string) *TagTree {
 }
 
 func InitTagsTreeHolder(mid string) (*TagsTreeHolder, error) {
-	suffix, err := suffix.GetSuffix(mid, "tth")
+	suffix, err := suffix.GetNextSuffix(mid, "tth")
 	if err != nil {
 		log.Errorf("InitTagsTreeHolder: failed to get the suffix for mid %s. Error: %+v", mid, err)
 		return nil, err
@@ -313,7 +313,7 @@ func (tt *TagsTreeHolder) flushTagsTree() {
 
 func (tt *TagsTreeHolder) rotateTagsTree(forceRotate bool) error {
 	if !forceRotate {
-		nextSuffix, err := suffix.GetSuffix(tt.mid, "tth")
+		nextSuffix, err := suffix.GetNextSuffix(tt.mid, "tth")
 		if err != nil {
 			log.Errorf("TagTree.rotateTagsTree: failed to get the next suffix for mid %s. Error: %+v", tt.mid, err)
 			return err

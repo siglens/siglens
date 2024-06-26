@@ -254,6 +254,13 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 		return err
 	}
 
+	nextidx, err := suffix.GetNextSuffix(streamid, virtualTableName)
+	if err != nil {
+		log.Errorf("reset segstore: failed to get next suffix idx for stream%+v table%+v. err: %v", streamid, virtualTableName, err)
+		return err
+	}
+	segstore.suffix = nextidx
+
 	basename := fmt.Sprintf("%s%d", basedir, segstore.suffix)
 	segstore.earliest_millis = 0
 	segstore.latest_millis = 0
@@ -280,13 +287,6 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	if err != nil {
 		return err
 	}
-
-	nextidx, err := suffix.GetSuffix(streamid, virtualTableName)
-	if err != nil {
-		log.Errorf("reset segstore: failed to get next suffix idx for stream%+v table%+v. err: %v", streamid, virtualTableName, err)
-		return err
-	}
-	segstore.suffix = nextidx
 
 	return nil
 }
@@ -674,7 +674,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			return err
 		}
 
-		finalSegmentKey := fmt.Sprintf("%s%d", finalBasedir, segstore.suffix-1)
+		finalSegmentKey := fmt.Sprintf("%s%d", finalBasedir, segstore.suffix)
 
 		log.Infof("Rotating segId=%v RecCount: %v, OnDiskBytes=%v, numBlocks=%v, finalSegKey=%v orgId=%v",
 			segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,

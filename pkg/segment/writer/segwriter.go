@@ -446,7 +446,7 @@ func getSegStore(streamid string, ts_millis uint64, table string, orgId uint64) 
 			return nil, fmt.Errorf("getSegStore: max allowed segstores reached (%d)", maxAllowedSegStores)
 		}
 
-		suffIndex, err := suffix.GetSuffix(streamid, table)
+		suffIndex, err := suffix.GetNextSuffix(streamid, table)
 		if err != nil {
 			return nil, err
 		}
