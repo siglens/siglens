@@ -1849,50 +1849,50 @@ func TestFormatTime(t *testing.T) {
 
 func TestParseTime(t *testing.T) {
 	tests := []struct {
-		dateStr  string
-		format   string
-		expected time.Time
-		err      bool
+		dateStr     string
+		format      string
+		expected    time.Time
+		shouldError bool
 	}{
 		{
-			dateStr:  "01-02-2006 15:04:05",
-			format:   "%d-%m-%Y %H:%M:%S",
-			expected: time.Date(2006, time.February, 1, 15, 4, 5, 0, time.UTC),
-			err:      false,
+			dateStr:     "01-02-2006 15:04:05",
+			format:      "%d-%m-%Y %H:%M:%S",
+			expected:    time.Date(2006, time.February, 1, 15, 4, 5, 0, time.UTC),
+			shouldError: false,
 		},
 		{
-			dateStr:  "01:08 PM",
-			format:   "%I:%M %p",
-			expected: time.Date(1970, time.January, 1, 13, 8, 0, 0, time.UTC),
-			err:      false,
+			dateStr:     "01:08 PM",
+			format:      "%I:%M %p",
+			expected:    time.Date(1970, time.January, 1, 13, 8, 0, 0, time.UTC),
+			shouldError: false,
 		},
 		{
-			dateStr:  "31/12/99",
-			format:   "%d/%m/%y",
-			expected: time.Date(1999, time.December, 31, 0, 0, 0, 0, time.UTC),
-			err:      false,
+			dateStr:     "31/12/99",
+			format:      "%d/%m/%y",
+			expected:    time.Date(1999, time.December, 31, 0, 0, 0, 0, time.UTC),
+			shouldError: false,
 		},
 		{
-			dateStr:  "Monday, 01-January-06 15:04",
-			format:   "%A, %d-%B-%y %H:%M",
-			expected: time.Date(2006, time.January, 1, 15, 4, 0, 0, time.UTC),
-			err:      false,
+			dateStr:     "Monday, 01-January-06 15:04",
+			format:      "%A, %d-%B-%y %H:%M",
+			expected:    time.Date(2006, time.January, 1, 15, 4, 0, 0, time.UTC),
+			shouldError: false,
 		},
 		{
-			dateStr:  "invalid date",
-			format:   "%d-%m-%Y",
-			expected: time.Time{},
-			err:      true,
+			dateStr:     "invalid date",
+			format:      "%d-%m-%Y",
+			expected:    time.Time{},
+			shouldError: true,
 		},
 	}
 
 	for _, test := range tests {
 		got, err := parseTime(test.dateStr, test.format)
-		if test.err && err == nil {
+		if test.shouldError && err == nil {
 			t.Errorf("parseTime(%q, %q) expected an error, but got nil", test.dateStr, test.format)
-		} else if !test.err && err != nil {
+		} else if !test.shouldError && err != nil {
 			t.Errorf("parseTime(%q, %q) unexpected error: %v", test.dateStr, test.format, err)
-		} else if !test.err && !got.Equal(test.expected) {
+		} else if !test.shouldError && !got.Equal(test.expected) {
 			t.Errorf("parseTime(%q, %q) = %v, want %v", test.dateStr, test.format, got, test.expected)
 		}
 	}

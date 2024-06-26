@@ -1556,7 +1556,8 @@ func formatTime(t time.Time, format string) string {
 	_, week := t.ISOWeek()
 	_, offset := t.Zone()
 	offsetHours := offset / 3600
-	formattedOffset := fmt.Sprintf("%+03d", offsetHours)
+	offsetMinutes := (offset % 3600) / 60
+	formattedOffset := fmt.Sprintf("%+03d:%02d", offsetHours, offsetMinutes)
 	postReplacements := map[string]string{
 		"%w":  strconv.Itoa(int(t.Weekday())),                         // weekday as a decimal number
 		"%j":  strconv.Itoa(t.YearDay()),                              // day of the year as a decimal number
