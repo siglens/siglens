@@ -454,16 +454,8 @@ function createNewAlertRule(alertData) {
 }
 
 // update alert rule
-<<<<<<< Updated upstream
-function updateAlertRule(alertData){
-    if (!alertData.alert_type) {
-        alertData.alert_type = 1;
-    }
-        $.ajax({
-=======
 function updateAlertRule(alertData) {
     $.ajax({
->>>>>>> Stashed changes
         method: "post",
         url: "api/alerts/update",
         headers: {
