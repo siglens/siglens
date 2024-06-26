@@ -187,6 +187,10 @@ type OutputTransforms struct {
 	FilterRows             *BoolExpr          // discard rows failing some condition
 	MaxRows                uint64             // if 0, get all results; else, get at most this many
 	RowsAdded              uint64             // number of rows added to the result. This is used in conjunction with MaxRows.
+	Tail bool
+	TailRows uint64
+	TailDone bool
+	TailSegmentDone bool
 }
 
 type GroupByRequest struct {
@@ -545,7 +549,7 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
-	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.FilterRows != nil || qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded)
+	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.Tail || qa.OutputTransforms.FilterRows != nil || qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded)
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
@@ -620,6 +624,29 @@ func (qa *QueryAggregators) HasSortBlockInChain() bool {
 	if qa.Next != nil {
 		return qa.Next.HasSortBlockInChain()
 	}
+	return false
+}
+
+func (qa *QueryAggregators) HasTail() bool {
+	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.Tail {
+		return true
+	}
+
+	return false
+}
+
+
+func (qa *QueryAggregators) HasTailInChain() bool {
+	if qa == nil {
+		return false
+	}
+	if qa.HasTail() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasTailInChain()
+	}
+
 	return false
 }
 

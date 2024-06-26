@@ -473,6 +473,8 @@ func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregat
 	}
 
 	aggNode.OutputTransforms.MaxRows = node.MaxRows
+	aggNode.OutputTransforms.Tail = node.Tail
+	aggNode.OutputTransforms.TailRows = node.TailRows
 
 	if node.MaxRows > 0 {
 		aggNode.Limit = int(node.MaxRows)
@@ -592,7 +594,7 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 func GetFinalSizelimit(aggs *QueryAggregators, sizeLimit uint64) uint64 {
 	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
 		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() {
+	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() || aggs.HasTailInChain() {
 		// 1. Dedup needs state information about the previous records, so we can
 		// run into an issue if we show some records, then the user scrolls
 		// down to see more and we run dedup on just the new records and add
