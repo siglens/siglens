@@ -773,7 +773,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"tojson":           {},
 	"relative_time":    {},
 	"time":             {},
-	"strftime":         {},
 	"cluster":          {},
 	"getfields":        {},
 	"isnum":            {},
