@@ -36,15 +36,42 @@ $(document).ready(function () {
     $("#selected-dashboard").on("click", displayExistingDashboards);
 
     $('#alert-from-logs-btn').click(function() {
-        $('.addrulepopupOverlay').fadeIn().css('display', 'flex');
+        $('.addrulepopupOverlay').css('display', 'flex');
+    });
+    
+    $('#addrule-cancel-btn').click(function() {
+        $('#rule-name').tooltip('hide');
+        $('.addrulepopupOverlay').css('display', 'none');
 
     });
-    $('#addrule-cancel-btn').click(function() {
-        $('.addrulepopupOverlay').fadeOut();
+    
+    $('#rule-name').tooltip({
+        title: 'Rule name cannot be empty',
+        placement: 'top',
+        trigger: 'manual'
+    });
+
+    $('#rule-name').on('input', function () {
+        var ruleName = $(this).val().trim(); // Trim whitespace
+        var submitbtn = $("#addrule-save-btn");
+
+        if (ruleName === "") {
+            $(this).tooltip('show'); // Show tooltip
+            submitbtn.prop('disabled', true);
+        } else {
+            $(this).tooltip('hide'); // Hide tooltip
+            submitbtn.prop('disabled', false);
+        }
     });
 
     $('#addrule-save-btn').click(function() {
-        var ruleName = $('#rule-name').val();
+        var ruleName = $('#rule-name').val().trim(); // Trim whitespace
+        
+        if (ruleName === "") {
+            $('#rule-name').tooltip('show'); // Show tooltip if rule name is empty
+            return;
+        }
+
         var encodedRuleName = encodeURIComponent(ruleName);
 
         // Assuming you have the `data` object available
@@ -59,6 +86,7 @@ $(document).ready(function () {
         var queryString = $.param(queryParams);
         window.location.href = "../alert.html?" + queryString;
     });
+
 });
 
 function showNewDashboard() {
