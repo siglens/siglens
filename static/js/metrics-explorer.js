@@ -28,7 +28,7 @@ let previousStartEpoch = null;
 let previousEndEpoch = null;
 let rawTimeSeriesData=[];
 let allFunctions=[];
-
+let timeUnit;
 
 // Theme
 let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
@@ -810,25 +810,30 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
         existingContainer.find('.graph-canvas').empty().append(canvas);
     }
     var ctx = canvas[0].getContext('2d');
-    
+    var datasets = [];
+    var labels = [];
     // Extract labels and datasets from seriesData
     if (seriesData.length > 0) {
-        var labels = Object.keys(seriesData[0].values);
-        var datasets = seriesData.map(function(series, index) {
+        seriesData.forEach(function (series, index) {
+            Object.keys(series.values).forEach((tsvalue) => {
+                labels.push(new Date(tsvalue))
+            })
+        })
+
+        labels.sort((a, b) => a - b)
+
+        datasets = seriesData.map(function (series, index) {
             return {
                 label: series.seriesName,
-                data: Object.values(series.values),
+                data: series.values,
                 borderColor: classic[index % classic.length],
                 backgroundColor : classic[index % classic.length] + 70,
                 borderWidth: 2,
                 fill: false
             };
         });
-    }else{
-        var labels = [];
-        var datasets = [];
     }
-    
+
     var chartData = {
         labels: labels,
         datasets: datasets
@@ -858,6 +863,7 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
             },
             scales: {
                 x: {
+                    type: 'time',
                     display: true,
                     title: {
                         display: true,
@@ -866,7 +872,61 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
                     grid: {
                         display: false
                     },
-                    ticks: { color: tickColor }
+                    ticks: { color: tickColor,
+                        callback: function(value, index, ticks) {
+                            const date = new Date(value);
+                            const previousTick = index > 0 ? new Date(ticks[index - 1].value) : null;
+
+                            let isDifferentDay = previousTick && date.getDate() !== previousTick.getDate();
+                            if (timeUnit === 'month') {
+                                return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
+                            }else if (timeUnit === 'day') {
+                                return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
+                            }else if (timeUnit === 'hour') {
+                                if (date.getMinutes() % 60 ===0 || date.getMinutes() === 0){
+                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                                }
+                                return null;
+                            }else if (timeUnit === '15minute') {
+                                if (date.getMinutes() % 15 ===0 || date.getMinutes() === 0){
+                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                                }
+                                return null;
+                            }else if (timeUnit === '5minute') {
+                                if (date.getMinutes() % 5 ===0 || date.getMinutes() === 0){
+                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                                }
+                                return null;
+                            }else {
+                                return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                            }
+                        },
+                        autoSkip: false,
+                        // maxTicksLimit: 24,
+                        major: {
+                            enabled: true,
+                        },
+                        font: context => {
+                            if (context.tick && context.tick.major) {
+                                return {
+                                    weight: 'bold'
+                                };
+                            }
+                        return {
+                                weight: 'normal'
+                            };
+                        }
+                    },
+                    time: {
+                        unit: timeUnit.includes('minute') ?'minute' : timeUnit,
+                        tooltipFormat: 'MMM d, HH:mm:ss',
+                        displayFormats: {
+                            minute: 'HH:mm',
+                            hour: 'HH:mm',
+                            day: 'MMM d',
+                            month: 'MMM YYYY'
+                        }
+                    },
                 },
                 y: {
                     display: true,
@@ -876,9 +936,27 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
                     grid: { color: gridLineColor },
                     ticks: { color: tickColor }
                 }
-            }
-        }
+            },
+            spanGaps: true,
+        },
+        
     });
+
+    //   // Redraw the chart to apply HTML formatting to tick labels
+    //   lineChart.options.scales.x.ticks.callback = function(value, index, ticks) {
+    //     const date = new Date(value);
+    //     const previousTick = index > 0 ? new Date(ticks[index - 1].value) : null;
+    //     const isDifferentDay = previousTick && date.getDate() !== previousTick.getDate();
+
+    //     if (isDifferentDay) {
+    //         return `<b>${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</b>`;
+    //     } else {
+    //         return date.toLocaleTimeString(undefined, { hour: 'numeric', hour12: true });
+    //     }
+    // };
+
+    // lineChart.update();
+
     
     // Modify the fill property based on the chart type after chart initialization
     if (chartType === 'Area chart') {
@@ -1170,6 +1248,7 @@ function mergeGraphs(chartType) {
             },
             scales: {
                 x: {
+                    type: 'time',
                     display: true,
                     title: {
                         display: true,
@@ -1178,7 +1257,61 @@ function mergeGraphs(chartType) {
                     grid: {
                         display: false
                     },
-                    ticks: { color: tickColor }
+                    ticks: { color: tickColor,
+                        callback: function(value, index, ticks) {
+                            const date = new Date(value);
+                            const previousTick = index > 0 ? new Date(ticks[index - 1].value) : null;
+
+                            let isDifferentDay = previousTick && date.getDate() !== previousTick.getDate();
+                            if (timeUnit === 'month') {
+                                return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
+                            }else if (timeUnit === 'day') {
+                                return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
+                            }else if (timeUnit === 'hour') {
+                                if (date.getMinutes() % 60 ===0 || date.getMinutes() === 0){
+                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                                }
+                                return null;
+                            }else if (timeUnit === '15minute') {
+                                if (date.getMinutes() % 15 ===0 || date.getMinutes() === 0){
+                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                                }
+                                return null;
+                            }else if (timeUnit === '5minute') {
+                                if (date.getMinutes() % 5 ===0 || date.getMinutes() === 0){
+                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                                }
+                                return null;
+                            }else {
+                                return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                            }
+                        },
+                        autoSkip: false,
+                        // maxTicksLimit: 24,
+                        major: {
+                            enabled: true,
+                        },
+                        font: context => {
+                            if (context.tick && context.tick.major) {
+                                return {
+                                    weight: 'bold'
+                                };
+                            }
+                        return {
+                                weight: 'normal'
+                            };
+                        }
+                    },
+                    time: {
+                        unit: timeUnit.includes('minute') ?'minute' : timeUnit,
+                        tooltipFormat: 'MMM d, HH:mm:ss',
+                        displayFormats: {
+                            minute: 'HH:mm',
+                            hour: 'HH:mm',
+                            day: 'MMM d',
+                            month: 'MMM YYYY'
+                        }
+                    },
                 },
                 y: {
                     display: true,
@@ -1188,7 +1321,8 @@ function mergeGraphs(chartType) {
                     grid: { color: gridLineColor },
                     ticks: { color: tickColor }
                 }
-            }
+            },
+            spanGaps: true,
         }
     });
     mergedGraph = mergedLineChart;
@@ -1199,6 +1333,21 @@ async function convertDataForChart(data) {
     let seriesArray = [];
 
     if (data.hasOwnProperty('series') && data.hasOwnProperty('timestamps') && data.hasOwnProperty('values')) {
+        const timeRange =Math.floor( Date.now()/ 1000) - data.startTime;
+        // // Determine the best time unit based on the time range
+        if (timeRange > 365 * 24 * 60 * 60  ) {
+            timeUnit = 'month';
+        } else if (timeRange >= 7 * 24 * 60 * 60 ) {
+            timeUnit = 'day';
+        } else if (timeRange >= 24 * 60 * 60 ) {
+            timeUnit = 'hour';
+        } else if (timeRange >= 3 * 60 * 60 ) {
+            timeUnit = '15minute';
+        } else if (timeRange >= 1 * 60 * 60 ) {
+            timeUnit = '5minute';
+        }  else {
+            timeUnit = 'minute';
+        }
         for (let i = 0; i < data.series.length; i++) {
             let series = {
                 seriesName: data.series[i],
@@ -1208,8 +1357,8 @@ async function convertDataForChart(data) {
             for (let j = 0; j < data.timestamps.length; j++) {
                 // Convert epoch seconds to milliseconds by multiplying by 1000
                 let timestampInMilliseconds = data.timestamps[j] * 1000;
-                let localDate = new Date(timestampInMilliseconds);
-                let formattedDate = localDate.toLocaleString();
+                let localDate = moment(timestampInMilliseconds);
+                const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
 
                 series.values[formattedDate] = data.values[i][j];
             }

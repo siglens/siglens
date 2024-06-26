@@ -659,6 +659,23 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 			allTimestamps[ts] = struct{}{}
 		}
 	}
+	//add timestamps where metrics value is null
+	if calculatedInterval >= 600 {
+		t := time.Unix(int64(startTime), 0).UTC()
+		truncated := t.Truncate(time.Hour)
+		if t.Before(truncated) {
+			truncated = truncated.Add(time.Hour)
+		}
+		// Convert back to epoch time
+		roundedDownEpochTime := truncated.Unix()
+		startTime = uint32(roundedDownEpochTime)
+	}
+	for startTime <= endTime {
+		// only add timestamps which are multiple of 5 minutes
+		allTimestamps[startTime] = struct{}{}
+		startTime = startTime + calculatedInterval
+	}
+
 	// Convert the map of unique timestamps into a sorted slice.
 	httpResp.Timestamps = make([]uint32, 0, len(allTimestamps))
 	for ts := range allTimestamps {
