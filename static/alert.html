@@ -49,6 +49,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <style>
         .metrics-graph-container{
             display: block;
+            margin-bottom: 20px;
         }
         #metrics-explorer, #metrics-graphs{
             display: none;
@@ -98,14 +99,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </div>
                         <div class="subsection-heading">
                             <div class="circle">1</div>
-                            <div>Alert Rule</div>
-                        </div>
-                        <div class="alert-form-subsection">
-                            <label for="alert-rule-name">Rule name</label>
-                            <input type="text" class="form-control" placeholder="Enter rule name" id="alert-rule-name" required tabindex="1">
-                        </div>
-                        <div class="subsection-heading">
-                            <div class="circle">2</div>
                             <div>Query</div>
                         </div>
                         <div class="alert-form-subsection">
@@ -189,7 +182,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                              </div>
                         </div>
                         <div class="subsection-heading">
-                            <div class="circle">3</div>
+                            <div class="circle">2</div>
                             <div>Set Condition</div>
                         </div>
                         <div class="alert-form-subsection">
@@ -237,7 +230,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
                         </div>
                         <div class="subsection-heading">
-                            <div class="circle">4</div>
+                            <div class="circle">3</div>
                             <div>Notification</div>
                         </div>
                         <div class="alert-form-subsection">
@@ -262,6 +255,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 Message<textarea name="message" id="notification-msg" rows="4" class="message form-control" tabindex="6"
                                     required></textarea>
                             </div>
+                        </div>
+                        <div class="subsection-heading">
+                            <div class="circle">4</div>
+                            <div>Alert Rule</div>
+                        </div>
+                        <div class="alert-form-subsection">
+                            <label for="alert-rule-name">Rule name</label>
+                            <input type="text" class="form-control" placeholder="Enter rule name" id="alert-rule-name" required tabindex="1">
                         </div>
                         <div class="label-subsection">
                             <label for="custom-label">Custom Label</label>
