@@ -145,10 +145,11 @@ func (WebHookConfig) TableName() string {
 }
 
 type Notification struct {
-	NotificationId string    `json:"notification_id" gorm:"primaryKey"`
-	CooldownPeriod uint64    `json:"cooldown_period"`
-	LastSentTime   time.Time `json:"last_sent_time"`
-	AlertId        string    `json:"-"`
+	NotificationId string     `json:"notification_id" gorm:"primaryKey"`
+	CooldownPeriod uint64     `json:"cooldown_period"`
+	LastSentTime   time.Time  `json:"last_sent_time"`
+	AlertId        string     `json:"-"`
+	LastAlertState AlertState `json:"last_alert_state"`
 }
 
 func (Notification) TableName() string {
