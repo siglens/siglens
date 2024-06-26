@@ -34,15 +34,12 @@
          let resize = index + 1 == columnOrder.length ? false : true;
          let maxWidth = Math.max(displayTextWidth(colName, "italic 19pt  DINpro "), 200)         //200 is approx width of 1trillion number
          // Define the cellRenderer only for myField column
-        let cellRenderer = undefined;
-        if (colName === "myField") {
-            cellRenderer = (params) => {
-                const span = document.createElement('span');
-                span.style.whiteSpace = 'pre';
-                span.textContent = params.value;
-                return span;
-            };
-        }
+let cellRenderer = (params) => {
+            const span = document.createElement('span');
+            span.style.whiteSpace = 'pre';
+            span.textContent = params.value;
+            return span;
+        };
          return {
              field: title,
              headerName: title,
