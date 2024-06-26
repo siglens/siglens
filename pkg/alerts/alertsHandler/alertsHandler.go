@@ -45,7 +45,7 @@ type database interface {
 	CreateAlert(alertInfo *alertutils.AlertDetails) (alertutils.AlertDetails, error)
 	GetAlert(alert_id string) (*alertutils.AlertDetails, error)
 	CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error)
-	GetAlertHistory(alertId string) ([]*alertutils.AlertHistoryDetails, error)
+	GetAlertHistoryByAlertID(alertHistoryParams *alertutils.AlertHistoryQueryParams) ([]*alertutils.AlertHistoryDetails, error)
 	GetAllAlerts(orgId uint64) ([]alertutils.AlertDetails, error)
 	CreateMinionSearch(alertInfo *alertutils.MinionSearch) (alertutils.MinionSearch, error)
 	GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error)
@@ -58,9 +58,10 @@ type database interface {
 	GetAllContactPoints(orgId uint64) ([]alertutils.Contact, error)
 	UpdateContactPoint(contact *alertutils.Contact) error
 	GetCoolDownDetails(alert_id string) (uint64, time.Time, error)
+	GetAlertNotification(alert_id string) (*alertutils.Notification, error)
 	GetContactDetails(alert_id string) (string, string, string, error)
 	GetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []alertutils.WebHookConfig, error)
-	UpdateLastSentTime(alert_id string) error
+	UpdateLastSentTimeAndAlertState(alert_id string, alertState alertutils.AlertState) error
 	UpdateAlertStateByAlertID(alertId string, alertState alertutils.AlertState) error
 	DeleteContactPoint(contact_id string) error
 }
@@ -103,11 +104,20 @@ func ProcessVersionInfo(ctx *fasthttp.RequestCtx) {
 
 func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (string, error) {
 	if alertToBeCreated.AlertType == alertutils.AlertTypeLogs {
-		_, _, err := pipesearch.ParseQuery(alertToBeCreated.QueryParams.QueryText, 0, alertToBeCreated.QueryParams.QueryLanguage)
+		_, queryAggs, err := pipesearch.ParseQuery(alertToBeCreated.QueryParams.QueryText, 0, alertToBeCreated.QueryParams.QueryLanguage)
 		if err != nil {
 			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("error Parsing logs Query. Error=%v", err)
 		}
-		// TODO: Check if the query is a valid Stats Query. If not reject the Alert request.
+
+		if queryAggs == nil {
+			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
+		}
+
+		isStatsQuery := queryAggs.IsStatsAggPresentInChain()
+		if !isStatsQuery {
+			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
+		}
+
 	} else if alertToBeCreated.AlertType == alertutils.AlertTypeMetrics {
 		_, _, _, _, errorLog, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToBeCreated.MetricsQueryParamsString))
 		if err != nil {
@@ -136,6 +146,11 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	err := json.Unmarshal(rawJSON, &alertToBeCreated)
 	if err != nil {
 		utils.SendError(ctx, "Failed to unmarshal json", "", err)
+		return
+	}
+
+	if alertToBeCreated.EvalWindow < alertToBeCreated.EvalInterval {
+		utils.SendError(ctx, "EvalWindow should be greater than or equal to EvalInterval", fmt.Sprintf("EvalWindow: %v, EvalInterval:%v", alertToBeCreated.EvalWindow, alertToBeCreated.EvalInterval), nil)
 		return
 	}
 
@@ -343,6 +358,11 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	if alertToBeUpdated.EvalWindow < alertToBeUpdated.EvalInterval {
+		utils.SendError(ctx, "EvalWindow should be greater than or equal to EvalInterval", fmt.Sprintf("EvalWindow: %v, EvalInterval:%v", alertToBeUpdated.EvalWindow, alertToBeUpdated.EvalInterval), nil)
+		return
+	}
+
 	// Validate Alert Type and Query
 	extraMsgToLog, err := validateAlertTypeAndQuery(alertToBeUpdated)
 	if err != nil {
@@ -393,12 +413,26 @@ func ProcessAlertHistoryRequest(ctx *fasthttp.RequestCtx) {
 
 	responseBody := make(map[string]interface{})
 	alertId := utils.ExtractParamAsString(ctx.UserValue("alertID"))
-	alertHistory, err := databaseObj.GetAlertHistory(alertId)
+	limit := ctx.QueryArgs().GetUintOrZero("limit")
+	offset := ctx.QueryArgs().GetUintOrZero("offset")
+	sortOrder := string(ctx.QueryArgs().Peek("sort_order"))
+
+	if sortOrder != string(alertutils.ASC) && sortOrder != string(alertutils.DESC) {
+		sortOrder = string(alertutils.DESC)
+	}
+
+	alertHistory, err := databaseObj.GetAlertHistoryByAlertID(&alertutils.AlertHistoryQueryParams{
+		AlertId:   alertId,
+		SortOrder: alertutils.DB_SORT_ORDER(sortOrder),
+		Limit:     uint64(limit),
+		Offset:    uint64(offset),
+	})
 	if err != nil {
 		utils.SendError(ctx, "Failed to get alert history", fmt.Sprintf("alert ID: %v", alertId), err)
 		return
 	}
 
+	responseBody["count"] = len(alertHistory)
 	responseBody["alertHistory"] = alertHistory
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, responseBody)

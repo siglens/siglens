@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
  :root {
     --black: #000;
     --white: #fff;
@@ -866,7 +867,8 @@ body {
 #cstats-app-footer {
     float: right;
     font-size: 0.7rem;
-    width: 126px;
+    width: 100%;
+    text-align: right;
     height: 23px;
     font-style: normal;
     font-weight: 500;
@@ -1352,7 +1354,7 @@ progress.hidden {
 }
 
 #app-content-area .graph-container {
-    margin-left: 23px;
+    
     display: flex;
     width: 97%;
     align-items: center;
@@ -1485,8 +1487,7 @@ progress.hidden {
 }
 
 .index-stats-header {
-    padding-left: 8px;
-    margin-bottom: 12px;
+    
     font-size: 18px;
     color: var(--cstats-header-text-color);
     font-weight: var(--fw-500) !important;
@@ -1619,16 +1620,15 @@ div.dts div.dataTables_scrollBody table {
 }
 
 .query-index-container{
-    display: flex;
+    
     justify-content: center;
     flex-direction: column;
     align-items: center;
-    width: 100%;
+    width: 105%;
     margin-top: 40px;
     margin-bottom: 40px;
 }
 .query-stats-container{
-    margin-left: 23px;
     display: flex;
     width: 97%;
 }
@@ -3485,6 +3485,11 @@ float: right;
 }
 
 .myOrg-inner-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: left;
+    align-items: left;
+    gap:10px;
     font-size: 14px;
     padding: 20px;
     padding-top: 0px;
@@ -4198,6 +4203,9 @@ color: #C8C7CC;
     margin: 20px;
     margin-bottom: 10px;
 }
+.ingestion-nav-tab{
+    font-size: 18px;
+}
 
 .usage-stats{
     display:flex;
@@ -4341,7 +4349,10 @@ color: #C8C7CC;
     background: var(--component-bg-color);
     padding: 0px 20px;
 }
-.add-alert-form,.add-contact-form{
+.add-alert-form{
+    width: 100%;
+}
+.add-contact-form{
     width: 70%;
 }
 
@@ -4385,7 +4396,7 @@ color: #C8C7CC;
 
 .evaluation-container input{
     margin-left: 40px;
-    width: 70px;
+    width: 110px;
     margin-right: 10px;
 }
 .label-container{
@@ -4504,6 +4515,26 @@ color: #C8C7CC;
     padding-bottom: 0;
     margin-top: 5px;
     float: right;
+}
+
+.test-contact-btn {
+    background-color: var(--purple-2);
+    height: 30px;
+    margin-bottom: 0px;
+    color: var(--white-0) !important;
+    float: right;
+    cursor: pointer;
+    margin-left: 12px;
+}
+
+.test-contact-btn .send-icon{
+    background-image: url(../assets/send-icon.svg);
+    height: 15px;
+    background-size: 100%;
+    width: 15px;
+    background-repeat: no-repeat;
+    margin-bottom: 0px;
+    margin-right: 6px;
 }
 
 .test-contact-btn {
@@ -4663,6 +4694,7 @@ color: #C8C7CC;
 
 .ag-paging-panel{
     font-size: 12px;
+    margin-right:1%;
 }
 
 .ag-paging-page-summary-panel{
@@ -5107,6 +5139,10 @@ input.form-control {
 #delbutton.default-dashboard-delete {
     background-image:none;
 }
+#delbutton.default-dashboard-delete {
+    background-image:none;
+}
+
 
 #data-ingestion .myOrg-heading{
     font-size: 16px;
@@ -5365,6 +5401,140 @@ input.form-control {
     border-right-color:var(--side-nav-bg-color-regular);
 }
 
+
+.nav-metrics {
+    position: relative;
+}
+.metrics-dropdown{
+    list-style-type: none;
+    padding: 10% !important;
+    margin: 0;
+    background-color: var(--side-nav-bg-color-regular);
+    position: absolute;
+    top: 0;
+    left: 105%;
+    width: 205px;
+    z-index: 1;
+}
+ul.metrics-dropdown li, ul.metrics-dropdown li a{
+    color:#6F6B7B;
+    text-decoration: none;
+}.metrics-dropdown {
+    display: none;
+    color: var(--navbar-link-text) !important;
+    text-decoration: none;
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    left: 154px;
+    border-radius: 5px;
+    box-shadow: 0px 2px 8px 0px var(--border-shadow);
+    border: 1px solid var(--border-btn-color);
+}
+.metrics-dropdown a {
+    color: var(--navbar-link-text) !important;
+    text-decoration: none;
+} 
+.metrics-dropdown li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: transparent; 
+}
+.metrics-dropdown-toggle{
+    cursor:pointer;
+}
+
+.metrics-dropdown li:hover {
+    background-color: var(--side-nav-bg-color-selected); 
+    color:rgb(255, 255, 255);
+    border-radius: 12px;
+}
+.metrics-dropdown li {
+    padding: 10px;
+}
+.metrics-dropdown li.di {
+    padding-left: 20px; /* Additional padding for left indent */
+}
+.metrics-dropdown li.metrics-summary-metrics-link {
+    padding-left: 20px; /* Additional padding for left indent */
+}
+.metric-summary {
+    padding-bottom: 1%;
+  display:flex;
+  flex-direction: column;
+  justify-content: left;
+  overflow-y: scroll;
+  scrollbar-width: none; 
+  -ms-overflow-style: none; 
+}
+.metric-summary-head{
+  margin-top: 0.5%;
+}
+.icon {
+  visibility: hidden;
+}
+
+.metric-summary-searchcontainer{
+    display:flex !important;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .metric-summary-search{
+    width:100%;
+  }
+
+.metric-container{
+  display: flex;
+    justify-content:left;
+    flex-direction: column;
+    align-items: left;
+    width: 100%;
+    margin-top: 20px;
+    margin-bottom: 40px;
+    font-size: 15px;
+    font-family: "DINpro", Arial, sans-serif;
+}
+.metric-stats{
+  margin: auto;
+  float: left;
+  width: 95%;
+}
+
+#error-popup .fas{
+    font-size: 16px;
+    margin-right: 5px;
+}
+
+#okay-button{
+    background: var(--component-bg-color);
+    color: var(--component-text-color) !important;
+    width: 100px;
+}
+.ingest-inner-container {
+    font-size: 14px;
+    padding: 30px;
+    height: 100%;
+}
+.ingest-inner-container  .ui-tabs-panel{
+    margin-top: 50px;
+    border: none;
+}
+
+#sample-data{
+    display: flex;
+}
+
+#index-del-btn-traces{
+    background-image: none;
+
+}
+
+
 #error-popup .fas{
     font-size: 16px;
     margin-right: 5px;
@@ -5378,4 +5548,5 @@ input.form-control {
 
 #index-del-btn-traces{
     background-image: none;
+
 }

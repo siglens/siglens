@@ -28,6 +28,7 @@ import (
 	"gorm.io/driver/sqlite"
 	_ "gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/sirupsen/logrus"
@@ -467,6 +468,14 @@ func (p Sqlite) GetCoolDownDetails(alert_id string) (uint64, time.Time, error) {
 	return cooldown_period, last_sent_time, nil
 }
 
+func (p Sqlite) GetAlertNotification(alert_id string) (*alertutils.Notification, error) {
+	var notification alertutils.Notification
+	if err := p.db.Where("alert_id = ?", alert_id).First(&notification).Error; err != nil {
+		return nil, err
+	}
+	return &notification, nil
+}
+
 func (p Sqlite) DeleteContactPoint(contact_id string) error {
 	if !isValid(contact_id) {
 		log.Errorf("DeleteContactPoint: data validation check failed, contact id: %v", contact_id)
@@ -511,13 +520,20 @@ func (p Sqlite) DeleteContactPoint(contact_id string) error {
 	return nil
 }
 
-// update last_sent_time in notification_details table
-func (p Sqlite) UpdateLastSentTime(alert_id string) error {
+// update last_sent_time and last_alert_state in notification_details table
+func (p Sqlite) UpdateLastSentTimeAndAlertState(alert_id string, alertState alertutils.AlertState) error {
 	currentTime := time.Now().UTC()
-	if err := p.db.Model(&alertutils.Notification{}).Where("alert_id = ?", alert_id).Update("last_sent_time", currentTime).Error; err != nil {
-		log.Errorf("UpdateLastSentTime: unable to UpdateLastSentTime, alert id: %v, err: %+v", alert_id, err)
-		return fmt.Errorf("UpdateLastSentTime: unable to UpdateLastSentTime, alert id: %v, err: %+v", alert_id, err)
+
+	if err := p.db.Model(&alertutils.Notification{}).Where("alert_id = ?", alert_id).
+		Updates(map[string]interface{}{
+			"last_sent_time":   currentTime,
+			"last_alert_state": alertState,
+		}).Error; err != nil {
+		err = fmt.Errorf("UpdateLastSentTimeAndAlertState: unable to update, alert id: %v, err: %+v", alert_id, err)
+		log.Errorf(err.Error())
+		return err
 	}
+
 	return nil
 }
 
@@ -654,26 +670,41 @@ func (p Sqlite) CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryD
 	return alertHistoryDetails, nil
 }
 
-func (p Sqlite) GetAlertHistory(alertId string) ([]*alertutils.AlertHistoryDetails, error) {
-	if !isValid(alertId) {
-		log.Errorf("GetAlertHistory: data validation check failed for alert id: %v", alertId)
-		return nil, fmt.Errorf("GetAlertHistory: data validation check failed for alert id: %v", alertId)
+func (p Sqlite) GetAlertHistoryByAlertID(alertHistoryParams *alertutils.AlertHistoryQueryParams) ([]*alertutils.AlertHistoryDetails, error) {
+	if !isValid(alertHistoryParams.AlertId) {
+		log.Errorf("GetAlertHistory: data validation check failed for alert Query Params: %v", *alertHistoryParams)
+		return nil, fmt.Errorf("GetAlertHistory: data validation check failed for alert Query Params: %v", *alertHistoryParams)
 	}
 
-	alertExists, _, err := p.verifyAlertExists(alertId)
+	alertExists, _, err := p.verifyAlertExists(alertHistoryParams.AlertId)
 	if err != nil {
-		log.Errorf("GetAlertHistory: unable to verify if alert exists, alert id: %v, err: %+v", alertId, err)
-		return nil, fmt.Errorf("GetAlertHistory: unable to verify if alert exists, alert id: %v, err: %+v", alertId, err)
+		log.Errorf("GetAlertHistory: unable to verify if alert exists, alert id: %v, err: %+v", alertHistoryParams.AlertId, err)
+		return nil, fmt.Errorf("GetAlertHistory: unable to verify if alert exists, alert id: %v, err: %+v", alertHistoryParams.AlertId, err)
 	}
 
 	if !alertExists {
-		log.Errorf("GetAlertHistory: alert does not exist, alert id: %v", alertId)
-		return nil, fmt.Errorf("GetAlertHistory: alert does not exist, alert id: %v", alertId)
+		log.Errorf("GetAlertHistory: alert does not exist, alert id: %v", alertHistoryParams.AlertId)
+		return nil, fmt.Errorf("GetAlertHistory: alert does not exist, alert id: %v", alertHistoryParams.AlertId)
+	}
+
+	if alertHistoryParams.Limit == 0 {
+		alertHistoryParams.Limit = 20
+	}
+
+	if alertHistoryParams.SortOrder == "" {
+		alertHistoryParams.SortOrder = alertutils.DESC
 	}
 
 	alertHistory := make([]*alertutils.AlertHistoryDetails, 0)
 
-	err = p.db.Where("alert_id = ?", alertId).First(&alertHistory).Error
-	return alertHistory, err
+	query := p.db.Where("alert_id = ?", alertHistoryParams.AlertId).Order(
+		clause.OrderByColumn{Column: clause.Column{Name: clause.PrimaryColumn.Name}, Desc: alertHistoryParams.SortOrder == alertutils.DESC}).Offset(int(alertHistoryParams.Offset)).Limit(int(alertHistoryParams.Limit))
 
+	err = query.Find(&alertHistory).Error
+	if err != nil {
+		log.Errorf("GetAlertHistory: unable to fetch alert history for Alert Query Params: %v, err: %+v", *alertHistoryParams, err)
+		return nil, fmt.Errorf("GetAlertHistory: unable to fetch alert history, alert id: %v, err: %+v", alertHistoryParams.AlertId, err)
+	}
+
+	return alertHistory, nil
 }
