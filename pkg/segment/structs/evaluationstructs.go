@@ -1519,6 +1519,7 @@ func handleTrimFunctions(op string, value string, trim_chars string) string {
 	}
 }
 
+// formatTime formats a time.Time object into a string based on the provided format string, using mappings from Go's time package and strftime.net.
 func formatTime(t time.Time, format string) string {
 	preReplacements := map[string]string{
 		"%e": "_2",
@@ -1575,6 +1576,7 @@ func formatTime(t time.Time, format string) string {
 	return timeStr
 }
 
+// parseTime parses a string into a time.Time object based on the provided format string, using mappings for Go's time package.
 func parseTime(dateStr, format string) (time.Time, error) {
 	replacements := map[string]string{
 		"%d": "02",
@@ -1625,7 +1627,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate timestamp: %v", err)
 		}
 		timestampInSeconds := timestamp / 1000
-		t := time.Unix(int64(timestampInSeconds), 0)
+		t := time.Unix(int64(timestampInSeconds), 0) // time.Unix(sec int64, nsec int64) -> expects seconds and nanoseconds. Since strftime expects seconds, we pass 0 for nanoseconds.
 
 		timeStr := formatTime(t, self.Param.RawString)
 		return timeStr, nil
