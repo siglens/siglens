@@ -227,7 +227,7 @@ input:checked + .slider:before {
     background-color: var(--selected-filter-yellow) !important;
 }
 .metrics-query .metrics:focus{
-    background-color: var( --container-focus-bg-color );
+    background-color: var( --container-focus-bg-color ) !important;
     outline: 1px solid #2D69BC;
 }
 .metrics-query .agg-function{
