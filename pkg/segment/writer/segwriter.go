@@ -40,7 +40,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
-	"github.com/siglens/siglens/pkg/segment/writer/suffix"
 	"github.com/siglens/siglens/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
@@ -446,16 +445,14 @@ func getSegStore(streamid string, ts_millis uint64, table string, orgId uint64) 
 			return nil, fmt.Errorf("getSegStore: max allowed segstores reached (%d)", maxAllowedSegStores)
 		}
 
-		suffIndex, err := suffix.GetNextSuffix(streamid, table)
-		if err != nil {
-			return nil, err
-		}
-		segstore = &SegStore{suffix: suffIndex, Lock: sync.Mutex{}, OrgId: orgId, firstTime: true}
+		segstore = &SegStore{Lock: sync.Mutex{}, OrgId: orgId, firstTime: true}
 		segstore.initWipBlock()
-		err = segstore.resetSegStore(streamid, table)
+
+		err := segstore.resetSegStore(streamid, table)
 		if err != nil {
 			return nil, err
 		}
+
 		allSegStores[streamid] = segstore
 		instrumentation.SetWriterSegstoreCountGauge(int64(len(allSegStores)))
 	}

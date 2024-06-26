@@ -246,22 +246,21 @@ func clearTRollups(rrmap map[uint64]*RolledRecs) {
 // the checkAndRotateColFiles func
 
 func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string) error {
+	nextSuffix, err := suffix.GetNextSuffix(streamid, virtualTableName)
+	if err != nil {
+		log.Errorf("reset segstore: failed to get next suffix idx for stream%+v table%+v. err: %v", streamid, virtualTableName, err)
+		return err
+	}
+	segstore.suffix = nextSuffix
 
-	basedir := getActiveBaseSegDir(streamid, virtualTableName, segstore.suffix)
-	err := os.MkdirAll(basedir, 0764)
+	basedir := getActiveBaseSegDir(streamid, virtualTableName, nextSuffix)
+	err = os.MkdirAll(basedir, 0764)
 	if err != nil {
 		log.Errorf("resetSegStore : Could not mkdir basedir=%v,  %v", basedir, err)
 		return err
 	}
 
-	nextidx, err := suffix.GetNextSuffix(streamid, virtualTableName)
-	if err != nil {
-		log.Errorf("reset segstore: failed to get next suffix idx for stream%+v table%+v. err: %v", streamid, virtualTableName, err)
-		return err
-	}
-	segstore.suffix = nextidx
-
-	basename := fmt.Sprintf("%s%d", basedir, segstore.suffix)
+	basename := fmt.Sprintf("%s%d", basedir, nextSuffix)
 	segstore.earliest_millis = 0
 	segstore.latest_millis = 0
 	segstore.SegmentKey = basename
