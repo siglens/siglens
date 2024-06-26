@@ -5395,7 +5395,7 @@ input.form-control {
     font-weight: 600;
     border-radius: 10px;
     color: var(--text-color);
-   
+    margin-bottom: 8%;
     font-weight: bold;
     font-size: 18px;
 
@@ -5454,5 +5454,5 @@ input.form-control {
     flex-direction:row;
     justify-content:right;
     align-content:right;
-    padding-top:3%;
+    padding-top: 7%;
   }
