@@ -18,6 +18,7 @@
 package aggregations
 
 import (
+	"container/heap"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -172,11 +173,11 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		}
 
 		if agg.OutputTransforms.Tail {
-			err := performTail(nodeResult, agg, agg.OutputTransforms.TailRows, recs, recordIndexInFinal, finishesSegment)
+			err := performTail(nodeResult, agg, agg.OutputTransforms.TailRequest, agg.OutputTransforms.TailRows, recs, recordIndexInFinal, finishesSegment, numTotalSegments)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
-			} 
+			}
 		}
 
 		if agg.OutputTransforms.MaxRows > 0 {
@@ -204,13 +205,13 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	return nil
 }
 
-func performTail(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, tailRows uint64, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finishesSegment bool) error {
+func performTail(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, tailExpr *structs.TailExpr, tailRows uint64, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finishesSegment bool, numTotalSegments uint64) error {
 
 	// Stats there is no order present in the iteration of histogram, so just retrieving the records from the end in results and reversing it.
 	if nodeResult.Histogram != nil {
 		// Map has no deterministic order of execution
 		for _, aggResult := range nodeResult.Histogram {
-			diff :=  len(aggResult.Results) - int(aggs.OutputTransforms.TailRows)
+			diff := len(aggResult.Results) - int(aggs.OutputTransforms.TailRows)
 			if diff > 0 {
 				aggResult.Results = aggResult.Results[diff:]
 				aggs.OutputTransforms.TailRows = 0
@@ -218,7 +219,7 @@ func performTail(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators,
 				aggs.OutputTransforms.TailRows -= uint64(len(aggResult.Results))
 			}
 			n := len(aggResult.Results)
-			for i := 0;i < n/2; i++ {
+			for i := 0; i < n/2; i++ {
 				aggResult.Results[i], aggResult.Results[n-i-1] = aggResult.Results[n-i-1], aggResult.Results[i]
 			}
 			if aggs.OutputTransforms.TailRows == 0 {
@@ -229,53 +230,118 @@ func performTail(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators,
 		return nil
 	}
 
-	if recordIndexInFinal == nil {
+	// if recordIndexInFinal == nil {
+	// 	return nil
+	// }
+
+	// if aggs.OutputTransforms.TailDone || aggs.OutputTransforms.TailSegmentDone {
+	// 	for k := range recs {
+	// 		if _, exist := recordIndexInFinal[k]; !exist {
+	// 			delete(recs, k)
+	// 		}
+	// 	}
+	// 	if finishesSegment {
+	// 		aggs.OutputTransforms.TailSegmentDone = false
+	// 	}
+	// 	return nil
+	// }
+	// // Seg1 5 blks
+	// // During 1 blk we set the indexes correctly for all the records
+	// // When we iterate next blk of seg 1 we do not want to repeat this process.
+
+	// // tail 3
+	// // Seg2 3 blks
+	// // We are ready to perform process
+
+	// currSegIndexOrder := make([]string, len(recordIndexInFinal))
+	// for k, idx := range recordIndexInFinal {
+	// 	currSegIndexOrder[idx] = k
+	// }
+
+	// diff := len(currSegIndexOrder) - int(tailRows)
+	// if diff > 0 {
+	// 	for i := 0;i < diff;i++ {
+	// 		delete(recs, currSegIndexOrder[i])
+	// 		delete(recordIndexInFinal, currSegIndexOrder[i])
+	// 	}
+	// 	currSegIndexOrder = currSegIndexOrder[diff:]
+	// }
+
+	// n := len(currSegIndexOrder)
+	// for idx, key := range currSegIndexOrder {
+	// 	// reverse the index
+	// 	recordIndexInFinal[key] = n-idx-1
+	// }
+	// aggs.OutputTransforms.TailRows -= uint64(n)
+
+	// if !finishesSegment {
+	// 	aggs.OutputTransforms.TailSegmentDone = true
+	// }
+
+	if finishesSegment {
+		tailExpr.NumProcessedSegments++
+	}
+
+	if tailExpr.TailRecords == nil {
+		tailExpr.TailRecords = make(map[string]map[string]interface{}, 0)
+	}
+	if tailExpr.TailCache == nil {
+		pq := make(utils.PriorityQueue, 0)
+		tailExpr.TailCache = &pq
+		heap.Init(tailExpr.TailCache)
+	}
+
+	for k, v := range recs {
+		heap.Push(tailExpr.TailCache, &utils.Item{
+			Priority: float64(v["timestamp"].(uint64)),
+			Value:    k,
+		})
+		tailExpr.TailRecords[k] = v
+		if tailExpr.TailCache.Len() > int(tailRows) {
+			item := heap.Pop(tailExpr.TailCache).(*utils.Item)
+			delete(tailExpr.TailRecords, item.Value)
+		}
+		delete(recs, k)
+	}
+
+	if tailExpr.NumProcessedSegments < numTotalSegments {
 		return nil
 	}
 
-	if aggs.OutputTransforms.TailDone || aggs.OutputTransforms.TailSegmentDone {
-		for k := range recs {
-			if _, exist := recordIndexInFinal[k]; !exist {
-				delete(recs, k)
-			}
-		}
-		if finishesSegment {
-			aggs.OutputTransforms.TailSegmentDone = false
-		}
-		return nil
-	}
-	// Seg1 5 blks
-	// During 1 blk we set the indexes correctly for all the records
-	// When we iterate next blk of seg 1 we do not want to repeat this process.
-
-	// tail 3
-	// Seg2 3 blks
-	// We are ready to perform process
-
-	currSegIndexOrder := make([]string, len(recordIndexInFinal))
-	for k, idx := range recordIndexInFinal {
-		currSegIndexOrder[idx] = k
+	for k, v := range tailExpr.TailRecords {
+		recs[k] = v
 	}
 
-	diff := len(currSegIndexOrder) - int(tailRows)
-	if diff > 0 {
-		for i := 0;i < diff;i++ {
-			delete(recs, currSegIndexOrder[i])
-			delete(recordIndexInFinal, currSegIndexOrder[i])
-		}
-		currSegIndexOrder = currSegIndexOrder[diff:]
+	idx := tailExpr.TailCache.Len() - 1
+	for tailExpr.TailCache.Len() > 0 {
+		item := heap.Pop(tailExpr.TailCache).(*utils.Item)
+		recordIndexInFinal[item.Value] = idx
+		idx -= 1
 	}
 
-	n := len(currSegIndexOrder)
-	for idx, key := range currSegIndexOrder {
-		// reverse the index
-		recordIndexInFinal[key] = n-idx-1
-	}
-	aggs.OutputTransforms.TailRows -= uint64(n)
+	// recKeys := make([]string, 0)
+	// keyToSortByValues := make(map[string]uint64, 0)
 
-	if !finishesSegment {
-		aggs.OutputTransforms.TailSegmentDone = true
-	}
+	// for recInden, record := range recs {
+	// 	recKeys = append(recKeys, recInden)
+	// 	keyToSortByValues[recInden] = record["timestamp"].(uint64)
+	// }
+
+	// sort.Slice(recKeys, func(i, j int) bool {
+	// 	key1 := recKeys[i]
+	// 	key2 := recKeys[j]
+	// 	return keyToSortByValues[key1] < keyToSortByValues[key2]
+	// })
+
+	// for i := tailRows; int(i) < len(recKeys);i++ {
+	// 	delete(recs, recKeys[i])
+	// }
+
+	// recKeys = recKeys[:tailRows]
+
+	// for index, recInden := range recKeys {
+	// 	recordIndexInFinal[recInden] = index
+	// }
 
 	return nil
 }

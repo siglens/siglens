@@ -187,10 +187,9 @@ type OutputTransforms struct {
 	FilterRows             *BoolExpr          // discard rows failing some condition
 	MaxRows                uint64             // if 0, get all results; else, get at most this many
 	RowsAdded              uint64             // number of rows added to the result. This is used in conjunction with MaxRows.
-	Tail bool
-	TailRows uint64
-	TailDone bool
-	TailSegmentDone bool
+	Tail                   bool
+	TailRows               uint64
+	TailRequest            *TailExpr
 }
 
 type GroupByRequest struct {
@@ -245,6 +244,12 @@ type LetColumnsRequest struct {
 	MultiValueColRequest *MultiValueColLetRequest
 	FormatResults        *FormatResultsRequest // formats the results into a single result and places that result into a new field called search.
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
+}
+
+type TailExpr struct {
+	TailRecords          map[string]map[string]interface{}
+	TailCache            *sutils.PriorityQueue
+	NumProcessedSegments uint64
 }
 
 type EventCountExpr struct {
@@ -634,7 +639,6 @@ func (qa *QueryAggregators) HasTail() bool {
 
 	return false
 }
-
 
 func (qa *QueryAggregators) HasTailInChain() bool {
 	if qa == nil {

@@ -2579,22 +2579,33 @@ TailBlock <- PIPE CMD_TAIL ("limit" EQUAL)? intAsStr:IntegerAsString {
         return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
     }
 
+    tExpr := &structs.TailExpr{
+        TailRecords: make(map[string]map[string]interface{}, 0),
+    }
+
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
             TailRows: limit,
             Tail: true,
+            TailRequest: tExpr,
         },
     }
 
     return queryAgg, nil
 }
 / PIPE CMD_TAIL_NO_SPACE {
+
+    tExpr := &structs.TailExpr{
+        TailRecords: make(map[string]map[string]interface{}, 0),
+    }
+
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
             TailRows: uint64(10), // From https://docs.splunk.com/Documentation/SplunkCloud/9.1.2308/SearchReference/Tail
             Tail: true,
+            TailRequest: tExpr,
         },
     }
 
