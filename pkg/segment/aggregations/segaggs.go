@@ -103,8 +103,12 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		post = post.Next
 	}
 
+	hasSort := false
 	for agg := post; agg != nil; agg = agg.Next {
-		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
+		if agg.HasSortBlock() {
+			hasSort = true
+		}
+		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment, hasSort)
 
 		if len(nodeResult.TransactionEventRecords) > 0 {
 			nodeResult.NextQueryAgg = agg
@@ -140,7 +144,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     2.9 Text functions: replace, spath, upper, trim
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, hasSort bool) error {
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -173,7 +177,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		}
 
 		if agg.OutputTransforms.Tail {
-			err := performTail(nodeResult, agg, agg.OutputTransforms.TailRequest, agg.OutputTransforms.TailRows, recs, recordIndexInFinal, finishesSegment, numTotalSegments)
+			err := performTail(nodeResult, agg, agg.OutputTransforms.TailRequest, recs, recordIndexInFinal, finishesSegment, numTotalSegments, hasSort)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -205,11 +209,9 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	return nil
 }
 
-func performTail(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, tailExpr *structs.TailExpr, tailRows uint64, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finishesSegment bool, numTotalSegments uint64) error {
+func performTail(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, tailExpr *structs.TailExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finishesSegment bool, numTotalSegments uint64, hasSort bool) error {
 
-	// Stats there is no order present in the iteration of histogram, so just retrieving the records from the end in results and reversing it.
 	if nodeResult.Histogram != nil {
-		// Map has no deterministic order of execution
 		for _, aggResult := range nodeResult.Histogram {
 			diff := len(aggResult.Results) - int(aggs.OutputTransforms.TailRows)
 			if diff > 0 {
@@ -230,54 +232,6 @@ func performTail(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators,
 		return nil
 	}
 
-	// if recordIndexInFinal == nil {
-	// 	return nil
-	// }
-
-	// if aggs.OutputTransforms.TailDone || aggs.OutputTransforms.TailSegmentDone {
-	// 	for k := range recs {
-	// 		if _, exist := recordIndexInFinal[k]; !exist {
-	// 			delete(recs, k)
-	// 		}
-	// 	}
-	// 	if finishesSegment {
-	// 		aggs.OutputTransforms.TailSegmentDone = false
-	// 	}
-	// 	return nil
-	// }
-	// // Seg1 5 blks
-	// // During 1 blk we set the indexes correctly for all the records
-	// // When we iterate next blk of seg 1 we do not want to repeat this process.
-
-	// // tail 3
-	// // Seg2 3 blks
-	// // We are ready to perform process
-
-	// currSegIndexOrder := make([]string, len(recordIndexInFinal))
-	// for k, idx := range recordIndexInFinal {
-	// 	currSegIndexOrder[idx] = k
-	// }
-
-	// diff := len(currSegIndexOrder) - int(tailRows)
-	// if diff > 0 {
-	// 	for i := 0;i < diff;i++ {
-	// 		delete(recs, currSegIndexOrder[i])
-	// 		delete(recordIndexInFinal, currSegIndexOrder[i])
-	// 	}
-	// 	currSegIndexOrder = currSegIndexOrder[diff:]
-	// }
-
-	// n := len(currSegIndexOrder)
-	// for idx, key := range currSegIndexOrder {
-	// 	// reverse the index
-	// 	recordIndexInFinal[key] = n-idx-1
-	// }
-	// aggs.OutputTransforms.TailRows -= uint64(n)
-
-	// if !finishesSegment {
-	// 	aggs.OutputTransforms.TailSegmentDone = true
-	// }
-
 	if finishesSegment {
 		tailExpr.NumProcessedSegments++
 	}
@@ -291,57 +245,66 @@ func performTail(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators,
 		heap.Init(tailExpr.TailCache)
 	}
 
-	for k, v := range recs {
-		heap.Push(tailExpr.TailCache, &utils.Item{
-			Priority: float64(v["timestamp"].(uint64)),
-			Value:    k,
-		})
-		tailExpr.TailRecords[k] = v
-		if tailExpr.TailCache.Len() > int(tailRows) {
-			item := heap.Pop(tailExpr.TailCache).(*utils.Item)
-			delete(tailExpr.TailRecords, item.Value)
+	if !hasSort {
+		for k, v := range recs {
+			timeVal, exists := v["timestamp"]
+			if !exists {
+				continue
+			}
+			heap.Push(tailExpr.TailCache, &utils.Item{
+				Priority: float64(timeVal.(uint64)),
+				Value:    k,
+			})
+			tailExpr.TailRecords[k] = v
+			if tailExpr.TailCache.Len() > int(aggs.OutputTransforms.TailRows) {
+				item := heap.Pop(tailExpr.TailCache).(*utils.Item)
+				delete(tailExpr.TailRecords, item.Value)
+			}
+			delete(recs, k)
 		}
-		delete(recs, k)
 	}
 
 	if tailExpr.NumProcessedSegments < numTotalSegments {
 		return nil
 	}
 
-	for k, v := range tailExpr.TailRecords {
-		recs[k] = v
+	// if sort is present before use the recs and recordIndexInFinal that sort has updated
+	if hasSort {
+		currentSortOrder := make([]string, len(recs))
+		for k := range recs {
+			idx, exists := recordIndexInFinal[k]
+			if !exists {
+				return fmt.Errorf("performTail: After sort, index not found in recordIndexInFinal for rec: %v", k)
+			}
+			currentSortOrder[idx] = k
+		}
+		if aggs.OutputTransforms.TailRows < uint64(len(currentSortOrder)) {
+			diff := len(currentSortOrder) - int(aggs.OutputTransforms.TailRows)
+			for i := 0; i < diff; i++ {
+				delete(recs, currentSortOrder[i])
+			}
+			currentSortOrder = currentSortOrder[diff:]
+		}
+
+		n := len(currentSortOrder)
+		for i := 0; i < n/2; i++ {
+			currentSortOrder[i], currentSortOrder[n-i-1] = currentSortOrder[n-i-1], currentSortOrder[i]
+		}
+		for idx, k := range currentSortOrder {
+			recordIndexInFinal[k] = idx
+		}
+	} else {
+		for k, v := range tailExpr.TailRecords {
+			recs[k] = v
+		}
+
+		idx := tailExpr.TailCache.Len() - 1
+		for tailExpr.TailCache.Len() > 0 {
+			item := heap.Pop(tailExpr.TailCache).(*utils.Item)
+			recordIndexInFinal[item.Value] = idx
+			idx -= 1
+		}
 	}
-
-	idx := tailExpr.TailCache.Len() - 1
-	for tailExpr.TailCache.Len() > 0 {
-		item := heap.Pop(tailExpr.TailCache).(*utils.Item)
-		recordIndexInFinal[item.Value] = idx
-		idx -= 1
-	}
-
-	// recKeys := make([]string, 0)
-	// keyToSortByValues := make(map[string]uint64, 0)
-
-	// for recInden, record := range recs {
-	// 	recKeys = append(recKeys, recInden)
-	// 	keyToSortByValues[recInden] = record["timestamp"].(uint64)
-	// }
-
-	// sort.Slice(recKeys, func(i, j int) bool {
-	// 	key1 := recKeys[i]
-	// 	key2 := recKeys[j]
-	// 	return keyToSortByValues[key1] < keyToSortByValues[key2]
-	// })
-
-	// for i := tailRows; int(i) < len(recKeys);i++ {
-	// 	delete(recs, recKeys[i])
-	// }
-
-	// recKeys = recKeys[:tailRows]
-
-	// for index, recInden := range recKeys {
-	// 	recordIndexInFinal[recInden] = index
-	// }
 
 	return nil
 }
