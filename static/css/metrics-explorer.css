@@ -187,15 +187,17 @@ input:checked + .slider:before {
 }
 .tag-container,.value-container {
     min-width: 200px;
+    background-color: var(--input-box-bg-color);
 }
 
 .everywhere,
 .everything {
-    height: 28px;
-    border: none;
+    height: 28px !important;
+    border: none !important;
     border-radius: 0px;
     flex-grow: 1; 
     padding: 0 !important;
+    background-color: var(--input-box-bg-color) !important;
 }
 
 .ui-helper-hidden-accessible {
@@ -212,9 +214,9 @@ input:checked + .slider:before {
     cursor: pointer;
 }
 .metrics-query .query-name{
-    background-color: var(--white);
+    background-color: var(--input-box-bg-color);
     border-radius: 5px 0 0 5px;
-    color: var(--black-3);
+    color: var(--text-color);
     font-weight: bold;
     cursor: pointer;
 }
@@ -222,7 +224,7 @@ input:checked + .slider:before {
 .metrics-query .metrics{
     min-width: 230px;
     width: auto !important;
-    background-color: var(--selected-filter-yellow);
+    background-color: var(--selected-filter-yellow) !important;
 }
 .metrics-query .metrics:focus{
     background-color: var( --container-focus-bg-color );
@@ -230,7 +232,7 @@ input:checked + .slider:before {
 }
 .metrics-query .agg-function{
     width: 90px !important;
-    background-color: var(--drop-down-btn-bg-regular);
+    background-color: var(--drop-down-btn-bg-regular) !important;
 }
 .metrics-query .agg-function:focus{
     background-color: var(--drop-down-btn-bg-regular);
