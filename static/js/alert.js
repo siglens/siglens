@@ -379,6 +379,7 @@ function createNewAlertRule(alertData) {
         setTimeout(function() {
             $("#metric-error").css("display","none");
         }, 3000); 
+        showToast(err.responseJSON.error, "error")
     });
 }
 
