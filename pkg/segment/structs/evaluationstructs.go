@@ -1710,7 +1710,25 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	case "getfields":
 		fallthrough
 	case "typeof":
-		return "", fmt.Errorf("TextExpr.EvaluateText: dose not support functions:%v: right now", self.Op)
+		valueExpr, err := self.Val.EvaluateToString(fieldToValue)
+		if err != nil {
+			// Could not evaluate as string, try as float
+			_, floatErr := self.Val.EvaluateToFloat(fieldToValue)
+			if floatErr == nil {
+				return "Number", nil
+			}
+			if isBoolean(valueExpr) {
+				return "Boolean", nil
+			}
+			if isNull(valueExpr) {
+				return "Null", nil
+			}
+			return "Invalid", nil
+		}
+		if isNumber(valueExpr) {
+			return "Number", nil
+		}
+		return "String", nil
 	}
 	if self.Op == "max" {
 		if len(self.ValueList) == 0 {
@@ -1874,6 +1892,20 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 		}
 	}
 	return str, nil
+}
+
+func isNumber(str string) bool {
+	_, err := strconv.ParseFloat(str, 64)
+	return err == nil
+}
+
+func isBoolean(str string) bool {
+	lowerStr := strings.ToLower(str)
+	return lowerStr == "true" || lowerStr == "false"
+}
+
+func isNull(str string) bool {
+	return str == "" || str == "null"
 }
 
 func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
