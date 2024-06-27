@@ -397,7 +397,7 @@ function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
                 {
                     label: label,
                     data: [parseFloat(totalIncomingVolume),parseFloat(totalStorageUsed)],
-                    backgroundColor: ['rgba(99, 72, 217)'],
+                    backgroundColor: ['rgba(147, 112, 219)', 'rgba(181, 126, 220, 1)'],
                     borderWidth: 1,
                     categoryPercentage: 0.8,
                     barPercentage: 0.8,
@@ -611,6 +611,9 @@ function processClusterStats(res) {
 
     function confirmIndexDeletion(e, indexName, allowDelete) {
         if(e) e.stopPropagation();
+        if (indexName && indexName.trim() === "traces") {
+            allowDelete = false;
+        }
         if($('#del-index-name-input').val().trim() === ("delete " + indexName )) {
             $('#del-index-btn').attr("disabled", false);
             allowDelete = true;

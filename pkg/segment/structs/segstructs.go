@@ -239,6 +239,32 @@ type LetColumnsRequest struct {
 	SortColRequest       *SortExpr
 	NewColName           string
 	MultiValueColRequest *MultiValueColLetRequest
+	FormatResults        *FormatResultsRequest // formats the results into a single result and places that result into a new field called search.
+	EventCountRequest    *EventCountExpr       // To count the number of events in an index
+}
+
+type EventCountExpr struct {
+	Indices    []string
+	Summarize  bool
+	ReportSize bool
+	ListVix    bool
+}
+
+// formats the results into a single result and places that result into a new field called search.
+type FormatResultsRequest struct {
+	MVSeparator   string         // separator for multi-value fields. Default= "OR"
+	MaxResults    uint64         // max number of results to return
+	EmptyString   string         // string to return if no results are found. Default= "NOT()"
+	RowColOptions *RowColOptions // options for row column
+}
+
+type RowColOptions struct {
+	RowPrefix       string // prefix for row. Default= "("
+	ColumnPrefix    string // prefix for column. Default= "("
+	ColumnSeparator string // separator for column. Default= "AND"
+	ColumnEnd       string // end for column. Default= ")"
+	RowSeparator    string // separator for row. Default= "OR"
+	RowEnd          string // end for row. Default= ")"
 }
 
 type MultiColLetRequest struct {
@@ -513,7 +539,8 @@ func (qa *QueryAggregators) IsStatisticBlockEmpty() bool {
 func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
-			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil)
+			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
+			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil)
 }
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
@@ -738,29 +765,21 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"mvsort":           {},
 	"mvzip":            {},
 	"mv_to_json_array": {},
-	"floor":            {},
-	"ln":               {},
-	"log":              {},
 	"sigfig":           {},
-	"pow":              {},
-	"case":             {},
-	"coalesce":         {},
 	"searchmatch":      {},
-	"validate":         {},
 	"nullif":           {},
-	"ipmask":           {},
 	"object_to_array":  {},
 	"printf":           {},
 	"tojson":           {},
+	"relative_time":    {},
+	"time":             {},
 	"cluster":          {},
 	"getfields":        {},
-	"isnotnull":        {},
 	"isnum":            {},
+	"isnotnull":        {},
 	"typeof":           {},
-	"replace":          {},
 	"spath":            {},
-	"upper":            {},
-	"trim":             {},
+	"eventcount":       {},
 }
 
 type StatsFuncChecker struct{}
@@ -776,6 +795,8 @@ func (c EvalFuncChecker) IsUnsupported(funcName string) bool {
 	_, found := unsupportedEvalFuncs[funcName]
 	return found
 }
+
+var unsupportedLetColumnCommands = []string{"FormatResults", "EventCountRequest"}
 
 func CheckUnsupportedFunctions(post *QueryAggregators) error {
 
@@ -826,8 +847,31 @@ func CheckUnsupportedFunctions(post *QueryAggregators) error {
 				}
 			}
 		}
+
+		err := checkUnsupportedLetColumnCommand(agg)
+		if err != nil {
+			return err
+		}
 	}
 
+	return nil
+}
+func checkUnsupportedLetColumnCommand(agg *QueryAggregators) error {
+	if agg.hasLetColumnsRequest() {
+		letColumns := agg.OutputTransforms.LetColumns
+		for _, command := range unsupportedLetColumnCommands {
+			switch command {
+			case "FormatResults":
+				if letColumns.FormatResults != nil {
+					return fmt.Errorf("checkUnsupportedFunctions: using format command is not yet supported")
+				}
+			case "EventCountRequest":
+				if letColumns.EventCountRequest != nil {
+					return fmt.Errorf("checkUnsupportedFunctions: using eventcount command is not yet supported")
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -939,4 +983,24 @@ func (br *BucketResult) SetBucketValueForGivenField(fieldName string, value inte
 	bucketKeyList[index] = value.(string)
 
 	return nil
+}
+
+func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
+	if qa == nil {
+		return false
+	}
+
+	if qa.GroupByRequest != nil {
+		return true
+	}
+
+	if qa.MeasureOperations != nil {
+		return true
+	}
+
+	if qa.Next != nil {
+		return qa.Next.IsStatsAggPresentInChain()
+	}
+
+	return false
 }

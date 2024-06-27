@@ -71,6 +71,7 @@ let defaultDashboardIds = [
     "bd74f11e-26c8-4827-bf65-c0b464e1f2a4",
     "53cb3dde-fd78-4253-808c-18e4077ef0f1"
 ];
+let initialSearchData = {};
 
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,
@@ -758,6 +759,29 @@ function showRetDaysUpdateToast(msg) {
     setTimeout(removeToast, 3000);
 }
 
+function showToast(msg, type = 'error') {
+    let toastTypeClass = type === 'success' ? 'toast-success' : 'toast-error';
+    let toast = `
+        <div class="${toastTypeClass}" id="message-toast"> 
+            <button type="button" aria-label="Close" class="toast-close">×</button>
+            ${msg}
+            <div class="toast-buttons">
+                <button type="button" class="toast-ok btn">OK</button>
+            </div>
+        </div>`;
+
+    $('body').prepend(toast);
+
+    if (type === 'success') {
+        setTimeout(removeToast, 5000);
+    }
+    $('.toast-close').on('click', removeToast);
+    $('.toast-ok').on('click', removeToast);
+
+    function removeToast() {
+        $('#message-toast').remove();
+    }
+}
 
 
 

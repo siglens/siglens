@@ -23,7 +23,8 @@ $(document).ready(function () {
     $('#data-ingestion,#test-data-btn').hide();
     $('.theme-btn').on('click', themePickerHandler);
     let org_name;
-
+    $(".custom-chart-tab").tabs();
+    $(".custom-chart-tab").show();
     $.ajax({
         method: 'get',
         url: 'api/config',
@@ -46,15 +47,10 @@ $(document).ready(function () {
         var url = new URL(currentUrl);
         var baseUrl = url.protocol + '//' + url.hostname;
 
-        $('#source-options').on('click', '.source-option', function() {
+        $('#custom-chart-tab').on('click', '.tab-li', function() {
             selectedLogSource = $(this).text().trim();
-            $('.source-option').removeClass("active");
+            $('.tab-li').removeClass("active");
             $(this).addClass("active");
-            $('#source-selection span').html(selectedLogSource);
-        
-            var showDataIngestion = ['Vector', 'Logstash', 'Fluentd', 'Filebeat', 'Promtail','Elastic Bulk','Splunk HEC'].includes(selectedLogSource);
-            $('#data-ingestion').toggle(showDataIngestion);
-            $('#test-data-btn').toggle(!showDataIngestion);
         
             var curlCommand = 'curl -X POST "' + baseUrl + ':8081/elastic/_bulk" \\\n' +
                             '-H \'Content-Type: application/json\' \\\n' +
@@ -92,6 +88,7 @@ $(document).ready(function () {
             }
         });
         
+    $('.custom-chart-tab ul li:first a').click();
 
     //Copy Handler
     $('.copyable').each(function() {

@@ -222,7 +222,6 @@ class btnRenderer {
                 <button class="btn-duplicate" id="duplicateButton" title="Duplicate dashboard"></button>
                 <button class="star-icon" id="favbutton" title="Mark as favorite" ></button>
                 </div>`;
-        this.vButton = this.eGui.querySelector('.btn');
         this.dButton = this.eGui.querySelector('.btn-simple');
         this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
         this.starIcon=this.eGui.querySelector('.star-icon');
@@ -233,22 +232,6 @@ class btnRenderer {
             this.dButton.disabled = true;
             this.dButton.title = "Delete disabled";
 			this.dButton.classList.add('default-dashboard-delete'); 
-        }
-
-        function view() {
-            $.ajax({
-                method: 'get',
-                url: 'api/dashboards/' + params.data.uniqId,
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    Accept: '*/*',
-                },
-                crossDomain: true,
-                dataType: 'json',
-            }).then(function (res) {
-                var queryString = "?id=" + params.data.uniqId;
-                window.location.href = "../dashboard.html" + queryString;
-            });
         }
 
         function deletedb() {
@@ -360,7 +343,6 @@ class btnRenderer {
             });
         }
 
-        this.vButton.addEventListener('click', view);
         this.dButton.addEventListener('click', showPrompt);
         this.duplicateButton.addEventListener('click', duplicatedb);
         this.starIcon.addEventListener('click',toggleFavorite.bind(this));

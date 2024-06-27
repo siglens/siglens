@@ -711,20 +711,10 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	rawJSON := ctx.PostBody()
-	if len(rawJSON) == 0 {
-		utils.SendError(ctx, "empty json body received", "", nil)
-		return
+func ProcessMetricsQueryRequest(queries []map[string]interface{}, formulas []map[string]interface{}, startTime, endTime uint32, myid uint64, qid uint64) (*mresults.MetricsResult, []*structs.MetricsQuery, parser.ValueType, string, error) {
+	if qid == 0 {
+		qid = rutils.GetNextQid()
 	}
-	qid := rutils.GetNextQid()
-
-	start, end, queries, formulas, errorLog, err := parseMetricTimeSeriesRequest(rawJSON)
-	if err != nil {
-		utils.SendError(ctx, err.Error(), fmt.Sprintf("qid: %v, Error: %+v", qid, errorLog), err)
-		return
-	}
-
 	queryFormulaMap := make(map[string]string)
 
 	for _, query := range queries {
@@ -733,14 +723,12 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	finalSearchText, err := buildMetricQueryFromFormulaAndQueries(fmt.Sprintf("%v", formulas[0]["formula"]), queryFormulaMap)
 	if err != nil {
-		utils.SendError(ctx, "Error building metrics query", fmt.Sprintf("qid: %v, Error: %+v", qid, err), err)
-		return
+		return nil, nil, parser.ValueTypeNone, fmt.Sprintf("qid: %v, queryForumlaMap: %v, formulas: %v", qid, queryFormulaMap, formulas[0]["formula"]), fmt.Errorf("error building metrics query: %v", err)
 	}
 
-	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(finalSearchText, start, end, myid)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(finalSearchText, startTime, endTime, myid)
 	if err != nil {
-		utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, finalSearchText), err)
-		return
+		return nil, nil, parser.ValueTypeNone, fmt.Sprintf("qid: %v, SearchText: %v", qid, finalSearchText), fmt.Errorf("error parsing promql query: %v", err)
 	}
 
 	metricQueriesList := make([]*structs.MetricsQuery, 0)
@@ -754,6 +742,29 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, true)
+
+	return res, metricQueriesList, pqlQuerytype, "", nil
+}
+
+func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+	rawJSON := ctx.PostBody()
+	if len(rawJSON) == 0 {
+		utils.SendError(ctx, "empty json body received", "", nil)
+		return
+	}
+	qid := rutils.GetNextQid()
+
+	start, end, queries, formulas, errorLog, err := ParseMetricTimeSeriesRequest(rawJSON)
+	if err != nil {
+		utils.SendError(ctx, err.Error(), fmt.Sprintf("qid: %v, Error: %+v", qid, errorLog), err)
+		return
+	}
+
+	res, metricQueriesList, pqlQuerytype, extraMsgToLog, err := ProcessMetricsQueryRequest(queries, formulas, start, end, myid, qid)
+	if err != nil {
+		utils.SendError(ctx, err.Error(), extraMsgToLog, err)
+		return
+	}
 
 	if len(res.ErrList) > 0 {
 		var errorMessages []string
@@ -811,7 +822,7 @@ func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		log.Errorf("ProcessGetMetricFunctionsRequest: failed to write response, err=%v", err)
 	}
 }
-func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]interface{}, []map[string]interface{}, string, error) {
+func ParseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]interface{}, []map[string]interface{}, string, error) {
 	var start = uint32(0)
 	var end = uint32(0)
 	queries := make([]map[string]interface{}, 0)

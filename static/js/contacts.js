@@ -39,7 +39,8 @@ const contactFormHTML = `
     </div>
     <div id="main-container">
         <div class="contact-container">
-            <div>
+        <div class="mb-0 d-flex justify-content-between">
+            <div class="mb-0">
                 <label for="type">Type</label>
                 <div class="dropdown">
                     <button class="btn dropdown-toggle" type="button" id="contact-types"
@@ -55,6 +56,13 @@ const contactFormHTML = `
                     </div>
                 </div>
             </div>
+            <div class="button-container mb-0">
+                <button class="btn d-flex align-items-center justify-content-center test-contact-btn" type="button">
+                    <div class="send-icon"></div>
+                    <div class="mb-0">Test</div>
+                </button>
+            </div>
+        </div>
             <div class="slack-container">
                 <div>
                 <div style="position: relative;">
@@ -151,7 +159,7 @@ function initializeContactForm(contactId) {
     $(".add-new-contact-type").on("click", function () {
         let newContactContainer = $(".contact-container").first().clone();
         newContactContainer.find(".form-control").val("");
-        newContactContainer.prepend(
+        newContactContainer.find(".button-container").append(
             '<button class="btn-simple del-contact-type" type="button"></button>',
         );
         newContactContainer.appendTo("#main-container");
@@ -173,6 +181,12 @@ function initializeContactForm(contactId) {
     //remove contact type container
     $("#main-container").on("click", ".del-contact-type", function () {
         $(this).closest(".contact-container").remove();
+    });
+
+    // test contact point
+    $("#main-container").on("click", ".test-contact-btn", function () {
+        const container = $(this).closest('.contact-container');
+        getContactPointTestData(container);
     });
 }
 
@@ -261,12 +275,12 @@ function createContactPoint(){
             window.location.href = "../contacts.html";
         }
         resetContactForm();
-        showToast(res.message);
+        showToast(res.message, 'success');
     }).catch(err=>{
         if (window.location.href.includes("alert.html")) {
             $(".popupOverlay, .popupContent").removeClass("active");
         }
-        showToast(err.responseJSON.error);
+        showToast(err.responseJSON.error, 'error');
     })
 }
 
@@ -284,9 +298,9 @@ function updateContactPoint(){
     }).then(res=>{
         resetContactForm();
         window.location.href='../contacts.html';
-        showToast(res.message);
+        showToast(res.message,'success');
     }).catch(err=>{
-        showToast(err.responseJSON.error);
+        showToast(err.responseJSON.error, 'error');
     })
 }
 
@@ -361,8 +375,10 @@ function deleteContactPrompt(data) {
                 remove: [{ rowId: deletedRowID }],
             });
 
-            showToast(res.message);
+            showToast(res.message,'success');
             $('.popupOverlay, .popupContent').removeClass('active');
+        }).catch((err)=>{
+            showToast(err.responseJSON.error, "error");
         });
     });
 }
@@ -496,21 +512,6 @@ function displayAllContacts(res){
     contactGridOptions.api.sizeColumnsToFit();
 }
 
-function showToast(msg) {
-    let toast =
-        `<div class="div-toast" id="save-db-modal"> 
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 2000);
-}
-
-function removeToast() {
-    $('.div-toast').remove();
-}
-
 //Edit Contact Point 
 function showContactFormForEdit(contactId) {
     let data = allContactsArray.find(function(obj) {return obj.contact_id === contactId});
@@ -530,7 +531,7 @@ function showContactFormForEdit(contactId) {
             isFirst = false;
         } else {
             contactContainer = $('.contact-container').first().clone();
-            contactContainer.prepend('<button class="btn-simple del-contact-type" type="button"></button>');
+            contactContainer.find('.button-container').append('<button class="btn-simple del-contact-type" type="button"></button>');
         }
         contactContainer.find('#contact-types span').text(key.charAt(0).toUpperCase() + key.slice(1));
         if (key === 'slack') {
@@ -553,3 +554,56 @@ function showContactFormForEdit(contactId) {
     });
     if(contactEditFlag){contactData.contact_id=data.contact_id;}
 }
+
+function getContactPointTestData(container){
+    let contactData = {};
+    let contactType = container.find('#contact-types span').text();
+    
+    if (contactType === 'Slack') {
+        let slackValue = container.find('#slack-channel-id').val();
+        let slackToken = container.find('#slack-token').val();
+        if (slackValue && slackToken) {
+            contactData = {
+                type: 'slack',
+                settings: {
+                    channel_id: slackValue,
+                    slack_token: slackToken
+                }
+            };
+        }
+    } else if (contactType === 'Webhook') {
+        let webhookValue = container.find('#webhook-id').val();
+        if (webhookValue) {
+            contactData = {
+                type: 'webhook',
+                settings: {
+                    webhook: webhookValue
+                }
+            };
+        }
+    }
+    testContactPointHandler(contactData);
+}
+
+function testContactPointHandler(testContactPointData) {
+    $.ajax({
+        method: 'POST',
+        url: '/api/alerts/testContactPoint',
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            Accept: '*/*',
+        },
+        data: JSON.stringify(testContactPointData),
+        crossDomain: true,
+    }).then(function (res) {
+        if (res.message) {
+            showToast(res.message,'success');
+        }
+    }).fail(function (jqXHR) {
+        let response = jqXHR.responseJSON;
+        if (response && response.error) {
+            showToast(response.error, 'error');
+        }
+    });
+}
+

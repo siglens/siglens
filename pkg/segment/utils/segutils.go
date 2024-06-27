@@ -62,6 +62,11 @@ func GetLiteralFromString(identifier string) (v interface{}) {
 func CreateDtypeEnclosure(inVal interface{}, qid uint64) (*DtypeEnclosure, error) {
 	var dte DtypeEnclosure
 
+	if inVal == nil {
+		dte.Dtype = SS_DT_BACKFILL
+		return &dte, nil
+	}
+
 	//todo check for float convert errors and return them
 	switch inVal := inVal.(type) {
 	case string:

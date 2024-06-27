@@ -357,28 +357,70 @@ func (self *SortExpr) ReleaseProcessedSegmentsLock() {
 	self.processedSegmentsLock.Unlock()
 }
 
+func findNullFields(fields []string, fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	nullFields := []string{}
+	for _, field := range fields {
+		val, exists := fieldToValue[field]
+		if !exists {
+			return []string{}, fmt.Errorf("findNullFields: Expression has a field for which value is not present")
+		}
+		if val.Dtype == utils.SS_DT_BACKFILL {
+			nullFields = append(nullFields, field)
+		}
+	}
+
+	return nullFields, nil
+}
+
+func (self *BoolExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *NumericExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *StringExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *RenameExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *ConcatExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *TextExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *ValueExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *ConditionExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func (self *RexExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
+	return findNullFields(self.GetFields(), fieldToValue)
+}
+
 // Evaluate this BoolExpr to a boolean, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
 func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
-	// TODO: Implement the operator in the switch cases below, and replace the if statements with case statements
-	switch self.ValueOp {
-	case "searchmatch":
-		fallthrough
-	case "isnotnull":
-		fallthrough
-	case "isnum":
-		return false, fmt.Errorf("BoolExpr.Evaluate: does support using this operator: %v", self.ValueOp)
-	}
-
 	if self.IsTerminal {
-		if self.ValueOp == "in" {
+		switch self.ValueOp {
+		case "in":
 			inFlag, err := isInValueList(fieldToValue, self.LeftValue, self.ValueList)
 			if err != nil {
 				return false, fmt.Errorf("BoolExpr.Evaluate: can not evaluate Eval In function: %v", err)
 			}
 			return inFlag, err
-		} else if self.ValueOp == "isbool" {
+		case "isbool":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
 				return false, fmt.Errorf("BoolExpr.Evaluate: 'isbool' can not evaluate to String: %v", err)
@@ -386,7 +428,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			isBool := strings.ToLower(val) == "true" || strings.ToLower(val) == "false" || val == "0" || val == "1"
 			return isBool, nil
 
-		} else if self.ValueOp == "isint" {
+		case "isint":
 			val, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
 				return false, err
@@ -394,7 +436,15 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 
 			_, parseErr := strconv.Atoi(val)
 			return parseErr == nil, nil
-		} else if self.ValueOp == "isstr" {
+		case "isnum":
+			val, err := self.LeftValue.EvaluateToString(fieldToValue)
+			if err != nil {
+				return false, err
+			}
+
+			_, parseErr := strconv.ParseFloat(val, 64)
+			return parseErr == nil, nil
+		case "isstr":
 			_, floatErr := self.LeftValue.EvaluateToFloat(fieldToValue)
 
 			if floatErr == nil {
@@ -403,7 +453,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 
 			_, strErr := self.LeftValue.EvaluateToString(fieldToValue)
 			return strErr == nil, nil
-		} else if self.ValueOp == "isnull" {
+		case "isnull":
 			// Get the fields associated with this expression
 			fields := self.GetFields()
 			if len(fields) == 0 {
@@ -420,7 +470,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 				return true, nil
 			}
 			return false, nil
-		} else if self.ValueOp == "like" {
+		case "like":
 			leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
 			if errLeftStr != nil {
 				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating left side of LIKE to string: %v", errLeftStr)
@@ -437,7 +487,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 				return false, fmt.Errorf("BoolExpr.Evaluate: regex error in LIKE operation pattern: %v, string: %v, err: %v", regexPattern, leftStr, err)
 			}
 			return matched, nil
-		} else if self.ValueOp == "match" {
+		case "match":
 			leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
 			if errLeftStr != nil {
 				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating left side of MATCH to string: %v", errLeftStr)
@@ -454,7 +504,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			}
 			return matched, nil
 
-		} else if self.ValueOp == "cidrmatch" {
+		case "cidrmatch":
 			cidrStr, errCidr := self.LeftValue.EvaluateToString(fieldToValue)
 			ipStr, errIp := self.RightValue.EvaluateToString(fieldToValue)
 			if errCidr != nil || errIp != nil {
@@ -466,6 +516,22 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 				return false, fmt.Errorf("BoolExpr.Evaluate: 'cidrmatch' error in matching is IP in CIDR: cidr: %v, ip: %v, err: %v", cidrStr, ipStr, err)
 			}
 			return match, nil
+		case "isnotnull":
+			fields := self.GetFields()
+			if len(fields) == 0 {
+				return false, fmt.Errorf("BoolExpr.Evaluate: No fields found for isnotnull operation")
+			}
+
+			value, exists := fieldToValue[fields[0]]
+			if !exists {
+				return false, fmt.Errorf("BoolExpr.Evaluate: Field '%s' not found in data", fields[0])
+			}
+			if value.Dtype != utils.SS_DT_BACKFILL {
+				return true, nil
+			}
+			return false, nil
+		case "searchmatch":
+			return false, fmt.Errorf("BoolExpr.Evaluate: does not support using this operator: %v", self.ValueOp)
 		}
 
 		leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
@@ -1213,6 +1279,35 @@ func handleNoArgFunction(op string) (float64, error) {
 	}
 }
 
+func handleComparisonAndConditionalFunctions(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure, functionName string) (string, error) {
+	switch functionName {
+	case "validate":
+		for _, cvPair := range self.ConditionValuePairs {
+			res, err := cvPair.Condition.Evaluate(fieldToValue)
+			if err != nil {
+				nullFields, nullFieldsErr := cvPair.Condition.GetNullFields(fieldToValue)
+				if nullFieldsErr != nil {
+					return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while getting null fields, err: %v fieldToValue: %v", nullFieldsErr, fieldToValue)
+				}
+				if len(nullFields) > 0 {
+					continue
+				}
+				return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating condition, err: %v fieldToValue: %v", err, fieldToValue)
+			}
+			if !res {
+				val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
+				if err != nil {
+					return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Error while evaluating value, err: %v fieldToValue: %v", err, fieldToValue)
+				}
+				return val, nil
+			}
+		}
+		return "", nil
+	default:
+		return "", fmt.Errorf("handleComparisonAndConditionalFunctions: Unknown function name: %s", functionName)
+	}
+}
+
 // Evaluate this NumericExpr to a float, replacing each field in the expression
 // with the value specified by fieldToValue. Each field listed by GetFields()
 // must be in fieldToValue.
@@ -1279,6 +1374,79 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 			return math.Abs(left), nil
 		case "ceil":
 			return math.Ceil(left), nil
+		case "acosh":
+			if left < 1 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: acosh requires values >= 1, got: %v", left)
+			}
+			return math.Acosh(left), nil
+		case "acos":
+			if left < -1 || left > 1 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: acos requires values between -1 and 1, got: %v", left)
+			}
+			return math.Acos(left), nil
+		case "asin":
+			if left < -1 || left > 1 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: asin requires values between -1 and 1, got: %v", left)
+			}
+			return math.Asin(left), nil
+		case "asinh":
+			return math.Asinh(left), nil
+		case "atan":
+			return math.Atan(left), nil
+		case "atanh":
+			if left <= -1 || left >= 1 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: atanh requires values between -1 and 1 exclusive, got: %v", left)
+			}
+			return math.Atanh(left), nil
+		case "cos":
+			return math.Cos(left), nil
+		case "cosh":
+			return math.Cosh(left), nil
+		case "sin":
+			return math.Sin(left), nil
+		case "sinh":
+			return math.Sinh(left), nil
+		case "tan":
+			// Check for points where cos(x) = 0, which would cause tan to be undefined.
+			// These are points (pi/2 + k*pi) where k is an integer.
+			// To check for this, see if left modulo pi is pi/2 (or very close due to floating point precision).
+			halfPi := math.Pi / 2
+			mod := math.Mod(left, math.Pi)
+			if math.Abs(mod-halfPi) < 0.0000001 || math.Abs(mod+halfPi) < 0.0000001 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: tan is undefined at pi/2 + k*pi, got: %v", left)
+			}
+			return math.Tan(left), nil
+		case "tanh":
+			return math.Tanh(left), nil
+		case "atan2":
+			if self.Left == nil || self.Right == nil {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: atan2 requires two values, got: left=%v, right=%v", self.Left, self.Right)
+			}
+			return math.Atan2(left, right), nil
+		case "hypot":
+			if self.Left == nil || self.Right == nil {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: hypot requires two values, got: left=%v, right=%v", self.Left, self.Right)
+			}
+			return math.Hypot(left, right), nil
+		case "log":
+			switch {
+			case left <= 0:
+				return -1, fmt.Errorf("NumericExpr.Evaluate: Non-positive values cannot be used for logarithm: %v", left)
+			case right < 0, right == 1:
+				return -1, fmt.Errorf("NumericExpr.Evaluate: Invalid base for logarithm: %v", right)
+			case right == 0:
+				right = 10
+			}
+			return math.Log(left) / math.Log(right), nil
+		case "ln":
+			if left < 0 {
+				return -1, fmt.Errorf("NumericExpr.Evaluate: Negative values cannot be used for natural logarithm: %v", left)
+			}
+			return math.Log(left), nil
+		case "floor":
+			return math.Floor(left), nil
+		case "pow":
+			return math.Pow(left, right), nil
 		case "round":
 			if self.Right != nil {
 				return round(left, int(right)), nil
@@ -1335,9 +1503,184 @@ func (self *NumericExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
 	}
 }
 
+func handleTrimFunctions(op string, value string, trim_chars string) string {
+	if trim_chars == "" {
+		trim_chars = "\t "
+	}
+	switch op {
+	case "ltrim":
+		return strings.TrimLeft(value, trim_chars)
+	case "rtrim":
+		return strings.TrimRight(value, trim_chars)
+	case "trim":
+		return strings.Trim(value, trim_chars)
+	default:
+		return value
+	}
+}
+
+// formatTime formats a time.Time object into a string based on the provided format string, using mappings from Go's time package and strftime.net.
+func formatTime(t time.Time, format string) string {
+	preReplacements := map[string]string{
+		"%e": "_2",
+		"%a": "Mon",
+		"%A": "Monday",
+		"%d": "02",
+		"%b": "Jan",
+		"%B": "January",
+		"%m": "01",
+		"%y": "06",
+		"%Y": "2006",
+		"%H": "15",
+		"%I": "03",
+		"%p": "PM",
+		"%M": "04",
+		"%S": "05",
+		"%f": ".000000",
+		"%z": "-0700",
+		"%Z": "MST",
+		"%c": "Mon Jan 2 15:04:05 2006",
+		"%x": "01/02/06",
+		"%X": "15:04:05",
+		"%%": "%",
+		"%k": "_15",
+		"%T": "15:04:05",
+		"%F": "2006-01-02", // The ISO 8601 date format
+	}
+	for k, v := range preReplacements {
+		format = strings.ReplaceAll(format, k, v)
+	}
+
+	timeStr := t.Format(format)
+
+	_, week := t.ISOWeek()
+	_, offset := t.Zone()
+	offsetHours := offset / 3600
+	offsetMinutes := (offset % 3600) / 60
+	formattedOffset := fmt.Sprintf("%+03d:%02d", offsetHours, offsetMinutes)
+	postReplacements := map[string]string{
+		"%w":  strconv.Itoa(int(t.Weekday())),                         // weekday as a decimal number
+		"%j":  strconv.Itoa(t.YearDay()),                              // day of the year as a decimal number
+		"%U":  strconv.Itoa(t.YearDay() / 7),                          // week number of the year (Sunday as the first day of the week)
+		"%W":  strconv.Itoa((int(t.Weekday()) - 1 + t.YearDay()) / 7), // week number of the year (Monday as the first day of the week)
+		"%V":  strconv.Itoa(week),                                     // ISO week number
+		"%+":  t.Format("Mon Jan 2 15:04:05 MST 2006"),                // date and time with timezone
+		"%N":  fmt.Sprintf("%09d", t.Nanosecond()),                    // nanoseconds
+		"%Q":  strconv.Itoa(t.Nanosecond() / 1e6),                     // milliseconds
+		"%Ez": formattedOffset,                                        // timezone offset
+		"%s":  strconv.FormatInt(t.Unix(), 10),                        // Unix Epoch Time timestamp
+	}
+	for k, v := range postReplacements {
+		timeStr = strings.ReplaceAll(timeStr, k, v)
+	}
+
+	return timeStr
+}
+
+// parseTime parses a string into a time.Time object based on the provided format string, using mappings for Go's time package.
+func parseTime(dateStr, format string) (time.Time, error) {
+	replacements := map[string]string{
+		"%d": "02",
+		"%m": "01",
+		"%Y": "2006",
+		"%H": "15",
+		"%I": "03",
+		"%p": "PM",
+		"%M": "04",
+		"%S": "05",
+		"%b": "Jan",
+		"%B": "January",
+		"%y": "06",
+		"%e": "2",
+		"%a": "Mon",
+		"%A": "Monday",
+		"%w": "Monday",
+		"%j": "002",
+		"%U": "00",
+		"%W": "00",
+		"%V": "00",
+		"%z": "-0700",
+		"%Z": "MST",
+		"%c": "Mon Jan  2 15:04:05 2006",
+		"%x": "01/02/06",
+		"%X": "15:04:05",
+		"%%": "%",
+	}
+	for k, v := range replacements {
+		format = strings.ReplaceAll(format, k, v)
+	}
+
+	// Check if format contains only time components (%H, %I, %M, %S, %p) and no date components (%d, %m, %Y, etc.)
+	if !strings.Contains(format, "2006") && !strings.Contains(format, "01") && !strings.Contains(format, "02") {
+		// Prepend a default date if only time is present
+		dateStr = "1970-01-01 " + dateStr
+		format = "2006-01-02 " + format
+	}
+
+	return time.Parse(format, dateStr)
+}
 func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
+	case "strftime":
+		timestamp, err := self.Val.EvaluateToFloat(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate timestamp: %v", err)
+		}
+		timestampInSeconds := timestamp / 1000
+		t := time.Unix(int64(timestampInSeconds), 0) // time.Unix(sec int64, nsec int64) -> expects seconds and nanoseconds. Since strftime expects seconds, we pass 0 for nanoseconds.
+
+		timeStr := formatTime(t, self.Param.RawString)
+		return timeStr, nil
+	case "strptime":
+		dateStr, err := self.Val.EvaluateToString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate date string: %v", err)
+		}
+		t, err := parseTime(dateStr, self.Param.RawString)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot parse date string: %v", err)
+		}
+		return strconv.FormatInt(t.Unix(), 10), nil
+	case "ipmask":
+		mask := net.ParseIP(self.Param.RawString).To4()
+		ip := net.ParseIP(self.Val.StringExpr.RawString).To4()
+		if mask == nil || ip == nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: invalid mask or IP address for 'ipmask' operation")
+		}
+		if len(ip) != len(mask) {
+			return "", fmt.Errorf("TextExpr.EvaluateText: IP address and mask are of different lengths")
+		}
+		for i := range ip {
+			ip[i] &= mask[i]
+		}
+		return ip.String(), nil
+	case "replace":
+		if len(self.ValueList) < 2 {
+			return "", fmt.Errorf("TextExpr.EvaluateText: 'replace' operation requires a regex and a replacement")
+		}
+
+		regexStr, err := self.ValueList[0].Evaluate(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate regex as a string: %v", err)
+		}
+		replacementStr, err := self.ValueList[1].Evaluate(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate replacement as a string: %v", err)
+		}
+		baseValue, exists := fieldToValue[self.Val.NumericExpr.Value]
+		if !exists {
+			return "", fmt.Errorf("TextExpr.EvaluateText: field '%s' not found in data", self.Val.NumericExpr.Value)
+		}
+		baseStr, ok := baseValue.CVal.(string)
+		if !ok {
+			return "", fmt.Errorf("TextExpr.EvaluateText: expected baseValue.CVal to be a string, got %T with value %v", baseValue.CVal, baseValue.CVal)
+		}
+		regex, err := regexp.Compile(regexStr)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: failed to compile regex '%s': %v", regexStr, err)
+		}
+		return regex.ReplaceAllString(baseStr, replacementStr), nil
 	case "mvappend":
 		fallthrough
 	case "mvcount":
@@ -1450,10 +1793,10 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	switch self.Op {
 	case "lower":
 		return strings.ToLower(cellValueStr), nil
-	case "ltrim":
-		return strings.TrimLeft(cellValueStr, self.StrToRemove), nil
-	case "rtrim":
-		return strings.TrimRight(cellValueStr, self.StrToRemove), nil
+	case "upper":
+		return strings.ToUpper(cellValueStr), nil
+	case "ltrim", "rtrim", "trim":
+		return handleTrimFunctions(self.Op, cellValueStr, self.StrToRemove), nil
 	case "urldecode":
 		decodedStr, decodeErr := url.QueryUnescape(cellValueStr)
 		if decodeErr != nil {
@@ -1533,6 +1876,46 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 	return str, nil
 }
 
+func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+
+	for _, cvPair := range self.ConditionValuePairs {
+		res, err := cvPair.Condition.Evaluate(fieldToValue)
+		if err != nil {
+			nullFields, err2 := cvPair.Condition.GetNullFields(fieldToValue)
+			if err2 == nil && len(nullFields) > 0 {
+				continue
+			}
+			return "", fmt.Errorf("handleCaseFunction: Error while evaluating condition, err: %v", err)
+		}
+		if res {
+			val, err := cvPair.Value.EvaluateValueExprAsString(fieldToValue)
+			if err != nil {
+				return "", fmt.Errorf("handleCaseFunction: Error while evaluating value, err: %v", err)
+			}
+			return val, nil
+		}
+	}
+
+	return "", nil
+}
+
+func handleCoalesceFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
+	for _, valueExpr := range self.ValueList {
+		nullFields, err := valueExpr.GetNullFields(fieldToValue)
+		if err != nil || len(nullFields) > 0 {
+			continue
+		}
+
+		val, err := valueExpr.EvaluateValueExprAsString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("handleCoalesceFunction: Error while evaluating value, err: %v", err)
+		}
+		return val, nil
+	}
+
+	return "", nil
+}
+
 // Field may come from BoolExpr or ValueExpr
 func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 
@@ -1556,6 +1939,12 @@ func (self *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 		} else {
 			return falseValue, nil
 		}
+	case "validate":
+		return handleComparisonAndConditionalFunctions(self, fieldToValue, self.Op)
+	case "case":
+		return handleCaseFunction(self, fieldToValue)
+	case "coalesce":
+		return handleCoalesceFunction(self, fieldToValue)
 	default:
 		return "", fmt.Errorf("ConditionExpr.EvaluateCondition: unsupported operation: %v", self.Op)
 	}
@@ -1603,6 +1992,9 @@ func (self *ConditionExpr) GetFields() []string {
 	}
 	for _, pair := range self.ConditionValuePairs {
 		fields = append(fields, pair.Condition.GetFields()...)
+	}
+	for _, valueExpr := range self.ValueList {
+		fields = append(fields, valueExpr.GetFields()...)
 	}
 	return fields
 }

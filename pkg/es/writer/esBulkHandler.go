@@ -199,7 +199,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)
 	response["took"] = timeTook / 1000
-	response["error"] = overallError
+	response["errors"] = overallError
 	response["items"] = items
 
 	if atleastOneSuccess {
@@ -347,9 +347,14 @@ func PostBulkErrorResponse(ctx *fasthttp.RequestCtx) {
 // Accepts wildcard index names e.g. "ind-*"
 func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 	inIndexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
-
-	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid)
 	responseBody := make(map[string]interface{})
+	if inIndexName == "traces" {
+		ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
+		responseBody["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	}
+	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid)
 	if indicesNotFound == len(convertedIndexNames) {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		responseBody["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
