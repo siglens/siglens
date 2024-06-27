@@ -56,7 +56,7 @@ const (
 	LogsStartTime            = "now-1h"
 	LogsEndTime              = "now"
 	AlertQueryCondition      = alertutils.IsAbove
-	AlertValue               = 10
+	AlertValue               = 1
 	EvalWindow               = 1
 	EvalInterval             = 1
 )
@@ -425,11 +425,19 @@ func RunAlertsTest(host string) {
 	// Give the server a moment to start
 	time.Sleep(1 * time.Second)
 
+	var contact *alertutils.Contact
+	var alerts []*alertutils.AlertDetails
+
+	// Helper to handle error and perform cleanup
+	handleError := func(message string, err error) {
+		logErrorAndExit(message, err, server, alerts, contact.ContactId, host)
+	}
+
 	// Create a Contact Point
 	webhookUrl := "http://localhost:4010/webhook"
 	err := createContactPoint(host, webhookUrl)
 	if err != nil {
-		log.Fatalf("Error creating contact point: %v", err)
+		handleError("Error creating contact point", err)
 		return
 	}
 	log.Infof("Created Contact Point with Webhook: %v", webhookUrl)
@@ -437,24 +445,24 @@ func RunAlertsTest(host string) {
 	// Get all Contact Points to verify the creation
 	contacts, err := getAllContactPoints(host)
 	if err != nil {
-		log.Fatalf("Error getting all contacts: %v", err)
+		handleError("Error getting all contacts", err)
 		return
 	}
 
 	if len(contacts) != 1 {
-		log.Fatalf("Expected 1 contact, got %d", len(contacts))
+		handleError(fmt.Sprintf("Expected 1 contact, got %d", len(contacts)), nil)
 		return
 	}
 
-	contact := contacts[0]
+	contact = contacts[0]
 
 	if contact.ContactName != WebhookContactName {
-		log.Fatalf("Expected contact name to be %v, got %s", WebhookContactName, contact.ContactName)
+		handleError(fmt.Sprintf("Expected contact name to be %v, got %s", WebhookContactName, contact.ContactName), nil)
 		return
 	}
 
 	if contact.Webhook[0].Webhook != webhookUrl {
-		log.Fatalf("Expected webhook to be %v, got %s", webhookUrl, contact.Webhook[0].Webhook)
+		handleError(fmt.Sprintf("Expected webhook to be %v, got %s", webhookUrl, contact.Webhook[0].Webhook), nil)
 		return
 	}
 	log.Infof("Verified Contact Point: %v", contact.ContactName)
@@ -462,7 +470,7 @@ func RunAlertsTest(host string) {
 	// Create an Alert for Logs
 	err = createAlert(host, "Logs", contact.ContactId)
 	if err != nil {
-		log.Fatalf("Error creating alert for logs: %v", err)
+		handleError("Error creating alert for logs", err)
 		return
 	}
 	log.Infof("Created Alert for Logs")
@@ -470,32 +478,32 @@ func RunAlertsTest(host string) {
 	// Create an Alert for Metrics
 	err = createAlert(host, "Metrics", contact.ContactId)
 	if err != nil {
-		log.Fatalf("Error creating alert for metrics: %v", err)
+		handleError("Error creating alert for metrics", err)
 		return
 	}
 	log.Infof("Created Alert for Metrics")
 
 	// Get all Alerts to verify the creation
-	alerts, err := getAllAlerts(host)
+	alerts, err = getAllAlerts(host)
 	if err != nil {
-		log.Fatalf("Error getting all alerts: %v", err)
+		handleError("Error getting all alerts", err)
 		return
 	}
 
 	if len(alerts) != 2 {
-		log.Fatalf("Expected 2 alerts, got %d", len(alerts))
+		handleError(fmt.Sprintf("Expected 2 alerts, got %d", len(alerts)), nil)
 		return
 	}
 
 	alertLogsFound, alertMetricsFound := verifyAlertsData(alerts, contact)
 
 	if !alertLogsFound {
-		log.Fatalf("Expected alert for logs not found. Got Alerts: %v", alerts)
+		handleError("Expected alert for logs not found", nil)
 		return
 	}
 
 	if !alertMetricsFound {
-		log.Fatalf("Expected alert for metrics not found. Got Alerts: %v", alerts)
+		handleError("Expected alert for metrics not found", nil)
 		return
 	}
 
@@ -522,7 +530,7 @@ waitForWebhooks:
 				break waitForWebhooks
 			}
 		case <-time.After(30 * time.Second):
-			log.Fatalf("Timed out waiting for webhook")
+			handleError("Timed out waiting for webhook", nil)
 			return
 		}
 	}
@@ -530,7 +538,7 @@ waitForWebhooks:
 	// Get Alert History to verify the notifications
 	err = verifyAlertHistory(host, alerts)
 	if err != nil {
-		log.Fatalf("Error verifying alert history: %v", err)
+		handleError("Error verifying alert history", err)
 		return
 	}
 	log.Infof("Verified Alert History")
@@ -539,7 +547,7 @@ waitForWebhooks:
 	for _, alert := range alerts {
 		err = deleteAlert(host, alert.AlertId)
 		if err != nil {
-			log.Fatalf("Error deleting alert: %v, Error=%v", alert.AlertName, err)
+			handleError(fmt.Sprintf("Error deleting alert: %v", alert.AlertName), err)
 			return
 		}
 	}
@@ -548,7 +556,7 @@ waitForWebhooks:
 	// Delete the Contact Points
 	err = deleteContactPoint(host, contact.ContactId)
 	if err != nil {
-		log.Fatalf("Error deleting contact point: %v", err)
+		handleError("Error deleting contact point", err)
 		return
 	}
 	log.Infof("Deleted Contact Point")
@@ -560,4 +568,37 @@ waitForWebhooks:
 		return
 	}
 	log.Infof("Webserver shutdown successfully")
+}
+
+// logErrorAndExit handles error logging, cleanup, and server shutdown.
+func logErrorAndExit(message string, err error, server *http.Server, alerts []*alertutils.AlertDetails, contactId, host string) {
+	if err != nil {
+		log.Errorf("%s: %v", message, err)
+	} else {
+		log.Errorf("%s", message)
+	}
+
+	// Perform cleanup: delete alerts and contact point
+	for _, alert := range alerts {
+		deleteErr := deleteAlert(host, alert.AlertId)
+		if deleteErr != nil {
+			log.Errorf("Error deleting alert during cleanup: %v, Error=%v", alert.AlertName, deleteErr)
+		}
+	}
+	if contactId != "" {
+		deleteErr := deleteContactPoint(host, contactId)
+		if deleteErr != nil {
+			log.Errorf("Error deleting contact point during cleanup: %v", deleteErr)
+		}
+	}
+
+	// Close the Webserver
+	shutdownErr := server.Shutdown(context.Background())
+	if shutdownErr != nil {
+		log.Errorf("Error shutting down server: %v", shutdownErr)
+	}
+	log.Infof("Webserver shutdown successfully")
+
+	// Exit with error code
+	log.Fatal("Exiting due to errors")
 }
