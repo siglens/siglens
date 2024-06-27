@@ -275,7 +275,7 @@ function createNewAlertRule(alertData){
         resetAddAlertForm();
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
-        showToast(err.responseJSON.error)
+        showToast(err.responseJSON.error, "error")
     });
 }
 
@@ -298,7 +298,7 @@ function updateAlertRule(alertData){
         resetAddAlertForm();
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
-        showToast(err.responseJSON.error)
+        showToast(err.responseJSON.error, "error");
     });
 }
 
@@ -369,21 +369,6 @@ async function displayAlert(res){
         labelContainer.find("#label-value").val(label.label_value);
         labelContainer.appendTo('.label-main-container');
     })
-}
-
-function showToast(msg) {
-    let toast =
-        `<div class="div-toast" id="save-db-modal"> 
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 2000);
-}
-
-function removeToast() {
-    $('.div-toast').remove();
 }
 
 function setLogsLangHandler(e) {
@@ -484,6 +469,8 @@ function alertDetailsFunctions(){
         }).then(function (res) {
             showToast(res.message)
             window.location.href='../all-alerts.html';
+        }).catch((err)=>{
+            showToast(err.responseJSON.error, "error");
         });
     }
 

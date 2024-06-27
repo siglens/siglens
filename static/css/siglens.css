@@ -5676,3 +5676,46 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
     background-image: none;
 
 }
+
+#message-toast {
+    position: fixed;
+    top: 10%;
+    right: 10px;
+    width: 300px;
+    padding: 15px;
+    z-index: 9999;
+    box-shadow: var(--box-shadow);
+    color: var(--text-color);
+    background: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 1px;
+    transition: 0s;
+}
+
+#message-toast.toast-error {
+    border-top: 2px solid #EF364F;
+}
+
+#message-toast.toast-success {
+    border-top: 2px solid #40C463;
+}
+
+#message-toast .toast-close {
+    float: right;
+    font-size: 26px;
+    cursor: pointer;
+    top: -10px;
+    color: var(--text-color);
+    height: 26px;
+}
+
+.toast-buttons {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.toast-buttons button {
+    margin-left: 10px;
+    background: var(--alert-background);
+}

@@ -116,7 +116,7 @@ class btnRenderer {
 				alertGridOptions.api.applyTransaction({
 					remove: [{ rowId: deletedRowID }],
 				});
-                showToast(res.message)
+                showToast(res.message, 'success')
 			});
 		}
 
@@ -234,22 +234,6 @@ function displayAllAlerts(res){
     alertGridOptions.api.setRowData(alertRowData);
     alertGridOptions.api.sizeColumnsToFit();
 }
-
-function showToast(msg) {
-    let toast =
-        `<div class="div-toast" id="save-db-modal"> 
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 2000);
-}
-
-function removeToast() {
-    $('.div-toast').remove();
-}
-
 
 function onRowClicked(event) {
     var queryString = "?id=" + event.data.alertId;
