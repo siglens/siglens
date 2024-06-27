@@ -126,18 +126,29 @@ $(document).ready(async function () {
     }
    
 
-    // Enable the save button when a contact point is selected
-    $(".contact-points-options li").on("click", function () {
-        $("#contact-points-dropdown span").text($(this).text());
-        $("#save-alert-btn").prop("disabled", false);
-        $("#contact-point-error").css("display","none");
-    });
-    $("#save-alert-btn").on("click", function (event) {
-        if ($("#contact-points-dropdown span").text() === "Choose" || $("#contact-points-dropdown span").text() === "Add New") {
-            event.preventDefault();
-            $("#contact-point-error").css("display","inline-block");
-        }   
-    });
+// Enable the save button when a contact point is selected
+$(".contact-points-options li").on("click", function () {
+    $("#contact-points-dropdown span").text($(this).text());
+    $("#save-alert-btn").prop("disabled", false);
+    $("#contact-point-error").css("display","none"); // Hide error message when a contact point is selected
+});
+
+$("#save-alert-btn").on("click", function (event) {
+    if ($("#contact-points-dropdown span").text() === "Choose" || $("#contact-points-dropdown span").text() === "Add New") {
+        event.preventDefault();
+        $("#contact-point-error").css("display","inline-block");
+    } else {
+        $("#contact-point-error").css("display","none"); // Hide error message if a valid contact point is selected
+    }
+});
+
+// Hide the error message if a contact point is selected again
+$("#contact-points-dropdown").on("click", function() {
+    if ($("#contact-point-error").css("display") === "inline-block") {
+        $("#contact-point-error").css("display", "none");
+    }
+});
+
     
 
     
@@ -304,6 +315,9 @@ function createNewAlertRule(alertData){
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
         $("#metric-error").css("display","inline-block");
+        setTimeout(function() {
+            $("#metric-error").css("display","none");
+        }, 3000); 
     });
 }
 
