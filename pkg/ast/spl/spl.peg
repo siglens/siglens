@@ -2573,7 +2573,7 @@ HeadBlock <- PIPE CMD_HEAD ("limit" EQUAL)? intAsStr:IntegerAsString {
 
 
 // Returns *structs.QueryAggregators
-TailBlock <- PIPE CMD_TAIL ("limit" EQUAL)? intAsStr:IntegerAsString {
+TailBlock <- PIPE CMD_TAIL intAsStr:IntegerAsString {
     limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
     if err != nil {
         return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
@@ -2581,13 +2581,12 @@ TailBlock <- PIPE CMD_TAIL ("limit" EQUAL)? intAsStr:IntegerAsString {
 
     tExpr := &structs.TailExpr{
         TailRecords: make(map[string]map[string]interface{}, 0),
+        TailRows: limit,
     }
 
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
-            TailRows: limit,
-            Tail: true,
             TailRequest: tExpr,
         },
     }
@@ -2598,13 +2597,12 @@ TailBlock <- PIPE CMD_TAIL ("limit" EQUAL)? intAsStr:IntegerAsString {
 
     tExpr := &structs.TailExpr{
         TailRecords: make(map[string]map[string]interface{}, 0),
+        TailRows: uint64(10), // From https://docs.splunk.com/Documentation/SplunkCloud/9.1.2308/SearchReference/Tail
     }
 
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
-            TailRows: uint64(10), // From https://docs.splunk.com/Documentation/SplunkCloud/9.1.2308/SearchReference/Tail
-            Tail: true,
             TailRequest: tExpr,
         },
     }
