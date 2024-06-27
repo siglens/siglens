@@ -35,27 +35,21 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func NotifyAlertHandlerRequest(alertID string, alertDataMessage string) error {
+func NotifyAlertHandlerRequest(alertID string, alertState alertutils.AlertState, alertDataMessage string) error {
 	if alertID == "" {
 		log.Errorf("NotifyAlertHandlerRequest: Missing alert_id")
 		return errors.New("alert ID is empty")
 	}
-	cooldownOver, err := isCooldownOver(alertID)
+
+	shouldSend, err := shouldSendNotification(alertID, alertState)
 	if err != nil {
-		log.Errorf("NotifyAlertHandlerRequest:Error checking cooldown period for alert id- %s, err=%v", alertID, err)
+		log.Errorf("NotifyAlertHandlerRequest:Error checking if notification should be sent for alert id- %s, err=%v", alertID, err)
 		return err
 	}
-	if !cooldownOver {
+	if !shouldSend {
 		return nil
 	}
-	silenceMinutesOver, err := isSilenceMinutesOver(alertID)
-	if err != nil {
-		log.Errorf("NotifyAlertHandlerRequest:Error checking silence period for alert id- %s, err=%v", alertID, err)
-		return err
-	}
-	if !silenceMinutesOver {
-		return nil
-	}
+
 	contact_id, message, subject, err := processGetContactDetails(alertID)
 	if err != nil {
 		log.Errorf("NotifyAlertHandlerRequest:Error retrieving contact and message for alert id- %s, err=%v", alertID, err)
@@ -105,12 +99,48 @@ func NotifyAlertHandlerRequest(alertID string, alertDataMessage string) error {
 
 	}
 
-	err = processUpdateLastSentTime(alertID)
+	err = processUpdateLastSentTimeAndAlertState(alertID, alertState)
 	if err != nil {
 		log.Errorf("NotifyAlertHandlerRequest:Error updating last sent time for alert_id- %s, err=%v", alertID, err)
 		return err
 	}
 	return nil
+}
+
+// shouldSendNotification checks if the notification should be sent based on the cooldown period and silence minutes
+// If the last alert state is normal and the current alert state is also normal, then we should not send the notification
+func shouldSendNotification(alertID string, currentAlertState alertutils.AlertState) (bool, error) {
+	alertNotification, err := processGetAlertNotification(alertID)
+	if err != nil {
+		log.Errorf("shouldSendNotification:Error getting alert notification details for alert id- %s, err=%v", alertID, err)
+		return false, err
+	}
+
+	if currentAlertState == alertutils.Normal {
+		if alertNotification.LastAlertState == alertutils.Inactive {
+			// If the last alert state is inactive and the current alert state is normal, then we should not send the notification
+			return false, nil
+		}
+		if alertNotification.LastAlertState == currentAlertState {
+			// If the last alert state is normal and the current alert state is also normal, then we should not send the notification
+			return false, nil
+		}
+	}
+
+	cooldownOver := isCooldownOver(alertNotification.CooldownPeriod, alertNotification.LastSentTime)
+	if !cooldownOver {
+		return false, nil
+	}
+	silenceMinutesOver, err := isSilenceMinutesOver(alertID, alertNotification.LastSentTime)
+	if err != nil {
+		log.Errorf("shouldSendNotification:Error checking silence period for alert id- %s, err=%v", alertID, err)
+		return false, err
+	}
+	if !silenceMinutesOver {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func sendAlertEmail(emailID, subject, message string, alertDataMessage string) error {
@@ -159,8 +189,8 @@ func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string) 
 	return err
 }
 
-func isSilenceMinutesOver(alertID string) (bool, error) {
-	silenceMinutes, lastSendTime, err := processGetSilenceMinutesRequest(alertID)
+func isSilenceMinutesOver(alertID string, lastSendTime time.Time) (bool, error) {
+	silenceMinutes, err := processGetSilenceMinutesRequest(alertID)
 
 	if lastSendTime.IsZero() {
 		return true, nil
@@ -179,24 +209,15 @@ func isSilenceMinutesOver(alertID string) (bool, error) {
 	return false, nil
 }
 
-func isCooldownOver(alertID string) (bool, error) {
-	cooldownMinutes, lastSendTime, err := processGetCooldownRequest(alertID)
-
+func isCooldownOver(cooldownMinutes uint64, lastSendTime time.Time) bool {
 	if lastSendTime.IsZero() {
-		return true, nil
-	}
-
-	if err != nil {
-		return false, err
+		return true
 	}
 
 	currentTimeUTC := time.Now().UTC()
 	lastSendTimeUTC := lastSendTime.UTC()
 	cooldownDuration := time.Duration(cooldownMinutes) * time.Minute
-	if currentTimeUTC.Sub(lastSendTimeUTC) >= cooldownDuration {
-		return true, nil
-	}
-	return false, nil
+	return currentTimeUTC.Sub(lastSendTimeUTC) >= cooldownDuration
 }
 
 func sendSlack(alertName string, message string, channel alertutils.SlackTokenConfig, alertDataMessage string) error {
@@ -233,29 +254,23 @@ func sendSlack(alertName string, message string, channel alertutils.SlackTokenCo
 	return err
 }
 
-func processGetCooldownRequest(alert_id string) (uint64, time.Time, error) {
-	period, last_time, err := databaseObj.GetCoolDownDetails(alert_id)
+func processGetAlertNotification(alert_id string) (*alertutils.Notification, error) {
+	alertNotification, err := databaseObj.GetAlertNotification(alert_id)
 	if err != nil {
-		log.Errorf("ProcessGetCooldownRequest:Error getting cooldown details for alert id- %s err=%v", alert_id, err)
-		return 0, time.Time{}, err
+		log.Errorf("ProcessGetAlertNotification:Error getting alert notification details for alert id- %s err=%v", alert_id, err)
+		return nil, err
 	}
-	return period, last_time, nil
+	return alertNotification, nil
 }
 
-func processGetSilenceMinutesRequest(alert_id string) (uint64, time.Time, error) {
+func processGetSilenceMinutesRequest(alert_id string) (uint64, error) {
 	alertDataObj, err := databaseObj.GetAlert(alert_id)
 	if err != nil {
 		log.Errorf("ProcessGetSilenceMinutesRequest:Error getting alert details for alert id- %s err=%v", alert_id, err)
-		return 0, time.Time{}, err
+		return 0, err
 	}
 
-	_, last_time, err := databaseObj.GetCoolDownDetails(alert_id)
-	if err != nil {
-		log.Errorf("ProcessGetSilenceMinutesRequest:Error getting cooldown details for alert id- %s err=%v", alert_id, err)
-		return 0, time.Time{}, err
-	}
-
-	return alertDataObj.SilenceMinutes, last_time, nil
+	return alertDataObj.SilenceMinutes, nil
 }
 func processGetContactDetails(alert_id string) (string, string, string, error) {
 	id, message, subject, err := databaseObj.GetContactDetails(alert_id)
@@ -276,10 +291,10 @@ func processGetEmailAndChannelID(contact_id string) ([]string, []alertutils.Slac
 	return emails, slacks, webhook, nil
 }
 
-func processUpdateLastSentTime(alert_id string) error {
-	err := databaseObj.UpdateLastSentTime(alert_id)
+func processUpdateLastSentTimeAndAlertState(alert_id string, alertState alertutils.AlertState) error {
+	err := databaseObj.UpdateLastSentTimeAndAlertState(alert_id, alertState)
 	if err != nil {
-		log.Errorf("ProcessUpdateLastSentTime: Unable to update last_sent_time for alert_id- %s, err=%v", alert_id, err)
+		log.Errorf("processUpdateLastSentTimeAndAlertState: Unable to update last_sent_time for alert_id- %s, err=%v", alert_id, err)
 		return err
 	}
 	return nil

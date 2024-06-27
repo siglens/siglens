@@ -289,11 +289,6 @@ func (p Sqlite) UpdateAlert(editedAlert *alertutils.AlertDetails) error {
 		}
 	}
 
-	if currentAlertData.AlertType > 0 && editedAlert.AlertType != currentAlertData.AlertType {
-		log.Errorf("UpdateAlert: alert type cannot be updated for alert: %v. Given AlertType=%v, Expected AlertType=%v", editedAlert.AlertName, editedAlert.AlertType, currentAlertData.AlertType)
-		return fmt.Errorf("UpdateAlert: alert type cannot be updated for alert: %v. Given AlertType=%v, Expected AlertType=%v", editedAlert.AlertName, editedAlert.AlertType, currentAlertData.AlertType)
-	}
-
 	if editedAlert.AlertType == alertutils.AlertTypeLogs {
 		if !isValid(editedAlert.QueryParams.QueryText) {
 			log.Errorf("UpdateAlert: data validation check failed for alert: %v. Alert Query is not Valid: %v", editedAlert.AlertName, editedAlert.QueryParams.QueryText)
@@ -468,6 +463,14 @@ func (p Sqlite) GetCoolDownDetails(alert_id string) (uint64, time.Time, error) {
 	return cooldown_period, last_sent_time, nil
 }
 
+func (p Sqlite) GetAlertNotification(alert_id string) (*alertutils.Notification, error) {
+	var notification alertutils.Notification
+	if err := p.db.Where("alert_id = ?", alert_id).First(&notification).Error; err != nil {
+		return nil, err
+	}
+	return &notification, nil
+}
+
 func (p Sqlite) DeleteContactPoint(contact_id string) error {
 	if !isValid(contact_id) {
 		log.Errorf("DeleteContactPoint: data validation check failed, contact id: %v", contact_id)
@@ -512,13 +515,20 @@ func (p Sqlite) DeleteContactPoint(contact_id string) error {
 	return nil
 }
 
-// update last_sent_time in notification_details table
-func (p Sqlite) UpdateLastSentTime(alert_id string) error {
+// update last_sent_time and last_alert_state in notification_details table
+func (p Sqlite) UpdateLastSentTimeAndAlertState(alert_id string, alertState alertutils.AlertState) error {
 	currentTime := time.Now().UTC()
-	if err := p.db.Model(&alertutils.Notification{}).Where("alert_id = ?", alert_id).Update("last_sent_time", currentTime).Error; err != nil {
-		log.Errorf("UpdateLastSentTime: unable to UpdateLastSentTime, alert id: %v, err: %+v", alert_id, err)
-		return fmt.Errorf("UpdateLastSentTime: unable to UpdateLastSentTime, alert id: %v, err: %+v", alert_id, err)
+
+	if err := p.db.Model(&alertutils.Notification{}).Where("alert_id = ?", alert_id).
+		Updates(map[string]interface{}{
+			"last_sent_time":   currentTime,
+			"last_alert_state": alertState,
+		}).Error; err != nil {
+		err = fmt.Errorf("UpdateLastSentTimeAndAlertState: unable to update, alert id: %v, err: %+v", alert_id, err)
+		log.Errorf(err.Error())
+		return err
 	}
+
 	return nil
 }
 
