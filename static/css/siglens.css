@@ -5598,13 +5598,14 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
   visibility: hidden;
 }
 .error-message ,#metric-error{
-    visibility: hidden;
+    display:none;
     width: fit-content;
-    color: black;
     text-align: center;
     border-radius: 6px;
     padding:7px;
-    border:0.5px solid black;
+    border:0.5px solid var(--text-color);
+    background-color: var(--ui-widget-bg-color);
+    color: var(--text-color);
     position: relative;
     z-index: 1;
     bottom: 125%; /* Position above the triggering element */
