@@ -44,6 +44,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
     <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/metrics-explorer.css?v={{ CSSVersion }}" />
+
+    <style>
+        .metrics-graph-container{
+            display: block;
+        }
+        .metrics-graph{
+            margin-bottom: 20px;
+        }
+        #metrics-explorer, #metrics-graphs{
+            display: none;
+        }
+
+    </style>
 
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
@@ -82,16 +96,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <button class="btn" id="save-alert-btn" type="submit" tabindex="10">Save</button>
                     </div>
                     <div class="add-alert-form">
+                        <div id="metrics-graphs" class="metrics-graph-container">
+    
+                        </div>
                         <div class="subsection-heading">
                             <div class="circle">1</div>
-                            <div>Alert Rule</div>
-                        </div>
-                        <div class="alert-form-subsection">
-                            <label for="alert-rule-name">Rule name</label>
-                            <input type="text" class="form-control" placeholder="Enter rule name" id="alert-rule-name" required tabindex="1">
-                        </div>
-                        <div class="subsection-heading">
-                            <div class="circle">2</div>
                             <div>Query</div>
                         </div>
                         <div class="alert-form-subsection">
@@ -106,9 +115,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     </button>
                                     <div class="dropdown-menu box-shadow" id="data-source-options">
                                         <li id="option-1" class="data-source-option active">Logs</li>
+                                        <li id="option-2" class="data-source-option">Metrics</li>
                                     </div>
                                 </div>
-                                <div>
+                                <div class="logs-lang-container">
                                     <button class="btn dropdown-toggle" type="button" id="logs-language-btn"
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown" title="Select Query Type" style="display: none;">
@@ -164,9 +174,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 city=* | stats avg(latency)
                                 '></i>
                             </div>
+                            <div id="metrics-explorer">
+                                <div id="metrics-queries"></div>
+                                <div id="metrics-formula"></div>
+                                 <div class="mt-3 d-flex ">
+                                     <button id="add-query" class="btn" type="button"><span class="plus-icon">+</span> Add Query</button>
+                                     <button id="add-formula" class="btn" type="button"><span class="plus-icon">+</span> Add Formula</button>
+                                 </div>
+                             </div>
                         </div>
                         <div class="subsection-heading">
-                            <div class="circle">3</div>
+                            <div class="circle">2</div>
                             <div>Set Condition</div>
                         </div>
                         <div class="alert-form-subsection">
@@ -214,7 +232,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
                         </div>
                         <div class="subsection-heading">
-                            <div class="circle">4</div>
+                            <div class="circle">3</div>
                             <div>Notification</div>
                         </div>
                         <div class="alert-form-subsection">
@@ -240,17 +258,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     required></textarea>
                             </div>
                         </div>
+                        <div class="subsection-heading">
+                            <div class="circle">4</div>
+                            <div>Alert Rule</div>
+                        </div>
+                        <div class="alert-form-subsection">
+                            <label for="alert-rule-name">Rule name</label>
+                            <input type="text" class="form-control" placeholder="Enter rule name" id="alert-rule-name" required tabindex="1">
+                        </div>
                         <div class="label-subsection">
                             <label for="custom-label">Custom Label</label>
                             <div class="d-flex align-items-end mb-0">
                                 <div class="label-main-container mb-0">
-                                    <div class="label-container d-flex align-items-center">
-                                        <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7"
-                                            value="alerting"><span class="label-equal"> = </span> <input type="text"
-                                            id="label-value" class="form-control" placeholder="Value" value="true" tabindex="8">
-                                    </div>
                                 </div>
-                                <button class="add-label-container btn" type="button">Add Label</button>
+                                <button class="add-label-container btn" type="button"><span class="plus-icon">+</span>Add Label</button>
                             </div>
                         </div>
                     </div>
@@ -278,6 +299,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/contacts.js?cb=1_1_10"></script>
+    <script src="./js/lib/chart.umd.min.js"></script>
+    <script src="./js/metrics-explorer.js?cb=1_1_10"></script>
     <script src="./js/alert.js?cb=1_1_10"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
 

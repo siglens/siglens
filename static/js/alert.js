@@ -16,12 +16,11 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 'use strict';
 
-let alertData = {queryParams :{}};
-let alertEditFlag = 0;
+let alertData = {};
 let alertID;
+let alertEditFlag = 0;
 let alertRule_name = "alertRule_name";
 let query_string = "query_string";
 let condition = "condition";
@@ -33,39 +32,65 @@ let messageTemplateInfo =
 '\n' + inDoubleBrackets('condition') +
 '\n' + inDoubleBrackets('queryLanguage') + '"></i>';
 let messageInputBox = document.getElementById("message-info");
-if(messageInputBox)
+if (messageInputBox)
     messageInputBox.innerHTML += messageTemplateInfo;
 
-// If there's double brackets next to each other, the templating system will
-// try to replace what's inside the brackets with a value. We don't want that
-// in this case.
 function inDoubleBrackets(str) {
     return "{" + "{" + str + "}" + "}";
 }
 
-let mapConditionTypeToIndex =new Map([
-    ["Is above",0],
-    ["Is below",1],
-    ["Equal to",2],
-    ["Not equal to",3]
+let mapConditionTypeToIndex = new Map([
+    ["Is above", 0],
+    ["Is below", 1],
+    ["Equal to", 2],
+    ["Not equal to", 3]
 ]);
 
-let mapIndexToConditionType =new Map([
-    [0,"Is above"],
-    [1,"Is below"],
-    [2,"Equal to"],
-    [3,"Not equal to"]
+let mapIndexToConditionType = new Map([
+    [0, "Is above"],
+    [1, "Is below"],
+    [2, "Equal to"],
+    [3, "Not equal to"]
 ]);
 
-let mapIndexToAlertState=new Map([
-    [0,"Normal"],
-    [1,"Pending"],
-    [2,"Firing"],
+let mapIndexToAlertState = new Map([
+    [0, "Normal"],
+    [1, "Pending"],
+    [2, "Firing"],
 ]);
 
-const alertForm =$('#alert-form');
+const alertForm = $('#alert-form');
 
-$(document).ready(function () {
+const propertiesGridOptions = {
+    columnDefs: [
+        { headerName: "Config Variable Name", field: "name", sortable: true, filter: true },
+        { headerName: "Config Variable Value", field: "value", sortable: true, filter: true }
+    ],
+    defaultColDef: {
+        resizable: true,
+        flex: 1,
+        minWidth: 150
+    },
+    rowData: [],
+    domLayout: 'autoHeight'
+};
+
+const historyGridOptions = {
+    columnDefs: [
+        { headerName: "Timestamp", field: "timestamp", sortable: true, filter: true },
+        { headerName: "Action", field: "action", sortable: true, filter: true },
+        { headerName: "State", field: "state", sortable: true, filter: true }
+    ],
+    defaultColDef: {
+        resizable: true,
+        flex: 1,
+        minWidth: 150
+    },
+    rowData: [],
+    domLayout: 'autoHeight'
+};
+
+$(document).ready(async function () {
 
     $('.theme-btn').on('click', themePickerHandler);
     $("#logs-language-btn").show();
@@ -73,11 +98,20 @@ $(document).ready(function () {
     let endTime = "now";
     datePickerHandler(startTime, endTime, startTime);
     setupEventHandlers();
-
+    const urlParams = new URLSearchParams(window.location.search);
+    $("#alert-rule-name").val(urlParams.get('alertRule_name'));
     $('.alert-condition-options li').on('click', setAlertConditionHandler);
     $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
     $('#logs-language-options li').on('click', setLogsLangHandler);
-    $('#data-source-options li').on('click', setDataSourceHandler);
+    $('#data-source-options li').on('click', function(){
+        let alertType;
+        if ($(this).html() === 'Logs'){
+            alertType = 1;
+        }else {
+            alertType = 2;
+        }
+        setDataSourceHandler(alertType)
+    });
     $('#cancel-alert-btn').on('click',function(){
         window.location.href='../all-alerts.html';
         resetAddAlertForm();
@@ -88,44 +122,61 @@ $(document).ready(function () {
     const tooltipIds = ["info-icon-spl", "info-icon-msg", "info-evaluate-every", "info-evaluate-for"];
 
     tooltipIds.forEach(id => {
-        $(`#${id}`).tooltip({
-            delay: { show: 0, hide: 300 },
-            trigger: "click"
-        }).on("click", function () {
-            $(`#${id}`).tooltip("show");
-        });
+        if ($(`#${id}`).length) {
+            $(`#${id}`).tooltip({
+                delay: { show: 0, hide: 300 },
+                trigger: "click"
+            }).on("click", function () {
+                $(`#${id}`).tooltip("show");
+            });
+        }
     });
+
+     // Initialize ag-Grid only if the elements exist
+     if ($('#properties-grid').length) {
+        new agGrid.Grid(document.querySelector('#properties-grid'), propertiesGridOptions);
+    }
+    if ($('#history-grid').length) {
+        new agGrid.Grid(document.querySelector('#history-grid'), historyGridOptions);
+    }
 
     $(document).mouseup(function (e) {
         if ($(e.target).closest(".tooltip-inner").length === 0) {
             tooltipIds.forEach(id => $(`#${id}`).tooltip("hide"));
         }
     });
-    getAlertId();
+    await getAlertId();
     if(window.location.href.includes("alert-details.html")){
         alertDetailsFunctions();
+        fetchAlertProperties();
+        displayHistoryData();
     }
 });
 
-function getAlertId() {
+async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
 
     if (urlParams.has('id')) {
         const id = urlParams.get('id');
-        editAlert(id);
         alertID = id;
+       const editFlag = await editAlert(id);
+       alertEditFlag = editFlag;
     } else if (urlParams.has('queryLanguage')) {
         const queryLanguage = urlParams.get('queryLanguage');
         const searchText = urlParams.get('searchText');
         const startEpoch = urlParams.get('startEpoch');
         const endEpoch = urlParams.get('endEpoch');
-    
+
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
+    }
+
+    if(!alertEditFlag && !(window.location.href.includes("alert-details.html"))){
+        addQueryElement();
     }
 }
 
-function editAlert(alertId){
-    $.ajax({
+async function editAlert(alertId){
+    const res = await $.ajax({
         method: "get",
         url: "api/alerts/" + alertId,
         headers: {
@@ -134,25 +185,27 @@ function editAlert(alertId){
         },
         dataType: 'json',
         crossDomain: true,
-    }).then(function (res) {
-        if(window.location.href.includes("alert-details.html")){
-            displayAlertProperties(res.alert)
-        }else{
-            alertEditFlag = 1;
-            displayAlert(res.alert);
-        }
     })
+    if (window.location.href.includes("alert-details.html")) {
+        displayAlertProperties(res.alert)
+        return false
+    } else {
+        alertEditFlag = true;
+        displayAlert(res.alert);
+        return true
+    }
+
+    
 }
 
 function setAlertConditionHandler(e) {
     $('.alert-condition-option').removeClass('active');
     $('#alert-condition span').html($(this).html());
     $(this).addClass('active');
-    let optionId = $(this).attr('id');  
+    let optionId = $(this).attr('id');
 }
 
 function contactPointsDropdownHandler() {
-    //get all contact points 
     $.ajax({
         method: "get",
         url: "api/alerts/allContacts",
@@ -163,17 +216,19 @@ function contactPointsDropdownHandler() {
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        if (res.contacts) {
-        let dropdown = $('.contact-points-options');
-        
-        res.contacts.forEach((cp) => {
-            if (!$(`.contact-points-option:contains(${cp.contact_name})`).length) {
-                dropdown.append(`<li class="contact-points-option" id="${cp.contact_id}">${cp.contact_name}</li>`);
-            }
-        });
-    }
-})}
-
+        if (res.contacts && Array.isArray(res.contacts)) {
+            let dropdown = $('.contact-points-options');
+            
+            res.contacts.forEach((cp) => {
+                if (cp && cp.contact_name && !$(`.contact-points-option:contains(${cp.contact_name})`).length) {
+                    dropdown.append(`<li class="contact-points-option" id="${cp.contact_id}">${cp.contact_name}</li>`);
+                }
+            });
+        }
+    }).catch(function (error) {
+        console.error('Error fetching contacts:', error);
+    });    
+}
 
 $('.contact-points-options').on('click', 'li', function () {
     $('.contact-points-option').removeClass('active');
@@ -193,47 +248,78 @@ $(document).keyup(function(e) {
     }
 });
 
+const propertiesBtn = document.getElementById('properties-btn');
+const historyBtn = document.getElementById('history-btn');
 
+if (propertiesBtn) {
+    propertiesBtn.addEventListener('click', function() {
+        document.getElementById('properties-grid').style.display = 'block';
+        document.getElementById('history-grid').style.display = 'none';
+        document.getElementById('history-search-container').style.display = 'none';
+        propertiesBtn.classList.add('active');
+        historyBtn.classList.remove('active');
+        fetchAlertProperties();
+    });
+}
 
-//create new alert rule
-function submitAddAlertForm(e){
+if (historyBtn) {
+    historyBtn.addEventListener('click', function() {
+        document.getElementById('properties-grid').style.display = 'none';
+        document.getElementById('history-grid').style.display = 'block';
+        document.getElementById('history-search-container').style.display = 'block';
+        historyBtn.classList.add('active');
+        propertiesBtn.classList.remove('active');
+        displayHistoryData();
+    });
+}
+
+function submitAddAlertForm(e) {
     e.preventDefault();
     setAlertRule();
     alertEditFlag ? updateAlertRule(alertData) : createNewAlertRule(alertData);
 }
 
-function setAlertRule(){
+function setAlertRule() {
     let dataSource = $('#alert-data-source span').text();
-    alertData.alert_name = $('#alert-rule-name').val(),
-    alertData.queryParams.data_source = dataSource;
-    alertData.queryParams.queryLanguage = $('#logs-language-btn span').text();
-    alertData.queryParams.queryText= $('#query').val(),
-    alertData.queryParams.startTime= filterStartDate,
-    alertData.queryParams.endTime= filterEndDate,
-    alertData.condition= mapConditionTypeToIndex.get($('#alert-condition span').text()),
-    alertData.eval_interval= parseInt($('#evaluate-every').val()),
-    alertData.eval_for= parseInt($('#evaluate-for').val()),
-    alertData.contact_name= $('#contact-points-dropdown span').text(),
-    alertData.contact_id= $('#contact-points-dropdown span').attr('id'),
-    alertData.message= $('.message').val()
+    if (dataSource === "Logs") {
+        alertData.alert_type = 1 ;
+        alertData.queryParams = {
+            data_source: dataSource,
+            queryLanguage: $('#logs-language-btn span').text(),
+            queryText: $('#query').val(),
+            startTime: filterStartDate,
+            endTime: filterEndDate
+        };
+    } else if (dataSource === "Metrics") {
+        alertData.alert_type = 2 ;
+        alertData.metricsQueryParams = JSON.stringify(metricsQueryParams);
+    }
+    alertData.alert_name = $('#alert-rule-name').val();
+    alertData.condition= mapConditionTypeToIndex.get($('#alert-condition span').text()) ;
+    alertData.eval_interval= parseInt($('#evaluate-every').val()) ;
+    alertData.eval_for= parseInt($('#evaluate-for').val()) ;
+    alertData.contact_name= $('#contact-points-dropdown span').text() ;
+    alertData.contact_id= $('#contact-points-dropdown span').attr('id') ;
+    alertData.message= $('.message').val() ;
     alertData.value = parseFloat($('#threshold-value').val());
     alertData.message = $(".message").val();
-    alertData.labels =[]
-    
+    alertData.labels = []
+
     $('.label-container').each(function() {
-      let labelName = $(this).find('#label-key').val();
-      let labelVal = $(this).find('#label-value').val();
+        let labelName = $(this).find('#label-key').val();
+        let labelVal = $(this).find('#label-value').val();
         if (labelName && labelVal) {
-            let labelEntry  = {
+            let labelEntry = {
                 label_name: labelName,
                 label_value: labelVal
-              };
-              alertData.labels.push(labelEntry);
+            };
+            alertData.labels.push(labelEntry);
         }
     })
+
 }
 
-function createNewAlertRule(alertData){
+function createNewAlertRule(alertData) {
     if (!alertData.alert_type) {
         alertData.alert_type = 1;
     }
@@ -247,16 +333,19 @@ function createNewAlertRule(alertData){
         data: JSON.stringify(alertData),
         dataType: 'json',
         crossDomain: true,
-    }).then((res)=>{
+    }).then((res) => {
         resetAddAlertForm();
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
-        showToast(err.responseJSON.error)
+        showToast(err.responseJSON.error, "error")
     });
 }
 
 // update alert rule
 function updateAlertRule(alertData){
+    if (!alertData.alert_type) {
+        alertData.alert_type = 1;
+    }
         $.ajax({
         method: "post",
         url: "api/alerts/update",
@@ -267,30 +356,52 @@ function updateAlertRule(alertData){
         data: JSON.stringify(alertData),
         dataType: 'json',
         crossDomain: true,
-    }).then((res)=>{
+    }).then((res) => {
         resetAddAlertForm();
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
-        showToast(err.responseJSON.error)
+        showToast(err.responseJSON.error, "error");
     });
 }
 
-//reset alert form
-function resetAddAlertForm(){
+function resetAddAlertForm() {
     alertForm[0].reset();
 }
 
-function displayAlert(res){
+async function displayAlert(res){
+
     $('#alert-rule-name').val(res.alert_name);
-    $('#alert-data-source span').html(res.queryParams.data_source);
-    const queryLanguage = res.queryParams.queryLanguage;
-    $('#logs-language-btn span').text(queryLanguage);
-    $('.logs-language-option').removeClass('active');
-    $(`.logs-language-option:contains(${queryLanguage})`).addClass('active');
-    displayQueryToolTip(queryLanguage);
-    $('#query').val(res.queryParams.queryText);
-    $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
-    datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime)
+    setDataSourceHandler(res.alert_type) 
+    if( res.alert_type === 1 ){
+        $('#alert-data-source span').html(res.queryParams.data_source);
+        const queryLanguage = res.queryParams.queryLanguage;
+        $('#logs-language-btn span').text(queryLanguage);
+        $('.logs-language-option').removeClass('active');
+        $(`.logs-language-option:contains(${queryLanguage})`).addClass('active');
+        displayQueryToolTip(queryLanguage);
+        $('#query').val(res.queryParams.queryText);
+        $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
+        datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime)
+    } else if (res.alert_type === 2){
+        let metricsQueryParams = JSON.parse(res.metricsQueryParams);
+
+        $(`.ranges .inner-range #${metricsQueryParams.start}`).addClass('active');
+        datePickerHandler(metricsQueryParams.start, metricsQueryParams.end, metricsQueryParams.start);
+        if(functionsArray){
+            allFunctions = await getFunctions();
+            functionsArray = allFunctions.map(function(item) {
+                return item.fn;
+            });
+        }
+        for (const index in metricsQueryParams.queries) {
+            const query = metricsQueryParams.queries[index];
+            const parsedQueryObject = parsePromQL(query.query);
+            await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
+        }
+        if(metricsQueryParams.queries.length>1){
+            await addAlertsFormulaElement(metricsQueryParams.formulas[0].formula);
+        }
+    }
     let conditionType = mapIndexToConditionType.get(res.condition)
     $('.alert-condition-option').removeClass('active');
     $(`.alert-condition-options #option-${res.condition}`).addClass('active');
@@ -299,42 +410,25 @@ function displayAlert(res){
     $('#evaluate-every').val(res.eval_interval);
     $('#evaluate-for').val(res.eval_for);
     $('.message').val(res.message);
-    if(alertEditFlag){
+    if (alertEditFlag) {
         alertData.alert_id = res.alert_id;
     }
     $('#contact-points-dropdown span').html(res.contact_name);
     $('#contact-points-dropdown span').attr('id', res.contact_id);
-    
-    let isFirst = true;
+
     (res.labels).forEach(function(label){
-        let labelContainer;
-        if (isFirst) {
-            labelContainer = $('.label-container');
-            isFirst = false;
-        } else {
-            labelContainer = $('.label-container').first().clone();
-            labelContainer.append('<button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>');
-        }
+        var labelContainer = $(`
+        <div class="label-container d-flex align-items-center">
+            <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7" value="">
+            <span class="label-equal"> = </span>
+            <input type="text" id="label-value" class="form-control" placeholder="Value" value="" tabindex="8">
+            <button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>
+        </div>
+    `)
         labelContainer.find("#label-key").val(label.label_name);
         labelContainer.find("#label-value").val(label.label_value);
         labelContainer.appendTo('.label-main-container');
     })
-
-}
-
-function showToast(msg) {
-    let toast =
-        `<div class="div-toast" id="save-db-modal"> 
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 2000);
-}
-
-function removeToast() {
-    $('.div-toast').remove();
 }
 
 function setLogsLangHandler(e) {
@@ -344,10 +438,145 @@ function setLogsLangHandler(e) {
     displayQueryToolTip($(this).html());
 }
 
-function setDataSourceHandler(e) {
+function setDataSourceHandler(alertType) {
     $('.data-source-option').removeClass('active');
-    $('#alert-data-source span').html($(this).html());
-    $(this).addClass('active');
+    const isLogs = alertType === 1;
+    const sourceText = isLogs ? "Logs" : "Metrics";
+    const $span = $('#alert-data-source span');
+
+    $span.html(sourceText);
+    $(`.data-source-option:contains("${sourceText}")`).addClass('active');
+    
+    $('.query-container, .logs-lang-container').toggle(isLogs);
+    $('#metrics-explorer, #metrics-graphs').toggle(!isLogs);
+    
+    if (isLogs) {
+        $('#query').attr('required', 'required');
+    } else {
+        $('#query').removeAttr('required');
+    }
+}
+
+$('#search-history-btn').on('click', function() {
+    performSearch();
+});
+
+$('#history-filter-input').on('keypress', function(e) {
+    if (e.which === 13) { 
+        performSearch();
+    }
+});
+
+$('#history-filter-input').on('input', function() {
+    if ($(this).val().trim() === "") {
+        displayHistoryData();
+    }
+});
+
+function performSearch() {
+    const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
+    if (searchTerm) {
+        filterHistoryData(searchTerm);
+    } else {
+        displayHistoryData();
+    }
+}
+function fetchAlertProperties() {
+    if (alertID) {
+        $.ajax({
+            method: "get",
+            url: "api/alerts/" + alertID,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': '*/*'
+            },
+            dataType: 'json',
+            crossDomain: true,
+        }).then(function (res) {
+            const propertiesData = [
+                { name: "Query", value: res.alert.queryParams.queryText },
+                { name: "Status", value: mapIndexToAlertState.get(res.alert.state) },
+                { name: "Type", value: res.alert.queryParams.data_source },
+                { name: "Query Language", value: res.alert.queryParams.queryLanguage },
+                { name: "Condition", value: mapIndexToConditionType.get(res.alert.condition) },
+                { name: "Evaluate", value: `every ${res.alert.eval_interval} minutes for ${res.alert.eval_for} minutes` },
+                { name: "Contact Point", value: res.alert.contact_name }
+            ];
+
+            res.alert.labels.forEach(label => {
+                propertiesData.push({ name: `Label: ${label.label_name}`, value: label.label_value });
+            });
+
+            if (propertiesGridOptions.api) {
+                propertiesGridOptions.api.setRowData(propertiesData);
+            } else {
+                console.error("propertiesGridOptions.api is not defined");
+            }
+        });
+    }
+}
+
+function displayHistoryData() {
+    if (alertID) {
+        $.ajax({
+            method: "get",
+            url: `api/alerts/${alertID}/history`,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': '*/*'
+            },
+            dataType: 'json',
+            crossDomain: true,
+        }).then(function (res) {
+            const historyData = res.alertHistory.map(item => ({
+                timestamp: new Date(item.event_triggered_at).toLocaleString(),
+                action: item.event_description,
+                state: mapIndexToAlertState.get(item.alert_state)
+            }));
+
+            if (historyGridOptions.api) {
+                historyGridOptions.api.setRowData(historyData);
+            } else {
+                console.error("historyGridOptions.api is not defined");
+            }
+        }).catch(function (err) {
+            console.error('Error fetching alert history:', err);
+        });
+    }
+}
+
+
+function filterHistoryData(searchTerm) {
+    if (alertID) {
+        $.ajax({
+            method: "get",
+            url: `api/alerts/${alertID}/history`,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': '*/*'
+            },
+            dataType: 'json',
+            crossDomain: true,
+        }).then(function (res) {
+            const filteredData = res.alertHistory.filter(item => {
+                const description = item.event_description.toLowerCase();
+                const state = mapIndexToAlertState.get(item.alert_state).toLowerCase();
+                return description.includes(searchTerm) || state.includes(searchTerm);
+            }).map(item => ({
+                timestamp: new Date(item.event_triggered_at).toLocaleString(),
+                action: item.event_description,
+                state: mapIndexToAlertState.get(item.alert_state)
+            }));
+
+            if (historyGridOptions.api) {
+                historyGridOptions.api.setRowData(filteredData);
+            } else {
+                console.error("historyGridOptions.api is not defined");
+            }
+        }).catch(function (err) {
+            console.error('Error fetching alert history:', err);
+        });
+    }
 }
 
 function displayQueryToolTip(selectedQueryLang) {
@@ -359,7 +588,6 @@ function displayQueryToolTip(selectedQueryLang) {
     }
 }
 
-// Display Alert Details
 function displayAlertProperties(res) {
     const queryParams = res.queryParams;
     $('.alert-name').text(res.alert_name);
@@ -382,21 +610,23 @@ function displayAlertProperties(res) {
 
 // Add Label
 $(".add-label-container").on("click", function () {
-    var labelContainer = $(".label-container").first().clone();
-    labelContainer.find("#label-key").val("");
-    labelContainer.find("#label-value").val("");
-    labelContainer.append('<button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>');
-    labelContainer.appendTo(".label-main-container");
+    var newLabelContainer = `
+        <div class="label-container d-flex align-items-center">
+            <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7" value="">
+            <span class="label-equal"> = </span>
+            <input type="text" id="label-value" class="form-control" placeholder="Value" value="" tabindex="8">
+            <button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>
+        </div>
+    `;
+    $(".label-main-container").append(newLabelContainer);
 });
 
-// Delete Label
-$(".label-main-container").on("click", ".delete-icon", function () {
+$(".label-main-container").on("click", ".delete-icon", function() {
     $(this).closest(".label-container").remove();
 });
 
-//On Alert Details Page 
-function alertDetailsFunctions(){
-    function editAlert(event){        
+function alertDetailsFunctions() {
+    function editAlert(event) {
         var queryString = "?id=" + alertID;
         window.location.href = "../alert.html" + queryString;
         event.stopPropagation();
@@ -414,9 +644,11 @@ function alertDetailsFunctions(){
                 alert_id: alertID
             }),
             crossDomain: true,
-        }).then(function (res) {
+        }).then(function(res) {
             showToast(res.message)
             window.location.href='../all-alerts.html';
+        }).catch((err)=>{
+            showToast(err.responseJSON.error, "error");
         });
     }
 
@@ -424,23 +656,22 @@ function alertDetailsFunctions(){
         event.stopPropagation();
         $('.popupOverlay, .popupContent').addClass('active');
 
-        $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {
+        $('#cancel-btn, .popupOverlay, #delete-btn').click(function() {
             $('.popupOverlay, .popupContent').removeClass('active');
         });
         $('#delete-btn').click(deleteAlert)
     }
 
-    $('#edit-alert-btn').on('click',editAlert)
-    $('#delete-alert').on('click',showPrompt)
-    $('#cancel-alert-details').on('click',function(){
-        window.location.href='../all-alerts.html';
+    $('#edit-alert-btn').on('click', editAlert)
+    $('#delete-alert').on('click', showPrompt)
+    $('#cancel-alert-details').on('click', function() {
+        window.location.href = '../all-alerts.html';
     })
 }
 
-//Create alert from logs
-function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch){
+function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch) {
     $('#alert-rule-name').focus();
     $('#query').val(query);
     $(`.ranges .inner-range #${startEpoch}`).addClass('active');
-    datePickerHandler(startEpoch, endEpoch , startEpoch)
+    datePickerHandler(startEpoch, endEpoch, startEpoch)
 }

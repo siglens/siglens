@@ -303,7 +303,7 @@ func timeBasedTagsTreeFlush() {
 }
 
 func InitMetricsSegment(orgid uint64, mId string) (*MetricsSegment, error) {
-	suffix, err := suffix.GetSuffix(mId, "ts")
+	suffix, err := suffix.GetNextSuffix(mId, "ts")
 	if err != nil {
 		return nil, err
 	}
@@ -1147,7 +1147,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	}
 	log.Infof("rotating segment of size %v that created %v metrics blocks to %+v", ms.totalEncodedSize, ms.currBlockNum+1, finalDir)
 	if !forceRotate {
-		nextSuffix, err := suffix.GetSuffix(ms.Mid, "ts")
+		nextSuffix, err := suffix.GetNextSuffix(ms.Mid, "ts")
 		if err != nil {
 			log.Errorf("rotateSegment: failed to get the next suffix for metric ID %s, orgid=%v, err %+v", ms.Mid, ms.Orgid, err)
 			return err

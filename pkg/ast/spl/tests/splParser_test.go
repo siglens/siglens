@@ -4191,14 +4191,11 @@ func Test_evalFunctionsStrfTime(t *testing.T) {
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.NewColName, "result")
 	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMNumericExpr)
-	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr)
-	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.NumericExprMode), structs.NEMNumericExpr)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.IsTerminal, false)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Op, "strftime")
-	assert.True(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.IsTerminal, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.ValueIsField)
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Left.Value, "timeField")
-	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.NumericExpr.Val.RawString, "%Y-%m-%dT%H:%M:%S.%Q")
+	assert.Equal(t, int(aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMStringExpr)
+	assert.NotNil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr)
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Op, "strftime")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Val.NumericExpr.Value, "timeField")
+	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.StringExpr.TextExpr.Param.RawString, "%Y-%m-%dT%H:%M:%S.%Q")
 }
 
 func Test_evalFunctionsStrptime(t *testing.T) {
