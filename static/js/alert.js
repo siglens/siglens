@@ -109,8 +109,18 @@ $(document).ready(async function () {
             alertType = 1;
         }else {
             alertType = 2;
+            $("#save-alert-btn").on("click", function (event) {
+                if($("#select-metric-input").val===""){
+                    $("#save-alert-btn").prop("disabled", true);
+                }
+                else{
+                    $("#save-alert-btn").prop("disabled", false);
+                }
+            
+            });
         }
         setDataSourceHandler(alertType)
+        
     });
     $('#cancel-alert-btn').on('click',function(){
         window.location.href='../all-alerts.html';
@@ -151,6 +161,34 @@ $(document).ready(async function () {
         fetchAlertProperties();
         displayHistoryData();
     }
+   
+
+// Enable the save button when a contact point is selected
+$(".contact-points-options li").on("click", function () {
+    $("#contact-points-dropdown span").text($(this).text());
+    $("#save-alert-btn").prop("disabled", false);
+    $("#contact-point-error").css("display","none"); // Hide error message when a contact point is selected
+});
+
+$("#save-alert-btn").on("click", function (event) {
+    if ($("#contact-points-dropdown span").text() === "Choose" || $("#contact-points-dropdown span").text() === "Add New") {
+        event.preventDefault();
+        $("#contact-point-error").css("display","inline-block");
+    } else {
+        $("#contact-point-error").css("display","none"); // Hide error message if a valid contact point is selected
+    }
+});
+
+// Hide the error message if a contact point is selected again
+$("#contact-points-dropdown").on("click", function() {
+    if ($("#contact-point-error").css("display") === "inline-block") {
+        $("#contact-point-error").css("display", "none");
+    }
+});
+
+    
+
+    
 });
 
 async function getAlertId() {
@@ -337,7 +375,10 @@ function createNewAlertRule(alertData) {
         resetAddAlertForm();
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
-        showToast(err.responseJSON.error, "error")
+        $("#metric-error").css("display","inline-block");
+        setTimeout(function() {
+            $("#metric-error").css("display","none");
+        }, 3000); 
     });
 }
 
@@ -443,7 +484,7 @@ function setDataSourceHandler(alertType) {
     const isLogs = alertType === 1;
     const sourceText = isLogs ? "Logs" : "Metrics";
     const $span = $('#alert-data-source span');
-
+  
     $span.html(sourceText);
     $(`.data-source-option:contains("${sourceText}")`).addClass('active');
     
