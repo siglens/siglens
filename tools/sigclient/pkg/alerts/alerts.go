@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
@@ -38,7 +39,7 @@ type AllAlertsResponse struct {
 	Alerts []*alertutils.AlertDetails `json:"alerts"`
 }
 
-type GetAlertHistoryResponse struct {
+type AlertHistoryResponse struct {
 	AlertHistory []*alertutils.AlertHistoryDetails `json:"alertHistory"`
 	Count        uint64                            `json:"count"`
 }
@@ -60,6 +61,29 @@ const (
 	EvalInterval             = 1
 )
 
+func sendHttpRequest(method string, url string, data []byte) (*http.Response, error) {
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %v", err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error making request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return nil, fmt.Errorf("error response status: %v. Response Body=%v", resp.Status, string(bodyBytes))
+	}
+
+	return resp, nil
+}
+
 func createContactPoint(host string, webhookUrl string) error {
 	url := host + "/api/alerts/createContact"
 
@@ -74,48 +98,20 @@ func createContactPoint(host string, webhookUrl string) error {
 
 	data, _ := json.Marshal(contact)
 
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
-	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
-	}
+	_, err := sendHttpRequest("POST", url, data)
 
-	req.Header.Add("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error making request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("error response status: %v. responseBody=%v", resp.Status, string(bodyBytes))
-	}
-
-	return nil
+	return err
 }
 
 func getAllContactPoints(host string) ([]*alertutils.Contact, error) {
 
 	url := host + "/api/alerts/allContacts"
 
-	req, err := http.NewRequest("GET", url, nil)
+	resp, err := sendHttpRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error making request: %v", err)
-	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("error response status: %v. Response Body=%v", resp.Status, string(bodyBytes))
-	}
 
 	var allContactsResp AllContactResponse
 	if err := json.NewDecoder(resp.Body).Decode(&allContactsResp); err != nil {
@@ -165,53 +161,26 @@ func createAlert(host string, alertTypeString string, contactId string) error {
 		}
 	}
 
-	url := host + "/api/alerts/create" // Ensure the URL is correct
+	url := host + "/api/alerts/create"
 
 	data, err := json.Marshal(alert)
 	if err != nil {
 		return fmt.Errorf("error marshalling alert: %v", err)
 	}
 
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
-	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
+	_, err = sendHttpRequest("POST", url, data)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("error response status: %v. ResponseBody: %v", resp.Status, string(bodyBytes))
-	}
-
-	return nil
+	return err
 }
 
 func getAllAlerts(host string) ([]*alertutils.AlertDetails, error) {
 	url := host + "/api/allalerts"
 
-	req, err := http.NewRequest("GET", url, nil)
+	resp, err := sendHttpRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error sending request: %v", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("error response status: %v. ResponseBody: %v", resp.Status, string(bodyBytes))
-	}
 
 	var alertsResp AllAlertsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&alertsResp); err != nil {
@@ -225,25 +194,13 @@ func getAlertHistoryById(host string, alertId string) ([]*alertutils.AlertHistor
 
 	url := host + "/api/alerts/" + alertId + "/history"
 
-	req, err := http.NewRequest("GET", url, nil)
+	resp, err := sendHttpRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
+		return nil, err
 	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error sending request: %v", err)
-	}
-
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("error response status: %v. ResponseBody: %v", resp.Status, string(bodyBytes))
-	}
-
-	var alertHistoryResp GetAlertHistoryResponse
+	var alertHistoryResp AlertHistoryResponse
 	if err := json.NewDecoder(resp.Body).Decode(&alertHistoryResp); err != nil {
 		return nil, fmt.Errorf("error decoding response: %v", err)
 	}
@@ -260,27 +217,9 @@ func deleteAlert(host string, alertId string) error {
 
 	data, _ := json.Marshal(dataBody)
 
-	req, err := http.NewRequest("DELETE", url, bytes.NewBuffer(data))
-	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
-	}
+	_, err := sendHttpRequest("DELETE", url, data)
 
-	req.Header.Add("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error making request: %v", err)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("error response status: %v. Response Body=%v", resp.Status, string(bodyBytes))
-	}
-
-	return nil
+	return err
 }
 
 func deleteContactPoint(host string, contactId string) error {
@@ -292,27 +231,9 @@ func deleteContactPoint(host string, contactId string) error {
 
 	data, _ := json.Marshal(dataBody)
 
-	req, err := http.NewRequest("DELETE", url, bytes.NewBuffer(data))
-	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
-	}
+	_, err := sendHttpRequest("DELETE", url, data)
 
-	req.Header.Add("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error making request: %v", err)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("error response status: %v. Response Body=%v", resp.Status, string(bodyBytes))
-	}
-
-	return nil
+	return err
 }
 
 func verifyAlertLogsQuery(alert *alertutils.AlertDetails) error {
@@ -451,6 +372,13 @@ func verifyAlertHistory(host string, alerts []*alertutils.AlertDetails) error {
 	return nil
 }
 
+func removeTrailingSlashes(url string) string {
+	for strings.HasSuffix(url, "/") {
+		url = strings.TrimSuffix(url, "/")
+	}
+	return url
+}
+
 // End to End Testing for Alerts:
 // Start the WebServer to listen for Webhooks
 // Create a Contact Point: For this test purpose, we will create a web-hook contact point.
@@ -464,6 +392,8 @@ func verifyAlertHistory(host string, alerts []*alertutils.AlertDetails) error {
 // Delete the Contact Points
 // Close the Webserver
 func RunAlertsTest(host string) {
+	// Remove Trailing Slashes from the Host
+	host = removeTrailingSlashes(host)
 
 	webhookChan := make(chan alertutils.WebhookBody)
 
