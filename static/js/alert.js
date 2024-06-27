@@ -18,8 +18,7 @@
  */
 'use strict';
 
-let alertData = {queryParams: {}};
-let alertEditFlag = 0;
+let alertData = {};
 let alertID;
 let alertRule_name = "alertRule_name";
 let query_string = "query_string";
@@ -90,37 +89,35 @@ const historyGridOptions = {
     domLayout: 'autoHeight'
 };
 
-$(document).ready(function () {
+$(document).ready(async function () {
+
     $('.theme-btn').on('click', themePickerHandler);
     $("#logs-language-btn").show();
     let startTime = "now-30m";
     let endTime = "now";
     datePickerHandler(startTime, endTime, startTime);
     setupEventHandlers();
-
-    // Ensure elements exist before attaching event listeners
-    if ($('.alert-condition-options li').length) {
-        $('.alert-condition-options li').on('click', setAlertConditionHandler);
-    }
-    if ($('#contact-points-dropdown').length) {
-        $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
-    }
-    if ($('#logs-language-options li').length) {
-        $('#logs-language-options li').on('click', setLogsLangHandler);
-    }
-    if ($('#data-source-options li').length) {
-        $('#data-source-options li').on('click', setDataSourceHandler);
-    }
-    if ($('#cancel-alert-btn').length) {
-        $('#cancel-alert-btn').on('click', function () {
-            window.location.href = '../all-alerts.html';
-            resetAddAlertForm();
-        });
-    }
-    if (alertForm.length) {
-        alertForm.on('submit', (e) => submitAddAlertForm(e));
-    }
-
+    const urlParams = new URLSearchParams(window.location.search);
+    $("#alert-rule-name").val(urlParams.get('alertRule_name'));
+    $('.alert-condition-options li').on('click', setAlertConditionHandler);
+    $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
+    $('#logs-language-options li').on('click', setLogsLangHandler);
+    $('#data-source-options li').on('click', function(){
+        let alertType;
+        if ($(this).html() === 'Logs'){
+            alertType = 1;
+        }else {
+            alertType = 2;
+        }
+        setDataSourceHandler(alertType)
+    });
+    $('#cancel-alert-btn').on('click',function(){
+        window.location.href='../all-alerts.html';
+        resetAddAlertForm();
+    });
+    
+    alertForm.on('submit',(e)=>submitAddAlertForm(e));
+  
     const tooltipIds = ["info-icon-spl", "info-icon-msg", "info-evaluate-every", "info-evaluate-for"];
 
     tooltipIds.forEach(id => {
@@ -134,59 +131,33 @@ $(document).ready(function () {
         }
     });
 
-    $(document).mouseup(function (e) {
-        if ($(e.target).closest(".tooltip-inner").length === 0) {
-            tooltipIds.forEach(id => $(`#${id}`).tooltip("hide"));
-        }
-    });
-
-    // Initialize ag-Grid only if the elements exist
-    if ($('#properties-grid').length) {
+     // Initialize ag-Grid only if the elements exist
+     if ($('#properties-grid').length) {
         new agGrid.Grid(document.querySelector('#properties-grid'), propertiesGridOptions);
     }
     if ($('#history-grid').length) {
         new agGrid.Grid(document.querySelector('#history-grid'), historyGridOptions);
     }
 
-    if (document.getElementById('properties-btn') && document.getElementById('history-btn')) {
-        const propertiesBtn = document.getElementById('properties-btn');
-        const historyBtn = document.getElementById('history-btn');
-    
-        if (propertiesBtn) {
-            propertiesBtn.addEventListener('click', function() {
-                document.getElementById('properties-grid').style.display = 'block';
-                document.getElementById('history-grid').style.display = 'none';
-                propertiesBtn.classList.add('active');
-                historyBtn.classList.remove('active');
-                fetchAlertProperties();
-            });
+    $(document).mouseup(function (e) {
+        if ($(e.target).closest(".tooltip-inner").length === 0) {
+            tooltipIds.forEach(id => $(`#${id}`).tooltip("hide"));
         }
-    
-        if (historyBtn) {
-            historyBtn.addEventListener('click', function() {
-                document.getElementById('properties-grid').style.display = 'none';
-                document.getElementById('history-grid').style.display = 'block';
-                historyBtn.classList.add('active');
-                propertiesBtn.classList.remove('active');
-                displayHistoryData();
-            });
-        }
-    }    
-
-    getAlertId();
-    if (window.location.href.includes("alert-details.html")) {
+    });
+    await getAlertId();
+    if(window.location.href.includes("alert-details.html")){
         alertDetailsFunctions();
         fetchAlertProperties();
         displayHistoryData();
     }
 });
 
-function getAlertId() {
+async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
 
     if (urlParams.has('id')) {
         const id = urlParams.get('id');
-        editAlert(id);
+        await editAlert(id);
         alertID = id;
     } else if (urlParams.has('queryLanguage')) {
         const queryLanguage = urlParams.get('queryLanguage');
@@ -237,7 +208,7 @@ function displayHistoryData() {
     if (alertID) {
         $.ajax({
             method: "get",
-            url: "api/alerts/" + alertID,
+            url: `api/alerts/${alertID}/history`,
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
                 'Accept': '*/*'
@@ -245,30 +216,24 @@ function displayHistoryData() {
             dataType: 'json',
             crossDomain: true,
         }).then(function (res) {
-            // Ignore the response and use dummy data
-            const historyData = [
-                { timestamp: '12:22:31 pm', action: 'config change', state: 'nil' },
-                { timestamp: '11:32:41 am', action: 'evaluation', state: 'normal' },
-                { timestamp: '09:23:21 am', action: 'evaluation', state: 'firing' },
-                { timestamp: '08:12:21 am', action: 'config change', state: 'nil' },
-                { timestamp: '07:53:11 am', action: 'evaluation', state: 'pending' },
-                { timestamp: '06:44:01 am', action: 'evaluation', state: 'normal' },
-                { timestamp: '05:35:31 am', action: 'config change', state: 'nil' },
-                { timestamp: '04:26:21 am', action: 'evaluation', state: 'firing' },
-                { timestamp: '03:17:11 am', action: 'evaluation', state: 'pending' },
-                { timestamp: '02:08:01 am', action: 'config change', state: 'nil' }
-            ];
+            const historyData = res.alertHistory.map(item => ({
+                timestamp: new Date(item.event_triggered_at).toLocaleString(),
+                action: item.event_description,
+                state: mapIndexToAlertState.get(item.alert_state)
+            }));
 
             if (historyGridOptions.api) {
                 historyGridOptions.api.setRowData(historyData);
             } else {
                 console.error("historyGridOptions.api is not defined");
             }
+        }).catch(function (err) {
+            console.error('Error fetching alert history:', err);
         });
     }
 }
 
-function editAlert(alertId) {
+async function editAlert(alertId){
     $.ajax({
         method: "get",
         url: "api/alerts/" + alertId,
@@ -345,6 +310,7 @@ if (propertiesBtn) {
     propertiesBtn.addEventListener('click', function() {
         document.getElementById('properties-grid').style.display = 'block';
         document.getElementById('history-grid').style.display = 'none';
+        document.getElementById('history-search-container').style.display = 'none';
         propertiesBtn.classList.add('active');
         historyBtn.classList.remove('active');
         fetchAlertProperties();
@@ -355,6 +321,7 @@ if (historyBtn) {
     historyBtn.addEventListener('click', function() {
         document.getElementById('properties-grid').style.display = 'none';
         document.getElementById('history-grid').style.display = 'block';
+        document.getElementById('history-search-container').style.display = 'block';
         historyBtn.classList.add('active');
         propertiesBtn.classList.remove('active');
         displayHistoryData();
@@ -369,18 +336,26 @@ function submitAddAlertForm(e) {
 
 function setAlertRule() {
     let dataSource = $('#alert-data-source span').text();
-    alertData.alert_name = $('#alert-rule-name').val(),
-    alertData.queryParams.data_source = dataSource;
-    alertData.queryParams.queryLanguage = $('#logs-language-btn span').text();
-    alertData.queryParams.queryText = $('#query').val(),
-    alertData.queryParams.startTime = filterStartDate,
-    alertData.queryParams.endTime = filterEndDate,
-    alertData.condition = mapConditionTypeToIndex.get($('#alert-condition span').text()),
-    alertData.eval_interval = parseInt($('#evaluate-every').val()),
-    alertData.eval_for = parseInt($('#evaluate-for').val()),
-    alertData.contact_name = $('#contact-points-dropdown span').text(),
-    alertData.contact_id = $('#contact-points-dropdown span').attr('id'),
-    alertData.message = $('.message').val()
+    if (dataSource === "Logs") {
+        alertData.alert_type = 1 ;
+        alertData.queryParams = {
+            data_source: dataSource,
+            queryLanguage: $('#logs-language-btn span').text(),
+            queryText: $('#query').val(),
+            startTime: filterStartDate,
+            endTime: filterEndDate
+        };
+    } else if (dataSource === "Metrics") {
+        alertData.alert_type = 2 ;
+        alertData.metricsQueryParams = JSON.stringify(metricsQueryParams);
+    }
+    alertData.alert_name = $('#alert-rule-name').val();
+    alertData.condition= mapConditionTypeToIndex.get($('#alert-condition span').text()) ;
+    alertData.eval_interval= parseInt($('#evaluate-every').val()) ;
+    alertData.eval_for= parseInt($('#evaluate-for').val()) ;
+    alertData.contact_name= $('#contact-points-dropdown span').text() ;
+    alertData.contact_id= $('#contact-points-dropdown span').attr('id') ;
+    alertData.message= $('.message').val() ;
     alertData.value = parseFloat($('#threshold-value').val());
     alertData.message = $(".message").val();
     alertData.labels = []
@@ -396,6 +371,7 @@ function setAlertRule() {
             alertData.labels.push(labelEntry);
         }
     })
+
 }
 
 function createNewAlertRule(alertData) {
@@ -420,8 +396,12 @@ function createNewAlertRule(alertData) {
     });
 }
 
-function updateAlertRule(alertData) {
-    $.ajax({
+// update alert rule
+function updateAlertRule(alertData){
+    if (!alertData.alert_type) {
+        alertData.alert_type = 1;
+    }
+        $.ajax({
         method: "post",
         url: "api/alerts/update",
         headers: {
@@ -443,17 +423,40 @@ function resetAddAlertForm() {
     alertForm[0].reset();
 }
 
-function displayAlert(res) {
+async function displayAlert(res){
+
     $('#alert-rule-name').val(res.alert_name);
-    $('#alert-data-source span').html(res.queryParams.data_source);
-    const queryLanguage = res.queryParams.queryLanguage;
-    $('#logs-language-btn span').text(queryLanguage);
-    $('.logs-language-option').removeClass('active');
-    $(`.logs-language-option:contains(${queryLanguage})`).addClass('active');
-    displayQueryToolTip(queryLanguage);
-    $('#query').val(res.queryParams.queryText);
-    $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
-    datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime)
+    setDataSourceHandler(res.alert_type) 
+    if( res.alert_type === 1 ){
+        $('#alert-data-source span').html(res.queryParams.data_source);
+        const queryLanguage = res.queryParams.queryLanguage;
+        $('#logs-language-btn span').text(queryLanguage);
+        $('.logs-language-option').removeClass('active');
+        $(`.logs-language-option:contains(${queryLanguage})`).addClass('active');
+        displayQueryToolTip(queryLanguage);
+        $('#query').val(res.queryParams.queryText);
+        $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
+        datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime)
+    } else if (res.alert_type === 2){
+        let metricsQueryParams = JSON.parse(res.metricsQueryParams);
+
+        $(`.ranges .inner-range #${metricsQueryParams.start}`).addClass('active');
+        datePickerHandler(metricsQueryParams.start, metricsQueryParams.end, metricsQueryParams.start);
+        if(functionsArray){
+            allFunctions = await getFunctions();
+            functionsArray = allFunctions.map(function(item) {
+                return item.fn;
+            });
+        }
+        for (const index in metricsQueryParams.queries) {
+            const query = metricsQueryParams.queries[index];
+            const parsedQueryObject = parsePromQL(query.query);
+            await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
+        }
+        if(metricsQueryParams.queries.length>1){
+            await addAlertsFormulaElement(metricsQueryParams.formulas[0].formula);
+        }
+    }
     let conditionType = mapIndexToConditionType.get(res.condition)
     $('.alert-condition-option').removeClass('active');
     $(`.alert-condition-options #option-${res.condition}`).addClass('active');
@@ -506,10 +509,81 @@ function setLogsLangHandler(e) {
     displayQueryToolTip($(this).html());
 }
 
-function setDataSourceHandler(e) {
+function setDataSourceHandler(alertType) {
     $('.data-source-option').removeClass('active');
-    $('#alert-data-source span').html($(this).html());
-    $(this).addClass('active');
+    const isLogs = alertType === 1;
+    const sourceText = isLogs ? "Logs" : "Metrics";
+    const $span = $('#alert-data-source span');
+
+    $span.html(sourceText);
+    $(`.data-source-option:contains("${sourceText}")`).addClass('active');
+    
+    $('.query-container, .logs-lang-container').toggle(isLogs);
+    $('#metrics-explorer, #metrics-graphs').toggle(!isLogs);
+    
+    if (isLogs) {
+        $('#query').attr('required', 'required');
+    } else {
+        $('#query').removeAttr('required');
+    }
+}
+
+$('#search-history-btn').on('click', function() {
+    performSearch();
+});
+
+$('#history-filter-input').on('keypress', function(e) {
+    if (e.which === 13) { 
+        performSearch();
+    }
+});
+
+$('#history-filter-input').on('input', function() {
+    if ($(this).val().trim() === "") {
+        displayHistoryData();
+    }
+});
+
+function performSearch() {
+    const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
+    if (searchTerm) {
+        filterHistoryData(searchTerm);
+    } else {
+        displayHistoryData();
+    }
+}
+
+function filterHistoryData(searchTerm) {
+    if (alertID) {
+        $.ajax({
+            method: "get",
+            url: `api/alerts/${alertID}/history`,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': '*/*'
+            },
+            dataType: 'json',
+            crossDomain: true,
+        }).then(function (res) {
+            const filteredData = res.alertHistory.filter(item => {
+                const description = item.event_description.toLowerCase();
+                const state = mapIndexToAlertState.get(item.alert_state).toLowerCase();
+                return description.includes(searchTerm) || state.includes(searchTerm);
+            }).map(item => ({
+                timestamp: new Date(item.event_triggered_at).toLocaleString(),
+                action: item.event_description,
+                state: mapIndexToAlertState.get(item.alert_state)
+            }));
+
+            if (historyGridOptions.api) {
+                historyGridOptions.api.setRowData(filteredData);
+            } else {
+                console.error("historyGridOptions.api is not defined");
+            }
+        }).catch(function (err) {
+            console.error('Error fetching alert history:', err);
+        });
+    }
 }
 
 function displayQueryToolTip(selectedQueryLang) {

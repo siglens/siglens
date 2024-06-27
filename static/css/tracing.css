@@ -125,12 +125,7 @@
     margin-top: 50px;
 }
 
-/* Service Health  */
-#tracing-container #ag-grid{
-    border: 1px solid var(--search-input-border);
-    box-shadow: var(--box-shadow);
-    border-radius: 5px;
-}
+
 
 #tracing-container .ag-header-viewport,
 #tracing-container .ag-header-cell{
@@ -150,7 +145,14 @@
 #tracing-container .ag-theme-mycustomtheme .ag-root-wrapper-body, #tracing-container .ag-theme-mycustomtheme .ag-center-cols-container  {
     background-color: var(--black1-to-white0) !important;
 }
-
+.ag-root-wrapper-body.ag-layout-normal{
+    flex: 1 1 auto;
+    height: 0;
+    min-height: 0;
+    border: 1px solid var(--search-input-border);
+    box-shadow: var(--box-shadow);
+    border-radius: 5px;
+}
 #tracing-container #ag-grid .ag-row:hover {
     background: var(--alerting-table-hover);
     cursor: pointer;

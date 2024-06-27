@@ -79,14 +79,14 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 
 	query.InitQueryMetrics()
 
-	alertsHandler.InitAlertingService(server_utils.GetMyIds)
-	alertsHandler.InitMinionSearchService(server_utils.GetMyIds)
-
 	err := query.InitQueryNode(server_utils.GetMyIds, server_utils.ExtractKibanaRequests)
 	if err != nil {
 		log.Errorf("Failed to initialize query node: %v", err)
 		return err
 	}
+
+	alertsHandler.InitAlertingService(server_utils.GetMyIds)
+	alertsHandler.InitMinionSearchService(server_utils.GetMyIds)
 
 	hs.Router.GET("/{filename}.html", func(ctx *fasthttp.RequestCtx) {
 		renderHtmlTemplate(ctx, htmlTemplate)

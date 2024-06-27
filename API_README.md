@@ -353,6 +353,33 @@
             "message": "Alert deleted successfully"
         }
 
+### Get Alert History For An Alert by AlertID
+    endpoint: /api/alerts/{alert_id}/history
+    method: GET
+
+    Query Params:
+        - sort_order: "DESC" / "ASC" (optional)
+        - limit: uint (optional)  // limit the number of results
+        - offset: uint (optional) // skip these number of results
+
+    Example:
+    request: http://localhost:5122/api/alerts/3a4a7c72-5195-4ab0-bf2f-0b8cac7a5bee/history?sort_order=DESC&limit=10&offset=5
+    response: 
+        {
+            "alertHistory": [
+                {
+                    "ID": 256,
+                    "alert_id": "3a4a7c72-5195-4ab0-bf2f-0b8cac7a5bee",
+                    "alert_type": 2,
+                    "alert_state": 2,
+                    "event_description": "Alert Pending",
+                    "user_name": "System Generated",
+                    "event_triggered_at": "2024-06-21T23:28:04.933045Z"
+                }
+            ],
+            "count": 1
+        }
+
 ### Get All Contacts
     endpoint: api/alerts/allContacts
     method: GET
