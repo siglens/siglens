@@ -650,19 +650,10 @@ func getAllRotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.Quer
 
 	qsrs, totalQsr := FilterAggSegKeysToQueryResults(queryInfo, allPossibleKeys, aggs, structs.SEGMENT_STATS_SEARCH)
 
-	if hook := hooks.GlobalHooks.FilterQsrsHook; hook != nil {
-		qsrsAsAny, err := hook(qsrs)
-		if err != nil {
-			log.Errorf("getAllRotatedSegmentsInAggs: qid=%d, Error applying hook: %v", queryInfo.qid, err)
-			return nil, 0, 0, err
-		}
-
-		var ok bool
-		qsrs, ok = qsrsAsAny.([]*QuerySegmentRequest)
-		if !ok {
-			log.Errorf("getAllRotatedSegmentsInAggs: qid=%d, got invalid type %T from hook", queryInfo.qid, qsrsAsAny)
-			return nil, 0, 0, err
-		}
+	qsrs, err := applyQsrsFilterHook(qsrs)
+	if err != nil {
+		log.Errorf("getAllRotatedSegmentsInAggs: qid=%d, failed to apply hook: %v", queryInfo.qid, err)
+		return nil, 0, 0, err
 	}
 
 	numDistributedRequests, err := queryInfo.dqs.DistributeRotatedRequests(queryInfo)
@@ -801,19 +792,10 @@ func getAllRotatedSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time, 
 		return nil, 0, 0, 0, err
 	}
 
-	if hook := hooks.GlobalHooks.FilterQsrsHook; hook != nil {
-		qsrsAsAny, err := hook(qsrs)
-		if err != nil {
-			log.Errorf("getAllRotatedSegmentsInQuery: qid=%d, Error applying hook: %v", queryInfo.qid, err)
-			return nil, 0, 0, 0, err
-		}
-
-		var ok bool
-		qsrs, ok = qsrsAsAny.([]*QuerySegmentRequest)
-		if !ok {
-			log.Errorf("getAllRotatedSegmentsInQuery: qid=%d, got invalid type %T from hook", queryInfo.qid, qsrsAsAny)
-			return nil, 0, 0, 0, err
-		}
+	qsrs, err = applyQsrsFilterHook(qsrs)
+	if err != nil {
+		log.Errorf("getAllRotatedSegmentsInQuery: qid=%d, failed to apply hook: %v", queryInfo.qid, err)
+		return nil, 0, 0, 0, err
 	}
 
 	// 2. Whatever needed sorting of segKeys based on sorts & generation into QuerySegmentRequest
@@ -1162,4 +1144,23 @@ func checkAggTypes(aggs *structs.QueryAggregators) (bool, bool) {
 		}
 	}
 	return nonTime, timeAgg
+}
+
+func applyQsrsFilterHook(qsrs []*QuerySegmentRequest) ([]*QuerySegmentRequest, error) {
+	if hook := hooks.GlobalHooks.FilterQsrsHook; hook != nil {
+		qsrsAsAny, err := hook(qsrs)
+		if err != nil {
+			log.Errorf("applyQsrsFilterHook: failed to apply hook: %v", err)
+			return nil, err
+		}
+
+		var ok bool
+		qsrs, ok = qsrsAsAny.([]*QuerySegmentRequest)
+		if !ok {
+			log.Errorf("applyQsrsFilterHook: got invalid type %T from hook", qsrsAsAny)
+			return nil, err
+		}
+	}
+
+	return qsrs, nil
 }
