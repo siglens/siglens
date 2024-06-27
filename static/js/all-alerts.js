@@ -29,6 +29,11 @@ let mapIndexToAlertState=new Map([
     [3,"Firing"],
 ]);
 
+let mapIndexToAlertType=new Map([
+    [1, "Logs"],
+    [2,"Metrics"],
+]);
+
 $(document).ready(function () {
 
     $('.theme-btn').on('click', themePickerHandler);
@@ -138,6 +143,11 @@ let alertColumnDefs = [
         width: 100,
     },
     {
+        headerName: "Alert Type",
+        field: "alertType",
+        width: 100,
+    },
+    {
         headerName: "Labels",
         field: "labels",
         width:100,
@@ -193,6 +203,7 @@ function displayAllAlerts(res){
     
         newRow.set("labels", allLabels);
         newRow.set("alertState", mapIndexToAlertState.get(value.state));
+        newRow.set("alertType", mapIndexToAlertType.get(value.alert_type));
         alertRowData = _.concat(alertRowData, Object.fromEntries(newRow));
     })
     alertGridOptions.api.setRowData(alertRowData);
