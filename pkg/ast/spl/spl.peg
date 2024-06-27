@@ -301,7 +301,6 @@ func SearchMatchGetFields(searchStr string) ([]string, error) {
     if len(kvPairs) == 0 {
         return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
     }
-    kvMap := make(map[string]string)
     fieldList := make([]string, 0)
 
 	for _, kvPair := range kvPairs {
@@ -321,12 +320,7 @@ func SearchMatchGetFields(searchStr string) ([]string, error) {
         if len(parts[0]) == 0 {
             return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
         }
-		seenVal, exist := kvMap[parts[0]]
-
-		// key has already been set and the new value observed is different
-		if exist && seenVal != parts[1] {
-			return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
-		}
+        
         fieldList = append(fieldList, parts[0])
 	}
 
