@@ -480,6 +480,70 @@ function performSearch() {
         displayHistoryData();
     }
 }
+function fetchAlertProperties() {
+    if (alertID) {
+        $.ajax({
+            method: "get",
+            url: "api/alerts/" + alertID,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': '*/*'
+            },
+            dataType: 'json',
+            crossDomain: true,
+        }).then(function (res) {
+            const propertiesData = [
+                { name: "Query", value: res.alert.queryParams.queryText },
+                { name: "Status", value: mapIndexToAlertState.get(res.alert.state) },
+                { name: "Type", value: res.alert.queryParams.data_source },
+                { name: "Query Language", value: res.alert.queryParams.queryLanguage },
+                { name: "Condition", value: mapIndexToConditionType.get(res.alert.condition) },
+                { name: "Evaluate", value: `every ${res.alert.eval_interval} minutes for ${res.alert.eval_for} minutes` },
+                { name: "Contact Point", value: res.alert.contact_name }
+            ];
+
+            res.alert.labels.forEach(label => {
+                propertiesData.push({ name: `Label: ${label.label_name}`, value: label.label_value });
+            });
+
+            if (propertiesGridOptions.api) {
+                propertiesGridOptions.api.setRowData(propertiesData);
+            } else {
+                console.error("propertiesGridOptions.api is not defined");
+            }
+        });
+    }
+}
+
+function displayHistoryData() {
+    if (alertID) {
+        $.ajax({
+            method: "get",
+            url: `api/alerts/${alertID}/history`,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': '*/*'
+            },
+            dataType: 'json',
+            crossDomain: true,
+        }).then(function (res) {
+            const historyData = res.alertHistory.map(item => ({
+                timestamp: new Date(item.event_triggered_at).toLocaleString(),
+                action: item.event_description,
+                state: mapIndexToAlertState.get(item.alert_state)
+            }));
+
+            if (historyGridOptions.api) {
+                historyGridOptions.api.setRowData(historyData);
+            } else {
+                console.error("historyGridOptions.api is not defined");
+            }
+        }).catch(function (err) {
+            console.error('Error fetching alert history:', err);
+        });
+    }
+}
+
 
 function filterHistoryData(searchTerm) {
     if (alertID) {
