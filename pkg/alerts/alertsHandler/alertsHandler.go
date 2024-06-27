@@ -21,11 +21,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 	alertsqlite "github.com/siglens/siglens/pkg/alerts/alertsqlite"
+	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	"gorm.io/gorm"
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
@@ -42,7 +45,7 @@ type database interface {
 	CreateAlert(alertInfo *alertutils.AlertDetails) (alertutils.AlertDetails, error)
 	GetAlert(alert_id string) (*alertutils.AlertDetails, error)
 	CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error)
-	GetAlertHistory(alertId string) ([]*alertutils.AlertHistoryDetails, error)
+	GetAlertHistoryByAlertID(alertHistoryParams *alertutils.AlertHistoryQueryParams) ([]*alertutils.AlertHistoryDetails, error)
 	GetAllAlerts(orgId uint64) ([]alertutils.AlertDetails, error)
 	CreateMinionSearch(alertInfo *alertutils.MinionSearch) (alertutils.MinionSearch, error)
 	GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error)
@@ -55,9 +58,10 @@ type database interface {
 	GetAllContactPoints(orgId uint64) ([]alertutils.Contact, error)
 	UpdateContactPoint(contact *alertutils.Contact) error
 	GetCoolDownDetails(alert_id string) (uint64, time.Time, error)
+	GetAlertNotification(alert_id string) (*alertutils.Notification, error)
 	GetContactDetails(alert_id string) (string, string, string, error)
 	GetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []alertutils.WebHookConfig, error)
-	UpdateLastSentTime(alert_id string) error
+	UpdateLastSentTimeAndAlertState(alert_id string, alertState alertutils.AlertState) error
 	UpdateAlertStateByAlertID(alertId string, alertState alertutils.AlertState) error
 	DeleteContactPoint(contact_id string) error
 }
@@ -65,6 +69,11 @@ type database interface {
 var databaseObj database
 
 var invalidDatabaseProvider = "database provider is not configured in server.yaml"
+
+type TestContactPointRequest struct {
+	Type     string                 `json:"type"`
+	Settings map[string]interface{} `json:"settings"`
+}
 
 func ConnectSiglensDB() error {
 	databaseObj = &alertsqlite.Sqlite{}
@@ -93,6 +102,33 @@ func ProcessVersionInfo(ctx *fasthttp.RequestCtx) {
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
+func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (string, error) {
+	if alertToBeCreated.AlertType == alertutils.AlertTypeLogs {
+		_, queryAggs, err := pipesearch.ParseQuery(alertToBeCreated.QueryParams.QueryText, 0, alertToBeCreated.QueryParams.QueryLanguage)
+		if err != nil {
+			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("error Parsing logs Query. Error=%v", err)
+		}
+
+		if queryAggs == nil {
+			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
+		}
+
+		isStatsQuery := queryAggs.IsStatsAggPresentInChain()
+		if !isStatsQuery {
+			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
+		}
+
+	} else if alertToBeCreated.AlertType == alertutils.AlertTypeMetrics {
+		_, _, _, _, errorLog, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToBeCreated.MetricsQueryParamsString))
+		if err != nil {
+			return errorLog, err
+		}
+	} else {
+		return fmt.Sprintf("Alert Type: %v", alertToBeCreated.AlertType), fmt.Errorf("invalid Alert Type. Alert Type must be logs or Metrics")
+	}
+	return "", nil
+}
+
 func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
@@ -112,9 +148,22 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 		utils.SendError(ctx, "Failed to unmarshal json", "", err)
 		return
 	}
+
+	if alertToBeCreated.EvalWindow < alertToBeCreated.EvalInterval {
+		utils.SendError(ctx, "EvalWindow should be greater than or equal to EvalInterval", fmt.Sprintf("EvalWindow: %v, EvalInterval:%v", alertToBeCreated.EvalWindow, alertToBeCreated.EvalInterval), nil)
+		return
+	}
+
+	// Validate Alert Type and Query
+	extraMsgToLog, err := validateAlertTypeAndQuery(&alertToBeCreated)
+	if err != nil {
+		utils.SendError(ctx, fmt.Sprintf("Failed to Create Alert. Error=%v", err), extraMsgToLog, err)
+		return
+	}
+
 	alertDataObj, err := databaseObj.CreateAlert(&alertToBeCreated)
 	if err != nil {
-		utils.SendError(ctx, "Failed to create alert", fmt.Sprintf("alert name: %v", alertToBeCreated.AlertName), err)
+		utils.SendError(ctx, fmt.Sprintf("Failed to Create Alert. Error=%v", err), fmt.Sprintf("alert name: %v", alertToBeCreated.AlertName), err)
 		return
 	}
 
@@ -171,6 +220,68 @@ func ProcessSilenceAlertRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	responseBody["message"] = "Successfully updated silence period"
 	utils.WriteJsonResponse(ctx, responseBody)
+}
+
+func ProcessTestContactPointRequest(ctx *fasthttp.RequestCtx) {
+	var testContactRequest TestContactPointRequest
+	if err := json.Unmarshal(ctx.PostBody(), &testContactRequest); err != nil {
+		utils.SendError(ctx, "Failed to unmarshal json", "Request Body: "+string(ctx.PostBody()), err)
+		return
+	}
+
+	switch testContactRequest.Type {
+	case "slack":
+		channelID, ok := testContactRequest.Settings["channel_id"].(string)
+		if !ok {
+			utils.SendError(ctx, "channel_id is required but is missing", "Request Body: "+string(ctx.PostBody()), nil)
+			return
+		}
+		slackToken, ok := testContactRequest.Settings["slack_token"].(string)
+		if !ok {
+			utils.SendError(ctx, "slack_token is required but is missing", "Request Body: "+string(ctx.PostBody()), nil)
+			return
+		}
+		channel := alertutils.SlackTokenConfig{
+			ChannelId: channelID,
+			SlToken:   slackToken,
+		}
+		err := sendSlack("Test Alert", "This is a test message to verify the Slack integration.", channel, "")
+		if err != nil {
+			utils.SendError(ctx, err.Error(), "Error sending test message to slack. Request Body:"+string(ctx.PostBody()), err)
+			return
+		}
+	case "webhook":
+		webhookURL, ok := testContactRequest.Settings["webhook"].(string)
+		if !ok {
+			utils.SendError(ctx, "webhook is required but is missing", "Request Body: "+string(ctx.PostBody()), nil)
+			return
+		}
+		if err := testWebhookURL(webhookURL); err != nil {
+			utils.SendError(ctx, "Failed to verify webhook URL", "", err)
+			return
+		}
+	default:
+		utils.SendError(ctx, "Invalid type", "Request Body:"+string(ctx.PostBody()), nil)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, map[string]interface{}{"message": "Successfully verified contact point"})
+}
+
+func testWebhookURL(webhookURL string) error {
+	resp, err := http.Get(webhookURL)
+	if err != nil {
+		log.Errorf("testWebhookURL: failed to test webhook URL. URL: %v err: %v", webhookURL, err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to test webhook URL: %v", resp.Status)
+	}
+
+	return nil
 }
 
 func ProcessGetAlertRequest(ctx *fasthttp.RequestCtx) {
@@ -247,9 +358,21 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	if alertToBeUpdated.EvalWindow < alertToBeUpdated.EvalInterval {
+		utils.SendError(ctx, "EvalWindow should be greater than or equal to EvalInterval", fmt.Sprintf("EvalWindow: %v, EvalInterval:%v", alertToBeUpdated.EvalWindow, alertToBeUpdated.EvalInterval), nil)
+		return
+	}
+
+	// Validate Alert Type and Query
+	extraMsgToLog, err := validateAlertTypeAndQuery(alertToBeUpdated)
+	if err != nil {
+		utils.SendError(ctx, fmt.Sprintf("Failed to update alert. Error=%v", err), extraMsgToLog, err)
+		return
+	}
+
 	err = databaseObj.UpdateAlert(alertToBeUpdated)
 	if err != nil {
-		utils.SendError(ctx, "Failed to update alert", fmt.Sprintf("alert name: %v", alertToBeUpdated.AlertName), err)
+		utils.SendError(ctx, fmt.Sprintf("Failed to update alert. Error=%v", err), fmt.Sprintf("alert name: %v", alertToBeUpdated.AlertName), err)
 		return
 	}
 
@@ -290,12 +413,26 @@ func ProcessAlertHistoryRequest(ctx *fasthttp.RequestCtx) {
 
 	responseBody := make(map[string]interface{})
 	alertId := utils.ExtractParamAsString(ctx.UserValue("alertID"))
-	alertHistory, err := databaseObj.GetAlertHistory(alertId)
+	limit := ctx.QueryArgs().GetUintOrZero("limit")
+	offset := ctx.QueryArgs().GetUintOrZero("offset")
+	sortOrder := string(ctx.QueryArgs().Peek("sort_order"))
+
+	if sortOrder != string(alertutils.ASC) && sortOrder != string(alertutils.DESC) {
+		sortOrder = string(alertutils.DESC)
+	}
+
+	alertHistory, err := databaseObj.GetAlertHistoryByAlertID(&alertutils.AlertHistoryQueryParams{
+		AlertId:   alertId,
+		SortOrder: alertutils.DB_SORT_ORDER(sortOrder),
+		Limit:     uint64(limit),
+		Offset:    uint64(offset),
+	})
 	if err != nil {
 		utils.SendError(ctx, "Failed to get alert history", fmt.Sprintf("alert ID: %v", alertId), err)
 		return
 	}
 
+	responseBody["count"] = len(alertHistory)
 	responseBody["alertHistory"] = alertHistory
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, responseBody)

@@ -1553,7 +1553,7 @@ func Test_unrotatedQuery(t *testing.T) {
 			rawJson, err := json.Marshal(record)
 			assert.Nil(t, err)
 			err = writer.AddEntryToInMemBuf("test1", rawJson, uint64(rec)+1, "test", 10, false,
-				SIGNAL_EVENTS, 0)
+				SIGNAL_EVENTS, 0, 0)
 			assert.Nil(t, err)
 		}
 

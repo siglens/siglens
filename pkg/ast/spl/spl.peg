@@ -29,6 +29,153 @@ import (
     "github.com/siglens/siglens/pkg/segment/utils"
     log "github.com/sirupsen/logrus"
 )
+// ConvertCustomDateTimeFormatToEpochMs converts a date string in the format "MM/DD/YYYY:HH:MM:SS" 
+// to Unix time in milliseconds (epoch ms).
+func ConvertCustomDateTimeFormatToEpochMs(dateStr string) (int64, error) {
+    loc, _ := time.LoadLocation("Local")
+    t, err := time.ParseInLocation("01/02/2006:15:04:05", dateStr, loc)
+    if err != nil {
+        return 0, err
+    }
+    return t.UnixMilli(), nil
+}
+
+// This function would snap backwards based on unit present.
+// For e.x. Consider the time (Wednesday) 06/05/2024:13:37:05.123 (mm/dd/yyyy:hh:mm:ss)
+// Snapping on Second would be 06/05/2024:13:37:05.000
+// Snapping on Minute would be 06/05/2024:13:37:00.000
+// Snapping on Hour would be 06/05/2024:13:00:00.000
+// Snapping on Day would be 06/05/2024:00:00:00.000
+// Snapping on Month would be 06/05/2024:00:00:00.000
+// Snapping on Quarter (would snap to recent most quarter out of Jan 1, Apr 1, Jul 1, Oct 1) would be 04/01/2024:00:00:00.000
+// Snapping on Year would be 01/01/2024:00:00:00.000
+// Snapping on weekdays (w0 to w7) would snap backward to that weekday.
+// Snapping on w0 would be (Sunday) 06/02/2024:00:00:00.000
+// Snapping on w1 would be (Monday) 06/03/2024:00:00:00.000 and so on.
+// Snap on w0 and w7 is same.
+// snap parameter would be a string of the form w0 or it would be utils.TimeUnit constant integers converted to string type (see Rule: RelTimeUnit)
+func applySnap(snap string, t time.Time) (time.Time, error) {
+    sec := t.Second()
+    min := t.Minute()
+    hour := t.Hour()
+    day := t.Day()
+    week := t.Weekday()
+    mon := t.Month()
+    year := t.Year()
+    
+    if snap[0] != 'w' {
+        tunit, err := strconv.Atoi(snap)
+        if err != nil {
+            return t, fmt.Errorf("Error while converting the snap: %v to integer, err: %v", snap, err)
+        }
+
+        switch utils.TimeUnit(tunit) {   
+            case utils.TMSecond:
+                return time.Date(year, mon, day, hour, min, sec, 0, time.Local), nil
+            case utils.TMMinute:
+                return time.Date(year, mon, day, hour, min, 0, 0, time.Local), nil
+            case utils.TMHour:
+                return time.Date(year, mon, day, hour, 0, 0, 0, time.Local), nil
+            case utils.TMDay:
+                return time.Date(year, mon, day, 0, 0, 0, 0, time.Local), nil
+            case utils.TMWeek:
+                diff := week - time.Sunday
+                return time.Date(year, mon, day-int(diff), 0, 0, 0, 0, time.Local), nil
+            case utils.TMMonth:
+                return time.Date(year, mon, 1, 0, 0, 0, 0, time.Local), nil
+            case utils.TMQuarter:
+                if mon >= time.October {
+                    mon = time.October
+                } else if mon >= time.July {
+                    mon = time.July
+                } else if mon >= time.April {
+                    mon = time.April
+                } else {
+                    mon = time.January
+                }
+                return time.Date(year, mon, 1, 0, 0, 0, 0, time.Local), nil
+            case utils.TMYear:
+                return time.Date(year, 1, 1, 0, 0, 0, 0, time.Local), nil
+            default:
+                return t, fmt.Errorf("Unsupported time unit for relative timestamp: %v", tunit)
+        }
+    } else {
+        if len(snap) != 2 {
+            return t, fmt.Errorf("Error for special week snap, should follow the regex w[0-7] got: %v", snap)
+        }
+        weeknum := int(snap[1] - '0')
+        if weeknum == 7 {
+            weeknum = 0
+        }
+        diff := int(week)-weeknum
+        if diff < 0 {
+            diff += 7
+        }
+        return time.Date(year, mon, day, 0, 0, 0, 0, time.Local).AddDate(0, 0, -diff), nil
+    }
+}
+
+
+func applyOffset(num int64, unit utils.TimeUnit, t time.Time) (time.Time, error) {
+
+    durNum := time.Duration(num)
+
+    switch unit {
+        case utils.TMSecond:
+            return t.Add(durNum * time.Second), nil
+        case utils.TMMinute:
+            return t.Add(durNum * time.Minute), nil
+        case utils.TMHour:
+            return t.Add(durNum * time.Hour), nil
+        case utils.TMDay:
+            return t.AddDate(0, 0, int(num)), nil
+        case utils.TMWeek:
+            return t.AddDate(0, 0, 7 * int(num)), nil
+        case utils.TMMonth:
+            return t.AddDate(0, int(num), 0), nil
+        case utils.TMQuarter:
+            return t.AddDate(0, 4*int(num), 0), nil
+        case utils.TMYear:
+            return t.AddDate(int(num), 0, 0), nil
+        default:
+            return t, fmt.Errorf("Unsupported time unit for relative timestamp: %v", unit)
+    }
+}
+
+func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (int64, error) {
+    var epoch int64 = 0
+    var err error
+    if timeModifier.AbsoluteTime == "now" {
+        epoch = currTime.UnixMilli()
+    } else if timeModifier.AbsoluteTime == "1" {
+        return 1, nil
+    } else if timeModifier.AbsoluteTime != "" {
+        epoch, err = ConvertCustomDateTimeFormatToEpochMs(timeModifier.AbsoluteTime)
+        if err != nil {
+            return 0, err
+        }
+    } else {
+        offsetNum := timeModifier.RelativeTime.RelativeTimeOffset.Offset
+        offsetTimeUnit := timeModifier.RelativeTime.RelativeTimeOffset.TimeUnit
+        snap := timeModifier.RelativeTime.Snap
+        finalTime := currTime
+        if offsetNum != 0 {
+            finalTime, err = applyOffset(offsetNum, offsetTimeUnit, finalTime)
+            if err != nil {
+                return 0, err
+            }
+        }
+        if snap != "" {
+            finalTime, err = applySnap(snap, finalTime)
+            if err != nil {
+                return 0, err
+            }
+        }
+        epoch = finalTime.UnixMilli()
+    }
+
+    return epoch, nil
+}
 
 func getParseError(err error) error {
     switch ev := err.(type) {
@@ -188,6 +335,37 @@ func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryA
         },
     }, nil
 }
+func createEventCountExpr(indices []string, list_vix, report_size, summarize bool) (*structs.QueryAggregators, error) {
+    eventCountExpr := &structs.EventCountExpr{
+        Indices: indices,
+        ListVix: list_vix,
+        ReportSize: report_size,
+        Summarize: summarize,
+    }
+    return &structs.QueryAggregators{
+            PipeCommandType: structs.OutputTransformType,
+            OutputTransforms: &structs.OutputTransforms{
+                LetColumns: &structs.LetColumnsRequest{
+                    EventCountRequest: eventCountExpr,
+                },
+            },
+        }, nil
+}
+func getDefaultFormatResultsExpr() *structs.FormatResultsRequest {
+    return &structs.FormatResultsRequest{
+        MVSeparator: "OR",
+        MaxResults: 0,
+        EmptyString: "NOT()",
+        RowColOptions: &structs.RowColOptions{
+            RowPrefix: "(",
+            ColumnPrefix: "(",
+            ColumnSeparator: "AND",
+            ColumnEnd: ")",
+            RowSeparator: "OR",
+            RowEnd: ")",
+        },
+    }
+}
 
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
@@ -219,6 +397,11 @@ type MultiValueColOptionArgs struct {
 type SPathFieldExpr struct {
     PathValue string
     IsPathFieldName bool  
+}
+
+type FormatResultsRequestArguments struct {
+    argOption string
+    formatResultExpr *structs.FormatResultsRequest
 }
 
 }
@@ -302,12 +485,12 @@ SearchBlock <- !(ALLCMD) CMD_SEARCH? clause:ClauseLevel4 {
     return clause, nil
 }
 
-FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
+FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
     return block, nil
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -1747,6 +1930,21 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
         ValueList: []*structs.StringExpr{regex.(*structs.StringExpr), replacement.(*structs.StringExpr)},
     }, nil
 }
+/ "strftime" L_PAREN val:ValueExpr COMMA format:StringExpr R_PAREN {
+    return &structs.TextExpr{
+        Op: "strftime",
+        Val: val.(*structs.ValueExpr),
+        Param: format.(*structs.StringExpr),
+    }, nil
+}
+
+/ "strptime" L_PAREN val:ValueExpr COMMA format:StringExpr R_PAREN {
+    return &structs.TextExpr{
+        Op: "strptime",
+        Val: val.(*structs.ValueExpr),
+        Param: format.(*structs.StringExpr),
+    }, nil
+}
 
 QuotedPathString <- str:QuotedString {
     return &SPathFieldExpr{
@@ -2162,9 +2360,9 @@ NumericExprLevel1 <- L_PAREN expr:NumericExprLevel3 R_PAREN {
     return expr, nil
 }
 
-// Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random
+// Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random, time, relative_time, strftime
 //Currently involves abs, ceil, round, sqrt
-NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" / "floor" / "ln" / "sigfig") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
+NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp" / "floor" / "ln" / "sigfig" / "acosh" / "acos" / "asinh" / "asin" / "atanh" / "atan" / "cosh" / "cos" / "sinh" / "sin" / "tanh" / "tan") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -2205,7 +2403,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
 
     return node, nil
 }
-/ (opName:("now" / "pi" / "random") L_PAREN R_PAREN) {
+/ (opName:("now" / "pi" / "random" / "time") L_PAREN R_PAREN) {
     //transfer []uint8 to string
     strData, ok := opName.([]byte)
     if !ok {
@@ -2249,7 +2447,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
 / lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
     return expr, nil
 }
-/ (opName:("log" / "pow") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
+/ (opName:("pow" / "atan2" / "hypot") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -2277,6 +2475,47 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt"/ "exact"/ "exp" 
         return nil, err
     }
 
+    return node, nil
+}
+/ (opName:"log" L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr)? R_PAREN) {
+    leftNumericExpr, ok := expr.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
+    }
+
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
+
+    var rightNumericExpr *structs.NumericExpr
+    if param != nil {
+        rightNumericExpr, ok = param.(*structs.NumericExpr)
+        if !ok {
+            return nil, fmt.Errorf("Failed to assert param as *structs.NumericExpr")
+        }
+    }
+
+    node, err := createNumericExpr(opNameStr, leftNumericExpr, rightNumericExpr, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+
+    return node, nil
+}
+/ opName:("relative_time") L_PAREN expr:(NumericExprLevel3) COMMA specifier:StringExpr R_PAREN {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: NumericExpr: %v", err)
+    }
+    node, err := createNumericExpr(opNameStr, expr.(*structs.NumericExpr), nil, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+    node.Val = specifier.(*structs.StringExpr)
     return node, nil
 }
 
@@ -3174,6 +3413,160 @@ FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
     return fields, nil
 }
 
+TimeModifiers <- EarliestAndLatest / EarliestOnly
+
+EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
+    var startEpoch int64 = 0
+    var endEpoch int64 = 0
+    var err error
+
+    earliestTimeModifier := earliestTime.(ast.TimeModifier)
+    latestTimeModifier := latestTime.(ast.TimeModifier)
+
+    currTime := time.Now()
+    startEpoch, err = CalculateRelativeTime(earliestTimeModifier, currTime)
+    if err != nil {
+        return nil, err
+    }
+
+    endEpoch, err = CalculateRelativeTime(latestTimeModifier, currTime)
+    if err != nil {
+        return nil, err
+    }
+    
+    // Create AST node
+    node := &ast.Node{
+        NodeType: ast.TimeModifierNode,
+        TimeModifiers: &ast.TimeModifiers{
+            StartEpoch: uint64(startEpoch),
+            EndEpoch: uint64(endEpoch),
+        },
+    }
+
+    return node, nil
+}
+
+EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) !. {
+    var startEpoch int64 = 0
+    var err error
+
+    earliestTimeModifier := earliestTime.(ast.TimeModifier)
+
+    startEpoch, err = CalculateRelativeTime(earliestTimeModifier, time.Now())
+    if err != nil {
+        return nil, err
+    }
+
+    // Create AST node
+    node := &ast.Node{
+        NodeType: ast.TimeModifierNode,
+        TimeModifiers: &ast.TimeModifiers{
+            StartEpoch: uint64(startEpoch),
+            EndEpoch: uint64(time.Now().UnixMilli()),
+        },
+    }
+
+    return node, nil
+}
+
+RelIntegerAsString <- [-+][0-9]* {
+    return string(c.text), nil
+}
+
+WeekSnap <- ('w'[0-7]) {
+    return string(c.text), nil
+}
+
+RelTimeUnit <- timeUnit:(Second / Month / Minute / Hour / Day / Week / Quarter / Year) {
+    return strconv.Itoa(int(timeUnit.(utils.TimeUnit))), nil
+}
+
+Snap <- '@' snap:(WeekSnap / RelTimeUnit) {
+    return snap.(string), nil
+}
+
+Offset <- off:(RelIntegerAsString) tuOff:(RelTimeUnit) {
+    var offsetNum int64 = 0
+    var err error
+    offStr := off.(string)
+    if offStr == "+" {
+        offsetNum = 1
+    } else if offStr == "-" {
+        offsetNum = -1
+    } else {
+        offsetNum, err = strconv.ParseInt(offStr, 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("Invalid Relative Time Format time unit value: (%v): , err: %v", offStr, err)
+        }
+    }
+
+    timeUnit, err := strconv.Atoi(tuOff.(string))
+    if err != nil {
+        return nil, fmt.Errorf("Invalid Time Unit value: (%v), err: %v", tuOff.(string), err)
+    }
+
+    relTimeOffset := ast.RelativeTimeOffset{
+        Offset: offsetNum,
+        TimeUnit: utils.TimeUnit(timeUnit),
+    }
+
+    return relTimeOffset, nil
+}
+
+
+// Reference Doc: https://docs.splunk.com/Documentation/Splunk/9.1.2/Search/Specifytimemodifiersinyoursearch 
+// TODO: Chained relative modifiers
+RelativeTimestamp <- defaultTime:("now" / "1")? offset:(Offset)? snapParam:(Snap)? {
+
+    if defaultTime != nil {
+        if offset != nil || snapParam != nil {
+            return nil, fmt.Errorf("Invalid Relative timestamp cannot combine default with offset or snap")
+        }
+        defTime, err := transferUint8ToString(defaultTime)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Relative timestamp for default time, err: %v", err)
+        }
+
+        timeModifier := ast.TimeModifier{
+            AbsoluteTime: defTime,
+        }
+
+        return timeModifier, nil
+    }
+
+    if offset == nil && snapParam == nil {
+        return nil, fmt.Errorf("Invalid Relative Time Format: Need either offset or snap param")
+    }
+
+    relTimeOffset := ast.RelativeTimeOffset{}
+    snap := ""
+    if snapParam != nil {
+        snap = snapParam.(string)
+    }
+
+    if offset != nil {
+        relTimeOffset.Offset = offset.(ast.RelativeTimeOffset).Offset
+        relTimeOffset.TimeUnit = offset.(ast.RelativeTimeOffset).TimeUnit
+    } 
+
+    timeModifier := ast.TimeModifier{
+        RelativeTime: ast.RelativeTimeModifier{
+            RelativeTimeOffset: relTimeOffset,
+            Snap: snap,
+        },
+    }
+
+    return timeModifier, nil
+}
+
+
+AbsoluteTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] {
+    relTimeModifier := ast.TimeModifier{
+        AbsoluteTime: string(c.text),
+    }
+    return relTimeModifier, nil
+}
+
 // From https://docs.splunk.com/Documentation/Splunk/7.3.1/Knowledge/Aboutregularexpressionswithfieldextractions
 // This allows wildcards in a FieldName, but wildcard fields are not allowed in
 // some places; those rules should check whether the field has a wildcard.
@@ -3304,6 +3697,10 @@ Month <- ("months" / "month" / "mon") {
 
 Quarter <- ("quarters" / "quarter" / "qtrs" / "qtr" / "q") {
     return utils.TMQuarter, nil
+}
+
+Year <- ("years" / "year" / "yrs" / "yr" / "y") {
+    return utils.TMYear, nil
 }
 
 // Might not has effect for 'us', because smallest time unit for timestamp in siglens is ms
@@ -3659,9 +4056,202 @@ PathField <- ("path" EQUAL SPathFieldString / SPathFieldString ) {
 
 SPathFieldString <- QuotedString / UnquotedStringWithTemplateWildCard
 
+// Returns *structs.QueryAggregators
+FormatBlock <- PIPE CMD_FORMAT formatArgExpr:FormatArgumentsList? {
+    var formatResultExpr *structs.FormatResultsRequest
+
+    if formatArgExpr != nil {
+        formatResultExpr = formatArgExpr.(*structs.FormatResultsRequest)
+    } else {
+        formatResultExpr = getDefaultFormatResultsExpr()
+    }
+
+    queryAgg := &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                NewColName: "search",
+                FormatResults: formatResultExpr,
+            },
+        },
+    }
+
+    return queryAgg, nil
+}
+
+FormatArgumentsList <- SPACE first: FormatArgument rest:(SPACE FormatArgument)* {
+    restSlice := rest.([]any)
+
+    numOptions := 1 + len(restSlice)
+
+    formatResultExpr := getDefaultFormatResultsExpr()
+
+    for i := 0; i < numOptions; i++ {
+        var currFormatExpr *FormatResultsRequestArguments
+
+        if i == 0{
+            currFormatExpr = first.(*FormatResultsRequestArguments)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            currFormatExpr = separator[1].(*FormatResultsRequestArguments)
+        }
+
+        switch currFormatExpr.argOption {
+            case "mvsep":
+                formatResultExpr.MVSeparator = currFormatExpr.formatResultExpr.MVSeparator
+            case "maxresults":
+                formatResultExpr.MaxResults = currFormatExpr.formatResultExpr.MaxResults
+            case "emptystr":
+                formatResultExpr.EmptyString = currFormatExpr.formatResultExpr.EmptyString
+            case "rowColOptions":
+                formatResultExpr.RowColOptions = currFormatExpr.formatResultExpr.RowColOptions
+            default:
+                return nil, fmt.Errorf("not a valid Format Result Argument: %v", currFormatExpr.argOption)
+        }
+    }
+
+    return formatResultExpr, nil
+}
+
+FormatArgument <- argExpr:(FormatSeparator / FormatMaxResults / FormatEmptyStr / FormatRowColOptions) {
+    return argExpr, nil
+}
+
+FormatSeparator <- "mvsep" EQUAL str:QuotedString {
+    return &FormatResultsRequestArguments{
+        argOption: "mvsep",
+        formatResultExpr: &structs.FormatResultsRequest{
+            MVSeparator: removeQuotes(str),
+        },
+    }, nil
+}
+
+FormatMaxResults <- "maxresults" EQUAL numStr:IntegerAsString {
+    num, err := strconv.ParseUint(numStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid Max results value is set for format: (%v): Error=%v", numStr.(string), err)
+    }
+    return &FormatResultsRequestArguments{
+        argOption: "maxresults",
+        formatResultExpr: &structs.FormatResultsRequest{
+            MaxResults: num,
+        },
+    }, nil
+}
+
+FormatEmptyStr <- "emptystr" EQUAL str:QuotedString {
+    return &FormatResultsRequestArguments{
+        argOption: "emptystr",
+        formatResultExpr: &structs.FormatResultsRequest{
+            EmptyString: removeQuotes(str),
+        },
+    }, nil
+}
+
+FormatRowColOptions <- rowPrefix:QuotedString SPACE colPrefix:QuotedString SPACE colSeparator:QuotedString SPACE colEnd:QuotedString SPACE rowSeparator:QuotedString SPACE rowEnd:QuotedString {
+    rowColOptions := &structs.RowColOptions{
+        RowPrefix: removeQuotes(rowPrefix),       
+        ColumnPrefix: removeQuotes(colPrefix),    
+        ColumnSeparator: removeQuotes(colSeparator), 
+        ColumnEnd: removeQuotes(colEnd),       
+        RowSeparator: removeQuotes(rowSeparator),    
+        RowEnd: removeQuotes(rowEnd),          
+    }
+
+    return &FormatResultsRequestArguments{
+        argOption: "rowColOptions",
+        formatResultExpr: &structs.FormatResultsRequest{
+            RowColOptions: rowColOptions,
+        },
+    }, nil
+}
+
+EventCountBlock <- PIPE CMD_EVENTCOUNT eventCountExpr:EventCountArgumentsList? {
+	if eventCountExpr == nil {
+		return createEventCountExpr([]string{"*"}, true, false, true)
+	}
+	return eventCountExpr, nil
+}
+
+EventCountArgumentsList <- SPACE first:EventCountArgument? rest:(SPACE EventCountArgument)* {
+
+    restSlice := rest.([]any)
+
+    indices := []string{}
+    list_vix, report_size, summarize := true, false, true
+
+    numArgs := 0
+    if first != nil {
+        numArgs++
+    }
+    numArgs += len(restSlice)
+
+    for i := 0; i < numArgs; i++ {
+        var arg string
+        if i == 0 && first != nil {
+            arg = first.(string)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            arg = separator[1].(string)
+        }
+
+        switch {
+        case strings.HasPrefix(arg, "index="):
+            indices = append(indices, strings.TrimPrefix(arg, "index="))
+        case strings.HasPrefix(arg, "list_vix="):
+            var err error
+            list_vix, err = strconv.ParseBool(strings.TrimPrefix(arg, "list_vix="))
+            if err != nil {
+                return nil, fmt.Errorf("EventCountArguments: Invalid value for list_vix: %v", err)
+            }
+        case strings.HasPrefix(arg, "report_size="):
+            var err error
+            report_size, err = strconv.ParseBool(strings.TrimPrefix(arg, "report_size="))
+            if err != nil {
+                return nil, fmt.Errorf("EventCountArguments: Invalid value for report_size: %v", err)
+            }
+        case strings.HasPrefix(arg,"summarize="):
+            var err error
+            summarize, err = strconv.ParseBool(strings.TrimPrefix(arg, "summarize="))
+            if err != nil {
+                return nil, fmt.Errorf("EventCountArguments: Invalid value for summarize: %v", err)
+            }
+        default:
+            return nil, fmt.Errorf("EventCountArguments: Invalid EventCount Argument: %v", arg)
+        }
+    }
+
+    // If no indices were provided, use the default value "*"
+    if len(indices) == 0 {
+        indices = append(indices, "*")
+    }
+
+    return createEventCountExpr(indices, list_vix, report_size, summarize)
+}
+
+EventCountArgument <- arg:(IndexField / SummarizeField / ReportSizeField / ListVixField) {
+    return arg, nil
+}
+
+IndexField <- "index" EQUAL index:IndexName {
+    return "index=" + index.(string), nil
+}
+SummarizeField <- "summarize" EQUAL field:Boolean {
+    return "summarize=" + strconv.FormatBool(field.(bool)), nil
+}
+ReportSizeField <- "report_size" EQUAL field:Boolean {
+    return "report_size=" + strconv.FormatBool(field.(bool)), nil
+}
+ListVixField <- "list_vix" EQUAL field:Boolean {
+    return "list_vix=" + strconv.FormatBool(field.(bool)), nil
+}
+
+IndexName <- (!SPACE .)+ {
+	return string(c.text), nil
+}
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -3682,6 +4272,10 @@ CMD_DEDUP <- "dedup"
 CMD_DEDUP_SORTBY <- SPACE "sortby" SPACE
 CMD_MAKEMV <- "makemv"
 CMD_SPATH <- "spath"
+CMD_FORMAT <- "format"
+CMD_EARLIEST <- "earliest"
+CMD_LATEST <- "latest"
+CMD_EVENTCOUNT <- "eventcount"
 EVAL_CONCAT <- SPACE? "." SPACE?
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf

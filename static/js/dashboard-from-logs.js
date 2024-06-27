@@ -110,7 +110,7 @@ function showExistingDashboard() {
 }
 
 function openPopup() {
-    $(".popupOverlay, .popupContent").addClass("active");
+    $(".popupOverlay, #create-db-popup.popupContent").addClass("active");
 }
 
 function closePopup() {
