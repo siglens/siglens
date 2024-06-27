@@ -123,7 +123,7 @@ func (p Sqlite) isNewAlertName(alertName string) (bool, error) {
 // checks based on alert_id, returns true and alertDetails if alert exists
 func (p Sqlite) verifyAlertExists(alert_id string) (bool, *alertutils.AlertDetails, error) {
 	if !isValid(alert_id) {
-		err := fmt.Errorf("verifyAlertExists: Data Validation Check Failed: Alert Id give is not valid. AlertId=%v", alert_id)
+		err := fmt.Errorf("verifyAlertExists: Data Validation Check Failed: Alert Id given is not valid. AlertId=%v", alert_id)
 		log.Error(err.Error())
 		return false, nil, err
 	}
