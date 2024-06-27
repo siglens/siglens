@@ -1519,9 +1519,129 @@ func handleTrimFunctions(op string, value string, trim_chars string) string {
 	}
 }
 
+// formatTime formats a time.Time object into a string based on the provided format string, using mappings from Go's time package and strftime.net.
+func formatTime(t time.Time, format string) string {
+	preReplacements := map[string]string{
+		"%e": "_2",
+		"%a": "Mon",
+		"%A": "Monday",
+		"%d": "02",
+		"%b": "Jan",
+		"%B": "January",
+		"%m": "01",
+		"%y": "06",
+		"%Y": "2006",
+		"%H": "15",
+		"%I": "03",
+		"%p": "PM",
+		"%M": "04",
+		"%S": "05",
+		"%f": ".000000",
+		"%z": "-0700",
+		"%Z": "MST",
+		"%c": "Mon Jan 2 15:04:05 2006",
+		"%x": "01/02/06",
+		"%X": "15:04:05",
+		"%%": "%",
+		"%k": "_15",
+		"%T": "15:04:05",
+		"%F": "2006-01-02", // The ISO 8601 date format
+	}
+	for k, v := range preReplacements {
+		format = strings.ReplaceAll(format, k, v)
+	}
+
+	timeStr := t.Format(format)
+
+	_, week := t.ISOWeek()
+	_, offset := t.Zone()
+	offsetHours := offset / 3600
+	offsetMinutes := (offset % 3600) / 60
+	formattedOffset := fmt.Sprintf("%+03d:%02d", offsetHours, offsetMinutes)
+	postReplacements := map[string]string{
+		"%w":  strconv.Itoa(int(t.Weekday())),                         // weekday as a decimal number
+		"%j":  strconv.Itoa(t.YearDay()),                              // day of the year as a decimal number
+		"%U":  strconv.Itoa(t.YearDay() / 7),                          // week number of the year (Sunday as the first day of the week)
+		"%W":  strconv.Itoa((int(t.Weekday()) - 1 + t.YearDay()) / 7), // week number of the year (Monday as the first day of the week)
+		"%V":  strconv.Itoa(week),                                     // ISO week number
+		"%+":  t.Format("Mon Jan 2 15:04:05 MST 2006"),                // date and time with timezone
+		"%N":  fmt.Sprintf("%09d", t.Nanosecond()),                    // nanoseconds
+		"%Q":  strconv.Itoa(t.Nanosecond() / 1e6),                     // milliseconds
+		"%Ez": formattedOffset,                                        // timezone offset
+		"%s":  strconv.FormatInt(t.Unix(), 10),                        // Unix Epoch Time timestamp
+	}
+	for k, v := range postReplacements {
+		timeStr = strings.ReplaceAll(timeStr, k, v)
+	}
+
+	return timeStr
+}
+
+// parseTime parses a string into a time.Time object based on the provided format string, using mappings for Go's time package.
+func parseTime(dateStr, format string) (time.Time, error) {
+	replacements := map[string]string{
+		"%d": "02",
+		"%m": "01",
+		"%Y": "2006",
+		"%H": "15",
+		"%I": "03",
+		"%p": "PM",
+		"%M": "04",
+		"%S": "05",
+		"%b": "Jan",
+		"%B": "January",
+		"%y": "06",
+		"%e": "2",
+		"%a": "Mon",
+		"%A": "Monday",
+		"%w": "Monday",
+		"%j": "002",
+		"%U": "00",
+		"%W": "00",
+		"%V": "00",
+		"%z": "-0700",
+		"%Z": "MST",
+		"%c": "Mon Jan  2 15:04:05 2006",
+		"%x": "01/02/06",
+		"%X": "15:04:05",
+		"%%": "%",
+	}
+	for k, v := range replacements {
+		format = strings.ReplaceAll(format, k, v)
+	}
+
+	// Check if format contains only time components (%H, %I, %M, %S, %p) and no date components (%d, %m, %Y, etc.)
+	if !strings.Contains(format, "2006") && !strings.Contains(format, "01") && !strings.Contains(format, "02") {
+		// Prepend a default date if only time is present
+		dateStr = "1970-01-01 " + dateStr
+		format = "2006-01-02 " + format
+	}
+
+	return time.Parse(format, dateStr)
+}
 func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure) (string, error) {
 	// Todo: implement the processing logic for these functions:
 	switch self.Op {
+	case "strftime":
+		timestamp, err := self.Val.EvaluateToFloat(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate timestamp: %v", err)
+		}
+		timestampInSeconds := timestamp / 1000
+		t := time.Unix(int64(timestampInSeconds), 0) // time.Unix(sec int64, nsec int64) -> expects seconds and nanoseconds. Since strftime expects seconds, we pass 0 for nanoseconds.
+
+		timeStr := formatTime(t, self.Param.RawString)
+		return timeStr, nil
+	case "strptime":
+		dateStr, err := self.Val.EvaluateToString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate date string: %v", err)
+		}
+		t, err := parseTime(dateStr, self.Param.RawString)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot parse date string: %v", err)
+		}
+		return strconv.FormatInt(t.Unix(), 10), nil
 	case "ipmask":
 		mask := net.ParseIP(self.Param.RawString).To4()
 		ip := net.ParseIP(self.Val.StringExpr.RawString).To4()
