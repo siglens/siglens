@@ -295,6 +295,45 @@ func getRexColNames(pattern string) ([]string, error) {
     return rexColNames, nil
 }
 
+func SearchMatchGetFields(searchStr string) ([]string, error) {
+
+    kvPairs := strings.Fields(searchStr)
+    if len(kvPairs) == 0 {
+        return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
+    }
+    kvMap := make(map[string]string)
+    fieldList := make([]string, 0)
+
+	for _, kvPair := range kvPairs {
+		parts := strings.Split(kvPair, "=")
+		if len(parts) == 1 {
+            if len(kvPairs) == 1 {
+                fieldList = append(fieldList, "*")
+			    return fieldList, nil
+            } else {
+                return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch") 
+            }
+		}
+		if len(parts) != 2 {
+			return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
+		}
+        // fieldname is empty
+        if len(parts[0]) == 0 {
+            return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
+        }
+		seenVal, exist := kvMap[parts[0]]
+
+		// key has already been set and the new value observed is different
+		if exist && seenVal != parts[1] {
+			return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
+		}
+        fieldList = append(fieldList, parts[0])
+	}
+
+    return fieldList, nil
+}
+
+
 func initializeStatsOptions() *structs.StatsOptions {
     return &structs.StatsOptions {
         Delim: " ",
@@ -2065,6 +2104,25 @@ EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "isnotnull"
         RightValue: nil,
         ValueOp: opNameStr,
     }
+
+    if opNameStr != "searchmatch" {
+        return expr, nil
+    }
+
+    valExpr := value.(*structs.ValueExpr)
+    if valExpr.StringExpr == nil {
+        return nil, fmt.Errorf("Spl peg: Searchmatch should only have string values as argument")
+    }
+
+    fieldsList, err := SearchMatchGetFields(valExpr.StringExpr.RawString)
+    if err != nil {
+        return nil, err
+    }
+
+    valExpr.StringExpr.StringExprMode = structs.SEMFieldList
+    valExpr.StringExpr.FieldList = fieldsList
+    expr.LeftValue = valExpr
+
     return expr, nil
 }
 / opName:("like" / "Like" / "match" / "cidrmatch") L_PAREN leftValue:ValueExpr COMMA rightValue:ValueExpr R_PAREN {
