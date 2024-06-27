@@ -58,9 +58,10 @@ type database interface {
 	GetAllContactPoints(orgId uint64) ([]alertutils.Contact, error)
 	UpdateContactPoint(contact *alertutils.Contact) error
 	GetCoolDownDetails(alert_id string) (uint64, time.Time, error)
+	GetAlertNotification(alert_id string) (*alertutils.Notification, error)
 	GetContactDetails(alert_id string) (string, string, string, error)
 	GetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []alertutils.WebHookConfig, error)
-	UpdateLastSentTime(alert_id string) error
+	UpdateLastSentTimeAndAlertState(alert_id string, alertState alertutils.AlertState) error
 	UpdateAlertStateByAlertID(alertId string, alertState alertutils.AlertState) error
 	DeleteContactPoint(contact_id string) error
 }
@@ -103,11 +104,20 @@ func ProcessVersionInfo(ctx *fasthttp.RequestCtx) {
 
 func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (string, error) {
 	if alertToBeCreated.AlertType == alertutils.AlertTypeLogs {
-		_, _, err := pipesearch.ParseQuery(alertToBeCreated.QueryParams.QueryText, 0, alertToBeCreated.QueryParams.QueryLanguage)
+		_, queryAggs, err := pipesearch.ParseQuery(alertToBeCreated.QueryParams.QueryText, 0, alertToBeCreated.QueryParams.QueryLanguage)
 		if err != nil {
 			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("error Parsing logs Query. Error=%v", err)
 		}
-		// TODO: Check if the query is a valid Stats Query. If not reject the Alert request.
+
+		if queryAggs == nil {
+			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
+		}
+
+		isStatsQuery := queryAggs.IsStatsAggPresentInChain()
+		if !isStatsQuery {
+			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
+		}
+
 	} else if alertToBeCreated.AlertType == alertutils.AlertTypeMetrics {
 		_, _, _, _, errorLog, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToBeCreated.MetricsQueryParamsString))
 		if err != nil {

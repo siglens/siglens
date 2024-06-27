@@ -4361,7 +4361,10 @@ color: #C8C7CC;
     background: var(--component-bg-color);
     padding: 0px 20px;
 }
-.add-alert-form,.add-contact-form{
+.add-alert-form{
+    width: 100%;
+}
+.add-contact-form{
     width: 70%;
 }
 
@@ -4405,7 +4408,7 @@ color: #C8C7CC;
 
 .evaluation-container input{
     margin-left: 40px;
-    width: 70px;
+    width: 110px;
     margin-right: 10px;
 }
 .label-container{
