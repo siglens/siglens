@@ -3977,7 +3977,7 @@ func Test_evalFunctionsIfAndSearchMatch(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.ValueOp, "searchmatch")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.IsTerminal, true)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.RawString, "x=hi y=*")
-	assert.True(t, boolStringSliceEquals(expectedFields, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
+	assert.True(t, compareStringSlices(expectedFields, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
 	assert.Nil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.RightValue)
 
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.StringExpr.RawString, "yes")
@@ -8243,7 +8243,7 @@ func performEventCountTest(t *testing.T, query string, expectedIndices []string,
 	assert.Equal(t, expectedListVix, aggregator.OutputTransforms.LetColumns.EventCountRequest.ListVix)
 }
 
-func boolStringSliceEquals(a []string, b []string) bool {
+func compareStringSlices(a []string, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -8276,7 +8276,7 @@ func performSearchMatchCheck(t *testing.T, query string, expectedFields []string
 	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.ValueOp, "searchmatch")
 	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.IsTerminal, true)
 	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.RawString, searchStr)
-	assert.True(t, boolStringSliceEquals(expectedFields, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
+	assert.True(t, compareStringSlices(expectedFields, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.RightValue)
 
 	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.StringExpr.RawString, "yes")

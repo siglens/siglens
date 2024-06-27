@@ -366,7 +366,7 @@ func findNullFields(fields []string, fieldToValue map[string]utils.CValueEnclosu
 	for _, field := range fields {
 		val, exists := fieldToValue[field]
 		if !exists {
-			err = fmt.Errorf("findNullFields: Expression has a field for which value is not present")
+			err = fmt.Errorf("findNullFields: Expression has a field %v for which value is not present", field)
 			continue
 		}
 		if val.Dtype == utils.SS_DT_BACKFILL {
@@ -417,7 +417,7 @@ func checkStringInFields(searchStr string, fieldToValue map[string]utils.CValueE
 	for _, v := range fieldToValue {
 		val, err := v.GetString()
 		if err != nil {
-			return false, fmt.Errorf("handleSearchMatch: Cannot convert fieldVal: %v to string", v)
+			return false, fmt.Errorf("checkStringInFields: Cannot convert field value: %v to string", v)
 		}
 		match, err := filepath.Match(searchStr, val)
 		if err == nil && match {
@@ -598,7 +598,7 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 		case "searchmatch":
 			searchStr, err := self.LeftValue.EvaluateToString(fieldToValue)
 			if err != nil {
-				return false, err
+				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating searchmatch string to string, err: %v", err)
 			}
 			return handleSearchMatch(self, searchStr, fieldToValue)
 		}
