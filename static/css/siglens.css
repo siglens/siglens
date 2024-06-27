@@ -31,6 +31,7 @@
     --color-normal: #40C463;
     --color-pending: #FB9E04;
     --color-firing: #EF364F;
+    --color-inactive: #364fef;
 
     --lavender-1: #B4A6E6;
     --lavender-2: #826CE1;
@@ -750,6 +751,7 @@ body {
 #run-metrics-query-btn,
 #logout-btn,
 #search-query-btn,
+#search-history-btn,
 #test-data-btn{
     background: var(--btn-regular-bg-color);
 }
@@ -764,6 +766,7 @@ body {
 #live-tail-btn:hover,
 #cancel-loading:hover,
 #search-query-btn:hover,
+#search-history-btn:hover,
 #run-metrics-query-btn:hover{
     background: var(--btn-hover-or-click-bg-color);
 }
@@ -784,6 +787,7 @@ body {
 #create-db-btn,
 #logout-btn,
 #search-query-btn,
+#search-history-btn,
 #test-data-btn{
     margin: 0;
     text-decoration: none;
@@ -3559,7 +3563,6 @@ float: right;
     padding: 4px;
     margin-top: 10px;
     background: var(--myOrg-input);
-
 }
 
 .section-button {
@@ -3571,6 +3574,7 @@ float: right;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
     margin: 0px;
 }
 
@@ -3581,6 +3585,7 @@ float: right;
 
 .section-button.active a{
     color:  var(--datatable-header-text-color);
+    cursor: pointer;
 }
 
 .section-button.active {
@@ -4301,6 +4306,24 @@ color: #C8C7CC;
 
 .label-subsection{
     margin-left: 62px
+}
+
+#history-search-container {
+    display: grid;
+    grid-template-columns: 2fr auto auto;
+    column-gap: 15px;
+    margin-top: 16px;
+    margin-left: 23px;
+    margin-right: 25px;
+    height: 44px;
+}
+
+#history-filter-input {
+    margin: 5px 0 0 5px; 
+    padding: 10px 8px; 
+    text-decoration: none;
+    height: 20px;
+    line-height: 14px;
 }
 #alerting .circle{
     height: 36px;
@@ -5603,6 +5626,39 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 .icon {
   visibility: hidden;
 }
+.error-message ,#metric-error{
+    display:none;
+    width: fit-content;
+    text-align: center;
+    border-radius: 6px;
+    padding:7px;
+    border:0.5px solid var(--text-color);
+    background-color: var(--ui-widget-bg-color);
+    color: var(--text-color);
+    position: relative;
+    z-index: 1;
+    bottom: 125%; /* Position above the triggering element */
+    left: 17.5%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.1);
+}
+
+.error-message::after ,#metric-error::after{
+    left: 50%;
+    margin-left: -5px;
+    border-width: 10px;
+    border-style: solid;
+    rotate: 180deg;
+    bottom:100%;
+    content: '';
+    position: absolute;
+    border-style: solid;
+    border-color: var(--graph-line-color-3) transparent transparent transparent;
+}
+  
+
+  
 
 .metric-summary-searchcontainer{
     display:flex !important;
