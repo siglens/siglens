@@ -669,9 +669,8 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 		startTime = uint32(roundedDownEpochTimeStart)
 		et := time.Unix(int64(endTime), 0).UTC()
 		truncatedEnd := et.Truncate(24 * time.Hour)
-		truncatedEnd = et.Add(24 * time.Hour)
+		truncatedEnd = truncatedEnd.Add(24 * time.Hour)
 		roundedDownEpochTimeEnd := truncatedEnd.Unix()
-		startTime = uint32(roundedDownEpochTimeStart)
 		endTime = uint32(roundedDownEpochTimeEnd)
 	case calculatedInterval >= 1200:
 		truncated := t.Truncate(24 * time.Hour)
