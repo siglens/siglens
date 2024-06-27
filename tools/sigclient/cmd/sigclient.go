@@ -20,6 +20,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"verifier/pkg/alerts"
 	"verifier/pkg/ingest"
 	"verifier/pkg/metricsbench"
 	"verifier/pkg/query"
@@ -137,6 +138,19 @@ var metricsBenchCmd = &cobra.Command{
 			log.Fatalf("destUrl is required")
 		}
 		metricsbench.ExecuteMetricsBenchQueries(destHost, numQueryIterations)
+	},
+}
+
+var alertsE2ECmd = &cobra.Command{
+	Use:   "alerts",
+	Short: "Perform E2E tests for alerts: From creating contact points, creating alerts, sending alerts, and verifying alerts, and finally cleanup",
+	Run: func(cmd *cobra.Command, args []string) {
+		destHost, _ := cmd.Flags().GetString("dest")
+		log.Infof("destHost : %+v\n", destHost)
+		if destHost == "" {
+			log.Fatalf("Destination Host is required")
+		}
+		alerts.RunAlertsTest(destHost)
 	},
 }
 
@@ -294,4 +308,5 @@ func init() {
 	rootCmd.AddCommand(queryCmd)
 	rootCmd.AddCommand(traceCmd)
 	rootCmd.AddCommand(metricsBenchCmd)
+	rootCmd.AddCommand(alertsE2ECmd)
 }
