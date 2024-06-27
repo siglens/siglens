@@ -59,6 +59,30 @@ function getAllAlerts(){
         displayAllAlerts(res.alerts);
     })
 }
+// Custom cell renderer for State field
+function getCssVariableValue(variableName) {
+    return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+}
+
+function stateCellRenderer(params) {
+    let state = params.value;
+    let color;
+    switch (state) {
+        case 'Normal':
+            color = getCssVariableValue('--color-normal');
+            break;
+        case 'Pending':
+            color = getCssVariableValue('--color-pending');
+            break;
+        case 'Firing':
+            color = getCssVariableValue('--color-firing');
+            break;
+        default:
+            color = 'transparent';
+    }
+    return `<div style="background-color: ${color}; padding: 5px; border-radius: 5px; color: white">${state}</div>`;
+}
+
 class btnRenderer {
 	init(params) {
         this.eGui = document.createElement('span');
@@ -135,12 +159,13 @@ let alertColumnDefs = [
     {
         headerName: "State",
         field: "alertState",
-        width:50,
+        width: 100,
+        cellRenderer: stateCellRenderer
     },
     {
         headerName: "Alert Name",
         field: "alertName",
-        width: 100,
+        width: 200,
     },
     {
         headerName: "Alert Type",
@@ -150,12 +175,12 @@ let alertColumnDefs = [
     {
         headerName: "Labels",
         field: "labels",
-        width:100,
+        width:200,
     },
     {
         headerName: "Actions",
         cellRenderer: btnRenderer,
-        width:50,
+        width:100,
     },
 ];
 

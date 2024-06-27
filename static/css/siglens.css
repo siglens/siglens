@@ -28,6 +28,10 @@
     --fw-500: 500;
     --fw-900: 900;
 
+    --color-normal: #40C463;
+    --color-pending: #FB9E04;
+    --color-firing: #EF364F;
+
     --lavender-1: #B4A6E6;
     --lavender-2: #826CE1;
     --orange-1: #F2A52B;
@@ -1964,7 +1968,19 @@ div.dts div.dataTables_scrollBody table {
   opacity: .75;
   z-index: 1;
 }
+.rule-name-error{
+    color: #6449D6;
+    visibility: hidden;
+    font-size: 13px;
+    margin-bottom: 6px;
 
+}
+.rule-name-error.active{
+    visibility: visible;
+    color: #6449D6;
+    font-size: 13px;
+    margin-bottom: 20px;
+}
 .popupContent,.delete-dialog {
     background-color: var(--ui-widget-bg-color);
     border-radius: 8px;
@@ -5405,6 +5421,111 @@ input.form-control {
 .tippy-box[data-placement^='right'] > .tippy-arrow::before {
     border-right-color:var(--side-nav-bg-color-regular);
 }
+.addrulepopupOverlay {
+    visibility: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--ui-widget-overlay-bg-color);
+    opacity: .75;
+    z-index: 1;
+  }
+
+  .addrulepopupContent {
+    background-color: var(--ui-widget-bg-color);
+    border-radius: 8px;
+    border: 1px solid var(--ui-widget-border-color);
+    padding: 25px;
+    position: absolute;
+    top:32%;
+    left:35%;
+    visibility: hidden;
+    color: var(--text-color);
+    font-size: 1em;
+    height: fit-content;
+    width: 464px !important;
+    z-index: 10;
+  }
+  .addrulepopupOverlay.active ,.addrulepopupContent.active{
+    visibility: visible;
+    position: fixed;
+    overflow: hidden;
+  }
+  .addrulepopupContent .header{
+    font-size: 18px;
+    text-align: left;
+    font-family: 'DINpro';
+    border-radius: 10px;
+    color: var(--text-color);
+    font-weight: bold;
+    font-size: 18px;
+
+  }
+  .addrulepopupContent input{
+    background: var(--ui-widget-bg-color);
+    color: var(--text-color);
+    margin-top: 1%;
+  }
+  .addrulepopupContent .popupcont{    
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: var(--text-color);
+    font-weight: 600;
+    
+  }
+  #addrule-cancel-btn {
+    background: var(--component-bg-color);
+    color: var(--component-text-color);
+    width: 195px !important;
+    height: 32px !important;
+    border: none;
+    padding: 2%;
+    border-radius: 5px;
+}
+
+
+
+
+#addrule-save-btn {
+    display: inline-flex; /* Use flexbox for alignment */
+    align-items: center; /* Center items vertically */
+    background:var(--btn-regular-bg-color) ; 
+    justify-content: center;
+    color: #ffffff; /* Text color */
+    border: none;
+    padding: 8px 16px; /* Adjust padding as needed */
+    font-size: 16px; /* Adjust font size as needed */
+    cursor: pointer;
+    text-align: center;
+    width: 195px !important;
+    height: 32px !important;
+    gap:5px;
+    text-decoration: none;
+    margin-left: 20px;
+    border-radius: 4px; /* Rounded corners */
+    transition: background-color 0.3s ease;
+}
+
+#addrule-save-btn:hover {
+    background-color: #4F38CC; /* Darker background color on hover */
+}
+
+#addrule-save-btn img {
+    width: 15px; /* Adjust icon width */
+    height: 15px; /* Adjust icon height */
+    margin-right: 8px; /* Adjust margin as needed */
+}
+
+.btncontainer{
+    display:flex;
+    flex-direction:row;
+    justify-content: center;
+    align-items: center;
+}
+
 
 
 .nav-metrics {
