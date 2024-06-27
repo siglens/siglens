@@ -561,24 +561,33 @@ body {
     margin-bottom: 2px;
     margin-right: 8px;
 }
+#app-side-nav .nav-main-menu {
+    min-height: 38px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-radius: 0 5px 5px 0;
+    margin-bottom: 2px;
+    margin-right: 8px;
+}
 
-#app-side-nav .menu.active {
+#app-side-nav .menu.active, #app-side-nav .menu:hover{
     border-left: 5px solid var(--side-nav-selected-border-color);
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
 
-#app-side-nav .menu.logo {
+#app-side-nav .nav-main-menu.logo {
     display: flex;
     justify-content: center;
     padding: 16px;
 }
-#app-side-nav.active .menu.logo {
+
+#app-side-nav.active .nav-main-menu.logo {
     padding: 20px 0 20px 0px;
 }
 
-#app-side-nav .menu.logo .sslogo {
+#app-side-nav .nav-main-menu.logo .sslogo {
     height: 44px;
     width: 37px;
 }
@@ -3309,7 +3318,12 @@ float: right;
       text-decoration: none !important;
       justify-content: flex-start;
 }
-
+.help-links{
+    display: flex;
+    align-items: center;
+    text-decoration: none !important;
+    justify-content: flex-start;
+}
 .nav-link-text{
       font-size: 14px;
       font-weight: 600;

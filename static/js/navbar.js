@@ -19,7 +19,7 @@
 
 let navbarComponent = `
     <div>
-        <div class="menu logo" title="">
+        <div class="nav-main-menu logo" title="">
             <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
             </a>
         </div>
@@ -79,8 +79,8 @@ let navbarComponent = `
             </a>
             <ul class="ingestion-dropdown">
                 <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
-                <a href="https://www.siglens.com/siglens-docs/category/metric-ingestion"><li class="ingestion-link">Metrics Ingestion</li></a>
-                <a href="https://www.siglens.com/siglens-docs/category/instrumentation-for-traces"><li class="ingestion-link">Traces Ingestion</li></a>
+                <a href="https://www.siglens.com/siglens-docs/category/metric-ingestion" target="_blank"><li class="ingestion-link">Metrics Ingestion</li></a>
+                <a href="https://www.siglens.com/siglens-docs/category/instrumentation-for-traces" target="_blank"><li class="ingestion-link">Traces Ingestion</li></a>
                 
             </ul>
         </div>
@@ -100,28 +100,27 @@ let navbarComponent = `
         </div>
         <div class="position-relative mb-2">
             <div class="nav-help" title="Help & Support">
-                <a href="#" class="nav-links"><span class="icon-help"> </span>
-
-                    <span class="nav-link-text">Help & Support</span></a>
+                <a href="#" class="help-links"><span class="icon-help">
+                </span><span class="nav-link-text">Help & Support</span></a>
             </div>
             <div class="help-options">
-                <div class="menu nav-docs" title="SigLens Documentation">
-                    <a href="https://www.siglens.com/siglens-docs/" class="nav-links" target="_blank"><span class="icon-docs"></span><span class="nav-link-text">Documentation</span></a>
+                <div class="nav-docs" title="SigLens Documentation">
+                    <a href="https://www.siglens.com/siglens-docs/"  target="_blank" class="help-links"><span class="icon-docs"></span><span class="nav-link-text">Documentation</span></a>
                 </div>
-                <div class="menu nav-slack" title="Join Slack Community">
-                    <a href="https://www.siglens.com/slack.html" class="nav-links" target="_blank"><span class="icon-slack"></span><span class="nav-link-text">Join Slack Community</span></a>
+                <div class="nav-slack" title="Join Slack Community">
+                    <a href="https://www.siglens.com/slack.html"  target="_blank" class="help-links"><span class="icon-slack"></span><span class="nav-link-text">Join Slack Community</span></a>
                 </div>
-                <div class="menu nav-linkedin" title="Share on LinkedIn">
-                    <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://siglens.com" class="nav-links" target="_blank"><span class="icon-linkedin"></span><span class="nav-link-text">Share on LinkedIn</span></a>
+                <div class="nav-linkedin" title="Share on LinkedIn">
+                    <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://siglens.com" target="_blank" class="help-links"><span class="icon-linkedin"></span><span class="nav-link-text">Share on LinkedIn</span></a>
                 </div>
-                <div class="menu nav-twitter" title="Share on Twitter">
+                <div class="nav-twitter" title="Share on Twitter">
                     <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ" 
-                    class="nav-links" target="_blank"><span class="icon-twitter"></span><span class="nav-link-text">Share on Twitter</span></a>
+                    target="_blank" class="help-links"><span class="icon-twitter"></span><span class="nav-link-text">Share on Twitter</span></a>
                 </div>
                 <hr>
-                <div class="menu nav-feedback" title="Feedback">
+                <div class="nav-feedback" title="Feedback">
                     <a href="https://docs.google.com/forms/d/e/1FAIpQLSfs_mxeX4LKbjAdX22cOknFaoi2TJcoOGD3OKj2RmZl7evD6A/viewform"
-                        target="_blank" class="nav-links">
+                        target="_blank" class="help-links">
                         <span class="icon-feedback"></span><span class="nav-link-text feedback">Feedback</span>
                     </a>
                 </div>
@@ -168,9 +167,12 @@ $(document).ready(function () {
         ".nav-traces",
         ".nav-ingest",
     ];
-    const removeActiveClasses = () => {
-        navItems.forEach((item) => $(item).removeClass("active"));
-    };
+    function removeActiveClass() {
+        navItems.forEach(item => $(item).removeClass("active"));
+    }
+    function setActiveClass(selector) {
+        $(selector).addClass("active");
+    }
 
     if (currentUrl.includes("index.html")) {
         $(".nav-search").addClass("active");
@@ -200,172 +202,98 @@ $(document).ready(function () {
         if ($('.subsection-navbar').length) {
             $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
         }        
+    } else if (currentUrl.includes("test-data.html")|| currentUrl.includes("https://www.siglens.com/siglens-docs/category/instrumentation-for-traces") || currentUrl.includes("https://www.siglens.com/siglens-docs/category/metric-ingestion")) {
+        $(".nav-ingest").addClass("active");     
     } 
 
-    $(".nav-help").on("mouseenter", function(event) {
-        event.stopPropagation();
+    $(".nav-links").on("click", function (event) {
+        removeActiveClass();
+        $(this).closest(".menu").addClass("active");
+    });
+
+     $(".metrics-dropdown-toggle").hover(
+        function() {
+            $(".metrics-dropdown").stop(true, true).slideDown(0);
+        },
+        function() {
+            $(".metrics-dropdown").stop(true, true).slideUp(10);
+        }
+    );
+
+    $(".tracing-dropdown-toggle").hover(
+        function() {
+            $(".traces-dropdown").stop(true, true).slideDown(0);
+        },
+        function() {
+            $(".traces-dropdown").stop(true, true).slideUp(10);
+        }
+    );
+
+    $(".ingestion-dropdown-toggle").hover(
+        function() {
+            $(".ingestion-dropdown").stop(true, true).slideDown(0);
+        },
+        function() {
+            $(".ingestion-dropdown").stop(true, true).slideUp(10);
+        }
+    );
+
+    $(".nav-help").hover(
+        function(event) {
+            event.stopPropagation();
+            event.preventDefault();
+            $(".help-options").stop(true, true).slideDown(0);
+        },
+        function(event) {
+            event.stopPropagation();
+            event.preventDefault();
+            $(".help-options").stop(true, true).slideUp(10);
+        }
+    );
+
+    // Prevent the default click action for Help & Support
+    $(".nav-help").on("click", function(event) {
         event.preventDefault();
-        $(".help-options").stop(true, true).slideDown(0);
     });
 
-    $(".nav-links").on("click", function () {
-        $(".metrics-dropdown").hide();
-        $(".ingestion-dropdown").hide();
-        $(".traces-dropdown").hide();
-        $(".help-options").slideUp(0);
-    });
-    
-    $(".metrics-dropdown-toggle").on("mouseenter", function(event) {
-        event.stopPropagation();
-        $(".metrics-dropdown").stop(true, true).slideDown(0);
-        removeActiveClasses();
-        $(".nav-metrics").addClass("active");
-    });
-
-    $(".metrics-dropdown-toggle").on("mouseleave", function(event) {
-        event.stopPropagation();
-        setTimeout(function() {
-            if (!$(".metrics-dropdown:hover").length) {
-                $(".metrics-dropdown").stop(true, true).slideUp(0);
-                $(".nav-metrics").removeClass("active");
-            }
-        }, 0);
-    });
-
-    $(".metrics-dropdown").on("mouseenter", function(event) {
-        event.stopPropagation();
-        $(".metrics-dropdown").stop(true, true).slideDown(0);
-    });
-
-    $(".metrics-dropdown").on("mouseleave", function(event) {
-        event.stopPropagation();
-        $(".metrics-dropdown").stop(true, true).slideUp(0);
-        $(".nav-metrics").removeClass("active");
-    });
-
-    // Traces dropdown
-    $(".tracing-dropdown-toggle").on("mouseenter", function(event) {
-        event.stopPropagation();
-        $(".traces-dropdown").stop(true, true).slideDown(0);
-        removeActiveClasses();
-        $(".nav-traces").addClass("active");
-    });
-
-    $(".tracing-dropdown-toggle").on("mouseleave", function(event) {
-        event.stopPropagation();
-        setTimeout(function() {
-            if (!$(".traces-dropdown:hover").length) {
-                $(".traces-dropdown").stop(true, true).slideUp(0);
-                $(".nav-traces").removeClass("active");
-            }
-        }, 0);
-    });
-
-    $(".traces-dropdown").on("mouseenter", function(event) {
-        event.stopPropagation();
-        $(".traces-dropdown").stop(true, true).slideDown(0);
-    });
-
-    $(".traces-dropdown").on("mouseleave", function(event) {
-        event.stopPropagation();
-        $(".traces-dropdown").stop(true, true).slideUp(0);
-        $(".nav-traces").removeClass("active");
-    });
-
-    // Ingestion dropdown
-    $(".ingestion-dropdown-toggle").on("mouseenter", function(event) {
-        event.stopPropagation();
-        $(".ingestion-dropdown").stop(true, true).slideDown(0);
-        removeActiveClasses();
-        $(".nav-ingest").addClass("active");
-    });
-
-    $(".ingestion-dropdown-toggle").on("mouseleave", function(event) {
-        event.stopPropagation();
-        setTimeout(function() {
-            if (!$(".ingestion-dropdown:hover").length) {
-                $(".ingestion-dropdown").stop(true, true).slideUp(0);
-                $(".nav-ingest").removeClass("active");
-            }
-        }, 0);
-    });
-
-    $(".ingestion-dropdown").on("mouseenter", function(event) {
-        event.stopPropagation();
-        $(".ingestion-dropdown").stop(true, true).slideDown(0);
-    });
-
-    $(".ingestion-dropdown").on("mouseleave", function(event) {
-        event.stopPropagation();
-        $(".ingestion-dropdown").stop(true, true).slideUp(0);
-        $(".nav-ingest").removeClass("active");
-    });
-
-    // Hide the help options when leaving the .nav-help element
-    $(".nav-help").on("mouseleave", function(event) {
-        event.stopPropagation();
-        event.preventDefault();
-        // Use a timeout to allow for the menu to be hovered over
-        setTimeout(function() {
-            if (!$(".help-options:hover").length) {
-                $(".help-options").stop(true, true).slideUp(0);
-            }
-        }, 0);
-    });
-
-    // Keep the help options visible when hovering over it
-    $(".help-options").on("mouseenter", function(event) {
-        event.stopPropagation();
-        event.preventDefault();
-        $(".help-options").stop(true, true).slideDown(0);
-    });
-
-    // Hide the help options when leaving it
-    $(".help-options").on("mouseleave", function(event) {
-        event.stopPropagation();
-        event.preventDefault();
-        $(".help-options").stop(true, true).slideUp(0);
-    });
+    // Handle the hover event for the help-options to keep it visible
+    $(".help-options").hover(
+        function(event) {
+            event.stopPropagation();
+            event.preventDefault();
+            $(".help-options").stop(true, true).slideDown(0);
+        },
+        function(event) {
+            event.stopPropagation();
+            event.preventDefault();
+            $(".help-options").stop(true, true).slideUp(10);
+        }
+    );
 
     $(document).on("click", function(event) {
         var helpOptions = $(".help-options");
-        var menu = $(".nav-help");
         var metricsDropdown = $(".metrics-dropdown");
-        var metricsToggle = $(".metrics-dropdown-toggle");
         var tracesDropdown = $(".traces-dropdown");
-        var tracesToggle = $(".tracing-dropdown-toggle");
         var ingestionDropdown = $(".ingestion-dropdown");
-        var ingestionToggle = $(".ingestion-dropdown-toggle");
 
-        if (!metricsToggle.is(event.target) && !metricsDropdown.is(event.target) && metricsDropdown.has(event.target).length === 0) {
+        if (!metricsDropdown.is(event.target) && metricsDropdown.has(event.target).length === 0) {
             metricsDropdown.hide();
         }
-        if (!tracesToggle.is(event.target) && !tracesDropdown.is(event.target) && tracesDropdown.has(event.target).length === 0) {
+        if (!tracesDropdown.is(event.target) && tracesDropdown.has(event.target).length === 0) {
             tracesDropdown.hide();
         }
-        if (!ingestionToggle.is(event.target) && !ingestionDropdown.is(event.target) && ingestionDropdown.has(event.target).length === 0) {
+        if (!ingestionDropdown.is(event.target) && ingestionDropdown.has(event.target).length === 0) {
             ingestionDropdown.hide();
         }
-        if (!menu.is(event.target) && !helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
+        if (!helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
             helpOptions.slideUp(0);
         }
     });
 
-    $(".help-options").on("click", "a", function(event) {
-        $(".help-options").slideUp(0);
-    });
-
-    const currentLocation = window.location.href;
     const menuItem = document.querySelectorAll('.metrics-dropdown a');
     menuItem.forEach(item => {
-        if (item.href === currentLocation) {
+        if (item.href === currentUrl) {
             item.classList.add('active');
         }
     });
-
-    $(".metrics-dropdown a").on("click", function() {
-        removeActiveClasses(); // Remove active class from all other nav items
-        $(".nav-metrics").addClass("active");
-    });
 });
-
