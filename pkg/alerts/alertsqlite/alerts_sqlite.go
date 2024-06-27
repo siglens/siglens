@@ -107,6 +107,7 @@ func isValid(str string) bool {
 func (p Sqlite) isNewAlertName(alertName string) (bool, error) {
 	if !isValid(alertName) {
 		err := fmt.Errorf("isNewAlertName: Data Validation Check Failed: Alert Name given is not valid. Alert Name given : %v", alertName)
+		log.Error(err.Error())
 		return false, err
 	}
 	if err := p.db.Where("alert_name = ?", alertName).First(&alertutils.AlertDetails{}).Error; err != nil {
@@ -168,12 +169,14 @@ func CreateUniqId() string {
 func (p Sqlite) CreateAlert(alertDetails *alertutils.AlertDetails) (alertutils.AlertDetails, error) {
 	if !isValid(alertDetails.AlertName) {
 		err := fmt.Errorf("CreateAlert: Data Validation Check Failed: Alert Name given is not Valid. AlertName=%v", alertDetails.AlertName)
+		log.Error(err.Error())
 		return alertutils.AlertDetails{}, err
 	}
 	isNewAlertName, _ := p.isNewAlertName(alertDetails.AlertName)
 
 	if !isNewAlertName {
 		err := fmt.Errorf("CreateAlert: Alert Name=%v already exists", alertDetails.AlertName)
+		log.Error(err.Error())
 		return alertutils.AlertDetails{}, err
 	}
 
@@ -185,7 +188,9 @@ func (p Sqlite) CreateAlert(alertDetails *alertutils.AlertDetails) (alertutils.A
 	}
 
 	if !exists {
-		return alertutils.AlertDetails{}, fmt.Errorf("CreateAlert: Contact does not exist with contactId: %v, for alert: %v", alertDetails.ContactID, alertDetails.AlertName)
+		err := fmt.Errorf("CreateAlert: Contact does not exist with contactId: %v, for alert: %v", alertDetails.ContactID, alertDetails.AlertName)
+		log.Error(err.Error())
+		return alertutils.AlertDetails{}, err
 	}
 
 	alertDetails.ContactName = contactData.ContactName
@@ -236,7 +241,9 @@ func (p Sqlite) GetAllAlerts(orgId uint64) ([]alertutils.AlertDetails, error) {
 
 func (p Sqlite) UpdateSilenceMinutes(updatedSilenceMinutes *alertutils.AlertDetails) error {
 	if !isValid(updatedSilenceMinutes.AlertName) || !isValid(updatedSilenceMinutes.QueryParams.QueryText) {
-		return fmt.Errorf("UpdateSilenceMinutes: Data  Validation check Failed: AlertName or QueryText given is not valid. AlertName=%v, QueryText=%v", updatedSilenceMinutes.AlertName, updatedSilenceMinutes.QueryParams.QueryText)
+		err := fmt.Errorf("UpdateSilenceMinutes: Data  Validation check Failed: AlertName or QueryText given is not valid. AlertName=%v, QueryText=%v", updatedSilenceMinutes.AlertName, updatedSilenceMinutes.QueryParams.QueryText)
+		log.Error(err.Error())
+		return err
 	}
 	alertExists, _, err := p.verifyAlertExists(updatedSilenceMinutes.AlertId)
 	if err != nil {
@@ -245,8 +252,9 @@ func (p Sqlite) UpdateSilenceMinutes(updatedSilenceMinutes *alertutils.AlertDeta
 		return err
 	}
 	if !alertExists {
-		log.Errorf("UpdateSilenceMinutes: alert: %v does not exist", updatedSilenceMinutes.AlertName)
-		return fmt.Errorf("UpdateSilenceMinutes: alert: %v does not exist", updatedSilenceMinutes.AlertName)
+		err := fmt.Errorf("UpdateSilenceMinutes: alert: %v does not exist", updatedSilenceMinutes.AlertName)
+		log.Error(err.Error())
+		return err
 	}
 	result := p.db.Save(&updatedSilenceMinutes)
 	if result.Error != nil && result.RowsAffected != 1 {
@@ -266,7 +274,9 @@ func (p Sqlite) UpdateAlert(editedAlert *alertutils.AlertDetails) error {
 	// update alert can update alert name -> still id will remain same
 	// todo: check if contact_id exists
 	if !isValid(editedAlert.AlertName) {
-		return fmt.Errorf("UpdateAlert: Data Validation Check Failed: AlertName=%v is not valid", editedAlert.AlertName)
+		err := fmt.Errorf("UpdateAlert: Data Validation Check Failed: AlertName=%v is not valid", editedAlert.AlertName)
+		log.Error(err.Error())
+		return err
 	}
 
 	alertExists, currentAlertData, err := p.verifyAlertExists(editedAlert.AlertId)
@@ -277,7 +287,9 @@ func (p Sqlite) UpdateAlert(editedAlert *alertutils.AlertDetails) error {
 	}
 	// new alert means id in request body is incorrect
 	if !alertExists {
-		return fmt.Errorf("UpdateAlert: Alert: %v does not exist", editedAlert.AlertName)
+		err := fmt.Errorf("UpdateAlert: Alert: %v does not exist", editedAlert.AlertName)
+		log.Error(err.Error())
+		return err
 	}
 	// if alert name in request body is same as that present in db, allow update
 	if currentAlertData.AlertName != editedAlert.AlertName {
@@ -288,7 +300,9 @@ func (p Sqlite) UpdateAlert(editedAlert *alertutils.AlertDetails) error {
 			return err
 		}
 		if !isNewAlertName {
-			return fmt.Errorf("UpdateAlert: Alert Name=%v already exists", editedAlert.AlertName)
+			err := fmt.Errorf("UpdateAlert: Alert Name=%v already exists", editedAlert.AlertName)
+			log.Error(err.Error())
+			return err
 		}
 	}
 
