@@ -21,6 +21,7 @@
 
 let alertData = {};
 let alertID;
+let alertEditFlag = 0;
 let alertRule_name = "alertRule_name";
 let query_string = "query_string";
 let condition = "condition";
@@ -119,8 +120,9 @@ async function getAlertId() {
 
     if (urlParams.has('id')) {
         const id = urlParams.get('id');
-        await editAlert(id);
         alertID = id;
+       const editFlag = await editAlert(id);
+       alertEditFlag = editFlag;
     } else if (urlParams.has('queryLanguage')) {
         const queryLanguage = urlParams.get('queryLanguage');
         const searchText = urlParams.get('searchText');
@@ -129,10 +131,13 @@ async function getAlertId() {
     
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
     }
+    if(!alertEditFlag){
+        addQueryElement();
+    }
 }
 
 async function editAlert(alertId){
-    $.ajax({
+    const res = await $.ajax({
         method: "get",
         url: "api/alerts/" + alertId,
         headers: {
@@ -141,14 +146,16 @@ async function editAlert(alertId){
         },
         dataType: 'json',
         crossDomain: true,
-    }).then(function (res) {
-        if(window.location.href.includes("alert-details.html")){
-            displayAlertProperties(res.alert)
-        }else{
-            alertEditFlag = 1;
-            displayAlert(res.alert);
-        }
     })
+    if(window.location.href.includes("alert-details.html")){
+        displayAlertProperties(res.alert)
+        return false
+    }else{
+        displayAlert(res.alert);
+        return true
+    }
+
+    
 }
 
 function setAlertConditionHandler(e) {

@@ -32,7 +32,6 @@ var aggregationOptions = ["max by", "min by", "avg by", "sum by", "count by", "s
 
 // Used for alert screen
 let isAlertScreen;
-let alertEditFlag = 0;
 let metricsQueryParams = {};
 
 // Theme
@@ -63,8 +62,8 @@ $(document).ready(async function() {
     functionsArray = allFunctions.map(function(item) {
         return item.fn;
     })
-
-    if(!alertEditFlag ){
+    
+    if(!isAlertScreen){
         addQueryElement();
     }
 });
