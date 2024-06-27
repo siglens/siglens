@@ -659,7 +659,6 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 			allTimestamps[ts] = struct{}{}
 		}
 	}
-
 	// Convert the map of unique timestamps into a sorted slice.
 	httpResp.Timestamps = make([]uint32, 0, len(allTimestamps))
 	for ts := range allTimestamps {
