@@ -132,7 +132,8 @@ async function getAlertId() {
     
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
     }
-    if(!alertEditFlag){
+
+    if(!alertEditFlag && !(window.location.href.includes("alert-details.html"))){
         addQueryElement();
     }
 }
@@ -354,17 +355,16 @@ async function displayAlert(res){
     }
     $('#contact-points-dropdown span').html(res.contact_name);
     $('#contact-points-dropdown span').attr('id', res.contact_id);
-    
-    let isFirst = true;
+
     (res.labels).forEach(function(label){
-        let labelContainer;
-        if (isFirst) {
-            labelContainer = $('.label-container');
-            isFirst = false;
-        } else {
-            labelContainer = $('.label-container').first().clone();
-            labelContainer.append('<button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>');
-        }
+        var labelContainer = $(`
+        <div class="label-container d-flex align-items-center">
+            <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7" value="">
+            <span class="label-equal"> = </span>
+            <input type="text" id="label-value" class="form-control" placeholder="Value" value="" tabindex="8">
+            <button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>
+        </div>
+    `)
         labelContainer.find("#label-key").val(label.label_name);
         labelContainer.find("#label-value").val(label.label_value);
         labelContainer.appendTo('.label-main-container');
