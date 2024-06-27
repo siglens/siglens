@@ -270,13 +270,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <label for="custom-label">Custom Label</label>
                             <div class="d-flex align-items-end mb-0">
                                 <div class="label-main-container mb-0">
-                                    <div class="label-container d-flex align-items-center">
-                                        <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7"
-                                            value="alerting"><span class="label-equal"> = </span> <input type="text"
-                                            id="label-value" class="form-control" placeholder="Value" value="true" tabindex="8">
-                                    </div>
                                 </div>
-                                <button class="add-label-container btn" type="button">Add Label</button>
+                                <button class="add-label-container btn" type="button"><span class="plus-icon">+</span>Add Label</button>
                             </div>
                         </div>
                     </div>
@@ -305,8 +300,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/contacts.js?cb=1_1_10"></script>
     <script src="./js/lib/chart.umd.min.js"></script>
-    <script src="./js/alert.js?cb=1_1_10"></script>
     <script src="./js/metrics-explorer.js?cb=1_1_10"></script>
+    <script src="./js/alert.js?cb=1_1_10"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
 
     {{ .RunCheck2 | safeHTML }}

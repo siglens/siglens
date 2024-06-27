@@ -20,6 +20,7 @@
 
 let alertData = {};
 let alertID;
+let alertEditFlag = 0;
 let alertRule_name = "alertRule_name";
 let query_string = "query_string";
 let condition = "condition";
@@ -157,8 +158,9 @@ async function getAlertId() {
 
     if (urlParams.has('id')) {
         const id = urlParams.get('id');
-        await editAlert(id);
         alertID = id;
+       const editFlag = await editAlert(id);
+       alertEditFlag = editFlag;
     } else if (urlParams.has('queryLanguage')) {
         const queryLanguage = urlParams.get('queryLanguage');
         const searchText = urlParams.get('searchText');
@@ -167,74 +169,14 @@ async function getAlertId() {
 
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
     }
-}
 
-function fetchAlertProperties() {
-    if (alertID) {
-        $.ajax({
-            method: "get",
-            url: "api/alerts/" + alertID,
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept': '*/*'
-            },
-            dataType: 'json',
-            crossDomain: true,
-        }).then(function (res) {
-            const propertiesData = [
-                { name: "Query", value: res.alert.queryParams.queryText },
-                { name: "Status", value: mapIndexToAlertState.get(res.alert.state) },
-                { name: "Type", value: res.alert.queryParams.data_source },
-                { name: "Query Language", value: res.alert.queryParams.queryLanguage },
-                { name: "Condition", value: mapIndexToConditionType.get(res.alert.condition) },
-                { name: "Evaluate", value: `every ${res.alert.eval_interval} minutes for ${res.alert.eval_for} minutes` },
-                { name: "Contact Point", value: res.alert.contact_name }
-            ];
-
-            res.alert.labels.forEach(label => {
-                propertiesData.push({ name: `Label: ${label.label_name}`, value: label.label_value });
-            });
-
-            if (propertiesGridOptions.api) {
-                propertiesGridOptions.api.setRowData(propertiesData);
-            } else {
-                console.error("propertiesGridOptions.api is not defined");
-            }
-        });
-    }
-}
-
-function displayHistoryData() {
-    if (alertID) {
-        $.ajax({
-            method: "get",
-            url: `api/alerts/${alertID}/history`,
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept': '*/*'
-            },
-            dataType: 'json',
-            crossDomain: true,
-        }).then(function (res) {
-            const historyData = res.alertHistory.map(item => ({
-                timestamp: new Date(item.event_triggered_at).toLocaleString(),
-                action: item.event_description,
-                state: mapIndexToAlertState.get(item.alert_state)
-            }));
-
-            if (historyGridOptions.api) {
-                historyGridOptions.api.setRowData(historyData);
-            } else {
-                console.error("historyGridOptions.api is not defined");
-            }
-        }).catch(function (err) {
-            console.error('Error fetching alert history:', err);
-        });
+    if(!alertEditFlag && !(window.location.href.includes("alert-details.html"))){
+        addQueryElement();
     }
 }
 
 async function editAlert(alertId){
-    $.ajax({
+    const res = await $.ajax({
         method: "get",
         url: "api/alerts/" + alertId,
         headers: {
@@ -243,14 +185,16 @@ async function editAlert(alertId){
         },
         dataType: 'json',
         crossDomain: true,
-    }).then(function (res) {
-        if (window.location.href.includes("alert-details.html")) {
-            displayAlertProperties(res.alert)
-        } else {
-            alertEditFlag = 1;
-            displayAlert(res.alert);
-        }
     })
+    if (window.location.href.includes("alert-details.html")) {
+        displayAlertProperties(res.alert)
+        return false
+    } else {
+        displayAlert(res.alert);
+        return true
+    }
+
+    
 }
 
 function setAlertConditionHandler(e) {
@@ -390,9 +334,9 @@ function createNewAlertRule(alertData) {
         crossDomain: true,
     }).then((res) => {
         resetAddAlertForm();
-        window.location.href = '../all-alerts.html';
-    }).catch((err) => {
-        showToast(err.responseJSON.error)
+        window.location.href='../all-alerts.html';
+    }).catch((err)=>{
+        showToast(err.responseJSON.error, "error")
     });
 }
 
@@ -413,9 +357,9 @@ function updateAlertRule(alertData){
         crossDomain: true,
     }).then((res) => {
         resetAddAlertForm();
-        window.location.href = '../all-alerts.html';
-    }).catch((err) => {
-        showToast(err.responseJSON.error)
+        window.location.href='../all-alerts.html';
+    }).catch((err)=>{
+        showToast(err.responseJSON.error, "error");
     });
 }
 
@@ -471,35 +415,19 @@ async function displayAlert(res){
     $('#contact-points-dropdown span').html(res.contact_name);
     $('#contact-points-dropdown span').attr('id', res.contact_id);
 
-    let isFirst = true;
-    (res.labels).forEach(function(label) {
-        let labelContainer;
-        if (isFirst) {
-            labelContainer = $('.label-container');
-            isFirst = false;
-        } else {
-            labelContainer = $('.label-container').first().clone();
-            labelContainer.append('<button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>');
-        }
+    (res.labels).forEach(function(label){
+        var labelContainer = $(`
+        <div class="label-container d-flex align-items-center">
+            <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7" value="">
+            <span class="label-equal"> = </span>
+            <input type="text" id="label-value" class="form-control" placeholder="Value" value="" tabindex="8">
+            <button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>
+        </div>
+    `)
         labelContainer.find("#label-key").val(label.label_name);
         labelContainer.find("#label-value").val(label.label_value);
         labelContainer.appendTo('.label-main-container');
     })
-}
-
-function showToast(msg) {
-    let toast =
-        `<div class="div-toast" id="save-db-modal"> 
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 2000);
-}
-
-function removeToast() {
-    $('.div-toast').remove();
 }
 
 function setLogsLangHandler(e) {
@@ -615,12 +543,17 @@ function displayAlertProperties(res) {
     })
 }
 
-$(".add-label-container").on("click", function() {
-    var labelContainer = $(".label-container").first().clone();
-    labelContainer.find("#label-key").val("");
-    labelContainer.find("#label-value").val("");
-    labelContainer.append('<button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>');
-    labelContainer.appendTo(".label-main-container");
+// Add Label
+$(".add-label-container").on("click", function () {
+    var newLabelContainer = `
+        <div class="label-container d-flex align-items-center">
+            <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7" value="">
+            <span class="label-equal"> = </span>
+            <input type="text" id="label-value" class="form-control" placeholder="Value" value="" tabindex="8">
+            <button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>
+        </div>
+    `;
+    $(".label-main-container").append(newLabelContainer);
 });
 
 $(".label-main-container").on("click", ".delete-icon", function() {
@@ -648,7 +581,9 @@ function alertDetailsFunctions() {
             crossDomain: true,
         }).then(function(res) {
             showToast(res.message)
-            window.location.href = '../all-alerts.html';
+            window.location.href='../all-alerts.html';
+        }).catch((err)=>{
+            showToast(err.responseJSON.error, "error");
         });
     }
 
