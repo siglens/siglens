@@ -187,6 +187,15 @@ type OutputTransforms struct {
 	FilterRows             *BoolExpr          // discard rows failing some condition
 	MaxRows                uint64             // if 0, get all results; else, get at most this many
 	RowsAdded              uint64             // number of rows added to the result. This is used in conjunction with MaxRows.
+	HeadRequest 		  *HeadExpr
+}
+
+type HeadExpr struct {
+	MaxRows uint64
+	Keeplast bool
+	Null bool
+	RowsAdded uint64
+	BoolExpr *BoolExpr
 }
 
 type GroupByRequest struct {

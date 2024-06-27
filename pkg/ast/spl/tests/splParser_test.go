@@ -8240,3 +8240,46 @@ func performEventCountTest(t *testing.T, query string, expectedIndices []string,
 	assert.Equal(t, expectedReportSize, aggregator.OutputTransforms.LetColumns.EventCountRequest.ReportSize)
 	assert.Equal(t, expectedListVix, aggregator.OutputTransforms.LetColumns.EventCountRequest.ListVix)
 }
+
+
+
+func Test_Head(t *testing.T) {
+	query := []byte(`A=1 | head`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
+	assert.Equal(t, aggregator.OutputTransforms.HeadRequest.MaxRows, uint64(10))
+	assert.Equal(t, aggregator.OutputTransforms.HeadRequest.RowsAdded, 0)
+	assert.Equal(t, aggregator.OutputTransforms.HeadRequest.Null, false)
+	assert.Equal(t, aggregator.OutputTransforms.HeadRequest.Keeplast, false)
+	assert.Nil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr)
+}
+
+
+func Test_Head2(t *testing.T) {
+	query := []byte(`A=1 | head`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
+	assert.Equal(t, aggregator.OutputTransforms.HeadRequest.MaxRows, uint64(10))
+}
