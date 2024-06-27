@@ -437,11 +437,15 @@ function displayAlertProperties(res) {
 
 // Add Label
 $(".add-label-container").on("click", function () {
-    var labelContainer = $(".label-container").first().clone();
-    labelContainer.find("#label-key").val("");
-    labelContainer.find("#label-value").val("");
-    labelContainer.append('<button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>');
-    labelContainer.appendTo(".label-main-container");
+    var newLabelContainer = `
+        <div class="label-container d-flex align-items-center">
+            <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7" value="">
+            <span class="label-equal"> = </span>
+            <input type="text" id="label-value" class="form-control" placeholder="Value" value="" tabindex="8">
+            <button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>
+        </div>
+    `;
+    $(".label-main-container").append(newLabelContainer);
 });
 
 // Delete Label

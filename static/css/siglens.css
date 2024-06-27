@@ -4894,8 +4894,14 @@ color: #C8C7CC;
 }
 
 .add-label-container{
-    margin-bottom: 20px;
-    margin-left: 10px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+}
+.add-label-container .plus-icon{
+    font-size: 26px;
+    margin-bottom: 4px;
+    margin-right: 6px;
 }
 #alert-form .btn-container,#contact-form .btn-container {
     margin-top: -70px;
