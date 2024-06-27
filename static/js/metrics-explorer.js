@@ -34,7 +34,6 @@ let dayCnt7=0;
 let dayCnt2=0;
 // Used for alert screen
 let isAlertScreen;
-let alertEditFlag = 0;
 let metricsQueryParams = {};
 
 // Theme
@@ -50,7 +49,7 @@ let palette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a",
 $(document).ready(async function() {
 
     var currentPage = window.location.pathname;
-    if (currentPage === "/alert.html") {
+    if (currentPage === "/alert.html" || currentPage ==='/alert-details.html') {
         isAlertScreen = true;
     } 
 
@@ -65,8 +64,8 @@ $(document).ready(async function() {
     functionsArray = allFunctions.map(function(item) {
         return item.fn;
     })
-
-    if(!alertEditFlag ){
+    
+    if(!isAlertScreen){
         addQueryElement();
     }
 });
