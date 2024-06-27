@@ -29,7 +29,9 @@ let previousEndEpoch = null;
 let rawTimeSeriesData=[];
 let allFunctions,functionsArray =[];
 var aggregationOptions = ["max by", "min by", "avg by", "sum by", "count by", "stddev by", "stdvar by", "group by"];
-
+let timeUnit;
+let dayCnt7=0;
+let dayCnt2=0;
 // Used for alert screen
 let isAlertScreen;
 let alertEditFlag = 0;
@@ -918,10 +920,38 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                             let isDifferentDay = previousTick && date.getDate() !== previousTick.getDate();
                             if (timeUnit === 'month') {
                                 return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
-                            }else if (timeUnit === 'day') {
-                                return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
-                            }else if (timeUnit === 'hour') {
-                                if (date.getMinutes() % 60 ===0 || date.getMinutes() === 0){
+                            }else if (timeUnit === '7day') {
+                                if (isDifferentDay) dayCnt7+=1;
+                                if (dayCnt7 === 7){
+                                    console.log(dayCnt7,date)
+                                    dayCnt7 = 0;
+                                    return  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                }
+                                return null;
+                            }else if (timeUnit === '2day') {
+                                if (isDifferentDay) dayCnt2+=1;
+                                if (dayCnt2 === 2 ){
+                                    dayCnt2 = 0;
+                                    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                }
+                                return null;
+                            }else if (timeUnit === '12hour') {
+                                if (date.getHours() % 12 === 0 ){
+                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                                }
+                                return null;
+                            }else if (timeUnit === '6hour') {
+                                if (date.getHours() % 6 === 0){
+                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                                }
+                                return null;
+                            }else if (timeUnit === '3hour') {
+                                if (date.getHours() % 3 === 0){
+                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                                }
+                                return null;
+                            }else if (timeUnit === '30minute') {
+                                if (date.getMinutes() % 30 ===0 || date.getMinutes() === 0){
                                     return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
                                 }
                                 return null;
@@ -955,7 +985,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                         }
                     },
                     time: {
-                        unit: timeUnit.includes('minute') ?'minute' : timeUnit,
+                        unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
                         tooltipFormat: 'MMM d, HH:mm:ss',
                         displayFormats: {
                             minute: 'HH:mm',
@@ -1329,10 +1359,38 @@ function mergeGraphs(chartType) {
                             let isDifferentDay = previousTick && date.getDate() !== previousTick.getDate();
                             if (timeUnit === 'month') {
                                 return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
-                            }else if (timeUnit === 'day') {
-                                return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
-                            }else if (timeUnit === 'hour') {
-                                if (date.getMinutes() % 60 ===0 || date.getMinutes() === 0){
+                            }else if (timeUnit === '7day') {
+                                if (isDifferentDay) dayCnt7+=1;
+                                if (dayCnt7 === 7){
+                                    console.log(dayCnt7,date)
+                                    dayCnt7 = 0;
+                                    return  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                }
+                                return null;
+                            }else if (timeUnit === '2day') {
+                                if (isDifferentDay) dayCnt2+=1;
+                                if (dayCnt2 === 2 ){
+                                    dayCnt2 = 0;
+                                    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                }
+                                return null;
+                            }else if (timeUnit === '12hour') {
+                                if (date.getHours() % 12 === 0 ){
+                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                                }
+                                return null;
+                            }else if (timeUnit === '6hour') {
+                                if (date.getHours() % 6 === 0){
+                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                                }
+                                return null;
+                            }else if (timeUnit === '3hour') {
+                                if (date.getHours() % 3 === 0){
+                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+                                }
+                                return null;
+                            }else if (timeUnit === '30minute') {
+                                if (date.getMinutes() % 30 ===0 || date.getMinutes() === 0){
                                     return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
                                 }
                                 return null;
@@ -1351,7 +1409,6 @@ function mergeGraphs(chartType) {
                             }
                         },
                         autoSkip: false,
-                        // maxTicksLimit: 24,
                         major: {
                             enabled: true,
                         },
@@ -1367,7 +1424,7 @@ function mergeGraphs(chartType) {
                         }
                     },
                     time: {
-                        unit: timeUnit.includes('minute') ?'minute' : timeUnit,
+                        unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
                         tooltipFormat: 'MMM d, HH:mm:ss',
                         displayFormats: {
                             minute: 'HH:mm',
@@ -1401,13 +1458,21 @@ async function convertDataForChart(data) {
         // // Determine the best time unit based on the time range
         if (timeRange > 365 * 24 * 60 * 60  ) {
             timeUnit = 'month';
+        }else if (timeRange >= 90 * 24 * 60 * 60  ) {
+            timeUnit = '7day';
+        }else if (timeRange >= 30 * 24 * 60 * 60  ) {
+            timeUnit = '2day';
         } else if (timeRange >= 7 * 24 * 60 * 60 ) {
-            timeUnit = 'day';
+            timeUnit = '12hour';
+        } else if (timeRange >= 2 * 24 * 60 * 60 ) {
+            timeUnit = '6hour';
         } else if (timeRange >= 24 * 60 * 60 ) {
-            timeUnit = 'hour';
+            timeUnit = '3hour';
+        } else if (timeRange >= 12 * 60 * 60 ) {
+            timeUnit = '30minute';
         } else if (timeRange >= 3 * 60 * 60 ) {
             timeUnit = '15minute';
-        } else if (timeRange >= 1 * 60 * 60 ) {
+        } else if (timeRange >= 30 * 60 ) {
             timeUnit = '5minute';
         }  else {
             timeUnit = 'minute';
@@ -1430,7 +1495,7 @@ async function convertDataForChart(data) {
             seriesArray.push(series);
         }
     }
-
+console.log(timeUnit);
     return seriesArray;
 }
 
@@ -1652,6 +1717,8 @@ async function getFunctions() {
 }
 
 async function refreshMetricsGraphs(){
+    dayCnt7=0;
+    dayCnt2=0;
     const newMetricNames = await getMetricNames();
     newMetricNames.metricNames.sort();
   
