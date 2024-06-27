@@ -98,9 +98,13 @@ func createContactPoint(host string, webhookUrl string) error {
 
 	data, _ := json.Marshal(contact)
 
-	_, err := sendHttpRequest("POST", url, data)
+	resp, err := sendHttpRequest("POST", url, data)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-	return err
+	return nil
 }
 
 func getAllContactPoints(host string) ([]*alertutils.Contact, error) {
@@ -168,9 +172,13 @@ func createAlert(host string, alertTypeString string, contactId string) error {
 		return fmt.Errorf("error marshalling alert: %v", err)
 	}
 
-	_, err = sendHttpRequest("POST", url, data)
+	resp, err := sendHttpRequest("POST", url, data)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-	return err
+	return nil
 }
 
 func getAllAlerts(host string) ([]*alertutils.AlertDetails, error) {
@@ -217,9 +225,13 @@ func deleteAlert(host string, alertId string) error {
 
 	data, _ := json.Marshal(dataBody)
 
-	_, err := sendHttpRequest("DELETE", url, data)
+	resp, err := sendHttpRequest("DELETE", url, data)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-	return err
+	return nil
 }
 
 func deleteContactPoint(host string, contactId string) error {
@@ -231,9 +243,13 @@ func deleteContactPoint(host string, contactId string) error {
 
 	data, _ := json.Marshal(dataBody)
 
-	_, err := sendHttpRequest("DELETE", url, data)
+	resp, err := sendHttpRequest("DELETE", url, data)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-	return err
+	return nil
 }
 
 func verifyAlertLogsQuery(alert *alertutils.AlertDetails) error {
