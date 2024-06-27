@@ -1343,7 +1343,10 @@ async function convertDataForChart(data) {
     let seriesArray = [];
 
     if (data.hasOwnProperty('series') && data.hasOwnProperty('timestamps') && data.hasOwnProperty('values')) {
-        const timeRange =Math.floor( Date.now()/ 1000) - data.startTime;
+        
+        let chartStartTime = data.startTime;
+        let chartEndTime = Math.floor( Date.now()/ 1000);
+        const timeRange =chartEndTime - chartStartTime;
         // // Determine the best time unit based on the time range
         if (timeRange > 365 * 24 * 60 * 60  ) {
             timeUnit = 'month';
@@ -1372,6 +1375,32 @@ async function convertDataForChart(data) {
                 values: {}
             };
 
+            let calculatedInterval = data.intervalSec;
+            let oneDayInMilliseconds = 24 * 60 * 60  ;
+            switch(calculatedInterval){
+                case calculatedInterval >= 28800:
+                    chartStartTime = chartStartTime - oneDayInMilliseconds;
+                    chartEndTime = chartEndTime + oneDayInMilliseconds;
+                    break;
+                case calculatedInterval >= 1200:
+                    chartStartTime = chartStartTime - oneDayInMilliseconds;
+                    break;
+                case calculatedInterval >= 300:
+                    chartStartTime = chartStartTime - (60 * 60);
+                    break;
+                case calculatedInterval >= 120:
+                    chartStartTime = chartStartTime - (30 * 60);
+                    break
+                case calculatedInterval >= 60:
+                    chartStartTime = chartStartTime - (15 * 60);
+                    break
+                case calculatedInterval >= 10:
+                    chartStartTime = chartStartTime - (5 * 60);
+                    break
+                default:
+                    chartStartTime = chartStartTime - (1 * 60)
+                    chartEndTime = chartEndTime + (1 * 60)
+            }
             for (let j = 0; j < data.timestamps.length; j++) {
                 // Convert epoch seconds to milliseconds by multiplying by 1000
                 let timestampInMilliseconds = data.timestamps[j] * 1000;
@@ -1380,7 +1409,15 @@ async function convertDataForChart(data) {
 
                 series.values[formattedDate] = data.values[i][j];
             }
-
+            while (chartStartTime <= chartEndTime) {
+                let timestampInMilliseconds = chartStartTime * 1000;
+                let localDate = moment(timestampInMilliseconds);
+                const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
+                if(series.values[formattedDate] === undefined){
+                    series.values[formattedDate] = null;
+                }
+                chartStartTime = chartStartTime + calculatedInterval
+            }
             seriesArray.push(series);
         }
     }

@@ -659,54 +659,6 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 			allTimestamps[ts] = struct{}{}
 		}
 	}
-	//add timestamps where metrics value is null
-	t := time.Unix(int64(startTime), 0).UTC()
-	switch {
-	case calculatedInterval >= 28800:
-		truncatedStart := t.Truncate(24 * time.Hour)
-		truncatedStart = truncatedStart.Add(-24 * time.Hour)
-		roundedDownEpochTimeStart := truncatedStart.Unix()
-		startTime = uint32(roundedDownEpochTimeStart)
-		et := time.Unix(int64(endTime), 0).UTC()
-		truncatedEnd := et.Truncate(24 * time.Hour)
-		truncatedEnd = truncatedEnd.Add(24 * time.Hour)
-		roundedDownEpochTimeEnd := truncatedEnd.Unix()
-		endTime = uint32(roundedDownEpochTimeEnd)
-	case calculatedInterval >= 1200:
-		truncated := t.Truncate(24 * time.Hour)
-		truncated = truncated.Add(-24 * time.Hour)
-		roundedDownEpochTime := truncated.Unix()
-		startTime = uint32(roundedDownEpochTime)
-	case calculatedInterval >= 300:
-		truncated := t.Truncate(time.Hour)
-		truncated = truncated.Add(-1 * time.Hour)
-		roundedDownEpochTime := truncated.Unix()
-		startTime = uint32(roundedDownEpochTime)
-	case calculatedInterval >= 120:
-		truncated := t.Truncate(time.Minute)
-		truncated = truncated.Add(-30 * time.Minute)
-		roundedDownEpochTime := truncated.Unix()
-		startTime = uint32(roundedDownEpochTime)
-	case calculatedInterval >= 60:
-		truncated := t.Truncate(time.Minute)
-		truncated = truncated.Add(-15 * time.Minute)
-		roundedDownEpochTime := truncated.Unix()
-		startTime = uint32(roundedDownEpochTime)
-	case calculatedInterval >= 10:
-		truncated := t.Truncate(time.Minute)
-		truncated = truncated.Add(-5 * time.Minute)
-		roundedDownEpochTime := truncated.Unix()
-		startTime = uint32(roundedDownEpochTime)
-	default:
-		truncated := t.Truncate(time.Minute)
-		truncated = truncated.Add(-1 * time.Minute)
-		roundedDownEpochTime := truncated.Unix()
-		startTime = uint32(roundedDownEpochTime)
-	}
-	for startTime <= endTime {
-		allTimestamps[startTime] = struct{}{}
-		startTime = startTime + calculatedInterval
-	}
 
 	// Convert the map of unique timestamps into a sorted slice.
 	httpResp.Timestamps = make([]uint32, 0, len(allTimestamps))
