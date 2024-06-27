@@ -913,62 +913,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                         display: false
                     },
                     ticks: { color: tickColor,
-                        callback: function(value, index, ticks) {
-                            const date = new Date(value);
-                            const previousTick = index > 0 ? new Date(ticks[index - 1].value) : null;
-
-                            let isDifferentDay = previousTick && date.getDate() !== previousTick.getDate();
-                            if (timeUnit === 'month') {
-                                return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
-                            }else if (timeUnit === '7day') {
-                                if (isDifferentDay) dayCnt7+=1;
-                                if (dayCnt7 === 7){
-                                    console.log(dayCnt7,date)
-                                    dayCnt7 = 0;
-                                    return  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-                                }
-                                return null;
-                            }else if (timeUnit === '2day') {
-                                if (isDifferentDay) dayCnt2+=1;
-                                if (dayCnt2 === 2 ){
-                                    dayCnt2 = 0;
-                                    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-                                }
-                                return null;
-                            }else if (timeUnit === '12hour') {
-                                if (date.getHours() % 12 === 0 ){
-                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                                }
-                                return null;
-                            }else if (timeUnit === '6hour') {
-                                if (date.getHours() % 6 === 0){
-                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                                }
-                                return null;
-                            }else if (timeUnit === '3hour') {
-                                if (date.getHours() % 3 === 0){
-                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                                }
-                                return null;
-                            }else if (timeUnit === '30minute') {
-                                if (date.getMinutes() % 30 ===0 || date.getMinutes() === 0){
-                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                                }
-                                return null;
-                            }else if (timeUnit === '15minute') {
-                                if (date.getMinutes() % 15 ===0 || date.getMinutes() === 0){
-                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                                }
-                                return null;
-                            }else if (timeUnit === '5minute') {
-                                if (date.getMinutes() % 5 ===0 || date.getMinutes() === 0){
-                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                                }
-                                return null;
-                            }else {
-                                return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                            }
-                        },
+                        callback: xaxisFomatter,
                         autoSkip: false,
                         major: {
                             enabled: true,
@@ -1352,62 +1297,7 @@ function mergeGraphs(chartType) {
                         display: false
                     },
                     ticks: { color: tickColor,
-                        callback: function(value, index, ticks) {
-                            const date = new Date(value);
-                            const previousTick = index > 0 ? new Date(ticks[index - 1].value) : null;
-
-                            let isDifferentDay = previousTick && date.getDate() !== previousTick.getDate();
-                            if (timeUnit === 'month') {
-                                return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
-                            }else if (timeUnit === '7day') {
-                                if (isDifferentDay) dayCnt7+=1;
-                                if (dayCnt7 === 7){
-                                    console.log(dayCnt7,date)
-                                    dayCnt7 = 0;
-                                    return  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-                                }
-                                return null;
-                            }else if (timeUnit === '2day') {
-                                if (isDifferentDay) dayCnt2+=1;
-                                if (dayCnt2 === 2 ){
-                                    dayCnt2 = 0;
-                                    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-                                }
-                                return null;
-                            }else if (timeUnit === '12hour') {
-                                if (date.getHours() % 12 === 0 ){
-                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                                }
-                                return null;
-                            }else if (timeUnit === '6hour') {
-                                if (date.getHours() % 6 === 0){
-                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                                }
-                                return null;
-                            }else if (timeUnit === '3hour') {
-                                if (date.getHours() % 3 === 0){
-                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                                }
-                                return null;
-                            }else if (timeUnit === '30minute') {
-                                if (date.getMinutes() % 30 ===0 || date.getMinutes() === 0){
-                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                                }
-                                return null;
-                            }else if (timeUnit === '15minute') {
-                                if (date.getMinutes() % 15 ===0 || date.getMinutes() === 0){
-                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                                }
-                                return null;
-                            }else if (timeUnit === '5minute') {
-                                if (date.getMinutes() % 5 ===0 || date.getMinutes() === 0){
-                                    return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                                }
-                                return null;
-                            }else {
-                                return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
-                            }
-                        },
+                        callback: xaxisFomatter,
                         autoSkip: false,
                         major: {
                             enabled: true,
@@ -1495,7 +1385,7 @@ async function convertDataForChart(data) {
             seriesArray.push(series);
         }
     }
-console.log(timeUnit);
+
     return seriesArray;
 }
 
@@ -1949,5 +1839,61 @@ function addValue(queryElement, value) {
     } else {
         valueContainer.removeAttr('placeholder');
         valueContainer.css('width', '5px');
+    }
+}
+
+function xaxisFomatter(value, index, ticks) {
+    const date = new Date(value);
+    const previousTick = index > 0 ? new Date(ticks[index - 1].value) : null;
+
+    let isDifferentDay = previousTick && date.getDate() !== previousTick.getDate();
+    if (timeUnit === 'month') {
+        return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
+    }else if (timeUnit === '7day') {
+        if (isDifferentDay) dayCnt7+=1;
+        if (dayCnt7 === 7){
+            dayCnt7 = 0;
+            return  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        }
+        return null;
+    }else if (timeUnit === '2day') {
+        if (isDifferentDay) dayCnt2+=1;
+        if (dayCnt2 === 2 ){
+            dayCnt2 = 0;
+            return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        }
+        return null;
+    }else if (timeUnit === '12hour') {
+        if (date.getHours() % 12 === 0 ){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '6hour') {
+        if (date.getHours() % 6 === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '3hour') {
+        if (date.getHours() % 3 === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '30minute') {
+        if (date.getMinutes() % 30 ===0 || date.getMinutes() === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '15minute') {
+        if (date.getMinutes() % 15 ===0 || date.getMinutes() === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '5minute') {
+        if (date.getMinutes() % 5 ===0 || date.getMinutes() === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else {
+        return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
     }
 }
