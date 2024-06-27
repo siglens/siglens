@@ -8204,7 +8204,7 @@ func Test_Head1(t *testing.T) {
 
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
-	assert.Equal(t, uint64(10), aggregator.OutputTransforms.HeadRequest.MaxRows, )
+	assert.Equal(t, uint64(10), aggregator.OutputTransforms.HeadRequest.MaxRows)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Null)
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Keeplast)
@@ -8325,7 +8325,7 @@ func Test_Head9(t *testing.T) {
 	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.MaxRows)
-	assert.Equal(t,  uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
+	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.Null)
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.Keeplast)
 
@@ -8456,7 +8456,7 @@ func Test_Head13(t *testing.T) {
 }
 
 func Test_Head14(t *testing.T) {
-	query := []byte(`A=1 | head limit=3 isnull(a) null=true`)
+	query := []byte(`A=1 | head limit=3 isnull(col) null=true`)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -8472,13 +8472,13 @@ func Test_Head14(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest)
 	assert.Equal(t, uint64(3), aggregator.OutputTransforms.HeadRequest.MaxRows)
 	assert.Equal(t, uint64(0), aggregator.OutputTransforms.HeadRequest.RowsAdded)
-	assert.Equal(t, aggregator.OutputTransforms.HeadRequest.Null, false)
-	assert.Equal(t, aggregator.OutputTransforms.HeadRequest.Keeplast, true)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.Null)
+	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Keeplast)
 
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr)
-	assert.Equal(t, "a", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.Value)
+	assert.Equal(t, "col", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.Value)
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.IsTerminal)
 	assert.Equal(t, "isnull", aggregator.OutputTransforms.HeadRequest.BoolExpr.ValueOp)
 	assert.Nil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue)
@@ -8556,9 +8556,8 @@ func Test_Head15(t *testing.T) {
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightBool.RightBool.RightValue.NumericExpr.IsTerminal)
 }
 
-
 func Test_Head16(t *testing.T) {
-	query := []byte(`A=1 | head a=1 OR isbool(b) keeplast=true`)
+	query := []byte(`A=1 | head col="abc" OR isbool(mycol) keeplast=true`)
 	res, err := spl.Parse("", query)
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -8586,22 +8585,19 @@ func Test_Head16(t *testing.T) {
 
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftBool.LeftValue)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftBool.LeftValue.NumericExpr)
-	assert.Equal(t, "a", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftBool.LeftValue.NumericExpr.Value)
+	assert.Equal(t, "col", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftBool.LeftValue.NumericExpr.Value)
 	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftBool.LeftValue.NumericExpr.IsTerminal)
 
 	assert.Equal(t, "=", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftBool.ValueOp)
 
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftBool.RightValue)
-	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftBool.RightValue.NumericExpr)
-	assert.Equal(t, "1", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftBool.RightValue.NumericExpr.Value)
-	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftBool.RightValue.NumericExpr.IsTerminal)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftBool.RightValue.StringExpr)
+	assert.Equal(t, "abc", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftBool.RightValue.StringExpr.RawString)
 
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightBool)
 	assert.NotNil(t, "isbool", aggregator.OutputTransforms.HeadRequest.BoolExpr.RightBool.ValueOp)
 
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightBool.LeftValue)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightBool.LeftValue.NumericExpr)
-	assert.Equal(t, "b", aggregator.OutputTransforms.HeadRequest.BoolExpr.RightBool.LeftValue.NumericExpr.Value)
-	
-
+	assert.Equal(t, "mycol", aggregator.OutputTransforms.HeadRequest.BoolExpr.RightBool.LeftValue.NumericExpr.Value)
 }
