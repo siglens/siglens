@@ -1968,7 +1968,19 @@ div.dts div.dataTables_scrollBody table {
   opacity: .75;
   z-index: 1;
 }
+.rule-name-error{
+    color: #6449D6;
+    visibility: hidden;
+    font-size: 13px;
+    margin-bottom: 6px;
 
+}
+.rule-name-error.active{
+    visibility: visible;
+    color: #6449D6;
+    font-size: 13px;
+    margin-bottom: 20px;
+}
 .popupContent,.delete-dialog {
     background-color: var(--ui-widget-bg-color);
     border-radius: 8px;
@@ -5403,22 +5415,16 @@ input.form-control {
 .tippy-box[data-placement^='right'] > .tippy-arrow::before {
     border-right-color:var(--side-nav-bg-color-regular);
 }
-
-.border-danger {
-    border: 2px solid red !important; /* Adjust border style as needed */
-    background-color: rgb(252, 234, 234) !important;
-}
 .addrulepopupOverlay {
+    visibility: hidden;
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5); /* semi-transparent black background */
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
+    background-color: var(--ui-widget-overlay-bg-color);
+    opacity: .75;
+    z-index: 1;
   }
 
   .addrulepopupContent {
@@ -5428,23 +5434,33 @@ input.form-control {
     padding: 25px;
     position: absolute;
     top:32%;
-    left:35%;    color: var(--text-color);
+    left:35%;
+    visibility: hidden;
+    color: var(--text-color);
     font-size: 1em;
     height: fit-content;
     width: 464px !important;
     z-index: 10;
   }
+  .addrulepopupOverlay.active ,.addrulepopupContent.active{
+    visibility: visible;
+    position: fixed;
+    overflow: hidden;
+  }
   .addrulepopupContent .header{
     font-size: 18px;
     text-align: left;
     font-family: 'DINpro';
-    font-weight: 600;
     border-radius: 10px;
     color: var(--text-color);
-    margin-bottom: 8%;
     font-weight: bold;
     font-size: 18px;
 
+  }
+  .addrulepopupContent input{
+    background: var(--ui-widget-bg-color);
+    color: var(--text-color);
+    margin-top: 1%;
   }
   .addrulepopupContent .popupcont{    
     display: flex;
@@ -5457,10 +5473,10 @@ input.form-control {
   #addrule-cancel-btn {
     background: var(--component-bg-color);
     color: var(--component-text-color);
-    margin-right: 10px;
+    width: 195px !important;
+    height: 32px !important;
     border: none;
     padding: 2%;
-    width:100px;
     border-radius: 5px;
 }
 
@@ -5478,9 +5494,11 @@ input.form-control {
     font-size: 16px; /* Adjust font size as needed */
     cursor: pointer;
     text-align: center;
-    width:100px;
+    width: 195px !important;
+    height: 32px !important;
     gap:5px;
     text-decoration: none;
+    margin-left: 20px;
     border-radius: 4px; /* Rounded corners */
     transition: background-color 0.3s ease;
 }
@@ -5495,13 +5513,12 @@ input.form-control {
     margin-right: 8px; /* Adjust margin as needed */
 }
 
-  .btncontainer{
+.btncontainer{
     display:flex;
     flex-direction:row;
-    justify-content:right;
-    align-content:right;
-    padding-top: 7%;
-  }
+    justify-content: center;
+    align-items: center;
+}
 
 
 

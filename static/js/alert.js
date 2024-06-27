@@ -64,51 +64,16 @@ let mapIndexToAlertState=new Map([
 
 const alertForm =$('#alert-form');
 
+$(document).ready(async function () {
 
-$(document).ready(function () {
-    $('#evaluate-every').tooltip({
-        title: 'How often the alert will be evaluated to see if it fires',
-        placement: 'top',
-        trigger: 'manual'
-    });
-    const urlParams = new URLSearchParams(window.location.search);
-    $("#alert-rule-name").val(urlParams.get('alertRule_name'));
-    $('#evaluate-for').tooltip({
-        title: 'Evaluate for interval must be greater than evaluation interval',
-        placement: 'top',
-        trigger: 'manual' 
-    });
-    let evaluateForValue = 0;
-    $('#evaluate-for').on('input', function () {
-        let evaluateEveryValue = parseInt($('#evaluate-every').val());
-        evaluateForValue = parseInt($(this).val());
-        let submitbtn=$("#save-alert-btn");
-
-        if (evaluateForValue >= evaluateEveryValue) {
-            $(this).addClass('border-danger'); // Add red border
-            $(this).attr('title', 'Evaluate for interval must be greater than evaluation interval');
-            $(this).tooltip('show'); // Show tooltip
-            submitbtn.prop('disabled',true);
-        } else {
-            $(this).removeClass('border-danger'); // Remove red border
-            $(this).tooltip('hide'); // Hide tooltip
-            submitbtn.prop('disabled',false);
-        }
-    });
-    $('#evaluate-for').on('change', function () {
-        let evaluateEveryValue = parseInt($('#evaluate-every').val());
-        let evaluateForValue = parseInt($(this).val());
-        if (evaluateForValue >= evaluateEveryValue) { 
-            $(this).tooltip('dispose');
-        }
-    });
     $('.theme-btn').on('click', themePickerHandler);
     $("#logs-language-btn").show();
     let startTime = "now-30m";
     let endTime = "now";
     datePickerHandler(startTime, endTime, startTime);
     setupEventHandlers();
-
+    const urlParams = new URLSearchParams(window.location.search);
+    $("#alert-rule-name").val(urlParams.get('alertRule_name'));
     $('.alert-condition-options li').on('click', setAlertConditionHandler);
     $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
     $('#logs-language-options li').on('click', setLogsLangHandler);
@@ -535,4 +500,3 @@ function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch){
     $(`.ranges .inner-range #${startEpoch}`).addClass('active');
     datePickerHandler(startEpoch, endEpoch , startEpoch)
 }
-
