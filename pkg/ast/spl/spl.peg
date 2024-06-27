@@ -2656,9 +2656,9 @@ HeadOptionList <- first: HeadOption rest: (SPACE HeadOption)* {
 
     isBoolExpr, _ := mapOption["boolexpr"]
 
-    for k, _ := range mapOption {
-        if k != "limit" && !isBoolExpr {
-            return nil, fmt.Errorf("Invalid Syntax %v can only be present with condition expression", k)
+    for option, exist := range mapOption {
+        if (option != "limit" && exist) && !isBoolExpr {
+            return nil, fmt.Errorf("Invalid Syntax %v can only be present with condition expression", option)
         }
     }
 
