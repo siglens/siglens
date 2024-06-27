@@ -16,7 +16,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 'use strict';
 
 let alertData = {};
@@ -33,37 +32,63 @@ let messageTemplateInfo =
 '\n' + inDoubleBrackets('condition') +
 '\n' + inDoubleBrackets('queryLanguage') + '"></i>';
 let messageInputBox = document.getElementById("message-info");
-if(messageInputBox)
+if (messageInputBox)
     messageInputBox.innerHTML += messageTemplateInfo;
 
-// If there's double brackets next to each other, the templating system will
-// try to replace what's inside the brackets with a value. We don't want that
-// in this case.
 function inDoubleBrackets(str) {
     return "{" + "{" + str + "}" + "}";
 }
 
-let mapConditionTypeToIndex =new Map([
-    ["Is above",0],
-    ["Is below",1],
-    ["Equal to",2],
-    ["Not equal to",3]
+let mapConditionTypeToIndex = new Map([
+    ["Is above", 0],
+    ["Is below", 1],
+    ["Equal to", 2],
+    ["Not equal to", 3]
 ]);
 
-let mapIndexToConditionType =new Map([
-    [0,"Is above"],
-    [1,"Is below"],
-    [2,"Equal to"],
-    [3,"Not equal to"]
+let mapIndexToConditionType = new Map([
+    [0, "Is above"],
+    [1, "Is below"],
+    [2, "Equal to"],
+    [3, "Not equal to"]
 ]);
 
-let mapIndexToAlertState=new Map([
-    [0,"Normal"],
-    [1,"Pending"],
-    [2,"Firing"],
+let mapIndexToAlertState = new Map([
+    [0, "Normal"],
+    [1, "Pending"],
+    [2, "Firing"],
 ]);
 
-const alertForm =$('#alert-form');
+const alertForm = $('#alert-form');
+
+const propertiesGridOptions = {
+    columnDefs: [
+        { headerName: "Config Variable Name", field: "name", sortable: true, filter: true },
+        { headerName: "Config Variable Value", field: "value", sortable: true, filter: true }
+    ],
+    defaultColDef: {
+        resizable: true,
+        flex: 1,
+        minWidth: 150
+    },
+    rowData: [],
+    domLayout: 'autoHeight'
+};
+
+const historyGridOptions = {
+    columnDefs: [
+        { headerName: "Timestamp", field: "timestamp", sortable: true, filter: true },
+        { headerName: "Action", field: "action", sortable: true, filter: true },
+        { headerName: "State", field: "state", sortable: true, filter: true }
+    ],
+    defaultColDef: {
+        resizable: true,
+        flex: 1,
+        minWidth: 150
+    },
+    rowData: [],
+    domLayout: 'autoHeight'
+};
 
 $(document).ready(async function () {
 
@@ -107,13 +132,23 @@ $(document).ready(async function () {
     const tooltipIds = ["info-icon-spl", "info-icon-msg", "info-evaluate-every", "info-evaluate-for"];
 
     tooltipIds.forEach(id => {
-        $(`#${id}`).tooltip({
-            delay: { show: 0, hide: 300 },
-            trigger: "click"
-        }).on("click", function () {
-            $(`#${id}`).tooltip("show");
-        });
+        if ($(`#${id}`).length) {
+            $(`#${id}`).tooltip({
+                delay: { show: 0, hide: 300 },
+                trigger: "click"
+            }).on("click", function () {
+                $(`#${id}`).tooltip("show");
+            });
+        }
     });
+
+     // Initialize ag-Grid only if the elements exist
+     if ($('#properties-grid').length) {
+        new agGrid.Grid(document.querySelector('#properties-grid'), propertiesGridOptions);
+    }
+    if ($('#history-grid').length) {
+        new agGrid.Grid(document.querySelector('#history-grid'), historyGridOptions);
+    }
 
     $(document).mouseup(function (e) {
         if ($(e.target).closest(".tooltip-inner").length === 0) {
@@ -123,6 +158,8 @@ $(document).ready(async function () {
     await getAlertId();
     if(window.location.href.includes("alert-details.html")){
         alertDetailsFunctions();
+        fetchAlertProperties();
+        displayHistoryData();
     }
    
 
@@ -167,7 +204,7 @@ async function getAlertId() {
         const searchText = urlParams.get('searchText');
         const startEpoch = urlParams.get('startEpoch');
         const endEpoch = urlParams.get('endEpoch');
-    
+
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
     }
 
@@ -187,10 +224,11 @@ async function editAlert(alertId){
         dataType: 'json',
         crossDomain: true,
     })
-    if(window.location.href.includes("alert-details.html")){
+    if (window.location.href.includes("alert-details.html")) {
         displayAlertProperties(res.alert)
         return false
-    }else{
+    } else {
+        alertEditFlag = true;
         displayAlert(res.alert);
         return true
     }
@@ -202,11 +240,10 @@ function setAlertConditionHandler(e) {
     $('.alert-condition-option').removeClass('active');
     $('#alert-condition span').html($(this).html());
     $(this).addClass('active');
-    let optionId = $(this).attr('id');  
+    let optionId = $(this).attr('id');
 }
 
 function contactPointsDropdownHandler() {
-    //get all contact points 
     $.ajax({
         method: "get",
         url: "api/alerts/allContacts",
@@ -217,17 +254,19 @@ function contactPointsDropdownHandler() {
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        if (res.contacts) {
-        let dropdown = $('.contact-points-options');
-        
-        res.contacts.forEach((cp) => {
-            if (!$(`.contact-points-option:contains(${cp.contact_name})`).length) {
-                dropdown.append(`<li class="contact-points-option" id="${cp.contact_id}">${cp.contact_name}</li>`);
-            }
-        });
-    }
-})}
-
+        if (res.contacts && Array.isArray(res.contacts)) {
+            let dropdown = $('.contact-points-options');
+            
+            res.contacts.forEach((cp) => {
+                if (cp && cp.contact_name && !$(`.contact-points-option:contains(${cp.contact_name})`).length) {
+                    dropdown.append(`<li class="contact-points-option" id="${cp.contact_id}">${cp.contact_name}</li>`);
+                }
+            });
+        }
+    }).catch(function (error) {
+        console.error('Error fetching contacts:', error);
+    });    
+}
 
 $('.contact-points-options').on('click', 'li', function () {
     $('.contact-points-option').removeClass('active');
@@ -247,16 +286,38 @@ $(document).keyup(function(e) {
     }
 });
 
+const propertiesBtn = document.getElementById('properties-btn');
+const historyBtn = document.getElementById('history-btn');
 
+if (propertiesBtn) {
+    propertiesBtn.addEventListener('click', function() {
+        document.getElementById('properties-grid').style.display = 'block';
+        document.getElementById('history-grid').style.display = 'none';
+        document.getElementById('history-search-container').style.display = 'none';
+        propertiesBtn.classList.add('active');
+        historyBtn.classList.remove('active');
+        fetchAlertProperties();
+    });
+}
 
-//create new alert rule
-function submitAddAlertForm(e){
+if (historyBtn) {
+    historyBtn.addEventListener('click', function() {
+        document.getElementById('properties-grid').style.display = 'none';
+        document.getElementById('history-grid').style.display = 'block';
+        document.getElementById('history-search-container').style.display = 'block';
+        historyBtn.classList.add('active');
+        propertiesBtn.classList.remove('active');
+        displayHistoryData();
+    });
+}
+
+function submitAddAlertForm(e) {
     e.preventDefault();
     setAlertRule();
     alertEditFlag ? updateAlertRule(alertData) : createNewAlertRule(alertData);
 }
 
-function setAlertRule(){
+function setAlertRule() {
     let dataSource = $('#alert-data-source span').text();
     if (dataSource === "Logs") {
         alertData.alert_type = 1 ;
@@ -280,23 +341,23 @@ function setAlertRule(){
     alertData.message= $('.message').val() ;
     alertData.value = parseFloat($('#threshold-value').val());
     alertData.message = $(".message").val();
-    alertData.labels =[]
-    
+    alertData.labels = []
+
     $('.label-container').each(function() {
-      let labelName = $(this).find('#label-key').val();
-      let labelVal = $(this).find('#label-value').val();
+        let labelName = $(this).find('#label-key').val();
+        let labelVal = $(this).find('#label-value').val();
         if (labelName && labelVal) {
-            let labelEntry  = {
+            let labelEntry = {
                 label_name: labelName,
                 label_value: labelVal
-              };
-              alertData.labels.push(labelEntry);
+            };
+            alertData.labels.push(labelEntry);
         }
     })
 
 }
 
-function createNewAlertRule(alertData){
+function createNewAlertRule(alertData) {
     if (!alertData.alert_type) {
         alertData.alert_type = 1;
     }
@@ -310,7 +371,7 @@ function createNewAlertRule(alertData){
         data: JSON.stringify(alertData),
         dataType: 'json',
         crossDomain: true,
-    }).then((res)=>{
+    }).then((res) => {
         resetAddAlertForm();
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
@@ -336,7 +397,7 @@ function updateAlertRule(alertData){
         data: JSON.stringify(alertData),
         dataType: 'json',
         crossDomain: true,
-    }).then((res)=>{
+    }).then((res) => {
         resetAddAlertForm();
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
@@ -344,8 +405,7 @@ function updateAlertRule(alertData){
     });
 }
 
-//reset alert form
-function resetAddAlertForm(){
+function resetAddAlertForm() {
     alertForm[0].reset();
 }
 
@@ -391,7 +451,7 @@ async function displayAlert(res){
     $('#evaluate-every').val(res.eval_interval);
     $('#evaluate-for').val(res.eval_for);
     $('.message').val(res.message);
-    if(alertEditFlag){
+    if (alertEditFlag) {
         alertData.alert_id = res.alert_id;
     }
     $('#contact-points-dropdown span').html(res.contact_name);
@@ -438,6 +498,127 @@ function setDataSourceHandler(alertType) {
     }
 }
 
+$('#search-history-btn').on('click', function() {
+    performSearch();
+});
+
+$('#history-filter-input').on('keypress', function(e) {
+    if (e.which === 13) { 
+        performSearch();
+    }
+});
+
+$('#history-filter-input').on('input', function() {
+    if ($(this).val().trim() === "") {
+        displayHistoryData();
+    }
+});
+
+function performSearch() {
+    const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
+    if (searchTerm) {
+        filterHistoryData(searchTerm);
+    } else {
+        displayHistoryData();
+    }
+}
+function fetchAlertProperties() {
+    if (alertID) {
+        $.ajax({
+            method: "get",
+            url: "api/alerts/" + alertID,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': '*/*'
+            },
+            dataType: 'json',
+            crossDomain: true,
+        }).then(function (res) {
+            const propertiesData = [
+                { name: "Query", value: res.alert.queryParams.queryText },
+                { name: "Status", value: mapIndexToAlertState.get(res.alert.state) },
+                { name: "Type", value: res.alert.queryParams.data_source },
+                { name: "Query Language", value: res.alert.queryParams.queryLanguage },
+                { name: "Condition", value: mapIndexToConditionType.get(res.alert.condition) },
+                { name: "Evaluate", value: `every ${res.alert.eval_interval} minutes for ${res.alert.eval_for} minutes` },
+                { name: "Contact Point", value: res.alert.contact_name }
+            ];
+
+            res.alert.labels.forEach(label => {
+                propertiesData.push({ name: `Label: ${label.label_name}`, value: label.label_value });
+            });
+
+            if (propertiesGridOptions.api) {
+                propertiesGridOptions.api.setRowData(propertiesData);
+            } else {
+                console.error("propertiesGridOptions.api is not defined");
+            }
+        });
+    }
+}
+
+function displayHistoryData() {
+    if (alertID) {
+        $.ajax({
+            method: "get",
+            url: `api/alerts/${alertID}/history`,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': '*/*'
+            },
+            dataType: 'json',
+            crossDomain: true,
+        }).then(function (res) {
+            const historyData = res.alertHistory.map(item => ({
+                timestamp: new Date(item.event_triggered_at).toLocaleString(),
+                action: item.event_description,
+                state: mapIndexToAlertState.get(item.alert_state)
+            }));
+
+            if (historyGridOptions.api) {
+                historyGridOptions.api.setRowData(historyData);
+            } else {
+                console.error("historyGridOptions.api is not defined");
+            }
+        }).catch(function (err) {
+            console.error('Error fetching alert history:', err);
+        });
+    }
+}
+
+
+function filterHistoryData(searchTerm) {
+    if (alertID) {
+        $.ajax({
+            method: "get",
+            url: `api/alerts/${alertID}/history`,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Accept': '*/*'
+            },
+            dataType: 'json',
+            crossDomain: true,
+        }).then(function (res) {
+            const filteredData = res.alertHistory.filter(item => {
+                const description = item.event_description.toLowerCase();
+                const state = mapIndexToAlertState.get(item.alert_state).toLowerCase();
+                return description.includes(searchTerm) || state.includes(searchTerm);
+            }).map(item => ({
+                timestamp: new Date(item.event_triggered_at).toLocaleString(),
+                action: item.event_description,
+                state: mapIndexToAlertState.get(item.alert_state)
+            }));
+
+            if (historyGridOptions.api) {
+                historyGridOptions.api.setRowData(filteredData);
+            } else {
+                console.error("historyGridOptions.api is not defined");
+            }
+        }).catch(function (err) {
+            console.error('Error fetching alert history:', err);
+        });
+    }
+}
 
 function displayQueryToolTip(selectedQueryLang) {
     $('#info-icon-pipeQL, #info-icon-spl').hide();
@@ -448,7 +629,6 @@ function displayQueryToolTip(selectedQueryLang) {
     }
 }
 
-// Display Alert Details
 function displayAlertProperties(res) {
     const queryParams = res.queryParams;
     $('.alert-name').text(res.alert_name);
@@ -482,14 +662,12 @@ $(".add-label-container").on("click", function () {
     $(".label-main-container").append(newLabelContainer);
 });
 
-// Delete Label
-$(".label-main-container").on("click", ".delete-icon", function () {
+$(".label-main-container").on("click", ".delete-icon", function() {
     $(this).closest(".label-container").remove();
 });
 
-//On Alert Details Page 
-function alertDetailsFunctions(){
-    function editAlert(event){        
+function alertDetailsFunctions() {
+    function editAlert(event) {
         var queryString = "?id=" + alertID;
         window.location.href = "../alert.html" + queryString;
         event.stopPropagation();
@@ -507,7 +685,7 @@ function alertDetailsFunctions(){
                 alert_id: alertID
             }),
             crossDomain: true,
-        }).then(function (res) {
+        }).then(function(res) {
             showToast(res.message)
             window.location.href='../all-alerts.html';
         }).catch((err)=>{
@@ -519,23 +697,22 @@ function alertDetailsFunctions(){
         event.stopPropagation();
         $('.popupOverlay, .popupContent').addClass('active');
 
-        $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {
+        $('#cancel-btn, .popupOverlay, #delete-btn').click(function() {
             $('.popupOverlay, .popupContent').removeClass('active');
         });
         $('#delete-btn').click(deleteAlert)
     }
 
-    $('#edit-alert-btn').on('click',editAlert)
-    $('#delete-alert').on('click',showPrompt)
-    $('#cancel-alert-details').on('click',function(){
-        window.location.href='../all-alerts.html';
+    $('#edit-alert-btn').on('click', editAlert)
+    $('#delete-alert').on('click', showPrompt)
+    $('#cancel-alert-details').on('click', function() {
+        window.location.href = '../all-alerts.html';
     })
 }
 
-//Create alert from logs
-function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch){
+function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch) {
     $('#alert-rule-name').focus();
     $('#query').val(query);
     $(`.ranges .inner-range #${startEpoch}`).addClass('active');
-    datePickerHandler(startEpoch, endEpoch , startEpoch)
+    datePickerHandler(startEpoch, endEpoch, startEpoch)
 }
