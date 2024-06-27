@@ -209,6 +209,8 @@ $(document).ready(function () {
     $(".nav-links").on("click", function (event) {
         removeActiveClass();
         $(this).closest(".menu").addClass("active");
+        $(".metrics-dropdown, .traces-dropdown, .ingestion-dropdown").slideUp(30);
+        $(".help-options").slideUp(30);
     });
 
      $(".metrics-dropdown-toggle").hover(
