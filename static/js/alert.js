@@ -82,8 +82,18 @@ $(document).ready(async function () {
             alertType = 1;
         }else {
             alertType = 2;
+            $("#save-alert-btn").on("click", function (event) {
+                if($("#select-metric-input").val===""){
+                    $("#save-alert-btn").prop("disabled", true);
+                }
+                else{
+                    $("#save-alert-btn").prop("disabled", false);
+                }
+            
+            });
         }
         setDataSourceHandler(alertType)
+        
     });
     $('#cancel-alert-btn').on('click',function(){
         window.location.href='../all-alerts.html';
@@ -112,6 +122,23 @@ $(document).ready(async function () {
     if(window.location.href.includes("alert-details.html")){
         alertDetailsFunctions();
     }
+   
+
+    // Enable the save button when a contact point is selected
+    $(".contact-points-options li").on("click", function () {
+        $("#contact-points-dropdown span").text($(this).text());
+        $("#save-alert-btn").prop("disabled", false);
+        $("#contact-point-error").hide();
+    });
+    $("#save-alert-btn").on("click", function (event) {
+        if ($("#contact-points-dropdown span").text() === "Choose" || $("#contact-points-dropdown span").text() === "Add New") {
+            event.preventDefault();
+            $("#contact-point-error").show();
+        }   
+    });
+    
+
+    
 });
 
 async function getAlertId() {
@@ -267,7 +294,7 @@ function createNewAlertRule(alertData){
         resetAddAlertForm();
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
-        showToast(err.responseJSON.error)
+        $("#metric-error").css("display","block");
     });
 }
 
@@ -390,7 +417,7 @@ function setDataSourceHandler(alertType) {
     const isLogs = alertType === 1;
     const sourceText = isLogs ? "Logs" : "Metrics";
     const $span = $('#alert-data-source span');
-
+  
     $span.html(sourceText);
     $(`.data-source-option:contains("${sourceText}")`).addClass('active');
     
