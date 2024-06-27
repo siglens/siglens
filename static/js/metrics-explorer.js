@@ -293,7 +293,7 @@ function createQueryElementTemplate(queryName) {
         <div class="query-box">
             <div class="query-name active">${queryName}</div>
             <div class="query-builder">
-                <input type="text" class="metrics" placeholder="Select a metric" id="select-metric-input">
+                <input type="text" class="metrics" placeholder="Select a metric" id="select-metric-input" >
                 <div>from</div>
                 <div class="tag-container">
                     <input type="text" class="everywhere" placeholder="(everywhere)">

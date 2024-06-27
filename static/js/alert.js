@@ -128,12 +128,12 @@ $(document).ready(async function () {
     $(".contact-points-options li").on("click", function () {
         $("#contact-points-dropdown span").text($(this).text());
         $("#save-alert-btn").prop("disabled", false);
-        $("#contact-point-error").hide();
+        $("#contact-point-error").css("visibility","hidden");
     });
     $("#save-alert-btn").on("click", function (event) {
         if ($("#contact-points-dropdown span").text() === "Choose" || $("#contact-points-dropdown span").text() === "Add New") {
             event.preventDefault();
-            $("#contact-point-error").show();
+            $("#contact-point-error").css("visibility","visible");
         }   
     });
     
@@ -294,7 +294,7 @@ function createNewAlertRule(alertData){
         resetAddAlertForm();
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
-        $("#metric-error").css("display","block");
+        $("#metric-error").css("visibility","visible");
     });
 }
 

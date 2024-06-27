@@ -5476,12 +5476,38 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 .icon {
   visibility: hidden;
 }
-#contact-point-error ,#metric-error{
-    color: #7963d8;
-    display: none;
-    font-size: 13px;
-    margin-bottom: 6px;
+.error-message ,#metric-error{
+    visibility: hidden;
+    width: fit-content;
+    color: black;
+    text-align: center;
+    border-radius: 6px;
+    padding:7px;
+    border:0.5px solid black;
+    position: relative;
+    z-index: 1;
+    bottom: 125%; /* Position above the triggering element */
+    left: 17.5%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.1);
 }
+
+.error-message::after ,#metric-error::after{
+    left: 50%;
+    margin-left: -5px;
+    border-width: 10px;
+    border-style: solid;
+    rotate: 180deg;
+    bottom:100%;
+    content: '';
+    position: absolute;
+    border-style: solid;
+    border-color: var(--purple-1) transparent transparent transparent;
+}
+  
+
+  
 
 .metric-summary-searchcontainer{
     display:flex !important;
