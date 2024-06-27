@@ -285,16 +285,21 @@ func RunMetricQueryFromFile(apiURL string, filepath string) {
 		if err != nil {
 			log.Fatalf("RunQueryFromFile: Error in unmarshaling response data: %v, Query=%v", err, query)
 		}
-
+		var actualResult []float64
 		// If the expected string is empty, then the actual retrieved string should also be empty.
 		if len(expectedValuesStr) != 0 {
-			if len(queryResponse.Values) == 0 || len(queryResponse.Values[0]) != len(expectedValuesStrs) {
+			for _, actualValue := range queryResponse.Values[0] {
+				if actualValue != 0 {
+					actualResult = append(actualResult, actualValue)
+				}
+			}
+			if len(queryResponse.Values) == 0 || len(actualResult) != len(expectedValuesStrs) {
 				log.Fatalf("RunQueryFromFile: Unexpected number of values in response: %v, ExpectedValues=%v, Query=%v", queryResponse.Values, expectedValuesStrs, query)
 			}
 		}
 
 		if len(expectedValuesStr) > 0 {
-			for i, actualValue := range queryResponse.Values[0] {
+			for i, actualValue := range actualResult {
 				isEqual, err := utils.VerifyInequality(actualValue, relation, expectedValuesStrs[i])
 				if !isEqual {
 					log.Fatalf("RunQueryFromFile: For Query=%v, Actual value: %v does not meet condition: [%s %v] at index %d", query, actualValue, relation, expectedValuesStrs[i], i)
