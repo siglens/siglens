@@ -550,7 +550,6 @@ body {
     flex-direction: column;
     justify-content: space-between;
     width: 176px !important;
-    transition: all 0.3s linear;
 }
 
 #app-side-nav .menu {
@@ -570,7 +569,7 @@ body {
     margin-right: 8px;
 }
 
-#app-side-nav .menu.active, #app-side-nav .menu:hover{
+#app-side-nav .menu.active{
     border-left: 5px solid var(--side-nav-selected-border-color);
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
@@ -3329,7 +3328,7 @@ float: right;
       font-weight: 600;
       color: var(--navbar-link-text);
       white-space: nowrap;
-      transition-delay: 0.3s;
+    
 }
 
 .nav-link-text.feedback{

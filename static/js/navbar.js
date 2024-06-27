@@ -29,7 +29,7 @@ let navbarComponent = `
                     class="nav-link-text">Logs</span></a>
         </div>
         <div class="menu nav-traces tracing-dropdown-toggle" title="Tracing" style="display:flex;flex-direction:row">
-            <a class="nav-links">
+            <a class="nav-links" href="./service-health.html">
                 <span class="icon-traces"></span>
                 <span class="nav-link-text">Tracing</span>
             </a>
@@ -40,7 +40,7 @@ let navbarComponent = `
             </ul>
          </div>
         <div class="menu nav-metrics metrics-dropdown-toggle" title="Metrics" style="display:flex;flex-direction:row">
-            <a class="nav-links">
+            <a class="nav-links" href="./metrics-explorer.html">
                 <span class="icon-metrics"></span>
                 <span class="nav-link-text">Metrics</span>
             </a>
@@ -73,7 +73,7 @@ let navbarComponent = `
                     class="nav-link-text">My Org</span></a>
         </div>
         <div class="menu nav-ingest ingestion-dropdown-toggle" title="Ingestion" style="display:flex;flex-direction:row">
-            <a class="nav-links">
+            <a class="nav-links" href="./test-data.html">
                 <span class="icon-ingest"></span>
                 <span class="nav-link-text">Ingestion</span>
             </a>
@@ -216,7 +216,7 @@ $(document).ready(function () {
             $(".metrics-dropdown").stop(true, true).slideDown(0);
         },
         function() {
-            $(".metrics-dropdown").stop(true, true).slideUp(10);
+            $(".metrics-dropdown").stop(true, true).slideUp(30);
         }
     );
 
@@ -225,7 +225,7 @@ $(document).ready(function () {
             $(".traces-dropdown").stop(true, true).slideDown(0);
         },
         function() {
-            $(".traces-dropdown").stop(true, true).slideUp(10);
+            $(".traces-dropdown").stop(true, true).slideUp(30);
         }
     );
 
@@ -234,7 +234,7 @@ $(document).ready(function () {
             $(".ingestion-dropdown").stop(true, true).slideDown(0);
         },
         function() {
-            $(".ingestion-dropdown").stop(true, true).slideUp(10);
+            $(".ingestion-dropdown").stop(true, true).slideUp(30);
         }
     );
 
@@ -247,7 +247,7 @@ $(document).ready(function () {
         function(event) {
             event.stopPropagation();
             event.preventDefault();
-            $(".help-options").stop(true, true).slideUp(10);
+            $(".help-options").stop(true, true).slideUp(30);
         }
     );
 
@@ -266,7 +266,7 @@ $(document).ready(function () {
         function(event) {
             event.stopPropagation();
             event.preventDefault();
-            $(".help-options").stop(true, true).slideUp(10);
+            $(".help-options").stop(true, true).slideUp(30);
         }
     );
 
