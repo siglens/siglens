@@ -389,10 +389,7 @@ func verifyAlertHistory(host string, alerts []*alertutils.AlertDetails) error {
 }
 
 func removeTrailingSlashes(url string) string {
-	for strings.HasSuffix(url, "/") {
-		url = strings.TrimSuffix(url, "/")
-	}
-	return url
+	return strings.TrimRight(url, "/")
 }
 
 // End to End Testing for Alerts:
@@ -408,7 +405,6 @@ func removeTrailingSlashes(url string) string {
 // Delete the Contact Points
 // Close the Webserver
 func RunAlertsTest(host string) {
-	// Remove Trailing Slashes from the Host
 	host = removeTrailingSlashes(host)
 
 	webhookChan := make(chan alertutils.WebhookBody)
