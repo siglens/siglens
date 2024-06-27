@@ -647,3 +647,65 @@ func Test_SetBucketValueForGivenField_IndexOutOfRange(t *testing.T) {
 	err := br.SetBucketValueForGivenField("groupKey2", "newKey2", 1, false)
 	assert.NotNil(t, err)
 }
+
+func Test_IsStatsAggPresentInChain(t *testing.T) {
+	tests := []struct {
+		name     string
+		qa       *QueryAggregators
+		expected bool
+	}{
+		{
+			name:     "Nil QueryAggregators",
+			qa:       nil,
+			expected: false,
+		},
+		{
+			name: "Only GroupByRequest Present",
+			qa: &QueryAggregators{
+				GroupByRequest: &GroupByRequest{},
+			},
+			expected: true,
+		},
+		{
+			name: "Only MeasureOperations Present",
+			qa: &QueryAggregators{
+				MeasureOperations: []*MeasureAggregator{
+					{MeasureCol: "col1"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name:     "Both GroupByRequest and MeasureOperations Absent",
+			qa:       &QueryAggregators{},
+			expected: false,
+		},
+		{
+			name: "Next Aggregator in the Chain",
+			qa: &QueryAggregators{
+				Next: &QueryAggregators{
+					GroupByRequest: &GroupByRequest{},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Nested Next Aggregator Chain",
+			qa: &QueryAggregators{
+				Next: &QueryAggregators{
+					Next: &QueryAggregators{
+						MeasureOperations: []*MeasureAggregator{
+							{MeasureCol: "col1"},
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		actual := tt.qa.IsStatsAggPresentInChain()
+		assert.Equal(t, tt.expected, actual, tt.name)
+	}
+}

@@ -773,8 +773,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"tojson":           {},
 	"relative_time":    {},
 	"time":             {},
-	"strftime":         {},
-	"strptime":         {},
 	"cluster":          {},
 	"getfields":        {},
 	"isnum":            {},
@@ -985,4 +983,24 @@ func (br *BucketResult) SetBucketValueForGivenField(fieldName string, value inte
 	bucketKeyList[index] = value.(string)
 
 	return nil
+}
+
+func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
+	if qa == nil {
+		return false
+	}
+
+	if qa.GroupByRequest != nil {
+		return true
+	}
+
+	if qa.MeasureOperations != nil {
+		return true
+	}
+
+	if qa.Next != nil {
+		return qa.Next.IsStatsAggPresentInChain()
+	}
+
+	return false
 }
