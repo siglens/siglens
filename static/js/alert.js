@@ -21,6 +21,7 @@
 
 let alertData = {};
 let alertID;
+let alertEditFlag = 0;
 let alertRule_name = "alertRule_name";
 let query_string = "query_string";
 let condition = "condition";
@@ -147,8 +148,9 @@ async function getAlertId() {
 
     if (urlParams.has('id')) {
         const id = urlParams.get('id');
-        await editAlert(id);
         alertID = id;
+       const editFlag = await editAlert(id);
+       alertEditFlag = editFlag;
     } else if (urlParams.has('queryLanguage')) {
         const queryLanguage = urlParams.get('queryLanguage');
         const searchText = urlParams.get('searchText');
@@ -157,10 +159,14 @@ async function getAlertId() {
     
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
     }
+
+    if(!alertEditFlag && !(window.location.href.includes("alert-details.html"))){
+        addQueryElement();
+    }
 }
 
 async function editAlert(alertId){
-    $.ajax({
+    const res = await $.ajax({
         method: "get",
         url: "api/alerts/" + alertId,
         headers: {
@@ -169,14 +175,16 @@ async function editAlert(alertId){
         },
         dataType: 'json',
         crossDomain: true,
-    }).then(function (res) {
-        if(window.location.href.includes("alert-details.html")){
-            displayAlertProperties(res.alert)
-        }else{
-            alertEditFlag = 1;
-            displayAlert(res.alert);
-        }
     })
+    if(window.location.href.includes("alert-details.html")){
+        displayAlertProperties(res.alert)
+        return false
+    }else{
+        displayAlert(res.alert);
+        return true
+    }
+
+    
 }
 
 function setAlertConditionHandler(e) {
@@ -318,7 +326,7 @@ function updateAlertRule(alertData){
         resetAddAlertForm();
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
-        showToast(err.responseJSON.error)
+        showToast(err.responseJSON.error, "error");
     });
 }
 
@@ -374,36 +382,20 @@ async function displayAlert(res){
     }
     $('#contact-points-dropdown span').html(res.contact_name);
     $('#contact-points-dropdown span').attr('id', res.contact_id);
-    
-    let isFirst = true;
+
     (res.labels).forEach(function(label){
-        let labelContainer;
-        if (isFirst) {
-            labelContainer = $('.label-container');
-            isFirst = false;
-        } else {
-            labelContainer = $('.label-container').first().clone();
-            labelContainer.append('<button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>');
-        }
+        var labelContainer = $(`
+        <div class="label-container d-flex align-items-center">
+            <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7" value="">
+            <span class="label-equal"> = </span>
+            <input type="text" id="label-value" class="form-control" placeholder="Value" value="" tabindex="8">
+            <button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>
+        </div>
+    `)
         labelContainer.find("#label-key").val(label.label_name);
         labelContainer.find("#label-value").val(label.label_value);
         labelContainer.appendTo('.label-main-container');
     })
-}
-
-function showToast(msg) {
-    let toast =
-        `<div class="div-toast" id="save-db-modal"> 
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 2000);
-}
-
-function removeToast() {
-    $('.div-toast').remove();
 }
 
 function setLogsLangHandler(e) {
@@ -465,11 +457,15 @@ function displayAlertProperties(res) {
 
 // Add Label
 $(".add-label-container").on("click", function () {
-    var labelContainer = $(".label-container").first().clone();
-    labelContainer.find("#label-key").val("");
-    labelContainer.find("#label-value").val("");
-    labelContainer.append('<button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>');
-    labelContainer.appendTo(".label-main-container");
+    var newLabelContainer = `
+        <div class="label-container d-flex align-items-center">
+            <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7" value="">
+            <span class="label-equal"> = </span>
+            <input type="text" id="label-value" class="form-control" placeholder="Value" value="" tabindex="8">
+            <button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>
+        </div>
+    `;
+    $(".label-main-container").append(newLabelContainer);
 });
 
 // Delete Label
@@ -500,6 +496,8 @@ function alertDetailsFunctions(){
         }).then(function (res) {
             showToast(res.message)
             window.location.href='../all-alerts.html';
+        }).catch((err)=>{
+            showToast(err.responseJSON.error, "error");
         });
     }
 
