@@ -490,7 +490,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -1588,7 +1588,7 @@ ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
     return conditionValuePair, nil
 }
 
-//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim, strptime
+//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim
 // mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
 TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "mvsort") L_PAREN stringExpr:StringExpr R_PAREN ){
     opNameStr, err := transferUint8ToString(opName)
@@ -1930,6 +1930,14 @@ TextExpr <- (opName:("lower" / "upper" / "urldecode" / "mvcount" / "mvdedup" / "
         ValueList: []*structs.StringExpr{regex.(*structs.StringExpr), replacement.(*structs.StringExpr)},
     }, nil
 }
+/ "strftime" L_PAREN val:ValueExpr COMMA format:StringExpr R_PAREN {
+    return &structs.TextExpr{
+        Op: "strftime",
+        Val: val.(*structs.ValueExpr),
+        Param: format.(*structs.StringExpr),
+    }, nil
+}
+
 / "strptime" L_PAREN val:ValueExpr COMMA format:StringExpr R_PAREN {
     return &structs.TextExpr{
         Op: "strptime",
@@ -2498,7 +2506,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp
 
     return node, nil
 }
-/ opName:("relative_time" / "strftime") L_PAREN expr:(NumericExprLevel3) COMMA specifier:StringExpr R_PAREN {
+/ opName:("relative_time") L_PAREN expr:(NumericExprLevel3) COMMA specifier:StringExpr R_PAREN {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: NumericExpr: %v", err)
@@ -2565,45 +2573,6 @@ HeadBlock <- PIPE CMD_HEAD ("limit" EQUAL)? intAsStr:IntegerAsString {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
             MaxRows: uint64(10), // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Head
-        },
-    }
-
-    return queryAgg, nil
-}
-
-
-// Returns *structs.QueryAggregators
-TailBlock <- PIPE CMD_TAIL intAsStr:IntegerAsString {
-    limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
-    if err != nil {
-        return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
-    }
-
-    tExpr := &structs.TailExpr{
-        TailRecords: make(map[string]map[string]interface{}, 0),
-        TailRows: limit,
-    }
-
-    queryAgg := &structs.QueryAggregators {
-        PipeCommandType: structs.OutputTransformType,
-        OutputTransforms: &structs.OutputTransforms {
-            TailRequest: tExpr,
-        },
-    }
-
-    return queryAgg, nil
-}
-/ PIPE CMD_TAIL_NO_SPACE {
-
-    tExpr := &structs.TailExpr{
-        TailRecords: make(map[string]map[string]interface{}, 0),
-        TailRows: uint64(10), // From https://docs.splunk.com/Documentation/SplunkCloud/9.1.2308/SearchReference/Tail
-    }
-
-    queryAgg := &structs.QueryAggregators {
-        PipeCommandType: structs.OutputTransformType,
-        OutputTransforms: &structs.OutputTransforms {
-            TailRequest: tExpr,
         },
     }
 
@@ -4282,7 +4251,7 @@ IndexName <- (!SPACE .)+ {
 }
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -4290,8 +4259,6 @@ CMD_FIELDS <- "fields" SPACE
 CMD_WHERE <- "where" SPACE
 CMD_HEAD_NO_SPACE <- "head"
 CMD_HEAD <- CMD_HEAD_NO_SPACE SPACE
-CMD_TAIL_NO_SPACE <- "tail"
-CMD_TAIL <- CMD_TAIL_NO_SPACE SPACE
 CMD_EVAL <- "eval" SPACE
 CMD_REX <- "rex" SPACE
 CMD_SORT <- "sort" SPACE
