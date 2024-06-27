@@ -33,6 +33,7 @@ const (
 	TMWeek
 	TMMonth
 	TMQuarter
+	TMYear
 )
 
 // Convert subseconds
