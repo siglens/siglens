@@ -5624,7 +5624,7 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
     content: '';
     position: absolute;
     border-style: solid;
-    border-color: var(--purple-1) transparent transparent transparent;
+    border-color: var(--graph-line-color-3) transparent transparent transparent;
 }
   
 
