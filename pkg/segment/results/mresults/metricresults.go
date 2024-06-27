@@ -660,18 +660,40 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 		}
 	}
 	//add timestamps where metrics value is null
-	if calculatedInterval >= 600 {
-		t := time.Unix(int64(startTime), 0).UTC()
+	t := time.Unix(int64(startTime), 0).UTC()
+	switch {
+	case calculatedInterval >= 1200:
+		truncated := t.Truncate(24 * time.Hour)
+		truncated = truncated.Add(-24 * time.Hour)
+		roundedDownEpochTime := truncated.Unix()
+		startTime = uint32(roundedDownEpochTime)
+	case calculatedInterval >= 300:
 		truncated := t.Truncate(time.Hour)
-		if t.Before(truncated) {
-			truncated = truncated.Add(time.Hour)
-		}
-		// Convert back to epoch time
+		truncated = truncated.Add(-1 * time.Hour)
+		roundedDownEpochTime := truncated.Unix()
+		startTime = uint32(roundedDownEpochTime)
+	case calculatedInterval >= 120:
+		truncated := t.Truncate(time.Minute)
+		truncated = truncated.Add(-30 * time.Minute)
+		roundedDownEpochTime := truncated.Unix()
+		startTime = uint32(roundedDownEpochTime)
+	case calculatedInterval >= 60:
+		truncated := t.Truncate(time.Minute)
+		truncated = truncated.Add(-15 * time.Minute)
+		roundedDownEpochTime := truncated.Unix()
+		startTime = uint32(roundedDownEpochTime)
+	case calculatedInterval >= 10:
+		truncated := t.Truncate(time.Minute)
+		truncated = truncated.Add(-5 * time.Minute)
+		roundedDownEpochTime := truncated.Unix()
+		startTime = uint32(roundedDownEpochTime)
+	default:
+		truncated := t.Truncate(time.Minute)
+		truncated = truncated.Add(-1 * time.Minute)
 		roundedDownEpochTime := truncated.Unix()
 		startTime = uint32(roundedDownEpochTime)
 	}
 	for startTime <= endTime {
-		// only add timestamps which are multiple of 5 minutes
 		allTimestamps[startTime] = struct{}{}
 		startTime = startTime + calculatedInterval
 	}
