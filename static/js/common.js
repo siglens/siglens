@@ -759,6 +759,29 @@ function showRetDaysUpdateToast(msg) {
     setTimeout(removeToast, 3000);
 }
 
+function showToast(msg, type = 'error') {
+    let toastTypeClass = type === 'success' ? 'toast-success' : 'toast-error';
+    let toast = `
+        <div class="${toastTypeClass}" id="message-toast"> 
+            <button type="button" aria-label="Close" class="toast-close">×</button>
+            ${msg}
+            <div class="toast-buttons">
+                <button type="button" class="toast-ok btn">OK</button>
+            </div>
+        </div>`;
+
+    $('body').prepend(toast);
+
+    if (type === 'success') {
+        setTimeout(removeToast, 5000);
+    }
+    $('.toast-close').on('click', removeToast);
+    $('.toast-ok').on('click', removeToast);
+
+    function removeToast() {
+        $('#message-toast').remove();
+    }
+}
 
 
 
