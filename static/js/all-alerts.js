@@ -78,7 +78,7 @@ function stateCellRenderer(params) {
             color = getCssVariableValue('--color-firing');
             break;
         default:
-            color = 'transparent';
+            color = getCssVariableValue('--color-inactive');
     }
     return `<div style="background-color: ${color}; padding: 5px; border-radius: 5px; color: white">${state}</div>`;
 }
