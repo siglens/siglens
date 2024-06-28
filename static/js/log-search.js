@@ -24,12 +24,67 @@ let indexValues = [];
 
 $(document).ready(async () => {
     setSaveQueriesDialog();
+    let tpt = Cookies.get('queryMode');
+    let sessionQueryMode = sessionStorage.getItem('queryMode');
+
     let indexes = await getListIndices();
     if (indexes){
         originalIndexValues = indexes.map(item => item.index);
         indexValues = [...originalIndexValues];
     }
     initializeIndexAutocomplete();
+
+    // Function to set queryMode in both session storage and cookie
+    function setQueryMode(mode) {
+        Cookies.set('queryMode', mode, { expires: 7 }); // Set queryMode cookie with 7 days expiry
+        sessionStorage.setItem('queryMode', mode); // Set queryMode in session storage
+    }
+
+    // Function to remove queryMode cookie
+    function removeQueryModeCookie() {
+        Cookies.remove('queryMode');
+    }
+
+    // Function to check and manage queryMode cookie based on URL
+    function manageQueryModeCookie() {
+        const currentUrl = window.location.pathname;
+        const searchParams = new URLSearchParams(window.location.search);
+
+        // Check if the URL has the 'filterTab' parameter
+        const hasFilterTab = searchParams.has('filterTab');
+
+        // Check if current URL path ends with index.html or is /
+        if ((currentUrl.endsWith("index.html") || currentUrl === "/") && !hasFilterTab) {
+            // Prioritize cookie value over session storage
+            let queryMode = Cookies.get('queryMode');
+            if (queryMode !== undefined) {
+                setQueryMode(queryMode);
+                console.log("QueryMode set from cookie: " + queryMode);
+            } else if (sessionQueryMode !== null) {
+                setQueryMode(sessionQueryMode);
+                console.log("QueryMode set from session storage: " + sessionQueryMode);
+            } else {
+                setQueryMode('Builder');
+                console.log("QueryMode set to default: Builder");
+            }
+        } else if (hasFilterTab) {
+            // Save the current queryMode in session storage before removing the cookie
+            let currentQueryMode = Cookies.get("queryMode");
+            if (currentQueryMode !== undefined) {
+                sessionStorage.setItem('queryMode', currentQueryMode);
+                console.log("Storing queryMode in session storage: " + currentQueryMode);
+            }
+            removeQueryModeCookie(); // Remove queryMode cookie for URLs with 'filterTab' parameter
+        }
+    }
+
+    // Call manageQueryModeCookie initially on document ready
+    manageQueryModeCookie();
+
+    // Call manageQueryModeCookie whenever the URL changes
+    $(window).on('hashchange', manageQueryModeCookie);
+    $(window).on('popstate', manageQueryModeCookie);
+
     let queryMode = Cookies.get('queryMode');
     if (queryMode !== undefined){
         if(queryMode === "Builder"){
