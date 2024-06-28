@@ -27,7 +27,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/siglens/siglens/pkg/alerts/alertutils"
+	"siglens/pkg/alerts/alertutils"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -125,7 +126,7 @@ func getAllContactPoints(host string) ([]*alertutils.Contact, error) {
 	return allContactsResp.Contacts, nil
 }
 
-func createAlert(host string, alertTypeString string, contactId string) error {
+func createAlert(host string, alertTypeString string, contactId string, alertNameSuffix int) error {
 	var alertType alertutils.AlertType
 
 	if alertTypeString == "Logs" {
@@ -136,8 +137,13 @@ func createAlert(host string, alertTypeString string, contactId string) error {
 		return fmt.Errorf("invalid alert type: %s", alertTypeString)
 	}
 
+	alertName := fmt.Sprintf("%s%s", AlertNamePrefix, alertTypeString)
+	if alertNameSuffix > 0 {
+		alertName = fmt.Sprintf("%s_%d", alertName, alertNameSuffix)
+	}
+
 	alert := &alertutils.AlertDetails{
-		AlertName: fmt.Sprintf("%s%s", AlertNamePrefix, alertTypeString),
+		AlertName: alertName,
 		AlertType: alertType,
 		Labels: []alertutils.AlertLabel{
 			{
@@ -480,7 +486,7 @@ func RunAlertsTest(host string) {
 	log.Infof("Verified Contact Point: %v", contact.ContactName)
 
 	// Create an Alert for Logs
-	err = createAlert(host, "Logs", contact.ContactId)
+	err = createAlert(host, "Logs", contact.ContactId, 0)
 	if err != nil {
 		handleError("Error creating alert for logs", err)
 		return
@@ -488,7 +494,7 @@ func RunAlertsTest(host string) {
 	log.Infof("Created Alert for Logs")
 
 	// Create an Alert for Metrics
-	err = createAlert(host, "Metrics", contact.ContactId)
+	err = createAlert(host, "Metrics", contact.ContactId, 0)
 	if err != nil {
 		handleError("Error creating alert for metrics", err)
 		return

@@ -52,6 +52,7 @@ type AlertDetails struct {
 	NodeId                   uint64              `json:"node_id"`
 	NotificationID           string              `json:"notification_id" gorm:"foreignKey:NotificationId;"`
 	OrgId                    uint64              `json:"org_id"`
+	NumEvaluationsCount      uint64              `json:"num_evaluations_count"`
 }
 
 func (AlertDetails) TableName() string {
@@ -108,11 +109,12 @@ type Alert struct {
 }
 
 type WebhookBody struct {
-	Receiver string
-	Status   string
-	Title    string
-	Body     string
-	Alerts   []Alert
+	Receiver            string
+	Status              string
+	Title               string
+	Body                string
+	NumEvaluationsCount uint64
+	Alerts              []Alert
 }
 
 type Contact struct {
