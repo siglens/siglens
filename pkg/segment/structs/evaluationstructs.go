@@ -362,19 +362,17 @@ func (self *SortExpr) ReleaseProcessedSegmentsLock() {
 
 func findNullFields(fields []string, fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
 	nullFields := []string{}
-	var err error
 	for _, field := range fields {
 		val, exists := fieldToValue[field]
 		if !exists {
-			err = fmt.Errorf("findNullFields: Expression has a field %v for which value is not present", field)
-			continue
+			return []string{}, fmt.Errorf("findNullFields: Expression has a field for which value is not present")
 		}
 		if val.Dtype == utils.SS_DT_BACKFILL {
 			nullFields = append(nullFields, field)
 		}
 	}
 
-	return nullFields, err
+	return nullFields, nil
 }
 
 func (self *BoolExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
@@ -414,12 +412,12 @@ func (self *RexExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure
 }
 
 func checkStringInFields(searchStr string, fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
-	for _, v := range fieldToValue {
-		val, err := v.GetString()
+	for _, fieldCValue := range fieldToValue {
+		stringValue, err := fieldCValue.GetString()
 		if err != nil {
-			return false, fmt.Errorf("checkStringInFields: Cannot convert field value: %v to string", v)
+			return false, fmt.Errorf("checkStringInFields: Cannot convert field value: %v to string", fieldCValue)
 		}
-		match, err := filepath.Match(searchStr, val)
+		match, err := filepath.Match(searchStr, stringValue)
 		if err == nil && match {
 			return true, nil
 		}
@@ -433,7 +431,13 @@ func handleSearchMatch(self *BoolExpr, searchStr string, fieldToValue map[string
 	kvPairs := strings.Fields(searchStr)
 	nullMap := make(map[string]bool)
 
-	nullFields, _ := self.GetNullFields(fieldToValue)
+	nullFields, err := self.GetNullFields(fieldToValue)
+	fields := self.GetFields()
+	// in case of single search this error is bound to happen because of *
+	// so we are ignoring this error in this particular scenario
+	if err != nil && !(len(fields) == 1 && fields[0] == "*") {
+		return false, fmt.Errorf("handleSearchMatch: Error getting null fields: %v", err)
+	}
 	for _, nullField := range nullFields {
 		nullMap[nullField] = true
 	}

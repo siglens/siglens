@@ -32,6 +32,7 @@ import (
 	segquery "github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -3977,7 +3978,7 @@ func Test_evalFunctionsIfAndSearchMatch(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.ValueOp, "searchmatch")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.IsTerminal, true)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.RawString, "x=hi y=*")
-	assert.True(t, compareStringSlices(expectedFields, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
+	assert.True(t, putils.CompareStringSlices(expectedFields, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
 	assert.Nil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.RightValue)
 
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.StringExpr.RawString, "yes")
@@ -8243,18 +8244,6 @@ func performEventCountTest(t *testing.T, query string, expectedIndices []string,
 	assert.Equal(t, expectedListVix, aggregator.OutputTransforms.LetColumns.EventCountRequest.ListVix)
 }
 
-func compareStringSlices(a []string, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func performSearchMatchCheck(t *testing.T, query string, expectedFields []string, searchStr string) {
 	res, err := spl.Parse("", []byte(query))
 	assert.Nil(t, err)
@@ -8276,7 +8265,7 @@ func performSearchMatchCheck(t *testing.T, query string, expectedFields []string
 	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.ValueOp, "searchmatch")
 	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.IsTerminal, true)
 	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.RawString, searchStr)
-	assert.True(t, compareStringSlices(expectedFields, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
+	assert.True(t, putils.CompareStringSlices(expectedFields, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.RightValue)
 
 	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.StringExpr.RawString, "yes")
