@@ -246,27 +246,27 @@ func performTail(nodeResult *structs.NodeResult, tailExpr *structs.TailExpr, rec
 	}
 
 	if !hasSort {
-		for k, record := range recs {
+		for recordKey, record := range recs {
 			timeVal, exists := record["timestamp"]
 			if !exists {
 				continue
 			}
 			heap.Push(tailExpr.TailPQ, &utils.Item{
 				Priority: float64(timeVal.(uint64)),
-				Value:    k,
+				Value:    recordKey,
 			})
-			tailExpr.TailRecords[k] = record
+			tailExpr.TailRecords[recordKey] = record
 			if tailExpr.TailPQ.Len() > int(tailExpr.TailRows) {
 				item := heap.Pop(tailExpr.TailPQ).(*utils.Item)
 				delete(tailExpr.TailRecords, item.Value)
 			}
-			delete(recs, k)
+			delete(recs, recordKey)
 		}
 	}
 
 	if tailExpr.NumProcessedSegments < numTotalSegments {
 		if hasSort && len(recs) > 0 {
-			log.Errorf("performTail: Sort was applied but still records are found in recs for a non-last segment")
+			return fmt.Errorf("performTail: Sort was applied but still records are found in recs for a non-last segment")
 		}
 		return nil
 	}
@@ -274,12 +274,12 @@ func performTail(nodeResult *structs.NodeResult, tailExpr *structs.TailExpr, rec
 	// if sort is present before use the recs and recordIndexInFinal that sort has updated
 	if hasSort {
 		currentSortOrder := make([]string, len(recs))
-		for k := range recs {
-			idx, exists := recordIndexInFinal[k]
+		for recordKey := range recs {
+			idx, exists := recordIndexInFinal[recordKey]
 			if !exists {
-				return fmt.Errorf("performTail: After sort, index not found in recordIndexInFinal for rec: %v", k)
+				return fmt.Errorf("performTail: After sort, index not found in recordIndexInFinal for rec: %v", recordKey)
 			}
-			currentSortOrder[idx] = k
+			currentSortOrder[idx] = recordKey
 		}
 		if tailExpr.TailRows < uint64(len(currentSortOrder)) {
 			diff := len(currentSortOrder) - int(tailExpr.TailRows)
@@ -293,12 +293,12 @@ func performTail(nodeResult *structs.NodeResult, tailExpr *structs.TailExpr, rec
 		for i := 0; i < n/2; i++ {
 			currentSortOrder[i], currentSortOrder[n-i-1] = currentSortOrder[n-i-1], currentSortOrder[i]
 		}
-		for idx, k := range currentSortOrder {
-			recordIndexInFinal[k] = idx
+		for idx, recordKey := range currentSortOrder {
+			recordIndexInFinal[recordKey] = idx
 		}
 	} else {
-		for k, record := range tailExpr.TailRecords {
-			recs[k] = record
+		for recordKey, record := range tailExpr.TailRecords {
+			recs[recordKey] = record
 		}
 
 		idx := tailExpr.TailPQ.Len() - 1
