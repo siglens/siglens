@@ -266,16 +266,6 @@ func processGetAlertNotification(alert_id string) (*alertutils.Notification, err
 	return alertNotification, nil
 }
 
-func processGetSilenceMinutesRequest(alert_id string) (uint64, error) {
-	alertDataObj, err := databaseObj.GetAlert(alert_id)
-	if err != nil {
-		log.Errorf("ProcessGetSilenceMinutesRequest:Error getting alert details for alert id- %s err=%v", alert_id, err)
-		return 0, err
-	}
-
-	return alertDataObj.SilenceMinutes, nil
-}
-
 func processGetAlertDetailsRequest(alert_id string) (*alertutils.AlertDetails, error) {
 	alertDataObj, err := databaseObj.GetAlert(alert_id)
 	if err != nil {

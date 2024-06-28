@@ -573,18 +573,18 @@ func (p Sqlite) UpdateLastSentTimeAndAlertState(alert_id string, alertState aler
 
 func (p Sqlite) UpdateAlertStateAndIncrementNumEvaluations(alert_id string, alertState alertutils.AlertState) error {
 	if !isValid(alert_id) {
-		err := fmt.Errorf("UpdateAlertStateByAlertID: Data Validation Check Failed: AlertId=%v is not valid", alert_id)
+		err := fmt.Errorf("UpdateAlertStateAndIncrementNumEvaluations: Data Validation Check Failed: AlertId=%v is not valid", alert_id)
 		log.Error(err.Error())
 		return err
 	}
 	alertExists, _, err := p.verifyAlertExists(alert_id)
 	if err != nil {
-		err = fmt.Errorf("UpdateAlertStateByAlertID: unable to verify if alert name exists, AlertId=%v, Error=%+v", alert_id, err)
+		err = fmt.Errorf("UpdateAlertStateAndIncrementNumEvaluations: unable to verify if alert name exists, AlertId=%v, Error=%+v", alert_id, err)
 		log.Error(err.Error())
 		return err
 	}
 	if !alertExists {
-		err := fmt.Errorf("UpdateAlertStateByAlertID: alert does not exist, AlertId=%v", alert_id)
+		err := fmt.Errorf("UpdateAlertStateAndIncrementNumEvaluations: alert does not exist, AlertId=%v", alert_id)
 		log.Error(err.Error())
 		return err
 	}
@@ -594,7 +594,7 @@ func (p Sqlite) UpdateAlertStateAndIncrementNumEvaluations(alert_id string, aler
 			"state":                 alertState,
 			"num_evaluations_count": gorm.Expr("num_evaluations_count + ?", 1),
 		}).Error; err != nil {
-		err = fmt.Errorf("UpdateAlertStateByAlertID: unable to update alert state and increment evaluations count, with AlertId=%v, Error=%+v", alert_id, err)
+		err = fmt.Errorf("UpdateAlertStateAndIncrementNumEvaluations: unable to update alert state and increment evaluations count, with AlertId=%v, Error=%+v", alert_id, err)
 		log.Error(err.Error())
 		return err
 	}
