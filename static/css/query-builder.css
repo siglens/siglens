@@ -28,6 +28,7 @@
     --alerting-btn-img: url(../assets/alerting-white-icon.svg);
     --download-btn-img: url(../assets/download-icon-dark.svg);
     --show-record-btn-img: url(../assets/show-record-btn-dark.svg);
+    --query-detail-img:url(../assets/query-detail-light.svg);
     --border-shadow: var(--shadow-1);
     --code-input-box-color: var(--black-1);
     --qb-input-box-color: var(--black-2);
@@ -41,6 +42,7 @@
     --dashboard-btn-img: url(../assets/dashboard-btn-light.svg);
     --alerting-btn-img: url(../assets/alerting-btn-light.svg);
     --download-btn-img: url(../assets/download-icon-light.svg);
+    --query-detail-img:url(../assets/query-detail-light.svg);
     --show-record-btn-img: url(../assets/show-record-btn-light.svg);
     --border-shadow: var(--shadow-2);
     --code-input-box-color: var(--white-1);
@@ -48,6 +50,9 @@
     --qb-box-bg: var(--white-0);
     --cross-button: var(--purple-3);
     }
+[data-theme='dark']{
+    --query-detail-img:url(../assets/query-detail-dark.svg);
+}
 #query-language-btn, #query-mode-btn{
     margin-left: 0px;
     width: 93px;
@@ -592,11 +597,12 @@ textarea.form-control:focus{
     background-image: var(--download-btn-img);
 }
 .show-record-intro-btn{
-    background-image: var(--show-record-btn-img);
+    background-image: var(--query-detail-img);
     margin-left: 10px;
     position: relative;
     border-radius: 5px;
-    height: 40px;
+    height: 100px;
+    background-size: 25px !important;
 }
 .below-btn-img{
     background-size: 50%;

@@ -18,6 +18,146 @@
  */
 
 'use strict';
+$(document).ready(function() {
+    const theme = $('html').attr('data-theme') === 'dark' ? 'dark' : 'light';
+
+    tippy('#add-index', {
+      content: 'Add New Index',  // Tooltip content
+      placement: 'top',          // Tooltip placement (top, bottom, left, right)
+      arrow: true,               // Show an arrow
+      theme: theme,  
+      animation: 'fade',
+                 // Dynamic theme
+    });
+    tippy('#date-picker-btn', {
+        content: 'Pick the Time Window',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+
+      tippy('#add-con', {
+        content: 'Select Column',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#add-con-second', {
+        content: 'Select Aggregate Function',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#add-con-third', {
+        content: 'Add Group BY',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#query-builder-btn', {
+        content: 'Search Query',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#ui-id-1', {
+        content: 'Search By Filter',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#ui-id-2', {
+        content: 'Write Query Code',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#logs-settings', {
+        content: 'Choose Default Query Mode and Query Language',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#ui-id-3', {
+        content: 'Relational View',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#ui-id-4', {
+        content: 'Visualize Query through Charts',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#saveq-btn', {
+        content: 'Save Query Results',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#add-logs-to-db-btn', {
+        content: 'Add Logs to Database',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#alert-from-logs-btn', {
+        content: 'Create Alert',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('.download-all-logs-btn', {
+        content: 'Download Logs',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#show-record-intro-btn', {
+        content: 'Query Response Information',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#log-opt-single-btn', {
+        content: 'Single Line Display View',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#log-opt-multi-btn', {
+        content: 'Wrap Line Display View',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#log-opt-table-btn', {
+        content: 'Tabular View',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('.avail-fields-btn', {
+        content: 'Select Columns to Display',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+      tippy('#filter-input', {
+        content: 'Write your query here',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,  
+        followCursor: 'horizontal',            // Dynamic theme
+      });
+      tippy('#run-filter-btn', {
+        content: 'Run Query',  // Tooltip content
+        placement: 'top',          // Tooltip placement (top, bottom, left, right)
+        arrow: true,               // Show an arrow
+        theme: theme,              // Dynamic theme
+      });
+  });
 let sortedListIndices;
 function getListIndices() {
     return fetch('api/listIndices', {
