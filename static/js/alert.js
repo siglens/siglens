@@ -54,22 +54,37 @@ let mapIndexToConditionType = new Map([
 ]);
 
 let mapIndexToAlertState = new Map([
-    [0, "Normal"],
-    [1, "Pending"],
-    [2, "Firing"],
+    [0, "Inactive"],
+    [1, "Normal"],
+    [2, "Pending"],
+    [3, "Firing"],
 ]);
 
 const alertForm = $('#alert-form');
 
 const propertiesGridOptions = {
     columnDefs: [
-        { headerName: "Config Variable Name", field: "name", sortable: true, filter: true },
-        { headerName: "Config Variable Value", field: "value", sortable: true, filter: true }
+        { 
+            headerName: "Config Variable Name", 
+            field: "name", 
+            sortable: true, 
+            filter: true, 
+            cellStyle: { 'white-space': 'normal', 'word-wrap': 'break-word' }, 
+            width: 150 
+        },
+        { 
+            headerName: "Config Variable Value", 
+            field: "value", 
+            sortable: true, 
+            filter: true, 
+            cellStyle: { 'white-space': 'normal', 'word-wrap': 'break-word' }, 
+            autoHeight: true 
+        }
     ],
     defaultColDef: {
         resizable: true,
         flex: 1,
-        minWidth: 150
+        minWidth: 100
     },
     rowData: [],
     domLayout: 'autoHeight'
@@ -523,6 +538,7 @@ function performSearch() {
         displayHistoryData();
     }
 }
+
 function fetchAlertProperties() {
     if (alertID) {
         $.ajax({
@@ -535,25 +551,53 @@ function fetchAlertProperties() {
             dataType: 'json',
             crossDomain: true,
         }).then(function (res) {
-            const propertiesData = [
-                { name: "Query", value: res.alert.queryParams.queryText },
-                { name: "Status", value: mapIndexToAlertState.get(res.alert.state) },
-                { name: "Type", value: res.alert.queryParams.data_source },
-                { name: "Query Language", value: res.alert.queryParams.queryLanguage },
-                { name: "Condition", value: mapIndexToConditionType.get(res.alert.condition) },
-                { name: "Evaluate", value: `every ${res.alert.eval_interval} minutes for ${res.alert.eval_for} minutes` },
-                { name: "Contact Point", value: res.alert.contact_name }
-            ];
+            const alert = res.alert;
+            let propertiesData = [];
 
-            res.alert.labels.forEach(label => {
-                propertiesData.push({ name: `Label: ${label.label_name}`, value: label.label_value });
-            });
+            if (alert.alert_type === 1) {
+                propertiesData.push(
+                    { name: "Query", value: alert.queryParams.queryText },
+                    { name: "Type", value: alert.queryParams.data_source },
+                    { name: "Query Language", value: alert.queryParams.queryLanguage }
+                );
+            } else if (alert.alert_type === 2) {
+                const metricsQueryParams = JSON.parse(alert.metricsQueryParams || '{}');
+                let formulaString = metricsQueryParams.formulas && metricsQueryParams.formulas.length > 0
+                    ? metricsQueryParams.formulas[0].formula
+                    : 'No formula';
+
+                // Replace a, b, etc., with actual query values
+                metricsQueryParams.queries.forEach(query => {
+                    const regex = new RegExp(`\\b${query.name}\\b`, 'g');
+                    formulaString = formulaString.replace(regex, query.query);
+                });
+
+                propertiesData.push(
+                    { name: "Query", value: formulaString },
+                    { name: "Type", value: "Metrics" },
+                    { name: "Query Language", value: "PromQL" }
+                );
+            }
+
+            propertiesData.push(
+                { name: "Status", value: mapIndexToAlertState.get(alert.state) },
+                { name: "Condition", value: mapIndexToConditionType.get(alert.condition) },
+                { name: "Evaluate", value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` },
+                { name: "Contact Point", value: alert.contact_name }
+            );
+
+            if (alert.labels && alert.labels.length > 0) {
+                const labelsValue = alert.labels.map(label => `${label.label_name}:${label.label_value}`).join(", ");
+                propertiesData.push({ name: "Label", value: labelsValue });
+            }
 
             if (propertiesGridOptions.api) {
                 propertiesGridOptions.api.setRowData(propertiesData);
             } else {
                 console.error("propertiesGridOptions.api is not defined");
             }
+        }).catch(function (err) {
+            console.error('Error fetching alert properties:', err);
         });
     }
 }
@@ -632,23 +676,41 @@ function displayQueryToolTip(selectedQueryLang) {
 
 function displayAlertProperties(res) {
     const queryParams = res.queryParams;
+    const metricsQueryParams = JSON.parse(res.metricsQueryParams || '{}');
+    
     $('.alert-name').text(res.alert_name);
     $('.alert-status').text(mapIndexToAlertState.get(res.state));
-    $('.alert-query').val(queryParams.queryText);
-    $('.alert-type').text(queryParams.data_source);
-    $('.alert-query-language').text(queryParams.queryLanguage);
+    
+    if (res.alert_type === 1) {
+        $('.alert-query').val(queryParams.queryText);
+        $('.alert-type').text(queryParams.data_source);
+        $('.alert-query-language').text(queryParams.queryLanguage);
+    } else if (res.alert_type === 2) {
+        $('.alert-type').text('Metrics');
+        $('.alert-query-language').text('PromQL');
+
+        // Extract and display the formula string
+        const formulaString = metricsQueryParams.formulas && metricsQueryParams.formulas.length > 0
+            ? metricsQueryParams.formulas[0].formula
+            : 'No formula';
+        
+        $('.alert-query').val(formulaString);
+    }
+    
     $('.alert-condition').text(mapIndexToConditionType.get(res.condition));
     $('.alert-value').text(res.value);
     $('.alert-every').text(res.eval_interval);
     $('.alert-for').text(res.eval_for);
     $('.alert-contact-point').text(res.contact_name);
     const labelContainer = $('.alert-labels-container');
+    labelContainer.empty(); // Clear previous labels
     const labels = res.labels;
     labels.forEach(label => {
         const labelElement = $('<div>').addClass('label-element').text(`${label.label_name}=${label.label_value}`);
         labelContainer.append(labelElement);
-    })
+    });
 }
+
 
 // Add Label
 $(".add-label-container").on("click", function () {

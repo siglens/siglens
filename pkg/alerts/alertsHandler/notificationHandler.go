@@ -75,7 +75,7 @@ func NotifyAlertHandlerRequest(alertID string, alertState alertutils.AlertState,
 	}
 	if len(channelIDs) > 0 {
 		for _, channelID := range channelIDs {
-			err = sendSlack(subject, message, channelID, alertDataMessage)
+			err = sendSlack(subject, message, channelID, alertState, alertDataMessage)
 			if err != nil {
 				log.Errorf("NotifyAlertHandlerRequest: Error sending Slack message to channelID- %v for alert id- %v, err=%v", channelID, alertID, err)
 			} else {
@@ -220,17 +220,25 @@ func isCooldownOver(cooldownMinutes uint64, lastSendTime time.Time) bool {
 	return currentTimeUTC.Sub(lastSendTimeUTC) >= cooldownDuration
 }
 
-func sendSlack(alertName string, message string, channel alertutils.SlackTokenConfig, alertDataMessage string) error {
+func getSlackMessageColor(alertState alertutils.AlertState) string {
+	if alertState == alertutils.Normal {
+		return "#00FF00"
+	}
+	return "#FF0000"
+}
+
+func sendSlack(alertName string, message string, channel alertutils.SlackTokenConfig, alertState alertutils.AlertState, alertDataMessage string) error {
 
 	channelID := channel.ChannelId
 	token := channel.SlToken
 	alert := fmt.Sprintf("Alert Name : '%s'", alertName)
 	client := slack.New(token, slack.OptionDebug(false))
+	color := getSlackMessageColor(alertState)
 
 	attachment := slack.Attachment{
 		Pretext: alert,
 		Text:    message,
-		Color:   "#FF0000",
+		Color:   color,
 		Fields: []slack.AttachmentField{
 			{
 				Title: "Date",

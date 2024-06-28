@@ -127,6 +127,21 @@ Options:
 -i, --indexName string         Index name to ingest to (default "ind"), for tracing it is important to use this argument in the same format
 ```
 
+## Alerts
+
+**Run E2E Tests For Alerting**
+
+```bash
+$ go run main.go alerts -d http://localhost:5122
+```
+
+Options:
+
+```
+-d, --dest string           The Host of the query server
+```
+
+
 ## Utils
 
 To convert a TSV to a JSON file that can be ingested via `-f file`:

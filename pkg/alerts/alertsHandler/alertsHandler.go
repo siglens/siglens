@@ -245,7 +245,7 @@ func ProcessTestContactPointRequest(ctx *fasthttp.RequestCtx) {
 			ChannelId: channelID,
 			SlToken:   slackToken,
 		}
-		err := sendSlack("Test Alert", "This is a test message to verify the Slack integration.", channel, "")
+		err := sendSlack("Test Alert", "This is a test message to verify the Slack integration.", channel, alertutils.Normal, "")
 		if err != nil {
 			utils.SendError(ctx, err.Error(), "Error sending test message to slack. Request Body:"+string(ctx.PostBody()), err)
 			return
