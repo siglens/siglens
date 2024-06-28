@@ -23,11 +23,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
 	"time"
 
 	"siglens/pkg/alerts/alertutils"
 
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type AlertData struct {
@@ -48,6 +53,30 @@ type SummaryData struct {
 	AverageDelay           time.Duration
 	AverageAlertsPerMinute float64
 	MinuteData             map[int]MinuteSummaryData
+}
+
+func setUpLoggingToFileAndStdOut() {
+	logDir := "./logs"
+	logFile := filepath.Join(logDir, "alert_loadtest.log")
+	err := os.MkdirAll(logDir, 0764)
+	if err != nil {
+		log.Fatalf("failed to make log directory at=%v, err=%v", logDir, err)
+	}
+
+	fileLogger := &lumberjack.Logger{
+		Filename:   logFile,
+		MaxSize:    100, // MB
+		MaxBackups: 30,
+		MaxAge:     1, // days
+		Compress:   true,
+	}
+
+	// Create a multi-writer to log to both stdout and the file
+	multiWriter := io.MultiWriter(os.Stdout, fileLogger)
+
+	// Set the output of the logger to the multi-writer
+	log.SetOutput(multiWriter)
+
 }
 
 func createMultipleAlerts(host string, contactId string, numAlerts int) error {
@@ -154,11 +183,11 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 				}
 			}
 		case <-timeout.C:
-			log.Fatalf("Timed out waiting for alerts")
+			log.Errorf("Timed out waiting for alerts")
 			doneChan <- false
 			return
 		case <-exitChan:
-			log.Infof("Received Exit Signal. Exiting the test!")
+			log.Warnf("Received Exit Signal. Exiting the test!")
 
 			if summary.TotalAlertsReceived > 0 {
 				summary.AverageDelay = summary.TotalDelay / time.Duration(summary.TotalAlertsReceived)
@@ -218,6 +247,8 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 	// Remove Trailing Slashes from the Host
 	host = removeTrailingSlashes(host)
 
+	setUpLoggingToFileAndStdOut()
+
 	webhookChan := make(chan alertutils.WebhookBody)
 	doneChan := make(chan bool)
 	exitChan := make(chan bool)
@@ -225,6 +256,16 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 	// Start the webhook server
 	server := startWebhookServer(4010, webhookChan, exitChan)
 	defer server.Shutdown(context.Background())
+
+	// Handle OS signals so that we can exit gracefully
+	go func() {
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+
+		sig := <-ch
+		log.Warnf("Received signal: %v. Exiting server...", sig)
+		exitChan <- true
+	}()
 
 	// Create a Contact Point
 	webhookUrl := "http://localhost:4010/webhook"
@@ -253,6 +294,7 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 	err = createMultipleAlerts(host, contact.ContactId, int(numAlerts))
 	if err != nil {
 		log.Fatalf("Error creating multiple alerts: %v", err)
+		doCleanup(host, contact.ContactId)
 		return
 	}
 	log.Infof("Created %d Alerts", numAlerts)
@@ -263,8 +305,7 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 	// Wait for the tracking to complete
 	success := <-doneChan
 	if !success {
-		log.Fatalf("Failed to receive all alerts in time")
-		return
+		log.Errorf("Failed to receive all alerts in time")
 	}
 
 	// Cleanup
@@ -274,5 +315,7 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 		return
 	}
 
-	log.Infof("Test completed successfully")
+	if success {
+		log.Infof("Test completed successfully")
+	}
 }

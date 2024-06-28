@@ -12,6 +12,7 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/valyala/fastrand v1.1.0
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	siglens v0.0.0
 )
 
