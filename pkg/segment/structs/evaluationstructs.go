@@ -24,6 +24,7 @@ import (
 	"math/rand"
 	"net"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -178,6 +179,7 @@ type StringExpr struct {
 	FieldName      string      // only used when mode is Field
 	ConcatExpr     *ConcatExpr // only used when mode is Concat
 	TextExpr       *TextExpr   // only used when mode is TextExpr
+	FieldList      []string    // only used when you want fields in the string from the parser
 }
 
 type TextExpr struct {
@@ -329,6 +331,7 @@ const (
 	SEMField                // only used when mode is Field
 	SEMConcatExpr           // only used when mode is Concat
 	SEMTextExpr             // only used when mode is TextExpr
+	SEMFieldList            // only used when mode is FieldList
 )
 
 type NumericExprMode uint8
@@ -406,6 +409,72 @@ func (self *ConditionExpr) GetNullFields(fieldToValue map[string]utils.CValueEnc
 
 func (self *RexExpr) GetNullFields(fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
 	return findNullFields(self.GetFields(), fieldToValue)
+}
+
+func checkStringInFields(searchStr string, fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
+	for _, fieldCValue := range fieldToValue {
+		stringValue, err := fieldCValue.GetString()
+		if err != nil {
+			return false, fmt.Errorf("checkStringInFields: Cannot convert field value: %v to string", fieldCValue)
+		}
+		match, err := filepath.Match(searchStr, stringValue)
+		if err == nil && match {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func handleSearchMatch(self *BoolExpr, searchStr string, fieldToValue map[string]utils.CValueEnclosure) (bool, error) {
+
+	kvPairs := strings.Fields(searchStr)
+	nullMap := make(map[string]bool)
+
+	nullFields, err := self.GetNullFields(fieldToValue)
+	fields := self.GetFields()
+	// in case of single search this error is bound to happen because of *
+	// so we are ignoring this error in this particular scenario
+	if err != nil && !(len(fields) == 1 && fields[0] == "*") {
+		return false, fmt.Errorf("handleSearchMatch: Error getting null fields: %v", err)
+	}
+	for _, nullField := range nullFields {
+		nullMap[nullField] = true
+	}
+
+	for _, kvPair := range kvPairs {
+		parts := strings.Split(kvPair, "=")
+		if len(parts) == 1 && len(kvPairs) == 1 {
+			// check if string is present any field
+			return checkStringInFields(searchStr, fieldToValue)
+		}
+		if len(parts) != 2 {
+			return false, fmt.Errorf("handleSearchMatch: Invalid Syntax")
+		}
+
+		// key does not exists
+		fieldVal, exist := fieldToValue[parts[0]]
+		if !exist {
+			return false, nil
+		}
+		// key has NULl value
+		_, exist = nullMap[parts[0]]
+		if exist {
+			return false, nil
+		}
+
+		val, err := fieldVal.GetString()
+		if err != nil {
+			return false, fmt.Errorf("handleSearchMatch: Cannot convert fieldVal: %v to string", fieldVal)
+		}
+
+		match, err := filepath.Match(parts[1], val)
+		if err != nil || !match {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 // Evaluate this BoolExpr to a boolean, replacing each field in the expression
@@ -531,7 +600,11 @@ func (self *BoolExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) (b
 			}
 			return false, nil
 		case "searchmatch":
-			return false, fmt.Errorf("BoolExpr.Evaluate: does not support using this operator: %v", self.ValueOp)
+			searchStr, err := self.LeftValue.EvaluateToString(fieldToValue)
+			if err != nil {
+				return false, fmt.Errorf("BoolExpr.Evaluate: error evaluating searchmatch string to string, err: %v", err)
+			}
+			return handleSearchMatch(self, searchStr, fieldToValue)
 		}
 
 		leftStr, errLeftStr := self.LeftValue.EvaluateToString(fieldToValue)
@@ -727,6 +800,8 @@ func (self *StringExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) 
 		return self.ConcatExpr.Evaluate(fieldToValue)
 	case SEMTextExpr:
 		return self.TextExpr.EvaluateText(fieldToValue)
+	case SEMFieldList:
+		return self.RawString, nil
 	default:
 		return "", fmt.Errorf("StringExpr.Evaluate: cannot evaluate to string")
 	}
@@ -790,6 +865,8 @@ func (self *StringExpr) GetFields() []string {
 		return self.TextExpr.GetFields()
 	case SEMField:
 		return []string{self.FieldName}
+	case SEMFieldList:
+		return self.FieldList
 	default:
 		return []string{}
 	}
