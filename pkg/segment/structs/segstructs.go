@@ -777,7 +777,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"getfields":        {},
 	"isnum":            {},
 	"isnotnull":        {},
-	"typeof":           {},
 	"spath":            {},
 	"eventcount":       {},
 }
