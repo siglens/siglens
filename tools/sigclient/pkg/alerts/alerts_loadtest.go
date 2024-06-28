@@ -63,7 +63,7 @@ func createMultipleAlerts(host string, contactId string, numAlerts int) error {
 	return nil
 }
 
-func startWebhookServer(port int, webhookChan chan alertutils.WebhookBody) *http.Server {
+func startWebhookServer(port int, webhookChan chan alertutils.WebhookBody, exitChan chan bool) *http.Server {
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%d", port),
 	}
@@ -81,6 +81,12 @@ func startWebhookServer(port int, webhookChan chan alertutils.WebhookBody) *http
 		webhookChan <- webhookBody
 	})
 
+	http.HandleFunc("/exit", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Exit Signal Received"))
+		exitChan <- true
+	})
+
 	go func() {
 		log.Infof("Starting Webserver on port %d to Listen for Webhooks", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -91,17 +97,25 @@ func startWebhookServer(port int, webhookChan chan alertutils.WebhookBody) *http
 	return server
 }
 
-func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, doneChan chan bool) {
+func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, doneChan, exitChan chan bool) {
 	startTime := time.Now()
 	summary := SummaryData{
 		MinuteData: make(map[int]MinuteSummaryData),
 	}
+
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	timeoutDuration := 2 * time.Minute
+	timeout := time.NewTimer(timeoutDuration)
+	defer timeout.Stop()
 
 	for {
 		currentMinute := int(time.Since(startTime).Minutes())
 		select {
 		case webhookBody := <-webhookChan:
 			alertReceivedTime := time.Now()
+			timeout.Stop() // Stop the timeout as we received an alert
 			log.Infof("Current Minute:%v, Received Alert: %v", currentMinute, webhookBody.Title)
 			minuteData, exists := summary.MinuteData[currentMinute]
 			if !exists {
@@ -124,23 +138,25 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 
 			summary.MinuteData[currentMinute] = minuteData
 
-			if summary.TotalAlertsReceived >= numAlerts {
-				summary.AverageDelay = summary.TotalDelay / time.Duration(summary.TotalAlertsReceived)
-				summary.AverageAlertsPerMinute = float64(summary.TotalAlertsReceived) / float64(currentMinute+1)
-				log.Infof("Received all alerts in %v", time.Since(startTime))
-				doneChan <- true
-				return
-			}
-		case <-time.After(1 * time.Minute):
+			timeout.Reset(timeoutDuration) // Reset the timeout so that we won't trigger timeout and exit.
+		case <-ticker.C:
 			// Log summary of the current minute
 			if minuteData, exists := summary.MinuteData[currentMinute]; exists {
 				minuteData.AverageDelay = minuteData.TotalDelay / time.Duration(minuteData.TotalAlertsReceived)
 				logMinuteSummary(currentMinute, minuteData, numAlerts)
 				summary.MinuteData[currentMinute] = minuteData
 			}
-		case <-time.After(2 * time.Minute):
+		case <-timeout.C:
 			log.Fatalf("Timed out waiting for alerts")
 			doneChan <- false
+			return
+		case <-exitChan:
+			log.Infof("Received Exit Signal. Exiting the test!")
+			summary.AverageDelay = summary.TotalDelay / time.Duration(summary.TotalAlertsReceived)
+			summary.AverageAlertsPerMinute = float64(summary.TotalAlertsReceived) / float64(currentMinute+1)
+			log.Infof("Final Summary %v", time.Since(startTime))
+			logSummary(summary)
+			doneChan <- true
 			return
 		}
 	}
@@ -148,13 +164,18 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 
 func logMinuteSummary(minute int, minuteData MinuteSummaryData, numAlerts int) {
 	alertsCount := len(minuteData.Alerts)
-	log.Infof("Minute=%d,IsSummary=%v,NumOfAlerts=%d,Pass=%v", minute, true, alertsCount, alertsCount >= numAlerts)
+	log.Infof("Minute=%d,IsSummary=%v,UniqueAlertsCount=%d,Pass=%v,TotalAlertsCount=%v,AverageDelay=%v", minute, true, alertsCount, alertsCount >= numAlerts, minuteData.TotalAlertsReceived, minuteData.AverageDelay)
 	for title, data := range minuteData.Alerts {
 		averageDelay := data.TotalDelay / time.Duration(data.ReceivedCount)
-		log.Infof("Alert %s: Received %d times, Average Delay %v", title, data.ReceivedCount, averageDelay)
+		log.Infof("Minute=%d,Alert=%s,ReceivedCount=%d,AverageDelay=%v", minute, title, data.ReceivedCount, averageDelay)
 	}
-	log.Infof("Total Alerts Received: %d, Total Delay: %v, Average Delay: %v",
-		minuteData.TotalAlertsReceived, minuteData.TotalDelay, minuteData.AverageDelay)
+}
+
+func logSummary(summary SummaryData) {
+	log.Infof("Total Alerts Received: %d", summary.TotalAlertsReceived)
+	log.Infof("Total Delay: %v", summary.TotalDelay)
+	log.Infof("Average Delay: %v", summary.AverageDelay)
+	log.Infof("Average Alerts Per Minute: %v", summary.AverageAlertsPerMinute)
 }
 
 func RunAlertsLoadTest(host string, numAlerts uint64) {
@@ -163,9 +184,10 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 
 	webhookChan := make(chan alertutils.WebhookBody)
 	doneChan := make(chan bool)
+	exitChan := make(chan bool)
 
 	// Start the webhook server
-	server := startWebhookServer(4010, webhookChan)
+	server := startWebhookServer(4010, webhookChan, exitChan)
 	defer server.Shutdown(context.Background())
 
 	// Create a Contact Point
@@ -200,7 +222,7 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 	log.Infof("Created %d Alerts", numAlerts)
 
 	// Track notifications and measure delays
-	go trackNotifications(webhookChan, int(numAlerts), doneChan)
+	go trackNotifications(webhookChan, int(numAlerts), doneChan, exitChan)
 
 	// Wait for the tracking to complete
 	success := <-doneChan
