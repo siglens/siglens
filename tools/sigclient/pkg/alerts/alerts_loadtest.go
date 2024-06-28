@@ -192,6 +192,28 @@ func logSummary(summary SummaryData) {
 	log.Infof("Average Alerts Per Minute: %v", summary.AverageAlertsPerMinute)
 }
 
+func doCleanup(host string, contactId string) error {
+	log.Infof("Cleaning up...")
+	alerts, err := getAllAlerts(host)
+	if err != nil {
+		return fmt.Errorf("error getting all alerts: %v", err)
+	}
+
+	for _, alert := range alerts {
+		err := deleteAlert(host, alert.AlertId)
+		if err != nil {
+			return fmt.Errorf("error deleting alert %s: %v", alert.AlertId, err)
+		}
+	}
+
+	err = deleteContactPoint(host, contactId)
+	if err != nil {
+		return fmt.Errorf("error deleting contact %s: %v", contactId, err)
+	}
+
+	return nil
+}
+
 func RunAlertsLoadTest(host string, numAlerts uint64) {
 	// Remove Trailing Slashes from the Host
 	host = removeTrailingSlashes(host)
@@ -242,6 +264,13 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 	success := <-doneChan
 	if !success {
 		log.Fatalf("Failed to receive all alerts in time")
+		return
+	}
+
+	// Cleanup
+	err = doCleanup(host, contact.ContactId)
+	if err != nil {
+		log.Errorf("Error cleaning up: %v", err)
 		return
 	}
 
