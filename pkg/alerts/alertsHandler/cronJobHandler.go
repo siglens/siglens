@@ -280,7 +280,7 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 }
 
 func updateAlertState(alertId string, alertState alertutils.AlertState) error {
-	err := databaseObj.UpdateAlertStateByAlertID(alertId, alertState)
+	err := databaseObj.UpdateAlertStateAndIncrementNumEvaluations(alertId, alertState)
 	return err
 }
 
