@@ -131,6 +131,10 @@ func shouldUpdateAlertStateToFiring(alertDetails *alertutils.AlertDetails, curre
 		return false
 	}
 
+	if intervalCount == 1 {
+		return true
+	}
+
 	alertHistoryList, err := databaseObj.GetAlertHistoryByAlertID(&alertutils.AlertHistoryQueryParams{
 		AlertId:   alertDetails.AlertId,
 		Limit:     intervalCount - 1,

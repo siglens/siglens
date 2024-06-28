@@ -29,6 +29,11 @@ let mapIndexToAlertState=new Map([
     [3,"Firing"],
 ]);
 
+let mapIndexToAlertType=new Map([
+    [1, "Logs"],
+    [2,"Metrics"],
+]);
+
 $(document).ready(function () {
 
     $('.theme-btn').on('click', themePickerHandler);
@@ -73,7 +78,7 @@ function stateCellRenderer(params) {
             color = getCssVariableValue('--color-firing');
             break;
         default:
-            color = 'transparent';
+            color = getCssVariableValue('--color-inactive');
     }
     return `<div style="background-color: ${color}; padding: 5px; border-radius: 5px; color: white">${state}</div>`;
 }
@@ -111,7 +116,7 @@ class btnRenderer {
 				alertGridOptions.api.applyTransaction({
 					remove: [{ rowId: deletedRowID }],
 				});
-                showToast(res.message)
+                showToast(res.message, 'success')
 			});
 		}
 
@@ -161,6 +166,11 @@ let alertColumnDefs = [
         headerName: "Alert Name",
         field: "alertName",
         width: 200,
+    },
+    {
+        headerName: "Alert Type",
+        field: "alertType",
+        width: 100,
     },
     {
         headerName: "Labels",
@@ -218,27 +228,12 @@ function displayAllAlerts(res){
     
         newRow.set("labels", allLabels);
         newRow.set("alertState", mapIndexToAlertState.get(value.state));
+        newRow.set("alertType", mapIndexToAlertType.get(value.alert_type));
         alertRowData = _.concat(alertRowData, Object.fromEntries(newRow));
     })
     alertGridOptions.api.setRowData(alertRowData);
     alertGridOptions.api.sizeColumnsToFit();
 }
-
-function showToast(msg) {
-    let toast =
-        `<div class="div-toast" id="save-db-modal"> 
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 2000);
-}
-
-function removeToast() {
-    $('.div-toast').remove();
-}
-
 
 function onRowClicked(event) {
     var queryString = "?id=" + event.data.alertId;
