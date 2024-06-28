@@ -190,6 +190,7 @@ async function editAlert(alertId){
         displayAlertProperties(res.alert)
         return false
     } else {
+        alertEditFlag = true;
         displayAlert(res.alert);
         return true
     }
