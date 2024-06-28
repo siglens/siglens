@@ -5626,6 +5626,39 @@ ul.metrics-dropdown li, ul.metrics-dropdown li a{
 .icon {
   visibility: hidden;
 }
+.error-message ,#metric-error{
+    display:none;
+    width: fit-content;
+    text-align: center;
+    border-radius: 6px;
+    padding:7px;
+    border:0.5px solid var(--text-color);
+    background-color: var(--ui-widget-bg-color);
+    color: var(--text-color);
+    position: relative;
+    z-index: 1;
+    bottom: 125%; /* Position above the triggering element */
+    left: 17.5%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.1);
+}
+
+.error-message::after ,#metric-error::after{
+    left: 50%;
+    margin-left: -5px;
+    border-width: 10px;
+    border-style: solid;
+    rotate: 180deg;
+    bottom:100%;
+    content: '';
+    position: absolute;
+    border-style: solid;
+    border-color: var(--graph-line-color-3) transparent transparent transparent;
+}
+  
+
+  
 
 .metric-summary-searchcontainer{
     display:flex !important;

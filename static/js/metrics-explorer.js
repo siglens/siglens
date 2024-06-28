@@ -29,7 +29,9 @@ let previousEndEpoch = null;
 let rawTimeSeriesData=[];
 let allFunctions,functionsArray =[];
 var aggregationOptions = ["max by", "min by", "avg by", "sum by", "count by", "stddev by", "stdvar by", "group by"];
-
+let timeUnit;
+let dayCnt7=0;
+let dayCnt2=0;
 // Used for alert screen
 let isAlertScreen;
 let metricsQueryParams = {};
@@ -292,7 +294,7 @@ function createQueryElementTemplate(queryName) {
         <div class="query-box">
             <div class="query-name active">${queryName}</div>
             <div class="query-builder">
-                <input type="text" class="metrics" placeholder="Select a metric" >
+                <input type="text" class="metrics" placeholder="Select a metric" id="select-metric-input" >
                 <div>from</div>
                 <div class="tag-container">
                     <input type="text" class="everywhere" placeholder="(everywhere)">
@@ -844,17 +846,25 @@ function updateCloseIconVisibility() {
 
 function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
-
+    var datasets = [];
+    var labels = [];
     // Extract labels and datasets from seriesData
     var labels = [];
     var datasets = [];
     
     if (seriesData.length > 0) {
-        labels = Object.keys(seriesData[0].values);
-        datasets = seriesData.map(function(series, index) {
+        seriesData.forEach(function (series, index) {
+            Object.keys(series.values).forEach((tsvalue) => {
+                labels.push(new Date(tsvalue))
+            })
+        })
+
+        labels.sort((a, b) => a - b)
+
+        datasets = seriesData.map(function (series, index) {
             return {
                 label: series.seriesName,
-                data: Object.values(series.values),
+                data: series.values,
                 borderColor: classic[index % classic.length],
                 backgroundColor: classic[index % classic.length] + '70',
                 borderWidth: 2,
@@ -892,6 +902,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
             },
             scales: {
                 x: {
+                    type: 'time',
                     display: true,
                     title: {
                         display: true,
@@ -900,7 +911,33 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     grid: {
                         display: false
                     },
-                    ticks: { color: tickColor }
+                    ticks: { color: tickColor,
+                        callback: xaxisFomatter,
+                        autoSkip: false,
+                        major: {
+                            enabled: true,
+                        },
+                        font: context => {
+                            if (context.tick && context.tick.major) {
+                                return {
+                                    weight: 'bold'
+                                };
+                            }
+                        return {
+                                weight: 'normal'
+                            };
+                        }
+                    },
+                    time: {
+                        unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
+                        tooltipFormat: 'MMM d, HH:mm:ss',
+                        displayFormats: {
+                            minute: 'HH:mm',
+                            hour: 'HH:mm',
+                            day: 'MMM d',
+                            month: 'MMM YYYY'
+                        }
+                    },
                 },
                 y: {
                     display: true,
@@ -910,8 +947,10 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     grid: { color: gridLineColor },
                     ticks: { color: tickColor }
                 }
-            }
-        }
+            },
+            spanGaps: true,
+        },
+        
     });
 
     // Modify the fill property based on the chart type after chart initialization
@@ -1247,6 +1286,7 @@ function mergeGraphs(chartType) {
             },
             scales: {
                 x: {
+                    type: 'time',
                     display: true,
                     title: {
                         display: true,
@@ -1255,7 +1295,33 @@ function mergeGraphs(chartType) {
                     grid: {
                         display: false
                     },
-                    ticks: { color: tickColor }
+                    ticks: { color: tickColor,
+                        callback: xaxisFomatter,
+                        autoSkip: false,
+                        major: {
+                            enabled: true,
+                        },
+                        font: context => {
+                            if (context.tick && context.tick.major) {
+                                return {
+                                    weight: 'bold'
+                                };
+                            }
+                        return {
+                                weight: 'normal'
+                            };
+                        }
+                    },
+                    time: {
+                        unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
+                        tooltipFormat: 'MMM d, HH:mm:ss',
+                        displayFormats: {
+                            minute: 'HH:mm',
+                            hour: 'HH:mm',
+                            day: 'MMM d',
+                            month: 'MMM YYYY'
+                        }
+                    },
                 },
                 y: {
                     display: true,
@@ -1265,7 +1331,8 @@ function mergeGraphs(chartType) {
                     grid: { color: gridLineColor },
                     ticks: { color: tickColor }
                 }
-            }
+            },
+            spanGaps: true,
         }
     });
     mergedGraph = mergedLineChart;
@@ -1276,21 +1343,81 @@ async function convertDataForChart(data) {
     let seriesArray = [];
 
     if (data.hasOwnProperty('series') && data.hasOwnProperty('timestamps') && data.hasOwnProperty('values')) {
+        
+        let chartStartTime = data.startTime;
+        let chartEndTime = Math.floor( Date.now()/ 1000);
+        const timeRange =chartEndTime - chartStartTime;
+        // // Determine the best time unit based on the time range
+        if (timeRange > 365 * 24 * 60 * 60  ) {
+            timeUnit = 'month';
+        }else if (timeRange >= 90 * 24 * 60 * 60  ) {
+            timeUnit = '7day';
+        }else if (timeRange >= 30 * 24 * 60 * 60  ) {
+            timeUnit = '2day';
+        } else if (timeRange >= 7 * 24 * 60 * 60 ) {
+            timeUnit = '12hour';
+        } else if (timeRange >= 2 * 24 * 60 * 60 ) {
+            timeUnit = '6hour';
+        } else if (timeRange >= 24 * 60 * 60 ) {
+            timeUnit = '3hour';
+        } else if (timeRange >= 12 * 60 * 60 ) {
+            timeUnit = '30minute';
+        } else if (timeRange >= 3 * 60 * 60 ) {
+            timeUnit = '15minute';
+        } else if (timeRange >= 30 * 60 ) {
+            timeUnit = '5minute';
+        }  else {
+            timeUnit = 'minute';
+        }
         for (let i = 0; i < data.series.length; i++) {
             let series = {
                 seriesName: data.series[i],
                 values: {}
             };
 
+            let calculatedInterval = data.intervalSec;
+            let oneDayInMilliseconds = 24 * 60 * 60  ;
+            switch(calculatedInterval){
+                case calculatedInterval >= 28800:
+                    chartStartTime = chartStartTime - oneDayInMilliseconds;
+                    chartEndTime = chartEndTime + oneDayInMilliseconds;
+                    break;
+                case calculatedInterval >= 1200:
+                    chartStartTime = chartStartTime - oneDayInMilliseconds;
+                    break;
+                case calculatedInterval >= 300:
+                    chartStartTime = chartStartTime - (60 * 60);
+                    break;
+                case calculatedInterval >= 120:
+                    chartStartTime = chartStartTime - (30 * 60);
+                    break
+                case calculatedInterval >= 60:
+                    chartStartTime = chartStartTime - (15 * 60);
+                    break
+                case calculatedInterval >= 10:
+                    chartStartTime = chartStartTime - (5 * 60);
+                    break
+                default:
+                    chartStartTime = chartStartTime - (1 * 60)
+                    chartEndTime = chartEndTime + (1 * 60)
+            }
             for (let j = 0; j < data.timestamps.length; j++) {
                 // Convert epoch seconds to milliseconds by multiplying by 1000
                 let timestampInMilliseconds = data.timestamps[j] * 1000;
-                let localDate = new Date(timestampInMilliseconds);
-                let formattedDate = localDate.toLocaleString();
+                let localDate = moment(timestampInMilliseconds);
+                const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
 
                 series.values[formattedDate] = data.values[i][j];
             }
-
+            while (chartStartTime <= chartEndTime) {
+                let timestampInMilliseconds = chartStartTime * 1000;
+                let localDate = moment(timestampInMilliseconds);
+                const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
+                if(series.values[formattedDate] === undefined){
+                    series.values[formattedDate] = null;
+                }
+                chartStartTime = chartStartTime + calculatedInterval
+            }
             seriesArray.push(series);
         }
     }
@@ -1516,6 +1643,8 @@ async function getFunctions() {
 }
 
 async function refreshMetricsGraphs(){
+    dayCnt7=0;
+    dayCnt2=0;
     const newMetricNames = await getMetricNames();
     newMetricNames.metricNames.sort();
   
@@ -1746,5 +1875,61 @@ function addValue(queryElement, value) {
     } else {
         valueContainer.removeAttr('placeholder');
         valueContainer.css('width', '5px');
+    }
+}
+
+function xaxisFomatter(value, index, ticks) {
+    const date = new Date(value);
+    const previousTick = index > 0 ? new Date(ticks[index - 1].value) : null;
+
+    let isDifferentDay = previousTick && date.getDate() !== previousTick.getDate();
+    if (timeUnit === 'month') {
+        return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
+    }else if (timeUnit === '7day') {
+        if (isDifferentDay) dayCnt7+=1;
+        if (dayCnt7 === 7){
+            dayCnt7 = 0;
+            return  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        }
+        return null;
+    }else if (timeUnit === '2day') {
+        if (isDifferentDay) dayCnt2+=1;
+        if (dayCnt2 === 2 ){
+            dayCnt2 = 0;
+            return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        }
+        return null;
+    }else if (timeUnit === '12hour') {
+        if (date.getHours() % 12 === 0 ){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '6hour') {
+        if (date.getHours() % 6 === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '3hour') {
+        if (date.getHours() % 3 === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '30minute') {
+        if (date.getMinutes() % 30 ===0 || date.getMinutes() === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '15minute') {
+        if (date.getMinutes() % 15 ===0 || date.getMinutes() === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else if (timeUnit === '5minute') {
+        if (date.getMinutes() % 5 ===0 || date.getMinutes() === 0){
+            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+        }
+        return null;
+    }else {
+        return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
     }
 }

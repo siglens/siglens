@@ -177,6 +177,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <div id="metrics-explorer">
                                 <div id="metrics-queries"></div>
                                 <div id="metrics-formula"></div>
+                                <div class="error-message" id="metric-error">Please select a metric.</div>
+                        
                                  <div class="mt-3 d-flex ">
                                      <button id="add-query" class="btn" type="button"><span class="plus-icon">+</span> Add Query</button>
                                      <button id="add-formula" class="btn" type="button"><span class="plus-icon">+</span> Add Formula</button>
@@ -253,6 +255,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     </div>
                                 </div>
                             </div>
+                            <div class="error-message" id="contact-point-error">Please choose a contact point option!</div>
                             <div class="message-info" id="message-info">
                                 Message<textarea name="message" id="notification-msg" rows="4" class="message form-control" tabindex="6"
                                     required></textarea>
@@ -303,6 +306,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/metrics-explorer.js?cb=1_1_10"></script>
     <script src="./js/alert.js?cb=1_1_10"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
+    <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
