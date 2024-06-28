@@ -40,6 +40,7 @@ jobs:
             go run main.go query otsdb -d http://localhost:5122/otsdb -n 5 -y
             go run main.go query otsdb -d http://localhost:5122/metrics-explorer/api/v1/timeseries -f ../../cicd/metrics_test.csv
             go run main.go query promql -d http://localhost:5122/promql/api/v1/query_range -v -f ../../cicd/promql_test.csv
+            go run main.go alerts -d http://localhost:5122
       - run:
           name: Kill Siglens
           command: |

@@ -301,8 +301,10 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) (int, bo
 		if httpRespOuter.MeasureResults != nil && len(httpRespOuter.MeasureResults) > 0 && httpRespOuter.MeasureResults[0].MeasureVal != nil {
 			measureValAsAny := httpRespOuter.MeasureResults[0].MeasureVal[httpRespOuter.MeasureFunctions[0]]
 			if measureValAsAny == nil {
-				log.Warnf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: MeasureVal is nil. Measure Results: %v", *httpRespOuter.MeasureResults[0])
-				return -1, true, nil
+				// The Measure results is not empty, but the MeasureVal is nil. This is a valid case.
+				// It means that the measure value is 0.
+				log.Warnf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: MeasureVal is nil. Considering the Measure Value as 0. Measure Results: %v", *httpRespOuter.MeasureResults[0])
+				return 0, false, nil
 			}
 			measureVal := fmt.Sprintf("%v", measureValAsAny) // convert to string. The iMeasureVal can be a string, float64, int, etc.
 			measureVal = strings.ReplaceAll(measureVal, ",", "")

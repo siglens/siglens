@@ -24,7 +24,7 @@ import (
 
 type DistributedQueryServiceInterface interface {
 	Wait(qid uint64, querySummary *summary.QuerySummary) error
-	DistributeRotatedRequests(qI *QueryInformation, qsrs []*QuerySegmentRequest) ([]*QuerySegmentRequest, uint64, error)
+	DistributeRotatedRequests(qI *QueryInformation) (uint64, error)
 	DistributeUnrotatedQuery(qI *QueryInformation) (uint64, error)
 }
 
@@ -49,12 +49,12 @@ func (d *DistributedQueryService) Wait(qid uint64, querySummary *summary.QuerySu
 	return nil
 }
 
-func (d *DistributedQueryService) DistributeRotatedRequests(qI *QueryInformation, qsrs []*QuerySegmentRequest) ([]*QuerySegmentRequest, uint64, error) {
+func (d *DistributedQueryService) DistributeRotatedRequests(qI *QueryInformation) (uint64, error) {
 	if d == nil {
-		return qsrs, 0, nil
+		return 0, nil
 	}
 
-	return qsrs, 0, nil
+	return 0, nil
 }
 
 func (d *DistributedQueryService) DistributeUnrotatedQuery(qI *QueryInformation) (uint64, error) {
