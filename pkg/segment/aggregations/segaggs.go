@@ -102,8 +102,12 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		post = post.Next
 	}
 
+	hasSort := false
 	for agg := post; agg != nil; agg = agg.Next {
-		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
+		if agg.HasSortBlock() {
+			hasSort = true
+		}
+		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment, hasSort)
 
 		if len(nodeResult.TransactionEventRecords) > 0 {
 			nodeResult.NextQueryAgg = agg
@@ -139,7 +143,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     2.9 Text functions: replace, spath, upper, trim
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, hasSort bool) error {
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -175,7 +179,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 			headExpr := agg.OutputTransforms.HeadRequest
 			var err error
 			if headExpr.BoolExpr != nil {
-				err = performConditionalHead(nodeResult, headExpr, recs, recordIndexInFinal, numTotalSegments, finishesSegment)
+				err = performConditionalHead(nodeResult, headExpr, recs, recordIndexInFinal, numTotalSegments, finishesSegment, hasSort)
 			} else {
 				err = performMaxRows(nodeResult, agg, agg.OutputTransforms.MaxRows, recs)
 			}
@@ -202,23 +206,31 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	return nil
 }
 
-func addRecordToHeadExpr(headExpr *structs.HeadExpr, record map[string]interface{}, recordKey string) {
+func addRecordToHeadExpr(headExpr *structs.HeadExpr, record map[string]interface{}, recordKey string, hasSort bool) {
+	headExpr.RowsAdded++
+	if hasSort {
+		// we do not need to accumulate the results in case of sort
+		return
+	}
 	headExpr.ResultRecords = append(headExpr.ResultRecords, record)
 	headExpr.ResultRecordKeys = append(headExpr.ResultRecordKeys, recordKey)
 	delete(headExpr.SegmentRecords, recordKey)
-	headExpr.RowsAdded++
 }
 
-func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int) error {
+func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recordMap map[string]map[string]interface{}, recordIndexInFinal map[string]int, hasSort bool) error {
 	fieldsInExpr := headExpr.BoolExpr.GetFields()
-	currentOrder := make([]string, len(recordIndexInFinal))
+	currentOrder := make([]string, len(recordMap))
 
-	for recordKey, idx := range recordIndexInFinal {
+	for recordKey := range recordMap {
+		idx, exist := recordIndexInFinal[recordKey]
+		if !exist {
+			return fmt.Errorf("performConditionalHead: Index not found in recordIndexInFinal for record: %v", recordKey)
+		}
 		currentOrder[idx] = recordKey
 	}
 
 	for _, recordKey := range currentOrder {
-		rec, exist := headExpr.SegmentRecords[recordKey]
+		rec, exist := recordMap[recordKey]
 		if !exist {
 			return fmt.Errorf("performConditionalHead: record %v not found in segment records", recordKey)
 		}
@@ -235,9 +247,9 @@ func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recs map[strin
 			if err == nil && len(nullFields) > 0 {
 				// evaluation failed due to null fields
 				if headExpr.Null {
-					addRecordToHeadExpr(headExpr, rec, recordKey)
+					addRecordToHeadExpr(headExpr, rec, recordKey, hasSort)
 				} else if headExpr.Keeplast {
-					addRecordToHeadExpr(headExpr, rec, recordKey)
+					addRecordToHeadExpr(headExpr, rec, recordKey, hasSort)
 					headExpr.Done = true
 					break
 				} else {
@@ -249,11 +261,11 @@ func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recs map[strin
 			}
 		} else {
 			if result {
-				addRecordToHeadExpr(headExpr, rec, recordKey)
+				addRecordToHeadExpr(headExpr, rec, recordKey, hasSort)
 			} else {
 				// false condition so adding last record if keeplast
 				if headExpr.Keeplast {
-					addRecordToHeadExpr(headExpr, rec, recordKey)
+					addRecordToHeadExpr(headExpr, rec, recordKey, hasSort)
 				}
 				headExpr.Done = true
 				break
@@ -266,18 +278,46 @@ func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recs map[strin
 		}
 	}
 
-	// we have processed the records, clearing extra records if exists
-	for recordKey := range headExpr.SegmentRecords {
-		delete(headExpr.SegmentRecords, recordKey)
+	if hasSort {
+		// delete everything after RowsAdded
+		for i := headExpr.RowsAdded; i < uint64(len(currentOrder)); i++ {
+			delete(recordMap, currentOrder[i])
+		}
+	} else {
+		// we have processed the records, clearing extra records if exists
+		for recordKey := range recordMap {
+			delete(recordMap, recordKey)
+		}
 	}
 
 	return nil
 }
 
-func performConditionalHead(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, numTotalSegments uint64, finishesSegment bool) error {
+func processHeadExprWithSort(headExpr *structs.HeadExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, numTotalSegments uint64, finishesSegment bool) error {
+	if !finishesSegment {
+		return nil
+	}
+	headExpr.NumProcessedSegments++
+	// if it is the last segment, sort would have populated the records
+	if len(recs) > 0 && headExpr.NumProcessedSegments != numTotalSegments {
+		return fmt.Errorf("performConditionalHead: Records are present even when there is sort")
+	}
+
+	if headExpr.NumProcessedSegments == numTotalSegments {
+		return processSegmentRecordsForHeadExpr(headExpr, recs, recordIndexInFinal, true)
+	}
+
+	return nil
+}
+
+func performConditionalHead(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, numTotalSegments uint64, finishesSegment bool, hasSort bool) error {
 
 	if headExpr.SegmentRecords == nil {
 		headExpr.SegmentRecords = make(map[string]map[string]interface{}, 0)
+	}
+
+	if hasSort {
+		return processHeadExprWithSort(headExpr, recs, recordIndexInFinal, numTotalSegments, finishesSegment)
 	}
 
 	if headExpr.Done {
@@ -297,7 +337,7 @@ func performConditionalHead(nodeResult *structs.NodeResult, headExpr *structs.He
 		headExpr.NumProcessedSegments++
 
 		if !headExpr.Done {
-			err := processSegmentRecordsForHeadExpr(headExpr, recs, recordIndexInFinal)
+			err := processSegmentRecordsForHeadExpr(headExpr, headExpr.SegmentRecords, recordIndexInFinal, hasSort)
 			if err != nil {
 				return fmt.Errorf("performConditionalHead: Error while processing segment records, err: %v", err)
 			}
