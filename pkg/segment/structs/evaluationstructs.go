@@ -1711,12 +1711,11 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		fallthrough
 	case "typeof":
 		var val utils.CValueEnclosure
-		var ok bool
 
 		if self.Val.NumericExpr == nil {
 			val.Dtype = utils.SS_INVALID
 		} else {
-			val, ok = fieldToValue[self.Val.NumericExpr.Value] // The parser always sets the fieldName in NumericExpr even if it's a string
+			val, ok := fieldToValue[self.Val.NumericExpr.Value] // The parser always sets the fieldName in NumericExpr even if it's a string
 			if !ok {
 				val.Dtype = utils.SS_INVALID
 			}
