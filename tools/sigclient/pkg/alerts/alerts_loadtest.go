@@ -127,7 +127,7 @@ func startWebhookServer(port int, webhookChan chan alertutils.WebhookBody, exitC
 	return server
 }
 
-func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, doneChan, exitChan chan bool) {
+func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, successChan, exitChan chan bool) {
 	startTime := time.Now()
 	summary := SummaryData{
 		MinuteData: make(map[int]MinuteSummaryData),
@@ -184,7 +184,7 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 			}
 		case <-timeout.C:
 			log.Errorf("Timed out waiting for alerts")
-			doneChan <- false
+			successChan <- false
 			return
 		case <-exitChan:
 			log.Warnf("Received Exit Signal. Exiting the test!")
@@ -199,7 +199,7 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 
 			log.Infof("Final Summary: Total Time=%v", time.Since(startTime))
 			logSummary(summary)
-			doneChan <- true
+			successChan <- true
 			return
 		}
 	}
@@ -250,7 +250,7 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 	setUpLoggingToFileAndStdOut()
 
 	webhookChan := make(chan alertutils.WebhookBody)
-	doneChan := make(chan bool)
+	successChan := make(chan bool)
 	exitChan := make(chan bool)
 
 	// Start the webhook server
@@ -300,10 +300,10 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 	log.Infof("Created %d Alerts", numAlerts)
 
 	// Track notifications and measure delays
-	go trackNotifications(webhookChan, int(numAlerts), doneChan, exitChan)
+	go trackNotifications(webhookChan, int(numAlerts), successChan, exitChan)
 
 	// Wait for the tracking to complete
-	success := <-doneChan
+	success := <-successChan
 	if !success {
 		log.Errorf("Failed to receive all alerts in time")
 	}
