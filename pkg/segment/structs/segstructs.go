@@ -191,11 +191,16 @@ type OutputTransforms struct {
 }
 
 type HeadExpr struct {
-	MaxRows   uint64
-	Keeplast  bool
-	Null      bool
-	RowsAdded uint64
-	BoolExpr  *BoolExpr
+	MaxRows              uint64
+	Keeplast             bool
+	Null                 bool
+	RowsAdded            uint64
+	BoolExpr             *BoolExpr
+	SegmentRecords       map[string]map[string]interface{}
+	ResultRecords        []map[string]interface{}
+	ResultRecordKeys     []string
+	Done                 bool
+	NumProcessedSegments uint64
 }
 
 type GroupByRequest struct {

@@ -171,8 +171,14 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 			}
 		}
 
-		if agg.OutputTransforms.MaxRows > 0 {
-			err := performMaxRows(nodeResult, agg, agg.OutputTransforms.MaxRows, recs)
+		if agg.OutputTransforms.HeadRequest != nil {
+			headExpr := agg.OutputTransforms.HeadRequest
+			var err error
+			if headExpr.BoolExpr != nil {
+				err = performConditionalHead(nodeResult, headExpr, recs, recordIndexInFinal, numTotalSegments, finishesSegment)
+			} else {
+				err = performMaxRows(nodeResult, agg, agg.OutputTransforms.MaxRows, recs)
+			}
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -191,6 +197,120 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		performTransactionCommandRequest(nodeResult, agg, recs, finalCols, numTotalSegments, finishesSegment)
 	default:
 		return errors.New("performAggOnResult: multiple QueryAggregators is currently only supported for OutputTransformType")
+	}
+
+	return nil
+}
+
+func addRecordToHeadExpr(headExpr *structs.HeadExpr, record map[string]interface{}, recordKey string) {
+	headExpr.ResultRecords = append(headExpr.ResultRecords, record)
+	headExpr.ResultRecordKeys = append(headExpr.ResultRecordKeys, recordKey)
+	delete(headExpr.SegmentRecords, recordKey)
+	headExpr.RowsAdded++
+}
+
+func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int) error {
+	fieldsInExpr := headExpr.BoolExpr.GetFields()
+	currentOrder := make([]string, len(recordIndexInFinal))
+
+	for recordKey, idx := range recordIndexInFinal {
+		currentOrder[idx] = recordKey
+	}
+
+	for _, recordKey := range currentOrder {
+		rec, exist := headExpr.SegmentRecords[recordKey]
+		if !exist {
+			return fmt.Errorf("performConditionalHead: record %v not found in segment records", recordKey)
+		}
+
+		fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+		err := getRecordFieldValues(fieldToValue, fieldsInExpr, rec)
+		if err != nil {
+			return fmt.Errorf("performConditionalHead: Error while retrieving values, err: %v", err)
+		}
+
+		result, err := headExpr.BoolExpr.Evaluate(fieldToValue)
+		if err != nil {
+			nullFields, err := headExpr.BoolExpr.GetNullFields(fieldToValue)
+			if err == nil && len(nullFields) > 0 {
+				// evaluation failed due to null fields
+				if headExpr.Null {
+					addRecordToHeadExpr(headExpr, rec, recordKey)
+				} else if headExpr.Keeplast {
+					addRecordToHeadExpr(headExpr, rec, recordKey)
+					headExpr.Done = true
+					break
+				} else {
+					headExpr.Done = true
+					break
+				}
+			} else {
+				return fmt.Errorf("performConditionalHead: Error while evaluating expression, err: %v", err)
+			}
+		} else {
+			if result {
+				addRecordToHeadExpr(headExpr, rec, recordKey)
+			} else {
+				// false condition so adding last record if keeplast
+				if headExpr.Keeplast {
+					addRecordToHeadExpr(headExpr, rec, recordKey)
+				}
+				headExpr.Done = true
+				break
+			}
+		}
+
+		if headExpr.MaxRows > 0 && headExpr.RowsAdded == headExpr.MaxRows {
+			headExpr.Done = true
+			break
+		}
+	}
+
+	// we have processed the records, clearing extra records if exists
+	for recordKey := range headExpr.SegmentRecords {
+		delete(headExpr.SegmentRecords, recordKey)
+	}
+
+	return nil
+}
+
+func performConditionalHead(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, numTotalSegments uint64, finishesSegment bool) error {
+
+	if headExpr.SegmentRecords == nil {
+		headExpr.SegmentRecords = make(map[string]map[string]interface{}, 0)
+	}
+
+	if headExpr.Done {
+		// delete records as we are done
+		for recordKey := range recs {
+			delete(recs, recordKey)
+		}
+	} else {
+		// accumulate segment records
+		for recordKey, record := range recs {
+			headExpr.SegmentRecords[recordKey] = record
+			delete(recs, recordKey)
+		}
+	}
+
+	if finishesSegment {
+		headExpr.NumProcessedSegments++
+
+		if !headExpr.Done {
+			err := processSegmentRecordsForHeadExpr(headExpr, recs, recordIndexInFinal)
+			if err != nil {
+				return fmt.Errorf("performConditionalHead: Error while processing segment records, err: %v", err)
+			}
+		}
+
+		if headExpr.NumProcessedSegments == numTotalSegments {
+			headExpr.Done = true
+			// save the results
+			for idx, recordKey := range headExpr.ResultRecordKeys {
+				recordIndexInFinal[recordKey] = idx
+				recs[recordKey] = headExpr.ResultRecords[idx]
+			}
+		}
 	}
 
 	return nil
