@@ -54,9 +54,10 @@ let mapIndexToConditionType = new Map([
 ]);
 
 let mapIndexToAlertState = new Map([
-    [0, "Normal"],
-    [1, "Pending"],
-    [2, "Firing"],
+    [0, "Inactive"],
+    [1, "Normal"],
+    [2, "Pending"],
+    [3, "Firing"],
 ]);
 
 const alertForm = $('#alert-form');
