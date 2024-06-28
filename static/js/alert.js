@@ -64,13 +64,27 @@ const alertForm = $('#alert-form');
 
 const propertiesGridOptions = {
     columnDefs: [
-        { headerName: "Config Variable Name", field: "name", sortable: true, filter: true },
-        { headerName: "Config Variable Value", field: "value", sortable: true, filter: true }
+        { 
+            headerName: "Config Variable Name", 
+            field: "name", 
+            sortable: true, 
+            filter: true, 
+            cellStyle: { 'white-space': 'normal', 'word-wrap': 'break-word' }, 
+            width: 150 
+        },
+        { 
+            headerName: "Config Variable Value", 
+            field: "value", 
+            sortable: true, 
+            filter: true, 
+            cellStyle: { 'white-space': 'normal', 'word-wrap': 'break-word' }, 
+            autoHeight: true 
+        }
     ],
     defaultColDef: {
         resizable: true,
         flex: 1,
-        minWidth: 150
+        minWidth: 100
     },
     rowData: [],
     domLayout: 'autoHeight'
