@@ -8254,9 +8254,15 @@ func Test_Head3(t *testing.T) {
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Keeplast)
 
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr)
 	assert.Equal(t, "a", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.IsTerminal)
 	assert.Equal(t, "=", aggregator.OutputTransforms.HeadRequest.BoolExpr.ValueOp)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr)
 	assert.Equal(t, "b", aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr.IsTerminal)
 }
 
 func Test_Head4(t *testing.T) {
@@ -8280,9 +8286,15 @@ func Test_Head4(t *testing.T) {
 	assert.Equal(t, false, aggregator.OutputTransforms.HeadRequest.Keeplast)
 
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr)
 	assert.Equal(t, "a", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.IsTerminal)
 	assert.Equal(t, "=", aggregator.OutputTransforms.HeadRequest.BoolExpr.ValueOp)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue)
+	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr)
 	assert.Equal(t, "b", aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr.IsTerminal)
 }
 
 func Test_Head5(t *testing.T) {
@@ -8333,10 +8345,12 @@ func Test_Head9(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr)
 	assert.Equal(t, "a", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.IsTerminal)
 	assert.Equal(t, ">", aggregator.OutputTransforms.HeadRequest.BoolExpr.ValueOp)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr)
 	assert.Equal(t, "b", aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr.IsTerminal)
 }
 
 func Test_Head10(t *testing.T) {
@@ -8363,10 +8377,12 @@ func Test_Head10(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr)
 	assert.Equal(t, "a", aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.LeftValue.NumericExpr.IsTerminal)
 	assert.Equal(t, "<", aggregator.OutputTransforms.HeadRequest.BoolExpr.ValueOp)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue)
 	assert.NotNil(t, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr)
 	assert.Equal(t, "c", aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr.Value)
+	assert.Equal(t, true, aggregator.OutputTransforms.HeadRequest.BoolExpr.RightValue.NumericExpr.IsTerminal)
 }
 
 func Test_Head11(t *testing.T) {

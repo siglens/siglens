@@ -554,7 +554,7 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
-	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.FilterRows != nil || qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded)
+	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.FilterRows != nil || qa.OutputTransforms.HeadRequest != nil || qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded)
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
