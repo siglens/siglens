@@ -1710,25 +1710,45 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	case "getfields":
 		fallthrough
 	case "typeof":
-		valueExpr, err := self.Val.EvaluateToString(fieldToValue)
-		if err != nil {
-			// Could not evaluate as string, try as float
-			_, floatErr := self.Val.EvaluateToFloat(fieldToValue)
-			if floatErr == nil {
+		var val utils.CValueEnclosure
+		var ok bool
+
+		if self.Val.NumericExpr == nil {
+			val.Dtype = utils.SS_INVALID
+		} else {
+			val, ok = fieldToValue[self.Val.NumericExpr.Value] // The parser always sets the fieldName in NumericExpr even if it's a string
+			if !ok {
+				val.Dtype = utils.SS_INVALID
+			}
+		}
+
+		switch val.Dtype {
+		case utils.SS_INVALID:
+			valueExpr, err := self.Val.EvaluateValueExprAsString(fieldToValue)
+			if err != nil {
+				return "Invalid", nil
+			}
+			if isNumber(valueExpr) {
 				return "Number", nil
 			}
 			if isBoolean(valueExpr) {
 				return "Boolean", nil
 			}
-			if isNull(valueExpr) {
-				return "Null", nil
-			}
+			return "String", nil
+		case utils.SS_DT_BOOL:
+			return "Boolean", nil
+		case utils.SS_DT_SIGNED_NUM, utils.SS_DT_UNSIGNED_NUM, utils.SS_DT_FLOAT,
+			utils.SS_DT_SIGNED_32_NUM, utils.SS_DT_USIGNED_32_NUM,
+			utils.SS_DT_SIGNED_16_NUM, utils.SS_DT_USIGNED_16_NUM,
+			utils.SS_DT_SIGNED_8_NUM, utils.SS_DT_USIGNED_8_NUM:
+			return "Number", nil
+		case utils.SS_DT_STRING, utils.SS_DT_STRING_SET, utils.SS_DT_RAW_JSON:
+			return "String", nil
+		case utils.SS_DT_BACKFILL:
+			return "Null", nil
+		default:
 			return "Invalid", nil
 		}
-		if isNumber(valueExpr) {
-			return "Number", nil
-		}
-		return "String", nil
 	}
 	if self.Op == "max" {
 		if len(self.ValueList) == 0 {
@@ -1902,10 +1922,6 @@ func isNumber(str string) bool {
 func isBoolean(str string) bool {
 	lowerStr := strings.ToLower(str)
 	return lowerStr == "true" || lowerStr == "false"
-}
-
-func isNull(str string) bool {
-	return str == "" || str == "null"
 }
 
 func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
