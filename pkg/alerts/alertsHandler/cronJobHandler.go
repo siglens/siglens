@@ -131,6 +131,10 @@ func shouldUpdateAlertStateToFiring(alertDetails *alertutils.AlertDetails, curre
 		return false
 	}
 
+	if intervalCount == 1 {
+		return true
+	}
+
 	alertHistoryList, err := databaseObj.GetAlertHistoryByAlertID(&alertutils.AlertHistoryQueryParams{
 		AlertId:   alertDetails.AlertId,
 		Limit:     intervalCount - 1,
@@ -276,7 +280,7 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 }
 
 func updateAlertState(alertId string, alertState alertutils.AlertState) error {
-	err := databaseObj.UpdateAlertStateByAlertID(alertId, alertState)
+	err := databaseObj.UpdateAlertStateAndIncrementNumEvaluations(alertId, alertState)
 	return err
 }
 

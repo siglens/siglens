@@ -32,6 +32,7 @@ import (
 	segquery "github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -3958,6 +3959,7 @@ func Test_evalFunctionsIfAndSearchMatch(t *testing.T) {
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
 	assert.NotNil(t, filterNode)
+	expectedFields := []string{"x", "y"}
 
 	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
 	assert.Nil(t, err)
@@ -3976,6 +3978,7 @@ func Test_evalFunctionsIfAndSearchMatch(t *testing.T) {
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.ValueOp, "searchmatch")
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.IsTerminal, true)
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.RawString, "x=hi y=*")
+	assert.True(t, putils.CompareStringSlices(expectedFields, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
 	assert.Nil(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.RightValue)
 
 	assert.Equal(t, aggregator.Next.Next.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.StringExpr.RawString, "yes")
@@ -8239,6 +8242,107 @@ func performEventCountTest(t *testing.T, query string, expectedIndices []string,
 	assert.Equal(t, expectedSummarize, aggregator.OutputTransforms.LetColumns.EventCountRequest.Summarize)
 	assert.Equal(t, expectedReportSize, aggregator.OutputTransforms.LetColumns.EventCountRequest.ReportSize)
 	assert.Equal(t, expectedListVix, aggregator.OutputTransforms.LetColumns.EventCountRequest.ListVix)
+}
+
+func performSearchMatchCheck(t *testing.T, query string, expectedFields []string, searchStr string) {
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.NewColName, "n")
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest)
+	assert.Equal(t, int(aggregator.OutputTransforms.LetColumns.ValueColRequest.ValueExprMode), structs.VEMConditionExpr)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr)
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.Op, "if")
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr)
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.ValueOp, "searchmatch")
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.IsTerminal, true)
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.RawString, searchStr)
+	assert.True(t, putils.CompareStringSlices(expectedFields, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.LeftValue.StringExpr.FieldList))
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.BoolExpr.RightValue)
+
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.TrueValue.StringExpr.RawString, "yes")
+	assert.Equal(t, aggregator.OutputTransforms.LetColumns.ValueColRequest.ConditionExpr.FalseValue.StringExpr.RawString, "no")
+}
+
+func Test_SearchMatch_1(t *testing.T) {
+	query := `* | eval n = if(searchmatch("city=abc"), "yes", "no")`
+	expectedFields := []string{"city"}
+	rawStr := "city=abc"
+	performSearchMatchCheck(t, query, expectedFields, rawStr)
+}
+
+func Test_SearchMatch_2(t *testing.T) {
+	query := `app_name = "Bracecould" | eval n = if(searchmatch("city=abc address=*"), "yes", "no")`
+	expectedFields := []string{"city", "address"}
+	rawStr := "city=abc address=*"
+	performSearchMatchCheck(t, query, expectedFields, rawStr)
+}
+
+func Test_SearchMatch_3(t *testing.T) {
+	query := `city=Boston | eval n = if(searchmatch("x=abc address=123"), "yes", "no")`
+	expectedFields := []string{"x", "address"}
+	rawStr := "x=abc address=123"
+	performSearchMatchCheck(t, query, expectedFields, rawStr)
+}
+
+func Test_SearchMatch_4(t *testing.T) {
+	query := `* | eval n = if(searchmatch("*"), "yes", "no")`
+	expectedFields := []string{"*"}
+	rawStr := "*"
+	performSearchMatchCheck(t, query, expectedFields, rawStr)
+}
+
+func Test_SearchMatch_5(t *testing.T) {
+	query := `city=Boston | eval n = if(searchmatch("  *  "), "yes", "no")`
+	expectedFields := []string{"*"}
+	rawStr := "  *  "
+	performSearchMatchCheck(t, query, expectedFields, rawStr)
+}
+
+func Test_SearchMatch_6(t *testing.T) {
+	query := `* | eval n = if(searchmatch("abc"), "yes", "no")`
+	expectedFields := []string{"*"}
+	rawStr := "abc"
+	performSearchMatchCheck(t, query, expectedFields, rawStr)
+}
+
+func Test_SearchMatch_7(t *testing.T) {
+	query := `* | eval n = if(searchmatch("first_name=A* last_name=B?"), "yes", "no")`
+	expectedFields := []string{"first_name", "last_name"}
+	rawStr := "first_name=A* last_name=B?"
+	performSearchMatchCheck(t, query, expectedFields, rawStr)
+}
+
+func Test_SearchMatch_8(t *testing.T) {
+	query := `* | eval n = if(searchmatch("a b"), "yes", "no")`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_SearchMatch_9(t *testing.T) {
+	query := `* | eval n = if(searchmatch("   "), "yes", "no")`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_SearchMatch_10(t *testing.T) {
+	query := `* | eval n = if(searchmatch(""), "yes", "no")`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_SearchMatch_11(t *testing.T) {
+	query := `* | eval n = if(searchmatch(123), "yes", "no")`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
 }
 
 func Test_tail(t *testing.T) {

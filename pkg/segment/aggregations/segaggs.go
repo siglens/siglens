@@ -2197,6 +2197,16 @@ func getRecordFieldValues(fieldToValue map[string]segutils.CValueEnclosure, fiel
 func performValueColRequestWithoutGroupBy(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 	fieldsInExpr := letColReq.ValueColRequest.GetFields()
 
+	if len(fieldsInExpr) == 1 && fieldsInExpr[0] == "*" {
+		fieldsInExpr = []string{}
+		for _, record := range recs {
+			for fieldName := range record {
+				fieldsInExpr = append(fieldsInExpr, fieldName)
+			}
+			break
+		}
+	}
+
 	for _, record := range recs {
 		fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
 		err := getRecordFieldValues(fieldToValue, fieldsInExpr, record)
