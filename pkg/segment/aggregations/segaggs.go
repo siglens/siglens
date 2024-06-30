@@ -206,6 +206,70 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	return nil
 }
 
+// only called when headExpr has BoolExpr
+func performConditionalHeadOnHistogram(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr) error {
+	fieldsInExpr := headExpr.BoolExpr.GetFields()
+	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+
+	for _, aggregationResult := range nodeResult.Histogram {
+		newResults := make([]*structs.BucketResult, 0)
+
+		if !headExpr.Done {
+			for rowIndex, bucketResult := range aggregationResult.Results {
+				// Get the values of all the necessary fields.
+				err := getAggregationResultFieldValues(fieldToValue, fieldsInExpr, aggregationResult, rowIndex)
+				if err != nil {
+					return fmt.Errorf("performFilterRowsOnHistogram: %v", err)
+				}
+	
+				// Evaluate the expression to a value.
+				result, err := headExpr.BoolExpr.Evaluate(fieldToValue)
+				if err != nil {
+					nullFields, err := headExpr.BoolExpr.GetNullFields(fieldToValue)
+					if err == nil && len(nullFields) > 0 {
+						// evaluation failed due to null fields
+						if headExpr.Null {
+							newResults = append(newResults, bucketResult)
+						} else if headExpr.Keeplast {
+							newResults = append(newResults, bucketResult)
+							headExpr.Done = true
+							break
+						} else {
+							headExpr.Done = true
+							break
+						}
+					} else {
+						return fmt.Errorf("performConditionalHead: Error while evaluating expression on histogram, err: %v", err)
+					}
+				} else {
+					if result {
+						newResults = append(newResults, bucketResult)
+					} else {
+						// false condition so adding last record if keeplast
+						if headExpr.Keeplast {
+							newResults = append(newResults, bucketResult)
+						}
+						headExpr.Done = true
+						break
+					}
+				}
+		
+				if headExpr.MaxRows > 0 && headExpr.RowsAdded == headExpr.MaxRows {
+					headExpr.Done = true
+					break
+				}
+				
+			}
+		}
+
+		aggregationResult.Results = newResults
+	}
+
+	return nil
+}
+
+
+
 func addRecordToHeadExpr(headExpr *structs.HeadExpr, record map[string]interface{}, recordKey string, hasSort bool) {
 	headExpr.RowsAdded++
 	if hasSort {
@@ -311,6 +375,15 @@ func processHeadExprWithSort(headExpr *structs.HeadExpr, recs map[string]map[str
 }
 
 func performConditionalHead(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, numTotalSegments uint64, finishesSegment bool, hasSort bool) error {
+
+	if nodeResult.Histogram != nil {
+		err := performConditionalHeadOnHistogram(nodeResult, headExpr)
+		if err != nil {
+			return fmt.Errorf("performConditionalHead: Error while filtering histogram, err: %v", err)
+		}
+
+		return nil
+	}
 
 	if headExpr.SegmentRecords == nil {
 		headExpr.SegmentRecords = make(map[string]map[string]interface{}, 0)
