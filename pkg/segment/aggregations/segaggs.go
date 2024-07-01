@@ -18,6 +18,7 @@
 package aggregations
 
 import (
+	"container/heap"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -102,8 +103,12 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		post = post.Next
 	}
 
+	hasSort := false
 	for agg := post; agg != nil; agg = agg.Next {
-		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
+		if agg.HasSortBlock() {
+			hasSort = true
+		}
+		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment, hasSort)
 
 		if len(nodeResult.TransactionEventRecords) > 0 {
 			nodeResult.NextQueryAgg = agg
@@ -139,7 +144,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     2.9 Text functions: replace, spath, upper, trim
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, hasSort bool) error {
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -171,6 +176,14 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 			}
 		}
 
+		if agg.OutputTransforms.TailRequest != nil {
+			err := performTail(nodeResult, agg.OutputTransforms.TailRequest, recs, recordIndexInFinal, finishesSegment, numTotalSegments, hasSort)
+
+			if err != nil {
+				return fmt.Errorf("performAggOnResult: %v", err)
+			}
+		}
+
 		if agg.OutputTransforms.MaxRows > 0 {
 			err := performMaxRows(nodeResult, agg, agg.OutputTransforms.MaxRows, recs)
 
@@ -191,6 +204,109 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		performTransactionCommandRequest(nodeResult, agg, recs, finalCols, numTotalSegments, finishesSegment)
 	default:
 		return errors.New("performAggOnResult: multiple QueryAggregators is currently only supported for OutputTransformType")
+	}
+
+	return nil
+}
+
+func performTail(nodeResult *structs.NodeResult, tailExpr *structs.TailExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finishesSegment bool, numTotalSegments uint64, hasSort bool) error {
+
+	if nodeResult.Histogram != nil {
+		for _, aggResult := range nodeResult.Histogram {
+			diff := len(aggResult.Results) - int(tailExpr.TailRows)
+			if diff > 0 {
+				aggResult.Results = aggResult.Results[diff:]
+				tailExpr.TailRows = 0
+			} else {
+				tailExpr.TailRows -= uint64(len(aggResult.Results))
+			}
+			n := len(aggResult.Results)
+			for i := 0; i < n/2; i++ {
+				aggResult.Results[i], aggResult.Results[n-i-1] = aggResult.Results[n-i-1], aggResult.Results[i]
+			}
+			if tailExpr.TailRows == 0 {
+				break
+			}
+		}
+
+		return nil
+	}
+
+	if finishesSegment {
+		tailExpr.NumProcessedSegments++
+	}
+
+	if tailExpr.TailRecords == nil {
+		tailExpr.TailRecords = make(map[string]map[string]interface{}, 0)
+	}
+	if tailExpr.TailPQ == nil {
+		pq := make(utils.PriorityQueue, 0)
+		tailExpr.TailPQ = &pq
+		heap.Init(tailExpr.TailPQ)
+	}
+
+	if !hasSort {
+		for recordKey, record := range recs {
+			timeVal, exists := record["timestamp"]
+			if !exists {
+				continue
+			}
+			heap.Push(tailExpr.TailPQ, &utils.Item{
+				Priority: float64(timeVal.(uint64)),
+				Value:    recordKey,
+			})
+			tailExpr.TailRecords[recordKey] = record
+			if tailExpr.TailPQ.Len() > int(tailExpr.TailRows) {
+				item := heap.Pop(tailExpr.TailPQ).(*utils.Item)
+				delete(tailExpr.TailRecords, item.Value)
+			}
+			delete(recs, recordKey)
+		}
+	}
+
+	if tailExpr.NumProcessedSegments < numTotalSegments {
+		if hasSort && len(recs) > 0 {
+			return fmt.Errorf("performTail: Sort was applied but still records are found in recs for a non-last segment")
+		}
+		return nil
+	}
+
+	// if sort is present before use the recs and recordIndexInFinal that sort has updated
+	if hasSort {
+		currentSortOrder := make([]string, len(recs))
+		for recordKey := range recs {
+			idx, exists := recordIndexInFinal[recordKey]
+			if !exists {
+				return fmt.Errorf("performTail: After sort, index not found in recordIndexInFinal for rec: %v", recordKey)
+			}
+			currentSortOrder[idx] = recordKey
+		}
+		if tailExpr.TailRows < uint64(len(currentSortOrder)) {
+			diff := len(currentSortOrder) - int(tailExpr.TailRows)
+			for i := 0; i < diff; i++ {
+				delete(recs, currentSortOrder[i])
+			}
+			currentSortOrder = currentSortOrder[diff:]
+		}
+
+		n := len(currentSortOrder)
+		for i := 0; i < n/2; i++ {
+			currentSortOrder[i], currentSortOrder[n-i-1] = currentSortOrder[n-i-1], currentSortOrder[i]
+		}
+		for idx, recordKey := range currentSortOrder {
+			recordIndexInFinal[recordKey] = idx
+		}
+	} else {
+		for recordKey, record := range tailExpr.TailRecords {
+			recs[recordKey] = record
+		}
+
+		idx := tailExpr.TailPQ.Len() - 1
+		for tailExpr.TailPQ.Len() > 0 {
+			item := heap.Pop(tailExpr.TailPQ).(*utils.Item)
+			recordIndexInFinal[item.Value] = idx
+			idx -= 1
+		}
 	}
 
 	return nil
