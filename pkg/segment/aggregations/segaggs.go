@@ -219,7 +219,7 @@ func performConditionalHeadOnHistogram(nodeResult *structs.NodeResult, headExpr 
 				// Get the values of all the necessary fields.
 				err := getAggregationResultFieldValues(fieldToValue, fieldsInExpr, aggregationResult, rowIndex)
 				if err != nil {
-					return fmt.Errorf("performFilterRowsOnHistogram: %v", err)
+					return fmt.Errorf("performConditionalHeadOnHistogram: error while getting agg result fields values, err: %v", err)
 				}
 
 				// Evaluate the expression to a value.
@@ -239,7 +239,7 @@ func performConditionalHeadOnHistogram(nodeResult *structs.NodeResult, headExpr 
 							break
 						}
 					} else {
-						return fmt.Errorf("performConditionalHead: Error while evaluating expression on histogram, err: %v", err)
+						return fmt.Errorf("performConditionalHeadOnHistogram: Error while evaluating expression on histogram, err: %v", err)
 					}
 				} else {
 					if result {
@@ -286,7 +286,7 @@ func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recordMap map[
 	for recordKey := range recordMap {
 		idx, exist := recordIndexInFinal[recordKey]
 		if !exist {
-			return fmt.Errorf("performConditionalHead: Index not found in recordIndexInFinal for record: %v", recordKey)
+			return fmt.Errorf("processSegmentRecordsForHeadExpr: Index not found in recordIndexInFinal for record: %v", recordKey)
 		}
 		currentOrder[idx] = recordKey
 	}
@@ -294,13 +294,13 @@ func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recordMap map[
 	for _, recordKey := range currentOrder {
 		rec, exist := recordMap[recordKey]
 		if !exist {
-			return fmt.Errorf("performConditionalHead: record %v not found in segment records", recordKey)
+			return fmt.Errorf("processSegmentRecordsForHeadExpr: record %v not found in segment records", recordKey)
 		}
 
 		fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
 		err := getRecordFieldValues(fieldToValue, fieldsInExpr, rec)
 		if err != nil {
-			return fmt.Errorf("performConditionalHead: Error while retrieving values, err: %v", err)
+			return fmt.Errorf("processSegmentRecordsForHeadExpr: Error while retrieving values, err: %v", err)
 		}
 
 		result, err := headExpr.BoolExpr.Evaluate(fieldToValue)
@@ -319,7 +319,7 @@ func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recordMap map[
 					break
 				}
 			} else {
-				return fmt.Errorf("performConditionalHead: Error while evaluating expression, err: %v", err)
+				return fmt.Errorf("processSegmentRecordsForHeadExpr: Error while evaluating expression, err: %v", err)
 			}
 		} else {
 			if result {
@@ -362,7 +362,7 @@ func processHeadExprWithSort(headExpr *structs.HeadExpr, recs map[string]map[str
 	headExpr.NumProcessedSegments++
 	// if it is the last segment, sort would have populated the records
 	if len(recs) > 0 && headExpr.NumProcessedSegments != numTotalSegments {
-		return fmt.Errorf("performConditionalHead: Records are present even when there is sort")
+		return fmt.Errorf("processHeadExprWithSort: Records are present even when there is sort")
 	}
 
 	if headExpr.NumProcessedSegments == numTotalSegments {
