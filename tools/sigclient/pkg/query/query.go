@@ -696,6 +696,38 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 						} else {
 							log.Fatalf("RunQueryFromFile: specified group item not found for query %v", rec[0])
 						}
+					} else if strings.HasPrefix(evaluationType, "countRecord") && eKey == "hits" {
+						groupData := strings.Split(evaluationType, ":")
+						col := groupData[1]
+						_ = col
+						if readEvent["hits"] == nil {
+							log.Fatalf("RunQueryFromFile: No hits found for query %v", rec[0])
+						}
+						hits := readEvent["hits"].(map[string]interface{})
+						records := hits["records"].([]interface{})
+						if len(records) != 1 {
+							log.Fatalf("RunQueryFromFile: Expected records for this special case is 1 found: %v", len(records))
+						}
+						data := records[0].(map[string]interface{})
+						if len(data) != 1 {
+							log.Fatalf("RunQueryFromFile: Expected number of columns for this special case is 1 found: %v", len(data))
+						}
+						actualValue, ok := data[col]
+						if !ok {
+							log.Fatalf("RunQueryFromFile: Expected col %v is not in the data record", col)
+						}
+						actualValueStr, ok := actualValue.(string)
+						if !ok {
+							log.Fatalf("RunQueryFromFile: Expected value is not a string: %v", actualValue)
+						}
+						ok, err = utils.VerifyInequalityForStr(actualValueStr, relation, expectedValue)
+						if err != nil {
+							log.Fatalf("RunQueryFromFile: Error in verifying special count: %v", err)
+						} else if !ok {
+							log.Fatalf("RunQueryFromFile: Actual value: %v is not [%s %v] for query: %v", actualValueStr, expectedValue, relation, rec[0])
+						} else {
+							log.Infof("RunQueryFromFile: Query %v was succesful. In %+v", rec[0], time.Since(sTime))
+						}
 					}
 				}
 			default:

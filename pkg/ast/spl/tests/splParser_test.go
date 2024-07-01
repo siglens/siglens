@@ -8344,3 +8344,77 @@ func Test_SearchMatch_11(t *testing.T) {
 	_, err := spl.Parse("", []byte(query))
 	assert.NotNil(t, err)
 }
+
+func Test_tail(t *testing.T) {
+	query := []byte(`city=Boston | tail`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.TailRequest)
+	assert.Equal(t, aggregator.OutputTransforms.TailRequest.TailRows, uint64(10)) // This is the SPL default when no value is given.
+}
+
+func Test_tailWithSort(t *testing.T) {
+	query := []byte(`city=Boston | sort batch | tail`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.Nil(t, aggregator.Next.Next)
+
+	assert.Equal(t, aggregator.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.TailRequest)
+	assert.Equal(t, aggregator.Next.OutputTransforms.TailRequest.TailRows, uint64(10)) // This is the SPL default when no value is given.
+}
+
+func Test_tailWithNumber(t *testing.T) {
+	query := []byte(`city=Boston | tail 7`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Nil(t, aggregator.Next)
+
+	assert.Equal(t, aggregator.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.OutputTransforms.TailRequest)
+	assert.Equal(t, aggregator.OutputTransforms.TailRequest.TailRows, uint64(7))
+}
+
+func Test_tailWithSortAndNumber(t *testing.T) {
+	query := []byte(`* | sort batch | tail 20`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.NotNil(t, aggregator.Next)
+	assert.Nil(t, aggregator.Next.Next)
+
+	assert.Equal(t, aggregator.Next.PipeCommandType, structs.OutputTransformType)
+	assert.NotNil(t, aggregator.Next.OutputTransforms.TailRequest)
+	assert.Equal(t, aggregator.Next.OutputTransforms.TailRequest.TailRows, uint64(20)) // This is the SPL default when no value is given.
+}

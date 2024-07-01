@@ -129,3 +129,7 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "app_name = ""Bracecould"" | stats count AS Count BY first_name | eval match = if(searchmatch(""first_name=A*e""), ""yes"", ""no"")",now-1d,now,*,group:match:Alessia,eq,"no",Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval x=""hi"" | eval y=""ab"" | eval z=""great"" | eval match=if(searchmatch(""x=hi y=a? z=*""), ""yes"", ""no"")",now-1d,now,*,group:match:301,eq,"yes",Splunk QL
 "city=Boston | stats count AS Count BY http_status | eval x=""hi"" | eval y=""a"" | eval z=""great"" | eval match=if(searchmatch(""x=hi y=a? z=*""), ""yes"", ""no"")",now-1d,now,*,group:match:301,eq,"no",Splunk QL
+"city=Boston | tail 7 | stats count",now-1d,now,*,countRecord:count(*):*,eq,7,Splunk QL
+"* | tail 30000 | stats count",now-1d,now,*,countRecord:count(*):*,eq,"30,000",Splunk QL
+"app_name = ""Bracecould"" | tail 3000 | stats count",now-1d,now,*,countRecord:count(*):*,eq,6,Splunk QL
+"city = Boston | sort batch | tail | stats count",now-1d,now,*,countRecord:count(*):*,eq,10,Splunk QL
