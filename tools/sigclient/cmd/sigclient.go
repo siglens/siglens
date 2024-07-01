@@ -141,8 +141,16 @@ var metricsBenchCmd = &cobra.Command{
 	},
 }
 
-var alertsE2ECmd = &cobra.Command{
+var alertsCmd = &cobra.Command{
 	Use:   "alerts",
+	Short: "alerts",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.Fatal("Alerts command should be used with e2e/load-test.")
+	},
+}
+
+var alertsE2ECmd = &cobra.Command{
+	Use:   "e2e",
 	Short: "Perform E2E tests for alerts: From creating contact points, creating alerts, sending alerts, and verifying alerts, and finally cleanup",
 	Run: func(cmd *cobra.Command, args []string) {
 		destHost, _ := cmd.Flags().GetString("dest")
@@ -151,6 +159,24 @@ var alertsE2ECmd = &cobra.Command{
 			log.Fatalf("Destination Host is required")
 		}
 		alerts.RunAlertsTest(destHost)
+	},
+}
+
+var alertsLoadTestCmd = &cobra.Command{
+	Use:   "load-test",
+	Short: "Perform Load test for alerts: Create `n` number of alerts, send alerts, and verify alerts",
+	Run: func(cmd *cobra.Command, args []string) {
+		destHost, _ := cmd.Flags().GetString("dest")
+		numAlerts, _ := cmd.Flags().GetUint64("numAlerts")
+		log.Infof("destHost : %+v\n", destHost)
+		log.Infof("numAlerts : %+v\n", numAlerts)
+		if destHost == "" {
+			log.Fatalf("Destination Host is required")
+		}
+		if numAlerts == 0 {
+			log.Fatalf("Number of alerts must be greater than 0")
+		}
+		alerts.RunAlertsLoadTest(destHost, numAlerts)
 	},
 }
 
@@ -293,20 +319,25 @@ func init() {
 	queryCmd.PersistentFlags().BoolP("randomQueries", "", false, "generate random queries")
 	queryCmd.PersistentFlags().StringP("query", "q", "", "promql query to run")
 
+	traceCmd.PersistentFlags().StringP("filePrefix", "f", "", "Name of file to output to")
+	traceCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of traces to generate")
+	traceCmd.Flags().IntP("maxSpans", "s", 100, "max number of spans in a single trace")
+
 	metricsBenchCmd.PersistentFlags().IntP("numQueryIterations", "n", 1, "Number of query iterations loop")
+
+	alertsLoadTestCmd.PersistentFlags().Uint64P("numAlerts", "n", 1, "Number of alerts to create")
 
 	queryCmd.AddCommand(esQueryCmd)
 	queryCmd.AddCommand(metricsQueryCmd)
 	queryCmd.AddCommand(promQLQueryCmd)
 	ingestCmd.AddCommand(esBulkCmd)
 	ingestCmd.AddCommand(metricsIngestCmd)
-	traceCmd.PersistentFlags().StringP("filePrefix", "f", "", "Name of file to output to")
-	traceCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of traces to generate")
-	traceCmd.Flags().IntP("maxSpans", "s", 100, "max number of spans in a single trace")
+	alertsCmd.AddCommand(alertsLoadTestCmd)
+	alertsCmd.AddCommand(alertsE2ECmd)
 
 	rootCmd.AddCommand(ingestCmd)
 	rootCmd.AddCommand(queryCmd)
 	rootCmd.AddCommand(traceCmd)
 	rootCmd.AddCommand(metricsBenchCmd)
-	rootCmd.AddCommand(alertsE2ECmd)
+	rootCmd.AddCommand(alertsCmd)
 }

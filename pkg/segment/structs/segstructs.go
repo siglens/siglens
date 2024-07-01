@@ -766,7 +766,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"mvzip":            {},
 	"mv_to_json_array": {},
 	"sigfig":           {},
-	"searchmatch":      {},
 	"nullif":           {},
 	"object_to_array":  {},
 	"printf":           {},
