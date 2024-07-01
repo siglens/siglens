@@ -71,13 +71,6 @@ $(document).ready(async () => {
 
     $('body').css('cursor', 'default');
 
-    const currentUrl = window.location.href;
-    if (currentUrl.includes("live-tail.html")) {
-        $(".nav-live").addClass("active");
-        $(".nav-search").removeClass("active");
-    }else{
-        $(".nav-search").addClass("active");
-    }
 
     $('.theme-btn').on('click', themePickerHandler);
     let ele = $('#available-fields .select-unselect-header');
@@ -203,27 +196,6 @@ $(document).ready(async () => {
         }
     });
 });
-function displayQueryLangToolTip(selectedQueryLangID) {
-    $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
-    $("#clearInput").hide();
-    switch (selectedQueryLangID) {
-        case "1":
-        case 1:
-            $('#info-icon-sql').show();
-            $("#filter-input").attr("placeholder", "Enter your SQL query here, or click the 'i' icon for examples");
-            break;
-        case "2":
-        case 2:
-            $('#info-icon-logQL').show();
-            $("#filter-input").attr("placeholder", "Enter your LogQL query here, or click the 'i' icon for examples");
-            break;
-        case "3":
-        case 3:
-            $('#info-icon-spl').show();
-            $("#filter-input").attr("placeholder", "Enter your SPL query here, or click the 'i' icon for examples");
-            break;
-    }
-}
 
 $("#filter-input").on("input", function() {
     if ($(this).val().trim() !== "") {

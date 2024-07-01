@@ -24,8 +24,6 @@ var chartDataCollection = {}; // Save label/data for each query
 let mergedGraph ;
 let chartType = "Line chart";
 let availableMetrics = [];
-let previousStartEpoch = null;
-let previousEndEpoch = null;
 let rawTimeSeriesData=[];
 let allFunctions,functionsArray =[];
 var aggregationOptions = ["max by", "min by", "avg by", "sum by", "count by", "stddev by", "stdvar by", "group by"];
