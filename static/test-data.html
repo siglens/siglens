@@ -43,8 +43,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
 
+    <style>
+        .tab-chart-list{
+            margin-left: 20px !important;
+            min-width: 600px;
+        }
+    </style>
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -69,72 +77,58 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <div class="myOrg">
             <div class="myOrg-container">
                 <div class="ingestion-nav-tab">
+                    Logs Ingestions
                 </div>
-
-                <div class="myOrg-inner-container">
-                    <div>
-                        <div>
-                            <p class="caption">Instructions to set up log ingestion</p>
-                        </div>
-                        <div class="d-flex">
-                            <div class="dropdown">
-                                <button class="btn dropdown-toggle d-flex justify-content-between align-items-center"
-                                    type="button" id="source-selection" data-toggle="dropdown" aria-haspopup="true"
-                                    aria-expanded="false" data-bs-toggle="dropdown" title="Select Source Type">
-                                    <span>Select Ingestion Source</span>
-                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                    <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                                </button>
-                                <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="source-options">
-                                    <li id="option-1" class="source-option">Send Test Data</li>
-                                    <li id="option-2" class="source-option">Vector</li>
-                                    <li id="option-3" class="source-option">Logstash</li>
-                                    <li id="option-4" class="source-option">Fluentd</li>
-                                    <li id="option-5" class="source-option">Filebeat</li>
-                                    <li id="option-6" class="source-option">Promtail</li>
-                                    <li id="option-6" class="source-option">Splunk HEC</li>
-                                    <li id="option-6" class="source-option">Elastic Bulk</li>
-                                </div>
-                            </div>
-                            <div><button type="button" class="btn" id="test-data-btn">Send Test Data</button></div>
-                        </div>
-                    </div>
-                    <div id="data-ingestion">
-                        <div class="container mt-4">
-                            <div class="d-flex">
-                                <h5 class="myOrg-heading">Basic Information</h5>
-                                <div class="basic-info">
-                                    <div class="d-flex flex-column">
-                                        <div class="d-flex w-100">
-                                            <div class="w-100" style="margin-right: 20px;">
-                                                <label for="Platform">Platform</label>
-                                                <input type="text" placeholder="" class="form-control"
-                                                    id="platform-input" readonly>
+                    <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
+                        <ul class="tab-chart-list">
+                            <li class="tab-li" id="option-1"><a href="#sample-data" class="custom-query-builder">Send Test Data</a>
+                            </li>
+                            <li class="tab-li" id="option-2"><a href="#data-ingestion" class="custom-query-builder">Vector</a>
+                            </li>
+                            <li class="tab-li" id="option-3"><a href="#data-ingestion" class="custom-query-builder">Logstash</a>
+                            </li>
+                            <li class="tab-li" id="option-4"><a href="#data-ingestion" class="custom-query-builder">Fluentd</a>
+                            </li>
+                            <li class="tab-li" id="option-5"><a href="#data-ingestion" class="custom-query-builder">Filebeat</a>
+                            </li>
+                            <li class="tab-li" id="option-6"><a href="#data-ingestion" class="custom-query-builder">Promtail</a>
+                            </li>
+                            <li class="tab-li" id="option-7"><a href="#data-ingestion" class="custom-query-builder">Splunk HEC</a>
+                            </li>
+                            <li class="tab-li" id="option-8"><a href="#data-ingestion" class="custom-query-builder">Elastic Bulk</a>
+                            </li>
+                        </ul>
+                    
+                        <div class="ingest-inner-container">
+                            <div>
+                                <div id="data-ingestion">
+                            
+                                <div class="container mt-4">
+                                    <div class="d-flex mt-4">
+                                        <h5 class="myOrg-heading">Setup instructions</h5>
+                                        <div class="ingestion-container">
+                                            <div>Follow the steps in <a href="" id="setup-instructions-link" target="_blank">Quick start
+                                                    guide<span id="open-new-tab-icon"></span></a></div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex mt-4">
+                                        <h5 class="myOrg-heading">Verify data collection</h5>
+                                        <div class="ingestion-container">
+                                            <p>Test the pipes by running the following command in your terminal:</p>
+                                            <div class="position-relative">
+                                                <textarea name="" id="verify-command" cols="30" rows="6"
+                                                    class="form-control copyable" readonly></textarea>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+                            </div>                        
+                            <div id="sample-data">
+                                <p class="caption"> Get started by sending sample logs data &nbsp; </p>
+                                <button type="button" class="btn" id="test-data-btn">Send Test Data</button>
                             </div>
-                            <div class="d-flex mt-4">
-                                <h5 class="myOrg-heading">Setup instructions</h5>
-                                <div class="ingestion-container">
-                                    <div>Follow the steps in <a href="" id="setup-instructions-link" target="_blank">Quick start
-                                            guide<span id="open-new-tab-icon"></span></a></div>
-                                </div>
-                            </div>
-                            <div class="d-flex mt-4">
-                                <h5 class="myOrg-heading">Verify data collection</h5>
-                                <div class="ingestion-container">
-                                    <p>Test the pipes by running the following command in your terminal:</p>
-                                    <div class="position-relative">
-                                        <textarea name="" id="verify-command" cols="30" rows="6"
-                                            class="form-control copyable" readonly></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
-                </div>
+                </div>                  
             </div>
         </div>
 
@@ -153,8 +147,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/saved-query.js?cb=1_1_10"></script>
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./js/test-data.js"></script>
-    <script src="./component/upper-navbar/upper-navbar.js"></script>
-
+    
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
 </body>

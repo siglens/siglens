@@ -1779,3 +1779,121 @@ func Test_StatisticExpr(t *testing.T) {
 	assert.Equal(t, bucketResult2, results[0])
 	assert.Equal(t, bucketResult1, results[1])
 }
+
+func TestFormatTime(t *testing.T) {
+	cases := []struct {
+		time     time.Time
+		format   string
+		expected string
+	}{
+		{
+			time:     time.Date(2023, 3, 14, 1, 59, 26, 0, time.UTC),
+			format:   "%Y-%m-%d %H:%M:%S",
+			expected: "2023-03-14 01:59:26",
+		},
+		{
+			time:     time.Date(2020, 12, 31, 23, 59, 59, 999999000, time.UTC),
+			format:   "%Y-%m-%d %I:%M:%S %p %f",
+			expected: "2020-12-31 11:59:59 PM .999999",
+		},
+		{
+			time:     time.Date(1999, 1, 1, 15, 0, 0, 0, time.UTC),
+			format:   "%A, %B %d, %Y",
+			expected: "Friday, January 01, 1999",
+		},
+		{
+			time:     time.Date(2023, 3, 14, 1, 59, 26, 0, time.UTC),
+			format:   "%F %T",
+			expected: "2023-03-14 01:59:26",
+		},
+		{
+			time:     time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
+			format:   "%s",
+			expected: "0",
+		},
+		{
+			time:     time.Date(2022, 2, 28, 12, 34, 56, 789000000, time.Local),
+			format:   "%c",
+			expected: "Mon Feb 28 12:34:56 2022",
+		},
+		{
+			time:     time.Date(2021, 10, 10, 10, 10, 10, 10000000, time.UTC),
+			format:   "%x %X %N %Q",
+			expected: "10/10/21 10:10:10 010000000 10",
+		},
+		{
+			time:     time.Date(1998, 5, 17, 0, 0, 0, 0, time.UTC),
+			format:   "%V",
+			expected: "20",
+		},
+		{
+			time:     time.Date(2000, 1, 2, 3, 4, 5, 678000000, time.UTC),
+			format:   "%Y-%m-%d %H:%M:%S%f",
+			expected: "2000-01-02 03:04:05.678000",
+		},
+		{
+			time:     time.Date(2000, 12, 25, 23, 59, 59, 999000000, time.UTC),
+			format:   "%c",
+			expected: "Mon Dec 25 23:59:59 2000",
+		},
+	}
+
+	for _, c := range cases {
+		formattedTime := formatTime(c.time, c.format)
+		if formattedTime != c.expected {
+			t.Errorf("Test failed for time: %v, format: %s, expected: %s, got: %s",
+				c.time, c.format, c.expected, formattedTime)
+		}
+	}
+}
+
+func TestParseTime(t *testing.T) {
+	tests := []struct {
+		dateStr     string
+		format      string
+		expected    time.Time
+		shouldError bool
+	}{
+		{
+			dateStr:     "01-02-2006 15:04:05",
+			format:      "%d-%m-%Y %H:%M:%S",
+			expected:    time.Date(2006, time.February, 1, 15, 4, 5, 0, time.UTC),
+			shouldError: false,
+		},
+		{
+			dateStr:     "01:08 PM",
+			format:      "%I:%M %p",
+			expected:    time.Date(1970, time.January, 1, 13, 8, 0, 0, time.UTC),
+			shouldError: false,
+		},
+		{
+			dateStr:     "31/12/99",
+			format:      "%d/%m/%y",
+			expected:    time.Date(1999, time.December, 31, 0, 0, 0, 0, time.UTC),
+			shouldError: false,
+		},
+		{
+			dateStr:     "Monday, 01-January-06 15:04",
+			format:      "%A, %d-%B-%y %H:%M",
+			expected:    time.Date(2006, time.January, 1, 15, 4, 0, 0, time.UTC),
+			shouldError: false,
+		},
+		{
+			dateStr:     "invalid date",
+			format:      "%d-%m-%Y",
+			expected:    time.Time{},
+			shouldError: true,
+		},
+	}
+
+	for _, test := range tests {
+		got, err := parseTime(test.dateStr, test.format)
+		if test.shouldError && err == nil {
+			t.Errorf("parseTime(%q, %q) expected an error, but got nil", test.dateStr, test.format)
+		} else if !test.shouldError && err != nil {
+			t.Errorf("parseTime(%q, %q) unexpected error: %v", test.dateStr, test.format, err)
+		} else if !test.shouldError && !got.Equal(test.expected) {
+			t.Errorf("parseTime(%q, %q) = %v, want %v", test.dateStr, test.format, got, test.expected)
+		}
+	}
+}
