@@ -185,8 +185,6 @@ type OutputTransforms struct {
 	OutputColumns          *ColumnsRequest    // post processing on output columns
 	LetColumns             *LetColumnsRequest // let columns processing on output columns
 	FilterRows             *BoolExpr          // discard rows failing some condition
-	MaxRows                uint64             // if 0, get all results; else, get at most this many
-	RowsAdded              uint64             // number of rows added to the result. This is used in conjunction with MaxRows.
 	HeadRequest            *HeadExpr
 }
 
@@ -194,7 +192,7 @@ type HeadExpr struct {
 	MaxRows              uint64
 	Keeplast             bool
 	Null                 bool
-	RowsAdded            uint64
+	RowsAdded            uint64 // number of rows added to the result. This is used in conjunction with MaxRows.
 	BoolExpr             *BoolExpr
 	SegmentRecords       map[string]map[string]interface{}
 	ResultRecords        []map[string]interface{}
@@ -557,9 +555,28 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil)
 }
 
+func (qa *QueryAggregators) hasHeadBlock() bool {
+	if qa == nil {
+		return false
+	}
+	if qa.OutputTransforms == nil {
+		return false
+	}
+	if qa.OutputTransforms.HeadRequest == nil {
+		return false
+	}
+	if qa.OutputTransforms.HeadRequest.BoolExpr != nil {
+		return true
+	}
+	if qa.OutputTransforms.HeadRequest.MaxRows > qa.OutputTransforms.HeadRequest.RowsAdded {
+		return true
+	}
+	return false
+}
+
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
-	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.FilterRows != nil || qa.OutputTransforms.HeadRequest != nil || qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded)
+	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.FilterRows != nil || qa.hasHeadBlock())
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {

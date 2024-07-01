@@ -181,7 +181,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 			if headExpr.BoolExpr != nil {
 				err = performConditionalHead(nodeResult, headExpr, recs, recordIndexInFinal, numTotalSegments, finishesSegment, hasSort)
 			} else {
-				err = performMaxRows(nodeResult, agg, agg.OutputTransforms.MaxRows, recs)
+				err = performMaxRows(nodeResult, headExpr, agg.OutputTransforms.HeadRequest.MaxRows, recs)
 			}
 
 			if err != nil {
@@ -221,7 +221,7 @@ func performConditionalHeadOnHistogram(nodeResult *structs.NodeResult, headExpr 
 				if err != nil {
 					return fmt.Errorf("performFilterRowsOnHistogram: %v", err)
 				}
-	
+
 				// Evaluate the expression to a value.
 				result, err := headExpr.BoolExpr.Evaluate(fieldToValue)
 				if err != nil {
@@ -253,12 +253,12 @@ func performConditionalHeadOnHistogram(nodeResult *structs.NodeResult, headExpr 
 						break
 					}
 				}
-		
+
 				if headExpr.MaxRows > 0 && headExpr.RowsAdded == headExpr.MaxRows {
 					headExpr.Done = true
 					break
 				}
-				
+
 			}
 		}
 
@@ -267,8 +267,6 @@ func performConditionalHeadOnHistogram(nodeResult *structs.NodeResult, headExpr 
 
 	return nil
 }
-
-
 
 func addRecordToHeadExpr(headExpr *structs.HeadExpr, record map[string]interface{}, recordKey string, hasSort bool) {
 	headExpr.RowsAdded++
@@ -429,7 +427,7 @@ func performConditionalHead(nodeResult *structs.NodeResult, headExpr *structs.He
 	return nil
 }
 
-func performMaxRows(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, maxRows uint64, recs map[string]map[string]interface{}) error {
+func performMaxRows(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr, maxRows uint64, recs map[string]map[string]interface{}) error {
 
 	if maxRows == 0 {
 		return nil
@@ -437,18 +435,18 @@ func performMaxRows(nodeResult *structs.NodeResult, aggs *structs.QueryAggregato
 
 	if recs != nil {
 		// If the number of records plus the already added Rows is less than the maxRows, we don't need to do anything.
-		if (uint64(len(recs)) + aggs.OutputTransforms.RowsAdded) <= maxRows {
-			aggs.OutputTransforms.RowsAdded += uint64(len(recs))
+		if (uint64(len(recs)) + headExpr.RowsAdded) <= maxRows {
+			headExpr.RowsAdded += uint64(len(recs))
 			return nil
 		}
 
 		// If the number of records is greater than the maxRows, we need to remove the extra records.
 		for key := range recs {
-			if aggs.OutputTransforms.RowsAdded >= maxRows {
+			if headExpr.RowsAdded >= maxRows {
 				delete(recs, key)
 				continue
 			}
-			aggs.OutputTransforms.RowsAdded++
+			headExpr.RowsAdded++
 		}
 
 		return nil
@@ -457,14 +455,14 @@ func performMaxRows(nodeResult *structs.NodeResult, aggs *structs.QueryAggregato
 	// Follow group by
 	if nodeResult.Histogram != nil {
 		for _, aggResult := range nodeResult.Histogram {
-			if (uint64(len(aggResult.Results)) + aggs.OutputTransforms.RowsAdded) <= maxRows {
-				aggs.OutputTransforms.RowsAdded += uint64(len(aggResult.Results))
+			if (uint64(len(aggResult.Results)) + headExpr.RowsAdded) <= maxRows {
+				headExpr.RowsAdded += uint64(len(aggResult.Results))
 				continue
 			}
 
 			// If the number of records is greater than the maxRows, we need to remove the extra records.
-			aggResult.Results = aggResult.Results[:maxRows-aggs.OutputTransforms.RowsAdded]
-			aggs.OutputTransforms.RowsAdded = maxRows
+			aggResult.Results = aggResult.Results[:maxRows-headExpr.RowsAdded]
+			headExpr.RowsAdded = maxRows
 			break
 		}
 		return nil

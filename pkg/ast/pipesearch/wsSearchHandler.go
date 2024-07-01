@@ -374,7 +374,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 		}
 	case structs.RRCCmd:
 		useAnySegKey := false
-		if aggs.OutputTransforms != nil && aggs.OutputTransforms.MaxRows != 0 {
+		if aggs.OutputTransforms != nil && (aggs.OutputTransforms.HeadRequest != nil && aggs.OutputTransforms.HeadRequest.MaxRows != 0) {
 			// For only getting MaxRows rows, don't show any rows until the
 			// search has completed (so that we don't show a row and later in
 			// the search find out another row has higher priority and the row
@@ -383,7 +383,7 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 				break
 			}
 
-			sizeLimit = uint64(aggs.OutputTransforms.MaxRows)
+			sizeLimit = uint64(aggs.OutputTransforms.HeadRequest.MaxRows)
 
 			useAnySegKey = true
 		}
