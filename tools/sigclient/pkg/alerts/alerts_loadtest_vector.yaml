@@ -1,0 +1,36 @@
+data_dir: "${DATA_DIR}"
+
+sources:
+  read_from_file:
+    type: file
+    include:
+      - "${LOG_FILE_PATH}" # Path to the log file
+
+transforms:
+  parse_log:
+    type: remap
+    inputs:
+      - read_from_file
+    source: |
+      messageVal = .message
+      values = split!(.message, r'^\x1b\[\d{2}m[A-Z]+\x1b\[0m\[\d{4}\]\s')
+      message = values[1]
+      containsMinute = contains!(message, "Minute", case_sensitive: false)
+      if containsMinute {
+          . = parse_key_value!(message, field_delimiter: ",", key_value_delimiter: "=")
+          .message = messageVal
+      }
+      ._index = "alerts-loadtest"
+
+sinks:
+  siglens:
+    type: elasticsearch
+    inputs:
+      - parse_log
+    endpoints:
+      - "${HOST}/elastic/"
+    mode: bulk
+    bulk:
+      index: "{{ _index }}"
+    healthcheck:
+      enabled: false

@@ -84,3 +84,7 @@ siglens.db
 
 *.fasthttp.br
 *.fasthttp.gz
+
+
+# Alerting Scale testing output
+vector_log_lib/
