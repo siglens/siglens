@@ -105,6 +105,8 @@ const historyGridOptions = {
     domLayout: 'autoHeight'
 };
 
+let originalIndexValues, indexValues = [];
+
 $(document).ready(async function () {
 
     $('.theme-btn').on('click', themePickerHandler);
@@ -208,7 +210,16 @@ $("#contact-points-dropdown").on("click", function() {
 
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
-
+    // Index
+    if(!(window.location.href.includes("alert-details.html"))){
+        let indexes = await getListIndices();
+        if (indexes){
+            originalIndexValues = indexes.map(item => item.index);
+            indexValues = [...originalIndexValues];
+        }
+        initializeIndexAutocomplete();
+        setIndexDisplayValue(selectedSearchIndex);
+    }
     if (urlParams.has('id')) {
         const id = urlParams.get('id');
         alertID = id;
@@ -335,13 +346,23 @@ function submitAddAlertForm(e) {
 function setAlertRule() {
     let dataSource = $('#alert-data-source span').text();
     if (dataSource === "Logs") {
+        let searchText, queryMode;
+        if(isQueryBuilderSearch){
+            searchText = getQueryBuilderCode();
+            queryMode = "Builder"
+        }else {
+            searchText = $('#filter-input').val();
+            queryMode = "Code"
+        }
         alertData.alert_type = 1 ;
         alertData.queryParams = {
             data_source: dataSource,
             queryLanguage: $('#logs-language-btn span').text(),
-            queryText: $('#query').val(),
+            queryText: searchText,
             startTime: filterStartDate,
-            endTime: filterEndDate
+            endTime: filterEndDate,
+            index: selectedSearchIndex,
+            queryMode : queryMode
         };
     } else if (dataSource === "Metrics") {
         alertData.alert_type = 2 ;
@@ -430,48 +451,62 @@ async function displayAlert(res){
     $('#alert-rule-name').val(res.alert_name);
     setDataSourceHandler(res.alert_type) 
     if( res.alert_type === 1 ){
-        $('#alert-data-source span').html(res.queryParams.data_source);
-        const queryLanguage = res.queryParams.queryLanguage;
+        const { data_source, queryLanguage, startTime, endTime, queryText, queryMode, index } = res.queryParams;
+
+        $('#alert-data-source span').html(data_source);
         $('#logs-language-btn span').text(queryLanguage);
         $('.logs-language-option').removeClass('active');
         $(`.logs-language-option:contains(${queryLanguage})`).addClass('active');
         displayQueryToolTip(queryLanguage);
-        $('#query').val(res.queryParams.queryText);
-        $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
-        datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime)
+        
+        $(`.ranges .inner-range #${startTime}`).addClass('active');
+        datePickerHandler(startTime, endTime, startTime);
+        setIndexDisplayValue(index);
+        
+        if (queryMode === 'Builder') {
+            codeToBuilderParsing(queryText);
+        } else if (queryMode === 'Code') {
+            $("#custom-code-tab").tabs("option", "active", 1);
+            $('#filter-input').val(queryText);
+        }
+        
     } else if (res.alert_type === 2){
         let metricsQueryParams = JSON.parse(res.metricsQueryParams);
-
-        $(`.ranges .inner-range #${metricsQueryParams.start}`).addClass('active');
-        datePickerHandler(metricsQueryParams.start, metricsQueryParams.end, metricsQueryParams.start);
-        if(functionsArray){
-            allFunctions = await getFunctions();
-            functionsArray = allFunctions.map(function(item) {
-                return item.fn;
-            });
+        const { start, end, queries, formulas } = metricsQueryParams;
+        
+        $(`.ranges .inner-range #${start}`).addClass('active');
+        datePickerHandler(start, end, start);
+        
+        if (functionsArray) {
+            const allFunctions = await getFunctions();
+            functionsArray = allFunctions.map(item => item.fn);
         }
-        for (const index in metricsQueryParams.queries) {
-            const query = metricsQueryParams.queries[index];
+        
+        for (const query of queries) {
             const parsedQueryObject = parsePromQL(query.query);
             await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
         }
-        if(metricsQueryParams.queries.length>1){
-            await addAlertsFormulaElement(metricsQueryParams.formulas[0].formula);
+        
+        if (queries.length > 1) {
+            await addAlertsFormulaElement(formulas[0].formula);
         }
     }
     let conditionType = mapIndexToConditionType.get(res.condition)
+
     $('.alert-condition-option').removeClass('active');
     $(`.alert-condition-options #option-${res.condition}`).addClass('active');
+
     $('#alert-condition span').text(conditionType);
     $('#threshold-value').val(res.value);
     $('#evaluate-every').val(res.eval_interval);
     $('#evaluate-for').val(res.eval_for);
     $('.message').val(res.message);
+
     if (alertEditFlag) {
         alertData.alert_id = res.alert_id;
     }
-    $('#contact-points-dropdown span').html(res.contact_name);
-    $('#contact-points-dropdown span').attr('id', res.contact_id);
+
+    $('#contact-points-dropdown span').html(res.contact_name).attr('id', res.contact_id);
 
     (res.labels).forEach(function(label){
         var labelContainer = $(`
@@ -504,7 +539,7 @@ function setDataSourceHandler(alertType) {
     $span.html(sourceText);
     $(`.data-source-option:contains("${sourceText}")`).addClass('active');
     
-    $('.query-container, .logs-lang-container').toggle(isLogs);
+    $('.query-container, .logs-lang-container, .index-box').toggle(isLogs);
     $('#metrics-explorer, #metrics-graphs').toggle(!isLogs);
     
     if (isLogs) {

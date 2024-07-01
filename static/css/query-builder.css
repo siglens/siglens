@@ -316,7 +316,9 @@ input.form-control {
 .ui-tabs-tab {
     border-radius: 10px;
 }
-
+#custom-code-tab.ui-widget.ui-widget-content{
+    width: 100% !important;
+}
 .custom-code-tab {
     border: 0 !important;
     font-size: 14px;
@@ -520,8 +522,7 @@ a:visited.ui-button,
 #filter-input.form-control{
     font-family: "DINpro", Arial, sans-serif !important;
 }
-#filter-input.form-control, 
-textarea.form-control{
+textarea.form-control#filter-input{
     min-height: 32px;
     box-sizing: border-box;
     resize: none; 
@@ -811,6 +812,9 @@ div.show-record-popup {
     padding: 10px 10px 14px 10px;
     background-color: var(--qb-box-bg);
     margin: 10px 0px;
+}
+[data-theme='dark'] .query-builder-container{
+    box-shadow: none;
 }
 #filter-box-1{
     border-radius: 5px 0 0 5px;

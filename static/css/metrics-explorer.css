@@ -364,7 +364,7 @@ input:checked + .slider:before {
 }
 
 /* JQUERY AUTOCOMpLETE */
-.ui-widget{
+.metrics-ui-widget.ui-widget{
     height: auto !important;
     max-height: 260px;
     overflow: scroll;

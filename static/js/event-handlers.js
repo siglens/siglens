@@ -396,27 +396,35 @@ function runLiveTailBtnHandler(evt) {
 }
 
 function runFilterBtnHandler(evt) {
-    $('.popover').hide();
-    evt.preventDefault();
-    if (
-      $("#run-filter-btn").text() === " " ||
-      $("#query-builder-btn").text() === " "
-    ) {
-
-      resetDashboard();
-      logsRowData = [];
-      wsState = "query";
-      data = getSearchFilter(false, false);
-      initialSearchData = data;
-      availColNames = [];
-      doSearch(data);
-    } else {
-      wsState = "cancel";
-      data = getSearchFilter(false, false);
-      initialSearchData = data;
-      doCancel(data);
+    var currentPage = window.location.pathname;
+    if (currentPage === "/index.html"){
+        $('.popover').hide();
+        evt.preventDefault();
+        if (
+          $("#run-filter-btn").text() === " " ||
+          $("#query-builder-btn").text() === " "
+        ) {
+    
+          resetDashboard();
+          logsRowData = [];
+          wsState = "query";
+          data = getSearchFilter(false, false);
+          initialSearchData = data;
+          availColNames = [];
+          doSearch(data);
+        } else {
+          wsState = "cancel";
+          data = getSearchFilter(false, false);
+          initialSearchData = data;
+          doCancel(data);
+        }
+        $('#daterangepicker').hide();
+    }else if (currentPage === '/alert.html'){
+        let data = getQueryParamsData();
+        data.searchText = getQueryBuilderCode();
+        isQueryBuilderSearch = $("#custom-code-tab").tabs("option", "active") === 0;
+        fetchLogsPanelData(data,-1).then((res)=>console.log(res))
     }
-    $('#daterangepicker').hide();
 }
 
 function filterInputHandler(evt) {
