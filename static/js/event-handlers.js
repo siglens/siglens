@@ -423,7 +423,14 @@ function runFilterBtnHandler(evt) {
         let data = getQueryParamsData();
         data.searchText = getQueryBuilderCode();
         isQueryBuilderSearch = $("#custom-code-tab").tabs("option", "active") === 0;
-        fetchLogsPanelData(data,-1).then((res)=>console.log(res))
+        if(isQueryBuilderSearch) {
+            data.searchText = getQueryBuilderCode();
+        }else{
+            data.searchText = $('#filter-input').val();
+        }
+        fetchLogsPanelData(data,-1).then((res)=>{
+            alertChart(res);
+        });
     }
 }
 

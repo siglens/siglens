@@ -469,7 +469,17 @@ async function displayAlert(res){
             $("#custom-code-tab").tabs("option", "active", 1);
             $('#filter-input').val(queryText);
         }
-        
+        let data = {
+            'state': wsState,
+            'searchText': queryText,
+            'startEpoch': startTime,
+            'endEpoch': endTime,
+            'indexName': index,
+            'queryLanguage' : queryLanguage,
+        }
+        fetchLogsPanelData(data,-1).then((res)=>{
+            alertChart(res);
+        });
     } else if (res.alert_type === 2){
         let metricsQueryParams = JSON.parse(res.metricsQueryParams);
         const { start, end, queries, formulas } = metricsQueryParams;
@@ -539,7 +549,7 @@ function setDataSourceHandler(alertType) {
     $span.html(sourceText);
     $(`.data-source-option:contains("${sourceText}")`).addClass('active');
     
-    $('.query-container, .logs-lang-container, .index-box').toggle(isLogs);
+    $('.query-container, .logs-lang-container, .index-box, #logs-explorer').toggle(isLogs);
     $('#metrics-explorer, #metrics-graphs').toggle(!isLogs);
     
     if (isLogs) {
@@ -813,4 +823,70 @@ function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch) {
     $('#query').val(query);
     $(`.ranges .inner-range #${startEpoch}`).addClass('active');
     datePickerHandler(startEpoch, endEpoch, startEpoch)
+}
+
+function alertChart(res) {
+    const logsExplorer = document.getElementById('logs-explorer');
+    logsExplorer.style.display = 'flex';
+    logsExplorer.innerHTML = ''; // Clear previous content
+
+    if (res.qtype === "logs-query") {
+        const errorMsg = $('<div>')
+            .text("Error : query does not contain any aggregation. Expected Stats Query");
+        $('#logs-explorer').empty().append(errorMsg);
+        return;
+    }
+
+    if (res.qtype === "aggs-query" || res.qtype === "segstats-query") {
+        let columnOrder = []
+        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+            columnOrder = res.columnsOrder
+        }else{
+            if (res.groupByCols) {
+                columnOrder = _.uniq(_.concat(
+                    res.groupByCols));
+            }
+            if (res.measureFunctions) {
+                columnOrder = _.uniq(_.concat(
+                    columnOrder, res.measureFunctions));
+            }
+        }
+        
+        if (res.errors) {
+            const errorMsg = document.createElement('div');
+            errorMsg.textContent = res.errors[0];
+            logsExplorer.appendChild(errorMsg);
+            return;
+        }
+
+        let xAxisData = [];
+        let yAxisData = [];
+        let hits = res.measure;
+        let columns = columnOrder;
+
+        // loop through the hits and create the data for the bar chart
+        for (let i = 0; i < hits.length; i++) {
+            let hit = hits[i];
+    
+            let xAxisValue = hit.GroupByValues[0];
+            let yAxisValue;
+            let measureVal = hit.MeasureVal;
+            yAxisValue = measureVal[columns[1]]
+            xAxisData.push(xAxisValue);
+            yAxisData.push(yAxisValue);
+        }
+
+        let barOptions = loadBarOptions(xAxisData, yAxisData);
+        let chartDom = document.createElement('div');
+        chartDom.style.width = '100%';
+        chartDom.style.height = '100%';
+        logsExplorer.appendChild(chartDom);
+        let myChart = echarts.init(chartDom);
+        myChart.setOption(barOptions);
+
+        window.addEventListener('resize', () => {
+            myChart.resize();
+        });
+
+    }
 }
