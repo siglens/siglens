@@ -179,7 +179,10 @@ var alertsLoadTestCmd = &cobra.Command{
 		}
 		if runVector > 1 {
 			runVector = 1
+		} else if runVector < -1 {
+			runVector = -1
 		}
+
 		alerts.RunAlertsLoadTest(destHost, numAlerts, runVector)
 	},
 }

@@ -56,6 +56,14 @@ type SummaryData struct {
 	MinuteData             map[int]MinuteSummaryData
 }
 
+type VectorMode int8
+
+const (
+	VectorModeDisabled VectorMode = -1
+	VectorModeEnabled  VectorMode = 1
+	VectorModeOptional VectorMode = 0
+)
+
 func setUpLoggingToFileAndStdOut() string {
 	logDir := "./logs"
 	logFile := filepath.Join(logDir, "alert_loadtest.log")
@@ -125,8 +133,8 @@ func startVector(host string, logFile string) (*exec.Cmd, chan error, error) {
 	return cmd, errChan, nil
 }
 
-func listenForVectorErrors(vectorErrChan chan error, successChan chan bool, runVector int8) {
-	if runVector < 0 {
+func listenForVectorErrors(vectorErrChan chan error, successChan chan bool, vectorMode VectorMode) {
+	if vectorMode == VectorModeDisabled {
 		log.Infof("Vector is not enabled. Not listening for Vector errors")
 		return
 	}
@@ -135,7 +143,7 @@ func listenForVectorErrors(vectorErrChan chan error, successChan chan bool, runV
 	if vectorErr != nil {
 		log.Errorf("Vector exited with error: %v", vectorErr)
 
-		if runVector == 1 {
+		if vectorMode == VectorModeEnabled {
 			log.Errorf("Exiting the test")
 			successChan <- false
 		}
@@ -313,10 +321,10 @@ func doCleanup(host string, contactId string) error {
 	return nil
 }
 
-func processCheckAndStartVector(runVector int8, host string, logFilePath string, successChan chan bool) *exec.Cmd {
-	if runVector < 0 {
+func processCheckAndStartVector(vectorMode VectorMode, host string, logFilePath string, successChan chan bool) *exec.Cmd {
+	if vectorMode == VectorModeDisabled {
 		log.Infof("Vector is not enabled. Running the test without Vector")
-	} else if runVector == 0 {
+	} else if vectorMode == VectorModeOptional {
 		log.Infof("Trying to run Vector and tunnel the logs into SigLens")
 		vectorCmd, vectorErrChan, err := startVector(host, logFilePath)
 		if err != nil {
@@ -324,7 +332,7 @@ func processCheckAndStartVector(runVector int8, host string, logFilePath string,
 		} else {
 			log.Infof("Vector started successfully")
 		}
-		go listenForVectorErrors(vectorErrChan, successChan, runVector)
+		go listenForVectorErrors(vectorErrChan, successChan, vectorMode)
 		return vectorCmd
 	} else {
 		log.Infof("Vector is enabled. Trying to run Vector and tunnel the logs into SigLens")
@@ -334,10 +342,23 @@ func processCheckAndStartVector(runVector int8, host string, logFilePath string,
 			log.Fatal("Exiting the test")
 			return nil
 		}
-		go listenForVectorErrors(vectorErrChan, successChan, runVector)
+		go listenForVectorErrors(vectorErrChan, successChan, vectorMode)
 		return vectorCmd
 	}
 	return nil
+}
+
+func parseVectorMode(vectorIntVal int8) VectorMode {
+	switch vectorIntVal {
+	case -1:
+		return VectorModeDisabled
+	case 0:
+		return VectorModeOptional
+	case 1:
+		return VectorModeEnabled
+	default:
+		return VectorModeDisabled
+	}
 }
 
 func RunAlertsLoadTest(host string, numAlerts uint64, runVector int8) {
@@ -347,9 +368,11 @@ func RunAlertsLoadTest(host string, numAlerts uint64, runVector int8) {
 	successChan := make(chan bool)
 	exitChan := make(chan bool)
 
+	vectorMode := parseVectorMode(runVector)
+
 	logFilePath := setUpLoggingToFileAndStdOut()
 
-	vectorCmd := processCheckAndStartVector(runVector, host, logFilePath, successChan)
+	vectorCmd := processCheckAndStartVector(vectorMode, host, logFilePath, successChan)
 
 	// Start the webhook server
 	server := startWebhookServer(4010, webhookChan, exitChan)
