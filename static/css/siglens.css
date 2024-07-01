@@ -3335,7 +3335,6 @@ float: right;
       font-weight: 600;
       color: var(--navbar-link-text);
       white-space: nowrap;
-      transition-delay: 0.3s;
 }
 
 .nav-link-text.feedback{
