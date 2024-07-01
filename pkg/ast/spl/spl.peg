@@ -427,6 +427,11 @@ type MultiValueColOptionArgs struct {
     mvColExpr *structs.MultiValueColLetRequest
 }
 
+type BinOptionArgs struct {
+    argOption string
+    binOptions *structs.BinCmdOptions
+}
+
 type SPathFieldExpr struct {
     PathValue string
     IsPathFieldName bool  
@@ -950,6 +955,183 @@ TcOptionCMD <- option:("usenull" / "useother" / "nullstr" / "otherstr") {
     }
     return optionStr, nil
 }
+
+MinSpanOption <- "minspan" EQUAL spanLength:SpanLength {
+    binOptionArgs := &structs.BinOptionArgs {
+        argOption: "minspan",
+        binOption: &structs.BinCmdOptions {
+            Minspan: spanLength.(*structs.SpanLength),
+        },
+    }
+    return spanOptions, nil
+}
+
+NumBinsOption <- "bins" EQUAL intAsStr:IntegerAsString {
+    numBins, err := strconv.ParseUint(intAsStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
+    }
+    binOptionArgs := &structs.BinOptionArgs {
+        argOption: "bins",
+        binOption: &structs.BinCmdOptions {
+            Bins: numBins,
+        },
+    }
+    return binOptionArgs, nil
+}
+
+AlignTimeOption <- "aligntime" EQUAL relTimeStamp:RelativeTimestamp {
+    relTimeModifier := relTimeStamp.(ast.TimeModifier)
+
+    epoch, err := CalculateRelativeTime(latestTimeModifier, time.Now())
+    if err != nil {
+        return nil, err
+    }
+    binOptionArgs := &structs.BinOptionArgs {
+        argOption: "aligntime",
+        binOption: &structs.BinCmdOptions {
+            AlignTime: &uint64(epoch),
+        },
+    }
+    return binOptionArgs, nil
+}
+
+StartOption <- "start" EQUAL intAsStr:IntegerAsString {
+    start, err := strconv.ParseInt(intAsStr.(string), 10, 64)
+    binOptionArgs := &structs.BinOptionArgs {
+        argOption: "start",
+        binOption: &structs.BinOptions {
+            Start: &start,
+        },
+    }
+
+    return binOptionArgs, nil
+}
+
+EndOption <- "end" EQUAL intAsStr:IntegerAsString {
+    end, err := strconv.ParseInt(intAsStr.(string), 10, 64)
+    binOptionArgs := &structs.BinOptionArgs {
+        argOption: "end",
+        binOption: &structs.BinOptions {
+            End: &end,
+        },
+    }
+
+    return binOptionArgs, nil
+}
+
+BinSpanOption <- CMD_SPAN EQUAL num1:FloatAsString "log" num2:FloatAsString {
+    coeff, err := strconv.ParseFloat(num1.(string), 64)
+    if err != nil || coeff < 1 {
+        return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span")
+    }
+    base, err := strconv.ParseUint(num1.(string), 64)
+    if err != nil || base <= 1 {
+        return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span")
+    }
+    logSpan := &structs.LogSpan {
+        Coefficient: coeff,
+        Base: base,
+    }
+    spanOptions := &structs.BinSpanOptions {
+        LogSpan: logSpan,
+    }
+    binOptionArgs := &structs.BinOptionArgs {
+        argOption: "span",
+        binOption: &structs.BinOptions {
+            BinSpanOptions: spanOptions,
+        },
+    }
+    return binOptionArgs, nil
+}
+/ CMD_SPAN EQUAL intAsStr:IntegerAsString timeScale:(TimeScale)? {
+    num, err := strconv.Atoi(intAsStr.(string))
+    if err != nil {
+        return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", intAsStr.(string), err)
+    }
+    timeUnit := 0
+    if timeScale != nil {
+        timeUnit = timeScale.(utils.TimeUnit)
+    }
+
+    spanLength := &structs.SpanLength {
+        Num: num,
+        TimeScalr: timeUnit,
+    }
+    spanOptions := &structs.BinSpanOptions {
+        SpanLength: spanLength,
+    }
+    binOptionArgs := &structs.BinOptionArgs {
+        argOption: "span",
+        binOption: &structs.BinOptions {
+            BinSpanOptions: spanOptions,
+        },
+    }
+    return binOptionArgs, nil
+} 
+
+BinCmdOption <- option:(MinSpanOption / NumBinsOption / StartOption / EndOption / BinSpanOption) {
+    return option, nil
+}
+
+BinCmdOptionsList <- first: BinCmdOption rest: (SPACE BinCmdOption)* {
+    restSlice := rest.([]any)
+    mapOption := make(map[string]bool)
+    mapOption["minspan"] = false
+    mapOption["bins"] = false
+    mapOption["span"] = false
+    mapOption["aligntime"] = false
+
+    numOptions := 1 + len(restSlice)
+
+    binCmdOption := &structs.BinCmdOptions{}
+
+    for i := 0; i < numOptions; i++ {
+        var binOptArg *BinOptionArgs
+        if i == 0 {
+            binOptArg = first.(*BinOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            binOptArg = separator[1].(*BinOptionArgs)
+        }
+
+        argOption := binOptArg.argOption
+        val, exist := mapOption[argOption]
+        if !exist {
+            return nil, fmt.Errorf("Not a Valid Bin Command Option: %v", argOption)
+        }
+        if val {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        mapOption[argOption] = true
+
+        switch argOption {
+            case "minspan":
+                binCmdOption.Minspan = binOptArg.binOption.Minspan
+            case "span":
+                binCmdOption.BinSpanOption = binOptArg.binOption.BinSpanOption
+            case "bins":
+                binCmdOption.Bins = binOptArg.binOption.Bins
+            case "start":
+                binCmdOption.Start = binOptArg.binOption.Start
+            case "end":
+                binCmdOption.End = binOptArg.binOption.End
+            case "aligntime":
+                binCmdOption.AlignTime = binOptArg.binOption.AlignTime
+            default:
+                return nil, fmt.Errorf("Not a Valid HeadOption: %v", argOption)
+        }
+    }
+
+    return binCmdOption, nil
+}
+
+
+// BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList)? field:FieldName newName:(AsField)? {
+//     
+// }
+
+
 
 // To be finished: bins=<int> | minspan=<span-length> | span | <start-end>: (end=<num> | start=<num>) | aligntime=(earliest | latest | <time-specifier>)
 BinOptions <- spanOptions:SpanOptions {
@@ -4301,7 +4483,7 @@ IndexName <- (!SPACE .)+ {
 }
 
 // All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT)
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
@@ -4316,6 +4498,7 @@ CMD_TOP <- "top"
 CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
 CMD_TIMECHART <- "timechart" SPACE
+CMD_BIN <- "bin" SPACE
 CMD_SPAN <- "span"
 CMD_TRANSACTION <- "transaction" SPACE
 CMD_DEDUP <- "dedup"
