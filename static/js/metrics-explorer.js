@@ -554,7 +554,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
             queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
             $(this).blur(); 
-        }
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
+        },
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
@@ -618,6 +621,9 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             $(this).val('');
             updateAutocompleteSource();
             return false;
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
         },
         open: function(event, ui) {
             var containerPosition = $(this).closest('.tag-container').offset();
@@ -698,7 +704,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             queryDetails.aggFunction = ui.item.value;
             getQueryDetails(queryName,queryDetails);
             $(this).blur(); 
-        }
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
+        },
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
@@ -729,6 +738,9 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             }
             $(this).val('');
             return false;        
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
         },
         open: function(event, ui) {
             var containerPosition = $(this).closest('.value-container').offset();
@@ -796,7 +808,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     
             queryElement.find('.options-container').hide();
             $(this).val('');
-        }
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
+        },
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
