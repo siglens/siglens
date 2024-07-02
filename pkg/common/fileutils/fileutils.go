@@ -18,6 +18,7 @@
 package fileutils
 
 import (
+	"bufio"
 	"io"
 	"os"
 	"path"
@@ -121,4 +122,31 @@ func GetAllFilesInDirectory(path string) []string {
 		}
 	}
 	return retVal
+}
+
+// Note: if your processLine handler needs to keep a copy of the line, you have
+// to copy the bytes to a new slice; the contents may be overwritten by the
+// next call to processLine.
+func ReadLineByLine(filePath string, processLine func(line []byte) error) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Errorf("ReadLineByLine: Error opening file %v: %v", filePath, err)
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		err = processLine(scanner.Bytes())
+		if err != nil {
+			log.Errorf("ReadLineByLine: Error processing line %v: %v", scanner.Text(), err)
+			return err
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		log.Errorf("ReadLineByLine: Error scanning file %v: %v", filePath, err)
+		return err
+	}
+
+	return nil
 }
