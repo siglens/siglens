@@ -78,6 +78,7 @@ func ConvertPromQLToMetricsQuery(query string, startTime, endTime uint32, myid u
 }
 
 func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*structs.MetricsQueryRequest, parser.ValueType, []*structs.QueryArithmetic, error) {
+	parser.EnableExperimentalFunctions = true
 	expr, err := parser.ParseExpr(query)
 	if err != nil {
 		log.Errorf("parsePromQLQuery: Error parsing promql query: %v", err)
@@ -469,6 +470,8 @@ func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64
 		mQuery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow}
 	case "present_over_time":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow}
+	case "mad_over_time":
+		mQuery.Function = structs.Function{RangeFunction: segutils.Mad_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "quantile_over_time":
 		if len(expr.Args) != 2 {
 			return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the quantile_over_time function", expr.Args.String())

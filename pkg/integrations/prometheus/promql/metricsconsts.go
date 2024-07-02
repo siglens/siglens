@@ -387,6 +387,13 @@ const metricFunctions = `[
 		"isTimeRangeFunc": true
 	},
 	{
+		"fn": "mad_over_time", 
+		"name": "Median Absolute deviation Over Time", 
+		"desc": "The median absolute deviation of all points in the specified interval.", 
+		"eg": "mad_over_time(avg (system.disk.used[5m]))",
+		"isTimeRangeFunc": true
+	},
+	{
 		"fn": "sum", 
 		"name": "Sum", 
 		"desc": "Calculate sum over dimensions.", 
