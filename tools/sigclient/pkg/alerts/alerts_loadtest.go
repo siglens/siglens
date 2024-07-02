@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -55,7 +56,15 @@ type SummaryData struct {
 	MinuteData             map[int]MinuteSummaryData
 }
 
-func setUpLoggingToFileAndStdOut() {
+type VectorMode int8
+
+const (
+	VectorModeDisabled VectorMode = -1
+	VectorModeEnabled  VectorMode = 1
+	VectorModeOptional VectorMode = 0
+)
+
+func setUpLoggingToFileAndStdOut() string {
 	logDir := "./logs"
 	logFile := filepath.Join(logDir, "alert_loadtest.log")
 	err := os.MkdirAll(logDir, 0764)
@@ -77,6 +86,83 @@ func setUpLoggingToFileAndStdOut() {
 	// Set the output of the logger to the multi-writer
 	log.SetOutput(multiWriter)
 
+	return logFile
+}
+
+// tunnel the logs into SigLens
+func startVector(host string, logFile string) (*exec.Cmd, chan error, error) {
+	os.Setenv("LOG_FILE_PATH", logFile)
+	os.Setenv("HOST", host)
+
+	dataDir := filepath.Join("./vector_log_lib/data")
+	err := os.MkdirAll(dataDir, 0764)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to make vector data directory at=%v, err=%v", dataDir, err)
+	}
+	os.Setenv("DATA_DIR", dataDir)
+
+	log.Infof("LOG_FILE_PATH=%s, HOST=%s, DATA_DIR=%s", logFile, host, dataDir)
+
+	configPath := "pkg/alerts/alerts_loadtest_vector.yaml"
+
+	cmd := exec.Command("vector", "-c", configPath)
+
+	// Set the environment for the command
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("LOG_FILE_PATH=%s", logFile),
+		fmt.Sprintf("HOST=%s", host),
+		fmt.Sprintf("DATA_DIR=%s", dataDir),
+	)
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err = cmd.Start()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to start vector: %v", err)
+	}
+
+	errChan := make(chan error)
+
+	go func() {
+		err := cmd.Wait()
+		errChan <- err
+		close(errChan)
+	}()
+
+	return cmd, errChan, nil
+}
+
+func listenForVectorErrors(vectorErrChan chan error, successChan chan bool, vectorMode VectorMode) {
+	if vectorMode == VectorModeDisabled {
+		log.Infof("Vector is not enabled. Not listening for Vector errors")
+		return
+	}
+
+	vectorErr := <-vectorErrChan
+	if vectorErr != nil {
+		log.Errorf("Vector exited with error: %v", vectorErr)
+
+		if vectorMode == VectorModeEnabled {
+			log.Errorf("Exiting the test")
+			successChan <- false
+		}
+	} else {
+		log.Infof("Vector exited successfully")
+	}
+}
+
+func stopVector(vectorCmd *exec.Cmd) {
+	if vectorCmd != nil {
+		err := vectorCmd.Process.Kill()
+		if err != nil {
+			log.Errorf("Error killing Vector: %v", err)
+		} else {
+			log.Infof("Vector stopped successfully")
+		}
+	} else {
+		log.Errorf("Vector Cmd is nil. Cannot stop Vector")
+	}
 }
 
 func createMultipleAlerts(host string, contactId string, numAlerts int) error {
@@ -197,8 +283,7 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 				summary.AverageAlertsPerMinute = 0
 			}
 
-			log.Infof("Final Summary: Total Time=%v", time.Since(startTime))
-			logSummary(summary)
+			log.Infof("CurrentMinute=%v,FinalSummary=%v,TotalTime=%v,TotalAlertsReceived=%d,TotalDelay=%v,AverageDelay=%v,AverageAlertsPerMinute=%v", currentMinute, true, time.Since(startTime), summary.TotalAlertsReceived, summary.TotalDelay, summary.AverageDelay, summary.AverageAlertsPerMinute)
 			successChan <- true
 			return
 		}
@@ -212,13 +297,6 @@ func logMinuteSummary(minute int, minuteData MinuteSummaryData, numAlerts int) {
 		averageDelay := data.TotalDelay / time.Duration(data.ReceivedCount)
 		log.Infof("Minute=%d,Alert=%s,ReceivedCount=%d,AverageDelay=%v", minute, title, data.ReceivedCount, averageDelay)
 	}
-}
-
-func logSummary(summary SummaryData) {
-	log.Infof("Total Alerts Received: %d", summary.TotalAlertsReceived)
-	log.Infof("Total Delay: %v", summary.TotalDelay)
-	log.Infof("Average Delay: %v", summary.AverageDelay)
-	log.Infof("Average Alerts Per Minute: %v", summary.AverageAlertsPerMinute)
 }
 
 func doCleanup(host string, contactId string) error {
@@ -243,15 +321,58 @@ func doCleanup(host string, contactId string) error {
 	return nil
 }
 
-func RunAlertsLoadTest(host string, numAlerts uint64) {
-	// Remove Trailing Slashes from the Host
-	host = removeTrailingSlashes(host)
+func processCheckAndStartVector(vectorMode VectorMode, host string, logFilePath string, successChan chan bool) *exec.Cmd {
+	if vectorMode == VectorModeDisabled {
+		log.Infof("Vector is not enabled. Running the test without Vector")
+	} else if vectorMode == VectorModeOptional {
+		log.Infof("Trying to run Vector and tunnel the logs into SigLens")
+		vectorCmd, vectorErrChan, err := startVector(host, logFilePath)
+		if err != nil {
+			log.Errorf("Error starting Vector. Running the test without Vector. Error=%v", err)
+		} else {
+			log.Infof("Vector started successfully")
+		}
+		go listenForVectorErrors(vectorErrChan, successChan, vectorMode)
+		return vectorCmd
+	} else {
+		log.Infof("Vector is enabled. Trying to run Vector and tunnel the logs into SigLens")
+		vectorCmd, vectorErrChan, err := startVector(host, logFilePath)
+		if err != nil {
+			log.Errorf("Error starting Vector. Error=%v", err)
+			log.Fatal("Exiting the test")
+			return nil
+		}
+		go listenForVectorErrors(vectorErrChan, successChan, vectorMode)
+		return vectorCmd
+	}
+	return nil
+}
 
-	setUpLoggingToFileAndStdOut()
+func parseVectorMode(vectorIntVal int8) VectorMode {
+	switch vectorIntVal {
+	case -1:
+		return VectorModeDisabled
+	case 0:
+		return VectorModeOptional
+	case 1:
+		return VectorModeEnabled
+	default:
+		return VectorModeDisabled
+	}
+}
+
+func RunAlertsLoadTest(host string, numAlerts uint64, runVector int8) {
+	host = removeTrailingSlashes(host)
 
 	webhookChan := make(chan alertutils.WebhookBody)
 	successChan := make(chan bool)
 	exitChan := make(chan bool)
+
+	vectorMode := parseVectorMode(runVector)
+
+	logFilePath := setUpLoggingToFileAndStdOut()
+
+	vectorCmd := processCheckAndStartVector(vectorMode, host, logFilePath, successChan)
 
 	// Start the webhook server
 	server := startWebhookServer(4010, webhookChan, exitChan)
@@ -317,5 +438,9 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 
 	if success {
 		log.Infof("Test completed successfully")
+	}
+
+	if runVector >= 0 {
+		stopVector(vectorCmd)
 	}
 }
