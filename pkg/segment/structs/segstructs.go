@@ -187,6 +187,7 @@ type OutputTransforms struct {
 	FilterRows             *BoolExpr          // discard rows failing some condition
 	MaxRows                uint64             // if 0, get all results; else, get at most this many
 	RowsAdded              uint64             // number of rows added to the result. This is used in conjunction with MaxRows.
+	TailRequest            *TailExpr
 }
 
 type GroupByRequest struct {
@@ -241,6 +242,13 @@ type LetColumnsRequest struct {
 	MultiValueColRequest *MultiValueColLetRequest
 	FormatResults        *FormatResultsRequest // formats the results into a single result and places that result into a new field called search.
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
+}
+
+type TailExpr struct {
+	TailRecords          map[string]map[string]interface{}
+	TailPQ               *sutils.PriorityQueue
+	TailRows             uint64
+	NumProcessedSegments uint64
 }
 
 type EventCountExpr struct {
@@ -545,7 +553,7 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
-	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.FilterRows != nil || qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded)
+	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.TailRequest != nil || qa.OutputTransforms.FilterRows != nil || qa.OutputTransforms.MaxRows > qa.OutputTransforms.RowsAdded)
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
@@ -620,6 +628,28 @@ func (qa *QueryAggregators) HasSortBlockInChain() bool {
 	if qa.Next != nil {
 		return qa.Next.HasSortBlockInChain()
 	}
+	return false
+}
+
+func (qa *QueryAggregators) HasTail() bool {
+	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.TailRequest != nil {
+		return true
+	}
+
+	return false
+}
+
+func (qa *QueryAggregators) HasTailInChain() bool {
+	if qa == nil {
+		return false
+	}
+	if qa.HasTail() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasTailInChain()
+	}
+
 	return false
 }
 
