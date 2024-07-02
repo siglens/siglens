@@ -109,7 +109,7 @@ type Hooks struct {
 	AfterWritingToSegment     func(rid uint64, segstore interface{}, record []byte, ts uint64, signalType segutils.SIGNAL_TYPE) error
 	AfterHandlingBulkRequest  func(ctx *fasthttp.RequestCtx, rid uint64) bool
 	RotateSegment             func(segstore interface{}) error
-	AfterSegmentRotation      func(segstore interface{}) error
+	AfterSegmentRotation      func(segmeta interface{}) error
 }
 
 type HtmlSnippets struct {

@@ -726,9 +726,9 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		AddNewRotatedSegment(segmeta)
 		if hook := hooks.GlobalHooks.AfterSegmentRotation; hook != nil {
-			err := hook(segstore)
+			err := hook(&segmeta)
 			if err != nil {
-				log.Errorf("checkAndRotateColFiles: AfterSegmentRotation hook failed for segKey=%v, err=%v", segstore.SegmentKey, err)
+				log.Errorf("checkAndRotateColFiles: AfterSegmentRotation hook failed for segKey=%v, err=%v", finalSegmentKey, err)
 			}
 		}
 
