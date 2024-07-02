@@ -103,8 +103,10 @@ func Test_HasQueryAggergatorBlock_HasNoLetColumnsRequest(t *testing.T) {
 
 func Test_HasQueryAggergatorBlock_MaxRowsGreaterThanRowAdded(t *testing.T) {
 	ot := &OutputTransforms{
-		MaxRows:   12,
-		RowsAdded: 1,
+		HeadRequest: &HeadExpr{
+			MaxRows:   12,
+			RowsAdded: 1,
+		},
 	}
 
 	qa := &QueryAggregators{
@@ -116,8 +118,10 @@ func Test_HasQueryAggergatorBlock_MaxRowsGreaterThanRowAdded(t *testing.T) {
 
 func Test_HasQueryAggergatorBlock_MaxRowsLessThanRowAdded(t *testing.T) {
 	ot := &OutputTransforms{
-		MaxRows:   1,
-		RowsAdded: 9,
+		HeadRequest: &HeadExpr{
+			MaxRows:   1,
+			RowsAdded: 9,
+		},
 	}
 
 	qa := &QueryAggregators{
@@ -134,8 +138,10 @@ func Test_HasQueryAggergatorBlock(t *testing.T) {
 
 	ot := &OutputTransforms{
 		LetColumns: lcr,
-		MaxRows:    5,
-		RowsAdded:  1,
+		HeadRequest: &HeadExpr{
+			MaxRows:   5,
+			RowsAdded: 1,
+		},
 	}
 
 	qa := &QueryAggregators{
@@ -220,8 +226,10 @@ func Test_HasQueryAggergatorBlockInChain_EmptyChain(t *testing.T) {
 func Test_HasQueryAggergatorBlockInChain_SingleNodeWithBlock(t *testing.T) {
 	qa := &QueryAggregators{
 		OutputTransforms: &OutputTransforms{
-			MaxRows:   10,
-			RowsAdded: 1,
+			HeadRequest: &HeadExpr{
+				MaxRows:   10,
+				RowsAdded: 1,
+			},
 		},
 	}
 
@@ -231,8 +239,10 @@ func Test_HasQueryAggergatorBlockInChain_SingleNodeWithBlock(t *testing.T) {
 func Test_HasQueryAggergatorBlockInChain_SingleNodeWithoutBlock(t *testing.T) {
 	qa := &QueryAggregators{
 		OutputTransforms: &OutputTransforms{
-			MaxRows:   1,
-			RowsAdded: 10,
+			HeadRequest: &HeadExpr{
+				MaxRows:   1,
+				RowsAdded: 10,
+			},
 		},
 	}
 
@@ -243,8 +253,10 @@ func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockAtEnd(t *testing.
 	qa := &QueryAggregators{
 		Next: &QueryAggregators{
 			OutputTransforms: &OutputTransforms{
-				MaxRows:   10,
-				RowsAdded: 1,
+				HeadRequest: &HeadExpr{
+					MaxRows:   10,
+					RowsAdded: 1,
+				},
 			},
 		},
 	}
@@ -263,8 +275,10 @@ func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithoutBlock(t *testing.T)
 func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockAtStart(t *testing.T) {
 	qa := &QueryAggregators{
 		OutputTransforms: &OutputTransforms{
-			MaxRows:   10,
-			RowsAdded: 1,
+			HeadRequest: &HeadExpr{
+				MaxRows:   10,
+				RowsAdded: 1,
+			},
 		},
 		Next: &QueryAggregators{},
 	}
@@ -277,8 +291,10 @@ func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockInEnd(t *testing.
 		Next: &QueryAggregators{
 			Next: &QueryAggregators{
 				OutputTransforms: &OutputTransforms{
-					MaxRows:   10,
-					RowsAdded: 1,
+					HeadRequest: &HeadExpr{
+						MaxRows:   10,
+						RowsAdded: 1,
+					},
 				},
 			},
 		},
@@ -291,8 +307,10 @@ func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockInMiddle(t *testi
 	qa := &QueryAggregators{
 		Next: &QueryAggregators{
 			OutputTransforms: &OutputTransforms{
-				MaxRows:   10,
-				RowsAdded: 1,
+				HeadRequest: &HeadExpr{
+					MaxRows:   10,
+					RowsAdded: 1,
+				},
 			},
 			Next: &QueryAggregators{},
 		},

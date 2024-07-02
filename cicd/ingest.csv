@@ -141,3 +141,11 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "* | tail 30000 | stats count",now-1d,now,*,countRecord:count(*):*,eq,"30,000",Splunk QL
 "app_name = ""Bracecould"" | tail 3000 | stats count",now-1d,now,*,countRecord:count(*):*,eq,6,Splunk QL
 "city = Boston | sort batch | tail | stats count",now-1d,now,*,countRecord:count(*):*,eq,10,Splunk QL
+"* | head 2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
+"* | head | stats count",now-1d,now,*,countRecord:count(*):*,eq,10,Splunk QL
+"city=Boston | head limit=3 | stats count",now-1d,now,*,countRecord:count(*):*,eq,3,Splunk QL
+"app_name = Bracecould | head gender=""female"" | stats count",now-1d,now,*,countRecord:count(*):*,eq,3,Splunk QL
+"app_name = Bracecould | head gender=""female"" keeplast=true | stats count",now-1d,now,*,countRecord:count(*):*,eq,4,Splunk QL
+"app_name = Bracecould | head gender=""female"" OR gender=""male"" limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
+"app_name = Bracecould | head gender=""female"" OR gender=""male"" limit=2 keeplast=true | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
+"app_name = Bracecould | sort http_status | head http_status < 400 keeplast=true | stats count",now-1d,now,*,countRecord:count(*):*,eq,4,Splunk QL
