@@ -18,7 +18,6 @@
 package query
 
 import (
-	"os"
 	"testing"
 
 	localstorage "github.com/siglens/siglens/pkg/blob/local"
@@ -296,13 +295,9 @@ func Test_MetadataFilter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to initialize query node: %v", err)
 	}
-	metadata.InitMockColumnarMetadataStore("data/", fileCount, numBlocks, numEntriesInBlock)
+
+	metadata.InitMockColumnarMetadataStore(t.TempDir(), fileCount, numBlocks, numEntriesInBlock)
 	testTimeFilter(t, numBlocks, numEntriesInBlock, fileCount)
 	testBloomFilter(t, numBlocks, numEntriesInBlock, fileCount)
 	testRangeFilter(t, numBlocks, numEntriesInBlock, fileCount)
-
-	err = os.RemoveAll("data/")
-	if err != nil {
-		t.Fatalf("Failed to initialize query node: %v", err)
-	}
 }
