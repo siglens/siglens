@@ -1003,7 +1003,7 @@ NumBinsOption <- "bins" EQUAL intAsStr:IntegerAsString {
     binOptionArgs := &BinOptionArgs {
         argOption: "bins",
         binOptions: &structs.BinCmdOptions {
-            Bins: numBins,
+            MaxBins: numBins,
         },
     }
     return binOptionArgs, nil
@@ -1027,6 +1027,25 @@ AlignTimeOption <- "aligntime" EQUAL utcEpoch:(PositiveIntegerAsString) {
         },
     }
 
+    return binOptionArgs, nil
+}
+/ "aligntime" EQUAL timestamp:(AbsoluteTimestamp / RelativeTimestamp) {
+    var epoch uint64 = 0
+    var err error
+    relTimeModifier := timestamp.(ast.TimeModifier)
+    epochVal, err := CalculateRelativeTime(relTimeModifier, time.Now())
+    epoch = uint64(epochVal)
+    if err != nil {
+        return nil, err
+    }
+
+    binOptionArgs := &BinOptionArgs {
+        argOption: "aligntime",
+        binOptions: &structs.BinCmdOptions {
+            AlignTime: &epoch,
+        },
+    }
+    
     return binOptionArgs, nil
 }
 
@@ -1087,7 +1106,7 @@ BinSpanOption <- "span" EQUAL num1:(FloatAsString / IntegerAsString) "log" num2:
 / "span" EQUAL spanLen:SpanLenOption {
 
     spanOptions := &structs.BinSpanOptions {
-        SpanLength: spanLen.(*structs.BinSpanLength),
+        BinSpanLength: spanLen.(*structs.BinSpanLength),
     }
 
     binOptionArgs := &BinOptionArgs {
@@ -1142,7 +1161,7 @@ BinCmdOptionsList <- first: BinCmdOption rest: (SPACE BinCmdOption)* {
             case "span":
                 binCmdOption.BinSpanOptions = binOptArg.binOptions.BinSpanOptions
             case "bins":
-                binCmdOption.Bins = binOptArg.binOptions.Bins
+                binCmdOption.MaxBins = binOptArg.binOptions.MaxBins
             case "start":
                 binCmdOption.Start = binOptArg.binOptions.Start
             case "end":
@@ -1167,8 +1186,8 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
     }
 
     letColReq.BinRequest = binCmdOption.(*structs.BinCmdOptions)
-    if letColReq.BinRequest.Bins == 0 {
-        letColReq.BinRequest.Bins = 100
+    if letColReq.BinRequest.MaxBins == 0 {
+        letColReq.BinRequest.MaxBins = 100
     }
     letColReq.BinRequest.Field = field.(string)
 
@@ -1190,7 +1209,7 @@ BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName 
     }
 
     binCmdOption := &structs.BinCmdOptions{
-        Bins: 100,
+        MaxBins: 100,
     }
 
     letColReq.BinRequest = binCmdOption

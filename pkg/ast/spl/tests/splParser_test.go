@@ -8363,14 +8363,14 @@ func Test_Bin(t *testing.T) {
 
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest)
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.SpanLength)
-	assert.Equal(t, float64(1), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.SpanLength.Num)
-	assert.Equal(t, utils.TMHour, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.SpanLength.TimeScale)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength)
+	assert.Equal(t, float64(1), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.Num)
+	assert.Equal(t, utils.TMHour, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale)
 
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan)
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.End)
-	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.Bins)
+	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.MaxBins)
 }
 
 func Test_Bin2(t *testing.T) {
@@ -8397,7 +8397,7 @@ func Test_Bin2(t *testing.T) {
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.End)
-	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.Bins)
+	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.MaxBins)
 }
 
 func Test_Bin3(t *testing.T) {
@@ -8422,7 +8422,7 @@ func Test_Bin3(t *testing.T) {
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.End)
 
-	assert.Equal(t, uint64(3), aggregator.OutputTransforms.LetColumns.BinRequest.Bins)
+	assert.Equal(t, uint64(3), aggregator.OutputTransforms.LetColumns.BinRequest.MaxBins)
 }
 
 func Test_Bin4(t *testing.T) {
@@ -8448,7 +8448,7 @@ func Test_Bin4(t *testing.T) {
 
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
 	assert.Equal(t, float64(123), *aggregator.OutputTransforms.LetColumns.BinRequest.Start)
-	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.Bins)
+	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.MaxBins)
 }
 
 func Test_Bin5(t *testing.T) {
@@ -8474,7 +8474,7 @@ func Test_Bin5(t *testing.T) {
 
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.End)
 	assert.Equal(t, float64(123), *aggregator.OutputTransforms.LetColumns.BinRequest.End)
-	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.Bins)
+	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.MaxBins)
 }
 
 func Test_Bin6(t *testing.T) {
@@ -8503,7 +8503,7 @@ func Test_Bin6(t *testing.T) {
 	assert.Equal(t, float64(123), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.LogSpan.Coefficient)
 	assert.Equal(t, float64(456.123), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.LogSpan.Base)
 
-	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.Bins)
+	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.MaxBins)
 }
 
 func Test_Bin7(t *testing.T) {
@@ -8528,9 +8528,9 @@ func Test_Bin7(t *testing.T) {
 	assert.Equal(t, 0, int(aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan.TimeScale))
 
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
-	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.SpanLength)
-	assert.Equal(t, float64(123.456), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.SpanLength.Num)
-	assert.Equal(t, 0, int(aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.SpanLength.TimeScale))
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength)
+	assert.Equal(t, float64(123.456), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.Num)
+	assert.Equal(t, 0, int(aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale))
 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.LogSpan)
 
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
@@ -8542,7 +8542,7 @@ func Test_Bin7(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
 	assert.Equal(t, uint64(123456789), *aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
 
-	assert.Equal(t, uint64(4), aggregator.OutputTransforms.LetColumns.BinRequest.Bins)
+	assert.Equal(t, uint64(4), aggregator.OutputTransforms.LetColumns.BinRequest.MaxBins)
 }
 
 func Test_Bin8(t *testing.T) {
@@ -8576,11 +8576,153 @@ func Test_Bin9(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
 	assert.Equal(t, uint64(1234567), *aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
 
-	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.Bins)
+	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.MaxBins)
 }
 
 func Test_Bin10(t *testing.T) {
 	query := `* | bin minspan=456.7mon timestamp`
 	_, err := spl.Parse("", []byte(query))
 	assert.NotNil(t, err)
+}
+
+func Test_Bin11(t *testing.T) {
+	query := `* | bin span=123.log1 timestamp`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_Bin12(t *testing.T) {
+	query := `* | bin aligntime=-24h timestamp`
+	res, err := spl.Parse("", []byte(query))
+	expAlignTime := time.Now().Add(-24 * time.Hour).UnixMilli()
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "timestamp", aggregator.OutputTransforms.LetColumns.NewColName)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest)
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan)
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.End)
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
+
+	alignTimeDiff := expAlignTime - int64(*aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
+	assert.True(t, alignTimeDiff <= int64(1000))
+
+	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.MaxBins)
+}
+
+func Test_Bin13(t *testing.T) {
+	query := `* | bin span=123.456 minspan=100 bins=4 start=-123.456 end=456.789 aligntime=-1yr timestamp as timeStmp`
+	res, err := spl.Parse("", []byte(query))
+	expAlignTime := time.Now().AddDate(-1, 0, 0).UnixMilli()
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "timeStmp", aggregator.OutputTransforms.LetColumns.NewColName)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan)
+	assert.Equal(t, float64(100), aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan.Num)
+	assert.Equal(t, 0, int(aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan.TimeScale))
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength)
+	assert.Equal(t, float64(123.456), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.Num)
+	assert.Equal(t, 0, int(aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale))
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.LogSpan)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
+	assert.Equal(t, float64(-123.456), *aggregator.OutputTransforms.LetColumns.BinRequest.Start)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.End)
+	assert.Equal(t, float64(456.789), *aggregator.OutputTransforms.LetColumns.BinRequest.End)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
+	alignTimeDiff := expAlignTime - int64(*aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
+	assert.True(t, alignTimeDiff <= int64(1000))
+
+	assert.Equal(t, uint64(4), aggregator.OutputTransforms.LetColumns.BinRequest.MaxBins)
+}
+
+func Test_Bin14(t *testing.T) {
+	query := `* | bin aligntime=-1y@qtr timestamp`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "timestamp", aggregator.OutputTransforms.LetColumns.NewColName)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest)
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan)
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.End)
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
+	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.MaxBins)
+}
+
+func Test_Bin15(t *testing.T) {
+	query := `* | bin span=250.5 minspan=125.5 bins=20 start=-123 end=456.789 aligntime=-1week@mon timestamp as bin_timestamp`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
+
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "bin_timestamp", aggregator.OutputTransforms.LetColumns.NewColName)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan)
+	assert.Equal(t, float64(125.5), aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan.Num)
+	assert.Equal(t, 0, int(aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan.TimeScale))
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength)
+	assert.Equal(t, float64(250.5), aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.Num)
+	assert.Equal(t, 0, int(aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.BinSpanLength.TimeScale))
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions.LogSpan)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
+	assert.Equal(t, float64(-123), *aggregator.OutputTransforms.LetColumns.BinRequest.Start)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.End)
+	assert.Equal(t, float64(456.789), *aggregator.OutputTransforms.LetColumns.BinRequest.End)
+
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
+
+	assert.Equal(t, uint64(20), aggregator.OutputTransforms.LetColumns.BinRequest.MaxBins)
 }

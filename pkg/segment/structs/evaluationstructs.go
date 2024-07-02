@@ -243,7 +243,7 @@ type TcOptions struct {
 type BinCmdOptions struct {
 	BinSpanOptions *BinSpanOptions
 	MinSpan        *BinSpanLength
-	Bins           uint64
+	MaxBins        uint64
 	Start          *float64
 	End            *float64
 	AlignTime      *uint64
@@ -256,8 +256,8 @@ type BinSpanLength struct {
 }
 
 type BinSpanOptions struct {
-	SpanLength *BinSpanLength
-	LogSpan    *LogSpan
+	BinSpanLength *BinSpanLength
+	LogSpan       *LogSpan
 }
 
 type BinOptions struct {
