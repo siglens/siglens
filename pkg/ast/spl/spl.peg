@@ -1086,7 +1086,7 @@ BinSpanOption <- "span" EQUAL num1:(FloatAsString / IntegerAsString) "log" num2:
     }
     base, err := strconv.ParseFloat(num2.(string), 64)
     if err != nil || base <= 1 {
-        return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span, err: %v", err)
+        return nil, fmt.Errorf("Spl peg: Invalid base in log span, err: %v", err)
     }
     logSpan := &structs.LogSpan {
         Coefficient: coeff,
@@ -1169,7 +1169,7 @@ BinCmdOptionsList <- first: BinCmdOption rest: (SPACE BinCmdOption)* {
             case "aligntime":
                 binCmdOption.AlignTime = binOptArg.binOptions.AlignTime
             default:
-                return nil, fmt.Errorf("Not a Valid HeadOption: %v", argOption)
+                return nil, fmt.Errorf("Not a Valid Bin Command Option: %v", argOption)
         }
     }
 
