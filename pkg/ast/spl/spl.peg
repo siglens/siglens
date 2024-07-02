@@ -956,11 +956,26 @@ TcOptionCMD <- option:("usenull" / "useother" / "nullstr" / "otherstr") {
     return optionStr, nil
 }
 
-SpanLenOption <- number:(FloatAsString/ IntegerAsString) timeScale:(TimeScale)? {
+SpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(TimeScale)? {
     if timeScale != nil {
         num, err := strconv.ParseInt(number.(string), 10, 64)
         if err != nil {
             return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", number.(string), err)
+        }
+
+        switch timeScale.(utils.TimeUnit) {
+            case utils.TMDecisecond:
+                if 10%num != 0 || num >= 10 {
+                    return nil, fmt.Errorf("SpanLength: Invalid span for decisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
+                }
+            case utils.TMCentisecond:
+                if 100%num != 0 || num >= 100 {
+                    return nil, fmt.Errorf("SpanLength: Invalid span for centisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
+                }
+            case utils.TMMillisecond:
+                if 1000%num != 0 || num >= 1000 {
+                    return nil, fmt.Errorf("SpanLength: Invalid span for millisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
+                }
         }
 
         spanLength := &structs.BinSpanLength {
@@ -984,7 +999,7 @@ SpanLenOption <- number:(FloatAsString/ IntegerAsString) timeScale:(TimeScale)? 
     return spanLength, nil
 }
 
-MinSpanOption <- "minspan" EQUAL spanLength:SpanLenOption {
+BinOptionMinSpan <- "minspan" EQUAL spanLength:SpanLenOption {
 
     binOptionArgs := &BinOptionArgs {
         argOption: "minspan",
@@ -995,7 +1010,7 @@ MinSpanOption <- "minspan" EQUAL spanLength:SpanLenOption {
     return binOptionArgs, nil
 }
 
-NumBinsOption <- "bins" EQUAL intAsStr:IntegerAsString {
+BinOptionMaxBins <- "bins" EQUAL intAsStr:IntegerAsString {
     numBins, err := strconv.ParseUint(intAsStr.(string), 10, 64)
     if err != nil {
         return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
@@ -1015,7 +1030,7 @@ PositiveIntegerAsString <- [0-9]+ {
 
 // TODO: chain modifier and what else is supported?
 
-AlignTimeOption <- "aligntime" EQUAL utcEpoch:(PositiveIntegerAsString) {
+BinOptionAlignTime <- "aligntime" EQUAL utcEpoch:(PositiveIntegerAsString) {
     epoch, err := strconv.ParseUint(utcEpoch.(string), 10, 64)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: Invalid utc epoch value: %v for align time", utcEpoch.(string))
@@ -1049,7 +1064,7 @@ AlignTimeOption <- "aligntime" EQUAL utcEpoch:(PositiveIntegerAsString) {
     return binOptionArgs, nil
 }
 
-StartOption <- "start" EQUAL number:(FloatAsString / IntegerAsString) {
+BinOptionStart <- "start" EQUAL number:(FloatAsString / IntegerAsString) {
     start, err := strconv.ParseFloat(number.(string), 64)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: Cannot convert %v to float", number.(string))
@@ -1064,7 +1079,7 @@ StartOption <- "start" EQUAL number:(FloatAsString / IntegerAsString) {
     return binOptionArgs, nil
 }
 
-EndOption <- "end" EQUAL number:(FloatAsString / IntegerAsString) {
+BinOptionEnd <- "end" EQUAL number:(FloatAsString / IntegerAsString) {
     end, err := strconv.ParseFloat(number.(string), 64)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: Cannot convert %v to float", number.(string))
@@ -1079,15 +1094,25 @@ EndOption <- "end" EQUAL number:(FloatAsString / IntegerAsString) {
     return binOptionArgs, nil
 }
 
-BinSpanOption <- "span" EQUAL num1:(FloatAsString / IntegerAsString) "log" num2:(FloatAsString / IntegerAsString) {
-    coeff, err := strconv.ParseFloat(num1.(string), 64)
-    if err != nil || coeff < 1 {
-        return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span, err: %v", err)
+BinOptionSpan <- "span" EQUAL num1:(FloatAsString / IntegerAsString)? "log" num2:(FloatAsString / IntegerAsString)? {
+    var coeff float64 = 1.0
+    var base float64 = 10.0
+    var err error
+
+    if num2 != nil {
+        base, err = strconv.ParseFloat(num2.(string), 64)
+        if err != nil || base <= 1.0 {
+            return nil, fmt.Errorf("Spl peg: Invalid base in log span, err: %v", err)
+        }
     }
-    base, err := strconv.ParseFloat(num2.(string), 64)
-    if err != nil || base <= 1 {
-        return nil, fmt.Errorf("Spl peg: Invalid base in log span, err: %v", err)
+    
+    if num1 != nil {
+        coeff, err = strconv.ParseFloat(num1.(string), 64)
+        if err != nil || coeff < 1.0 || coeff >= base {
+            return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span, err: %v", err)
+        }
     }
+    
     logSpan := &structs.LogSpan {
         Coefficient: coeff,
         Base: base,
@@ -1118,7 +1143,7 @@ BinSpanOption <- "span" EQUAL num1:(FloatAsString / IntegerAsString) "log" num2:
     return binOptionArgs, nil
 } 
 
-BinCmdOption <- option:(AlignTimeOption / MinSpanOption / NumBinsOption / StartOption / EndOption / BinSpanOption) {
+BinCmdOption <- option:(BinOptionAlignTime / BinOptionMinSpan / BinOptionMaxBins / BinOptionStart / BinOptionEnd / BinOptionSpan) {
     return option, nil
 }
 
@@ -1255,7 +1280,7 @@ SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale{
     return spanLength, nil
 }
 
-TimeScale <- timeUnit:(Second / Month / Minute / Hour / Day/ Week / Quarter/ Subseconds) {
+TimeScale <- timeUnit:(Second / Month / Subseconds / Minute / Hour / Day / Week / Quarter) {
     return timeUnit, nil
 }
 
