@@ -62,7 +62,7 @@ type database interface {
 	GetContactDetails(alert_id string) (string, string, string, error)
 	GetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []alertutils.WebHookConfig, error)
 	UpdateLastSentTimeAndAlertState(alert_id string, alertState alertutils.AlertState) error
-	UpdateAlertStateByAlertID(alertId string, alertState alertutils.AlertState) error
+	UpdateAlertStateAndIncrementNumEvaluations(alertId string, alertState alertutils.AlertState) error
 	DeleteContactPoint(contact_id string) error
 }
 
