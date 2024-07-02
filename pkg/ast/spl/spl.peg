@@ -1013,42 +1013,24 @@ PositiveIntegerAsString <- [0-9]+ {
     return string(c.text), nil
 }
 
+// TODO: chain modifier and what else is supported?
 
-AlignTimeOption <- "aligntime" EQUAL timestamp:(AbsoluteTimestamp / RelativeTimestamp)? utcEpoch:(PositiveIntegerAsString)? {
-    if timestamp == nil && utcEpoch == nil {
-        return nil, fmt.Errorf("Spl peg: Invalid syntax aligntime should have a value")
+AlignTimeOption <- "aligntime" EQUAL utcEpoch:(PositiveIntegerAsString) {
+    epoch, err := strconv.ParseUint(utcEpoch.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Invalid utc epoch value: %v for align time", utcEpoch.(string))
     }
-    if timestamp != nil && utcEpoch != nil {
-        return nil, fmt.Errorf("Spl peg: Invalid syntax aligntime should either a time modifier or utc epoch")
-    }
-
-    var epoch uint64 = 0
-    var err error
-    if timestamp != nil {
-        relTimeModifier := timestamp.(ast.TimeModifier)
-        epochVal, err := CalculateRelativeTime(relTimeModifier, time.Now())
-        epoch = uint64(epochVal)
-        if err != nil {
-            return nil, err
-        }
-    } else {
-        epoch, err = strconv.ParseUint(utcEpoch.(string), 10, 64)
-        if err != nil {
-            return nil, fmt.Errorf("Spl peg: Invalid utc epoch value for align time")
-        }
-    }
-
     binOptionArgs := &BinOptionArgs {
         argOption: "aligntime",
         binOptions: &structs.BinCmdOptions {
             AlignTime: &epoch,
         },
     }
-    
+
     return binOptionArgs, nil
 }
 
-StartOption <- "start" EQUAL number:(FloatAsString/ IntegerAsString) {
+StartOption <- "start" EQUAL number:(FloatAsString / IntegerAsString) {
     start, err := strconv.ParseFloat(number.(string), 64)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: Cannot convert %v to float", number.(string))
@@ -1063,7 +1045,7 @@ StartOption <- "start" EQUAL number:(FloatAsString/ IntegerAsString) {
     return binOptionArgs, nil
 }
 
-EndOption <- "end" EQUAL number:(FloatAsString/ IntegerAsString) {
+EndOption <- "end" EQUAL number:(FloatAsString / IntegerAsString) {
     end, err := strconv.ParseFloat(number.(string), 64)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: Cannot convert %v to float", number.(string))
@@ -1117,7 +1099,7 @@ BinSpanOption <- "span" EQUAL num1:(FloatAsString / IntegerAsString) "log" num2:
     return binOptionArgs, nil
 } 
 
-BinCmdOption <- option:(MinSpanOption / NumBinsOption / StartOption / EndOption / BinSpanOption) {
+BinCmdOption <- option:(AlignTimeOption / MinSpanOption / NumBinsOption / StartOption / EndOption / BinSpanOption) {
     return option, nil
 }
 

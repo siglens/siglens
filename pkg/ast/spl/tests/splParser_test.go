@@ -8507,7 +8507,7 @@ func Test_Bin6(t *testing.T) {
 }
 
 func Test_Bin7(t *testing.T) {
-	query := `* | bin span=123.456 minspan=100 bins=4 start=-123.456 end=456.789 timestamp as timeStmp`
+	query := `* | bin span=123.456 minspan=100 bins=4 start=-123.456 end=456.789 aligntime=123456789 timestamp as timeStmp`
 	res, err := spl.Parse("", []byte(query))
 	assert.Nil(t, err)
 	filterNode := res.(ast.QueryStruct).SearchFilter
@@ -8539,6 +8539,9 @@ func Test_Bin7(t *testing.T) {
 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.End)
 	assert.Equal(t, float64(456.789), *aggregator.OutputTransforms.LetColumns.BinRequest.End)
 
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
+	assert.Equal(t, uint64(123456789), *aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
+
 	assert.Equal(t, uint64(4), aggregator.OutputTransforms.LetColumns.BinRequest.Bins)
 }
 
@@ -8548,33 +8551,36 @@ func Test_Bin8(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-// func Test_Bina(t *testing.T) {
-// 	query := `* | bin aligntime=+1d timestamp`
-// 	expAlignTime := time.Now().AddDate(0, 0, 1).UnixMilli()
-// 	res, err := spl.Parse("", []byte(query))
-// 	assert.Nil(t, err)
-// 	filterNode := res.(ast.QueryStruct).SearchFilter
-// 	assert.NotNil(t, filterNode)
+func Test_Bin9(t *testing.T) {
+	query := `* | bin aligntime=1234567 timestamp`
+	res, err := spl.Parse("", []byte(query))
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+	assert.NotNil(t, filterNode)
 
-// 	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
-// 	assert.Nil(t, err)
-// 	assert.NotNil(t, astNode)
-// 	assert.NotNil(t, aggregator)
-// 	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
-// 	assert.NotNil(t, aggregator.OutputTransforms)
-// 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
-// 	assert.Equal(t, "timestamp", aggregator.OutputTransforms.LetColumns.NewColName)
+	astNode, aggregator, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, structs.OutputTransformType, aggregator.PipeCommandType)
+	assert.NotNil(t, aggregator.OutputTransforms)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns)
+	assert.Equal(t, "timestamp", aggregator.OutputTransforms.LetColumns.NewColName)
 
-// 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest)
-// 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan)
-// 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
-// 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.End)
-// 	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest)
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.MinSpan)
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.Start)
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.End)
+	assert.Nil(t, aggregator.OutputTransforms.LetColumns.BinRequest.BinSpanOptions)
 
-// 	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
+	assert.NotNil(t, aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
+	assert.Equal(t, uint64(1234567), *aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
 
-// 	timeDiff := expAlignTime - int64(*aggregator.OutputTransforms.LetColumns.BinRequest.AlignTime)
-// 	assert.True(t, timeDiff <= int64(1000))
+	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.Bins)
+}
 
-// 	assert.Equal(t, uint64(100), aggregator.OutputTransforms.LetColumns.BinRequest.Bins)
-// }
+func Test_Bin10(t *testing.T) {
+	query := `* | bin minspan=456.7mon timestamp`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
