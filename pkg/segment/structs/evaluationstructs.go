@@ -36,7 +36,6 @@ import (
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 )
 
@@ -243,17 +242,22 @@ type TcOptions struct {
 
 type BinCmdOptions struct {
 	BinSpanOptions *BinSpanOptions
-	MinSpan *SpanLength
-	Bins uint64
-	Start *int64
-	End *int64
-	AlignTime *uint64
-	FieldName string
+	MinSpan        *BinSpanLength
+	Bins           uint64
+	Start          *float64
+	End            *float64
+	AlignTime      *uint64
+	Field          string
+}
+
+type BinSpanLength struct {
+	Num       float64
+	TimeScale utils.TimeUnit
 }
 
 type BinSpanOptions struct {
-	SpanLength      *SpanLength
-	LogSpan		 *LogSpan
+	SpanLength *BinSpanLength
+	LogSpan    *LogSpan
 }
 
 type BinOptions struct {
@@ -267,7 +271,7 @@ type SpanOptions struct {
 
 type LogSpan struct {
 	Coefficient float64
-	Base 	  float64
+	Base        float64
 }
 
 type SpanLength struct {

@@ -528,7 +528,7 @@ FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / BinBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -956,14 +956,43 @@ TcOptionCMD <- option:("usenull" / "useother" / "nullstr" / "otherstr") {
     return optionStr, nil
 }
 
-MinSpanOption <- "minspan" EQUAL spanLength:SpanLength {
-    binOptionArgs := &structs.BinOptionArgs {
+SpanLenOption <- number:(FloatAsString/ IntegerAsString) timeScale:(TimeScale)? {
+    if timeScale != nil {
+        num, err := strconv.ParseInt(number.(string), 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", number.(string), err)
+        }
+
+        spanLength := &structs.BinSpanLength {
+            Num: float64(num),
+            TimeScale: timeScale.(utils.TimeUnit),
+        }
+
+        return spanLength, nil
+    } 
+
+    num, err := strconv.ParseFloat(number.(string), 64)
+    if err != nil {
+        return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", number.(string), err)
+    }
+
+    spanLength := &structs.BinSpanLength {
+        Num: num,
+        TimeScale: utils.TimeUnit(0),
+    }
+
+    return spanLength, nil
+}
+
+MinSpanOption <- "minspan" EQUAL spanLength:SpanLenOption {
+
+    binOptionArgs := &BinOptionArgs {
         argOption: "minspan",
-        binOption: &structs.BinCmdOptions {
-            Minspan: spanLength.(*structs.SpanLength),
+        binOptions: &structs.BinCmdOptions {
+            MinSpan: spanLength.(*structs.BinSpanLength),
         },
     }
-    return spanOptions, nil
+    return binOptionArgs, nil
 }
 
 NumBinsOption <- "bins" EQUAL intAsStr:IntegerAsString {
@@ -971,36 +1000,62 @@ NumBinsOption <- "bins" EQUAL intAsStr:IntegerAsString {
     if err != nil {
         return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
     }
-    binOptionArgs := &structs.BinOptionArgs {
+    binOptionArgs := &BinOptionArgs {
         argOption: "bins",
-        binOption: &structs.BinCmdOptions {
+        binOptions: &structs.BinCmdOptions {
             Bins: numBins,
         },
     }
     return binOptionArgs, nil
 }
 
-AlignTimeOption <- "aligntime" EQUAL relTimeStamp:RelativeTimestamp {
-    relTimeModifier := relTimeStamp.(ast.TimeModifier)
+PositiveIntegerAsString <- [0-9]+ {
+    return string(c.text), nil
+}
 
-    epoch, err := CalculateRelativeTime(latestTimeModifier, time.Now())
-    if err != nil {
-        return nil, err
+
+AlignTimeOption <- "aligntime" EQUAL timestamp:(AbsoluteTimestamp / RelativeTimestamp)? utcEpoch:(PositiveIntegerAsString)? {
+    if timestamp == nil && utcEpoch == nil {
+        return nil, fmt.Errorf("Spl peg: Invalid syntax aligntime should have a value")
     }
-    binOptionArgs := &structs.BinOptionArgs {
+    if timestamp != nil && utcEpoch != nil {
+        return nil, fmt.Errorf("Spl peg: Invalid syntax aligntime should either a time modifier or utc epoch")
+    }
+
+    var epoch uint64 = 0
+    var err error
+    if timestamp != nil {
+        relTimeModifier := timestamp.(ast.TimeModifier)
+        epochVal, err := CalculateRelativeTime(relTimeModifier, time.Now())
+        epoch = uint64(epochVal)
+        if err != nil {
+            return nil, err
+        }
+    } else {
+        epoch, err = strconv.ParseUint(utcEpoch.(string), 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Invalid utc epoch value for align time")
+        }
+    }
+
+    binOptionArgs := &BinOptionArgs {
         argOption: "aligntime",
-        binOption: &structs.BinCmdOptions {
-            AlignTime: &uint64(epoch),
+        binOptions: &structs.BinCmdOptions {
+            AlignTime: &epoch,
         },
     }
+    
     return binOptionArgs, nil
 }
 
-StartOption <- "start" EQUAL intAsStr:IntegerAsString {
-    start, err := strconv.ParseInt(intAsStr.(string), 10, 64)
-    binOptionArgs := &structs.BinOptionArgs {
+StartOption <- "start" EQUAL number:(FloatAsString/ IntegerAsString) {
+    start, err := strconv.ParseFloat(number.(string), 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Cannot convert %v to float", number.(string))
+    }
+    binOptionArgs := &BinOptionArgs {
         argOption: "start",
-        binOption: &structs.BinOptions {
+        binOptions: &structs.BinCmdOptions {
             Start: &start,
         },
     }
@@ -1008,11 +1063,14 @@ StartOption <- "start" EQUAL intAsStr:IntegerAsString {
     return binOptionArgs, nil
 }
 
-EndOption <- "end" EQUAL intAsStr:IntegerAsString {
-    end, err := strconv.ParseInt(intAsStr.(string), 10, 64)
-    binOptionArgs := &structs.BinOptionArgs {
+EndOption <- "end" EQUAL number:(FloatAsString/ IntegerAsString) {
+    end, err := strconv.ParseFloat(number.(string), 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Cannot convert %v to float", number.(string))
+    }
+    binOptionArgs := &BinOptionArgs {
         argOption: "end",
-        binOption: &structs.BinOptions {
+        binOptions: &structs.BinCmdOptions {
             End: &end,
         },
     }
@@ -1020,14 +1078,14 @@ EndOption <- "end" EQUAL intAsStr:IntegerAsString {
     return binOptionArgs, nil
 }
 
-BinSpanOption <- CMD_SPAN EQUAL num1:FloatAsString "log" num2:FloatAsString {
+BinSpanOption <- "span" EQUAL num1:(FloatAsString / IntegerAsString) "log" num2:(FloatAsString / IntegerAsString) {
     coeff, err := strconv.ParseFloat(num1.(string), 64)
     if err != nil || coeff < 1 {
-        return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span")
+        return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span, err: %v", err)
     }
-    base, err := strconv.ParseUint(num1.(string), 64)
+    base, err := strconv.ParseFloat(num2.(string), 64)
     if err != nil || base <= 1 {
-        return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span")
+        return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span, err: %v", err)
     }
     logSpan := &structs.LogSpan {
         Coefficient: coeff,
@@ -1036,34 +1094,23 @@ BinSpanOption <- CMD_SPAN EQUAL num1:FloatAsString "log" num2:FloatAsString {
     spanOptions := &structs.BinSpanOptions {
         LogSpan: logSpan,
     }
-    binOptionArgs := &structs.BinOptionArgs {
+    binOptionArgs := &BinOptionArgs {
         argOption: "span",
-        binOption: &structs.BinOptions {
+        binOptions: &structs.BinCmdOptions {
             BinSpanOptions: spanOptions,
         },
     }
     return binOptionArgs, nil
 }
-/ CMD_SPAN EQUAL intAsStr:IntegerAsString timeScale:(TimeScale)? {
-    num, err := strconv.Atoi(intAsStr.(string))
-    if err != nil {
-        return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", intAsStr.(string), err)
-    }
-    timeUnit := 0
-    if timeScale != nil {
-        timeUnit = timeScale.(utils.TimeUnit)
+/ "span" EQUAL spanLen:SpanLenOption {
+
+    spanOptions := &structs.BinSpanOptions {
+        SpanLength: spanLen.(*structs.BinSpanLength),
     }
 
-    spanLength := &structs.SpanLength {
-        Num: num,
-        TimeScalr: timeUnit,
-    }
-    spanOptions := &structs.BinSpanOptions {
-        SpanLength: spanLength,
-    }
-    binOptionArgs := &structs.BinOptionArgs {
+    binOptionArgs := &BinOptionArgs {
         argOption: "span",
-        binOption: &structs.BinOptions {
+        binOptions: &structs.BinCmdOptions {
             BinSpanOptions: spanOptions,
         },
     }
@@ -1079,6 +1126,8 @@ BinCmdOptionsList <- first: BinCmdOption rest: (SPACE BinCmdOption)* {
     mapOption := make(map[string]bool)
     mapOption["minspan"] = false
     mapOption["bins"] = false
+    mapOption["start"] = false
+    mapOption["end"] = false
     mapOption["span"] = false
     mapOption["aligntime"] = false
 
@@ -1107,17 +1156,17 @@ BinCmdOptionsList <- first: BinCmdOption rest: (SPACE BinCmdOption)* {
 
         switch argOption {
             case "minspan":
-                binCmdOption.Minspan = binOptArg.binOption.Minspan
+                binCmdOption.MinSpan = binOptArg.binOptions.MinSpan
             case "span":
-                binCmdOption.BinSpanOption = binOptArg.binOption.BinSpanOption
+                binCmdOption.BinSpanOptions = binOptArg.binOptions.BinSpanOptions
             case "bins":
-                binCmdOption.Bins = binOptArg.binOption.Bins
+                binCmdOption.Bins = binOptArg.binOptions.Bins
             case "start":
-                binCmdOption.Start = binOptArg.binOption.Start
+                binCmdOption.Start = binOptArg.binOptions.Start
             case "end":
-                binCmdOption.End = binOptArg.binOption.End
+                binCmdOption.End = binOptArg.binOptions.End
             case "aligntime":
-                binCmdOption.AlignTime = binOptArg.binOption.AlignTime
+                binCmdOption.AlignTime = binOptArg.binOptions.AlignTime
             default:
                 return nil, fmt.Errorf("Not a Valid HeadOption: %v", argOption)
         }
@@ -1127,10 +1176,53 @@ BinCmdOptionsList <- first: BinCmdOption rest: (SPACE BinCmdOption)* {
 }
 
 
-// BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList)? field:FieldName newName:(AsField)? {
-//     
-// }
+BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName newFieldName:(AsField)? {
+    letColReq := &structs.LetColumnsRequest {
+        NewColName: field.(string),
+    }
+    if newFieldName != nil {
+        letColReq.NewColName = newFieldName.(string)
+    }
 
+    letColReq.BinRequest = binCmdOption.(*structs.BinCmdOptions)
+    if letColReq.BinRequest.Bins == 0 {
+        letColReq.BinRequest.Bins = 100
+    }
+    letColReq.BinRequest.Field = field.(string)
+
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    return queryAgg, nil
+}
+/ PIPE CMD_BIN field:FieldName newFieldName:(AsField)? {
+    letColReq := &structs.LetColumnsRequest {
+        NewColName: field.(string),
+    }
+    if newFieldName != nil {
+        letColReq.NewColName = newFieldName.(string)
+    }
+
+    binCmdOption := &structs.BinCmdOptions{
+        Bins: 100,
+    }
+
+    letColReq.BinRequest = binCmdOption
+    letColReq.BinRequest.Field = field.(string)
+
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+    }
+
+    return queryAgg, nil
+}
 
 
 // To be finished: bins=<int> | minspan=<span-length> | span | <start-end>: (end=<num> | start=<num>) | aligntime=(earliest | latest | <time-specifier>)
@@ -1162,7 +1254,7 @@ SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale{
     return spanLength, nil
 }
 
-TimeScale <- timeUnit:(Second / Minute / Hour / Day/ Week / Month / Quarter/ Subseconds) {
+TimeScale <- timeUnit:(Second / Month / Minute / Hour / Day/ Week / Quarter/ Subseconds) {
     return timeUnit, nil
 }
 

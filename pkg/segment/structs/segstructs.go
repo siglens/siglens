@@ -241,6 +241,7 @@ type LetColumnsRequest struct {
 	MultiValueColRequest *MultiValueColLetRequest
 	FormatResults        *FormatResultsRequest // formats the results into a single result and places that result into a new field called search.
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
+	BinRequest           *BinCmdOptions
 }
 
 type EventCountExpr struct {
