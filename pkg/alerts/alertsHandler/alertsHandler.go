@@ -62,7 +62,7 @@ type database interface {
 	GetContactDetails(alert_id string) (string, string, string, error)
 	GetEmailAndChannelID(contact_id string) ([]string, []alertutils.SlackTokenConfig, []alertutils.WebHookConfig, error)
 	UpdateLastSentTimeAndAlertState(alert_id string, alertState alertutils.AlertState) error
-	UpdateAlertStateByAlertID(alertId string, alertState alertutils.AlertState) error
+	UpdateAlertStateAndIncrementNumEvaluations(alertId string, alertState alertutils.AlertState) error
 	DeleteContactPoint(contact_id string) error
 }
 
@@ -245,7 +245,7 @@ func ProcessTestContactPointRequest(ctx *fasthttp.RequestCtx) {
 			ChannelId: channelID,
 			SlToken:   slackToken,
 		}
-		err := sendSlack("Test Alert", "This is a test message to verify the Slack integration.", channel, "")
+		err := sendSlack("Test Alert", "This is a test message to verify the Slack integration.", channel, alertutils.Normal, "")
 		if err != nil {
 			utils.SendError(ctx, err.Error(), "Error sending test message to slack. Request Body:"+string(ctx.PostBody()), err)
 			return

@@ -185,6 +185,7 @@ type OutputTransforms struct {
 	OutputColumns          *ColumnsRequest    // post processing on output columns
 	LetColumns             *LetColumnsRequest // let columns processing on output columns
 	FilterRows             *BoolExpr          // discard rows failing some condition
+	TailRequest            *TailExpr
 	HeadRequest            *HeadExpr
 }
 
@@ -253,6 +254,13 @@ type LetColumnsRequest struct {
 	MultiValueColRequest *MultiValueColLetRequest
 	FormatResults        *FormatResultsRequest // formats the results into a single result and places that result into a new field called search.
 	EventCountRequest    *EventCountExpr       // To count the number of events in an index
+}
+
+type TailExpr struct {
+	TailRecords          map[string]map[string]interface{}
+	TailPQ               *sutils.PriorityQueue
+	TailRows             uint64
+	NumProcessedSegments uint64
 }
 
 type EventCountExpr struct {
@@ -576,7 +584,7 @@ func (qa *QueryAggregators) hasHeadBlock() bool {
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
-	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.FilterRows != nil || qa.hasHeadBlock())
+	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.TailRequest != nil || qa.OutputTransforms.FilterRows != nil || qa.hasHeadBlock())
 }
 
 func (qa *QueryAggregators) HasQueryAggergatorBlockInChain() bool {
@@ -651,6 +659,28 @@ func (qa *QueryAggregators) HasSortBlockInChain() bool {
 	if qa.Next != nil {
 		return qa.Next.HasSortBlockInChain()
 	}
+	return false
+}
+
+func (qa *QueryAggregators) HasTail() bool {
+	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.TailRequest != nil {
+		return true
+	}
+
+	return false
+}
+
+func (qa *QueryAggregators) HasTailInChain() bool {
+	if qa == nil {
+		return false
+	}
+	if qa.HasTail() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasTailInChain()
+	}
+
 	return false
 }
 
@@ -797,7 +827,6 @@ var unsupportedEvalFuncs = map[string]struct{}{
 	"mvzip":            {},
 	"mv_to_json_array": {},
 	"sigfig":           {},
-	"searchmatch":      {},
 	"nullif":           {},
 	"object_to_array":  {},
 	"printf":           {},

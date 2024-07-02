@@ -18,6 +18,7 @@
 package aggregations
 
 import (
+	"container/heap"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -183,6 +184,13 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 			} else {
 				err = performMaxRows(nodeResult, headExpr, agg.OutputTransforms.HeadRequest.MaxRows, recs)
 			}
+			if err != nil {
+				return fmt.Errorf("performAggOnResult: %v", err)
+			}
+		}
+
+		if agg.OutputTransforms.TailRequest != nil {
+			err := performTail(nodeResult, agg.OutputTransforms.TailRequest, recs, recordIndexInFinal, finishesSegment, numTotalSegments, hasSort)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -206,6 +214,109 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	return nil
 }
 
+func performTail(nodeResult *structs.NodeResult, tailExpr *structs.TailExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finishesSegment bool, numTotalSegments uint64, hasSort bool) error {
+
+	if nodeResult.Histogram != nil {
+		for _, aggResult := range nodeResult.Histogram {
+			diff := len(aggResult.Results) - int(tailExpr.TailRows)
+			if diff > 0 {
+				aggResult.Results = aggResult.Results[diff:]
+				tailExpr.TailRows = 0
+			} else {
+				tailExpr.TailRows -= uint64(len(aggResult.Results))
+			}
+			n := len(aggResult.Results)
+			for i := 0; i < n/2; i++ {
+				aggResult.Results[i], aggResult.Results[n-i-1] = aggResult.Results[n-i-1], aggResult.Results[i]
+			}
+			if tailExpr.TailRows == 0 {
+				break
+			}
+		}
+
+		return nil
+	}
+
+	if finishesSegment {
+		tailExpr.NumProcessedSegments++
+	}
+
+	if tailExpr.TailRecords == nil {
+		tailExpr.TailRecords = make(map[string]map[string]interface{}, 0)
+	}
+	if tailExpr.TailPQ == nil {
+		pq := make(utils.PriorityQueue, 0)
+		tailExpr.TailPQ = &pq
+		heap.Init(tailExpr.TailPQ)
+	}
+
+	if !hasSort {
+		for recordKey, record := range recs {
+			timeVal, exists := record["timestamp"]
+			if !exists {
+				continue
+			}
+			heap.Push(tailExpr.TailPQ, &utils.Item{
+				Priority: float64(timeVal.(uint64)),
+				Value:    recordKey,
+			})
+			tailExpr.TailRecords[recordKey] = record
+			if tailExpr.TailPQ.Len() > int(tailExpr.TailRows) {
+				item := heap.Pop(tailExpr.TailPQ).(*utils.Item)
+				delete(tailExpr.TailRecords, item.Value)
+			}
+			delete(recs, recordKey)
+		}
+	}
+
+	if tailExpr.NumProcessedSegments < numTotalSegments {
+		if hasSort && len(recs) > 0 {
+			return fmt.Errorf("performTail: Sort was applied but still records are found in recs for a non-last segment")
+		}
+		return nil
+	}
+
+	// if sort is present before use the recs and recordIndexInFinal that sort has updated
+	if hasSort {
+		currentSortOrder := make([]string, len(recs))
+		for recordKey := range recs {
+			idx, exists := recordIndexInFinal[recordKey]
+			if !exists {
+				return fmt.Errorf("performTail: After sort, index not found in recordIndexInFinal for rec: %v", recordKey)
+			}
+			currentSortOrder[idx] = recordKey
+		}
+		if tailExpr.TailRows < uint64(len(currentSortOrder)) {
+			diff := len(currentSortOrder) - int(tailExpr.TailRows)
+			for i := 0; i < diff; i++ {
+				delete(recs, currentSortOrder[i])
+			}
+			currentSortOrder = currentSortOrder[diff:]
+		}
+
+		n := len(currentSortOrder)
+		for i := 0; i < n/2; i++ {
+			currentSortOrder[i], currentSortOrder[n-i-1] = currentSortOrder[n-i-1], currentSortOrder[i]
+		}
+		for idx, recordKey := range currentSortOrder {
+			recordIndexInFinal[recordKey] = idx
+		}
+	} else {
+		for recordKey, record := range tailExpr.TailRecords {
+			recs[recordKey] = record
+		}
+
+		idx := tailExpr.TailPQ.Len() - 1
+		for tailExpr.TailPQ.Len() > 0 {
+			item := heap.Pop(tailExpr.TailPQ).(*utils.Item)
+			recordIndexInFinal[item.Value] = idx
+			idx -= 1
+		}
+	}
+
+	return nil
+}
+
 // only called when headExpr has BoolExpr
 func performConditionalHeadOnHistogram(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr) error {
 	fieldsInExpr := headExpr.BoolExpr.GetFields()
@@ -223,15 +334,19 @@ func performConditionalHeadOnHistogram(nodeResult *structs.NodeResult, headExpr 
 				}
 
 				// Evaluate the expression to a value.
-				result, err := headExpr.BoolExpr.Evaluate(fieldToValue)
+				conditionPassed, err := headExpr.BoolExpr.Evaluate(fieldToValue)
 				if err != nil {
-					nullFields, err := headExpr.BoolExpr.GetNullFields(fieldToValue)
-					if err == nil && len(nullFields) > 0 {
+					nullFields, errGetNullFields := headExpr.BoolExpr.GetNullFields(fieldToValue)
+					if errGetNullFields != nil {
+						return fmt.Errorf("performConditionalHeadOnHistogram: Error while getting null fields, err: %v", errGetNullFields)
+					} else if len(nullFields) > 0 {
 						// evaluation failed due to null fields
 						if headExpr.Null {
 							newResults = append(newResults, bucketResult)
+							headExpr.RowsAdded++
 						} else if headExpr.Keeplast {
 							newResults = append(newResults, bucketResult)
+							headExpr.RowsAdded++
 							headExpr.Done = true
 							break
 						} else {
@@ -242,12 +357,14 @@ func performConditionalHeadOnHistogram(nodeResult *structs.NodeResult, headExpr 
 						return fmt.Errorf("performConditionalHeadOnHistogram: Error while evaluating expression on histogram, err: %v", err)
 					}
 				} else {
-					if result {
+					if conditionPassed {
 						newResults = append(newResults, bucketResult)
+						headExpr.RowsAdded++
 					} else {
 						// false condition so adding last record if keeplast
 						if headExpr.Keeplast {
 							newResults = append(newResults, bucketResult)
+							headExpr.RowsAdded++
 						}
 						headExpr.Done = true
 						break
@@ -303,10 +420,12 @@ func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recordMap map[
 			return fmt.Errorf("processSegmentRecordsForHeadExpr: Error while retrieving values, err: %v", err)
 		}
 
-		result, err := headExpr.BoolExpr.Evaluate(fieldToValue)
+		conditionPassed, err := headExpr.BoolExpr.Evaluate(fieldToValue)
 		if err != nil {
-			nullFields, err := headExpr.BoolExpr.GetNullFields(fieldToValue)
-			if err == nil && len(nullFields) > 0 {
+			nullFields, errGetNullFields := headExpr.BoolExpr.GetNullFields(fieldToValue)
+			if errGetNullFields != nil {
+				return fmt.Errorf("processSegmentRecordsForHeadExpr: Error while getting null fields, err: %v", errGetNullFields)
+			} else if len(nullFields) > 0 {
 				// evaluation failed due to null fields
 				if headExpr.Null {
 					addRecordToHeadExpr(headExpr, rec, recordKey, hasSort)
@@ -322,7 +441,7 @@ func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recordMap map[
 				return fmt.Errorf("processSegmentRecordsForHeadExpr: Error while evaluating expression, err: %v", err)
 			}
 		} else {
-			if result {
+			if conditionPassed {
 				addRecordToHeadExpr(headExpr, rec, recordKey, hasSort)
 			} else {
 				// false condition so adding last record if keeplast
@@ -2311,6 +2430,16 @@ func getRecordFieldValues(fieldToValue map[string]segutils.CValueEnclosure, fiel
 
 func performValueColRequestWithoutGroupBy(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 	fieldsInExpr := letColReq.ValueColRequest.GetFields()
+
+	if len(fieldsInExpr) == 1 && fieldsInExpr[0] == "*" {
+		fieldsInExpr = []string{}
+		for _, record := range recs {
+			for fieldName := range record {
+				fieldsInExpr = append(fieldsInExpr, fieldName)
+			}
+			break
+		}
+	}
 
 	for _, record := range recs {
 		fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
