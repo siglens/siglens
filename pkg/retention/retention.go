@@ -159,10 +159,10 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 	// Delete all segment data
 	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
 	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
-	deleteEmptyIndices(ingestNodeDir, orgid)
+	DeleteEmptyIndices(ingestNodeDir, orgid)
 }
 
-func deleteEmptyIndices(ingestNodeDir string, myid uint64) {
+func DeleteEmptyIndices(ingestNodeDir string, myid uint64) {
 	allIndices, err := vtable.GetVirtualTableNames(myid)
 	if err != nil {
 		log.Errorf("deleteEmptyIndices: Error in getting virtual table names, err: %v", err)
