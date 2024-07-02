@@ -266,7 +266,7 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 				if minuteData, exists := summary.MinuteData[minute]; exists {
 					minuteData.AverageDelay = minuteData.TotalDelay / time.Duration(minuteData.TotalAlertsReceived)
 					logMinuteSummary(minute, minuteData, numAlerts)
-					summary.MinuteData[minute] = minuteData
+					delete(summary.MinuteData, minute)
 				}
 			}
 		case <-timeout.C:
