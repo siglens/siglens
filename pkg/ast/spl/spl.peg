@@ -427,6 +427,11 @@ type MultiValueColOptionArgs struct {
     mvColExpr *structs.MultiValueColLetRequest
 }
 
+type HeadOptionArgs struct {
+    argOption string
+    headExpr *structs.HeadExpr
+}
+
 type SPathFieldExpr struct {
     PathValue string
     IsPathFieldName bool  
@@ -2602,8 +2607,131 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
     return node, nil
 }
 
+HeadOptionNull <- "null" EQUAL boolVal:Boolean {
+    optionArg := &HeadOptionArgs{
+        argOption: "null",
+        headExpr: &structs.HeadExpr{
+            Null: boolVal.(bool),
+        },
+    }
+
+    return optionArg, nil
+}
+
+HeadOptionKeeplast <- "keeplast" EQUAL boolVal:Boolean {
+    optionArg := &HeadOptionArgs{
+        argOption: "keeplast",
+        headExpr: &structs.HeadExpr{
+            Keeplast: boolVal.(bool),
+        },
+    }
+
+    return optionArg, nil
+}
+
+HeadOptionLimit <- "limit" EQUAL intAsStr:IntegerAsString {
+    limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
+    }
+    optionArg := &HeadOptionArgs{
+        argOption: "limit",
+        headExpr: &structs.HeadExpr{
+            MaxRows: limit,
+        },
+    }
+
+    return optionArg, nil
+}
+
+HeadOptionExpr <- boolExpr:BoolExpr {
+    optionArg := &HeadOptionArgs{
+        argOption: "boolexpr",
+        headExpr: &structs.HeadExpr{
+            BoolExpr: boolExpr.(*structs.BoolExpr),
+        },
+    }
+
+    return optionArg, nil
+}
+
+HeadOption <- option:(HeadOptionKeeplast / HeadOptionNull / HeadOptionLimit / HeadOptionExpr) {
+    return option, nil
+}
+
+HeadOptionList <- first: HeadOption rest: (SPACE HeadOption)* {
+    restSlice := rest.([]any)
+    optionWasSpecified := make(map[string]bool)
+    optionWasSpecified["null"] = false
+    optionWasSpecified["keeplast"] = false
+    optionWasSpecified["boolexpr"] = false
+    optionWasSpecified["limit"] = false
+
+    numOptions := 1 + len(restSlice)
+
+    headExpr := &structs.HeadExpr{}
+
+    for i := 0; i < numOptions; i++ {
+        var headOptArg *HeadOptionArgs
+        if i == 0 {
+            headOptArg = first.(*HeadOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            headOptArg = separator[1].(*HeadOptionArgs)
+        }
+
+        argOption := headOptArg.argOption
+        val, exist := optionWasSpecified[argOption]
+        if !exist {
+            return nil, fmt.Errorf("Not a Valid HeadOption: %v", argOption)
+        }
+        if val {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        optionWasSpecified[argOption] = true
+
+        switch argOption {
+            case "null":
+                headExpr.Null = headOptArg.headExpr.Null
+            case "keeplast":
+                headExpr.Keeplast = headOptArg.headExpr.Keeplast
+            case "limit":
+                headExpr.MaxRows = headOptArg.headExpr.MaxRows
+            case "boolexpr":
+                headExpr.BoolExpr = headOptArg.headExpr.BoolExpr
+            default:
+                return nil, fmt.Errorf("Not a Valid HeadOption: %v", argOption)
+        }
+    }
+
+    isBoolExpr, _ := optionWasSpecified["boolexpr"]
+    if !isBoolExpr {
+        isNull, _ := optionWasSpecified["null"]
+        if isNull {
+            return nil, fmt.Errorf("Invalid Syntax, null option can only be present with condition boolean expression")
+        }
+        isKeeplast, _ := optionWasSpecified["keeplast"]
+        if isKeeplast {
+            return nil, fmt.Errorf("Invalid Syntax, keeplast option can only be present with condition boolean expression")
+        }
+    }
+
+    return headExpr, nil
+} 
+
+
 // Returns *structs.QueryAggregators
-HeadBlock <- PIPE CMD_HEAD ("limit" EQUAL)? intAsStr:IntegerAsString {
+HeadBlock <- PIPE CMD_HEAD headExpr:HeadOptionList {
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            HeadRequest: headExpr.(*structs.HeadExpr),
+        },
+    }
+
+    return queryAgg, nil
+}
+/ PIPE CMD_HEAD intAsStr:IntegerAsString {
     limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
     if err != nil {
         return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
@@ -2612,7 +2740,9 @@ HeadBlock <- PIPE CMD_HEAD ("limit" EQUAL)? intAsStr:IntegerAsString {
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
-            MaxRows: limit,
+            HeadRequest: &structs.HeadExpr{
+                MaxRows: limit,
+            },
         },
     }
 
@@ -2622,7 +2752,9 @@ HeadBlock <- PIPE CMD_HEAD ("limit" EQUAL)? intAsStr:IntegerAsString {
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
-            MaxRows: uint64(10), // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Head
+            HeadRequest: &structs.HeadExpr{
+                MaxRows: uint64(10), // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Head
+            },
         },
     }
 
@@ -2666,6 +2798,7 @@ TailBlock <- PIPE CMD_TAIL intAsStr:IntegerAsString {
 
     return queryAgg, nil
 }
+
 
 // Parses one or more AggFunctions separated by a comma and space.
 // Returns a slice containing all the AggFunctions.
