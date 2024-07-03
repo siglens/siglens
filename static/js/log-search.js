@@ -32,16 +32,28 @@ $(document).ready(async () => {
     initializeIndexAutocomplete();
     let queryMode = Cookies.get('queryMode');
     if (queryMode !== undefined){
+        const searchParams = new URLSearchParams(window.location.search);
+
+        // Check if the URL has the 'filterTab' parameter
+        const hasFilterTab = searchParams.has('filterTab');
+
+        if (!hasFilterTab){
+           //If filter tab is not present then do trigger.
+            if(queryMode === "Builder"){
+                $('.custom-code-tab a:first').trigger('click');
+            }else{
+                $('.custom-code-tab a[href="#tabs-2"]').trigger('click');
+            }
+        }
+        // Add active class to dropdown options based on the queryMode selected.
         if(queryMode === "Builder"){
             $(".query-mode-option").removeClass("active");
             $("#query-mode-options #mode-option-1").addClass("active");
             $('#query-mode-btn span').html("Builder");
-            $('.custom-code-tab a:first').trigger('click');
         }else{
             $(".query-mode-option").removeClass("active");
             $("#query-mode-options #mode-option-2").addClass("active");
             $('#query-mode-btn span').html("Code");
-            $('.custom-code-tab a[href="#tabs-2"]').trigger('click');
         }
     }
     // If query string found , then do search
