@@ -18,6 +18,7 @@
 package aggregations
 
 import (
+	"container/heap"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -104,8 +105,12 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		post = post.Next
 	}
 
+	hasSort := false
 	for agg := post; agg != nil; agg = agg.Next {
-		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment)
+		if agg.HasSortBlock() {
+			hasSort = true
+		}
+		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment, hasSort)
 
 		if len(nodeResult.TransactionEventRecords) > 0 {
 			nodeResult.NextQueryAgg = agg
@@ -141,7 +146,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     2.9 Text functions: replace, spath, upper, trim
 */
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
-	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool) error {
+	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, hasSort bool) error {
 	switch agg.PipeCommandType {
 	case structs.OutputTransformType:
 		if agg.OutputTransforms == nil {
@@ -173,8 +178,21 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 			}
 		}
 
-		if agg.OutputTransforms.MaxRows > 0 {
-			err := performMaxRows(nodeResult, agg, agg.OutputTransforms.MaxRows, recs)
+		if agg.OutputTransforms.HeadRequest != nil {
+			headExpr := agg.OutputTransforms.HeadRequest
+			var err error
+			if headExpr.BoolExpr != nil {
+				err = performConditionalHead(nodeResult, headExpr, recs, recordIndexInFinal, numTotalSegments, finishesSegment, hasSort)
+			} else {
+				err = performMaxRows(nodeResult, headExpr, agg.OutputTransforms.HeadRequest.MaxRows, recs)
+			}
+			if err != nil {
+				return fmt.Errorf("performAggOnResult: %v", err)
+			}
+		}
+
+		if agg.OutputTransforms.TailRequest != nil {
+			err := performTail(nodeResult, agg.OutputTransforms.TailRequest, recs, recordIndexInFinal, finishesSegment, numTotalSegments, hasSort)
 
 			if err != nil {
 				return fmt.Errorf("performAggOnResult: %v", err)
@@ -198,7 +216,339 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	return nil
 }
 
-func performMaxRows(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, maxRows uint64, recs map[string]map[string]interface{}) error {
+func performTail(nodeResult *structs.NodeResult, tailExpr *structs.TailExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, finishesSegment bool, numTotalSegments uint64, hasSort bool) error {
+
+	if nodeResult.Histogram != nil {
+		for _, aggResult := range nodeResult.Histogram {
+			diff := len(aggResult.Results) - int(tailExpr.TailRows)
+			if diff > 0 {
+				aggResult.Results = aggResult.Results[diff:]
+				tailExpr.TailRows = 0
+			} else {
+				tailExpr.TailRows -= uint64(len(aggResult.Results))
+			}
+			n := len(aggResult.Results)
+			for i := 0; i < n/2; i++ {
+				aggResult.Results[i], aggResult.Results[n-i-1] = aggResult.Results[n-i-1], aggResult.Results[i]
+			}
+			if tailExpr.TailRows == 0 {
+				break
+			}
+		}
+
+		return nil
+	}
+
+	if finishesSegment {
+		tailExpr.NumProcessedSegments++
+	}
+
+	if tailExpr.TailRecords == nil {
+		tailExpr.TailRecords = make(map[string]map[string]interface{}, 0)
+	}
+	if tailExpr.TailPQ == nil {
+		pq := make(utils.PriorityQueue, 0)
+		tailExpr.TailPQ = &pq
+		heap.Init(tailExpr.TailPQ)
+	}
+
+	if !hasSort {
+		for recordKey, record := range recs {
+			timeVal, exists := record["timestamp"]
+			if !exists {
+				continue
+			}
+			heap.Push(tailExpr.TailPQ, &utils.Item{
+				Priority: float64(timeVal.(uint64)),
+				Value:    recordKey,
+			})
+			tailExpr.TailRecords[recordKey] = record
+			if tailExpr.TailPQ.Len() > int(tailExpr.TailRows) {
+				item := heap.Pop(tailExpr.TailPQ).(*utils.Item)
+				delete(tailExpr.TailRecords, item.Value)
+			}
+			delete(recs, recordKey)
+		}
+	}
+
+	if tailExpr.NumProcessedSegments < numTotalSegments {
+		if hasSort && len(recs) > 0 {
+			return fmt.Errorf("performTail: Sort was applied but still records are found in recs for a non-last segment")
+		}
+		return nil
+	}
+
+	// if sort is present before use the recs and recordIndexInFinal that sort has updated
+	if hasSort {
+		currentSortOrder := make([]string, len(recs))
+		for recordKey := range recs {
+			idx, exists := recordIndexInFinal[recordKey]
+			if !exists {
+				return fmt.Errorf("performTail: After sort, index not found in recordIndexInFinal for rec: %v", recordKey)
+			}
+			currentSortOrder[idx] = recordKey
+		}
+		if tailExpr.TailRows < uint64(len(currentSortOrder)) {
+			diff := len(currentSortOrder) - int(tailExpr.TailRows)
+			for i := 0; i < diff; i++ {
+				delete(recs, currentSortOrder[i])
+			}
+			currentSortOrder = currentSortOrder[diff:]
+		}
+
+		n := len(currentSortOrder)
+		for i := 0; i < n/2; i++ {
+			currentSortOrder[i], currentSortOrder[n-i-1] = currentSortOrder[n-i-1], currentSortOrder[i]
+		}
+		for idx, recordKey := range currentSortOrder {
+			recordIndexInFinal[recordKey] = idx
+		}
+	} else {
+		for recordKey, record := range tailExpr.TailRecords {
+			recs[recordKey] = record
+		}
+
+		idx := tailExpr.TailPQ.Len() - 1
+		for tailExpr.TailPQ.Len() > 0 {
+			item := heap.Pop(tailExpr.TailPQ).(*utils.Item)
+			recordIndexInFinal[item.Value] = idx
+			idx -= 1
+		}
+	}
+
+	return nil
+}
+
+// only called when headExpr has BoolExpr
+func performConditionalHeadOnHistogram(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr) error {
+	fieldsInExpr := headExpr.BoolExpr.GetFields()
+	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+
+	for _, aggregationResult := range nodeResult.Histogram {
+		newResults := make([]*structs.BucketResult, 0)
+
+		if !headExpr.Done {
+			for rowIndex, bucketResult := range aggregationResult.Results {
+				// Get the values of all the necessary fields.
+				err := getAggregationResultFieldValues(fieldToValue, fieldsInExpr, aggregationResult, rowIndex)
+				if err != nil {
+					return fmt.Errorf("performConditionalHeadOnHistogram: error while getting agg result fields values, err: %v", err)
+				}
+
+				// Evaluate the expression to a value.
+				conditionPassed, err := headExpr.BoolExpr.Evaluate(fieldToValue)
+				if err != nil {
+					nullFields, errGetNullFields := headExpr.BoolExpr.GetNullFields(fieldToValue)
+					if errGetNullFields != nil {
+						return fmt.Errorf("performConditionalHeadOnHistogram: Error while getting null fields, err: %v", errGetNullFields)
+					} else if len(nullFields) > 0 {
+						// evaluation failed due to null fields
+						if headExpr.Null {
+							newResults = append(newResults, bucketResult)
+							headExpr.RowsAdded++
+						} else if headExpr.Keeplast {
+							newResults = append(newResults, bucketResult)
+							headExpr.RowsAdded++
+							headExpr.Done = true
+							break
+						} else {
+							headExpr.Done = true
+							break
+						}
+					} else {
+						return fmt.Errorf("performConditionalHeadOnHistogram: Error while evaluating expression on histogram, err: %v", err)
+					}
+				} else {
+					if conditionPassed {
+						newResults = append(newResults, bucketResult)
+						headExpr.RowsAdded++
+					} else {
+						// false condition so adding last record if keeplast
+						if headExpr.Keeplast {
+							newResults = append(newResults, bucketResult)
+							headExpr.RowsAdded++
+						}
+						headExpr.Done = true
+						break
+					}
+				}
+
+				if headExpr.MaxRows > 0 && headExpr.RowsAdded == headExpr.MaxRows {
+					headExpr.Done = true
+					break
+				}
+
+			}
+		}
+
+		aggregationResult.Results = newResults
+	}
+
+	return nil
+}
+
+func addRecordToHeadExpr(headExpr *structs.HeadExpr, record map[string]interface{}, recordKey string, hasSort bool) {
+	headExpr.RowsAdded++
+	if hasSort {
+		// we do not need to accumulate the results in case of sort
+		return
+	}
+	headExpr.ResultRecords = append(headExpr.ResultRecords, record)
+	headExpr.ResultRecordKeys = append(headExpr.ResultRecordKeys, recordKey)
+	delete(headExpr.SegmentRecords, recordKey)
+}
+
+func processSegmentRecordsForHeadExpr(headExpr *structs.HeadExpr, recordMap map[string]map[string]interface{}, recordIndexInFinal map[string]int, hasSort bool) error {
+	fieldsInExpr := headExpr.BoolExpr.GetFields()
+	currentOrder := make([]string, len(recordMap))
+
+	for recordKey := range recordMap {
+		idx, exist := recordIndexInFinal[recordKey]
+		if !exist {
+			return fmt.Errorf("processSegmentRecordsForHeadExpr: Index not found in recordIndexInFinal for record: %v", recordKey)
+		}
+		currentOrder[idx] = recordKey
+	}
+
+	for _, recordKey := range currentOrder {
+		rec, exist := recordMap[recordKey]
+		if !exist {
+			return fmt.Errorf("processSegmentRecordsForHeadExpr: record %v not found in segment records", recordKey)
+		}
+
+		fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+		err := getRecordFieldValues(fieldToValue, fieldsInExpr, rec)
+		if err != nil {
+			return fmt.Errorf("processSegmentRecordsForHeadExpr: Error while retrieving values, err: %v", err)
+		}
+
+		conditionPassed, err := headExpr.BoolExpr.Evaluate(fieldToValue)
+		if err != nil {
+			nullFields, errGetNullFields := headExpr.BoolExpr.GetNullFields(fieldToValue)
+			if errGetNullFields != nil {
+				return fmt.Errorf("processSegmentRecordsForHeadExpr: Error while getting null fields, err: %v", errGetNullFields)
+			} else if len(nullFields) > 0 {
+				// evaluation failed due to null fields
+				if headExpr.Null {
+					addRecordToHeadExpr(headExpr, rec, recordKey, hasSort)
+				} else if headExpr.Keeplast {
+					addRecordToHeadExpr(headExpr, rec, recordKey, hasSort)
+					headExpr.Done = true
+					break
+				} else {
+					headExpr.Done = true
+					break
+				}
+			} else {
+				return fmt.Errorf("processSegmentRecordsForHeadExpr: Error while evaluating expression, err: %v", err)
+			}
+		} else {
+			if conditionPassed {
+				addRecordToHeadExpr(headExpr, rec, recordKey, hasSort)
+			} else {
+				// false condition so adding last record if keeplast
+				if headExpr.Keeplast {
+					addRecordToHeadExpr(headExpr, rec, recordKey, hasSort)
+				}
+				headExpr.Done = true
+				break
+			}
+		}
+
+		if headExpr.MaxRows > 0 && headExpr.RowsAdded == headExpr.MaxRows {
+			headExpr.Done = true
+			break
+		}
+	}
+
+	if hasSort {
+		// delete everything after RowsAdded
+		for i := headExpr.RowsAdded; i < uint64(len(currentOrder)); i++ {
+			delete(recordMap, currentOrder[i])
+		}
+	} else {
+		// we have processed the records, clearing extra records if exists
+		for recordKey := range recordMap {
+			delete(recordMap, recordKey)
+		}
+	}
+
+	return nil
+}
+
+func processHeadExprWithSort(headExpr *structs.HeadExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, numTotalSegments uint64, finishesSegment bool) error {
+	if !finishesSegment {
+		return nil
+	}
+	headExpr.NumProcessedSegments++
+	// if it is the last segment, sort would have populated the records
+	if len(recs) > 0 && headExpr.NumProcessedSegments != numTotalSegments {
+		return fmt.Errorf("processHeadExprWithSort: Records are present even when there is sort")
+	}
+
+	if headExpr.NumProcessedSegments == numTotalSegments {
+		return processSegmentRecordsForHeadExpr(headExpr, recs, recordIndexInFinal, true)
+	}
+
+	return nil
+}
+
+func performConditionalHead(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr, recs map[string]map[string]interface{}, recordIndexInFinal map[string]int, numTotalSegments uint64, finishesSegment bool, hasSort bool) error {
+
+	if nodeResult.Histogram != nil {
+		err := performConditionalHeadOnHistogram(nodeResult, headExpr)
+		if err != nil {
+			return fmt.Errorf("performConditionalHead: Error while filtering histogram, err: %v", err)
+		}
+
+		return nil
+	}
+
+	if headExpr.SegmentRecords == nil {
+		headExpr.SegmentRecords = make(map[string]map[string]interface{}, 0)
+	}
+
+	if hasSort {
+		return processHeadExprWithSort(headExpr, recs, recordIndexInFinal, numTotalSegments, finishesSegment)
+	}
+
+	if headExpr.Done {
+		// delete records as we are done
+		for recordKey := range recs {
+			delete(recs, recordKey)
+		}
+	} else {
+		// accumulate segment records
+		for recordKey, record := range recs {
+			headExpr.SegmentRecords[recordKey] = record
+			delete(recs, recordKey)
+		}
+	}
+
+	if finishesSegment {
+		headExpr.NumProcessedSegments++
+
+		if !headExpr.Done {
+			err := processSegmentRecordsForHeadExpr(headExpr, headExpr.SegmentRecords, recordIndexInFinal, hasSort)
+			if err != nil {
+				return fmt.Errorf("performConditionalHead: Error while processing segment records, err: %v", err)
+			}
+		}
+
+		if headExpr.NumProcessedSegments == numTotalSegments {
+			headExpr.Done = true
+			// save the results
+			for idx, recordKey := range headExpr.ResultRecordKeys {
+				recordIndexInFinal[recordKey] = idx
+				recs[recordKey] = headExpr.ResultRecords[idx]
+			}
+		}
+	}
+
+	return nil
+}
+
+func performMaxRows(nodeResult *structs.NodeResult, headExpr *structs.HeadExpr, maxRows uint64, recs map[string]map[string]interface{}) error {
 
 	if maxRows == 0 {
 		return nil
@@ -206,18 +556,18 @@ func performMaxRows(nodeResult *structs.NodeResult, aggs *structs.QueryAggregato
 
 	if recs != nil {
 		// If the number of records plus the already added Rows is less than the maxRows, we don't need to do anything.
-		if (uint64(len(recs)) + aggs.OutputTransforms.RowsAdded) <= maxRows {
-			aggs.OutputTransforms.RowsAdded += uint64(len(recs))
+		if (uint64(len(recs)) + headExpr.RowsAdded) <= maxRows {
+			headExpr.RowsAdded += uint64(len(recs))
 			return nil
 		}
 
 		// If the number of records is greater than the maxRows, we need to remove the extra records.
 		for key := range recs {
-			if aggs.OutputTransforms.RowsAdded >= maxRows {
+			if headExpr.RowsAdded >= maxRows {
 				delete(recs, key)
 				continue
 			}
-			aggs.OutputTransforms.RowsAdded++
+			headExpr.RowsAdded++
 		}
 
 		return nil
@@ -226,14 +576,14 @@ func performMaxRows(nodeResult *structs.NodeResult, aggs *structs.QueryAggregato
 	// Follow group by
 	if nodeResult.Histogram != nil {
 		for _, aggResult := range nodeResult.Histogram {
-			if (uint64(len(aggResult.Results)) + aggs.OutputTransforms.RowsAdded) <= maxRows {
-				aggs.OutputTransforms.RowsAdded += uint64(len(aggResult.Results))
+			if (uint64(len(aggResult.Results)) + headExpr.RowsAdded) <= maxRows {
+				headExpr.RowsAdded += uint64(len(aggResult.Results))
 				continue
 			}
 
 			// If the number of records is greater than the maxRows, we need to remove the extra records.
-			aggResult.Results = aggResult.Results[:maxRows-aggs.OutputTransforms.RowsAdded]
-			aggs.OutputTransforms.RowsAdded = maxRows
+			aggResult.Results = aggResult.Results[:maxRows-headExpr.RowsAdded]
+			headExpr.RowsAdded = maxRows
 			break
 		}
 		return nil

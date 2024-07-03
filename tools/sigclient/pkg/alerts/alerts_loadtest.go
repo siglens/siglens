@@ -24,12 +24,13 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
 
-	"siglens/pkg/alerts/alertutils"
+	"github.com/siglens/siglens/pkg/alerts/alertutils"
 
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -55,7 +56,16 @@ type SummaryData struct {
 	MinuteData             map[int]MinuteSummaryData
 }
 
-func setUpLoggingToFileAndStdOut() {
+type VectorMode int8
+
+const (
+	VectorModeDisabled VectorMode = -1
+	VectorModeEnabled  VectorMode = 1
+	VectorModeOptional VectorMode = 0
+	LOG_MSG_DELIM      string     = "___"
+)
+
+func setUpLoggingToFileAndStdOut() string {
 	logDir := "./logs"
 	logFile := filepath.Join(logDir, "alert_loadtest.log")
 	err := os.MkdirAll(logDir, 0764)
@@ -77,6 +87,83 @@ func setUpLoggingToFileAndStdOut() {
 	// Set the output of the logger to the multi-writer
 	log.SetOutput(multiWriter)
 
+	return logFile
+}
+
+// tunnel the logs into SigLens
+func startVector(host string, logFile string) (*exec.Cmd, chan error, error) {
+	os.Setenv("LOG_FILE_PATH", logFile)
+	os.Setenv("HOST", host)
+
+	dataDir := filepath.Join("./vector_log_lib/data")
+	err := os.MkdirAll(dataDir, 0764)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to make vector data directory at=%v, err=%v", dataDir, err)
+	}
+	os.Setenv("DATA_DIR", dataDir)
+
+	log.Infof("LOG_FILE_PATH=%s, HOST=%s, DATA_DIR=%s", logFile, host, dataDir)
+
+	configPath := "pkg/alerts/alerts_loadtest_vector.yaml"
+
+	cmd := exec.Command("vector", "-c", configPath)
+
+	// Set the environment for the command
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("LOG_FILE_PATH=%s", logFile),
+		fmt.Sprintf("HOST=%s", host),
+		fmt.Sprintf("DATA_DIR=%s", dataDir),
+	)
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err = cmd.Start()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to start vector: %v", err)
+	}
+
+	errChan := make(chan error)
+
+	go func() {
+		err := cmd.Wait()
+		errChan <- err
+		close(errChan)
+	}()
+
+	return cmd, errChan, nil
+}
+
+func listenForVectorErrors(vectorErrChan chan error, successChan chan bool, vectorMode VectorMode) {
+	if vectorMode == VectorModeDisabled {
+		log.Infof("Vector is not enabled. Not listening for Vector errors")
+		return
+	}
+
+	vectorErr := <-vectorErrChan
+	if vectorErr != nil {
+		log.Errorf("Vector exited with error: %v", vectorErr)
+
+		if vectorMode == VectorModeEnabled {
+			log.Errorf("Exiting the test")
+			successChan <- false
+		}
+	} else {
+		log.Infof("Vector exited successfully")
+	}
+}
+
+func stopVector(vectorCmd *exec.Cmd) {
+	if vectorCmd != nil {
+		err := vectorCmd.Process.Kill()
+		if err != nil {
+			log.Errorf("Error killing Vector: %v", err)
+		} else {
+			log.Infof("Vector stopped successfully")
+		}
+	} else {
+		log.Errorf("Vector Cmd is nil. Cannot stop Vector")
+	}
 }
 
 func createMultipleAlerts(host string, contactId string, numAlerts int) error {
@@ -146,7 +233,7 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 		case webhookBody := <-webhookChan:
 			alertReceivedTime := time.Now()
 			timeout.Stop() // Stop the timeout as we received an alert
-			log.Infof("CurrentMinute=%v,ReceivedAlert=%v,NumEvaluations=%v", currentMinute, webhookBody.Title, webhookBody.NumEvaluationsCount)
+			log.Infof("%vCurrentMinute=%v,ReceivedAlert=%v,NumEvaluations=%v", LOG_MSG_DELIM, currentMinute, webhookBody.Title, webhookBody.NumEvaluationsCount)
 
 			alertEvalMinute := int(webhookBody.NumEvaluationsCount) - 1
 
@@ -179,13 +266,11 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 				if minuteData, exists := summary.MinuteData[minute]; exists {
 					minuteData.AverageDelay = minuteData.TotalDelay / time.Duration(minuteData.TotalAlertsReceived)
 					logMinuteSummary(minute, minuteData, numAlerts)
-					summary.MinuteData[minute] = minuteData
+					delete(summary.MinuteData, minute)
 				}
 			}
 		case <-timeout.C:
-			log.Errorf("Timed out waiting for alerts")
-			successChan <- false
-			return
+			log.Errorf("%vCurrentMinute=%v,Timeout=%v,ErrorMessage=Timed out waiting for alerts", LOG_MSG_DELIM, currentMinute, true)
 		case <-exitChan:
 			log.Warnf("Received Exit Signal. Exiting the test!")
 
@@ -197,8 +282,7 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 				summary.AverageAlertsPerMinute = 0
 			}
 
-			log.Infof("Final Summary: Total Time=%v", time.Since(startTime))
-			logSummary(summary)
+			log.Infof("%vCurrentMinute=%v,FinalSummary=%v,TotalTime=%v,TotalAlertsReceived=%d,TotalDelay=%v,AverageDelay=%v,AverageAlertsPerMinute=%v", LOG_MSG_DELIM, currentMinute, true, time.Since(startTime), summary.TotalAlertsReceived, summary.TotalDelay, summary.AverageDelay, summary.AverageAlertsPerMinute)
 			successChan <- true
 			return
 		}
@@ -207,21 +291,14 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 
 func logMinuteSummary(minute int, minuteData MinuteSummaryData, numAlerts int) {
 	alertsCount := len(minuteData.Alerts)
-	log.Infof("Minute=%d,IsSummary=%v,UniqueAlertsCount=%d,Pass=%v,TotalAlertsCount=%v,AverageDelay=%v", minute, true, alertsCount, alertsCount >= numAlerts, minuteData.TotalAlertsReceived, minuteData.AverageDelay)
+	log.Infof("%vMinute=%d,IsSummary=%v,UniqueAlertsCount=%d,Pass=%v,TotalAlertsCount=%v,AverageDelay=%v", LOG_MSG_DELIM, minute, true, alertsCount, alertsCount >= numAlerts, minuteData.TotalAlertsReceived, minuteData.AverageDelay)
 	for title, data := range minuteData.Alerts {
 		averageDelay := data.TotalDelay / time.Duration(data.ReceivedCount)
-		log.Infof("Minute=%d,Alert=%s,ReceivedCount=%d,AverageDelay=%v", minute, title, data.ReceivedCount, averageDelay)
+		log.Infof("%vMinute=%d,Alert=%s,ReceivedCount=%d,AverageDelay=%v", LOG_MSG_DELIM, minute, title, data.ReceivedCount, averageDelay)
 	}
 }
 
-func logSummary(summary SummaryData) {
-	log.Infof("Total Alerts Received: %d", summary.TotalAlertsReceived)
-	log.Infof("Total Delay: %v", summary.TotalDelay)
-	log.Infof("Average Delay: %v", summary.AverageDelay)
-	log.Infof("Average Alerts Per Minute: %v", summary.AverageAlertsPerMinute)
-}
-
-func doCleanup(host string, contactId string) error {
+func doCleanup(host string) error {
 	log.Infof("Cleaning up...")
 	alerts, err := getAllAlerts(host)
 	if err != nil {
@@ -235,23 +312,73 @@ func doCleanup(host string, contactId string) error {
 		}
 	}
 
-	err = deleteContactPoint(host, contactId)
+	contacts, err := getAllContactPoints(host)
 	if err != nil {
-		return fmt.Errorf("error deleting contact %s: %v", contactId, err)
+		return fmt.Errorf("error getting all contacts: %v", err)
+	}
+
+	for _, contact := range contacts {
+		err = deleteContactPoint(host, contact.ContactId)
+		if err != nil {
+			return fmt.Errorf("error deleting contact %s: %v", contact.ContactId, err)
+		}
 	}
 
 	return nil
 }
 
-func RunAlertsLoadTest(host string, numAlerts uint64) {
-	// Remove Trailing Slashes from the Host
-	host = removeTrailingSlashes(host)
+func processCheckAndStartVector(vectorMode VectorMode, host string, logFilePath string, successChan chan bool) *exec.Cmd {
+	if vectorMode == VectorModeDisabled {
+		log.Infof("Vector is not enabled. Running the test without Vector")
+	} else if vectorMode == VectorModeOptional {
+		log.Infof("Trying to run Vector and tunnel the logs into SigLens")
+		vectorCmd, vectorErrChan, err := startVector(host, logFilePath)
+		if err != nil {
+			log.Errorf("Error starting Vector. Running the test without Vector. Error=%v", err)
+		} else {
+			log.Infof("Vector started successfully")
+		}
+		go listenForVectorErrors(vectorErrChan, successChan, vectorMode)
+		return vectorCmd
+	} else {
+		log.Infof("Vector is enabled. Trying to run Vector and tunnel the logs into SigLens")
+		vectorCmd, vectorErrChan, err := startVector(host, logFilePath)
+		if err != nil {
+			log.Errorf("Error starting Vector. Error=%v", err)
+			log.Fatal("Exiting the test")
+			return nil
+		}
+		go listenForVectorErrors(vectorErrChan, successChan, vectorMode)
+		return vectorCmd
+	}
+	return nil
+}
 
-	setUpLoggingToFileAndStdOut()
+func parseVectorMode(vectorIntVal int8) VectorMode {
+	switch vectorIntVal {
+	case -1:
+		return VectorModeDisabled
+	case 0:
+		return VectorModeOptional
+	case 1:
+		return VectorModeEnabled
+	default:
+		return VectorModeDisabled
+	}
+}
+
+func RunAlertsLoadTest(host string, numAlerts uint64, runVector int8) {
+	host = removeTrailingSlashes(host)
 
 	webhookChan := make(chan alertutils.WebhookBody)
 	successChan := make(chan bool)
 	exitChan := make(chan bool)
+
+	vectorMode := parseVectorMode(runVector)
+
+	logFilePath := setUpLoggingToFileAndStdOut()
+
+	vectorCmd := processCheckAndStartVector(vectorMode, host, logFilePath, successChan)
 
 	// Start the webhook server
 	server := startWebhookServer(4010, webhookChan, exitChan)
@@ -294,7 +421,6 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 	err = createMultipleAlerts(host, contact.ContactId, int(numAlerts))
 	if err != nil {
 		log.Fatalf("Error creating multiple alerts: %v", err)
-		doCleanup(host, contact.ContactId)
 		return
 	}
 	log.Infof("Created %d Alerts", numAlerts)
@@ -308,14 +434,18 @@ func RunAlertsLoadTest(host string, numAlerts uint64) {
 		log.Errorf("Failed to receive all alerts in time")
 	}
 
-	// Cleanup
-	err = doCleanup(host, contact.ContactId)
-	if err != nil {
-		log.Errorf("Error cleaning up: %v", err)
-		return
-	}
-
 	if success {
 		log.Infof("Test completed successfully")
+	}
+
+	if runVector >= 0 {
+		stopVector(vectorCmd)
+	}
+}
+
+func RunAlertsCleanup(host string) {
+	err := doCleanup(host)
+	if err != nil {
+		log.Errorf("Error cleaning up: %v", err)
 	}
 }

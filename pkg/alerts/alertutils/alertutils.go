@@ -18,9 +18,12 @@
 package alertutils
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/go-co-op/gocron"
+	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type AlertType uint8
@@ -103,6 +106,8 @@ type QueryParams struct {
 	QueryText     string `json:"queryText"`
 	StartTime     string `json:"startTime"`
 	EndTime       string `json:"endTime"`
+	Index         string `json:"index"`
+	QueryMode     string `json:"queryMode"`
 }
 type Alert struct {
 	Status string
@@ -241,4 +246,34 @@ func (MinionSearch) TableName() string {
 
 func IsAlertStatePendingOrFiring(alertState AlertState) bool {
 	return alertState == Pending || alertState == Firing
+}
+
+func (alert *AlertDetails) EncodeQueryParamToBase64() {
+	if alert.AlertType == AlertTypeLogs {
+		alert.QueryParams.QueryText = utils.EncodeToBase64(alert.QueryParams.QueryText)
+	} else if alert.AlertType == AlertTypeMetrics {
+		alert.MetricsQueryParamsString = utils.EncodeToBase64(alert.MetricsQueryParamsString)
+	}
+}
+
+func (alert *AlertDetails) DecodeQueryParamFromBase64() error {
+	if alert.AlertType == AlertTypeLogs {
+		decoded, err := utils.DecodeFromBase64(alert.QueryParams.QueryText)
+		if err != nil {
+			err = fmt.Errorf("DecodeQueryParamFromBase64: Error decoding query text:%v from base64, alert_id: %s, err: %v", alert.QueryParams.QueryText, alert.AlertId, err)
+			log.Errorf(err.Error())
+			return err
+		}
+		alert.QueryParams.QueryText = decoded
+	} else if alert.AlertType == AlertTypeMetrics {
+		decoded, err := utils.DecodeFromBase64(alert.MetricsQueryParamsString)
+		if err != nil {
+			err = fmt.Errorf("DecodeQueryParamFromBase64: Error decoding metrics query params:%v from base64, alert_id: %s, err: %v", alert.MetricsQueryParamsString, alert.AlertId, err)
+			log.Errorf(err.Error())
+			return err
+		}
+		alert.MetricsQueryParamsString = decoded
+	}
+
+	return nil
 }

@@ -106,6 +106,7 @@ function loadBarOptions(xAxisData, yAxisData) {
 		barOptions.xAxis.axisLine.lineStyle.color = gridLineLightThemeColor;
 		barOptions.yAxis.splitLine.lineStyle.color = gridLineLightThemeColor;
 	}
+	return barOptions;
 }
 function loadPieOptions(xAxisData, yAxisData) {
 	let pieDataMapList = [];
