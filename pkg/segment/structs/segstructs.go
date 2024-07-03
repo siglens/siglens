@@ -583,25 +583,6 @@ func (qa *QueryAggregators) hasHeadBlock() bool {
 	return false
 }
 
-func (qa *QueryAggregators) hasHeadBlock() bool {
-	if qa == nil {
-		return false
-	}
-	if qa.OutputTransforms == nil {
-		return false
-	}
-	if qa.OutputTransforms.HeadRequest == nil {
-		return false
-	}
-	if qa.OutputTransforms.HeadRequest.BoolExpr != nil {
-		return true
-	}
-	if qa.OutputTransforms.HeadRequest.MaxRows > qa.OutputTransforms.HeadRequest.RowsAdded {
-		return true
-	}
-	return false
-}
-
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
 func (qa *QueryAggregators) HasQueryAggergatorBlock() bool {
 	return qa != nil && qa.OutputTransforms != nil && (qa.hasLetColumnsRequest() || qa.OutputTransforms.TailRequest != nil || qa.OutputTransforms.FilterRows != nil || qa.hasHeadBlock())
