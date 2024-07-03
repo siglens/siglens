@@ -981,6 +981,8 @@ BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(TimeScal
                 if 1000%num != 0 || num >= 1000 {
                     return nil, fmt.Errorf("BinSpanLenOption: Invalid span for millisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
                 }
+            case utils.TMMicrosecond:
+                return nil, fmt.Errorf("BinSpanLenOption: Invalid span microsecond is not supported!")
         }
 
         spanLength := &structs.BinSpanLength {
@@ -998,7 +1000,7 @@ BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(TimeScal
 
     spanLength := &structs.BinSpanLength {
         Num: num,
-        TimeScale: utils.TimeUnit(0),
+        TimeScale: utils.TMInvalid,
     }
 
     return spanLength, nil
@@ -1019,6 +1021,9 @@ BinOptionMaxBins <- "bins" EQUAL intAsStr:IntegerAsString {
     numBins, err := strconv.ParseUint(intAsStr.(string), 10, 64)
     if err != nil {
         return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
+    }
+    if numBins < 2 || numBins > 50000 {
+        return nil, fmt.Errorf("Invalid number of bins %v: must be between 2 and 50000", numBins)
     }
     binOptionArgs := &BinOptionArgs {
         argOption: "bins",
