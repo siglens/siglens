@@ -20,7 +20,7 @@
 'use strict';
 
 let contactGridDiv = null;
-let contactRowData  = [];
+let contactRowData = [];
 var contactData = {};
 var allContactsArray;
 let contactEditFlag = 0;
@@ -64,28 +64,27 @@ const contactFormHTML = `
             </div>
         </div>
             <div class="slack-container">
-                <div>
-                <div style="position: relative;">
-                    <label for="slack-channel-id">Channel ID</label>
-                    <input type="text" class="form-control" id="slack-channel-id" style="position: relative;" required >
-                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
-            title="Specify channel, private group, or IM channel (can be an encoded ID or a name)."
-            id="info-slack-channel-id"></i>
-            </div>
-                </div>
-                <div style="position: relative;">
-                <label for="slack-token">Slack API Token</label>
-                <input type="text" class="form-control" id="slack-token" style="position: relative;" required>
-                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
-                    title="Provide a Slack bot API token (starts with “xoxb”)."
-                    id="info-slack-token"></i>
-                </div>
-            </div>
-            <div class="webhook-container">
-                <label for="webhook">Webhook URL</label>
-                <input type="text" class="form-control" id="webhook-id">
-            </div>
-        </div>
+    <div>
+    <div style="position: relative;">
+        <label for="slack-channel-id">Channel ID</label>
+        <input type="text" class="form-control" id="slack-channel-id" style="position: relative;">
+        <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
+        title="Specify channel, private group, or IM channel (can be an encoded ID or a name)."
+        id="info-slack-channel-id"></i>
+    </div>
+    </div>
+    <div style="position: relative;">
+    <label for="slack-token">Slack API Token</label>
+    <input type="text" class="form-control" id="slack-token" style="position: relative;">
+        <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
+        title="Provide a Slack bot API token (starts with “xoxb”)."
+        id="info-slack-token"></i>
+    </div>
+</div>
+<div class="webhook-container">
+    <label for="webhook">Webhook URL</label>
+    <input type="text" class="form-control" id="webhook-id">
+</div>
     </div>
     <button class="add-new-contact-type btn" type="button">
         <span>
@@ -99,10 +98,10 @@ const contactFormHTML = `
 $(document).ready(function () {
 
     $('.theme-btn').on('click', themePickerHandler);
-    $('#new-contact-point').on('click',initializeContactForm)
+    $('#new-contact-point').on('click', initializeContactForm)
     $('#contact-form-container').css('display', 'none');
     getAllContactPoints();
-    if(window.location.href.includes("alert.html")){
+    if (window.location.href.includes("alert.html")) {
         initializeContactForm();
     }
 
@@ -126,6 +125,15 @@ $(document).ready(function () {
 
 $(document).on('click', '.contact-option', setContactTypes);
 
+function updateDeleteButtonVisibility() {
+    const contactContainers = $(".contact-container");
+    if (contactContainers.length > 1) {
+        contactContainers.find(".del-contact-type").show();
+    } else {
+        contactContainers.find(".del-contact-type").hide();
+    }
+}
+
 function initializeContactForm(contactId) {
     $("#new-contact-point").css("display", "none");
     $("#alert-grid-container").css("display", "none");
@@ -133,18 +141,21 @@ function initializeContactForm(contactId) {
     const formContainer = $("#contact-form-container");
 
     if (formContainer) {
-        formContainer.append(contactFormHTML);
+        formContainer.html(contactFormHTML); // Use .html() to replace the content to avoid appending multiple times.
         $(".slack-container").css("display", "block");
         $(".webhook-container").css("display", "none");
         if (contactEditFlag) {
             showContactFormForEdit(contactId);
+        } else {
+            $(".contact-container").first().find(".button-container").append(
+                '<button class="btn-simple del-contact-type" type="button"></button>'
+            );
         }
     }
 
     const contactForm = $("#contact-form");
     contactForm.on("submit", (e) => submitAddContactPointForm(e));
 
-    //cancel form
     $("#cancel-contact-btn").on("click", function () {
         resetContactForm();
         if (window.location.href.includes("alert.html")) {
@@ -155,40 +166,50 @@ function initializeContactForm(contactId) {
         }
     });
 
-    //add new contact type container
+    updateDeleteButtonVisibility();
+
     $(".add-new-contact-type").on("click", function () {
-        let newContactContainer = $(".contact-container").first().clone();
-        newContactContainer.find(".form-control").val("");
-        newContactContainer.find(".button-container").append(
-            '<button class="btn-simple del-contact-type" type="button"></button>',
-        );
-        newContactContainer.appendTo("#main-container");
-        const newChannelIdInfoId = "info-slack-channel-id-" + Date.now();
-        const newTokenInfoId = "info-slack-token-" + Date.now();
-
-        newContactContainer.find('.fa-info-circle').eq(0).attr('id', newChannelIdInfoId);
-        newContactContainer.find('.fa-info-circle').eq(1).attr('id', newTokenInfoId);
-
-        // Initialize tooltips for the newly added container
-        [newChannelIdInfoId, newTokenInfoId].forEach(id => {
-            $(`#${id}`).tooltip({
-                delay: { show: 0, hide: 300 },
-                trigger: "hover" // Change "click" to "hover"
-            });
-        });
+        addNewContactTypeContainer();
     });
 
-    //remove contact type container
     $("#main-container").on("click", ".del-contact-type", function () {
         $(this).closest(".contact-container").remove();
+        updateDeleteButtonVisibility();
     });
 
-    // test contact point
     $("#main-container").on("click", ".test-contact-btn", function () {
         const container = $(this).closest('.contact-container');
         getContactPointTestData(container);
     });
 }
+
+function addNewContactTypeContainer() {
+    let newContactContainer = $(".contact-container").first().clone();
+    newContactContainer.find(".form-control").val("");
+    newContactContainer.find(".del-contact-type").remove(); // Remove any existing delete buttons
+    newContactContainer.find(".button-container").append(
+        '<button class="btn-simple del-contact-type" type="button"></button>',
+    );
+    newContactContainer.appendTo("#main-container");
+
+    const newChannelIdInfoId = "info-slack-channel-id-" + Date.now();
+    const newTokenInfoId = "info-slack-token-" + Date.now();
+
+    newContactContainer.find('.fa-info-circle').eq(0).attr('id', newChannelIdInfoId);
+    newContactContainer.find('.fa-info-circle').eq(1).attr('id', newTokenInfoId);
+
+    [newChannelIdInfoId, newTokenInfoId].forEach(id => {
+        $(`#${id}`).tooltip({
+            delay: { show: 0, hide: 300 },
+            trigger: "hover"
+        });
+    });
+
+    $(".add-new-contact-type").appendTo("#main-container"); // Move the button to the end
+    updateDeleteButtonVisibility();
+}
+
+
 
 function setContactTypes() {
     const selectedOption = $(this).html();
@@ -196,18 +217,22 @@ function setContactTypes() {
     container.find('.contact-option').removeClass('active');
     container.find('#contact-types span').html(selectedOption);
     $(this).addClass('active');
-    container.find('.slack-container input, .webhook-container input').removeAttr('required').val();
+
+    // Remove invalid class from all inputs
+    container.find('.slack-container input, .webhook-container input').removeClass('is-invalid').val('');
+
+    // Hide all contact type containers
     container.find('.slack-container, .webhook-container').css('display', 'none');
+
+    // Show and set invalid class based on selected option
     if (selectedOption === 'Slack') {
-        container.find('.slack-container input').attr('required', 'true');
         container.find('.slack-container').css('display', 'block');
     } else if (selectedOption === 'Webhook') {
         container.find('.webhook-container').css('display', 'block');
-        container.find('.webhook-container input').attr('required', 'true');
-    } 
+    }
 }
 
-function resetContactForm(){
+function resetContactForm() {
     $('#contact-form input').val('');
     $('#contact-types span').text('Slack');
     $('.slack-container').css('display', 'block');
@@ -221,42 +246,48 @@ function setContactForm() {
     contactData.contact_name = $('#contact-name').val();
     contactData.slack = [];
     contactData.webhook = [];
-    
-    $('.contact-container').each(function() {
-      let contactType = $(this).find('#contact-types span').text();
-      
+
+    $('.contact-container').each(function () {
+        let contactType = $(this).find('#contact-types span').text();
+
         if (contactType === 'Slack') {
             let slackValue = $(this).find('#slack-channel-id').val();
             let slackToken = $(this).find('#slack-token').val();
             if (slackValue && slackToken) {
-                let slackContact  = {
+                let slackContact = {
                     channel_id: slackValue,
                     slack_token: slackToken
-                    };
-                    contactData.slack.push(slackContact);
-
-          
-        }
-      } else if (contactType === 'Webhook') {
-        let webhookValue = $(this).find('#webhook-id').val();
-        if (webhookValue) {
-            let webhookContact  = {
-                webhook: webhookValue,
                 };
-            contactData.webhook.push(webhookContact);
+                contactData.slack.push(slackContact);
+
+
+            }
+        } else if (contactType === 'Webhook') {
+            let webhookValue = $(this).find('#webhook-id').val();
+            if (webhookValue) {
+                let webhookContact = {
+                    webhook: webhookValue,
+                };
+                contactData.webhook.push(webhookContact);
+            }
         }
-    }
     });
     contactData.pager_duty = "";
 }
 
-function submitAddContactPointForm(e){
-    e.preventDefault(); 
+function submitAddContactPointForm(e) {
+    e.preventDefault();
+
+    if (!validateContactForm()) {
+        alert('Please fill out all required fields.');
+        return;
+    }
+
     setContactForm();
     contactEditFlag ? updateContactPoint(contactData) : createContactPoint(contactData);
 }
 
-function createContactPoint(){
+function createContactPoint() {
     $.ajax({
         method: "post",
         url: "api/alerts/createContact",
@@ -267,8 +298,8 @@ function createContactPoint(){
         data: JSON.stringify(contactData),
         dataType: 'json',
         crossDomain: true,
-    }).then(res=>{
-        if(window.location.href.includes("alert.html")){
+    }).then(res => {
+        if (window.location.href.includes("alert.html")) {
             $(".popupOverlay, .popupContent").removeClass("active");
             getAllContactPoints(contactData.contact_name);
         } else {
@@ -276,7 +307,7 @@ function createContactPoint(){
         }
         resetContactForm();
         showToast(res.message, 'success');
-    }).catch(err=>{
+    }).catch(err => {
         if (window.location.href.includes("alert.html")) {
             $(".popupOverlay, .popupContent").removeClass("active");
         }
@@ -284,7 +315,7 @@ function createContactPoint(){
     })
 }
 
-function updateContactPoint(){
+function updateContactPoint() {
     $.ajax({
         method: "post",
         url: "api/alerts/updateContact",
@@ -295,16 +326,16 @@ function updateContactPoint(){
         data: JSON.stringify(contactData),
         dataType: 'json',
         crossDomain: true,
-    }).then(res=>{
+    }).then(res => {
         resetContactForm();
-        window.location.href='../contacts.html';
-        showToast(res.message,'success');
-    }).catch(err=>{
+        window.location.href = '../contacts.html';
+        showToast(res.message, 'success');
+    }).catch(err => {
         showToast(err.responseJSON.error, 'error');
     })
 }
 
-function getAllContactPoints(contactName){
+function getAllContactPoints(contactName) {
     $.ajax({
         method: "get",
         url: "api/alerts/allContacts",
@@ -316,38 +347,13 @@ function getAllContactPoints(contactName){
         crossDomain: true,
     }).then(function (res) {
         allContactsArray = res.contacts;
-        if(window.location.href.includes("alert.html")){
+        if (window.location.href.includes("alert.html")) {
             const contact = allContactsArray.find(contact => contact.contact_name === contactName);
             $('#contact-points-dropdown span').html(contact.contact_name);
             $('#contact-points-dropdown span').attr('id', contact.contact_id);
-        }else
+        } else
             displayAllContacts(res.contacts);
     })
-}
-
-class btnRenderer {
-	init(params) {
-		this.eGui = document.createElement('span');
-		this.eGui.innerHTML = `<div id="alert-grid-btn">
-				<button class='btn' id="editbutton"></button>
-                <button class="btn-simple" id="delbutton"></button>
-				</div>`;
-		this.eButton = this.eGui.querySelector('.btn');
-		this.dButton = this.eGui.querySelector('.btn-simple');
-
-		this.eButton.addEventListener('click',function(){
-            contactEditFlag = 1;
-            initializeContactForm(params.data.contactId);
-        });   
-		this.dButton.addEventListener('click',()=>getAllAlertsWithSameContactPoint(params.data));
-	}
-
-	getGui() {
-		return this.eGui;
-	}
-	refresh(params) {
-		return false;
-	}
 }
 
 function deleteContactPrompt(data) {
@@ -357,7 +363,7 @@ function deleteContactPrompt(data) {
         $('.popupOverlay, .popupContent').removeClass('active');
     });
     $('#delete-btn').off('click');
-    $('#delete-btn').on('click',function (){
+    $('#delete-btn').on('click', function () {
         $.ajax({
             method: 'delete',
             url: 'api/alerts/deleteContact',
@@ -375,15 +381,41 @@ function deleteContactPrompt(data) {
                 remove: [{ rowId: deletedRowID }],
             });
 
-            showToast(res.message,'success');
+            showToast(res.message, 'success');
             $('.popupOverlay, .popupContent').removeClass('active');
-        }).catch((err)=>{
+        }).catch((err) => {
             showToast(err.responseJSON.error, "error");
         });
     });
 }
 
-function showDeleteContactDialog(data,matchingAlertNames){
+class btnRenderer {
+    init(params) {
+        this.eGui = document.createElement('span');
+        this.eGui.innerHTML = `<div id="alert-grid-btn">
+				<button class='btn' id="editbutton"></button>
+                <button class="btn-simple" id="delbutton"></button>
+				</div>`;
+        this.eButton = this.eGui.querySelector('.btn');
+        this.dButton = this.eGui.querySelector('.btn-simple');
+
+        this.eButton.addEventListener('click', function () {
+            contactEditFlag = 1;
+            initializeContactForm(params.data.contactId);
+        });
+        this.dButton.addEventListener('click', () => getAllAlertsWithSameContactPoint(params.data));
+    }
+
+    getGui() {
+        return this.eGui;
+    }
+    refresh(params) {
+        return false;
+    }
+}
+
+
+function showDeleteContactDialog(data, matchingAlertNames) {
     $('#contact-name-placeholder-delete-dialog').html('<strong>' + data.contactName + '</strong>');
     $('.popupOverlay, .delete-dialog').addClass('active');
     let el = $('#alert-listing');
@@ -394,18 +426,18 @@ function showDeleteContactDialog(data,matchingAlertNames){
     });
 
     // Apply styling to make the dropdown scrollable
-el.css({
-    'max-height': `${maxHeight}px`,
-    'overflow-y': 'auto'
-});
-    $("body").css("cursor","default");
+    el.css({
+        'max-height': `${maxHeight}px`,
+        'overflow-y': 'auto'
+    });
+    $("body").css("cursor", "default");
     $('#cancel-btn, .popupOverlay').click(function () {
         $('.popupOverlay, .delete-dialog').removeClass('active');
     });
 }
 
-function getAllAlertsWithSameContactPoint(data){
-    const contactId= data.contactId;
+function getAllAlertsWithSameContactPoint(data) {
+    const contactId = data.contactId;
     const matchingAlertNames = [];
     $.ajax({
         method: "get",
@@ -417,16 +449,18 @@ function getAllAlertsWithSameContactPoint(data){
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        if(res.alerts){  
+        if (res.alerts) {
             for (const alert of res.alerts) {
-            if (alert.contact_id === contactId) {
-                matchingAlertNames.push(alert.alert_name);
-        }}}
-          if(matchingAlertNames.length > 0){
-            showDeleteContactDialog(data,matchingAlertNames);
-          }else{
+                if (alert.contact_id === contactId) {
+                    matchingAlertNames.push(alert.alert_name);
+                }
+            }
+        }
+        if (matchingAlertNames.length > 0) {
+            showDeleteContactDialog(data, matchingAlertNames);
+        } else {
             deleteContactPrompt(data);
-          }
+        }
     })
 }
 
@@ -434,59 +468,91 @@ function getAllAlertsWithSameContactPoint(data){
 let contactColumnDefs = [
     {
         field: "rowId",
-		hide: true
+        hide: true
     },
     {
         field: "contactId",
-		hide: true
+        hide: true
     },
     {
         headerName: "Contact point name",
         field: "contactName",
         sortable: true,
-        width:100,
+        width: 100,
     },
     {
         headerName: "Type",
         field: "type",
-        width:100,
+        width: 100,
     },
     {
         headerName: "Actions",
         cellRenderer: btnRenderer,
-        width:50,
+        width: 50,
     },
 ];
 
 const contactGridOptions = {
     columnDefs: contactColumnDefs,
-	rowData: contactRowData,
-	animateRows: true,
-	rowHeight: 44,
-    headerHeight:32,
-	defaultColDef: {
-		icons: {
-			sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
-			sortDescending: '<i class="fa fa-sort-alpha-down"/>',
-		},
+    rowData: contactRowData,
+    animateRows: true,
+    rowHeight: 44,
+    headerHeight: 32,
+    defaultColDef: {
+        icons: {
+            sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
+            sortDescending: '<i class="fa fa-sort-alpha-down"/>',
+        },
         cellClass: 'align-center-grid',
         resizable: true,
         sortable: true,
-	},
-	enableCellTextSelection: true,
-	suppressScrollOnNewData: true,
-	suppressAnimationFrame: true,
-	getRowId: (params) => params.data.rowId,
-	onGridReady(params) {
-		this.gridApi = params.api;
-	},
+    },
+    enableCellTextSelection: true,
+    suppressScrollOnNewData: true,
+    suppressAnimationFrame: true,
+    getRowId: (params) => params.data.rowId,
+    onGridReady(params) {
+        this.gridApi = params.api;
+    },
 };
 
 function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function displayAllContacts(res){
+function validateContactForm() {
+    let isValid = true;
+
+    $('.contact-container').each(function () {
+        const contactType = $(this).find('#contact-types span').text();
+        if (contactType === 'Slack') {
+            const slackValue = $(this).find('#slack-channel-id').val();
+            const slackToken = $(this).find('#slack-token').val();
+            if (!slackValue || !slackToken) {
+                isValid = false;
+                $(this).find('#slack-channel-id, #slack-token').each(function () {
+                    if (!$(this).val()) {
+                        $(this).addClass('is-invalid');
+                    } else {
+                        $(this).removeClass('is-invalid');
+                    }
+                });
+            }
+        } else if (contactType === 'Webhook') {
+            const webhookValue = $(this).find('#webhook-id').val();
+            if (!webhookValue) {
+                isValid = false;
+                $(this).find('#webhook-id').addClass('is-invalid');
+            } else {
+                $(this).find('#webhook-id').removeClass('is-invalid');
+            }
+        }
+    });
+
+    return isValid;
+}
+
+function displayAllContacts(res) {
     if (contactGridDiv === null) {
         contactGridDiv = document.querySelector('.all-contacts-grid');
         new agGrid.Grid(contactGridDiv, contactGridOptions);
@@ -494,12 +560,12 @@ function displayAllContacts(res){
     contactGridOptions.api.setColumnDefs(contactColumnDefs);
     let newRow = new Map()
     $.each(res, function (key, value) {
-        let contactType = 
-        Object.entries(value)
-        .filter(([k,v]) => v!=null && v.length !== 0 && k !== 'contact_name' && k !== 'contact_id' && k !== 'org_id')
-        .map(([k, v]) => {
-            return v.length >1 ? `${capitalize(k)} (${v.length})` : capitalize(k);
-        } );
+        let contactType =
+            Object.entries(value)
+                .filter(([k, v]) => v != null && v.length !== 0 && k !== 'contact_name' && k !== 'contact_id' && k !== 'org_id')
+                .map(([k, v]) => {
+                    return v.length > 1 ? `${capitalize(k)} (${v.length})` : capitalize(k);
+                });
         let type = contactType.join(', ')
 
         newRow.set("rowId", key);
@@ -514,51 +580,77 @@ function displayAllContacts(res){
 
 //Edit Contact Point 
 function showContactFormForEdit(contactId) {
-    let data = allContactsArray.find(function(obj) {return obj.contact_id === contactId});
+    let data = allContactsArray.find(function (obj) { return obj.contact_id === contactId });
     $('#contact-name').val(data.contact_name);
-    
-    let isFirst = true;
-    Object.keys(data).forEach(function(key) {
-      if (key === 'contact_name' || key === 'contact_id') {
-        return;
-      }
-    
-      let value = data[key];
-      if (value != null && value.length > 0) {
-       value.forEach(function(value){ let contactContainer;
-        if (isFirst) {
-            contactContainer = $('.contact-container');
-            isFirst = false;
-        } else {
-            contactContainer = $('.contact-container').first().clone();
-            contactContainer.find('.button-container').append('<button class="btn-simple del-contact-type" type="button"></button>');
-        }
-        contactContainer.find('#contact-types span').text(key.charAt(0).toUpperCase() + key.slice(1));
-        if (key === 'slack') {
-          contactContainer.find('.webhook-container').css('display', 'none');
-          contactContainer.find('.slack-container').css('display', 'block');
-          contactContainer.find('.slack-container #slack-channel-id').val(value.channel_id);
-          contactContainer.find('.slack-container #slack-token').val(value.slack_token);
-        }
-        if (key === 'webhook') {
-            contactContainer.find('.webhook-container').css('display', 'block');
-            contactContainer.find('.slack-container').css('display', 'none');
-            contactContainer.find('.webhook-container #webhook-id').val(value.webhook);
 
-          }
-        if (key != 'slack'&& key != 'webhook'){
-            contactContainer.find(`.${key}-container .form-control`).val(value);
+    let isFirst = true;
+    let containerCount = 0;
+
+    Object.keys(data).forEach(function (key) {
+        if (key === 'contact_name' || key === 'contact_id') {
+            return;
         }
-        contactContainer.appendTo('#main-container');
-      })}
+
+        let value = data[key];
+        if (value != null && value.length > 0) {
+            value.forEach(function (value) {
+                let contactContainer;
+                if (isFirst) {
+                    contactContainer = $('.contact-container').first(); // Select the first container directly
+                    isFirst = false;
+                } else {
+                    contactContainer = $('.contact-container').first().clone().removeClass('d-none'); // Clone the first container for subsequent ones
+                    contactContainer.find('.button-container .del-contact-type').remove(); // Remove existing delete buttons from the cloned container
+                    contactContainer.appendTo('#main-container');
+                }
+
+                contactContainer.find('#contact-types span').text(key.charAt(0).toUpperCase() + key.slice(1));
+                if (key === 'slack') {
+                    contactContainer.find('.webhook-container').css('display', 'none');
+                    contactContainer.find('.slack-container').css('display', 'block');
+                    contactContainer.find('.slack-container #slack-channel-id').val(value.channel_id);
+                    contactContainer.find('.slack-container #slack-token').val(value.slack_token);
+                }
+                if (key === 'webhook') {
+                    contactContainer.find('.webhook-container').css('display', 'block');
+                    contactContainer.find('.slack-container').css('display', 'none');
+                    contactContainer.find('.webhook-container #webhook-id').val(value.webhook);
+                }
+                if (key != 'slack' && key != 'webhook') {
+                    contactContainer.find(`.${key}-container .form-control`).val(value);
+                }
+
+                containerCount++;
+            });
+        }
     });
-    if(contactEditFlag){contactData.contact_id=data.contact_id;}
+
+    // Add delete button to all containers if there are multiple containers
+    if (containerCount > 1) {
+        $('.contact-container').each(function () {
+            if (!$(this).find('.del-contact-type').length) {
+                $(this).find('.button-container').append('<button class="btn-simple del-contact-type" type="button"></button>');
+            }
+        });
+    } else {
+        // Ensure delete button is removed if only one container
+        $('.contact-container').find('.del-contact-type').remove();
+    }
+
+    $(".add-new-contact-type").appendTo("#main-container"); // Move the button to the end
+
+    updateDeleteButtonVisibility(); // Ensure delete buttons are updated after form initialization
+
+    if (contactEditFlag) {
+        contactData.contact_id = data.contact_id;
+    }
 }
 
-function getContactPointTestData(container){
+
+function getContactPointTestData(container) {
     let contactData = {};
     let contactType = container.find('#contact-types span').text();
-    
+
     if (contactType === 'Slack') {
         let slackValue = container.find('#slack-channel-id').val();
         let slackToken = container.find('#slack-token').val();
@@ -597,7 +689,7 @@ function testContactPointHandler(testContactPointData) {
         crossDomain: true,
     }).then(function (res) {
         if (res.message) {
-            showToast(res.message,'success');
+            showToast(res.message, 'success');
         }
     }).fail(function (jqXHR) {
         let response = jqXHR.responseJSON;
