@@ -289,6 +289,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     </div>
                                 </div>
                             </div>
+                            <div class="dropdown" id="avail-field-container">
+                                <button class="btn dropdown-toggle avail-fields-btn" title="Select field names to display" type="button"
+                                    id="avail-fields-btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                    data-bs-toggle="dropdown">
+                                    <i class="fa-solid fa-list-check" title="Select field names to display"></i>&nbsp;
+                                    Available Fields
+                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                    <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                </button>
+                                <div class="dropdown-menu box-shadow" aria-labelledby="avail-fields-btn" id="available-fields">
+                    
+                                    <div class="select-unselect-header" id="select-unselect-header">
+                                        Select/Unselect All
+                                        <img class="select-unselect-checkbox" src="assets/available-field-checkbox.svg">
+                                    </div>
+                                    <div class="fields"></div>
+                                </div>
+                            </div>
                             <div class="table-view-toggle-container btn">
                                 <label class="label-table-view">Table view</label>
                                 <label class="switch">
