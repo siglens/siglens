@@ -287,6 +287,14 @@ $(document).ready(function () {
 		displayPanelView(panelIndex)
 
     });
+
+	let ele = $('#available-fields .select-unselect-header');
+
+    if (theme === "light"){
+        ele.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
+    }else{
+        ele.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
+    }
 })
 
 function editPanelInit(redirectedFromViewScreen) {
@@ -362,6 +370,9 @@ function editPanelInit(redirectedFromViewScreen) {
 
 	if (selectedChartTypeIndex === 3){
 		currentPanel.logLinesViewType="Table view";
+		$("#avail-field-container ").css('display', 'inline-flex');
+	}else{
+		$("#avail-field-container ").css('display', 'none');
 	}
 
 	let currentPanelLogViewType = currentPanel.logLinesViewType;
@@ -785,17 +796,19 @@ $(".editPanelMenu-chart #chart-type-options").on('click', function () {
 		$('.dropDown-unit').css('display','flex')
 		$('#nestedDropDownContainer').css('display','flex')
 		$('.dropDown-logLinesView').css('display','none');
-
+		$("#avail-field-container ").css('display', 'none');
 	}else if (selectedChartTypeIndex === 5){
 		currentPanel.logLinesViewType="Single line display view";
 		$('.dropDown-logLinesView').css('display','flex')
 		$('#nestedDropDownContainer').css('display','none')
 		$('.dropDown-unit').css('display','none')
+		$("#avail-field-container ").css('display', 'none');
 	}else if (selectedChartTypeIndex === 3){
 		currentPanel.logLinesViewType="Table view";
 		$('#nestedDropDownContainer').css('display','none')
 		$('.dropDown-unit').css('display','none')
 		$('.dropDown-logLinesView').css('display','none');
+		$("#avail-field-container ").css('display', 'inline-flex');
 	}
 	else{
 		$('#nestedDropDownContainer').css('display','none')
@@ -803,6 +816,7 @@ $(".editPanelMenu-chart #chart-type-options").on('click', function () {
 		if (selectedUnitTypeIndex !== 0)
 			$('.dropDown-unit span').html('Unit');
 		$('.dropDown-logLinesView').css('display','none');
+		$("#avail-field-container ").css('display', 'none');
 	}
 	$('.editPanelMenu-inner-options').css('display',"none");
 	$('.horizontalCaret').css('rotate','90deg');
