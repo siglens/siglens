@@ -1523,3 +1523,11 @@ input:checked + .slider:before {
   width: 6px;
   background-size: contain;
 }
+
+.avail-fields-btn{
+  height: 32px !important;
+  margin-left: 15px;
+}
+#avail-field-container{
+  display: none;
+}

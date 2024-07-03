@@ -19,7 +19,7 @@
 
 'use strict';
 let sortedListIndices;
-function getListIndices() {
+async function getListIndices() {
     return fetch('api/listIndices', {
         method: 'GET',
         headers: {
@@ -31,35 +31,15 @@ function getListIndices() {
         return response.json();
     })
     .then(function (res) {
-        processListIndicesResult(res);
+        // processListIndicesResult(res);
+        sortedListIndices = res.sort();
+        if (Cookies.get('IndexList')) {
+            selectedSearchIndex = Cookies.get('IndexList');
+        }else {
+            selectedSearchIndex = sortedListIndices[0].index;
+        }
         return res;
     });
-}
-
-function processListIndicesResult(res) {
-    if(res)
-        renderIndexDropdown(res)
-    $("body").css("cursor", "default");
-}
-
-function renderIndexDropdown(listIndices) {
-    sortedListIndices = listIndices.sort();
-    let el = $('#index-listing');
-    el.html(``);
-    if (sortedListIndices) {
-        sortedListIndices.forEach((index, i) => {
-            el.append(`<div class="index-dropdown-item" data-index="${index.index}">
-                            <span class="indexname-text">${index.index}</span>
-                            <img src="/assets/index-selection-check.svg">
-                       </div>`);
-        });
-    }
-    if (Cookies.get('IndexList')) {
-        selectedSearchIndex = Cookies.get('IndexList');
-    }else {
-        selectedSearchIndex = sortedListIndices[0].index;
-        $("#index-btn span").html(sortedListIndices[0].index);
-    }
 }
 
 // Dashboards Index Dropdown 
@@ -127,8 +107,6 @@ async function initializeIndexAutocomplete() {
             return;
         }
     
-        
-
         indexValues = filteredIndexValues
         $(this).autocomplete("option", "source", filteredIndexValues);
     }).on('change', function() {
