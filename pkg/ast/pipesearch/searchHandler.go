@@ -214,36 +214,20 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 // the second return value is a boolean indicating if the query returned empty results. Set to true if the query returned empty results.
 // the third return value is an error if any.
 func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) (int, bool, error) {
-
-	queryData := fmt.Sprintf(`{
-		"from": "0",
-		"indexName": "*",
-		"queryLanguage": "%s",
-		"searchText": "%s",
-		"startEpoch": "%s",
-		"endEpoch" : "%s",
-		"state": "query"
-	}`, queryParams.QueryLanguage, utils.EscapeQuotes(queryParams.QueryText), queryParams.StartTime, queryParams.EndTime)
 	orgid := uint64(0)
 	dbPanelId := "-1"
 	queryStart := time.Now()
 
-	rawJSON := []byte(queryData)
-	if rawJSON == nil {
-		log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: received empty search request body ")
-		return -1, false, fmt.Errorf("received empty search request body")
-	}
-
 	qid := rutils.GetNextQid()
 	readJSON := make(map[string]interface{})
-	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
-	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
-	decoder.UseNumber()
-	err := decoder.Decode(&readJSON)
-	if err != nil {
-		log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: failed to decode search request body! err: %+v", qid, err)
-		return -1, false, fmt.Errorf("failed to decode search request body! err: %+v", err)
-	}
+	var err error
+	readJSON["from"] = "0"
+	readJSON["indexName"] = "*"
+	readJSON["queryLanguage"] = queryParams.QueryLanguage
+	readJSON["searchText"] = queryParams.QueryText
+	readJSON["startEpoch"] = queryParams.StartTime
+	readJSON["endEpoch"] = queryParams.EndTime
+	readJSON["state"] = "query"
 
 	nowTs := utils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)

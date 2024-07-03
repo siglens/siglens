@@ -137,6 +137,8 @@ func (p Sqlite) verifyAlertExists(alert_id string) (bool, *alertutils.AlertDetai
 		}
 	}
 
+	alert.DecodeQueryParamFromBase64()
+
 	return true, &alert, nil
 }
 
@@ -199,6 +201,9 @@ func (p Sqlite) CreateAlert(alertDetails *alertutils.AlertDetails) (alertutils.A
 	state := alertutils.Inactive
 	alertDetails.State = state
 	alertDetails.AlertId = alert_id
+
+	alertDetails.EncodeQueryParamToBase64()
+
 	result := p.db.Create(alertDetails)
 	if result.Error != nil && result.RowsAffected != 1 {
 		err := fmt.Errorf("CreateAlert: unable to create alert for Alert: %v, Error=%v", alertDetails.AlertName, result.Error)
@@ -216,6 +221,7 @@ func (p Sqlite) CreateAlert(alertDetails *alertutils.AlertDetails) (alertutils.A
 		log.Error(err.Error())
 		return alertutils.AlertDetails{}, err
 	}
+	alertDetails.DecodeQueryParamFromBase64()
 	return *alertDetails, nil
 }
 
@@ -229,6 +235,7 @@ func (p Sqlite) GetAlert(alert_id string) (*alertutils.AlertDetails, error) {
 	if err := p.db.Preload("Labels").Where(&alertutils.AlertDetails{AlertId: alert_id}).Find(&alert).Error; err != nil {
 		return nil, err
 	}
+	alert.DecodeQueryParamFromBase64()
 	return &alert, nil
 
 }
@@ -236,6 +243,12 @@ func (p Sqlite) GetAlert(alert_id string) (*alertutils.AlertDetails, error) {
 func (p Sqlite) GetAllAlerts(orgId uint64) ([]alertutils.AlertDetails, error) {
 	alerts := make([]alertutils.AlertDetails, 0)
 	err := p.db.Model(&alerts).Preload("Labels").Where("org_id = ?", orgId).Find(&alerts).Error
+	if err != nil {
+		return alerts, err
+	}
+	for _, alert := range alerts {
+		alert.DecodeQueryParamFromBase64()
+	}
 	return alerts, err
 }
 
@@ -256,6 +269,7 @@ func (p Sqlite) UpdateSilenceMinutes(updatedSilenceMinutes *alertutils.AlertDeta
 		log.Error(err.Error())
 		return err
 	}
+	updatedSilenceMinutes.EncodeQueryParamToBase64()
 	result := p.db.Save(&updatedSilenceMinutes)
 	if result.Error != nil && result.RowsAffected != 1 {
 		err := fmt.Errorf("UpdateSilenceMinutes: unable to update silence minutes details for Alert: %v, Error=%v", updatedSilenceMinutes.AlertName, result.Error)
@@ -263,6 +277,7 @@ func (p Sqlite) UpdateSilenceMinutes(updatedSilenceMinutes *alertutils.AlertDeta
 		return err
 	}
 
+	updatedSilenceMinutes.DecodeQueryParamFromBase64()
 	return nil
 }
 
@@ -314,6 +329,8 @@ func (p Sqlite) UpdateAlert(editedAlert *alertutils.AlertDetails) error {
 		}
 	}
 
+	editedAlert.EncodeQueryParamToBase64()
+
 	if editedAlert.ContactID != currentAlertData.ContactID {
 		exists, contactData, err := p.verifyContactExists(editedAlert.ContactID)
 		if err != nil {
@@ -335,6 +352,8 @@ func (p Sqlite) UpdateAlert(editedAlert *alertutils.AlertDetails) error {
 		log.Error(err.Error())
 		return err
 	}
+
+	editedAlert.DecodeQueryParamFromBase64()
 	return nil
 }
 
