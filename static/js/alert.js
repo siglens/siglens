@@ -837,8 +837,21 @@ function alertChart(res) {
         return;
     }
 
-    if (res.qtype === "aggs-query" || res.qtype === "segstats-query") {
+    if(res.qtype === "segstats-query"){
+        const errorMsg = $('<div>')
+            .text("This query does not support bar graph visualization.");
+        $('#logs-explorer').empty().append(errorMsg);
+        return;
+    }
+
+    if (res.qtype === "aggs-query") {
         let columnOrder = []
+        if(res.groupByCols.length > 1){
+            const errorMsg = $('<div>')
+            .text("This query does not support bar graph visualization.");
+            $('#logs-explorer').empty().append(errorMsg);
+            return;
+        }
         if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
             columnOrder = res.columnsOrder
         }else{

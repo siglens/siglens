@@ -397,7 +397,19 @@ function runLiveTailBtnHandler(evt) {
 
 function runFilterBtnHandler(evt) {
     var currentPage = window.location.pathname;
-    if (currentPage === "/index.html"){
+    if (currentPage === '/alert.html'){
+        let data = getQueryParamsData();
+        data.searchText = getQueryBuilderCode();
+        isQueryBuilderSearch = $("#custom-code-tab").tabs("option", "active") === 0;
+        if(isQueryBuilderSearch) {
+            data.searchText = getQueryBuilderCode();
+        }else{
+            data.searchText = $('#filter-input').val();
+        }
+        fetchLogsPanelData(data,-1).then((res)=>{
+            alertChart(res);
+        });
+    } else { // index.html
         $('.popover').hide();
         evt.preventDefault();
         if (
@@ -418,19 +430,7 @@ function runFilterBtnHandler(evt) {
           initialSearchData = data;
           doCancel(data);
         }
-        $('#daterangepicker').hide();
-    }else if (currentPage === '/alert.html'){
-        let data = getQueryParamsData();
-        data.searchText = getQueryBuilderCode();
-        isQueryBuilderSearch = $("#custom-code-tab").tabs("option", "active") === 0;
-        if(isQueryBuilderSearch) {
-            data.searchText = getQueryBuilderCode();
-        }else{
-            data.searchText = $('#filter-input').val();
-        }
-        fetchLogsPanelData(data,-1).then((res)=>{
-            alertChart(res);
-        });
+        $('#daterangepicker').hide(); 
     }
 }
 
