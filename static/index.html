@@ -423,6 +423,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <button type="button" id="create-panel" class="btn create-db">Create Panel</button>
             </div>
         </div>
+        <div class="addrulepopupOverlay"></div>
+            <div class="addrulepopupContent">
+                <h3 class="header">Create Alert</h3>
+                <div class="popupcont">
+                <label>Enter alert rule name</label>
+                <input type="text" id="rule-name" name="rule-name" required placeholder="Name">
+                <p class="rule-name-error"></p>
+                </div>
+                <div class="btncontainer">
+                    <button type="button" id="addrule-cancel-btn">Cancel</button>
+                    <button type="button" id="addrule-save-btn">Add
+                        <img src="assets/new-tab-white-icon.svg">
+                    </button>
+                </div>
+            </div>
+        
+        <div class="popupContent" id="error-popup">
+            <h3 class="header mb-2"><span><i class="fas fa-exclamation-triangle"></i></span> Error loading data</h3>
+            <p class="mt-3">The search settings were changed. To see the updated results, please press the <span style="color: #6449D6; font-weight: 600;">magnifying glass</span> icon.<p>
+            <div class="d-flex align-items-center justify-content-end mt-3">
+                <button type="button" id="okay-button" class="btn">OK</button>
+            </div>
+        </div>
 
         <div class="popupContent" id="error-popup">
             <h3 class="header mb-2"><span><i class="fas fa-exclamation-triangle"></i></span> Error loading data</h3>

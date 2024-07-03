@@ -35,6 +35,41 @@ $(document).ready(function () {
     $("#cancel-dbbtn, .popupOverlay").on("click", closePopup);
     $("#selected-dashboard").on("click", displayExistingDashboards);
 
+    $('#alert-from-logs-btn').click(function() {
+        $(".addrulepopupOverlay, .addrulepopupContent").addClass("active");
+    });
+    
+    $('#addrule-cancel-btn').click(function() {
+        $('#rule-name').tooltip('hide');
+        $(".rule-name-error").removeClass("active").text("");
+        $(".addrulepopupOverlay, .addrulepopupContent").removeClass("active");
+
+    });
+    $('#addrule-save-btn').click(function() {
+        var ruleName = $('#rule-name').val().trim(); // Trim whitespace
+        
+        if (!ruleName) {
+            $(".rule-name-error").addClass("active").text("Rule name cannot be empty!");
+            return;
+        } 
+        $(".rule-name-error").removeClass("active").text(""); // Clear error message if ruleName is not empty
+        
+        var encodedRuleName = encodeURIComponent(ruleName);
+    
+        // Assuming you have the `data` object available
+        var queryParams = {
+            "queryLanguage": data.queryLanguage,
+            "searchText": data.searchText,
+            "startEpoch": data.startEpoch,
+            "endEpoch": data.endEpoch,
+            "alertRule_name": encodedRuleName
+        };
+    
+        var queryString = $.param(queryParams);
+        window.location.href = "../alert.html?" + queryString;
+    });
+    
+
 });
 
 function showNewDashboard() {
@@ -276,17 +311,3 @@ function createPanel(panelIndex, startEpoch) {
     };
     return panel;
 }
-
-$('#alert-from-logs-btn').click(function() {
-    var queryParams = {
-        "queryLanguage": data.queryLanguage,
-        "searchText": data.searchText,
-        "startEpoch": data.startEpoch,
-        "endEpoch": data.endEpoch,
-    };
-    var queryString = $.param(queryParams);
-
-    // Open the alert.html in a new tab
-    var newTab = window.open("../alert.html" + "?" + queryString, '_blank');
-    newTab.focus();
-});

@@ -183,16 +183,16 @@ async function updateDashboard() {
     )
         .then(res => {
             if (res.status === 409) {
-                showToast('Dashboard name already exists');
+                showToast('Dashboard name already exists','error');
                 throw new Error('Dashboard name already exists');
             }    
             if (res.status == 200) {
                 $(".name-dashboard").text(dbName);
-                showToast('Dashboard Updated Successfully');
+                showToast('Dashboard Updated Successfully', 'success');
                 return true;
             }
             return res.json().then(err => {
-                showToast("Request failed: " + err.message);
+                showToast("Request failed: " + err.message , 'error');
                 throw new Error("Request failed: " + err.message);
             });
         })
@@ -651,21 +651,6 @@ function displayPanels() {
         addDefaultPanel();
     }
 }   
-
-function showToast(msg) {
-    let toast =
-        `<div class="div-toast" id="save-db-modal">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 1000);
-}
-
-function removeToast() {
-    $('.div-toast').remove();
-}
 
 function getDashboardId() {
     let queryString = decodeURIComponent(window.location.search); //parsing

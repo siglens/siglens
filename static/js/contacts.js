@@ -275,12 +275,12 @@ function createContactPoint(){
             window.location.href = "../contacts.html";
         }
         resetContactForm();
-        showToast(res.message);
+        showToast(res.message, 'success');
     }).catch(err=>{
         if (window.location.href.includes("alert.html")) {
             $(".popupOverlay, .popupContent").removeClass("active");
         }
-        showToast(err.responseJSON.error);
+        showToast(err.responseJSON.error, 'error');
     })
 }
 
@@ -298,9 +298,9 @@ function updateContactPoint(){
     }).then(res=>{
         resetContactForm();
         window.location.href='../contacts.html';
-        showToast(res.message);
+        showToast(res.message,'success');
     }).catch(err=>{
-        showToast(err.responseJSON.error);
+        showToast(err.responseJSON.error, 'error');
     })
 }
 
@@ -375,8 +375,10 @@ function deleteContactPrompt(data) {
                 remove: [{ rowId: deletedRowID }],
             });
 
-            showToast(res.message);
+            showToast(res.message,'success');
             $('.popupOverlay, .popupContent').removeClass('active');
+        }).catch((err)=>{
+            showToast(err.responseJSON.error, "error");
         });
     });
 }
@@ -510,21 +512,6 @@ function displayAllContacts(res){
     contactGridOptions.api.sizeColumnsToFit();
 }
 
-function showToast(msg) {
-    let toast =
-        `<div class="div-toast" id="save-db-modal"> 
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast)
-    setTimeout(removeToast, 2000);
-}
-
-function removeToast() {
-    $('.div-toast').remove();
-}
-
 //Edit Contact Point 
 function showContactFormForEdit(contactId) {
     let data = allContactsArray.find(function(obj) {return obj.contact_id === contactId});
@@ -610,12 +597,12 @@ function testContactPointHandler(testContactPointData) {
         crossDomain: true,
     }).then(function (res) {
         if (res.message) {
-            showToast(res.message);
+            showToast(res.message,'success');
         }
     }).fail(function (jqXHR) {
         let response = jqXHR.responseJSON;
         if (response && response.error) {
-            showToast(response.error);
+            showToast(response.error, 'error');
         }
     });
 }

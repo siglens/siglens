@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/smtp"
 	"strconv"
@@ -41,7 +40,13 @@ func NotifyAlertHandlerRequest(alertID string, alertState alertutils.AlertState,
 		return errors.New("alert ID is empty")
 	}
 
-	shouldSend, err := shouldSendNotification(alertID, alertState)
+	alertDetails, err := processGetAlertDetailsRequest(alertID)
+	if err != nil {
+		log.Errorf("NotifyAlertHandlerRequest:Error getting alert details for alert id- %s, err=%v", alertID, err)
+		return err
+	}
+
+	shouldSend, err := shouldSendNotification(alertID, alertDetails, alertState)
 	if err != nil {
 		log.Errorf("NotifyAlertHandlerRequest:Error checking if notification should be sent for alert id- %s, err=%v", alertID, err)
 		return err
@@ -75,7 +80,7 @@ func NotifyAlertHandlerRequest(alertID string, alertState alertutils.AlertState,
 	}
 	if len(channelIDs) > 0 {
 		for _, channelID := range channelIDs {
-			err = sendSlack(subject, message, channelID, alertDataMessage)
+			err = sendSlack(subject, message, channelID, alertState, alertDataMessage)
 			if err != nil {
 				log.Errorf("NotifyAlertHandlerRequest: Error sending Slack message to channelID- %v for alert id- %v, err=%v", channelID, alertID, err)
 			} else {
@@ -85,7 +90,7 @@ func NotifyAlertHandlerRequest(alertID string, alertState alertutils.AlertState,
 	}
 	if len(webhooks) > 0 {
 		for _, webhook := range webhooks {
-			err = sendWebhooks(webhook.Webhook, subject, message, alertDataMessage)
+			err = sendWebhooks(webhook.Webhook, subject, message, alertDataMessage, alertDetails.NumEvaluationsCount)
 			if err != nil {
 				log.Errorf("NotifyAlertHandlerRequest: Error sending Webhook message to webhook- %s for alert id- %s, err=%v", webhook.Webhook, alertID, err)
 			} else {
@@ -109,7 +114,7 @@ func NotifyAlertHandlerRequest(alertID string, alertState alertutils.AlertState,
 
 // shouldSendNotification checks if the notification should be sent based on the cooldown period and silence minutes
 // If the last alert state is normal and the current alert state is also normal, then we should not send the notification
-func shouldSendNotification(alertID string, currentAlertState alertutils.AlertState) (bool, error) {
+func shouldSendNotification(alertID string, alertDetails *alertutils.AlertDetails, currentAlertState alertutils.AlertState) (bool, error) {
 	alertNotification, err := processGetAlertNotification(alertID)
 	if err != nil {
 		log.Errorf("shouldSendNotification:Error getting alert notification details for alert id- %s, err=%v", alertID, err)
@@ -131,11 +136,7 @@ func shouldSendNotification(alertID string, currentAlertState alertutils.AlertSt
 	if !cooldownOver {
 		return false, nil
 	}
-	silenceMinutesOver, err := isSilenceMinutesOver(alertID, alertNotification.LastSentTime)
-	if err != nil {
-		log.Errorf("shouldSendNotification:Error checking silence period for alert id- %s, err=%v", alertID, err)
-		return false, err
-	}
+	silenceMinutesOver := isSilenceMinutesOver(alertDetails.SilenceMinutes, alertNotification.LastSentTime)
 	if !silenceMinutesOver {
 		return false, nil
 	}
@@ -156,16 +157,17 @@ func sendAlertEmail(emailID, subject, message string, alertDataMessage string) e
 	err := smtp.SendMail(host+":"+strconv.Itoa(port), auth, senderEmail, []string{emailID}, []byte(body))
 	return err
 }
-func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string) error {
+func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, numEvaluationsCount uint64) error {
 	if alertDataMessage != "" {
 		message = message + "\nAlert Data: " + alertDataMessage
 	}
 
 	webhookBody := alertutils.WebhookBody{
-		Receiver: "My Super Webhook",
-		Status:   "firing",
-		Title:    subject,
-		Body:     message,
+		Receiver:            "My Super Webhook",
+		Status:              "firing",
+		Title:               subject,
+		Body:                message,
+		NumEvaluationsCount: numEvaluationsCount,
 		Alerts: []alertutils.Alert{
 			{
 				Status: "firing",
@@ -189,24 +191,16 @@ func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string) 
 	return err
 }
 
-func isSilenceMinutesOver(alertID string, lastSendTime time.Time) (bool, error) {
-	silenceMinutes, err := processGetSilenceMinutesRequest(alertID)
-
+func isSilenceMinutesOver(silenceMinutes uint64, lastSendTime time.Time) bool {
 	if lastSendTime.IsZero() {
-		return true, nil
-	}
-
-	if err != nil {
-		return true, err
+		return true
 	}
 
 	currentTimeUTC := time.Now().UTC()
 	lastSendTimeUTC := lastSendTime.UTC()
 	silenceMinutesUTC := time.Duration(silenceMinutes) * time.Minute
-	if currentTimeUTC.Sub(lastSendTimeUTC) >= silenceMinutesUTC {
-		return true, nil
-	}
-	return false, nil
+
+	return currentTimeUTC.Sub(lastSendTimeUTC) >= silenceMinutesUTC
 }
 
 func isCooldownOver(cooldownMinutes uint64, lastSendTime time.Time) bool {
@@ -220,35 +214,38 @@ func isCooldownOver(cooldownMinutes uint64, lastSendTime time.Time) bool {
 	return currentTimeUTC.Sub(lastSendTimeUTC) >= cooldownDuration
 }
 
-func sendSlack(alertName string, message string, channel alertutils.SlackTokenConfig, alertDataMessage string) error {
+func getSlackMessageColor(alertState alertutils.AlertState) string {
+	if alertState == alertutils.Normal {
+		return "#00FF00"
+	}
+	return "#FF0000"
+}
+
+func sendSlack(alertName string, message string, channel alertutils.SlackTokenConfig, alertState alertutils.AlertState, alertDataMessage string) error {
 
 	channelID := channel.ChannelId
 	token := channel.SlToken
-	alert := fmt.Sprintf("Alert Name : '%s'", alertName)
 	client := slack.New(token, slack.OptionDebug(false))
+	color := getSlackMessageColor(alertState)
 
 	attachment := slack.Attachment{
-		Pretext: alert,
-		Text:    message,
-		Color:   "#FF0000",
-		Fields: []slack.AttachmentField{
-			{
-				Title: "Date",
-				Value: time.Now().String(),
-			},
-		},
+		AuthorName: alertName,
+		Text:       message,
+		Color:      color,
+		Ts:         json.Number(strconv.FormatInt(time.Now().Unix(), 10)),
 	}
 
 	if alertDataMessage != "" {
-		attachment.Fields = append(attachment.Fields, slack.AttachmentField{
-			Title: "Alert Data",
-			Value: alertDataMessage,
-		})
+		attachment.Fields = []slack.AttachmentField{
+			{
+				Title: "Alert Data",
+				Value: alertDataMessage,
+			},
+		}
 	}
 
 	_, _, err := client.PostMessage(
 		channelID,
-		slack.MsgOptionText("New message from Alert System", false),
 		slack.MsgOptionAttachments(attachment),
 	)
 	return err
@@ -263,15 +260,15 @@ func processGetAlertNotification(alert_id string) (*alertutils.Notification, err
 	return alertNotification, nil
 }
 
-func processGetSilenceMinutesRequest(alert_id string) (uint64, error) {
+func processGetAlertDetailsRequest(alert_id string) (*alertutils.AlertDetails, error) {
 	alertDataObj, err := databaseObj.GetAlert(alert_id)
 	if err != nil {
-		log.Errorf("ProcessGetSilenceMinutesRequest:Error getting alert details for alert id- %s err=%v", alert_id, err)
-		return 0, err
+		log.Errorf("ProcessGetAlertDetailsRequest:Error getting alert details for alert id- %s err=%v", alert_id, err)
+		return nil, err
 	}
-
-	return alertDataObj.SilenceMinutes, nil
+	return alertDataObj, nil
 }
+
 func processGetContactDetails(alert_id string) (string, string, string, error) {
 	id, message, subject, err := databaseObj.GetContactDetails(alert_id)
 	if err != nil {
