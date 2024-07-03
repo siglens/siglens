@@ -8,26 +8,20 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/liangyaopei/hyper v0.0.0-20200731140808-9971b0a7a810
 	github.com/montanaflynn/stats v0.6.6
+	github.com/siglens/siglens v0.0.0-20240702233012-91a49a94d576
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.4.0
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/valyala/fastrand v1.1.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	siglens v0.0.0
 )
-
-replace siglens => ../../
 
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
-	github.com/buger/jsonparser v1.1.1 // indirect
-	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/go-co-op/gocron v1.31.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
-	github.com/rogpeppe/fastuuid v1.2.0 // indirect
-	github.com/siglens/siglens v0.0.0-20240702233012-91a49a94d576 // indirect
 	github.com/valyala/fasthttp v1.45.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	gorm.io/gorm v1.25.5 // indirect
