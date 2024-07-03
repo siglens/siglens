@@ -271,7 +271,7 @@ input:checked + .slider:before {
     border: none;
 }
 
-.metrics-graph, #merged-graph-container {
+.metrics-graph, #metrics-container #merged-graph-container {
     height: 400px;
     border: 1px solid var(--border-btn-color);
     box-sizing: border-box; 
@@ -288,6 +288,7 @@ input:checked + .slider:before {
     font-weight: 600;
     background-color: var(--drop-down-btn-bg-regular);
     border-radius: 5px 5px 0 0;
+    font-size: 14px;
 }
 #visualization-options div{
     margin-right: 24px;
@@ -512,4 +513,14 @@ input:checked + .slider:before {
 .alias-filling-box input{
     height: 30px;
 }
-
+ 
+.panelDisplay #merged-graph-container, .panel-body #merged-graph-container {
+    height: 270px;
+    width: 100%;
+    background-color: var(--db-bg-color);
+    margin: 0;
+    border-radius: 5px;
+    padding: 10px;
+    overflow: auto;
+    display: none;
+}

@@ -18,7 +18,8 @@
  */
 
 'use strict';
-
+let dashboardMetricData = {};
+let dashboardEditFlag = 0;
 let currentPanel;
 let selectedChartTypeIndex = -1, selectedDataSourceTypeIndex = -1;
 let selectedUnitTypeIndex = -1;
@@ -276,6 +277,7 @@ $(document).ready(function () {
         $('#viewPanel-container').hide();
 		$('#edit-button').addClass('active');
 		$('#overview-button').removeClass('active');
+		dashboardEditFlag = 1
 		runQueryBtnHandler();
     });
 
@@ -289,7 +291,8 @@ $(document).ready(function () {
     });
 })
 
-function editPanelInit(redirectedFromViewScreen) {
+async function editPanelInit(redirectedFromViewScreen) {
+	dbPanelId=-1;
 	if(redirectedFromViewScreen === -1){
 		$('#panel-editor-left').hide();
         $('#viewPanel-container').show();
@@ -308,6 +311,8 @@ function editPanelInit(redirectedFromViewScreen) {
 	$('.panelDisplay #panelLogResultsGrid').empty();
 	$('.panelDisplay #panelLogResultsGrid').hide();
 	$('.panelDisplay .panel-info-corner').hide();
+	$('.panelDisplay #merged-graph-container').empty();
+	$('.panelDisplay #merged-graph-container').hide();
 	currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));	
 	$('.panEdit-navBar .panEdit-dbName').html(`${dbName}`);
 	// reset inputs to show placeholders
@@ -329,11 +334,49 @@ function editPanelInit(redirectedFromViewScreen) {
 		panelInfoCorner.hover(function () {panelDescIcon.tooltip('show');},
 		function () {panelDescIcon.tooltip('hide');});
 	}
+	currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));	
+	if (currentPanel.queryData) {
+		if(currentPanel.queryType==='metrics'){
+			// const firstKey = Object.keys(currentPanel.queryData?.queries)[0];
+			// if (currentPanel.queryData?.queries?.[firstKey]?.query != undefined){
+				metricsQueryParams = currentPanel.queryData;
 
-	if (currentPanel.queryData && (currentPanel.queryData.searchText != undefined || currentPanel.queryData?.queries?.[0]?.query != undefined)) {
-		if(currentPanel.queryType==='metrics')
-			queryStr = currentPanel.queryData.queries[0].query;
-		else
+				
+				// $(`.ranges .inner-range #${metricsQueryParams.start}`).addClass('active');
+				// datePickerHandler(metricsQueryParams.start, metricsQueryParams.end, metricsQueryParams.start);
+				if(functionsArray){
+					allFunctions = await getFunctions();
+					functionsArray = allFunctions.map(function(item) {
+						return item.fn;
+					});
+				}
+				console.log("functionsArray",metricsQueryParams);
+				for (const index in metricsQueryParams.queries) {
+					const query = metricsQueryParams.queries[index];
+					const parsedQueryObject = parsePromQL(query.query);
+					addQueryElementOnDashboardEdit(query.name, parsedQueryObject);
+				}
+				if(metricsQueryParams.queries.length>1){
+					await addAlertsFormulaElement(metricsQueryParams.formulas[0].formula);
+				}
+			// }
+			$("#metrics-query-language-btn").css('display', 'inline-block');
+			$(".index-container").css('display', 'none');
+			$("#query-language-btn").css('display', 'none');
+
+			$('.panelDisplay #merged-graph-container').show();
+
+			$('.panelDisplay #panelLogResultsGrid').hide();
+			$('.panelDisplay #empty-response').empty();
+			$('.panelDisplay #corner-popup').hide();
+			$('.panelDisplay #empty-response').hide();
+			$('.panelDisplay .panEdit-panel').hide();
+			$('.panelDisplay .big-number-display-container').hide();
+			$('body').css('cursor', 'default');
+			$('.panelDisplay .panel-body #panel-loading').hide();
+
+			
+		}else
 			queryStr = currentPanel.queryData.searchText;
 	}
 	else {
@@ -406,7 +449,8 @@ function editPanelInit(redirectedFromViewScreen) {
 	if (selectedDataSourceTypeIndex === -1 || selectedDataSourceTypeIndex === undefined) {
 		selectedDataSourceTypeIndex = mapDataSourceTypeToIndex.get("logs");
 	}
-	refreshDataSourceMenuOptions();
+	// refreshDataSourceMenuOptions();
+	dbSetDataSourceHandler(currentPanel.chartType === "Line Chart"? 2 :1)
 		
 	if (selectedDataSourceTypeIndex != -1 && selectedDataSourceTypeIndex !== undefined) {
 		
@@ -482,10 +526,12 @@ function editPanelInit(redirectedFromViewScreen) {
 	$(".inner-options").on('click',runQueryBtnHandler)
 	$('.panelDisplay #empty-response').empty();
 	$('.panelDisplay #empty-response').hide();
-	$('.panelDisplay .panEdit-panel').show();
 	setTimePicker();
 	pauseRefreshInterval();
-	runQueryBtnHandler();
+	if (selectedDataSourceTypeIndex!==0){
+		$('.panelDisplay .panEdit-panel').show();
+		runQueryBtnHandler();
+	}
 }
 
 $('#panelLogResultsGrid').empty();
@@ -496,7 +542,10 @@ $('.panEdit-save').on("click",async function(redirectedFromViewScreen){
 	 if (!currentPanel.queryData && currentPanel.chartType ==='Data Table' && currentPanel.queryType ==='logs') {
         currentPanel.chartType = "";
         currentPanel.queryType = "";
-    }
+    }else if (currentPanel.chartType ==='Line Chart') {
+		let data =  getMetricsQData()
+		currentPanel.queryData = data;
+	}
 	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
 	await updateDashboard();
 	$('.panelEditor-container').hide();
@@ -515,7 +564,16 @@ $('#panEdit-descrChangeInput').on("focus", function () {
 	$('#panEdit-descrChangeInput').val(currentPanel.description)
 })
 
-$('.dropDown-dataSource').on('click', handleSourceDropDownClick)
+// $('.dropDown-dataSource').on('click', handleSourceDropDownClick)
+$('#data-source-options li').on('click', function(){
+	let panelDataType;
+	if ($(this).html() === 'Logs'){
+		panelDataType = 1;
+	}else {
+		panelDataType = 2;
+	}
+	setDataSourceHandler(panelDataType)
+});
 $('.dropDown-unit').on('click', handleUnitDropDownClick)
 
 $('.dropDown-logLinesView').on('click', handleLogLinesViewDropDownClick);
@@ -531,12 +589,12 @@ $('#query-language-options .panEdit-query-language-option').on('click', setQuery
 
 $('.btn-runQuery').on('click', runQueryBtnHandler);
 
-function handleSourceDropDownClick() {
-	$('.dropDown-dataSource').toggleClass("active")
-	$('.editPanelMenu-dataSource').slideToggle();
-	$('.dropDown-dataSource .caret').css("rotate", "180deg");
-	$('.dropDown-dataSource.active .caret').css("rotate", "360deg");
-}
+// function handleSourceDropDownClick() {
+// 	$('.dropDown-dataSource').toggleClass("active")
+// 	$('.editPanelMenu-dataSource').slideToggle();
+// 	$('.dropDown-dataSource .caret').css("rotate", "180deg");
+// 	$('.dropDown-dataSource.active .caret').css("rotate", "360deg");
+// }
 
 function handleUnitDropDownClick(e) {
 	$('.dropDown-unit').toggleClass("active");
@@ -768,6 +826,7 @@ $(".editPanelMenu-dataSource .editPanelMenu-options").on('click', function () {
 		$("#metrics-query-language-btn").css('display', 'inline-block');
 		$(".index-container").css('display', 'none');
 		$("#query-language-btn").css('display', 'none');
+		$('#merged-graph-container').css('display', 'block');
 	}
 	else{
 		$(".index-container").css('display', 'none');
@@ -803,6 +862,7 @@ $(".editPanelMenu-chart #chart-type-options").on('click', function () {
 		if (selectedUnitTypeIndex !== 0)
 			$('.dropDown-unit span').html('Unit');
 		$('.dropDown-logLinesView').css('display','none');
+		$('#merged-graph-container').css('display','none');
 	}
 	$('.editPanelMenu-inner-options').css('display',"none");
 	$('.horizontalCaret').css('rotate','90deg');
@@ -1267,26 +1327,7 @@ function resetOptions(){
 		}
 	})
 }
-function getMetricsQData() {
-	let filterValue = queryStr;
-	let endDate = filterEndDate || "now";
-	let stDate = filterStartDate || "now-15m";
 
-	return {	
-		"start":stDate.toString(),
-		"end":endDate.toString(),
-		"queries":[
-			{
-				"name":"a",
-				"query":filterValue,
-				"qlType":"promql"
-			}
-		],
-		"formulas":[
-			{"formula":"a"}
-		]
-	};
-}
 
 function setQueryLangHandlerEditPanel(e) {
     $('.panelEditor-container .panEdit-query-language-option').removeClass('active');
@@ -1322,9 +1363,12 @@ async function runQueryBtnHandler() {
 
 	// runs the query according to the query type selected and irrespective of chart type
 	if (currentPanel.queryType == 'metrics'){
-		data = getMetricsQData();
-		currentPanel.queryData = data;
-		runMetricsQuery(data, -1, currentPanel);
+		// data = getMetricsQData();
+		// currentPanel.queryData = data;
+		// $('#merged-graph-container').empty();
+		await refreshMetricsGraphs();
+		$('#merged-graph-container').show();
+		// runMetricsQuery(data, -1, currentPanel);
 	}else if (currentPanel.queryType == 'logs'){
 		data = getQueryParamsData();
 		currentPanel.queryData = data;
@@ -1418,6 +1462,7 @@ function displayPanelView(panelIndex) {
 		localPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));	
 	}
     let panelId = localPanel.panelId;
+	// dbPanelId=panelId;
     $(`#panel-container #panel${panelId}`).remove();
     $(`#viewPanel-container`).empty();
 
@@ -1432,11 +1477,13 @@ function displayPanelView(panelIndex) {
         panEl.append(responseDiv)
         $("#panelLogResultsGrid").show();
 		runPanelLogsQuery(localPanel.queryData, panelId,localPanel);
-    } else if (localPanel.chartType == 'Line Chart') {
+    } else if (localPanel.chartType === 'Line Chart') {
         let panEl = $(`#panel${panelId} .panel-body`)
-        let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`
-        panEl.append(responseDiv)
-		runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+        let responseDiv = `<div id="merged-graph-container" class="merged-graph-container"></div>
+		<div id="empty-response"></div></div><div id="corner-popup"></div>
+		<div id="panel-loading"></div>`
+		panEl.append(responseDiv);
+		// runPanelMetricsQuery(localPanel.queryData, panelId);
     } else if (localPanel.chartType == 'number') {
         let panEl = $(`#panel${panelId} .panel-body`)
         let responseDiv = `<div class="big-number-display-container"></div>
@@ -1450,4 +1497,40 @@ function displayPanelView(panelIndex) {
         panEl.append(responseDiv)
          runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
     }
+}
+
+function getMetricsQData() {
+	let endDate = filterEndDate || "now";
+	let stDate = filterStartDate || "now-15m";
+	//loop over all queries and add them to the queryData object
+	let queryData = [];
+	let queryName;
+
+	console.log("getMetricsQData", queries);
+	
+	// const query = { name: queryName, query: `(${metricName})`, qlType: "promql" };
+    // const queries = [query];
+    // const formula = { formula: queryName };
+    // const formulas = [formula];
+    // const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
+
+	// let queryData = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
+
+	
+	$('.query-box').each(function(index, item) {
+		$(item).children('.query-name').each(function(){ 
+			queryName = $(this).text();
+		})
+		var queryDetails = queries[queryName];
+		const queryString = createQueryString(queryDetails);
+		console.log("getMetricsQData", queryName,queryString);
+		const query = { name: queryName, query: queryString, qlType: "promql" };
+		const savequeries = [query];
+		const formula = { formula: queryName };
+    	const formulas = [formula];
+        const data = { start: filterStartDate, end: filterEndDate, queries: savequeries, formulas: formulas };
+
+		queryData.push(data);
+	});
+	return queryData;
 }

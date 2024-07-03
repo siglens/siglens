@@ -238,10 +238,13 @@ function handlePanelEdit() {
     $(".panel-edit-li").unbind("click");
     $(".panel-edit-li").on("click", function () {
         panelIndex = $(this).closest(".panel").attr("panel-index");
+        dbPanelId = -1;
         editPanelInit();
         $('.panelEditor-container').css('display', 'flex');
         $('.popupOverlay').addClass('active');
         $('.panelDisplay #panelLogResultsGrid').empty();
+        $('.panelDisplay #merged-graph-container').empty();
+        $('.panelDisplay #merged-graph-container').hide();
         $('.panelDisplay .big-number-display-container').hide();
         $('.panelDisplay #empty-response').hide();
     })
@@ -426,10 +429,10 @@ function updateTimeRangeForPanels() {
     localPanels.forEach(panel => {
         delete panel.queryRes;
         if(panel.queryData) {
-            if(panel.chartType === "Line Chart" || panel.queryType === "metrics") {
-                datePickerHandler(panel.queryData.start, panel.queryData.end, panel.queryData.start)
-                panel.queryData.start = filterStartDate.toString();
-                panel.queryData.end = filterEndDate.toString();
+            if((panel.chartType === "Line Chart" || panel.queryType === "metrics") && (panel.queryData).length>0) {
+                datePickerHandler(panel.queryData[0].start, panel.queryData[0].end, panel.queryData[0].start)
+                // panel.queryData.start = filterStartDate.toString();
+                // panel.queryData.end = filterEndDate.toString();
             } else {
                 datePickerHandler(panel.queryData.startEpoch, panel.queryData.endEpoch, panel.queryData.startEpoch)
                 panel.queryData.startEpoch = filterStartDate
@@ -506,7 +509,20 @@ grid.on('resizestop', function(event, ui) {
     $('.default-item').show();
 });
 
+function dbSetDataSourceHandler(panelDataType) {
+    $('.data-source-option').removeClass('active');
+    const isLogs = panelDataType === 1;
+    const sourceText = isLogs ? "Logs" : "Metrics";
+    const $span = $('#dashboard-data-source span');
+    $span.html(sourceText);
+    $(`.data-source-option:contains("${sourceText}")`).addClass('active');
+
+    $('.queryInput-container,#panelLogResultsGrid').toggle(isLogs);
+    $('#metrics-explorer, #metrics-graph, #merged-graph-container' ).toggle(!isLogs);    
+}
+
 function displayPanels() {
+    dbPanelId = -1
     allResultsDisplayed = localPanels.length;
     grid.removeAll();
     let panelContainerMinHeight = 0;
@@ -523,7 +539,7 @@ function displayPanels() {
         if (panelEndY > maxCoord.y) maxCoord.y = panelEndY;
     });
 
-    localPanels.forEach((localPanel) => {
+    localPanels.forEach(async (localPanel) => {
         let idpanel = localPanel.panelId;
         let widgetOptions = {
             width: parseInt(localPanel.gridpos.w),
@@ -584,20 +600,22 @@ function displayPanels() {
                 runPanelLogsQuery(localPanel.queryData, idpanel,localPanel, localPanel.queryRes);
             else
                 runPanelLogsQuery(localPanel.queryData, idpanel,localPanel);
-        } else if (localPanel.chartType == 'Line Chart') {
+        } else if (localPanel.chartType === 'Line Chart') {
             let panEl = $(`#panel${idpanel} .panel-body`)
-            let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>
-            <div id="panel-loading"></div>`
-            panEl.append(responseDiv)
-            if (localPanel.queryRes){
-                runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
-            }
-            else {
+            let responseDiv = `<div id="merged-graph-container" class="merged-graph-container"></div>
+            <div id="empty-response"></div></div><div id="corner-popup"></div>`
+            panEl.append(responseDiv);
+            $(`#panel${idpanel} .panel-body #merged-graph-container`).show();
+            runPanelMetricsQuery(localPanel.queryData, idpanel);
+            // if (localPanel.queryRes){
+            //     runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes)
+            // }
+            // else {
                 //remove startEpoch from from localPanel.queryData
-                delete localPanel.queryData.startEpoch
-                delete localPanel.queryData.endEpoch
-                runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
-            }
+                // delete localPanel.queryData.startEpoch
+                // delete localPanel.queryData.endEpoch
+                // runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+            // }
         } else if (localPanel.chartType == 'number') {
             let panEl = $(`#panel${idpanel} .panel-body`)
             let responseDiv = `<div class="big-number-display-container"></div>
@@ -699,6 +717,7 @@ var defaultPanelLayout =
 `;
 
 function addPanel(chartIndex) {
+    dbPanelId=-1;
     flagDBSaved = false;
     panelIndex = localPanels.length;
     var defaultWidget = $('.default-item').get(0); // Get the DOM element
@@ -741,8 +760,8 @@ function addPanel(chartIndex) {
             chartType = "Line Chart";
             queryType = "metrics";
             queryData = {
-                start: "now-1h",
-                end: "now",
+                start: filterStartDate || "now-1h",
+                end: filterEndDate || "now",
                 formulas: [
                     {
                       "formula": "a"
@@ -845,6 +864,10 @@ function addPanel(chartIndex) {
         "logLinesViewType": logLinesViewType,
         "unit": unit,
     });
+
+    dbSetDataSourceHandler(queryType === 'logs' ? 1 : 2);
+	// setTimePicker();
+    dashboardEditFlag = 1;
 
     editPanelInit(panelIndex);
     $('.panelEditor-container').css('display', 'flex');

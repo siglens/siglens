@@ -4403,8 +4403,9 @@ color: #C8C7CC;
 .query-lang-container div, .query-lang-container div button{
     width: 100%;
 }
-#alert-data-source,#logs-language-btn{
+#alert-data-source, #dashboard-data-source, #logs-language-btn{
     max-width: 210px;
+    min-width: 100px;
 }
 #alert-condition,#contact-types,#contact-points-dropdown{
     width: 210px;
@@ -4450,7 +4451,7 @@ color: #C8C7CC;
     right: -30px;
 }
 
-#alert-condition,#contact-types,#contact-points-dropdown,#alert-data-source,
+#alert-condition,#contact-types,#contact-points-dropdown, #alert-data-source, #dashboard-data-source,
 #logs-language-btn{
     height: 32px;
     display: flex;

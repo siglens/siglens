@@ -835,9 +835,9 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
             renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
             break;
         case "Line Chart":
-            let startTime = (new Date()).getTime();
-            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,"")
-            break;
+            // let startTime = (new Date()).getTime();
+            // processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,"")
+            // break;
         case "number":
             
             if (currentPanel.unit === "" || currentPanel.dataType === "none" || currentPanel.dataType === ""){
@@ -878,4 +878,30 @@ function setIndexDisplayValue(selectedSearchIndex){
             }
         });
     }
+}
+
+ function runPanelMetricsQuery(data, panelId) {
+    $('body').css('cursor', 'progress');
+    console.log("in runPanelMetricsQuery", data,data.length)
+    if(data !== null){
+        if(data.length > 0){
+            filterStartDate = data[0].start;
+            filterEndDate = data[0].end;
+        }
+        for( let i = 0 ; i < data.length; i++ ) {
+            var queryDetails = data[i];
+            queryDetails.state = 'raw';
+            dbGetQueryDetails(data[i].queries[0].name, queryDetails, panelId);
+            console.log("in runPanelMetricsQuery",data[i].queries[0].name, queryDetails)
+        }
+    }
+    $(`#panel${panelId} #panelLogResultsGrid`).hide();
+    $(`#panel${panelId} #empty-response`).empty();
+    $(`#panel${panelId} #corner-popup`).hide();
+    $(`#panel${panelId} #empty-response`).hide();
+    $(`#panel${panelId} .panEdit-panel`).hide();
+    $(`#panel${panelId} #merged-graph-container`).show();
+    $('body').css('cursor', 'default');
+    $(`#panel${panelId} .panel-body #panel-loading`).hide();
+
 }
