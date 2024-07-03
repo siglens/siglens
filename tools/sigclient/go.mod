@@ -20,10 +20,14 @@ replace siglens => ../../
 
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
+	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/go-co-op/gocron v1.31.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
+	github.com/rogpeppe/fastuuid v1.2.0 // indirect
+	github.com/siglens/siglens v0.0.0-20240702233012-91a49a94d576 // indirect
 	github.com/valyala/fasthttp v1.45.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	gorm.io/gorm v1.25.5 // indirect
