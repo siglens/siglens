@@ -240,8 +240,8 @@ func (p Sqlite) GetAlert(alert_id string) (*alertutils.AlertDetails, error) {
 
 }
 
-func (p Sqlite) GetAllAlerts(orgId uint64) ([]alertutils.AlertDetails, error) {
-	alerts := make([]alertutils.AlertDetails, 0)
+func (p Sqlite) GetAllAlerts(orgId uint64) ([]*alertutils.AlertDetails, error) {
+	alerts := make([]*alertutils.AlertDetails, 0)
 	err := p.db.Model(&alerts).Preload("Labels").Where("org_id = ?", orgId).Find(&alerts).Error
 	if err != nil {
 		return alerts, err
