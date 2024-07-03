@@ -648,6 +648,11 @@ func (dte *DtypeEnclosure) IsString() bool {
 	}
 }
 
+func IsBoolean(str string) bool {
+	lowerStr := strings.ToLower(str)
+	return lowerStr == "true" || lowerStr == "false"
+}
+
 func (dte *DtypeEnclosure) Reset() {
 	dte.Dtype = 0
 	dte.BoolVal = 0
