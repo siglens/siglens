@@ -209,7 +209,7 @@ function resetQueryResAttr(res, panelId){
     }
 }
 
-function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
+function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
     //if data source is metrics
       if(!res.qtype) {
         panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId);
@@ -253,7 +253,13 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
             }else{
                 columnOrder = res.allColumns
             }
-            renderPanelLogsGrid(columnOrder, res.hits.records, panelId, logLinesViewType);
+            if(currentPanel.selectedFields){
+                selectedFieldsList = currentPanel.selectedFields;
+            }else{
+                selectedFieldsList = columnOrder;
+            }
+            renderAvailableFields(columnOrder);
+            renderPanelLogsGrid(columnOrder, res.hits.records, panelId, currentPanel);
         }
         allResultsDisplayed--;
         if(allResultsDisplayed <= 0 || panelId === -1) {
@@ -834,7 +840,7 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
         case "Data Table":
         case "loglines":
             $('.panelDisplay .panEdit-panel').hide();
-            renderPanelLogsQueryRes(data, panelId,currentPanel.logLinesViewType,queryRes);
+            renderPanelLogsQueryRes(data, panelId,currentPanel,queryRes);
             break;
         case "Bar Chart":
         case "Pie Chart":
