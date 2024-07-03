@@ -399,7 +399,6 @@ function runFilterBtnHandler(evt) {
     var currentPage = window.location.pathname;
     if (currentPage === '/alert.html'){
         let data = getQueryParamsData();
-        data.searchText = getQueryBuilderCode();
         isQueryBuilderSearch = $("#custom-code-tab").tabs("option", "active") === 0;
         if(isQueryBuilderSearch) {
             data.searchText = getQueryBuilderCode();

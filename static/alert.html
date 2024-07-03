@@ -247,6 +247,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
                                                         id="info-icon-spl" style="display: block;" title='city=Boston | stats count
                                                     city=* | stats avg(latency)
+                                                    city=Boston | stats count AS Count BY weekday
+                                                    city=Boston | stats count AS Count BY job_description
                                                     '></i>
                                                         <textarea class="form-control expandable-textarea" id="filter-input"
                                                             placeholder="Enter your SPL query here, or click the 'i' icon for examples" type="text"></textarea>

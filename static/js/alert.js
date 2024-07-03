@@ -831,25 +831,19 @@ function alertChart(res) {
     logsExplorer.innerHTML = ''; // Clear previous content
 
     if (res.qtype === "logs-query") {
-        const errorMsg = $('<div>')
-            .text("Error : query does not contain any aggregation. Expected Stats Query");
-        $('#logs-explorer').empty().append(errorMsg);
+        $('#logs-explorer').hide(); // This query does not support bar graph visualization.
         return;
     }
 
     if(res.qtype === "segstats-query"){
-        const errorMsg = $('<div>')
-            .text("This query does not support bar graph visualization.");
-        $('#logs-explorer').empty().append(errorMsg);
+        $('#logs-explorer').hide(); // This query does not support bar graph visualization.
         return;
     }
 
     if (res.qtype === "aggs-query") {
         let columnOrder = []
         if(res.groupByCols.length > 1){
-            const errorMsg = $('<div>')
-            .text("This query does not support bar graph visualization.");
-            $('#logs-explorer').empty().append(errorMsg);
+            $('#logs-explorer').hide(); // This query does not support bar graph visualization.
             return;
         }
         if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
