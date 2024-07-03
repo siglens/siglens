@@ -21,10 +21,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -586,6 +588,10 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		}
 	} else if letColReq.MultiValueColRequest != nil {
 		if err := performMultiValueColRequest(nodeResult, letColReq, recs); err != nil {
+			return fmt.Errorf("performLetColumnsRequest: %v", err)
+		}
+	} else if letColReq.BinRequest != nil {
+		if err := performBinRequest(nodeResult, letColReq, recs, finalCols); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else {
@@ -2056,6 +2062,155 @@ func performValueColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 	}
 
 	return nil
+}
+
+func getNumericValue(v interface{}) (float64, bool) {
+	switch num := v.(type) {
+	case int:
+		return float64(num), true
+	case int8:
+		return float64(num), true
+	case int16:
+		return float64(num), true
+	case int32:
+		return float64(num), true
+	case int64:
+		return float64(num), true
+	case uint:
+		return float64(num), true
+	case uint8:
+		return float64(num), true
+	case uint16:
+		return float64(num), true
+	case uint32:
+		return float64(num), true
+	case uint64:
+		return float64(num), true
+	case float32:
+		return float64(num), true
+	case float64:
+		return num, true
+	default:
+		return 0.0, false
+	}
+}
+
+func performBinRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+	if recs == nil {
+		return nil
+	}
+
+	colPresent, exist := finalCols[letColReq.BinRequest.Field]
+	if !exist || !colPresent {
+		return fmt.Errorf("performBinRequest: field %s does not exist in finalCols", letColReq.BinRequest.Field)
+	}
+	
+	for _, record := range recs {
+		fieldValue, ok := record[letColReq.BinRequest.Field]
+		if !ok {
+			return fmt.Errorf("performBinRequest: field %s does not exist in record", letColReq.BinRequest.Field)
+		}
+
+		fieldValueFloat, ok := getNumericValue(fieldValue)
+		if !ok {
+			return fmt.Errorf("performBinRequest: field %s is not a numeric", letColReq.BinRequest.Field)
+		}
+
+		var binValue string
+		var err error
+		if letColReq.BinRequest.Field == "timestamp" {
+			binValue, err = performBinWithSpanTime(fieldValueFloat, letColReq.BinRequest.BinSpanOptions)
+		} else {
+			binValue, err = performBin(fieldValueFloat, letColReq.BinRequest)
+		}
+
+		if err != nil {
+			return fmt.Errorf("performBinRequest: %v", err)
+		}
+
+		record[letColReq.NewColName] = binValue
+		finalCols[letColReq.NewColName] = true	
+	}
+
+	return nil
+}
+
+func performBin(value float64, binReq *structs.BinCmdOptions) (string, error) {
+
+	if binReq.BinSpanOptions != nil {
+		return performBinWithSpan(value, binReq.BinSpanOptions)
+	}
+
+	return "", nil
+}
+
+func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (string, error) {
+	if spanOpt.BinSpanLength != nil {
+		lowerBound := math.Floor(value/spanOpt.BinSpanLength.Num) * spanOpt.BinSpanLength.Num
+		upperBound := math.Ceil(value/spanOpt.BinSpanLength.Num) * spanOpt.BinSpanLength.Num
+		if upperBound == lowerBound {
+			upperBound += spanOpt.BinSpanLength.Num
+		}
+		return fmt.Sprintf("%v-%v", lowerBound, upperBound), nil
+	}
+	if spanOpt.LogSpan != nil {
+		val := value/spanOpt.LogSpan.Coefficient
+		logVal := math.Log10(val) / math.Log10(spanOpt.LogSpan.Base)
+		floorVal := math.Floor(logVal)
+		ceilVal := math.Ceil(logVal)
+		if ceilVal == floorVal {
+			ceilVal += 1
+		}		
+
+		lowerBound := math.Pow(spanOpt.LogSpan.Base, floorVal) * spanOpt.LogSpan.Coefficient
+		upperBound := math.Pow(spanOpt.LogSpan.Base, ceilVal) * spanOpt.LogSpan.Coefficient
+
+		return fmt.Sprintf("%v-%v", lowerBound, upperBound), nil
+	}
+
+	return "", fmt.Errorf("performBinWithSpan: BinSpanLength is nil")
+}
+
+
+
+func performBinWithSpanTime(value float64, spanOpt *structs.BinSpanOptions) (string, error) {
+	if spanOpt == nil || spanOpt.BinSpanLength == nil {
+		return "", fmt.Errorf("performBinWithSpanTime: BinSpanLength is nil")
+	}
+
+	durationScale := time.Duration(time.Second)
+	switch spanOpt.BinSpanLength.TimeScale {
+		case segutils.TMMillisecond:
+			durationScale = time.Millisecond
+		case segutils.TMCentisecond:
+			durationScale = time.Millisecond * 10
+		case segutils.TMDecisecond:
+			durationScale = time.Millisecond * 100
+		case segutils.TMSecond:
+			durationScale = time.Second
+		case segutils.TMMinute:
+			durationScale = time.Minute
+		case segutils.TMHour:
+			durationScale = time.Hour
+		case segutils.TMDay:
+			durationScale = time.Hour * 24
+		case segutils.TMWeek:
+			durationScale = time.Hour * 24 * 7
+		case segutils.TMMonth:
+			durationScale = time.Hour * 24 * 30
+		case segutils.TMQuarter:
+			durationScale = time.Hour * 24 * 30 * 3
+		case segutils.TMYear:
+			durationScale = time.Hour * 24 * 365
+		default:
+			return "", fmt.Errorf("performBinWithSpanTime: Time scale %v is not supported", spanOpt.BinSpanLength.TimeScale)
+	}
+
+	unixMilli := int64(value)
+	localTime := time.Unix(0, unixMilli*int64(time.Millisecond))
+	bucket := localTime.Truncate(time.Duration(spanOpt.BinSpanLength.Num) * durationScale).UnixMilli()
+
+	return strconv.Itoa(int(bucket)), nil
 }
 
 func getRecordFieldValues(fieldToValue map[string]segutils.CValueEnclosure, fieldsInExpr []string, record map[string]interface{}) error {

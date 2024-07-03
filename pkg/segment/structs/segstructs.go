@@ -541,7 +541,7 @@ func (qa *QueryAggregators) hasLetColumnsRequest() bool {
 	return qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil &&
 		(qa.OutputTransforms.LetColumns.RexColRequest != nil || qa.OutputTransforms.LetColumns.RenameColRequest != nil || qa.OutputTransforms.LetColumns.DedupColRequest != nil ||
 			qa.OutputTransforms.LetColumns.ValueColRequest != nil || qa.OutputTransforms.LetColumns.SortColRequest != nil || qa.OutputTransforms.LetColumns.MultiValueColRequest != nil ||
-			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil)
+			qa.OutputTransforms.LetColumns.FormatResults != nil || qa.OutputTransforms.LetColumns.EventCountRequest != nil || qa.OutputTransforms.LetColumns.BinRequest != nil)
 }
 
 // To determine whether it contains certain specific AggregatorBlocks, such as: Rename Block, Rex Block, FilterRows, MaxRows...
@@ -622,6 +622,28 @@ func (qa *QueryAggregators) HasSortBlockInChain() bool {
 		return qa.Next.HasSortBlockInChain()
 	}
 	return false
+}
+
+func (qa *QueryAggregators) HasBinBlock() bool {
+	if qa != nil && qa.OutputTransforms != nil && qa.OutputTransforms.LetColumns != nil && qa.OutputTransforms.LetColumns.BinRequest != nil {
+		return true
+	}
+
+	return false
+}
+
+func (qa *QueryAggregators) HasBinInChain() bool {
+	if qa == nil {
+		return false
+	}
+	if qa.HasBinBlock() {
+		return true
+	}
+	if qa.Next != nil {
+		return qa.Next.HasBinInChain()
+	}
+	return false
+
 }
 
 func (qa *QueryAggregators) HasTransactionArguments() bool {
