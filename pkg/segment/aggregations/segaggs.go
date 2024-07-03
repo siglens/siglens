@@ -2090,23 +2090,53 @@ func getNumericValue(v interface{}) (float64, bool) {
 		return float64(num), true
 	case float64:
 		return num, true
+	case string:
+		floatVal, err := strconv.ParseFloat(num, 64)
+		if err != nil {
+			return 0.0, false
+		}
+		return floatVal, true
 	default:
 		return 0.0, false
 	}
 }
 
-func performBinRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
-	if recs == nil {
-		return nil
+
+func getFloatValForBin(fieldToValue map[string]segutils.CValueEnclosure, field string) (float64, error) {
+	var err error
+	fieldValue, ok := fieldToValue[field]
+	if !ok {
+		return 0, fmt.Errorf("getFloatValForBin: field %s does not exist in record", field)
 	}
 
+	fieldValueFloat, ok := getNumericValue(fieldValue.CVal)
+	if !ok {
+		return 0, fmt.Errorf("getFloatValForBin: field %s is not a numeric, err: %v", field, err)
+	}
+
+	return fieldValueFloat, nil
+}
+
+
+func performBinRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+	if recs != nil {
+		return performBinRequestOnRawRecord(nodeResult, letColReq, recs, finalCols)
+	}
+
+	if err := performBinRequestOnHistogram(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performValueColRequest: %v", err)
+	}
+	if err := performBinRequestOnMeasureResults(nodeResult, letColReq); err != nil {
+		return fmt.Errorf("performValueColRequest: %v", err)
+	}
+
+	return nil
+}
+
+func performBinRequestOnRawRecord(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 	colPresent, exist := finalCols[letColReq.BinRequest.Field]
 	if !exist || !colPresent {
 		return fmt.Errorf("performBinRequest: field %s does not exist in finalCols", letColReq.BinRequest.Field)
-	}
-
-	if letColReq.NewColName == "timestamp" {
-		return fmt.Errorf("performBinRequest: timestamp is a reserved column name", letColReq.BinRequest.Field)
 	}
 	
 	for _, record := range recs {
@@ -2120,13 +2150,9 @@ func performBinRequest(nodeResult *structs.NodeResult, letColReq *structs.LetCol
 			return fmt.Errorf("performBinRequest: field %s is not a numeric", letColReq.BinRequest.Field)
 		}
 
-		var binValue string
+		var binValue interface{}
 		var err error
-		if letColReq.BinRequest.Field == "timestamp" {
-			binValue, err = performBinWithSpanTime(fieldValueFloat, letColReq.BinRequest.BinSpanOptions, letColReq.BinRequest.AlignTime)
-		} else {
-			binValue, err = performBin(fieldValueFloat, letColReq.BinRequest)
-		}
+		binValue, err = performBin(fieldValueFloat, letColReq, letColReq.BinRequest)
 
 		if err != nil {
 			return fmt.Errorf("performBinRequest: %v", err)
@@ -2139,24 +2165,174 @@ func performBinRequest(nodeResult *structs.NodeResult, letColReq *structs.LetCol
 	return nil
 }
 
-func performBin(value float64, binReq *structs.BinCmdOptions) (string, error) {
 
+
+func performBinRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+	// Check if the column to create already exists and is a GroupBy column.
+	isGroupByCol := utils.SliceContainsString(nodeResult.GroupByCols, letColReq.NewColName)
+
+	// Setup a map for fetching values of field
+	fieldsInExpr := []string{letColReq.BinRequest.Field}
+	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+
+	for _, aggregationResult := range nodeResult.Histogram {
+		for rowIndex, bucketResult := range aggregationResult.Results {
+			// Get the values of all the necessary fields.
+			err := getAggregationResultFieldValues(fieldToValue, fieldsInExpr, aggregationResult, rowIndex)
+			if err != nil {
+				return fmt.Errorf("performBinRequestOnHistogram: %v", err)
+			}
+
+			fieldValueFloat, err := getFloatValForBin(fieldToValue, letColReq.BinRequest.Field)
+			if err != nil {
+				return fmt.Errorf("performBinRequestOnHistogram: %v", err)
+			}
+
+			binValue, err := performBin(fieldValueFloat, letColReq, letColReq.BinRequest)
+			if err != nil {
+				return fmt.Errorf("performBinRequestOnHistogram: %v", err)
+			}
+			valType := segutils.SS_DT_STRING	
+
+			switch binValue.(type) {
+				case float64:
+					valType = segutils.SS_DT_FLOAT
+				case uint64:
+					valType = segutils.SS_DT_UNSIGNED_NUM
+				case string:
+					valType = segutils.SS_DT_STRING
+				default:
+					return fmt.Errorf("performBinRequestOnHistogram: binValue has unexpected type: %T", binValue)
+			}
+
+			// Set the appropriate column to the computed value.
+			if isGroupByCol {
+				for keyIndex, groupByCol := range bucketResult.GroupByKeys {
+					if letColReq.NewColName != groupByCol {
+						continue
+					}
+					
+					binValStr := fmt.Sprintf("%v", binValue)
+
+					// Set the appropriate element of BucketKey to cellValueStr.
+					switch bucketKey := bucketResult.BucketKey.(type) {
+					case []string:
+						bucketKey[keyIndex] = binValStr
+						bucketResult.BucketKey = bucketKey
+					case string:
+						if keyIndex != 0 {
+							return fmt.Errorf("performBinRequestOnHistogram: expected keyIndex to be 0, not %v", keyIndex)
+						}
+						bucketResult.BucketKey = binValStr
+					default:
+						return fmt.Errorf("performBinRequestOnHistogram: bucket key has unexpected type: %T", bucketKey)
+					}
+				}
+			} else {
+				aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = segutils.CValueEnclosure{
+					Dtype: valType,
+					CVal:  binValue,
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+
+func performBinRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+	// Check if the column already exists.
+	var isGroupByCol bool // If false, it should be a MeasureFunctions column.
+	colIndex := -1        // Index in GroupByCols or MeasureFunctions.
+	for i, measureCol := range nodeResult.MeasureFunctions {
+		if letColReq.NewColName == measureCol {
+			// We'll write over this existing column.
+			isGroupByCol = false
+			colIndex = i
+			break
+		}
+	}
+
+	for i, groupByCol := range nodeResult.GroupByCols {
+		if letColReq.NewColName == groupByCol {
+			// We'll write over this existing column.
+			isGroupByCol = true
+			colIndex = i
+			break
+		}
+	}
+
+	if colIndex == -1 {
+		// Append the column as a MeasureFunctions column.
+		isGroupByCol = false
+		colIndex = len(nodeResult.MeasureFunctions)
+		nodeResult.MeasureFunctions = append(nodeResult.MeasureFunctions, letColReq.NewColName)
+	}
+
+	// Setup a map for fetching values of field
+	fieldsInExpr := []string{letColReq.BinRequest.Field}
+	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+
+	// Compute the value for each row.
+	for rowIndex, bucketHolder := range nodeResult.MeasureResults {
+		// Get the values of all the necessary fields.
+		err := getMeasureResultsFieldValues(fieldToValue, fieldsInExpr, nodeResult, rowIndex)
+		if err != nil {
+			return fmt.Errorf("performValueColRequestOnMeasureResults: %v", err)
+		}
+
+		fieldValueFloat, err := getFloatValForBin(fieldToValue, letColReq.BinRequest.Field)
+		if err != nil {
+			return fmt.Errorf("performBinRequestOnHistogram: %v", err)
+		}
+
+		// Perform bin and get the value
+		binValue, err := performBin(fieldValueFloat, letColReq, letColReq.BinRequest)
+		if err != nil {
+			return fmt.Errorf("performValueColRequestOnMeasureResults: %v", err)
+		}
+
+		// Set the appropriate column to the computed value.
+		if isGroupByCol {
+			bucketHolder.GroupByValues[colIndex] = fmt.Sprintf("%v", binValue)
+		} else {
+			bucketHolder.MeasureVal[letColReq.NewColName] = binValue
+		}
+	}
+	return nil
+}
+
+
+
+
+
+func performBin(value float64, letColReq *structs.LetColumnsRequest, binReq *structs.BinCmdOptions) (interface{}, error) {
 	if binReq.BinSpanOptions != nil {
+		if binReq.Field == "timestamp" {
+			return performBinWithSpanTime(value, binReq.BinSpanOptions, binReq.AlignTime)
+		}
 		return performBinWithSpan(value, binReq.BinSpanOptions)
 	}
 
 	return "", nil
 }
 
-func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (string, error) {
+// This function either returns a float or a string
+func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (interface{}, error) {
 	if spanOpt.BinSpanLength != nil {
 		lowerBound := math.Floor(value/spanOpt.BinSpanLength.Num) * spanOpt.BinSpanLength.Num
 		upperBound := math.Ceil(value/spanOpt.BinSpanLength.Num) * spanOpt.BinSpanLength.Num
 		if upperBound == lowerBound {
 			upperBound += spanOpt.BinSpanLength.Num
 		}
-		return fmt.Sprintf("%v-%v", lowerBound, upperBound), nil
+		if spanOpt.BinSpanLength.TimeScale == 0 {
+			return fmt.Sprintf("%v-%v", lowerBound, upperBound), nil
+		} else {
+			return lowerBound, nil
+		}
 	}
+	
 	if spanOpt.LogSpan != nil {
 		val := value/spanOpt.LogSpan.Coefficient
 		logVal := math.Log10(val) / math.Log10(spanOpt.LogSpan.Base)
@@ -2194,9 +2370,9 @@ func getTimeBucketWithAlign(localTime time.Time, durationScale time.Duration, sp
 }
 
 
-func performBinWithSpanTime(value float64, spanOpt *structs.BinSpanOptions, alignTime *uint64) (string, error) {
+func performBinWithSpanTime(value float64, spanOpt *structs.BinSpanOptions, alignTime *uint64) (uint64, error) {
 	if spanOpt == nil || spanOpt.BinSpanLength == nil {
-		return "", fmt.Errorf("performBinWithSpanTime: BinSpanLength is nil")
+		return 0, fmt.Errorf("performBinWithSpanTime: BinSpanLength is nil")
 	}
 
 	unixMilli := int64(value)
@@ -2239,10 +2415,10 @@ func performBinWithSpanTime(value float64, spanOpt *structs.BinSpanOptions, alig
 			durationScale = time.Hour * 24 * 365
 			bucket = int(localTime.Truncate(time.Duration(spanOpt.BinSpanLength.Num) * durationScale).UnixMilli())
 		default:
-			return "", fmt.Errorf("performBinWithSpanTime: Time scale %v is not supported", spanOpt.BinSpanLength.TimeScale)
+			return 0, fmt.Errorf("performBinWithSpanTime: Time scale %v is not supported", spanOpt.BinSpanLength.TimeScale)
 	}
 
-	return strconv.Itoa(int(bucket)), nil
+	return uint64(bucket), nil
 }
 
 func getRecordFieldValues(fieldToValue map[string]segutils.CValueEnclosure, fieldsInExpr []string, record map[string]interface{}) error {
