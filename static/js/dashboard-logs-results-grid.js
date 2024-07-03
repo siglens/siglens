@@ -20,6 +20,10 @@
 'use strict';
 
 let panelGridDiv = null;
+let panelGridOptions;
+let panelLogsColumnDefs;
+$('.panEdit-navBar #available-fields .select-unselect-header').on('click','.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
+$('.panEdit-navBar #available-fields .select-unselect-header').on('click','.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
 
 function getGridPanelRows() {
     // initial dataset
@@ -28,7 +32,7 @@ function getGridPanelRows() {
 }
 function getGridPanelCols(){
     // initial columns
-    let panelLogsColumnDefs = [
+    panelLogsColumnDefs = [
         {
             field: "timestamp",
             headerName: "timestamp",
@@ -66,7 +70,7 @@ function getGridPanelCols(){
 
 // let the grid know which columns and what data to use
 function getPanelGridOptions() {
-    const panelGridOptions = {
+    panelGridOptions = {
         columnDefs: getGridPanelCols(),
         rowData: getGridPanelRows(),
         animateRows: true,
@@ -107,11 +111,12 @@ function getPanelGridOptions() {
 }
 
 
-function renderPanelLogsGrid(columnOrder, hits, panelId,logLinesViewType) {
+function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
     $(`.panelDisplay .big-number-display-container`).hide();
     let panelLogsRowData = getGridPanelRows();
     let panelLogsColumnDefs = getGridPanelCols();
     let panelGridOptions = getPanelGridOptions();
+    let logLinesViewType = currentPanel.logLinesViewType;
 
     if(panelId == -1) // for panel on the editPanelScreen page
         panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
@@ -166,6 +171,9 @@ function renderPanelLogsGrid(columnOrder, hits, panelId,logLinesViewType) {
             break;
         case 'Table view':
             panelLogOptionTableHandler(panelGridOptions,panelLogsColumnDefs);
+            if (currentPanel?.selectedFields) {
+                updateColumns(currentPanel.selectedFields);
+            }
             break;
     }
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
@@ -216,7 +224,9 @@ function panelLogOptionTableHandler(panelGridOptions,panelLogsColumnDefs) {
             if (colDef.field === "logs") {
                 colDef.cellStyle = null;
                 colDef.autoHeight = null;
-            }
+                colDef.hide = true; 
+            } else 
+                colDef.hide = false;
         });
         panelGridOptions.api.setColumnDefs(panelLogsColumnDefs);
         panelGridOptions.api.resetRowHeights();
@@ -298,4 +308,64 @@ function renderPanelAggsGrid(columnOrder, hits,panelId) {
     })
     aggGridOptions.api.setRowData(segStatsRowData);
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
+}
+
+function updateColumns(selectedFieldsList = null) {
+
+    panelGridOptions.columnApi.setColumnVisible("timestamp", true);
+    
+    let isAnyColActive = false;
+    const selectedFieldsSet = selectedFieldsList ? new Set(selectedFieldsList) : null;
+    availColNames.forEach((colName) => {
+        const colElement = $(`.toggle-${string2Hex(colName)}`);
+        const shouldBeVisible = selectedFieldsSet ? selectedFieldsSet.has(colName) : colElement.hasClass('active');
+        
+        if (shouldBeVisible) {
+            colElement.addClass('active');
+            isAnyColActive = true;
+            panelGridOptions.columnApi.setColumnVisible(colName, true);
+        } else {
+            colElement.removeClass('active');
+            panelGridOptions.columnApi.setColumnVisible(colName, false);
+        }
+    });
+
+    if (isAnyColActive) {
+        panelGridOptions.columnApi.setColumnVisible("logs", false);
+    }
+    
+    panelGridOptions.api.sizeColumnsToFit();
+}
+
+function toggleAllAvailableFieldsHandler(evt) {
+    let el = $('#available-fields .select-unselect-header');
+    let isChecked = el.find('.select-unselect-checkmark');
+
+    if (isChecked.length === 0) {
+        if (theme === "light") {
+            el.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
+        } else {
+            el.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
+        }
+
+        availColNames.forEach((colName) => {
+            $(`.toggle-${string2Hex(colName)}`).addClass('active');
+            panelGridOptions.columnApi.setColumnVisible(colName, true);
+        });
+        
+        selectedFieldsList = [...availColNames];
+    } else {
+        isChecked.remove();
+
+        availColNames.forEach((colName) => {
+            $(`.toggle-${string2Hex(colName)}`).removeClass('active');
+            panelGridOptions.columnApi.setColumnVisible(colName, false);
+        });
+
+        selectedFieldsList = [];
+    }
+
+    panelGridOptions.columnApi.setColumnVisible("logs", false);
+
+    updatedSelFieldList = true;
 }

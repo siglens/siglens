@@ -27,8 +27,8 @@ function setupEventHandlers() {
     $("#live-tail-btn").on("click", runLiveTailBtnHandler);
 
     $('#available-fields').on('click', availableFieldsClickHandler);
-    $('#available-fields .select-unselect-header').on('click','.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
-    $('#available-fields .select-unselect-header').on('click','.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
+    $('#views-container #available-fields .select-unselect-header').on('click','.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
+    $('#views-container #available-fields .select-unselect-header').on('click','.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
     $('#available-fields .fields').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
 
     $('#corner-popup').on('click', '.corner-btn-close', hideError);
@@ -519,7 +519,16 @@ function availableFieldsSelectHandler(evt, isCloseIcon = false) {
         hideOrShowFieldsInLineViews();
         updateColumns();
     }
-    gridOptions.api.sizeColumnsToFit();
+
+    if(window.location.pathname.includes('dashboard.html')){
+        hideOrShowFieldsInLineViews();
+        updateColumns(); // Function for updating dashboard logs panel
+        currentPanel.selectedFields = selectedFieldsList;
+        panelGridOptions.api.sizeColumnsToFit();
+    }else{
+        gridOptions.api.sizeColumnsToFit();
+    }
+    
     updatedSelFieldList = true
 }
 
