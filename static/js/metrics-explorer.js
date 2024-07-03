@@ -1777,7 +1777,7 @@ function parsePromQL(query) {
       parseObject.everywhere = metricMatch[2].split(',').map(tag => tag.replace(/"/g, '').replace('=', ':'));
     } else {
       // If no tags, just set the metric
-      const metricNamePattern = /\(\s*(\w+)\s*\)/;
+      const metricNamePattern = /\s*(\w+)\s*/;
       const metricNameMatch = innerQuery.match(metricNamePattern);
       if (metricNameMatch) {
         parseObject.metrics = metricNameMatch[1];
@@ -1949,8 +1949,10 @@ $('#alert-from-metrics-container').click(function() {
             }else {
                 queryString = queryDetails.rawQueryInput;
             }
+            const formula = { formula: queryName };
+            mformulas.push(formula);
             const tquery = { name: queryName, query: `(${queryString})`, qlType: "promql" };
-            mqueries.push(tquery)           
+            mqueries.push(tquery);
         });
    }
    if(Object.keys(formulas).length > 0){
