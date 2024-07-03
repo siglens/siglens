@@ -168,7 +168,15 @@ var alertsLoadTestCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		destHost, _ := cmd.Flags().GetString("dest")
 		numAlerts, _ := cmd.Flags().GetUint64("numAlerts")
+		runVector, _ := cmd.Flags().GetInt8("runVector")
+		cleanup, _ := cmd.Flags().GetBool("cleanup")
 		log.Infof("destHost : %+v\n", destHost)
+
+		if cleanup {
+			alerts.RunAlertsCleanup(destHost)
+			return
+		}
+
 		log.Infof("numAlerts : %+v\n", numAlerts)
 		if destHost == "" {
 			log.Fatalf("Destination Host is required")
@@ -176,7 +184,13 @@ var alertsLoadTestCmd = &cobra.Command{
 		if numAlerts == 0 {
 			log.Fatalf("Number of alerts must be greater than 0")
 		}
-		alerts.RunAlertsLoadTest(destHost, numAlerts)
+		if runVector > 1 {
+			runVector = 1
+		} else if runVector < -1 {
+			runVector = -1
+		}
+
+		alerts.RunAlertsLoadTest(destHost, numAlerts, runVector)
 	},
 }
 
@@ -326,6 +340,8 @@ func init() {
 	metricsBenchCmd.PersistentFlags().IntP("numQueryIterations", "n", 1, "Number of query iterations loop")
 
 	alertsLoadTestCmd.PersistentFlags().Uint64P("numAlerts", "n", 1, "Number of alerts to create")
+	alertsLoadTestCmd.PersistentFlags().Int8P("runVector", "v", 0, "Run vector: -1 - Explicitly Disable running of Vector, 0 - Optional State: Will try to run vector, but will not stop the test if encountered and issue with Vector, 1 - Explictly Enable running of Vector")
+	alertsLoadTestCmd.PersistentFlags().BoolP("cleanup", "c", false, "Cleanup alerts. If this is set true, it will only cleanup alerts and not run the load test")
 
 	queryCmd.AddCommand(esQueryCmd)
 	queryCmd.AddCommand(metricsQueryCmd)
