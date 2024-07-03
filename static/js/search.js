@@ -379,69 +379,7 @@
      let filterValue = queryParams.get('searchText');
      if(filterTab == "0" || filterTab == null){
       if(filterValue != "*"){
-        if(filterValue.indexOf("|") != -1){
-          firstBoxSet = new Set(filterValue.split(" | ")[0].match(/(?:[^\s"]+|"[^"]*")+/g));
-          secondBoxSet = new Set(
-            filterValue
-              .split("stats ")[1]
-              .split(" BY")[0]
-              .split(/(?=[A-Z])/)
-          );
-          if (filterValue.includes(" BY ")) {
-            thirdBoxSet = new Set(filterValue.split(" BY ")[1].split(","));
-          }
-        }else{
-          firstBoxSet = new Set(filterValue.match(/(?:[^\s"]+|"[^"]*")+/g));
-        }
-        if (firstBoxSet && firstBoxSet.size > 0) {
-          let tags = document.getElementById("tags");
-          while (tags.firstChild) {
-            tags.removeChild(tags.firstChild);
-          }
-          firstBoxSet.forEach((value, i) => {
-            let tag = document.createElement("li");
-            tag.innerText = value;
-            // Add a delete button to the tag
-            tag.innerHTML += '<button class="delete-button">×</button>';
-            // Append the tag to the tags list
-            tags.appendChild(tag);
-          });
-        }
-        if (secondBoxSet && secondBoxSet.size > 0) {
-          let tags = document.getElementById("tags-second");
-          while (tags.firstChild) {
-            tags.removeChild(tags.firstChild);
-          }
-          secondBoxSet.forEach((value, i) => {
-            let tag = document.createElement("li");
-            tag.innerText = value;
-            // Add a delete button to the tag
-            tag.innerHTML += '<button class="delete-button">×</button>';
-            // Append the tag to the tags list
-            tags.appendChild(tag);
-          });
-        }
-        if (thirdBoxSet && thirdBoxSet.size > 0) {
-          let tags = document.getElementById("tags-third");
-          while (tags.firstChild) {
-            tags.removeChild(tags.firstChild);
-          }
-          thirdBoxSet.forEach((value, i) => {
-            let tag = document.createElement("li");
-            tag.innerText = value;
-            // Add a delete button to the tag
-            tag.innerHTML += '<button class="delete-button">×</button>';
-            // Append the tag to the tags list
-            
-            tags.appendChild(tag);
-          });
-        }
-        if (thirdBoxSet.size > 0) $("#aggregations").hide();
-        else $("#aggregations").show();
-        if (secondBoxSet.size > 0) $("#aggregate-attribute-text").hide();
-        else $("#aggregate-attribute-text").show();
-        if (firstBoxSet.size > 0) $("#search-filter-text").hide();
-        else $("#search-filter-text").show();
+        codeToBuilderParsing(filterValue)
       $("#filter-input").val(filterValue).change();
       isQueryBuilderSearch = true;
       }
@@ -1095,4 +1033,161 @@ function parseInterval(interval) {
       default:
           throw new Error("Invalid interval unit");
   }
+}
+
+function timeChart() {
+  if (isTimechart) {
+    $("#columnChart").show();
+    $("#hideGraph").hide();
+  } else {
+    $("#columnChart").hide();
+    $("#hideGraph").show();
+    return;
+  }
+
+  // Extract data for ECharts
+  var timestamps = measureInfo.map((item) => convertTimestamp(item.GroupByValues[0]));
+  var seriesData = measureFunctions.map(function (measureFunction) {
+    return {
+      name: measureFunction,
+      type: "bar",
+      data: measureInfo.map(function (item) {
+        return item.MeasureVal[measureFunction] || 0;
+      }),
+    };
+  });
+
+  // ECharts configuration
+  var option = {
+    tooltip: {
+      trigger: "item",
+      formatter: function (params) {
+        return params.seriesName + ": " + params.value;
+      },
+    },
+    legend: {
+      textStyle: {
+        color: "#6e7078",
+        fontSize: 12,
+      },
+      data: measureFunctions,
+      type: "scroll", // Enable folding functionality
+      orient: "vertical",
+      right: 10,
+      top: "middle",
+      align: "left",
+      height: "70%",
+      width: 150,
+    },
+    grid: {
+      left: 10,
+      right: 220,
+      containLabel: true,
+    },
+    xAxis: {
+      type: "category",
+      data: timestamps,
+      scale: true,
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: "value",
+      scale: true,
+      splitLine: { show: false },
+    },
+    series: seriesData,
+  };
+
+  // Initialize ECharts
+  let chart = echarts.init($("#columnChart")[0]);
+  // Set the configuration to the chart
+  chart.setOption(option);
+
+  // Optional: Make the chart responsive
+  $(window).on('resize', function() {
+    chart.resize();
+  });
+}
+
+function convertTimestamp(timestampString) {  
+  var timestamp = parseInt(timestampString); 
+  var date = new Date(timestamp);
+  
+  var year = date.getFullYear(); 
+  var month = ("0" + (date.getMonth() + 1)).slice(-2);
+  var day = ("0" + date.getDate()).slice(-2);  
+  
+  var hours = ("0" + date.getHours()).slice(-2); 
+  var minutes = ("0" + date.getMinutes()).slice(-2);  
+  var seconds = ("0" + date.getSeconds()).slice(-2);
+  
+  var readableDate = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds;  
+  return readableDate;  
+}  
+
+
+function codeToBuilderParsing(filterValue){
+  if(filterValue.indexOf("|") != -1){
+    firstBoxSet = new Set(filterValue.split(" | ")[0].match(/(?:[^\s"]+|"[^"]*")+/g));
+    secondBoxSet = new Set(
+      filterValue
+        .split("stats ")[1]
+        .split(" BY")[0]
+        .split(/(?=[A-Z])/)
+    );
+    if (filterValue.includes(" BY ")) {
+      thirdBoxSet = new Set(filterValue.split(" BY ")[1].split(","));
+    }
+  }else{
+    firstBoxSet = new Set(filterValue.match(/(?:[^\s"]+|"[^"]*")+/g));
+  }
+  if (firstBoxSet && firstBoxSet.size > 0) {
+    let tags = document.getElementById("tags");
+    while (tags.firstChild) {
+      tags.removeChild(tags.firstChild);
+    }
+    firstBoxSet.forEach((value, i) => {
+      let tag = document.createElement("li");
+      tag.innerText = value;
+      // Add a delete button to the tag
+      tag.innerHTML += '<button class="delete-button">×</button>';
+      // Append the tag to the tags list
+      tags.appendChild(tag);
+    });
+  }
+  if (secondBoxSet && secondBoxSet.size > 0) {
+    let tags = document.getElementById("tags-second");
+    while (tags.firstChild) {
+      tags.removeChild(tags.firstChild);
+    }
+    secondBoxSet.forEach((value, i) => {
+      let tag = document.createElement("li");
+      tag.innerText = value;
+      // Add a delete button to the tag
+      tag.innerHTML += '<button class="delete-button">×</button>';
+      // Append the tag to the tags list
+      tags.appendChild(tag);
+    });
+  }
+  if (thirdBoxSet && thirdBoxSet.size > 0) {
+    let tags = document.getElementById("tags-third");
+    while (tags.firstChild) {
+      tags.removeChild(tags.firstChild);
+    }
+    thirdBoxSet.forEach((value, i) => {
+      let tag = document.createElement("li");
+      tag.innerText = value;
+      // Add a delete button to the tag
+      tag.innerHTML += '<button class="delete-button">×</button>';
+      // Append the tag to the tags list
+      
+      tags.appendChild(tag);
+    });
+  }
+  if (thirdBoxSet.size > 0) $("#aggregations").hide();
+  else $("#aggregations").show();
+  if (secondBoxSet.size > 0) $("#aggregate-attribute-text").hide();
+  else $("#aggregate-attribute-text").show();
+  if (firstBoxSet.size > 0) $("#search-filter-text").hide();
+  else $("#search-filter-text").show();
 }
