@@ -23,6 +23,31 @@ let originalIndexValues = [];
 let indexValues = [];
 
 $(document).ready(async () => {
+
+    function createTooltip(selector, content) {
+        tippy(selector, {
+          content: content,      // Tooltip content
+          placement: 'top',      // Tooltip placement (top, bottom, left, right)
+          arrow: true,           // Show an arrow
+          animation: 'fade'      // Tooltip animation
+        });
+      }
+      
+      // Call the function for each tooltip
+      createTooltip('#add-index', 'Add New Index');
+      createTooltip('#date-picker-btn', 'Pick the Time Window');
+      createTooltip('#query-builder-btn', 'Run Query');
+      createTooltip('#logs-settings', 'Settings');
+      createTooltip('#saveq-btn', 'Save query');
+      createTooltip('#add-logs-to-db-btn', 'Add to dashboards');
+      createTooltip('#alert-from-logs-btn', 'Create alert');
+      createTooltip('.download-all-logs-btn', 'Download logs');
+      createTooltip('#show-record-intro-btn', 'Query Response Information');
+      createTooltip('#log-opt-single-btn', 'Single Line Display View');
+      createTooltip('#log-opt-multi-btn', 'Wrap Line Display View');
+      createTooltip('#log-opt-table-btn', 'Tabular View');
+      createTooltip('.avail-fields-btn', 'Select field names to display');
+      createTooltip('#run-filter-btn', 'Run query');
     setSaveQueriesDialog();
     let indexes = await getListIndices();
     if (indexes){
