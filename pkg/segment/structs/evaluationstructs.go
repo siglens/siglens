@@ -1735,7 +1735,7 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 			if self.Val.NumericExpr != nil {
 				return "Number", nil
 			} else if self.Val.StringExpr != nil {
-				if isBoolean(self.Val.StringExpr.RawString) {
+				if utils.IsBoolean(self.Val.StringExpr.RawString) {
 					return "Boolean", nil
 				}
 				return "String", nil
@@ -1906,16 +1906,6 @@ func (self *ValueExpr) EvaluateValueExprAsString(fieldToValue map[string]utils.C
 		}
 	}
 	return str, nil
-}
-
-func isNumber(str string) bool {
-	_, err := strconv.ParseFloat(str, 64)
-	return err == nil
-}
-
-func isBoolean(str string) bool {
-	lowerStr := strings.ToLower(str)
-	return lowerStr == "true" || lowerStr == "false"
 }
 
 func handleCaseFunction(self *ConditionExpr, fieldToValue map[string]utils.CValueEnclosure) (string, error) {
