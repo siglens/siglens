@@ -2104,6 +2104,10 @@ func performBinRequest(nodeResult *structs.NodeResult, letColReq *structs.LetCol
 	if !exist || !colPresent {
 		return fmt.Errorf("performBinRequest: field %s does not exist in finalCols", letColReq.BinRequest.Field)
 	}
+
+	if letColReq.NewColName == "timestamp" {
+		return fmt.Errorf("performBinRequest: timestamp is a reserved column name", letColReq.BinRequest.Field)
+	}
 	
 	for _, record := range recs {
 		fieldValue, ok := record[letColReq.BinRequest.Field]
@@ -2119,7 +2123,7 @@ func performBinRequest(nodeResult *structs.NodeResult, letColReq *structs.LetCol
 		var binValue string
 		var err error
 		if letColReq.BinRequest.Field == "timestamp" {
-			binValue, err = performBinWithSpanTime(fieldValueFloat, letColReq.BinRequest.BinSpanOptions)
+			binValue, err = performBinWithSpanTime(fieldValueFloat, letColReq.BinRequest.BinSpanOptions, letColReq.BinRequest.AlignTime)
 		} else {
 			binValue, err = performBin(fieldValueFloat, letColReq.BinRequest)
 		}
@@ -2172,43 +2176,71 @@ func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (string,
 }
 
 
+func getTimeBucketWithAlign(localTime time.Time, durationScale time.Duration, spanOpt *structs.BinSpanOptions, alignTime *uint64) int {
+	if alignTime == nil {
+		return int(localTime.Truncate(time.Duration(spanOpt.BinSpanLength.Num) * durationScale).UnixMilli())
+	}
 
-func performBinWithSpanTime(value float64, spanOpt *structs.BinSpanOptions) (string, error) {
+	factorInMillisecond := float64((time.Duration(spanOpt.BinSpanLength.Num) * durationScale) / time.Millisecond)
+	currTime := float64(localTime.UnixMilli())
+	baseTime := float64(*alignTime)
+	diff := math.Floor((currTime - baseTime) / factorInMillisecond)
+	bucket := int(baseTime + diff*factorInMillisecond)
+	if bucket < 0 {
+		bucket = 0
+	}
+
+	return bucket
+}
+
+
+func performBinWithSpanTime(value float64, spanOpt *structs.BinSpanOptions, alignTime *uint64) (string, error) {
 	if spanOpt == nil || spanOpt.BinSpanLength == nil {
 		return "", fmt.Errorf("performBinWithSpanTime: BinSpanLength is nil")
 	}
 
+	unixMilli := int64(value)
+	localTime := time.Unix(0, unixMilli*int64(time.Millisecond))
+
 	durationScale := time.Duration(time.Second)
+	bucket := 0
 	switch spanOpt.BinSpanLength.TimeScale {
 		case segutils.TMMillisecond:
 			durationScale = time.Millisecond
+			bucket = getTimeBucketWithAlign(localTime, durationScale, spanOpt, alignTime)
 		case segutils.TMCentisecond:
 			durationScale = time.Millisecond * 10
+			bucket = getTimeBucketWithAlign(localTime, durationScale, spanOpt, alignTime)
 		case segutils.TMDecisecond:
 			durationScale = time.Millisecond * 100
+			bucket = getTimeBucketWithAlign(localTime, durationScale, spanOpt, alignTime)
 		case segutils.TMSecond:
 			durationScale = time.Second
+			bucket = getTimeBucketWithAlign(localTime, durationScale, spanOpt, alignTime)
 		case segutils.TMMinute:
 			durationScale = time.Minute
+			bucket = getTimeBucketWithAlign(localTime, durationScale, spanOpt, alignTime)
 		case segutils.TMHour:
 			durationScale = time.Hour
+			bucket = getTimeBucketWithAlign(localTime, durationScale, spanOpt, alignTime)
 		case segutils.TMDay:
 			durationScale = time.Hour * 24
+			bucket = int(localTime.Truncate(time.Duration(spanOpt.BinSpanLength.Num) * durationScale).UnixMilli())
 		case segutils.TMWeek:
 			durationScale = time.Hour * 24 * 7
+			bucket = int(localTime.Truncate(time.Duration(spanOpt.BinSpanLength.Num) * durationScale).UnixMilli())
 		case segutils.TMMonth:
 			durationScale = time.Hour * 24 * 30
+			bucket = int(localTime.Truncate(time.Duration(spanOpt.BinSpanLength.Num) * durationScale).UnixMilli())
 		case segutils.TMQuarter:
 			durationScale = time.Hour * 24 * 30 * 3
+			bucket = int(localTime.Truncate(time.Duration(spanOpt.BinSpanLength.Num) * durationScale).UnixMilli())
 		case segutils.TMYear:
 			durationScale = time.Hour * 24 * 365
+			bucket = int(localTime.Truncate(time.Duration(spanOpt.BinSpanLength.Num) * durationScale).UnixMilli())
 		default:
 			return "", fmt.Errorf("performBinWithSpanTime: Time scale %v is not supported", spanOpt.BinSpanLength.TimeScale)
 	}
-
-	unixMilli := int64(value)
-	localTime := time.Unix(0, unixMilli*int64(time.Millisecond))
-	bucket := localTime.Truncate(time.Duration(spanOpt.BinSpanLength.Num) * durationScale).UnixMilli()
 
 	return strconv.Itoa(int(bucket)), nil
 }
