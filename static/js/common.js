@@ -871,7 +871,6 @@ function findColumnIndex(columnsMap, columnName) {
 }
 
 function setIndexDisplayValue(selectedSearchIndex){
-    console.log("selectedSearchIndex",selectedSearchIndex);
     if (selectedSearchIndex) {
         // Remove all existing selected indexes
         $(".index-container .selected-index").remove();
