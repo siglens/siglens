@@ -205,6 +205,12 @@ $("#contact-points-dropdown").on("click", function() {
 
     
 });
+function getUrlParameter(name) {
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    let regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    let results = regex.exec(location.search);
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
 
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -214,6 +220,12 @@ async function getAlertId() {
         alertID = id;
        const editFlag = await editAlert(id);
        alertEditFlag = editFlag;
+    } else if (urlParams.has('queryString')) {
+        let dataParam = getUrlParameter('queryString');
+        let jsonString = decodeURIComponent(dataParam);
+        let obj = JSON.parse(jsonString);
+        displayAlert(obj);
+        alertEditFlag = 1;
     } else if (urlParams.has('queryLanguage')) {
         const queryLanguage = urlParams.get('queryLanguage');
         const searchText = urlParams.get('searchText');
@@ -439,6 +451,24 @@ async function displayAlert(res){
         $('#query').val(res.queryParams.queryText);
         $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
         datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime)
+    } else if (res.alert_type === 3){
+        let metricsQueryParams = res;
+        $(`.ranges .inner-range #${metricsQueryParams.start}`).addClass('active');
+        datePickerHandler(metricsQueryParams.start, metricsQueryParams.end, metricsQueryParams.start);
+        if(functionsArray){
+            allFunctions = await getFunctions();
+            functionsArray = allFunctions.map(function(item) {
+                return item.fn;
+            });
+        }
+        for (const index in metricsQueryParams.queries) {
+            const query = metricsQueryParams.queries[index];
+            const parsedQueryObject = parsePromQL(query.query);
+            await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
+        }
+        if(metricsQueryParams.queries.length>=1){
+            await addAlertsFormulaElement(metricsQueryParams.formulas[0].formula);
+        }
     } else if (res.alert_type === 2){
         let metricsQueryParams = JSON.parse(res.metricsQueryParams);
 
