@@ -103,6 +103,8 @@ type QueryParams struct {
 	QueryText     string `json:"queryText"`
 	StartTime     string `json:"startTime"`
 	EndTime       string `json:"endTime"`
+	Index         string `json:"index"`
+	QueryMode     string `json:"queryMode"`
 }
 type Alert struct {
 	Status string

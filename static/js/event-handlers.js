@@ -396,27 +396,41 @@ function runLiveTailBtnHandler(evt) {
 }
 
 function runFilterBtnHandler(evt) {
-    $('.popover').hide();
-    evt.preventDefault();
-    if (
-      $("#run-filter-btn").text() === " " ||
-      $("#query-builder-btn").text() === " "
-    ) {
-
-      resetDashboard();
-      logsRowData = [];
-      wsState = "query";
-      data = getSearchFilter(false, false);
-      initialSearchData = data;
-      availColNames = [];
-      doSearch(data);
-    } else {
-      wsState = "cancel";
-      data = getSearchFilter(false, false);
-      initialSearchData = data;
-      doCancel(data);
+    var currentPage = window.location.pathname;
+    if (currentPage === '/alert.html'){
+        let data = getQueryParamsData();
+        isQueryBuilderSearch = $("#custom-code-tab").tabs("option", "active") === 0;
+        if(isQueryBuilderSearch) {
+            data.searchText = getQueryBuilderCode();
+        }else{
+            data.searchText = $('#filter-input').val();
+        }
+        fetchLogsPanelData(data,-1).then((res)=>{
+            alertChart(res);
+        });
+    } else { // index.html
+        $('.popover').hide();
+        evt.preventDefault();
+        if (
+          $("#run-filter-btn").text() === " " ||
+          $("#query-builder-btn").text() === " "
+        ) {
+    
+          resetDashboard();
+          logsRowData = [];
+          wsState = "query";
+          data = getSearchFilter(false, false);
+          initialSearchData = data;
+          availColNames = [];
+          doSearch(data);
+        } else {
+          wsState = "cancel";
+          data = getSearchFilter(false, false);
+          initialSearchData = data;
+          doCancel(data);
+        }
+        $('#daterangepicker').hide(); 
     }
-    $('#daterangepicker').hide();
 }
 
 function filterInputHandler(evt) {
