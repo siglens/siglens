@@ -447,11 +447,15 @@ async function displayAlert(res){
         
         $(`.ranges .inner-range #${startTime}`).addClass('active');
         datePickerHandler(startTime, endTime, startTime);
-        setIndexDisplayValue(index);
+        if(index === ""){
+            setIndexDisplayValue("*");
+        }else{
+            setIndexDisplayValue(index);
+        }
         
         if (queryMode === 'Builder') {
             codeToBuilderParsing(queryText);
-        } else if (queryMode === 'Code') {
+        } else if (queryMode === 'Code' || queryMode === "") {
             $("#custom-code-tab").tabs("option", "active", 1);
             $('#filter-input').val(queryText);
         }
