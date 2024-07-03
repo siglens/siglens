@@ -1,3 +1,4 @@
+
 /* 
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
@@ -176,9 +177,9 @@ function formulaInputHandler(formulaElement, uniqueId) {
                 $('#metrics-queries .metrics-query .query-name').removeClass('active');
             }
             // Check if validationResult.queryNames is an array
-            if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length>0) {
+            if (Array.isArray(validationResult.queryNames) && validationResult.queryNames.length > 0 || validationResult.isNumeric) {
                 // Run your function with the formula and query names
-                await getMetricsDataForFormula(uniqueId,validationResult);
+                await getMetricsDataForFormula(uniqueId, validationResult);
             }
         } else {
             errorMessage.show();
@@ -254,19 +255,22 @@ function validateFormula(formula) {
     let queryNames = Object.keys(queries);
     let parts = formula.split(/[-+*/]/);
     let usedQueryNames = [];
+    let isNumeric = !isNaN(formula);
+
     for (let part of parts) {
         part = part.trim();
         // Check if the part is a query name or a number
         if (queryNames.includes(part)) {
             usedQueryNames.push(part);
         } else if (isNaN(part)) {
-            return false; // Todo: if only numeric value is present in formula
+            return false; // If part is not a number
         }
     }
 
     return {
         formula: formula,
-        queryNames: usedQueryNames
+        queryNames: usedQueryNames,
+        isNumeric: isNumeric // Check if the formula is a numeric value
     };
 }
 
@@ -287,6 +291,24 @@ function disableQueryRemoval(){
         }
     });
 }
+
+function createChartDataForNumericFormula(numericValue, startTime, endTime) {
+    const dataPoints = [];
+    const interval = Math.max(1, Math.floor((endTime - startTime) / 100)); // Adjust the interval as needed
+
+    for (let time = startTime; time <= endTime; time += interval) {
+        const date = new Date(time * 1000);
+        if (!isNaN(date)) {
+            dataPoints.push({ x: date, y: parseFloat(numericValue) });
+        } else {
+            console.error("Invalid date generated:", date);
+        }
+    }
+    return dataPoints;
+}
+
+
+
 
 function createQueryElementTemplate(queryName) {
     return $(`
@@ -846,32 +868,18 @@ function updateCloseIconVisibility() {
 
 function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
-    var datasets = [];
-    var labels = [];
-    // Extract labels and datasets from seriesData
-    var labels = [];
-    var datasets = [];
-    
-    if (seriesData.length > 0) {
-        seriesData.forEach(function (series, index) {
-            Object.keys(series.values).forEach((tsvalue) => {
-                labels.push(new Date(tsvalue))
-            })
-        })
+    var datasets = seriesData.map(function (series, index) {
+        return {
+            label: series.seriesName,
+            data: Object.keys(series.values).map(ts => ({ x: new Date(ts), y: series.values[ts] })),
+            borderColor: classic[index % classic.length],
+            backgroundColor: classic[index % classic.length] + '70',
+            borderWidth: 2,
+            fill: false
+        };
+    });
 
-        labels.sort((a, b) => a - b)
-
-        datasets = seriesData.map(function (series, index) {
-            return {
-                label: series.seriesName,
-                data: series.values,
-                borderColor: classic[index % classic.length],
-                backgroundColor: classic[index % classic.length] + '70',
-                borderWidth: 2,
-                fill: false
-            };
-        });
-    }
+    var labels = datasets.length ? datasets[0].data.map(dp => dp.x) : [];
 
     var chartData = {
         labels: labels,
@@ -911,7 +919,8 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     grid: {
                         display: false
                     },
-                    ticks: { color: tickColor,
+                    ticks: { 
+                        color: tickColor,
                         callback: xaxisFomatter,
                         autoSkip: false,
                         major: {
@@ -923,13 +932,13 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                                     weight: 'bold'
                                 };
                             }
-                        return {
+                            return {
                                 weight: 'normal'
                             };
                         }
                     },
                     time: {
-                        unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
+                        unit: timeUnit.includes('day') ? 'day' : timeUnit.includes('hour') ? 'hour' : timeUnit.includes('minute') ? 'minute' : timeUnit,
                         tooltipFormat: 'MMM d, HH:mm:ss',
                         displayFormats: {
                             minute: 'HH:mm',
@@ -949,17 +958,16 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                 }
             },
             spanGaps: true,
-        },
-        
+        }
     });
 
     // Modify the fill property based on the chart type after chart initialization
     if (chartType === 'Area chart') {
-        lineChart.config.data.datasets.forEach(function(dataset) {
+        lineChart.config.data.datasets.forEach(function (dataset) {
             dataset.fill = true;
         });
     } else {
-        lineChart.config.data.datasets.forEach(function(dataset) {
+        lineChart.config.data.datasets.forEach(function (dataset) {
             dataset.fill = false;
         });
     }
@@ -969,8 +977,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 }
 
 function addVisualizationContainer(queryName, seriesData, queryString) {
-     
-    var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
+    var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`);
     if (existingContainer.length === 0){
         var visualizationContainer = $(`
         <div class="metrics-graph" data-query="${queryName}">
@@ -978,41 +985,20 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
             <div class="graph-canvas"></div>
         </div>`);
 
-        // Determine where to insert the new container
-        if (queryName.startsWith('formula')) {
-            // Insert after all formula queries
-            var lastFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:last');
-            if (lastFormula.length) {
-                lastFormula.after(visualizationContainer);
-            } else {
-                // If no formula queries exist, append to the end
-                $('#metrics-graphs').append(visualizationContainer);
-            }
-        } else {
-            // Insert before the first formula query
-            var firstFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:first');
-            if (firstFormula.length) {
-                firstFormula.before(visualizationContainer);
-            } else {
-                // If no formula queries exist, append to the end
-                $('#metrics-graphs').append(visualizationContainer);
-            }
-        }
-
         var canvas = $('<canvas></canvas>');
         visualizationContainer.find('.graph-canvas').append(canvas);
-    } else{
+        $('#metrics-graphs').append(visualizationContainer);
+    } else {
         existingContainer.find('.query-string').text(queryString);
         var canvas = $('<canvas></canvas>');
         existingContainer.find('.graph-canvas').empty().append(canvas);
     }
 
     var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
-
     lineCharts[queryName] = lineChart;
     updateGraphWidth();
-    mergeGraphs(chartType)
 }
+
 
 function removeVisualizationContainer(queryName) {
     var containerToRemove = $('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]');
@@ -1465,17 +1451,70 @@ async function getMetricsData(queryName, metricName) {
     }
 }
 
-async function getMetricsDataForFormula(formulaId, formulaDetails){
+function parseRelativeDate(relativeDate) {
+    const now = new Date();
+    if (relativeDate === 'now') {
+        return now;
+    }
+
+    const matches = relativeDate.match(/now-(\d+)([dh])/);
+    if (matches) {
+        const value = parseInt(matches[1], 10);
+        const unit = matches[2];
+        if (unit === 'd') {
+            return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
+        } else if (unit === 'h') {
+            return new Date(now.getTime() - value * 60 * 60 * 1000);
+        }
+    }
+
+    throw new Error('Invalid relative date format');
+}
+
+async function getMetricsDataForFormula(formulaId, formulaDetails) {
+    if (formulaDetails.isNumeric) {
+        try {
+            const startTime = parseRelativeDate(filterStartDate).getTime();
+            const endTime = parseRelativeDate(filterEndDate).getTime();
+            // Generate data points for every hour between start and end time
+            const dataPoints = [];
+            for (let time = startTime; time <= endTime; time += 3600000) { // Increment by one hour in milliseconds
+                const date = new Date(time);
+                if (!isNaN(date)) {
+                    dataPoints.push({ x: date, y: parseFloat(formulaDetails.formula) });
+                } else {
+                    console.error("Invalid date generated:", date);
+                }
+            }
+            const seriesData = [{
+                seriesName: `Numeric Value: ${formulaDetails.formula}`,
+                values: dataPoints.reduce((acc, point) => {
+                    try {
+                        const isoString = point.x.toISOString();
+                        acc[isoString] = point.y;
+                    } catch (e) {
+                        console.error("Error converting date to ISO string:", point.x, e);
+                    }
+                    return acc;
+                }, {})
+            }];
+            addVisualizationContainer(formulaId, seriesData, `Formula: ${formulaDetails.formula}`);
+            return;
+        } catch (error) {
+            console.error("Error parsing dates:", error);
+        }
+    }
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
         let queryString;
-        if(queryDetails.state === "builder"){
+        if (queryDetails.state === "builder") {
             queryString = createQueryString(queryDetails);
-        }else {
+        } else {
             queryString = queryDetails.rawQueryInput;
+
         }
         const query = {
             name: queryName,
@@ -1500,13 +1539,15 @@ async function getMetricsDataForFormula(formulaId, formulaDetails){
         rawTimeSeriesData = res;
     }
 
-    const chartData = await convertDataForChart(rawTimeSeriesData)
-    if(isAlertScreen){
-        addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
-    }else{
-        addVisualizationContainer(formulaId, chartData, formulaString);
-    }
+    const chartData = await convertDataForChart(rawTimeSeriesData);
+    addVisualizationContainer(formulaId, chartData, formulaString);
 }
+
+
+
+
+
+
 
 async function fetchTimeSeriesData(data) {
     return $.ajax({
@@ -1885,51 +1926,51 @@ function xaxisFomatter(value, index, ticks) {
     let isDifferentDay = previousTick && date.getDate() !== previousTick.getDate();
     if (timeUnit === 'month') {
         return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null;
-    }else if (timeUnit === '7day') {
-        if (isDifferentDay) dayCnt7+=1;
-        if (dayCnt7 === 7){
+    } else if (timeUnit === '7day') {
+        if (isDifferentDay) dayCnt7 += 1;
+        if (dayCnt7 === 7) {
             dayCnt7 = 0;
-            return  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         }
         return null;
-    }else if (timeUnit === '2day') {
-        if (isDifferentDay) dayCnt2+=1;
-        if (dayCnt2 === 2 ){
+    } else if (timeUnit === '2day') {
+        if (isDifferentDay) dayCnt2 += 1;
+        if (dayCnt2 === 2) {
             dayCnt2 = 0;
             return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         }
         return null;
-    }else if (timeUnit === '12hour') {
-        if (date.getHours() % 12 === 0 ){
-            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+    } else if (timeUnit === '12hour') {
+        if (date.getHours() % 12 === 0) {
+            return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
         }
         return null;
-    }else if (timeUnit === '6hour') {
-        if (date.getHours() % 6 === 0){
-            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+    } else if (timeUnit === '6hour') {
+        if (date.getHours() % 6 === 0) {
+            return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
         }
         return null;
-    }else if (timeUnit === '3hour') {
-        if (date.getHours() % 3 === 0){
-            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+    } else if (timeUnit === '3hour') {
+        if (date.getHours() % 3 === 0) {
+            return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
         }
         return null;
-    }else if (timeUnit === '30minute') {
-        if (date.getMinutes() % 30 ===0 || date.getMinutes() === 0){
-            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+    } else if (timeUnit === '30minute') {
+        if (date.getMinutes() % 30 === 0 || date.getMinutes() === 0) {
+            return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
         }
         return null;
-    }else if (timeUnit === '15minute') {
-        if (date.getMinutes() % 15 ===0 || date.getMinutes() === 0){
-            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+    } else if (timeUnit === '15minute') {
+        if (date.getMinutes() % 15 === 0 || date.getMinutes() === 0) {
+            return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
         }
         return null;
-    }else if (timeUnit === '5minute') {
-        if (date.getMinutes() % 5 ===0 || date.getMinutes() === 0){
-            return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+    } else if (timeUnit === '5minute') {
+        if (date.getMinutes() % 5 === 0 || date.getMinutes() === 0) {
+            return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
         }
         return null;
-    }else {
-        return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
+    } else {
+        return isDifferentDay ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
     }
 }
