@@ -13,12 +13,15 @@ transforms:
       - read_from_file
     source: |
       messageVal = .message
-      values = split!(.message, r'^\x1b\[\d{2}m[A-Z]+\x1b\[0m\[\d{4}\]\s')
-      message = values[1]
-      containsMinute = contains!(message, "Minute", case_sensitive: false)
-      if containsMinute {
-          . = parse_key_value!(message, field_delimiter: ",", key_value_delimiter: "=")
-          .message = messageVal
+      values = split!(.message, "___")
+      valuesLength = length(values)
+      if valuesLength > 1 {
+        message = values[1]
+        containsMinute = contains!(message, "Minute", case_sensitive: false)
+        if containsMinute {
+            . = parse_key_value!(message, field_delimiter: ",", key_value_delimiter: "=")
+            .message = messageVal
+        }
       }
       ._index = "alerts-loadtest"
 
