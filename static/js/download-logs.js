@@ -27,7 +27,7 @@ var progressBar = $("#progressbar");
 var progressLabel = $(".progress-label");
 let confirmDownload = true;
 $(document).ready(() => {
-    setDownloadLogsDialog();
+  setDownloadLogsDialog();
 })
 $(function () {
   if (typeof interval != "undefined") {
@@ -185,9 +185,9 @@ function setDownloadLogsDialog() {
   // Function to convert JSON data to SQL format
   function convertToSQL(json) {
     const data = JSON.parse(json);
-    const tableName = 'SQL_Table'; 
-    const columns = Object.keys(data[0]); 
-    
+    const tableName = 'SQL_Table';
+    const columns = Object.keys(data[0]);
+
     // Generate SQL INSERT statements for each object in the data array
     const sqlStatements = data.map(item => {
       const values = columns.map(col => {
@@ -195,24 +195,24 @@ function setDownloadLogsDialog() {
         const value = typeof item[col] === 'string' ? `'${item[col].replace(/'/g, "''")}'` : item[col];
         return value;
       }).join(', '); // Join column values with commas
-  
+
       return `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${values});`;
     });
     return sqlStatements.join('\n');
   }
 
-    // Function to download SQL data as a file
-    function downloadSql(sqlData, fileName) {
-      const blob = new Blob([sqlData], { type: "text/sql" });
-      const url = URL.createObjectURL(blob);
-      const downloadLink = document.createElement("a");
-      downloadLink.href = url;
-      downloadLink.download = fileName;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-    }
-  
+  // Function to download SQL data as a file
+  function downloadSql(sqlData, fileName) {
+    const blob = new Blob([sqlData], { type: "text/sql" });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
+    downloadLink.href = url;
+    downloadLink.download = fileName;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  }
+
   function download() {
     confirmDownload = true;
     let valid = true;
@@ -224,14 +224,14 @@ function setDownloadLogsDialog() {
       qname,
       /^[a-zA-Z0-9_.-]+$/i,
       "Download name may consist of a-z, 0-9, period, dash, underscores."
-  );
-  let enteredName = $("#qnameDL").val();
-  let extension = curChoose;
-  let name = enteredName;
+    );
+    let enteredName = $("#qnameDL").val();
+    let extension = curChoose;
+    let name = enteredName;
 
-  if (!enteredName.endsWith(extension)) {
-    name += extension;
-  }
+    if (!enteredName.endsWith(extension)) {
+      name += extension;
+    }
 
     if (valid) {
       dialog.dialog("close");
@@ -248,7 +248,7 @@ function setDownloadLogsDialog() {
       let searchText = params.searchText;
       let n = searchText.indexOf("BY");
       let arrNew = [], textArr = [];
-      if(n != -1){
+      if (n != -1) {
         let textCut = searchText.substring(n + 2, searchText.length);
         let arrNew = textCut.split(",");
         for (let i = 0; i < arrNew.length; i++) {
@@ -283,28 +283,28 @@ function setDownloadLogsDialog() {
           if (res && res.hits && res.hits.records && res.hits.records.length > 0) {
             let json = JSON.stringify(res.hits.records);
             if (curChoose == ".json") {
-            downloadJson(name, JSON.stringify(json));
-          } else if (curChoose == ".csv") {
-            const csvData = convertToCSV(json);
-            downloadCsv(csvData, name);
-          } else if (curChoose == ".xml") {
-            const xmlData = convertToXML(json);
-            downloadXml(xmlData, name);
-          } else if (curChoose == ".sql") { 
-            console.log(json);
-            const sqlData = convertToSQL(json);
-            downloadSql(sqlData, name);
-          }
-          }else if (res && res.aggregations && res.aggregations[""].buckets.length > 0) {
+              downloadJson(name, JSON.stringify(json));
+            } else if (curChoose == ".csv") {
+              const csvData = convertToCSV(json);
+              downloadCsv(csvData, name);
+            } else if (curChoose == ".xml") {
+              const xmlData = convertToXML(json);
+              downloadXml(xmlData, name);
+            } else if (curChoose == ".sql") {
+              console.log(json);
+              const sqlData = convertToSQL(json);
+              downloadSql(sqlData, name);
+            }
+          } else if (res && res.aggregations && res.aggregations[""].buckets.length > 0) {
             let arr = res.aggregations[""].buckets;
             let createNewRecords = [];
-            for(let i = 0; i < arr.length; i++){
+            for (let i = 0; i < arr.length; i++) {
               let perInfo = arr[i];
               let newPerInfo = {};
-              for(let key in perInfo){
-                if(key != "key" && key != "doc_count") newPerInfo[key] = perInfo[key].value;
-                else if(key == "key") {
-                  for(let j = 0; j < textArr.length; j++){
+              for (let key in perInfo) {
+                if (key != "key" && key != "doc_count") newPerInfo[key] = perInfo[key].value;
+                else if (key == "key") {
+                  for (let j = 0; j < textArr.length; j++) {
                     newPerInfo[textArr[j]] = perInfo.key[j];
                   }
                 }
@@ -317,7 +317,7 @@ function setDownloadLogsDialog() {
               const csvData = convertToCSV(json);
               downloadCsv(csvData, name);
             }
-          }else{
+          } else {
             alert("no data available");
           }
         },

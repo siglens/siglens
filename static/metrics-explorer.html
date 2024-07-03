@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
 <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 
     gtag('config', 'G-5SBJC04YFB');
@@ -50,15 +50,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         #ui-id-1.ui-widget.ui-widget-content,
         #ui-id-2.ui-widget.ui-widget-content,
         #ui-id-3.ui-widget.ui-widget-content,
-        #ui-id-4.ui-widget.ui-widget-content{
+        #ui-id-4.ui-widget.ui-widget-content {
             width: 84px !important;
             min-width: 84px;
             font-size: 12px;
         }
-        #ui-id-1.ui-autocomplete > li > div,
-        #ui-id-2.ui-autocomplete > li > div,
-        #ui-id-3.ui-autocomplete > li > div,
-        #ui-id-4.ui-autocomplete > li > div{
+
+        #ui-id-1.ui-autocomplete>li>div,
+        #ui-id-2.ui-autocomplete>li>div,
+        #ui-id-3.ui-autocomplete>li>div,
+        #ui-id-4.ui-autocomplete>li>div {
             padding: 0px 9px;
             height: 28px;
         }
@@ -97,14 +98,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <button class="btn refresh-btn" title="Refresh dashboard"></button>
                         </div>
                         <div class="dropdown">
-                            <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown"
-                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
-                                title="Pick the time window">
+                            <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bs-toggle="dropdown" title="Pick the time window">
                                 <span>Time Picker</span>
                                 <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
                                 <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
                             </button>
-                            <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
+                            <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
+                                id="daterangepicker ">
                                 <p class="dt-header">Search the last</p>
                                 <div class="ranges">
                                     <div class="inner-range">
@@ -129,7 +131,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     </div>
                                     <hr>
                                     </hr>
-                                    <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span>
+                                    <div class="dt-header">Custom Search <span id="reset-timepicker"
+                                            type="reset">Reset</span>
                                     </div>
                                     <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
                                         <input type="date" id="date-start" />
@@ -149,8 +152,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                 </div>
                 <div id="metrics-explorer">
-                   <div id="metrics-queries"></div>
-                   <div id="metrics-formula"></div>
+                    <div id="metrics-queries"></div>
+                    <div id="metrics-formula"></div>
                     <div class="mt-3 d-flex ">
                         <button id="add-query" class="btn"><span class="plus-icon">+</span> Add Query</button>
                         <button id="add-formula" class="btn"><span class="plus-icon">+</span> Add Formula</button>
@@ -159,16 +162,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <hr>
                 <div id="visualization-options" class="d-flex mb-3 mt-3">
                     <div>
-                      Display : <input id="display-input" type="text" value="Line chart">
+                        Display : <input id="display-input" type="text" value="Line chart">
                     </div>
                     <div>
-                      Color : <input id="color-input" type="text" value="Classic">
+                        Color : <input id="color-input" type="text" value="Classic">
                     </div>
                     <div id="line-style-div">
-                      Style : <input id="line-style-input" type="text" value="Solid">
+                        Style : <input id="line-style-input" type="text" value="Solid">
                     </div>
                     <div id="stroke-div">
-                      Stroke : <input id="stroke-input" type="text" value="Normal">
+                        Stroke : <input id="stroke-input" type="text" value="Normal">
                     </div>
                 </div>
                 <hr>
@@ -180,9 +183,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </label>
                         <label class="label">One graph per query</label>
                     </div>
+                    <div class="dropdown download-btn">
+                        <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button"
+                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
+                            title="Download Logs">
+                        </button>
+                        <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn"
+                            id="save-query-options">
+                            <li id="csv-block" class="query-language-option">Download as CSV</li>
+                            <li id="json-block" class="query-language-option">Download as JSON</li>
+                        </div>
+                    </div>
+
                 </div>
                 <div id="metrics-graphs" class="metrics-graph-container mt-5">
-    
+
                 </div>
                 <div id="merged-graph-container" style="display: none;" class="mt-5"></div>
             </div>
@@ -202,6 +217,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/lib/chart.umd.min.js"></script>
     <script src="./js/metrics-explorer.js"></script>
+ 
     <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
 
     {{ .RunCheck2 | safeHTML }}

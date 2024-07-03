@@ -131,12 +131,46 @@ function createFormulaElementTemplate(uniqueId, initialValue = '') {
 
 function formulaRemoveHandler(formulaElement, uniqueId) {
     formulaElement.find('.remove-query').on('click', function() {
+        const formulaName = formulas[uniqueId]?.formula || '';
         delete formulas[uniqueId];
         formulaElement.remove();
         removeVisualizationContainer(uniqueId);
         $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+
+        // Update CSV data
+        removeCSVEntries(formulaName);
+
+        // Update JSON data
+        removeJSONEntries(formulaName);
     });
 }
+
+// Function to remove specific entries from CSV data
+function removeCSVEntries(name) {
+    const csvLines = csvData.trim().split("\n");
+    const updatedLines = csvLines.filter(line => !line.includes(name));
+    csvData = updatedLines.join("\n") + "\n";
+}
+
+// Function to remove specific entries from JSON data
+function removeJSONEntries(name) {
+    if (rawTimeSeriesData.series) {
+        const seriesIndexes = rawTimeSeriesData.series.reduce((indexes, seriesName, index) => {
+            if (seriesName.includes(name)) {
+                indexes.push(index);
+            }
+            return indexes;
+        }, []);
+
+        // Remove corresponding series and values
+        for (let i = seriesIndexes.length - 1; i >= 0; i--) {
+            rawTimeSeriesData.series.splice(seriesIndexes[i], 1);
+            rawTimeSeriesData.values.splice(seriesIndexes[i], 1);
+        }
+    }
+}
+
+
 
 function formulaAlertRemoveHandler(formulaElement, uniqueId){
     formulaElement.find('.remove-query').on('click', function() {
@@ -1449,11 +1483,113 @@ async function getMetricNames() {
     return res 
 }
 
+let csvData = ''; // Initialize CSV data variable
+let headerAdded = false; // Track if header has been added
+let allEntries = []; // Array to collect all JSON entries
 
+function convertToCSV(seriesName, formulaName, data) {
+    const series = data.series;
+    const timestamps = data.timestamps;
+    const values = data.values;
+
+    // Check if CSV data already contains the header
+    if (!csvData.includes('"Timestamp","Query","Value"')) {
+        csvData += `"Timestamp","Query","Value"\n`;
+    }
+
+    let csvRows = [];
+
+    timestamps.forEach((timestamp, index) => {
+        const timestampStr = new Date(timestamp * 1000).toISOString();
+        series.forEach((seriesName, seriesIndex) => {
+            const value = values[seriesIndex][index];
+            if (value !== null) {
+                let seriesFormulaName = seriesName;
+                if (formulaName && typeof formulaName !== 'object') {
+                    seriesFormulaName += ` ${formulaName}`;
+                }
+                csvRows.push(`"${timestampStr}","${seriesFormulaName}","${value}"`);
+            }
+        });
+    });
+
+    csvData += csvRows.join("\n") + "\n";
+}
+
+
+
+// Function to download CSV
+function downloadCsv(fileName) {
+    const blob = new Blob([csvData], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
+    downloadLink.href = url;
+    downloadLink.download = fileName;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+}
+
+// Function to convert JSON to JSON string and initiate download
+function downloadJson(fileName) {
+    const jsonData = JSON.stringify(allEntries, null, 2); // Pretty print JSON
+    const blob = new Blob([jsonData], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
+    downloadLink.href = url;
+    downloadLink.download = fileName;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+}
+
+// Event listeners for clicking on download options
+document.getElementById('csv-block').addEventListener('click', function() {
+    if (csvData) {
+        downloadCsv('metrics_data.csv');
+    } else {
+        console.error('No data available to download.');
+    }
+});
+
+document.getElementById('json-block').addEventListener('click', function() {
+    if (allEntries.length > 0) {
+        downloadJson('metrics_data.json');
+    } else {
+        console.error('No data available to download.');
+    }
+});
+
+// Function to fetch metric names
+async function getMetricNames() {
+    const data = {
+        start: filterStartDate,
+        end: filterEndDate,
+    };
+    const res = await $.ajax({
+        method: "post",
+        url: "metrics-explorer/api/v1/metric_names",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            Accept: "*/*",
+        },
+        crossDomain: true,
+        dataType: "json",
+        data: JSON.stringify(data),
+    });
+
+    if (res) {
+        availableMetrics = res.metricNames;
+    }
+    
+    return res;
+}
+
+// Function to fetch and convert metric data
 async function getMetricsData(queryName, metricName) {
     const query = { name: queryName, query: `(${metricName})`, qlType: "promql" };
     const queries = [query];
-    const formula = { formula: queryName };
+    const formula = { formula: queryName }; // Assuming formula uses queryName as formula
     const formulas = [formula];
     const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
 
@@ -1462,19 +1598,25 @@ async function getMetricsData(queryName, metricName) {
 
     if (res) {
         rawTimeSeriesData = res;
+        convertToCSV(queryName, formula.formula, rawTimeSeriesData); // Pass queryName and formula to convertToCSV
     }
 }
 
-async function getMetricsDataForFormula(formulaId, formulaDetails){
+// Function to fetch and convert metric data for formula
+async function getMetricsDataForFormula(formulaId, formulaDetails) {
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
+
+    // Assuming formula uses queryNames concatenated
+    const formulaName = formulaDetails.queryNames.join(' + ');
+
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
         let queryString;
-        if(queryDetails.state === "builder"){
+        if (queryDetails.state === "builder") {
             queryString = createQueryString(queryDetails);
-        }else {
+        } else {
             queryString = queryDetails.rawQueryInput;
         }
         const query = {
@@ -1488,7 +1630,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails){
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
     const formula = {
-        formula: formulaDetails.formula 
+        formula: formulaDetails.formula
     };
     formulas.push(formula);
     const data = { start: filterStartDate, end: filterEndDate, queries: queriesData, formulas: formulas };
@@ -1498,15 +1640,20 @@ async function getMetricsDataForFormula(formulaId, formulaDetails){
     const res = await fetchTimeSeriesData(data);
     if (res) {
         rawTimeSeriesData = res;
+        convertToCSV(formulaName, formulaDetails.formula, rawTimeSeriesData); // Pass formulaName and formulaDetails.formula
     }
 
-    const chartData = await convertDataForChart(rawTimeSeriesData)
-    if(isAlertScreen){
+    const chartData = await convertDataForChart(rawTimeSeriesData);
+    if (isAlertScreen) {
         addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
-    }else{
+    } else {
         addVisualizationContainer(formulaId, chartData, formulaString);
     }
 }
+
+
+
+
 
 async function fetchTimeSeriesData(data) {
     return $.ajax({
