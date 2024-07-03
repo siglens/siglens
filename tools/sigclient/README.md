@@ -132,7 +132,7 @@ Options:
 **Run E2E Tests For Alerting**
 
 ```bash
-$ go run main.go alerts -d http://localhost:5122
+$ go run main.go alerts e2e -d http://localhost:5122
 ```
 
 Options:
@@ -140,7 +140,6 @@ Options:
 ```
 -d, --dest string           The Host of the query server
 ```
-
 
 ## Utils
 
