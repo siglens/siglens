@@ -136,3 +136,21 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "city=Boston | stats count BY http_status | eval res=typeof(""example string"")",now-1d,now,*,group:res:400,eq,"String",Splunk QL
 "city=Boston | stats count BY state | eval res=typeof(state)",now-1d,now,*,group:res:Washington,eq,"String",Splunk QL
 "city=Boston | stats count AS Count BY state | eval res = typeof(Count)",now-1d,now,*,group:res:Maine,eq,"Number",Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval match = if(searchmatch(""http_status=200""), ""yes"", ""no"")",now-1d,now,*,group:match:200,eq,"yes",Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval match = if(searchmatch(""http_status=?00""), ""yes"", ""no"")",now-1d,now,*,group:match:500,eq,"yes",Splunk QL
+"app_name = ""Bracecould"" | stats count AS Count BY first_name | eval match = if(searchmatch(""first_name=A*e""), ""yes"", ""no"")",now-1d,now,*,group:match:Anabelle,eq,"yes",Splunk QL
+"app_name = ""Bracecould"" | stats count AS Count BY first_name | eval match = if(searchmatch(""first_name=A*e""), ""yes"", ""no"")",now-1d,now,*,group:match:Alessia,eq,"no",Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval x=""hi"" | eval y=""ab"" | eval z=""great"" | eval match=if(searchmatch(""x=hi y=a? z=*""), ""yes"", ""no"")",now-1d,now,*,group:match:301,eq,"yes",Splunk QL
+"city=Boston | stats count AS Count BY http_status | eval x=""hi"" | eval y=""a"" | eval z=""great"" | eval match=if(searchmatch(""x=hi y=a? z=*""), ""yes"", ""no"")",now-1d,now,*,group:match:301,eq,"no",Splunk QL
+"city=Boston | tail 7 | stats count",now-1d,now,*,countRecord:count(*):*,eq,7,Splunk QL
+"* | tail 30000 | stats count",now-1d,now,*,countRecord:count(*):*,eq,"30,000",Splunk QL
+"app_name = ""Bracecould"" | tail 3000 | stats count",now-1d,now,*,countRecord:count(*):*,eq,6,Splunk QL
+"city = Boston | sort batch | tail | stats count",now-1d,now,*,countRecord:count(*):*,eq,10,Splunk QL
+"* | head 2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
+"* | head | stats count",now-1d,now,*,countRecord:count(*):*,eq,10,Splunk QL
+"city=Boston | head limit=3 | stats count",now-1d,now,*,countRecord:count(*):*,eq,3,Splunk QL
+"app_name = Bracecould | head gender=""female"" | stats count",now-1d,now,*,countRecord:count(*):*,eq,3,Splunk QL
+"app_name = Bracecould | head gender=""female"" keeplast=true | stats count",now-1d,now,*,countRecord:count(*):*,eq,4,Splunk QL
+"app_name = Bracecould | head gender=""female"" OR gender=""male"" limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
+"app_name = Bracecould | head gender=""female"" OR gender=""male"" limit=2 keeplast=true | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
+"app_name = Bracecould | sort http_status | head http_status < 400 keeplast=true | stats count",now-1d,now,*,countRecord:count(*):*,eq,4,Splunk QL
