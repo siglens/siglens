@@ -240,6 +240,26 @@ type TcOptions struct {
 	OtherStr   string
 }
 
+type BinCmdOptions struct {
+	BinSpanOptions *BinSpanOptions
+	MinSpan        *BinSpanLength
+	MaxBins        uint64
+	Start          *float64
+	End            *float64
+	AlignTime      *uint64
+	Field          string
+}
+
+type BinSpanLength struct {
+	Num       float64
+	TimeScale utils.TimeUnit
+}
+
+type BinSpanOptions struct {
+	BinSpanLength *BinSpanLength
+	LogSpan       *LogSpan
+}
+
 type BinOptions struct {
 	SpanOptions *SpanOptions
 }
@@ -247,6 +267,11 @@ type BinOptions struct {
 type SpanOptions struct {
 	DefaultSettings bool
 	SpanLength      *SpanLength
+}
+
+type LogSpan struct {
+	Coefficient float64
+	Base        float64
 }
 
 type SpanLength struct {
