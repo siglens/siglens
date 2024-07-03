@@ -137,7 +137,12 @@ func (p Sqlite) verifyAlertExists(alert_id string) (bool, *alertutils.AlertDetai
 		}
 	}
 
-	_ = alert.DecodeQueryParamFromBase64()
+	err := alert.DecodeQueryParamFromBase64()
+	if err != nil {
+		err = fmt.Errorf("verifyAlertExists: unable to decode query params for Alert: %v, Error=%v", alert.AlertName, err)
+		log.Error(err.Error())
+		return false, nil, err
+	}
 
 	return true, &alert, nil
 }
@@ -221,7 +226,12 @@ func (p Sqlite) CreateAlert(alertDetails *alertutils.AlertDetails) (alertutils.A
 		log.Error(err.Error())
 		return alertutils.AlertDetails{}, err
 	}
-	_ = alertDetails.DecodeQueryParamFromBase64()
+	err = alertDetails.DecodeQueryParamFromBase64()
+	if err != nil {
+		err = fmt.Errorf("CreateAlert: unable to decode query params for Alert: %v, Error=%v", alertDetails.AlertName, err)
+		log.Error(err.Error())
+		return alertutils.AlertDetails{}, err
+	}
 	return *alertDetails, nil
 }
 
@@ -235,21 +245,33 @@ func (p Sqlite) GetAlert(alert_id string) (*alertutils.AlertDetails, error) {
 	if err := p.db.Preload("Labels").Where(&alertutils.AlertDetails{AlertId: alert_id}).Find(&alert).Error; err != nil {
 		return nil, err
 	}
-	_ = alert.DecodeQueryParamFromBase64()
-	return &alert, nil
+	err := alert.DecodeQueryParamFromBase64()
+	if err != nil {
+		err = fmt.Errorf("GetAlert: unable to decode query params for Alert: %v, Error=%v", alert.AlertName, err)
+		log.Error(err.Error())
+		return nil, err
+	}
 
+	return &alert, nil
 }
 
 func (p Sqlite) GetAllAlerts(orgId uint64) ([]*alertutils.AlertDetails, error) {
 	alerts := make([]*alertutils.AlertDetails, 0)
 	err := p.db.Model(&alerts).Preload("Labels").Where("org_id = ?", orgId).Find(&alerts).Error
 	if err != nil {
-		return alerts, err
+		return nil, err
 	}
+	finalAlerts := make([]*alertutils.AlertDetails, 0)
 	for _, alert := range alerts {
-		_ = alert.DecodeQueryParamFromBase64()
+		err := alert.DecodeQueryParamFromBase64()
+		if err != nil {
+			err = fmt.Errorf("GetAllAlerts: unable to decode query params for Alert: %v, Error=%v", alert.AlertName, err)
+			log.Error(err.Error())
+			continue
+		}
+		finalAlerts = append(finalAlerts, alert)
 	}
-	return alerts, err
+	return finalAlerts, err
 }
 
 func (p Sqlite) UpdateSilenceMinutes(alertData *alertutils.AlertDetails) error {
@@ -277,7 +299,12 @@ func (p Sqlite) UpdateSilenceMinutes(alertData *alertutils.AlertDetails) error {
 		return err
 	}
 
-	_ = alertData.DecodeQueryParamFromBase64()
+	err = alertData.DecodeQueryParamFromBase64()
+	if err != nil {
+		err = fmt.Errorf("UpdateSilenceMinutes: unable to decode query params for Alert: %v, Error=%v", alertData.AlertName, err)
+		log.Error(err.Error())
+		return err
+	}
 	return nil
 }
 
@@ -353,7 +380,12 @@ func (p Sqlite) UpdateAlert(editedAlert *alertutils.AlertDetails) error {
 		return err
 	}
 
-	_ = editedAlert.DecodeQueryParamFromBase64()
+	err = editedAlert.DecodeQueryParamFromBase64()
+	if err != nil {
+		err = fmt.Errorf("UpdateAlert: unable to decode query params for Alert: %v, Error=%v", editedAlert.AlertName, err)
+		log.Error(err.Error())
+		return err
+	}
 	return nil
 }
 
