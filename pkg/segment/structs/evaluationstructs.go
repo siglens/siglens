@@ -1710,43 +1710,38 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	case "getfields":
 		fallthrough
 	case "typeof":
-		var val utils.CValueEnclosure
-
-		if self.Val.NumericExpr == nil {
-			val.Dtype = utils.SS_INVALID
-		} else {
-			val, ok := fieldToValue[self.Val.NumericExpr.Value] // The parser always sets the fieldName in NumericExpr even if it's a string
+		if self.Val.NumericExpr != nil && self.Val.NumericExpr.ValueIsField {
+			val, ok := fieldToValue[self.Val.NumericExpr.Value]
 			if !ok {
-				val.Dtype = utils.SS_INVALID
-			}
-		}
-
-		switch val.Dtype {
-		case utils.SS_INVALID:
-			valueExpr, err := self.Val.EvaluateValueExprAsString(fieldToValue)
-			if err != nil {
 				return "Invalid", nil
 			}
-			if isNumber(valueExpr) {
-				return "Number", nil
-			}
-			if isBoolean(valueExpr) {
+			switch val.Dtype {
+			case utils.SS_DT_BOOL:
 				return "Boolean", nil
+			case utils.SS_DT_SIGNED_NUM, utils.SS_DT_UNSIGNED_NUM, utils.SS_DT_FLOAT,
+				utils.SS_DT_SIGNED_32_NUM, utils.SS_DT_USIGNED_32_NUM,
+				utils.SS_DT_SIGNED_16_NUM, utils.SS_DT_USIGNED_16_NUM,
+				utils.SS_DT_SIGNED_8_NUM, utils.SS_DT_USIGNED_8_NUM:
+				return "Number", nil
+			case utils.SS_DT_STRING, utils.SS_DT_STRING_SET, utils.SS_DT_RAW_JSON:
+				return "String", nil
+			case utils.SS_DT_BACKFILL:
+				return "Null", nil
+			default:
+				return "Invalid", nil
 			}
-			return "String", nil
-		case utils.SS_DT_BOOL:
-			return "Boolean", nil
-		case utils.SS_DT_SIGNED_NUM, utils.SS_DT_UNSIGNED_NUM, utils.SS_DT_FLOAT,
-			utils.SS_DT_SIGNED_32_NUM, utils.SS_DT_USIGNED_32_NUM,
-			utils.SS_DT_SIGNED_16_NUM, utils.SS_DT_USIGNED_16_NUM,
-			utils.SS_DT_SIGNED_8_NUM, utils.SS_DT_USIGNED_8_NUM:
-			return "Number", nil
-		case utils.SS_DT_STRING, utils.SS_DT_STRING_SET, utils.SS_DT_RAW_JSON:
-			return "String", nil
-		case utils.SS_DT_BACKFILL:
-			return "Null", nil
-		default:
-			return "Invalid", nil
+		} else {
+			// Handle raw values directly based on expression type
+			if self.Val.NumericExpr != nil {
+				return "Number", nil
+			} else if self.Val.StringExpr != nil {
+				if isBoolean(self.Val.StringExpr.RawString) {
+					return "Boolean", nil
+				}
+				return "String", nil
+			} else {
+				return "Invalid", nil
+			}
 		}
 	}
 	if self.Op == "max" {
