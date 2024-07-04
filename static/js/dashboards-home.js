@@ -223,7 +223,7 @@ class btnRenderer {
             </div>`;
         
         this.dButton = this.eGui.querySelector('.btn-simple');
-        this.dButton.style.marginRight = '24px'; 
+        this.dButton.style.marginRight = '25px'; 
         this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
         this.starIcon = this.eGui.querySelector('.star-icon');
         this.starIcon.style.backgroundImage = favoriteDBsSet.has(params.data.uniqId) ? starFilledURL : starOutlineURL;
