@@ -56,93 +56,93 @@ async function getAllDefaultDashboards() {
 	return serverResponse
 }
 async function getAllFavoriteDashboards() {
-    let serverResponse = []
-    await $.ajax({
-        method: 'get',
-        url: 'api/dashboards/listfavorites',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
-        },
-        crossDomain: true,
-        dataType: 'json',
-    }).then(function (res) {
+	let serverResponse = []
+	await $.ajax({
+		method: 'get',
+		url: 'api/dashboards/listfavorites',
+		headers: {
+			'Content-Type': 'application/json; charset=utf-8',
+			'Accept': '*/*'
+		},
+		crossDomain: true,
+		dataType: 'json',
+	}).then(function (res) {
 		serverResponse = res;
-    })
-    return serverResponse
+	})
+	return serverResponse
 }
 
 function createDashboard() {
 	$('.popupOverlay, .popupContent').addClass('active');
 	$('#new-dashboard-modal').show();
 	$('#delete-db-prompt').hide();
-  
+
 	function createDashboardWithInput() {
-	  var inputdbname = $("#db-name").val();
-	  var inputdbdescription = $("#db-description").val();
-	  var timeRange = "Last 1 Hour";
-	  var refresh = "";
-  
-	  if (!inputdbname) {
-		$('.error-tip').addClass('active');
-		$('.popupOverlay, .popupContent').addClass('active');
-		$('#new-dashboard-modal').show();
-	  } else {
-		$('#save-dbbtn').off('click');
-		$(document).off('keypress');
-		
-		$.ajax({
-		  method: "post",
-		  url: "api/dashboards/create",
-		  headers: {
-			'Content-Type': 'application/json; charset=utf-8',
-			'Accept': '*/*'
-		  },
-		  data: JSON.stringify(inputdbname),
-		  dataType: 'json',
-		  crossDomain: true,
-		}).then(function (res) {
-		  $("#db-name").val("");
-		  $("#db-description").val("");
-		  $('.error-tip').removeClass('active');
-		  $('.popupOverlay, .popupContent').removeClass('active');
-  
-		  var updateDashboard = {
-			"id": Object.keys(res)[0],
-			"name": Object.values(res)[0],
-			"details": {
-			  "name": Object.values(res)[0],
-			  "description": inputdbdescription,
-			  "timeRange": timeRange,
-			  "refresh": refresh,
-			}
-		  }
-  
-		  $.ajax({
-			method: "post",
-			url: "api/dashboards/update",
-			headers: {
-			  'Content-Type': 'application/json; charset=utf-8',
-			  'Accept': '*/*'
-			},
-			data: JSON.stringify(updateDashboard),
-			dataType: 'json',
-			crossDomain: true,
-		  }).then(function (msg) {
-			console.log("done:", msg)
-		  })
-  
-		  var queryString = "?id=" + Object.keys(res)[0];
-		  window.location.href = "../dashboard.html" + queryString;
-		}).catch(function (updateError) {
-			if (updateError.status === 409) {
-				$('.error-tip').text('Dashboard name already exists!');
-				$('.error-tip').addClass('active');
-				$('.popupOverlay, .popupContent').addClass('active');
-				attachEventHandlers();
-			}
-		  });
-	  }
+		var inputdbname = $("#db-name").val();
+		var inputdbdescription = $("#db-description").val();
+		var timeRange = "Last 1 Hour";
+		var refresh = "";
+
+		if (!inputdbname) {
+			$('.error-tip').addClass('active');
+			$('.popupOverlay, .popupContent').addClass('active');
+			$('#new-dashboard-modal').show();
+		} else {
+			$('#save-dbbtn').off('click');
+			$(document).off('keypress');
+
+			$.ajax({
+				method: "post",
+				url: "api/dashboards/create",
+				headers: {
+					'Content-Type': 'application/json; charset=utf-8',
+					'Accept': '*/*'
+				},
+				data: JSON.stringify(inputdbname),
+				dataType: 'json',
+				crossDomain: true,
+			}).then(function (res) {
+				$("#db-name").val("");
+				$("#db-description").val("");
+				$('.error-tip').removeClass('active');
+				$('.popupOverlay, .popupContent').removeClass('active');
+
+				var updateDashboard = {
+					"id": Object.keys(res)[0],
+					"name": Object.values(res)[0],
+					"details": {
+						"name": Object.values(res)[0],
+						"description": inputdbdescription,
+						"timeRange": timeRange,
+						"refresh": refresh,
+					}
+				}
+
+				$.ajax({
+					method: "post",
+					url: "api/dashboards/update",
+					headers: {
+						'Content-Type': 'application/json; charset=utf-8',
+						'Accept': '*/*'
+					},
+					data: JSON.stringify(updateDashboard),
+					dataType: 'json',
+					crossDomain: true,
+				}).then(function (msg) {
+					console.log("done:", msg)
+				})
+
+				var queryString = "?id=" + Object.keys(res)[0];
+				window.location.href = "../dashboard.html" + queryString;
+			}).catch(function (updateError) {
+				if (updateError.status === 409) {
+					$('.error-tip').text('Dashboard name already exists!');
+					$('.error-tip').addClass('active');
+					$('.popupOverlay, .popupContent').addClass('active');
+					attachEventHandlers();
+				}
+			});
+		}
 	}
 	// method to attach event handlers to avoid redundant event handlers
 	function attachEventHandlers() {
@@ -150,8 +150,8 @@ function createDashboard() {
 			createDashboardWithInput();
 		});
 
-		$(document).on('keypress', function(event){
-			if(event.keyCode == '13'){
+		$(document).on('keypress', function (event) {
+			if (event.keyCode == '13') {
 				event.preventDefault();
 				createDashboardWithInput();
 			}
@@ -159,7 +159,7 @@ function createDashboard() {
 
 		$('#cancel-dbbtn, .popupOverlay').on('click', function () {
 			$("#db-name").val("");
-			$("#db-description").val("");		
+			$("#db-description").val("");
 			$('.popupOverlay, .popupContent').removeClass('active');
 			$('.error-tip').removeClass('active');
 		});
@@ -211,27 +211,35 @@ function createSiglensDashboard(inputdbname) {
 
 class btnRenderer {
     init(params) {
-		const starOutlineURL = 'url("../assets/star-outline.svg")';
+        const starOutlineURL = 'url("../assets/star-outline.svg")';
         const starFilledURL = 'url("../assets/star-filled.svg")';
 
         this.eGui = document.createElement('span');
-        this.eGui.innerHTML = `<div id="dashboard-grid-btn">
-             
+        this.eGui.innerHTML = `<div id="dashboard-grid-btn" style="margin-left: 20px;"> <!-- Added margin to move the container to the right -->
                 <button class='btn' id="viewbutton" title="Open dashboard"></button>
                 <button class="btn-simple" id="delbutton" title="Delete dashboard"></button>
                 <button class="btn-duplicate" id="duplicateButton" title="Duplicate dashboard"></button>
-                <button class="star-icon" id="favbutton" title="Mark as favorite" ></button>
-                </div>`;
+                <button class="star-icon" id="favbutton" title="Mark as favorite"></button>
+            </div>`;
+        
         this.dButton = this.eGui.querySelector('.btn-simple');
+        this.dButton.style.marginRight = '24px'; 
         this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
-        this.starIcon=this.eGui.querySelector('.star-icon');
+        this.starIcon = this.eGui.querySelector('.star-icon');
         this.starIcon.style.backgroundImage = favoriteDBsSet.has(params.data.uniqId) ? starFilledURL : starOutlineURL;
 
-        //Disable delete for default dashboards
-		if (defaultDashboardIds.includes(params.data.uniqId)) {
-            this.dButton.disabled = true;
-            this.dButton.title = "Delete disabled";
-			this.dButton.classList.add('default-dashboard-delete'); 
+        //Disable delete for default dashboards and show "Default" label
+        if (defaultDashboardIds.includes(params.data.uniqId)) {
+            const defaultLabel = document.createElement('span');
+            defaultLabel.innerText = "Default";
+            defaultLabel.style.color = 'white';
+            defaultLabel.style.backgroundColor = 'blue';
+            defaultLabel.style.padding = '2px 6px';
+            defaultLabel.style.borderRadius = '3px';
+            defaultLabel.style.fontSize = '12px';
+            defaultLabel.style.marginRight = '6px'; // Adjusted margin to reduce gap
+            this.dButton.style.display = 'none';
+            this.duplicateButton.parentNode.insertBefore(defaultLabel, this.duplicateButton);
         }
 
         function deletedb() {
@@ -307,25 +315,27 @@ class btnRenderer {
                 })
             })
         }
-		function toggleFavorite() {
-			$.ajax({
-				method: 'put',
-				url: 'api/dashboards/favorite/' + params.data.uniqId,
-				headers: {
-					'Content-Type': 'application/json; charset=utf-8',
-					Accept: '*/*',
-				},
-				crossDomain: true,
-			}).then((response) => {
-				// Update the favorite status based on the response
-				params.data.favorite = response.isFavorite;
-				if(params.data.favorite) {
-					this.starIcon.style.backgroundImage = starFilledURL;
-				} else {
-					this.starIcon.style.backgroundImage = starOutlineURL;
-				}							
-			});
-		}
+
+        function toggleFavorite() {
+            $.ajax({
+                method: 'put',
+                url: 'api/dashboards/favorite/' + params.data.uniqId,
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    Accept: '*/*',
+                },
+                crossDomain: true,
+            }).then((response) => {
+                // Update the favorite status based on the response
+                params.data.favorite = response.isFavorite;
+                if (params.data.favorite) {
+                    this.starIcon.style.backgroundImage = starFilledURL;
+                } else {
+                    this.starIcon.style.backgroundImage = starOutlineURL;
+                }
+            });
+        }
+
         function showPrompt() {
             $('#delete-db-prompt').css('display', 'flex');
             $('.popupOverlay, .popupContent').addClass('active');
@@ -345,12 +355,13 @@ class btnRenderer {
 
         this.dButton.addEventListener('click', showPrompt);
         this.duplicateButton.addEventListener('click', duplicatedb);
-        this.starIcon.addEventListener('click',toggleFavorite.bind(this));
+        this.starIcon.addEventListener('click', toggleFavorite.bind(this));
     }
 
     getGui() {
         return this.eGui;
     }
+
     refresh(params) {
         // Use the URL of the SVG files for star icons
         const starOutlineURL = 'url("../assets/star-outline.svg")';
@@ -431,7 +442,7 @@ const dbgridOptions = {
 function displayDashboards(res, flag) {
 	let favorites = [];
 	let nonFavorites = [];
-	
+
 	for (let [key, value] of Object.entries(res)) {
 		if (favoriteDBsSet.has(key)) {
 			favorites.push([key, value]);
@@ -546,7 +557,7 @@ $(document).ready(async function () {
 
 	let normalDBs = await getAllDashboards();
 	let allDefaultDBs = await getAllDefaultDashboards();
-	let allDBs = {...normalDBs, ...allDefaultDBs}
+	let allDBs = { ...normalDBs, ...allDefaultDBs }
 	let favoriteDBs = await getAllFavoriteDashboards();
 	// Convert the array of favorite dashboards to a Set for faster lookup
 	favoriteDBsSet = new Set(Object.keys(favoriteDBs));
