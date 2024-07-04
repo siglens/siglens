@@ -233,7 +233,7 @@ class btnRenderer {
             const defaultLabel = document.createElement('span');
             defaultLabel.innerText = "Default";
             defaultLabel.style.color = 'white';
-            defaultLabel.style.backgroundColor = 'blue';
+            defaultLabel.style.backgroundColor = '#007bff';
             defaultLabel.style.padding = '2px 6px';
             defaultLabel.style.borderRadius = '3px';
             defaultLabel.style.fontSize = '12px';
