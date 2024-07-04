@@ -44,6 +44,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/query-builder.css" />
     <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
     <link rel="stylesheet" href="./css/metrics-explorer.css?v={{ CSSVersion }}" />
     <style>
@@ -175,7 +176,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                 </div>
                 <hr>
-                <div class="mt-4">
+                <div class="mt-4" style="display:flex;flex-direction:row;gap:5px">
                     <div class="graph-view-container btn">
                         <label class="switch">
                             <input type="checkbox" id="toggle-switch" checked>
@@ -216,8 +217,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/navbar.js?cb=1_1_10"></script>
     <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/lib/chart.umd.min.js"></script>
-    <script src="./js/metrics-explorer.js"></script>
- 
+    <script src="./js/metrics-explorer.js"></script> 
     <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
 
     {{ .RunCheck2 | safeHTML }}
