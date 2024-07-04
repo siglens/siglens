@@ -203,6 +203,7 @@ async function getAlertId() {
             originalIndexValues = indexes.map(item => item.index);
             indexValues = [...originalIndexValues];
         }
+        initializeFilterInputEvents();
         initializeIndexAutocomplete();
         setIndexDisplayValue(selectedSearchIndex);
     }
