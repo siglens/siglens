@@ -46,7 +46,7 @@ type database interface {
 	GetAlert(alert_id string) (*alertutils.AlertDetails, error)
 	CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error)
 	GetAlertHistoryByAlertID(alertHistoryParams *alertutils.AlertHistoryQueryParams) ([]*alertutils.AlertHistoryDetails, error)
-	GetAllAlerts(orgId uint64) ([]alertutils.AlertDetails, error)
+	GetAllAlerts(orgId uint64) ([]*alertutils.AlertDetails, error)
 	CreateMinionSearch(alertInfo *alertutils.MinionSearch) (alertutils.MinionSearch, error)
 	GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error)
 	GetAllMinionSearches(orgId uint64) ([]alertutils.MinionSearch, error)
