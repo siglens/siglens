@@ -48,7 +48,7 @@ function getRetentionDataFromConfig() {
     });
 }
 
-function getPersistentQueriesSetting(){
+function getPersistentQueriesSetting() {
     $.ajax({
         method: "GET",
         url: "/api/pqs/get",
@@ -95,21 +95,21 @@ function updatePQS() {
 
     if (selectedOption.toLowerCase() === 'disabled') {
         $('.popupOverlay, .popupContent').addClass('active');
-        $('#cancel-disable-pqs').on('click', function() {
+        $('#cancel-disable-pqs').on('click', function () {
             $('.popupOverlay, .popupContent').removeClass('active');
             $(`.contact-option:contains("Enabled")`).addClass('active');
         });
-        
-        $('#disable-pqs').on('click', function() {
-            $('#contact-types span').text(selectedOption); 
+
+        $('#disable-pqs').on('click', function () {
+            $('#contact-types span').text(selectedOption);
             $('.popupOverlay, .popupContent').removeClass('active');
             $(`.contact-option:contains("Disabled")`).addClass('active');
             updatePersistentQueriesSetting(false);
         });
     }
-    if(selectedOption.toLowerCase() === 'enabled') {
+    if (selectedOption.toLowerCase() === 'enabled') {
         updatePersistentQueriesSetting(true);
-        $('#contact-types span').text(selectedOption); 
+        $('#contact-types span').text(selectedOption);
         $(`.contact-option:contains("Enabled")`).addClass('active');
     }
 }
@@ -122,7 +122,7 @@ function setPersistentQueries(pqsEnabled) {
 
 {{ .SettingsExtraFunctions }}
 
-function getSystemInfo(){
+function getSystemInfo() {
     $.ajax({
         method: "GET",
         url: "/api/system-info",
@@ -143,7 +143,7 @@ function getSystemInfo(){
 
 function addSystemInfoTable(systemInfo) {
     var table = $("#system-info-table");
-    
+
     function createRow(header, value) {
         return `<tr><th>${header}</th><td>${value}</td></tr>`;
     }
@@ -172,14 +172,14 @@ function addSystemInfoTable(systemInfo) {
 function formatUptime(uptimeMinutes) {
     if (uptimeMinutes < 60) {
         return uptimeMinutes + " mins";
-    } else if (uptimeMinutes < 24*60) {
+    } else if (uptimeMinutes < 24 * 60) {
         return Math.floor(uptimeMinutes / 60) + " hours";
-    } else if (uptimeMinutes < 7*24*60) {
-        return Math.floor(uptimeMinutes / (24*60)) + " days";
-    } else if (uptimeMinutes < 30*24*60) {
-        return Math.floor(uptimeMinutes / (7*24*60)) + " weeks";
+    } else if (uptimeMinutes < 7 * 24 * 60) {
+        return Math.floor(uptimeMinutes / (24 * 60)) + " days";
+    } else if (uptimeMinutes < 30 * 24 * 60) {
+        return Math.floor(uptimeMinutes / (7 * 24 * 60)) + " weeks";
     } else {
-        return Math.floor(uptimeMinutes / (30*24*60)) + " months";
+        return Math.floor(uptimeMinutes / (30 * 24 * 60)) + " months";
     }
 }
 

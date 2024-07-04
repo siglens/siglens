@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -96,29 +96,30 @@ const contactFormHTML = `
 `;
 
 $(document).ready(function () {
-
     $('.theme-btn').on('click', themePickerHandler);
-    $('#new-contact-point').on('click', initializeContactForm)
+    $('#new-contact-point').on('click', initializeContactForm);
     $('#contact-form-container').css('display', 'none');
     getAllContactPoints();
-    if (window.location.href.includes("alert.html")) {
+    if (window.location.href.includes('alert.html')) {
         initializeContactForm();
     }
 
-    const tooltipIds = ["info-slack-channel-id", "info-slack-token"];
+    const tooltipIds = ['info-slack-channel-id', 'info-slack-token'];
 
-    tooltipIds.forEach(id => {
-        $(`#${id}`).tooltip({
-            delay: { show: 0, hide: 300 },
-            trigger: "click"
-        }).on("click", function () {
-            $(`#${id}`).tooltip("show");
-        });
+    tooltipIds.forEach((id) => {
+        $(`#${id}`)
+            .tooltip({
+                delay: { show: 0, hide: 300 },
+                trigger: 'click',
+            })
+            .on('click', function () {
+                $(`#${id}`).tooltip('show');
+            });
     });
 
     $(document).mouseup(function (e) {
-        if ($(e.target).closest(".tooltip-inner").length === 0) {
-            tooltipIds.forEach(id => $(`#${id}`).tooltip("hide"));
+        if ($(e.target).closest('.tooltip-inner').length === 0) {
+            tooltipIds.forEach((id) => $(`#${id}`).tooltip('hide'));
         }
     });
 });
@@ -126,90 +127,84 @@ $(document).ready(function () {
 $(document).on('click', '.contact-option', setContactTypes);
 
 function updateDeleteButtonVisibility() {
-    const contactContainers = $(".contact-container");
+    const contactContainers = $('.contact-container');
     if (contactContainers.length > 1) {
-        contactContainers.find(".del-contact-type").show();
+        contactContainers.find('.del-contact-type').show();
     } else {
-        contactContainers.find(".del-contact-type").hide();
+        contactContainers.find('.del-contact-type').hide();
     }
 }
 
 function initializeContactForm(contactId) {
-    $("#new-contact-point").css("display", "none");
-    $("#alert-grid-container").css("display", "none");
-    $("#contact-form-container").css("display", "block");
-    const formContainer = $("#contact-form-container");
+    $('#new-contact-point').css('display', 'none');
+    $('#alert-grid-container').css('display', 'none');
+    $('#contact-form-container').css('display', 'block');
+    const formContainer = $('#contact-form-container');
 
     if (formContainer) {
         formContainer.html(contactFormHTML); // Use .html() to replace the content to avoid appending multiple times.
-        $(".slack-container").css("display", "block");
-        $(".webhook-container").css("display", "none");
+        $('.slack-container').css('display', 'block');
+        $('.webhook-container').css('display', 'none');
         if (contactEditFlag) {
             showContactFormForEdit(contactId);
         } else {
-            $(".contact-container").first().find(".button-container").append(
-                '<button class="btn-simple del-contact-type" type="button"></button>'
-            );
+            $('.contact-container').first().find('.button-container').append('<button class="btn-simple del-contact-type" type="button"></button>');
         }
     }
 
-    const contactForm = $("#contact-form");
-    contactForm.on("submit", (e) => submitAddContactPointForm(e));
+    const contactForm = $('#contact-form');
+    contactForm.on('submit', (e) => submitAddContactPointForm(e));
 
-    $("#cancel-contact-btn").on("click", function () {
+    $('#cancel-contact-btn').on('click', function () {
         resetContactForm();
-        if (window.location.href.includes("alert.html")) {
-            $(".popupOverlay, .popupContent").removeClass("active");
-            $("#main-container .contact-container:gt(0)").remove();
+        if (window.location.href.includes('alert.html')) {
+            $('.popupOverlay, .popupContent').removeClass('active');
+            $('#main-container .contact-container:gt(0)').remove();
         } else {
-            window.location.href = "../contacts.html";
+            window.location.href = '../contacts.html';
         }
     });
 
     updateDeleteButtonVisibility();
 
-    $(".add-new-contact-type").on("click", function () {
+    $('.add-new-contact-type').on('click', function () {
         addNewContactTypeContainer();
     });
 
-    $("#main-container").on("click", ".del-contact-type", function () {
-        $(this).closest(".contact-container").remove();
+    $('#main-container').on('click', '.del-contact-type', function () {
+        $(this).closest('.contact-container').remove();
         updateDeleteButtonVisibility();
     });
 
-    $("#main-container").on("click", ".test-contact-btn", function () {
+    $('#main-container').on('click', '.test-contact-btn', function () {
         const container = $(this).closest('.contact-container');
         getContactPointTestData(container);
     });
 }
 
 function addNewContactTypeContainer() {
-    let newContactContainer = $(".contact-container").first().clone();
-    newContactContainer.find(".form-control").val("");
-    newContactContainer.find(".del-contact-type").remove(); // Remove any existing delete buttons
-    newContactContainer.find(".button-container").append(
-        '<button class="btn-simple del-contact-type" type="button"></button>',
-    );
-    newContactContainer.appendTo("#main-container");
+    let newContactContainer = $('.contact-container').first().clone();
+    newContactContainer.find('.form-control').val('');
+    newContactContainer.find('.del-contact-type').remove(); // Remove any existing delete buttons
+    newContactContainer.find('.button-container').append('<button class="btn-simple del-contact-type" type="button"></button>');
+    newContactContainer.appendTo('#main-container');
 
-    const newChannelIdInfoId = "info-slack-channel-id-" + Date.now();
-    const newTokenInfoId = "info-slack-token-" + Date.now();
+    const newChannelIdInfoId = 'info-slack-channel-id-' + Date.now();
+    const newTokenInfoId = 'info-slack-token-' + Date.now();
 
     newContactContainer.find('.fa-info-circle').eq(0).attr('id', newChannelIdInfoId);
     newContactContainer.find('.fa-info-circle').eq(1).attr('id', newTokenInfoId);
 
-    [newChannelIdInfoId, newTokenInfoId].forEach(id => {
+    [newChannelIdInfoId, newTokenInfoId].forEach((id) => {
         $(`#${id}`).tooltip({
             delay: { show: 0, hide: 300 },
-            trigger: "hover"
+            trigger: 'hover',
         });
     });
 
-    $(".add-new-contact-type").appendTo("#main-container"); // Move the button to the end
+    $('.add-new-contact-type').appendTo('#main-container'); // Move the button to the end
     updateDeleteButtonVisibility();
 }
-
-
 
 function setContactTypes() {
     const selectedOption = $(this).html();
@@ -256,11 +251,9 @@ function setContactForm() {
             if (slackValue && slackToken) {
                 let slackContact = {
                     channel_id: slackValue,
-                    slack_token: slackToken
+                    slack_token: slackToken,
                 };
                 contactData.slack.push(slackContact);
-
-
             }
         } else if (contactType === 'Webhook') {
             let webhookValue = $(this).find('#webhook-id').val();
@@ -272,7 +265,7 @@ function setContactForm() {
             }
         }
     });
-    contactData.pager_duty = "";
+    contactData.pager_duty = '';
 }
 
 function submitAddContactPointForm(e) {
@@ -289,71 +282,74 @@ function submitAddContactPointForm(e) {
 
 function createContactPoint() {
     $.ajax({
-        method: "post",
-        url: "api/alerts/createContact",
+        method: 'post',
+        url: 'api/alerts/createContact',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
+            Accept: '*/*',
         },
         data: JSON.stringify(contactData),
         dataType: 'json',
         crossDomain: true,
-    }).then(res => {
-        if (window.location.href.includes("alert.html")) {
-            $(".popupOverlay, .popupContent").removeClass("active");
-            getAllContactPoints(contactData.contact_name);
-        } else {
-            window.location.href = "../contacts.html";
-        }
-        resetContactForm();
-        showToast(res.message, 'success');
-    }).catch(err => {
-        if (window.location.href.includes("alert.html")) {
-            $(".popupOverlay, .popupContent").removeClass("active");
-        }
-        showToast(err.responseJSON.error, 'error');
     })
+        .then((res) => {
+            if (window.location.href.includes('alert.html')) {
+                $('.popupOverlay, .popupContent').removeClass('active');
+                getAllContactPoints(contactData.contact_name);
+            } else {
+                window.location.href = '../contacts.html';
+            }
+            resetContactForm();
+            showToast(res.message, 'success');
+        })
+        .catch((err) => {
+            if (window.location.href.includes('alert.html')) {
+                $('.popupOverlay, .popupContent').removeClass('active');
+            }
+            showToast(err.responseJSON.error, 'error');
+        });
 }
 
 function updateContactPoint() {
     $.ajax({
-        method: "post",
-        url: "api/alerts/updateContact",
+        method: 'post',
+        url: 'api/alerts/updateContact',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
+            Accept: '*/*',
         },
         data: JSON.stringify(contactData),
         dataType: 'json',
         crossDomain: true,
-    }).then(res => {
-        resetContactForm();
-        window.location.href = '../contacts.html';
-        showToast(res.message, 'success');
-    }).catch(err => {
-        showToast(err.responseJSON.error, 'error');
     })
+        .then((res) => {
+            resetContactForm();
+            window.location.href = '../contacts.html';
+            showToast(res.message, 'success');
+        })
+        .catch((err) => {
+            showToast(err.responseJSON.error, 'error');
+        });
 }
 
 function getAllContactPoints(contactName) {
     $.ajax({
-        method: "get",
-        url: "api/alerts/allContacts",
+        method: 'get',
+        url: 'api/alerts/allContacts',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
+            Accept: '*/*',
         },
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
         allContactsArray = res.contacts;
-        if (window.location.href.includes("alert.html")) {
-            const contact = allContactsArray.find(contact => contact.contact_name === contactName);
+        if (window.location.href.includes('alert.html')) {
+            const contact = allContactsArray.find((contact) => contact.contact_name === contactName);
             $('#contact-points-dropdown span').html(contact.contact_name);
             $('#contact-points-dropdown span').attr('id', contact.contact_id);
-        } else
-            displayAllContacts(res.contacts);
-    })
+        } else displayAllContacts(res.contacts);
+    });
 }
 
 function deleteContactPrompt(data) {
@@ -375,17 +371,19 @@ function deleteContactPrompt(data) {
                 contact_id: data.contactId,
             }),
             crossDomain: true,
-        }).then(function (res) {
-            let deletedRowID = data.rowId;
-            contactGridOptions.api.applyTransaction({
-                remove: [{ rowId: deletedRowID }],
-            });
+        })
+            .then(function (res) {
+                let deletedRowID = data.rowId;
+                contactGridOptions.api.applyTransaction({
+                    remove: [{ rowId: deletedRowID }],
+                });
 
-            showToast(res.message, 'success');
-            $('.popupOverlay, .popupContent').removeClass('active');
-        }).catch((err) => {
-            showToast(err.responseJSON.error, "error");
-        });
+                showToast(res.message, 'success');
+                $('.popupOverlay, .popupContent').removeClass('active');
+            })
+            .catch((err) => {
+                showToast(err.responseJSON.error, 'error');
+            });
     });
 }
 
@@ -414,7 +412,6 @@ class btnRenderer {
     }
 }
 
-
 function showDeleteContactDialog(data, matchingAlertNames) {
     $('#contact-name-placeholder-delete-dialog').html('<strong>' + data.contactName + '</strong>');
     $('.popupOverlay, .delete-dialog').addClass('active');
@@ -428,9 +425,9 @@ function showDeleteContactDialog(data, matchingAlertNames) {
     // Apply styling to make the dropdown scrollable
     el.css({
         'max-height': `${maxHeight}px`,
-        'overflow-y': 'auto'
+        'overflow-y': 'auto',
     });
-    $("body").css("cursor", "default");
+    $('body').css('cursor', 'default');
     $('#cancel-btn, .popupOverlay').click(function () {
         $('.popupOverlay, .delete-dialog').removeClass('active');
     });
@@ -440,11 +437,11 @@ function getAllAlertsWithSameContactPoint(data) {
     const contactId = data.contactId;
     const matchingAlertNames = [];
     $.ajax({
-        method: "get",
-        url: "api/allalerts",
+        method: 'get',
+        url: 'api/allalerts',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
+            Accept: '*/*',
         },
         dataType: 'json',
         crossDomain: true,
@@ -461,32 +458,31 @@ function getAllAlertsWithSameContactPoint(data) {
         } else {
             deleteContactPrompt(data);
         }
-    })
+    });
 }
-
 
 let contactColumnDefs = [
     {
-        field: "rowId",
-        hide: true
+        field: 'rowId',
+        hide: true,
     },
     {
-        field: "contactId",
-        hide: true
+        field: 'contactId',
+        hide: true,
     },
     {
-        headerName: "Contact point name",
-        field: "contactName",
+        headerName: 'Contact point name',
+        field: 'contactName',
         sortable: true,
         width: 100,
     },
     {
-        headerName: "Type",
-        field: "type",
+        headerName: 'Type',
+        field: 'type',
         width: 100,
     },
     {
-        headerName: "Actions",
+        headerName: 'Actions',
         cellRenderer: btnRenderer,
         width: 50,
     },
@@ -530,13 +526,15 @@ function validateContactForm() {
             const slackToken = $(this).find('#slack-token').val();
             if (!slackValue || !slackToken) {
                 isValid = false;
-                $(this).find('#slack-channel-id, #slack-token').each(function () {
-                    if (!$(this).val()) {
-                        $(this).addClass('is-invalid');
-                    } else {
-                        $(this).removeClass('is-invalid');
-                    }
-                });
+                $(this)
+                    .find('#slack-channel-id, #slack-token')
+                    .each(function () {
+                        if (!$(this).val()) {
+                            $(this).addClass('is-invalid');
+                        } else {
+                            $(this).removeClass('is-invalid');
+                        }
+                    });
             }
         } else if (contactType === 'Webhook') {
             const webhookValue = $(this).find('#webhook-id').val();
@@ -558,29 +556,30 @@ function displayAllContacts(res) {
         new agGrid.Grid(contactGridDiv, contactGridOptions);
     }
     contactGridOptions.api.setColumnDefs(contactColumnDefs);
-    let newRow = new Map()
+    let newRow = new Map();
     $.each(res, function (key, value) {
-        let contactType =
-            Object.entries(value)
-                .filter(([k, v]) => v != null && v.length !== 0 && k !== 'contact_name' && k !== 'contact_id' && k !== 'org_id')
-                .map(([k, v]) => {
-                    return v.length > 1 ? `${capitalize(k)} (${v.length})` : capitalize(k);
-                });
-        let type = contactType.join(', ')
+        let contactType = Object.entries(value)
+            .filter(([k, v]) => v != null && v.length !== 0 && k !== 'contact_name' && k !== 'contact_id' && k !== 'org_id')
+            .map(([k, v]) => {
+                return v.length > 1 ? `${capitalize(k)} (${v.length})` : capitalize(k);
+            });
+        let type = contactType.join(', ');
 
-        newRow.set("rowId", key);
-        newRow.set("contactId", value.contact_id);
-        newRow.set("contactName", value.contact_name);
-        newRow.set("type", type);
+        newRow.set('rowId', key);
+        newRow.set('contactId', value.contact_id);
+        newRow.set('contactName', value.contact_name);
+        newRow.set('type', type);
         contactRowData = _.concat(contactRowData, Object.fromEntries(newRow));
-    })
+    });
     contactGridOptions.api.setRowData(contactRowData);
     contactGridOptions.api.sizeColumnsToFit();
 }
 
-//Edit Contact Point 
+//Edit Contact Point
 function showContactFormForEdit(contactId) {
-    let data = allContactsArray.find(function (obj) { return obj.contact_id === contactId });
+    let data = allContactsArray.find(function (obj) {
+        return obj.contact_id === contactId;
+    });
     $('#contact-name').val(data.contact_name);
 
     let isFirst = true;
@@ -637,7 +636,7 @@ function showContactFormForEdit(contactId) {
         $('.contact-container').find('.del-contact-type').remove();
     }
 
-    $(".add-new-contact-type").appendTo("#main-container"); // Move the button to the end
+    $('.add-new-contact-type').appendTo('#main-container'); // Move the button to the end
 
     updateDeleteButtonVisibility(); // Ensure delete buttons are updated after form initialization
 
@@ -645,7 +644,6 @@ function showContactFormForEdit(contactId) {
         contactData.contact_id = data.contact_id;
     }
 }
-
 
 function getContactPointTestData(container) {
     let contactData = {};
@@ -659,8 +657,8 @@ function getContactPointTestData(container) {
                 type: 'slack',
                 settings: {
                     channel_id: slackValue,
-                    slack_token: slackToken
-                }
+                    slack_token: slackToken,
+                },
             };
         }
     } else if (contactType === 'Webhook') {
@@ -669,8 +667,8 @@ function getContactPointTestData(container) {
             contactData = {
                 type: 'webhook',
                 settings: {
-                    webhook: webhookValue
-                }
+                    webhook: webhookValue,
+                },
             };
         }
     }
@@ -687,15 +685,16 @@ function testContactPointHandler(testContactPointData) {
         },
         data: JSON.stringify(testContactPointData),
         crossDomain: true,
-    }).then(function (res) {
-        if (res.message) {
-            showToast(res.message, 'success');
-        }
-    }).fail(function (jqXHR) {
-        let response = jqXHR.responseJSON;
-        if (response && response.error) {
-            showToast(response.error, 'error');
-        }
-    });
+    })
+        .then(function (res) {
+            if (res.message) {
+                showToast(res.message, 'success');
+            }
+        })
+        .fail(function (jqXHR) {
+            let response = jqXHR.responseJSON;
+            if (response && response.error) {
+                showToast(response.error, 'error');
+            }
+        });
 }
-
