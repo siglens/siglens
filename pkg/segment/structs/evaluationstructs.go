@@ -248,6 +248,9 @@ type BinCmdOptions struct {
 	End            *float64
 	AlignTime      *uint64
 	Field          string
+	Records 	  map[string]map[string]interface{}
+	RecordIndex   map[int]map[string]int
+	NumProcessedSegments  uint64
 }
 
 type BinSpanLength struct {
