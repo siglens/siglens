@@ -1969,7 +1969,7 @@ $('#alert-from-metrics-container').click(function() {
         });
    }
    if(Object.keys(formulas).length > 0){
-    mformulas=[];
+        mformulas=[];
         Object.keys(formulas).forEach(function(formulaId){
             let formulaDetails = formulas[formulaId];
             const formula = {
@@ -1981,7 +1981,7 @@ $('#alert-from-metrics-container').click(function() {
     if(Object.keys(formulas).length === 0 && Object.keys(queries).length > 1){
         let queryNames = Object.keys(queries);
         let formulaInput = queryNames.join(" + ");
-        mformulas.push(formulaInput)
+        mformulas=[formulaInput]
     }
     var queryParams = {
         "queryLanguage": 'PromQL',
