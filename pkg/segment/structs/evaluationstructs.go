@@ -240,6 +240,26 @@ type TcOptions struct {
 	OtherStr   string
 }
 
+type BinCmdOptions struct {
+	BinSpanOptions *BinSpanOptions
+	MinSpan        *BinSpanLength
+	MaxBins        uint64
+	Start          *float64
+	End            *float64
+	AlignTime      *uint64
+	Field          string
+}
+
+type BinSpanLength struct {
+	Num       float64
+	TimeScale utils.TimeUnit
+}
+
+type BinSpanOptions struct {
+	BinSpanLength *BinSpanLength
+	LogSpan       *LogSpan
+}
+
 type BinOptions struct {
 	SpanOptions *SpanOptions
 }
@@ -247,6 +267,11 @@ type BinOptions struct {
 type SpanOptions struct {
 	DefaultSettings bool
 	SpanLength      *SpanLength
+}
+
+type LogSpan struct {
+	Coefficient float64
+	Base        float64
 }
 
 type SpanLength struct {
@@ -1787,7 +1812,39 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 	case "getfields":
 		fallthrough
 	case "typeof":
-		return "", fmt.Errorf("TextExpr.EvaluateText: dose not support functions:%v: right now", self.Op)
+		if self.Val.NumericExpr != nil && self.Val.NumericExpr.ValueIsField {
+			val, ok := fieldToValue[self.Val.NumericExpr.Value]
+			if !ok {
+				return "Invalid", nil
+			}
+			switch val.Dtype {
+			case utils.SS_DT_BOOL:
+				return "Boolean", nil
+			case utils.SS_DT_SIGNED_NUM, utils.SS_DT_UNSIGNED_NUM, utils.SS_DT_FLOAT,
+				utils.SS_DT_SIGNED_32_NUM, utils.SS_DT_USIGNED_32_NUM,
+				utils.SS_DT_SIGNED_16_NUM, utils.SS_DT_USIGNED_16_NUM,
+				utils.SS_DT_SIGNED_8_NUM, utils.SS_DT_USIGNED_8_NUM:
+				return "Number", nil
+			case utils.SS_DT_STRING, utils.SS_DT_STRING_SET, utils.SS_DT_RAW_JSON:
+				return "String", nil
+			case utils.SS_DT_BACKFILL:
+				return "Null", nil
+			default:
+				return "Invalid", nil
+			}
+		} else {
+			// Handle raw values directly based on expression type
+			if self.Val.NumericExpr != nil {
+				return "Number", nil
+			} else if self.Val.StringExpr != nil {
+				if utils.IsBoolean(self.Val.StringExpr.RawString) {
+					return "Boolean", nil
+				}
+				return "String", nil
+			} else {
+				return "Invalid", nil
+			}
+		}
 	}
 	if self.Op == "max" {
 		if len(self.ValueList) == 0 {

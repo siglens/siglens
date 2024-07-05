@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/smtp"
 	"strconv"
@@ -180,14 +179,14 @@ func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, 
 
 	r, err := http.NewRequest("POST", webhookUrl, bytes.NewBuffer(data))
 	if err != nil {
-		log.Errorf("Error creating request: %v", err)
+		log.Errorf("sendWebhooks: Error creating request. WebhookURL=%v, Error=%v", webhookUrl, err)
 	}
 
 	r.Header.Add("Content-Type", "application/json")
 	client := &http.Client{}
 	_, err1 := client.Do(r)
 	if err1 != nil {
-		log.Errorf("Error sending request: %v", err)
+		log.Errorf("sendWebhooks: Error sending request. WebhookURL=%v, Error=%v", webhookUrl, err)
 	}
 	return err
 }
@@ -226,32 +225,27 @@ func sendSlack(alertName string, message string, channel alertutils.SlackTokenCo
 
 	channelID := channel.ChannelId
 	token := channel.SlToken
-	alert := fmt.Sprintf("Alert Name : '%s'", alertName)
 	client := slack.New(token, slack.OptionDebug(false))
 	color := getSlackMessageColor(alertState)
 
 	attachment := slack.Attachment{
-		Pretext: alert,
-		Text:    message,
-		Color:   color,
-		Fields: []slack.AttachmentField{
-			{
-				Title: "Date",
-				Value: time.Now().String(),
-			},
-		},
+		AuthorName: alertName,
+		Text:       message,
+		Color:      color,
+		Ts:         json.Number(strconv.FormatInt(time.Now().Unix(), 10)),
 	}
 
 	if alertDataMessage != "" {
-		attachment.Fields = append(attachment.Fields, slack.AttachmentField{
-			Title: "Alert Data",
-			Value: alertDataMessage,
-		})
+		attachment.Fields = []slack.AttachmentField{
+			{
+				Title: "Alert Data",
+				Value: alertDataMessage,
+			},
+		}
 	}
 
 	_, _, err := client.PostMessage(
 		channelID,
-		slack.MsgOptionText("New message from Alert System", false),
 		slack.MsgOptionAttachments(attachment),
 	)
 	return err

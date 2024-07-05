@@ -1413,6 +1413,8 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow}
 				case "present_over_time":
 					mquery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow}
+				case "mad_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Mad_Over_Time, TimeWindow: timeWindow}
 				case "quantile_over_time":
 					if len(expr.Args) != 2 {
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the quantile_over_time function", expr.Args.String())
