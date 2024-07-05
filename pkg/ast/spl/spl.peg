@@ -961,7 +961,11 @@ TcOptionCMD <- option:("usenull" / "useother" / "nullstr" / "otherstr") {
     return optionStr, nil
 }
 
-BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(TimeScale)? {
+BinTimeScale <- timeUnit:(Second / Month / Subseconds / Minute / Hour / Day / Week / Quarter / Year) {
+    return timeUnit, nil
+}
+
+BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(BinTimeScale)? {
     if timeScale != nil {
         num, err := strconv.ParseInt(number.(string), 10, 64)
         if err != nil {
@@ -983,6 +987,14 @@ BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(TimeScal
                 }
             case utils.TMMicrosecond:
                 return nil, fmt.Errorf("BinSpanLenOption: Invalid span microsecond is not supported!")
+            case utils.TMMonth:
+                if num > 12 || 12%num != 0 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for month %v, span value must be less or equal to 1 year and 1 year must be evenly divisble by span", num)
+                }
+            case utils.TMQuarter:
+                if num > 4 || 4%num != 0 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for quarter %v, span value must be less or equal to 1 year and 1 year must be evenly divisble by span", num)
+                }
         }
 
         spanLength := &structs.BinSpanLength {
