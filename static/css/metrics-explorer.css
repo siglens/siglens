@@ -9,6 +9,7 @@
     --db-options-bg-color:var(--white-3);
     --container-focus-bg-color: #F6FCFF;
     --input-box-bg-color: var(--white-0);
+    --alerting-btn-img: url(../assets/alerting-btn-light.svg);
 }
 /* TOGGLE SWITCH  */
 .switch {
@@ -70,8 +71,21 @@ input:checked + .slider:before {
     align-items: center;
     border: 1px solid var(--border-color-regular);
 }
-.graph-view-container .label{
-    margin-left: 10px;
+.graph-view-container {
+    margin-right: 10px;
+}
+
+.alert-from-metrics-btn {
+    background-image: var(--alerting-btn-img);
+}
+
+.below-btn-img {
+    background-size: 50%;
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 30px;
+    width: 30px;
+    /* border: 1px solid var(--border-btn-color); */
 }
 .metrics-query .query-box .options-container {
     display: none;
