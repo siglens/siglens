@@ -18,14 +18,13 @@
  */
 
 var queryIndex = 0;
+let formulaCache = []; 
 var queries = {};
 var lineCharts = {}; // Chart details
 var chartDataCollection = {}; // Save label/data for each query
 let mergedGraph ;
 let chartType = "Line chart";
 let availableMetrics = [];
-let previousStartEpoch = null;
-let previousEndEpoch = null;
 let rawTimeSeriesData=[];
 let allFunctions,functionsArray =[];
 var aggregationOptions = ["max by", "min by", "avg by", "sum by", "count by", "stddev by", "stdvar by", "group by"];
@@ -45,23 +44,62 @@ let warm = ["#f7e288", "#fadb84", "#f1b65d", "#ec954d", "#f65630" , "#cf3926", "
 let orange = ["#f8ddbd", "#f4d2a9", "#f0b077", "#ec934f", "#e0722f", "#c85621", "#9b4116", "#72300e"]
 let gray = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#62636a", "#4c4d57"]
 let palette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
-function checkDownloadButtonState() {
-    const downloadButton = document.querySelector('.download-all-logs-btn');
-    const hasQueries = Object.keys(queries).length > 0;
-    const hasFormulas = Object.keys(formulas).length > 0;
 
-    if (hasQueries || hasFormulas) {
-        downloadButton.disabled = false;
-        downloadButton.classList.remove('disabled');
-        downloadButton.style.cursor = 'pointer';
+
+// Function to check if CSV can be downloaded
+function canDownloadCSV() {
+    for (let key in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(key) && chartDataCollection[key].datasets) {
+            return true; // If any data is present, enable download
+        }
+    }
+    return false; // No data found
+}
+
+// Function to check if JSON can be downloaded
+function canDownloadJSON() {
+    for (let key in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(key) && chartDataCollection[key].datasets) {
+            return true; // If any data is present, enable download
+        }
+    }
+    return false; // No data found
+}
+
+// Update button states based on data availability
+function updateDownloadButtons() {
+    let csvButton = $('#csv-block');
+    let jsonButton = $('#json-block');
+
+    if (canDownloadCSV()) {
+        csvButton.removeClass('disabled-tab');
     } else {
-        downloadButton.disabled = true;
-        downloadButton.classList.add('disabled');
-        downloadButton.style.cursor = 'not-allowed';
+        csvButton.addClass('disabled-tab');
+    }
+
+    if (canDownloadJSON()) {
+        jsonButton.removeClass('disabled-tab');
+    } else {
+        jsonButton.addClass('disabled-tab');
     }
 }
-$(document).ready(async function() {
 
+// Event listeners for clicking on download options
+$('#csv-block').on('click', function() {
+    if (canDownloadCSV()) {
+        downloadCSV();
+    }
+});
+
+$('#json-block').on('click', function() {
+    if (canDownloadJSON()) {
+        downloadJSON();
+    }
+});
+
+
+$(document).ready(async function() {
+    updateDownloadButtons();
     var currentPage = window.location.pathname;
     if (currentPage === "/alert.html" || currentPage ==='/alert-details.html') {
         isAlertScreen = true;
@@ -81,7 +119,8 @@ $(document).ready(async function() {
     
     if(!isAlertScreen){
         addQueryElement();
-    } checkDownloadButtonState();
+    }
+    
 });
 
 async function metricsExplorerDatePickerHandler(evt) {
@@ -106,9 +145,10 @@ $('#add-formula').on('click', function(){
     }else{
         addMetricsFormulaElement()
     }
-    
 });
-
+function addToFormulaCache(formulaId, formulaName) {
+    formulaCache.push({ formulaId, formulaName });
+}
 $('.refresh-btn').on("click", refreshMetricsGraphs);
 
 // Toggle switch between merged graph and single graphs 
@@ -146,36 +186,11 @@ function createFormulaElementTemplate(uniqueId, initialValue = '') {
 
 function formulaRemoveHandler(formulaElement, uniqueId) {
     formulaElement.find('.remove-query').on('click', function() {
-        const formulaName = formulas[uniqueId]?.formula || '';
-        console.log(`Removing formula: ${formulaName}`); // Debug
         delete formulas[uniqueId];
         formulaElement.remove();
         removeVisualizationContainer(uniqueId);
         $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
-
-        // Update CSV data
-        removeCSVEntries(formulaName);
-
-        // Update JSON data
-        removeJSONEntries(formulaName);
-        checkDownloadButtonState();
     });
-}
-
-// Function to remove specific entries from CSV data
-function removeCSVEntries(formulaName) {
-    console.log(`CSV before removal: ${csvData}`); // Debug
-    const csvLines = csvData.trim().split("\n");
-    const updatedLines = csvLines.filter(line => !line.includes(` ${formulaName}`));
-    csvData = updatedLines.join("\n") + "\n";
-    console.log(`CSV after removal: ${csvData}`); // Debug
-}
-
-// Function to remove specific entries from JSON data
-function removeJSONEntries(name) {
-    console.log(`JSON before removal: ${JSON.stringify(allEntries)}`); // Debug
-    allEntries = allEntries.filter(entry => !entry.query.includes(name));
-    console.log(`JSON after removal: ${JSON.stringify(allEntries)}`); // Debug
 }
 
 function formulaAlertRemoveHandler(formulaElement, uniqueId){
@@ -226,7 +241,6 @@ function formulaInputHandler(formulaElement, uniqueId) {
         }
         // Disable remove button if the query name exists in any formula
         disableQueryRemoval();
-        checkDownloadButtonState();
     }, 500)); // debounce delay
 }
 
@@ -259,7 +273,6 @@ async function addAlertsFormulaElement(formulaInput) {
 
     formulaAlertRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
-    checkDownloadButtonState();
 }
 
 function addMetricsFormulaElement() {
@@ -269,7 +282,6 @@ function addMetricsFormulaElement() {
     $('#metrics-formula').append(formulaElement);
     formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
-    checkDownloadButtonState();
 }
 
 function debounce(func, wait) {
@@ -381,12 +393,12 @@ function setupQueryElementEventListeners(queryElement){
     // Remove query element
     queryElement.find('.remove-query').on('click', function() {
         var queryName = queryElement.find('.query-name').text();
-
         // Check if the query name exists in any of the formula input fields
         var queryNameExistsInFormula = $('.formula').toArray().some(function(formulaInput) {
             return $(formulaInput).val().includes(queryName);
         });
 
+        // If query name exists in any formula, prevent removal of the query element
         if (queryNameExistsInFormula) {
             $(this).addClass('disabled').css('cursor', 'not-allowed').attr('title', 'Query used in other formulas.');
         } else {
@@ -397,13 +409,13 @@ function setupQueryElementEventListeners(queryElement){
             // Show or hide the close icon based on the number of queries
             updateCloseIconVisibility();
 
-            // Update CSV data
-            removeCSVEntries(queryName);
-
-            // Update JSON data
-            removeJSONEntries(queryName);
-            checkDownloadButtonState();
-            // Additional logic as needed for UI updates
+            // For Alerts Screen
+            if(isAlertScreen){
+                // Check if the formula element exists and if it is empty, or if the formula element does not exist
+                if (!($('#metrics-formula .formula-box .formula').length && $('#metrics-formula .formula-box .formula').val().trim() !== "")) {
+                    activateFirstQuery();
+                }
+            }
         }
     });
 
@@ -436,7 +448,6 @@ function setupQueryElementEventListeners(queryElement){
         } else {
             $('.metrics-graph').removeClass('full-width');
         }
-        checkDownloadButtonState();
     });
 
     // Show functions dropdown
@@ -499,7 +510,9 @@ function setupQueryElementEventListeners(queryElement){
         // Perform the search with the raw query
         await getQueryDetails(queryName, queryDetails);
     });
+    
 }
+
 async function addQueryElement() {
     // Clone the first query element if it exists, otherwise create a new one
     var queryElement;
@@ -598,7 +611,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
             queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
             $(this).blur(); 
-        }
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
+        },
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
@@ -662,6 +678,9 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             $(this).val('');
             updateAutocompleteSource();
             return false;
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
         },
         open: function(event, ui) {
             var containerPosition = $(this).closest('.tag-container').offset();
@@ -742,7 +761,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             queryDetails.aggFunction = ui.item.value;
             getQueryDetails(queryName,queryDetails);
             $(this).blur(); 
-        }
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
+        },
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
@@ -773,6 +795,9 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             }
             $(this).val('');
             return false;        
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
         },
         open: function(event, ui) {
             var containerPosition = $(this).closest('.value-container').offset();
@@ -840,7 +865,10 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     
             queryElement.find('.options-container').hide();
             $(this).val('');
-        }
+        },
+        classes: {
+            "ui-autocomplete": "metrics-ui-widget"
+        },
     }).on('click', function() {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
@@ -1266,7 +1294,109 @@ function updateLineCharts(lineStyle, stroke) {
 
     mergedGraph.update();
 }
+function logDatasetInfo(obj) {
+    for (let key in obj) {
+        if (obj.hasOwnProperty(key) && obj[key].datasets) {
+            obj[key].datasets.forEach(dataset => {
+                console.log(`${key} dataset:`);
+                console.log("Label:", dataset.label);
+                console.log("Data:");
+                for (let timestamp in dataset.data) {
+                    if (dataset.data[timestamp] !== null) {
+                        console.log(`${timestamp}: ${dataset.data[timestamp]}`);
+                    }
+                }
+            });
+        }
+    }
+}
+function convertToCSV(obj) {
+    let csv = 'Formula, Queries, Timestamp, Value\n';
+    for (let key in obj) {
+        if (obj.hasOwnProperty(key) && obj[key].datasets) {
+            let formulaId = key.startsWith('formula_') ? key : '';
 
+            // Find formula name in formulaCache
+            let formulaDetails = formulaCache.find(item => item.formulaId === formulaId);
+
+            obj[key].datasets.forEach(dataset => {
+                for (let timestamp in dataset.data) {
+                    if (dataset.data[timestamp] !== null) {
+                        // Use formulaDetails.formulaName as the formula name
+                        let formulaName = formulaDetails ? formulaDetails.formulaName : formulaId;
+                        let queryLabel = dataset.label.replace(',', ''); // Remove comma if present
+                        csv += `${formulaName}, ${queryLabel}, ${timestamp}, ${dataset.data[timestamp]}\n`;
+                    }
+                }
+            });
+        }
+    }
+    return csv;
+}
+
+
+
+
+
+// Function to download CSV file
+function downloadCSV() {
+    let csvContent = convertToCSV(chartDataCollection);
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'data.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Function to download JSON file
+function downloadJSON() {
+    let formattedData = {};
+
+    for (let key in chartDataCollection) {
+        if (chartDataCollection.hasOwnProperty(key) && chartDataCollection[key].datasets) {
+            let formulaId = key.startsWith('formula_') ? key : '';
+            let formulaDetails = formulaCache.find(item => item.formulaId === formulaId);
+
+            formattedData[key] = {
+                formulaName: formulaDetails ? formulaDetails.formulaName : formulaId,
+                datasets: []
+            };
+
+            chartDataCollection[key].datasets.forEach(dataset => {
+                let formattedDataset = {
+                    label: dataset.label,
+                    data: {}
+                };
+
+                for (let timestamp in dataset.data) {
+                    if (dataset.data[timestamp] !== null) {
+                        formattedDataset.data[timestamp] = dataset.data[timestamp];
+                    }
+                }
+
+                formattedData[key].datasets.push(formattedDataset);
+            });
+        }
+    }
+
+    let jsonContent = JSON.stringify(formattedData, null, 2);
+    let blob = new Blob([jsonContent], { type: 'application/json' });
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'data.json');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+
+// Event listeners for clicking on download options
+document.getElementById('csv-block').addEventListener('click', downloadCSV);
+document.getElementById('json-block').addEventListener('click', downloadJSON);
 // Merge Graphs in one
 function mergeGraphs(chartType) {
     var visualizationContainer = $(`
@@ -1302,11 +1432,11 @@ function mergeGraphs(chartType) {
                     fill: (chartType === 'Area chart') ? true : false 
                 });
             });
-
             // Update labels ( same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
         }
-    } 
+    }
+    console.log(chartDataCollection);
     $('.merged-graph-name').html(graphNames.join(', '));
     const { gridLineColor, tickColor } = getGraphGridColors();
     var mergedLineChart = new Chart(mergedCtx, {
@@ -1378,6 +1508,7 @@ function mergeGraphs(chartType) {
         }
     });
     mergedGraph = mergedLineChart;
+    updateDownloadButtons();
 }
 
 // Converting the response in form to use to create graphs
@@ -1491,125 +1622,11 @@ async function getMetricNames() {
     return res 
 }
 
-let csvData = ''; // Initialize CSV data variable
-let headerAdded = false; // Track if header has been added
-let allEntries = []; // Array to collect all JSON entries
 
-function convertToCSV(seriesName, formulaName, data) {
-    if (!data || !data.series || !data.timestamps || !data.values) {
-        console.error('Invalid data format:', data);
-        return;
-    }
-
-    const series = data.series; // Array of series names
-    const timestamps = data.timestamps;
-    const values = data.values;
-
-    // Prepare CSV header
-    if (!headerAdded) {
-        csvData += `"Timestamp","Query","Value"\n`;
-        headerAdded = true;
-    }
-
-    // Prepare CSV body rows
-    timestamps.forEach((timestamp, index) => {
-        const timestampStr = new Date(timestamp * 1000).toISOString();
-        series.forEach((seriesName, seriesIndex) => {
-            const value = values[seriesIndex][index];
-            let seriesFormulaName = seriesName;
-
-            // Check if formulaName is valid and not an object
-            if (formulaName && typeof formulaName !== 'object') {
-                seriesFormulaName += ` + ${formulaName}`;
-            }
-
-            csvData += `"${timestampStr}","${seriesFormulaName}","${value}"\n`;
-
-            // Collect all entries for JSON output
-            allEntries.push({
-                timestamp: timestampStr,
-                query: seriesFormulaName,
-                value: value
-            });
-        });
-    });
-}
-
-
-
-
-// Function to download CSV
-function downloadCsv(fileName) {
-    const blob = new Blob([csvData], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const downloadLink = document.createElement("a");
-    downloadLink.href = url;
-    downloadLink.download = fileName;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-}
-
-// Function to convert JSON to JSON string and initiate download
-function downloadJson(fileName) {
-    const jsonData = JSON.stringify(allEntries, null, 2); // Pretty print JSON
-    const blob = new Blob([jsonData], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const downloadLink = document.createElement("a");
-    downloadLink.href = url;
-    downloadLink.download = fileName;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-}
-
-// Event listeners for clicking on download options
-document.getElementById('csv-block').addEventListener('click', function() {
-    if (csvData) {
-        downloadCsv('metrics_data.csv');
-    } else {
-        console.error('No data available to download.');
-    }
-});
-
-document.getElementById('json-block').addEventListener('click', function() {
-    if (allEntries.length > 0) {
-        downloadJson('metrics_data.json');
-    } else {
-        console.error('No data available to download.');
-    }
-});
-
-// Function to fetch metric names
-async function getMetricNames() {
-    const data = {
-        start: filterStartDate,
-        end: filterEndDate,
-    };
-    const res = await $.ajax({
-        method: "post",
-        url: "metrics-explorer/api/v1/metric_names",
-        headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            Accept: "*/*",
-        },
-        crossDomain: true,
-        dataType: "json",
-        data: JSON.stringify(data),
-    });
-
-    if (res) {
-        availableMetrics = res.metricNames;
-    }
-    
-    return res;
-}
-
-// Function to fetch and convert metric data
 async function getMetricsData(queryName, metricName) {
     const query = { name: queryName, query: `(${metricName})`, qlType: "promql" };
     const queries = [query];
-    const formula = { formula: queryName }; // Assuming formula uses queryName as formula
+    const formula = { formula: queryName };
     const formulas = [formula];
     const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
 
@@ -1618,28 +1635,25 @@ async function getMetricsData(queryName, metricName) {
 
     if (res) {
         rawTimeSeriesData = res;
-        convertToCSV(queryName, formula.formula, rawTimeSeriesData); // Pass queryName and formula to convertToCSV
-        checkDownloadButtonState();
+        updateDownloadButtons();
     }
 }
 
-// Function to fetch and convert metric data for formula
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
 
-    // Assuming formula uses queryNames concatenated
-    const formulaName = formulaDetails.queryNames.join(' + ');
-
     for (let queryName of formulaDetails.queryNames) {
         let queryDetails = queries[queryName];
         let queryString;
+
         if (queryDetails.state === "builder") {
             queryString = createQueryString(queryDetails);
         } else {
             queryString = queryDetails.rawQueryInput;
         }
+
         const query = {
             name: queryName,
             query: queryString,
@@ -1650,29 +1664,38 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
         // Replace the query name in the formula string with the query string
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
+
     const formula = {
         formula: formulaDetails.formula
     };
     formulas.push(formula);
-    const data = { start: filterStartDate, end: filterEndDate, queries: queriesData, formulas: formulas };
+
+    const data = {
+        start: filterStartDate,
+        end: filterEndDate,
+        queries: queriesData,
+        formulas: formulas
+    };
 
     metricsQueryParams = data;
 
     const res = await fetchTimeSeriesData(data);
     if (res) {
         rawTimeSeriesData = res;
-        convertToCSV(formulaName, formulaDetails.formula, rawTimeSeriesData); // Pass formulaName and formulaDetails.formula
     }
 
     const chartData = await convertDataForChart(rawTimeSeriesData);
+
+    // Add to formula cache
+    addToFormulaCache(formulaId, formulaDetails.formula);
+
     if (isAlertScreen) {
         addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
     } else {
         addVisualizationContainer(formulaId, chartData, formulaString);
     }
+    updateDownloadButtons();
 }
-
-
 
 
 
@@ -1985,6 +2008,7 @@ async function addQueryElementOnAlertEdit(queryName, queryDetails) {
     setupQueryElementEventListeners(queryElement);
     
     queryIndex++;
+    updateDownloadButtons();
 }
 
 async function populateQueryElement(queryElement, queryDetails) {
