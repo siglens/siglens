@@ -358,29 +358,29 @@ function displayOriginalSavedQueries() {
 }
 
 function getSearchedQuery() {
-let searchText = $('#sq-filter-input').val();
-$.ajax({
-    method: 'get',
-    url: 'api/usersavedqueries/' + searchText,
-    headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        Accept: '*/*',
-    },
-    crossDomain: true,
-    dataType: 'json',
-})
-    .then((res) => {
-        $('#queries-grid-container').show();
-        displaySavedQueries(res, -1);
+    let searchText = $('#sq-filter-input').val();
+    $.ajax({
+        method: 'get',
+        url: 'api/usersavedqueries/' + searchText,
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            Accept: '*/*',
+        },
+        crossDomain: true,
+        dataType: 'json',
     })
-    .catch(function (err) {
-        if (err.status !== 200) {
-            showError(`Message: ${err.statusText}`);
-        }
-        $('#queries-grid-container').hide();
-        let el = $('#empty-qsearch-response');
-        el.empty();
-        el.append("<span>Query not found.</span>");
-        el.show();
-    });
+        .then((res) => {
+            $('#queries-grid-container').show();
+            displaySavedQueries(res, -1);
+        })
+        .catch(function (err) {
+            if (err.status !== 200) {
+                showError(`Message: ${err.statusText}`);
+            }
+            $('#queries-grid-container').hide();
+            let el = $('#empty-qsearch-response');
+            el.empty();
+            el.append('<span>Query not found.</span>');
+            el.show();
+        });
 }
