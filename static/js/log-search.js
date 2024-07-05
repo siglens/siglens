@@ -57,16 +57,28 @@ $(document).ready(async () => {
     initializeIndexAutocomplete();
     let queryMode = Cookies.get('queryMode');
     if (queryMode !== undefined){
+        const searchParams = new URLSearchParams(window.location.search);
+
+        // Check if the URL has the 'filterTab' parameter
+        const hasFilterTab = searchParams.has('filterTab');
+
+        if (!hasFilterTab){
+           //If filter tab is not present then do trigger.
+            if(queryMode === "Builder"){
+                $('.custom-code-tab a:first').trigger('click');
+            }else{
+                $('.custom-code-tab a[href="#tabs-2"]').trigger('click');
+            }
+        }
+        // Add active class to dropdown options based on the queryMode selected.
         if(queryMode === "Builder"){
             $(".query-mode-option").removeClass("active");
             $("#query-mode-options #mode-option-1").addClass("active");
             $('#query-mode-btn span').html("Builder");
-            $('.custom-code-tab a:first').trigger('click');
         }else{
             $(".query-mode-option").removeClass("active");
             $("#query-mode-options #mode-option-2").addClass("active");
             $('#query-mode-btn span').html("Code");
-            $('.custom-code-tab a[href="#tabs-2"]').trigger('click');
         }
     }
     // If query string found , then do search
@@ -96,13 +108,6 @@ $(document).ready(async () => {
 
     $('body').css('cursor', 'default');
 
-    const currentUrl = window.location.href;
-    if (currentUrl.includes("live-tail.html")) {
-        $(".nav-live").addClass("active");
-        $(".nav-search").removeClass("active");
-    }else{
-        $(".nav-search").addClass("active");
-    }
 
     $('.theme-btn').on('click', themePickerHandler);
     let ele = $('#available-fields .select-unselect-header');
@@ -193,30 +198,6 @@ $(document).ready(async () => {
 		}
 	});
 
-
-    $("#filter-input").focus(function() {
-        if ($(this).val() === "*") {
-          $(this).val("");
-        }
-    });
-
-    function autoResizeTextarea() {
-        this.style.height = 'auto';
-        this.style.height = this.scrollHeight + 'px';
-    }
-
-    $("#filter-input").on('focus', function() {
-        $(this).addClass('expanded');
-        autoResizeTextarea.call(this);
-    });
-
-    $("#filter-input").on('blur', function() {
-        $(this).removeClass('expanded');
-        this.style.height = '32px'; 
-    });
-
-    $("#filter-input").on('input', autoResizeTextarea);
-
     $("#logs-settings").click(function(){
         event.stopPropagation();
         $("#setting-container").fadeToggle("fast");
@@ -227,39 +208,6 @@ $(document).ready(async () => {
             $("#setting-container").hide();
         }
     });
-});
-function displayQueryLangToolTip(selectedQueryLangID) {
-    $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
-    $("#clearInput").hide();
-    switch (selectedQueryLangID) {
-        case "1":
-        case 1:
-            $('#info-icon-sql').show();
-            $("#filter-input").attr("placeholder", "Enter your SQL query here, or click the 'i' icon for examples");
-            break;
-        case "2":
-        case 2:
-            $('#info-icon-logQL').show();
-            $("#filter-input").attr("placeholder", "Enter your LogQL query here, or click the 'i' icon for examples");
-            break;
-        case "3":
-        case 3:
-            $('#info-icon-spl').show();
-            $("#filter-input").attr("placeholder", "Enter your SPL query here, or click the 'i' icon for examples");
-            break;
-    }
-}
 
-$("#filter-input").on("input", function() {
-    if ($(this).val().trim() !== "") {
-      $("#clearInput").show();
-    } else {
-      $("#clearInput").hide();
-    }
+    initializeFilterInputEvents();
 });
-
-$("#clearInput").click(function() {
-    $("#filter-input").val("").focus();
-    $(this).hide();
-});
-

@@ -64,27 +64,13 @@ const alertForm = $('#alert-form');
 
 const propertiesGridOptions = {
     columnDefs: [
-        { 
-            headerName: "Config Variable Name", 
-            field: "name", 
-            sortable: true, 
-            filter: true, 
-            cellStyle: { 'white-space': 'normal', 'word-wrap': 'break-word' }, 
-            width: 150 
-        },
-        { 
-            headerName: "Config Variable Value", 
-            field: "value", 
-            sortable: true, 
-            filter: true, 
-            cellStyle: { 'white-space': 'normal', 'word-wrap': 'break-word' }, 
-            autoHeight: true 
-        }
+        { headerName: "Config Variable Name", field: "name", sortable: true, filter: true, cellStyle: { 'white-space': 'normal', 'word-wrap': 'break-word' }, width: 200 },
+        { headerName: "Config Variable Value", field: "value", sortable: true, filter: true, cellStyle: { 'white-space': 'normal', 'word-wrap': 'break-word' }, autoHeight: true }
     ],
     defaultColDef: {
         resizable: true,
         flex: 1,
-        minWidth: 100
+        minWidth: 150
     },
     rowData: [],
     domLayout: 'autoHeight'
@@ -104,6 +90,8 @@ const historyGridOptions = {
     rowData: [],
     domLayout: 'autoHeight'
 };
+
+let originalIndexValues, indexValues = [];
 
 $(document).ready(async function () {
 
@@ -208,7 +196,17 @@ $("#contact-points-dropdown").on("click", function() {
 
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
-
+    // Index
+    if(!(window.location.href.includes("alert-details.html"))){
+        let indexes = await getListIndices();
+        if (indexes){
+            originalIndexValues = indexes.map(item => item.index);
+            indexValues = [...originalIndexValues];
+        }
+        initializeFilterInputEvents();
+        initializeIndexAutocomplete();
+        setIndexDisplayValue(selectedSearchIndex);
+    }
     if (urlParams.has('id')) {
         const id = urlParams.get('id');
         alertID = id;
@@ -335,13 +333,23 @@ function submitAddAlertForm(e) {
 function setAlertRule() {
     let dataSource = $('#alert-data-source span').text();
     if (dataSource === "Logs") {
+        let searchText, queryMode;
+        if(isQueryBuilderSearch){
+            searchText = getQueryBuilderCode();
+            queryMode = "Builder"
+        }else {
+            searchText = $('#filter-input').val();
+            queryMode = "Code"
+        }
         alertData.alert_type = 1 ;
         alertData.queryParams = {
             data_source: dataSource,
             queryLanguage: $('#logs-language-btn span').text(),
-            queryText: $('#query').val(),
+            queryText: searchText,
             startTime: filterStartDate,
-            endTime: filterEndDate
+            endTime: filterEndDate,
+            index: selectedSearchIndex,
+            queryMode : queryMode
         };
     } else if (dataSource === "Metrics") {
         alertData.alert_type = 2 ;
@@ -430,48 +438,76 @@ async function displayAlert(res){
     $('#alert-rule-name').val(res.alert_name);
     setDataSourceHandler(res.alert_type) 
     if( res.alert_type === 1 ){
-        $('#alert-data-source span').html(res.queryParams.data_source);
-        const queryLanguage = res.queryParams.queryLanguage;
+        const { data_source, queryLanguage, startTime, endTime, queryText, queryMode, index } = res.queryParams;
+
+        $('#alert-data-source span').html(data_source);
         $('#logs-language-btn span').text(queryLanguage);
         $('.logs-language-option').removeClass('active');
         $(`.logs-language-option:contains(${queryLanguage})`).addClass('active');
         displayQueryToolTip(queryLanguage);
-        $('#query').val(res.queryParams.queryText);
-        $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
-        datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime)
+        
+        $(`.ranges .inner-range #${startTime}`).addClass('active');
+        datePickerHandler(startTime, endTime, startTime);
+        if(index === ""){
+            setIndexDisplayValue("*");
+        }else{
+            setIndexDisplayValue(index);
+        }
+        
+        if (queryMode === 'Builder') {
+            codeToBuilderParsing(queryText);
+        } else if (queryMode === 'Code' || queryMode === "") {
+            $("#custom-code-tab").tabs("option", "active", 1);
+            $('#filter-input').val(queryText);
+        }
+        let data = {
+            'state': wsState,
+            'searchText': queryText,
+            'startEpoch': startTime,
+            'endEpoch': endTime,
+            'indexName': index,
+            'queryLanguage' : queryLanguage,
+        }
+        fetchLogsPanelData(data,-1).then((res)=>{
+            alertChart(res);
+        });
     } else if (res.alert_type === 2){
         let metricsQueryParams = JSON.parse(res.metricsQueryParams);
-
-        $(`.ranges .inner-range #${metricsQueryParams.start}`).addClass('active');
-        datePickerHandler(metricsQueryParams.start, metricsQueryParams.end, metricsQueryParams.start);
-        if(functionsArray){
-            allFunctions = await getFunctions();
-            functionsArray = allFunctions.map(function(item) {
-                return item.fn;
-            });
+        const { start, end, queries, formulas } = metricsQueryParams;
+        
+        $(`.ranges .inner-range #${start}`).addClass('active');
+        datePickerHandler(start, end, start);
+        
+        if (functionsArray) {
+            const allFunctions = await getFunctions();
+            functionsArray = allFunctions.map(item => item.fn);
         }
-        for (const index in metricsQueryParams.queries) {
-            const query = metricsQueryParams.queries[index];
+        
+        for (const query of queries) {
             const parsedQueryObject = parsePromQL(query.query);
             await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
         }
-        if(metricsQueryParams.queries.length>1){
-            await addAlertsFormulaElement(metricsQueryParams.formulas[0].formula);
+        
+        if (queries.length > 1) {
+            await addAlertsFormulaElement(formulas[0].formula);
         }
     }
     let conditionType = mapIndexToConditionType.get(res.condition)
+
     $('.alert-condition-option').removeClass('active');
     $(`.alert-condition-options #option-${res.condition}`).addClass('active');
+
     $('#alert-condition span').text(conditionType);
     $('#threshold-value').val(res.value);
     $('#evaluate-every').val(res.eval_interval);
     $('#evaluate-for').val(res.eval_for);
     $('.message').val(res.message);
+
     if (alertEditFlag) {
         alertData.alert_id = res.alert_id;
     }
-    $('#contact-points-dropdown span').html(res.contact_name);
-    $('#contact-points-dropdown span').attr('id', res.contact_id);
+
+    $('#contact-points-dropdown span').html(res.contact_name).attr('id', res.contact_id);
 
     (res.labels).forEach(function(label){
         var labelContainer = $(`
@@ -504,7 +540,7 @@ function setDataSourceHandler(alertType) {
     $span.html(sourceText);
     $(`.data-source-option:contains("${sourceText}")`).addClass('active');
     
-    $('.query-container, .logs-lang-container').toggle(isLogs);
+    $('.query-container, .logs-lang-container, .index-box, #logs-explorer').toggle(isLogs);
     $('#metrics-explorer, #metrics-graphs').toggle(!isLogs);
     
     if (isLogs) {
@@ -778,4 +814,77 @@ function createAlertFromLogs(queryLanguage, query, startEpoch, endEpoch) {
     $('#query').val(query);
     $(`.ranges .inner-range #${startEpoch}`).addClass('active');
     datePickerHandler(startEpoch, endEpoch, startEpoch)
+}
+
+function alertChart(res) {
+    const logsExplorer = document.getElementById('logs-explorer');
+    logsExplorer.style.display = 'flex';
+    logsExplorer.innerHTML = ''; // Clear previous content
+
+    if (res.qtype === "logs-query") {
+        $('#logs-explorer').hide(); // This query does not support bar graph visualization.
+        return;
+    }
+
+    if(res.qtype === "segstats-query"){
+        $('#logs-explorer').hide(); // This query does not support bar graph visualization.
+        return;
+    }
+
+    if (res.qtype === "aggs-query") {
+        let columnOrder = []
+        if(res.groupByCols.length > 1){
+            $('#logs-explorer').hide(); // This query does not support bar graph visualization.
+            return;
+        }
+        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
+            columnOrder = res.columnsOrder
+        }else{
+            if (res.groupByCols) {
+                columnOrder = _.uniq(_.concat(
+                    res.groupByCols));
+            }
+            if (res.measureFunctions) {
+                columnOrder = _.uniq(_.concat(
+                    columnOrder, res.measureFunctions));
+            }
+        }
+        
+        if (res.errors) {
+            const errorMsg = document.createElement('div');
+            errorMsg.textContent = res.errors[0];
+            logsExplorer.appendChild(errorMsg);
+            return;
+        }
+
+        let xAxisData = [];
+        let yAxisData = [];
+        let hits = res.measure;
+        let columns = columnOrder;
+
+        // loop through the hits and create the data for the bar chart
+        for (let i = 0; i < hits.length; i++) {
+            let hit = hits[i];
+    
+            let xAxisValue = hit.GroupByValues[0];
+            let yAxisValue;
+            let measureVal = hit.MeasureVal;
+            yAxisValue = measureVal[columns[1]]
+            xAxisData.push(xAxisValue);
+            yAxisData.push(yAxisValue);
+        }
+
+        let barOptions = loadBarOptions(xAxisData, yAxisData);
+        let chartDom = document.createElement('div');
+        chartDom.style.width = '100%';
+        chartDom.style.height = '100%';
+        logsExplorer.appendChild(chartDom);
+        let myChart = echarts.init(chartDom);
+        myChart.setOption(barOptions);
+
+        window.addEventListener('resize', () => {
+            myChart.resize();
+        });
+
+    }
 }

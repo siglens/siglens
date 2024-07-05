@@ -209,7 +209,7 @@ function resetQueryResAttr(res, panelId){
     }
 }
 
-function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
+function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
     //if data source is metrics
       if(!res.qtype) {
         panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId);
@@ -253,7 +253,13 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
             }else{
                 columnOrder = res.allColumns
             }
-            renderPanelLogsGrid(columnOrder, res.hits.records, panelId, logLinesViewType);
+            if(currentPanel.selectedFields){
+                selectedFieldsList = currentPanel.selectedFields;
+            }else{
+                selectedFieldsList = columnOrder;
+            }
+            renderAvailableFields(columnOrder);
+            renderPanelLogsGrid(columnOrder, res.hits.records, panelId, currentPanel);
         }
         allResultsDisplayed--;
         if(allResultsDisplayed <= 0 || panelId === -1) {
@@ -272,39 +278,45 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
     }
 }
 
-function runPanelLogsQuery(data, panelId,currentPanel,queryRes) {
+function fetchLogsPanelData(data, panelId) {
+    return $.ajax({
+        method: 'post',
+        url: 'api/search/' + panelId,
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': '*/*'
+        },
+        crossDomain: true,
+        dataType: 'json',
+        data: JSON.stringify(data)
+    });
+}
+
+function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
     return new Promise(function(resolve, reject) {
         $('body').css('cursor', 'progress');
+
         if (queryRes) {
-            renderChartByChartType(data,queryRes,panelId,currentPanel)
-        }
-        else {
-            $.ajax({
-                method: 'post',
-                url: 'api/search/' + panelId,
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    'Accept': '*/*'
-                },
-                crossDomain: true,
-                dataType: 'json',
-                data: JSON.stringify(data)
-            })
+            renderChartByChartType(data, queryRes, panelId, currentPanel);
+            $('body').css('cursor', 'default');
+            resolve();
+        } else {
+            fetchLogsPanelData(data, panelId)
                 .then((res) => {
                     resetQueryResAttr(res, panelId);
-                    renderChartByChartType(data,res,panelId,currentPanel);
+                    renderChartByChartType(data, res, panelId, currentPanel);
                     resolve();
                 })
-                .catch(function (xhr, err) {
+                .catch(function(xhr, err) {
                     if (xhr.status === 400) {
                         panelProcessSearchError(xhr, panelId);
-                    }currentPanel
+                    }
                     $('body').css('cursor', 'default');
                     $(`#panel${panelId} .panel-body #panel-loading`).hide();
                     reject();
-                })
+                });
         }
-    })
+    });
 }
 
 function panelProcessEmptyQueryResults(errorMsg, panelId) {
@@ -828,7 +840,7 @@ function renderChartByChartType(data,queryRes,panelId,currentPanel){
         case "Data Table":
         case "loglines":
             $('.panelDisplay .panEdit-panel').hide();
-            renderPanelLogsQueryRes(data, panelId,currentPanel.logLinesViewType,queryRes);
+            renderPanelLogsQueryRes(data, panelId,currentPanel,queryRes);
             break;
         case "Bar Chart":
         case "Pie Chart":
@@ -878,4 +890,64 @@ function setIndexDisplayValue(selectedSearchIndex){
             }
         });
     }
+}
+
+function displayQueryLangToolTip(selectedQueryLangID) {
+    $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
+    $("#clearInput").hide();
+    switch (selectedQueryLangID) {
+        case "1":
+        case 1:
+            $('#info-icon-sql').show();
+            $("#filter-input").attr("placeholder", "Enter your SQL query here, or click the 'i' icon for examples");
+            break;
+        case "2":
+        case 2:
+            $('#info-icon-logQL').show();
+            $("#filter-input").attr("placeholder", "Enter your LogQL query here, or click the 'i' icon for examples");
+            break;
+        case "3":
+        case 3:
+            $('#info-icon-spl').show();
+            $("#filter-input").attr("placeholder", "Enter your SPL query here, or click the 'i' icon for examples");
+            break;
+    }
+}
+
+function initializeFilterInputEvents() {
+    $("#filter-input").on("input", function() {
+        if ($(this).val().trim() !== "") {
+            $("#clearInput").show();
+        } else {
+            $("#clearInput").hide();
+        }
+    });
+
+    $("#filter-input").focus(function() {
+        if ($(this).val() === "*") {
+            $(this).val("");
+        }
+    });
+
+    function autoResizeTextarea() {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
+    }
+
+    $("#filter-input").on('focus', function() {
+        $(this).addClass('expanded');
+        autoResizeTextarea.call(this);
+    });
+
+    $("#filter-input").on('blur', function() {
+        $(this).removeClass('expanded');
+        this.style.height = '32px';
+    });
+
+    $("#filter-input").on('input', autoResizeTextarea);
+
+    $("#clearInput").click(function() {
+        $("#filter-input").val("").focus();
+        $(this).hide();
+    });
 }
