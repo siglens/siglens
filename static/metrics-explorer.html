@@ -45,6 +45,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
     <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/query-builder.css" />
     <link rel="stylesheet" href="./css/metrics-explorer.css?v={{ CSSVersion }}" />
     <style>
         #ui-id-1.ui-widget.ui-widget-content,
@@ -172,13 +173,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                 </div>
                 <hr>
-                <div class="mt-4">
+                <div class="mt-4" style="display:flex;flex-direction:row;gap:5px">
                     <div class="graph-view-container btn">
                         <label class="switch">
                             <input type="checkbox" id="toggle-switch" checked>
                             <span class="slider round"></span>
                         </label>
                         <label class="label">One graph per query</label>
+                    </div>
+                    <div class="dropdown download-btn">
+                        <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button"
+                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
+                            title="Download Logs">
+                        </button>
+                        <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn"
+                            id="save-query-options">
+                            <li id="csv-block" class="query-language-option">Download as CSV</li>
+                            <li id="json-block" class="query-language-option">Download as JSON</li>
+                        </div>
                     </div>
                 </div>
                 <div id="metrics-graphs" class="metrics-graph-container mt-5">
