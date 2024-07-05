@@ -137,7 +137,7 @@ $(document).ready(async function () {
                 });
         }
     });
-console.log("test JS prettier")
+    console.log('test JS prettier');
     // Initialize ag-Grid only if the elements exist
     if ($('#properties-grid').length) {
         new agGrid.Grid(document.querySelector('#properties-grid'), propertiesGridOptions);
