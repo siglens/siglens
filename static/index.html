@@ -87,7 +87,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 </div>
                 <div class="dropdown">
                     <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown" aria-haspopup="true"
-                        aria-expanded="false" data-bs-toggle="dropdown" title="Pick the time window">
+                        aria-expanded="false" data-bs-toggle="dropdown">
                         <span>Time Picker</span>
                         <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
                         <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
@@ -147,7 +147,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <div style="margin-bottom: 3px;">Query Language:</div>
                             <div class="dropdown">
                                 <button class="btn dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
-                                    aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
+                                    aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" >
                                     <span>Splunk QL</span>
                                     <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
                                     <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
@@ -161,7 +161,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <div style="margin-bottom: 3px;">Query Mode:</div>
                             <div class="dropdown">
                                 <button class="btn dropdown-toggle" type="button" id="query-mode-btn" data-toggle="dropdown"
-                                    aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Mode">
+                                    aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
                                     <span>Builder</span>
                                     <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
                                     <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
@@ -253,10 +253,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     </i>
                                     <textarea class="form-control expandable-textarea" id="filter-input"
                                         placeholder="Enter your SPL query here, or click the 'i' icon for examples" type="text"></textarea>
-                                    <span class="clear-icon" id="clearInput" title="Clear"></span>
+                                    <span class="clear-icon" id="clearInput"></span>
                                 </div>
                                 <div class="text-end">
-                                    <button class="btn run-filter-btn" id="run-filter-btn" title="Run your search"></button>
+                                    <button class="btn run-filter-btn" id="run-filter-btn"></button>
                                 </div>
                             </div>
                         </div>
@@ -275,12 +275,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 </ul>
                 <div id="logs-view-controls">
                     <div id="save-query-div" class="save-query-div">
-                        <button class="btn saveq-btn below-btn-img" id="saveq-btn" title="Save Query"></button>
-                        <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3" title="Add panel to dashboard"></button>
-                        <button class="btn mx-2 alert-from-logs-btn below-btn-img" id="alert-from-logs-btn" title="Create Alert"></button>
+                        <button class="btn saveq-btn below-btn-img" id="saveq-btn"></button>
+                        <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3" ></button>
+                        <button class="btn mx-2 alert-from-logs-btn below-btn-img" id="alert-from-logs-btn"></button>
                         <div class="dropdown download-btn">
                             <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button" data-toggle="dropdown"
-                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Download Logs">
+                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
                             </button>
                             <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn" id="save-query-options">
                                 <li id="csv-block" class="query-language-option">Download as CSV</li>
@@ -289,25 +289,25 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <li id="sql-block" class="query-language-option">Download as SQL</li>
                             </div>
                         </div>
-                        <button class="btn show-record-intro-btn below-btn-img" id="show-record-intro-btn"  title="Query Response Information"></button>
+                        <button class="btn show-record-intro-btn below-btn-img" id="show-record-intro-btn"></button>
                     </div>
                     <div id="views-container">
                         <div class="btn-group" role="group" id="log-view">
                             <button class="btn log-opt-single-btn" id="log-opt-single-btn">
-                                <span class="single-line-icon" title="Single Line Display View"></span>
+                                <span class="single-line-icon" ></span>
                             </button>
                             <button class="btn log-opt-multi-btn" id="log-opt-multi-btn">
-                                <span class="multi-line-icon" title="Wrap Line Display View"></span>
+                                <span class="multi-line-icon"></span>
                             </button>
                             <button class="btn log-opt-table-btn" id="log-opt-table-btn">
-                                <span class="table-view-icon" title="Table Display View"></span>
+                                <span class="table-view-icon" ></span>
                             </button>
                         </div>
                         <div class="dropdown">
-                            <button class="btn dropdown-toggle avail-fields-btn" title="Select field names to display" type="button"
+                            <button class="btn dropdown-toggle avail-fields-btn"  type="button"
                                 id="avail-fields-btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                 data-bs-toggle="dropdown">
-                                <i class="fa-solid fa-list-check" title="Select field names to display"></i>&nbsp;
+                                <i class="fa-solid fa-list-check"></i>&nbsp;
                                 Available Fields
                                 <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
                                 <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
@@ -352,7 +352,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         </div>
 
-        <div id="save-queries" title="Save Query">
+        <div id="save-queries">
             <p class="validateTips"></p>
             <form>
                 <fieldset>
@@ -365,14 +365,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 </fieldset>
             </form>
         </div>
-        <div class="show-record-popup" id="show-record-popup" title="record">
+        <div class="show-record-popup" id="show-record-popup">
             <form>
                 <fieldset>
                     <div id="hits-summary" class="hits-summary"></div>
                 </fieldset>
             </form>
         </div>
-        <div id="download-info" title="Download" class="save-query">
+        <div id="download-info"  class="save-query">
             <p class="validateTips" id="validateTips"></p>
             <form>
                 <fieldset>
@@ -408,7 +408,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <p for="" class="mt-3 mb-3"><small>Select in which dashboard the panel will be created.</small></p>
                 <div class="dropdown">
                     <button class="btn dropdown-toggle" type="button" id="selected-dashboard" data-toggle="dropdown"
-                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Choose Dashboard">
+                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" >
                         <span>Choose Dashboard</span>
                         <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
                         <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">

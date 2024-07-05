@@ -381,6 +381,7 @@ const (
 	Count_Over_Time
 	Stdvar_Over_Time
 	Stddev_Over_Time
+	Mad_Over_Time
 	Last_Over_Time
 	Present_Over_Time
 	Quantile_Over_Time
@@ -645,6 +646,11 @@ func (dte *DtypeEnclosure) IsString() bool {
 	default:
 		return false
 	}
+}
+
+func IsBoolean(str string) bool {
+	lowerStr := strings.ToLower(str)
+	return lowerStr == "true" || lowerStr == "false"
 }
 
 func (dte *DtypeEnclosure) Reset() {
