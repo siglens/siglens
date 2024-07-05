@@ -1,9 +1,6 @@
 name: Format the JS code
 
-on:
-  push:
-    branches:
-      - 'JS_code_formatting'
+on: [pull_request]
 
 jobs:
   format:
@@ -20,4 +17,4 @@ jobs:
       - uses: stefanzweifel/git-auto-commit-action@v4
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         with:
-          commit_message: "style: format JS files"
+          commit_message: "github actions: style: format JS files"
