@@ -1297,7 +1297,7 @@ function logDatasetInfo(obj) {
     }
 }
 function convertToCSV(obj) {
-    let csv = 'Formula, Queries, Timestamp, Value\n';
+    let csv = 'Queries, Timestamp, Value\n';
     for (let key in obj) {
         if (obj.hasOwnProperty(key) && obj[key].datasets) {
             let formulaId = key.startsWith('formula_') ? key : '';
@@ -1311,7 +1311,7 @@ function convertToCSV(obj) {
                         // Use formulaDetails.formulaName as the formula name
                         let formulaName = formulaDetails ? formulaDetails.formulaName : formulaId;
                         let queryLabel = dataset.label.replace(',', ''); // Remove comma if present
-                        csv += `${formulaName}, ${queryLabel}, ${timestamp}, ${dataset.data[timestamp]}\n`;
+                        csv += `${formulaName} ${queryLabel}, ${timestamp}, ${dataset.data[timestamp]}\n`;
                     }
                 }
             });
