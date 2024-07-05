@@ -30,7 +30,7 @@ import (
 	"syscall"
 	"time"
 
-	"siglens/pkg/alerts/alertutils"
+	"github.com/siglens/siglens/pkg/alerts/alertutils"
 
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -62,6 +62,7 @@ const (
 	VectorModeDisabled VectorMode = -1
 	VectorModeEnabled  VectorMode = 1
 	VectorModeOptional VectorMode = 0
+	LOG_MSG_DELIM      string     = "___"
 )
 
 func setUpLoggingToFileAndStdOut() string {
@@ -232,7 +233,7 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 		case webhookBody := <-webhookChan:
 			alertReceivedTime := time.Now()
 			timeout.Stop() // Stop the timeout as we received an alert
-			log.Infof("CurrentMinute=%v,ReceivedAlert=%v,NumEvaluations=%v", currentMinute, webhookBody.Title, webhookBody.NumEvaluationsCount)
+			log.Infof("%vCurrentMinute=%v,ReceivedAlert=%v,NumEvaluations=%v", LOG_MSG_DELIM, currentMinute, webhookBody.Title, webhookBody.NumEvaluationsCount)
 
 			alertEvalMinute := int(webhookBody.NumEvaluationsCount) - 1
 
@@ -265,13 +266,11 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 				if minuteData, exists := summary.MinuteData[minute]; exists {
 					minuteData.AverageDelay = minuteData.TotalDelay / time.Duration(minuteData.TotalAlertsReceived)
 					logMinuteSummary(minute, minuteData, numAlerts)
-					summary.MinuteData[minute] = minuteData
+					delete(summary.MinuteData, minute)
 				}
 			}
 		case <-timeout.C:
-			log.Errorf("Timed out waiting for alerts")
-			successChan <- false
-			return
+			log.Errorf("%vCurrentMinute=%v,Timeout=%v,ErrorMessage=Timed out waiting for alerts", LOG_MSG_DELIM, currentMinute, true)
 		case <-exitChan:
 			log.Warnf("Received Exit Signal. Exiting the test!")
 
@@ -283,7 +282,7 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 				summary.AverageAlertsPerMinute = 0
 			}
 
-			log.Infof("CurrentMinute=%v,FinalSummary=%v,TotalTime=%v,TotalAlertsReceived=%d,TotalDelay=%v,AverageDelay=%v,AverageAlertsPerMinute=%v", currentMinute, true, time.Since(startTime), summary.TotalAlertsReceived, summary.TotalDelay, summary.AverageDelay, summary.AverageAlertsPerMinute)
+			log.Infof("%vCurrentMinute=%v,FinalSummary=%v,TotalTime=%v,TotalAlertsReceived=%d,TotalDelay=%v,AverageDelay=%v,AverageAlertsPerMinute=%v", LOG_MSG_DELIM, currentMinute, true, time.Since(startTime), summary.TotalAlertsReceived, summary.TotalDelay, summary.AverageDelay, summary.AverageAlertsPerMinute)
 			successChan <- true
 			return
 		}
@@ -292,14 +291,14 @@ func trackNotifications(webhookChan chan alertutils.WebhookBody, numAlerts int, 
 
 func logMinuteSummary(minute int, minuteData MinuteSummaryData, numAlerts int) {
 	alertsCount := len(minuteData.Alerts)
-	log.Infof("Minute=%d,IsSummary=%v,UniqueAlertsCount=%d,Pass=%v,TotalAlertsCount=%v,AverageDelay=%v", minute, true, alertsCount, alertsCount >= numAlerts, minuteData.TotalAlertsReceived, minuteData.AverageDelay)
+	log.Infof("%vMinute=%d,IsSummary=%v,UniqueAlertsCount=%d,Pass=%v,TotalAlertsCount=%v,AverageDelay=%v", LOG_MSG_DELIM, minute, true, alertsCount, alertsCount >= numAlerts, minuteData.TotalAlertsReceived, minuteData.AverageDelay)
 	for title, data := range minuteData.Alerts {
 		averageDelay := data.TotalDelay / time.Duration(data.ReceivedCount)
-		log.Infof("Minute=%d,Alert=%s,ReceivedCount=%d,AverageDelay=%v", minute, title, data.ReceivedCount, averageDelay)
+		log.Infof("%vMinute=%d,Alert=%s,ReceivedCount=%d,AverageDelay=%v", LOG_MSG_DELIM, minute, title, data.ReceivedCount, averageDelay)
 	}
 }
 
-func doCleanup(host string, contactId string) error {
+func doCleanup(host string) error {
 	log.Infof("Cleaning up...")
 	alerts, err := getAllAlerts(host)
 	if err != nil {
@@ -313,9 +312,16 @@ func doCleanup(host string, contactId string) error {
 		}
 	}
 
-	err = deleteContactPoint(host, contactId)
+	contacts, err := getAllContactPoints(host)
 	if err != nil {
-		return fmt.Errorf("error deleting contact %s: %v", contactId, err)
+		return fmt.Errorf("error getting all contacts: %v", err)
+	}
+
+	for _, contact := range contacts {
+		err = deleteContactPoint(host, contact.ContactId)
+		if err != nil {
+			return fmt.Errorf("error deleting contact %s: %v", contact.ContactId, err)
+		}
 	}
 
 	return nil
@@ -415,7 +421,6 @@ func RunAlertsLoadTest(host string, numAlerts uint64, runVector int8) {
 	err = createMultipleAlerts(host, contact.ContactId, int(numAlerts))
 	if err != nil {
 		log.Fatalf("Error creating multiple alerts: %v", err)
-		doCleanup(host, contact.ContactId)
 		return
 	}
 	log.Infof("Created %d Alerts", numAlerts)
@@ -429,18 +434,18 @@ func RunAlertsLoadTest(host string, numAlerts uint64, runVector int8) {
 		log.Errorf("Failed to receive all alerts in time")
 	}
 
-	// Cleanup
-	err = doCleanup(host, contact.ContactId)
-	if err != nil {
-		log.Errorf("Error cleaning up: %v", err)
-		return
-	}
-
 	if success {
 		log.Infof("Test completed successfully")
 	}
 
 	if runVector >= 0 {
 		stopVector(vectorCmd)
+	}
+}
+
+func RunAlertsCleanup(host string) {
+	err := doCleanup(host)
+	if err != nil {
+		log.Errorf("Error cleaning up: %v", err)
 	}
 }

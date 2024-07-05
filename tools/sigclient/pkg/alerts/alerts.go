@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"siglens/pkg/alerts/alertutils"
+	"github.com/siglens/siglens/pkg/alerts/alertutils"
 
 	log "github.com/sirupsen/logrus"
 )

@@ -467,16 +467,19 @@ func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregat
 		if node.LetColumns.EventCountRequest != nil {
 			aggNode.OutputTransforms.LetColumns.EventCountRequest = node.LetColumns.EventCountRequest
 		}
+		if node.LetColumns.BinRequest != nil {
+			aggNode.OutputTransforms.LetColumns.BinRequest = node.LetColumns.BinRequest
+		}
 	}
 	if node.FilterRows != nil {
 		aggNode.OutputTransforms.FilterRows = node.FilterRows
 	}
 
-	aggNode.OutputTransforms.MaxRows = node.MaxRows
+	aggNode.OutputTransforms.HeadRequest = node.HeadRequest
 	aggNode.OutputTransforms.TailRequest = node.TailRequest
 
-	if node.MaxRows > 0 {
-		aggNode.Limit = int(node.MaxRows)
+	if aggNode.OutputTransforms.HeadRequest != nil && aggNode.OutputTransforms.HeadRequest.BoolExpr == nil && aggNode.OutputTransforms.HeadRequest.MaxRows != 0 {
+		aggNode.Limit = int(aggNode.OutputTransforms.HeadRequest.MaxRows)
 	}
 
 	return aggNode, nil

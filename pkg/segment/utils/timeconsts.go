@@ -22,7 +22,8 @@ import "fmt"
 type TimeUnit uint8
 
 const (
-	TMMicrosecond TimeUnit = iota
+	TMInvalid TimeUnit = iota
+	TMMicrosecond
 	TMMillisecond
 	TMCentisecond
 	TMDecisecond
