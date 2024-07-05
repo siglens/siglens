@@ -1989,7 +1989,7 @@ $('#alert-from-metrics-container').click(function() {
         "formulas": mformulas,
         "start": filterStartDate,
         "end": filterEndDate,
-        "alert_type": 3,
+        "alert_type": 2,
         "labels": []
     };
     let jsonString = JSON.stringify(queryParams);
