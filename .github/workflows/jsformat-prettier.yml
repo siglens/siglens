@@ -1,6 +1,10 @@
 name: Format the JS code
 
-on: [pull_request]
+on:
+  push:
+    branches:
+      - 'JS_code_formatting'
+# on: [pull_request]
 
 jobs:
   format:
@@ -8,13 +12,16 @@ jobs:
     name: Format Files
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
       - uses: actions/setup-node@v3
         with:
           node-version: "16"
-      - name: Prettier
-        run: npx prettier --write static/js/*.js
-
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - run: npm ci
+      - run: npm run format
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v4
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         with:
           commit_message: "github actions: style: format JS files"
+          branch: ${{ github.head_ref }}

@@ -12,6 +12,18 @@
     "uuid": "^9.0.0"
   },
   "scripts": {
-    "test": "mocha ui-test/specs/common.js --recursive ui-test/specs"
+    "test": "mocha ui-test/specs/common.js --recursive ui-test/specs",
+    "format": "prettier static/js/*.js --write "
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.7",
+    "@babel/eslint-parser": "^7.24.7",
+    "@eslint/js": "^9.6.0",
+    "eslint": "^8.57.0",
+    "eslint-config-jquery": "^3.0.2",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-prettier": "^5.1.3",
+    "globals": "^15.8.0"
   }
 }
