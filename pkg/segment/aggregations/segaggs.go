@@ -2706,13 +2706,13 @@ func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (interfa
 }
 
 
-func getTimeBucketWithAlign(localTime time.Time, durationScale time.Duration, spanOpt *structs.BinSpanOptions, alignTime *uint64) int {
+func getTimeBucketWithAlign(utcTime time.Time, durationScale time.Duration, spanOpt *structs.BinSpanOptions, alignTime *uint64) int {
 	if alignTime == nil {
-		return int(localTime.Truncate(time.Duration(spanOpt.BinSpanLength.Num) * durationScale).UnixMilli())
+		return int(utcTime.Truncate(time.Duration(spanOpt.BinSpanLength.Num) * durationScale).UnixMilli())
 	}
 
 	factorInMillisecond := float64((time.Duration(spanOpt.BinSpanLength.Num) * durationScale) / time.Millisecond)
-	currTime := float64(localTime.UnixMilli())
+	currTime := float64(utcTime.UnixMilli())
 	baseTime := float64(*alignTime)
 	diff := math.Floor((currTime - baseTime) / factorInMillisecond)
 	bucket := int(baseTime + diff*factorInMillisecond)
@@ -2723,33 +2723,17 @@ func getTimeBucketWithAlign(localTime time.Time, durationScale time.Duration, sp
 	return bucket
 }
 
-func findBucketMonthQuarter(localTime time.Time, num int) uint64 {
+func findBucketMonthQuarter(utcTime time.Time, num int) uint64 {
 	var finalTime time.Time
 	if num == 12 {
-		finalTime = time.Date(localTime.Year(), 1, 1, 0, 0, 0, 0, time.Local)
+		finalTime = time.Date(utcTime.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
 	} else {
-		currMonth := int(localTime.Month())
+		currMonth := int(utcTime.Month())
 		month := ((currMonth-1)/num)*num + 1
-		finalTime = time.Date(localTime.Year(), time.Month(month), 1, 0, 0, 0, 0, time.Local)
+		finalTime = time.Date(utcTime.Year(), time.Month(month), 1, 0, 0, 0, 0, time.UTC)
 	}
 	
 	return uint64(finalTime.UnixMilli())
-}
-
-// Find the week bucket. Need to optimize if possible. Main issue is regarding the daylight savings.
-func findBucketWeek(localTime time.Time, num int) uint64 {
-	startTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local)
-	prevTime := startTime
-	newTime := startTime
-	for {
-		newTime = newTime.AddDate(0, 0, 7*num)
-		if newTime.After(localTime) {
-			break
-		}
-		prevTime = newTime
-	}
-
-	return uint64(prevTime.UnixMilli())
 }
 
 // Perform bin with span for time
@@ -2759,7 +2743,9 @@ func performBinWithSpanTime(value float64, spanOpt *structs.BinSpanOptions, alig
 	}
 
 	unixMilli := int64(value)
-	localTime := time.Unix(0, unixMilli*int64(time.Millisecond))
+	utcTime := time.UnixMilli(unixMilli)
+	startTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
+	// localTime := time.Unix(0, unixMilli*int64(time.Millisecond))
 
 	durationScale := time.Duration(time.Second)
 	bucket := 0
@@ -2768,35 +2754,39 @@ func performBinWithSpanTime(value float64, spanOpt *structs.BinSpanOptions, alig
 	switch spanOpt.BinSpanLength.TimeScale {
 		case segutils.TMMillisecond:
 			durationScale = time.Millisecond
-			bucket = getTimeBucketWithAlign(localTime, durationScale, spanOpt, alignTime)
+			bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
 		case segutils.TMCentisecond:
 			durationScale = time.Millisecond * 10
-			bucket = getTimeBucketWithAlign(localTime, durationScale, spanOpt, alignTime)
+			bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
 		case segutils.TMDecisecond:
 			durationScale = time.Millisecond * 100
-			bucket = getTimeBucketWithAlign(localTime, durationScale, spanOpt, alignTime)
+			bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
 		case segutils.TMSecond:
 			durationScale = time.Second
-			bucket = getTimeBucketWithAlign(localTime, durationScale, spanOpt, alignTime)
+			bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
 		case segutils.TMMinute:
 			durationScale = time.Minute
-			bucket = getTimeBucketWithAlign(localTime, durationScale, spanOpt, alignTime)
+			bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
 		case segutils.TMHour:
 			durationScale = time.Hour
-			bucket = getTimeBucketWithAlign(localTime, durationScale, spanOpt, alignTime)
+			bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
 		case segutils.TMDay:
-			bucket = int(time.Date(localTime.Year(), localTime.Month(), localTime.Day(), 0, 0, 0, 0, time.Local).UnixMilli())
+			totalDays := int(utcTime.Sub(startTime).Hours() / 24)
+			slotDays := (totalDays / (int(spanOpt.BinSpanLength.Num)))*(int(spanOpt.BinSpanLength.Num))
+			bucket = int(startTime.AddDate(0, 0, slotDays).UnixMilli())
 		case segutils.TMWeek:
-			bucket = int(findBucketWeek(localTime, int(spanOpt.BinSpanLength.Num)))
+			totalDays := int(utcTime.Sub(startTime).Hours() / 24)
+			slotDays := (totalDays / (int(spanOpt.BinSpanLength.Num)*7))*(int(spanOpt.BinSpanLength.Num)*7)
+			bucket = int(startTime.AddDate(0, 0, slotDays).UnixMilli())
 		case segutils.TMMonth:
-			return findBucketMonthQuarter(localTime, int(spanOpt.BinSpanLength.Num)), nil
+			return findBucketMonthQuarter(utcTime, int(spanOpt.BinSpanLength.Num)), nil
 		case segutils.TMQuarter:
-			return findBucketMonthQuarter(localTime, int(spanOpt.BinSpanLength.Num)*3), nil
+			return findBucketMonthQuarter(utcTime, int(spanOpt.BinSpanLength.Num)*3), nil
 		case segutils.TMYear:
 			num := int(spanOpt.BinSpanLength.Num)
-			currYear := int(localTime.Year())
+			currYear := int(utcTime.Year())
 			bucketYear := ((currYear-1970)/num)*num + 1970
-			bucket = int(time.Date(bucketYear, 1, 1, 0, 0, 0, 0, time.Local).UnixMilli())
+			bucket = int(time.Date(bucketYear, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
 		default:
 			return 0, fmt.Errorf("performBinWithSpanTime: Time scale %v is not supported", spanOpt.BinSpanLength.TimeScale)
 	}
