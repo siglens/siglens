@@ -2479,7 +2479,6 @@ func getFloatValForBin(fieldToValue map[string]segutils.CValueEnclosure, record 
 }
 
 // Function to find the span range length
-// TODO Minspan is not used
 func findSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *structs.BinSpanLength, field string) (*structs.BinSpanOptions, error) {
 	if field == "timestamp" {
 		return findSpanForTime(minValue, maxValue, maxBins, minSpan)
@@ -2499,11 +2498,26 @@ func findSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *struc
 	spanRange := math.Pow(10, exponent)
 
 	// verify if fits refer the edge case like 250-549, 301-500 for bins = 2
-	lowerBound, _ := getBinRange(minValue, spanRange)
-	_, upperBound := getBinRange(maxValue, spanRange)
+	for {
+		lowerBound, _ := getBinRange(minValue, spanRange)
+		_, upperBound := getBinRange(maxValue, spanRange)
 
-	if (upperBound - lowerBound)/spanRange > float64(maxBins) {
-		spanRange = spanRange*10
+		if (upperBound - lowerBound)/spanRange > float64(maxBins) {
+			spanRange = spanRange*10
+		} else {
+			break
+		}
+	}
+
+	// increase the spanRange till minSpan is satisfied
+	if minSpan != nil {
+		for {
+			if spanRange < minSpan.Num && spanRange <= math.MaxFloat64/10 {
+				spanRange = spanRange * 10
+			} else {
+				break
+			}
+		}
 	}
 
 	return &structs.BinSpanOptions{
@@ -2635,7 +2649,6 @@ func performBinRequest(nodeResult *structs.NodeResult, letColReq *structs.LetCol
 		if letColReq.BinRequest.BinSpanOptions != nil {
 			return performBinRequestOnRawRecordWithSpan(nodeResult, letColReq, recs, finalCols)
 		} else {
-			// TODO without span for time?
 			return performBinRequestOnRawRecordWithoutSpan(nodeResult, letColReq, recs, finalCols, recordIndexInFinal, numTotalSegments, finishesSegment)
 		}
 	}
@@ -2886,9 +2899,15 @@ func performBinRequestOnRawRecordWithoutSpan(nodeResult *structs.NodeResult, let
 	}
 
 	// populate index for each record
-	// sort the segnums and then iterate map iteration is not deterministic
-	prevSegCount := 0
+	// sort the segnums and then iterate, map iteration is not deterministic
+	segNums := make([]int, 0)
 	for segNum := range letColReq.BinRequest.RecordIndex {
+		segNums = append(segNums, segNum)
+	}
+	sort.Ints(segNums)
+	prevSegCount := 0
+
+	for _, segNum := range segNums {
 		for recordKey, recordIndex := range letColReq.BinRequest.RecordIndex[segNum] {
 			recordIndexInFinal[recordKey] = prevSegCount + recordIndex
 		}
