@@ -1025,7 +1025,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 }
 
 function addVisualizationContainer(queryName, seriesData, queryString) {
-     
+    addToFormulaCache(queryName, queryString);
     var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
     if (existingContainer.length === 0){
         var visualizationContainer = $(`
@@ -1280,22 +1280,6 @@ function updateLineCharts(lineStyle, stroke) {
 
     mergedGraph.update();
 }
-function logDatasetInfo(obj) {
-    for (let key in obj) {
-        if (obj.hasOwnProperty(key) && obj[key].datasets) {
-            obj[key].datasets.forEach(dataset => {
-                console.log(`${key} dataset:`);
-                console.log("Label:", dataset.label);
-                console.log("Data:");
-                for (let timestamp in dataset.data) {
-                    if (dataset.data[timestamp] !== null) {
-                        console.log(`${timestamp}: ${dataset.data[timestamp]}`);
-                    }
-                }
-            });
-        }
-    }
-}
 function convertToCSV(obj) {
     let csv = 'Queries, Timestamp, Value\n';
     for (let key in obj) {
@@ -1311,7 +1295,13 @@ function convertToCSV(obj) {
                         // Use formulaDetails.formulaName as the formula name
                         let formulaName = formulaDetails ? formulaDetails.formulaName : formulaId;
                         let queryLabel = dataset.label.replace(',', ''); // Remove comma if present
-                        csv += `${formulaName} ${queryLabel}, ${timestamp}, ${dataset.data[timestamp]}\n`;
+                        if(formulaName==""){
+                            csv += `${queryLabel}, ${timestamp}, ${dataset.data[timestamp]}\n`;
+                        }
+                        else{
+                            csv += `${formulaName}, ${timestamp}, ${dataset.data[timestamp]}\n`;
+                        }
+                        
                     }
                 }
             });
@@ -1430,7 +1420,6 @@ function mergeGraphs(chartType) {
             mergedData.labels = chartDataCollection[queryName].labels;
         }
     }
-    console.log(chartDataCollection);
     $('.merged-graph-name').html(graphNames.join(', '));
     const { gridLineColor, tickColor } = getGraphGridColors();
     var mergedLineChart = new Chart(mergedCtx, {
@@ -1680,9 +1669,6 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 
     const chartData = await convertDataForChart(rawTimeSeriesData);
 
-    // Add to formula cache
-    addToFormulaCache(formulaId, formulaDetails.formula);
-
     if (isAlertScreen) {
         addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
     } else {
@@ -1891,6 +1877,7 @@ function getGraphGridColors() {
 
 
 function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
+    addToFormulaCache(queryName, queryString);
     var existingContainer = $(`.metrics-graph`)
     if (existingContainer.length === 0){
         var visualizationContainer = $(`
