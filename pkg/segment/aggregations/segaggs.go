@@ -2831,17 +2831,22 @@ func performBinRequestOnRawRecordWithoutSpan(nodeResult *structs.NodeResult, let
 		letColReq.BinRequest.RecordIndex = make(map[int]map[string]int, 0)
 	}
 
+	_, exist := letColReq.BinRequest.RecordIndex[int(letColReq.BinRequest.NumProcessedSegments)]
+	if !exist {
+		letColReq.BinRequest.RecordIndex[int(letColReq.BinRequest.NumProcessedSegments)] = make(map[string]int)
+	}
+
 	for recordKey, record := range recs {
 		letColReq.BinRequest.Records[recordKey] = record
+		idx, exist := recordIndexInFinal[recordKey]
+		if !exist {
+			return fmt.Errorf("performBinRequest: index for record %s does not exist in recordIndexInFinal", recordKey)
+		}
+		letColReq.BinRequest.RecordIndex[int(letColReq.BinRequest.NumProcessedSegments)][recordKey] = idx
 		delete(recs, recordKey)
 	}
 
 	if finishesSegment {
-		letColReq.BinRequest.RecordIndex[int(letColReq.BinRequest.NumProcessedSegments)] = make(map[string]int)
-		for recordKey, idx := range recordIndexInFinal {
-			letColReq.BinRequest.RecordIndex[int(letColReq.BinRequest.NumProcessedSegments)][recordKey] = idx
-			delete(recordIndexInFinal, recordKey)
-		}
 		letColReq.BinRequest.NumProcessedSegments++
 	}
 
