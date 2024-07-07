@@ -241,16 +241,16 @@ type TcOptions struct {
 }
 
 type BinCmdOptions struct {
-	BinSpanOptions *BinSpanOptions
-	MinSpan        *BinSpanLength
-	MaxBins        uint64
-	Start          *float64
-	End            *float64
-	AlignTime      *uint64
-	Field          string
-	Records 	  map[string]map[string]interface{}
-	RecordIndex   map[int]map[string]int
-	NumProcessedSegments  uint64
+	BinSpanOptions       *BinSpanOptions
+	MinSpan              *BinSpanLength
+	MaxBins              uint64
+	Start                *float64
+	End                  *float64
+	AlignTime            *uint64
+	Field                string
+	Records              map[string]map[string]interface{}
+	RecordIndex          map[int]map[string]int
+	NumProcessedSegments uint64
 }
 
 type BinSpanLength struct {

@@ -2469,7 +2469,7 @@ func getFloatValForBin(fieldToValue map[string]segutils.CValueEnclosure, record 
 		}
 		fieldValue = fieldCValue.CVal
 	}
-	
+
 	fieldValueFloat, isNumeric := getNumericValue(fieldValue)
 	if !isNumeric {
 		return 0, fmt.Errorf("getFloatValForBin: field %s is not a numeric, err: %v", field, err)
@@ -2486,24 +2486,24 @@ func findSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *struc
 	if minValue == maxValue {
 		return &structs.BinSpanOptions{
 			BinSpanLength: &structs.BinSpanLength{
-				Num: 1,
+				Num:       1,
 				TimeScale: segutils.TMInvalid,
 			},
 		}, nil
 	}
 
 	span := (maxValue - minValue) / float64(maxBins)
-	exponent := math.Log10(math.Abs(span))
+	exponent := math.Log10(span)
 	exponent = math.Ceil(exponent)
 	spanRange := math.Pow(10, exponent)
 
-	// verify if fits refer the edge case like 250-549, 301-500 for bins = 2
+	// verify if estimated span gives correct number of bins, refer the edge case like 301-500 for bins = 2
 	for {
 		lowerBound, _ := getBinRange(minValue, spanRange)
 		_, upperBound := getBinRange(maxValue, spanRange)
 
-		if (upperBound - lowerBound)/spanRange > float64(maxBins) {
-			spanRange = spanRange*10
+		if (upperBound-lowerBound)/spanRange > float64(maxBins) && spanRange <= math.MaxFloat64/10 {
+			spanRange = spanRange * 10
 		} else {
 			break
 		}
@@ -2522,7 +2522,7 @@ func findSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *struc
 
 	return &structs.BinSpanOptions{
 		BinSpanLength: &structs.BinSpanLength{
-			Num: spanRange,
+			Num:       spanRange,
 			TimeScale: segutils.TMInvalid,
 		},
 	}, nil
@@ -2530,8 +2530,8 @@ func findSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *struc
 
 // Function to bin ranges with the given span length
 func getBinRange(val float64, spanRange float64) (float64, float64) {
-	lowerbound := math.Floor(val/spanRange)*spanRange
-	upperbound := math.Ceil(val/spanRange)*spanRange
+	lowerbound := math.Floor(val/spanRange) * spanRange
+	upperbound := math.Ceil(val/spanRange) * spanRange
 	if lowerbound == upperbound {
 		upperbound += spanRange
 	}
@@ -2543,7 +2543,7 @@ func getSecsFromMinSpan(minSpan *structs.BinSpanLength) float64 {
 	if minSpan == nil {
 		return 0
 	}
-	
+
 	switch minSpan.TimeScale {
 	case segutils.TMSecond:
 		return minSpan.Num
@@ -2554,6 +2554,7 @@ func getSecsFromMinSpan(minSpan *structs.BinSpanLength) float64 {
 	case segutils.TMDay:
 		return minSpan.Num * 86400
 	default:
+		// default returning num*(seconds in a month)
 		return minSpan.Num * 2592000
 	}
 }
@@ -2561,14 +2562,14 @@ func getSecsFromMinSpan(minSpan *structs.BinSpanLength) float64 {
 // These time ranges are estimated based on different queries executed in splunk, no documentation is present
 func findEstimatedSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *structs.BinSpanLength) (*structs.BinSpanOptions, error) {
 	minSpanSecs := getSecsFromMinSpan(minSpan)
-	intervalSec := (maxValue/1000 - minValue/1000)/float64(maxBins)
+	intervalSec := (maxValue/1000 - minValue/1000) / float64(maxBins)
 	if minSpanSecs > intervalSec {
 		intervalSec = minSpanSecs
 	}
-	num := 1
+	var num float64
 	timeUnit := segutils.TMSecond
 	if intervalSec < 1 {
-		num = 1 
+		num = 1
 	} else if intervalSec <= 10 {
 		num = 10
 	} else if intervalSec <= 30 {
@@ -2599,14 +2600,13 @@ func findEstimatedSpan(minValue float64, maxValue float64, maxBins uint64, minSp
 
 	estimatedSpan := &structs.BinSpanOptions{
 		BinSpanLength: &structs.BinSpanLength{
-			Num: float64(num),
+			Num:       num,
 			TimeScale: timeUnit,
 		},
 	}
 
 	return estimatedSpan, nil
 }
-
 
 func findSpanForTime(minValue float64, maxValue float64, maxBins uint64, minSpan *structs.BinSpanLength) (*structs.BinSpanOptions, error) {
 	estimatedSpan, err := findEstimatedSpan(minValue, maxValue, maxBins, minSpan)
@@ -2626,7 +2626,7 @@ func findSpanForTime(minValue float64, maxValue float64, maxBins uint64, minSpan
 		if err != nil {
 			return nil, fmt.Errorf("findSpanForTime: %v", err)
 		}
-		
+
 		estimatedSpan, err = findEstimatedSpan(float64(lowerBound), float64(upperBound), maxBins, minSpan)
 		if err != nil {
 			return nil, fmt.Errorf("findSpanForTime: %v", err)
@@ -2642,7 +2642,6 @@ func findSpanForTime(minValue float64, maxValue float64, maxBins uint64, minSpan
 	return estimatedSpan, nil
 }
 
-
 // Initial method to perform bin request
 func performBinRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool, recordIndexInFinal map[string]int, numTotalSegments uint64, finishesSegment bool) error {
 	if recs != nil {
@@ -2653,12 +2652,18 @@ func performBinRequest(nodeResult *structs.NodeResult, letColReq *structs.LetCol
 		}
 	}
 
-	if err := performBinRequestOnHistogram(nodeResult, letColReq); err != nil {
-		return fmt.Errorf("performValueColRequest: %v", err)
+	if len(nodeResult.Histogram) > 0 {
+		err := performBinRequestOnHistogram(nodeResult, letColReq)
+		if err != nil {
+			return fmt.Errorf("performValueColRequest: %v", err)
+		}
 	}
-	
-	if err := performBinRequestOnMeasureResults(nodeResult, letColReq); err != nil {
-		return fmt.Errorf("performValueColRequest: %v", err)
+
+	if len(nodeResult.MeasureResults) > 0 {
+		err := performBinRequestOnMeasureResults(nodeResult, letColReq)
+		if err != nil {
+			return fmt.Errorf("performValueColRequest: %v", err)
+		}
 	}
 
 	return nil
@@ -2675,7 +2680,6 @@ func performBin(value float64, spanOptions *structs.BinSpanOptions, binReq *stru
 	return nil, fmt.Errorf("performBin: BinSpanOptions is nil")
 }
 
-
 // This function either returns a float or a string
 func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (interface{}, error) {
 	if spanOpt.BinSpanLength != nil {
@@ -2686,15 +2690,15 @@ func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (interfa
 			return lowerBound, nil
 		}
 	}
-	
+
 	if spanOpt.LogSpan != nil {
-		val := value/spanOpt.LogSpan.Coefficient
+		val := value / spanOpt.LogSpan.Coefficient
 		logVal := math.Log10(val) / math.Log10(spanOpt.LogSpan.Base)
 		floorVal := math.Floor(logVal)
 		ceilVal := math.Ceil(logVal)
 		if ceilVal == floorVal {
 			ceilVal += 1
-		}		
+		}
 
 		lowerBound := math.Pow(spanOpt.LogSpan.Base, floorVal) * spanOpt.LogSpan.Coefficient
 		upperBound := math.Pow(spanOpt.LogSpan.Base, ceilVal) * spanOpt.LogSpan.Coefficient
@@ -2704,7 +2708,6 @@ func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (interfa
 
 	return "", fmt.Errorf("performBinWithSpan: BinSpanLength is nil")
 }
-
 
 func getTimeBucketWithAlign(utcTime time.Time, durationScale time.Duration, spanOpt *structs.BinSpanOptions, alignTime *uint64) int {
 	if alignTime == nil {
@@ -2732,7 +2735,7 @@ func findBucketMonthQuarter(utcTime time.Time, num int) uint64 {
 		month := ((currMonth-1)/num)*num + 1
 		finalTime = time.Date(utcTime.Year(), time.Month(month), 1, 0, 0, 0, 0, time.UTC)
 	}
-	
+
 	return uint64(finalTime.UnixMilli())
 }
 
@@ -2745,62 +2748,58 @@ func performBinWithSpanTime(value float64, spanOpt *structs.BinSpanOptions, alig
 	unixMilli := int64(value)
 	utcTime := time.UnixMilli(unixMilli)
 	startTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
-	// localTime := time.Unix(0, unixMilli*int64(time.Millisecond))
-
-	durationScale := time.Duration(time.Second)
 	bucket := 0
 
 	//Align time is only supported for units less than days
 	switch spanOpt.BinSpanLength.TimeScale {
-		case segutils.TMMillisecond:
-			durationScale = time.Millisecond
-			bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
-		case segutils.TMCentisecond:
-			durationScale = time.Millisecond * 10
-			bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
-		case segutils.TMDecisecond:
-			durationScale = time.Millisecond * 100
-			bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
-		case segutils.TMSecond:
-			durationScale = time.Second
-			bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
-		case segutils.TMMinute:
-			durationScale = time.Minute
-			bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
-		case segutils.TMHour:
-			durationScale = time.Hour
-			bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
-		case segutils.TMDay:
-			totalDays := int(utcTime.Sub(startTime).Hours() / 24)
-			slotDays := (totalDays / (int(spanOpt.BinSpanLength.Num)))*(int(spanOpt.BinSpanLength.Num))
-			bucket = int(startTime.AddDate(0, 0, slotDays).UnixMilli())
-		case segutils.TMWeek:
-			totalDays := int(utcTime.Sub(startTime).Hours() / 24)
-			slotDays := (totalDays / (int(spanOpt.BinSpanLength.Num)*7))*(int(spanOpt.BinSpanLength.Num)*7)
-			bucket = int(startTime.AddDate(0, 0, slotDays).UnixMilli())
-		case segutils.TMMonth:
-			return findBucketMonthQuarter(utcTime, int(spanOpt.BinSpanLength.Num)), nil
-		case segutils.TMQuarter:
-			return findBucketMonthQuarter(utcTime, int(spanOpt.BinSpanLength.Num)*3), nil
-		case segutils.TMYear:
-			num := int(spanOpt.BinSpanLength.Num)
-			currYear := int(utcTime.Year())
-			bucketYear := ((currYear-1970)/num)*num + 1970
-			bucket = int(time.Date(bucketYear, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
-		default:
-			return 0, fmt.Errorf("performBinWithSpanTime: Time scale %v is not supported", spanOpt.BinSpanLength.TimeScale)
+	case segutils.TMMillisecond:
+		durationScale := time.Millisecond
+		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
+	case segutils.TMCentisecond:
+		durationScale := time.Millisecond * 10
+		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
+	case segutils.TMDecisecond:
+		durationScale := time.Millisecond * 100
+		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
+	case segutils.TMSecond:
+		durationScale := time.Second
+		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
+	case segutils.TMMinute:
+		durationScale := time.Minute
+		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
+	case segutils.TMHour:
+		durationScale := time.Hour
+		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
+	case segutils.TMDay:
+		totalDays := int(utcTime.Sub(startTime).Hours() / 24)
+		slotDays := (totalDays / (int(spanOpt.BinSpanLength.Num))) * (int(spanOpt.BinSpanLength.Num))
+		bucket = int(startTime.AddDate(0, 0, slotDays).UnixMilli())
+	case segutils.TMWeek:
+		totalDays := int(utcTime.Sub(startTime).Hours() / 24)
+		slotDays := (totalDays / (int(spanOpt.BinSpanLength.Num) * 7)) * (int(spanOpt.BinSpanLength.Num) * 7)
+		bucket = int(startTime.AddDate(0, 0, slotDays).UnixMilli())
+	case segutils.TMMonth:
+		return findBucketMonthQuarter(utcTime, int(spanOpt.BinSpanLength.Num)), nil
+	case segutils.TMQuarter:
+		return findBucketMonthQuarter(utcTime, int(spanOpt.BinSpanLength.Num)*3), nil
+	case segutils.TMYear:
+		num := int(spanOpt.BinSpanLength.Num)
+		currYear := int(utcTime.Year())
+		bucketYear := ((currYear-1970)/num)*num + 1970
+		bucket = int(time.Date(bucketYear, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
+	default:
+		return 0, fmt.Errorf("performBinWithSpanTime: Time scale %v is not supported", spanOpt.BinSpanLength.TimeScale)
 	}
 
 	return uint64(bucket), nil
 }
-
 
 func performBinRequestOnRawRecordWithSpan(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
 	colPresent, exist := finalCols[letColReq.BinRequest.Field]
 	if !exist || !colPresent {
 		return fmt.Errorf("performBinRequest: field %s does not exist in finalCols", letColReq.BinRequest.Field)
 	}
-	
+
 	for _, record := range recs {
 		fieldValueFloat, err := getFloatValForBin(nil, record, letColReq.BinRequest.Field)
 		if err != nil {
@@ -2815,12 +2814,11 @@ func performBinRequestOnRawRecordWithSpan(nodeResult *structs.NodeResult, letCol
 		}
 
 		record[letColReq.NewColName] = binValue
-		finalCols[letColReq.NewColName] = true	
+		finalCols[letColReq.NewColName] = true
 	}
 
 	return nil
 }
-
 
 func performBinRequestOnRawRecordWithoutSpan(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool, recordIndexInFinal map[string]int, numTotalSegments uint64, finishesSegment bool) error {
 	var err error
@@ -2859,12 +2857,21 @@ func performBinRequestOnRawRecordWithoutSpan(nodeResult *structs.NodeResult, let
 		if err != nil {
 			return fmt.Errorf("performBinRequest: %v", err)
 		}
-		
+
 		if fieldValueFloat < minVal {
 			minVal = fieldValueFloat
 		}
 		if fieldValueFloat > maxVal {
 			maxVal = fieldValueFloat
+		}
+	}
+
+	if letColReq.BinRequest.Field != "timestamp" {
+		if letColReq.BinRequest.Start != nil && *letColReq.BinRequest.Start < minVal {
+			minVal = *letColReq.BinRequest.Start
+		}
+		if letColReq.BinRequest.End != nil && *letColReq.BinRequest.End > maxVal {
+			maxVal = *letColReq.BinRequest.End
 		}
 	}
 
@@ -2909,8 +2916,6 @@ func performBinRequestOnRawRecordWithoutSpan(nodeResult *structs.NodeResult, let
 	return nil
 }
 
-
-
 func performBinRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
 	var err error
 	// Check if the column to create already exists and is a GroupBy column.
@@ -2924,7 +2929,7 @@ func performBinRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *str
 	maxVal := -math.MaxFloat64
 	guessSpan := letColReq.BinRequest.BinSpanOptions == nil
 	var spanOptions *structs.BinSpanOptions
-	
+
 	if guessSpan {
 		// iterate over all records to find min and max values
 		for _, aggregationResult := range nodeResult.Histogram {
@@ -2953,7 +2958,6 @@ func performBinRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *str
 	} else {
 		spanOptions = letColReq.BinRequest.BinSpanOptions
 	}
-	
 
 	for _, aggregationResult := range nodeResult.Histogram {
 		for rowIndex, bucketResult := range aggregationResult.Results {
@@ -2973,17 +2977,17 @@ func performBinRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *str
 				return fmt.Errorf("performBinRequestOnHistogram: %v", err)
 			}
 
-			valType := segutils.SS_DT_STRING	
+			var valType segutils.SS_DTYPE
 
 			switch binValue.(type) {
-				case float64:
-					valType = segutils.SS_DT_FLOAT
-				case uint64:
-					valType = segutils.SS_DT_UNSIGNED_NUM
-				case string:
-					valType = segutils.SS_DT_STRING
-				default:
-					return fmt.Errorf("performBinRequestOnHistogram: binValue has unexpected type: %T", binValue)
+			case float64:
+				valType = segutils.SS_DT_FLOAT
+			case uint64:
+				valType = segutils.SS_DT_UNSIGNED_NUM
+			case string:
+				valType = segutils.SS_DT_STRING
+			default:
+				return fmt.Errorf("performBinRequestOnHistogram: binValue has unexpected type: %T", binValue)
 			}
 
 			// Set the appropriate column to the computed value.
@@ -2992,7 +2996,7 @@ func performBinRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *str
 					if letColReq.NewColName != groupByCol {
 						continue
 					}
-					
+
 					binValStr := fmt.Sprintf("%v", binValue)
 
 					// Set the appropriate element of BucketKey to cellValueStr.
@@ -3062,7 +3066,7 @@ func performBinRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq
 
 	if guessSpan {
 		// iterate over all records to find min and max values
-		for rowIndex, _ := range nodeResult.MeasureResults {
+		for rowIndex := range nodeResult.MeasureResults {
 			// Get the values of all the necessary fields.
 			err := getMeasureResultsFieldValues(fieldToValue, fieldsInExpr, nodeResult, rowIndex)
 			if err != nil {
@@ -3086,7 +3090,6 @@ func performBinRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq
 	} else {
 		spanOptions = letColReq.BinRequest.BinSpanOptions
 	}
-	
 
 	// Compute the value for each row.
 	for rowIndex, bucketHolder := range nodeResult.MeasureResults {
@@ -3115,9 +3118,6 @@ func performBinRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq
 	}
 	return nil
 }
-
-
-
 
 func getRecordFieldValues(fieldToValue map[string]segutils.CValueEnclosure, fieldsInExpr []string, record map[string]interface{}) error {
 	for _, field := range fieldsInExpr {

@@ -971,6 +971,9 @@ BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(BinTimeS
         if err != nil {
             return nil, fmt.Errorf("BinSpanLenOption: Invalid Number: %v is not an integer, err: %v", number.(string), err)
         }
+        if num <= 0 {
+            return nil, fmt.Errorf("BinSpanLenOption: Invalid span %v, span value must be greater than 0", num)
+        }
 
         switch timeScale.(utils.TimeUnit) {
             case utils.TMDecisecond:
@@ -1008,6 +1011,9 @@ BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(BinTimeS
     num, err := strconv.ParseFloat(number.(string), 64)
     if err != nil {
         return nil, fmt.Errorf("BinSpanLenOption: Invalid Number: %v is not a numerical value, err: %v", number.(string), err)
+    }
+    if num <= 0.0 {
+        return nil, fmt.Errorf("BinSpanLenOption: Invalid span %v, span value must be greater than 0", num)
     }
 
     spanLength := &structs.BinSpanLength {

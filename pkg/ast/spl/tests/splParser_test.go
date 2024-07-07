@@ -9343,3 +9343,27 @@ func Test_Bin25(t *testing.T) {
 	_, err := spl.Parse("", []byte(query))
 	assert.NotNil(t, err)
 }
+
+func Test_Bin26(t *testing.T) {
+	query := `* | bin span=5mon timestamp`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_Bin27(t *testing.T) {
+	query := `* | bin span=7q timestamp`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_Bin28(t *testing.T) {
+	query := `* | bin span=-2 timestamp`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_Bin29(t *testing.T) {
+	query := `* | bin span=-2s timestamp`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
