@@ -3307,11 +3307,12 @@ float: right;
     padding: 0px 15px !important;
     cursor: pointer;
     font-size: 14px;
-    text-decoration-line: underline;
+    text-decoration-line: none;
     border-bottom: var(--bg-color) 5px solid;
 }
 #dashboard-grid .ag-cell a{
     color: var(--dashboard-title-color) !important;
+    text-decoration-line: underline;
 }
 
 
