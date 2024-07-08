@@ -1044,6 +1044,26 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
             <div class="graph-canvas"></div>
         </div>`);
 
+          // Determine where to insert the new container
+          if (queryName.startsWith('formula')) {
+            // Insert after all formula queries
+            var lastFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:last');
+            if (lastFormula.length) {
+                lastFormula.after(visualizationContainer);
+            } else {
+                // If no formula queries exist, append to the end
+                $('#metrics-graphs').append(visualizationContainer);
+            }
+        } else {
+            // Insert before the first formula query
+            var firstFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:first');
+            if (firstFormula.length) {
+                firstFormula.before(visualizationContainer);
+            } else {
+                // If no formula queries exist, append to the end
+                $('#metrics-graphs').append(visualizationContainer);
+            }
+        }
         var canvas = $('<canvas></canvas>');
         visualizationContainer.find('.graph-canvas').append(canvas);
         $('#metrics-graphs').append(visualizationContainer);
@@ -1056,6 +1076,7 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
     var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
     lineCharts[queryName] = lineChart;
     updateGraphWidth();
+    mergeGraphs(chartType)
 }
 
 
@@ -1603,8 +1624,12 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
         rawTimeSeriesData = res;
     }
 
-    const chartData = await convertDataForChart(rawTimeSeriesData);
-    addVisualizationContainer(formulaId, chartData, formulaString);
+    const chartData = await convertDataForChart(rawTimeSeriesData)
+    if(isAlertScreen){
+        addVisualizationContainerToAlerts(formulaId, chartData, formulaString);
+    }else{
+        addVisualizationContainer(formulaId, chartData, formulaString);
+    }
 }
 
 function calculateInterval(startTime, endTime) {
