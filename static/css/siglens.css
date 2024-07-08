@@ -2702,6 +2702,10 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     padding-top: 0 !important;
     border-bottom: none !important;
     color: var(--table-or-regular-text-color);
+    
+}
+#properties-grid .ag-root-wrapper.ag-layout-auto-height.ag-ltr, #history-grid .ag-root-wrapper.ag-layout-auto-height.ag-ltr{
+    border: 1px solid var(--search-input-border) !important;
 }
 .ag-theme-mycustomtheme .ag-root-wrapper-body {
     background: var(--datatable-odd-row-bg-color) !important;

@@ -520,21 +520,35 @@ function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+// Initialize Tippy globally if not already done so
+tippy.setDefaultProps({
+    trigger: 'manual',
+    placement: 'top'
+});
+
 function validateContactForm() {
     let isValid = true;
+    let anyFieldEmpty = false;
 
     $('.contact-container').each(function () {
         const contactType = $(this).find('#contact-types span').text();
+
+        // Remove previous invalid state and hide existing Tippy tooltips
+        $(this).find('.is-invalid').removeClass('is-invalid');
+        tippy.hideAll({ duration: 0 });
+
         if (contactType === 'Slack') {
             const slackValue = $(this).find('#slack-channel-id').val();
             const slackToken = $(this).find('#slack-token').val();
             if (!slackValue || !slackToken) {
                 isValid = false;
+                anyFieldEmpty = true; // Set flag if any required field is empty
                 $(this).find('#slack-channel-id, #slack-token').each(function () {
                     if (!$(this).val()) {
                         $(this).addClass('is-invalid');
-                    } else {
-                        $(this).removeClass('is-invalid');
+                        tippy(this, {
+                            content: 'This field is required.'
+                        }).show(); // Show Tippy tooltip
                     }
                 });
             }
@@ -542,15 +556,29 @@ function validateContactForm() {
             const webhookValue = $(this).find('#webhook-id').val();
             if (!webhookValue) {
                 isValid = false;
+                anyFieldEmpty = true; // Set flag if any required field is empty
                 $(this).find('#webhook-id').addClass('is-invalid');
-            } else {
-                $(this).find('#webhook-id').removeClass('is-invalid');
+                tippy(this.find('#webhook-id')[0], {
+                    content: 'This field is required.'
+                }).show(); // Show Tippy tooltip
             }
         }
     });
+$('#slack-channel-id, #slack-token, #webhook-id').on('input', function () {
+    validateContactForm();
+});
+    // Toggle test button disabled state based on validation
+    const $testButton = $('.test-contact-btn');
+    if (anyFieldEmpty) {
+        $testButton.prop('disabled', true);
+    } else {
+        $testButton.prop('disabled', false);
+    }
 
     return isValid;
 }
+
+
 
 function displayAllContacts(res) {
     if (contactGridDiv === null) {
@@ -650,7 +678,7 @@ function showContactFormForEdit(contactId) {
 function getContactPointTestData(container) {
     let contactData = {};
     let contactType = container.find('#contact-types span').text();
-
+    validateContactForm();
     if (contactType === 'Slack') {
         let slackValue = container.find('#slack-channel-id').val();
         let slackToken = container.find('#slack-token').val();
