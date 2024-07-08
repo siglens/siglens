@@ -210,166 +210,162 @@ function createSiglensDashboard(inputdbname) {
 }
 
 class btnRenderer {
-    init(params) {
-        const starOutlineURL = 'url("../assets/star-outline.svg")';
-        const starFilledURL = 'url("../assets/star-filled.svg")';
+	init(params) {
+		const starOutlineURL = 'url("../assets/star-outline.svg")';
+		const starFilledURL = 'url("../assets/star-filled.svg")';
 
-        this.eGui = document.createElement('span');
-        this.eGui.innerHTML = `<div id="dashboard-grid-btn" style="margin-left: 20px;"> <!-- Added margin to move the container to the right -->
+		this.eGui = document.createElement('span');
+		this.eGui.innerHTML = `<div id="dashboard-grid-btn" style="margin-left: 20px;"> <!-- Added margin to move the container to the right -->
                 <button class='btn' id="viewbutton" title="Open dashboard"></button>
                 <button class="btn-simple" id="delbutton" title="Delete dashboard"></button>
                 <button class="btn-duplicate" id="duplicateButton" title="Duplicate dashboard"></button>
                 <button class="star-icon" id="favbutton" title="Mark as favorite"></button>
             </div>`;
-        
-        this.dButton = this.eGui.querySelector('.btn-simple');
-        this.dButton.style.marginRight = '25px'; 
-        this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
-        this.starIcon = this.eGui.querySelector('.star-icon');
-        this.starIcon.style.backgroundImage = favoriteDBsSet.has(params.data.uniqId) ? starFilledURL : starOutlineURL;
 
-        //Disable delete for default dashboards and show "Default" label
-        if (defaultDashboardIds.includes(params.data.uniqId)) {
-            const defaultLabel = document.createElement('span');
-            defaultLabel.innerText = "Default";
-            defaultLabel.style.color = 'white';
-            defaultLabel.style.backgroundColor = '#007bff';
-            defaultLabel.style.padding = '2px 6px';
-            defaultLabel.style.borderRadius = '3px';
-            defaultLabel.style.fontSize = '12px';
-            defaultLabel.style.marginRight = '6px'; // Adjusted margin to reduce gap
-            this.dButton.style.display = 'none';
-            this.duplicateButton.parentNode.insertBefore(defaultLabel, this.duplicateButton);
-        }
+		this.dButton = this.eGui.querySelector('.btn-simple');
+		this.dButton.style.marginRight = '5px';
+		this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
+		this.starIcon = this.eGui.querySelector('.star-icon');
+		this.starIcon.style.backgroundImage = favoriteDBsSet.has(params.data.uniqId) ? starFilledURL : starOutlineURL;
 
-        function deletedb() {
-            $.ajax({
-                method: 'get',
-                url: 'api/dashboards/delete/' + params.data.uniqId,
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    Accept: '*/*',
-                },
-                crossDomain: true,
-            }).then(function () {
-                let deletedRowID = params.data.rowId;
-                dbgridOptions.api.applyTransaction({
-                    remove: [{ rowId: deletedRowID }],
-                });
-            });
-        }
+		//Disable delete for default dashboards and show "Default" label
+		if (defaultDashboardIds.includes(params.data.uniqId)) {
+			const defaultLabel = document.createElement('span');
+			defaultLabel.className = 'default-label';
+			defaultLabel.innerText = "Default";
+			defaultLabel.style.textDecoration = 'none'; 
+			this.dButton.style.display = 'none';
+			this.duplicateButton.parentNode.insertBefore(defaultLabel, this.duplicateButton);
+		}		
 
-        function duplicatedb() {
-            $.ajax({
-                method: 'get',
-                url: 'api/dashboards/' + params.data.uniqId,
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    Accept: '*/*',
-                },
-                crossDomain: true,
-                dataType: 'json',
-            }).then(function (res) {
-                let duplicatedDBName = res.name + "-Copy";
-                let duplicatedDescription = res.description;
-                let duplicatedPanels = res.panels;
-                let duplicateTimeRange = res.timeRange;
-                let duplicateRefresh = res.refresh;
-                let uniqIDdb;
-                $.ajax({
-                    method: "post",
-                    url: "api/dashboards/create",
-                    headers: {
-                        'Content-Type': 'application/json; charset=utf-8',
-                        'Accept': '*/*'
-                    },
-                    data: JSON.stringify(duplicatedDBName),
-                    dataType: 'json',
-                    crossDomain: true,
-                }).then((res) => {
-                    uniqIDdb = Object.keys(res)[0];
-                    $.ajax(
-                        {
-                            method: 'POST',
-                            url: '/api/dashboards/update',
-                            data: JSON.stringify({
-                                "id": uniqIDdb,
-                                "name": duplicatedDBName,
-                                "details": {
-                                    "name": duplicatedDBName,
-                                    "description": duplicatedDescription,
-                                    "panels": duplicatedPanels,
-                                    "timeRange": duplicateTimeRange,
-                                    "refresh": duplicateRefresh,
-                                }
-                            })
-                        }
-                    )
-                }).then(function () {
-                    dbgridOptions.api.applyTransaction({
-                        add: [{
-                            dbname: duplicatedDBName,
-                            uniqId: uniqIDdb,
-                        }],
-                    });
-                })
-            })
-        }
+		function deletedb() {
+			$.ajax({
+				method: 'get',
+				url: 'api/dashboards/delete/' + params.data.uniqId,
+				headers: {
+					'Content-Type': 'application/json; charset=utf-8',
+					Accept: '*/*',
+				},
+				crossDomain: true,
+			}).then(function () {
+				let deletedRowID = params.data.rowId;
+				dbgridOptions.api.applyTransaction({
+					remove: [{ rowId: deletedRowID }],
+				});
+			});
+		}
 
-        function toggleFavorite() {
-            $.ajax({
-                method: 'put',
-                url: 'api/dashboards/favorite/' + params.data.uniqId,
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    Accept: '*/*',
-                },
-                crossDomain: true,
-            }).then((response) => {
-                // Update the favorite status based on the response
-                params.data.favorite = response.isFavorite;
-                if (params.data.favorite) {
-                    this.starIcon.style.backgroundImage = starFilledURL;
-                } else {
-                    this.starIcon.style.backgroundImage = starOutlineURL;
-                }
-            });
-        }
+		function duplicatedb() {
+			$.ajax({
+				method: 'get',
+				url: 'api/dashboards/' + params.data.uniqId,
+				headers: {
+					'Content-Type': 'application/json; charset=utf-8',
+					Accept: '*/*',
+				},
+				crossDomain: true,
+				dataType: 'json',
+			}).then(function (res) {
+				let duplicatedDBName = res.name + "-Copy";
+				let duplicatedDescription = res.description;
+				let duplicatedPanels = res.panels;
+				let duplicateTimeRange = res.timeRange;
+				let duplicateRefresh = res.refresh;
+				let uniqIDdb;
+				$.ajax({
+					method: "post",
+					url: "api/dashboards/create",
+					headers: {
+						'Content-Type': 'application/json; charset=utf-8',
+						'Accept': '*/*'
+					},
+					data: JSON.stringify(duplicatedDBName),
+					dataType: 'json',
+					crossDomain: true,
+				}).then((res) => {
+					uniqIDdb = Object.keys(res)[0];
+					$.ajax(
+						{
+							method: 'POST',
+							url: '/api/dashboards/update',
+							data: JSON.stringify({
+								"id": uniqIDdb,
+								"name": duplicatedDBName,
+								"details": {
+									"name": duplicatedDBName,
+									"description": duplicatedDescription,
+									"panels": duplicatedPanels,
+									"timeRange": duplicateTimeRange,
+									"refresh": duplicateRefresh,
+								}
+							})
+						}
+					)
+				}).then(function () {
+					dbgridOptions.api.applyTransaction({
+						add: [{
+							dbname: duplicatedDBName,
+							uniqId: uniqIDdb,
+						}],
+					});
+				})
+			})
+		}
 
-        function showPrompt() {
-            $('#delete-db-prompt').css('display', 'flex');
-            $('.popupOverlay, .popupContent').addClass('active');
-            $('#new-dashboard-modal').hide();
+		function toggleFavorite() {
+			$.ajax({
+				method: 'put',
+				url: 'api/dashboards/favorite/' + params.data.uniqId,
+				headers: {
+					'Content-Type': 'application/json; charset=utf-8',
+					Accept: '*/*',
+				},
+				crossDomain: true,
+			}).then((response) => {
+				// Update the favorite status based on the response
+				params.data.favorite = response.isFavorite;
+				if (params.data.favorite) {
+					this.starIcon.style.backgroundImage = starFilledURL;
+				} else {
+					this.starIcon.style.backgroundImage = starOutlineURL;
+				}
+			});
+		}
 
-            $('#cancel-db-prompt, .popupOverlay').click(function () {
-                $('.popupOverlay, .popupContent').removeClass('active');
-                $('#delete-db-prompt').hide();
-            });
+		function showPrompt() {
+			$('#delete-db-prompt').css('display', 'flex');
+			$('.popupOverlay, .popupContent').addClass('active');
+			$('#new-dashboard-modal').hide();
 
-            $('#delete-dbbtn').click(function () {
-                deletedb();
-                $('.popupOverlay, .popupContent').removeClass('active');
-                $('#delete-db-prompt').hide();
-            });
-        }
+			$('#cancel-db-prompt, .popupOverlay').click(function () {
+				$('.popupOverlay, .popupContent').removeClass('active');
+				$('#delete-db-prompt').hide();
+			});
 
-        this.dButton.addEventListener('click', showPrompt);
-        this.duplicateButton.addEventListener('click', duplicatedb);
-        this.starIcon.addEventListener('click', toggleFavorite.bind(this));
-    }
+			$('#delete-dbbtn').click(function () {
+				deletedb();
+				$('.popupOverlay, .popupContent').removeClass('active');
+				$('#delete-db-prompt').hide();
+			});
+		}
 
-    getGui() {
-        return this.eGui;
-    }
+		this.dButton.addEventListener('click', showPrompt);
+		this.duplicateButton.addEventListener('click', duplicatedb);
+		this.starIcon.addEventListener('click', toggleFavorite.bind(this));
+	}
 
-    refresh(params) {
-        // Use the URL of the SVG files for star icons
-        const starOutlineURL = 'url("../assets/star-outline.svg")';
-        const starFilledURL = 'url("../assets/star-filled.svg")';
+	getGui() {
+		return this.eGui;
+	}
 
-        this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
-        return false;
-    }
+	refresh(params) {
+		// Use the URL of the SVG files for star icons
+		const starOutlineURL = 'url("../assets/star-outline.svg")';
+		const starFilledURL = 'url("../assets/star-filled.svg")';
+
+		this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
+		return false;
+	}
 }
 
 let dashboardColumnDefs = [

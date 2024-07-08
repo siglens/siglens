@@ -1890,7 +1890,7 @@ div.dts div.dataTables_scrollBody table {
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
-    margin-left: 15px;
+    margin-left: 35px;
     padding-bottom: 0;
     margin-top: 0px;
     background-size: contain;
@@ -2466,6 +2466,22 @@ input[type="submit" i] {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     column-gap: 50px;
+}
+
+
+.default-label {
+    color: white;
+    background-color: #364fef;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    margin-right: 6px;
+    text-decoration: none !important;
+}
+
+
+a {
+    text-decoration: none; /* Remove underline from default text */
 }
 
 .range-item {
@@ -3302,6 +3318,7 @@ float: right;
 #dashboard-grid-btn,#alert-grid-btn{
     display: flex;
     align-items: center;
+    
 }
 
 /*NAVBAR */
