@@ -715,6 +715,10 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.S3IngestBufferSize = 1000
 	}
 
+	if config.QueryHostname == "" {
+		config.QueryHostname = "localhost"
+	}
+
 	if len(config.TLS.CertificatePath) >= 0 && strings.HasPrefix(config.TLS.CertificatePath, "./") {
 		config.TLS.CertificatePath = strings.Trim(config.TLS.CertificatePath, "./")
 	}
