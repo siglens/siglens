@@ -232,7 +232,7 @@ func getLogsQueryLinkForTheAlert(alertDetails *alertutils.AlertDetails, timeRang
 		return ""
 	}
 
-	baseURL := config.GetQueryServerBaseUrl()
+	baseURL := config.GetQueryServerBaseUrl() + "/index.html"
 
 	// query parameters
 	params := url.Values{}
