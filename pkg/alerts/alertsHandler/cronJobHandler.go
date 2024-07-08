@@ -222,6 +222,11 @@ func handleAlertCondition(alertToEvaluate *alertutils.AlertDetails, isAlertCondi
 }
 
 func getLogsQueryLinkForTheAlert(alertDetails *alertutils.AlertDetails, timeRange *dtypeutils.TimeRange) string {
+	if timeRange == nil {
+		log.Errorf("ALERTSERVICE: getLogsQueryLinkForTheAlert: TimeRange is nil. Alert=%+v", alertDetails.AlertName)
+		return ""
+	}
+
 	httpScheme := "http://"
 
 	if config.IsTlsEnabled() {
