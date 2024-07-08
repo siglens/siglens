@@ -22,15 +22,15 @@ var queryIndex = 0;
 var queries = {};
 var lineCharts = {}; // Chart details
 var chartDataCollection = {}; // Save label/data for each query
-let mergedGraph ;
+let mergedGraph;
 let chartType = "Line chart";
 let availableMetrics = [];
-let rawTimeSeriesData=[];
-let allFunctions,functionsArray =[];
+let rawTimeSeriesData = [];
+let allFunctions, functionsArray = [];
 var aggregationOptions = ["max by", "min by", "avg by", "sum by", "count by", "stddev by", "stdvar by", "group by"];
 let timeUnit;
-let dayCnt7=0;
-let dayCnt2=0;
+let dayCnt7 = 0;
+let dayCnt2 = 0;
 // Used for alert screen
 let isAlertScreen;
 let metricsQueryParams = {};
@@ -38,33 +38,33 @@ let metricsQueryParams = {};
 // Theme
 let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
 let purple = ["#dbcdfa", "#c8b3fb", "#a082fa", "#8862eb", "#764cd8", "#5f36ac", "#27064c"]
-let cool =["#cce9be", "#a5d9b6", "#89c4c2", "#6cabc9", "#5491c8", "#4078b1", "#2f5a9f", "#213e7d" ]
-let green = ["#d0ebc2", "#c4eab7", "#aed69e", "#87c37d", "#5daa64", "#45884a", "#2e6a34", "#1a431f" ]
-let warm = ["#f7e288", "#fadb84", "#f1b65d", "#ec954d", "#f65630" , "#cf3926", "#aa2827", "#761727" ]
+let cool = ["#cce9be", "#a5d9b6", "#89c4c2", "#6cabc9", "#5491c8", "#4078b1", "#2f5a9f", "#213e7d"]
+let green = ["#d0ebc2", "#c4eab7", "#aed69e", "#87c37d", "#5daa64", "#45884a", "#2e6a34", "#1a431f"]
+let warm = ["#f7e288", "#fadb84", "#f1b65d", "#ec954d", "#f65630", "#cf3926", "#aa2827", "#761727"]
 let orange = ["#f8ddbd", "#f4d2a9", "#f0b077", "#ec934f", "#e0722f", "#c85621", "#9b4116", "#72300e"]
 let gray = ["#c6ccd1", "#adb1b9", "#8d8c96", "#93969e", "#7d7c87", "#656571", "#62636a", "#4c4d57"]
 let palette = ["#5596c8", "#9c86cd", "#f9d038", "#66bfa1", "#c160c9", "#dd905a", "#4476c9", "#c5d741", "#9246b7", "#65d1d5", "#7975da", "#659d33", "#cf777e", "#f2ba46", "#59baee", "#cd92d8", "#508260", "#cf5081", "#a65c93", "#b0be4f"]
 
-$(document).ready(async function() {
+$(document).ready(async function () {
 
     var currentPage = window.location.pathname;
-    if (currentPage === "/alert.html" || currentPage ==='/alert-details.html') {
+    if (currentPage === "/alert.html" || currentPage === '/alert-details.html') {
         isAlertScreen = true;
-    } 
+    }
 
     let stDate = "now-1h";
     let endDate = "now";
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
-    
+
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
     allFunctions = await getFunctions();
-    functionsArray = allFunctions.map(function(item) {
+    functionsArray = allFunctions.map(function (item) {
         return item.fn;
     })
-    
-    if(!isAlertScreen){
+
+    if (!isAlertScreen) {
         addQueryElement();
     }
 });
@@ -85,10 +85,10 @@ async function metricsExplorerDatePickerHandler(evt) {
 
 $('#add-query').on('click', addQueryElement);
 
-$('#add-formula').on('click', function(){
-    if(isAlertScreen){
+$('#add-formula').on('click', function () {
+    if (isAlertScreen) {
         addAlertsFormulaElement()
-    }else{
+    } else {
         addMetricsFormulaElement()
     }
 });
@@ -96,7 +96,7 @@ $('#add-formula').on('click', function(){
 $('.refresh-btn').on("click", refreshMetricsGraphs);
 
 // Toggle switch between merged graph and single graphs 
-$('#toggle-switch').on('change', function() {
+$('#toggle-switch').on('change', function () {
     if ($(this).is(':checked')) {
         $('#metrics-graphs').show();
         $('#merged-graph-container').hide();
@@ -129,7 +129,7 @@ function createFormulaElementTemplate(uniqueId, initialValue = '') {
 }
 
 function formulaRemoveHandler(formulaElement, uniqueId) {
-    formulaElement.find('.remove-query').on('click', function() {
+    formulaElement.find('.remove-query').on('click', function () {
         delete formulas[uniqueId];
         formulaElement.remove();
         removeVisualizationContainer(uniqueId);
@@ -137,12 +137,12 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
     });
 }
 
-function formulaAlertRemoveHandler(formulaElement, uniqueId){
-    formulaElement.find('.remove-query').on('click', function() {
+function formulaAlertRemoveHandler(formulaElement, uniqueId) {
+    formulaElement.find('.remove-query').on('click', function () {
         var formulaBtn = $("#add-formula");
         formulas = {};
         formulaElement.remove();
-        formulaBtn.prop('disabled',false);
+        formulaBtn.prop('disabled', false);
         activateFirstQuery();
         $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
     });
@@ -150,14 +150,14 @@ function formulaAlertRemoveHandler(formulaElement, uniqueId){
 
 function formulaInputHandler(formulaElement, uniqueId) {
     let input = formulaElement.find('.formula');
-    input.on('input', debounce(async function() {
+    input.on('input', debounce(async function () {
         let formula = input.val().trim();
         let errorMessage = formulaElement.find('.formula-error-message');
         if (formula === '') {
             errorMessage.hide();
             input.removeClass('error-border');
             disableQueryRemoval();
-            if(isAlertScreen){
+            if (isAlertScreen) {
                 formulas = {};
                 activateFirstQuery();
             }
@@ -171,7 +171,7 @@ function formulaInputHandler(formulaElement, uniqueId) {
             input.removeClass('error-border');
             // Add or update the formula and query names in the object
             formulas[uniqueId] = validationResult;
-            if(isAlertScreen){
+            if (isAlertScreen) {
                 $('#metrics-queries .metrics-query .query-name').removeClass('active');
             }
             // Check if validationResult.queryNames is an array
@@ -191,11 +191,11 @@ function formulaInputHandler(formulaElement, uniqueId) {
 async function addAlertsFormulaElement(formulaInput) {
     let uniqueId = generateUniqueId();
     let queryNames = Object.keys(queries);
-    if(!formulaInput){
+    if (!formulaInput) {
         formulaInput = queryNames.join(" + ");
     }
 
-    let formulaElement = $('#metrics-formula .formula-box').length > 0 
+    let formulaElement = $('#metrics-formula .formula-box').length > 0
         ? $('.formula').val(formulaInput).removeClass('error-border').siblings('.formula-error-message').hide()
         : createFormulaElementTemplate(uniqueId, formulaInput);
 
@@ -204,7 +204,7 @@ async function addAlertsFormulaElement(formulaInput) {
     }
 
     let validationResult = validateFormula(formulaInput);
-    
+
     formulas[uniqueId] = validationResult;
     await getMetricsDataForFormula(uniqueId, validationResult);
 
@@ -230,7 +230,7 @@ function addMetricsFormulaElement() {
 
 function debounce(func, wait) {
     let timeout;
-    return function(...args) {
+    return function (...args) {
         clearTimeout(timeout);
         timeout = setTimeout(() => func.apply(this, args), wait);
     };
@@ -272,12 +272,12 @@ function validateFormula(formula) {
     };
 }
 
-function disableQueryRemoval(){
+function disableQueryRemoval() {
     // Loop through each query element
-    $('.metrics-query').each(function() {
+    $('.metrics-query').each(function () {
         var queryName = $(this).find('.query-name').text();
         var removeButton = $(this).find('.remove-query');
-        var queryNameExistsInFormula = $('.formula').toArray().some(function(formulaInput) {
+        var queryNameExistsInFormula = $('.formula').toArray().some(function (formulaInput) {
             return $(formulaInput).val().includes(queryName);
         });
 
@@ -292,16 +292,16 @@ function disableQueryRemoval(){
 
 function createChartDataForNumericFormula(numericValue, startTime, endTime) {
     const dataPoints = [];
-    const interval = Math.max(1, Math.floor((endTime - startTime) / 100)); // Adjust the interval as needed
-
-    for (let time = startTime; time <= endTime; time += interval) {
-        const date = new Date(time * 1000);
+    const interval = calculateInterval(startTime, endTime); // Calculate the appropriate interval
+    for (let time = startTime; time <= endTime; time += interval) { // Use the calculated interval
+        const date = new Date(time * 1000); // Convert to milliseconds
         if (!isNaN(date)) {
-            dataPoints.push({ x: date, y: parseFloat(numericValue) });
+            dataPoints.push({ x: date, y: parseFloat(formulaDetails.formula) });
         } else {
             console.error("Invalid date generated:", date);
         }
     }
+
     return dataPoints;
 }
 
@@ -354,12 +354,12 @@ function createQueryElementTemplate(queryName) {
     </div>`);
 }
 
-function setupQueryElementEventListeners(queryElement){
+function setupQueryElementEventListeners(queryElement) {
     // Remove query element
-    queryElement.find('.remove-query').on('click', function() {
+    queryElement.find('.remove-query').on('click', function () {
         var queryName = queryElement.find('.query-name').text();
         // Check if the query name exists in any of the formula input fields
-        var queryNameExistsInFormula = $('.formula').toArray().some(function(formulaInput) {
+        var queryNameExistsInFormula = $('.formula').toArray().some(function (formulaInput) {
             return $(formulaInput).val().includes(queryName);
         });
 
@@ -375,7 +375,7 @@ function setupQueryElementEventListeners(queryElement){
             updateCloseIconVisibility();
 
             // For Alerts Screen
-            if(isAlertScreen){
+            if (isAlertScreen) {
                 // Check if the formula element exists and if it is empty, or if the formula element does not exist
                 if (!($('#metrics-formula .formula-box .formula').length && $('#metrics-formula .formula-box .formula').val().trim() !== "")) {
                     activateFirstQuery();
@@ -385,19 +385,19 @@ function setupQueryElementEventListeners(queryElement){
     });
 
     // Alias button
-    queryElement.find('.as-btn').on('click', function() {
+    queryElement.find('.as-btn').on('click', function () {
         $(this).hide(); // Hide the "as..." button
         $(this).siblings('.alias-filling-box').show(); // Show alias input box
     });
 
     // Alias close button
-    queryElement.find('.alias-filling-box div').last().on('click', function() {
+    queryElement.find('.alias-filling-box div').last().on('click', function () {
         $(this).parent().hide();
         $(this).parent().siblings('.as-btn').show();
     });
 
     // Hide or Show query element and graph on click on query name
-    queryElement.find('.query-name').on('click', function() {
+    queryElement.find('.query-name').on('click', function () {
         var queryNameElement = $(this);
         var queryName = queryNameElement.text();
         var numberOfGraphVisible = $('#metrics-graphs').children('.metrics-graph').filter(':visible').length;
@@ -416,12 +416,12 @@ function setupQueryElementEventListeners(queryElement){
     });
 
     // Show functions dropdown
-    queryElement.find('.show-functions').on('click', function() {
+    queryElement.find('.show-functions').on('click', function () {
         event.stopPropagation();
         var inputField = queryElement.find('#functions-search-box');
         var optionsContainer = queryElement.find('.options-container');
         var isContainerVisible = optionsContainer.is(':visible');
-    
+
         if (!isContainerVisible) {
             optionsContainer.show();
             inputField.val('')
@@ -431,12 +431,12 @@ function setupQueryElementEventListeners(queryElement){
             optionsContainer.hide();
         }
     });
-    
+
     // Hide the functions dropdown
-    $('body').on('click', function(event) {
+    $('body').on('click', function (event) {
         var optionsContainer = queryElement.find('.options-container');
         var showFunctionsButton = queryElement.find('.show-functions');
-    
+
         // Check if the clicked element is not part of the options container or the show-functions button
         if (!$(event.target).closest(optionsContainer).length && !$(event.target).is(showFunctionsButton)) {
             optionsContainer.hide(); // Hide the options container if clicked outside of it
@@ -444,7 +444,7 @@ function setupQueryElementEventListeners(queryElement){
     });
 
     // Display Raw Query
-    queryElement.find('.raw-query-btn').on('click', function() {
+    queryElement.find('.raw-query-btn').on('click', function () {
         queryElement.find('.query-builder').toggle();
         queryElement.find('.raw-query').toggle();
         var queryName = queryElement.find('.query-name').text();
@@ -454,10 +454,10 @@ function setupQueryElementEventListeners(queryElement){
             // Switch to raw mode
             queryDetails.state = 'raw';
             const queryString = createQueryString(queryDetails);
-                if (!queryDetails.rawQueryExecuted){
-                    queryDetails.rawQueryInput = queryString;
-                    queryElement.find('.raw-query-input').val(queryString);
-                }
+            if (!queryDetails.rawQueryExecuted) {
+                queryDetails.rawQueryInput = queryString;
+                queryElement.find('.raw-query-input').val(queryString);
+            }
         } else {
             // Switch to builder mode
             queryDetails.state = 'builder';
@@ -466,7 +466,7 @@ function setupQueryElementEventListeners(queryElement){
     });
 
     // Run the raw query
-    queryElement.find('.raw-query').on('click', '#run-filter-btn', async function() {
+    queryElement.find('.raw-query').on('click', '#run-filter-btn', async function () {
         var queryName = queryElement.find('.query-name').text();
         var queryDetails = queries[queryName];
         var rawQuery = queryElement.find('.raw-query-input').val();
@@ -475,7 +475,7 @@ function setupQueryElementEventListeners(queryElement){
         // Perform the search with the raw query
         await getQueryDetails(queryName, queryDetails);
     });
-    
+
 }
 
 async function addQueryElement() {
@@ -495,7 +495,7 @@ async function addQueryElement() {
         var lastQueryName = $('#metrics-queries').find('.metrics-query:last .query-name').text();
         // Determine the next query name based on the last query name
         var nextQueryName = String.fromCharCode(lastQueryName.charCodeAt(0) + 1);
-        
+
         queryElement = $('#metrics-queries').find('.metrics-query').last().clone();
         queryElement.find('.query-name').text(nextQueryName);
         queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
@@ -505,8 +505,8 @@ async function addQueryElement() {
         // Initialize autocomplete with the details of the previous query if it exists
         await initializeAutocomplete(queryElement, queries[lastQueryName]);
 
-        if(isAlertScreen){
-           await addAlertsFormulaElement();
+        if (isAlertScreen) {
+            await addAlertsFormulaElement();
         }
     }
 
@@ -538,7 +538,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         queryDetails.everywhere = previousQuery.everywhere.slice();
         queryDetails.everything = previousQuery.everything.slice();
         queryDetails.aggFunction = previousQuery.aggFunction;
-        queryDetails.functions = previousQuery.functions.slice(); 
+        queryDetails.functions = previousQuery.functions.slice();
     }
 
     var currentMetricsValue = queryElement.find('.metrics').val();
@@ -557,7 +557,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 availableEverything.splice(index, 1);
             }
         });
-        getQueryDetails(queryName,queryDetails);
+        getQueryDetails(queryName, queryDetails);
     }
 
     queryElement.find('.metrics').autocomplete({
@@ -567,75 +567,75 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             $(this).val(ui.item.value);
             return false;
         },
-        select: async function(event, ui) {
+        select: async function (event, ui) {
             queryDetails.metrics = ui.item.value;
-            getQueryDetails(queryName,queryDetails);
+            getQueryDetails(queryName, queryDetails);
             const tagsAndValue = await getTagKeyValue(ui.item.value);
             availableEverything = tagsAndValue.availableEverything[0];
             availableEverywhere = tagsAndValue.availableEverywhere;
             queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
             queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
-            $(this).blur(); 
+            $(this).blur();
         },
         classes: {
             "ui-autocomplete": "metrics-ui-widget"
         },
-    }).on('click', function() {
+    }).on('click', function () {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
         } else {
             $(this).autocomplete('search', '');
         }
-    }).on('click', function() {
+    }).on('click', function () {
         $(this).select();
-    }).on('close', function(event) {
+    }).on('close', function (event) {
         var selectedValue = $(this).val();
         if (selectedValue === '') {
             $(this).val(queryDetails.metrics);
         }
-    }).on('keydown', function(event) {
+    }).on('keydown', function (event) {
         if (event.keyCode === 27) { // For the Escape key
             var selectedValue = $(this).val();
             if (selectedValue === '') {
                 $(this).val(queryDetails.metrics);
-            }else if (!availableMetrics.includes(selectedValue)) {
+            } else if (!availableMetrics.includes(selectedValue)) {
                 $(this).val(queryDetails.metrics);
             } else {
                 queryDetails.metrics = selectedValue;
             }
-            $(this).blur(); 
+            $(this).blur();
         }
-    }).on('change', function() {
+    }).on('change', function () {
         var selectedValue = $(this).val();
         if (!availableMetrics.includes(selectedValue)) {
             $(this).val(queryDetails.metrics);
         } else {
             queryDetails.metrics = selectedValue;
         }
-        $(this).blur(); 
+        $(this).blur();
     });
-    
+
     // Everywhere input (tag:value)
     queryElement.find('.everywhere').autocomplete({
-        source: function(request, response) {
-                var filtered = $.grep(availableEverywhere, function(item) {
-                    // Check if the tag part of item is not present in queryDetails.everywhere
-                    var tag = item.split(':')[0];
-                    return (
-                        item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1 &&
-                        !queryDetails.everywhere.some(function(existingTag) {
-                            return existingTag.startsWith(tag + ':');
-                        })
-                    );
-                });
-                filtered.sort();
-                response(filtered);
-            },
+        source: function (request, response) {
+            var filtered = $.grep(availableEverywhere, function (item) {
+                // Check if the tag part of item is not present in queryDetails.everywhere
+                var tag = item.split(':')[0];
+                return (
+                    item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1 &&
+                    !queryDetails.everywhere.some(function (existingTag) {
+                        return existingTag.startsWith(tag + ':');
+                    })
+                );
+            });
+            filtered.sort();
+            response(filtered);
+        },
         minLength: 0,
-        select: function(event, ui) {
-            addTag(queryElement,ui.item.value);
+        select: function (event, ui) {
+            addTag(queryElement, ui.item.value);
             queryDetails.everywhere.push(ui.item.value);
-            getQueryDetails(queryName,queryDetails)
+            getQueryDetails(queryName, queryDetails)
             var index = availableEverywhere.indexOf(ui.item.value);
             if (index !== -1) {
                 availableEverywhere.splice(index, 1);
@@ -647,7 +647,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         classes: {
             "ui-autocomplete": "metrics-ui-widget"
         },
-        open: function(event, ui) {
+        open: function (event, ui) {
             var containerPosition = $(this).closest('.tag-container').offset();
 
             $(this).autocomplete("widget").css({
@@ -657,31 +657,31 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 "z-index": 1000
             });
         }
-    }).on('click', function() {
+    }).on('click', function () {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
         } else {
             $(this).autocomplete('search', '');
         }
-    }).on('input', function() {
-        this.style.width = (this.value.length * 8) + 'px'; 
+    }).on('input', function () {
+        this.style.width = (this.value.length * 8) + 'px';
         let typedValue = $(this).val();
-        
+
         // Remove the wildcard option from available options when the input value changes
         if (!typedValue.includes(':')) {
-            availableEverywhere = availableEverywhere.filter(function(option) {
+            availableEverywhere = availableEverywhere.filter(function (option) {
                 return !option.includes(':*');
             });
         }
-        
+
         // Add the wildcard option if the typed value contains a colon ":"
         if (typedValue.includes(':')) {
             var parts = typedValue.split(':');
             var prefix = parts[0];
             var suffix = parts[1];
             var wildcardOption = prefix + ':' + suffix + '*';
-            
-            availableEverywhere = availableEverywhere.filter(function(option) {
+
+            availableEverywhere = availableEverywhere.filter(function (option) {
                 return !option.includes('*');
             });
             // Check if the typed value already exists in the available options
@@ -693,17 +693,17 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     });
 
 
-    
-    queryElement.on('click', '.tag .close', function() {
+
+    queryElement.on('click', '.tag .close', function () {
         var tagContainer = queryElement.find('.everywhere');
 
-        var tagValue = $(this).parent().contents().filter(function() {
+        var tagValue = $(this).parent().contents().filter(function () {
             return this.nodeType === 3;
         }).text().trim();
         var index = queryDetails.everywhere.indexOf(tagValue);
         if (index !== -1) {
             queryDetails.everywhere.splice(index, 1);
-            getQueryDetails(queryName,queryDetails);
+            getQueryDetails(queryName, queryDetails);
         }
         availableEverywhere.push(tagValue);
         availableEverywhere.sort();
@@ -715,56 +715,56 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             tagContainer.attr('placeholder', '(everywhere)');
             tagContainer.css('width', '100%');
         }
-        updateAutocompleteSource(); 
+        updateAutocompleteSource();
     });
 
     // Aggregation input 
     queryElement.find('.agg-function').autocomplete({
         source: aggregationOptions.sort(),
         minLength: 0,
-        select: function(event, ui) {
+        select: function (event, ui) {
             queryDetails.aggFunction = ui.item.value;
-            getQueryDetails(queryName,queryDetails);
-            $(this).blur(); 
+            getQueryDetails(queryName, queryDetails);
+            $(this).blur();
         },
         classes: {
             "ui-autocomplete": "metrics-ui-widget"
         },
-    }).on('click', function() {
+    }).on('click', function () {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
         } else {
             $(this).autocomplete('search', '');
         }
-    }).on('click', function() {
+    }).on('click', function () {
         $(this).select();
     });
 
     // Everything input (value)
     queryElement.find('.everything').autocomplete({
-        source: function(request, response) {
-            var filtered = $.grep(availableEverything, function(item) {
+        source: function (request, response) {
+            var filtered = $.grep(availableEverything, function (item) {
                 return item.toLowerCase().indexOf(request.term.toLowerCase()) !== -1;
             });
             var sorted = filtered.sort();
             response(sorted);
         },
         minLength: 0,
-        select: function(event, ui) {
+        select: function (event, ui) {
             addValue(queryElement, ui.item.value);
             queryDetails.everything.push(ui.item.value);
-            getQueryDetails(queryName,queryDetails)
+            getQueryDetails(queryName, queryDetails)
             var index = availableEverything.indexOf(ui.item.value);
             if (index !== -1) {
                 availableEverything.splice(index, 1);
             }
             $(this).val('');
-            return false;        
+            return false;
         },
         classes: {
             "ui-autocomplete": "metrics-ui-widget"
         },
-        open: function(event, ui) {
+        open: function (event, ui) {
             var containerPosition = $(this).closest('.value-container').offset();
 
             $(this).autocomplete("widget").css({
@@ -774,27 +774,27 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 "z-index": 1000
             });
         }
-        }).on('click', function() {
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
-            } else {
-                $(this).autocomplete('search', '');
-            }
-        }).on('input', function() {
-            this.style.width = (this.value.length * 8) + 'px'; 
-        })
+    }).on('click', function () {
+        if ($(this).autocomplete('widget').is(':visible')) {
+            $(this).autocomplete('close');
+        } else {
+            $(this).autocomplete('search', '');
+        }
+    }).on('input', function () {
+        this.style.width = (this.value.length * 8) + 'px';
+    })
 
 
-    queryElement.on('click', '.value .close', function() {
+    queryElement.on('click', '.value .close', function () {
         var valueContainer = queryElement.find('.everything');
 
-        var value = $(this).parent().contents().filter(function() {
+        var value = $(this).parent().contents().filter(function () {
             return this.nodeType === 3;
         }).text().trim();
         var index = queryDetails.everything.indexOf(value);
         if (index !== -1) {
             queryDetails.everything.splice(index, 1);
-            getQueryDetails(queryName,queryDetails);
+            getQueryDetails(queryName, queryDetails);
         }
         availableEverything.push(value);
         availableEverything.sort();
@@ -809,12 +809,12 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     });
 
     queryElement.find('#functions-search-box').autocomplete({
-        source: allFunctions.map(function(item) {
+        source: allFunctions.map(function (item) {
             return item.name;
         }),
         minLength: 0,
-        select: function(event, ui) {
-            var selectedItem = allFunctions.find(function(item) {
+        select: function (event, ui) {
+            var selectedItem = allFunctions.find(function (item) {
                 return item.name === ui.item.value;
             });
             // Check if the selected function is already in queryDetails.functions
@@ -826,43 +826,43 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
 
             queryDetails.functions.push(selectedItem.fn);
             appendFunctionDiv(queryElement, selectedItem.fn);
-            getQueryDetails(queryName,queryDetails);
-    
+            getQueryDetails(queryName, queryDetails);
+
             queryElement.find('.options-container').hide();
             $(this).val('');
         },
         classes: {
             "ui-autocomplete": "metrics-ui-widget"
         },
-    }).on('click', function() {
+    }).on('click', function () {
         if ($(this).autocomplete('widget').is(':visible')) {
             $(this).autocomplete('close');
         } else {
             $(this).autocomplete('search', '');
         }
-    }).on('click', function() {
+    }).on('click', function () {
         $(this).select();
     });
 
 
-    $('.all-selected-functions').on('click', '.selected-function .close', function() {
-        var fnToRemove = $(this).parent('.selected-function').contents().filter(function() {
+    $('.all-selected-functions').on('click', '.selected-function .close', function () {
+        var fnToRemove = $(this).parent('.selected-function').contents().filter(function () {
             return this.nodeType === 3;
         }).text().trim();
         var indexToRemove = queryDetails.functions.indexOf(fnToRemove);
         if (indexToRemove !== -1) {
             queryDetails.functions.splice(indexToRemove, 1);
-            getQueryDetails(queryName,queryDetails);
+            getQueryDetails(queryName, queryDetails);
         }
         $(this).parent('.selected-function').remove();
     });
-  
+
     // Wildcard option
     function updateAutocompleteSource() {
-        var selectedTags = queryDetails.everywhere.map(function(tag) {
+        var selectedTags = queryDetails.everywhere.map(function (tag) {
             return tag.split(':')[0];
         });
-        var filteredOptions = availableEverywhere.filter(function(option) {
+        var filteredOptions = availableEverywhere.filter(function (option) {
             var optionTag = option.split(':')[0];
             return !selectedTags.includes(optionTag);
         });
@@ -881,18 +881,30 @@ function updateCloseIconVisibility() {
 
 function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
-    var datasets = seriesData.map(function (series, index) {
-        return {
-            label: series.seriesName,
-            data: Object.keys(series.values).map(ts => ({ x: new Date(ts), y: series.values[ts] })),
-            borderColor: classic[index % classic.length],
-            backgroundColor: classic[index % classic.length] + '70',
-            borderWidth: 2,
-            fill: false
-        };
-    });
+    var datasets = [];
+    var labels = [];
 
-    var labels = datasets.length ? datasets[0].data.map(dp => dp.x) : [];
+    // Extract labels and datasets from seriesData
+    if (seriesData.length > 0) {
+        seriesData.forEach(function (series, index) {
+            Object.keys(series.values).forEach((tsvalue) => {
+                labels.push(new Date(tsvalue));
+            });
+        });
+
+        labels.sort((a, b) => a - b);
+
+        datasets = seriesData.map(function (series, index) {
+            return {
+                label: series.seriesName,
+                data: series.values,
+                borderColor: classic[index % classic.length],
+                backgroundColor: classic[index % classic.length] + '70',
+                borderWidth: 2,
+                fill: false
+            };
+        });
+    }
 
     var chartData = {
         labels: labels,
@@ -903,6 +915,25 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     chartDataCollection[queryName] = chartData;
 
     const { gridLineColor, tickColor } = getGraphGridColors();
+
+    // Calculate step size based on the time range
+    var stepSize;
+    var timeRange = labels.length > 0 ? (labels[labels.length - 1] - labels[0]) : 0;
+
+    // Determine the best time unit and step size
+    if (timeRange > 365 * 24 * 60 * 60 * 1000) { // more than a year
+        stepSize = 30 * 24 * 60 * 60 * 1000; // 1 month
+    } else if (timeRange > 90 * 24 * 60 * 60 * 1000) { // more than 90 days
+        stepSize = 7 * 24 * 60 * 60 * 1000; // 1 week
+    } else if (timeRange > 30 * 24 * 60 * 60 * 1000) { // more than a month
+        stepSize = 24 * 60 * 60 * 1000; // 1 day
+    } else if (timeRange > 7 * 24 * 60 * 60 * 1000) { // more than a week
+        stepSize = 6 * 60 * 60 * 1000; // 6 hours
+    } else if (timeRange > 24 * 60 * 60 * 1000) { // more than a day
+        stepSize = 1 * 60 * 60 * 1000; // 1 hour
+    } else {
+        stepSize = 5 * 60 * 1000; // 5 minutes
+    }
 
     var lineChart = new Chart(ctx, {
         type: (chartType === 'Area chart') ? 'line' : (chartType === 'Bar chart') ? 'bar' : 'line',
@@ -932,10 +963,10 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     grid: {
                         display: false
                     },
-                    ticks: { 
+                    ticks: {
                         color: tickColor,
                         callback: xaxisFomatter,
-                        autoSkip: false,
+                        autoSkip: true,
                         major: {
                             enabled: true,
                         },
@@ -951,14 +982,14 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                         }
                     },
                     time: {
-                        unit: timeUnit.includes('day') ? 'day' : timeUnit.includes('hour') ? 'hour' : timeUnit.includes('minute') ? 'minute' : timeUnit,
+                        unit: 'day',
                         tooltipFormat: 'MMM d, HH:mm:ss',
                         displayFormats: {
-                            minute: 'HH:mm',
-                            hour: 'HH:mm',
                             day: 'MMM d',
+                            week: 'MMM d',
                             month: 'MMM YYYY'
-                        }
+                        },
+                        stepSize: stepSize / (24 * 60 * 60 * 1000) // Convert stepSize to days
                     },
                 },
                 y: {
@@ -989,9 +1020,24 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     return lineChart;
 }
 
+function calculateStepSize(startTime, endTime) {
+    const timeRange = endTime - startTime;
+    if (timeRange > 365 * 24 * 60 * 60) {
+        return 30 * 24 * 60 * 60; // 1 month
+    } else if (timeRange > 30 * 24 * 60 * 60) {
+        return 7 * 24 * 60 * 60; // 1 week
+    } else if (timeRange > 7 * 24 * 60 * 60) {
+        return 24 * 60 * 60; // 1 day
+    } else if (timeRange > 24 * 60 * 60) {
+        return 60 * 60; // 1 hour
+    } else {
+        return 60; // 1 minute
+    }
+}
+
 function addVisualizationContainer(queryName, seriesData, queryString) {
     var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`);
-    if (existingContainer.length === 0){
+    if (existingContainer.length === 0) {
         var visualizationContainer = $(`
         <div class="metrics-graph" data-query="${queryName}">
             <div class="query-string">${queryString}</div>
@@ -1046,19 +1092,19 @@ var displayOptions = ["Line chart", "Bar chart", "Area chart"];
 $("#display-input").autocomplete({
     source: displayOptions,
     minLength: 0,
-    select: function(event, ui) {
+    select: function (event, ui) {
         toggleLineOptions(ui.item.value);
         chartType = ui.item.value;
         toggleChartType(ui.item.value);
         $(this).blur();
     }
-}).on('click', function() {
+}).on('click', function () {
     if ($(this).autocomplete('widget').is(':visible')) {
         $(this).autocomplete('close');
     } else {
         $(this).autocomplete('search', '');
     }
-}).on('click', function() {
+}).on('click', function () {
     $(this).select();
 });
 
@@ -1083,43 +1129,43 @@ function toggleChartType(chartType) {
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             var lineChart = lineCharts[queryName];
-            
+
             lineChart.config.type = chartJsType;
-            
+
             if (chartType === 'Area chart') {
-                lineChart.config.data.datasets.forEach(function(dataset) {
+                lineChart.config.data.datasets.forEach(function (dataset) {
                     dataset.fill = true;
                 });
             } else {
-                lineChart.config.data.datasets.forEach(function(dataset) {
+                lineChart.config.data.datasets.forEach(function (dataset) {
                     dataset.fill = false;
                 });
             }
-            
+
             lineChart.update();
         }
     }
-    
+
     mergeGraphs(chartType);
 }
 
 
 var colorOptions = ["Classic", "Purple", "Cool", "Green", "Warm", "Orange", "Gray", "Palette"];
 $("#color-input").autocomplete({
-   source: colorOptions,
-   minLength: 0,
-   select: function(event,ui){
+    source: colorOptions,
+    minLength: 0,
+    select: function (event, ui) {
         selectedColorTheme = ui.item.value;
         updateChartTheme(selectedColorTheme);
         $(this).blur();
-   }
- }).on('click', function() {
+    }
+}).on('click', function () {
     if ($(this).autocomplete('widget').is(':visible')) {
         $(this).autocomplete('close');
     } else {
         $(this).autocomplete('search', '');
     }
-}).on('click', function() {
+}).on('click', function () {
     $(this).select();
 });
 
@@ -1141,17 +1187,17 @@ function updateChartTheme(theme) {
     for (var queryName in chartDataCollection) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             var chartData = chartDataCollection[queryName];
-            chartData.datasets.forEach(function(dataset, index) {
+            chartData.datasets.forEach(function (dataset, index) {
                 dataset.borderColor = selectedPalette[index % selectedPalette.length];
                 dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
             });
 
-            var lineChart = lineCharts[queryName]; 
+            var lineChart = lineCharts[queryName];
             lineChart.update();
         }
     }
 
-    mergedGraph.data.datasets.forEach(function(dataset, index) {
+    mergedGraph.data.datasets.forEach(function (dataset, index) {
         dataset.borderColor = selectedPalette[index % selectedPalette.length];
         dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
     });
@@ -1164,38 +1210,38 @@ var strokeOptions = ["Normal", "Thin", "Thick"];
 $("#line-style-input").autocomplete({
     source: lineStyleOptions,
     minLength: 0,
-    select: function(event, ui) {
+    select: function (event, ui) {
         var selectedLineStyle = ui.item.value;
         var selectedStroke = $("#stroke-input").val();
         updateLineCharts(selectedLineStyle, selectedStroke);
         $(this).blur();
     }
-}).on('click', function() {
+}).on('click', function () {
     if ($(this).autocomplete('widget').is(':visible')) {
         $(this).autocomplete('close');
     } else {
         $(this).autocomplete('search', '');
     }
-}).on('click', function() {
+}).on('click', function () {
     $(this).select();
 });
 
 $("#stroke-input").autocomplete({
     source: strokeOptions,
     minLength: 0,
-    select: function(event, ui) {
+    select: function (event, ui) {
         var selectedStroke = ui.item.value;
         var selectedLineStyle = $("#line-style-input").val();
         updateLineCharts(selectedLineStyle, selectedStroke);
         $(this).blur();
     }
-}).on('click', function() {
+}).on('click', function () {
     if ($(this).autocomplete('widget').is(':visible')) {
         $(this).autocomplete('close');
     } else {
         $(this).autocomplete('search', '');
     }
-}).on('click', function() {
+}).on('click', function () {
     $(this).select();
 });
 
@@ -1206,19 +1252,19 @@ function updateLineCharts(lineStyle, stroke) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             var chartData = chartDataCollection[queryName];
             // Loop through each dataset in the chart data
-            chartData.datasets.forEach(function(dataset) {
+            chartData.datasets.forEach(function (dataset) {
                 // Update dataset properties
                 dataset.borderDash = (lineStyle === "Dash") ? [5, 5] : (lineStyle === "Dotted") ? [1, 3] : [];
-                dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2; 
+                dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2;
             });
 
-            var lineChart = lineCharts[queryName]; 
+            var lineChart = lineCharts[queryName];
             lineChart.update();
         }
     }
-    mergedGraph.data.datasets.forEach(function(dataset) {
+    mergedGraph.data.datasets.forEach(function (dataset) {
         dataset.borderDash = (lineStyle === "Dash") ? [5, 5] : (lineStyle === "Dotted") ? [1, 3] : [];
-        dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2; 
+        dataset.borderWidth = (stroke === "Thin") ? 1 : (stroke === "Thick") ? 3 : 2;
     });
 
     mergedGraph.update();
@@ -1231,7 +1277,7 @@ function mergeGraphs(chartType) {
         <div class="merged-graph"></div>`);
 
     $('#merged-graph-container').empty().append(visualizationContainer);
-    
+
     var mergedCanvas = $('<canvas></canvas>');
 
     $('.merged-graph').empty().append(mergedCanvas);
@@ -1248,22 +1294,22 @@ function mergeGraphs(chartType) {
         if (chartDataCollection.hasOwnProperty(queryName)) {
             // Merge datasets for the current query
             var datasets = chartDataCollection[queryName].datasets;
-            graphNames.push(`Metrics query - ${queryName}`); 
-            datasets.forEach(function(dataset) {
+            graphNames.push(`Metrics query - ${queryName}`);
+            datasets.forEach(function (dataset) {
                 mergedData.datasets.push({
                     label: dataset.label,
                     data: dataset.data,
                     borderColor: dataset.borderColor,
                     borderWidth: dataset.borderWidth,
                     backgroundColor: dataset.backgroundColor,
-                    fill: (chartType === 'Area chart') ? true : false 
+                    fill: (chartType === 'Area chart') ? true : false
                 });
             });
 
             // Update labels ( same for all graphs)
             mergedData.labels = chartDataCollection[queryName].labels;
         }
-    } 
+    }
     $('.merged-graph-name').html(graphNames.join(', '));
     const { gridLineColor, tickColor } = getGraphGridColors();
     var mergedLineChart = new Chart(mergedCtx, {
@@ -1278,8 +1324,8 @@ function mergeGraphs(chartType) {
                     align: 'start',
                     labels: {
                         boxWidth: 10,
-                        boxHeight: 2, 
-                        fontSize: 10 
+                        boxHeight: 2,
+                        fontSize: 10
                     }
                 }
             },
@@ -1294,7 +1340,8 @@ function mergeGraphs(chartType) {
                     grid: {
                         display: false
                     },
-                    ticks: { color: tickColor,
+                    ticks: {
+                        color: tickColor,
                         callback: xaxisFomatter,
                         autoSkip: false,
                         major: {
@@ -1306,13 +1353,13 @@ function mergeGraphs(chartType) {
                                     weight: 'bold'
                                 };
                             }
-                        return {
+                            return {
                                 weight: 'normal'
                             };
                         }
                     },
                     time: {
-                        unit: timeUnit.includes('day') ?'day' : timeUnit.includes('hour')? 'hour' : timeUnit.includes('minute')?'minute' : timeUnit,
+                        unit: timeUnit.includes('day') ? 'day' : timeUnit.includes('hour') ? 'hour' : timeUnit.includes('minute') ? 'minute' : timeUnit,
                         tooltipFormat: 'MMM d, HH:mm:ss',
                         displayFormats: {
                             minute: 'HH:mm',
@@ -1342,32 +1389,32 @@ async function convertDataForChart(data) {
     let seriesArray = [];
 
     if (data.hasOwnProperty('series') && data.hasOwnProperty('timestamps') && data.hasOwnProperty('values')) {
-        
         let chartStartTime = data.startTime;
-        let chartEndTime = Math.floor( Date.now()/ 1000);
-        const timeRange =chartEndTime - chartStartTime;
-        // // Determine the best time unit based on the time range
-        if (timeRange > 365 * 24 * 60 * 60  ) {
+        let chartEndTime = Math.floor(Date.now() / 1000);
+        const timeRange = chartEndTime - chartStartTime;
+        // Determine the best time unit based on the time range
+        if (timeRange > 365 * 24 * 60 * 60) {
             timeUnit = 'month';
-        }else if (timeRange >= 90 * 24 * 60 * 60  ) {
+        } else if (timeRange >= 90 * 24 * 60 * 60) {
             timeUnit = '7day';
-        }else if (timeRange >= 30 * 24 * 60 * 60  ) {
+        } else if (timeRange >= 30 * 24 * 60 * 60) {
             timeUnit = '2day';
-        } else if (timeRange >= 7 * 24 * 60 * 60 ) {
+        } else if (timeRange >= 7 * 24 * 60 * 60) {
             timeUnit = '12hour';
-        } else if (timeRange >= 2 * 24 * 60 * 60 ) {
+        } else if (timeRange >= 2 * 24 * 60 * 60) {
             timeUnit = '6hour';
-        } else if (timeRange >= 24 * 60 * 60 ) {
+        } else if (timeRange >= 24 * 60 * 60) {
             timeUnit = '3hour';
-        } else if (timeRange >= 12 * 60 * 60 ) {
+        } else if (timeRange >= 12 * 60 * 60) {
             timeUnit = '30minute';
-        } else if (timeRange >= 3 * 60 * 60 ) {
+        } else if (timeRange >= 3 * 60 * 60) {
             timeUnit = '15minute';
-        } else if (timeRange >= 30 * 60 ) {
+        } else if (timeRange >= 30 * 60) {
             timeUnit = '5minute';
-        }  else {
+        } else {
             timeUnit = 'minute';
         }
+        
         for (let i = 0; i < data.series.length; i++) {
             let series = {
                 seriesName: data.series[i],
@@ -1375,8 +1422,8 @@ async function convertDataForChart(data) {
             };
 
             let calculatedInterval = data.intervalSec;
-            let oneDayInMilliseconds = 24 * 60 * 60  ;
-            switch(calculatedInterval){
+            let oneDayInMilliseconds = 24 * 60 * 60;
+            switch (calculatedInterval) {
                 case calculatedInterval >= 28800:
                     chartStartTime = chartStartTime - oneDayInMilliseconds;
                     chartEndTime = chartEndTime + oneDayInMilliseconds;
@@ -1412,7 +1459,7 @@ async function convertDataForChart(data) {
                 let timestampInMilliseconds = chartStartTime * 1000;
                 let localDate = moment(timestampInMilliseconds);
                 const formattedDate = localDate.format('YYYY-MM-DDTHH:mm:ss');
-                if(series.values[formattedDate] === undefined){
+                if (series.values[formattedDate] === undefined) {
                     series.values[formattedDate] = null;
                 }
                 chartStartTime = chartStartTime + calculatedInterval
@@ -1426,26 +1473,26 @@ async function convertDataForChart(data) {
 
 async function getMetricNames() {
     const data = {
-      start: filterStartDate,
-      end: filterEndDate,
+        start: filterStartDate,
+        end: filterEndDate,
     };
     const res = await $.ajax({
-      method: "post",
-      url: "metrics-explorer/api/v1/metric_names",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        Accept: "*/*",
-      },
-      crossDomain: true,
-      dataType: "json",
-      data: JSON.stringify(data),
+        method: "post",
+        url: "metrics-explorer/api/v1/metric_names",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            Accept: "*/*",
+        },
+        crossDomain: true,
+        dataType: "json",
+        data: JSON.stringify(data),
     });
-  
+
     if (res) {
         availableMetrics = res.metricNames;
     }
-    
-    return res 
+
+    return res
 }
 
 
@@ -1470,7 +1517,7 @@ function parseRelativeDate(relativeDate) {
         return now;
     }
 
-    const matches = relativeDate.match(/now-(\d+)([dh])/);
+    const matches = relativeDate.match(/now-(\d+)([dhm])/);
     if (matches) {
         const value = parseInt(matches[1], 10);
         const unit = matches[2];
@@ -1478,6 +1525,8 @@ function parseRelativeDate(relativeDate) {
             return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
         } else if (unit === 'h') {
             return new Date(now.getTime() - value * 60 * 60 * 1000);
+        } else if (unit === 'm') {
+            return new Date(now.getTime() - value * 60 * 1000);
         }
     }
 
@@ -1487,18 +1536,20 @@ function parseRelativeDate(relativeDate) {
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
     if (formulaDetails.isNumeric) {
         try {
-            const startTime = parseRelativeDate(filterStartDate).getTime();
-            const endTime = parseRelativeDate(filterEndDate).getTime();
-            // Generate data points for every hour between start and end time
+            const startTime = parseRelativeDate(filterStartDate).getTime() / 1000;
+            const endTime = parseRelativeDate(filterEndDate).getTime() / 1000;
+            const interval = calculateInterval(startTime, endTime);
+
             const dataPoints = [];
-            for (let time = startTime; time <= endTime; time += 3600000) { // Increment by one hour in milliseconds
-                const date = new Date(time);
+            for (let time = startTime; time <= endTime; time += interval) {
+                const date = new Date(time * 1000); // Convert to milliseconds
                 if (!isNaN(date)) {
                     dataPoints.push({ x: date, y: parseFloat(formulaDetails.formula) });
                 } else {
                     console.error("Invalid date generated:", date);
                 }
             }
+
             const seriesData = [{
                 seriesName: `Numeric Value: ${formulaDetails.formula}`,
                 values: dataPoints.reduce((acc, point) => {
@@ -1517,6 +1568,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             console.error("Error parsing dates:", error);
         }
     }
+
     let queriesData = [];
     let formulas = [];
     let formulaString = formulaDetails.formula;
@@ -1527,7 +1579,6 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
             queryString = createQueryString(queryDetails);
         } else {
             queryString = queryDetails.rawQueryInput;
-
         }
         const query = {
             name: queryName,
@@ -1540,7 +1591,7 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
         formulaString = formulaString.replace(new RegExp(`\\b${queryName}\\b`, 'g'), queryString);
     }
     const formula = {
-        formula: formulaDetails.formula 
+        formula: formulaDetails.formula
     };
     formulas.push(formula);
     const data = { start: filterStartDate, end: filterEndDate, queries: queriesData, formulas: formulas };
@@ -1555,6 +1606,69 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
     const chartData = await convertDataForChart(rawTimeSeriesData);
     addVisualizationContainer(formulaId, chartData, formulaString);
 }
+
+function calculateInterval(startTime, endTime) {
+    const timeRange = endTime - startTime;
+    if (timeRange > 365 * 24 * 60 * 60) {
+        return 30 * 24 * 60 * 60; // 1 month
+    } else if (timeRange > 30 * 24 * 60 * 60) {
+        return 7 * 24 * 60 * 60; // 1 week
+    } else if (timeRange > 7 * 24 * 60 * 60) {
+        return 24 * 60 * 60; // 1 day
+    } else if (timeRange > 24 * 60 * 60) {
+        return 60 * 60; // 1 hour
+    } else {
+        return 60; // 1 minute
+    }
+}
+
+
+function parseRelativeDate(relativeDate) {
+    const now = new Date();
+    if (relativeDate === 'now') {
+        return now;
+    }
+
+    const matches = relativeDate.match(/now-(\d+)([dhm])/);
+    if (matches) {
+        const value = parseInt(matches[1], 10);
+        const unit = matches[2];
+        if (unit === 'd') {
+            return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
+        } else if (unit === 'h') {
+            return new Date(now.getTime() - value * 60 * 60 * 1000);
+        } else if (unit === 'm') {
+            return new Date(now.getTime() - value * 60 * 1000);
+        }
+    }
+
+    throw new Error('Invalid relative date format');
+}
+
+
+function parseRelativeDate(relativeDate) {
+    const now = new Date();
+    if (relativeDate === 'now') {
+        return now;
+    }
+
+    const matches = relativeDate.match(/now-(\d+)([dhm])/);
+    if (matches) {
+        const value = parseInt(matches[1], 10);
+        const unit = matches[2];
+        if (unit === 'd') {
+            return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
+        } else if (unit === 'h') {
+            return new Date(now.getTime() - value * 60 * 60 * 1000);
+        } else if (unit === 'm') {
+            return new Date(now.getTime() - value * 60 * 1000);
+        }
+    }
+
+    throw new Error('Invalid relative date format');
+}
+
+
 
 
 
@@ -1592,7 +1706,7 @@ function getTagKeyValue(metricName) {
             crossDomain: true,
             dataType: "json",
             data: JSON.stringify(param),
-            success: function(res) {
+            success: function (res) {
                 const availableEverywhere = [];
                 const availableEverything = [];
                 if (res && res.tagKeyValueSet) {
@@ -1604,7 +1718,7 @@ function getTagKeyValue(metricName) {
                 }
                 resolve({ availableEverywhere, availableEverything });
             },
-            error: function(xhr, status, error) {
+            error: function (xhr, status, error) {
                 reject(error);
             }
         });
@@ -1613,28 +1727,28 @@ function getTagKeyValue(metricName) {
 
 async function handleQueryAndVisualize(queryName, queryDetails) {
     let queryString;
-    if(queryDetails.state === "builder"){
+    if (queryDetails.state === "builder") {
         queryString = createQueryString(queryDetails);
-    }else {
+    } else {
         queryString = queryDetails.rawQueryInput;
     }
     await getMetricsData(queryName, queryString);
     const chartData = await convertDataForChart(rawTimeSeriesData);
-    if(isAlertScreen){
+    if (isAlertScreen) {
         addVisualizationContainerToAlerts(queryName, chartData, queryString);
-    }else{
+    } else {
         addVisualizationContainer(queryName, chartData, queryString);
     }
 }
 
-async function getQueryDetails(queryName, queryDetails){
+async function getQueryDetails(queryName, queryDetails) {
 
-    if(isAlertScreen){
+    if (isAlertScreen) {
         let isActive = $('#metrics-queries .metrics-query:first').find(`.query-name:contains('${queryName}')`).hasClass('active');
         if (isActive) {
             await handleQueryAndVisualize(queryName, queryDetails)
         }
-    } else{
+    } else {
         await handleQueryAndVisualize(queryName, queryDetails)
     }
 
@@ -1657,7 +1771,7 @@ function createQueryString(queryObject) {
         return `${tagPart}="${valuePart}"`;
     }).join(',');
     const everythingString = everything.join(',');
-    
+
     let queryString = '';
     if (everything.length > 0) {
         queryString += `${aggFunction} `;
@@ -1677,55 +1791,55 @@ function createQueryString(queryObject) {
     }
 
     queryString += ')';
-    
+
     return queryString;
 }
 
 async function getFunctions() {
     const res = await $.ajax({
-      method: "get",
-      url: "metrics-explorer/api/v1/functions",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        Accept: "*/*",
-      },
-      crossDomain: true,
-      dataType: "json",
+        method: "get",
+        url: "metrics-explorer/api/v1/functions",
+        headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            Accept: "*/*",
+        },
+        crossDomain: true,
+        dataType: "json",
     });
-    if(res)
-        return res; 
+    if (res)
+        return res;
 }
 
-async function refreshMetricsGraphs(){
-    dayCnt7=0;
-    dayCnt2=0;
+async function refreshMetricsGraphs() {
+    dayCnt7 = 0;
+    dayCnt2 = 0;
     const newMetricNames = await getMetricNames();
     newMetricNames.metricNames.sort();
-  
+
     $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
     const firstKey = Object.keys(queries)[0];
-    if(queries[firstKey].metrics){ // only if the first query is not empty
+    if (queries[firstKey].metrics) { // only if the first query is not empty
         // Update graph for each query
-        Object.keys(queries).forEach(async function(queryName) {
+        Object.keys(queries).forEach(async function (queryName) {
             var queryDetails = queries[queryName];
-    
+
             const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
             availableEverywhere = tagsAndValue.availableEverywhere.sort();
             availableEverything = tagsAndValue.availableEverything[0].sort();
             const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
             queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
             queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
-            
+
             await handleQueryAndVisualize(queryName, queryDetails);
         });
-   }
+    }
 
-   if(Object.keys(formulas).length > 0){
+    if (Object.keys(formulas).length > 0) {
         // Update graph for each formula
-        Object.keys(formulas).forEach(function(formulaId){
+        Object.keys(formulas).forEach(function (formulaId) {
             getMetricsDataForFormula(formulaId, formulas[formulaId])
         });
-   }
+    }
 }
 
 function updateChartColorsBasedOnTheme() {
@@ -1760,7 +1874,7 @@ function getGraphGridColors() {
 
 function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
     var existingContainer = $(`.metrics-graph`)
-    if (existingContainer.length === 0){
+    if (existingContainer.length === 0) {
         var visualizationContainer = $(`
         <div class="metrics-graph">
             <div class="query-string">${queryString}</div>
@@ -1771,7 +1885,7 @@ function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
         visualizationContainer.find('.graph-canvas').append(canvas);
         $('#metrics-graphs').append(visualizationContainer);
 
-    } else{
+    } else {
         existingContainer.find('.query-string').text(queryString);
         var canvas = $('<canvas></canvas>');
         existingContainer.find('.graph-canvas').empty().append(canvas);
@@ -1785,68 +1899,68 @@ function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
 function parsePromQL(query) {
 
     const parseObject = {
-      metrics: "",
-      everywhere: [],
-      everything: [],
-      aggFunction: "avg by",
-      functions: [],
+        metrics: "",
+        everywhere: [],
+        everything: [],
+        aggFunction: "avg by",
+        functions: [],
     };
-  
+
     // Step 1: Extract the functions
     const functionPattern = new RegExp(`(${functionsArray.join('|')})\\s*\\(`, 'g');
     const functionsFound = [];
     let functionMatch;
     while ((functionMatch = functionPattern.exec(query)) !== null) {
-      functionsFound.push(functionMatch[1]);
+        functionsFound.push(functionMatch[1]);
     }
     parseObject.functions = [...new Set(functionsFound)].reverse(); // Reverse to maintain the correct order
-  
+
     // Handle the simplest case: if the query is just a metric name without any functions, aggregators, or tags
     const simpleMetricPattern = /\(\(\s*(\w+)\s*\)\)/;
     const simpleMetricMatch = query.match(simpleMetricPattern);
     if (simpleMetricMatch) {
-      parseObject.metrics = simpleMetricMatch[1];
-      return parseObject;
+        parseObject.metrics = simpleMetricMatch[1];
+        return parseObject;
     }
-  
+
     // Step 2: Check if there is an aggregator and extract it if present
     let innerQuery = query;
     for (let aggregator of aggregationOptions) {
-      const aggPattern = new RegExp(`${aggregator.replace(' ', '\\s*')}\\s*\\(([^)]+)\\)\\s*\\(([^)]+)\\)`, 'i');
-      const aggMatch = query.match(aggPattern);
-      if (aggMatch) {
-        parseObject.aggFunction = aggregator;
-        parseObject.everything = aggMatch[1].split(',').map(val => val.trim());
-        innerQuery = aggMatch[2];
-        break;
-      }
+        const aggPattern = new RegExp(`${aggregator.replace(' ', '\\s*')}\\s*\\(([^)]+)\\)\\s*\\(([^)]+)\\)`, 'i');
+        const aggMatch = query.match(aggPattern);
+        if (aggMatch) {
+            parseObject.aggFunction = aggregator;
+            parseObject.everything = aggMatch[1].split(',').map(val => val.trim());
+            innerQuery = aggMatch[2];
+            break;
+        }
     }
-  
+
     // Step 3: Extract the metric name and tags from the inner query
     const metricPattern = /(\w+)\{([^}]+)\}/;
     const metricMatch = innerQuery.match(metricPattern);
     if (metricMatch) {
-      parseObject.metrics = metricMatch[1];
-      parseObject.everywhere = metricMatch[2].split(',').map(tag => tag.replace(/"/g, '').replace('=', ':'));
+        parseObject.metrics = metricMatch[1];
+        parseObject.everywhere = metricMatch[2].split(',').map(tag => tag.replace(/"/g, '').replace('=', ':'));
     } else {
-      // If no tags, just set the metric
-      const metricNamePattern = /\(\s*(\w+)\s*\)/;
-      const metricNameMatch = innerQuery.match(metricNamePattern);
-      if (metricNameMatch) {
-        parseObject.metrics = metricNameMatch[1];
-      } else {
-        // Handle the case where metric name is wrapped with functions only
-        const wrappedMetricPattern = /\(\s*([\w_]+)\s*\)/;
-        let wrappedMetricMatch;
-        while ((wrappedMetricMatch = wrappedMetricPattern.exec(innerQuery)) !== null) {
-          parseObject.metrics = wrappedMetricMatch[1];
-          innerQuery = innerQuery.replace(wrappedMetricMatch[0], wrappedMetricMatch[1]);
+        // If no tags, just set the metric
+        const metricNamePattern = /\(\s*(\w+)\s*\)/;
+        const metricNameMatch = innerQuery.match(metricNamePattern);
+        if (metricNameMatch) {
+            parseObject.metrics = metricNameMatch[1];
+        } else {
+            // Handle the case where metric name is wrapped with functions only
+            const wrappedMetricPattern = /\(\s*([\w_]+)\s*\)/;
+            let wrappedMetricMatch;
+            while ((wrappedMetricMatch = wrappedMetricPattern.exec(innerQuery)) !== null) {
+                parseObject.metrics = wrappedMetricMatch[1];
+                innerQuery = innerQuery.replace(wrappedMetricMatch[0], wrappedMetricMatch[1]);
+            }
         }
-      }
     }
-  
+
     return parseObject;
-  }
+}
 
 function activateFirstQuery() {
     $('#metrics-queries .metrics-query:first').find('.query-name').addClass('active');
@@ -1854,7 +1968,7 @@ function activateFirstQuery() {
     let queryDetails = queries[queryName];
     getQueryDetails(queryName, queryDetails);
 }
- 
+
 
 async function addQueryElementOnAlertEdit(queryName, queryDetails) {
 
@@ -1869,7 +1983,7 @@ async function addQueryElementOnAlertEdit(queryName, queryDetails) {
     updateCloseIconVisibility();
 
     setupQueryElementEventListeners(queryElement);
-    
+
     queryIndex++;
 }
 
@@ -1888,7 +2002,7 @@ async function populateQueryElement(queryElement, queryDetails) {
     });
 
     // Set the aggregation function
-    if(queryDetails.aggFunction){
+    if (queryDetails.aggFunction) {
         queryElement.find('.agg-function').val(queryDetails.aggFunction);
     }
 
