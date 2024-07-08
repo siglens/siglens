@@ -227,13 +227,12 @@ func getLogsQueryLinkForTheAlert(alertDetails *alertutils.AlertDetails, timeRang
 		return ""
 	}
 
-	httpScheme := "http://"
-
-	if config.IsTlsEnabled() {
-		httpScheme = "https://"
+	if alertDetails == nil {
+		log.Errorf("ALERTSERVICE: getLogsQueryLinkForTheAlert: AlertDetails is nil.")
+		return ""
 	}
 
-	baseURL := httpScheme + config.GetQueryHostname() + "/index.html"
+	baseURL := config.GetQueryServerBaseUrl()
 
 	// query parameters
 	params := url.Values{}

@@ -20,7 +20,6 @@ package config
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -226,12 +225,7 @@ func SetEmailConfig(smtpHost string, smtpPort int, senderEmail string, gmailAppP
 }
 
 func GetUIDomain() string {
-	hostname := GetQueryHostname()
-	if hostname == "" {
-		return "localhost"
-	} else {
-		return hostname
-	}
+	return GetQueryHostname()
 }
 
 func GetSiglensDBConfig() (string, string, uint64, string, string, string) {
@@ -1108,29 +1102,14 @@ func extractStrArray(inputValueParam interface{}) ([]string, error) {
 	return evArray, nil
 }
 
-func getQueryServerPort() (uint64, error) {
-	if runningConfig.QueryPort == 0 {
-		return 0, errors.New("getQueryServerPort: QueryServer Port config was not specified")
-	}
-	return runningConfig.QueryPort, nil
-}
-
 func GetQueryServerBaseUrl() string {
 	hostname := GetQueryHostname()
-	if hostname == "" {
-		port, err := getQueryServerPort()
-		if err != nil {
-			return "http://localhost:5122"
-		}
-		return "http://localhost:" + fmt.Sprintf("%d", port)
+	if IsTlsEnabled() {
+		hostname = "https://" + hostname
 	} else {
-		if IsTlsEnabled() {
-			hostname = "https://" + hostname
-		} else {
-			hostname = "http://" + hostname
-		}
-		return hostname
+		hostname = "http://" + hostname
 	}
+	return hostname
 }
 
 // DefaultUIServerHttpConfig  set fasthttp server default configuration
