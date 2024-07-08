@@ -716,7 +716,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if config.QueryHostname == "" {
-		config.QueryHostname = "localhost"
+		config.QueryHostname = fmt.Sprintf("localhost:%v", config.QueryPort)
 	}
 
 	if len(config.TLS.CertificatePath) >= 0 && strings.HasPrefix(config.TLS.CertificatePath, "./") {

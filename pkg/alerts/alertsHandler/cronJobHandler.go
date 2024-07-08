@@ -228,7 +228,7 @@ func getLogsQueryLinkForTheAlert(alertDetails *alertutils.AlertDetails, timeRang
 		httpScheme = "https://"
 	}
 
-	baseURL := httpScheme + config.GetQueryHostname() + ":5122/index.html"
+	baseURL := httpScheme + config.GetQueryHostname() + "/index.html"
 
 	// query parameters
 	params := url.Values{}
