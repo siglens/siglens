@@ -272,7 +272,7 @@ func evaluateLogAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) 
 
 	isAlertConditionMatched := evaluateConditions(serResVal, &alertToEvaluate.Condition, alertToEvaluate.Value)
 
-	alertDataMessage := fmt.Sprintf("Check the logs for the Alert Query: %v", getLogsQueryLinkForTheAlert(alertToEvaluate, timeRange))
+	alertDataMessage := fmt.Sprintf("View the Query Results: %v", getLogsQueryLinkForTheAlert(alertToEvaluate, timeRange))
 
 	err = handleAlertCondition(alertToEvaluate, isAlertConditionMatched, alertDataMessage)
 	if err != nil {
