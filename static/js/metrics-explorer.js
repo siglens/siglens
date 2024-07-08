@@ -19,6 +19,8 @@
 
 var queryIndex = 0;
 var queries = {};
+let formulas = {};
+
 var lineCharts = {}; // Chart details
 var chartDataCollection = {}; // Save label/data for each query
 let mergedGraph ;
@@ -104,8 +106,6 @@ $('#toggle-switch').on('change', function() {
         $('#merged-graph-container').show();
     }
 });
-
-let formulas = {};
 
 function generateUniqueId() {
     return 'formula_' + Math.random().toString(36).substr(2, 9);
@@ -1717,6 +1717,7 @@ function getGraphGridColors() {
     return { gridLineColor, tickColor };
 }
 
+
 function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
     var existingContainer = $(`.metrics-graph`)
     if (existingContainer.length === 0){
@@ -1789,7 +1790,7 @@ function parsePromQL(query) {
       parseObject.everywhere = metricMatch[2].split(',').map(tag => tag.replace(/"/g, '').replace('=', ':'));
     } else {
       // If no tags, just set the metric
-      const metricNamePattern = /\(\s*(\w+)\s*\)/;
+      const metricNamePattern = /\s*(\w+)\s*/;
       const metricNameMatch = innerQuery.match(metricNamePattern);
       if (metricNameMatch) {
         parseObject.metrics = metricNameMatch[1];
@@ -1946,3 +1947,53 @@ function xaxisFomatter(value, index, ticks) {
         return  isDifferentDay ?  date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : date.toLocaleTimeString(undefined, { hour: 'numeric', hour24: true, minute: '2-digit' });
     }
 }
+
+$('#alert-from-metrics-container').click(function() {
+    let mqueries =[];
+    let mformulas = [];
+    let queryString;
+    var queryParams = {}
+    const firstKey = Object.keys(queries)[0];
+    if(queries[firstKey].metrics){ // only if the first query is not empty
+        Object.keys(queries).forEach(function(queryName) {
+            var queryDetails = queries[queryName];
+            if(queryDetails.state === "builder"){
+                queryString = createQueryString(queryDetails);
+            }else {
+                queryString = queryDetails.rawQueryInput;
+            }
+            const formula = { formula: queryName };
+            mformulas.push(formula);
+            const tquery = { name: queryName, query: `(${queryString})`, qlType: "promql" };
+            mqueries.push(tquery);
+        });
+   }
+   if(Object.keys(formulas).length > 0){
+        mformulas=[];
+        Object.keys(formulas).forEach(function(formulaId){
+            let formulaDetails = formulas[formulaId];
+            const formula = {
+                formula: formulaDetails.formula 
+            };
+            mformulas.push(formula);
+        });
+    }
+    if(Object.keys(formulas).length === 0 && Object.keys(queries).length > 1){
+        let queryNames = Object.keys(queries);
+        let formulaInput = queryNames.join(" + ");
+        mformulas=[formulaInput]
+    }
+    var queryParams = {
+        "queryLanguage": 'PromQL',
+        "queries": mqueries,
+        "formulas": mformulas,
+        "start": filterStartDate,
+        "end": filterEndDate,
+        "alert_type": 2,
+        "labels": []
+    };
+    let jsonString = JSON.stringify(queryParams);
+    queryString = encodeURIComponent(jsonString);
+    var newTab = window.open("../alert.html?queryString=" + queryString, '_blank');
+    newTab.focus();
+});
