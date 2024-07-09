@@ -279,6 +279,9 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
 }
 
 function fetchLogsPanelData(data, panelId) {
+    if(panelId==undefined){
+        return;
+    }
     return $.ajax({
         method: 'post',
         url: 'api/search/' + panelId,

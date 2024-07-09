@@ -102,7 +102,7 @@ function getPanelGridOptions() {
                 if (diff <= 5) {
                     let scrollingTrigger = true;
                     data = getQueryParamsData(scrollingTrigger);
-                    
+                    runPanelLogsQuery(data);
                 }
             }
         },
