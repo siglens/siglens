@@ -55,6 +55,7 @@ async function getAllDefaultDashboards() {
 	})
 	return serverResponse
 }
+
 async function getAllFavoriteDashboards() {
 	let serverResponse = []
 	await $.ajax({
