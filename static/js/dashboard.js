@@ -28,6 +28,19 @@ let originalIndexValues = [];
 let indexValues = [];
 let isDefaultDashboard = false;
 $(document).ready(async function () {
+    $("#query-input-box").keydown(function (e) {
+        if (e.key === '|') {
+            let input = $("#query-input-box");
+            let value = input.val();
+            let position = this.selectionStart;
+            
+            // Insert newline character after the pipe character
+            input.val(value.substring(0, position) + '\n' + value.substring(position));
+            
+            // Move the cursor to the position after the newline
+            this.selectionStart = this.selectionEnd = position + 2;
+        }
+    });
     let indexes = await getListIndices();
     if (indexes){
         originalIndexValues = indexes.map(item => item.index);

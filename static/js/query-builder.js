@@ -70,6 +70,19 @@ $("#custom-chart-tab").tabs({
 //cancel -> "   "
 //running -> "    "
 $(document).ready(function () {
+  $("#filter-input").keydown(function (e) {
+    if (e.key === '|') {
+      let input = $(this);
+      let value = input.val();
+      let position = this.selectionStart;
+
+      // Insert newline character after the pipe character
+      input.val(value.substring(0, position) + '\n' + value.substring(position));
+
+      // Move the cursor to the position after the newline
+      this.selectionStart = this.selectionEnd = position + 2;
+    }
+  });
   $("#add-con").on("click", filterStart);
   $("#filter-box-1").on("click", filterStart);
   $("#add-con-second").on("click", secondFilterStart);
