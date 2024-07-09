@@ -6,64 +6,64 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var tagKeysGridOptions = {
         columnDefs: [
-            { headerName: 'Key', field: 'key',  filter: true, resizable: true },
-            { headerName: 'Number of Series', field: 'numSeries',  filter: true, resizable: true }
+            { headerName: 'Key', field: 'key', filter: true, resizable: true },
+            { headerName: 'Number of Series', field: 'numSeries', filter: true, resizable: true }
         ],
         rowData: [],
         rowHeight: 44,
         headerHeight: 32,
         defaultColDef: {
             cellClass: 'align-center-grid',
-            
+
             resizable: true,
         },
         enableCellTextSelection: true,
         suppressScrollOnNewData: true,
         suppressAnimationFrame: true,
-        onGridReady: function(params) {
+        onGridReady: function (params) {
             params.api.sizeColumnsToFit();
         }
     };
 
     var tagPairsGridOptions = {
         columnDefs: [
-            { headerName: 'Key', field: 'key',  filter: true, resizable: true },
-            { headerName: 'Value', field: 'value',  filter: true, resizable: true },
-            { headerName: 'Number of Series', field: 'numSeries',  filter: true, resizable: true }
+            { headerName: 'Key', field: 'key', filter: true, resizable: true },
+            { headerName: 'Value', field: 'value', filter: true, resizable: true },
+            { headerName: 'Number of Series', field: 'numSeries', filter: true, resizable: true }
         ],
         rowData: [],
         rowHeight: 44,
         headerHeight: 32,
         defaultColDef: {
             cellClass: 'align-center-grid',
-            
+
             resizable: true,
         },
         enableCellTextSelection: true,
         suppressScrollOnNewData: true,
         suppressAnimationFrame: true,
-        onGridReady: function(params) {
+        onGridReady: function (params) {
             params.api.sizeColumnsToFit();
         }
     };
 
     var tagKeysValuesGridOptions = {
         columnDefs: [
-            { headerName: 'Key', field: 'key',  filter: true, resizable: true },
-            { headerName: 'Number of Unique Values', field: 'numValues',  filter: true, resizable: true }
+            { headerName: 'Key', field: 'key', filter: true, resizable: true },
+            { headerName: 'Number of Unique Values', field: 'numValues', filter: true, resizable: true }
         ],
         rowData: [],
         rowHeight: 44,
         headerHeight: 32,
         defaultColDef: {
             cellClass: 'align-center-grid',
-            
+
             resizable: true,
         },
         enableCellTextSelection: true,
         suppressScrollOnNewData: true,
         suppressAnimationFrame: true,
-        onGridReady: function(params) {
+        onGridReady: function (params) {
             params.api.sizeColumnsToFit();
         }
     };
