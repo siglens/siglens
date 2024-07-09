@@ -233,10 +233,10 @@ class btnRenderer {
 			const defaultLabel = document.createElement('span');
 			defaultLabel.className = 'default-label';
 			defaultLabel.innerText = "Default";
-			defaultLabel.style.textDecoration = 'none'; 
+			defaultLabel.style.textDecoration = 'none';
 			this.dButton.style.display = 'none';
 			this.duplicateButton.parentNode.insertBefore(defaultLabel, this.duplicateButton);
-		}		
+		}
 
 		function deletedb() {
 			$.ajax({
