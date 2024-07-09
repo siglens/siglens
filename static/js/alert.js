@@ -95,7 +95,6 @@ const historyGridOptions = {
 let originalIndexValues, indexValues = [];
 
 $(document).ready(async function () {
-
     $('.theme-btn').on('click', themePickerHandler);
     $("#logs-language-btn").show();
     let startTime = "now-30m";
@@ -451,6 +450,7 @@ function resetAddAlertForm() {
 async function displayAlert(res){
 
     $('#alert-rule-name').val(res.alert_name);
+    $(".rulename").text(res.alert_name);
     setDataSourceHandler(res.alert_type) 
     if( res.alert_type === 1 ){
         const { data_source, queryLanguage, startTime, endTime, queryText, queryMode, index } = res.queryParams;
@@ -738,7 +738,6 @@ function displayAlertProperties(res) {
     
     $('.alert-name').text(res.alert_name);
     $('.alert-status').text(mapIndexToAlertState.get(res.state));
-    
     if (res.alert_type === 1) {
         $('.alert-query').val(queryParams.queryText);
         $('.alert-type').text(queryParams.data_source);
