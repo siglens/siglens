@@ -279,9 +279,6 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
 }
 
 function fetchLogsPanelData(data, panelId) {
-    if(panelId==undefined){
-        return;
-    }
     return $.ajax({
         method: 'post',
         url: 'api/search/' + panelId,
@@ -304,6 +301,9 @@ function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
             $('body').css('cursor', 'default');
             resolve();
         } else {
+            if(panelId==undefined){
+                return;
+            }
             fetchLogsPanelData(data, panelId)
                 .then((res) => {
                     resetQueryResAttr(res, panelId);
