@@ -40,6 +40,15 @@ func ConvertCustomDateTimeFormatToEpochMs(dateStr string) (int64, error) {
     return t.UnixMilli(), nil
 }
 
+func IsSubseconds(timeUnit utils.TimeUnit) bool {
+    switch timeUnit {
+    case utils.TMMicrosecond, utils.TMMillisecond, utils.TMCentisecond, utils.TMDecisecond:
+        return true
+    default:
+        return false
+    }
+}
+
 // This function would snap backwards based on unit present.
 // For e.x. Consider the time (Wednesday) 06/05/2024:13:37:05.123 (mm/dd/yyyy:hh:mm:ss)
 // Snapping on Second would be 06/05/2024:13:37:05.000
@@ -961,11 +970,11 @@ TcOptionCMD <- option:("usenull" / "useother" / "nullstr" / "otherstr") {
     return optionStr, nil
 }
 
-BinTimeScale <- timeUnit:(Second / Month / Subseconds / Minute / Hour / Day / Week / Quarter / Year) {
+AllTimeScale <- timeUnit:(Second / Month / Subseconds / Minute / Hour / Day / Week / Quarter / Year) {
     return timeUnit, nil
 }
 
-BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(BinTimeScale)? {
+BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(AllTimeScale)? {
     if timeScale != nil {
         num, err := strconv.ParseInt(number.(string), 10, 64)
         if err != nil {
@@ -1293,7 +1302,10 @@ SpanOptions <- CMD_SPAN EQUAL spanLength:SpanLength {
     return spanOptions, nil
 }
 
-SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale{
+SpanLength <- intAsStr:IntegerAsString timeScale:AllTimeScale{
+    if timeScale.(utils.TimeUnit) == utils.TMYear {
+        return nil, fmt.Errorf("SpanLength: Invalid time unit, year is not supported")
+    }
     num, err := strconv.Atoi(intAsStr.(string))
     if err != nil {
         return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", intAsStr.(string), err)
@@ -1304,10 +1316,6 @@ SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale{
         TimeScalr: timeScale.(utils.TimeUnit),
     }
     return spanLength, nil
-}
-
-TimeScale <- timeUnit:(Second / Month / Subseconds / Minute / Hour / Day / Week / Quarter) {
-    return timeUnit, nil
 }
 
 // limit=topN keeps the N highest scoring distinct values of the split-by field
@@ -4019,7 +4027,10 @@ WeekSnap <- ('w'[0-7]) {
     return string(c.text), nil
 }
 
-RelTimeUnit <- timeUnit:(Second / Month / Minute / Hour / Day / Week / Quarter / Year) {
+RelTimeUnit <- timeUnit:(AllTimeScale) {
+    if IsSubseconds(timeUnit.(utils.TimeUnit)) {
+        return nil, fmt.Errorf("Relative Time Format does not support subseconds")
+    }
     return strconv.Itoa(int(timeUnit.(utils.TimeUnit))), nil
 }
 

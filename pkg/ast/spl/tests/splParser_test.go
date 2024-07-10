@@ -2307,6 +2307,12 @@ func Test_TimechartSpanArgWithoutGroupBy(t *testing.T) {
 	}
 }
 
+func Test_ParseTimechart(t *testing.T) {
+	query := `search A=1 | timechart span=1y avg(latency)`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
 func Test_aggHasEvalFuncWithoutGroupBy(t *testing.T) {
 	query := []byte(`city=Boston | stats max(latitude), range(eval(latitude >= 0))`)
 	res, err := spl.Parse("", query)
@@ -8111,6 +8117,12 @@ func Test_ParseRelativeTimeModifier_12(t *testing.T) {
 	expEndTime := time.Now().AddDate(0, 0, -1).UnixMilli()
 	endTimeDiff := expEndTime - int64(astNode.TimeRange.EndEpochMs)
 	assert.True(t, endTimeDiff <= int64(1000))
+}
+
+func Test_ParseRelativeTimeModifier_13(t *testing.T) {
+	query := `* | earliest=1ms`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
 }
 
 func Test_EventCount_Defaults(t *testing.T) {
