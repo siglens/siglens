@@ -304,9 +304,6 @@ function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
             $('body').css('cursor', 'default');
             resolve();
         } else {
-            if(panelId==undefined){
-                return;
-            }
             fetchLogsPanelData(data, panelId)
                 .then((res) => {
                     resetQueryResAttr(res, panelId);
