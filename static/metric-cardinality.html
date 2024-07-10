@@ -1,3 +1,22 @@
+<!-- 
+Copyright (c) 2021-2024 SigScalr, Inc.
+
+This file is part of SigLens Observability Solution
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -132,20 +151,14 @@
                         <div class="text-4xl font-bold" id="totalUniqueSeries">Loading...</div>
                     </div>
 
-                    <div class="border rounded p-4">
-                        <p class="caption">Tag Keys with Most Series</p>
-                        <div id="tagKeysGrid" class="ag-theme-mycustomtheme"></div>
-                    </div>
-
-                    <div class="border rounded p-4">
-                        <p class="caption">Tag Pairs with Most Series</p>
-                        <div id="tagPairsGrid" class="ag-theme-mycustomtheme"></div>
-                    </div>
-
-                    <div class="border rounded p-4">
-                        <p class="caption">Tag Keys with Most Unique Values</p>
-                        <div id="tagKeysValuesGrid" class="ag-theme-mycustomtheme"></div>
-                    </div>
+                    <p class="caption mt-4">Tag Keys with Most Series</p>
+                    <div id="tagKeysGrid" class="ag-theme-mycustomtheme"></div>
+                    
+                    <p class="caption mt-4">Tag Pairs with Most Series</p>
+                    <div id="tagPairsGrid" class="ag-theme-mycustomtheme"></div>
+                    
+                    <p class="caption mt-4">Tag Keys with Most Unique Values</p>
+                    <div id="tagKeysValuesGrid" class="ag-theme-mycustomtheme"></div>                    
                 </div>
             </div>
         </div>
