@@ -1,4 +1,5 @@
 import prettier from 'eslint-plugin-prettier';
+import _import from 'eslint-plugin-import';
 import globals from 'globals';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +17,7 @@ const compat = new FlatCompat({
 export default [
   ...compat.extends('eslint:recommended', 'prettier'),
   {
-    ignores: ['static/js/cluster-stats.js','static/js/application-version.js','static/js/all-slos.js','static/js/test-data.js','static/js/settings.js','static/js/navbar.js'],
+    ignores: ['static/js/common.js','static/js/cluster-stats.js','static/js/application-version.js','static/js/all-slos.js','static/js/test-data.js','static/js/settings.js','static/js/navbar.js'],
   },
   {   
     languageOptions: {
