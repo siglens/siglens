@@ -811,14 +811,14 @@ func DeleteSegmentsForIndex(segmetaFName, indexName string) {
 	removeSegmentsByIndexOrList(segmetaFName, indexName, nil)
 }
 
-func RemoveSegments(segmetaFName string, segmentsToDelete map[string]*structs.SegMeta) {
+func RemoveSegments(segmetaFName string, segmentsToDelete map[string]struct{}) {
 	smrLock.Lock()
 	defer smrLock.Unlock()
 
 	removeSegmentsByIndexOrList(segmetaFName, "", segmentsToDelete)
 }
 
-func removeSegmentsByIndexOrList(segMetaFile string, indexName string, segmentsToDelete map[string]*structs.SegMeta) {
+func removeSegmentsByIndexOrList(segMetaFile string, indexName string, segmentsToDelete map[string]struct{}) {
 
 	if indexName == "" && segmentsToDelete == nil {
 		return // nothing to remove
