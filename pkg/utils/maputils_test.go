@@ -17,28 +17,29 @@
 
 package utils
 
-// If there are duplicate keys, values from the second map will overwrite those
-// from the first map.
-func MergeMaps[K comparable, V any](map1, map2 map[K]V) map[K]V {
-	result := make(map[K]V)
+import (
+	"testing"
 
-	for k, v := range map1 {
-		result[k] = v
+	"github.com/stretchr/testify/assert"
+)
+
+func Test_MapToSet(t *testing.T) {
+	map1 := map[string]string{}
+	assert.Equal(t, 0, len(MapToSet(map1)))
+
+	map2 := map[string]int{
+		"key1": 1,
+		"key2": 1,
+		"key3": 5,
 	}
 
-	for k, v := range map2 {
-		result[k] = v
-	}
+	set := MapToSet(map2)
+	assert.Equal(t, 3, len(set))
 
-	return result
-}
-
-func MapToSet[K comparable, V any](m map[K]V) map[K]struct{} {
-	set := make(map[K]struct{}, len(m))
-
-	for key := range m {
-		set[key] = struct{}{}
-	}
-
-	return set
+	_, ok := set["key1"]
+	assert.True(t, ok)
+	_, ok = set["key2"]
+	assert.True(t, ok)
+	_, ok = set["key3"]
+	assert.True(t, ok)
 }

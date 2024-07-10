@@ -1773,13 +1773,9 @@ func (self *TextExpr) EvaluateText(fieldToValue map[string]utils.CValueEnclosure
 		if err != nil {
 			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate replacement as a string: %v", err)
 		}
-		baseValue, exists := fieldToValue[self.Val.NumericExpr.Value]
-		if !exists {
-			return "", fmt.Errorf("TextExpr.EvaluateText: field '%s' not found in data", self.Val.NumericExpr.Value)
-		}
-		baseStr, ok := baseValue.CVal.(string)
-		if !ok {
-			return "", fmt.Errorf("TextExpr.EvaluateText: expected baseValue.CVal to be a string, got %T with value %v", baseValue.CVal, baseValue.CVal)
+		baseStr, err := self.Val.EvaluateValueExprAsString(fieldToValue)
+		if err != nil {
+			return "", fmt.Errorf("TextExpr.EvaluateText: cannot evaluate base string, err: %v", err)
 		}
 		regex, err := regexp.Compile(regexStr)
 		if err != nil {

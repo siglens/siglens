@@ -913,3 +913,41 @@ function displayQueryLangToolTip(selectedQueryLangID) {
             break;
     }
 }
+
+function initializeFilterInputEvents() {
+    $("#filter-input").on("input", function() {
+        if ($(this).val().trim() !== "") {
+            $("#clearInput").show();
+        } else {
+            $("#clearInput").hide();
+        }
+    });
+
+    $("#filter-input").focus(function() {
+        if ($(this).val() === "*") {
+            $(this).val("");
+        }
+    });
+
+    function autoResizeTextarea() {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
+    }
+
+    $("#filter-input").on('focus', function() {
+        $(this).addClass('expanded');
+        autoResizeTextarea.call(this);
+    });
+
+    $("#filter-input").on('blur', function() {
+        $(this).removeClass('expanded');
+        this.style.height = '32px';
+    });
+
+    $("#filter-input").on('input', autoResizeTextarea);
+
+    $("#clearInput").click(function() {
+        $("#filter-input").val("").focus();
+        $(this).hide();
+    });
+}

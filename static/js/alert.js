@@ -21,6 +21,7 @@
 let alertData = {};
 let alertID;
 let alertEditFlag = 0;
+let alertFromMetricsExplorerFlag = 0;
 let alertRule_name = "alertRule_name";
 let query_string = "query_string";
 let condition = "condition";
@@ -193,6 +194,12 @@ $("#contact-points-dropdown").on("click", function() {
 
     
 });
+function getUrlParameter(name) {
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    let regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    let results = regex.exec(location.search);
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
 
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -203,6 +210,7 @@ async function getAlertId() {
             originalIndexValues = indexes.map(item => item.index);
             indexValues = [...originalIndexValues];
         }
+        initializeFilterInputEvents();
         initializeIndexAutocomplete();
         setIndexDisplayValue(selectedSearchIndex);
     }
@@ -211,6 +219,13 @@ async function getAlertId() {
         alertID = id;
        const editFlag = await editAlert(id);
        alertEditFlag = editFlag;
+       alertFromMetricsExplorerFlag = 0;
+    } else if (urlParams.has('queryString')) {
+        let dataParam = getUrlParameter('queryString');
+        let jsonString = decodeURIComponent(dataParam);
+        let obj = JSON.parse(jsonString);
+        alertFromMetricsExplorerFlag = 1;
+        displayAlert(obj);
     } else if (urlParams.has('queryLanguage')) {
         const queryLanguage = urlParams.get('queryLanguage');
         const searchText = urlParams.get('searchText');
@@ -220,7 +235,7 @@ async function getAlertId() {
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch);
     }
 
-    if(!alertEditFlag && !(window.location.href.includes("alert-details.html"))){
+    if(!alertEditFlag && !alertFromMetricsExplorerFlag && !(window.location.href.includes("alert-details.html"))){
         addQueryElement();
     }
 }
@@ -241,6 +256,7 @@ async function editAlert(alertId){
         return false
     } else {
         alertEditFlag = true;
+        alertFromMetricsExplorerFlag = 0;
         displayAlert(res.alert);
         return true
     }
@@ -326,7 +342,7 @@ if (historyBtn) {
 function submitAddAlertForm(e) {
     e.preventDefault();
     setAlertRule();
-    alertEditFlag ? updateAlertRule(alertData) : createNewAlertRule(alertData);
+    alertEditFlag && !alertFromMetricsExplorerFlag ? updateAlertRule(alertData) : createNewAlertRule(alertData);
 }
 
 function setAlertRule() {
@@ -470,10 +486,17 @@ async function displayAlert(res){
         fetchLogsPanelData(data,-1).then((res)=>{
             alertChart(res);
         });
+        $('#query').val(res.queryParams.queryText);
+        $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
+        datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime)        
     } else if (res.alert_type === 2){
-        let metricsQueryParams = JSON.parse(res.metricsQueryParams);
+        let metricsQueryParams;
+        if (alertFromMetricsExplorerFlag){
+            metricsQueryParams = res;
+        }else{
+            metricsQueryParams = JSON.parse(res.metricsQueryParams);
+        }
         const { start, end, queries, formulas } = metricsQueryParams;
-        
         $(`.ranges .inner-range #${start}`).addClass('active');
         datePickerHandler(start, end, start);
         
@@ -487,7 +510,7 @@ async function displayAlert(res){
             await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
         }
         
-        if (queries.length > 1) {
+        if (queries.length >= 1) {
             await addAlertsFormulaElement(formulas[0].formula);
         }
     }
@@ -502,7 +525,7 @@ async function displayAlert(res){
     $('#evaluate-for').val(res.eval_for);
     $('.message').val(res.message);
 
-    if (alertEditFlag) {
+    if (alertEditFlag && !alertFromMetricsExplorerFlag) {
         alertData.alert_id = res.alert_id;
     }
 

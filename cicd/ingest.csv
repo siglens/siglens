@@ -168,3 +168,5 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "app_name=Bracecould | bin span=1hr aligntime=@d timestamp as tmp | stats count by tmp | stats count",now-1d,now,*,countRecord:count(*):*,eq,1,Splunk QL
 "app_name=Bracecould | bin end=100000 http_status | stats count by http_status | stats count",now-1d,now,*,countRecord:count(*):*,eq,1,Splunk QL
 "app_name=Bracecould | bin start=-10000 http_status | stats count by http_status | stats count",now-1d,now,*,countRecord:count(*):*,eq,1,Splunk QL
+"app_name=Bracecould | stats count BY user_email | eval masked_email = replace(user_email,""^([^@]+)@"", ""xxxxx@"")",now-1d,now,*,group:masked_email:maximillianreichel@weber.org,eq,"xxxxx@weber.org",Splunk QL 
+"app_name=Bracecould | stats count BY user_email | eval masked_email = replace(""abc@xyz.com"", ""^([^@]+)@"", ""xxxxx@"")",now-1d,now,*,group:masked_email:maximillianreichel@weber.org,eq,"xxxxx@xyz.com",Splunk QL
