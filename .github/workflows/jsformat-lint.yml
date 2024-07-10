@@ -1,10 +1,6 @@
 name: Format the JS code
 
-on:
-  push:
-    branches:
-      - 'JS_code_formatting'
-# on: [pull_request]
+on: [pull_request]
 
 jobs:
   format:
