@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
+
 let sortedListIndices;
 //eslint-disable-next-line no-unused-vars
 async function getListIndices() {
