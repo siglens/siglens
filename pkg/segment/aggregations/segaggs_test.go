@@ -2530,12 +2530,13 @@ func Test_getTimeBucketWithAlign(t *testing.T) {
 }
 
 func Test_findSpan(t *testing.T) {
-
-	spanOpt := findSpan(301, 500, 100, nil, "abc")
+	spanOpt, err := findSpan(301, 500, 100, nil, "abc")
+	assert.Nil(t, err)
 	assert.Equal(t, float64(10), spanOpt.BinSpanLength.Num)
 	assert.Equal(t, utils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
 
-	spanOpt = findSpan(301, 500, 2, nil, "abc")
+	spanOpt, err = findSpan(301, 500, 2, nil, "abc")
+	assert.Nil(t, err)
 	assert.Equal(t, float64(1000), spanOpt.BinSpanLength.Num)
 	assert.Equal(t, utils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
 
@@ -2544,24 +2545,36 @@ func Test_findSpan(t *testing.T) {
 		TimeScale: utils.TMInvalid,
 	}
 
-	spanOpt = findSpan(301, 500, 100, minSpan, "abc")
+	spanOpt, err = findSpan(301, 500, 100, minSpan, "abc")
+	assert.Nil(t, err)
 	assert.Equal(t, float64(10000), spanOpt.BinSpanLength.Num)
 	assert.Equal(t, utils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
 
 	minTime := time.Date(2024, time.July, 7, 17, 0, 0, 0, time.UTC).UnixMilli()
 	maxTime := time.Date(2024, time.July, 7, 17, 0, 35, 0, time.UTC).UnixMilli()
 
-	spanOpt = findSpan(float64(minTime), float64(maxTime), 100, nil, "timestamp")
+	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 100, nil, "timestamp")
+	assert.Nil(t, err)
 	assert.Equal(t, float64(1), spanOpt.BinSpanLength.Num)
 	assert.Equal(t, utils.TMSecond, spanOpt.BinSpanLength.TimeScale)
 
-	spanOpt = findSpan(float64(minTime), float64(maxTime), 10, nil, "timestamp")
+	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 10, nil, "timestamp")
+	assert.Nil(t, err)
 	assert.Equal(t, float64(10), spanOpt.BinSpanLength.Num)
 	assert.Equal(t, utils.TMSecond, spanOpt.BinSpanLength.TimeScale)
 
+	minSpan.Num = 2
+	minSpan.TimeScale = utils.TMMinute
+
+	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 10, minSpan, "timestamp")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(5), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMMinute, spanOpt.BinSpanLength.TimeScale)
+
 	maxTime = time.Date(2024, time.July, 7, 17, 2, 35, 0, time.UTC).UnixMilli()
 
-	spanOpt = findSpan(float64(minTime), float64(maxTime), 2, nil, "timestamp")
+	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 2, nil, "timestamp")
+	assert.Nil(t, err)
 	assert.Equal(t, float64(5), spanOpt.BinSpanLength.Num)
 	assert.Equal(t, utils.TMMinute, spanOpt.BinSpanLength.TimeScale)
 

@@ -40,15 +40,6 @@ func ConvertCustomDateTimeFormatToEpochMs(dateStr string) (int64, error) {
     return t.UnixMilli(), nil
 }
 
-func IsSubseconds(timeUnit utils.TimeUnit) bool {
-    switch timeUnit {
-    case utils.TMMicrosecond, utils.TMMillisecond, utils.TMCentisecond, utils.TMDecisecond:
-        return true
-    default:
-        return false
-    }
-}
-
 // This function would snap backwards based on unit present.
 // For e.x. Consider the time (Wednesday) 06/05/2024:13:37:05.123 (mm/dd/yyyy:hh:mm:ss)
 // Snapping on Second would be 06/05/2024:13:37:05.000
@@ -4028,7 +4019,7 @@ WeekSnap <- ('w'[0-7]) {
 }
 
 RelTimeUnit <- timeUnit:(AllTimeScale) {
-    if IsSubseconds(timeUnit.(utils.TimeUnit)) {
+    if utils.IsSubseconds(timeUnit.(utils.TimeUnit)) {
         return nil, fmt.Errorf("Relative Time Format does not support subseconds")
     }
     return strconv.Itoa(int(timeUnit.(utils.TimeUnit))), nil
