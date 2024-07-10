@@ -946,8 +946,15 @@ func (cw *ColWip) WriteSingleString(value string) {
 	cw.cbufidx += uint32(n)
 }
 
-func AddNewRotatedSegment(segmeta structs.SegMeta) {
+func AddOrReplaceRotatedSegment(segmeta structs.SegMeta) {
+	smrLock.Lock()
+	defer smrLock.Unlock()
 
+	withLockRemoveSegments(GetLocalSegmetaFName(), map[string]struct{}{segmeta.SegmentKey: struct{}{}})
+	withLockAddRotatedSegment(segmeta)
+}
+
+func AddNewRotatedSegment(segmeta structs.SegMeta) {
 	smrLock.Lock()
 	defer smrLock.Unlock()
 
