@@ -611,29 +611,48 @@ function logOptionSingleHandler() {
     $('#logs-result-container').removeClass('multi');
     $('#views-container .btn-group .btn').removeClass('active');
     $('#log-opt-single-btn').addClass('active');
+    
     logsColumnDefs.forEach(function (colDef, index) {
-        if (colDef.field === "logs"){
+        if (colDef.field === "logs") {
             colDef.cellStyle = null;
             colDef.autoHeight = null;
             colDef.cellRenderer = function(params) {
                 const data = params.data || {};
                 let logString = '';
                 let addSeparator = false;
+                
+                // Handle 'event' field specifically
+                if (data.event && Array.isArray(data.event)) {
+                    logString += `<span class="cname-hide-${string2Hex('event')}">event=`;
+                    data.event.forEach((event, idx) => {
+                        if (idx > 0) {
+                            logString += ',';
+                        }
+                        logString += JSON.stringify(event);
+                    });
+                    logString += `</span>`;
+                } else {
+                    // If 'event' is not an array, stringify normally
+                    logString += `<span class="cname-hide-${string2Hex('event')}">event=${JSON.stringify(data.event)}</span>`;
+                }
+
+                // Add other fields as per your existing logic
                 Object.entries(data)
-                    .filter(([key]) => key !== 'timestamp')
+                    .filter(([key]) => key !== 'timestamp' && key !== 'event')
                     .forEach(([key, value]) => {
                         let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
-                        logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${value}</span>`;
+                        logString += `${colSep}<span class="cname-hide-${string2Hex(key)}">${key}=${value}</span>`;
                         addSeparator = true;
                     });
-            
+                
                 return `<div style="white-space: nowrap;">${logString}</div>`;
-            }; 
+            };
         }
     });
+    
     gridOptions.api.setColumnDefs(logsColumnDefs);
-    gridOptions.api.resetRowHeights()
-
+    gridOptions.api.resetRowHeights();
+    
     availColNames.forEach((colName, index) => {
         gridOptions.columnApi.setColumnVisible(colName, false);
     });
@@ -643,6 +662,7 @@ function logOptionSingleHandler() {
     hideOrShowFieldsInLineViews();
     Cookies.set('log-view', 'single-line',  {expires: 365});
 }
+
 
 function logOptionMultiHandler() {
     $('#logs-result-container').addClass('multi');

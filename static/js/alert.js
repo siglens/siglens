@@ -95,7 +95,6 @@ const historyGridOptions = {
 let originalIndexValues, indexValues = [];
 
 $(document).ready(async function () {
-
     $('.theme-btn').on('click', themePickerHandler);
     $("#logs-language-btn").show();
     let startTime = "now-30m";
@@ -190,10 +189,44 @@ $("#contact-points-dropdown").on("click", function() {
     }
 });
 
-    
-
-    
+$("#alert-rule-name").val(urlParams.get('alertRule_name'));
+$('#evaluate-for').tooltip({
+    title: 'Evaluate for interval must be greater than evaluation interval',
+    placement: 'top',
+    trigger: 'manual' 
 });
+let evaluateForValue = 0;
+
+function checkEvaluateConditions() {
+    let evaluateEveryValue = parseInt($('#evaluate-every').val());
+    evaluateForValue = parseInt($('#evaluate-for').val());
+    let submitbtn = $("#save-alert-btn");
+    let errorMessage = $('.evaluation-error-message');
+    
+    if (evaluateForValue >= evaluateEveryValue) {
+        $('#evaluate-for').addClass('error-border'); 
+        errorMessage.show();
+        $('#evaluate-for').tooltip('show');
+        submitbtn.prop('disabled', true);
+    } else {
+        $('#evaluate-for').removeClass('error-border'); 
+        errorMessage.hide();
+        $('#evaluate-for').tooltip('hide'); 
+        submitbtn.prop('disabled', false);
+    }
+}
+
+$('#evaluate-for').on('input', function () {
+    checkEvaluateConditions();
+});
+
+$('#evaluate-every').on('input', function () {
+    checkEvaluateConditions();
+});
+
+});
+
+
 function getUrlParameter(name) {
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
     let regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
@@ -437,6 +470,8 @@ function updateAlertRule(alertData){
         dataType: 'json',
         crossDomain: true,
     }).then((res) => {
+        alert(JSON.stringify(alertData));
+        alert(res);
         resetAddAlertForm();
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
@@ -451,6 +486,7 @@ function resetAddAlertForm() {
 async function displayAlert(res){
 
     $('#alert-rule-name').val(res.alert_name);
+    $(".rulename").text(res.alert_name);
     setDataSourceHandler(res.alert_type) 
     if( res.alert_type === 1 ){
         const { data_source, queryLanguage, startTime, endTime, queryText, queryMode, index } = res.queryParams;
@@ -639,7 +675,7 @@ function fetchAlertProperties() {
 
             propertiesData.push(
                 { name: "Status", value: mapIndexToAlertState.get(alert.state) },
-                { name: "Condition", value: mapIndexToConditionType.get(alert.condition) },
+                { name: "Condition", value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` },
                 { name: "Evaluate", value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` },
                 { name: "Contact Point", value: alert.contact_name }
             );
@@ -738,7 +774,6 @@ function displayAlertProperties(res) {
     
     $('.alert-name').text(res.alert_name);
     $('.alert-status').text(mapIndexToAlertState.get(res.state));
-    
     if (res.alert_type === 1) {
         $('.alert-query').val(queryParams.queryText);
         $('.alert-type').text(queryParams.data_source);
