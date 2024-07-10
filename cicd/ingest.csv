@@ -154,3 +154,5 @@ city=Boston | stats count AS Count BY http_method | eval newField=lower(http_met
 "app_name = Bracecould | head gender=""female"" OR gender=""male"" limit=2 | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
 "app_name = Bracecould | head gender=""female"" OR gender=""male"" limit=2 keeplast=true | stats count",now-1d,now,*,countRecord:count(*):*,eq,2,Splunk QL
 "app_name = Bracecould | sort http_status | head http_status < 400 keeplast=true | stats count",now-1d,now,*,countRecord:count(*):*,eq,4,Splunk QL
+"app_name=Bracecould | stats count BY user_email | eval masked_email = replace(user_email,""^([^@]+)@"", ""xxxxx@"")",now-1d,now,*,group:masked_email:maximillianreichel@weber.org,eq,"xxxxx@weber.org",Splunk QL 
+"app_name=Bracecould | stats count BY user_email | eval masked_email = replace(""abc@xyz.com"", ""^([^@]+)@"", ""xxxxx@"")",now-1d,now,*,group:masked_email:maximillianreichel@weber.org,eq,"xxxxx@xyz.com",Splunk QL
