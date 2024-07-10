@@ -17,6 +17,7 @@
             "panelId": "9faec19a-6bf1-4eac-81a7-50b24ad819bb",
             "panelIndex": 0,
             "queryData": {
+              "queriesData":[{ 
                 "end": "now",
                 "formulas": [
                   {
@@ -31,6 +32,8 @@
                   }
                 ],
                 "start": "now-1h"
+              }],
+              "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",
@@ -51,6 +54,7 @@
             "panelId": "79e65fec-cbc8-445e-8d6f-c1df4fb24cae",
             "panelIndex": 1,
             "queryData": {
+              "queriesData":[{ 
                 "end": "now",
                 "formulas": [
                   {
@@ -65,6 +69,8 @@
                   }
                 ],
                 "start": "now-1h"
+              }],
+              "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",
@@ -85,6 +91,7 @@
             "panelId": "222fa2a7-3cab-43b4-8167-1b35cd0831c0",
             "panelIndex": 2,
             "queryData": {
+              "queriesData":[{ 
                 "end": "now",
                 "formulas": [
                   {
@@ -99,6 +106,8 @@
                   }
                 ],
                 "start": "now-1h"
+              }],
+              "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",

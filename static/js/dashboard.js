@@ -427,17 +427,33 @@ function updateTimeRangeForPanels() {
         delete panel.queryRes;
         if(panel.queryData) {
             if(panel.chartType === "Line Chart" || panel.queryType === "metrics") {
-                datePickerHandler(panel.queryData.start, panel.queryData.end, panel.queryData.start)
-                panel.queryData.start = filterStartDate.toString();
-                panel.queryData.end = filterEndDate.toString();
+                if (panel.queryData) {
+                    // Update start and end for each item in queriesData
+                    if (Array.isArray(panel.queryData.queriesData)) {
+                        panel.queryData.queriesData.forEach(query => {
+                            datePickerHandler(query.start, query.end, query.start)
+                            query.start = filterStartDate;
+                            query.end = filterEndDate;
+                        });
+                    }
+
+                    // Update start and end for each item in formulasData
+                    if (Array.isArray(panel.queryData.formulasData)) {
+                        panel.queryData.formulasData.forEach(formula => {
+                            datePickerHandler(formula.start, formula.end, formula.start)
+                            formula.start = filterStartDate;
+                            formula.end = filterEndDate;
+                        });
+                    }
+                }
             } else {
                 datePickerHandler(panel.queryData.startEpoch, panel.queryData.endEpoch, panel.queryData.startEpoch)
                 panel.queryData.startEpoch = filterStartDate
                 panel.queryData.endEpoch = filterEndDate
             }
-            $('.inner-range .db-range-item').removeClass('active');
-            $('.inner-range #' + filterStartDate).addClass('active');
         }
+        $('.inner-range .db-range-item').removeClass('active');
+        $('.inner-range #' + filterStartDate).addClass('active');
     })
 }
 
@@ -453,6 +469,41 @@ function updateTimeRangeForPanel(panelIndex) {
         }
     }
 }
+
+
+function updateTimeRangeForAllPanels(filterStartDate,filterEndDate){
+    localPanels.forEach(panel => {
+        delete panel.queryRes;
+        
+        if (panel.queryData) {
+            if (panel.chartType === "Line Chart" || panel.queryType === "metrics") {
+                if (panel.queryData) {
+                    // Update start and end for each item in queriesData
+                    if (Array.isArray(panel.queryData.queriesData)) {
+                        panel.queryData.queriesData.forEach(query => {
+                            query.start = filterStartDate;
+                            query.end = filterEndDate;
+                        });
+                    }
+
+                    // Update start and end for each item in formulasData
+                    if (Array.isArray(panel.queryData.formulasData)) {
+                        panel.queryData.formulasData.forEach(formula => {
+                            formula.start = filterStartDate;
+                            formula.end = filterEndDate;
+                        });
+                    }
+                }
+            } else { // logs
+                panel.queryData.startEpoch = filterStartDate;
+                panel.queryData.endEpoch = filterEndDate;
+            }
+        }
+    });
+    $('.inner-range .db-range-item').removeClass('active');
+    $('.inner-range #' + filterStartDate).addClass('active');
+}
+
 
 
 // Event listener for Gridstack resize and drag events
@@ -506,7 +557,7 @@ grid.on('resizestop', function(event, ui) {
     $('.default-item').show();
 });
 
-function displayPanels() {
+async function displayPanels() {
     allResultsDisplayed = localPanels.length;
     grid.removeAll();
     let panelContainerMinHeight = 0;
@@ -523,7 +574,7 @@ function displayPanels() {
         if (panelEndY > maxCoord.y) maxCoord.y = panelEndY;
     });
 
-    localPanels.forEach((localPanel) => {
+    for (const localPanel of localPanels) {
         let idpanel = localPanel.panelId;
         let widgetOptions = {
             width: parseInt(localPanel.gridpos.w),
@@ -596,7 +647,7 @@ function displayPanels() {
                 //remove startEpoch from from localPanel.queryData
                 delete localPanel.queryData.startEpoch
                 delete localPanel.queryData.endEpoch
-                runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
+                await runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
             }
         } else if (localPanel.chartType == 'number') {
             let panEl = $(`#panel${idpanel} .panel-body`)
@@ -642,7 +693,7 @@ function displayPanels() {
             handlePanelView();
             handlePanelRemove(idpanel);
             handlePanelDuplicate();
-    })
+    }
     if(allResultsDisplayed === 0) {
         $('body').css('cursor', 'default');
     }
@@ -741,21 +792,27 @@ function addPanel(chartIndex) {
             chartType = "Line Chart";
             queryType = "metrics";
             queryData = {
-                start: "now-1h",
-                end: "now",
-                formulas: [
-                    {
-                      "formula": "a"
-                    }
-                  ],
-                  "queries": [
-                    {
-                      "name": "a",
-                      "qlType": "promql",
-                      "query": "testmetric0"
-                    }
-                  ],
-            };
+                "formulasData": [],
+                "queriesData": [
+                  {
+                    "end": "now",
+                    "formulas": [
+                      {
+                        "formula": "a"
+                      }
+                    ],
+                    "queries": [
+                      {
+                        "name": "a",
+                        "qlType": "promql",
+                        "query": "((testmetric0))"
+                      }
+                    ],
+                    "start": "now-1h"
+                  }
+                ],
+                "start": "now-1h"
+              };
             break;
         case 1: // Bar chart
             chartType = "Bar Chart";
