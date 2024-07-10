@@ -1950,7 +1950,7 @@ div.dts div.dataTables_scrollBody table {
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
-    margin-left: 15px;
+    margin-left: 35px;
 }
 #editbutton:hover {
     background-image: url(../assets/edit-alert-icon-active.svg);
@@ -2479,10 +2479,6 @@ input[type="submit" i] {
     text-decoration: none !important;
 }
 
-
-a {
-    text-decoration: none; /* Remove underline from default text */
-}
 
 .range-item {
     padding-left: 12px !important;
