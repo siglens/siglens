@@ -17,15 +17,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-let chart;
 $(function () {
     $('#custom-code-tab').tabs();
     $('#custom-chart-tab').tabs();
     $('#logs-view-controls').hide();
 });
 $('#custom-code-tab').tabs({
-    activate: function (event, ui) {
+    activate: function (_event, _ui) {
         let currentResTab = $('#custom-chart-tab').tabs('option', 'active');
         if (currentResTab == 1) {
             timeChart();
@@ -33,7 +31,6 @@ $('#custom-code-tab').tabs({
         let currentTab = $('#custom-code-tab').tabs('option', 'active');
         if (currentTab == 0) {
             // Query Builder Tab
-            let filterValue = $('#filter-input').val();
             if (!isQueryBuilderSearch) {
                 // Clear input boxes of the query builder when a query is searched from the free text
                 $('.tags-list').empty();
@@ -54,7 +51,7 @@ $('#custom-code-tab').tabs({
     },
 });
 $('#custom-chart-tab').tabs({
-    activate: function (event, ui) {
+    activate: function (_event, _ui) {
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
         if (currentTab == 0) {
             $('#logs-view-controls').show();
@@ -158,7 +155,6 @@ var numericColumns = [];
 var ifCurIsNum = false;
 var availSymbol = [];
 let valuesOfColumn = new Set();
-let paramFirst;
 let columnsNames = [];
 let previousStartEpoch = null;
 let previousEndEpoch = null;
@@ -209,7 +205,7 @@ async function filterStart(evt) {
                     .autocomplete({
                         source: availSymbol,
                         minLength: 0,
-                        select: function (event, ui) {
+                        select: function (_event, _ui) {
                             //check if complete btn can click
                             checkFirstBox(1);
                             $('#value-first').attr('type', 'text');
@@ -293,6 +289,7 @@ async function ThirdFilterStart(evt) {
  * check first box
  * @param {*} obj
  */
+//eslint-disable-next-line no-unused-vars
 function checkContent(obj) {
     if ($(obj).val() === '' || $(obj).val() === null) {
         $('#completed').attr('disabled', true);
@@ -311,6 +308,7 @@ function checkFirstBox(curSelect) {
         $('#completed').attr('disabled', false);
     }
 }
+//eslint-disable-next-line no-unused-vars
 function checkSecondContent(obj) {
     if ($(obj).val() === '' || $(obj).val() === null) {
         $('#completed-second').attr('disabled', true);
@@ -473,7 +471,7 @@ $('#column-second')
                 .autocomplete({
                     source: columnInfo.sort(),
                     minLength: 0,
-                    select: function (event, ui) {
+                    select: function (_event, _ui) {
                         let secVal = $('#column-second').val();
                         if (secVal == null || secVal.trim() == '') $('#completed-second').attr('disabled', true);
                         else $('#completed-second').attr('disabled', false);
@@ -580,7 +578,7 @@ function getValuesofColumn(chooseColumn) {
             .autocomplete({
                 source: arr.sort(),
                 minLength: 0,
-                select: function (event, ui) {
+                select: function (_event, _ui) {
                     //check if complete btn can click
                     checkFirstBox(2);
                     valuesOfColumn.clear();

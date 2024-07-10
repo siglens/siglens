@@ -16,15 +16,10 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-'use strict';
 
 let alertData = {};
 let alertID;
 let alertEditFlag = 0;
-let alertRule_name = 'alertRule_name';
-let query_string = 'query_string';
-let condition = 'condition';
-let notification_channel_type = 'notification_channel_type';
 let messageTemplateInfo = '<i class="fa fa-info-circle position-absolute info-icon sendMsg" rel="tooltip" id="info-icon-msg" style="display: block;" title = "You can use following template variables:' + '\n' + inDoubleBrackets('alert_rule_name') + '\n' + inDoubleBrackets('query_string') + '\n' + inDoubleBrackets('condition') + '\n' + inDoubleBrackets('queryLanguage') + '"></i>';
 let messageInputBox = document.getElementById('message-info');
 if (messageInputBox) messageInputBox.innerHTML += messageTemplateInfo;
@@ -85,8 +80,9 @@ const historyGridOptions = {
     domLayout: 'autoHeight',
 };
 
-let originalIndexValues,
-    indexValues = [];
+let originalIndexValues;
+//eslint-disable-next-line no-unused-vars
+let indexValues;
 
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
@@ -106,7 +102,7 @@ $(document).ready(async function () {
             alertType = 1;
         } else {
             alertType = 2;
-            $('#save-alert-btn').on('click', function (event) {
+            $('#save-alert-btn').on('click', function () {
                 if ($('#select-metric-input').val === '') {
                     $('#save-alert-btn').prop('disabled', true);
                 } else {
@@ -139,9 +135,11 @@ $(document).ready(async function () {
     });
     // Initialize ag-Grid only if the elements exist
     if ($('#properties-grid').length) {
+        //eslint-disable-next-line no-undef
         new agGrid.Grid(document.querySelector('#properties-grid'), propertiesGridOptions);
     }
     if ($('#history-grid').length) {
+        //eslint-disable-next-line no-undef
         new agGrid.Grid(document.querySelector('#history-grid'), historyGridOptions);
     }
 
@@ -233,11 +231,10 @@ async function editAlert(alertId) {
     }
 }
 
-function setAlertConditionHandler(e) {
+function setAlertConditionHandler() {
     $('.alert-condition-option').removeClass('active');
     $('#alert-condition span').html($(this).html());
     $(this).addClass('active');
-    let optionId = $(this).attr('id');
 }
 
 function contactPointsDropdownHandler() {
@@ -380,7 +377,7 @@ function createNewAlertRule(alertData) {
         dataType: 'json',
         crossDomain: true,
     })
-        .then((res) => {
+        .then(() => {
             resetAddAlertForm();
             window.location.href = '../all-alerts.html';
         })
@@ -409,7 +406,7 @@ function updateAlertRule(alertData) {
         dataType: 'json',
         crossDomain: true,
     })
-        .then((res) => {
+        .then(() => {
             resetAddAlertForm();
             window.location.href = '../all-alerts.html';
         })
@@ -512,7 +509,7 @@ async function displayAlert(res) {
     });
 }
 
-function setLogsLangHandler(e) {
+function setLogsLangHandler() {
     $('.logs-language-option').removeClass('active');
     $('#logs-language-btn span').html($(this).html());
     $(this).addClass('active');

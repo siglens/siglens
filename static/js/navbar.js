@@ -133,9 +133,7 @@ let alertsUpperNavTabs = [
     { name: 'Contact Points', url: './contacts.html', class: 'contacts' },
 ];
 
-let ingestionUpperNavTabs = [
-    { name: 'Log Sources', url: './test-data.html', class: 'test-data' },
-];
+
 
 $(document).ready(function () {
     $("#app-side-nav").prepend(navbarComponent);
@@ -174,9 +172,9 @@ $(document).ready(function () {
     } else if (currentUrl.includes("all-slos.html")) {
         $(".nav-slos").addClass("active");
         $('.alerts-nav-tab').appendOrgNavTabs("SLOs", []);
-    } else if (currentUrl.includes("cluster-stats.html") || currentUrl.includes("org-settings.html") || currentUrl.includes("application-version.html") {{ .OrgUpperNavUrls }} ) {
-        $(".nav-myorg").addClass("active");
-        $('.org-nav-tab').appendOrgNavTabs("My Org", orgUpperNavTabs);
+    // } else if (currentUrl.includes("cluster-stats.html") || currentUrl.includes("org-settings.html") || currentUrl.includes("application-version.html") {{ .OrgUpperNavUrls }} ) {
+    //     $(".nav-myorg").addClass("active");
+    //     $('.org-nav-tab').appendOrgNavTabs("My Org", orgUpperNavTabs);
     } else if (currentUrl.includes("minion-searches.html")) {
         $(".nav-minion").addClass("active");
     } else if (currentUrl.includes("live-tail.html")) {
@@ -248,7 +246,7 @@ $(document).ready(function () {
             helpOptions.slideUp(200);
         }
     });
-    $(".help-options").on("click", "a", function (event) {
+    $(".help-options").on("click", "a", function (_event) {
         $(".help-options").slideUp(200);
     });
     const currentLocation = window.location.href;

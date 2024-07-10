@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let panelGridDiv = null;
 let panelGridOptions;
 let panelLogsColumnDefs;
@@ -109,7 +107,7 @@ function getPanelGridOptions() {
     };
     return panelGridOptions;
 }
-
+//eslint-disable-next-line no-unused-vars
 function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
     $(`.panelDisplay .big-number-display-container`).hide();
     let panelLogsRowData = getGridPanelRows();
@@ -122,7 +120,7 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
         panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
     // for panels on the dashboard page
     else panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
-
+    //eslint-disable-next-line no-undef
     new agGrid.Grid(panelGridDiv, panelGridOptions);
 
     let cols = columnOrder.map((colName, index) => {
@@ -180,7 +178,7 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
 }
 
 function panelLogOptionSingleHandler(panelGridOptions, panelLogsColumnDefs) {
-    panelLogsColumnDefs.forEach(function (colDef, index) {
+    panelLogsColumnDefs.forEach(function (colDef, _index) {
         if (colDef.field === 'logs') {
             colDef.cellStyle = null;
             colDef.autoHeight = null;
@@ -188,7 +186,7 @@ function panelLogOptionSingleHandler(panelGridOptions, panelLogsColumnDefs) {
     });
     panelGridOptions.api.setColumnDefs(panelLogsColumnDefs);
     panelGridOptions.api.resetRowHeights();
-    panelLogsColumnDefs.forEach((colDef, index) => {
+    panelLogsColumnDefs.forEach((colDef, _index) => {
         panelGridOptions.columnApi.setColumnVisible(colDef.field, false);
     });
     panelGridOptions.columnApi.setColumnVisible('logs', true);
@@ -198,7 +196,7 @@ function panelLogOptionSingleHandler(panelGridOptions, panelLogsColumnDefs) {
 }
 
 function panelLogOptionMultiHandler(panelGridOptions, panelLogsColumnDefs, panelLogsRowData) {
-    panelLogsColumnDefs.forEach(function (colDef, index) {
+    panelLogsColumnDefs.forEach(function (colDef, _index) {
         if (colDef.field === 'logs') {
             colDef.cellStyle = { 'white-space': 'normal' };
             colDef.autoHeight = true;
@@ -206,7 +204,7 @@ function panelLogOptionMultiHandler(panelGridOptions, panelLogsColumnDefs, panel
     });
     panelGridOptions.api.setColumnDefs(panelLogsColumnDefs);
 
-    panelLogsColumnDefs.forEach((colDef, index) => {
+    panelLogsColumnDefs.forEach((colDef, _index) => {
         panelGridOptions.columnApi.setColumnVisible(colDef.field, false);
     });
     panelGridOptions.columnApi.setColumnVisible('logs', true);
@@ -218,7 +216,7 @@ function panelLogOptionMultiHandler(panelGridOptions, panelLogsColumnDefs, panel
 }
 
 function panelLogOptionTableHandler(panelGridOptions, panelLogsColumnDefs) {
-    panelLogsColumnDefs.forEach(function (colDef, index) {
+    panelLogsColumnDefs.forEach(function (colDef, _index) {
         if (colDef.field === 'logs') {
             colDef.cellStyle = null;
             colDef.autoHeight = null;
@@ -231,7 +229,7 @@ function panelLogOptionTableHandler(panelGridOptions, panelLogsColumnDefs) {
     panelGridOptions.columnApi.setColumnVisible('timestamp', true);
     panelGridOptions.columnApi.setColumnVisible('logs', false);
 }
-
+//eslint-disable-next-line no-unused-vars
 function renderPanelAggsGrid(columnOrder, hits, panelId) {
     let aggsColumnDefs = [];
     let segStatsRowData = [];
@@ -258,7 +256,7 @@ function renderPanelAggsGrid(columnOrder, hits, panelId) {
     $(`.panelDisplay .big-number-display-container`).hide();
     if (panelId == -1) panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
     else panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
-
+    //eslint-disable-next-line no-undef
     new agGrid.Grid(panelGridDiv, aggGridOptions);
 
     let colDefs = aggGridOptions.api.getColumnDefs();
@@ -279,7 +277,7 @@ function renderPanelAggsGrid(columnOrder, hits, panelId) {
     let newRow = new Map();
     $.each(hits.measure, function (key, resMap) {
         newRow.set('id', 0);
-        columnOrder.map((colName, index) => {
+        columnOrder.map((colName, _index) => {
             let ind = -1;
             if (hits.groupByCols != undefined && hits.groupByCols.length > 0) {
                 ind = findColumnIndex(hits.groupByCols, colName);
@@ -330,7 +328,7 @@ function updateColumns(selectedFieldsList = null) {
     panelGridOptions.api.sizeColumnsToFit();
 }
 
-function toggleAllAvailableFieldsHandler(evt) {
+function toggleAllAvailableFieldsHandler(_evt) {
     let el = $('#available-fields .select-unselect-header');
     let isChecked = el.find('.select-unselect-checkmark');
 

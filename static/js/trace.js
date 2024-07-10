@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
 const colorArray = [
     '#6347D9',
     '#01BFB3',
@@ -252,6 +251,7 @@ function displayTimeline(data) {
             node.children.sort((a, b) => a.start_time - b.start_time); // sort by start time
         }
         // Add node labels
+        //eslint-disable-next-line no-unused-vars
         const label = svg
             .append('text')
             .attr('x', 10 * level)

@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let alertGridDiv = null;
 let alertRowData = [];
 
@@ -140,7 +138,7 @@ class btnRenderer {
     getGui() {
         return this.eGui;
     }
-    refresh(params) {
+    refresh() {
         return false;
     }
 }
@@ -210,6 +208,7 @@ const alertGridOptions = {
 function displayAllAlerts(res) {
     if (alertGridDiv === null) {
         alertGridDiv = document.querySelector('#ag-grid');
+        //eslint-disable-next-line no-undef
         new agGrid.Grid(alertGridDiv, alertGridOptions);
     }
     alertGridOptions.api.setColumnDefs(alertColumnDefs);

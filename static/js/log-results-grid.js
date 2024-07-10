@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let cellEditingClass = '';
 let isFetching = false;
 
@@ -68,7 +66,7 @@ class ReadOnlyCellEditor {
     isPopup() {
         return true;
     }
-    refresh(params) {
+    refresh() {
         return true;
     }
     destroy() {
@@ -86,7 +84,7 @@ class ReadOnlyCellEditor {
         });
 
         // Attach click event handler to the copy icon
-        $('.copy-icon').on('click', function (event) {
+        $('.copy-icon').on('click', function (_event) {
             var copyIcon = $(this);
             var inputOrTextarea = copyIcon.prev('.copyable');
             var inputValue = inputOrTextarea.val();
@@ -150,7 +148,7 @@ let logsColumnDefs = [
             }
 
             if (selectedFieldsList.length != 0) {
-                availColNames.forEach((colName, index) => {
+                availColNames.forEach((colName, _index) => {
                     if (selectedFieldsList.includes(colName)) {
                         $(`.toggle-${string2Hex(colName)}`).addClass('active');
                     } else {
@@ -172,7 +170,9 @@ let logsColumnDefs = [
 
 // initial dataset
 let logsRowData = [];
+//eslint-disable-next-line no-unused-vars
 let allLiveTailColumns = [];
+//eslint-disable-next-line no-unused-vars
 let total_liveTail_searched = 0;
 // let the grid know which columns and what data to use
 const gridOptions = {
@@ -256,7 +256,7 @@ const gridOptions = {
         }
     },
     overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
-    onGridReady: function (params) {
+    onGridReady: function (_params) {
         const eGridDiv = document.querySelector('#LogResultsGrid');
         const style = document.createElement('style');
         style.textContent = `
@@ -283,7 +283,7 @@ function showLoadingIndicator() {
 function hideLoadingIndicator() {
     gridOptions.api.hideOverlay();
 }
-
+//eslint-disable-next-line no-unused-vars
 const myCellRenderer = (params) => {
     let logString = '';
     if (typeof params.data === 'object' && params.data !== null) {
@@ -298,115 +298,12 @@ const myCellRenderer = (params) => {
     }
     return logString;
 };
-
-let gridDiv = null;
-
-function renderLogsGrid(columnOrder, hits) {
-    if (sortByTimestampAtDefault) {
-        logsColumnDefs[0].sort = 'desc';
-    } else {
-        logsColumnDefs[0].sort = undefined;
-    }
-    if (gridDiv == null) {
-        gridDiv = document.querySelector('#LogResultsGrid');
-        new agGrid.Grid(gridDiv, gridOptions);
-    }
-
-    let logview = getLogView();
-
-    let cols = columnOrder.map((colName, index) => {
-        let hideCol = false;
-        if (index >= defaultColumnCount) {
-            hideCol = true;
-        }
-
-        if (logview != 'single-line' && colName == 'logs') {
-            hideCol = true;
-        }
-
-        if (index > 1) {
-            if (selectedFieldsList.indexOf(colName) != -1) {
-                hideCol = true;
-            } else {
-                hideCol = false;
-            }
-        }
-        if (colName === 'timestamp') {
-            return {
-                field: colName,
-                hide: hideCol,
-                headerName: colName,
-                cellRenderer: function (params) {
-                    return moment(params.value).format(timestampDateFmt);
-                },
-            };
-        } else {
-            return {
-                field: colName,
-                hide: hideCol,
-                headerName: colName,
-                cellRenderer: myCellRenderer,
-                cellRendererParams: { colName: colName },
-            };
-        }
-    });
-    if (hits.length !== 0) {
-        // Map hits objects to match the order of columnsOrder
-        const mappedHits = hits.map((hit) => {
-            const reorderedHit = {};
-            columnOrder.forEach((column) => {
-                // Check if the property exists in the hit object
-                if (hit.hasOwnProperty(column)) {
-                    reorderedHit[column] = hit[column];
-                }
-            });
-            return reorderedHit;
-        });
-
-        logsRowData = mappedHits.concat(logsRowData);
-
-        if (liveTailState && logsRowData.length > 500) {
-            logsRowData = logsRowData.slice(0, 500);
-        }
-    }
-
-    const logsColumnDefsMap = new Map(logsColumnDefs.map((logCol) => [logCol.field, logCol]));
-    // Use column def from logsColumnDefsMap if it exists, otherwise use the original column def from cols
-    const combinedColumnDefs = cols.map((col) => logsColumnDefsMap.get(col.field) || col);
-    // Append any remaining column def from logsColumnDefs that were not in cols
-    logsColumnDefs.forEach((logCol) => {
-        if (!combinedColumnDefs.some((col) => col.field === logCol.field)) {
-            combinedColumnDefs.push(logCol);
-        }
-    });
-    logsColumnDefs = combinedColumnDefs;
-    gridOptions.api.setColumnDefs(logsColumnDefs);
-
-    const allColumnIds = [];
-    gridOptions.columnApi.getColumns().forEach((column) => {
-        allColumnIds.push(column.getId());
-    });
-    gridOptions.columnApi.autoSizeColumns(allColumnIds, false);
-    gridOptions.api.setRowData(logsRowData);
-
-    switch (logview) {
-        case 'single-line':
-            logOptionSingleHandler();
-            break;
-        case 'multi-line':
-            logOptionMultiHandler();
-            break;
-        case 'table':
-            logOptionTableHandler();
-            break;
-    }
-}
-
+//eslint-disable-next-line no-unused-vars
 function updateColumns() {
     // Always show timestamp
     gridOptions.columnApi.setColumnVisible('timestamp', true);
     let isAnyColActive = false;
-    availColNames.forEach((colName, index) => {
+    availColNames.forEach((colName, _index) => {
         if ($(`.toggle-${string2Hex(colName)}`).hasClass('active')) {
             isAnyColActive = true;
             gridOptions.columnApi.setColumnVisible(colName, true);
@@ -422,14 +319,9 @@ function updateColumns() {
     gridOptions.api.sizeColumnsToFit();
 }
 
-function getLogView() {
-    let logview = Cookies.get('log-view') || 'table';
-    return logview;
-}
-
 JSON.unflatten = function (data) {
-    'use strict';
     if (Object(data) !== data || Array.isArray(data)) return data;
+    //eslint-disable-next-line no-useless-escape
     let regex = /\.?([^.\[\]]+)|\[(\d+)\]/g,
         resultholder = {};
     for (let p in data) {

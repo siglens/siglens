@@ -9,10 +9,18 @@
     "prettier": "^3.3.2",
     "puppeteer": "^22.11.2",
     "selenium-webdriver": "^4.15.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "@eslint/js": "^9.6.0",
+    "eslint": "^8.57.0",
+    "eslint-config-jquery": "^3.0.2",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-prettier": "^5.1.3",
+    "globals": "^15.8.0"
   },
   "scripts": {
     "test": "mocha ui-test/specs/common.js --recursive ui-test/specs",
-    "format": "prettier static/js/*.js --write "
+    "prettier:format": "prettier static/js/*.js --write ",
+    "lint:js": "eslint static/js/*.js --fix"
   }
 }

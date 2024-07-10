@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let contactGridDiv = null;
 let contactRowData = [];
 var contactData = {};
@@ -407,7 +405,7 @@ class btnRenderer {
     getGui() {
         return this.eGui;
     }
-    refresh(params) {
+    refresh(_params) {
         return false;
     }
 }
@@ -553,6 +551,7 @@ function validateContactForm() {
 function displayAllContacts(res) {
     if (contactGridDiv === null) {
         contactGridDiv = document.querySelector('.all-contacts-grid');
+        //eslint-disable-next-line no-undef
         new agGrid.Grid(contactGridDiv, contactGridOptions);
     }
     contactGridOptions.api.setColumnDefs(contactColumnDefs);

@@ -19,8 +19,7 @@
 
 let sqgridDiv = null;
 let sqRowData = [];
-let delNodeId = '';
-
+//eslint-disable-next-line no-unused-vars
 function setSaveQueriesDialog() {
     let dialog = null;
     let form = null;
@@ -133,7 +132,7 @@ function setSaveQueriesDialog() {
         return false;
     });
 }
-
+//eslint-disable-next-line no-unused-vars
 function getSavedQueries() {
     $.ajax({
         method: 'get',
@@ -158,7 +157,7 @@ class linkCellRenderer {
     getGui() {
         return this.eGui;
     }
-    refresh(params) {
+    refresh() {
         return false;
     }
 }
@@ -191,7 +190,7 @@ class btnCellRenderer {
         }
     }
 
-    refresh(params) {
+    refresh() {
         return false;
     }
 }
@@ -234,6 +233,7 @@ $(document).ready(function () {
             displayOriginalSavedQueries();
         }
     });
+    $('#search-query-btn').on('click', searchSavedQueryHandler);
 });
 
 let queriesColumnDefs = [
@@ -300,6 +300,7 @@ function displaySavedQueries(res, flag) {
         let sqFilteredRowData = [];
         if (sqgridDiv === null) {
             sqgridDiv = document.querySelector('#queries-grid');
+            //eslint-disable-next-line no-undef
             new agGrid.Grid(sqgridDiv, sqgridOptions);
         }
         sqgridOptions.api.setColumnDefs(queriesColumnDefs);
@@ -321,6 +322,7 @@ function displaySavedQueries(res, flag) {
     } else {
         if (sqgridDiv === null) {
             sqgridDiv = document.querySelector('#queries-grid');
+            //eslint-disable-next-line no-undef
             new agGrid.Grid(sqgridDiv, sqgridOptions);
         }
         sqgridOptions.api.setColumnDefs(queriesColumnDefs);
@@ -347,6 +349,7 @@ function displayOriginalSavedQueries() {
     if (searchText.length === 0) {
         if (sqgridDiv === null) {
             sqgridDiv = document.querySelector('#queries-grid');
+            //eslint-disable-next-line no-undef
             new agGrid.Grid(sqgridDiv, sqgridOptions);
         }
         $('#queries-grid-container').show();
@@ -354,6 +357,17 @@ function displayOriginalSavedQueries() {
         sqgridOptions.api.setColumnDefs(queriesColumnDefs);
         sqgridOptions.api.setRowData(sqRowData);
         sqgridOptions.api.sizeColumnsToFit();
+    }
+}
+
+function searchSavedQueryHandler(evt) {
+    evt.preventDefault();
+    $('#empty-qsearch-response').hide();
+    let searchText = $('#sq-filter-input').val();
+    if (searchText === '') {
+        return;
+    } else {
+        getSearchedQuery();
     }
 }
 

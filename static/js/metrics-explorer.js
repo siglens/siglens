@@ -33,7 +33,8 @@ let dayCnt7 = 0;
 let dayCnt2 = 0;
 // Used for alert screen
 let isAlertScreen;
-let metricsQueryParams = {};
+//eslint-disable-next-line no-unused-vars
+let metricsQueryParams;
 
 // Theme
 let classic = ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'];
@@ -136,7 +137,7 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
     });
 }
 
-function formulaAlertRemoveHandler(formulaElement, uniqueId) {
+function formulaAlertRemoveHandler(formulaElement, _uniqueId) {
     formulaElement.find('.remove-query').on('click', function () {
         var formulaBtn = $('#add-formula');
         formulas = {};
@@ -578,7 +579,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         .on('click', function () {
             $(this).select();
         })
-        .on('close', function (event) {
+        .on('close', function (_event) {
             var selectedValue = $(this).val();
             if (selectedValue === '') {
                 $(this).val(queryDetails.metrics);
@@ -642,7 +643,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             classes: {
                 'ui-autocomplete': 'metrics-ui-widget',
             },
-            open: function (event, ui) {
+            open: function (_event, _ui) {
                 var containerPosition = $(this).closest('.tag-container').offset();
 
                 $(this)
@@ -772,7 +773,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
             classes: {
                 'ui-autocomplete': 'metrics-ui-widget',
             },
-            open: function (event, ui) {
+            open: function (_event, _ui) {
                 var containerPosition = $(this).closest('.value-container').offset();
 
                 $(this)
@@ -908,14 +909,12 @@ function updateCloseIconVisibility() {
 
 function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
-    var datasets = [];
-    var labels = [];
     // Extract labels and datasets from seriesData
     var labels = [];
     var datasets = [];
 
     if (seriesData.length > 0) {
-        seriesData.forEach(function (series, index) {
+        seriesData.forEach(function (series, _index) {
             Object.keys(series.values).forEach((tsvalue) => {
                 labels.push(new Date(tsvalue));
             });
@@ -1032,6 +1031,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 
 function addVisualizationContainer(queryName, seriesData, queryString) {
     var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`);
+    var canvas;
     if (existingContainer.length === 0) {
         var visualizationContainer = $(`
         <div class="metrics-graph" data-query="${queryName}">
@@ -1060,11 +1060,11 @@ function addVisualizationContainer(queryName, seriesData, queryString) {
             }
         }
 
-        var canvas = $('<canvas></canvas>');
+        canvas = $('<canvas></canvas>');
         visualizationContainer.find('.graph-canvas').append(canvas);
     } else {
         existingContainer.find('.query-string').text(queryString);
-        var canvas = $('<canvas></canvas>');
+        canvas = $('<canvas></canvas>');
         existingContainer.find('.graph-canvas').empty().append(canvas);
     }
 
@@ -1146,7 +1146,7 @@ function toggleChartType(chartType) {
 
     // Loop through each chart data
     for (var queryName in chartDataCollection) {
-        if (chartDataCollection.hasOwnProperty(queryName)) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             var lineChart = lineCharts[queryName];
 
             lineChart.config.type = chartJsType;
@@ -1174,7 +1174,7 @@ $('#color-input')
         source: colorOptions,
         minLength: 0,
         select: function (event, ui) {
-            selectedColorTheme = ui.item.value;
+            let selectedColorTheme = ui.item.value;
             updateChartTheme(selectedColorTheme);
             $(this).blur();
         },
@@ -1206,7 +1206,7 @@ function updateChartTheme(theme) {
 
     // Loop through each chart data
     for (var queryName in chartDataCollection) {
-        if (chartDataCollection.hasOwnProperty(queryName)) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             var chartData = chartDataCollection[queryName];
             chartData.datasets.forEach(function (dataset, index) {
                 dataset.borderColor = selectedPalette[index % selectedPalette.length];
@@ -1276,7 +1276,7 @@ $('#stroke-input')
 function updateLineCharts(lineStyle, stroke) {
     // Loop through each chart data
     for (var queryName in chartDataCollection) {
-        if (chartDataCollection.hasOwnProperty(queryName)) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             var chartData = chartDataCollection[queryName];
             // Loop through each dataset in the chart data
             chartData.datasets.forEach(function (dataset) {
@@ -1318,7 +1318,7 @@ function mergeGraphs(chartType) {
 
     // Loop through chartDataCollection to merge datasets
     for (var queryName in chartDataCollection) {
-        if (chartDataCollection.hasOwnProperty(queryName)) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             // Merge datasets for the current query
             var datasets = chartDataCollection[queryName].datasets;
             graphNames.push(`Metrics query - ${queryName}`);
@@ -1415,7 +1415,7 @@ function mergeGraphs(chartType) {
 async function convertDataForChart(data) {
     let seriesArray = [];
 
-    if (data.hasOwnProperty('series') && data.hasOwnProperty('timestamps') && data.hasOwnProperty('values')) {
+    if (Object.prototype.hasOwnProperty.call(data, 'series') && Object.prototype.hasOwnProperty.call(data, 'timestamps') && Object.prototype.hasOwnProperty.call(data, 'values')) {
         let chartStartTime = data.startTime;
         let chartEndTime = Math.floor(Date.now() / 1000);
         const timeRange = chartEndTime - chartStartTime;
@@ -1749,7 +1749,7 @@ function updateChartColorsBasedOnTheme() {
     const { gridLineColor, tickColor } = getGraphGridColors();
 
     for (const queryName in chartDataCollection) {
-        if (chartDataCollection.hasOwnProperty(queryName)) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
             const lineChart = lineCharts[queryName];
             lineChart.options.scales.x.ticks.color = tickColor;
             lineChart.options.scales.y.ticks.color = tickColor;
@@ -1777,6 +1777,7 @@ function getGraphGridColors() {
 
 function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
     var existingContainer = $(`.metrics-graph`);
+    var canvas;
     if (existingContainer.length === 0) {
         var visualizationContainer = $(`
         <div class="metrics-graph">
@@ -1784,12 +1785,12 @@ function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
             <div class="graph-canvas"></div>
         </div>`);
 
-        var canvas = $('<canvas></canvas>');
+        canvas = $('<canvas></canvas>');
         visualizationContainer.find('.graph-canvas').append(canvas);
         $('#metrics-graphs').append(visualizationContainer);
     } else {
         existingContainer.find('.query-string').text(queryString);
-        var canvas = $('<canvas></canvas>');
+        canvas = $('<canvas></canvas>');
         existingContainer.find('.graph-canvas').empty().append(canvas);
     }
 
@@ -1798,6 +1799,7 @@ function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
 }
 
 // Parsing function to convert the query string to query object
+//eslint-disable-next-line no-unused-vars
 function parsePromQL(query) {
     const parseObject = {
         metrics: '',
@@ -1869,7 +1871,7 @@ function activateFirstQuery() {
     let queryDetails = queries[queryName];
     getQueryDetails(queryName, queryDetails);
 }
-
+//eslint-disable-next-line no-unused-vars
 async function addQueryElementOnAlertEdit(queryName, queryDetails) {
     var queryElement = createQueryElementTemplate(queryName);
     $('#metrics-queries').append(queryElement);
@@ -1930,9 +1932,9 @@ function addTag(queryElement, value) {
     }
 }
 
-function addValue(queryElement, value) {
+function addValue(queryElement, invalue) {
     var valueContainer = queryElement.find('.everything');
-    var value = $('<span class="value">' + value + '<span class="close">×</span></span>');
+    var value = $('<span class="value">' + invalue + '<span class="close">×</span></span>');
     valueContainer.before(value);
 
     if (queryElement.find('.value-container').find('.value').length === 0) {

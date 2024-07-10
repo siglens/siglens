@@ -56,7 +56,7 @@ if (typeof interval != "undefined") {
 var progressWidth = 0;
 function beginProgress(t) {
   progressWidth = 1;
-  interval = setInterval("doProgress()", t * 10);
+  interval = setInterval(doProgress, t * 10);
 }
 function cancelDownload() {
   confirmDownload = false;

@@ -17,13 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let eGridDiv = null;
-
+//eslint-disable-next-line no-unused-vars
 function renderMeasuresGrid(columnOrder, hits) {
     if (eGridDiv === null) {
         eGridDiv = document.querySelector('#measureAggGrid');
+        //eslint-disable-next-line no-undef
         new agGrid.Grid(eGridDiv, aggGridOptions);
     }
     // set the column headers from the data
@@ -51,9 +50,9 @@ function renderMeasuresGrid(columnOrder, hits) {
     aggsColumnDefs = _.chain(aggsColumnDefs).concat(colDefs).uniqBy('field').value();
     aggGridOptions.api.setColumnDefs(aggsColumnDefs);
     let newRow = new Map();
-    $.each(hits.measure, function (key, resMap) {
+    $.each(hits.measure, function (_key, resMap) {
         newRow.set('id', 0);
-        columnOrder.map((colName, index) => {
+        columnOrder.map((colName, _index) => {
             let ind = -1;
             if (hits.groupByCols != undefined && hits.groupByCols.length > 0) {
                 ind = findColumnIndex(hits.groupByCols, colName);

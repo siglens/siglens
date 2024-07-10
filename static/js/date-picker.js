@@ -17,8 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
+//eslint-disable-next-line no-unused-vars
 function datePickerHandler(startDate, endDate, label) {
     let displayLabel = 'Last 15 Mins';
     filterStartDate = startDate._i || startDate;

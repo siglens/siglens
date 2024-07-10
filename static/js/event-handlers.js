@@ -17,8 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
+//eslint-disable-next-line no-unused-vars
 function setupEventHandlers() {
     $('#filter-input').on('keyup', filterInputHandler);
 
@@ -32,8 +31,6 @@ function setupEventHandlers() {
     $('#available-fields .fields').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
 
     $('#corner-popup').on('click', '.corner-btn-close', hideError);
-
-    $('#search-query-btn').on('click', searchSavedQueryHandler);
 
     $('#query-language-btn').on('show.bs.dropdown', qLangOnShowHandler);
     $('#query-language-btn').on('hide.bs.dropdown', qLangOnHideHandler);
@@ -104,14 +101,14 @@ function resetDatePickerHandler(evt) {
         $(this).removeClass('active');
     });
 }
-function getStartDateHandler(evt) {
+function getStartDateHandler(_evt) {
     let inputDate = new Date(this.value);
     filterStartDate = inputDate.getTime();
     $(this).addClass('active');
     Cookies.set('customStartDate', this.value);
 }
 
-function getEndDateHandler(evt) {
+function getEndDateHandler(_evt) {
     let inputDate = new Date(this.value);
     filterEndDate = inputDate.getTime();
     $(this).addClass('active');
@@ -147,7 +144,7 @@ function getEndTimeHandler() {
     Cookies.set('customEndTime', selectedTime);
 }
 
-function customRangeHandler(evt) {
+function customRangeHandler(_evt) {
     $.each($('.range-item.active'), function () {
         $(this).removeClass('active');
     });
@@ -257,7 +254,7 @@ function hideColumnHandler(evt, isCloseIcon = false) {
     availableFieldsSelectHandler(evt, isCloseIcon);
 }
 
-function setQueryLangHandler(e) {
+function setQueryLangHandler(_e) {
     let previousQueryLanguageId = $('#query-language-options .query-language-option.active').attr('id').split('-')[1];
     $('.query-language-option').removeClass('active');
     $('#setting-container').hide();
@@ -271,7 +268,7 @@ function setQueryLangHandler(e) {
     $(this).addClass('active');
 }
 
-function setQueryModeHandler(e) {
+function setQueryModeHandler(_e) {
     $('.query-mode-option').removeClass('active');
     $('#setting-container').hide();
     Cookies.set('queryMode', $(this).html());
@@ -297,6 +294,7 @@ function handleTabAndTooltip(selectedQueryLanguageId, currentTab) {
 
 function showDisabledTabTooltip() {
     hideDisabledTabTooltip();
+    //eslint-disable-next-line no-undef
     tippy('#tab-title1', {
         content: 'Builder is only available for Splunk QL. Please change the settings to select Splunk QL in order to use the builder.',
         placement: 'top',
@@ -386,8 +384,7 @@ function runLiveTailBtnHandler(evt) {
         $('#live-tail-btn').html('Live Tail');
         liveTailState = false;
         wsState = 'cancel';
-        data = getLiveTailFilter(false, false, 1800);
-        doLiveTailCancel(data);
+        doLiveTailCancel();
     }
     $('#daterangepicker').hide();
 }
@@ -477,11 +474,10 @@ function availableFieldsSelectHandler(evt, isCloseIcon = false) {
     let visibleColumns = 0;
     let totalColumns = -1;
 
-    availColNames.forEach((colName, index) => {
+    availColNames.forEach((colName, _index) => {
         if (selectedFieldsList.includes(colName)) {
             visibleColumns++;
             totalColumns++;
-        } else {
         }
     });
 
@@ -529,7 +525,7 @@ function availableFieldsSelectHandler(evt, isCloseIcon = false) {
     updatedSelFieldList = true;
 }
 
-function toggleAllAvailableFieldsHandler(evt) {
+function toggleAllAvailableFieldsHandler(_evt) {
     processTableViewOption();
     let el = $('#available-fields .select-unselect-header');
     let isChecked = el.find('.select-unselect-checkmark');
@@ -540,7 +536,7 @@ function toggleAllAvailableFieldsHandler(evt) {
             el.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
         }
         let tempFieldList = [];
-        availColNames.forEach((colName, index) => {
+        availColNames.forEach((colName, _index) => {
             $(`.toggle-${string2Hex(colName)}`).addClass('active');
             tempFieldList.push(colName);
             gridOptions.columnApi.setColumnVisible(colName, true);
@@ -550,7 +546,7 @@ function toggleAllAvailableFieldsHandler(evt) {
         let cmClass = el.find('.select-unselect-checkmark');
         cmClass.remove();
 
-        availColNames.forEach((colName, index) => {
+        availColNames.forEach((colName, _index) => {
             $(`.toggle-${string2Hex(colName)}`).removeClass('active');
             gridOptions.columnApi.setColumnVisible(colName, false);
         });
@@ -563,7 +559,7 @@ function toggleAllAvailableFieldsHandler(evt) {
 
 function hideOrShowFieldsInLineViews() {
     let allSelected = true;
-    availColNames.forEach((colName, index) => {
+    availColNames.forEach((colName, _index) => {
         let encColName = string2Hex(colName);
         if ($(`.toggle-${encColName}`).hasClass('active')) {
             $(`.cname-hide-${encColName}`).show();
@@ -591,7 +587,7 @@ function logOptionSingleHandler() {
     $('#logs-result-container').removeClass('multi');
     $('#views-container .btn-group .btn').removeClass('active');
     $('#log-opt-single-btn').addClass('active');
-    logsColumnDefs.forEach(function (colDef, index) {
+    logsColumnDefs.forEach(function (colDef, _index) {
         if (colDef.field === 'logs') {
             colDef.cellStyle = null;
             colDef.autoHeight = null;
@@ -614,7 +610,7 @@ function logOptionSingleHandler() {
     gridOptions.api.setColumnDefs(logsColumnDefs);
     gridOptions.api.resetRowHeights();
 
-    availColNames.forEach((colName, index) => {
+    availColNames.forEach((colName, _index) => {
         gridOptions.columnApi.setColumnVisible(colName, false);
     });
     gridOptions.columnApi.setColumnVisible('logs', true);
@@ -629,7 +625,7 @@ function logOptionMultiHandler() {
     $('#views-container .btn-group .btn').removeClass('active');
     $('#log-opt-multi-btn').addClass('active');
 
-    logsColumnDefs.forEach(function (colDef, index) {
+    logsColumnDefs.forEach(function (colDef, _index) {
         if (colDef.field === 'logs') {
             colDef.cellStyle = { 'white-space': 'normal' };
             colDef.autoHeight = true;
@@ -652,7 +648,7 @@ function logOptionMultiHandler() {
     });
     gridOptions.api.setColumnDefs(logsColumnDefs);
 
-    availColNames.forEach((colName, index) => {
+    availColNames.forEach((colName, _index) => {
         gridOptions.columnApi.setColumnVisible(colName, false);
     });
     gridOptions.columnApi.setColumnVisible('logs', true);
@@ -682,7 +678,7 @@ function processTableViewOption() {
     $('#logs-result-container').addClass('multi');
     $('#views-container .btn-group .btn').removeClass('active');
     $('#log-opt-table-btn').addClass('active');
-    logsColumnDefs.forEach(function (colDef, index) {
+    logsColumnDefs.forEach(function (colDef, _index) {
         if (colDef.field === 'logs') {
             colDef.cellStyle = null;
             colDef.autoHeight = null;
@@ -693,7 +689,7 @@ function processTableViewOption() {
     gridOptions.api.sizeColumnsToFit();
     Cookies.set('log-view', 'table', { expires: 365 });
 }
-
+//eslint-disable-next-line no-unused-vars
 function themePickerHandler(evt) {
     if (Cookies.get('theme')) {
         theme = Cookies.get('theme');
@@ -722,13 +718,21 @@ function saveqInputHandler(evt) {
     $(this).addClass('active');
 }
 
-function searchSavedQueryHandler(evt) {
-    evt.preventDefault();
-    $('#empty-qsearch-response').hide();
-    let searchText = $('#sq-filter-input').val();
-    if (searchText === '') {
-        return;
-    } else {
-        getSearchedQuery();
-    }
+function doCancel(data) {
+    socket.send(JSON.stringify(data));
+    $('body').css('cursor', 'default');
+    $('#run-filter-btn').html(' ');
+    $('#run-filter-btn').removeClass('cancel-search');
+    $('#run-filter-btn').removeClass('active');
+    $('#query-builder-btn').html(' ');
+    $('#query-builder-btn').removeClass('cancel-search');
+    $('#query-builder-btn').removeClass('active');
+    $('#progress-div').html(``);
+}
+
+function doLiveTailCancel() {
+    $('body').css('cursor', 'default');
+    $('#live-tail-btn').html('Live Tail');
+    $('#live-tail-btn').removeClass('active');
+    $('#progress-div').html(``);
 }

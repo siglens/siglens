@@ -7,7 +7,6 @@ $(document).ready(() => {
     $('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', isMetricsDatePickerHandler);
-    let data = getTimeRange();
     fetchAllMetrics(); // Fetch all metrics on page load
 
     // Add event listener for the search input
@@ -71,6 +70,7 @@ function displaydata(metrics) {
 
     if (gridDiv === null) {
         gridDiv = document.querySelector('#ag-grid');
+        //eslint-disable-next-line no-undef
         new agGrid.Grid(gridDiv, gridOptions);
     }
 

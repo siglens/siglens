@@ -173,6 +173,7 @@ function loadPieOptions(xAxisData, yAxisData) {
         pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
     }
 }
+//eslint-disable-next-line no-unused-vars
 function renderBarChart(columns, hits, panelId, chartType, dataType, panelIndex) {
     $('.panelDisplay #panelLogResultsGrid').hide();
     $('.panelDisplay #empty-response').empty();
@@ -331,6 +332,7 @@ function findSmallestGreaterOne(number) {
     return [smallest.toFixed(2), suffix];
 }
 
+//eslint-disable-next-line no-unused-vars
 function displayBigNumber(value, panelId, dataType, panelIndex) {
     if (panelId === -1) {
         $('.panelDisplay .panEdit-panel').hide();
@@ -392,8 +394,6 @@ function displayBigNumber(value, panelId, dataType, panelIndex) {
                     number = number * 24 * 60 * 60;
                 } else if (dataTypeAbbrev === 'm') {
                     number = number * 60;
-                } else if (dataTypeAbbrev === 's') {
-                    number = number;
                 } else if (dataTypeAbbrev === 'h') {
                     number = number * 3600;
                 }
@@ -427,6 +427,7 @@ function displayBigNumber(value, panelId, dataType, panelIndex) {
     }
 }
 
+//eslint-disable-next-line no-unused-vars
 function createColorsArray() {
     let root = document.querySelector(':root');
     let rootStyles = getComputedStyle(root);
@@ -437,6 +438,7 @@ function createColorsArray() {
     return colorArray;
 }
 
+//eslint-disable-next-line no-unused-vars
 function renderLineChart(seriesData, panelId) {
     let classic = ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'];
     let root = document.querySelector(':root');
@@ -445,11 +447,12 @@ function renderLineChart(seriesData, panelId) {
     let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
     let tickDarkThemeColor = rootStyles.getPropertyValue('--white-0');
     let tickLightThemeColor = rootStyles.getPropertyValue('--white-6');
-
+    var labels, datasets;
+    var panelChartEl;
     // Extract labels and datasets from seriesData
     if (seriesData.length > 0) {
-        var labels = Object.keys(seriesData[0].values);
-        var datasets = seriesData.map(function (series, index) {
+        labels = Object.keys(seriesData[0].values);
+        datasets = seriesData.map(function (series, index) {
             return {
                 label: series.seriesName,
                 data: Object.values(series.values),
@@ -460,8 +463,8 @@ function renderLineChart(seriesData, panelId) {
             };
         });
     } else {
-        var labels = [];
-        var datasets = [];
+        labels = [];
+        datasets = [];
     }
 
     var chartData = {
@@ -516,9 +519,9 @@ function renderLineChart(seriesData, panelId) {
         },
     };
     if (panelId == -1) {
-        var panelChartEl = $(`.panelDisplay .panEdit-panel`);
+        panelChartEl = $(`.panelDisplay .panEdit-panel`);
     } else {
-        var panelChartEl = $(`#panel${panelId} .panEdit-panel`);
+        panelChartEl = $(`#panel${panelId} .panEdit-panel`);
         panelChartEl.css('width', '100%').css('height', '100%');
     }
 
@@ -534,7 +537,7 @@ function renderLineChart(seriesData, panelId) {
     return lineChart;
 }
 
-window.addEventListener('resize', function (event) {
+window.addEventListener('resize', function (_event) {
     if ($('.panelEditor-container').css('display') !== 'none' && panelChart) {
         panelChart.resize();
     }

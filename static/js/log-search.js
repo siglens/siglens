@@ -17,9 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let originalIndexValues = [];
+//eslint-disable-next-line no-unused-vars
 let indexValues = [];
 
 $(document).ready(async () => {
@@ -132,7 +131,7 @@ $(document).ready(async () => {
         trigger: 'click',
     });
 
-    $('#info-icon-sql').on('click', function (e) {
+    $('#info-icon-sql').on('click', function (_e) {
         $('#info-icon-sql').tooltip('show');
     });
 
@@ -147,7 +146,7 @@ $(document).ready(async () => {
         trigger: 'click',
     });
 
-    $('#info-icon-logQL').on('click', function (e) {
+    $('#info-icon-logQL').on('click', function (_e) {
         $('#info-icon-logQL').tooltip('show');
     });
 
@@ -162,7 +161,7 @@ $(document).ready(async () => {
         trigger: 'click',
     });
 
-    $('#info-icon-spl').on('click', function (e) {
+    $('#info-icon-spl').on('click', function (_e) {
         $('#info-icon-spl').tooltip('show');
     });
 

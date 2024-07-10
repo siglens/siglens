@@ -17,10 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
-let dlgridDiv = null;
-let dlRowData = [];
 let curChoose = '';
 let interval = null;
 var progressBar = $('#progressbar');
@@ -40,7 +36,7 @@ $(function () {
 var progressWidth = 0;
 function beginProgress(t) {
     progressWidth = 1;
-    interval = setInterval('doProgress()', t * 10);
+    interval = setInterval(doProgress, t * 10);
 }
 function cancelDownload() {
     confirmDownload = false;
@@ -240,8 +236,7 @@ function setDownloadLogsDialog() {
             let params = getSearchFilter(false, false);
             let searchText = params.searchText;
             let n = searchText.indexOf('BY');
-            let arrNew = [],
-                textArr = [];
+            let textArr = [];
             if (n != -1) {
                 let textCut = searchText.substring(n + 2, searchText.length);
                 let arrNew = textCut.split(',');

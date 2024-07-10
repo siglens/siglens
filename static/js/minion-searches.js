@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let gridDiv = null;
 let resultRowData = [];
 
@@ -61,6 +59,7 @@ const gridOptions = {
 function displayLogsResults(res) {
     if (gridDiv === null) {
         gridDiv = document.querySelector('#ag-grid');
+        //eslint-disable-next-line no-undef
         new agGrid.Grid(gridDiv, gridOptions);
     }
     gridOptions.api.setColumnDefs(columnDefs);

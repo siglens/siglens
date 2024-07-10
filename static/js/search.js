@@ -17,31 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     var url = protocol + location.host;
     return url + path;
 }
 
-function doCancel(data) {
-    socket.send(JSON.stringify(data));
-    $('body').css('cursor', 'default');
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
-    $('#progress-div').html(``);
-}
-function doLiveTailCancel(data) {
-    $('body').css('cursor', 'default');
-    $('#live-tail-btn').html('Live Tail');
-    $('#live-tail-btn').removeClass('active');
-    $('#progress-div').html(``);
-}
 function resetDataTable(firstQUpdate) {
     if (firstQUpdate) {
         $('#empty-response, #initial-response').hide();
@@ -58,13 +39,8 @@ function resetDataTable(firstQUpdate) {
     }
 }
 
-function resetLogsGrid(firstQUpdate) {
-    if (firstQUpdate) {
-        resetAvailableFields();
-    }
-}
-
 let doSearchCounter = 0;
+//eslint-disable-next-line no-unused-vars
 function doSearch(data) {
     return new Promise((resolve, reject) => {
         startQueryTime = new Date().getTime();
@@ -78,7 +54,7 @@ function doSearch(data) {
         doSearchCounter++;
         console.time(timerName);
 
-        socket.onopen = function (e) {
+        socket.onopen = function (_e) {
             $('body').css('cursor', 'progress');
             $('#run-filter-btn').addClass('cancel-search');
             $('#run-filter-btn').addClass('active');
@@ -103,7 +79,7 @@ function doSearch(data) {
             switch (eventType) {
                 case 'RUNNING':
                     break;
-                case 'QUERY_UPDATE':
+                case 'QUERY_UPDATE': {
                     console.time('QUERY_UPDATE');
                     if (timeToFirstByte === 0) {
                         timeToFirstByte = Number(totalTime).toLocaleString();
@@ -112,7 +88,6 @@ function doSearch(data) {
 
                     if (jsonEvent && jsonEvent.hits && jsonEvent.hits.totalMatched) {
                         totalHits = jsonEvent.hits.totalMatched;
-                        totalMatchLogs = totalHits;
                         lastKnownHits = totalHits;
                     } else {
                         // we enter here only because backend sent null hits/totalmatched
@@ -123,7 +98,8 @@ function doSearch(data) {
                     console.timeEnd('QUERY_UPDATE');
                     firstQUpdate = false;
                     break;
-                case 'COMPLETE':
+                }
+                case 'COMPLETE': {
                     let eqRel = 'eq';
                     if (jsonEvent.totalMatched != null && jsonEvent.totalMatched.relation != null) {
                         eqRel = jsonEvent.totalMatched.relation;
@@ -135,6 +111,7 @@ function doSearch(data) {
                     console.timeEnd('COMPLETE');
                     socket.close(1000);
                     break;
+                }
                 case 'TIMEOUT':
                     console.time('TIMEOUT');
                     console.log(`[message] Timeout state received from server: ${jsonEvent}`);
@@ -217,7 +194,7 @@ function doLiveTailSearch(data) {
     let timeToFirstByte = 0;
     let firstQUpdate = true;
     let lastKnownHits = 0;
-    socket.onopen = function (e) {
+    socket.onopen = function (_e) {
         //  console.time("socket timing");
         $('body').css('cursor', 'progress');
         $('#live-tail-btn').html('Cancel Live Tail');
@@ -238,7 +215,7 @@ function doLiveTailSearch(data) {
                 console.time('RUNNING');
                 console.timeEnd('RUNNING');
                 break;
-            case 'QUERY_UPDATE':
+            case 'QUERY_UPDATE': {
                 console.time('QUERY_UPDATE');
                 if (timeToFirstByte === 0) {
                     timeToFirstByte = Number(totalTime).toLocaleString();
@@ -257,7 +234,8 @@ function doLiveTailSearch(data) {
                 //  console.timeEnd("QUERY_UPDATE");
                 firstQUpdate = false;
                 break;
-            case 'COMPLETE':
+            }
+            case 'COMPLETE': {
                 let eqRel = 'eq';
                 if (jsonEvent.totalMatched != null && jsonEvent.totalMatched.relation != null) {
                     eqRel = jsonEvent.totalMatched.relation;
@@ -270,6 +248,7 @@ function doLiveTailSearch(data) {
                 console.timeEnd('COMPLETE');
                 socket.close(1000);
                 break;
+            }
             case 'TIMEOUT':
                 console.time('TIMEOUT');
                 console.log(`[message] Timeout state received from server: ${jsonEvent}`);
@@ -312,6 +291,7 @@ function doLiveTailSearch(data) {
         console.log('WebSocket error: ', event);
     });
 }
+//eslint-disable-next-line no-unused-vars
 function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let queryParams = new URLSearchParams(window.location.search);
     let stDate = queryParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-15m';
@@ -451,7 +431,7 @@ function getQueryBuilderCode() {
     //concat the first input box
     let index = 0;
     if (firstBoxSet && firstBoxSet.size > 0) {
-        firstBoxSet.forEach((value, i) => {
+        firstBoxSet.forEach((value, _i) => {
             if (index != firstBoxSet.size - 1) filterValue += value + ' ';
             else filterValue += value;
             index++;
@@ -466,7 +446,7 @@ function getQueryBuilderCode() {
     if (secondBoxSet && secondBoxSet.size > 0) {
         bothRight++;
         filterValue += ' | stats';
-        secondBoxSet.forEach((value, i) => {
+        secondBoxSet.forEach((value, _i) => {
             if (index != secondBoxSet.size - 1) filterValue += ' ' + value + ',';
             else filterValue += ' ' + value;
             index++;
@@ -477,7 +457,7 @@ function getQueryBuilderCode() {
         if (bothRight == 0) showError = true;
         //concat the third input box
         filterValue += ' BY';
-        thirdBoxSet.forEach((value, i) => {
+        thirdBoxSet.forEach((value, _i) => {
             if (index != thirdBoxSet.size - 1) filterValue += ' ' + value + ',';
             else filterValue += ' ' + value;
             index++;
@@ -488,6 +468,7 @@ function getQueryBuilderCode() {
     else $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
     return showError ? 'Searches with a Search Criteria must have an Aggregate Attribute' : filterValue;
 }
+//eslint-disable-next-line no-unused-vars
 function getSearchFilter(skipPushState, scrollingTrigger) {
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
     let endDate = filterEndDate || 'now';
@@ -542,7 +523,7 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         queryLanguage: queryLanguage,
     };
 }
-
+//eslint-disable-next-line no-unused-vars
 function getSearchFilterForSave(qname, qdesc) {
     let filterValue = filterTextQB.trim() || '*';
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
@@ -816,15 +797,6 @@ function processErrorUpdate(res) {
     showError(`Message: ${res.message}`);
 }
 
-function processSearchError(res) {
-    if (res.can_scroll_more === false) {
-        showInfo(`You've reached maximum scroll limit (10,000).`);
-    } else if (res.message != '') {
-        showError(`Message: ${res.message}`);
-        resetDashboard();
-    }
-}
-
 function processSearchErrorLog(res) {
     if (res.can_scroll_more === false) {
         showInfo(`You've reached maximum scroll limit (10,000).`);
@@ -1065,7 +1037,7 @@ function codeToBuilderParsing(filterValue) {
         while (tags.firstChild) {
             tags.removeChild(tags.firstChild);
         }
-        firstBoxSet.forEach((value, i) => {
+        firstBoxSet.forEach((value, _i) => {
             let tag = document.createElement('li');
             tag.innerText = value;
             // Add a delete button to the tag
@@ -1079,7 +1051,7 @@ function codeToBuilderParsing(filterValue) {
         while (tags.firstChild) {
             tags.removeChild(tags.firstChild);
         }
-        secondBoxSet.forEach((value, i) => {
+        secondBoxSet.forEach((value, _i) => {
             let tag = document.createElement('li');
             tag.innerText = value;
             // Add a delete button to the tag
@@ -1093,7 +1065,7 @@ function codeToBuilderParsing(filterValue) {
         while (tags.firstChild) {
             tags.removeChild(tags.firstChild);
         }
-        thirdBoxSet.forEach((value, i) => {
+        thirdBoxSet.forEach((value, _i) => {
             let tag = document.createElement('li');
             tag.innerText = value;
             // Add a delete button to the tag
@@ -1109,4 +1081,110 @@ function codeToBuilderParsing(filterValue) {
     else $('#aggregate-attribute-text').show();
     if (firstBoxSet.size > 0) $('#search-filter-text').hide();
     else $('#search-filter-text').show();
+}
+
+function renderLogsGrid(columnOrder, hits) {
+    if (sortByTimestampAtDefault) {
+        logsColumnDefs[0].sort = 'desc';
+    } else {
+        logsColumnDefs[0].sort = undefined;
+    }
+    if (gridDiv == null) {
+        gridDiv = document.querySelector('#LogResultsGrid');
+        //eslint-disable-next-line no-undef
+        new agGrid.Grid(gridDiv, gridOptions);
+    }
+
+    let logview = getLogView();
+
+    let cols = columnOrder.map((colName, index) => {
+        let hideCol = false;
+        if (index >= defaultColumnCount) {
+            hideCol = true;
+        }
+
+        if (logview != 'single-line' && colName == 'logs') {
+            hideCol = true;
+        }
+
+        if (index > 1) {
+            if (selectedFieldsList.indexOf(colName) != -1) {
+                hideCol = true;
+            } else {
+                hideCol = false;
+            }
+        }
+        if (colName === 'timestamp') {
+            return {
+                field: colName,
+                hide: hideCol,
+                headerName: colName,
+                cellRenderer: function (params) {
+                    return moment(params.value).format(timestampDateFmt);
+                },
+            };
+        } else {
+            return {
+                field: colName,
+                hide: hideCol,
+                headerName: colName,
+                cellRenderer: myCellRenderer,
+                cellRendererParams: { colName: colName },
+            };
+        }
+    });
+    if (hits.length !== 0) {
+        // Map hits objects to match the order of columnsOrder
+        const mappedHits = hits.map((hit) => {
+            const reorderedHit = {};
+            columnOrder.forEach((column) => {
+                // Check if the property exists in the hit object
+                if (Object.prototype.hasOwnProperty.call(hit, column)) {
+                    reorderedHit[column] = hit[column];
+                }
+            });
+            return reorderedHit;
+        });
+
+        logsRowData = mappedHits.concat(logsRowData);
+
+        if (liveTailState && logsRowData.length > 500) {
+            logsRowData = logsRowData.slice(0, 500);
+        }
+    }
+
+    const logsColumnDefsMap = new Map(logsColumnDefs.map((logCol) => [logCol.field, logCol]));
+    // Use column def from logsColumnDefsMap if it exists, otherwise use the original column def from cols
+    const combinedColumnDefs = cols.map((col) => logsColumnDefsMap.get(col.field) || col);
+    // Append any remaining column def from logsColumnDefs that were not in cols
+    logsColumnDefs.forEach((logCol) => {
+        if (!combinedColumnDefs.some((col) => col.field === logCol.field)) {
+            combinedColumnDefs.push(logCol);
+        }
+    });
+    logsColumnDefs = combinedColumnDefs;
+    gridOptions.api.setColumnDefs(logsColumnDefs);
+
+    const allColumnIds = [];
+    gridOptions.columnApi.getColumns().forEach((column) => {
+        allColumnIds.push(column.getId());
+    });
+    gridOptions.columnApi.autoSizeColumns(allColumnIds, false);
+    gridOptions.api.setRowData(logsRowData);
+
+    switch (logview) {
+        case 'single-line':
+            logOptionSingleHandler();
+            break;
+        case 'multi-line':
+            logOptionMultiHandler();
+            break;
+        case 'table':
+            logOptionTableHandler();
+            break;
+    }
+}
+function getLogView() {
+    let logview = Cookies.get('log-view') || 'table';
+    return logview;
 }

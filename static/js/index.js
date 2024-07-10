@@ -19,6 +19,7 @@
 
 'use strict';
 let sortedListIndices;
+//eslint-disable-next-line no-unused-vars
 async function getListIndices() {
     return fetch('api/listIndices', {
         method: 'GET',
@@ -44,6 +45,7 @@ async function getListIndices() {
 
 // Dashboards Index Dropdown
 // Function to initialize autocomplete with original index values
+//eslint-disable-next-line no-unused-vars
 async function initializeIndexAutocomplete() {
     $('#index-listing')
         .autocomplete({
@@ -69,7 +71,7 @@ async function initializeIndexAutocomplete() {
                 $(this).val('');
                 $(this).blur();
             },
-            open: function (event, ui) {
+            open: function (_event, _ui) {
                 var containerPosition = $(this).closest('.index-container').offset();
 
                 $(this)
@@ -170,7 +172,7 @@ async function initializeIndexAutocomplete() {
 }
 
 // Remove selected index from container when remove icon is clicked
-$('.index-container').on('click', '.remove-icon', function (e) {
+$('.index-container').on('click', '.remove-icon', function (_e) {
     const removedValue = $(this)
         .parent()
         .contents()

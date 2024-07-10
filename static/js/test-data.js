@@ -22,7 +22,6 @@ let selectedLogSource = "";
 $(document).ready(function () {
     $('#data-ingestion,#test-data-btn').hide();
     $('.theme-btn').on('click', themePickerHandler);
-    let org_name;
     $(".custom-chart-tab").tabs();
     $(".custom-chart-tab").show();
     $.ajax({
@@ -32,7 +31,7 @@ $(document).ready(function () {
         dataType: 'json',
         credentials: 'include'
     })
-        .then((res) => {
+        .then((_res) => {
             let token;
             {{ if .TestDataSendData }}
                 {{ .TestDataSendData }}
@@ -96,7 +95,7 @@ $(document).ready(function () {
         $(this).after(copyIcon);
     });
 
-    $('.copy-icon').on('click', function (event) {
+    $('.copy-icon').on('click', function (_event) {
         var copyIcon = $(this);
         var inputOrTextarea = copyIcon.prev('.copyable');
         var inputValue = inputOrTextarea.val();
@@ -117,9 +116,6 @@ $(document).ready(function () {
     {{ .Button1Function }}
 })
 
-function dropdown() {
-    $('.dropdown-option').toggleClass('active');
-}
 
 function sendTestData(e, token) {
 
@@ -136,7 +132,7 @@ function sendTestData(e, token) {
                 testDataBtn.disabled = false;
             });
     } else {
-        sendTestDataWithoutBearerToken().then((res) => {
+        sendTestDataWithoutBearerToken().then((_res) => {
             showSendTestDataUpdateToast('Sent Test Data Successfully');
             let testDataBtn = document.getElementById("test-data-btn");
             testDataBtn.disabled = false;
@@ -187,4 +183,18 @@ function sendTestData(e, token) {
                 });
         });
     }
+}
+
+function myOrgSendTestData(token) {
+    $('#test-data-btn').on('click', (e) => {
+        if (selectedLogSource === 'Send Test Data') {
+            var testDataBtn = document.getElementById("test-data-btn");
+            // Disable testDataBtn
+            testDataBtn.disabled = true;
+            sendTestData(e, token);
+        }
+        else {
+            showSendTestDataUpdateToast('Select Test Data');
+        }
+    })
 }

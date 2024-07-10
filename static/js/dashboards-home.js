@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let dbgridDiv = null;
 let dbRowData = [];
 
@@ -169,46 +167,6 @@ function createDashboard() {
 
     // Attach event handlers initially
     attachEventHandlers();
-}
-
-function createSiglensDashboard(inputdbname) {
-    var inputdbdescription = 'A pre-created Dashboard to monitor the cluster';
-    var timeRange = 'Last 1 Hour';
-
-    $.ajax({
-        method: 'post',
-        url: 'api/dashboards/create',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        data: JSON.stringify(inputdbname),
-        dataType: 'json',
-        crossDomain: true,
-    }).then(function (res) {
-        var updateDashboard = {
-            id: Object.keys(res)[0],
-            name: Object.values(res)[0],
-            details: {
-                name: Object.values(res)[0],
-                description: inputdbdescription,
-                timeRange: timeRange,
-            },
-        };
-        $.ajax({
-            method: 'post',
-            url: 'api/dashboards/update',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                Accept: '*/*',
-            },
-            data: JSON.stringify(updateDashboard),
-            dataType: 'json',
-            crossDomain: true,
-        }).then(function (msg) {
-            console.log('done:', msg);
-        });
-    });
 }
 
 class btnRenderer {
@@ -395,7 +353,7 @@ let dashboardColumnDefs = [
                     },
                     crossDomain: true,
                     dataType: 'json',
-                }).then(function (res) {
+                }).then(function (_res) {
                     var queryString = '?id=' + params.data.uniqId;
                     window.location.href = '../dashboard.html' + queryString;
                 });
@@ -449,6 +407,7 @@ function displayDashboards(res, flag) {
         let dbFilteredRowData = [];
         if (dbgridDiv === null) {
             dbgridDiv = document.querySelector('#dashboard-grid');
+            //eslint-disable-next-line no-undef
             new agGrid.Grid(dbgridDiv, dbgridOptions);
         }
         dbgridOptions.api.setColumnDefs(dashboardColumnDefs);
@@ -467,6 +426,7 @@ function displayDashboards(res, flag) {
     } else {
         if (dbgridDiv === null) {
             dbgridDiv = document.querySelector('#dashboard-grid');
+            //eslint-disable-next-line no-undef
             new agGrid.Grid(dbgridDiv, dbgridOptions);
         }
         dbgridOptions.api.setColumnDefs(dashboardColumnDefs);
@@ -502,7 +462,7 @@ function searchDB() {
     let dbFilteredRowsObject = {};
     if (tokens.length) {
         var searchTermRegex = new RegExp(tokens.join('|'), 'gi');
-        var filteredList = dbNames.filter(function (dbName, i) {
+        dbNames.filter(function (dbName, i) {
             if (dbName.match(searchTermRegex)) {
                 let uniqIdDB = dbRowData[i].uniqId;
                 dbFilteredRowsObject[`${uniqIdDB}`] = dbRowData[i].dbname;
@@ -527,6 +487,7 @@ function displayOriginalDashboards() {
     if (searchText.length === 0) {
         if (dbgridDiv === null) {
             dbgridDiv = document.querySelector('#dashboard-grid');
+            //eslint-disable-next-line no-undef
             new agGrid.Grid(dbgridDiv, dbgridOptions);
         }
         $('#dashboard-grid-container').show();

@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let currentPanel;
 let selectedChartTypeIndex = -1,
     selectedDataSourceTypeIndex = -1;
@@ -26,7 +24,6 @@ let selectedUnitTypeIndex = -1;
 let selectedDataTypeIndex = -1;
 let prevSelectedDataTypeIndex = -2;
 let selectedLogLinesViewTypeIndex = -1;
-let selectedQueryLanguageIndex = -1;
 
 let mapChartTypeToIndex = new Map([
     ['Line Chart', 0],
@@ -198,7 +195,7 @@ $(document).ready(function () {
         trigger: 'click',
     });
 
-    $('#info-icon-metrics').on('click', function (e) {
+    $('#info-icon-metrics').on('click', function (_e) {
         $('#info-icon-metrics').tooltip('show');
     });
 
@@ -213,7 +210,7 @@ $(document).ready(function () {
         trigger: 'click',
     });
 
-    $('#info-icon-logs').on('click', function (e) {
+    $('#info-icon-logs').on('click', function (_e) {
         $('#info-icon-logs').tooltip('show');
     });
 
@@ -228,7 +225,7 @@ $(document).ready(function () {
         trigger: 'click',
     });
 
-    $('#info-icon-sql').on('click', function (e) {
+    $('#info-icon-sql').on('click', function (_e) {
         $('#info-icon-sql').tooltip('show');
     });
 
@@ -243,7 +240,7 @@ $(document).ready(function () {
         trigger: 'click',
     });
 
-    $('#info-icon-logQL').on('click', function (e) {
+    $('#info-icon-logQL').on('click', function (_e) {
         $('#info-icon-logQL').tooltip('show');
     });
 
@@ -258,7 +255,7 @@ $(document).ready(function () {
         trigger: 'click',
     });
 
-    $('#info-icon-spl').on('click', function (e) {
+    $('#info-icon-spl').on('click', function (_e) {
         $('#info-icon-spl').tooltip('show');
     });
 
@@ -292,7 +289,7 @@ $(document).ready(function () {
         ele.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
     }
 });
-
+//eslint-disable-next-line no-unused-vars
 function editPanelInit(redirectedFromViewScreen) {
     if (redirectedFromViewScreen === -1) {
         $('#panel-editor-left').hide();
@@ -431,7 +428,6 @@ function editPanelInit(redirectedFromViewScreen) {
         displayQueryToolTip(selectedDataSourceTypeIndex);
         $(".editPanelMenu-dataSource .editPanelMenu-options[data-index='" + selectedDataSourceTypeIndex + "']").click();
     }
-    if (selectedChartTypeIndex != -1 && selectedChartTypeIndex !== undefined) refreshChartMenuOptions();
     if (selectedUnitTypeIndex != -1 && selectedUnitTypeIndex !== undefined) refreshUnitMenuOptions();
 
     if (currentPanelLogViewType && currentPanelLogViewType != 'Table view') refreshLogLinesViewMenuOptions();
@@ -482,7 +478,7 @@ $('#panelLogResultsGrid').empty();
 $('#panelLogResultsGrid').hide();
 
 $('.panEdit-discard').on('click', goToDashboard);
-$('.panEdit-save').on('click', async function (redirectedFromViewScreen) {
+$('.panEdit-save').on('click', async function () {
     if (!currentPanel.queryData && currentPanel.chartType === 'Data Table' && currentPanel.queryType === 'logs') {
         currentPanel.chartType = '';
         currentPanel.queryType = '';
@@ -528,7 +524,7 @@ function handleSourceDropDownClick() {
     $('.dropDown-dataSource.active .caret').css('rotate', '360deg');
 }
 
-function handleUnitDropDownClick(e) {
+function handleUnitDropDownClick(_e) {
     $('.dropDown-unit').toggleClass('active');
     //to close the inner dropdown when unit menu is clicked
     $('.editPanelMenu-inner-options').hide();
@@ -537,7 +533,7 @@ function handleUnitDropDownClick(e) {
     $('.dropDown-unit.active .caret').css('rotate', '360deg');
 }
 
-function handleLogLinesViewDropDownClick(e) {
+function handleLogLinesViewDropDownClick(_e) {
     $('.dropDown-logLinesView').toggleClass('active');
     $('.editPanelMenu-logLinesView').slideToggle();
     $('.dropDown-logLinesView .caret').css('rotate', '180deg');
@@ -550,7 +546,7 @@ function handleNestedMiscDropDownClick(e) {
 
     if (parseInt(selectedUnitMenuItem.attr('data-index')) !== $(this).data('index')) resetNestedUnitMenuOptions(selectedUnitTypeIndex);
 
-    $('.editPanelMenu-inner-options').each(function (el) {
+    $('.editPanelMenu-inner-options').each(function (_el) {
         if ($(this).attr('id') !== 'miscOptionsDropDown') {
             $(this).hide();
         }
@@ -582,7 +578,7 @@ function handleNestedDataDropDownClick(e) {
     selectedUnitMenuItem.removeClass('selected');
     if (parseInt(selectedUnitMenuItem.attr('data-index')) !== $(this).data('index')) resetNestedUnitMenuOptions(selectedUnitTypeIndex);
 
-    $('.editPanelMenu-inner-options').each(function (el) {
+    $('.editPanelMenu-inner-options').each(function (_el) {
         if ($(this).attr('id') !== 'dataOptionsDropDown') {
             $(this).hide();
         }
@@ -615,7 +611,7 @@ function handleNestedTptDropDownClick(e) {
 
     if (parseInt(selectedUnitMenuItem.attr('data-index')) !== $(this).data('index')) resetNestedUnitMenuOptions(selectedUnitTypeIndex);
 
-    $('.editPanelMenu-inner-options').each(function (el) {
+    $('.editPanelMenu-inner-options').each(function (_el) {
         if ($(this).attr('id') !== 'throughputOptionsDropDown') {
             $(this).hide();
         }
@@ -647,7 +643,7 @@ function handleNestedPercentDropDownClick(e) {
     selectedUnitMenuItem.removeClass('selected');
     if (parseInt(selectedUnitMenuItem.attr('data-index')) !== $(this).data('index')) resetNestedUnitMenuOptions(selectedUnitTypeIndex);
 
-    $('.editPanelMenu-inner-options').each(function (el) {
+    $('.editPanelMenu-inner-options').each(function (_el) {
         if ($(this).attr('id') !== 'percentOptionsDropDown') {
             $(this).hide();
         }
@@ -679,7 +675,7 @@ function handleNestedTimeDropDownClick(e) {
     selectedUnitMenuItem.removeClass('selected');
     if (parseInt(selectedUnitMenuItem.attr('data-index')) !== $(this).data('index')) resetNestedUnitMenuOptions(selectedUnitTypeIndex);
 
-    $('.editPanelMenu-inner-options').each(function (el) {
+    $('.editPanelMenu-inner-options').each(function (_el) {
         if ($(this).attr('id') !== 'timeOptionsDropDown') {
             $(this).hide();
         }
@@ -711,7 +707,7 @@ function handleNestedDataRateDropDownClick(e) {
     selectedUnitMenuItem.removeClass('selected');
     if (parseInt(selectedUnitMenuItem.attr('data-index')) !== $(this).data('index')) resetNestedUnitMenuOptions(selectedUnitTypeIndex);
 
-    $('.editPanelMenu-inner-options').each(function (el) {
+    $('.editPanelMenu-inner-options').each(function (_el) {
         if ($(this).attr('id') !== 'dataRateOptionsDropDown') {
             $(this).hide();
         }
@@ -787,7 +783,6 @@ $('.editPanelMenu-chart #chart-type-options').on('click', function () {
     }
     $('.editPanelMenu-inner-options').css('display', 'none');
     $('.horizontalCaret').css('rotate', '90deg');
-    refreshChartMenuOptions();
     runQueryBtnHandler();
 });
 
@@ -906,7 +901,7 @@ function refreshNestedTptMenuOptions() {
 
 $('.percent-options').on('click', function () {
     selectedDataTypeIndex = $(this).data('index');
-    currentPanel.dataType = mapIndexToPercentOption.get(selectedDataTypeIndex);
+    // currentPanel.dataType = mapIndexToPercentOption.get(selectedDataTypeIndex);
     $('#percentOptionsDropDown').slideToggle();
     $('#nestedPercentDropDown').toggleClass('active');
     $('#nestedPercentDropDown .horizontalCaret').css('rotate', '90deg');
@@ -927,9 +922,9 @@ $('.percent-options').on('click', function () {
 });
 
 function refreshNestedPercentMenuOptions() {
-    let dataType = mapIndexToPercentOption.get(selectedDataTypeIndex);
-    dataType = dataType.charAt(0).toUpperCase() + dataType.slice(1);
-    $('.dropDown-percent-options span').html(dataType);
+    // let dataType = mapIndexToPercentOption.get(selectedDataTypeIndex);
+    // dataType = dataType.charAt(0).toUpperCase() + dataType.slice(1);
+    // $('.dropDown-percent-options span').html(dataType);
     prevSelectedDataTypeIndex = selectedDataTypeIndex;
 }
 
@@ -1055,16 +1050,6 @@ function refreshDataSourceMenuOptions() {
     $('.dropDown-dataSource span').html(dataSource);
 }
 
-function refreshChartMenuOptions() {
-    let chartTypeMenuItems = $('.editPanelMenu-chart #chart-type-options');
-    chartTypeMenuItems.each(function (index, item) {
-        item.classList.remove('selected');
-    });
-    chartTypeMenuItems[selectedChartTypeIndex].classList.add('selected');
-    let chartType = mapIndexToChartType.get(selectedChartTypeIndex);
-    chartType = chartType.charAt(0).toUpperCase() + chartType.slice(1);
-}
-
 function refreshUnitMenuOptions() {
     let unitTypeMenuItems = $('.editPanelMenu-unit .editPanelMenu-unit-options');
     unitTypeMenuItems.each(function (index, item) {
@@ -1086,33 +1071,6 @@ function refreshLogLinesViewMenuOptions() {
     let logLineView = mapIndexToLogLinesViewType.get(selectedLogLinesViewTypeIndex);
     logLineView = logLineView.charAt(0).toUpperCase() + logLineView.slice(1);
     $('.dropDown-logLinesView span').html(logLineView);
-}
-
-function applyChangesToPanel(redirectedFromViewScreen) {
-    if (currentPanel && currentPanel.queryData) {
-        if (currentPanel.chartType === 'Line Chart') {
-            currentPanel.queryData.start = filterStartDate;
-            currentPanel.queryData.end = filterEndDate;
-        } else {
-            currentPanel.queryData.startEpoch = filterStartDate;
-            currentPanel.queryData.endEpoch = filterEndDate;
-        }
-    }
-    if (!currentPanel.queryData && currentPanel.chartType === 'Data Table' && currentPanel.queryType === 'logs') {
-        currentPanel.chartType = '';
-        currentPanel.queryType = '';
-    }
-    localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
-    // update filterStartDate, filterEndDate before leaving edit panel screen
-    setTimePicker();
-    resetNestedUnitMenuOptions(selectedUnitTypeIndex);
-    if (redirectedFromViewScreen === -1) {
-        updateTimeRangeForPanel(panelIndex);
-        goToViewScreen(panelIndex);
-    } else {
-        updateTimeRangeForPanels();
-        goToDashboard();
-    }
 }
 
 function goToViewScreen(panelIndex) {
@@ -1175,6 +1133,8 @@ function goToDashboard(redirectedFromViewScreen) {
                 }
                 i++;
             }
+            $('.inner-range #' + stDate).addClass('active');
+            datePickerHandler(stDate, endDate, stDate);
         }
         displayPanels();
         if (dbRefresh) {
@@ -1182,7 +1142,7 @@ function goToDashboard(redirectedFromViewScreen) {
         }
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 function resetPanelTimeRanges() {
     for (let i = 0; i < localPanels.length; i++) {
         if (localPanels[i].queryData) {
@@ -1260,7 +1220,7 @@ function getMetricsQData() {
     };
 }
 
-function setQueryLangHandlerEditPanel(e) {
+function setQueryLangHandlerEditPanel(_e) {
     $('.panelEditor-container .panEdit-query-language-option').removeClass('active');
     $('.panelEditor-container #query-language-btn span').html($(this).html());
     displayQueryToolTip(selectedDataSourceTypeIndex);

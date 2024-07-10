@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let redMetricsData = {
     indexName: 'red-traces',
 };
@@ -128,6 +126,7 @@ function getAllServices() {
 function displayServiceHealthTable(res) {
     if (gridDiv === null) {
         gridDiv = document.querySelector('#ag-grid');
+        //eslint-disable-next-line no-undef
         new agGrid.Grid(gridDiv, gridOptions);
     }
     gridOptions.api.setColumnDefs(columnDefs);

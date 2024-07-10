@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 const colorArray = [
     '#6347D9',
     '#01BFB3',
@@ -156,7 +154,7 @@ $(document).ready(() => {
         trigger: 'click',
     });
 
-    $('#dependency-info').on('click', function (e) {
+    $('#dependency-info').on('click', function (_e) {
         $('#dependency-info').tooltip('show');
     });
 
@@ -255,7 +253,7 @@ function displayDependencyGraph(data) {
 
     // Add missing keys to the main object with empty objects as values
     nestedKeys.forEach((key) => {
-        if (!data.hasOwnProperty(key)) {
+        if (!Object.prototype.hasOwnProperty.call(data, key)) {
             data[key] = {};
         }
     });
@@ -341,7 +339,7 @@ function updateGraphStyles() {
                     'text-margin-y': -10,
                     'background-color': function (ele) {
                         const nodeId = ele.data('id');
-                        if (!colorMap.hasOwnProperty(nodeId)) {
+                        if (!Object.prototype.hasOwnProperty.call(colorMap, nodeId)) {
                             const color = colorArray[Object.keys(colorMap).length % colorArray.length];
                             colorMap[nodeId] = color;
                         }

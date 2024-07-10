@@ -17,21 +17,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let localPanels = [],
     dbData,
     dbName,
     dbDescr,
     dbId,
-    panelIndex,
-    flagDBSaved = true,
     allResultsDisplayed = 0;
+let panelIndex;
+//eslint-disable-next-line no-unused-vars
+let flagDBSaved = true;
 let timeRange = 'Last 1 Hr';
 let dbRefresh = '';
-let panelContainer;
-let panelContainerWidthGlobal;
+// let panelContainer;
+// let panelContainerWidthGlobal;
 let originalIndexValues = [];
+//eslint-disable-next-line no-unused-vars
 let indexValues = [];
 let isDefaultDashboard = false;
 $(document).ready(async function () {
@@ -431,7 +431,7 @@ function updateTimeRangeForPanels() {
         }
     });
 }
-
+//eslint-disable-next-line no-unused-vars
 function updateTimeRangeForPanel(panelIndex) {
     delete localPanels[panelIndex].queryRes;
     if (localPanels[panelIndex].queryData) {
@@ -460,19 +460,19 @@ grid.on('change', function (event, items) {
     });
 });
 
-grid.on('dragstart', function (event, items) {
+grid.on('dragstart', function (_event, _items) {
     $('.default-item').hide();
 });
 
-grid.on('resizestart', function (event, items) {
+grid.on('resizestart', function (_event, _items) {
     $('.default-item').hide();
 });
 
-grid.on('dragstop', function (event, items) {
+grid.on('dragstop', function (_event, _items) {
     $('.default-item').show();
 });
 
-grid.on('resizestop', function (event, ui) {
+grid.on('resizestop', function (_event, ui) {
     var gridStackItemId = ui.id;
     var panelIndex = $('#' + gridStackItemId)
         .find('.panel')
@@ -817,7 +817,6 @@ function addPanel(chartIndex) {
         panelId: idpanel,
         description: '',
         chartType: chartType,
-        unit: '',
         dataType: '',
         gridpos: {
             h: panelHeight,
@@ -899,7 +898,7 @@ function addDuplicatePanel(panelToDuplicate) {
 }
 
 function addDefaultPanel() {
-    var defaultItem = grid.addWidget(
+    grid.addWidget(
         `<div class="grid-stack-item default-item"><div class="add-panel-div">
     <div class="plus-icon">+</div>
     <div class="text">Add Panel</div>

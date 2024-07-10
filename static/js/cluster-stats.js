@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
+
 
 let EventCountChart;
 let TotalVolumeChartLogs;
@@ -36,12 +36,10 @@ $(document).ready(() => {
     $('.range-item').on('click', iStatsDatePickerHandler);
 
     // Make api call to get the cluster stats
-    let data = getTimeRange();
     renderClusterStatsTables();
     renderChart();
     $('#cancel-del-index-btn, .usage-stats .popupOverlay').on('click', hidePopUpsOnUsageStats);
     $('.toast-close').on('click', removeToast);
-
     {{ .Button1Function }}
 });
 
@@ -59,8 +57,6 @@ function getTimeRange() {
 }
 
 function renderChart() {
-    let endDate = filterEndDate || "now";
-    let stDate = filterStartDate || "now-7d";
     let data = getTimeRange();
 
     $.ajax({
@@ -100,13 +96,6 @@ function drawStatsChart(res, data, chartType) {
         _.forEach(res, (mvalue, key) => {
             if (key === "chartStats") {
                 _.forEach(mvalue, (val, bucketKey) => {
-                    var dataPointsPerMin;
-                    if (data.startEpoch === 'now-24h') {
-                        dataPointsPerMin = (val.MetricsCount / 60);
-                    }
-                    else {
-                        dataPointsPerMin = (val.MetricsCount / (60 * 24));
-                    }
                     if (chartType === 'logs') {
                         GBCountData.push({
                             x: bucketKey,
@@ -147,7 +136,7 @@ function drawStatsChart(res, data, chartType) {
 function renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType) {
     var GBCountChartCanvas = $("#GBCountChart-" + chartType).get(0).getContext("2d");
 
-    GBCountChart = new Chart(GBCountChartCanvas, {
+    var GBCountChart = new Chart(GBCountChartCanvas, {
         type: 'line',
         data: {
             datasets: [
@@ -197,7 +186,7 @@ function renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType) {
             scales: {
                 y: {
                     ticks: {
-                        callback: function (value, index, ticks) {
+                        callback: function (value, _index, _ticks) {
                             return (value).toFixed(3) + ' GB';
                         },
                         color: tickColor,
@@ -216,7 +205,7 @@ function renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType) {
                 },
                 x: {
                     ticks: {
-                        callback: function (val, index, ticks) {
+                        callback: function (val, _index, _ticks) {
                             let value = this.getLabelForValue(val);
                             if (value && value.indexOf('T') > -1) {
                                 let parts = value.split('T');
@@ -292,7 +281,7 @@ function renderEventCountChart(EventCountData, gridLineColor, tickColor, chartTy
             scales: {
                 y: {
                     ticks: {
-                        callback: function (value, index, ticks) {
+                        callback: function (value, _index, _ticks) {
                             return parseInt(value).toLocaleString();
                         },
                         color: tickColor,
@@ -311,7 +300,7 @@ function renderEventCountChart(EventCountData, gridLineColor, tickColor, chartTy
                 },
                 x: {
                     ticks: {
-                        callback: function (val, index, ticks) {
+                        callback: function (val, _index, _ticks) {
                             let value = this.getLabelForValue(val);
                             if (value && value.indexOf('T') > -1) {
                                 let parts = value.split('T');
@@ -425,7 +414,7 @@ function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
             scales: {
                 y: {
                     ticks: {
-                        callback: function (value, index, ticks) {
+                        callback: function (value, _index, _ticks) {
                             return (value).toFixed(3) + ' GB';
                         }
                     },
@@ -433,7 +422,7 @@ function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
                 },
                 x: {
                     ticks: {
-                        callback: function (val, index, ticks) {
+                        callback: function (_val, index, _ticks) {
                             return ['Incoming Volume', 'Storage Used'][index];
                         }
                     },
@@ -487,12 +476,6 @@ function processClusterStats(res) {
         }
     })
 
-    let columnOrder = [
-        'Index Name',
-        'Incoming Volume',
-        'Event Count',
-        ''
-    ];
 
     let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', ''];
     let metricsColumnOrder = ['Index Name', 'Incoming Volume', 'Datapoint Count'];
@@ -641,12 +624,12 @@ function processClusterStats(res) {
             crossDomain: true,
             dataType: 'json',
         })
-            .then(function (res) {
+            .then(function (_res) {
                 hidePopUpsOnUsageStats();
                 indexDataTable.row(`:eq(${currRowIndex})`).remove().draw();
                 showDeleteIndexToast('Index Deleted Successfully');
             })
-            .catch((err) => {
+            .catch((_err) => {
                 hidePopUpsOnUsageStats();
                 showDeleteIndexToast('Error Deleting Index');
             })

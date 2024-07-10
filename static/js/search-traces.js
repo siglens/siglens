@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
 let chart;
 let currList = [];
 let returnResTotal = [],
@@ -363,7 +362,7 @@ function searchTrace(params) {
         isLoading = false; // Set the flag to false after getting the response
     });
 }
-const resizeObserver = new ResizeObserver((entries) => {
+const resizeObserver = new ResizeObserver((_entries) => {
     if (chart != null && chart != '' && chart != undefined) chart.resize();
 });
 resizeObserver.observe(document.getElementById('graph-show'));
