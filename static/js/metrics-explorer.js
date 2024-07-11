@@ -320,7 +320,6 @@ function disableQueryRemoval(){
 }
 
 function createQueryElementTemplate(queryName) {
-    console.log("createQueryElementTemplate");
     return $(`
     <div class="metrics-query">
         <div class="query-box">
@@ -494,7 +493,6 @@ async function addQueryElement() {
     // Clone the first query element if it exists, otherwise create a new one
     var queryElement;
     if (queryIndex === 0) {
-        console.log("addQueryElement");
         queryElement = createQueryElementTemplate(String.fromCharCode(97 + queryIndex));
         $('#metrics-queries').append(queryElement);
         const metricNames = await getMetricNames();
