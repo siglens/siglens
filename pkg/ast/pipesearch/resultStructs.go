@@ -20,20 +20,22 @@ package pipesearch
 import "github.com/siglens/siglens/pkg/segment/structs"
 
 type PipeSearchResponseOuter struct {
-	Hits               PipeSearchResponse            `json:"hits"`
-	Aggs               map[string]AggregationResults `json:"aggregations"`
-	ElapedTimeMS       int64                         `json:"elapedTimeMS"`
-	AllPossibleColumns []string                      `json:"allColumns"`
-	Errors             []string                      `json:"errors,omitempty"`
-	MeasureFunctions   []string                      `json:"measureFunctions,omitempty"`
-	MeasureResults     []*structs.BucketHolder       `json:"measure,omitempty"`
-	GroupByCols        []string                      `json:"groupByCols,omitempty"`
-	Qtype              string                        `json:"qtype,omitempty"`
-	CanScrollMore      bool                          `json:"can_scroll_more"`
-	TotalRRCCount      interface{}                   `json:"total_rrc_count,omitempty"`
-	BucketCount        int                           `json:"bucketCount,omitempty"`
-	DashboardPanelId   string                        `json:"dashboardPanelId"`
-	ColumnsOrder       []string                      `json:"columnsOrder"`
+	Hits                   PipeSearchResponse            `json:"hits"`
+	Aggs                   map[string]AggregationResults `json:"aggregations"`
+	ElapedTimeMS           int64                         `json:"elapedTimeMS"`
+	AllPossibleColumns     []string                      `json:"allColumns"`
+	Errors                 []string                      `json:"errors,omitempty"`
+	MeasureFunctions       []string                      `json:"measureFunctions,omitempty"`
+	MeasureResults         []*structs.BucketHolder       `json:"measure,omitempty"`
+	GroupByCols            []string                      `json:"groupByCols,omitempty"`
+	Qtype                  string                        `json:"qtype,omitempty"`
+	CanScrollMore          bool                          `json:"can_scroll_more"`
+	TotalRRCCount          interface{}                   `json:"total_rrc_count,omitempty"`
+	BucketCount            int                           `json:"bucketCount,omitempty"`
+	DashboardPanelId       string                        `json:"dashboardPanelId"`
+	ColumnsOrder           []string                      `json:"columnsOrder"`
+	MeasureAggregationCols []string                      `json:"measureAggregationCols,omitempty"`
+	RenameColumns          map[string]string             `json:"renameColumns,omitempty"`
 }
 
 type PipeSearchResponse struct {
