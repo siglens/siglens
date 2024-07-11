@@ -390,17 +390,3 @@ func (stb *StarTreeBuilder) writeLevsInfo(strMFd *os.File, levsOffsets []int64,
 	}
 	return nil
 }
-
-func (stb *StarTreeBuilder) estimateMetaSize() int {
-
-	// 55: estimate for width of colNames
-	colsMeta := (int(stb.numGroupByCols) + len(stb.mColNames)) * 55
-
-	deSize := int(0)
-	for colNum := range stb.groupByKeys {
-		// 60 : estimate for colnamelen, columnname, 55: for enc len
-		deSize += 60 + int(stb.segDictLastNum[colNum])*55
-	}
-
-	return colsMeta + deSize + 1000
-}
