@@ -39,14 +39,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <style>
         #tagKeysGrid,
         #tagPairsGrid,
-        #tagKeysValuesGrid {
-            height: 400px;
+        #tagKeysValuesGrid
+        {
+            height: 300px;
             width: 100%;
         }
-        #tagKeysValuesGrid {
-            margin-bottom: 20px;
-        }
-
     </style>
 
     <script src="./js/lib/lodash.min.js"></script>
@@ -70,7 +67,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <div id="app-side-nav"></div>
 
         <div id="dashboard">
-            <div id="metrics-container">
+            <div id="metrics-container" style="margin-bottom: 20px;">
                 <div class="d-flex justify-content-between">
                     <div>
                         <h1 class="myOrg-heading">Metrics Cardinality</h1>
@@ -129,7 +126,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </div>
                     </div>
                 </div>
-                <div class="mt-3 h-100 mb-2" id="tracing-container">
+                <div class="mt-3 h-100 mb-2" id="tracing-container" style="margin-bottom: 50px;">
                     <div class="border rounded p-4">
                         <p class="caption">Total Unique Series</p>
                         <div class="text-4xl font-bold" id="totalUniqueSeries">Loading...</div>
