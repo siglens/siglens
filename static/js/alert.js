@@ -94,9 +94,9 @@ const historyGridOptions = {
 
 let originalIndexValues, indexValues = [];
 
-$(document).ready(async function () {
+$(document).ready(async function () {  
   
-    $('.theme-btn').on('click', themePickerHandler);
+    $('.theme-btn').on('click', themePickerHandler);  
     $("#logs-language-btn").show();
     let startTime = "now-30m";
     let endTime = "now";
@@ -737,9 +737,9 @@ function displayAlertProperties(res) {
     const queryParams = res.queryParams;
     const metricsQueryParams = JSON.parse(res.metricsQueryParams || '{}');
     
-    $('.alert-name').text(res.alert_name);
-  
+    $('.alert-name').text(res.alert_name);  
     $('.alert-status').text(mapIndexToAlertState.get(res.state));
+  
     if (res.alert_type === 1) {
         $('.alert-query').val(queryParams.queryText);
         $('.alert-type').text(queryParams.data_source);
