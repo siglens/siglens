@@ -647,34 +647,7 @@ body {
     height: 24px;
     width: 24px;
 }
-.form-control.error-border{
-    border: 1px solid #EB364B !important;
-    border-left: none ;
-}
-.evaluation-error-message .icon-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%; /* Ensures the icon container takes the full height of the parent */
-    width: 100%; /* Ensures the icon container takes the full width of the parent */
-    position: absolute; /* This is to ensure it aligns correctly if you want to position it over other content */
-    top: 0;
-    left: 0;
-}
-.evaluation-error-message{
-    display: none;
-    background-color: #EB364B;
-    border-radius: 50%;
-    height: 16px;
-    width: 16px;
-    color: #fff;
-    font-weight: bolder;
-    justify-content: center;
-    position: absolute;
-    top: -6px;
-    right: 2px;
-    border: 1px solid #fff;
-}
+
 .icon-live {
     background-image: url("../assets/live-tail-icon-inactive.svg");
     height: 24px;
@@ -956,6 +929,9 @@ input.form-control {
 
 input.form-control:focus {
     color: var(--search-bar-text-color-active);
+    border-radius: 5px;
+    background: var(--search-bar-bg);
+    
 }
 
 .dropdown-toggle::after {
@@ -5105,7 +5081,9 @@ color: #C8C7CC;
 .filter-input,
 .metrics-graph-container,
 #metrics-table-container,
-
+input.form-control {
+    border: 1px solid var(--border-btn-color);
+}
 .filter-input {
     margin: 0;
     text-decoration: none;
@@ -5557,15 +5535,42 @@ color: #C8C7CC;
     border-radius: 4px; /* Rounded corners */
     transition: background-color 0.3s ease;
 }
-
+.form-control.error-border{
+    border: 1px solid #EB364B !important;
+    border-left: none ;
+}
+.evaluation-error-message .icon-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    width: 100%; 
+    position: absolute; 
+    top: 0;
+    left: 0;
+} 
+.evaluation-error-message{
+    display: none;
+    background-color: #EB364B;
+    border-radius: 50%;
+    height: 16px;
+    width: 16px;
+    color: #fff;
+    font-weight: bolder;
+    justify-content: center;
+    position: absolute;
+    top: -6px;
+    right: 2px;
+    border: 1px solid #fff;
+}
 #addrule-save-btn:hover {
-    background-color: #4F38CC; /* Darker background color on hover */
+    background-color: #4F38CC; 
 }
 
 #addrule-save-btn img {
-    width: 15px; /* Adjust icon width */
-    height: 15px; /* Adjust icon height */
-    margin-right: 8px; /* Adjust margin as needed */
+    width: 15px; 
+    height: 15px;
+    margin-right: 8px; 
 }
 
 .btncontainer{

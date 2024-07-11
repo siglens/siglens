@@ -621,27 +621,15 @@ function logOptionSingleHandler() {
                 let logString = '';
                 let addSeparator = false;
                 
-                // Handle 'event' field specifically
-                if (data.event && Array.isArray(data.event)) {
-                    logString += `<span class="cname-hide-${string2Hex('event')}">event=`;
-                    data.event.forEach((event, idx) => {
-                        if (idx > 0) {
-                            logString += ',';
-                        }
-                        logString += JSON.stringify(event);
-                    });
-                    logString += `</span>`;
-                } else {
-                    // If 'event' is not an array, stringify normally
-                    logString += `<span class="cname-hide-${string2Hex('event')}">event=${JSON.stringify(data.event)}</span>`;
-                }
-
-                // Add other fields as per your existing logic
                 Object.entries(data)
-                    .filter(([key]) => key !== 'timestamp' && key !== 'event')
+                    .filter(([key]) => key !== 'timestamp')
                     .forEach(([key, value]) => {
                         let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
-                        logString += `${colSep}<span class="cname-hide-${string2Hex(key)}">${key}=${value}</span>`;
+                        
+                        // Convert objects and arrays to JSON strings
+                        let formattedValue = (typeof value === 'object' && value !== null) ? JSON.stringify(value) : value;
+                        
+                        logString += `${colSep}<span class="cname-hide-${string2Hex(key)}">${key}=${formattedValue}</span>`;
                         addSeparator = true;
                     });
                 
@@ -662,6 +650,7 @@ function logOptionSingleHandler() {
     hideOrShowFieldsInLineViews();
     Cookies.set('log-view', 'single-line',  {expires: 365});
 }
+
 
 
 function logOptionMultiHandler() {

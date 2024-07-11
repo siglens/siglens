@@ -191,7 +191,7 @@ $("#contact-points-dropdown").on("click", function() {
 
 $("#alert-rule-name").val(urlParams.get('alertRule_name'));
 $('#evaluate-for').tooltip({
-    title: 'Evaluate for interval must be greater than evaluation interval',
+    title: 'Evaluate For must be greater than or equal to Evaluate Interval',
     placement: 'top',
     trigger: 'manual' 
 });
@@ -203,7 +203,7 @@ function checkEvaluateConditions() {
     let submitbtn = $("#save-alert-btn");
     let errorMessage = $('.evaluation-error-message');
     
-    if (evaluateForValue >= evaluateEveryValue) {
+    if (evaluateForValue <= evaluateEveryValue) {
         $('#evaluate-for').addClass('error-border'); 
         errorMessage.show();
         $('#evaluate-for').tooltip('show');
@@ -470,8 +470,6 @@ function updateAlertRule(alertData){
         dataType: 'json',
         crossDomain: true,
     }).then((res) => {
-        alert(JSON.stringify(alertData));
-        alert(res);
         resetAddAlertForm();
         window.location.href='../all-alerts.html';
     }).catch((err)=>{
@@ -486,7 +484,6 @@ function resetAddAlertForm() {
 async function displayAlert(res){
 
     $('#alert-rule-name').val(res.alert_name);
-    $(".rulename").text(res.alert_name);
     setDataSourceHandler(res.alert_type) 
     if( res.alert_type === 1 ){
         const { data_source, queryLanguage, startTime, endTime, queryText, queryMode, index } = res.queryParams;
