@@ -51,7 +51,11 @@ $(document).ready(async function() {
     var currentPage = window.location.pathname;
     if (currentPage === "/alert.html" || currentPage ==='/alert-details.html') {
         isAlertScreen = true;
-    } 
+    }
+    filterStartDate= "now-1h";
+    filterEndDate = "now";
+    $('.inner-range #' + filterStartDate).addClass('active');
+    datePickerHandler(filterStartDate, filterEndDate, filterStartDate)
 
     $('#metrics-container #date-start').on('change', getStartDateHandler);
     $('#metrics-container #date-end').on('change', getEndDateHandler);
