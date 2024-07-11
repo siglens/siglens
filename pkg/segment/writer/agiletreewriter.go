@@ -137,7 +137,6 @@ func (stb *StarTreeBuilder) encodeMetadata(strMFd *os.File) (uint32, error) {
 
 	// each aggFunc
 	for _, mCname := range stb.mColNames {
-
 		// Mcol len
 		l1 := uint16(len(mCname))
 		_, err = writer.Write(utils.Uint16ToBytesLittleEndian(l1))
@@ -168,7 +167,7 @@ func (stb *StarTreeBuilder) encodeMetadata(strMFd *os.File) (uint32, error) {
 	writer.Flush()
 
 	// Now we know the size of the metadata, so we can write it. The value we
-	// write doesn't include the 4 bytes we use to store the length.
+	// write doesn't include the 4 bytes we use to store the value.
 	_, err = strMFd.WriteAt(utils.Uint32ToBytesLittleEndian(metadataSize-4), 0)
 	if err != nil {
 		log.Errorf("StarTreeBuilder.encodeMetadata: failed to write metadata length; err=%v", err)
