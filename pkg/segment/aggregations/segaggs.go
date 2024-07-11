@@ -22,10 +22,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -936,6 +938,10 @@ func performLetColumnsRequest(nodeResult *structs.NodeResult, aggs *structs.Quer
 		}
 	} else if letColReq.MultiValueColRequest != nil {
 		if err := performMultiValueColRequest(nodeResult, letColReq, recs); err != nil {
+			return fmt.Errorf("performLetColumnsRequest: %v", err)
+		}
+	} else if letColReq.BinRequest != nil {
+		if err := performBinRequest(nodeResult, letColReq, recs, finalCols, recordIndexInFinal, numTotalSegments, finishesSegment); err != nil {
 			return fmt.Errorf("performLetColumnsRequest: %v", err)
 		}
 	} else {
@@ -2405,6 +2411,648 @@ func performValueColRequest(nodeResult *structs.NodeResult, aggs *structs.QueryA
 		return fmt.Errorf("performValueColRequest: %v", err)
 	}
 
+	return nil
+}
+
+// Get the float/numeric value from the record or fieldToValue map if possible
+// Should pass either record or fieldToValue
+func getFloatValForBin(fieldToValue map[string]segutils.CValueEnclosure, record map[string]interface{}, field string) (float64, error) {
+	var fieldValue interface{}
+	var exist bool
+	if record != nil {
+		fieldValue, exist = record[field]
+		if !exist {
+			return 0, fmt.Errorf("getFloatValForBin: field %s does not exist in record", field)
+		}
+	} else {
+		fieldCValue, exist := fieldToValue[field]
+		if !exist {
+			return 0, fmt.Errorf("getFloatValForBin: field %s does not exist in record", field)
+		}
+		fieldValue = fieldCValue.CVal
+	}
+
+	fieldValueFloat, err := dtypeutils.ConvertToFloat(fieldValue, 64)
+	if err != nil {
+		return 0, fmt.Errorf("getFloatValForBin: field %s is not a numeric, has value: %v, err: %v", field, fieldValue, err)
+	}
+
+	return fieldValueFloat, nil
+}
+
+// Function to find the span range length
+func findSpan(minValue float64, maxValue float64, maxBins uint64, minSpan *structs.BinSpanLength, field string) (*structs.BinSpanOptions, error) {
+	if field == "timestamp" {
+		return findEstimatedTimeSpan(minValue, maxValue, maxBins, minSpan)
+	}
+	if minValue == maxValue {
+		return &structs.BinSpanOptions{
+			BinSpanLength: &structs.BinSpanLength{
+				Num:       1,
+				TimeScale: segutils.TMInvalid,
+			},
+		}, nil
+	}
+
+	// span ranges estimated are in powers of 10
+	span := (maxValue - minValue) / float64(maxBins)
+	exponent := math.Log10(span)
+	exponent = math.Ceil(exponent)
+	spanRange := math.Pow(10, exponent)
+
+	// verify if estimated span gives correct number of bins, refer the edge case like 301-500 for bins = 2
+	for {
+		lowerBound, _ := getBinRange(minValue, spanRange)
+		_, upperBound := getBinRange(maxValue, spanRange)
+
+		if (upperBound-lowerBound)/spanRange > float64(maxBins) && spanRange <= math.MaxFloat64/10 {
+			spanRange = spanRange * 10
+		} else {
+			break
+		}
+	}
+
+	// increase the spanRange till minSpan is satisfied
+	if minSpan != nil {
+		for {
+			if spanRange < minSpan.Num && spanRange <= math.MaxFloat64/10 {
+				spanRange = spanRange * 10
+			} else {
+				break
+			}
+		}
+	}
+
+	return &structs.BinSpanOptions{
+		BinSpanLength: &structs.BinSpanLength{
+			Num:       spanRange,
+			TimeScale: segutils.TMInvalid,
+		},
+	}, nil
+}
+
+// Function to bin ranges with the given span length
+func getBinRange(val float64, spanRange float64) (float64, float64) {
+	lowerbound := math.Floor(val/spanRange) * spanRange
+	upperbound := math.Ceil(val/spanRange) * spanRange
+	if lowerbound == upperbound {
+		upperbound += spanRange
+	}
+
+	return lowerbound, upperbound
+}
+
+func getSecsFromMinSpan(minSpan *structs.BinSpanLength) (float64, error) {
+	if minSpan == nil {
+		return 0, nil
+	}
+
+	switch minSpan.TimeScale {
+	case segutils.TMMillisecond, segutils.TMCentisecond, segutils.TMDecisecond:
+		// smallest granularity of estimated span is 1 second
+		return 1, nil
+	case segutils.TMSecond:
+		return minSpan.Num, nil
+	case segutils.TMMinute:
+		return minSpan.Num * 60, nil
+	case segutils.TMHour:
+		return minSpan.Num * 3600, nil
+	case segutils.TMDay:
+		return minSpan.Num * 86400, nil
+	case segutils.TMWeek, segutils.TMMonth, segutils.TMQuarter, segutils.TMYear:
+		// default returning num*(seconds in a month)
+		return minSpan.Num * 2592000, nil
+	default:
+		return 0, fmt.Errorf("getSecsFromMinSpan: Invalid time unit: %v", minSpan.TimeScale)
+	}
+}
+
+// These time ranges are estimated based on different queries executed in splunk, no documentation is present
+func findEstimatedTimeSpan(minValueMillis float64, maxValueMillis float64, maxBins uint64, minSpan *structs.BinSpanLength) (*structs.BinSpanOptions, error) {
+	minSpanSecs, err := getSecsFromMinSpan(minSpan)
+	if err != nil {
+		return nil, fmt.Errorf("findEstimatedTimeSpan: Error while getting seconds from minspan, err: %v", err)
+	}
+	intervalSec := (maxValueMillis/1000 - minValueMillis/1000) / float64(maxBins)
+	if minSpanSecs > intervalSec {
+		intervalSec = minSpanSecs
+	}
+	var num float64
+	timeUnit := segutils.TMSecond
+	if intervalSec < 1 {
+		num = 1
+	} else if intervalSec <= 10 {
+		num = 10
+	} else if intervalSec <= 30 {
+		num = 30
+	} else if intervalSec <= 60 {
+		num = 1
+		timeUnit = segutils.TMMinute
+	} else if intervalSec <= 300 {
+		num = 5
+		timeUnit = segutils.TMMinute
+	} else if intervalSec <= 600 {
+		num = 10
+		timeUnit = segutils.TMMinute
+	} else if intervalSec <= 1800 {
+		num = 30
+		timeUnit = segutils.TMMinute
+	} else if intervalSec <= 3600 {
+		num = 1
+		timeUnit = segutils.TMHour
+	} else if intervalSec <= 86400 {
+		num = 1
+		timeUnit = segutils.TMDay
+	} else {
+		// maximum granularity is 1 month as per experiments
+		num = 1
+		timeUnit = segutils.TMMonth
+	}
+
+	estimatedSpan := &structs.BinSpanOptions{
+		BinSpanLength: &structs.BinSpanLength{
+			Num:       num,
+			TimeScale: timeUnit,
+		},
+	}
+
+	return estimatedSpan, nil
+}
+
+// Initial method to perform bin request
+func performBinRequest(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool, recordIndexInFinal map[string]int, numTotalSegments uint64, finishesSegment bool) error {
+	if recs != nil {
+		if letColReq.BinRequest.BinSpanOptions != nil {
+			return performBinRequestOnRawRecordWithSpan(nodeResult, letColReq, recs, finalCols)
+		} else {
+			return performBinRequestOnRawRecordWithoutSpan(nodeResult, letColReq, recs, finalCols, recordIndexInFinal, numTotalSegments, finishesSegment)
+		}
+	}
+
+	if len(nodeResult.Histogram) > 0 {
+		err := performBinRequestOnHistogram(nodeResult, letColReq)
+		if err != nil {
+			return fmt.Errorf("performBinRequest: Error while performing bin request on histogram, err: %v", err)
+		}
+	}
+
+	if len(nodeResult.MeasureResults) > 0 {
+		err := performBinRequestOnMeasureResults(nodeResult, letColReq)
+		if err != nil {
+			return fmt.Errorf("performBinRequest: Error while performing bin request on measure results, err: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func performBinWithSpanOptions(value float64, spanOptions *structs.BinSpanOptions, binReq *structs.BinCmdOptions) (interface{}, error) {
+	if spanOptions != nil {
+		if binReq.Field == "timestamp" {
+			return performBinWithSpanTime(value, spanOptions, binReq.AlignTime)
+		}
+		return performBinWithSpan(value, spanOptions)
+	}
+
+	return nil, fmt.Errorf("performBinWithSpanOptions: BinSpanOptions is nil")
+}
+
+// This function either returns a float or a string
+func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (interface{}, error) {
+	if spanOpt.BinSpanLength != nil {
+		lowerBound, upperBound := getBinRange(value, spanOpt.BinSpanLength.Num)
+		if spanOpt.BinSpanLength.TimeScale == segutils.TMInvalid {
+			return fmt.Sprintf("%v-%v", lowerBound, upperBound), nil
+		} else {
+			return lowerBound, nil
+		}
+	}
+
+	if spanOpt.LogSpan != nil {
+		val := value / spanOpt.LogSpan.Coefficient
+		logVal := math.Log10(val) / math.Log10(spanOpt.LogSpan.Base)
+		floorVal := math.Floor(logVal)
+		ceilVal := math.Ceil(logVal)
+		if ceilVal == floorVal {
+			ceilVal += 1
+		}
+
+		lowerBound := math.Pow(spanOpt.LogSpan.Base, floorVal) * spanOpt.LogSpan.Coefficient
+		upperBound := math.Pow(spanOpt.LogSpan.Base, ceilVal) * spanOpt.LogSpan.Coefficient
+
+		return fmt.Sprintf("%v-%v", lowerBound, upperBound), nil
+	}
+
+	return "", fmt.Errorf("performBinWithSpan: BinSpanLength is nil")
+}
+
+func getTimeBucketWithAlign(utcTime time.Time, durationScale time.Duration, spanOpt *structs.BinSpanOptions, alignTime *uint64) int {
+	if alignTime == nil {
+		return int(utcTime.Truncate(time.Duration(spanOpt.BinSpanLength.Num) * durationScale).UnixMilli())
+	}
+
+	factorInMillisecond := float64((time.Duration(spanOpt.BinSpanLength.Num) * durationScale) / time.Millisecond)
+	currTime := float64(utcTime.UnixMilli())
+	baseTime := float64(*alignTime)
+	diff := math.Floor((currTime - baseTime) / factorInMillisecond)
+	bucket := int(baseTime + diff*factorInMillisecond)
+	if bucket < 0 {
+		bucket = 0
+	}
+
+	return bucket
+}
+
+// Find the bucket month based on the given number of months as span.
+func findBucketMonth(utcTime time.Time, numOfMonths int) uint64 {
+	var finalTime time.Time
+	if numOfMonths == 12 {
+		finalTime = time.Date(utcTime.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
+	} else {
+		currMonth := int(utcTime.Month())
+		month := ((currMonth-1)/numOfMonths)*numOfMonths + 1
+		finalTime = time.Date(utcTime.Year(), time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+	}
+
+	return uint64(finalTime.UnixMilli())
+}
+
+// Perform bin with span for time
+func performBinWithSpanTime(value float64, spanOpt *structs.BinSpanOptions, alignTime *uint64) (uint64, error) {
+	if spanOpt == nil || spanOpt.BinSpanLength == nil {
+		return 0, fmt.Errorf("performBinWithSpanTime: BinSpanLength is nil")
+	}
+
+	unixMilli := int64(value)
+	utcTime := time.UnixMilli(unixMilli)
+	startTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
+	bucket := 0
+
+	//Align time is only supported for units less than days
+	switch spanOpt.BinSpanLength.TimeScale {
+	case segutils.TMMillisecond:
+		durationScale := time.Millisecond
+		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
+	case segutils.TMCentisecond:
+		durationScale := time.Millisecond * 10
+		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
+	case segutils.TMDecisecond:
+		durationScale := time.Millisecond * 100
+		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
+	case segutils.TMSecond:
+		durationScale := time.Second
+		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
+	case segutils.TMMinute:
+		durationScale := time.Minute
+		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
+	case segutils.TMHour:
+		durationScale := time.Hour
+		bucket = getTimeBucketWithAlign(utcTime, durationScale, spanOpt, alignTime)
+	case segutils.TMDay:
+		totalDays := int(utcTime.Sub(startTime).Hours() / 24)
+		slotDays := (totalDays / (int(spanOpt.BinSpanLength.Num))) * (int(spanOpt.BinSpanLength.Num))
+		bucket = int(startTime.AddDate(0, 0, slotDays).UnixMilli())
+	case segutils.TMWeek:
+		totalDays := int(utcTime.Sub(startTime).Hours() / 24)
+		slotDays := (totalDays / (int(spanOpt.BinSpanLength.Num) * 7)) * (int(spanOpt.BinSpanLength.Num) * 7)
+		bucket = int(startTime.AddDate(0, 0, slotDays).UnixMilli())
+	case segutils.TMMonth:
+		return findBucketMonth(utcTime, int(spanOpt.BinSpanLength.Num)), nil
+	case segutils.TMQuarter:
+		return findBucketMonth(utcTime, int(spanOpt.BinSpanLength.Num)*3), nil
+	case segutils.TMYear:
+		num := int(spanOpt.BinSpanLength.Num)
+		currYear := int(utcTime.Year())
+		bucketYear := ((currYear-1970)/num)*num + 1970
+		bucket = int(time.Date(bucketYear, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
+	default:
+		return 0, fmt.Errorf("performBinWithSpanTime: Time scale %v is not supported", spanOpt.BinSpanLength.TimeScale)
+	}
+
+	return uint64(bucket), nil
+}
+
+func performBinRequestOnRawRecordWithSpan(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool) error {
+	for _, record := range recs {
+		fieldValueFloat, err := getFloatValForBin(nil, record, letColReq.BinRequest.Field)
+		if err != nil {
+			return fmt.Errorf("performBinRequestOnRawRecordWithSpan: Error while getting numeric value of the field of record, err: %v", err)
+		}
+
+		var binValue interface{}
+		binValue, err = performBinWithSpanOptions(fieldValueFloat, letColReq.BinRequest.BinSpanOptions, letColReq.BinRequest)
+
+		if err != nil {
+			return fmt.Errorf("performBinRequestOnRawRecordWithSpan: Error while performing bin on record, err: %v", err)
+		}
+
+		record[letColReq.NewColName] = binValue
+	}
+
+	finalCols[letColReq.NewColName] = true
+
+	return nil
+}
+
+func performBinRequestOnRawRecordWithoutSpan(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest, recs map[string]map[string]interface{}, finalCols map[string]bool, recordIndexInFinal map[string]int, numTotalSegments uint64, finishesSegment bool) error {
+	var err error
+	if letColReq.BinRequest.Records == nil {
+		letColReq.BinRequest.Records = make(map[string]map[string]interface{}, 0)
+	}
+
+	if letColReq.BinRequest.RecordIndex == nil {
+		letColReq.BinRequest.RecordIndex = make(map[int]map[string]int, 0)
+	}
+
+	_, exist := letColReq.BinRequest.RecordIndex[int(letColReq.BinRequest.NumProcessedSegments)]
+	if !exist {
+		letColReq.BinRequest.RecordIndex[int(letColReq.BinRequest.NumProcessedSegments)] = make(map[string]int)
+	}
+
+	for recordKey, record := range recs {
+		letColReq.BinRequest.Records[recordKey] = record
+		idx, exist := recordIndexInFinal[recordKey]
+		if !exist {
+			return fmt.Errorf("performBinRequestOnRawRecordWithoutSpan: Index for record %s does not exist in recordIndexInFinal", recordKey)
+		}
+		letColReq.BinRequest.RecordIndex[int(letColReq.BinRequest.NumProcessedSegments)][recordKey] = idx
+		delete(recs, recordKey)
+	}
+
+	if finishesSegment {
+		letColReq.BinRequest.NumProcessedSegments++
+	}
+
+	if letColReq.BinRequest.NumProcessedSegments < numTotalSegments {
+		return nil
+	}
+
+	minVal := math.MaxFloat64
+	maxVal := -math.MaxFloat64
+	// iterate over all records to find min and max values
+	for _, record := range letColReq.BinRequest.Records {
+		fieldValueFloat, err := getFloatValForBin(nil, record, letColReq.BinRequest.Field)
+		if err != nil {
+			return fmt.Errorf("performBinRequestOnRawRecordWithoutSpan: Error while getting numeric value of the field of record, err: %v", err)
+		}
+
+		if fieldValueFloat < minVal {
+			minVal = fieldValueFloat
+		}
+		if fieldValueFloat > maxVal {
+			maxVal = fieldValueFloat
+		}
+	}
+
+	if letColReq.BinRequest.Field != "timestamp" {
+		if letColReq.BinRequest.Start != nil && *letColReq.BinRequest.Start < minVal {
+			minVal = *letColReq.BinRequest.Start
+		}
+		if letColReq.BinRequest.End != nil && *letColReq.BinRequest.End > maxVal {
+			maxVal = *letColReq.BinRequest.End
+		}
+	}
+
+	// Find the span range
+	letColReq.BinRequest.BinSpanOptions, err = findSpan(minVal, maxVal, letColReq.BinRequest.MaxBins, letColReq.BinRequest.MinSpan, letColReq.BinRequest.Field)
+	if err != nil {
+		return fmt.Errorf("performBinRequestOnRawRecordWithoutSpan: Error while finding span, err: %v", err)
+	}
+	// find the bin value for each record
+	for recordKey, record := range letColReq.BinRequest.Records {
+		fieldValueFloat, err := getFloatValForBin(nil, record, letColReq.BinRequest.Field)
+		if err != nil {
+			return fmt.Errorf("performBinRequestOnRawRecordWithoutSpan: Error while getting numeric value for record, err: %v", err)
+		}
+		binValue, err := performBinWithSpanOptions(fieldValueFloat, letColReq.BinRequest.BinSpanOptions, letColReq.BinRequest)
+		if err != nil {
+			return fmt.Errorf("performBinRequestOnRawRecordWithoutSpan: Error while performing bin for record, err: %v", err)
+		}
+		record[letColReq.NewColName] = binValue
+		recs[recordKey] = record
+	}
+
+	// populate index for each record
+	// sort the segnums and then iterate, map iteration is not deterministic
+	segNums := make([]int, 0)
+	for segNum := range letColReq.BinRequest.RecordIndex {
+		segNums = append(segNums, segNum)
+	}
+	sort.Ints(segNums)
+	prevSegCount := 0
+
+	for _, segNum := range segNums {
+		for recordKey, recordIndex := range letColReq.BinRequest.RecordIndex[segNum] {
+			recordIndexInFinal[recordKey] = prevSegCount + recordIndex
+		}
+		prevSegCount += len(letColReq.BinRequest.RecordIndex[segNum])
+	}
+
+	finalCols[letColReq.NewColName] = true
+
+	return nil
+}
+
+func performBinRequestOnHistogram(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+	var err error
+	// Check if the column to create already exists and is a GroupBy column.
+	isGroupByCol := utils.SliceContainsString(nodeResult.GroupByCols, letColReq.NewColName)
+
+	// Setup a map for fetching values of field
+	fieldsInExpr := []string{letColReq.BinRequest.Field}
+	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+
+	minVal := math.MaxFloat64
+	maxVal := -math.MaxFloat64
+	guessSpan := letColReq.BinRequest.BinSpanOptions == nil
+	var spanOptions *structs.BinSpanOptions
+
+	if guessSpan {
+		// iterate over all records to find min and max values
+		for _, aggregationResult := range nodeResult.Histogram {
+			for rowIndex := range aggregationResult.Results {
+				// Get the values of all the necessary fields.
+				err := getAggregationResultFieldValues(fieldToValue, fieldsInExpr, aggregationResult, rowIndex)
+				if err != nil {
+					return fmt.Errorf("performBinRequestOnHistogram: Error while getting value from agg results, err: %v", err)
+				}
+				fieldValueFloat, err := getFloatValForBin(fieldToValue, nil, letColReq.BinRequest.Field)
+				if err != nil {
+					return fmt.Errorf("performBinRequestOnHistogram: Error while getting numeric value from agg results, err: %v", err)
+				}
+				if fieldValueFloat < minVal {
+					minVal = fieldValueFloat
+				}
+				if fieldValueFloat > maxVal {
+					maxVal = fieldValueFloat
+				}
+			}
+		}
+		spanOptions, err = findSpan(minVal, maxVal, letColReq.BinRequest.MaxBins, letColReq.BinRequest.MinSpan, letColReq.BinRequest.Field)
+		if err != nil {
+			return fmt.Errorf("performBinRequestOnHistogram: Error while finding span, err: %v", err)
+		}
+	} else {
+		spanOptions = letColReq.BinRequest.BinSpanOptions
+	}
+
+	for _, aggregationResult := range nodeResult.Histogram {
+		for rowIndex, bucketResult := range aggregationResult.Results {
+			// Get the values of all the necessary fields.
+			err := getAggregationResultFieldValues(fieldToValue, fieldsInExpr, aggregationResult, rowIndex)
+			if err != nil {
+				return fmt.Errorf("performBinRequestOnHistogram: Error while getting value from agg results, err: %v", err)
+			}
+
+			fieldValueFloat, err := getFloatValForBin(fieldToValue, nil, letColReq.BinRequest.Field)
+			if err != nil {
+				return fmt.Errorf("performBinRequestOnHistogram: Error while getting numeric value from agg results, err: %v", err)
+			}
+
+			binValue, err := performBinWithSpanOptions(fieldValueFloat, spanOptions, letColReq.BinRequest)
+			if err != nil {
+				return fmt.Errorf("performBinRequestOnHistogram: Error while performing bin, err: %v", err)
+			}
+
+			var valType segutils.SS_DTYPE
+
+			switch binValue.(type) {
+			case float64:
+				valType = segutils.SS_DT_FLOAT
+			case uint64:
+				valType = segutils.SS_DT_UNSIGNED_NUM
+			case string:
+				valType = segutils.SS_DT_STRING
+			default:
+				return fmt.Errorf("performBinRequestOnHistogram: binValue has unexpected type: %T", binValue)
+			}
+
+			// Set the appropriate column to the computed value.
+			if isGroupByCol {
+				for keyIndex, groupByCol := range bucketResult.GroupByKeys {
+					if letColReq.NewColName != groupByCol {
+						continue
+					}
+
+					binValStr := fmt.Sprintf("%v", binValue)
+
+					// Set the appropriate element of BucketKey to cellValueStr.
+					switch bucketKey := bucketResult.BucketKey.(type) {
+					case []string:
+						bucketKey[keyIndex] = binValStr
+						bucketResult.BucketKey = bucketKey
+					case string:
+						if keyIndex != 0 {
+							return fmt.Errorf("performBinRequestOnHistogram: expected keyIndex to be 0, not %v", keyIndex)
+						}
+						bucketResult.BucketKey = binValStr
+					default:
+						return fmt.Errorf("performBinRequestOnHistogram: bucket key has unexpected type: %T", bucketKey)
+					}
+				}
+			} else {
+				aggregationResult.Results[rowIndex].StatRes[letColReq.NewColName] = segutils.CValueEnclosure{
+					Dtype: valType,
+					CVal:  binValue,
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func performBinRequestOnMeasureResults(nodeResult *structs.NodeResult, letColReq *structs.LetColumnsRequest) error {
+	var err error
+	// Check if the column already exists.
+	var isGroupByCol bool // If false, it should be a MeasureFunctions column.
+	colIndex := -1        // Index in GroupByCols or MeasureFunctions.
+	for i, measureCol := range nodeResult.MeasureFunctions {
+		if letColReq.NewColName == measureCol {
+			// We'll write over this existing column.
+			isGroupByCol = false
+			colIndex = i
+			break
+		}
+	}
+
+	for i, groupByCol := range nodeResult.GroupByCols {
+		if letColReq.NewColName == groupByCol {
+			// We'll write over this existing column.
+			isGroupByCol = true
+			colIndex = i
+			break
+		}
+	}
+
+	if colIndex == -1 {
+		// Append the column as a MeasureFunctions column.
+		isGroupByCol = false
+		colIndex = len(nodeResult.MeasureFunctions)
+		nodeResult.MeasureFunctions = append(nodeResult.MeasureFunctions, letColReq.NewColName)
+	}
+
+	// Setup a map for fetching values of field
+	fieldsInExpr := []string{letColReq.BinRequest.Field}
+	fieldToValue := make(map[string]segutils.CValueEnclosure, 0)
+
+	minVal := math.MaxFloat64
+	maxVal := -math.MaxFloat64
+	guessSpan := letColReq.BinRequest.BinSpanOptions == nil
+	var spanOptions *structs.BinSpanOptions
+
+	if guessSpan {
+		// iterate over all records to find min and max values
+		for rowIndex := range nodeResult.MeasureResults {
+			// Get the values of all the necessary fields.
+			err := getMeasureResultsFieldValues(fieldToValue, fieldsInExpr, nodeResult, rowIndex)
+			if err != nil {
+				return fmt.Errorf("performBinRequestOnMeasureResults: Error while getting value from measure results, err: %v", err)
+			}
+			fieldValueFloat, err := getFloatValForBin(fieldToValue, nil, letColReq.BinRequest.Field)
+			if err != nil {
+				return fmt.Errorf("performBinRequestOnMeasureResults: Error while getting numeric value from measure results, err: %v", err)
+			}
+			if fieldValueFloat < minVal {
+				minVal = fieldValueFloat
+			}
+			if fieldValueFloat > maxVal {
+				maxVal = fieldValueFloat
+			}
+		}
+		spanOptions, err = findSpan(minVal, maxVal, letColReq.BinRequest.MaxBins, letColReq.BinRequest.MinSpan, letColReq.BinRequest.Field)
+		if err != nil {
+			return fmt.Errorf("performBinRequestOnMeasureResults: Error while finding span, err: %v", err)
+		}
+	} else {
+		spanOptions = letColReq.BinRequest.BinSpanOptions
+	}
+
+	// Compute the value for each row.
+	for rowIndex, bucketHolder := range nodeResult.MeasureResults {
+		// Get the values of all the necessary fields.
+		err := getMeasureResultsFieldValues(fieldToValue, fieldsInExpr, nodeResult, rowIndex)
+		if err != nil {
+			return fmt.Errorf("performBinRequestOnMeasureResults: Error while getting value from measure results, err: %v", err)
+		}
+
+		fieldValueFloat, err := getFloatValForBin(fieldToValue, nil, letColReq.BinRequest.Field)
+		if err != nil {
+			return fmt.Errorf("performBinRequestOnMeasureResults: Error while getting numeric value from measure results, err: %v", err)
+		}
+
+		binValue, err := performBinWithSpanOptions(fieldValueFloat, spanOptions, letColReq.BinRequest)
+		if err != nil {
+			return fmt.Errorf("performBinRequestOnMeasureResults: Error while performing bin, err: %v", err)
+		}
+
+		// Set the appropriate column to the computed value.
+		if isGroupByCol {
+			bucketHolder.GroupByValues[colIndex] = fmt.Sprintf("%v", binValue)
+		} else {
+			bucketHolder.MeasureVal[letColReq.NewColName] = binValue
+		}
+	}
 	return nil
 }
 

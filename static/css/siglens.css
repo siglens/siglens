@@ -1895,7 +1895,7 @@ div.dts div.dataTables_scrollBody table {
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
-    margin-left: 15px;
+    margin-left: 35px;
     padding-bottom: 0;
     margin-top: 0px;
     background-size: contain;
@@ -1955,7 +1955,7 @@ div.dts div.dataTables_scrollBody table {
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
-    margin-left: 15px;
+    margin-left: 35px;
 }
 #editbutton:hover {
     background-image: url(../assets/edit-alert-icon-active.svg);
@@ -2472,6 +2472,18 @@ input[type="submit" i] {
     grid-template-columns: repeat(2, 1fr);
     column-gap: 50px;
 }
+
+
+.default-label {
+    color: white;
+    background-color: #364fef;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    margin-right: 6px;
+    text-decoration: none !important;
+}
+
 
 .range-item {
     padding-left: 12px !important;
@@ -3296,17 +3308,19 @@ float: right;
     padding: 0px 15px !important;
     cursor: pointer;
     font-size: 14px;
-    text-decoration-line: underline;
+    text-decoration-line: none;
     border-bottom: var(--bg-color) 5px solid;
 }
 #dashboard-grid .ag-cell a{
     color: var(--dashboard-title-color) !important;
+    text-decoration-line: underline;
 }
 
 
 #dashboard-grid-btn,#alert-grid-btn{
     display: flex;
     align-items: center;
+    
 }
 
 /*NAVBAR */
