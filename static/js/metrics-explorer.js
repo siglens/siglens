@@ -76,7 +76,6 @@ $(document).ready(async function() {
         let dataParam = getUrlParameter('queryString');
         let jsonString = decodeURIComponent(dataParam);
         let obj = JSON.parse(jsonString);
-        console.log(obj);
         isMetricsURL = true;
         populateMetricsQueryElement(obj)
     }
