@@ -27,7 +27,7 @@ import (
 
 func Test_WriteAndGetUsq(t *testing.T) {
 
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 
 	_ = InitUsq()
 
@@ -80,7 +80,7 @@ func Test_WriteAndGetUsq(t *testing.T) {
 }
 
 func Test_WriteAndSaveMultipleOrgsUsq(t *testing.T) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 	_ = InitUsq()
 
 	expected := make(map[string]interface{})

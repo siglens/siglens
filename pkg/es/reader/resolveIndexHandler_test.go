@@ -29,7 +29,7 @@ import (
 )
 
 func Test_ExpandAndReturnIndexNames(t *testing.T) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 	_ = vtable.InitVTable()
 
 	vTableBaseDir := "vtabbase/"

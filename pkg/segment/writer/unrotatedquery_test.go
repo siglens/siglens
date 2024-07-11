@@ -36,7 +36,7 @@ import (
 )
 
 func Test_writePQSFiles(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t)
 	config.SetPQSEnabled(true)
 	InitWriterNode()
 	numBatch := 10

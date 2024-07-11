@@ -37,7 +37,7 @@ import (
 )
 
 func Test_ApplySearchToMatchFilterRaw(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t)
 	defer os.RemoveAll(config.GetDataPath())
 	rangeIndex = map[string]*Numbers{}
 	cases := []struct {

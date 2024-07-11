@@ -43,7 +43,7 @@ import (
 )
 
 func Test_simpleRawSearch(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t)
 	config.SetSSInstanceName("mock-host")
 	err := config.InitDerivedConfig("test")
 	assert.NoError(t, err)
@@ -292,7 +292,7 @@ func Test_simpleRawSearch(t *testing.T) {
 }
 
 func Test_simpleRawSearch_jaeger(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t)
 	config.SetSSInstanceName("mock-host")
 	err := config.InitDerivedConfig("test")
 	assert.Nil(t, err)
@@ -436,7 +436,7 @@ type BenchQueryConds struct {
 }
 
 func Benchmark_simpleRawSearch(b *testing.B) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(b)
 	config.SetDebugMode(true)
 
 	querySummary := summary.InitQuerySummary(summary.LOGS, 1)
@@ -487,7 +487,7 @@ func Benchmark_simpleRawSearch(b *testing.B) {
 }
 
 func Benchmark_simpleAggregations(b *testing.B) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(b)
 	config.SetDebugMode(true)
 
 	querySummary := summary.InitQuerySummary(summary.LOGS, 1)

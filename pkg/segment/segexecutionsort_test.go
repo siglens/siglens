@@ -33,7 +33,7 @@ import (
 )
 
 func Test_SortResultsArossMultipleFiles(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t)
 	_ = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	numBuffers := 5
 	numEntriesForBuffer := 10

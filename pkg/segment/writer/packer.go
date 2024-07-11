@@ -26,6 +26,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/axiomhq/hyperloglog"
@@ -1190,19 +1191,19 @@ func addRollup(rrmap map[uint64]*RolledRecs, rolledTs uint64, lastRecNum uint16)
 	rr.lastRecNum = lastRecNum
 }
 
-func WriteMockTsRollup(segkey string) error {
+func WriteMockTsRollup(t *testing.T, segkey string) error {
 
 	ss := &SegStore{suffix: 1, Lock: sync.Mutex{}, SegmentKey: segkey}
 
-	wipBlock := createMockTsRollupWipBlock(segkey)
+	wipBlock := createMockTsRollupWipBlock(t, segkey)
 	ss.wipBlock = *wipBlock
 	err := ss.writeWipTsRollups("timestamp")
 	return err
 }
 
-func createMockTsRollupWipBlock(segkey string) *WipBlock {
+func createMockTsRollupWipBlock(t *testing.T, segkey string) *WipBlock {
 
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t)
 	defer os.RemoveAll(config.GetDataPath()) // we just create a suffix file during segstore creation
 
 	cTime := uint64(time.Now().UnixMilli())

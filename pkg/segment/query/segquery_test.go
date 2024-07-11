@@ -414,7 +414,7 @@ func Test_segQueryFilter(t *testing.T) {
 	fileCount := 5
 	instrumentation.InitMetrics()
 	_ = localstorage.InitLocalStorage()
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t)
 	limit.InitMemoryLimiter()
 	err := InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {

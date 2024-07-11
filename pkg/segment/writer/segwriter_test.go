@@ -106,7 +106,7 @@ func isTimeRangeOverlapping(start1, end1, start2, end2 uint64) bool {
 }
 
 func Test_getActiveBaseSegDir(t *testing.T) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 	virtualTableName := "evts"
 	streamid := "10005995996882630313"
 	nextsuff_idx := uint64(1)
@@ -115,7 +115,7 @@ func Test_getActiveBaseSegDir(t *testing.T) {
 }
 
 func Test_getFinalBaseSegDirFromActive(t *testing.T) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 	virtualTableName := "evts"
 	streamid := "10005995996882630313"
 	nextsuff_idx := uint64(1)

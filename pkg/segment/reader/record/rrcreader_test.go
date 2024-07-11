@@ -32,7 +32,7 @@ import (
 
 func Test_GetJsonFromAllRrc(t *testing.T) {
 	dir := "test/"
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 	_ = localstorage.InitLocalStorage()
 	numSegKeys := 1
 	numBlocks := 1
@@ -106,7 +106,7 @@ func Test_GetJsonFromAllRrc(t *testing.T) {
 
 func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
 	dir := "test/"
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 	_ = localstorage.InitLocalStorage()
 	numSegKeys := 1
 	numBlocks := 1
@@ -170,7 +170,7 @@ func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
 
 func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
 	dir := "test/"
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 	_ = localstorage.InitLocalStorage()
 	numSegKeys := 1
 	numBlocks := 1

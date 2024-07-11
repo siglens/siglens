@@ -288,7 +288,7 @@ func Test_MetadataFilter(t *testing.T) {
 	numBlocks := 5
 	numEntriesInBlock := 10
 	fileCount := 5
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 	_ = localstorage.InitLocalStorage()
 	limit.InitMemoryLimiter()
 	err := InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)

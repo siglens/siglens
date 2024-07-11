@@ -63,7 +63,7 @@ func getMyIds() []uint64 {
 }
 
 func Benchmark_EndToEnd(b *testing.B) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(b)
 	_ = localstorage.InitLocalStorage()
 	currTime := utils.GetCurrentTimeMillis()
 	startTime := uint64(0)
@@ -145,7 +145,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 }
 
 func Benchmark_RRCToJson(b *testing.B) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(b)
 	_ = localstorage.InitLocalStorage()
 	currTime := utils.GetCurrentTimeMillis()
 	startTime := uint64(0)
@@ -228,7 +228,7 @@ func Benchmark_RRCToJson(b *testing.B) {
 }
 
 func Benchmark_esBulkIngest(b *testing.B) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(b)
 	_ = vtable.InitVTable()
 
 	var bulkData []byte
@@ -273,7 +273,7 @@ func Benchmark_esBulkIngest(b *testing.B) {
 // helper benchmark test to debug & read files using a path w/o having to start server up
 // go test -run=Bench -bench=Benchmark_logSummarySegKey
 func Benchmark_logSummarySegKey(b *testing.B) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(b)
 
 	segKey := "a"
 
@@ -295,7 +295,7 @@ func Benchmark_logSummarySegKey(b *testing.B) {
 }
 
 func Benchmark_agileTreeIngest(b *testing.B) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(b)
 	config.SetAggregationsFlag(true)
 	_ = vtable.InitVTable()
 
@@ -365,7 +365,7 @@ func Benchmark_agileTreeIngest(b *testing.B) {
 }
 
 func Benchmark_E2E_AgileTree(b *testing.B) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(b)
 	config.SetAggregationsFlag(true)
 	_ = localstorage.InitLocalStorage()
 	currTime := utils.GetCurrentTimeMillis()
@@ -444,7 +444,7 @@ func Benchmark_E2E_AgileTree(b *testing.B) {
 }
 
 func Benchmark_S3_segupload(b *testing.B) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(b)
 
 	config.SetS3Enabled(true)
 	config.SetS3BucketName("knawale-test")

@@ -42,7 +42,7 @@ func cleanupOutDir() {
 
 func TestPartial_esBulkPostHandler(t *testing.T) {
 
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 	_ = vtable.InitVTable()
 	// init a webServer to use the post handler method
 	// setup listener , it's fasthttp in memory listener for TESTING only
@@ -121,7 +121,7 @@ func TestPartial_esBulkPostHandler(t *testing.T) {
 
 func TestOk_esBulkPostHandler(t *testing.T) {
 	_ = vtable.InitVTable()
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 	// init a webServer to use the post handler method
 	// setup listener , it's fasthttp in memory listener for TESTING only
 	ln := fasthttputil.NewInmemoryListener()
@@ -193,7 +193,7 @@ func TestOk_esBulkPostHandler(t *testing.T) {
 
 func TestDelete_esBulkPostHandler(t *testing.T) {
 	_ = vtable.InitVTable()
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 	// init a webServer to use the post handler method
 	// setup listener , it's fasthttp in memory listener for TESTING only
 	ln := fasthttputil.NewInmemoryListener()

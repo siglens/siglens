@@ -28,7 +28,7 @@ import (
 
 func Test_dashboard_storage_methods(t *testing.T) {
 
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t)
 
 	_ = InitDashboards()
 

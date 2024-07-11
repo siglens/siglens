@@ -89,7 +89,7 @@ func TestBlockSumEncodeDecode(t *testing.T) {
 	}
 }
 func TestRecordEncodeDecode(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t)
 	defer os.RemoveAll(config.GetDataPath())
 	cases := []struct {
 		input []byte
@@ -166,7 +166,7 @@ func TestRecordEncodeDecode(t *testing.T) {
 }
 
 func TestJaegerRecordEncodeDecode(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t)
 	defer os.RemoveAll(config.GetDataPath())
 	cases := []struct {
 		input []byte
@@ -276,7 +276,7 @@ func TestJaegerRecordEncodeDecode(t *testing.T) {
 
 func TestTimestampRollups(t *testing.T) {
 
-	wipBlock := createMockTsRollupWipBlock("data/test-segkey")
+	wipBlock := createMockTsRollupWipBlock(t, "data/test-segkey")
 
 	// top-of-day validations
 	expectedData := make(map[uint64]uint16)
