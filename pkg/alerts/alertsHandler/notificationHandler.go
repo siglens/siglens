@@ -238,7 +238,7 @@ func sendSlack(alertName string, message string, channel alertutils.SlackTokenCo
 	if alertDataMessage != "" {
 		attachment.Fields = []slack.AttachmentField{
 			{
-				Title: "Alert Data",
+				Title: "Alert Details",
 				Value: alertDataMessage,
 			},
 		}

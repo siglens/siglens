@@ -961,11 +961,18 @@ TcOptionCMD <- option:("usenull" / "useother" / "nullstr" / "otherstr") {
     return optionStr, nil
 }
 
-BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(TimeScale)? {
+AllTimeScale <- timeUnit:(Second / Month / Subseconds / Minute / Hour / Day / Week / Quarter / Year) {
+    return timeUnit, nil
+}
+
+BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(AllTimeScale)? {
     if timeScale != nil {
         num, err := strconv.ParseInt(number.(string), 10, 64)
         if err != nil {
             return nil, fmt.Errorf("BinSpanLenOption: Invalid Number: %v is not an integer, err: %v", number.(string), err)
+        }
+        if num <= 0 {
+            return nil, fmt.Errorf("BinSpanLenOption: Invalid span %v, span value must be greater than 0", num)
         }
 
         switch timeScale.(utils.TimeUnit) {
@@ -983,6 +990,14 @@ BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(TimeScal
                 }
             case utils.TMMicrosecond:
                 return nil, fmt.Errorf("BinSpanLenOption: Invalid span microsecond is not supported!")
+            case utils.TMMonth:
+                if num > 12 || 12%num != 0 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for month %v, span value must be less or equal to 1 year and 1 year must be evenly divisble by span", num)
+                }
+            case utils.TMQuarter:
+                if num > 4 || 4%num != 0 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for quarter %v, span value must be less or equal to 1 year and 1 year must be evenly divisble by span", num)
+                }
         }
 
         spanLength := &structs.BinSpanLength {
@@ -996,6 +1011,9 @@ BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(TimeScal
     num, err := strconv.ParseFloat(number.(string), 64)
     if err != nil {
         return nil, fmt.Errorf("BinSpanLenOption: Invalid Number: %v is not a numerical value, err: %v", number.(string), err)
+    }
+    if num <= 0.0 {
+        return nil, fmt.Errorf("BinSpanLenOption: Invalid span %v, span value must be greater than 0", num)
     }
 
     spanLength := &structs.BinSpanLength {
@@ -1275,7 +1293,10 @@ SpanOptions <- CMD_SPAN EQUAL spanLength:SpanLength {
     return spanOptions, nil
 }
 
-SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale{
+SpanLength <- intAsStr:IntegerAsString timeScale:AllTimeScale{
+    if timeScale.(utils.TimeUnit) == utils.TMYear {
+        return nil, fmt.Errorf("SpanLength: Invalid time unit, year is not supported")
+    }
     num, err := strconv.Atoi(intAsStr.(string))
     if err != nil {
         return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", intAsStr.(string), err)
@@ -1286,10 +1307,6 @@ SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale{
         TimeScalr: timeScale.(utils.TimeUnit),
     }
     return spanLength, nil
-}
-
-TimeScale <- timeUnit:(Second / Month / Subseconds / Minute / Hour / Day / Week / Quarter) {
-    return timeUnit, nil
 }
 
 // limit=topN keeps the N highest scoring distinct values of the split-by field
@@ -4001,7 +4018,10 @@ WeekSnap <- ('w'[0-7]) {
     return string(c.text), nil
 }
 
-RelTimeUnit <- timeUnit:(Second / Month / Minute / Hour / Day / Week / Quarter / Year) {
+RelTimeUnit <- timeUnit:(AllTimeScale) {
+    if utils.IsSubseconds(timeUnit.(utils.TimeUnit)) {
+        return nil, fmt.Errorf("Relative Time Format does not support subseconds")
+    }
     return strconv.Itoa(int(timeUnit.(utils.TimeUnit))), nil
 }
 
