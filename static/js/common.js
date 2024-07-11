@@ -279,49 +279,50 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
 }
 
 function fetchLogsPanelData(data, panelId) {
-    if(panelId==undefined){
-        return;
+    if(panelId === undefined) {
+      return;
     }
     return $.ajax({
-        method: 'post',
-        url: 'api/search/' + panelId,
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
-        },
-        crossDomain: true,
-        dataType: 'json',
-        data: JSON.stringify(data)
+      method: 'post',
+      url: 'api/search/' + panelId,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Accept': '*/*'
+      },
+      crossDomain: true,
+      dataType: 'json',
+      data: JSON.stringify(data)
     });
-}
-
-function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
+  }
+  
+  function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
     return new Promise(function(resolve, reject) {
-        $('body').css('cursor', 'progress');
-
-        if (queryRes) {
-            renderChartByChartType(data, queryRes, panelId, currentPanel);
-            $('body').css('cursor', 'default');
+      $('body').css('cursor', 'progress');
+  
+      if (queryRes) {
+        renderChartByChartType(data, queryRes, panelId, currentPanel);
+        $('body').css('cursor', 'default');
+        resolve();
+      } else {
+        fetchLogsPanelData(data, panelId)
+          .then((res) => {
+            resetQueryResAttr(res, panelId);
+            renderChartByChartType(data, res, panelId, currentPanel);
             resolve();
-        } else {
-            fetchLogsPanelData(data, panelId)
-                .then((res) => {
-                    resetQueryResAttr(res, panelId);
-                    renderChartByChartType(data, res, panelId, currentPanel);
-                    resolve();
-                })
-                .catch(function(xhr, err) {
-                    if (xhr.status === 400) {
-                        panelProcessSearchError(xhr, panelId);
-                    }
-                    $('body').css('cursor', 'default');
-                    $(`#panel${panelId} .panel-body #panel-loading`).hide();
-                    reject();
-                });
-        }
+          })
+          .catch(function(xhr, err) {
+            if (xhr.status === 400) {
+              panelProcessSearchError(xhr, panelId);
+            }
+            $('body').css('cursor', 'default');
+            $(`#panel${panelId} .panel-body #panel-loading`).hide();
+            console.error('Error fetching logs:', xhr, err);
+            reject();
+          });
+      }
     });
-}
-
+  }
+  
 function panelProcessEmptyQueryResults(errorMsg, panelId) {
     let msg;
     if (errorMsg !== "") {

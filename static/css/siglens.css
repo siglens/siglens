@@ -941,7 +941,12 @@ input.form-control:focus {
 }
 
 /* end - bootstrap overrides*/
-
+.rulename {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    margin-left: 5px;
+}
 #progress-div {
     display: grid;
     grid-template-columns: 3fr auto;
