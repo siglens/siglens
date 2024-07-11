@@ -966,7 +966,7 @@ function initializeFilterInputEvents() {
         let end = this.selectionEnd;
         this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
         this.selectionStart = this.selectionEnd = start + newValue.length;
-        autoResizeTextarea();
+        autoResizeTextarea.call(this);
       });
       
 }
