@@ -71,8 +71,9 @@ $(document).ready(async function() {
         return item.fn;
     })
 
+    // Retrieve Query from Metrics Explorer URL to Display Query Element Formula and Visualization
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('queryString')) {
+    if (currentPage.includes('metrics-explorer.html') && urlParams.has('queryString')) {
         let dataParam = getUrlParameter('queryString');
         let jsonString = decodeURIComponent(dataParam);
         let obj = JSON.parse(jsonString);
@@ -84,6 +85,7 @@ $(document).ready(async function() {
         addQueryElement();
     }
 });
+
 async function customRangeHandlerMetrics(_evt){
     $.each($(".range-item.active"), function () {
         $(this).removeClass('active');
@@ -318,6 +320,7 @@ function disableQueryRemoval(){
 }
 
 function createQueryElementTemplate(queryName) {
+    console.log("createQueryElementTemplate");
     return $(`
     <div class="metrics-query">
         <div class="query-box">
@@ -491,6 +494,7 @@ async function addQueryElement() {
     // Clone the first query element if it exists, otherwise create a new one
     var queryElement;
     if (queryIndex === 0) {
+        console.log("addQueryElement");
         queryElement = createQueryElementTemplate(String.fromCharCode(97 + queryIndex));
         $('#metrics-queries').append(queryElement);
         const metricNames = await getMetricNames();
