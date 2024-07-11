@@ -70,24 +70,6 @@ $("#custom-chart-tab").tabs({
 //cancel -> "   "
 //running -> "    "
 $(document).ready(function () {
-  $("#filter-input").keydown(function (e) {
-    if (e.key === '|') {
-      let input = $(this);
-      let value = input.val();
-      let position = this.selectionStart;
-      input.val(value.substring(0, position) + '\n' + value.substring(position));
-      this.selectionStart = this.selectionEnd = position + 2;
-    }
-  });
-  document.getElementById('filter-input').addEventListener('paste', function(event) {
-    event.preventDefault();
-    let pasteData = (event.clipboardData || window.clipboardData).getData('text');
-    let newValue = pasteData.replace(/\|/g, '\n|');
-    let start = this.selectionStart;
-    let end = this.selectionEnd;
-    this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
-    this.selectionStart = this.selectionEnd = start + newValue.length;
-  });
   $("#add-con").on("click", filterStart);
   $("#filter-box-1").on("click", filterStart);
   $("#add-con-second").on("click", secondFilterStart);

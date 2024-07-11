@@ -29,25 +29,6 @@ let indexValues = [];
 let isDefaultDashboard = false;
 
 $(document).ready(async function () {
-    $("#query-input-box").keydown(function(e) {
-        if (e.key === '|') {
-          let input = $(this);
-          let value = input.val();
-          let position = this.selectionStart;
-          input.val(value.substring(0, position) + '\n|' + value.substring(position));
-          this.selectionStart = this.selectionEnd = position + 2;
-          e.preventDefault(); // Prevent the default behavior of the '|' key
-        }
-      });
-      $("#query-input-box").on('paste', function(event) {
-        event.preventDefault();
-        let pasteData = (event.originalEvent.clipboardData || window.clipboardData).getData('text');
-        let newValue = pasteData.replace(/\|/g, '\n|');
-        let start = this.selectionStart;
-        let end = this.selectionEnd;
-        this.value = this.value.substring(0, start) + newValue + this.value.substring(end);
-        this.selectionStart = this.selectionEnd = start + newValue.length;
-      });
     let indexes = await getListIndices();
     if (indexes){
         originalIndexValues = indexes.map(item => item.index);

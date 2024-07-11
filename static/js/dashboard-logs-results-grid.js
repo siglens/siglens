@@ -102,10 +102,7 @@ function getPanelGridOptions() {
                 if (diff <= 5) {
                     let scrollingTrigger = true;
                     data = getQueryParamsData(scrollingTrigger);
-                    runPanelLogsQuery(data)
-                    .then(() => {
-                        console.log('Logs query completed successfully');})
-                    .catch(() => {});
+                    runPanelLogsQuery(data);
                 }
             }
         },
@@ -115,10 +112,6 @@ function getPanelGridOptions() {
 
 
 function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
-    if (typeof panelId === 'undefined' || panelId === null) {
-        console.error('panelId is undefined or null');
-        return;
-    }
     $(`.panelDisplay .big-number-display-container`).hide();
     let panelLogsRowData = getGridPanelRows();
     let panelLogsColumnDefs = getGridPanelCols();

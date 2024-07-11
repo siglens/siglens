@@ -450,7 +450,6 @@ function resetAddAlertForm() {
 async function displayAlert(res){
 
     $('#alert-rule-name').val(res.alert_name);
-    $(".rulename").text(res.alert_name).css("display", "block");
     setDataSourceHandler(res.alert_type) 
     if( res.alert_type === 1 ){
         const { data_source, queryLanguage, startTime, endTime, queryText, queryMode, index } = res.queryParams;
@@ -527,6 +526,7 @@ async function displayAlert(res){
 
     if (alertEditFlag && !alertFromMetricsExplorerFlag) {
         alertData.alert_id = res.alert_id;
+        $(".rulename").text(res.alert_name).css("display", "block");
     }
 
     $('#contact-points-dropdown span').html(res.contact_name).attr('id', res.contact_id);
