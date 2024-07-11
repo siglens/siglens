@@ -441,6 +441,10 @@ func InitConfigurationData() error {
 Use only for testing purpose, DO NOT use externally
 */
 func InitializeDefaultConfig(dataPath string) {
+	if !strings.HasSuffix(dataPath, "/") {
+		dataPath += "/"
+	}
+
 	runningConfig = GetTestConfig(dataPath)
 	_ = InitDerivedConfig("test-uuid") // This is only used for testing
 }
