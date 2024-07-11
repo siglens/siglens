@@ -2307,6 +2307,12 @@ func Test_TimechartSpanArgWithoutGroupBy(t *testing.T) {
 	}
 }
 
+func Test_ParseTimechart(t *testing.T) {
+	query := `search A=1 | timechart span=1y avg(latency)`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
 func Test_aggHasEvalFuncWithoutGroupBy(t *testing.T) {
 	query := []byte(`city=Boston | stats max(latitude), range(eval(latitude >= 0))`)
 	res, err := spl.Parse("", query)
@@ -8113,6 +8119,12 @@ func Test_ParseRelativeTimeModifier_12(t *testing.T) {
 	assert.True(t, endTimeDiff <= int64(1000))
 }
 
+func Test_ParseRelativeTimeModifier_13(t *testing.T) {
+	query := `* | earliest=1ms`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
 func Test_EventCount_Defaults(t *testing.T) {
 	query := `* | eventcount`
 	performEventCountTest(t, query, []string{"*"}, true, false, true)
@@ -9340,6 +9352,30 @@ func Test_Bin24(t *testing.T) {
 
 func Test_Bin25(t *testing.T) {
 	query := `* | bin bins=1us timestamp`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_Bin26(t *testing.T) {
+	query := `* | bin span=5mon timestamp`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_Bin27(t *testing.T) {
+	query := `* | bin span=7q timestamp`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_Bin28(t *testing.T) {
+	query := `* | bin span=-2 timestamp`
+	_, err := spl.Parse("", []byte(query))
+	assert.NotNil(t, err)
+}
+
+func Test_Bin29(t *testing.T) {
+	query := `* | bin span=-2s timestamp`
 	_, err := spl.Parse("", []byte(query))
 	assert.NotNil(t, err)
 }
