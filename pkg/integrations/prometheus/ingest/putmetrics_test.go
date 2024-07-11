@@ -51,7 +51,7 @@ func FixtureSamplePayload(inc int) []byte {
 }
 
 func Test_PutMetrics(t *testing.T) {
-	config.InitializeTestingConfig(t)
+	config.InitializeTestingConfig(t.TempDir())
 	writer.InitWriterNode()
 
 	sTime := time.Now()

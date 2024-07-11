@@ -84,7 +84,7 @@ func Test_segReader(t *testing.T) {
 
 func Test_timeReader(t *testing.T) {
 
-	config.InitializeTestingConfig(t)
+	config.InitializeTestingConfig(t.TempDir())
 	segDir := "data/"
 	_ = os.MkdirAll(segDir, 0755)
 	segKey := segDir + "test-time"

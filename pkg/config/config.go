@@ -26,7 +26,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/pbnjay/memory"
@@ -441,14 +440,14 @@ func InitConfigurationData() error {
 /*
 Use only for testing purpose, DO NOT use externally
 */
-func InitializeDefaultConfig(testingTB testing.TB) {
-	runningConfig = GetTestConfig(testingTB)
+func InitializeDefaultConfig(dataPath string) {
+	runningConfig = GetTestConfig(dataPath)
 	_ = InitDerivedConfig("test-uuid") // This is only used for testing
 }
 
 // To do - Currently we are assigning default value two times.. in InitializeDefaultConfig() for testing and
 // ExtractConfigData(). Do this in one time.
-func GetTestConfig(testingTB testing.TB) common.Configuration {
+func GetTestConfig(dataPath string) common.Configuration {
 	// *************************************
 	// THIS IS ONLY USED in TESTS, MAKE SURE:
 	// 1. set the defaults ExtractConfigData
@@ -466,7 +465,7 @@ func GetTestConfig(testingTB testing.TB) common.Configuration {
 		QueryNode:                  "true",
 		IngestNode:                 "true",
 		SegFlushIntervalSecs:       5,
-		DataPath:                   testingTB.TempDir(),
+		DataPath:                   dataPath,
 		S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
 		RetentionHours:             24 * 90,
 		TimeStampKey:               "timestamp",
@@ -499,10 +498,9 @@ func GetTestConfig(testingTB testing.TB) common.Configuration {
 	return testConfig
 }
 
-func InitializeTestingConfig(testingTB testing.TB) {
-	InitializeDefaultConfig(testingTB)
+func InitializeTestingConfig(dataPath string) {
+	InitializeDefaultConfig(dataPath)
 	SetDebugMode(true)
-	SetDataPath("data/")
 }
 
 func ReadRunModConfig(fileName string) (common.RunModConfig, error) {

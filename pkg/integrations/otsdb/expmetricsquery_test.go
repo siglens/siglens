@@ -192,7 +192,7 @@ func getMyIds() []uint64 {
 }
 
 func Test_ExpMetricsQueryIncorrectID(t *testing.T) {
-	config.InitializeTestingConfig(t)
+	config.InitializeTestingConfig(t.TempDir())
 	limit.InitMemoryLimiter()
 	writer.InitWriterNode()
 	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)

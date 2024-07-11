@@ -30,7 +30,7 @@ import (
 
 func Test_multiSegReader(t *testing.T) {
 
-	config.InitializeTestingConfig(t)
+	config.InitializeTestingConfig(t.TempDir())
 	segDir := "data/"
 	_ = os.MkdirAll(segDir, 0755)
 	segKey := segDir + "test"
@@ -80,7 +80,7 @@ func Test_multiSegReader(t *testing.T) {
 
 func Test_InitSharedMultiColumnReaders(t *testing.T) {
 
-	config.InitializeTestingConfig(t)
+	config.InitializeTestingConfig(t.TempDir())
 	segDir := "data/test_cols_with_asterisk/"
 	_ = os.MkdirAll(segDir, 0755)
 	segKey := segDir + "test"

@@ -89,7 +89,7 @@ func TestBlockSumEncodeDecode(t *testing.T) {
 	}
 }
 func TestRecordEncodeDecode(t *testing.T) {
-	config.InitializeTestingConfig(t)
+	config.InitializeTestingConfig(t.TempDir())
 	defer os.RemoveAll(config.GetDataPath())
 	cases := []struct {
 		input []byte
@@ -166,7 +166,7 @@ func TestRecordEncodeDecode(t *testing.T) {
 }
 
 func TestJaegerRecordEncodeDecode(t *testing.T) {
-	config.InitializeTestingConfig(t)
+	config.InitializeTestingConfig(t.TempDir())
 	defer os.RemoveAll(config.GetDataPath())
 	cases := []struct {
 		input []byte

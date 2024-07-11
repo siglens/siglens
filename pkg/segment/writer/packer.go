@@ -1203,7 +1203,7 @@ func WriteMockTsRollup(t *testing.T, segkey string) error {
 
 func createMockTsRollupWipBlock(t *testing.T, segkey string) *WipBlock {
 
-	config.InitializeTestingConfig(t)
+	config.InitializeTestingConfig(t.TempDir())
 	defer os.RemoveAll(config.GetDataPath()) // we just create a suffix file during segstore creation
 
 	cTime := uint64(time.Now().UnixMilli())

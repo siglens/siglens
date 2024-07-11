@@ -47,7 +47,7 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 		assert.Nil(t, err)
 	}
 
-	config.InitializeTestingConfig(t)
+	config.InitializeTestingConfig(t.TempDir())
 	_ = vtable.InitVTable()
 
 	// Ingest some data that can all be converted to numbers.

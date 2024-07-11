@@ -1472,7 +1472,7 @@ func getMyIds() []uint64 {
 }
 
 func Test_Query(t *testing.T) {
-	config.InitializeDefaultConfig(t)
+	config.InitializeDefaultConfig(t.TempDir())
 	_ = localstorage.InitLocalStorage()
 	limit.InitMemoryLimiter()
 	instrumentation.InitMetrics()
@@ -1505,7 +1505,7 @@ func Test_Query(t *testing.T) {
 }
 
 func Test_Scroll(t *testing.T) {
-	config.InitializeDefaultConfig(t)
+	config.InitializeDefaultConfig(t.TempDir())
 	limit.InitMemoryLimiter()
 	_ = localstorage.InitLocalStorage()
 
@@ -1523,7 +1523,7 @@ func Test_Scroll(t *testing.T) {
 }
 
 func Test_unrotatedQuery(t *testing.T) {
-	config.InitializeTestingConfig(t)
+	config.InitializeTestingConfig(t.TempDir())
 	config.SetDataPath("unrotatedtest/")
 	limit.InitMemoryLimiter()
 	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)

@@ -280,7 +280,7 @@ func GetTestMetricsData(startTimestamp uint32) ([]timeSeries, []string, map[stri
 }
 
 func initTestConfig(t *testing.T) error {
-	runningConfig := config.GetTestConfig(t)
+	runningConfig := config.GetTestConfig(t.TempDir())
 	runningConfig.DataPath = "metrics-e2etest-data/"
 	runningConfig.SSInstanceName = "test"
 	config.SetConfig(runningConfig)
