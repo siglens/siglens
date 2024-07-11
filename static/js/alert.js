@@ -189,7 +189,6 @@ $("#contact-points-dropdown").on("click", function() {
     }
 });
 
-$("#alert-rule-name").val(urlParams.get('alertRule_name'));
 $('#evaluate-for').tooltip({
     title: 'Evaluate For must be greater than or equal to Evaluate Interval',
     placement: 'top',
@@ -203,7 +202,7 @@ function checkEvaluateConditions() {
     let submitbtn = $("#save-alert-btn");
     let errorMessage = $('.evaluation-error-message');
     
-    if (evaluateForValue <= evaluateEveryValue) {
+    if (evaluateForValue < evaluateEveryValue) {
         $('#evaluate-for').addClass('error-border'); 
         errorMessage.show();
         $('#evaluate-for').tooltip('show');
