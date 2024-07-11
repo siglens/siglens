@@ -931,8 +931,7 @@ input.form-control:focus {
     color: var(--search-bar-text-color-active);
     border-radius: 5px;
     background: var(--search-bar-bg);
-    outline: 1pt solid var(--drop-down-btn-border-active);
-    outline-offset: -1pt;
+    
 }
 
 .dropdown-toggle::after {
@@ -941,7 +940,12 @@ input.form-control:focus {
 }
 
 /* end - bootstrap overrides*/
-
+.rulename {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    margin-left: 5px;
+}
 #progress-div {
     display: grid;
     grid-template-columns: 3fr auto;
@@ -5550,15 +5554,42 @@ input.form-control {
     border-radius: 4px; /* Rounded corners */
     transition: background-color 0.3s ease;
 }
-
+.form-control.error-border{
+    border: 1px solid #EB364B !important;
+    border-left: none ;
+}
+.evaluation-error-message .icon-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    width: 100%; 
+    position: absolute; 
+    top: 0;
+    left: 0;
+} 
+.evaluation-error-message{
+    display: none;
+    background-color: #EB364B;
+    border-radius: 50%;
+    height: 16px;
+    width: 16px;
+    color: #fff;
+    font-weight: bolder;
+    justify-content: center;
+    position: absolute;
+    top: -6px;
+    right: 2px;
+    border: 1px solid #fff;
+}
 #addrule-save-btn:hover {
-    background-color: #4F38CC; /* Darker background color on hover */
+    background-color: #4F38CC; 
 }
 
 #addrule-save-btn img {
-    width: 15px; /* Adjust icon width */
-    height: 15px; /* Adjust icon height */
-    margin-right: 8px; /* Adjust margin as needed */
+    width: 15px; 
+    height: 15px;
+    margin-right: 8px; 
 }
 
 .btncontainer{
