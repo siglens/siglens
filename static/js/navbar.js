@@ -178,6 +178,10 @@ $(document).ready(function () {
         $(".nav-search").addClass("active");
     } else if (currentUrl.includes("metrics-explorer.html")) {
         $(".nav-metrics").addClass("active");
+        $(".nav-metrics").addClass("disable-hover");
+        setTimeout(function() {
+            $(".nav-metrics").removeClass("disable-hover");
+        }, 2000);
     } else if (currentUrl.includes("metric-summary.html")) {
         $(".nav-metrics").addClass("active");
     } else if (currentUrl.includes("dashboards-home.html") || currentUrl.includes("dashboard.html")) {
@@ -199,44 +203,58 @@ $(document).ready(function () {
         $(".nav-live").addClass("active");
     } else if (currentUrl.includes("service-health.html")|| currentUrl.includes("service-health-overview.html") || currentUrl.includes("dependency-graph.html")|| currentUrl.includes("search-traces.html")) {
         $(".nav-traces").addClass("active");
+        $(".nav-traces").addClass("disable-hover");
+        setTimeout(function() {
+            $(".nav-traces").removeClass("disable-hover");
+        }, 2000);
         if ($('.subsection-navbar').length) {
             $('.subsection-navbar').appendOrgNavTabs("Tracing", tracingUpperNavTabs);
         }        
     } else if (currentUrl.includes("test-data.html")|| currentUrl.includes("https://www.siglens.com/siglens-docs/category/instrumentation-for-traces") || currentUrl.includes("https://www.siglens.com/siglens-docs/category/metric-ingestion")) {
-        $(".nav-ingest").addClass("active");     
+        $(".nav-ingest").addClass("active");  
+        $(".nav-ingest").addClass("disable-hover");
+        setTimeout(function() {
+            $(".nav-ingest").removeClass("disable-hover");
+        }, 2000);   
     } 
-
-    $(".nav-links").on("click", function (event) {
-        removeActiveClass();
-        $(this).closest(".menu").addClass("active");
-        $(".metrics-dropdown, .traces-dropdown, .ingestion-dropdown").slideUp(30);
-        $(".help-options").slideUp(30);
-    });
-
-     $(".metrics-dropdown-toggle").hover(
+    
+    // Hover event handlers updated to respect disable-hover class
+    $(".metrics-dropdown-toggle").hover(
         function() {
-            $(".metrics-dropdown").stop(true, true).slideDown(0);
+            if (!$(this).closest(".menu").hasClass("disable-hover")) {
+                $(".metrics-dropdown").stop(true, true).slideDown(0);
+            }
         },
         function() {
-            $(".metrics-dropdown").stop(true, true).slideUp(30);
+            if (!$(this).closest(".menu").hasClass("disable-hover")) {
+                $(".metrics-dropdown").stop(true, true).slideUp(30);
+            }
         }
     );
 
     $(".tracing-dropdown-toggle").hover(
         function() {
-            $(".traces-dropdown").stop(true, true).slideDown(0);
+            if (!$(this).closest(".menu").hasClass("disable-hover")) {
+                $(".traces-dropdown").stop(true, true).slideDown(0);
+            }
         },
         function() {
-            $(".traces-dropdown").stop(true, true).slideUp(30);
+            if (!$(this).closest(".menu").hasClass("disable-hover")) {
+                $(".traces-dropdown").stop(true, true).slideUp(30);
+            }
         }
     );
 
     $(".ingestion-dropdown-toggle").hover(
         function() {
-            $(".ingestion-dropdown").stop(true, true).slideDown(0);
+            if (!$(this).closest(".menu").hasClass("disable-hover")) {
+                $(".ingestion-dropdown").stop(true, true).slideDown(0);
+            }
         },
         function() {
-            $(".ingestion-dropdown").stop(true, true).slideUp(30);
+            if (!$(this).closest(".menu").hasClass("disable-hover")) {
+                $(".ingestion-dropdown").stop(true, true).slideUp(30);
+            }
         }
     );
 

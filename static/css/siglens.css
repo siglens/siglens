@@ -3330,6 +3330,10 @@ float: right;
       white-space: nowrap;
     
 }
+.nav-links.disable-hover:hover {
+    pointer-events: none;
+    cursor: default;
+}
 
 .nav-link-text.feedback{
     line-height: 23px;
