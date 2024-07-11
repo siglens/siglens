@@ -37,29 +37,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/tracing.css">
     <link rel="stylesheet" href="./css/metrics-explorer.css?v={{ CSSVersion }}" />
     <style>
-        #ui-id-1.ui-widget.ui-widget-content,
-        #ui-id-2.ui-widget.ui-widget-content,
-        #ui-id-3.ui-widget.ui-widget-content,
-        #ui-id-4.ui-widget.ui-widget-content {
-            width: 84px !important;
-            min-width: 84px;
-            font-size: 12px;
-        }
-
-        #ui-id-1.ui-autocomplete>li>div,
-        #ui-id-2.ui-autocomplete>li>div,
-        #ui-id-3.ui-autocomplete>li>div,
-        #ui-id-4.ui-autocomplete>li>div {
-            padding: 0px 9px;
-            height: 28px;
-        }
-
         #tagKeysGrid,
         #tagPairsGrid,
         #tagKeysValuesGrid {
             height: 400px;
             width: 100%;
         }
+        #tagKeysValuesGrid {
+            margin-bottom: 20px;
+        }
+
     </style>
 
     <script src="./js/lib/lodash.min.js"></script>
@@ -89,9 +76,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <h1 class="myOrg-heading">Metrics Cardinality</h1>
                     </div>
                     <div class="d-flex">
-                        <div>
-                            <button class="btn refresh-btn" title="Refresh dashboard"></button>
-                        </div>
                         <div class="dropdown">
                             <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
@@ -158,7 +142,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div id="tagPairsGrid" class="ag-theme-mycustomtheme"></div>
                     
                     <p class="caption mt-4">Tag Keys with Most Unique Values</p>
-                    <div id="tagKeysValuesGrid" class="ag-theme-mycustomtheme"></div>                    
+                    <div id="tagKeysValuesGrid" class="ag-theme-mycustomtheme"></div>                                    
                 </div>
             </div>
         </div>

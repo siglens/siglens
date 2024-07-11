@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function fetchData(startEpoch, endEpoch) {
         // Fetch total unique series
-        fetch('http://localhost:5122/metrics-explorer/api/v1/series-cardinality', {
+        fetch('metrics-explorer/api/v1/series-cardinality', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
         // Fetch tag keys with most series
-        fetch('http://localhost:5122/metrics-explorer/api/v1/tag-keys-with-most-series', {
+        fetch('metrics-explorer/api/v1/tag-keys-with-most-series', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
         // Fetch tag pairs with most series
-        fetch('http://localhost:5122/metrics-explorer/api/v1/tag-pairs-with-most-series', {
+        fetch('metrics-explorer/api/v1/tag-pairs-with-most-series', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
         // Fetch tag keys with most unique values
-        fetch('http://localhost:5122/metrics-explorer/api/v1/tag-keys-with-most-values', {
+        fetch('metrics-explorer/api/v1/tag-keys-with-most-values', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -167,12 +167,17 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.getElementById('customrange-btn').addEventListener('click', function () {
-        var startEpoch = document.getElementById('date-start').value + 'T' + document.getElementById('time-start').value + ':00Z';
-        var endEpoch = document.getElementById('date-end').value + 'T' + document.getElementById('time-end').value + ':00Z';
+        var startEpoch = new Date(document.getElementById('date-start').value + 'T' + document.getElementById('time-start').value + ':00Z').getTime() / 1000;
+        var endEpoch = new Date(document.getElementById('date-end').value + 'T' + document.getElementById('time-end').value + ':00Z').getTime() / 1000;
         fetchData(startEpoch, endEpoch);
         selectedTimeRange.textContent = 'Custom Range';
     });
 
-    // Initial data fetch for default time range
-    fetchData('now-30d', 'now');
+    document.querySelectorAll('.range-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector('.range-item#now-1h').classList.add('active');
+    selectedTimeRange.textContent = '1 Hr';
+    fetchData('now-1h', 'now');
+      
 });
