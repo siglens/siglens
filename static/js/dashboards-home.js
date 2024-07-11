@@ -563,7 +563,7 @@ let favoriteDBsSet;
 
 $(document).ready(async function () {
 	$(".theme-btn").on("click", themePickerHandler);
-
+  
 	let normalDBs = await getAllDashboards();
 	let allDefaultDBs = await getAllDefaultDashboards();
 	let allDBs = { ...normalDBs, ...allDefaultDBs };
