@@ -91,11 +91,17 @@ $(document).ready(async function() {
     var currentPage = window.location.pathname;
     if (currentPage === "/alert.html" || currentPage ==='/alert-details.html') {
         isAlertScreen = true;
-    } 
+    }
+    filterStartDate= "now-1h";
+    filterEndDate = "now";
+    $('.inner-range #' + filterStartDate).addClass('active');
+    datePickerHandler(filterStartDate, filterEndDate, filterStartDate)
 
-    let stDate = "now-1h";
-    let endDate = "now";
-    datePickerHandler(stDate, endDate, stDate);
+    $('#metrics-container #date-start').on('change', getStartDateHandler);
+    $('#metrics-container #date-end').on('change', getEndDateHandler);
+    $('#metrics-container #time-start').on('change', getStartTimeHandler);
+    $('#metrics-container #time-end').on('change', getEndTimeHandler);
+    $('#metrics-container #customrange-btn').on('click', customRangeHandlerMetrics);
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
     
     $('.theme-btn').on('click', themePickerHandler);
@@ -110,9 +116,19 @@ $(document).ready(async function() {
     }
     
 });
-
+async function customRangeHandlerMetrics(_evt){
+    $.each($(".range-item.active"), function () {
+        $(this).removeClass('active');
+    });
+    $.each($(".db-range-item.active"), function () {
+        $(this).removeClass('active');
+    });
+    datePickerHandler(filterStartDate, filterEndDate, "custom")
+    await refreshMetricsGraphs();
+}
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
+    resetCustomDateRange();
     $.each($(".range-item.active"), function () {
         $(this).removeClass('active');
     });
