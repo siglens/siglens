@@ -87,6 +87,7 @@ async function customRangeHandlerMetrics(_evt){
 }
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
+    resetCustomDateRange();
     $.each($(".range-item.active"), function () {
         $(this).removeClass('active');
     });
