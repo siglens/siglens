@@ -1,10 +1,10 @@
 name: Format and Lint the JS code
 
-
 on:
-  push:
-    branches:
-      - 'JS_code_formatting'
+  pull_request:
+    types: [opened, reopened]
+    paths:
+      - 'static/js/**.js'
 
 
 jobs:
