@@ -2490,6 +2490,30 @@ func Test_performBinWithSpan(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "162-486", fmt.Sprintf("%v", val))
 
+	val, err = performBinWithSpan(-301, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "-301", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(1, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "0.6666666666666666-2", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(-1, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "-1", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(-0.01, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "-0.01", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(0, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "0", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(0.1, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "0.07407407407407407-0.2222222222222222", fmt.Sprintf("%v", val))
+
 	spanOpt.LogSpan = &structs.LogSpan{
 		Base:        1.2,
 		Coefficient: 1,
