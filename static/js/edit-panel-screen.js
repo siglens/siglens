@@ -316,6 +316,7 @@ function editPanelInit(redirectedFromViewScreen) {
 	$('.panelDisplay #panelLogResultsGrid').empty();
 	$('.panelDisplay #panelLogResultsGrid').hide();
 	$('.panelDisplay .panel-info-corner').hide();
+	$('#metrics-queries,#metrics-formula').empty();
 	currentPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));	
 	$('.panEdit-navBar .panEdit-dbName').html(`${dbName}`);
 	// reset inputs to show placeholders
@@ -422,23 +423,20 @@ function editPanelInit(redirectedFromViewScreen) {
 	if (selectedDataSourceTypeIndex != -1 && selectedDataSourceTypeIndex !== undefined) {
 		
 		if(selectedDataSourceTypeIndex == 1) {
-			$(".index-container").css('display', 'inline-flex');
-			$("#query-language-btn").css('display', 'inline-flex');
-			$("#metrics-query-language-btn").css('display', 'none');
+			$(".index-container, queryInput-container").css('display', 'inline-flex');
+			$("#metrics-query-language").css('display', 'none');
 			if(selectedChartTypeIndex=== -1){
 				selectedChartTypeIndex = mapChartTypeToIndex.get("Data Table");
 				currentPanel.chartType = "Data Table";
 				currentPanel.logLinesViewType = "Table view";
 			}
 		} else if (selectedDataSourceTypeIndex==0){
-			$("#metrics-query-language-btn").css('display', 'inline-block');
-			$(".index-container").css('display', 'none');
-			$("#query-language-btn").css('display', 'none');
+			$("#metrics-query-language").css('display', 'inline-block');
+			$(".index-container, queryInput-container").css('display', 'none');
 		}
 		else{
-			$(".index-container").css('display', 'none');
-			$("#query-language-btn").css('display', 'none');
-			$("#metrics-query-language-btn").css('display', 'none');
+			$(".index-container, queryInput-container").css('display', 'none');
+			$("#metrics-query-language").css('display', 'none');
 		}
 		displayQueryToolTip(selectedDataSourceTypeIndex);
 		$(".editPanelMenu-dataSource .editPanelMenu-options[data-index='" + selectedDataSourceTypeIndex + "']").click();
@@ -504,16 +502,18 @@ $('#panelLogResultsGrid').hide();
 
 $('.panEdit-discard').on("click", goToDashboard)
 $('.panEdit-save').on("click",async function(redirectedFromViewScreen){
-	 if (!currentPanel.queryData && currentPanel.chartType ==='Data Table' && currentPanel.queryType ==='logs') {
-        currentPanel.chartType = "";
-        currentPanel.queryType = "";
+	 if (currentPanel.chartType ==='Line Chart' && currentPanel.queryType ==='metrics') {
+		const data = getMetricsQData();
+		currentPanel.queryData = data;
     }
 	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
+	updateTimeRangeForAllPanels(filterStartDate,filterEndDate)
 	await updateDashboard();
 	$('.panelEditor-container').hide();
 	$('.popupOverlay').removeClass('active');
 	$('#app-container').show();
-	displayPanels()
+	currentPanel = null;
+	await displayPanels()
 });
 
 $('#panEdit-nameChangeInput').on('change keyup paste', updatePanelName)
@@ -772,18 +772,15 @@ $(".editPanelMenu-dataSource .editPanelMenu-options").on('click', function () {
 	selectedDataSourceTypeIndex = $(this).data('index');
 	displayQueryToolTip(selectedDataSourceTypeIndex);
 	if(selectedDataSourceTypeIndex == 1) {
-		$(".index-container").css('display', 'inline-flex');
-		$("#query-language-btn").css('display', 'inline-flex');
-		$("#metrics-query-language-btn").css('display', 'none');
+		$(".index-container, .queryInput-container").css('display', 'inline-flex');
+		$("#metrics-query-language").css('display', 'none');
 	} else if (selectedDataSourceTypeIndex==0){
-		$("#metrics-query-language-btn").css('display', 'inline-block');
-		$(".index-container").css('display', 'none');
-		$("#query-language-btn").css('display', 'none');
+		$("#metrics-query-language").css('display', 'inline-block');
+		$(".index-container, .queryInput-container").css('display', 'none');
 	}
 	else{
-		$(".index-container").css('display', 'none');
-		$("#query-language-btn").css('display', 'none');
-		$("#metrics-query-language-btn").css('display', 'none');
+		$(".index-container, queryInput-container").css('display', 'none');
+		$("#metrics-query-language").css('display', 'none');
 	}
 	currentPanel.queryType = mapIndexToDataSourceType.get(selectedDataSourceTypeIndex);
 	refreshDataSourceMenuOptions();
@@ -1124,33 +1121,6 @@ function refreshLogLinesViewMenuOptions(){
 	$('.dropDown-logLinesView span').html(logLineView);
 }
 
-function applyChangesToPanel(redirectedFromViewScreen) {
-	if(currentPanel && currentPanel.queryData) {
-		if(currentPanel.chartType === 'Line Chart') {
-			currentPanel.queryData.start = filterStartDate
-			currentPanel.queryData.end = filterEndDate
-		} else {
-			currentPanel.queryData.startEpoch = filterStartDate
-			currentPanel.queryData.endEpoch = filterEndDate
-		}
-    }
-	if (!currentPanel.queryData && currentPanel.chartType === 'Data Table' && currentPanel.queryType === 'logs') {
-		currentPanel.chartType = "";
-		currentPanel.queryType = "";
-	}
-	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
-	// update filterStartDate, filterEndDate before leaving edit panel screen
-	setTimePicker();
-	resetNestedUnitMenuOptions(selectedUnitTypeIndex);
-	if(redirectedFromViewScreen === -1) {
-		updateTimeRangeForPanel(panelIndex);
-		goToViewScreen(panelIndex);
-	}
-	else {
-		updateTimeRangeForPanels();
-		goToDashboard();
-	}
-}
 
 function goToViewScreen(panelIndex) {
 	currentPanel = undefined;
@@ -1171,7 +1141,7 @@ function goToDashboard(redirectedFromViewScreen) {
 	}
 	setTimePicker();
 	resetNestedUnitMenuOptions(selectedUnitTypeIndex);
-	currentPanel = undefined;
+	currentPanel = null;
 	resetEditPanelScreen();
 	if(redirectedFromViewScreen === -1) {
 		if(localPanels !== undefined) {
@@ -1238,7 +1208,7 @@ function resetEditPanelScreen() {
 	$('.dropDown-logLinesView span').html("Single line display view")
 	$(".index-container").css('display', 'none');
 	$("#query-language-btn").css('display', 'none');
-	$("#metrics-query-language-btn").css('display', 'none');
+	$("#metrics-query-language").css('display', 'none');
 	$('.query-language-option').removeClass('active');
 	$('#query-language-btn span').html('Splunk QL');
 	$('#query-language-options #option-3').addClass('active');
@@ -1282,24 +1252,68 @@ function resetOptions(){
 	})
 }
 function getMetricsQData() {
-	let filterValue = queryStr;
-	let endDate = filterEndDate || "now";
-	let stDate = filterStartDate || "now-15m";
+    let endDate = filterEndDate || "now";
+    let stDate = filterStartDate || "now-15m";
+    let queriesData = [];
+    let formulasData = [];
 
-	return {	
-		"start":stDate.toString(),
-		"end":endDate.toString(),
-		"queries":[
-			{
-				"name":"a",
-				"query":filterValue,
-				"qlType":"promql"
-			}
-		],
-		"formulas":[
-			{"formula":"a"}
-		]
-	};
+    // Process each query
+    for (const queryName of Object.keys(queries)) {
+        let queryDetails = queries[queryName];
+        let queryString;
+
+        if (queryDetails.state === "builder") {
+            queryString = createQueryString(queryDetails);
+        } else {
+            queryString = queryDetails.rawQueryInput;
+        }
+
+        const query = {
+            name: queryName,
+            query: `(${queryString})`,
+            qlType: "promql"
+        };
+
+        queriesData.push({
+            end: endDate,
+            queries: [query],
+            start: stDate,
+			formulas: [{formula : query.name}],
+			state : queryDetails.state
+        });
+    }
+
+    // Process formulas
+    if (Object.keys(formulas).length > 0) {
+        for (const key of Object.keys(formulas)) {
+            const formulaDetails = formulas[key];
+            const queriesInFormula = formulaDetails.queryNames.map(name => {
+                const queryDetails = queries[name];
+                let queryString;
+
+                if (queryDetails.state === "builder") {
+                    queryString = createQueryString(queryDetails);
+                } else {
+                    queryString = queryDetails.rawQueryInput;
+                }
+
+                return {
+                    name: name,
+                    query: `(${queryString})`,
+                    qlType: "promql"
+                };
+            });
+
+            formulasData.push({
+                end: endDate,
+                formulas: [{ formula: formulaDetails.formula }],
+                queries: queriesInFormula,
+                start: stDate
+            });
+        }
+    }
+
+    return { queriesData, formulasData };
 }
 
 function setQueryLangHandlerEditPanel(e) {
@@ -1333,11 +1347,11 @@ async function runQueryBtnHandler() {
 	$('.panelDisplay #corner-popup').hide();
 	$('.panelDisplay #panelLogResultsGrid').hide();
 	$('.panelDisplay .big-number-display-container').hide();
+	$('#metrics-queries, #metrics-formula').empty();
 
 	// runs the query according to the query type selected and irrespective of chart type
 	if (currentPanel.queryType == 'metrics'){
-		data = getMetricsQData();
-		currentPanel.queryData = data;
+		data = currentPanel.queryData;
 		runMetricsQuery(data, -1, currentPanel);
 	}else if (currentPanel.queryType == 'logs'){
 		data = getQueryParamsData();
@@ -1418,50 +1432,55 @@ function toggleTableView() {
 
 
 function displayPanelView(panelIndex) {
-	if (isDefaultDashboard) { // Hide save and cancel button for default dashboard
+    if (isDefaultDashboard) {
         $('.button-section, #edit-button').hide();
     }
-	let panelLayout =`<div class="panel-body">
-    <div class="panEdit-panel"></div>
-    </div>
-	`;
-	let localPanel;
-	if(currentPanel){
-		localPanel = currentPanel;
-	}else{
-		localPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));	
-	}
-    let panelId = localPanel.panelId;
+
+    const panelLayout = `<div class="panel-body"><div class="panEdit-panel"></div></div>`;
+    let localPanel = currentPanel ? currentPanel : JSON.parse(JSON.stringify(localPanels[panelIndex]));
+
+    const panelId = localPanel.panelId;
     $(`#panel-container #panel${panelId}`).remove();
-    $(`#viewPanel-container`).empty();
+    $('#viewPanel-container').empty();
 
-    let panel = $("<div>").append(panelLayout).addClass("panel").attr("id", `panel${panelId}`).attr("panel-index", localPanel.panelIndex);
-	$("#viewPanel-container").append(`<div class="view-panel-name">${localPanel.name}</div>`)
-    $("#viewPanel-container").append(panel);
+    const panel = $('<div>').append(panelLayout)
+                            .addClass('panel')
+                            .attr('id', `panel${panelId}`)
+                            .attr('panel-index', localPanel.panelIndex);
+    $('#viewPanel-container').append(`<div class="view-panel-name">${localPanel.name}</div>`);
+    $('#viewPanel-container').append(panel);
 
-    if (localPanel.chartType == 'Data Table'| localPanel.chartType == 'loglines') {
-        let panEl = $(`#panel${panelId} .panel-body`)
-        let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
-        <div id="empty-response"></div>`
-        panEl.append(responseDiv)
-        $("#panelLogResultsGrid").show();
-		runPanelLogsQuery(localPanel.queryData, panelId,localPanel);
-    } else if (localPanel.chartType == 'Line Chart') {
-        let panEl = $(`#panel${panelId} .panel-body`)
-        let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`
-        panEl.append(responseDiv)
-		runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel)
-    } else if (localPanel.chartType == 'number') {
-        let panEl = $(`#panel${panelId} .panel-body`)
-        let responseDiv = `<div class="big-number-display-container"></div>
-        <div id="empty-response"></div><div id="corner-popup"></div>`
-        panEl.append(responseDiv)
-		runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
-    } else if (localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'Bar Chart') {
-        // generic for both bar and pie chartTypes.
-        let panEl = $(`#panel${panelId} .panel-body`)
-        let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`
-        panEl.append(responseDiv)
-         runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+    const panEl = $(`#panel${panelId} .panel-body`);
+    let responseDiv;
+
+    switch (localPanel.chartType) {
+        case 'Data Table':
+        case 'loglines':
+            responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div><div id="empty-response"></div>`;
+            panEl.append(responseDiv);
+            $("#panelLogResultsGrid").show();
+            runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
+            break;
+
+        case 'Line Chart':
+        case 'number':
+            responseDiv = (localPanel.chartType === 'number') 
+                        ? `<div class="big-number-display-container"></div><div id="empty-response"></div><div id="corner-popup"></div>`
+                        : `<div id="empty-response"></div><div id="corner-popup"></div>`;
+            panEl.append(responseDiv);
+
+            if (localPanel.queryType === 'metrics') {
+                runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel);
+            } else {
+                runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+            }
+            break;
+
+        case 'Pie Chart':
+        case 'Bar Chart':
+            responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`;
+            panEl.append(responseDiv);
+            runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+            break;
     }
 }
