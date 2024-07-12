@@ -20,19 +20,10 @@
 'use strict';
 
 let panelGridDiv = null;
-let panelGridOptions;
-let panelLogsColumnDefs;
 $('.panEdit-navBar #available-fields .select-unselect-header').on('click','.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
 $('.panEdit-navBar #available-fields .select-unselect-header').on('click','.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
 
-function getGridPanelRows() {
-    // initial dataset
-    let panelLogsRowData = [];
-    return panelLogsRowData;
-}
-function getGridPanelCols(){
-    // initial columns
-    panelLogsColumnDefs = [
+let panelLogsColumn = [
         {
             field: "timestamp",
             headerName: "timestamp",
@@ -54,7 +45,6 @@ function getGridPanelCols(){
             cellRenderer: (params) => {
                 let logString = '';
                 let counter = 0;
-                    
                 _.forEach(params.data, (value, key) => {
                     let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
                    
@@ -65,14 +55,10 @@ function getGridPanelCols(){
             },
         }
     ];
-    return panelLogsColumnDefs;
-}
-
-// let the grid know which columns and what data to use
-function getPanelGridOptions() {
-    panelGridOptions = {
-        columnDefs: getGridPanelCols(),
-        rowData: getGridPanelRows(),
+var panelLogsRow = [];
+const panelGridOption = {
+        columnDefs: panelLogsColumn,
+        rowData: panelLogsRow,
         animateRows: true,
         readOnlyEdit: true,
         singleClickEdit: true,
@@ -96,26 +82,51 @@ function getPanelGridOptions() {
         suppressAnimationFrame: true,
         suppressFieldDotNotation: true,
         onBodyScroll(evt) {
-            if (evt.direction === 'vertical' && canScrollMore == true) {
-                let diff = getGridPanelRows().length - evt.api.getLastDisplayedRow();
-                // if we're less than 1 items from the end...fetch more data
+            if (evt.direction === 'vertical' && canScrollMore && !isFetching) {
+                let diff = panelLogsRow.length - evt.api.getLastDisplayedRow();
                 if (diff <= 5) {
                     let scrollingTrigger = true;
-                    data = getQueryParamsData(scrollingTrigger);
-                    runPanelLogsQuery(data);
+                    data = getQueryParamsData(scrollingTrigger);   
+                    if (
+                        data.searchText !== initialSearchData.searchText ||
+                        data.indexName !== initialSearchData.indexName ||
+                        data.startEpoch !== initialSearchData.startEpoch ||
+                        data.endEpoch !== initialSearchData.endEpoch ||
+                        data.queryLanguage !== initialSearchData.queryLanguage
+                    ) {
+                        scrollingErrorPopup();
+                        return; // Prevent further scrolling
+                    }                 
+                    isFetching = true;
+                    showLoadingIndicator();
+                    if (data && data.searchText == "error") {
+                      alert("Error");
+                      hideLoadingIndicator(); // Hide loading indicator on error
+                      isFetching = false;
+                      return;
+                    }
+    
+                    runPanelLogsQuery(data)
+                    .then(() => {
+                        isFetching = false;
+                    })
+                    .catch((error) => {
+                        console.warn("Error fetching data", error);
+                        isFetching = false;
+                    })
+                    .finally(() => {
+                        hideLoadingIndicator(); // Hide loading indicator once data is fetched
+                        isFetching = false;
+                    });
                 }
             }
         },
     };
-    return panelGridOptions;
-}
 
 
 function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
     $(`.panelDisplay .big-number-display-container`).hide();
-    let panelLogsRowData = getGridPanelRows();
-    let panelLogsColumnDefs = getGridPanelCols();
-    let panelGridOptions = getPanelGridOptions();
+    let panelGridOptions = panelGridOption;
     let logLinesViewType = currentPanel.logLinesViewType;
 
     if(panelId == -1) // for panel on the editPanelScreen page
@@ -152,25 +163,25 @@ function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
             }
         };
     });
-    panelLogsRowData = _.concat(panelLogsRowData, hits);
-    panelLogsColumnDefs = _.chain(panelLogsColumnDefs).concat(cols).uniqBy('field').value();
+    panelLogsRow = _.concat(panelLogsRow, hits);
+    panelLogsColumn = _.chain(panelLogsColumn).concat(cols).uniqBy('field').value();
 
     const allColumnIds = [];
     panelGridOptions.columnApi.getColumns().forEach((column) => {
         allColumnIds.push(column.getId());
     });
     panelGridOptions.columnApi.autoSizeColumns(allColumnIds, false);
-    panelGridOptions.api.setRowData(panelLogsRowData);
+    panelGridOptions.api.setRowData(panelLogsRow);
 
     switch (logLinesViewType){
         case 'Single line display view':
-            panelLogOptionSingleHandler(panelGridOptions,panelLogsColumnDefs);
+            panelLogOptionSingleHandler(panelGridOptions,panelLogsColumn);
             break;
         case 'Multi line display view':
-            panelLogOptionMultiHandler(panelGridOptions,panelLogsColumnDefs,panelLogsRowData);
+            panelLogOptionMultiHandler(panelGridOptions,panelLogsColumn,panelLogsRow);
             break;
         case 'Table view':
-            panelLogOptionTableHandler(panelGridOptions,panelLogsColumnDefs);
+            panelLogOptionTableHandler(panelGridOptions,panelLogsColumn);
             if (currentPanel?.selectedFields) {
                 updateColumns(currentPanel.selectedFields);
             }
@@ -179,16 +190,16 @@ function renderPanelLogsGrid(columnOrder, hits, panelId,currentPanel) {
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
 }
 
-function panelLogOptionSingleHandler(panelGridOptions,panelLogsColumnDefs){
-    panelLogsColumnDefs.forEach(function (colDef, index) {
+function panelLogOptionSingleHandler(panelGridOptions,panelLogsColumn){
+    panelLogsColumn.forEach(function (colDef, index) {
         if (colDef.field === "logs"){
             colDef.cellStyle = null;
             colDef.autoHeight = null;
         }
     });
-    panelGridOptions.api.setColumnDefs(panelLogsColumnDefs);
+    panelGridOptions.api.setColumnDefs(panelLogsColumn);
     panelGridOptions.api.resetRowHeights()
-    panelLogsColumnDefs.forEach((colDef, index) => {
+    panelLogsColumn.forEach((colDef, index) => {
         panelGridOptions.columnApi.setColumnVisible(colDef.field, false);
     });
     panelGridOptions.columnApi.setColumnVisible("logs", true);
@@ -197,30 +208,30 @@ function panelLogOptionSingleHandler(panelGridOptions,panelLogsColumnDefs){
     panelGridOptions.columnApi.autoSizeColumn(panelGridOptions.columnApi.getColumn("logs"), false);
 }
 
-function panelLogOptionMultiHandler(panelGridOptions,panelLogsColumnDefs,panelLogsRowData) {
+function panelLogOptionMultiHandler(panelGridOptions,panelLogsColumn,panelLogsRow) {
 
-        panelLogsColumnDefs.forEach(function (colDef, index) {
+        panelLogsColumn.forEach(function (colDef, index) {
             if (colDef.field === "logs"){
                 colDef.cellStyle = {'white-space': 'normal'};
                 colDef.autoHeight = true;
             }
         });
-        panelGridOptions.api.setColumnDefs(panelLogsColumnDefs);
+        panelGridOptions.api.setColumnDefs(panelLogsColumn);
         
-        panelLogsColumnDefs.forEach((colDef, index) => {
+        panelLogsColumn.forEach((colDef, index) => {
             panelGridOptions.columnApi.setColumnVisible(colDef.field, false);
         });
         panelGridOptions.columnApi.setColumnVisible("logs", true);
         panelGridOptions.columnApi.setColumnVisible("timestamp", true);
         
         panelGridOptions.columnApi.autoSizeColumn(panelGridOptions.columnApi.getColumn("logs"), false);
-        panelGridOptions.api.setRowData(panelLogsRowData);
+        panelGridOptions.api.setRowData(panelLogsRow);
         panelGridOptions.api.sizeColumnsToFit();
 }
 
-function panelLogOptionTableHandler(panelGridOptions,panelLogsColumnDefs) {
+function panelLogOptionTableHandler(panelGridOptions,panelLogsColumn) {
 
-        panelLogsColumnDefs.forEach(function (colDef, index) {
+        panelLogsColumn.forEach(function (colDef, index) {
             if (colDef.field === "logs") {
                 colDef.cellStyle = null;
                 colDef.autoHeight = null;
@@ -228,7 +239,7 @@ function panelLogOptionTableHandler(panelGridOptions,panelLogsColumnDefs) {
             } else 
                 colDef.hide = false;
         });
-        panelGridOptions.api.setColumnDefs(panelLogsColumnDefs);
+        panelGridOptions.api.setColumnDefs(panelLogsColumn);
         panelGridOptions.api.resetRowHeights();
         // Always show timestamp
         panelGridOptions.columnApi.setColumnVisible("timestamp", true);
@@ -368,4 +379,13 @@ function toggleAllAvailableFieldsHandler(evt) {
     panelGridOptions.columnApi.setColumnVisible("logs", false);
 
     updatedSelFieldList = true;
+}
+function scrollingErrorPopup(){
+    $('.popupOverlay').addClass('active');
+    $('#error-popup.popupContent').addClass('active');
+
+    $('#okay-button').on('click', function(){
+        $('.popupOverlay').removeClass('active');
+        $('#error-popup.popupContent').removeClass('active');
+    });
 }
