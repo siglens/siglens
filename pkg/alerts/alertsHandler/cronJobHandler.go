@@ -18,6 +18,7 @@ package alertsHandler
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -249,6 +250,29 @@ func getLogsQueryLinkForTheAlert(alertDetails *alertutils.AlertDetails, timeRang
 	return fullURL
 }
 
+func getMetricsQueryLinkForTheAlert(alertDetails *alertutils.AlertDetails, parsedJsonMap map[string]interface{}) string {
+	if alertDetails == nil {
+		log.Errorf("ALERTSERVICE: getMetricsQueryLinkForTheAlert: AlertDetails is nil.")
+		return ""
+	}
+
+	baseURL := config.GetQueryServerBaseUrl() + "/metrics-explorer.html"
+
+	params := url.Values{}
+
+	jsonData, err := json.Marshal(parsedJsonMap)
+	if err != nil {
+		log.Errorf("ALERTSERVICE: getMetricsQueryLinkForTheAlert: Error marshalling parsedJsonMap=%v. Alert=%+v, err=%+v", parsedJsonMap, alertDetails.AlertName, err)
+		return ""
+	}
+
+	params.Add("queryString", string(jsonData))
+
+	fullURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
+
+	return fullURL
+}
+
 func evaluateLogAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
 	searchResponse, timeRange, err := pipesearch.ProcessAlertsPipeSearchRequest(alertToEvaluate.QueryParams)
 	if err != nil {
@@ -278,7 +302,7 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 
 	qid := rutils.GetNextQid()
 
-	start, end, queries, formulas, errorLog, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToEvaluate.MetricsQueryParamsString))
+	start, end, queries, formulas, errorLog, parsedJsonMap, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToEvaluate.MetricsQueryParamsString))
 	if err != nil {
 		log.Errorf("ALERTSERVICE: evaluateMetricsAlert: Error parsing metrics query. Alert=%+v, ErrLog=%v, err=%+v", alertToEvaluate.AlertName, errorLog, err)
 		return
@@ -294,7 +318,16 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 
 	isAlertConditionMatched := len(alertsDataList) > 0
 
-	err = handleAlertCondition(alertToEvaluate, isAlertConditionMatched, fmt.Sprintf("%v", alertsDataList))
+	alertDataMessage := ""
+
+	if isAlertConditionMatched {
+		parsedJsonMap["start"] = start
+		parsedJsonMap["end"] = end
+
+		alertDataMessage = fmt.Sprintf("View the Query Results: %v", getMetricsQueryLinkForTheAlert(alertToEvaluate, parsedJsonMap))
+	}
+
+	err = handleAlertCondition(alertToEvaluate, isAlertConditionMatched, alertDataMessage)
 
 	if err != nil {
 		log.Errorf("ALERTSERVICE: evaluateMetricsAlert: Error in handleAlertCondition. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
