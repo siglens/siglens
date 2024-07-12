@@ -47,7 +47,7 @@ type AlertDetails struct {
 	QueryParams              QueryParams         `json:"queryParams" gorm:"embedded"`
 	MetricsQueryParamsString string              `json:"metricsQueryParams"`
 	Condition                AlertQueryCondition `json:"condition"`
-	Value                    float32             `json:"value"`
+	Value                    float64             `json:"value"`
 	EvalWindow               uint64              `json:"eval_for"`      // in minutes; TODO: Rename json field to eval_window
 	EvalInterval             uint64              `json:"eval_interval"` // in minutes
 	Message                  string              `json:"message"`
@@ -219,7 +219,7 @@ type MinionSearch struct {
 	SilenceMinutes  uint64              `json:"silence_minutes"`
 	QueryParams     QueryParams         `json:"queryParams" gorm:"embedded"`
 	Condition       AlertQueryCondition `json:"condition"`
-	Value           float32             `json:"value"`
+	Value           float64             `json:"value"`
 	EvalFor         uint64              `json:"eval_for"`
 	EvalInterval    uint64              `json:"eval_interval"`
 	Message         string              `json:"message"`
