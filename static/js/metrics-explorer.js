@@ -34,7 +34,7 @@ let timeUnit;
 let dayCnt7=0;
 let dayCnt2=0;
 // Used for alert screen
-let isAlertScreen, isDashboardScreen;
+let isAlertScreen, isMetricsURL, isDashboardScreen;
 let metricsQueryParams = {};
 
 // Theme
@@ -113,12 +113,23 @@ $(document).ready(async function() {
     functionsArray = allFunctions.map(function(item) {
         return item.fn;
     })
-    
-    if(!isAlertScreen && !isDashboardScreen){
+
+    // Retrieve Query from Metrics Explorer URL to Display Query Element Formula and Visualization
+    const urlParams = new URLSearchParams(window.location.search);
+    if (currentPage.includes('metrics-explorer.html') && urlParams.has('queryString')) {
+        let dataParam = getUrlParameter('queryString');
+        let jsonString = decodeURIComponent(dataParam);
+        let obj = JSON.parse(jsonString);
+        isMetricsURL = true;
+        populateMetricsQueryElement(obj)
+    }
+
+    if(!isAlertScreen && !isMetricsURL && !isDashboardScreen){
         addQueryElement();
     }
     
 });
+
 async function customRangeHandlerMetrics(_evt){
     $.each($(".range-item.active"), function () {
         $(this).removeClass('active');
@@ -129,6 +140,14 @@ async function customRangeHandlerMetrics(_evt){
     datePickerHandler(filterStartDate, filterEndDate, "custom")
     await refreshMetricsGraphs();
 }
+
+function getUrlParameter(name) {
+    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+    let regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+    let results = regex.exec(location.search);
+    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
+
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
     resetCustomDateRange();
@@ -191,21 +210,19 @@ function createFormulaElementTemplate(uniqueId, initialValue = '') {
 
 function formulaRemoveHandler(formulaElement, uniqueId) {
     formulaElement.find('.remove-query').on('click', function() {
-        delete formulas[uniqueId];
-        formulaElement.remove();
-        removeVisualizationContainer(uniqueId);
-        $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
-    });
-}
-
-function formulaAlertRemoveHandler(formulaElement, uniqueId){
-    formulaElement.find('.remove-query').on('click', function() {
-        var formulaBtn = $("#add-formula");
-        formulas = {};
-        formulaElement.remove();
-        formulaBtn.prop('disabled',false);
-        activateFirstQuery();
-        $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+        if(isAlertScreen){
+            var formulaBtn = $("#add-formula");
+            formulas = {};
+            formulaElement.remove();
+            formulaBtn.prop('disabled',false);
+            activateFirstQuery();
+            $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+        }else{
+            delete formulas[uniqueId];
+            formulaElement.remove();
+            removeVisualizationContainer(uniqueId);
+            $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+        }
     });
 }
 
@@ -276,7 +293,7 @@ async function addAlertsFormulaElement(formulaInput) {
         $('#metrics-queries .metrics-query .query-name').removeClass('active');
     }
 
-    formulaAlertRemoveHandler(formulaElement, uniqueId);
+    formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
 }
 
@@ -2213,3 +2230,30 @@ $('#alert-from-metrics-container').click(function() {
     var newTab = window.open("../alert.html?queryString=" + queryString, '_blank');
     newTab.focus();
 });
+
+async function populateMetricsQueryElement(metricsQueryParams){
+    const { start, end, queries, formulas } = metricsQueryParams;
+    if (!isNaN(start)) {
+        let stDate = Number(start);
+        let endDate = Number(end);
+        datePickerHandler(stDate, endDate, "custom");
+        loadCustomDateTimeFromEpoch(stDate,endDate);
+    }else{
+        $(`.ranges .inner-range #${start}`).addClass('active');
+        datePickerHandler(start, end, start);
+    }
+    
+    if (functionsArray) {
+        const allFunctions = await getFunctions();
+        functionsArray = allFunctions.map(item => item.fn);
+    }
+    
+    for (const query of queries) {
+        const parsedQueryObject = parsePromQL(query.query);
+        await addQueryElementOnAlertEdit(query.name, parsedQueryObject);
+    }
+    
+    if (queries.length >= 1) {
+        await addAlertsFormulaElement(formulas[0].formula);
+    }
+}
