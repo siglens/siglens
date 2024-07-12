@@ -517,7 +517,7 @@ input:checked + .slider:before {
     border: none;
 }
 
-.refresh-btn{
+#metrics-container .refresh-btn{
     height: 30px !important;
     width: 30px !important;
     border: 1px solid var(--border-color-regular);

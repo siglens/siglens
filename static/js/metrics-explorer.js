@@ -34,7 +34,7 @@ let timeUnit;
 let dayCnt7=0;
 let dayCnt2=0;
 // Used for alert screen
-let isAlertScreen;
+let isAlertScreen, isDashboardScreen;
 let metricsQueryParams = {};
 
 // Theme
@@ -96,6 +96,9 @@ $(document).ready(async function() {
     filterEndDate = "now";
     $('.inner-range #' + filterStartDate).addClass('active');
     datePickerHandler(filterStartDate, filterEndDate, filterStartDate)
+    if (currentPage === "/dashboard.html") {
+        isDashboardScreen = true;
+    } 
 
     $('#metrics-container #date-start').on('change', getStartDateHandler);
     $('#metrics-container #date-end').on('change', getEndDateHandler);
@@ -111,7 +114,7 @@ $(document).ready(async function() {
         return item.fn;
     })
     
-    if(!isAlertScreen){
+    if(!isAlertScreen && !isDashboardScreen){
         addQueryElement();
     }
     
@@ -277,10 +280,15 @@ async function addAlertsFormulaElement(formulaInput) {
     formulaInputHandler(formulaElement, uniqueId);
 }
 
-function addMetricsFormulaElement() {
-    let uniqueId = generateUniqueId();
-    let formulaElement = createFormulaElementTemplate(uniqueId);
+async function addMetricsFormulaElement(uniqueId = generateUniqueId(), formulaInput) {
+    // For Dashboards 
+    if (formulaInput) {
+        const validationResult = validateFormula(formulaInput);
+        formulas[uniqueId] = validationResult;
+        await getMetricsDataForFormula(uniqueId, validationResult);
+    }
 
+    const formulaElement = createFormulaElementTemplate(uniqueId, formulaInput);
     $('#metrics-formula').append(formulaElement);
     formulaRemoveHandler(formulaElement, uniqueId);
     formulaInputHandler(formulaElement, uniqueId);
@@ -915,12 +923,7 @@ function updateCloseIconVisibility() {
     var numQueries = $('#metrics-queries').children('.metrics-query').length;
     $('.metrics-query .remove-query').toggle(numQueries > 1);
 }
-
-function initializeChart(canvas, seriesData, queryName, chartType) {
-    var ctx = canvas[0].getContext('2d');
-    var datasets = [];
-    var labels = [];
-    // Extract labels and datasets from seriesData
+function prepareChartData(seriesData, chartDataCollection, queryName) {
     var labels = [];
     var datasets = [];
     
@@ -952,6 +955,14 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 
     // Save chart data to the global variable
     chartDataCollection[queryName] = chartData;
+
+    return chartData;
+}
+
+function initializeChart(canvas, seriesData, queryName, chartType) {
+    var ctx = canvas[0].getContext('2d');
+
+    let chartData = prepareChartData(seriesData, chartDataCollection, queryName)
 
     const { gridLineColor, tickColor } = getGraphGridColors();
 
@@ -1040,50 +1051,56 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     return lineChart;
 }
 
-function addVisualizationContainer(queryName, seriesData, queryString) {
-    addToFormulaCache(queryName, queryString);
-    var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
-    if (existingContainer.length === 0){
-        var visualizationContainer = $(`
-        <div class="metrics-graph" data-query="${queryName}">
-            <div class="query-string">${queryString}</div>
-            <div class="graph-canvas"></div>
-        </div>`);
-
-        // Determine where to insert the new container
-        if (queryName.startsWith('formula')) {
-            // Insert after all formula queries
-            var lastFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:last');
-            if (lastFormula.length) {
-                lastFormula.after(visualizationContainer);
+function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
+    if(isDashboardScreen) { // For dashboard page
+        prepareChartData(seriesData, chartDataCollection, queryName);
+        mergeGraphs(chartType, panelId);
+    }else{
+        // For metrics explorer page
+        var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`)
+        if (existingContainer.length === 0){
+            var visualizationContainer = $(`
+            <div class="metrics-graph" data-query="${queryName}">
+                <div class="query-string">${queryString}</div>
+                <div class="graph-canvas"></div>
+            </div>`);
+    
+            // Determine where to insert the new container
+            if (queryName.startsWith('formula')) {
+                // Insert after all formula queries
+                var lastFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:last');
+                if (lastFormula.length) {
+                    lastFormula.after(visualizationContainer);
+                } else {
+                    // If no formula queries exist, append to the end
+                    $('#metrics-graphs').append(visualizationContainer);
+                }
             } else {
-                // If no formula queries exist, append to the end
-                $('#metrics-graphs').append(visualizationContainer);
+                // Insert before the first formula query
+                var firstFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:first');
+                if (firstFormula.length) {
+                    firstFormula.before(visualizationContainer);
+                } else {
+                    // If no formula queries exist, append to the end
+                    $('#metrics-graphs').append(visualizationContainer);
+                }
             }
-        } else {
-            // Insert before the first formula query
-            var firstFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:first');
-            if (firstFormula.length) {
-                firstFormula.before(visualizationContainer);
-            } else {
-                // If no formula queries exist, append to the end
-                $('#metrics-graphs').append(visualizationContainer);
-            }
+    
+            var canvas = $('<canvas></canvas>');
+            visualizationContainer.find('.graph-canvas').append(canvas);
+        } else{
+            existingContainer.find('.query-string').text(queryString);
+            var canvas = $('<canvas></canvas>');
+            existingContainer.find('.graph-canvas').empty().append(canvas);
         }
-
-        var canvas = $('<canvas></canvas>');
-        visualizationContainer.find('.graph-canvas').append(canvas);
-    } else{
-        existingContainer.find('.query-string').text(queryString);
-        var canvas = $('<canvas></canvas>');
-        existingContainer.find('.graph-canvas').empty().append(canvas);
+    
+        var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
+    
+        lineCharts[queryName] = lineChart;
+        updateGraphWidth();
+        mergeGraphs(chartType)
     }
-
-    var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
-
-    lineCharts[queryName] = lineChart;
-    updateGraphWidth();
-    mergeGraphs(chartType)
+    addToFormulaCache(queryName, queryString);   
 }
 
 function removeVisualizationContainer(queryName) {
@@ -1398,17 +1415,35 @@ document.getElementById('json-block').addEventListener('click', function(){
     }
 });
 // Merge Graphs in one
-function mergeGraphs(chartType) {
-    var visualizationContainer = $(`
-        <div class="merged-graph-name"></div>
-        <div class="merged-graph"></div>`);
-
-    $('#merged-graph-container').empty().append(visualizationContainer);
+function mergeGraphs(chartType, panelId=-1) {
+    if(isDashboardScreen){
+        // For dashboard page
+        var panelChartEl;
+        if (panelId === -1) {
+            panelChartEl = $(`.panelDisplay .panEdit-panel`);
+        } else {
+            panelChartEl = $(`#panel${panelId} .panEdit-panel`);
+            panelChartEl.css("width", "100%").css("height", "100%");
+        }
     
-    var mergedCanvas = $('<canvas></canvas>');
-
-    $('.merged-graph').empty().append(mergedCanvas);
-    var mergedCtx = mergedCanvas[0].getContext('2d');
+        panelChartEl.empty(); // Clear any existing content
+        var mergedCanvas = $('<canvas></canvas>');
+        panelChartEl.append(mergedCanvas);
+    
+        var mergedCtx = panelChartEl.find('canvas')[0].getContext('2d');
+    }else{
+        // For metrics explorer page
+        var visualizationContainer = $(`
+            <div class="merged-graph-name"></div>
+            <div class="merged-graph"></div>`);
+    
+        $('#merged-graph-container').empty().append(visualizationContainer);
+        
+        var mergedCanvas = $('<canvas></canvas>');
+    
+        $('.merged-graph').empty().append(mergedCanvas);
+        var mergedCtx = mergedCanvas[0].getContext('2d');
+    }
 
     var mergedData = {
         labels: [],
@@ -1446,6 +1481,7 @@ function mergeGraphs(chartType) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
+                    display: shouldShowLegend(panelId, mergedData.datasets),
                     position: 'bottom',
                     align: 'start',
                     labels: {
@@ -1509,6 +1545,10 @@ function mergeGraphs(chartType) {
     mergedGraph = mergedLineChart;
     updateDownloadButtons();
 }
+
+const shouldShowLegend = (panelId, datasets) => {
+    return panelId===-1 || datasets.length < 5;
+};
 
 // Converting the response in form to use to create graphs
 async function convertDataForChart(data) {
@@ -1630,7 +1670,7 @@ async function getMetricsData(queryName, metricName) {
     const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
 
     const res = await fetchTimeSeriesData(data);
-    metricsQueryParams = data;
+    metricsQueryParams = data;  // For alerts page 
 
     if (res) {
         rawTimeSeriesData = res;
@@ -1990,8 +2030,8 @@ function activateFirstQuery() {
     getQueryDetails(queryName, queryDetails);
 }
  
-
-async function addQueryElementOnAlertEdit(queryName, queryDetails) {
+// Add a query element for both the dashboard edit panel and the alert edit panel
+async function addQueryElementForAlertAndPanel(queryName, queryDetails) {
 
     var queryElement = createQueryElementTemplate(queryName)
     $('#metrics-queries').append(queryElement);
