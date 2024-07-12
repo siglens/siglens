@@ -47,6 +47,7 @@ let navbarComponent = `
             <ul class="metrics-dropdown">
                 <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
                 <a href="./metric-summary.html"><li class="metrics-summary-metrics-link">Summary</li></a>
+                <a href="./metric-cardinality.html"><li class="metrics-summary-metrics-link">Cardinatlity</li></a>
             </ul>
         </div>
         <div class="menu nav-slos" title="SLOs">
