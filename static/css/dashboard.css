@@ -324,17 +324,20 @@
 }
 
 .editPanelMenu-dataSource {
-  width: 100%;
+  width: 120px;
+  position: absolute;
+  z-index: 9;
 }
 
 .queryInput-container {
-  margin-left: 10px;
   width: 100%;
+  display: flex;
 }
 
 .queryInput-InnerContainer{
   display: flex;
   flex-direction: row;
+  width: 100%;
 }
 
 .dropDown-dataSource {
@@ -908,12 +911,6 @@
   white-space: nowrap;
   font-weight: 600;
   font-size: 16px;
-}
-
-#metrics-query-language-btn{
-  height: 32px;
-  margin-left: 10px;
-  padding: 0px 20px;
 }
 
 .queryInput-InnerContainer .info-icon{
@@ -1530,4 +1527,7 @@ input:checked + .slider:before {
 }
 #avail-field-container{
   display: none;
+}
+#metrics-query-language{
+  width: 100%;
 }
