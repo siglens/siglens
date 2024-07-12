@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+'use strict';
 let alertData = {};
 let alertID;
 let alertEditFlag = 0;
@@ -85,7 +85,7 @@ let originalIndexValues;
 let indexValues;
 
 $(document).ready(async function () {
-    $('.theme-btn').on('click', themePickerHandler);
+    $('.theme-btn').on("click", themePickerHandler);
     $('#logs-language-btn').show();
     let startTime = 'now-30m';
     let endTime = 'now';

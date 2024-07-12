@@ -1,6 +1,11 @@
-name: Format the JS code
+name: Format and Lint the JS code
 
-on: [pull_request]
+
+on:
+  push:
+    branches:
+      - 'JS_code_formatting'
+
 
 jobs:
   format:
