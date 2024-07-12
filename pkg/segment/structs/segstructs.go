@@ -99,7 +99,6 @@ const (
 	GroupByType
 	TransactionType
 	VectorArithmeticExprType
-	StreamStatsType
 )
 
 type QueryType uint8
