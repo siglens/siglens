@@ -1855,8 +1855,8 @@ function activateFirstQuery() {
     getQueryDetails(queryName, queryDetails);
 }
  
-
-async function addQueryElementOnAlertEdit(queryName, queryDetails) {
+// Add a query element for both the dashboard edit panel and the alert edit panel
+async function addQueryElementForAlertAndPanel(queryName, queryDetails) {
 
     var queryElement = createQueryElementTemplate(queryName)
     $('#metrics-queries').append(queryElement);

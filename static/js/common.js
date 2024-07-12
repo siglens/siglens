@@ -564,7 +564,7 @@ async function runMetricsQuery(data, panelId, currentPanel, queryRes) {
         for (const queryData of data.queriesData) {
             rawTimeSeriesData = await fetchTimeSeriesData(queryData);
             const parsedQueryObject = parsePromQL(queryData.queries[0].query);
-            await addQueryElementOnAlertEdit(queryData.queries[0].name, parsedQueryObject);
+            await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
         }
         $.each(rawTimeSeriesData.values, function (index, valueArray) {
             $.each(valueArray, function (index, value) {
@@ -588,7 +588,7 @@ async function runMetricsQuery(data, panelId, currentPanel, queryRes) {
         if(panelId === -1){// for panel on the editPanelScreen page
             for (const queryData of data.queriesData) {
                 const parsedQueryObject = parsePromQL(queryData.queries[0].query);
-                await addQueryElementOnAlertEdit(queryData.queries[0].name, parsedQueryObject);
+                await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
             }
             for (const formulaData of data.formulasData) {
                 let uniqueId = generateUniqueId();
