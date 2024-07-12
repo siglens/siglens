@@ -2629,15 +2629,10 @@ func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (interfa
 	}
 
 	if spanOpt.LogSpan != nil {
-		if value == 0.0 {
-			return 0, nil
+		if value <= 0 {
+			return value, nil
 		}
-		isNegative := false
-		if value < 0 {
-			// for negative values create bins like positive and apply negative sign
-			isNegative = true
-			value = -value
-		}
+
 		val := value / spanOpt.LogSpan.Coefficient
 		logVal := math.Log10(val) / math.Log10(spanOpt.LogSpan.Base)
 		floorVal := math.Floor(logVal)
@@ -2647,9 +2642,7 @@ func performBinWithSpan(value float64, spanOpt *structs.BinSpanOptions) (interfa
 		}
 		lowerBound := math.Pow(spanOpt.LogSpan.Base, floorVal) * spanOpt.LogSpan.Coefficient
 		upperBound := math.Pow(spanOpt.LogSpan.Base, ceilVal) * spanOpt.LogSpan.Coefficient
-		if isNegative {
-			return fmt.Sprintf("%v-%v", -upperBound, -lowerBound), nil
-		}
+
 		return fmt.Sprintf("%v-%v", lowerBound, upperBound), nil
 	}
 
