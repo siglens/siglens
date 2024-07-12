@@ -507,20 +507,12 @@ $('.panEdit-save').on("click",async function(redirectedFromViewScreen){
 		currentPanel.queryData = data;
     }
 	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
-    let filterStartDate;
-    let filterEndDate;
-    if (currentPanel.queryType === 'metrics') {
-        filterStartDate = currentPanel.queryData.queriesData[0].start;
-        filterEndDate = currentPanel.queryData.queriesData[0].end;
-    } else { // logs
-        filterStartDate = currentPanel.queryData.startEpoch;
-        filterEndDate = currentPanel.queryData.endEpoch;
-    }
 	updateTimeRangeForAllPanels(filterStartDate,filterEndDate)
 	await updateDashboard();
 	$('.panelEditor-container').hide();
 	$('.popupOverlay').removeClass('active');
 	$('#app-container').show();
+	currentPanel = null;
 	await displayPanels()
 });
 
@@ -1129,33 +1121,6 @@ function refreshLogLinesViewMenuOptions(){
 	$('.dropDown-logLinesView span').html(logLineView);
 }
 
-function applyChangesToPanel(redirectedFromViewScreen) {
-	if(currentPanel && currentPanel.queryData) {
-		if(currentPanel.chartType === 'Line Chart') {
-			currentPanel.queryData.start = filterStartDate
-			currentPanel.queryData.end = filterEndDate
-		} else {
-			currentPanel.queryData.startEpoch = filterStartDate
-			currentPanel.queryData.endEpoch = filterEndDate
-		}
-    }
-	if (!currentPanel.queryData && currentPanel.chartType === 'Data Table' && currentPanel.queryType === 'logs') {
-		currentPanel.chartType = "";
-		currentPanel.queryType = "";
-	}
-	localPanels[panelIndex] = JSON.parse(JSON.stringify(currentPanel));
-	// update filterStartDate, filterEndDate before leaving edit panel screen
-	setTimePicker();
-	resetNestedUnitMenuOptions(selectedUnitTypeIndex);
-	if(redirectedFromViewScreen === -1) {
-		updateTimeRangeForPanel(panelIndex);
-		goToViewScreen(panelIndex);
-	}
-	else {
-		updateTimeRangeForPanels();
-		goToDashboard();
-	}
-}
 
 function goToViewScreen(panelIndex) {
 	currentPanel = undefined;
@@ -1176,7 +1141,7 @@ function goToDashboard(redirectedFromViewScreen) {
 	}
 	setTimePicker();
 	resetNestedUnitMenuOptions(selectedUnitTypeIndex);
-	currentPanel = undefined;
+	currentPanel = null;
 	resetEditPanelScreen();
 	if(redirectedFromViewScreen === -1) {
 		if(localPanels !== undefined) {

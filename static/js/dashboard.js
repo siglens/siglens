@@ -408,7 +408,7 @@ async function getDashboardData() {
     if (localPanels != undefined) {
         displayPanels();
         setFavoriteValue(dbData.isFavorite);
-        updateTimeRangeForPanels();
+        setTimePickerValue(dbData.timeRange);
         setRefreshItemHandler();
 
         if (!(localPanels.length > 0)) {
@@ -422,51 +422,38 @@ async function getDashboardData() {
     }
 }
 
-function updateTimeRangeForPanels() {
-    localPanels.forEach(panel => {
-        delete panel.queryRes;
-        if(panel.queryData) {
-            if(panel.chartType === "Line Chart" || panel.queryType === "metrics") {
-                if (panel.queryData) {
-                    // Update start and end for each item in queriesData
-                    if (Array.isArray(panel.queryData.queriesData)) {
-                        panel.queryData.queriesData.forEach(query => {
-                            datePickerHandler(query.start, query.end, query.start)
-                            query.start = filterStartDate;
-                            query.end = filterEndDate;
-                        });
-                    }
-
-                    // Update start and end for each item in formulasData
-                    if (Array.isArray(panel.queryData.formulasData)) {
-                        panel.queryData.formulasData.forEach(formula => {
-                            datePickerHandler(formula.start, formula.end, formula.start)
-                            formula.start = filterStartDate;
-                            formula.end = filterEndDate;
-                        });
-                    }
+function setTimePickerValue(timeRange){
+    let start, end;
+        
+    localPanels.some(panel => {
+        if (panel.queryData) {
+            if (panel.chartType === "Line Chart" || panel.queryType === "metrics") {
+                if (Array.isArray(panel.queryData.queriesData)) {
+                    let query = panel.queryData.queriesData[0];
+                    start = query.start;
+                    end = query.end;
+                    return true; 
                 }
             } else {
-                datePickerHandler(panel.queryData.startEpoch, panel.queryData.endEpoch, panel.queryData.startEpoch)
-                panel.queryData.startEpoch = filterStartDate
-                panel.queryData.endEpoch = filterEndDate
+                start = panel.queryData.startEpoch;
+                end = panel.queryData.endEpoch;
+                datePickerHandler(start, end, "custom");
+                return true; 
             }
         }
+        return false; 
+    });
+    if (timeRange === 'Custom') {
+        let stDate = Number(start);
+        let endDate = Number(end);
+        datePickerHandler(stDate, endDate, "custom");
         $('.inner-range .db-range-item').removeClass('active');
-        $('.inner-range #' + filterStartDate).addClass('active');
-    })
-}
 
-function updateTimeRangeForPanel(panelIndex) {
-    delete localPanels[panelIndex].queryRes;
-    if(localPanels[panelIndex].queryData) {
-        if(localPanels[panelIndex].chartType === "Line Chart" && localPanels[panelIndex].queryType === "metrics") {
-            localPanels[panelIndex].queryData.start = filterStartDate.toString();
-            localPanels[panelIndex].queryData.end = filterEndDate.toString();
-        } else {
-            localPanels[panelIndex].queryData.startEpoch = filterStartDate
-            localPanels[panelIndex].queryData.endEpoch = filterEndDate
-        }
+        loadCustomDateTimeFromEpoch(stDate, endDate);
+    } else {
+        datePickerHandler(start, end, dbData.timeRange);
+        $('.inner-range .db-range-item').removeClass('active');
+        $('.inner-range #' + start).addClass('active');
     }
 }
 
@@ -501,7 +488,16 @@ function updateTimeRangeForAllPanels(filterStartDate,filterEndDate){
         }
     });
     $('.inner-range .db-range-item').removeClass('active');
-    $('.inner-range #' + filterStartDate).addClass('active');
+
+    if (!isNaN(filterStartDate)) {
+        let stDate = Number(filterStartDate);
+        let endDate = Number(filterEndDate);
+        datePickerHandler(stDate, endDate, "custom");
+        loadCustomDateTimeFromEpoch(stDate,endDate);
+    }else{
+        $('.inner-range #' + filterStartDate).addClass('active');
+        datePickerHandler(filterStartDate, filterEndDate, filterStartDate);
+    }
 }
 
 
