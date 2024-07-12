@@ -17,6 +17,7 @@
             "panelId": "fa6d6a00-53f2-4340-ae34-2fbf2ce399d0",
             "panelIndex": 0,
             "queryData": {
+              "queriesData":[{ 
                 "end": "now",
                 "formulas": [
                     {
@@ -31,6 +32,8 @@
                     }
                   ],
                 "start": "now-1h"
+                }],
+                "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",
@@ -51,6 +54,7 @@
             "panelId": "8ad97ab8-657b-4563-b3d6-f50f3d99232e",
             "panelIndex": 1,
             "queryData": {
+              "queriesData":[{ 
                 "end": "now",
                 "formulas": [
                     {
@@ -65,6 +69,8 @@
                     }
                   ],
                 "start": "now-1h"
+                }],
+                "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",
@@ -85,6 +91,7 @@
             "panelId": "88179951-1fd4-4fae-91c2-843dedc032ca",
             "panelIndex": 2,
             "queryData": {
+              "queriesData":[{ 
                 "end": "now",
                 "formulas": [
                     {
@@ -99,6 +106,8 @@
                     }
                   ],
                 "start": "now-1h"
+              }],
+              "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",
@@ -119,6 +128,7 @@
             "panelId": "a14d8a46-e9ea-4e61-aff0-a07a540fa8a8",
             "panelIndex": 3,
             "queryData": {
+              "queriesData":[{ 
                 "end": "now",
                 "formulas": [
                     {
@@ -133,6 +143,8 @@
                     }
                   ],
                 "start": "now-1h"
+              }],
+              "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",
@@ -153,6 +165,7 @@
             "panelId": "c6cba2f2-e791-4c42-b6fa-e71bd94a6c51",
             "panelIndex": 4,
             "queryData": {
+              "queriesData":[{ 
                 "end": "now",
                 "formulas": [
                     {
@@ -167,6 +180,8 @@
                     }
                   ],
                 "start": "now-1h"
+              }],
+              "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",
@@ -187,6 +202,7 @@
             "panelId": "b5bc62e4-63c3-4fb4-b262-4a02b8b43e2d",
             "panelIndex": 5,
             "queryData": {
+              "queriesData":[{ 
                 "end": "now",
                 "formulas": [
                     {
@@ -201,6 +217,8 @@
                     }
                   ],
                 "start": "now-1h"
+              }],
+              "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",
@@ -221,6 +239,7 @@
             "panelId": "b3a89c5d-8924-4422-af33-bdc4a36ed78d",
             "panelIndex": 6,
             "queryData": {
+              "queriesData":[{ 
                 "end": "now",
                 "formulas": [
                     {
@@ -235,6 +254,8 @@
                     }
                   ],
                 "start": "now-1h"
+              }],
+              "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",
@@ -255,6 +276,7 @@
             "panelId": "a740460e-451f-4fed-aa59-e4764fd638a3",
             "panelIndex": 7,
             "queryData": {
+              "queriesData":[{ 
                 "end": "now",
                 "formulas": [
                     {
@@ -269,6 +291,8 @@
                     }
                   ],
                 "start": "now-1h"
+              }],
+              "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",

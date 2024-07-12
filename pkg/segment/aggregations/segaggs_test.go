@@ -24,6 +24,7 @@ import (
 	"math/rand"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -2432,4 +2433,149 @@ func Test_performMultiValueColRequestOnHistogram_Setsv(t *testing.T) {
 	for _, bucketResult := range nodeRes.Histogram["1"].Results {
 		assert.Equal(t, expectedResults[bucketResult.ElemCount], bucketResult.BucketKey)
 	}
+}
+
+func Test_findBucketMonth(t *testing.T) {
+	testTime := time.Date(2024, time.August, 1, 12, 16, 18, 20, time.UTC)
+	bucket := findBucketMonth(testTime, 3)
+	expectedTime := uint64(time.Date(2024, time.July, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, bucket)
+
+	bucket = findBucketMonth(testTime, 4)
+	expectedTime = uint64(time.Date(2024, time.May, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, bucket)
+
+	bucket = findBucketMonth(testTime, 6)
+	expectedTime = uint64(time.Date(2024, time.July, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, bucket)
+
+	bucket = findBucketMonth(testTime, 12)
+	expectedTime = uint64(time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, bucket)
+}
+
+func Test_performBinWithSpan(t *testing.T) {
+	spanOpt := &structs.BinSpanOptions{
+		BinSpanLength: &structs.BinSpanLength{
+			Num:       10,
+			TimeScale: utils.TMInvalid,
+		},
+	}
+
+	val, err := performBinWithSpan(300, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "300-310", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(295, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "290-300", fmt.Sprintf("%v", val))
+
+	spanOpt.BinSpanLength.TimeScale = utils.TMSecond
+
+	val, err = performBinWithSpan(300, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "300", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(295, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "290", fmt.Sprintf("%v", val))
+
+	spanOpt.BinSpanLength = nil
+	spanOpt.LogSpan = &structs.LogSpan{
+		Base:        3,
+		Coefficient: 2,
+	}
+
+	val, err = performBinWithSpan(301, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "162-486", fmt.Sprintf("%v", val))
+
+	spanOpt.LogSpan = &structs.LogSpan{
+		Base:        1.2,
+		Coefficient: 1,
+	}
+
+	val, err = performBinWithSpan(500, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "492.22352429520225-590.6682291542427", fmt.Sprintf("%v", val))
+}
+
+func Test_getTimeBucketWithAlign(t *testing.T) {
+	testTime := time.Date(2024, time.July, 7, 17, 0, 35, 398*1000000, time.UTC)
+	assert.Equal(t, 1720371635398, int(testTime.UnixMilli()))
+
+	spanOpt := &structs.BinSpanOptions{
+		BinSpanLength: &structs.BinSpanLength{
+			Num: 2,
+		},
+	}
+
+	val := getTimeBucketWithAlign(testTime, time.Duration(time.Second), spanOpt, nil)
+	expectedTime := int(time.Date(2024, time.July, 7, 17, 0, 34, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, val)
+
+	alignTime := uint64(time.Date(2024, time.July, 7, 0, 0, 0, 0, time.UTC).UnixMilli())
+	spanOpt.BinSpanLength.Num = 7
+
+	val = getTimeBucketWithAlign(testTime, time.Duration(time.Minute), spanOpt, &alignTime)
+	expectedTime = int(time.Date(2024, time.July, 7, 16, 55, 0, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, val)
+
+	alignTime = uint64(time.Date(2024, time.July, 7, 17, 0, 36, 0, time.UTC).UnixMilli())
+	spanOpt.BinSpanLength.Num = 10
+
+	val = getTimeBucketWithAlign(testTime, time.Duration(time.Second), spanOpt, &alignTime)
+	expectedTime = int(time.Date(2024, time.July, 7, 17, 0, 26, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, val)
+}
+
+func Test_findSpan(t *testing.T) {
+	spanOpt, err := findSpan(301, 500, 100, nil, "abc")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(10), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
+
+	spanOpt, err = findSpan(301, 500, 2, nil, "abc")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(1000), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
+
+	minSpan := &structs.BinSpanLength{
+		Num:       1001,
+		TimeScale: utils.TMInvalid,
+	}
+
+	spanOpt, err = findSpan(301, 500, 100, minSpan, "abc")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(10000), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
+
+	minTime := time.Date(2024, time.July, 7, 17, 0, 0, 0, time.UTC).UnixMilli()
+	maxTime := time.Date(2024, time.July, 7, 17, 0, 35, 0, time.UTC).UnixMilli()
+
+	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 100, nil, "timestamp")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(1), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMSecond, spanOpt.BinSpanLength.TimeScale)
+
+	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 10, nil, "timestamp")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(10), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMSecond, spanOpt.BinSpanLength.TimeScale)
+
+	minSpan.Num = 2
+	minSpan.TimeScale = utils.TMMinute
+
+	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 10, minSpan, "timestamp")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(5), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMMinute, spanOpt.BinSpanLength.TimeScale)
+
+	maxTime = time.Date(2024, time.July, 7, 17, 2, 35, 0, time.UTC).UnixMilli()
+
+	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 2, nil, "timestamp")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(5), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMMinute, spanOpt.BinSpanLength.TimeScale)
+
 }
